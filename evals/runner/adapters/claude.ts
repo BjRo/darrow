@@ -10,7 +10,7 @@ export const claudeAdapter: HarnessAdapter = {
   defaultModel: "claude-sonnet-4-6",
   skillMounts: [".claude/skills"],
 
-  async run(repoDir, prompt, model): Promise<HarnessResult> {
+  async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
     const proc = Bun.spawn(
       [
@@ -21,6 +21,8 @@ export const claudeAdapter: HarnessAdapter = {
         "json",
         "--model",
         model,
+        "--effort",
+        effort,
         "--dangerously-skip-permissions",
       ],
       { cwd: repoDir, stdout: "pipe", stderr: "pipe" },

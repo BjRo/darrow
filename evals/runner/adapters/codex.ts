@@ -12,7 +12,7 @@ export const codexAdapter: HarnessAdapter = {
   defaultModel: "gpt-5.5",
   skillMounts: [".agents/skills"],
 
-  async run(repoDir, prompt, model): Promise<HarnessResult> {
+  async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
     const proc = Bun.spawn(
       [
@@ -22,6 +22,8 @@ export const codexAdapter: HarnessAdapter = {
         "--json",
         "-m",
         model,
+        "-c",
+        `model_reasoning_effort="${effort}"`,
         "--skip-git-repo-check",
         "--dangerously-bypass-approvals-and-sandbox",
       ],

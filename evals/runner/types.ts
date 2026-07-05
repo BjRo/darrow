@@ -50,7 +50,7 @@ export interface HarnessAdapter {
   defaultModel: string;
   /** Repo-relative directories where the skill folder gets mounted. */
   skillMounts: string[];
-  run(repoDir: string, prompt: string, model: string): Promise<HarnessResult>;
+  run(repoDir: string, prompt: string, model: string, effort: string): Promise<HarnessResult>;
 }
 
 export interface CheckResult {
@@ -71,6 +71,7 @@ export interface CaseResult {
   invariant: string;
   harness: string;
   model: string;
+  effort: string;
   trials: TrialResult[];
   passRate: number;
   meanDurationMs: number;

@@ -44,6 +44,7 @@ async function runCase(
   evalCase: EvalCase,
   adapter: HarnessAdapter,
   model: string,
+  effort: string,
   trials: number,
   dry: boolean,
 ): Promise<CaseResult> {
@@ -64,7 +65,7 @@ async function runCase(
         });
         continue;
       }
-      const harness = await adapter.run(repoDir, evalCase.prompt, model);
+      const harness = await adapter.run(repoDir, evalCase.prompt, model, effort);
       const checks = await runChecks(repoDir, evalCase.checks);
       const passed = harness.ok && checks.every((c) => c.passed);
       trialResults.push({ trial, passed, checks, harness });
@@ -87,6 +88,7 @@ async function runCase(
     invariant: evalCase.invariant,
     harness: adapter.name,
     model,
+    effort,
     trials: trialResults,
     passRate: trialResults.filter((t) => t.passed).length / Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
@@ -100,6 +102,7 @@ const { values } = parseArgs({
   options: {
     harness: { type: "string", default: "claude" },
     model: { type: "string" },
+    effort: { type: "string", default: "medium" },
     trials: { type: "string", default: "5" },
     case: { type: "string" },
     threshold: { type: "string", default: "0.8" },
@@ -123,14 +126,14 @@ if (!cases.length) {
 const trials = Number(values.trials);
 const threshold = Number(values.threshold);
 console.log(
-  `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}` +
+  `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${values.effort}` +
     (values.dry ? " [dry run — no harness calls]" : ""),
 );
 
 const results: CaseResult[] = [];
 for (const evalCase of cases) {
   console.log(`\n${evalCase.id} (${evalCase.invariant})`);
-  results.push(await runCase(evalCase, adapter, model, trials, values.dry!));
+  results.push(await runCase(evalCase, adapter, model, values.effort!, trials, values.dry!));
 }
 
 console.log("\n── Summary ──");
@@ -147,7 +150,7 @@ for (const r of results) {
 
 await mkdir(RESULTS_ROOT, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const outPath = join(RESULTS_ROOT, `${stamp}-${adapter.name}-${model}.json`);
+const outPath = join(RESULTS_ROOT, `${stamp}-${adapter.name}-${model}-${values.effort}.json`);
 await writeFile(outPath, JSON.stringify(results, null, 2));
 console.log(`\nResults: ${outPath}`);
 
