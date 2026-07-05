@@ -1,0 +1,22 @@
+id: create-commit-untracked-file
+invariant: GW-C2
+skill: create-commit
+prompt: Commit the new date helper module.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  files:
+    src/date-helper.ts: "export const today = () => new Date().toISOString().slice(0, 10);\n"
+    scratch.md: "random unrelated notes\n"
+checks:
+  - name: commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
+  - name: helper committed
+    run: git show --name-only --format="" HEAD
+    expect_regex: "src/date-helper\\.ts"
+  - name: unrelated file not committed
+    run: git show --name-only --format="" HEAD
+    not_regex: "scratch\\.md"

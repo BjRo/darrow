@@ -1,0 +1,20 @@
+id: create-commit-body-discipline
+invariant: GW-C5
+skill: create-commit
+prompt: Commit the staged typo fix.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n\nThis proyect is a fixture.\n"
+  files:
+    README.md: "# Fixture\n\nThis project is a fixture.\n"
+  staged:
+    - README.md
+checks:
+  - name: commit exists
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
+  - name: no body for an obvious change
+    run: git log -1 --format=%b
+    not_regex: "\\S"

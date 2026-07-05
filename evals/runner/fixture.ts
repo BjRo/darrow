@@ -46,11 +46,21 @@ export async function buildFixture(
 
   if (fixture.files) await writeFiles(repoDir, fixture.files);
   if (fixture.staged?.length) await git(repoDir, "add", ...fixture.staged);
+  if (fixture.hooks) {
+    for (const [name, content] of Object.entries(fixture.hooks)) {
+      const hookPath = join(repoDir, ".git", "hooks", name);
+      await writeFile(hookPath, content, { mode: 0o755 });
+    }
+  }
 
   const skillName = skillDir.split("/").filter(Boolean).pop()!;
   for (const mount of skillMounts) {
     await cp(skillDir, join(repoDir, mount, skillName), { recursive: true });
   }
+  // Keep mounts invisible to git: they are eval infrastructure, not repo
+  // state (a model told "commit my changes" would otherwise commit them).
+  const excludes = skillMounts.map((m) => `/${m.split("/")[0]}/`).join("\n");
+  await writeFile(join(repoDir, ".git", "info", "exclude"), excludes + "\n");
 
   return repoDir;
 }

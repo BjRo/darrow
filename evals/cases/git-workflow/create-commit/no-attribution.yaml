@@ -18,5 +18,9 @@ checks:
     expect_regex: "^2$"
   - name: no AI attribution in message
     run: git log -1 --format=%B
-    not_regex: "(co-authored-by:.*(claude|gpt|codex|ai)|generated with|🤖)"
+    not_regex: "(co-authored-by:.*(claude|gpt|codex|ai)|generated (with|by)|assisted[- ]by|🤖)"
+    flags: i
+  - name: no tool mention at all (broader than the script guard)
+    run: git log -1 --format=%B
+    not_regex: "(claude|codex|copilot|anthropic|openai)"
     flags: i

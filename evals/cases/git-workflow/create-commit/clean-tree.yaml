@@ -1,0 +1,16 @@
+id: create-commit-clean-tree
+invariant: GW-C1
+skill: create-commit
+prompt: Commit my changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+checks:
+  - name: no commit created on a clean tree
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"
+  - name: no empty commit
+    run: git log -1 --format=%s
+    expect_regex: "^chore: init$"

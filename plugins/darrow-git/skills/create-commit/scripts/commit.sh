@@ -5,6 +5,11 @@
 # attribution, staged-set integrity) are enforced here, not in the prompt.
 set -euo pipefail
 
+# `head` would SIGPIPE git under pipefail on large diffs; awk consumes input.
+truncate_lines() { awk 'NR<=300'; }
+
+in_conflict() { [[ -n "$(git ls-files -u)" ]]; }
+
 cmd=${1:-}
 shift || true
 
@@ -12,14 +17,21 @@ case "$cmd" in
   inspect)
     # Mode-aware: with a staged set the commit scope is already decided, so
     # only message context is printed. Without one, selection context.
-    if ! git diff --cached --quiet; then
+    if in_conflict; then
+      echo "## mode: conflict (merge/rebase in progress — do not commit; inform the user)"
+      echo "## unmerged files"
+      git diff --name-only --diff-filter=U
+    elif ! git diff --cached --quiet; then
       echo "## mode: staged (commit exactly this set; pass no paths)"
       echo "## staged files"
       git diff --cached --name-status
+      echo "## not included (unstaged/untracked)"
+      git diff --name-only
+      git ls-files --others --exclude-standard
       echo "## recent subjects"
       git log -5 --format='%s' 2>/dev/null || true
-      echo "## staged diff (truncated)"
-      git diff --cached --unified=2 | head -300
+      echo "## staged diff (truncated at 300 lines)"
+      git diff --cached --unified=2 | truncate_lines
     else
       echo "## mode: unstaged (select only files belonging to the change)"
       echo "## unstaged files"
@@ -28,14 +40,28 @@ case "$cmd" in
       git ls-files --others --exclude-standard
       echo "## recent subjects"
       git log -5 --format='%s' 2>/dev/null || true
-      echo "## unstaged diff (truncated)"
-      git diff --unified=2 | head -300
+      echo "## unstaged diff (truncated at 300 lines)"
+      git diff --unified=2 | truncate_lines
     fi
     ;;
 
   diff)
     # Compact diff of specific working-tree paths, for choosing what to stage.
-    git diff --unified=2 -- "$@" | head -300
+    if [[ $# -eq 0 ]]; then
+      echo "error: diff needs at least one path" >&2
+      exit 64
+    fi
+    for p in "$@"; do
+      if git ls-files --error-unmatch -- "$p" >/dev/null 2>&1; then
+        git diff --unified=2 -- "$p" | truncate_lines
+      elif [[ -f "$p" ]]; then
+        # Untracked: show as an all-new diff.
+        git diff --no-index --unified=2 -- /dev/null "$p" | truncate_lines || true
+      else
+        echo "error: no such file: $p" >&2
+        exit 64
+      fi
+    done
     ;;
 
   commit)
@@ -46,6 +72,10 @@ case "$cmd" in
     while [[ $# -gt 0 ]]; do
       case "$1" in
         -m)
+          if [[ $# -lt 2 ]]; then
+            echo "error: -m needs a value" >&2
+            exit 2
+          fi
           msgs+=("$2")
           shift 2
           ;;
@@ -60,7 +90,25 @@ case "$cmd" in
       exit 2
     fi
 
-    subject=${msgs[0]}
+    if in_conflict; then
+      echo "error: merge/rebase in progress — resolve conflicts first; do not commit" >&2
+      exit 8
+    fi
+
+    # Staged-set integrity: an existing staged set IS the commit set.
+    if ! git diff --cached --quiet && [[ ${#files[@]} -gt 0 ]]; then
+      echo "error: a staged set exists; pass no paths (commit exactly the staged set)" >&2
+      exit 7
+    fi
+    # No sweep shortcuts: only explicit literal paths.
+    for f in ${files[@]+"${files[@]}"}; do
+      if [[ "$f" == "." || "$f" == ".." || "$f" == -* || "$f" == :* || "$f" == *[\*\?\[]* ]]; then
+        echo "error: only explicit file paths allowed, got: $f" >&2
+        exit 7
+      fi
+    done
+
+    subject=${msgs[0]%%$'\n'*}
     if ! [[ "$subject" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)(\([^\)]+\))?\!?:\ [^[:space:]] ]]; then
       echo "error: subject not Conventional Commits format: $subject" >&2
       exit 5
@@ -74,7 +122,7 @@ case "$cmd" in
       exit 5
     fi
     full_message=$(printf '%s\n\n' "${msgs[@]}")
-    if printf '%s' "$full_message" | grep -qiE 'co-authored-by:.*(claude|gpt|codex|ai)|generated with|🤖'; then
+    if printf '%s' "$full_message" | grep -qiE 'co-authored-by:.*\b(claude|gpt|codex|copilot|cursor|ai)\b|generated (with|by)|assisted[- ]by|(made|written|created) (with|by) (claude|gpt|codex|copilot|cursor)|🤖'; then
       echo "error: AI attribution is not allowed in commit messages" >&2
       exit 6
     fi
@@ -90,7 +138,7 @@ case "$cmd" in
     msg_args=()
     for m in "${msgs[@]}"; do msg_args+=(-m "$m"); done
     out=$(git commit -q "${msg_args[@]}" 2>&1) || {
-      # Surface hook failures verbatim; never bypass them.
+      # Commit failed (hook, identity, etc.): surface verbatim, never bypass.
       echo "$out" >&2
       exit 4
     }

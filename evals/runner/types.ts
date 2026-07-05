@@ -10,6 +10,8 @@ export interface Fixture {
   files?: Record<string, string>;
   /** Paths staged with `git add` after `files` are written. */
   staged?: string[];
+  /** Git hooks installed executable under .git/hooks, e.g. {"pre-commit": "#!/bin/sh\nexit 1"}. */
+  hooks?: Record<string, string>;
 }
 
 export interface Check {
