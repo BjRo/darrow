@@ -52,6 +52,16 @@ export async function buildFixture(
       await writeFile(hookPath, content, { mode: 0o755 });
     }
   }
+  if (fixture.setup) {
+    const proc = Bun.spawn(["bash", "-c", fixture.setup], {
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" },
+    });
+    const [err, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+    if (code !== 0) throw new Error(`fixture setup failed (${code}): ${err}`);
+  }
 
   const skillName = skillDir.split("/").filter(Boolean).pop()!;
   for (const mount of skillMounts) {

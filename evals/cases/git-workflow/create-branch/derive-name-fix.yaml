@@ -1,0 +1,21 @@
+id: create-branch-derive-name-fix
+invariant: GW-B1
+skill: create-branch
+prompt: The app crashes when parsing an empty config file. Create a branch so I can start fixing that.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/parser.ts: "export function parse(raw: string) { return JSON.parse(raw); }\n"
+checks:
+  - name: on a new fix branch
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^fix/[a-z0-9]+(-[a-z0-9]+)*$"
+  - name: slug names the work
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "(crash|pars|config|empty)"
+    flags: i
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"

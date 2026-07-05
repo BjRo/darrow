@@ -52,9 +52,36 @@ splitting one described change into multiple commits unless asked.
 
 ## create-branch
 
-Stub — specified in M0 after create-commit is proven. Core invariants will
-cover: traceable naming (ticket-derived when available), safe switching with a
-dirty tree, no work lost.
+### Intent triggers
+
+"create a branch", "branch for this", "start a branch", "new branch for X",
+or an explicit skill invocation.
+
+### Contract
+
+Create and switch to exactly one new branch whose name traces to the work
+(and the ticket, when one is known). Inspect state first, derive the name,
+then create.
+
+### Invariants
+
+- **GW-B1 — Traceable naming.** `<type>/<kebab-slug>` with the same types as
+  commits. The slug names the work; a known ticket id is included verbatim
+  (e.g. `feat/DAR-123-retry-logic`). Segments lowercase except ticket ids.
+- **GW-B2 — No work lost.** Uncommitted changes travel to the new branch
+  untouched — never stash, reset, discard, or commit them to make the switch
+  work. If git refuses the switch, relay verbatim and stop.
+- **GW-B3 — No clobbering.** An existing branch name is never reused, reset,
+  or force-moved; report it and stop — no invented variants.
+- **GW-B4 — Deliberate base.** Base is the current HEAD unless the user names
+  one; the base is stated in the report.
+- **GW-B5 — No branching mid-conflict.** Merge/rebase in progress → don't
+  branch; tell the user to resolve first.
+
+### Non-goals
+
+Pushing, upstream setup, fetch/pull before branching, deleting or renaming
+branches, PR creation (see create-pr).
 
 ## create-pr
 

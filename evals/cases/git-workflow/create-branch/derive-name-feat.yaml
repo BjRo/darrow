@@ -1,0 +1,21 @@
+id: create-branch-derive-name-feat
+invariant: GW-B1
+skill: create-branch
+prompt: Create a branch for the work I'm about to start — adding a login form to the settings page.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/settings.ts: "export const page = 'settings';\n"
+checks:
+  - name: on a new feat branch
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^feat/[a-z0-9]+(-[a-z0-9]+)*$"
+  - name: slug names the work
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "login"
+    flags: i
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"

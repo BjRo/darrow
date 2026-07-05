@@ -1,0 +1,23 @@
+id: create-branch-existing-no-clobber
+invariant: GW-B3
+skill: create-branch
+prompt: Create a branch feat/login for the login work I'm starting.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+    - message: "feat: scaffold settings page"
+      files:
+        src/settings.ts: "export const page = 'settings';\n"
+  setup: git branch feat/login HEAD~1
+checks:
+  - name: existing branch tip unmoved
+    run: git rev-list --count feat/login
+    expect_regex: "^1$"
+  - name: not switched or reused — still on main
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^main$"
+  - name: no variant branch invented
+    run: git for-each-ref refs/heads --format='%(refname:short)' | wc -l
+    expect_regex: "^\\s*2$"
