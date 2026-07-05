@@ -37,6 +37,8 @@ One repo (darrow) contains:
 3. **Builder skill** — thin wrapper shipped as a plugin; interviews the target project (name, areas, ports, commands, runtimes) and feeds answers to the generator. LLM does judgment; the CLI does mechanics.
 4. **Marketplace** — same repo hosts the generated Claude and Codex plugin variants; consumers point their marketplace config here.
 
+**Modularity: capability = plugin = opt-in unit.** Each capability ships as its own plugin (`darrow-git`, `darrow-pipeline`, `darrow-tickets`, …) with a matching capability spec (`specs/<capability>.md`) and eval suite. Consumers adopt per capability — e.g. keep their own git conventions but use the pipeline. Cross-plugin references go through intent ("create a branch for issue X"), never assume a sibling plugin is installed; inter-capability contracts live in the specs.
+
 Loop: edit kernel → generate → variants land in marketplace dir → commit → consumers update plugin. Kernel bump in a target project = regenerate + review diff (idempotent).
 
 Dogfooding: darrow develops itself with its own generated setup.
@@ -48,6 +50,13 @@ The 8-phase pipeline is the base. Steps and orchestration may change during the 
 
 ### F2 — Skill evals (new)
 Every skill in the kernel has an eval suite. CI **gates** kernel changes on passing evals. Evals are also the optimization loop: skills are iterated against their evals (skill-creator style benchmarking).
+
+Eval runner: custom, thin (Bun/TS), harness adapters per runtime (Claude headless, Codex exec; later Pi). Cases are declarative fixtures + outcome assertions (git state, files), tracing to capability-spec invariants; LLM-judge only for qualitative checks. Requirements:
+- **Multi-metric**: each run records accuracy, wall time, token count; optimization target selectable per run.
+- **Model-pinned**: runs execute against explicit models (matrix: case × harness × model); results keyed accordingly. CI gates on a pinned model list; comparison mode also compares across models.
+- **Statistically relevant**: N trials per case; pass = pass-rate threshold, plus mean/p95 for time and tokens. Never single-run green.
+- **Comparison mode**: baseline vs candidate skill version with per-metric deltas — the optimize loop.
+- **Budget guard**: per-suite cost cap; sampling mode for iteration, full mode for CI gate.
 
 ### F3 — Git utility skills (new)
 `create-branch`, `create-commit`, `create-pr` — intent-triggered skills that consolidate the git workflow across the pipeline and ad-hoc use.
@@ -91,8 +100,8 @@ Distribution channel for darrow's own generated plugins (Claude + Codex). Hosted
 
 ## 7. Milestones
 
-- **M0 — Utility skills + eval loop**: `create-branch`, `create-commit`, `create-pr` (F3) with full eval suites (F2). Small surface to prove the skill → eval → optimize loop and pick the eval harness before scaling to the pipeline.
-- **M1 — Kernel + generator + builder skill** (tentative).
+- **M0 — Plugin infra + git plugin + eval loop**: marketplace scaffold; `darrow-git` plugin with `create-branch`, `create-commit`, `create-pr` (F3), capability spec, and full eval suites (F2). Skills authored directly in the plugin; darrow dogfoods via its own marketplace. Small surface to prove the skill → eval → optimize loop and pick the eval harness before scaling to the pipeline.
+- **M1 — Kernel + generator + builder skill** (tentative): extract kernel from the M0 plugin; generator emits plugin variants (Claude, Codex) into the marketplace.
 - **M2 — Pipeline phases + issue workspaces + ticket CLI** (tentative).
 - **M3 — Marketplace publishing** (tentative).
 - Research spikes (R1, R2) run opportunistically alongside.
@@ -101,5 +110,6 @@ Distribution channel for darrow's own generated plugins (Claude + Codex). Hosted
 
 - Final phase set and orchestration model (agent-led with gates vs script-driven workflow engine).
 - Generated files in target projects: committed vs regenerated (leaning committed + drift check in CI).
-- Eval harness choice and how gating integrates with the marketplace release flow.
+- How eval gating integrates with the marketplace release flow.
 - Marker/template syntax and generator implementation language.
+- Language for shipped CLIs (ticket CLI, guards) — TS vs Go static binary; decide when the first shipped CLI lands. Eval runner: decided TS/Bun.

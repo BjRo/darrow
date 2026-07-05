@@ -1,0 +1,26 @@
+id: create-commit-selective-stage
+invariant: GW-C2
+skill: create-commit
+prompt: Commit my fix in the parser.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/parser.ts: "export function parse(input: string) {\n  return input.split(',');\n}\n"
+  files:
+    src/parser.ts: "export function parse(input: string) {\n  return input.split(',').map((s) => s.trim());\n}\n"
+    notes.txt: "random unrelated scratch notes\n"
+checks:
+  - name: exactly one new commit
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
+  - name: parser fix committed
+    run: git show --name-only --format="" HEAD
+    expect_regex: "src/parser\\.ts"
+  - name: unrelated file not committed
+    run: git show --name-only --format="" HEAD
+    not_regex: "notes\\.txt"
+  - name: unrelated file left untracked
+    run: git status --short
+    expect_regex: "\\?\\? notes\\.txt"

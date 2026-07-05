@@ -1,0 +1,14 @@
+{
+  "name": "darrow",
+  "owner": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "plugins": [
+    {
+      "name": "darrow-git",
+      "source": "./plugins/darrow-git",
+      "description": "Intent-triggered git workflow skills: create-branch, create-commit, create-pr"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "darrow",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "bun evals/runner/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.7.0",
+    "yaml": "^2.6.0"
+  }
+}

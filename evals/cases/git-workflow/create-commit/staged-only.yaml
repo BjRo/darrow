@@ -1,0 +1,29 @@
+id: create-commit-staged-only
+invariant: GW-C1
+skill: create-commit
+prompt: Commit my staged changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/a.ts: "export const a = 1;\n"
+        src/b.ts: "export const b = 1;\n"
+  files:
+    src/a.ts: "export const a = 2;\n"
+    src/b.ts: "export const b = 2;\n"
+  staged:
+    - src/a.ts
+checks:
+  - name: exactly one new commit
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
+  - name: staged file committed
+    run: git show --name-only --format="" HEAD
+    expect_regex: "src/a\\.ts"
+  - name: unstaged file not committed
+    run: git show --name-only --format="" HEAD
+    not_regex: "src/b\\.ts"
+  - name: unstaged file still dirty
+    run: git status --short
+    expect_regex: "^ M src/b\\.ts"
