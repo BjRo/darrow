@@ -5,8 +5,7 @@ description: Create a single, well-formed git commit for the user's intended cha
 
 # create-commit
 
-Create exactly one commit for the user's intended change. Spec:
-`specs/git-workflow.md` (invariants GW-C1 … GW-C7).
+Create exactly one commit for the user's intended change.
 
 All git interaction goes through `scripts/commit.sh` (next to this SKILL.md;
 run with `bash`). It prints compact context, enforces message format and
