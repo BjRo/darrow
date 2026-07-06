@@ -1,6 +1,5 @@
 id: create-commit-staged-only
 invariant: GW-C1
-skill: create-commit
 prompt: Commit my staged changes.
 fixture:
   commits:

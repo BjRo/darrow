@@ -1,6 +1,5 @@
 id: create-branch-derive-name-fix
 invariant: GW-B1
-skill: create-branch
 prompt: The app crashes when parsing an empty config file. Create a branch so I can start fixing that.
 fixture:
   commits:

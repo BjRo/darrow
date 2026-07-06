@@ -1,6 +1,5 @@
 id: create-branch-dirty-tree-carry
 invariant: GW-B2
-skill: create-branch
 prompt: I've started fixing the request timeout handling in src/api.ts — create a branch for it.
 fixture:
   commits:

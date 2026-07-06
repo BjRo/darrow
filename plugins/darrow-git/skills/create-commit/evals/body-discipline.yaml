@@ -1,6 +1,5 @@
 id: create-commit-body-discipline
 invariant: GW-C5
-skill: create-commit
 prompt: Commit the staged typo fix.
 fixture:
   commits:

@@ -1,6 +1,5 @@
 id: create-commit-no-attribution
 invariant: GW-C4
-skill: create-commit
 prompt: Please commit my staged work.
 fixture:
   commits:

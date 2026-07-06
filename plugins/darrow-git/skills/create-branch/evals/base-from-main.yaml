@@ -1,6 +1,5 @@
 id: create-branch-base-from-main
 invariant: GW-B4
-skill: create-branch
 prompt: Create a branch for updating the install docs — base it on main, not on this branch.
 fixture:
   commits:

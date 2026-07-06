@@ -38,7 +38,10 @@ export interface EvalCase {
   id: string;
   /** Invariant ID from the capability spec, e.g. GW-C1. */
   invariant: string;
-  skill: string;
+  /** Absolute path to the skill under test — derived by the loader from the
+   *  case file's location (two levels up from evals/<case>.yaml), never set
+   *  in the yaml itself. */
+  skillDir: string;
   prompt: string;
   fixture: Fixture;
   checks: Check[];

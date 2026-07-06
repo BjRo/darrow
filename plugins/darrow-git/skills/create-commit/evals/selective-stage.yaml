@@ -1,6 +1,5 @@
 id: create-commit-selective-stage
 invariant: GW-C2
-skill: create-commit
 prompt: Commit my fix in the parser.
 fixture:
   commits:

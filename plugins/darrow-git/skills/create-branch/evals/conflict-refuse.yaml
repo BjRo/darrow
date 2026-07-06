@@ -1,6 +1,5 @@
 id: create-branch-conflict-refuse
 invariant: GW-B5
-skill: create-branch
 prompt: Create a branch chore/config-cleanup for me.
 fixture:
   commits:

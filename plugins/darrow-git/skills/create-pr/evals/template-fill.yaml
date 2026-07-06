@@ -1,6 +1,5 @@
 id: create-pr-template-fill
 invariant: GW-P8
-skill: create-pr
 prompt: Open a PR for the retry work.
 fixture:
   commits:

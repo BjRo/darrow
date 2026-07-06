@@ -1,13 +1,11 @@
-id: create-pr-title-conventional
-invariant: GW-P1
-skill: create-pr
-prompt: Open a PR for this fix.
+id: create-pr-default-branch-refuse
+invariant: GW-P4
+prompt: Open a PR for my latest change.
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
-        src/parser.ts: "export function parse(raw: string) { return JSON.parse(raw); }\n"
   bin:
     gh: |
       #!/bin/sh
@@ -47,27 +45,20 @@ fixture:
     git remote add origin "$PWD/.git/remote.git"
     git push -qu origin main
     git remote set-head origin main
-    git switch -qc fix/empty-config-crash
-    printf 'export function parse(raw: string) { if (!raw.trim()) return {}; return JSON.parse(raw); }\n' > src/parser.ts
-    git add src/parser.ts
-    git commit -qm "fix: guard config parser against empty files"
-    printf 'import { parse } from "../src/parser";\ntest("empty", () => expect(parse("")).toEqual({}));\n' > parser.test.ts
-    git add parser.test.ts
-    git commit -qm "test: cover empty and whitespace-only configs"
+    mkdir -p src
+    printf 'export const cached = true;\n' > src/cache.ts
+    git add src/cache.ts
+    git commit -qm "perf: cache config lookups"
 checks:
-  - name: PR created
-    run: test -f .git/fixture-gh/title && echo created
-    expect_regex: "^created$"
-  - name: title is a conventional subject
-    run: cat .git/fixture-gh/title
-    expect_regex: "^fix(\\([^)]+\\))?!?: \\S"
-  - name: title names the work
-    run: cat .git/fixture-gh/title
-    expect_regex: "(config|empty|pars|crash)"
-    flags: i
-  - name: title within 72 chars
-    run: test "$(wc -c < .git/fixture-gh/title)" -le 72 && echo ok
-    expect_regex: "^ok$"
-  - name: no trailing period
-    run: cat .git/fixture-gh/title
-    not_regex: "\\.$"
+  - name: no PR created
+    run: test ! -f .git/fixture-gh/title && echo none
+    expect_regex: "^none$"
+  - name: still on main
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^main$"
+  - name: no branch invented
+    run: git for-each-ref refs/heads | wc -l
+    expect_regex: "^\\s*1$"
+  - name: main not pushed
+    run: test "$(git -C .git/remote.git rev-parse refs/heads/main)" != "$(git rev-parse main)" && echo unpushed
+    expect_regex: "^unpushed$"

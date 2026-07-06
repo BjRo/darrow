@@ -1,6 +1,5 @@
 id: create-branch-worktree-request
 invariant: GW-B6
-skill: create-branch
 prompt: Create a worktree for the retry work on DAR-123.
 fixture:
   commits:

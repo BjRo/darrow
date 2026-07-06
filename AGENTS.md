@@ -7,13 +7,14 @@ for Claude Code and Codex. Read `docs/product-spec.md` for architecture,
 ## Layout
 
 - `plugins/<name>/` — one plugin per capability (currently `darrow-git`). Skills
-  in `skills/<skill>/SKILL.md` + `scripts/`. Plugins are self-contained: never
-  reference files outside the plugin dir; cross-plugin references go through
-  intent, never assume a sibling plugin is installed.
+  in `skills/<skill>/SKILL.md` + `scripts/` + `evals/` (case yamls colocated
+  with the skill they test). Plugins are self-contained: never reference files
+  outside the plugin dir; cross-plugin references go through intent, never
+  assume a sibling plugin is installed.
 - `docs/specs/<capability>.md` — invariants (e.g. GW-C1…) that scripts, tests
   and evals trace to.
-- `evals/` — runner (`runner/`), cases (`cases/<capability>/<skill>/*.yaml`),
-  results (`results/`, committed).
+- `evals/` — shared runner (`runner/`) and results (`results/`, gitignored).
+  The runner discovers cases via `plugins/*/skills/*/evals/*.yaml`.
 
 ## Skill development loop (mandatory, in order)
 
@@ -23,7 +24,7 @@ for Claude Code and Codex. Read `docs/product-spec.md` for architecture,
    output for a model — mode-aware, no raw git dumps.
 3. Cover script behavior in the colocated deterministic test
    (`scripts/<name>.test.sh`) — run with bash 5 AND /bin/bash (3.2).
-4. Add an eval case for the judgment part.
+4. Add an eval case for the judgment part in the skill's `evals/` dir.
 5. Fresh-context adversarial review of skill + script; fix ALL findings.
 6. Re-run tests + evals, then commit.
 
@@ -53,7 +54,8 @@ Review agents must never run git/gh against this repo — temp dirs via
   5 trials/case, pass-rate threshold 0.8, ~$0.5/case — use `--case` to scope.
 - Fixtures: mock external bins via the case's `bin:` field (lands in
   `.git/fixture-bin`); remotes are bare repos inside `.git/`; skill mounts are
-  hidden via `.git/info/exclude`.
+  hidden via `.git/info/exclude` and never include the skill's `evals/` dir
+  (the model under eval must not see its own pass criteria).
 
 ## Git
 

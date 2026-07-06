@@ -1,12 +1,12 @@
-id: create-pr-base-user-named
-invariant: GW-P4
-skill: create-pr
-prompt: Open a PR for the rate limit work against develop, not main.
+id: create-pr-title-conventional
+invariant: GW-P1
+prompt: Open a PR for this fix.
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
+        src/parser.ts: "export function parse(raw: string) { return JSON.parse(raw); }\n"
   bin:
     gh: |
       #!/bin/sh
@@ -46,17 +46,27 @@ fixture:
     git remote add origin "$PWD/.git/remote.git"
     git push -qu origin main
     git remote set-head origin main
-    git branch -q develop main
-    git push -q origin develop
-    git switch -qc feat/api-rate-limits develop
-    mkdir -p src
-    printf 'export const requestsPerMinute = 100;\n' > src/limits.ts
-    git add src/limits.ts
-    git commit -qm "feat: add per-client api rate limits"
+    git switch -qc fix/empty-config-crash
+    printf 'export function parse(raw: string) { if (!raw.trim()) return {}; return JSON.parse(raw); }\n' > src/parser.ts
+    git add src/parser.ts
+    git commit -qm "fix: guard config parser against empty files"
+    printf 'import { parse } from "../src/parser";\ntest("empty", () => expect(parse("")).toEqual({}));\n' > parser.test.ts
+    git add parser.test.ts
+    git commit -qm "test: cover empty and whitespace-only configs"
 checks:
   - name: PR created
     run: test -f .git/fixture-gh/title && echo created
     expect_regex: "^created$"
-  - name: user-named base used
-    run: cat .git/fixture-gh/base
-    expect_regex: "^develop$"
+  - name: title is a conventional subject
+    run: cat .git/fixture-gh/title
+    expect_regex: "^fix(\\([^)]+\\))?!?: \\S"
+  - name: title names the work
+    run: cat .git/fixture-gh/title
+    expect_regex: "(config|empty|pars|crash)"
+    flags: i
+  - name: title within 72 chars
+    run: test "$(wc -c < .git/fixture-gh/title)" -le 72 && echo ok
+    expect_regex: "^ok$"
+  - name: no trailing period
+    run: cat .git/fixture-gh/title
+    not_regex: "\\.$"

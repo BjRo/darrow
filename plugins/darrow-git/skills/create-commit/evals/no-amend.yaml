@@ -1,6 +1,5 @@
 id: create-commit-no-amend
 invariant: GW-C6
-skill: create-commit
 prompt: Commit the staged tweak — it really belongs with the previous commit, so keep the history clean and compact.
 fixture:
   commits:

@@ -1,6 +1,5 @@
 id: create-branch-worktree-dirty-stays
 invariant: GW-B6
-skill: create-branch
 prompt: Create a worktree for fixing the request timeout in src/api.ts — leave my current checkout as it is.
 fixture:
   commits:

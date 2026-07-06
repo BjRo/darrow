@@ -1,5 +1,5 @@
-import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -14,8 +14,6 @@ const ADAPTERS: Record<string, HarnessAdapter> = {
 };
 
 const ROOT = resolve(import.meta.dir, "..", "..");
-const SKILLS_ROOT = join(ROOT, "plugins", "darrow-git", "skills");
-const CASES_ROOT = join(ROOT, "evals", "cases");
 const RESULTS_ROOT = join(ROOT, "evals", "results");
 
 function p95(values: number[]): number {
@@ -27,16 +25,17 @@ function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
 
+/** Cases live next to the skill they test: plugins/<name>/skills/<skill>/evals/*.yaml. */
 async function loadCases(filter?: string): Promise<EvalCase[]> {
   const cases: EvalCase[] = [];
-  const walk = async (dir: string): Promise<void> => {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) await walk(path);
-      else if (entry.name.endsWith(".yaml")) cases.push(parseYaml(await readFile(path, "utf8")));
-    }
-  };
-  await walk(CASES_ROOT);
+  const glob = new Bun.Glob("plugins/*/skills/*/evals/*.yaml");
+  for await (const rel of glob.scan(ROOT)) {
+    const path = join(ROOT, rel);
+    const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
+    evalCase.skillDir = dirname(dirname(path));
+    cases.push(evalCase);
+  }
+  cases.sort((a, b) => a.id.localeCompare(b.id));
   return filter ? cases.filter((c) => c.id.includes(filter)) : cases;
 }
 
@@ -48,11 +47,10 @@ async function runCase(
   trials: number,
   dry: boolean,
 ): Promise<CaseResult> {
-  const skillDir = join(SKILLS_ROOT, evalCase.skill);
   const trialResults: TrialResult[] = [];
 
   for (let trial = 1; trial <= trials; trial++) {
-    const repoDir = await buildFixture(evalCase.fixture, skillDir, adapter.skillMounts);
+    const repoDir = await buildFixture(evalCase.fixture, evalCase.skillDir, adapter.skillMounts);
     try {
       if (dry) {
         console.log(`  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`);

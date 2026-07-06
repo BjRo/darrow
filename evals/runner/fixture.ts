@@ -71,8 +71,14 @@ export async function buildFixture(
   }
 
   const skillName = skillDir.split("/").filter(Boolean).pop()!;
+  // Never mount the skill's colocated evals/ — the model under eval could
+  // read its own pass criteria from the case files.
+  const evalsDir = join(skillDir, "evals");
   for (const mount of skillMounts) {
-    await cp(skillDir, join(repoDir, mount, skillName), { recursive: true });
+    await cp(skillDir, join(repoDir, mount, skillName), {
+      recursive: true,
+      filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
+    });
   }
   // Keep mounts invisible to git: they are eval infrastructure, not repo
   // state (a model told "commit my changes" would otherwise commit them).

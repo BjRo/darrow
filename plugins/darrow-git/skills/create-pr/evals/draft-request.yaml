@@ -1,13 +1,12 @@
-id: create-pr-dirty-committed-only
-invariant: GW-P7
-skill: create-pr
-prompt: Open a PR for the timeout fix.
+id: create-pr-draft-request
+invariant: GW-P4
+prompt: Open a draft PR for this so CI can run while I keep working.
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
-        src/api.ts: "export const timeoutMs = 1000;\n"
+        src/report.ts: "export function report() { return []; }\n"
   bin:
     gh: |
       #!/bin/sh
@@ -47,25 +46,14 @@ fixture:
     git remote add origin "$PWD/.git/remote.git"
     git push -qu origin main
     git remote set-head origin main
-    git switch -qc fix/request-timeout
-    printf 'export const timeoutMs = 30000;\n' > src/api.ts
-    git add src/api.ts
-    git commit -qm "fix: raise request timeout for slow links"
-    printf 'export const timeoutMs = 30000; // TODO tune\n' > src/api.ts
-    printf 'scratch notes\n' > notes.txt
+    git switch -qc feat/weekly-usage-report
+    printf 'export function report() { return ["usage"]; }\n' > src/report.ts
+    git add src/report.ts
+    git commit -qm "feat: assemble weekly usage report"
 checks:
   - name: PR created
     run: test -f .git/fixture-gh/title && echo created
     expect_regex: "^created$"
-  - name: modified file still dirty
-    run: git status --porcelain
-    expect_regex: "^ M src/api\\.ts$"
-  - name: untracked file untouched
-    run: git status --porcelain
-    expect_regex: "^\\?\\? notes\\.txt$"
-  - name: nothing stashed
-    run: git stash list
-    not_regex: "stash@"
-  - name: no commit created
-    run: git rev-list --count HEAD
-    expect_regex: "^2$"
+  - name: created as draft
+    run: test -f .git/fixture-gh/draft && echo draft
+    expect_regex: "^draft$"

@@ -1,6 +1,5 @@
 id: create-commit-untracked-file
 invariant: GW-C2
-skill: create-commit
 prompt: Commit the new date helper module.
 fixture:
   commits:

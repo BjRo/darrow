@@ -1,13 +1,11 @@
-id: create-pr-draft-request
+id: create-pr-base-user-named
 invariant: GW-P4
-skill: create-pr
-prompt: Open a draft PR for this so CI can run while I keep working.
+prompt: Open a PR for the rate limit work against develop, not main.
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
-        src/report.ts: "export function report() { return []; }\n"
   bin:
     gh: |
       #!/bin/sh
@@ -47,14 +45,17 @@ fixture:
     git remote add origin "$PWD/.git/remote.git"
     git push -qu origin main
     git remote set-head origin main
-    git switch -qc feat/weekly-usage-report
-    printf 'export function report() { return ["usage"]; }\n' > src/report.ts
-    git add src/report.ts
-    git commit -qm "feat: assemble weekly usage report"
+    git branch -q develop main
+    git push -q origin develop
+    git switch -qc feat/api-rate-limits develop
+    mkdir -p src
+    printf 'export const requestsPerMinute = 100;\n' > src/limits.ts
+    git add src/limits.ts
+    git commit -qm "feat: add per-client api rate limits"
 checks:
   - name: PR created
     run: test -f .git/fixture-gh/title && echo created
     expect_regex: "^created$"
-  - name: created as draft
-    run: test -f .git/fixture-gh/draft && echo draft
-    expect_regex: "^draft$"
+  - name: user-named base used
+    run: cat .git/fixture-gh/base
+    expect_regex: "^develop$"

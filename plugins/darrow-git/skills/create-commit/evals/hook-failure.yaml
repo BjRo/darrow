@@ -1,6 +1,5 @@
 id: create-commit-hook-failure
 invariant: GW-C7
-skill: create-commit
 prompt: Commit my staged changes.
 fixture:
   commits:
