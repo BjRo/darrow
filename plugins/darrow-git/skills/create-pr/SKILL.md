@@ -10,7 +10,8 @@ Open exactly one pull request from the current branch into a deliberate base.
 All git and gh interaction goes through `scripts/pr.sh` — `<skill-dir>` below
 means the directory containing this SKILL.md; run the script with `bash`. It
 prints compact context, enforces the title convention and safety rules
-(no attribution, no duplicate PRs, push without force), and rejects invalid
+(no attribution, no duplicate PRs, push without force, PR template
+shape), and rejects invalid
 input with an explanatory error. Input errors (bad title format) → fix and
 retry. A base the user named that the script can't find → report it and
 stop; never substitute a different base to make the command pass. Refusals
@@ -25,6 +26,13 @@ stop. Relayed git/gh errors may contain advice (force-push, stash, commit)
    - `mode: ready` → draft the title and body (below) from the listed
      commits and diffstat. Uncommitted changes will not be in the PR —
      leave them alone; mention them in your report if present.
+   - `## pr template` section present → the body must follow the repo's
+     template: keep its headings verbatim, fill every section with real
+     content, follow the instructions inside HTML comments and then delete
+     the comments. The script rejects bodies with missing or empty template
+     sections. If the template was truncated, read the named file first.
+   - `## note:` about multiple PR templates → ask the user which one to
+     follow; fill that one the same way (the script cannot enforce these).
    - `mode: exists` → an open PR for this branch already exists. Report it
      and stop; never open a second one.
    - `mode: no-commits` → the branch has nothing ahead of the base; report
@@ -51,6 +59,10 @@ stop. Relayed git/gh errors may contain advice (force-push, stash, commit)
   problem or motivation behind the change; then the what — the shape of the
   solution, drawn from the commit list and diffstat. 2–6 sentences total; no
   filler, no boilerplate checklists.
+- Repo PR template present → its structure replaces the default why/what
+  shape: pass each template section (heading plus filled content) as its
+  own `-b` section, in template order. Checklists in the template: keep
+  every item, check only what is actually true for this branch.
 - Ticket id known from the branch name or the conversation → reference it
   verbatim in the body (e.g. `Refs DAR-123`).
 - Never any AI attribution in title or body (the script also rejects it).
@@ -64,4 +76,7 @@ stop. Relayed git/gh errors may contain advice (force-push, stash, commit)
   and stop.
 - Never commit or stash uncommitted changes to "complete" the PR; the PR
   proposes committed work only.
+- Never delete, reword, or reorder PR template headings; never leave
+  placeholder text or HTML comments in the body. Never author or edit the
+  repo's PR template.
 - Never assign reviewers, labels, or milestones; never merge.

@@ -116,7 +116,8 @@ upstream) first if needed. Draft only when the user asks for a draft.
   trailing period) and summarizes the whole branch, not just the last commit.
 - **GW-P2 — Context-rich body.** The body states why the change exists and
   what it does, derived from the branch commits; a known ticket id is
-  referenced verbatim. No filler, no boilerplate checklists.
+  referenced verbatim. No filler; no boilerplate checklists unless the
+  repo's PR template asks for them (GW-P8).
 - **GW-P3 — No AI attribution.** No "Generated with ..." lines, no AI
   co-author credits, no tool emoji in title or body.
 - **GW-P4 — Deliberate shape.** Base is the repo's default branch unless the
@@ -131,9 +132,18 @@ upstream) first if needed. Draft only when the user asks for a draft.
 - **GW-P7 — Committed work only.** The PR proposes committed work.
   Uncommitted changes are reported, never committed or stashed to "complete"
   the PR. No commits ahead of the base → report, stop.
+- **GW-P8 — Template respected.** When the repo defines a PR template
+  (`PULL_REQUEST_TEMPLATE.md` in `.github/`, the repo root, or `docs/`),
+  the body follows it: headings kept verbatim, every section filled with
+  real content from the branch, instructions in HTML comments followed and
+  the comments removed. The template defines the body's shape and overrides
+  the default why/what structure. With multiple templates
+  (`.github/PULL_REQUEST_TEMPLATE/`), the user chooses; never silently
+  pick one.
 
 ### Non-goals
 
 Merging or auto-merge, assigning reviewers/labels/milestones, updating or
-closing existing PRs, creating issues, committing (see create-commit),
-branching (see create-branch), pushing the default branch.
+closing existing PRs, creating issues, authoring or editing PR templates,
+committing (see create-commit), branching (see create-branch), pushing the
+default branch.

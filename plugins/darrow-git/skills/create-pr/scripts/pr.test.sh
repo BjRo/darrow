@@ -447,6 +447,231 @@ out=$(cd sub && bash "$SCRIPT" create --title "fix: retry request on timeout" -b
 check "create ok from subdir" 0 $?
 check "title captured from subdir" "fix: retry request on timeout" "$(cat .git/fixture-gh/title)"
 
+echo "# P15: PR template shape enforced (exit 7), nothing pushed"
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+<!-- Explain the motivation before the mechanics. -->
+## Why
+
+## What Changed
+
+## Testing
+<!-- How was this verified? -->
+EOF
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "pr template (.github/PULL_REQUEST_TEMPLATE.md)"
+check "inspect names the template" 0 $?
+echo "$out" | grep -q "## What Changed"
+check "inspect prints template content" 0 $?
+touch .git/fixture-gh-fail
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "Requests died on flaky links." > /dev/null 2>&1
+check "body ignoring template, exit 7 (before the gh dup check)" 7 $?
+rm .git/fixture-gh-fail
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Requests died on flaky links." -b "## What Changed
+Retries twice with backoff." > /dev/null 2>&1
+check "missing section, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Requests died on flaky links." -b "## What Changed" -b "## Testing
+Unit tests cover exhaustion." > /dev/null 2>&1
+check "empty section, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+<!-- Explain the motivation before the mechanics. -->
+Requests died." -b "## What Changed
+Retries." -b "## Testing
+Tests." > /dev/null 2>&1
+check "leftover comment, exit 7" 7 $?
+check "nothing pushed on template errors" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
+check "nothing captured" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
+out=$(bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Requests died on flaky links." -b "## What Changed
+Retries twice with exponential backoff." -b "## Testing
+Unit tests cover retry exhaustion.")
+check "filled template accepted" 0 $?
+grep -q "## Testing" .git/fixture-gh/body
+check "template headings in captured body" 0 $?
+rm -rf .git/fixture-gh
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+### Context
+Flaky links kill requests." -b "## What Changed
+Retries." -b "## Testing
+Tests." > /dev/null 2>&1
+check "deeper sub-heading counts as content" 0 $?
+mkdir -p sub
+rm -rf .git/fixture-gh
+out=$(cd sub && bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Flaky links." -b "## What Changed
+Retries." -b "## Testing
+Tests.")
+check "template resolved from subdirectory" 0 $?
+
+echo "# P15b: fenced code blocks are inert on both sides"
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+## Summary
+
+```
+# this is code, not a required heading
+```
+EOF
+fbody='## Summary
+```
+<!-- a literal comment inside code -->
+# also code
+```
+Words about the change.'
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "$fbody" > /dev/null 2>&1
+check "fenced comment and pseudo-headings accepted" 0 $?
+
+echo "# P15c: comment-only template — no headings required, comments still rejected"
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+<!-- Describe your change and link the ticket. -->
+EOF
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "Retries twice, refs DAR-123." > /dev/null 2>&1
+check "comment-only template, plain body accepted" 0 $?
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+<!-- Describe your change and link the ticket. -->
+EOF
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "<!-- Describe your change and link the ticket. --> Retries twice." > /dev/null 2>&1
+check "copied comment rejected, exit 7" 7 $?
+
+echo "# P15d: discovery — lookup order, alternates, multi-template dir"
+ready_repo
+cat > PULL_REQUEST_TEMPLATE.md <<'EOF'
+## Root Section
+EOF
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "pr template (PULL_REQUEST_TEMPLATE.md)"
+check "root template found" 0 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+check "root template enforced, exit 7" 7 $?
+mkdir -p .github
+cat > .github/pull_request_template.md <<'EOF'
+## GH Section
+EOF
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -qi "pr template (.github/pull_request_template.md)"
+check ".github wins over root" 0 $?
+rm -rf .github PULL_REQUEST_TEMPLATE.md
+mkdir -p docs
+cat > docs/PULL_REQUEST_TEMPLATE.md <<'EOF'
+## Docs Section
+EOF
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "pr template (docs/PULL_REQUEST_TEMPLATE.md)"
+check "docs/ fallback found" 0 $?
+rm -rf docs
+mkdir -p .github/PULL_REQUEST_TEMPLATE
+echo "## A" > .github/PULL_REQUEST_TEMPLATE/feature.md
+echo "## B" > .github/PULL_REQUEST_TEMPLATE/bugfix.md
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "multiple PR templates"
+check "multi-template note present" 0 $?
+echo "$out" | grep -q "feature.md"
+check "template names listed" 0 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+check "dir-only templates do not block create" 0 $?
+
+echo "# P15e: truncation note for long templates"
+ready_repo
+mkdir -p .github
+{ echo "## Big"; for i in $(seq 1 120); do echo "line $i"; done; } > .github/PULL_REQUEST_TEMPLATE.md
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "template truncated at 100 lines (121 total)"
+check "truncation noted with full line count" 0 $?
+TOP=$(git rev-parse --show-toplevel)
+echo "$out" | grep -qF "read $TOP/.github/PULL_REQUEST_TEMPLATE.md for the rest"
+check "truncation note gives an absolute path" 0 $?
+
+echo "# P16: large bodies — no hang, no SIGPIPE false negatives/positives"
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+## Why
+
+## Testing
+EOF
+big=$(awk 'BEGIN{for(i=0;i<20000;i++) printf "word %d ab. ", i}')
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Flaky links kill requests.
+$big" -b "## Testing
+Unit tests cover exhaustion." > /dev/null 2>&1
+check "200KB body with filled template accepted" 0 $?
+rm -rf .git/fixture-gh
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Flaky links.
+$big" -b "## Testing
+Tests.
+
+Generated with Claude Code" > /dev/null 2>&1
+check "attribution at the end of a 200KB body still caught, exit 6" 6 $?
+check "no PR after large-body attribution" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
+
+echo "# P16b: heading edge cases — tab after hashes, BOM, backslashes"
+ready_repo
+mkdir -p .github
+printf '##\tTracking\n' > .github/PULL_REQUEST_TEMPLATE.md
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "no tracking heading" > /dev/null 2>&1
+check "tab-after-hashes heading enforced, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "$(printf '##\tTracking\nRefs DAR-123.')" > /dev/null 2>&1
+check "tab heading satisfied verbatim" 0 $?
+ready_repo
+mkdir -p .github
+printf '\357\273\277## Why\n' > .github/PULL_REQUEST_TEMPLATE.md
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "plain body" > /dev/null 2>&1
+check "BOM does not hide the first heading, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Flaky links." > /dev/null 2>&1
+check "BOM template satisfied" 0 $?
+ready_repo
+mkdir -p .github
+printf '## Fix C:\\new path handling\n' > .github/PULL_REQUEST_TEMPLATE.md
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b '## Fix C:\new path handling
+Escapes normalized.' > /dev/null 2>&1
+check "backslash heading satisfiable (no awk -v mangling)" 0 $?
+
+echo "# P16c: fence variants — indented and tilde fences are fences"
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+## Why
+
+ ```
+# pseudo heading in 1-space-indented fence
+ ```
+
+~~~
+# pseudo heading in tilde fence
+~~~
+EOF
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Flaky links." > /dev/null 2>&1
+check "indented and tilde fences hide pseudo-headings" 0 $?
+
+echo "# P17: unreadable template refuses instead of skipping enforcement"
+if [[ $EUID -eq 0 ]]; then
+  echo "  ok: skipped (root reads anything)"
+else
+  ready_repo
+  mkdir -p .github
+  echo "## Why" > .github/PULL_REQUEST_TEMPLATE.md
+  chmod 000 .github/PULL_REQUEST_TEMPLATE.md
+  out=$(bash "$SCRIPT" inspect 2>&1)
+  check "inspect survives unreadable template" 0 $?
+  echo "$out" | grep -q "exists but is not readable"
+  check "inspect notes the unreadable template" 0 $?
+  bash "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+  check "create refuses, exit 3 (no silent GW-P8 bypass)" 3 $?
+  check "nothing pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
+  chmod 644 .github/PULL_REQUEST_TEMPLATE.md
+fi
+
 if [[ $FAILURES -gt 0 ]]; then
   echo "$FAILURES failure(s)"
   exit 1
