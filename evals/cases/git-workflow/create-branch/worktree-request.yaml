@@ -1,0 +1,26 @@
+id: create-branch-worktree-request
+invariant: GW-B6
+skill: create-branch
+prompt: Create a worktree for the retry work on DAR-123.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/http.ts: "export async function get(url: string) { return fetch(url); }\n"
+checks:
+  - name: branch carries the ticket id
+    run: git for-each-ref refs/heads --format='%(refname:short)'
+    expect_regex: "^(feat|fix)/DAR-123-[a-z0-9-]+$"
+  - name: branch checked out in a linked worktree
+    run: git worktree list --porcelain
+    expect_regex: "branch refs/heads/(feat|fix)/DAR-123-"
+  - name: worktree under the default location
+    run: git worktree list --porcelain
+    expect_regex: "^worktree .*/\\.worktrees/"
+  - name: current checkout untouched
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^main$"
+  - name: status stays clean
+    run: test -z "$(git status --porcelain)" && echo clean
+    expect_regex: "^clean$"

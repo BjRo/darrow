@@ -55,33 +55,45 @@ splitting one described change into multiple commits unless asked.
 ### Intent triggers
 
 "create a branch", "branch for this", "start a branch", "new branch for X",
-or an explicit skill invocation.
+"create a worktree for X", "branch this in a worktree", or an explicit
+skill invocation.
 
 ### Contract
 
 Create and switch to exactly one new branch whose name traces to the work
 (and the ticket, when one is known). Inspect state first, derive the name,
-then create.
+then create. When the user asks for a worktree, the branch is created in a
+new linked worktree instead and the current checkout stays where it is.
 
 ### Invariants
 
 - **GW-B1 — Traceable naming.** `<type>/<kebab-slug>` with the same types as
   commits. The slug names the work; a known ticket id is included verbatim
   (e.g. `feat/DAR-123-retry-logic`). Segments lowercase except ticket ids.
-- **GW-B2 — No work lost.** Uncommitted changes travel to the new branch
-  untouched — never stash, reset, discard, or commit them to make the switch
-  work. If git refuses the switch, relay verbatim and stop.
+- **GW-B2 — No work lost.** Uncommitted changes are never stashed, reset,
+  discarded, or committed to make the operation work. Switching in place
+  they travel to the new branch untouched; in worktree mode they stay in
+  the current checkout. If git refuses, relay verbatim and stop.
 - **GW-B3 — No clobbering.** An existing branch name is never reused, reset,
   or force-moved; report it and stop — no invented variants.
 - **GW-B4 — Deliberate base.** Base is the current HEAD unless the user names
   one; the base is stated in the report.
 - **GW-B5 — No branching mid-conflict.** Merge/rebase in progress → don't
   branch; tell the user to resolve first.
+- **GW-B6 — Worktree only by request.** A worktree is created only when the
+  user asks for one. Default location is `.worktrees/<branch>` under the
+  main worktree's root (never nested inside another worktree), kept out of
+  `git status` via the repo's local excludes. A
+  user-named path is used verbatim or reported as unusable — never
+  substituted. An existing path is never reused or overwritten. The report
+  states the worktree path and, when the tree was dirty, that uncommitted
+  changes stayed behind.
 
 ### Non-goals
 
 Pushing, upstream setup, fetch/pull before branching, deleting or renaming
-branches, PR creation (see create-pr).
+branches, removing/moving/pruning worktrees, checking out an existing
+branch into a worktree, PR creation (see create-pr).
 
 ## create-pr
 

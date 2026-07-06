@@ -62,12 +62,29 @@ case "$cmd" in
       fi
       echo "## recent branches (match their naming style)"
       git for-each-ref --count=10 --sort=-committerdate --format='%(refname:short)' refs/heads
+      # Every worktree other than the current one — run from a linked
+      # worktree, the main checkout is "elsewhere" too, and this one is not.
+      cur_top=$(git rev-parse --show-toplevel)
+      others=$(git worktree list --porcelain | awk -v cur="$cur_top" '
+        /^worktree /{p=substr($0,10)}
+        /^branch /{b=$2; sub("refs/heads/","",b)}
+        /^detached$/{b="(detached)"}
+        /^bare$/{b="(bare)"}
+        /^$/{if (p!="" && p!=cur) print p" ["b"]"; p=""; b=""}
+        END{if (p!="" && p!=cur) print p" ["b"]"}')
+      if [[ -n "$others" ]]; then
+        echo "## other worktrees (their branches are checked out elsewhere)"
+        printf '%s\n' "$others" | truncate_lines
+      fi
     fi
     ;;
   create)
-    # create <name> [--from <base>]
+    # create <name> [--from <base>] [--worktree [--at <path>]]
     name=""
     base=""
+    worktree=0
+    at_path=""
+    at_set=0
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --from)
@@ -76,6 +93,19 @@ case "$cmd" in
             exit 2
           fi
           base=$2
+          shift 2
+          ;;
+        --worktree)
+          worktree=1
+          shift
+          ;;
+        --at)
+          if [[ $# -lt 2 ]]; then
+            echo "error: --at needs a value" >&2
+            exit 2
+          fi
+          at_path=$2
+          at_set=1
           shift 2
           ;;
         -*)
@@ -94,6 +124,16 @@ case "$cmd" in
     done
     if [[ -z "$name" ]]; then
       echo "error: no branch name given" >&2
+      exit 2
+    fi
+    if [[ $at_set -eq 1 && $worktree -eq 0 ]]; then
+      echo "error: --at requires --worktree" >&2
+      exit 2
+    fi
+    # An empty --at must not fall through to the default path — a
+    # user-named location is used verbatim or rejected, never substituted.
+    if [[ $at_set -eq 1 && -z "$at_path" ]]; then
+      echo "error: --at needs a non-empty path" >&2
       exit 2
     fi
     if in_progress; then
@@ -142,15 +182,84 @@ case "$cmd" in
     fi
     from=$(current_ref)
     [[ -z "$base" ]] || from=$base
-    # switch -c carries uncommitted changes along; refusal surfaces verbatim.
-    out=$(git switch -c "$name" ${base:+"$base"} 2>&1) || {
-      echo "$out" >&2
-      exit 4
-    }
-    echo "$name (from $from)"
+    if [[ $worktree -eq 1 ]]; then
+      if [[ $at_set -eq 1 ]]; then
+        path=$at_path
+        # A worktree inside .git corrupts expectations of every git tool.
+        # Best-effort prefix check, not a full canonicalization.
+        abs=$path
+        [[ "$abs" == /* ]] || abs="$PWD/$abs"
+        gitdir=$(cd "$(git rev-parse --git-dir)" && pwd)
+        case "$abs" in
+          "$gitdir"|"$gitdir"/*)
+            echo "error: worktree path is inside the .git directory: $path" >&2
+            exit 2
+            ;;
+        esac
+      else
+        # Anchor at the main worktree root: --show-toplevel inside a linked
+        # worktree would nest worktrees, and removing the outer one takes
+        # the inner working tree with it.
+        main_root=$(git worktree list --porcelain | awk '/^worktree /{print substr($0,10); exit}')
+        path="$main_root/.worktrees/$name"
+      fi
+      # [[ -e "file/" ]] is false for a regular file — strip trailing
+      # slashes so the clobber check sees it.
+      probe=$path
+      while [[ ${#probe} -gt 1 && "$probe" == */ ]]; do probe=${probe%/}; done
+      if [[ -e "$probe" || -L "$probe" ]]; then
+        echo "error: path already exists: $path — will not reuse it" >&2
+        exit 9
+      fi
+      if [[ $at_set -eq 0 ]]; then
+        err=$(mkdir -p "$(dirname "$path")" 2>&1) || {
+          echo "error: cannot create worktree parent dir: $err" >&2
+          exit 9
+        }
+        # Keep the default location out of git status. info/exclude is
+        # shared across worktrees and never a tracked file; the anchored
+        # pattern applies at each worktree's root.
+        exclude=$(git rev-parse --git-path info/exclude)
+        if mkdir -p "$(dirname "$exclude")" 2>/dev/null; then
+          grep -qxF '/.worktrees/' "$exclude" 2>/dev/null || echo '/.worktrees/' >> "$exclude" || true
+        fi
+      fi
+      # Status before the add: a non-ignored worktree dir must not show up
+      # as "uncommitted changes" of its own creation.
+      pre_status=$(git status --porcelain)
+      out=$(git worktree add "$path" -b "$name" ${base:+"$base"} 2>&1) || {
+        # git can create the branch before failing on the path; a stray
+        # branch would turn every retry into a bogus "already exists".
+        if git show-ref -q --verify "refs/heads/$name"; then
+          git branch -qD "$name" 2>/dev/null || true
+        fi
+        echo "$out" >&2
+        exit 4
+      }
+      echo "$name (from $from) at $path"
+      if [[ -n "$pre_status" ]]; then
+        echo "## note: uncommitted changes stay in the current worktree — they were not carried into $path"
+      fi
+      if [[ $at_set -eq 1 ]]; then
+        # rc 0: ignored; rc 1: inside the work tree and visible to status;
+        # rc >1: outside the work tree — nothing to flag.
+        rc=0
+        git check-ignore -q -- "$path" 2>/dev/null || rc=$?
+        if [[ $rc -eq 1 ]]; then
+          echo "## note: $path is inside the repository and not ignored — git status will list it; consider adding it to .git/info/exclude"
+        fi
+      fi
+    else
+      # switch -c carries uncommitted changes along; refusal surfaces verbatim.
+      out=$(git switch -c "$name" ${base:+"$base"} 2>&1) || {
+        echo "$out" >&2
+        exit 4
+      }
+      echo "$name (from $from)"
+    fi
     ;;
   *)
-    echo "usage: branch.sh inspect | create <name> [--from <base>]" >&2
+    echo "usage: branch.sh inspect | create <name> [--from <base>] [--worktree [--at <path>]]" >&2
     exit 64
     ;;
 esac
