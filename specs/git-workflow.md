@@ -85,5 +85,43 @@ branches, PR creation (see create-pr).
 
 ## create-pr
 
-Stub — specified in M0 after create-branch. Core invariants will cover:
-context-rich body from commits/ticket, correct base branch, no AI attribution.
+### Intent triggers
+
+"open a PR", "create a pull request", "PR this", "push and open a PR",
+or an explicit skill invocation.
+
+### Contract
+
+Create exactly one pull request from the current branch into a deliberate
+base, with a Conventional Commit title and a context-rich body derived from
+the branch's commits (and ticket, when one is known). Push the branch (with
+upstream) first if needed. Draft only when the user asks for a draft.
+
+### Invariants
+
+- **GW-P1 — Conventional title.** The PR title follows the Conventional
+  Commit subject rules (same types as commits, ≤ 72 chars, imperative, no
+  trailing period) and summarizes the whole branch, not just the last commit.
+- **GW-P2 — Context-rich body.** The body states why the change exists and
+  what it does, derived from the branch commits; a known ticket id is
+  referenced verbatim. No filler, no boilerplate checklists.
+- **GW-P3 — No AI attribution.** No "Generated with ..." lines, no AI
+  co-author credits, no tool emoji in title or body.
+- **GW-P4 — Deliberate shape.** Base is the repo's default branch unless the
+  user names one; draft only when the user asks. Both are stated in the
+  report. Head and base are never the same — on the default branch there is
+  no PR to make; report that and stop.
+- **GW-P5 — Push without rewrite.** The branch is pushed (upstream set when
+  missing) before the PR is created. Never force-push; a refused push is
+  relayed verbatim and stops the workflow.
+- **GW-P6 — One PR, no duplicates.** An existing open PR for the branch is
+  reported, never duplicated. Exactly one PR per invocation.
+- **GW-P7 — Committed work only.** The PR proposes committed work.
+  Uncommitted changes are reported, never committed or stashed to "complete"
+  the PR. No commits ahead of the base → report, stop.
+
+### Non-goals
+
+Merging or auto-merge, assigning reviewers/labels/milestones, updating or
+closing existing PRs, creating issues, committing (see create-commit),
+branching (see create-branch), pushing the default branch.

@@ -12,6 +12,9 @@ export interface Fixture {
   staged?: string[];
   /** Git hooks installed executable under .git/hooks, e.g. {"pre-commit": "#!/bin/sh\nexit 1"}. */
   hooks?: Record<string, string>;
+  /** Executables installed to .git/fixture-bin — prepended to PATH when the
+   *  harness runs, to shadow network tools with mocks (e.g. gh). */
+  bin?: Record<string, string>;
   /** Shell script run in the repo last (before skill mounts) for states the
    *  declarative fields can't express, e.g. extra branches or merge conflicts. */
   setup?: string;

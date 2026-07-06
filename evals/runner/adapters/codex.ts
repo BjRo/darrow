@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { HarnessAdapter, HarnessResult } from "../types";
 
 /**
@@ -27,7 +28,14 @@ export const codexAdapter: HarnessAdapter = {
         "--skip-git-repo-check",
         "--dangerously-bypass-approvals-and-sandbox",
       ],
-      { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
+      {
+        cwd: repoDir,
+        stdout: "pipe",
+        stderr: "pipe",
+        // Fixture mocks (e.g. gh) shadow real network tools for the harness
+        // and every subprocess it spawns.
+        env: { ...process.env, PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}` },
+      },
     );
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),

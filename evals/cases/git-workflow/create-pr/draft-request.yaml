@@ -1,0 +1,60 @@
+id: create-pr-draft-request
+invariant: GW-P4
+skill: create-pr
+prompt: Open a draft PR for this so CI can run while I keep working.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/report.ts: "export function report() { return []; }\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-fail" ]; then
+            echo "HTTP 502: bad gateway" >&2
+            exit 1
+          fi
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
+            cat "$(git rev-parse --git-dir)/fixture-gh-existing"
+          fi
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          shift 2
+          while [ $# -gt 0 ]; do
+            case "$1" in
+              --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
+              --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
+              --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
+              --draft) : > "$d/draft"; shift ;;
+              *) shift ;;
+            esac
+          done
+          echo "https://github.com/fixture/repo/pull/1"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc feat/weekly-usage-report
+    printf 'export function report() { return ["usage"]; }\n' > src/report.ts
+    git add src/report.ts
+    git commit -qm "feat: assemble weekly usage report"
+checks:
+  - name: PR created
+    run: test -f .git/fixture-gh/title && echo created
+    expect_regex: "^created$"
+  - name: created as draft
+    run: test -f .git/fixture-gh/draft && echo draft
+    expect_regex: "^draft$"

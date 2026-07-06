@@ -52,6 +52,13 @@ export async function buildFixture(
       await writeFile(hookPath, content, { mode: 0o755 });
     }
   }
+  if (fixture.bin) {
+    const binDir = join(repoDir, ".git", "fixture-bin");
+    await mkdir(binDir, { recursive: true });
+    for (const [name, content] of Object.entries(fixture.bin)) {
+      await writeFile(join(binDir, name), content, { mode: 0o755 });
+    }
+  }
   if (fixture.setup) {
     const proc = Bun.spawn(["bash", "-c", fixture.setup], {
       cwd: repoDir,

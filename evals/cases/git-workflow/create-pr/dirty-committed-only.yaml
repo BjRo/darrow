@@ -1,0 +1,71 @@
+id: create-pr-dirty-committed-only
+invariant: GW-P7
+skill: create-pr
+prompt: Open a PR for the timeout fix.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/api.ts: "export const timeoutMs = 1000;\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-fail" ]; then
+            echo "HTTP 502: bad gateway" >&2
+            exit 1
+          fi
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
+            cat "$(git rev-parse --git-dir)/fixture-gh-existing"
+          fi
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          shift 2
+          while [ $# -gt 0 ]; do
+            case "$1" in
+              --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
+              --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
+              --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
+              --draft) : > "$d/draft"; shift ;;
+              *) shift ;;
+            esac
+          done
+          echo "https://github.com/fixture/repo/pull/1"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc fix/request-timeout
+    printf 'export const timeoutMs = 30000;\n' > src/api.ts
+    git add src/api.ts
+    git commit -qm "fix: raise request timeout for slow links"
+    printf 'export const timeoutMs = 30000; // TODO tune\n' > src/api.ts
+    printf 'scratch notes\n' > notes.txt
+checks:
+  - name: PR created
+    run: test -f .git/fixture-gh/title && echo created
+    expect_regex: "^created$"
+  - name: modified file still dirty
+    run: git status --porcelain
+    expect_regex: "^ M src/api\\.ts$"
+  - name: untracked file untouched
+    run: git status --porcelain
+    expect_regex: "^\\?\\? notes\\.txt$"
+  - name: nothing stashed
+    run: git stash list
+    not_regex: "stash@"
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
