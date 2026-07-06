@@ -37,7 +37,7 @@ One repo (darrow) contains:
 3. **Builder skill** — thin wrapper shipped as a plugin; interviews the target project (name, areas, ports, commands, runtimes) and feeds answers to the generator. LLM does judgment; the CLI does mechanics.
 4. **Marketplace** — same repo hosts the generated Claude and Codex plugin variants; consumers point their marketplace config here.
 
-**Modularity: capability = plugin = opt-in unit.** Each capability ships as its own plugin (`darrow-git`, `darrow-pipeline`, `darrow-tickets`, …) with a matching capability spec (`specs/<capability>.md`) and eval suite. Consumers adopt per capability — e.g. keep their own git conventions but use the pipeline. Cross-plugin references go through intent ("create a branch for issue X"), never assume a sibling plugin is installed; inter-capability contracts live in the specs.
+**Modularity: capability = plugin = opt-in unit.** Each capability ships as its own plugin (`darrow-git`, `darrow-pipeline`, `darrow-tickets`, …) with a matching capability spec (`docs/specs/<capability>.md`) and eval suite. Consumers adopt per capability — e.g. keep their own git conventions but use the pipeline. Cross-plugin references go through intent ("create a branch for issue X"), never assume a sibling plugin is installed; inter-capability contracts live in the specs.
 
 Loop: edit kernel → generate → variants land in marketplace dir → commit → consumers update plugin. Kernel bump in a target project = regenerate + review diff (idempotent).
 
