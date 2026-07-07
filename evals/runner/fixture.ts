@@ -1,4 +1,5 @@
 import { mkdtemp, writeFile, mkdir, cp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Fixture } from "./types";
@@ -74,11 +75,18 @@ export async function buildFixture(
   // Never mount the skill's colocated evals/ — the model under eval could
   // read its own pass criteria from the case files.
   const evalsDir = join(skillDir, "evals");
+  // A plugin-level bin/ (shared CLI, ADR-0002) mounts two levels above the
+  // skill dir so <skill-dir>/../../bin/<cli> resolves in fixtures exactly
+  // like in the repo and the plugin cache.
+  const pluginBin = join(dirname(dirname(skillDir)), "bin");
   for (const mount of skillMounts) {
     await cp(skillDir, join(repoDir, mount, skillName), {
       recursive: true,
       filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
     });
+    if (existsSync(pluginBin)) {
+      await cp(pluginBin, join(repoDir, mount, "..", "bin"), { recursive: true });
+    }
   }
   // Keep mounts invisible to git: they are eval infrastructure, not repo
   // state (a model told "commit my changes" would otherwise commit them).
