@@ -42,9 +42,18 @@ check_not_contains() {
   fi
 }
 
+TEMP_REPOS=""
+cleanup_repos() {
+  cd /
+  local r
+  for r in $TEMP_REPOS; do rm -rf "$r"; done
+}
+trap cleanup_repos EXIT
+
 # NOT a cmd substitution: cd must affect the caller, never the src repo.
 fresh_repo() {
   REPO=$(mktemp -d)
+  TEMP_REPOS="$TEMP_REPOS $REPO"
   cd "$REPO" || exit 70
   [[ "$PWD" == "$REPO" ]] || { echo "abort: not in temp repo" >&2; exit 70; }
   export PATH="$REPO/.git/fixture-bin:$BASE_PATH"
@@ -79,6 +88,13 @@ find_flag() { # $1=flag; echoes the value following it from remaining args
   return 1
 }
 case "$1 $2" in
+  "repo view")
+    if [ -f "$d/repo-view-fail" ]; then
+      echo "GraphQL: Could not resolve to a Repository" >&2
+      exit 1
+    fi
+    if [ -f "$d/issues-disabled" ]; then echo false; else echo true; fi
+    ;;
   "label list")
     cat "$d/labels"
     ;;
@@ -93,13 +109,13 @@ case "$1 $2" in
     json=$(find_flag --json "$@")
     case "$json" in
       state,title)
-        printf '%s\t%s\n' "$state" "$title"
+        printf '%s\n%s\n' "$state" "$title"
         ;;
       body)
-        cat "$d/issue-$id-body" 2>/dev/null
+        cat "$d/issue-$id-body" 2>/dev/null || :
         ;;
       labels)
-        cat "$d/issue-$id-labels" 2>/dev/null
+        cat "$d/issue-$id-labels" 2>/dev/null || :
         ;;
       number,state,title,url,labels)
         printf '#%s %s — %s\n' "$id" "$state" "$title"
@@ -117,7 +133,7 @@ case "$1 $2" in
     esac
     ;;
   "issue list")
-    cat "$d/list" 2>/dev/null
+    cat "$d/list" 2>/dev/null || :
     ;;
   "issue create")
     bf=$(find_flag --body-file "$@")
@@ -208,6 +224,16 @@ check "inspect exits 0" 0 "$RC"
 check_contains "names the backend" "## backend: github" "$OUT"
 check_contains "lists labels" "enhancement" "$OUT"
 check_contains "documents the type mapping" "types: bug, feature, task, chore" "$OUT"
+: > "$MOCK/issues-disabled"
+OUT=$(bash "$SCRIPT" inspect 2>&1); RC=$?
+check "issues disabled exits 3" 3 "$RC"
+check_contains "names the disabled feature" "issues are disabled" "$OUT"
+rm "$MOCK/issues-disabled"
+: > "$MOCK/repo-view-fail"
+OUT=$(bash "$SCRIPT" inspect 2>&1); RC=$?
+check "unresolvable repo exits 3" 3 "$RC"
+check_contains "names the resolution failure" "cannot resolve a GitHub repository" "$OUT"
+rm "$MOCK/repo-view-fail"
 
 echo "create — input validation"
 fresh_repo; mock_gh
@@ -421,12 +447,95 @@ check "removing absent parent exits 9" 9 "$RC"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 3 --parent 7 2>&1); RC=$?
 check "two relation ops exit 2" 2 "$RC"
 
+echo "create — marker side door and dedup (TM-2)"
+fresh_repo; mock_gh
+mock_issue 5 open "Other"
+printf '## Observed\n\nx\n\nParent: #5\n\n## Expected\n\ny\n\n## Reproduction\n\nz\n' > body.md
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md 2>&1); RC=$?
+check "hand-written marker rejected" 2 "$RC"
+check_contains "explains the mechanism" "script-owned" "$OUT"
+good_bug_body body.md
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends-on 5 --depends-on 5 2>&1); RC=$?
+check "duplicate --depends-on exits 2" 2 "$RC"
+
+echo "create — milestone/assignee pass-through (TM-C6)"
+fresh_repo; mock_gh
+good_bug_body body.md
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --milestone v1 --assignee octocat 2>&1); RC=$?
+check "create with milestone exits 0" 0 "$RC"
+check_contains "reports the milestone" "milestone: v1" "$OUT"
+check_contains "reports the assignee" "assignee: octocat" "$OUT"
+grep -q -- "--milestone v1" "$MOCK/calls"; check "milestone sent to gh" 0 "$?"
+grep -q -- "--assignee octocat" "$MOCK/calls"; check "assignee sent to gh" 0 "$?"
+
+echo "create — fence-masked heading (TM-C3)"
+fresh_repo; mock_gh
+printf '## Observed\n\nx\n\n## Expected\n\ny\n\n```\n## Reproduction\n\nz\n```\n' > body.md
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md 2>&1); RC=$?
+check "heading inside a fence does not count" 7 "$RC"
+
+echo "labels — dash and comma edge cases"
+fresh_repo; mock_gh
+printf 'bug\n-triage\n' > "$MOCK/labels"
+good_bug_body body.md
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --label "-triage" --body-file body.md 2>&1); RC=$?
+check "leading-dash label accepted when it exists" 0 "$RC"
+check_not_contains "no grep option error" "No such file" "$OUT"
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --label "a,b" --body-file body.md 2>&1); RC=$?
+check "comma label exits 8" 8 "$RC"
+mock_issue 12 open "T"
+OUT=$(bash "$SCRIPT" label 12 --add "a,b" 2>&1); RC=$?
+check "comma label add exits 8" 8 "$RC"
+
+echo "CRLF bodies (web-UI edited tickets)"
+fresh_repo; mock_gh
+printf 'Body line.\r\n\r\nDepends-on: #3\r\nParent: #7\r\n' > "$MOCK/issue-15-body"
+printf 'open' > "$MOCK/issue-15-state"
+printf 'CRLF ticket' > "$MOCK/issue-15-title"
+mock_issue 3 open "Blocker"
+mock_issue 7 open "Umbrella"
+OUT=$(bash "$SCRIPT" get 15 2>&1); RC=$?
+check "get on CRLF body exits 0" 0 "$RC"
+check_contains "CRLF relations parsed" "depends-on: #3" "$OUT"
+check_contains "CRLF parent parsed" "parent: #7" "$OUT"
+OUT=$(bash "$SCRIPT" relate 15 --remove-depends-on 3 2>&1); RC=$?
+check "CRLF marker removable" 0 "$RC"
+OUT=$(bash "$SCRIPT" relate 15 --parent 3 2>&1); RC=$?
+check "CRLF parent still guards" 9 "$RC"
+
+echo "describe (TM-U3)"
+fresh_repo; mock_gh
+mock_issue 12 open "List dies" "$(printf 'Old text.\n\nDepends-on: #3\nParent: #7')"
+printf 'New description with the real repro.\n' > d.md
+OUT=$(bash "$SCRIPT" describe 12 --body-file d.md 2>&1); RC=$?
+check "describe exits 0" 0 "$RC"
+check_contains "reports the rewrite" "#12 description replaced" "$OUT"
+NEW=$(cat "$MOCK/edited-body-12")
+check_contains "new text stored" "real repro" "$NEW"
+check_contains "dependency marker preserved" "Depends-on: #3" "$NEW"
+check_contains "parent marker preserved" "Parent: #7" "$NEW"
+check_not_contains "old text gone" "Old text" "$NEW"
+printf 'Rewrite with marker.\n\nParent: #9\n' > d.md
+OUT=$(bash "$SCRIPT" describe 12 --body-file d.md 2>&1); RC=$?
+check "marker in describe body rejected" 2 "$RC"
+printf 'Done.\n\nCo-authored-by: Claude <noreply@anthropic.com>\n' > d.md
+OUT=$(bash "$SCRIPT" describe 12 --body-file d.md 2>&1); RC=$?
+check "attribution in describe exits 6" 6 "$RC"
+
+echo "list names the backend (TM-1)"
+fresh_repo; mock_gh
+: > "$MOCK/list"
+OUT=$(bash "$SCRIPT" list 2>&1)
+check_contains "backend named" "backend: github" "$OUT"
+
 echo "usage"
 fresh_repo; mock_gh
 OUT=$(bash "$SCRIPT" 2>&1); RC=$?
 check "no command exits 64" 64 "$RC"
 OUT=$(bash "$SCRIPT" frobnicate 2>&1); RC=$?
 check "unknown command exits 64" 64 "$RC"
+OUT=$(bash "$SCRIPT" get 2>&1); RC=$?
+check "missing id is an input error" 2 "$RC"
 
 echo
 if [[ $FAILURES -gt 0 ]]; then

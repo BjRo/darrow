@@ -18,7 +18,11 @@ set -euo pipefail
 truncate_lines() { awk 'NR<=50'; }
 
 TMPFILE=""
-cleanup() { if [[ -n "$TMPFILE" ]]; then rm -f "$TMPFILE"; fi; }
+TMPERR=""
+cleanup() {
+  if [[ -n "$TMPFILE" ]]; then rm -f "$TMPFILE"; fi
+  if [[ -n "$TMPERR" ]]; then rm -f "$TMPERR"; fi
+}
 trap cleanup EXIT
 
 usage() {
@@ -30,8 +34,10 @@ usage: ticket <command> [args]
        [--milestone <m>] [--limit <n>]
   get <id>
   create --title <t> --type bug|feature|task|chore --body-file <f>
-         [--label <l>]... [--depends-on <id>]... [--parent <id>]
+         [--label <l>]... [--milestone <m>] [--assignee <a>]
+         [--depends-on <id>]... [--parent <id>]
   comment <id> --body-file <f>
+  describe <id> --body-file <f>   # full description rewrite, explicit request only
   close <id>
   reopen <id>
   label <id> (--add <l> | --remove <l>)
@@ -67,13 +73,22 @@ resolve_backend() {
 }
 
 # Backend failures are relayed verbatim (truncated) — the caller reports
-# them, never works around them.
+# them, never works around them. stderr is kept out of captured data: on
+# success it must never leak into values (a body with stderr chatter would
+# be written back into the ticket).
 run_gh() {
-  local out
-  if ! out=$(gh "$@" 2>&1); then
-    truncate_lines <<< "$out" >&2
+  local out rc=0
+  TMPERR=$(mktemp)
+  out=$(gh "$@" 2>"$TMPERR") || rc=$?
+  if [[ $rc -ne 0 ]]; then
+    truncate_lines < "$TMPERR" >&2
+    if [[ -n "$out" ]]; then
+      truncate_lines <<< "$out" >&2
+    fi
     exit 4
   fi
+  rm -f "$TMPERR"
+  TMPERR=""
   printf '%s' "$out"
 }
 
@@ -87,10 +102,11 @@ norm_id() {
 }
 
 # TM-2: a relation target must exist before anything is created or mutated.
-# Echoes "<state>\t<title>".
+# Echoes state on line 1, title on line 2 (titles are single-line on GitHub;
+# @tsv would escape tabs/backslashes into the report).
 verify_ticket() {
   local out
-  if ! out=$(gh issue view "$1" --json state,title --jq '[(.state|ascii_downcase), .title] | @tsv' 2>&1); then
+  if ! out=$(gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>&1); then
     echo "error: ticket #$1 not found:" >&2
     truncate_lines <<< "$out" >&2
     exit 4
@@ -99,10 +115,19 @@ verify_ticket() {
 }
 
 fetch_labels() {
-  REPO_LABELS=$(run_gh label list --json name --jq '.[].name' --limit 200)
+  REPO_LABELS=$(run_gh label list --json name --jq '.[].name' --limit 1000)
 }
 
-label_exists() { grep -qxF "$1" <<< "$REPO_LABELS"; }
+label_exists() { grep -qxF -- "$1" <<< "$REPO_LABELS"; }
+
+# gh's --label/--add-label flags comma-split their values; a comma label
+# would silently become two.
+check_label_value() {
+  if [[ "$1" == *,* ]]; then
+    echo "error: labels containing commas are not supported by the gh backend: $1" >&2
+    exit 8
+  fi
+}
 
 # First existing label a type maps to; empty when none (TM-C6: never create
 # taxonomy as a side effect).
@@ -184,8 +209,8 @@ check_body_structure() {
 }
 
 read_body_file() {
-  if [[ ! -r "$1" ]]; then
-    echo "error: body file is not readable: $1" >&2
+  if [[ ! -f "$1" || ! -r "$1" ]]; then
+    echo "error: body file is not a readable file: $1" >&2
     exit 2
   fi
   BODY=$(cat "$1")
@@ -198,10 +223,11 @@ read_body_file() {
 # TM-3: relations are stored as script-owned marker lines in the body
 # ("Depends-on: #N", "Parent: #N"). Matched at line level; a verbatim
 # marker inside a fenced code block would be picked up too — accepted, the
-# markers are namespaced enough in practice.
+# markers are namespaced enough in practice. First Parent line wins,
+# matching the add-parent guard.
 parse_relations() {
   awk '
-    /^Parent: #[0-9]+$/ {p=$2}
+    /^Parent: #[0-9]+$/ {if (!p) p=$2}
     /^Depends-on: #[0-9]+$/ {d = d (d ? " " : "") $2}
     END {
       print "parent: " (p ? p : "(none)")
@@ -213,14 +239,29 @@ strip_markers() {
   awk '!/^Depends-on: #[0-9]+$/ && !/^Parent: #[0-9]+$/' <<< "$1"
 }
 
-has_marker() { grep -qxF "$2" <<< "$1"; }
+has_marker() { grep -qxF -- "$2" <<< "$1"; }
 
 remove_marker() {
   MK="$2" awk 'BEGIN {mk=ENVIRON["MK"]} $0 != mk' <<< "$1"
 }
 
+# Appends a marker line; blank-line separated unless the body already ends
+# in a marker (rendered markdown would otherwise merge the marker into the
+# preceding paragraph).
+append_marker() {
+  local body=$1 marker=$2 last
+  last=$(awk 'END {print}' <<< "$body")
+  if [[ "$last" =~ ^(Depends-on|Parent):\ \#[0-9]+$ ]]; then
+    printf '%s\n%s' "$body" "$marker"
+  else
+    printf '%s\n\n%s' "$body" "$marker"
+  fi
+}
+
+# CRLF-normalized: GitHub stores \r\n after web-UI edits, which would make
+# every marker line invisible to the exact-line matching above.
 fetch_body() {
-  run_gh issue view "$1" --json body --jq '.body // ""'
+  run_gh issue view "$1" --json body --jq '.body // ""' | awk '{sub(/\r$/, "")} 1'
 }
 
 write_body() {
@@ -242,6 +283,19 @@ shift
 case "$cmd" in
   inspect)
     resolve_backend
+    # TM-1: inspect is the orientation step, so it also probes the pieces
+    # that need a network round-trip (issues enabled, origin actually a
+    # GitHub repo). Mutating commands rely on gh's own errors instead of
+    # paying this probe on every call.
+    if ! probe=$(gh repo view --json hasIssuesEnabled --jq '.hasIssuesEnabled' 2>&1); then
+      echo "error: cannot resolve a GitHub repository for 'origin':" >&2
+      truncate_lines <<< "$probe" >&2
+      exit 3
+    fi
+    if [[ "$probe" != "true" ]]; then
+      echo "error: issues are disabled for this repository — enable them or use a different backend" >&2
+      exit 3
+    fi
     fetch_labels
     echo "## backend: $BACKEND"
     echo "## types: bug, feature, task, chore (create maps the type to an existing label; none -> created unlabeled)"
@@ -252,7 +306,7 @@ case "$cmd" in
       truncate_lines <<< "$REPO_LABELS"
       total=$(awk 'END{print NR}' <<< "$REPO_LABELS")
       if [[ "$total" -gt 50 ]]; then
-        echo "## note: label list truncated at 50 ($total total)"
+        echo "## note: label list truncated at 50 ($total fetched)"
       fi
     fi
     ;;
@@ -312,6 +366,7 @@ case "$cmd" in
       filters="$filters, type=$type"
     fi
     for l in ${labels[@]+"${labels[@]}"}; do
+      check_label_value "$l"
       args+=(--label "$l")
       filters="$filters, label=$l"
     done
@@ -325,6 +380,7 @@ case "$cmd" in
     fi
     args+=(--json number,state,title,labels --jq '.[] | "#\(.number) \(.state|ascii_downcase)  \(.title)" + (if (.labels|length) > 0 then " (" + ([.labels[].name]|join(", ")) + ")" else "" end)')
     out=$(run_gh "${args[@]}")
+    echo "backend: $BACKEND"
     if [[ -z "$out" ]]; then
       echo "no matches ($filters)"
     else
@@ -341,7 +397,7 @@ case "$cmd" in
     ;;
 
   get)
-    [[ $# -ge 1 ]] || usage
+    [[ $# -ge 1 ]] || { echo "error: get needs a ticket id" >&2; exit 2; }
     id=$(norm_id "$1")
     resolve_backend
     meta=$(run_gh issue view "$id" --json number,state,title,url,labels --jq '"#\(.number) \(.state|ascii_downcase) — \(.title)\n\(.url)\nlabels: " + (if (.labels|length) > 0 then ([.labels[].name]|join(", ")) else "(none)" end)')
@@ -358,6 +414,8 @@ case "$cmd" in
     type=""
     body_file=""
     parent=""
+    milestone=""
+    assignee=""
     labels=()
     deps=()
     while [[ $# -gt 0 ]]; do
@@ -374,9 +432,21 @@ case "$cmd" in
         --label)
           [[ $# -ge 2 ]] || { echo "error: --label needs a value" >&2; exit 2; }
           labels+=("$2"); shift 2 ;;
+        --milestone)
+          [[ $# -ge 2 ]] || { echo "error: --milestone needs a value" >&2; exit 2; }
+          milestone=$2; shift 2 ;;
+        --assignee)
+          [[ $# -ge 2 ]] || { echo "error: --assignee needs a value" >&2; exit 2; }
+          assignee=$2; shift 2 ;;
         --depends-on)
-          [[ $# -ge 2 ]] || { echo "error: --depends-on needs a value" >&2; exit 2; }
-          deps+=("$(norm_id "$2")"); shift 2 ;;
+          dep=$(norm_id "${2:-}")
+          for d in ${deps[@]+"${deps[@]}"}; do
+            if [[ "$d" == "$dep" ]]; then
+              echo "error: duplicate --depends-on: #$dep" >&2
+              exit 2
+            fi
+          done
+          deps+=("$dep"); shift 2 ;;
         --parent)
           [[ $# -ge 2 ]] || { echo "error: --parent needs a value" >&2; exit 2; }
           parent=$(norm_id "$2"); shift 2 ;;
@@ -406,11 +476,18 @@ case "$cmd" in
       exit 5
     fi
     read_body_file "$body_file"
+    # TM-2/TM-3: markers are script-owned; a hand-written one would smuggle
+    # in unverified relations.
+    if grep -qE '^(Depends-on|Parent): #[0-9]+$' <<< "$BODY"; then
+      echo "error: relation markers in the body are script-owned — pass --depends-on/--parent instead" >&2
+      exit 2
+    fi
     check_attribution "$title"$'\n'"$BODY"
     check_body_structure "$type" "$BODY"
     resolve_backend
     fetch_labels
     for l in ${labels[@]+"${labels[@]}"}; do
+      check_label_value "$l"
       if ! label_exists "$l"; then
         echo "error: label does not exist in the tracker: $l — pick from:" >&2
         truncate_lines <<< "$REPO_LABELS" >&2
@@ -454,6 +531,14 @@ case "$cmd" in
     for l in ${labels[@]+"${labels[@]}"}; do
       args+=(--label "$l")
     done
+    # Milestone/assignee values are validated by the backend; an unknown
+    # value is relayed verbatim (TM-C6: never created as a side effect).
+    if [[ -n "$milestone" ]]; then
+      args+=(--milestone "$milestone")
+    fi
+    if [[ -n "$assignee" ]]; then
+      args+=(--assignee "$assignee")
+    fi
     url=$(run_gh "${args[@]}" | awk 'NF {l=$0} END {print l}')
     num=${url##*/}
     echo "backend: $BACKEND"
@@ -470,6 +555,12 @@ case "$cmd" in
       done
       echo "labels: $out"
     fi
+    if [[ -n "$milestone" ]]; then
+      echo "milestone: $milestone"
+    fi
+    if [[ -n "$assignee" ]]; then
+      echo "assignee: $assignee"
+    fi
     if [[ ${#deps[@]} -gt 0 || -n "$parent" ]]; then
       parse_relations "$body_out"
     fi
@@ -479,7 +570,7 @@ case "$cmd" in
     ;;
 
   comment)
-    [[ $# -ge 1 ]] || usage
+    [[ $# -ge 1 ]] || { echo "error: comment needs a ticket id" >&2; exit 2; }
     id=$(norm_id "$1")
     shift
     body_file=""
@@ -503,14 +594,55 @@ case "$cmd" in
     echo "commented on #$id: $url"
     ;;
 
+  describe)
+    # TM-U3: full description rewrite, only ever on an explicit user
+    # request. Relation markers are script-owned state riding in the body —
+    # a rewrite must not lose them.
+    [[ $# -ge 1 ]] || { echo "error: describe needs a ticket id" >&2; exit 2; }
+    id=$(norm_id "$1")
+    shift
+    body_file=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --body-file)
+          [[ $# -ge 2 ]] || { echo "error: --body-file needs a value" >&2; exit 2; }
+          body_file=$2; shift 2 ;;
+        *) echo "error: unknown describe argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    if [[ -z "$body_file" ]]; then
+      echo "error: --body-file required" >&2
+      exit 2
+    fi
+    read_body_file "$body_file"
+    if grep -qE '^(Depends-on|Parent): #[0-9]+$' <<< "$BODY"; then
+      echo "error: relation markers in the body are script-owned — use relate to change them" >&2
+      exit 2
+    fi
+    check_attribution "$BODY"
+    resolve_backend
+    verify_ticket "$id" >/dev/null
+    old=$(fetch_body "$id")
+    markers=$(awk '/^Depends-on: #[0-9]+$/ || /^Parent: #[0-9]+$/' <<< "$old")
+    new=$BODY
+    if [[ -n "$markers" ]]; then
+      new="$new"$'\n\n'"$markers"
+    fi
+    write_body "$id" "$new"
+    echo "#$id description replaced"
+    if [[ -n "$markers" ]]; then
+      parse_relations "$new"
+    fi
+    ;;
+
   close|reopen)
-    [[ $# -ge 1 ]] || usage
+    [[ $# -ge 1 ]] || { echo "error: $cmd needs a ticket id" >&2; exit 2; }
     [[ $# -eq 1 ]] || { echo "error: unknown $cmd argument: $2" >&2; exit 2; }
     id=$(norm_id "$1")
     resolve_backend
     info=$(verify_ticket "$id")
-    state=${info%%$'\t'*}
-    title=${info#*$'\t'}
+    state=${info%%$'\n'*}
+    title=${info#*$'\n'}
     if [[ "$cmd" == close ]]; then
       target=closed
     else
@@ -527,7 +659,7 @@ case "$cmd" in
     ;;
 
   label)
-    [[ $# -ge 1 ]] || usage
+    [[ $# -ge 1 ]] || { echo "error: label needs a ticket id" >&2; exit 2; }
     id=$(norm_id "$1")
     shift
     add=""
@@ -551,6 +683,7 @@ case "$cmd" in
     verify_ticket "$id" >/dev/null
     current=$(issue_labels "$id")
     if [[ -n "$add" ]]; then
+      check_label_value "$add"
       fetch_labels
       if ! label_exists "$add"; then
         echo "error: label does not exist in the tracker: $add — pick from:" >&2
@@ -574,7 +707,7 @@ case "$cmd" in
     ;;
 
   relate)
-    [[ $# -ge 1 ]] || usage
+    [[ $# -ge 1 ]] || { echo "error: relate needs a ticket id" >&2; exit 2; }
     id=$(norm_id "$1")
     shift
     op=""
@@ -615,7 +748,7 @@ case "$cmd" in
           echo "error: #$id already depends on #$target" >&2
           exit 9
         fi
-        body="$body"$'\n'"Depends-on: #$target"
+        body=$(append_marker "$body" "Depends-on: #$target")
         ;;
       rm-dep)
         if ! has_marker "$body" "Depends-on: #$target"; then
@@ -631,7 +764,7 @@ case "$cmd" in
           exit 9
         fi
         verify_ticket "$target" >/dev/null
-        body="$body"$'\n'"Parent: #$target"
+        body=$(append_marker "$body" "Parent: #$target")
         ;;
       rm-parent)
         existing=$(awk '/^Parent: #[0-9]+$/ {print $2; exit}' <<< "$body")

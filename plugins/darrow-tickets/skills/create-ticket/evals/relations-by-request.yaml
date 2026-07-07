@@ -1,0 +1,113 @@
+id: create-ticket-relations-by-request
+invariant: TM-C9
+prompt: >-
+  Create a task ticket under epic #7: wire the CSV export into the nightly
+  reporting job. Outcome: the nightly job attaches the CSV to its report.
+  Done when the job has run green two nights in a row.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      find_flag() {
+        want=$1; shift
+        prev=""
+        for a in "$@"; do
+          if [ "$prev" = "$want" ]; then printf '%s' "$a"; return 0; fi
+          prev=$a
+        done
+        return 1
+      }
+      case "$1 $2" in
+        "repo view")
+          echo true
+          ;;
+        "label list")
+          cat "$d/labels" 2>/dev/null || :
+          ;;
+        "issue list")
+          cat "$d/list" 2>/dev/null || :
+          ;;
+        "issue view")
+          id=$3
+          if [ ! -f "$d/issue-$id-state" ]; then
+            echo "GraphQL: Could not resolve to an Issue with the number of $id." >&2
+            exit 1
+          fi
+          json=$(find_flag --json "$@")
+          case "$json" in
+            "state,title")
+              printf '%s\n%s\n' "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
+              ;;
+            "body")
+              cat "$d/issue-$id-body" 2>/dev/null || :
+              ;;
+            "labels")
+              cat "$d/issue-$id-labels" 2>/dev/null || :
+              ;;
+            "number,state,title,url,labels")
+              printf '#%s %s - %s\n' "$id" "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
+              printf 'https://github.test/o/r/issues/%s\n' "$id"
+              printf 'labels: (none)\n'
+              ;;
+            *)
+              echo "mock gh: unsupported --json set: $json" >&2
+              exit 1
+              ;;
+          esac
+          ;;
+        "issue create")
+          if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/created-body"; fi
+          if tl=$(find_flag --title "$@"); then printf '%s' "$tl" > "$d/created-title"; fi
+          prev=""
+          for a in "$@"; do
+            if [ "$prev" = "--label" ]; then echo "$a" >> "$d/created-labels"; fi
+            prev=$a
+          done
+          echo "https://github.test/o/r/issues/99"
+          ;;
+        "issue comment")
+          if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/comment-body-$3"; fi
+          echo "https://github.test/o/r/issues/$3#issuecomment-1"
+          ;;
+        "issue edit")
+          if bf=$(find_flag --body-file "$@"); then
+            cp "$bf" "$d/edited-body-$3"
+            cp "$bf" "$d/issue-$3-body"
+          fi
+          ;;
+        "issue close"|"issue reopen")
+          echo "$2 $3" >> "$d/transitions"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'bug\nenhancement\ntask\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+    printf 'open' > .git/fixture-gh/issue-7-state
+    printf 'Reporting epic' > .git/fixture-gh/issue-7-title
+    printf 'Umbrella for reporting work.\n' > .git/fixture-gh/issue-7-body
+checks:
+  - name: parent recorded as requested
+    run: cat .git/fixture-gh/created-body
+    expect_regex: "^Parent: #7$"
+  - name: no invented dependencies
+    run: cat .git/fixture-gh/created-body
+    not_regex: "^Depends-on:"
+  - name: typed as a task
+    run: cat .git/fixture-gh/created-labels
+    expect_regex: "^task$"
+  - name: outcome section present
+    run: cat .git/fixture-gh/created-body
+    expect_regex: "^## Outcome$"

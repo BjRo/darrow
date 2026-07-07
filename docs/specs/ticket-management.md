@@ -142,8 +142,9 @@ target before mutating anything.
   transition (from → to). A transition the backend refuses is relayed
   verbatim and stops the workflow.
 - **TM-U5 — Verbatim cross-references.** Known commit, PR, or branch ids
-  are referenced verbatim, using the backend's linking syntax via the
-  script — never paraphrased or retyped from memory.
+  are referenced verbatim — never paraphrased or retyped from memory. When
+  a backend needs ids transformed into linking syntax, that transformation
+  is the script's job (GitHub links bare `#N` and SHAs as-is).
 - **TM-U6 — No tool attribution.** Same as TM-C7, applied to comments and
   edits.
 - **TM-U7 — Relations per contract.** Adding or removing a `depends-on` or

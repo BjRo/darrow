@@ -56,6 +56,14 @@ Review agents must never run git/gh against this repo — temp dirs via
   `.git/fixture-bin`); remotes are bare repos inside `.git/`; skill mounts are
   hidden via `.git/info/exclude` and never include the skill's `evals/` dir
   (the model under eval must not see its own pass criteria).
+- Case prompts: quote any prompt containing `#` (plain YAML scalars
+  comment-strip it — "Close ticket #12." silently became "Close ticket");
+  anchor the capability's domain in the prompt ("in the issue tracker",
+  "the open bug tickets") — headless skill routing is unreliable for
+  oblique references; keep the judgment under test ambiguous, never the
+  domain. Mock bins must exit 0 on empty state (`cat file || :`) — a
+  missing state file otherwise fails the whole CLI, and the skill's
+  correct stop-on-refusal behavior fails the eval.
 
 ## Git
 

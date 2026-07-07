@@ -1,0 +1,105 @@
+id: list-tickets-state-asked
+invariant: TM-L2
+prompt: List the closed tickets about export.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      find_flag() {
+        want=$1; shift
+        prev=""
+        for a in "$@"; do
+          if [ "$prev" = "$want" ]; then printf '%s' "$a"; return 0; fi
+          prev=$a
+        done
+        return 1
+      }
+      case "$1 $2" in
+        "repo view")
+          echo true
+          ;;
+        "label list")
+          cat "$d/labels" 2>/dev/null || :
+          ;;
+        "issue list")
+          cat "$d/list" 2>/dev/null || :
+          ;;
+        "issue view")
+          id=$3
+          if [ ! -f "$d/issue-$id-state" ]; then
+            echo "GraphQL: Could not resolve to an Issue with the number of $id." >&2
+            exit 1
+          fi
+          json=$(find_flag --json "$@")
+          case "$json" in
+            "state,title")
+              printf '%s\n%s\n' "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
+              ;;
+            "body")
+              cat "$d/issue-$id-body" 2>/dev/null || :
+              ;;
+            "labels")
+              cat "$d/issue-$id-labels" 2>/dev/null || :
+              ;;
+            "number,state,title,url,labels")
+              printf '#%s %s - %s\n' "$id" "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
+              printf 'https://github.test/o/r/issues/%s\n' "$id"
+              printf 'labels: (none)\n'
+              ;;
+            *)
+              echo "mock gh: unsupported --json set: $json" >&2
+              exit 1
+              ;;
+          esac
+          ;;
+        "issue create")
+          if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/created-body"; fi
+          if tl=$(find_flag --title "$@"); then printf '%s' "$tl" > "$d/created-title"; fi
+          prev=""
+          for a in "$@"; do
+            if [ "$prev" = "--label" ]; then echo "$a" >> "$d/created-labels"; fi
+            prev=$a
+          done
+          echo "https://github.test/o/r/issues/99"
+          ;;
+        "issue comment")
+          if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/comment-body-$3"; fi
+          echo "https://github.test/o/r/issues/$3#issuecomment-1"
+          ;;
+        "issue edit")
+          if bf=$(find_flag --body-file "$@"); then
+            cp "$bf" "$d/edited-body-$3"
+            cp "$bf" "$d/issue-$3-body"
+          fi
+          ;;
+        "issue close"|"issue reopen")
+          echo "$2 $3" >> "$d/transitions"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'bug\nenhancement\ndocumentation\n' > .git/fixture-gh/labels
+    printf '#8 closed  CSV export drops the header row (bug)\n' > .git/fixture-gh/list
+checks:
+  - name: closed state passed through
+    run: cat .git/fixture-gh/calls
+    expect_regex: "issue list --state closed"
+  - name: topic filter applied
+    run: cat .git/fixture-gh/calls
+    expect_regex: "issue list.*export"
+    flags: i
+  - name: nothing mutated
+    run: cat .git/fixture-gh/calls
+    not_regex: "issue (create|edit|comment|close|reopen)"
