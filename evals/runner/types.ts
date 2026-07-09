@@ -83,6 +83,8 @@ export interface CaseResult {
   harness: string;
   model: string;
   effort: string;
+  /** Condition label when run with --condition (A/B experiments). */
+  condition?: string;
   trials: TrialResult[];
   passRate: number;
   meanDurationMs: number;

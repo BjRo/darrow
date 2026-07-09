@@ -71,6 +71,9 @@ export async function buildFixture(
     if (code !== 0) throw new Error(`fixture setup failed (${code}): ${err}`);
   }
 
+  // Skill-less cases (experiments) mount nothing.
+  if (!skillDir) return repoDir;
+
   const skillName = skillDir.split("/").filter(Boolean).pop()!;
   // Never mount the skill's colocated evals/ — the model under eval could
   // read its own pass criteria from the case files.

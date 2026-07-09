@@ -25,7 +25,8 @@ function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
 
-/** Cases live next to the skill they test: plugins/<name>/skills/<skill>/evals/*.yaml. */
+/** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
+ *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
 async function loadCases(filter?: string): Promise<EvalCase[]> {
   const cases: EvalCase[] = [];
   const glob = new Bun.Glob("plugins/*/skills/*/evals/*.yaml");
@@ -33,6 +34,12 @@ async function loadCases(filter?: string): Promise<EvalCase[]> {
     const path = join(ROOT, rel);
     const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
     evalCase.skillDir = dirname(dirname(path));
+    cases.push(evalCase);
+  }
+  const expGlob = new Bun.Glob("evals/experiments/*/cases/*.yaml");
+  for await (const rel of expGlob.scan(ROOT)) {
+    const evalCase: EvalCase = parseYaml(await readFile(join(ROOT, rel), "utf8"));
+    evalCase.skillDir = ""; // no skill under test — nothing gets mounted
     cases.push(evalCase);
   }
   cases.sort((a, b) => a.id.localeCompare(b.id));
@@ -46,7 +53,9 @@ async function runCase(
   effort: string,
   trials: number,
   dry: boolean,
+  condition?: { label: string; text: string },
 ): Promise<CaseResult> {
+  const prompt = condition ? `${condition.text.trim()}\n\n${evalCase.prompt}` : evalCase.prompt;
   const trialResults: TrialResult[] = [];
 
   for (let trial = 1; trial <= trials; trial++) {
@@ -63,7 +72,7 @@ async function runCase(
         });
         continue;
       }
-      const harness = await adapter.run(repoDir, evalCase.prompt, model, effort);
+      const harness = await adapter.run(repoDir, prompt, model, effort);
       const checks = await runChecks(repoDir, evalCase.checks);
       const passed = harness.ok && checks.every((c) => c.passed);
       trialResults.push({ trial, passed, checks, harness });
@@ -87,6 +96,7 @@ async function runCase(
     harness: adapter.name,
     model,
     effort,
+    condition: condition?.label,
     trials: trialResults,
     passRate: trialResults.filter((t) => t.passed).length / Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
@@ -105,6 +115,7 @@ const { values } = parseArgs({
     case: { type: "string" },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
+    condition: { type: "string" },
   },
 });
 
@@ -115,6 +126,14 @@ if (!adapter) {
 }
 
 const model = values.model ?? adapter.defaultModel;
+let condition: { label: string; text: string } | undefined;
+if (values.condition) {
+  const condPath = resolve(process.cwd(), values.condition);
+  condition = {
+    label: condPath.split("/").pop()!.replace(/\.[^.]+$/, ""),
+    text: await readFile(condPath, "utf8"),
+  };
+}
 const cases = await loadCases(values.case);
 if (!cases.length) {
   console.error("No cases matched.");
@@ -125,13 +144,14 @@ const trials = Number(values.trials);
 const threshold = Number(values.threshold);
 console.log(
   `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${values.effort}` +
+    (condition ? ` [condition: ${condition.label}]` : "") +
     (values.dry ? " [dry run — no harness calls]" : ""),
 );
 
 const results: CaseResult[] = [];
 for (const evalCase of cases) {
   console.log(`\n${evalCase.id} (${evalCase.invariant})`);
-  results.push(await runCase(evalCase, adapter, model, values.effort!, trials, values.dry!));
+  results.push(await runCase(evalCase, adapter, model, values.effort!, trials, values.dry!, condition));
 }
 
 console.log("\n── Summary ──");
@@ -148,7 +168,8 @@ for (const r of results) {
 
 await mkdir(RESULTS_ROOT, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const outPath = join(RESULTS_ROOT, `${stamp}-${adapter.name}-${model}-${values.effort}.json`);
+const condSuffix = condition ? `-${condition.label}` : "";
+const outPath = join(RESULTS_ROOT, `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`);
 await writeFile(outPath, JSON.stringify(results, null, 2));
 console.log(`\nResults: ${outPath}`);
 

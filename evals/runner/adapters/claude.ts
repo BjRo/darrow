@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HarnessAdapter, HarnessResult } from "../types";
 
@@ -52,6 +53,10 @@ export const claudeAdapter: HarnessAdapter = {
       inputTokens = parsed.usage?.input_tokens ?? 0;
       outputTokens = parsed.usage?.output_tokens ?? 0;
       costUsd = parsed.total_cost_usd ?? 0;
+      // Mirror the codex adapter: final agent message under .git/ for checks.
+      if (typeof parsed.result === "string") {
+        await writeFile(join(repoDir, ".git", "last-message.md"), parsed.result);
+      }
     } catch {
       ok = false;
     }

@@ -27,6 +27,10 @@ export const codexAdapter: HarnessAdapter = {
         `model_reasoning_effort="${effort}"`,
         "--skip-git-repo-check",
         "--dangerously-bypass-approvals-and-sandbox",
+        // Final agent message lands under .git/ so checks can read it without
+        // it ever appearing in the model's worktree (same trick as fixture-bin).
+        "-o",
+        join(repoDir, ".git", "last-message.md"),
       ],
       {
         cwd: repoDir,
