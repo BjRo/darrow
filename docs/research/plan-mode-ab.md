@@ -178,6 +178,102 @@ floor quality, not depth — a tier-2 executor test could still separate the
 conditions on plan *depth* (ported plans consistently listed more edge cases
 and test scenarios).
 
+## Round 2 — real codebase (pre-registered before any trial)
+
+Round 1's ceiling (native 100% everywhere on 7-file fixtures) leaves the
+interesting question open: does the delta appear when search is actually hard?
+Round 2 reruns the same A/B on a real repo: a ~71k-LOC Go backend + TS
+frontend monorepo (credfolio2 — GraphQL/gqlgen, Bun ORM, River job queue,
+LLM pipelines, 28+ migrations), where exploration means navigating distractors,
+indirection, and partially stale docs.
+
+Setup deltas from round 1 (everything else identical — conditions, contract,
+metrics, decision rule, 5 trials, gpt-5.5@medium):
+
+- Fixture: `fixture.repo` clones the repo's HEAD into the temp dir
+  (`--local --no-hardlinks`), strips remotes so the eval clone has no route
+  back to the source repo.
+- The repo's Codex lifecycle hooks (`.codex/hooks*`) are removed in setup and
+  the removal committed neutrally — eval infra must not fire project hooks.
+  Docs (`AGENTS.md`, `CLAUDE.md` file map, `.agent-shared/`) stay: both
+  conditions benefit equally, and a repo that documents itself is the
+  realistic porting target.
+- Grounding path regex gains go/sql/graphql(s) extensions.
+
+Cases (`evals/experiments/plan-mode-ab-real/cases/`), ground truth verified by
+a read-only exploration pass before authoring:
+
+1. **plan-ab2-reuse-llm-feature** — async LLM skill-gap analysis. Correct
+   plans route through `internal/job/` (River) + `internal/infrastructure/llm/`
+   and echo a sibling pipeline (positioning review / extraction, resilience
+   wrappers). The sibling-pattern check is the discriminator; the CLAUDE.md
+   file map documents the areas but not the resilience/chain internals.
+2. **plan-ab2-trap-fork-pipeline** — per-step progress for fork generation.
+   Trap: a decision record prescribes the saga coordinator pattern "for all
+   pipelines" and two coordinators exist, but fork generation's coordinator
+   was later REMOVED (single worker, direct enqueue). Plans citing
+   `fork_coordinator.go` fail grounding (file doesn't exist); correct plans
+   build on `fork_generation.go`.
+3. **plan-ab2-span-export-curation** — curated experience selections for PDF
+   export. Two sibling curation features (skill / testimonial selections) span
+   migration → domain → repository → schema.graphqls → resolver → frontend →
+   export assembler. Checks require the full chain plus discovery of a
+   sibling.
+
+Known limits added for round 2: single real repo (results are about *this*
+codebase's shape); the repo's own agent docs help both conditions — the
+experiment measures workflow value *on top of* good repo docs, which is the
+question that matters for darrow; per-trial cost is much higher, so a smoke
+trial calibrates before the full 30.
+
+## Round 2 results (2026-07-09, same harness/model/effort, 5 trials/case)
+
+**Formal verdict: similar** (the ≥2-trials-on-≥2-cases rule is not met) — but
+the ceiling broke and a real, one-sided delta appeared.
+
+| Case | native (raw) | native (eyeballed) | ported |
+|---|---|---|---|
+| reuse-llm-feature | 2/5 | 3/5¹ | 5/5 |
+| span-export-curation | 4/5 | 4/5² | 5/5 |
+| trap-fork-pipeline | 5/5 | 5/5 | 5/5 |
+
+¹ One trial was an infra casualty (codex exited in 4.8s with no output — not a
+plan-quality datum). One trial failed the sibling-pattern regex while actually
+reusing a *closer* sibling my regex didn't list (`job_target_analysis` — it
+extended that pipeline rather than building beside it): check false-fail,
+eyeball pass. The remaining failure is genuine: cited
+`internal/graphql/generated.go`, which doesn't exist (real path
+`internal/graphql/generated/generated.go`).
+² Genuine per the contract: cited `export/page.tsx` and
+`internal/export/assembler.go` with truncated prefixes — the files exist under
+fuller paths, so this is sloppy citation rather than hallucination, but the
+repo-relative-path rule applied to both conditions equally.
+
+What the delta actually is:
+
+- **Every native quality failure was in the grounding/path-citation class.**
+  Ported: zero failures in 15 trials. Ported plans were *shorter* on average
+  (7.2k vs 7.3k chars) yet never cited a bad path — consistent with the
+  Phase 3 self-review ("verify every path you name exists") being the active
+  ingredient rather than the subagent fan-out.
+- Depth markers lean ported: auth helpers (`requireProfileOwnership` etc.)
+  2/5 vs 0/5 on the reuse case, dataloader awareness 3/5 vs 1/5 on the span
+  case, sibling-pipeline references 2/5 vs 0/5. Both conditions found the
+  sibling curation features 5/5.
+- The trap held nobody: 5/5 both — stale saga-coordinator docs didn't fool
+  either condition even once.
+- Cost: ported 2.0× tokens (means 1.34M vs 0.66M) and 1.5× wall-clock
+  (272s vs 178s) — a *smaller* multiple than round 1's 2.5×, because native
+  also has to explore a real repo.
+
+Reading both rounds together: repo complexity does move the needle (round 1
+was a pure ceiling; round 2 shows an 11/15 vs 15/15 raw split), and the
+benefit concentrates in **grounding reliability**, not trap avoidance or
+coverage. The workflow's cheapest component — a verify-cited-paths review pass
+before emitting — plausibly buys most of the value at a fraction of the 2×
+token cost. That's condition C for a possible round 3: shared contract +
+Phase 3 review only, no subagents.
+
 ## Follow-up (out of scope here)
 
 Tier 2: feed frozen plans to a fresh executor agent ("implement exactly this,

@@ -35,11 +35,18 @@ export async function buildFixture(
   skillMounts: string[],
 ): Promise<string> {
   const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
-  await git(repoDir, "init", "-b", "main");
+  if (fixture.repo) {
+    if (fixture.commits?.length) throw new Error("fixture: repo and commits are mutually exclusive");
+    await git(repoDir, "clone", "--local", "--no-hardlinks", fixture.repo, ".");
+    // The eval clone must have no route back to the source repo.
+    await git(repoDir, "remote", "remove", "origin");
+  } else {
+    await git(repoDir, "init", "-b", "main");
+  }
   await git(repoDir, "config", "user.name", "Eval Fixture");
   await git(repoDir, "config", "user.email", "fixture@darrow.local");
 
-  for (const commit of fixture.commits) {
+  for (const commit of fixture.commits ?? []) {
     await writeFiles(repoDir, commit.files);
     await git(repoDir, "add", ...Object.keys(commit.files));
     await git(repoDir, "commit", "-m", commit.message);

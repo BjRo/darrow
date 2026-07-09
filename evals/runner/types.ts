@@ -4,8 +4,11 @@ export interface FixtureCommit {
 }
 
 export interface Fixture {
+  /** Absolute path to a local repo to clone (HEAD state) instead of building
+   *  commits. Remotes are stripped so nothing can reach the source repo. */
+  repo?: string;
   /** Commits to create, in order, before the working-tree state is applied. */
-  commits: FixtureCommit[];
+  commits?: FixtureCommit[];
   /** Working-tree files written (or overwritten) after the commits. */
   files?: Record<string, string>;
   /** Paths staged with `git add` after `files` are written. */
