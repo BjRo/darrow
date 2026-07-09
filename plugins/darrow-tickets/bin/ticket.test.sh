@@ -69,9 +69,11 @@ fresh_repo() {
   printf 'bug\nenhancement\ndocumentation\n' > "$MOCK/labels"
 }
 
-# Env/file-driven gh mock. Issues live as files: $MOCK/issue-<id>-{state,title,body,labels}.
-# Calls append to $MOCK/calls; mutation payloads are snapshotted (body files
-# are temp files the CLI deletes).
+# Env/file-driven gh mock. Issues live as files: $MOCK/issue-<id>-{state,title,body,labels}
+# plus native relations: issue-<id>-parent (number) and issue-<id>-blockedby
+# (one number per line). Database ids are 10000+number. Calls append to
+# $MOCK/calls; mutation payloads are snapshotted (body files are temp files
+# the CLI deletes).
 mock_gh() {
   mkdir -p "$REPO/.git/fixture-bin"
   cat > "$REPO/.git/fixture-bin/gh" <<'EOF'
@@ -87,6 +89,76 @@ find_flag() { # $1=flag; echoes the value following it from remaining args
   done
   return 1
 }
+if [ "$1" = "api" ]; then
+  shift
+  method=GET; endpoint=""; f_issue=""; f_sub=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -X) method=$2; shift 2 ;;
+      --jq) shift 2 ;;
+      -F)
+        case "$2" in
+          issue_id=*) f_issue=${2#issue_id=} ;;
+          sub_issue_id=*) f_sub=${2#sub_issue_id=} ;;
+        esac
+        shift 2 ;;
+      *) endpoint=$1; shift ;;
+    esac
+  done
+  n=${endpoint##*/issues/}; n=${n%%/*}
+  suffix=${endpoint#*/issues/"$n"}
+  case "$method $suffix" in
+    "GET ")  # database id lookup
+      if [ ! -f "$d/issue-$n-state" ]; then
+        echo "gh: Not Found (HTTP 404)" >&2
+        exit 1
+      fi
+      echo $((10000 + n))
+      ;;
+    "GET /parent")
+      if [ -f "$d/parent-fail" ]; then
+        echo "gh: connect: network is down" >&2
+        exit 1
+      fi
+      if [ -f "$d/issue-$n-parent" ]; then
+        cat "$d/issue-$n-parent"
+      else
+        echo "gh: No parent issue found (HTTP 404)" >&2
+        exit 1
+      fi
+      ;;
+    "GET /dependencies/blocked_by")
+      if [ -f "$d/dep-get-fail" ]; then
+        echo "gh: connect: network is down" >&2
+        exit 1
+      fi
+      cat "$d/issue-$n-blockedby" 2>/dev/null || :
+      ;;
+    "POST /dependencies/blocked_by")
+      if [ -f "$d/dep-post-fail" ]; then
+        echo "gh: Validation Failed (HTTP 422)" >&2
+        exit 1
+      fi
+      echo $((f_issue - 10000)) >> "$d/issue-$n-blockedby"
+      ;;
+    "DELETE /dependencies/blocked_by/"*)
+      dep=$(( ${suffix##*/} - 10000 ))
+      grep -vx -- "$dep" "$d/issue-$n-blockedby" > "$d/issue-$n-blockedby.new" 2>/dev/null || :
+      mv "$d/issue-$n-blockedby.new" "$d/issue-$n-blockedby"
+      ;;
+    "POST /sub_issues")
+      echo "$n" > "$d/issue-$((f_sub - 10000))-parent"
+      ;;
+    "DELETE /sub_issue")
+      rm -f "$d/issue-$((f_sub - 10000))-parent"
+      ;;
+    *)
+      echo "mock gh: unsupported api call: $method $endpoint" >&2
+      exit 1
+      ;;
+  esac
+  exit 0
+fi
 case "$1 $2" in
   "repo view")
     if [ -f "$d/repo-view-fail" ]; then
@@ -146,6 +218,11 @@ case "$1 $2" in
       if [ "$prev" = "--title" ]; then printf '%s' "$a" > "$d/created-title"; fi
       prev=$a
     done
+    # Apply the creation like the real backend would: relation calls that
+    # follow look the new issue up by number.
+    printf 'open' > "$d/issue-99-state"
+    cp "$bf" "$d/issue-99-body"
+    if [ -f "$d/created-title" ]; then cp "$d/created-title" "$d/issue-99-title"; fi
     echo "https://github.test/o/r/issues/99"
     ;;
   "issue edit")
@@ -310,24 +387,49 @@ OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends
 check "create with relations exits 0" 0 "$RC"
 check_contains "reports parent" "parent: #7" "$OUT"
 check_contains "reports depends-on" "depends-on: #3" "$OUT"
-BODY_SENT=$(cat "$MOCK/created-body")
-check_contains "marker in stored body" "Depends-on: #3" "$BODY_SENT"
-check_contains "parent marker in stored body" "Parent: #7" "$BODY_SENT"
+check_not_contains "no marker in stored body" "Depends-on" "$(cat "$MOCK/created-body")"
+grep -qF -- "api -X POST repos/{owner}/{repo}/issues/99/dependencies/blocked_by -F issue_id=10003" "$MOCK/calls"
+check "dependency recorded natively" 0 "$?"
+grep -qF -- "api -X POST repos/{owner}/{repo}/issues/7/sub_issues -F sub_issue_id=10099" "$MOCK/calls"
+check "parent recorded natively on the parent side" 0 "$?"
+check "dependency state applied" "3" "$(cat "$MOCK/issue-99-blockedby")"
+check "parent state applied" "7" "$(cat "$MOCK/issue-99-parent")"
+OUT=$(bash "$SCRIPT" create --title "t2" --type bug --body-file body.md --parent 7 2>&1); RC=$?
+check "create with only a parent exits 0" 0 "$RC"
+check_contains "parent confirmed" "parent: #7 recorded" "$OUT"
+check_not_contains "no dependency lines invented" "depends-on" "$OUT"
 rm -f "$MOCK/created-body"
 OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends-on 42 2>&1); RC=$?
 check "missing relation target exits 4" 4 "$RC"
 check_contains "names the missing target" "#42 not found" "$OUT"
 [[ -f "$MOCK/created-body" ]]; check "nothing created on missing target" 1 "$?"
+: > "$MOCK/dep-post-fail"
+OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends-on 3 2>&1); RC=$?
+check "relation failure after creation exits 4" 4 "$RC"
+check_contains "creation still reported on relation failure" "created: #99" "$OUT"
+rm "$MOCK/dep-post-fail"
 
 echo "get"
 fresh_repo; mock_gh
-mock_issue 12 open "List dies" "$(printf 'Some body.\n\nDepends-on: #3\nParent: #7')"
+mock_issue 12 open "List dies" "Some body."
+echo 7 > "$MOCK/issue-12-parent"
+echo 3 > "$MOCK/issue-12-blockedby"
 OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
 check "get exits 0" 0 "$RC"
 check_contains "meta line" "#12 open — List dies" "$OUT"
-check_contains "relations parsed" "depends-on: #3" "$OUT"
-check_contains "parent parsed" "parent: #7" "$OUT"
-check_not_contains "markers stripped from body" "Depends-on: #3"$'\n' "${OUT#*## body}"
+check_contains "native dependency reported" "depends-on: #3" "$OUT"
+check_contains "native parent reported" "parent: #7" "$OUT"
+check_contains "body passes through" "Some body." "$OUT"
+mock_issue 13 open "Loner"
+OUT=$(bash "$SCRIPT" get 13 2>&1); RC=$?
+check "get without relations exits 0" 0 "$RC"
+check_contains "absent parent reported" "parent: (none)" "$OUT"
+check_contains "absent deps reported" "depends-on: (none)" "$OUT"
+: > "$MOCK/parent-fail"
+OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
+check "parent read failure exits 4" 4 "$RC"
+check_contains "relays the backend error" "network is down" "$OUT"
+rm "$MOCK/parent-fail"
 OUT=$(bash "$SCRIPT" get "#12" 2>&1); RC=$?
 check "accepts #-prefixed ids" 0 "$RC"
 OUT=$(bash "$SCRIPT" get abc 2>&1); RC=$?
@@ -414,34 +516,57 @@ check "no operation exits 2" 2 "$RC"
 
 echo "relate (TM-2/TM-3/TM-U7)"
 fresh_repo; mock_gh
-mock_issue 12 open "List dies" "$(printf 'Body.\n\nDepends-on: #3')"
+mock_issue 12 open "List dies"
 mock_issue 3 open "Blocker"
 mock_issue 7 open "Umbrella"
+echo 3 > "$MOCK/issue-12-blockedby"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 7 2>&1); RC=$?
 check "relate add exits 0" 0 "$RC"
 check_contains "reports both deps" "depends-on: #3 #7" "$OUT"
-check_contains "marker written" "Depends-on: #7" "$(cat "$MOCK/edited-body-12")"
+grep -qF -- "api -X POST repos/{owner}/{repo}/issues/12/dependencies/blocked_by -F issue_id=10007" "$MOCK/calls"
+check "dependency added natively" 0 "$?"
+check_contains "confirms the change before the re-read report" "recorded: #12 depends-on #7" "$OUT"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 3 2>&1); RC=$?
 check "duplicate dep exits 9" 9 "$RC"
+OUT=$(bash "$SCRIPT" relate 12 --depends-on 07 2>&1); RC=$?
+check "leading-zero id normalized" 9 "$RC"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 12 2>&1); RC=$?
 check "self-reference exits 2" 2 "$RC"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 404 2>&1); RC=$?
 check "missing target exits 4" 4 "$RC"
 OUT=$(bash "$SCRIPT" relate 12 --remove-depends-on 3 2>&1); RC=$?
 check "remove dep exits 0" 0 "$RC"
-check_not_contains "marker removed" "Depends-on: #3" "$(cat "$MOCK/edited-body-12")"
+grep -qxF -- "3" "$MOCK/issue-12-blockedby"
+check "dependency removed from state" 1 "$?"
+check "other dependency survives the removal" "7" "$(cat "$MOCK/issue-12-blockedby")"
+grep -qF -- "api -X DELETE repos/{owner}/{repo}/issues/12/dependencies/blocked_by/10003" "$MOCK/calls"
+check "removal sent to the right endpoint" 0 "$?"
 OUT=$(bash "$SCRIPT" relate 12 --remove-depends-on 5 2>&1); RC=$?
 check "removing absent dep exits 9" 9 "$RC"
+: > "$MOCK/dep-get-fail"
+OUT=$(bash "$SCRIPT" relate 12 --remove-depends-on 7 2>&1); RC=$?
+check "failed state read aborts remove, not exit 9" 4 "$RC"
+check_not_contains "no false does-not-depend claim" "does not depend" "$OUT"
+OUT=$(bash "$SCRIPT" relate 12 --depends-on 3 2>&1); RC=$?
+check "failed state read aborts add" 4 "$RC"
+grep -qF -- "issue_id=10003" "$MOCK/calls"
+check "no mutation after failed read" 1 "$?"
+rm "$MOCK/dep-get-fail"
 OUT=$(bash "$SCRIPT" relate 12 --parent 7 2>&1); RC=$?
 check "set parent exits 0" 0 "$RC"
-check_contains "parent marker written" "Parent: #7" "$(cat "$MOCK/edited-body-12")"
-mock_issue 14 open "Child" "$(printf 'Body.\n\nParent: #7')"
+grep -qF -- "api -X POST repos/{owner}/{repo}/issues/7/sub_issues -F sub_issue_id=10012" "$MOCK/calls"
+check "parent set on the parent side" 0 "$?"
+check "parent state applied" "7" "$(cat "$MOCK/issue-12-parent")"
+mock_issue 14 open "Child"
+echo 7 > "$MOCK/issue-14-parent"
 OUT=$(bash "$SCRIPT" relate 14 --parent 3 2>&1); RC=$?
 check "second parent exits 9" 9 "$RC"
 check_contains "names the existing parent" "already has parent #7" "$OUT"
 OUT=$(bash "$SCRIPT" relate 14 --remove-parent 2>&1); RC=$?
 check "remove parent exits 0" 0 "$RC"
-check_not_contains "parent marker removed" "Parent: #7" "$(cat "$MOCK/edited-body-14")"
+grep -qF -- "api -X DELETE repos/{owner}/{repo}/issues/7/sub_issue -F sub_issue_id=10014" "$MOCK/calls"
+check "parent removed on the parent side" 0 "$?"
+[[ -f "$MOCK/issue-14-parent" ]]; check "parent state removed" 1 "$?"
 OUT=$(bash "$SCRIPT" relate 14 --remove-parent 2>&1); RC=$?
 check "removing absent parent exits 9" 9 "$RC"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 3 --parent 7 2>&1); RC=$?
@@ -453,7 +578,7 @@ mock_issue 5 open "Other"
 printf '## Observed\n\nx\n\nParent: #5\n\n## Expected\n\ny\n\n## Reproduction\n\nz\n' > body.md
 OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md 2>&1); RC=$?
 check "hand-written marker rejected" 2 "$RC"
-check_contains "explains the mechanism" "script-owned" "$OUT"
+check_contains "points at the flags" "pass --depends-on/--parent" "$OUT"
 good_bug_body body.md
 OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends-on 5 --depends-on 5 2>&1); RC=$?
 check "duplicate --depends-on exits 2" 2 "$RC"
@@ -489,32 +614,31 @@ check "comma label add exits 8" 8 "$RC"
 
 echo "CRLF bodies (web-UI edited tickets)"
 fresh_repo; mock_gh
-printf 'Body line.\r\n\r\nDepends-on: #3\r\nParent: #7\r\n' > "$MOCK/issue-15-body"
+printf 'Body line.\r\nSecond line.\r\n' > "$MOCK/issue-15-body"
 printf 'open' > "$MOCK/issue-15-state"
 printf 'CRLF ticket' > "$MOCK/issue-15-title"
-mock_issue 3 open "Blocker"
-mock_issue 7 open "Umbrella"
 OUT=$(bash "$SCRIPT" get 15 2>&1); RC=$?
 check "get on CRLF body exits 0" 0 "$RC"
-check_contains "CRLF relations parsed" "depends-on: #3" "$OUT"
-check_contains "CRLF parent parsed" "parent: #7" "$OUT"
-OUT=$(bash "$SCRIPT" relate 15 --remove-depends-on 3 2>&1); RC=$?
-check "CRLF marker removable" 0 "$RC"
-OUT=$(bash "$SCRIPT" relate 15 --parent 3 2>&1); RC=$?
-check "CRLF parent still guards" 9 "$RC"
+check_contains "body text survives" "Body line." "$OUT"
+check_not_contains "carriage returns normalized" $'\r' "$OUT"
 
 echo "describe (TM-U3)"
 fresh_repo; mock_gh
-mock_issue 12 open "List dies" "$(printf 'Old text.\n\nDepends-on: #3\nParent: #7')"
+mock_issue 12 open "List dies" "Old text."
+mock_issue 3 open "Blocker"
+mock_issue 7 open "Umbrella"
+echo 7 > "$MOCK/issue-12-parent"
+echo 3 > "$MOCK/issue-12-blockedby"
 printf 'New description with the real repro.\n' > d.md
 OUT=$(bash "$SCRIPT" describe 12 --body-file d.md 2>&1); RC=$?
 check "describe exits 0" 0 "$RC"
 check_contains "reports the rewrite" "#12 description replaced" "$OUT"
 NEW=$(cat "$MOCK/edited-body-12")
 check_contains "new text stored" "real repro" "$NEW"
-check_contains "dependency marker preserved" "Depends-on: #3" "$NEW"
-check_contains "parent marker preserved" "Parent: #7" "$NEW"
 check_not_contains "old text gone" "Old text" "$NEW"
+OUT=$(bash "$SCRIPT" get 12 2>&1)
+check_contains "relations survive the rewrite" "parent: #7" "$OUT"
+check_contains "dependencies survive the rewrite" "depends-on: #3" "$OUT"
 printf 'Rewrite with marker.\n\nParent: #9\n' > d.md
 OUT=$(bash "$SCRIPT" describe 12 --body-file d.md 2>&1); RC=$?
 check "marker in describe body rejected" 2 "$RC"

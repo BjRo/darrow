@@ -48,10 +48,13 @@ breaks down under an umbrella, belongs to the planning capabilities.
   is verified to exist before anything is created or mutated; a missing
   target is reported and stops the operation.
 - **TM-3 — Script-owned mechanism.** How a relation is stored is the
-  script's business per backend: a native mechanism where one exists
-  (e.g. sub-issues), a structured marker line otherwise. Skills and
-  callers never hand-write tracker syntax. Every recorded relation is
-  stated in the report (type + target id).
+  script's business per backend: a native mechanism where one exists,
+  a structured marker line otherwise. GitHub Issues has native support
+  for both — sub-issues carry `parent`, issue dependencies ("blocked
+  by") carry `depends-on` — so relations live in the tracker's own
+  data model, visible in its UI and safe from description edits.
+  Skills and callers never hand-write tracker syntax. Every recorded
+  relation is stated in the report (type + target id).
 
 ## create-ticket
 

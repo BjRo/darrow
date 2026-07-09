@@ -5,7 +5,7 @@
 # stdout is read by a model: print only compact, decision-relevant data.
 # Checkable invariants are enforced here, not in the prompt: backend
 # resolution (TM-1), relation target verification (TM-2), script-owned
-# relation markers (TM-3), body structure per type (TM-C3), existing labels
+# native relations (TM-3), body structure per type (TM-C3), existing labels
 # only (TM-C6), no AI attribution (TM-C7/TM-U6), deliberate state
 # transitions (TM-U4), honest list truncation (TM-L4).
 #
@@ -85,6 +85,9 @@ run_gh() {
     if [[ -n "$out" ]]; then
       truncate_lines <<< "$out" >&2
     fi
+    # The EXIT trap does not fire when this runs inside $(...): the
+    # subshell resets traps, so clean up before exiting.
+    rm -f "$TMPERR"
     exit 4
   fi
   rm -f "$TMPERR"
@@ -98,19 +101,29 @@ norm_id() {
     echo "error: invalid ticket id: $1" >&2
     exit 2
   fi
-  printf '%s' "$id"
+  # Leading zeros would defeat exact-match state comparisons ("012" != "12").
+  printf '%s' "$((10#$id))"
 }
 
 # TM-2: a relation target must exist before anything is created or mutated.
 # Echoes state on line 1, title on line 2 (titles are single-line on GitHub;
-# @tsv would escape tabs/backslashes into the report).
+# @tsv would escape tabs/backslashes into the report). stderr stays out of
+# the captured value: close/reopen parse these lines.
 verify_ticket() {
-  local out
-  if ! out=$(gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>&1); then
+  local out rc=0
+  TMPERR=$(mktemp)
+  out=$(gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>"$TMPERR") || rc=$?
+  if [[ $rc -ne 0 ]]; then
     echo "error: ticket #$1 not found:" >&2
-    truncate_lines <<< "$out" >&2
+    truncate_lines < "$TMPERR" >&2
+    if [[ -n "$out" ]]; then
+      truncate_lines <<< "$out" >&2
+    fi
+    rm -f "$TMPERR"
     exit 4
   fi
+  rm -f "$TMPERR"
+  TMPERR=""
   printf '%s' "$out"
 }
 
@@ -220,54 +233,93 @@ read_body_file() {
   fi
 }
 
-# TM-3: relations are stored as script-owned marker lines in the body
-# ("Depends-on: #N", "Parent: #N"). Matched at line level; a verbatim
-# marker inside a fenced code block would be picked up too — accepted, the
-# markers are namespaced enough in practice. First Parent line wins,
-# matching the add-parent guard.
-parse_relations() {
-  awk '
-    /^Parent: #[0-9]+$/ {if (!p) p=$2}
-    /^Depends-on: #[0-9]+$/ {d = d (d ? " " : "") $2}
-    END {
-      print "parent: " (p ? p : "(none)")
-      print "depends-on: " (d ? d : "(none)")
-    }' <<< "$1"
+# TM-3: relations ride on GitHub's native mechanisms — sub-issues carry
+# parent, issue dependencies (blocked_by) carry depends-on. The REST
+# endpoints key on the issue's database id, not its number; gh resolves
+# the {owner}/{repo} placeholders from the origin remote.
+issue_db_id() {
+  run_gh api "repos/{owner}/{repo}/issues/$1" --jq '.id'
 }
 
-strip_markers() {
-  awk '!/^Depends-on: #[0-9]+$/ && !/^Parent: #[0-9]+$/' <<< "$1"
+# Prints the parent's number; prints nothing when the issue has none (the
+# endpoint 404s with a distinct message for that case — any other failure
+# is a real backend error).
+fetch_parent() {
+  local out rc=0
+  TMPERR=$(mktemp)
+  out=$(gh api "repos/{owner}/{repo}/issues/$1/parent" --jq '.number' 2>"$TMPERR") || rc=$?
+  if [[ $rc -eq 0 ]]; then
+    rm -f "$TMPERR"
+    TMPERR=""
+    printf '%s' "$out"
+    return 0
+  fi
+  if grep -q "No parent issue found" "$TMPERR" || grep -q "No parent issue found" <<< "$out"; then
+    rm -f "$TMPERR"
+    TMPERR=""
+    return 0
+  fi
+  truncate_lines < "$TMPERR" >&2
+  if [[ -n "$out" ]]; then
+    truncate_lines <<< "$out" >&2
+  fi
+  rm -f "$TMPERR"
+  exit 4
 }
 
-has_marker() { grep -qxF -- "$2" <<< "$1"; }
-
-remove_marker() {
-  MK="$2" awk 'BEGIN {mk=ENVIRON["MK"]} $0 != mk' <<< "$1"
+fetch_deps() {
+  run_gh api "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" --jq '.[].number'
 }
 
-# Appends a marker line; blank-line separated unless the body already ends
-# in a marker (rendered markdown would otherwise merge the marker into the
-# preceding paragraph).
-append_marker() {
-  local body=$1 marker=$2 last
-  last=$(awk 'END {print}' <<< "$body")
-  if [[ "$last" =~ ^(Depends-on|Parent):\ \#[0-9]+$ ]]; then
-    printf '%s\n%s' "$body" "$marker"
+add_dep() {
+  local bid
+  bid=$(issue_db_id "$2")
+  run_gh api -X POST "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" -F "issue_id=$bid" >/dev/null
+}
+
+remove_dep() {
+  local bid
+  bid=$(issue_db_id "$2")
+  run_gh api -X DELETE "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by/$bid" >/dev/null
+}
+
+# Sub-issue membership is edited on the parent side of the relation.
+add_parent() {
+  local cid
+  cid=$(issue_db_id "$1")
+  run_gh api -X POST "repos/{owner}/{repo}/issues/$2/sub_issues" -F "sub_issue_id=$cid" >/dev/null
+}
+
+remove_parent() {
+  local cid
+  cid=$(issue_db_id "$1")
+  run_gh api -X DELETE "repos/{owner}/{repo}/issues/$2/sub_issue" -F "sub_issue_id=$cid" >/dev/null
+}
+
+report_relations() {
+  local parent deps list d
+  parent=$(fetch_parent "$1")
+  deps=$(fetch_deps "$1")
+  if [[ -n "$parent" ]]; then
+    echo "parent: #$parent"
   else
-    printf '%s\n\n%s' "$body" "$marker"
+    echo "parent: (none)"
+  fi
+  if [[ -n "$deps" ]]; then
+    list=""
+    while IFS= read -r d; do
+      list="$list${list:+ }#$d"
+    done <<< "$deps"
+    echo "depends-on: $list"
+  else
+    echo "depends-on: (none)"
   fi
 }
 
-# CRLF-normalized: GitHub stores \r\n after web-UI edits, which would make
-# every marker line invisible to the exact-line matching above.
+# CRLF-normalized: GitHub stores \r\n after web-UI edits; this is
+# model-facing output, keep it clean.
 fetch_body() {
   run_gh issue view "$1" --json body --jq '.body // ""' | awk '{sub(/\r$/, "")} 1'
-}
-
-write_body() {
-  TMPFILE=$(mktemp)
-  printf '%s\n' "$2" > "$TMPFILE"
-  run_gh issue edit "$1" --body-file "$TMPFILE" >/dev/null
 }
 
 issue_labels() {
@@ -404,9 +456,9 @@ case "$cmd" in
     body=$(fetch_body "$id")
     echo "backend: $BACKEND"
     printf '%s\n' "$meta"
-    parse_relations "$body"
+    report_relations "$id"
     echo "## body"
-    strip_markers "$body"
+    printf '%s\n' "$body"
     ;;
 
   create)
@@ -476,10 +528,10 @@ case "$cmd" in
       exit 5
     fi
     read_body_file "$body_file"
-    # TM-2/TM-3: markers are script-owned; a hand-written one would smuggle
-    # in unverified relations.
+    # TM-2/TM-3: relations are recorded natively, never as body text — a
+    # marker-style line would look recorded while the tracker knows nothing.
     if grep -qE '^(Depends-on|Parent): #[0-9]+$' <<< "$BODY"; then
-      echo "error: relation markers in the body are script-owned — pass --depends-on/--parent instead" >&2
+      echo "error: relation lines in the body are not recorded — pass --depends-on/--parent instead" >&2
       exit 2
     fi
     check_attribution "$title"$'\n'"$BODY"
@@ -514,19 +566,8 @@ case "$cmd" in
     if [[ -n "$parent" ]]; then
       verify_ticket "$parent" >/dev/null
     fi
-    body_out=$BODY
-    markers=""
-    for d in ${deps[@]+"${deps[@]}"}; do
-      markers="$markers"$'\n'"Depends-on: #$d"
-    done
-    if [[ -n "$parent" ]]; then
-      markers="$markers"$'\n'"Parent: #$parent"
-    fi
-    if [[ -n "$markers" ]]; then
-      body_out="$body_out"$'\n'"$markers"
-    fi
     TMPFILE=$(mktemp)
-    printf '%s\n' "$body_out" > "$TMPFILE"
+    printf '%s\n' "$BODY" > "$TMPFILE"
     args=(issue create --title "$title" --body-file "$TMPFILE")
     for l in ${labels[@]+"${labels[@]}"}; do
       args+=(--label "$l")
@@ -541,6 +582,10 @@ case "$cmd" in
     fi
     url=$(run_gh "${args[@]}" | awk 'NF {l=$0} END {print l}')
     num=${url##*/}
+    if ! [[ "$num" =~ ^[0-9]+$ ]]; then
+      echo "error: could not parse the created issue number from: $url" >&2
+      exit 4
+    fi
     echo "backend: $BACKEND"
     echo "created: #$num $url"
     if [[ -n "$tlabel" ]]; then
@@ -561,8 +606,17 @@ case "$cmd" in
     if [[ -n "$assignee" ]]; then
       echo "assignee: $assignee"
     fi
-    if [[ ${#deps[@]} -gt 0 || -n "$parent" ]]; then
-      parse_relations "$body_out"
+    # Native relations attach to an existing issue, so they land after
+    # creation, each confirmed as it sticks; run_gh exits on failure, so
+    # the lines already printed keep a partial failure honest about what
+    # exists and which relations were recorded before it.
+    for d in ${deps[@]+"${deps[@]}"}; do
+      add_dep "$num" "$d"
+      echo "depends-on: #$d recorded"
+    done
+    if [[ -n "$parent" ]]; then
+      add_parent "$num" "$parent"
+      echo "parent: #$parent recorded"
     fi
     if [[ -n "$type_note" ]]; then
       echo "$type_note"
@@ -596,8 +650,8 @@ case "$cmd" in
 
   describe)
     # TM-U3: full description rewrite, only ever on an explicit user
-    # request. Relation markers are script-owned state riding in the body —
-    # a rewrite must not lose them.
+    # request. Relations live in the tracker's own data model, so a
+    # rewrite cannot touch them.
     [[ $# -ge 1 ]] || { echo "error: describe needs a ticket id" >&2; exit 2; }
     id=$(norm_id "$1")
     shift
@@ -616,23 +670,14 @@ case "$cmd" in
     fi
     read_body_file "$body_file"
     if grep -qE '^(Depends-on|Parent): #[0-9]+$' <<< "$BODY"; then
-      echo "error: relation markers in the body are script-owned — use relate to change them" >&2
+      echo "error: relation lines in the body are not recorded — use relate to change relations" >&2
       exit 2
     fi
     check_attribution "$BODY"
     resolve_backend
     verify_ticket "$id" >/dev/null
-    old=$(fetch_body "$id")
-    markers=$(awk '/^Depends-on: #[0-9]+$/ || /^Parent: #[0-9]+$/' <<< "$old")
-    new=$BODY
-    if [[ -n "$markers" ]]; then
-      new="$new"$'\n\n'"$markers"
-    fi
-    write_body "$id" "$new"
+    run_gh issue edit "$id" --body-file "$body_file" >/dev/null
     echo "#$id description replaced"
-    if [[ -n "$markers" ]]; then
-      parse_relations "$new"
-    fi
     ;;
 
   close|reopen)
@@ -740,44 +785,54 @@ case "$cmd" in
     fi
     resolve_backend
     verify_ticket "$id" >/dev/null
-    body=$(fetch_body "$id")
+    # No-op changes are refusals (exit 9), not silent successes — the
+    # current state is read before mutating, via plain assignments so a
+    # failed read aborts (exit 4) instead of passing as "no match".
+    # GitHub itself rejects cycles and cross-repo targets; those errors
+    # are relayed verbatim. Each mutation is confirmed before the re-read
+    # report below, so a failed re-read cannot mask an applied change.
     case "$op" in
       add-dep)
         verify_ticket "$target" >/dev/null
-        if has_marker "$body" "Depends-on: #$target"; then
+        deps=$(fetch_deps "$id")
+        if grep -qxF -- "$target" <<< "$deps"; then
           echo "error: #$id already depends on #$target" >&2
           exit 9
         fi
-        body=$(append_marker "$body" "Depends-on: #$target")
+        add_dep "$id" "$target"
+        echo "recorded: #$id depends-on #$target"
         ;;
       rm-dep)
-        if ! has_marker "$body" "Depends-on: #$target"; then
+        deps=$(fetch_deps "$id")
+        if ! grep -qxF -- "$target" <<< "$deps"; then
           echo "error: #$id does not depend on #$target" >&2
           exit 9
         fi
-        body=$(remove_marker "$body" "Depends-on: #$target")
+        remove_dep "$id" "$target"
+        echo "removed: #$id depends-on #$target"
         ;;
       add-parent)
-        existing=$(awk '/^Parent: #[0-9]+$/ {print $2; exit}' <<< "$body")
+        existing=$(fetch_parent "$id")
         if [[ -n "$existing" ]]; then
-          echo "error: #$id already has parent $existing — use --remove-parent first" >&2
+          echo "error: #$id already has parent #$existing — use --remove-parent first" >&2
           exit 9
         fi
         verify_ticket "$target" >/dev/null
-        body=$(append_marker "$body" "Parent: #$target")
+        add_parent "$id" "$target"
+        echo "recorded: #$id parent #$target"
         ;;
       rm-parent)
-        existing=$(awk '/^Parent: #[0-9]+$/ {print $2; exit}' <<< "$body")
+        existing=$(fetch_parent "$id")
         if [[ -z "$existing" ]]; then
           echo "error: #$id has no parent" >&2
           exit 9
         fi
-        body=$(awk '!/^Parent: #[0-9]+$/' <<< "$body")
+        remove_parent "$id" "$existing"
+        echo "removed: #$id parent #$existing"
         ;;
     esac
-    write_body "$id" "$body"
     echo "#$id relations:"
-    parse_relations "$body"
+    report_relations "$id"
     ;;
 
   *)

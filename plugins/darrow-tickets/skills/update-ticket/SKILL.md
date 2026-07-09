@@ -36,8 +36,9 @@ stop. No raw `gh` or tracker commands.
    - Relation change → `... ticket relate <id> --depends-on <n> |
      --remove-depends-on <n> | --parent <n> | --remove-parent`
    - Explicit "rewrite/replace the description" request → write the new text
-     to a temp file, then `... ticket describe <id> --body-file <f>` (the
-     CLI preserves the recorded relations)
+     to a temp file, then `... ticket describe <id> --body-file <f>`
+     (relations live in the tracker itself, not the description, and
+     survive the rewrite)
 3. Report the CLI's output verbatim (it states transitions from → to and
    resulting relations).
 
