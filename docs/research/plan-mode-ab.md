@@ -274,6 +274,64 @@ before emitting — plausibly buys most of the value at a fraction of the 2×
 token cost. That's condition C for a possible round 3: shared contract +
 Phase 3 review only, no subagents.
 
+## Round 3 — condition C: review-only (pre-registered before any trial)
+
+Round 2 suggested the workflow's value concentrates in the self-review pass,
+not the subagent fan-out. Condition C isolates it: the shared output contract
+plus one paragraph — re-check the draft against the repository before emitting
+(paths exist, referenced symbols real, read the files to confirm). No phases,
+no subagents, no exploration mandate.
+
+- Cases: the three round-2 real-repo cases, unchanged. 5 trials, same
+  model/effort/harness.
+- Hypothesis: C matches ported's pass rates (15/15, i.e. closes native's
+  grounding failures) at near-native cost.
+- Success criterion (frozen): C ≥ 14/15 raw-or-eyeballed AND mean tokens
+  ≤ 1.3× round-2 native (≤ ~0.86M/trial). Then the porting recommendation
+  becomes "transplant the review discipline, skip the orchestration".
+- Comparison uses round-2 native/ported results as the baselines; no rerun.
+  Caveat: cross-run comparison inherits day-to-day model variance; acceptable
+  for a three-way directional question.
+
+## Round 3 results (2026-07-09)
+
+C: **14/15 raw, 15/15 eyeballed — quality bar met; cost bar missed.**
+
+The single raw failure was the best plan of the whole experiment: it
+discovered the backend already stores structured gap skills
+(`job_targets.parsed_gap_skills`, `domain.GapSkill`, populated by the existing
+job-target analysis worker) and planned a thin GraphQL surface over it — no
+new LLM plumbing, hence no `internal/infrastructure/llm/` mention for the
+regex to find. The reuse checks encoded the *expected* solution shape; a
+better solution escaped the net. (Case-design lesson: positive shape checks
+are as fragile as negative prose checks — grounding + eyeball carry the
+weight.)
+
+Three-way picture on the real repo (means per trial):
+
+| | native | reviewed (C) | ported (B) |
+|---|---|---|---|
+| raw passes | 11/15 | 14/15 | 15/15 |
+| eyeballed | 13/15 | 15/15 | 15/15 |
+| tokens | 0.66M | 1.15M | 1.34M |
+| wall-clock | 178s | 235s | 272s |
+| depth markers | ~none | most of B's | fullest |
+
+The frozen cost criterion (≤1.3× native, ~0.86M) failed: C runs 1.74× native.
+Verifying claims is itself expensive — the review pass reads the files it
+cites. The hypothesis that review discipline is the active ingredient held on
+*quality* (it closes the grounding gap entirely) but not on *price*: B→C saves
+only ~14%. What's actually true: grounding verification is where both the
+value and the cost live; subagent fan-out adds marginal depth for marginal
+cost.
+
+**Final porting recommendation** (supersedes earlier phrasing): when porting
+Claude planning-style skills to Codex, transplant two things — the output
+contract and the one-paragraph verify-before-emit review discipline. Skip the
+phased orchestration unless plan depth on large repos is worth ~15% more
+tokens. On small/toy repos, transplant nothing: native Codex planning is
+already at ceiling and 2× cheaper.
+
 ## Follow-up (out of scope here)
 
 Tier 2: feed frozen plans to a fresh executor agent ("implement exactly this,
