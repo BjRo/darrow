@@ -436,6 +436,121 @@ is plausible); harness-version noise on cross-row cost comparisons; floor
 metrics only. A repo with chaotic conventions and no human docs remains the
 untested case where IA plausibly pays most.
 
+## Round 5 — bare code (pre-registered before any trial)
+
+Round 4 kept human docs; the IA null result could hide knowledge leaking from
+the map's content into `documentation/` and `decisions/`. Round 5 removes
+those too: everything from round 4's strip **plus** `documentation/`,
+`decisions/`, and `.demos/`. READMEs stay. What remains is essentially code,
+migrations, and conventions.
+
+Registered consequences:
+
+- **The trap case changes meaning.** The stale saga-coordinator decision
+  record and the stale pipeline doc *were* the trap. With them gone,
+  `trap-fork-pipeline` becomes a pure no-docs navigation case; grounding and
+  the `fork_generation.go` check remain, but "trap avoidance" is no longer
+  measured. Checks stay byte-identical anyway for comparability.
+- **Ported is dropped.** codex-cli 0.144.1 broke the subagent spawn pattern
+  the ported prompt uses (round-4 harness deaths); rerunning it measures the
+  bug, not the workflow. Round 5 = native + reviewed only.
+- Runs on 0.144.1 uniformly (recorded per run now). Cross-row comparisons to
+  rounds 2–4 carry the accepted version noise; the native-vs-reviewed
+  contrast within round 5 is clean.
+
+Prediction (frozen): if round 4's null was doc-leakage, bare-code native
+should now lose pass rate and/or spend visibly more tokens; if the null was
+"conventions + model exploration suffice", bare-code native stays ~13/15
+eyeballed and reviewed stays at ceiling. Case ids: `plan-ab5-*`.
+
+## Round 6 — Codex-engineered IA (pre-registered before any trial)
+
+User's refinement of the IA hypothesis, which also reinterprets round 4:
+Codex has fewer automatic instruction-pickup triggers than Claude Code — no
+autoload of nested AGENTS.md files, and cross-file references are only
+followed when phrased as intent triggers ("read X when doing Y"). The
+credfolio2 knowledge lived mostly in *nested* CLAUDE.md files that Codex
+never autoloads; round 4 may have measured the removal of documentation the
+model never received. Round 4's null is therefore consistent with two very
+different worlds: "IA doesn't matter" vs "IA wasn't delivered".
+
+Round 6 delivers it properly. Treatment: start from the bare row (round 5's
+strip) and add exactly one engineered surface — a lean root `AGENTS.md`
+(~20 lines) Codex is guaranteed to autoload, containing markdown-link routing
+lines with verb+trigger intent ("[src/backend/MAP.md](./src/backend/MAP.md):
+read before planning or changing anything under src/backend/ …"), plus the
+repo's own (verified-accurate) file maps preserved as `src/backend/MAP.md`
+and `src/frontend/MAP.md` — copied from the original CLAUDE.md files before
+the strip, so the knowledge content is identical to what round 4 removed;
+only the delivery mechanism changes.
+
+The treatment operationalizes the user's "Context Architecture for Coding
+Agents" doc (2026-07-01): always-loaded context small (root well under 100
+lines), detailed guidance moved to where it becomes relevant, downward
+navigation via markdown links with strong intent descriptions (never @-mention
+syntax), progressive disclosure over front-loading. Round 5 is the baseline
+the doc itself demands ("without a baseline, there is no proof that the
+change helped").
+
+- Conditions: native + reviewed (ported still excluded, 0.144.1 spawn bug).
+- Cases `plan-ab6-*`, checks byte-identical again.
+- Baseline: round-5 rerun (bare, same CLI 0.144.1) — the clean contrast is
+  bare vs bare+engineered-IA, both rows post-version-bump.
+
+Frozen predictions:
+
+1. Engineered-IA native beats bare native on the reuse/infra checks and/or
+   grounding, and spends fewer tokens (map replaces exploration).
+2. The decisive comparison: engineered-IA **native** vs bare **reviewed**.
+   If delivered IA closes the gap the review paragraph closes, at lower cost,
+   the refined IA hypothesis wins and the porting rule gains a third leg:
+   "or ship the map in the file the harness actually reads".
+3. Engineered-IA reviewed = ceiling (nothing should get worse).
+
+## Rounds 5–6 results (2026-07-10, codex-cli 0.144.1 uniform)
+
+**Round 5 (bare code): the IA null is total.** Native 14/15 raw, 15/15
+eyeballed (the one fail: sibling-shape regex again — the plan builds on
+`job_target_analysis`/River, references `internal/infrastructure/llm` 4×);
+reviewed 15/15. With *zero* documentation of any kind, floor quality matched
+or beat every documented row. Bare native cost 0.72M tok/trial vs present
+native 0.66M — the entire documentation stack was worth ~10% tokens at floor
+level. The doc-leakage explanation of round 4 is refuted.
+
+**Round 6 (Codex-engineered IA): delivery worked, the content bit back.**
+
+| | native | reviewed |
+|---|---|---|
+| raw / eyeballed | 14/15 | 12/15 |
+| tok/trial | 0.62M (−13% vs bare) | 1.22M (−14% vs bare) |
+| router adherence | MAP.md read in all cases (23–54 mentions/case) | same |
+
+All four failures are grounding, and all trace to a single cause: the maps
+(the repo's ex-CLAUDE.md files) were written for Claude Code's *nested*
+convention — their paths are backend-relative (`cmd/server/main.go`,
+`internal/export/assembler.go`). Lifted to root-routed delivery, the model
+copied those paths verbatim into plans, where they are wrong relative to repo
+root. The reviewed condition regressed below its own baseline (12/15 vs
+15/15) — plans trusted the map over re-verification. The knowledge was
+delivered; the knowledge was subtly wrong for the delivery position.
+
+Prediction outcomes: (1) split — cost dropped as the progressive-disclosure
+argument predicts, quality did not improve; (2) refuted as run — engineered
+native did not match bare reviewed, it undercut it via map-induced path bugs;
+(3) refuted — reviewed regressed.
+
+**Series verdict on the IA hypothesis:** on a convention-strong codebase,
+IA buys cost (−10–14% tokens), never floor quality — and mis-transplanted IA
+actively *costs* quality. The context-architecture doc's recommendations get
+half a confirmation (routing works, progressive disclosure saves tokens) and
+one hard-earned addendum: **when lifting nested instruction files to
+root-routed delivery, rewrite every path to be relative to the position the
+reader now occupies.** Content conventions are part of delivery.
+
+Open follow-up (cheap, unrun): round 6b — same row with repo-relative paths
+in the maps (or a one-line "paths relative to src/backend/" header) to test
+whether corrected content recovers quality while keeping the cost win.
+
 ## Follow-up (out of scope here)
 
 Tier 2: feed frozen plans to a fresh executor agent ("implement exactly this,
