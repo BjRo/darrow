@@ -683,6 +683,43 @@ Implementation decisions made while building, all before data:
   with both style checks recorded informationally; IA rows are
   `plan-ab7-endorsement-ia-a` / `-ia-b`, 5 trials each. 30 total, unchanged.
 
+**Round 7 results (run 2026-07-10, codex-cli 0.144.1): all three predictions
+confirmed.** 30/30 trials completed, no harness deaths.
+
+| row | style adoption | tok/trial | secondary |
+|---|---|---|---|
+| bare-native (10) | 10/10 postgres, 0 sqlpg | 0.31M | 1 grounding fail |
+| IA-native A (5) | **5/5 sqlpg** (canonical) | 0.38M | clean |
+| IA-native B (5) | **5/5 postgres** (canonical) | 0.28M | 1 grounding fail |
+| bare-reviewed (10) | 10/10 postgres, 0 sqlpg | 0.53M | 1 grounding fail |
+
+- Prediction 1 confirmed at ceiling: one routing line flipped style adoption
+  5/5 ↔ 5/5 across variants — including variant A, where the router pushed
+  *against* the 14-vs-2 majority that bare rows follow 10/10.
+- Prediction 2 confirmed: with no router, the model picks the majority
+  pattern every single time (20/20 across both bare rows). The
+  2-file `database/sql` experiment was never once extended.
+- Prediction 3 confirmed: the review paragraph moved nothing (0/10 sqlpg,
+  identical to bare-native) at +72% tokens (0.53M vs 0.31M). Verification
+  discipline is powerless here because the repo contains no fact that could
+  falsify either style choice — exactly the class-1 signature.
+- All three grounding fails are the same literal truncation
+  (`cmd/server/main.go` for `src/backend/cmd/server/main.go`), one per
+  condition — including in fixtures with no maps and no router, settling that
+  this class is model behavior, not IA-induced. The reviewed row's re-check
+  missed it once too (its 6b record was clean; small n, class persists).
+- All migration/structure/assumption/no-mutation checks passed in all 30
+  trials.
+
+**Round 7 verdict.** Underdetermined (class-1) knowledge is where IA is
+load-bearing: when the code cannot arbitrate, a single root-level routing
+line deterministically sets the outcome in either direction, while both
+no-IA rows default to majority-pattern gravity and review discipline cannot
+substitute at any price. Combined with rounds 4–6b, the posture is now
+data-backed end to end: **specify what the code underdetermines, spell paths
+from the reader's position, and let the code speak for everything it already
+determines.**
+
 ## Follow-up (out of scope here)
 
 Tier 2: feed frozen plans to a fresh executor agent ("implement exactly this,
