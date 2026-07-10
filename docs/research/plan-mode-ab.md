@@ -332,6 +332,110 @@ phased orchestration unless plan depth on large repos is worth ~15% more
 tokens. On small/toy repos, transplant nothing: native Codex planning is
 already at ceiling and 2× cheaper.
 
+## Round 4 — the information-architecture factor (pre-registered before any trial)
+
+Rounds 2–3 measured workflow value on top of a repo with excellent agent
+information architecture: a root AGENTS.md (area map, command facade), four
+CLAUDE.md file maps with "where to add new things" guidance, and 233 files of
+agent scaffolding (`.agent-shared/`, `.claude/`, `.agents/`, `.codex/`,
+`.beans/`). Native plans demonstrably leaned on it (test-plan sections quote
+its commands verbatim). That bounds the earlier results: we cannot separate
+"the model explores well" from "the model reads great docs well".
+
+Hypothesis (user's): agent IA is the bigger lever — a file map written once
+buys what the planning workflow re-buys with ~2× tokens on every run.
+
+Design: complete the 2×3 factorial. The IA-present row is rounds 2–3
+(no rerun). The IA-stripped row runs the same three cases and three
+conditions with the fixture setup removing all *agent-facing* files:
+every AGENTS.md and CLAUDE.md, plus `.agent-shared/`, `.claude/`,
+`.agents/`, `.codex/`, `.beans/`. Human-facing docs stay — `documentation/`,
+`decisions/` records, READMEs — preserving the stale-coordinator trap and
+keeping the treatment definition clean: we remove what was written for
+agents, not what was written for humans. Case ids: `plan-ab4-*`, checks
+byte-identical to `plan-ab2-*`.
+
+Registered caveat: AGENTS.md carries behavioral rules (branch/guard
+discipline) alongside knowledge; stripping removes both. The treatment is
+"agent IA as shipped", not "knowledge only".
+
+Frozen predictions:
+
+1. Stripped native gains grounding-class failures relative to present native
+   (11/15 baseline).
+2. Stripped is where subagent fan-out finally earns its cost: ported's margin
+   over reviewed grows relative to the present row (where it was ~0 eyeballed).
+3. The decision contrast: IA-stripped+reviewed vs IA-present+native. If
+   present+native ≥ stripped+reviewed, the map beats the workflow — invest in
+   IA first.
+
+Analysis is the factorial table (passes + cost per cell) plus per-cell
+failure-class inspection under the same eyeball rule. No single-verdict
+threshold; this round is estimation, not hypothesis-test theatre.
+
+**Amendment (recorded mid-run, before any round-4 result was analysed):**
+codex-cli was updated 0.143.0 → 0.144.1 on the machine while the stripped row
+was running (~08:19; the row started ~07:05). Each trial spawns a fresh
+binary, so: native-stripped ran entirely on 0.143.0 (clean vs the present
+row), reviewed-stripped is mixed-version, ported-stripped ran on 0.144.1.
+The model stayed pinned to gpt-5.5 via `-m` throughout — only the harness
+version drifted. Decision (user's): accept the contamination rather than
+rerun; cross-version comparisons carry unquantified harness noise and are
+flagged as such in the results. Prediction 1 (native vs native) remains
+version-clean. Follow-up hardening: the runner will record the harness CLI
+version in results from now on.
+
+## Round 4 results (2026-07-10, gpt-5.5 pinned; CLI 0.143.0→0.144.1 mid-row)
+
+**The IA hypothesis was not supported at the floor-quality level.** Stripping
+all 239 agent-facing files barely moved anything:
+
+| cell | raw | eyeballed | tok/trial |
+|---|---|---|---|
+| present + native | 11/15 | 13/15 | 0.66M |
+| present + reviewed | 14/15 | 15/15 | 1.15M |
+| present + ported | 15/15 | 15/15 | 1.34M |
+| stripped + native | 12/15 | 13/15 | 0.75M |
+| stripped + reviewed | 13/15 | 15/15 | 0.82M |
+| stripped + ported | 10/15¹ | 10/11 valid | (contaminated) |
+
+¹ Four of the five trap-cell trials were harness deaths, not plan failures:
+codex 0.144.1 changed the subagent spawn API mid-experiment ("omit
+agent_type/model/reasoning_effort, or spawn without a full-history fork"), and
+the ported prompt's fan-out started erroring. The cell is excluded from
+interpretation. The same failure also surfaced that the machine's user-level
+`~/.codex` lean-ctx hook fires *inside* eval fixtures — an isolation gap
+affecting both conditions equally in all rounds; fix is a runner-hardening
+item (isolated CODEX_HOME).
+
+Prediction outcomes:
+
+1. **Refuted.** Stripped native did not lose pass rate (13/15 eyeballed both
+   rows; the same phantom-path failure classes — `generated.go`, a phantom
+   `profile_match_analysis.go` — appear in both). This contrast is
+   version-clean (both cells 0.143.0).
+2. **Inconclusive.** The cell where orchestration should have paid was the one
+   the CLI update destroyed.
+3. **Answered, against the hypothesis:** stripped+reviewed (15/15 eyeballed,
+   0.82M) beats present+native (13/15, 0.66M) on quality. The one-paragraph
+   review discipline is worth more than the entire agent IA layer — on this
+   repo, for this model, at floor level.
+
+Why the map mattered so little: the knowledge it encodes lives redundantly in
+the code's own conventions (one repository file per entity, sibling features
+with parallel names — both conditions found the curation siblings 5/5 even
+stripped) and in the human docs that stayed. Depth markers tell the same
+story: stripped-reviewed still recovered auth/tx/dataloader mentions;
+stripped-native still had none. What agent IA measurably bought was ~13%
+tokens on native runs — real, but small next to the review paragraph's
+quality effect.
+
+Caveats, honestly: single repo with unusually strong code conventions; human
+docs remained (knowledge leakage from the map's content into `documentation/`
+is plausible); harness-version noise on cross-row cost comparisons; floor
+metrics only. A repo with chaotic conventions and no human docs remains the
+untested case where IA plausibly pays most.
+
 ## Follow-up (out of scope here)
 
 Tier 2: feed frozen plans to a fresh executor agent ("implement exactly this,

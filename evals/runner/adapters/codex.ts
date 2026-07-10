@@ -13,6 +13,13 @@ export const codexAdapter: HarnessAdapter = {
   defaultModel: "gpt-5.5",
   skillMounts: [".agents/skills"],
 
+  async version(): Promise<string> {
+    const proc = Bun.spawn(["codex", "--version"], { stdout: "pipe", stderr: "pipe" });
+    const out = await new Response(proc.stdout).text();
+    await proc.exited;
+    return out.trim();
+  },
+
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
     const proc = Bun.spawn(
