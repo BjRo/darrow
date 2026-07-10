@@ -1,0 +1,429 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "usage: ia-doctor.sh inspect|verify [repository]" >&2
+  exit 64
+}
+
+resolve_root() {
+  local target=${1:-.} line
+  if [[ ! -d "$target" || ! -r "$target" ]]; then
+    echo "error: repository path is not a readable directory: $target" >&2
+    exit 2
+  fi
+  line=$(git -C "$target" worktree list --porcelain 2>/dev/null | awk 'NR==1 && $1=="worktree" {sub(/^worktree /, ""); print; exit}')
+  if [[ -n "$line" ]]; then
+    printf '%s' "$line"
+  else
+    (cd "$target" && pwd -P)
+  fi
+}
+
+relpath() {
+  case "$1" in
+    "$ROOT") printf '.' ;;
+    "$ROOT"/*) printf '%s' "${1#"$ROOT"/}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+add_file() {
+  local file=$1
+  if [[ -e "$file" && ! -r "$file" ]]; then
+    printf '%s\n' "$(relpath "$file")" >> "$UNREADABLE"
+    return
+  fi
+  if [[ -f "$file" ]]; then
+    printf '%s\n' "$file" >> "$FILES"
+  fi
+}
+
+extract_references() {
+  awk '
+    function emit(value, kind) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      if (value != "") print kind "\t" value
+    }
+    {
+      lower=tolower($0)
+      kind=(lower ~ /(^|[^a-z])(read|consult|load|follow)([^a-z]|$)/ || lower ~ /before .*(edit|chang|work)/) ? "explicit" : "mention"
+      rest=$0
+      while (match(rest, /\[[^][]*\]\([^()]*\)/)) {
+        value=substr(rest, RSTART, RLENGTH)
+        sub(/^.*\]\(/, "", value); sub(/\)$/, "", value)
+        emit(value, kind)
+        rest=substr(rest, RSTART + RLENGTH)
+      }
+      rest=$0
+      while (match(rest, /`[^`]+`/)) {
+        value=substr(rest, RSTART + 1, RLENGTH - 2)
+        emit(value, kind)
+        rest=substr(rest, RSTART + RLENGTH)
+      }
+      rest=$0
+      while (match(rest, /@[.A-Za-z0-9_-]+\/[.A-Za-z0-9_\/-]+\.md/)) {
+        value=substr(rest, RSTART + 1, RLENGTH - 1)
+        emit(value, "explicit")
+        rest=substr(rest, RSTART + RLENGTH)
+      }
+    }
+  ' "$1"
+}
+
+clean_reference() {
+  local ref=$1
+  ref=${ref#<}; ref=${ref%>}
+  ref=${ref%%#*}
+  case "$ref" in
+    http://*|https://*|mailto:*|codex:*|file:*|/*|'') return 1 ;;
+    *' '*|*$'\t'*|*'<'*|*'>'*|*'$'*|*'{'*|*'}'*|*'*'*) return 1 ;;
+  esac
+  case "$ref" in
+    *.md)
+      printf '%s' "${ref%/}"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+canonical_existing() {
+  local candidate=$1 dir base
+  [[ -e "$candidate" ]] || return 1
+  dir=$(dirname "$candidate")
+  base=$(basename "$candidate")
+  dir=$(cd "$dir" 2>/dev/null && pwd -P) || return 1
+  printf '%s/%s' "$dir" "$base"
+}
+
+resolve_reference() {
+  local source=$1 ref=$2 candidate resolved dir
+  case "$ref" in
+    ./*|../*) candidate="$(dirname "$source")/$ref" ;;
+    *) candidate="$ROOT/$ref" ;;
+  esac
+  if resolved=$(canonical_existing "$candidate"); then
+    printf '%s' "$resolved"
+    return
+  fi
+  candidate="$(dirname "$source")/$ref"
+  if resolved=$(canonical_existing "$candidate"); then
+    printf '%s' "$resolved"
+    return
+  fi
+  case "$ref" in
+    */*) ;;
+    *)
+      for dir in .agent-shared/rules .agent-shared/shared .agent-shared/templates .claude/rules; do
+        candidate="$ROOT/$dir/$ref"
+        if resolved=$(canonical_existing "$candidate"); then
+          printf '%s' "$resolved"
+          return
+        fi
+      done
+      ;;
+  esac
+  return 1
+}
+
+is_instruction_surface() {
+  local rel
+  rel=$(relpath "$1")
+  case "$rel" in
+    AGENTS.md|AGENTS.override.md|CLAUDE.md|CLAUDE.local.md|*/AGENTS.md|*/AGENTS.override.md|*/CLAUDE.md|*/CLAUDE.local.md) return 0 ;;
+    .agent-shared/*|.claude/rules/*|.claude/agents/*|.claude/skills/*|.agents/*|.codex/*|.pi/agents/*|.pi/skills/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+print_file_record() {
+  local file=$1 bytes rel scope
+  if [[ ! -r "$file" ]]; then
+    printf '  - %s | unreadable\n' "$(relpath "$file")"
+    return
+  fi
+  bytes=$(wc -c < "$file" | tr -d ' ')
+  rel=$(relpath "$file")
+  scope=referenced
+  case "$rel" in
+    AGENTS.md|AGENTS.override.md|CLAUDE.md|CLAUDE.local.md) scope=root ;;
+    */AGENTS.md|*/AGENTS.override.md|*/CLAUDE.md|*/CLAUDE.local.md) scope=nested ;;
+    .claude/rules/*) scope=claude-native-rule ;;
+    .agent-shared/rules/*|.agents/rules/*|.codex/rules/*|.pi/rules/*) scope=adapter-rule ;;
+  esac
+  printf '  - %s | scope=%s | bytes=%s | approx_tokens=%s\n' "$rel" "$scope" "$bytes" "$(( (bytes + 3) / 4 ))"
+}
+
+is_route_reference() {
+  case "$1" in
+    .agent-shared/*|.claude/*|.agents/*|.codex/*|.pi/*|AGENTS.md|AGENTS.override.md|CLAUDE.md|CLAUDE.local.md|*/AGENTS.md|*/AGENTS.override.md|*/CLAUDE.md|*/CLAUDE.local.md) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+print_line_findings() {
+  local label=$1 file=$2 count=0 limit=40
+  while IFS= read -r line; do
+    count=$((count + 1))
+    if [[ $count -le $limit ]]; then printf '  - %s | %s\n' "$label" "$line"; fi
+  done < "$file"
+  if [[ $count -gt $limit ]]; then printf '  - %s | ... %s additional findings omitted\n' "$label" "$((count - limit))"; fi
+}
+
+[[ ${1:-} == "inspect" || ${1:-} == "verify" ]] || usage
+MODE=$1
+ROOT=$(resolve_root "${2:-.}")
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+FILES="$TMP/files"
+ENTRYPOINTS="$TMP/entrypoints"
+SEEDS="$TMP/seeds"
+EDGES="$TMP/edges"
+EXPLICIT_EDGES="$TMP/explicit-edges"
+BROKEN="$TMP/broken"
+UNREADABLE="$TMP/unreadable"
+CYCLES="$TMP/cycles"
+UNROUTED="$TMP/unrouted"
+DUPLICATES="$TMP/duplicates"
+: > "$FILES"; : > "$ENTRYPOINTS"; : > "$SEEDS"; : > "$EDGES"; : > "$EXPLICIT_EDGES"
+: > "$BROKEN"; : > "$UNREADABLE"; : > "$CYCLES"; : > "$UNROUTED"; : > "$DUPLICATES"
+ROOT_ADAPTER_STATUS=none
+if [[ -e "$ROOT/AGENTS.md" && -L "$ROOT/CLAUDE.md" && "$ROOT/AGENTS.md" -ef "$ROOT/CLAUDE.md" ]]; then
+  ROOT_ADAPTER_STATUS=symlink
+fi
+
+find "$ROOT" \( -type f -o -type l \) \
+  \( -name 'AGENTS.md' -o -name 'AGENTS.override.md' -o -name 'CLAUDE.md' -o -name 'CLAUDE.local.md' \) \
+  -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/.claude/worktrees/*' -not -path '*/.worktrees/*' -print 2>/dev/null |
+  LC_ALL=C sort > "$ENTRYPOINTS"
+
+while IFS= read -r file; do
+  add_file "$file"
+  printf '%s\n' "$file" >> "$SEEDS"
+done < "$ENTRYPOINTS"
+
+for dir in .claude/rules .agent-shared/rules .agents/rules .codex/rules .pi/rules; do
+  if [[ -d "$ROOT/$dir" ]]; then
+    find "$ROOT/$dir" \( -type f -o -type l \) -name '*.md' -print 2>/dev/null |
+      while IFS= read -r file; do add_file "$file"; done
+  fi
+done
+if [[ -d "$ROOT/.claude/rules" ]]; then
+  find "$ROOT/.claude/rules" \( -type f -o -type l \) -name '*.md' -print 2>/dev/null >> "$SEEDS"
+fi
+LC_ALL=C sort -u "$FILES" -o "$FILES"
+LC_ALL=C sort -u "$SEEDS" -o "$SEEDS"
+cp "$FILES" "$TMP/parse-files"
+
+pass=0
+previous=-1
+while [[ $pass -lt 8 ]]; do
+  current=$(wc -l < "$TMP/parse-files" | tr -d ' ')
+  [[ "$current" == "$previous" ]] && break
+  previous=$current
+  pass=$((pass + 1))
+  : > "$TMP/new-edges"
+  cp "$TMP/parse-files" "$TMP/pass-files"
+  while IFS= read -r source; do
+    [[ -r "$source" ]] || continue
+    while IFS=$'\t' read -r kind raw; do
+      ref=$(clean_reference "$raw") || continue
+      source_rel=$(relpath "$source")
+      if target=$(resolve_reference "$source" "$ref"); then
+        target_rel=$(relpath "$target")
+        printf '%s\t%s\n' "$source_rel" "$target_rel" >> "$TMP/new-edges"
+        add_file "$target"
+        if [[ "$kind" == "explicit" ]]; then printf '%s\t%s\n' "$source_rel" "$target_rel" >> "$EXPLICIT_EDGES"; fi
+        if is_instruction_surface "$target"; then printf '%s\n' "$target" >> "$TMP/parse-files"; fi
+      else
+        if [[ "$kind" == "explicit" ]] || is_route_reference "$ref"; then
+          printf '%s\t%s\n' "$source_rel" "$ref" >> "$BROKEN"
+        fi
+      fi
+    done < <(extract_references "$source")
+  done < "$TMP/pass-files"
+  cat "$TMP/new-edges" >> "$EDGES"
+  LC_ALL=C sort -u "$FILES" -o "$FILES"
+  LC_ALL=C sort -u "$TMP/parse-files" -o "$TMP/parse-files"
+  LC_ALL=C sort -u "$EDGES" -o "$EDGES"
+  LC_ALL=C sort -u "$EXPLICIT_EDGES" -o "$EXPLICIT_EDGES"
+  LC_ALL=C sort -u "$BROKEN" -o "$BROKEN"
+done
+
+while IFS= read -r file; do relpath "$file"; echo; done < "$FILES" > "$TMP/relative-files"
+while IFS= read -r file; do relpath "$file"; echo; done < "$SEEDS" > "$TMP/relative-seeds"
+LC_ALL=C sort -u "$TMP/relative-files" -o "$TMP/relative-files"
+LC_ALL=C sort -u "$TMP/relative-seeds" -o "$TMP/relative-seeds"
+
+awk -F '\t' '
+  FILENAME==ARGV[1] {seed[$0]=1; reach[$0]=1; node[$0]=1; next}
+  FILENAME==ARGV[2] {node[$0]=1; next}
+  {edge[$1 SUBSEP $2]=1; node[$1]=1; node[$2]=1}
+  END {
+    changed=1
+    while (changed) {
+      changed=0
+      for (key in edge) {
+        split(key, pair, SUBSEP)
+        if (reach[pair[1]] && !reach[pair[2]]) {reach[pair[2]]=1; changed=1}
+      }
+    }
+    for (n in node) if (!reach[n]) print n
+  }
+' "$TMP/relative-seeds" "$TMP/relative-files" "$EDGES" | LC_ALL=C sort > "$TMP/unreachable-all"
+
+while IFS= read -r rel; do
+  case "$rel" in
+    .agent-shared/rules/*|.agents/rules/*|.codex/rules/*|.pi/rules/*) printf '%s\n' "$rel" ;;
+  esac
+done < "$TMP/unreachable-all" > "$UNROUTED"
+
+awk -F '\t' '
+  function dfs(n,    key,pair,t) {
+    state[n]=1
+    for (key in edge) {
+      split(key, pair, SUBSEP)
+      if (pair[1] != n) continue
+      t=pair[2]
+      if (state[t] == 1) print n " -> " t
+      else if (!state[t]) dfs(t)
+    }
+    state[n]=2
+  }
+  {edge[$1 SUBSEP $2]=1; node[$1]=1; node[$2]=1}
+  END {for (n in node) if (!state[n]) dfs(n)}
+' "$EXPLICIT_EDGES" | LC_ALL=C sort -u > "$CYCLES"
+
+while IFS= read -r file; do
+  [[ -r "$file" ]] || continue
+  read -r checksum size _ < <(cksum "$file")
+  printf '%s:%s\t%s\n' "$checksum" "$size" "$(relpath "$file")"
+done < "$FILES" |
+  LC_ALL=C sort |
+  awk -F '\t' '
+    $1==last {if (!shown) {group=first; shown=1}; group=group " = " $2; next}
+    last!="" && shown {print group}
+    {last=$1; first=$2; shown=0; group=""}
+    END {if (shown) print group}
+  ' > "$DUPLICATES"
+
+BUDGET=32768
+if [[ -r "$ROOT/.codex/config.toml" ]]; then
+  configured=$(awk -F= '/^[[:space:]]*project_doc_max_bytes[[:space:]]*=/ {gsub(/[^0-9]/, "", $2); if ($2 != "") {print $2; exit}}' "$ROOT/.codex/config.toml")
+  [[ -n "$configured" ]] && BUDGET=$configured
+fi
+
+ROOT_BYTES=0
+BUDGET_FINDINGS="$TMP/budget"
+ALWAYS_FINDINGS="$TMP/always"
+DRIFT_FINDINGS="$TMP/drift"
+: > "$BUDGET_FINDINGS"; : > "$ALWAYS_FINDINGS"; : > "$DRIFT_FINDINGS"
+MIRROR_STATUS=none
+while IFS= read -r file; do
+  rel=$(relpath "$file")
+  bytes=$(wc -c < "$file" | tr -d ' ')
+  case "$rel" in
+    AGENTS.md|AGENTS.override.md|CLAUDE.md|CLAUDE.local.md)
+      if [[ ! ( "$rel" == "CLAUDE.md" && "$ROOT_ADAPTER_STATUS" == "symlink" ) ]]; then
+        ROOT_BYTES=$((ROOT_BYTES + bytes))
+      fi
+      if [[ $bytes -gt $BUDGET ]]; then printf '%s\t%s\t%s\n' "$rel" "$bytes" "$BUDGET" >> "$BUDGET_FINDINGS"; fi
+      ;;
+  esac
+  case "$rel" in
+    .claude/rules/*)
+      if ! grep -Eq '^[[:space:]]*paths[[:space:]]*:' "$file" || grep -Eq 'paths:[[:space:]]*\[[^]]*"\*\*"|^[[:space:]]*-[[:space:]]*"\*\*"' "$file"; then
+        printf '%s\n' "$rel" >> "$ALWAYS_FINDINGS"
+      fi
+      ;;
+  esac
+done < "$FILES"
+
+if [[ -d "$ROOT/.agent-shared/rules" && -d "$ROOT/.claude/rules" ]]; then
+  (cd "$ROOT/.agent-shared/rules" && find . -type f ! -name .DS_Store -print | LC_ALL=C sort) > "$TMP/shared-rule-files"
+  (cd "$ROOT/.claude/rules" && find . -type f ! -name .DS_Store -print | LC_ALL=C sort) > "$TMP/claude-rule-files"
+  if cmp -s "$TMP/shared-rule-files" "$TMP/claude-rule-files"; then
+    MIRROR_STATUS=aligned
+    drift_number=0
+    while IFS= read -r rel; do
+      if ! cmp -s "$ROOT/.agent-shared/rules/$rel" "$ROOT/.claude/rules/$rel"; then
+        MIRROR_STATUS=drift
+        drift_number=$((drift_number + 1))
+        if [[ $drift_number -le 10 ]]; then
+          printf '.agent-shared/rules <-> .claude/rules | content differs: %s\n' "${rel#./}" >> "$DRIFT_FINDINGS"
+        fi
+      fi
+    done < "$TMP/shared-rule-files"
+  else
+    MIRROR_STATUS=drift
+    awk 'NR<=5 {print ".agent-shared/rules files | " $0}' "$TMP/shared-rule-files" >> "$DRIFT_FINDINGS"
+    awk 'NR<=5 {print ".claude/rules files | " $0}' "$TMP/claude-rule-files" >> "$DRIFT_FINDINGS"
+  fi
+  if [[ "$MIRROR_STATUS" == "aligned" ]]; then
+    awk '!/^\.agent-shared\/rules\/.* = \.claude\/rules\//' "$DUPLICATES" > "$TMP/duplicates-filtered"
+    mv "$TMP/duplicates-filtered" "$DUPLICATES"
+  fi
+fi
+if [[ "$ROOT_ADAPTER_STATUS" == "symlink" ]]; then
+  awk '$0 != "AGENTS.md = CLAUDE.md" && $0 != "CLAUDE.md = AGENTS.md"' "$DUPLICATES" > "$TMP/duplicates-filtered"
+  mv "$TMP/duplicates-filtered" "$DUPLICATES"
+fi
+
+FILE_COUNT=$(wc -l < "$FILES" | tr -d ' ')
+ENTRYPOINT_COUNT=$(wc -l < "$ENTRYPOINTS" | tr -d ' ')
+EDGE_COUNT=$(wc -l < "$EDGES" | tr -d ' ')
+BROKEN_COUNT=$(wc -l < "$BROKEN" | tr -d ' ')
+CYCLE_COUNT=$(wc -l < "$CYCLES" | tr -d ' ')
+UNROUTED_COUNT=$(wc -l < "$UNROUTED" | tr -d ' ')
+DUPLICATE_COUNT=$(wc -l < "$DUPLICATES" | tr -d ' ')
+UNREADABLE_COUNT=$(wc -l < "$UNREADABLE" | tr -d ' ')
+DRIFT_COUNT=$(wc -l < "$DRIFT_FINDINGS" | tr -d ' ')
+BUDGET_COUNT=$(wc -l < "$BUDGET_FINDINGS" | tr -d ' ')
+
+echo "root: $ROOT"
+printf 'summary: entrypoints=%s files=%s routes=%s broken=%s cycles=%s unrouted=%s duplicate_files=%s unreadable=%s adapter_drift=%s root_bytes_total=%s root_approx_tokens=%s\n' \
+  "$ENTRYPOINT_COUNT" "$FILE_COUNT" "$EDGE_COUNT" "$BROKEN_COUNT" "$CYCLE_COUNT" "$UNROUTED_COUNT" "$DUPLICATE_COUNT" "$UNREADABLE_COUNT" "$DRIFT_COUNT" "$ROOT_BYTES" "$(( (ROOT_BYTES + 3) / 4 ))"
+echo "entrypoints:"
+while IFS= read -r file; do print_file_record "$file"; done < "$ENTRYPOINTS"
+echo "adapter_mirrors:"
+if [[ "$MIRROR_STATUS" == "none" && "$ROOT_ADAPTER_STATUS" == "none" ]]; then
+  echo "  - none detected"
+fi
+if [[ "$ROOT_ADAPTER_STATUS" != "none" ]]; then
+  printf '  - AGENTS.md -> CLAUDE.md | status=%s\n' "$ROOT_ADAPTER_STATUS"
+fi
+if [[ "$MIRROR_STATUS" != "none" ]]; then
+  printf '  - .agent-shared/rules -> .claude/rules | status=%s\n' "$MIRROR_STATUS"
+fi
+
+echo "findings:"
+if [[ $ENTRYPOINT_COUNT -gt 0 && $BROKEN_COUNT -eq 0 && $CYCLE_COUNT -eq 0 && $UNROUTED_COUNT -eq 0 && $DUPLICATE_COUNT -eq 0 && $UNREADABLE_COUNT -eq 0 && $DRIFT_COUNT -eq 0 && $BUDGET_COUNT -eq 0 && ! -s "$ALWAYS_FINDINGS" ]]; then
+  echo "  - none"
+fi
+if [[ $ENTRYPOINT_COUNT -eq 0 ]]; then echo "  - critical missing-entrypoint | no AGENTS.md or CLAUDE.md guidance found"; fi
+broken_number=0
+while IFS=$'\t' read -r source target; do
+  broken_number=$((broken_number + 1))
+  if [[ $broken_number -le 40 ]]; then printf '  - critical broken-reference | %s -> %s\n' "$source" "$target"; fi
+done < "$BROKEN"
+if [[ $broken_number -gt 40 ]]; then printf '  - critical broken-reference | ... %s additional findings omitted\n' "$((broken_number - 40))"; fi
+print_line_findings "critical instruction-cycle" "$CYCLES"
+print_line_findings "critical unrouted-guidance" "$UNROUTED"
+print_line_findings "critical unreadable-guidance" "$UNREADABLE"
+while IFS=$'\t' read -r file bytes limit; do printf '  - critical root-budget | %s bytes=%s limit=%s\n' "$file" "$bytes" "$limit"; done < "$BUDGET_FINDINGS"
+print_line_findings "critical adapter-drift" "$DRIFT_FINDINGS"
+print_line_findings "advisory always-loaded-rule" "$ALWAYS_FINDINGS"
+print_line_findings "advisory duplicate-content" "$DUPLICATES"
+
+echo "routes:"
+if [[ $EDGE_COUNT -eq 0 ]]; then echo "  - none"; fi
+route_number=0
+while IFS=$'\t' read -r source target; do
+  route_number=$((route_number + 1))
+  if [[ $route_number -le 120 ]]; then printf '  - %s -> %s\n' "$source" "$target"; fi
+done < "$EDGES"
+if [[ $route_number -gt 120 ]]; then printf '  - ... %s additional routes omitted\n' "$((route_number - 120))"; fi
+
+if [[ "$MODE" == "verify" && $(( (ENTRYPOINT_COUNT == 0 ? 1 : 0) + BROKEN_COUNT + CYCLE_COUNT + UNROUTED_COUNT + UNREADABLE_COUNT + DRIFT_COUNT + BUDGET_COUNT )) -ne 0 ]]; then
+  exit 1
+fi

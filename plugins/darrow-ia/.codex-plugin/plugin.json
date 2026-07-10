@@ -1,0 +1,22 @@
+{
+  "name": "darrow-ia",
+  "version": "0.1.0",
+  "description": "Set up and doctor lean, routed repository information architecture",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow IA",
+    "shortDescription": "Build and audit repository agent guidance",
+    "longDescription": "Set up and doctor lean repository information architecture with explicit routing, scoped rules, and safe progressive disclosure.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Set up a lean agent information architecture.",
+      "Doctor this repository's agent instructions."
+    ]
+  }
+}

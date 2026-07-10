@@ -1,0 +1,33 @@
+id: setup-information-architecture-preserve-existing
+invariant: IA-S1,IA-S3,IA-S7
+prompt: >-
+  Reorganize the existing agent instructions into a lean routed architecture.
+  Preserve all project-specific constraints. I approve applying the proposal.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Never run production migrations from a coding-agent session.
+          Before calling work done, run `./tools/guard verify`.
+
+          The repository uses Bun, TypeScript, React, Vitest, and Biome.
+          The API lives in apps/api and the web app lives in apps/web.
+        package.json: "{\"private\":true,\"packageManager\":\"bun@1.3.0\",\"scripts\":{\"test\":\"vitest\",\"lint\":\"biome check .\"}}\n"
+        apps/api/package.json: "{\"dependencies\":{\"typescript\":\"latest\"}}\n"
+        apps/web/package.json: "{\"dependencies\":{\"react\":\"latest\"}}\n"
+        tools/guard: "#!/bin/sh\nexit 0\n"
+checks:
+  - name: production safety survives
+    run: cat AGENTS.md
+    expect_regex: "never run production migrations"
+    flags: i
+  - name: unusual verification command survives
+    run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    expect_regex: "\\./tools/guard verify"
+  - name: root is not replaced with a generic template
+    run: cat AGENTS.md
+    not_regex: "TODO|your project|add instructions here"
+    flags: i

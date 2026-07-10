@@ -1,0 +1,47 @@
+id: doctor-information-architecture-trim-derived-keep-contracts
+invariant: IA-D2,IA-D3,IA-D7
+prompt: >-
+  Doctor the repository information architecture and apply the clearly safe
+  improvements. You have my approval for derivable-fact trimming, but preserve
+  behavioral contracts and routing.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          ## Delivery
+          - Never self-merge a pull request.
+          - Before calling work done, run `./tools/guard verify`.
+
+          ## Rule Index
+          Before editing a matching path, read every listed rule.
+          - `apps/api/src/**` -> `.agent-shared/rules/api.md`
+          - `apps/web/src/**` -> `.agent-shared/rules/web.md`
+
+          ## Stack
+          - Package manager: Bun 1.3.
+          - Tests: Vitest.
+          - Lint and format: Biome.
+        .agent-shared/rules/api.md: "# API\n\nKeep error responses typed.\n"
+        .agent-shared/rules/web.md: "# Web\n\nPreserve keyboard navigation.\n"
+        package.json: "{\"private\":true,\"packageManager\":\"bun@1.3.0\",\"scripts\":{\"test\":\"vitest\",\"lint\":\"biome check .\"}}\n"
+        tools/guard: "#!/bin/sh\nexit 0\n"
+checks:
+  - name: self-merge prohibition remains
+    run: cat AGENTS.md
+    expect_regex: "never self-merge"
+    flags: i
+  - name: unusual completion command remains
+    run: cat AGENTS.md
+    expect_regex: "\\./tools/guard verify"
+  - name: API route remains
+    run: cat AGENTS.md
+    expect_regex: "\\.agent-shared/rules/api\\.md"
+  - name: web route remains
+    run: cat AGENTS.md
+    expect_regex: "\\.agent-shared/rules/web\\.md"
+  - name: manifest-derived stack inventory is trimmed
+    run: cat AGENTS.md
+    not_regex: "Package manager: Bun|Tests: Vitest|Lint and format: Biome"
