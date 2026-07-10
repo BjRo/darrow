@@ -4,7 +4,7 @@ Builds and maintains repository instruction systems that give coding agents the
 smallest useful resident context while keeping every behavior-changing rule
 reachable at the moment it matters.
 
-Plugin: `darrow-ia`. Skills: `setup-information-architecture`,
+Plugin: `darrow-information-architecture`. Skills: `setup-information-architecture`,
 `doctor-information-architecture`.
 
 ## Why

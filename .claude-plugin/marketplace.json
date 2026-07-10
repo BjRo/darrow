@@ -16,8 +16,8 @@
       "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, update-ticket, list-tickets"
     },
     {
-      "name": "darrow-ia",
-      "source": "./plugins/darrow-ia",
+      "name": "darrow-information-architecture",
+      "source": "./plugins/darrow-information-architecture",
       "description": "Set up and doctor lean, routed repository information architecture"
     }
   ]
