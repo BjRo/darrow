@@ -1,4 +1,4 @@
 interface:
   display_name: "Set Up Information Architecture"
   short_description: "Build scoped repository guidance"
-  default_prompt: "Set up a lean, routed agent instruction architecture for this repository."
+  default_prompt: "Use $setup-information-architecture to set up lean scoped guidance for this repository."

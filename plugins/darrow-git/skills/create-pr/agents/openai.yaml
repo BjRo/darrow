@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Pull Request"
+  short_description: "Open a polished pull request"
+  default_prompt: "Use $create-pr to push this branch and open a pull request."

@@ -1,4 +1,4 @@
 interface:
   display_name: "Doctor Information Architecture"
   short_description: "Audit repository agent guidance"
-  default_prompt: "Audit this repository information architecture and propose focused improvements."
+  default_prompt: "Use $doctor-information-architecture to audit this repository's agent guidance."
