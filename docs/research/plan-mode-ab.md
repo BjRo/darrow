@@ -547,9 +547,141 @@ one hard-earned addendum: **when lifting nested instruction files to
 root-routed delivery, rewrite every path to be relative to the position the
 reader now occupies.** Content conventions are part of delivery.
 
-Open follow-up (cheap, unrun): round 6b — same row with repo-relative paths
-in the maps (or a one-line "paths relative to src/backend/" header) to test
-whether corrected content recovers quality while keeping the cost win.
+Constraint statement (confirmed by 6b, see below): paths in *any* instruction file
+read by a root-anchored session — nested AGENTS.md, CLAUDE.md, skills, routed
+docs — must be spelled out from the session root, because models copy them
+verbatim into output. Supporting evidence beyond round 6: the present-IA rows
+(rounds 2–4) show the same truncation class (`internal/export/assembler.go`,
+`export/page.tsx`) whenever the model happened to read the nested maps; round
+6 made reading guaranteed and the failure count scaled with the dose, hitting
+even the reviewed condition. Scope: the issue is machine resolvability
+(grounding, executors, tooling) — humans in context cope.
+
+Round 6b (pre-registered): same engineered row, maps rewritten to
+root-relative paths at fixture-build time (sed-prefix `cmd/`, `internal/`,
+`migrations/` etc. with `src/backend/`; inspect the frontend map's style
+before transforming it). Frozen prediction: reviewed recovers to 15/15,
+native ≥ 14/15, the −13% cost win stays. Cases `plan-ab6b-*` when built.
+
+**Round 6b results (run 2026-07-10, codex-cli 0.144.1): constraint
+confirmed.** Build: anchored seds (backtick-prefixed `cmd/`, `internal/`,
+`migrations/`, `gqlgen.yml`, `Makefile` → `src/backend/…`; frontend `src/`,
+`middleware.ts`, `codegen.ts`, `vitest.config.ts` → `src/frontend/…`) — all
+59 backticked map paths verified resolvable from repo root at fixture build;
+pre-existing dangling refs (`.agent-shared/…`, `/documentation/…` links) left
+untouched (same as round 6, single-variable change). Cases
+`evals/experiments/plan-mode-ab-real-engineered-fixed/`.
+
+| | native | reviewed |
+|---|---|---|
+| raw / eyeballed | 13/15 / 13/15 | 14/15 / **15/15** |
+| tok/trial | 0.65M (−10% vs bare) | 1.13M (−20% vs bare reviewed) |
+| map-induced path fails | **0** | **0** |
+
+- Reviewed: zero grounding failures. The single raw fail is the known
+  solution-shape false-fail class — the plan reused
+  `DocumentExtractor.AnalyzeProfileMatch` outright and never needed to touch
+  `internal/infrastructure/llm/`, which the positive regex demanded. The same
+  plan cites the gqlgen output path *correctly*
+  (`internal/graphql/generated/generated.go`) — the exact path the native row
+  flattened.
+- Native: both fails are the baseline truncation class
+  (`internal/graphql/generated.go` flattened;
+  `export/page.tsx` truncated — literally the same path as rounds 2–4),
+  matching native's 13/15 in rounds 2 and 4.
+- Prediction outcomes: (1) confirmed — reviewed recovered 12/15 → 15/15;
+  (2) missed by one (13/15 vs ≥14/15), but via native's own
+  everywhere-baseline truncation, not map paths; (3) confirmed — the cost win
+  held and widened for reviewed (−10% native, −20% reviewed).
+
+The round-6 regression is fully explained and fully repaired by one content
+change: spell instruction-file paths from the position the reader occupies.
+The constraint statement above graduates from "to confirm" to confirmed.
+
+**Scope of the IA nulls (recorded 2026-07-10, user's framing).** The test
+repo is greenfield-clean; its conventions are consistent enough to grep. The
+nulls therefore cover only *derivable* knowledge — where things live, sibling
+patterns, integration chains — which a frontier model re-derives from code
+when the code speaks with one voice. Two knowledge classes remain untested
+and are expected to behave differently:
+
+1. *Underdetermined* knowledge — legacy repos with mixed coexisting patterns
+   where only one is canonical for new code. Exploration returns
+   contradictory exemplars and the repo contains no arbiter (unlike the
+   docs-vs-code trap, where the code settles it). Here IA must point.
+   Posture: specify what the code underdetermines, nothing more.
+2. *External* knowledge — org conventions, idiomatic-language standards,
+   policy: not embodied in the repo, non-derivable by definition. The
+   AGENTS.md → progressively-loaded conventions file pattern (per the
+   context-architecture doc) is unaffected by these results and remains the
+   recommended delivery for this class.
+
+The series verdict "IA buys cost, not floor quality" is a statement about
+class-0 knowledge on convention-clean repos, nothing broader.
+
+## Round 7 — underdetermined knowledge (pre-registered design, unbuilt)
+
+Tests knowledge class 1: mixed coexisting patterns where the repo contains no
+arbiter. Method: inject a competing pattern into the credfolio2 clone at
+fixture-build time — e.g. `internal/repository/sqlpg/` with two repositories
+in raw `database/sql` style beside the sixteen Bun-style ones in
+`repository/postgres/`. No deprecation markers, no docs: the code alone
+cannot answer "which style for new code". Task: plan persistence for a new
+entity.
+
+**Direction control (the core of the design):** two case variants with
+opposite canonical answers, set only by one routing line in the engineered
+root AGENTS.md — variant A: "we are migrating persistence to
+internal/repository/sqlpg/; all new repositories use it"; variant B:
+"internal/repository/sqlpg/ was an abandoned experiment; do not extend it —
+new repositories use repository/postgres/". If IA-equipped rows follow the
+line in *both directions* while bare rows follow a fixed heuristic (majority
+or recency) regardless, class-1 is confirmed: the knowledge is genuinely
+non-derivable and IA is load-bearing.
+
+Conditions per variant: bare-native, IA-native, and bare-reviewed — the last
+to test the sharp corollary that the review paragraph *cannot* substitute
+for IA here (nothing in the repo to verify against). 3 conditions × 2
+variants × 5 trials = 30 trials.
+
+Primary check per trial: which style the plan's Key Changes adopts
+(regexes on `sqlpg`/`database/sql` vs `repository/postgres/`/Bun), scored
+against the variant's canonical answer; bare rows are scored against both to
+expose their heuristic. Grounding et al. retained as secondary.
+
+Frozen predictions: (1) IA-native ≥ 4/5 canonical in both directions;
+(2) bare rows pick the same style in both variants (heuristic-driven,
+~majority), i.e. ≤ 1/5 canonical in whichever variant opposes the heuristic;
+(3) bare-reviewed does not outperform bare-native on canonicality.
+
+Run order: 6b first, then 7. Both on whatever CLI is current, recorded.
+
+**Build addendum (recorded 2026-07-10, before any round-7 trial ran).**
+Implementation decisions made while building, all before data:
+
+- Injected pair: `session_repository.go` + `positioning_review_repository.go`
+  — the only two repositories whose constructors are referenced solely by
+  `cmd/server/main.go` and their own tests, so the Bun versions could be
+  removed without dangling references. The sqlpg versions are wired into
+  `main.go` (import + both constructors on `db.DB`); the mixed repo passes
+  `go build ./...`. Injected files live in
+  `evals/experiments/plan-mode-ab-real-mixed/inject/`, no tests (plausible
+  for both the migration and abandoned-experiment stories).
+- Mix after injection: 14 Bun repositories vs 2 raw `database/sql`, all wired.
+  Expected bare-row heuristic: majority (Bun/postgres).
+- Task entity: "profile endorsements" (create / list-by-profile / delete,
+  persistence only). No existing code references collide with the
+  path-scoped style regexes.
+- Router lines spell paths root-relative (`src/backend/internal/repository/…`)
+  per the round-6 constraint; the registered short forms were a sketch.
+- Everything lands in one neutral commit per fixture (same messages as the
+  bare/engineered rows of rounds 5–6). Known leak channel: git archaeology
+  could date the sqlpg files to the strip commit; accepted — no plan-mode
+  trial in rounds 1–6 was observed running git history commands.
+- Bare fixtures are variant-independent (no router), so the two bare
+  conditions run as 10 trials each on one case (`plan-ab7-endorsement-bare`)
+  with both style checks recorded informationally; IA rows are
+  `plan-ab7-endorsement-ia-a` / `-ia-b`, 5 trials each. 30 total, unchanged.
 
 ## Follow-up (out of scope here)
 
