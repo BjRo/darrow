@@ -68,37 +68,26 @@ checks:
       -exec grep -il 'accessib\|keyboard navigation\|semantic HTML' {} + | wc -l | tr -d ' ');
       test "$db_count" = 1 && test "$web_count" = 1 && echo unique
     expect_regex: "^unique$"
-  - name: root binds database intent to the discovered database target
+  - name: root binds each domain intent to its discovered target
     run: >-
       db=$(find . -type f -name '*.md' ! -path './AGENTS.md' ! -path './CLAUDE.md'
       -not -path './.git/*' -not -path './.agents/*' -not -path './.claude/*'
       -exec grep -il 'integer cents\|cents.*integer' {} + | sed -n '1p');
-      target=${db#./}; test -n "$target"; TARGET="$target" awk '
-      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
-      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(database|persistence|migration|money|apps\/api)/) {candidate=1; if (lower ~ /(read|consult|load|follow)/) found=1}}
-      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
-      /\|/ {check(); block=$0; check(); block=""; next}
-      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (tolower(block) ~ /(read|consult|load|follow|use)/ && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
-      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*$/ {block=block " "; next}
-      {block=block " " $0}
-      END {check(); if (found) print "routed"}' AGENTS.md
-    expect_regex: "^routed$"
-  - name: root binds frontend intent to the discovered accessibility target
-    run: >-
       web=$(find . -type f -name '*.md' ! -path './AGENTS.md' ! -path './CLAUDE.md'
       -not -path './.git/*' -not -path './.agents/*' -not -path './.claude/*'
       -exec grep -il 'accessib\|keyboard navigation\|semantic HTML' {} + | sed -n '1p');
-      target=${web#./}; test -n "$target"; TARGET="$target" awk '
+      db=${db#./}; web=${web#./}; test -n "$db" && test -n "$web";
+      DB="$db" WEB="$web" awk '
       function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
-      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(frontend|web|accessib|keyboard|apps\/web)/) {candidate=1; if (lower ~ /(read|consult|load|follow)/) found=1}}
-      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
+      function has_loader(value) {return tolower(value) ~ /(^|[^[:alnum:]_])(read|consult|load|follow)([^[:alnum:]_]|$)/}
+      function check(    db,web,lower) {db=ENVIRON["DB"]; web=ENVIRON["WEB"]; lower=tolower(without_target(block, db)); if (index(block, db) && lower ~ /(database|persistence|migration|money|apps\/api)/ && has_loader(lower)) db_found=1; lower=tolower(without_target(block, web)); if (index(block, web) && lower ~ /(frontend|web|accessib|keyboard|apps\/web)/ && has_loader(lower)) web_found=1}
       /\|/ {check(); block=$0; check(); block=""; next}
-      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (tolower(block) ~ /(read|consult|load|follow|use)/ && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
+      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (has_loader(block) && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
       /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*$/ {block=block " "; next}
+      /^[[:space:]]*$/ {if (block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=""} else if (has_loader(block)) block=block " "; else block=""; next}
+      {if (has_loader($0) && $0 ~ /[.A-Za-z0-9_\/-]+\.md/ && block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=$0; next}}
       {block=block " " $0}
-      END {check(); if (found) print "routed"}' AGENTS.md
+      END {check(); if (db_found && web_found) print "routed"}' AGENTS.md
     expect_regex: "^routed$"
   - name: scoped invariants are absent from the resident root
     run: cat AGENTS.md

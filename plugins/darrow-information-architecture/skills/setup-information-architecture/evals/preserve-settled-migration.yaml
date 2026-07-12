@@ -22,52 +22,43 @@ checks:
   - name: dual-runtime agent entrypoints are created
     run: test -f AGENTS.md && test -e CLAUDE.md && echo created
     expect_regex: "^created$"
-  - name: settled SQL direction becomes reachable guidance
-    run: >-
-      flat=$(tr '\n' ' ' < AGENTS.md); if printf '%s\n' "$flat" | grep -Ei '(new persistence|new storage|new repositories).*(raw SQL|SQL package)|(raw SQL|SQL package).*(new persistence|new storage|new repositories)' >/dev/null; then cat AGENTS.md;
-      else target=$(awk '
-      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
-      function check(plain, lower) {if (match(block, /[.A-Za-z0-9_\/-]+\.md/)) {target=substr(block, RSTART, RLENGTH); plain=without_target(block, target); lower=tolower(plain); if (lower ~ /(persistence|storage|repository)/) {candidate=target; if (lower ~ /(read|consult|load|follow)/) found=target}}}
-      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
-      /\|/ {check(); block=$0; check(); block=""; next}
-      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (tolower(block) ~ /(read|consult|load|follow|use)/ && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
-      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*$/ {block=block " "; next}
-      {block=block " " $0}
-      END {check(); if (found != "") print found; else if (candidate != "" && loader) print candidate}' AGENTS.md | sed -n '1p'); test -n "$target" && test -f "$target" && cat "$target"; fi;
-      find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
-    expect_regex: "(new persistence|new storage|new repositories)[\\s\\S]{0,120}(raw SQL|SQL package)|(raw SQL|SQL package)[\\s\\S]{0,120}(new persistence|new storage|new repositories)"
-    flags: i
-  - name: legacy ORM prohibition survives
-    run: >-
-      flat=$(tr '\n' ' ' < AGENTS.md); if printf '%s\n' "$flat" | grep -Ei 'do not add new ORM|ORM.*legacy' >/dev/null; then cat AGENTS.md;
-      else target=$(awk '
-      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
-      function check(plain, lower) {if (match(block, /[.A-Za-z0-9_\/-]+\.md/)) {target=substr(block, RSTART, RLENGTH); plain=without_target(block, target); lower=tolower(plain); if (lower ~ /(persistence|storage|repository)/) {candidate=target; if (lower ~ /(read|consult|load|follow)/) found=target}}}
-      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
-      /\|/ {check(); block=$0; check(); block=""; next}
-      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*$/ {block=block " "; next}
-      {block=block " " $0}
-      END {check(); if (found != "") print found; else if (candidate != "" && loader) print candidate}' AGENTS.md | sed -n '1p'); test -n "$target" && test -f "$target" && cat "$target"; fi;
-      find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
-    expect_regex: "do not add new ORM|ORM.*legacy"
-    flags: i
   - name: response does not reopen the settled choice
     run: cat .git/last-message.md
     not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}ORM"
     flags: i
-  - name: settled policy is resident or in the verified route graph
+  - name: settled direction and prohibition are resident or routed
     run: >-
       if grep -Eiq 'new persistence|new storage|new repositories' AGENTS.md &&
-      grep -Eiq 'raw SQL|SQL package' AGENTS.md; then echo reachable; exit 0; fi;
-      policy=$(find . -type f -name '*.md' -not -path './.git/*'
-      -exec grep -Eil 'new persistence|new storage|new repositories' {} + | sed -n '1p');
-      test -n "$policy"; policy=$(cd "$(dirname "$policy")" && pwd -P)/$(basename "$policy");
+      grep -Eiq 'raw SQL|SQL package' AGENTS.md &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' AGENTS.md &&
+      grep -Eiq 'new persistence|new storage|new repositories' CLAUDE.md &&
+      grep -Eiq 'raw SQL|SQL package' CLAUDE.md &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' CLAUDE.md; then echo reachable; exit 0; fi;
       if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
       else doctor=.claude/bin/ia-doctor; fi;
-      bash "$doctor" inspect --runtime both . | grep -F -- "$policy" >/dev/null && echo reachable
+      routes=$(bash "$doctor" inspect --runtime both .);
+      find . -type f -name '*.md' -not -path './.git/*' |
+      while IFS= read -r policy; do
+      if grep -Eiq 'new persistence|new storage|new repositories' "$policy" &&
+      grep -Eiq 'raw SQL|SQL package' "$policy" &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' "$policy"; then
+      policy=$(cd "$(dirname "$policy")" && pwd -P)/$(basename "$policy");
+      printf '%s\n' "$routes" | ROOT=$(pwd -P) POLICY="$policy" awk '
+      function reaches(start, goal, key, changed, i) {
+      seen[key SUBSEP start]=1; changed=1;
+      while (changed) {changed=0; for (i=1; i<=edges; i++)
+      if (seen[key SUBSEP source[i]] && !seen[key SUBSEP target[i]])
+      {seen[key SUBSEP target[i]]=1; changed=1}}
+      return seen[key SUBSEP goal]}
+      $0 == "routes:" {routes=1; next}
+      routes && /^  - / {line=substr($0, 5); split_at=index(line, " -> ");
+      if (split_at) {edges++; source[edges]=substr(line, 1, split_at-1);
+      target[edges]=substr(line, split_at+4)}}
+      END {root=ENVIRON["ROOT"]; goal=ENVIRON["POLICY"];
+      if (reaches(root "/AGENTS.md", goal, "codex") &&
+      reaches(root "/CLAUDE.md", goal, "claude")) print "reachable"}'
+      fi;
+      done
     expect_regex: "^reachable$"
   - name: settled guidance passes deterministic dual-runtime verification
     run: >-

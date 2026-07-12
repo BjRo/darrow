@@ -71,12 +71,13 @@ checks:
       target=${skill#./}; test -n "$target";
       route=$(TARGET="$target" awk '
       function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
-      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(release|publish)/) {candidate=1; if (lower ~ /(read|load|follow|use)/) found=1}}
-      {if (tolower($0) ~ /(read|load|follow|use)/) loader=1}
+      function has_loader(value) {return tolower(value) ~ /(^|[^[:alnum:]_])(read|load|follow|use)([^[:alnum:]_]|$)/}
+      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(release|publish)/ && has_loader(lower)) found=1}
       /\|/ {check(); block=$0; check(); block=""; next}
-      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (tolower(block) ~ /(read|consult|load|follow|use)/ && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
+      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (has_loader(block) && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
       /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*$/ {block=block " "; next}
+      /^[[:space:]]*$/ {if (block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=""} else if (has_loader(block)) block=block " "; else block=""; next}
+      {if (has_loader($0) && $0 ~ /[.A-Za-z0-9_\/-]+\.md/ && block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=$0; next}}
       {block=block " " $0}
       END {check(); if (found) print "routed"}' AGENTS.md);
       if [ "$route" = routed ]; then echo discoverable; exit 0; fi;
