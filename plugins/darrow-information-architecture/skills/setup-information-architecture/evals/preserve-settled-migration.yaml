@@ -1,0 +1,81 @@
+id: setup-information-architecture-preserve-settled-migration
+invariant: IA-S9
+prompt: >-
+  Set up a lean dual-runtime information architecture and record the settled
+  persistence direction from canonical repository evidence. I approve the
+  proposed file-level changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/decisions/004-storage.md: |
+          # ADR 004: Storage access
+
+          Status: Accepted
+
+          New persistence work uses the raw SQL package. The ORM package is
+          legacy migration surface only; do not add new ORM repositories.
+        src/storage/orm/legacy.ts: "export const legacy = true;\n"
+        src/storage/sql/users.ts: "export const users = true;\n"
+        package.json: "{\"private\":true}\n"
+checks:
+  - name: dual-runtime agent entrypoints are created
+    run: test -f AGENTS.md && test -e CLAUDE.md && echo created
+    expect_regex: "^created$"
+  - name: settled SQL direction becomes reachable guidance
+    run: >-
+      flat=$(tr '\n' ' ' < AGENTS.md); if printf '%s\n' "$flat" | grep -Ei '(new persistence|new storage|new repositories).*(raw SQL|SQL package)|(raw SQL|SQL package).*(new persistence|new storage|new repositories)' >/dev/null; then cat AGENTS.md;
+      else target=$(awk '
+      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
+      function check(plain, lower) {if (match(block, /[.A-Za-z0-9_\/-]+\.md/)) {target=substr(block, RSTART, RLENGTH); plain=without_target(block, target); lower=tolower(plain); if (lower ~ /(persistence|storage|repository)/) {candidate=target; if (lower ~ /(read|consult|load|follow)/) found=target}}}
+      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
+      /\|/ {check(); block=$0; check(); block=""; next}
+      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (tolower(block) ~ /(read|consult|load|follow|use)/ && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
+      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
+      /^[[:space:]]*$/ {block=block " "; next}
+      {block=block " " $0}
+      END {check(); if (found != "") print found; else if (candidate != "" && loader) print candidate}' AGENTS.md | sed -n '1p'); test -n "$target" && test -f "$target" && cat "$target"; fi;
+      find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    expect_regex: "(new persistence|new storage|new repositories)[\\s\\S]{0,120}(raw SQL|SQL package)|(raw SQL|SQL package)[\\s\\S]{0,120}(new persistence|new storage|new repositories)"
+    flags: i
+  - name: legacy ORM prohibition survives
+    run: >-
+      flat=$(tr '\n' ' ' < AGENTS.md); if printf '%s\n' "$flat" | grep -Ei 'do not add new ORM|ORM.*legacy' >/dev/null; then cat AGENTS.md;
+      else target=$(awk '
+      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
+      function check(plain, lower) {if (match(block, /[.A-Za-z0-9_\/-]+\.md/)) {target=substr(block, RSTART, RLENGTH); plain=without_target(block, target); lower=tolower(plain); if (lower ~ /(persistence|storage|repository)/) {candidate=target; if (lower ~ /(read|consult|load|follow)/) found=target}}}
+      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
+      /\|/ {check(); block=$0; check(); block=""; next}
+      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); block=$0; next}
+      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
+      /^[[:space:]]*$/ {block=block " "; next}
+      {block=block " " $0}
+      END {check(); if (found != "") print found; else if (candidate != "" && loader) print candidate}' AGENTS.md | sed -n '1p'); test -n "$target" && test -f "$target" && cat "$target"; fi;
+      find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    expect_regex: "do not add new ORM|ORM.*legacy"
+    flags: i
+  - name: response does not reopen the settled choice
+    run: cat .git/last-message.md
+    not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}ORM"
+    flags: i
+  - name: settled policy is resident or in the verified route graph
+    run: >-
+      if grep -Eiq 'new persistence|new storage|new repositories' AGENTS.md &&
+      grep -Eiq 'raw SQL|SQL package' AGENTS.md; then echo reachable; exit 0; fi;
+      policy=$(find . -type f -name '*.md' -not -path './.git/*'
+      -exec grep -Eil 'new persistence|new storage|new repositories' {} + | sed -n '1p');
+      test -n "$policy"; policy=$(cd "$(dirname "$policy")" && pwd -P)/$(basename "$policy");
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      else doctor=.claude/bin/ia-doctor; fi;
+      bash "$doctor" inspect --runtime both . | grep -F -- "$policy" >/dev/null && echo reachable
+    expect_regex: "^reachable$"
+  - name: settled guidance passes deterministic dual-runtime verification
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: setup creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

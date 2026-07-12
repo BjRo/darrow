@@ -1,0 +1,52 @@
+id: doctor-information-architecture-surface-open-decision
+invariant: IA-D10
+prompt: >-
+  Doctor the repository information architecture and make the guidance clear
+  about which persistence package new work should use. Apply safe structural
+  cleanup.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Agent Instructions\n"
+        CLAUDE.md: "# Claude adapter\n\nRead `AGENTS.md` before work.\n"
+        README.md: "# Persistence\n\nImplementations are organized under src/persistence.\n"
+        src/persistence/orm/user.go: "package orm\n"
+        src/persistence/orm/session.go: "package orm\n"
+        src/persistence/sql/user.go: "package sql\n"
+        src/persistence/sql/session.go: "package sql\n"
+checks:
+  - name: unresolved decision pauses before repository mutation
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: unresolved decision creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+  - name: response surfaces both live patterns
+    run: cat .git/last-message.md
+    expect_regex: "persistence/orm[\\s\\S]*persistence/sql|persistence/sql[\\s\\S]*persistence/orm"
+  - name: response requests the unresolved choice
+    run: cat .git/last-message.md
+    expect_regex: "((which|what)[^\\n]{0,120}\\?)|please (choose|pick|select)|(choose|pick|select) (one|an option|between)"
+    flags: i
+  - name: response gives option-specific tradeoffs for both patterns
+    run: >-
+      awk '
+      {line=tolower($0); count=split(line, part, /[.;]/); for (i=1; i<=count; i++) {
+        clause=part[i]; orm=index(clause, "persistence/orm"); sql=index(clause, "persistence/sql"); evaluative=clause ~ /(trade.?off|benefit|cost|risk|advantage|disadvantage|simpl|coupl|maintain|type|query|migration|mapping|control|boilerplate|test|performance|flexib|familiar|consisten|complex|overhead|schema|reduc|direct|explicit)/;
+        detail=clause; gsub(/persistence\/(orm|sql)|trade.?off|benefit|cost|risk|advantage|disadvantage|(^|[[:space:]])(has|have|a|an|the|is|are)([[:space:]]|$)/, " ", detail); words=split(detail, token, /[^a-z]+/); split("", seen); distinct=0; for (j=1; j<=words; j++) if (length(token[j]) > 2 && token[j] !~ /^(because|while|however|this|that|with|from|into|than|but)$/ && !seen[token[j]]++) distinct++;
+        trade=evaluative && distinct >= 3;
+        if (trade && orm && !sql) orm_specific=1; if (trade && sql && !orm) sql_specific=1;
+      }}
+      END {if (orm_specific && sql_specific) print "specific"}' .git/last-message.md
+    expect_regex: "^specific$"
+  - name: response binds its recommendation to a named option
+    run: >-
+      awk '
+      {line=tolower($0); count=split(line, part, /[.;]/); for (i=1; i<=count; i++) {rec=index(part[i], "recommend"); orm=index(part[i], "persistence/orm"); sql=index(part[i], "persistence/sql"); option=orm ? orm : sql; if (rec && option && part[i] !~ /(against|avoid|reject|cannot|can.t|do not|don.t|not|no recommendation|unable)/) positive=1}}
+      END {if (positive) print "bound"}' .git/last-message.md
+    expect_regex: "^bound$"
+  - name: no canonical persistence rule is invented
+    run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    not_regex: "(prefer|default|canonical|must use|should use|route all new|all new (storage|persistence)[\\s\\S]{0,80}(through|to|via)|new (work|repositories)[\\s\\S]{0,80}(use|follow|route))[\\s\\S]{0,120}(persistence/orm|persistence/sql)|(use|follow|route)[\\s\\S]{0,80}(persistence/orm|persistence/sql)[\\s\\S]{0,80}all new|(persistence/orm|persistence/sql)[\\s\\S]{0,120}(prefer|default|canonical|must use|should use|do not extend|route all new)"
+    flags: i

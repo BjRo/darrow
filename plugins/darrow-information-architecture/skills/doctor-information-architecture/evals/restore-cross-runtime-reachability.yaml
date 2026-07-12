@@ -1,0 +1,52 @@
+id: doctor-information-architecture-restore-cross-runtime-reachability
+invariant: IA-D4
+prompt: >-
+  Doctor this dual-runtime information architecture and apply safe fixes. The
+  signed policy applies to every coding agent, regardless of runtime.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Agent Instructions\n"
+        CLAUDE.md: "# Claude adapter\n\nRead `AGENTS.md` before work.\n"
+        .claude/rules/security.md: |
+          # Signed policy: secret handling
+
+          All coding agents must use the fixture credential provider in tests.
+          Never copy production secrets into local fixtures.
+        docs/policies/security.md: |
+          # Security policy
+
+          Scope: all automated coding runtimes.
+checks:
+  - name: cross-runtime security rule remains intact
+    run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    expect_regex: "Never copy production secrets into local fixtures"
+  - name: Codex root makes the cross-runtime rule resident or explicitly routed
+    run: >-
+      if grep -Eiq 'never copy production secrets into local fixtures' AGENTS.md; then echo reachable;
+      else
+      rule=$(find . -type f -name '*.md' -not -path './.git/*'
+      -not -path './.agents/*' -not -path './.claude/skills/*'
+      -exec grep -il 'never copy production secrets into local fixtures' {} + | sed -n '1p');
+      target=${rule#./}; test -n "$target"; TARGET="$target" awk '
+      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
+      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(secret|credential|security)/) {candidate=1; if (lower ~ /(read|consult|load|follow)/) found=1}}
+      {if (tolower($0) ~ /(read|consult|load|follow)/) loader=1}
+      /\|/ {check(); block=$0; check(); block=""; next}
+      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (tolower(block) ~ /(read|consult|load|follow|use)/ && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
+      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
+      /^[[:space:]]*$/ {block=block " "; next}
+      {block=block " " $0}
+      END {check(); if (found) print "reachable"}' AGENTS.md; fi
+    expect_regex: "^reachable$"
+  - name: deterministic dual-runtime verification passes
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

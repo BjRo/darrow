@@ -53,6 +53,33 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
+echo "setup fails closed on required evidence"
+fresh_repo
+rm "$REPO/AGENTS.md"
+ln -s missing.md "$REPO/AGENTS.md"
+if bash "$SCRIPT" inspect "$REPO" > /dev/null 2>&1; then
+  echo "  FAIL: inventory accepted a broken entrypoint symlink"
+  FAILURES=$((FAILURES + 1))
+else
+  echo "  ok: inventory rejects a broken entrypoint symlink"
+fi
+
+echo "setup handles large worktree output"
+fresh_repo
+REAL_GIT=$(command -v git)
+mkdir -p "$REPO/bin"
+printf '%s\n' '#!/usr/bin/env bash' 'if [[ "$*" == *"worktree list --porcelain"* ]]; then' "  printf 'worktree %s\\n' '$REPO'" '  i=0; while [[ $i -lt 9000 ]]; do printf "HEAD %040d\\n" "$i"; i=$((i + 1)); done' '  exit 0' 'fi' "exec '$REAL_GIT' \"\$@\"" > "$REPO/bin/git"
+chmod +x "$REPO/bin/git"
+out=$(PATH="$REPO/bin:$PATH" bash "$SCRIPT" inspect "$REPO")
+check_contains "consumes a large worktree listing without SIGPIPE" "root: $REPO" "$out"
+
+echo "setup caps large inventories"
+fresh_repo
+i=0
+while [[ $i -lt 45 ]]; do mkdir -p "$REPO/dir-$i"; printf '# Nested\n' > "$REPO/dir-$i/AGENTS.md"; i=$((i + 1)); done
+out=$(bash "$SCRIPT" inspect "$REPO")
+check_contains "caps the entrypoint listing" "  - ..." "$out"
+
 if [[ $FAILURES -ne 0 ]]; then
   echo "$FAILURES test(s) failed" >&2
   exit 1

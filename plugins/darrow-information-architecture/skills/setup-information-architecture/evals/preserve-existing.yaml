@@ -1,5 +1,5 @@
 id: setup-information-architecture-preserve-existing
-invariant: IA-S1,IA-S3,IA-S7
+invariant: IA-S1,IA-S3
 prompt: >-
   Reorganize the existing agent instructions into a lean routed architecture.
   Preserve all project-specific constraints. I approve applying the proposal.
@@ -25,9 +25,16 @@ checks:
     expect_regex: "never run production migrations"
     flags: i
   - name: unusual verification command survives
-    run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    run: cat AGENTS.md
     expect_regex: "\\./tools/guard verify"
   - name: root is not replaced with a generic template
     run: cat AGENTS.md
     not_regex: "TODO|your project|add instructions here"
     flags: i
+  - name: cheap manifest-derived inventory leaves the resident root
+    run: cat AGENTS.md
+    not_regex: "Bun|TypeScript|React|Vitest|Biome|apps/api|apps/web"
+    flags: i
+  - name: setup creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

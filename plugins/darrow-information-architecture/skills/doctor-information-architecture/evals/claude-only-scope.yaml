@@ -1,0 +1,37 @@
+id: doctor-information-architecture-claude-only-scope
+invariant: IA-D4,IA-D9
+prompt: >-
+  Doctor only the Claude information architecture in this repository. Do not
+  add or require Codex guidance. Apply safe fixes if any are needed.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .claude/CLAUDE.md: "# Claude project guidance\n"
+        .claude/rules/web.md: |
+          ---
+          paths: ["src/web/**"]
+          ---
+          # Web
+
+          Preserve keyboard navigation.
+        src/web/app.ts: "export const app = true;\n"
+checks:
+  - name: Claude guidance remains intact
+    run: cat .claude/rules/web.md
+    expect_regex: "Preserve keyboard navigation"
+  - name: Codex entrypoint is not created
+    run: >-
+      test ! -e AGENTS.md && test ! -e AGENTS.override.md &&
+      test ! -d .agents/rules && test ! -d .codex && echo absent
+    expect_regex: "^absent$"
+  - name: Claude-only verification passes
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime claude . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

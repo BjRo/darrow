@@ -1,0 +1,51 @@
+id: doctor-information-architecture-preserve-runtime-specific-guidance
+invariant: IA-D4
+prompt: >-
+  Doctor this repository's dual-runtime agent guidance and apply safe cleanup.
+  The shared API rule and Claude-native web rule are intentionally independent;
+  no generated mirror relationship is declared.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          Before API work, read `.agent-shared/rules/api.md`.
+        CLAUDE.md: |
+          # Claude adapter
+
+          Read `AGENTS.md` before work.
+        .agent-shared/rules/api.md: "# API\n\nKeep API errors typed.\n"
+        .claude/rules/web.md: |
+          ---
+          paths: ["src/web/**"]
+          ---
+          # Web
+
+          Preserve keyboard navigation.
+checks:
+  - name: shared API rule remains
+    run: cat .agent-shared/rules/api.md
+    expect_regex: "Keep API errors typed"
+  - name: Claude-native rule remains
+    run: cat .claude/rules/web.md
+    expect_regex: "Preserve keyboard navigation"
+  - name: independent rule sets are not mirrored into each other
+    run: find .agent-shared/rules .claude/rules -type f -print | LC_ALL=C sort
+    expect_regex: "^\\.agent-shared/rules/api\\.md\\n\\.claude/rules/web\\.md$"
+  - name: Claude-only semantics are not copied into Codex guidance
+    run: >-
+      expected=$(printf '# Agent Instructions\n\nBefore API work, read `.agent-shared/rules/api.md`.');
+      actual=$(cat AGENTS.md); test "$actual" = "$expected" && echo unchanged
+    expect_regex: "^unchanged$"
+  - name: deterministic dual-runtime verification passes
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
