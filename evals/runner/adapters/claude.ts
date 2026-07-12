@@ -12,6 +12,13 @@ export const claudeAdapter: HarnessAdapter = {
   defaultModel: "claude-sonnet-4-6",
   skillMounts: [".claude/skills"],
 
+  async version(): Promise<string> {
+    const proc = Bun.spawn(["claude", "--version"], { stdout: "pipe", stderr: "pipe" });
+    const out = await new Response(proc.stdout).text();
+    await proc.exited;
+    return out.trim();
+  },
+
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
     const proc = Bun.spawn(

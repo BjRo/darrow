@@ -1,0 +1,53 @@
+id: setup-information-architecture-surface-open-decision
+invariant: IA-S9
+prompt: >-
+  Set up a lean agent information architecture for this repository and make
+  the guidance clear about which persistence pattern new work should follow.
+  I approve the structural file actions you recommend.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Agent Instructions\n"
+        CLAUDE.md: "# Claude adapter\n\nRead `AGENTS.md` before work.\n"
+        README.md: "# Service\n\nPersistence implementations live under src/storage.\n"
+        src/storage/orm/user_repository.ts: "export const ormUserRepository = {};\n"
+        src/storage/orm/session_repository.ts: "export const ormSessionRepository = {};\n"
+        src/storage/sql/user_repository.ts: "export const sqlUserRepository = {};\n"
+        src/storage/sql/session_repository.ts: "export const sqlSessionRepository = {};\n"
+        package.json: "{\"private\":true}\n"
+checks:
+  - name: unresolved decision pauses before repository mutation
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: unresolved decision creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+  - name: response surfaces both valid options
+    run: cat .git/last-message.md
+    expect_regex: "storage/orm[\\s\\S]*storage/sql|storage/sql[\\s\\S]*storage/orm"
+  - name: response asks for the unresolved decision
+    run: cat .git/last-message.md
+    expect_regex: "((which|what)[^\\n]{0,120}\\?)|please (choose|pick|select)|(choose|pick|select) (one|an option|between)"
+    flags: i
+  - name: response gives option-specific tradeoffs for both patterns
+    run: >-
+      awk '
+      {line=tolower($0); count=split(line, part, /[.;]/); for (i=1; i<=count; i++) {
+        clause=part[i]; orm=index(clause, "storage/orm"); sql=index(clause, "storage/sql"); evaluative=clause ~ /(trade.?off|benefit|cost|risk|advantage|disadvantage|simpl|coupl|maintain|type|query|migration|mapping|control|boilerplate|test|performance|flexib|familiar|consisten|complex|overhead|schema|reduc|direct|explicit)/;
+        detail=clause; gsub(/storage\/(orm|sql)|trade.?off|benefit|cost|risk|advantage|disadvantage|(^|[[:space:]])(has|have|a|an|the|is|are)([[:space:]]|$)/, " ", detail); words=split(detail, token, /[^a-z]+/); split("", seen); distinct=0; for (j=1; j<=words; j++) if (length(token[j]) > 2 && token[j] !~ /^(because|while|however|this|that|with|from|into|than|but)$/ && !seen[token[j]]++) distinct++;
+        trade=evaluative && distinct >= 3;
+        if (trade && orm && !sql) orm_specific=1; if (trade && sql && !orm) sql_specific=1;
+      }}
+      END {if (orm_specific && sql_specific) print "specific"}' .git/last-message.md
+    expect_regex: "^specific$"
+  - name: response binds its recommendation to a named option
+    run: >-
+      awk '
+      {line=tolower($0); count=split(line, part, /[.;]/); for (i=1; i<=count; i++) {rec=index(part[i], "recommend"); orm=index(part[i], "storage/orm"); sql=index(part[i], "storage/sql"); option=orm ? orm : sql; if (rec && option && part[i] !~ /(against|avoid|reject|cannot|can.t|do not|don.t|not|no recommendation|unable)/) positive=1}}
+      END {if (positive) print "bound"}' .git/last-message.md
+    expect_regex: "^bound$"
+  - name: repository guidance does not invent a canonical pattern
+    run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
+    not_regex: "(prefer|default|canonical|must use|should use|route all new|all new (storage|persistence)[\\s\\S]{0,80}(through|to|via)|new (work|repositories)[\\s\\S]{0,80}(use|follow|route))[\\s\\S]{0,120}(storage/orm|storage/sql)|(use|follow|route)[\\s\\S]{0,80}(storage/orm|storage/sql)[\\s\\S]{0,80}all new|(storage/orm|storage/sql)[\\s\\S]{0,120}(prefer|default|canonical|must use|should use|do not extend|route all new)"
+    flags: i

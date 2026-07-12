@@ -142,8 +142,10 @@ if (!cases.length) {
 
 const trials = Number(values.trials);
 const threshold = Number(values.threshold);
+const harnessVersion = values.dry ? "" : await adapter.version();
 console.log(
   `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${values.effort}` +
+    (harnessVersion ? ` (${harnessVersion})` : "") +
     (condition ? ` [condition: ${condition.label}]` : "") +
     (values.dry ? " [dry run — no harness calls]" : ""),
 );
@@ -151,7 +153,9 @@ console.log(
 const results: CaseResult[] = [];
 for (const evalCase of cases) {
   console.log(`\n${evalCase.id} (${evalCase.invariant})`);
-  results.push(await runCase(evalCase, adapter, model, values.effort!, trials, values.dry!, condition));
+  const result = await runCase(evalCase, adapter, model, values.effort!, trials, values.dry!, condition);
+  result.harnessVersion = harnessVersion || undefined;
+  results.push(result);
 }
 
 console.log("\n── Summary ──");

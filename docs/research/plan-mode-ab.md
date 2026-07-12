@@ -332,6 +332,394 @@ phased orchestration unless plan depth on large repos is worth ~15% more
 tokens. On small/toy repos, transplant nothing: native Codex planning is
 already at ceiling and 2× cheaper.
 
+## Round 4 — the information-architecture factor (pre-registered before any trial)
+
+Rounds 2–3 measured workflow value on top of a repo with excellent agent
+information architecture: a root AGENTS.md (area map, command facade), four
+CLAUDE.md file maps with "where to add new things" guidance, and 233 files of
+agent scaffolding (`.agent-shared/`, `.claude/`, `.agents/`, `.codex/`,
+`.beans/`). Native plans demonstrably leaned on it (test-plan sections quote
+its commands verbatim). That bounds the earlier results: we cannot separate
+"the model explores well" from "the model reads great docs well".
+
+Hypothesis (user's): agent IA is the bigger lever — a file map written once
+buys what the planning workflow re-buys with ~2× tokens on every run.
+
+Design: complete the 2×3 factorial. The IA-present row is rounds 2–3
+(no rerun). The IA-stripped row runs the same three cases and three
+conditions with the fixture setup removing all *agent-facing* files:
+every AGENTS.md and CLAUDE.md, plus `.agent-shared/`, `.claude/`,
+`.agents/`, `.codex/`, `.beans/`. Human-facing docs stay — `documentation/`,
+`decisions/` records, READMEs — preserving the stale-coordinator trap and
+keeping the treatment definition clean: we remove what was written for
+agents, not what was written for humans. Case ids: `plan-ab4-*`, checks
+byte-identical to `plan-ab2-*`.
+
+Registered caveat: AGENTS.md carries behavioral rules (branch/guard
+discipline) alongside knowledge; stripping removes both. The treatment is
+"agent IA as shipped", not "knowledge only".
+
+Frozen predictions:
+
+1. Stripped native gains grounding-class failures relative to present native
+   (11/15 baseline).
+2. Stripped is where subagent fan-out finally earns its cost: ported's margin
+   over reviewed grows relative to the present row (where it was ~0 eyeballed).
+3. The decision contrast: IA-stripped+reviewed vs IA-present+native. If
+   present+native ≥ stripped+reviewed, the map beats the workflow — invest in
+   IA first.
+
+Analysis is the factorial table (passes + cost per cell) plus per-cell
+failure-class inspection under the same eyeball rule. No single-verdict
+threshold; this round is estimation, not hypothesis-test theatre.
+
+**Amendment (recorded mid-run, before any round-4 result was analysed):**
+codex-cli was updated 0.143.0 → 0.144.1 on the machine while the stripped row
+was running (~08:19; the row started ~07:05). Each trial spawns a fresh
+binary, so: native-stripped ran entirely on 0.143.0 (clean vs the present
+row), reviewed-stripped is mixed-version, ported-stripped ran on 0.144.1.
+The model stayed pinned to gpt-5.5 via `-m` throughout — only the harness
+version drifted. Decision (user's): accept the contamination rather than
+rerun; cross-version comparisons carry unquantified harness noise and are
+flagged as such in the results. Prediction 1 (native vs native) remains
+version-clean. Follow-up hardening: the runner will record the harness CLI
+version in results from now on.
+
+## Round 4 results (2026-07-10, gpt-5.5 pinned; CLI 0.143.0→0.144.1 mid-row)
+
+**The IA hypothesis was not supported at the floor-quality level.** Stripping
+all 239 agent-facing files barely moved anything:
+
+| cell | raw | eyeballed | tok/trial |
+|---|---|---|---|
+| present + native | 11/15 | 13/15 | 0.66M |
+| present + reviewed | 14/15 | 15/15 | 1.15M |
+| present + ported | 15/15 | 15/15 | 1.34M |
+| stripped + native | 12/15 | 13/15 | 0.75M |
+| stripped + reviewed | 13/15 | 15/15 | 0.82M |
+| stripped + ported | 10/15¹ | 10/11 valid | (contaminated) |
+
+¹ Four of the five trap-cell trials were harness deaths, not plan failures:
+codex 0.144.1 changed the subagent spawn API mid-experiment ("omit
+agent_type/model/reasoning_effort, or spawn without a full-history fork"), and
+the ported prompt's fan-out started erroring. The cell is excluded from
+interpretation. The same failure also surfaced that the machine's user-level
+`~/.codex` lean-ctx hook fires *inside* eval fixtures — an isolation gap
+affecting both conditions equally in all rounds; fix is a runner-hardening
+item (isolated CODEX_HOME).
+
+Prediction outcomes:
+
+1. **Refuted.** Stripped native did not lose pass rate (13/15 eyeballed both
+   rows; the same phantom-path failure classes — `generated.go`, a phantom
+   `profile_match_analysis.go` — appear in both). This contrast is
+   version-clean (both cells 0.143.0).
+2. **Inconclusive.** The cell where orchestration should have paid was the one
+   the CLI update destroyed.
+3. **Answered, against the hypothesis:** stripped+reviewed (15/15 eyeballed,
+   0.82M) beats present+native (13/15, 0.66M) on quality. The one-paragraph
+   review discipline is worth more than the entire agent IA layer — on this
+   repo, for this model, at floor level.
+
+Why the map mattered so little: the knowledge it encodes lives redundantly in
+the code's own conventions (one repository file per entity, sibling features
+with parallel names — both conditions found the curation siblings 5/5 even
+stripped) and in the human docs that stayed. Depth markers tell the same
+story: stripped-reviewed still recovered auth/tx/dataloader mentions;
+stripped-native still had none. What agent IA measurably bought was ~13%
+tokens on native runs — real, but small next to the review paragraph's
+quality effect.
+
+Caveats, honestly: single repo with unusually strong code conventions; human
+docs remained (knowledge leakage from the map's content into `documentation/`
+is plausible); harness-version noise on cross-row cost comparisons; floor
+metrics only. A repo with chaotic conventions and no human docs remains the
+untested case where IA plausibly pays most.
+
+## Round 5 — bare code (pre-registered before any trial)
+
+Round 4 kept human docs; the IA null result could hide knowledge leaking from
+the map's content into `documentation/` and `decisions/`. Round 5 removes
+those too: everything from round 4's strip **plus** `documentation/`,
+`decisions/`, and `.demos/`. READMEs stay. What remains is essentially code,
+migrations, and conventions.
+
+Registered consequences:
+
+- **The trap case changes meaning.** The stale saga-coordinator decision
+  record and the stale pipeline doc *were* the trap. With them gone,
+  `trap-fork-pipeline` becomes a pure no-docs navigation case; grounding and
+  the `fork_generation.go` check remain, but "trap avoidance" is no longer
+  measured. Checks stay byte-identical anyway for comparability.
+- **Ported is dropped.** codex-cli 0.144.1 broke the subagent spawn pattern
+  the ported prompt uses (round-4 harness deaths); rerunning it measures the
+  bug, not the workflow. Round 5 = native + reviewed only.
+- Runs on 0.144.1 uniformly (recorded per run now). Cross-row comparisons to
+  rounds 2–4 carry the accepted version noise; the native-vs-reviewed
+  contrast within round 5 is clean.
+
+Prediction (frozen): if round 4's null was doc-leakage, bare-code native
+should now lose pass rate and/or spend visibly more tokens; if the null was
+"conventions + model exploration suffice", bare-code native stays ~13/15
+eyeballed and reviewed stays at ceiling. Case ids: `plan-ab5-*`.
+
+## Round 6 — Codex-engineered IA (pre-registered before any trial)
+
+User's refinement of the IA hypothesis, which also reinterprets round 4:
+Codex has fewer automatic instruction-pickup triggers than Claude Code — no
+autoload of nested AGENTS.md files, and cross-file references are only
+followed when phrased as intent triggers ("read X when doing Y"). The
+credfolio2 knowledge lived mostly in *nested* CLAUDE.md files that Codex
+never autoloads; round 4 may have measured the removal of documentation the
+model never received. Round 4's null is therefore consistent with two very
+different worlds: "IA doesn't matter" vs "IA wasn't delivered".
+
+Round 6 delivers it properly. Treatment: start from the bare row (round 5's
+strip) and add exactly one engineered surface — a lean root `AGENTS.md`
+(~20 lines) Codex is guaranteed to autoload, containing markdown-link routing
+lines with verb+trigger intent ("[src/backend/MAP.md](./src/backend/MAP.md):
+read before planning or changing anything under src/backend/ …"), plus the
+repo's own (verified-accurate) file maps preserved as `src/backend/MAP.md`
+and `src/frontend/MAP.md` — copied from the original CLAUDE.md files before
+the strip, so the knowledge content is identical to what round 4 removed;
+only the delivery mechanism changes.
+
+The treatment operationalizes the user's "Context Architecture for Coding
+Agents" doc (2026-07-01): always-loaded context small (root well under 100
+lines), detailed guidance moved to where it becomes relevant, downward
+navigation via markdown links with strong intent descriptions (never @-mention
+syntax), progressive disclosure over front-loading. Round 5 is the baseline
+the doc itself demands ("without a baseline, there is no proof that the
+change helped").
+
+- Conditions: native + reviewed (ported still excluded, 0.144.1 spawn bug).
+- Cases `plan-ab6-*`, checks byte-identical again.
+- Baseline: round-5 rerun (bare, same CLI 0.144.1) — the clean contrast is
+  bare vs bare+engineered-IA, both rows post-version-bump.
+
+Frozen predictions:
+
+1. Engineered-IA native beats bare native on the reuse/infra checks and/or
+   grounding, and spends fewer tokens (map replaces exploration).
+2. The decisive comparison: engineered-IA **native** vs bare **reviewed**.
+   If delivered IA closes the gap the review paragraph closes, at lower cost,
+   the refined IA hypothesis wins and the porting rule gains a third leg:
+   "or ship the map in the file the harness actually reads".
+3. Engineered-IA reviewed = ceiling (nothing should get worse).
+
+## Rounds 5–6 results (2026-07-10, codex-cli 0.144.1 uniform)
+
+**Round 5 (bare code): the IA null is total.** Native 14/15 raw, 15/15
+eyeballed (the one fail: sibling-shape regex again — the plan builds on
+`job_target_analysis`/River, references `internal/infrastructure/llm` 4×);
+reviewed 15/15. With *zero* documentation of any kind, floor quality matched
+or beat every documented row. Bare native cost 0.72M tok/trial vs present
+native 0.66M — the entire documentation stack was worth ~10% tokens at floor
+level. The doc-leakage explanation of round 4 is refuted.
+
+**Round 6 (Codex-engineered IA): delivery worked, the content bit back.**
+
+| | native | reviewed |
+|---|---|---|
+| raw / eyeballed | 14/15 | 12/15 |
+| tok/trial | 0.62M (−13% vs bare) | 1.22M (−14% vs bare) |
+| router adherence | MAP.md read in all cases (23–54 mentions/case) | same |
+
+All four failures are grounding, and all trace to a single cause: the maps
+(the repo's ex-CLAUDE.md files) were written for Claude Code's *nested*
+convention — their paths are backend-relative (`cmd/server/main.go`,
+`internal/export/assembler.go`). Lifted to root-routed delivery, the model
+copied those paths verbatim into plans, where they are wrong relative to repo
+root. The reviewed condition regressed below its own baseline (12/15 vs
+15/15) — plans trusted the map over re-verification. The knowledge was
+delivered; the knowledge was subtly wrong for the delivery position.
+
+Prediction outcomes: (1) split — cost dropped as the progressive-disclosure
+argument predicts, quality did not improve; (2) refuted as run — engineered
+native did not match bare reviewed, it undercut it via map-induced path bugs;
+(3) refuted — reviewed regressed.
+
+**Series verdict on the IA hypothesis:** on a convention-strong codebase,
+IA buys cost (−10–14% tokens), never floor quality — and mis-transplanted IA
+actively *costs* quality. The context-architecture doc's recommendations get
+half a confirmation (routing works, progressive disclosure saves tokens) and
+one hard-earned addendum: **when lifting nested instruction files to
+root-routed delivery, rewrite every path to be relative to the position the
+reader now occupies.** Content conventions are part of delivery.
+
+Constraint statement (confirmed by 6b, see below): paths in *any* instruction file
+read by a root-anchored session — nested AGENTS.md, CLAUDE.md, skills, routed
+docs — must be spelled out from the session root, because models copy them
+verbatim into output. Supporting evidence beyond round 6: the present-IA rows
+(rounds 2–4) show the same truncation class (`internal/export/assembler.go`,
+`export/page.tsx`) whenever the model happened to read the nested maps; round
+6 made reading guaranteed and the failure count scaled with the dose, hitting
+even the reviewed condition. Scope: the issue is machine resolvability
+(grounding, executors, tooling) — humans in context cope.
+
+Round 6b (pre-registered): same engineered row, maps rewritten to
+root-relative paths at fixture-build time (sed-prefix `cmd/`, `internal/`,
+`migrations/` etc. with `src/backend/`; inspect the frontend map's style
+before transforming it). Frozen prediction: reviewed recovers to 15/15,
+native ≥ 14/15, the −13% cost win stays. Cases `plan-ab6b-*` when built.
+
+**Round 6b results (run 2026-07-10, codex-cli 0.144.1): constraint
+confirmed.** Build: anchored seds (backtick-prefixed `cmd/`, `internal/`,
+`migrations/`, `gqlgen.yml`, `Makefile` → `src/backend/…`; frontend `src/`,
+`middleware.ts`, `codegen.ts`, `vitest.config.ts` → `src/frontend/…`) — all
+59 backticked map paths verified resolvable from repo root at fixture build;
+pre-existing dangling refs (`.agent-shared/…`, `/documentation/…` links) left
+untouched (same as round 6, single-variable change). Cases
+`evals/experiments/plan-mode-ab-real-engineered-fixed/`.
+
+| | native | reviewed |
+|---|---|---|
+| raw / eyeballed | 13/15 / 13/15 | 14/15 / **15/15** |
+| tok/trial | 0.65M (−10% vs bare) | 1.13M (−20% vs bare reviewed) |
+| map-induced path fails | **0** | **0** |
+
+- Reviewed: zero grounding failures. The single raw fail is the known
+  solution-shape false-fail class — the plan reused
+  `DocumentExtractor.AnalyzeProfileMatch` outright and never needed to touch
+  `internal/infrastructure/llm/`, which the positive regex demanded. The same
+  plan cites the gqlgen output path *correctly*
+  (`internal/graphql/generated/generated.go`) — the exact path the native row
+  flattened.
+- Native: both fails are the baseline truncation class
+  (`internal/graphql/generated.go` flattened;
+  `export/page.tsx` truncated — literally the same path as rounds 2–4),
+  matching native's 13/15 in rounds 2 and 4.
+- Prediction outcomes: (1) confirmed — reviewed recovered 12/15 → 15/15;
+  (2) missed by one (13/15 vs ≥14/15), but via native's own
+  everywhere-baseline truncation, not map paths; (3) confirmed — the cost win
+  held and widened for reviewed (−10% native, −20% reviewed).
+
+The round-6 regression is fully explained and fully repaired by one content
+change: spell instruction-file paths from the position the reader occupies.
+The constraint statement above graduates from "to confirm" to confirmed.
+
+**Scope of the IA nulls (recorded 2026-07-10, user's framing).** The test
+repo is greenfield-clean; its conventions are consistent enough to grep. The
+nulls therefore cover only *derivable* knowledge — where things live, sibling
+patterns, integration chains — which a frontier model re-derives from code
+when the code speaks with one voice. Two knowledge classes remain untested
+and are expected to behave differently:
+
+1. *Underdetermined* knowledge — legacy repos with mixed coexisting patterns
+   where only one is canonical for new code. Exploration returns
+   contradictory exemplars and the repo contains no arbiter (unlike the
+   docs-vs-code trap, where the code settles it). Here IA must point.
+   Posture: specify what the code underdetermines, nothing more.
+2. *External* knowledge — org conventions, idiomatic-language standards,
+   policy: not embodied in the repo, non-derivable by definition. The
+   AGENTS.md → progressively-loaded conventions file pattern (per the
+   context-architecture doc) is unaffected by these results and remains the
+   recommended delivery for this class.
+
+The series verdict "IA buys cost, not floor quality" is a statement about
+class-0 knowledge on convention-clean repos, nothing broader.
+
+## Round 7 — underdetermined knowledge (pre-registered design, unbuilt)
+
+Tests knowledge class 1: mixed coexisting patterns where the repo contains no
+arbiter. Method: inject a competing pattern into the credfolio2 clone at
+fixture-build time — e.g. `internal/repository/sqlpg/` with two repositories
+in raw `database/sql` style beside the sixteen Bun-style ones in
+`repository/postgres/`. No deprecation markers, no docs: the code alone
+cannot answer "which style for new code". Task: plan persistence for a new
+entity.
+
+**Direction control (the core of the design):** two case variants with
+opposite canonical answers, set only by one routing line in the engineered
+root AGENTS.md — variant A: "we are migrating persistence to
+internal/repository/sqlpg/; all new repositories use it"; variant B:
+"internal/repository/sqlpg/ was an abandoned experiment; do not extend it —
+new repositories use repository/postgres/". If IA-equipped rows follow the
+line in *both directions* while bare rows follow a fixed heuristic (majority
+or recency) regardless, class-1 is confirmed: the knowledge is genuinely
+non-derivable and IA is load-bearing.
+
+Conditions per variant: bare-native, IA-native, and bare-reviewed — the last
+to test the sharp corollary that the review paragraph *cannot* substitute
+for IA here (nothing in the repo to verify against). 3 conditions × 2
+variants × 5 trials = 30 trials.
+
+Primary check per trial: which style the plan's Key Changes adopts
+(regexes on `sqlpg`/`database/sql` vs `repository/postgres/`/Bun), scored
+against the variant's canonical answer; bare rows are scored against both to
+expose their heuristic. Grounding et al. retained as secondary.
+
+Frozen predictions: (1) IA-native ≥ 4/5 canonical in both directions;
+(2) bare rows pick the same style in both variants (heuristic-driven,
+~majority), i.e. ≤ 1/5 canonical in whichever variant opposes the heuristic;
+(3) bare-reviewed does not outperform bare-native on canonicality.
+
+Run order: 6b first, then 7. Both on whatever CLI is current, recorded.
+
+**Build addendum (recorded 2026-07-10, before any round-7 trial ran).**
+Implementation decisions made while building, all before data:
+
+- Injected pair: `session_repository.go` + `positioning_review_repository.go`
+  — the only two repositories whose constructors are referenced solely by
+  `cmd/server/main.go` and their own tests, so the Bun versions could be
+  removed without dangling references. The sqlpg versions are wired into
+  `main.go` (import + both constructors on `db.DB`); the mixed repo passes
+  `go build ./...`. Injected files live in
+  `evals/experiments/plan-mode-ab-real-mixed/inject/`, no tests (plausible
+  for both the migration and abandoned-experiment stories).
+- Mix after injection: 14 Bun repositories vs 2 raw `database/sql`, all wired.
+  Expected bare-row heuristic: majority (Bun/postgres).
+- Task entity: "profile endorsements" (create / list-by-profile / delete,
+  persistence only). No existing code references collide with the
+  path-scoped style regexes.
+- Router lines spell paths root-relative (`src/backend/internal/repository/…`)
+  per the round-6 constraint; the registered short forms were a sketch.
+- Everything lands in one neutral commit per fixture (same messages as the
+  bare/engineered rows of rounds 5–6). Known leak channel: git archaeology
+  could date the sqlpg files to the strip commit; accepted — no plan-mode
+  trial in rounds 1–6 was observed running git history commands.
+- Bare fixtures are variant-independent (no router), so the two bare
+  conditions run as 10 trials each on one case (`plan-ab7-endorsement-bare`)
+  with both style checks recorded informationally; IA rows are
+  `plan-ab7-endorsement-ia-a` / `-ia-b`, 5 trials each. 30 total, unchanged.
+
+**Round 7 results (run 2026-07-10, codex-cli 0.144.1): all three predictions
+confirmed.** 30/30 trials completed, no harness deaths.
+
+| row | style adoption | tok/trial | secondary |
+|---|---|---|---|
+| bare-native (10) | 10/10 postgres, 0 sqlpg | 0.31M | 1 grounding fail |
+| IA-native A (5) | **5/5 sqlpg** (canonical) | 0.38M | clean |
+| IA-native B (5) | **5/5 postgres** (canonical) | 0.28M | 1 grounding fail |
+| bare-reviewed (10) | 10/10 postgres, 0 sqlpg | 0.53M | 1 grounding fail |
+
+- Prediction 1 confirmed at ceiling: one routing line flipped style adoption
+  5/5 ↔ 5/5 across variants — including variant A, where the router pushed
+  *against* the 14-vs-2 majority that bare rows follow 10/10.
+- Prediction 2 confirmed: with no router, the model picks the majority
+  pattern every single time (20/20 across both bare rows). The
+  2-file `database/sql` experiment was never once extended.
+- Prediction 3 confirmed: the review paragraph moved nothing (0/10 sqlpg,
+  identical to bare-native) at +72% tokens (0.53M vs 0.31M). Verification
+  discipline is powerless here because the repo contains no fact that could
+  falsify either style choice — exactly the class-1 signature.
+- All three grounding fails are the same literal truncation
+  (`cmd/server/main.go` for `src/backend/cmd/server/main.go`), one per
+  condition — including in fixtures with no maps and no router, settling that
+  this class is model behavior, not IA-induced. The reviewed row's re-check
+  missed it once too (its 6b record was clean; small n, class persists).
+- All migration/structure/assumption/no-mutation checks passed in all 30
+  trials.
+
+**Round 7 verdict.** Underdetermined (class-1) knowledge is where IA is
+load-bearing: when the code cannot arbitrate, a single root-level routing
+line deterministically sets the outcome in either direction, while both
+no-IA rows default to majority-pattern gravity and review discipline cannot
+substitute at any price. Combined with rounds 4–6b, the posture is now
+data-backed end to end: **specify what the code underdetermines, spell paths
+from the reader's position, and let the code speak for everything it already
+determines.**
+
 ## Follow-up (out of scope here)
 
 Tier 2: feed frozen plans to a fresh executor agent ("implement exactly this,

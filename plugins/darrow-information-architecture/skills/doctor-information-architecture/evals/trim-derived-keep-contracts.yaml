@@ -1,0 +1,85 @@
+id: doctor-information-architecture-trim-derived-keep-contracts
+invariant: IA-D2,IA-D3,IA-D9
+prompt: >-
+  Doctor the repository information architecture and apply the clearly safe
+  improvements while preserving behavioral contracts and routing.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          ## Delivery
+          - Never self-merge a pull request.
+          - Before calling work done, run `./tools/guard verify`.
+
+          ## Rule Index
+          Before editing a matching path, read every listed rule.
+          - `apps/api/src/**` -> `.agent-shared/rules/api.md`
+          - `apps/web/src/**` -> `.agent-shared/rules/web.md`
+
+          ## Stack
+          - Package manager: Bun 1.3.
+          - Tests: Vitest.
+          - Lint and format: Biome.
+          - Runtime: Bun 1.3; never use npm because it rewrites the lockfile.
+        CLAUDE.md: |
+          # Claude adapter
+
+          Read `AGENTS.md` before work.
+        .agent-shared/rules/api.md: "# API\n\nKeep error responses typed.\n"
+        .agent-shared/rules/web.md: "# Web\n\nPreserve keyboard navigation.\n"
+        package.json: "{\"private\":true,\"packageManager\":\"bun@1.3.0\",\"scripts\":{\"test\":\"vitest\",\"lint\":\"biome check .\"}}\n"
+        tools/guard: "#!/bin/sh\nexit 0\n"
+checks:
+  - name: self-merge prohibition remains
+    run: cat AGENTS.md
+    expect_regex: "never self-merge"
+    flags: i
+  - name: unusual completion command remains
+    run: cat AGENTS.md
+    expect_regex: "\\./tools/guard verify"
+  - name: API route remains
+    run: cat AGENTS.md
+    expect_regex: "\\.agent-shared/rules/api\\.md"
+  - name: web route remains
+    run: cat AGENTS.md
+    expect_regex: "\\.agent-shared/rules/web\\.md"
+  - name: manifest-derived stack inventory is trimmed
+    run: cat AGENTS.md
+    not_regex: "Bun|Vitest|Biome|existing toolchain|use the (repository|existing) (stack|toolchain)"
+    flags: i
+  - name: mixed bullet keeps its prohibition and rationale
+    run: cat AGENTS.md
+    expect_regex: "never use npm[\\s\\S]*rewrites the lockfile|rewrites the lockfile[\\s\\S]*never use npm"
+    flags: i
+  - name: deterministic dual-runtime routing verification passes
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: response reports exact per-runtime before and after bytes and tokens
+    run: >-
+      before_codex=$(git show HEAD:AGENTS.md | wc -c | tr -d ' ');
+      before_codex_tokens=$(( (before_codex + 3) / 4 ));
+      before_claude=$(git show HEAD:CLAUDE.md | wc -c | tr -d ' ');
+      before_claude_tokens=$(( (before_claude + 3) / 4 ));
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      else doctor=.claude/bin/ia-doctor; fi;
+      summary=$(bash "$doctor" inspect --runtime both . | sed -n '/^summary:/p');
+      after_codex=$(printf '%s\n' "$summary" | sed -n 's/.*codex_root_bytes=\([0-9][0-9]*\).*/\1/p');
+      after_codex_tokens=$(printf '%s\n' "$summary" | sed -n 's/.*codex_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
+      after_claude=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_bytes=\([0-9][0-9]*\).*/\1/p');
+      after_claude_tokens=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
+      flat=$(tr '\n' ' ' < .git/last-message.md);
+      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,300}(before|previous|from)[^0-9]{0,80}$before_codex[[:space:]]*bytes.{0,300}(after|now|to)[^0-9]{0,80}$after_codex[[:space:]]*bytes" &&
+      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,300}(before|previous|from)[^0-9]{0,80}$before_codex_tokens[~[:space:]]*tokens.{0,300}(after|now|to)[^0-9]{0,80}$after_codex_tokens[~[:space:]]*tokens" &&
+      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,300}(before|previous|from)[^0-9]{0,80}$before_claude[[:space:]]*bytes.{0,300}(after|now|to)[^0-9]{0,80}$after_claude[[:space:]]*bytes" &&
+      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,300}(before|previous|from)[^0-9]{0,80}$before_claude_tokens[~[:space:]]*tokens.{0,300}(after|now|to)[^0-9]{0,80}$after_claude_tokens[~[:space:]]*tokens" && echo metrics-ok
+    expect_regex: "^metrics-ok$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

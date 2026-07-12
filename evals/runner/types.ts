@@ -64,6 +64,8 @@ export interface HarnessAdapter {
   defaultModel: string;
   /** Repo-relative directories where the skill folder gets mounted. */
   skillMounts: string[];
+  /** CLI version string, recorded per run (versions have drifted mid-experiment before). */
+  version(): Promise<string>;
   run(repoDir: string, prompt: string, model: string, effort: string): Promise<HarnessResult>;
 }
 
@@ -88,6 +90,8 @@ export interface CaseResult {
   effort: string;
   /** Condition label when run with --condition (A/B experiments). */
   condition?: string;
+  /** Harness CLI version at run time. */
+  harnessVersion?: string;
   trials: TrialResult[];
   passRate: number;
   meanDurationMs: number;

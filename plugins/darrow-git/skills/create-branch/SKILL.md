@@ -1,6 +1,6 @@
 ---
 name: create-branch
-description: Create and switch to a well-named git branch for the work the user is starting. Use when the user says "create a branch", "branch for this", "start a branch", "new branch for X", "create a worktree for X", "branch this in a worktree", or otherwise asks to begin work on a branch. Derives a traceable <type>/<kebab-slug> name, ticket id included when known; on request the branch lands in a linked worktree instead of switching the current checkout.
+description: Create and switch to a well-named git branch for the work the user is starting. Use when the user says "create a branch", "branch for this", "start a branch", "new branch for X", "create a worktree for X", "branch this in a worktree", or otherwise asks to begin work on a branch. Derives a traceable type/kebab-slug name, ticket id included when known; on request the branch lands in a linked worktree instead of switching the current checkout.
 ---
 
 # create-branch
