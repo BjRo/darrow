@@ -219,6 +219,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
         planCapabilities: [],
         step: {
           id: "implement",
+          dependsOn: [],
           commandId: "darrow-delivery:implement",
           contractVersion: "0.1.0",
           source: resolve(

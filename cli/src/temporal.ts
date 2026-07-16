@@ -45,6 +45,7 @@ interface WorkerRecord {
 export interface ExecutionBoundary {
   status: WorkflowStatus["state"];
   results: WorkflowStatus["results"];
+  steps: WorkflowStatus["steps"];
   request: WorkflowStatus["request"];
   temporal: Record<string, unknown>;
   recovery?: "reattached" | "started_pending";
@@ -317,12 +318,19 @@ export async function waitForBoundary(
         return {
           status: status.state,
           results: status.results,
+          steps: status.steps,
           request: status.request,
           temporal,
         };
       if (status.state === "completed") {
         const results = await handle.result();
-        return { status: "completed", results, request: null, temporal };
+        return {
+          status: "completed",
+          results,
+          steps: status.steps,
+          request: null,
+          temporal,
+        };
       }
       consecutiveErrors = 0;
     } catch (error) {
@@ -333,7 +341,13 @@ export async function waitForBoundary(
         if (description.status.name !== "RUNNING") {
           try {
             const results = await handle.result();
-            return { status: "completed", results, request: null, temporal };
+            return {
+              status: "completed",
+              results,
+              steps: [],
+              request: null,
+              temporal,
+            };
           } catch (resultError) {
             throw new DarrowError(
               `Temporal workflow closed as ${description.status.name}: ${resultError instanceof Error ? resultError.message : String(resultError)}`,
@@ -524,11 +538,14 @@ export async function describeWorkflow(
       connection,
       namespace: String(temporal.namespace),
     });
-    const description = await client.workflow
-      .getHandle(temporal.workflowId)
-      .describe();
+    const handle = client.workflow.getHandle(temporal.workflowId);
+    const [description, status] = await Promise.all([
+      handle.describe(),
+      handle.query(runStatusQuery),
+    ]);
     return {
       status: description.status.name,
+      steps: status.steps,
       startTime: description.startTime.toISOString(),
       closeTime: description.closeTime?.toISOString() ?? null,
       runId: description.runId,

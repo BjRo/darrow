@@ -174,6 +174,25 @@
         }
       ]
     },
+    "stepStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stepId", "state", "attempt"],
+      "properties": {
+        "stepId": { "type": "string" },
+        "state": {
+          "enum": [
+            "pending",
+            "running",
+            "waiting_for_input",
+            "succeeded",
+            "failed",
+            "blocked"
+          ]
+        },
+        "attempt": { "type": "integer", "minimum": 0 }
+      }
+    },
     "pending": {
       "type": "object",
       "additionalProperties": false,
@@ -205,9 +224,13 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "startTime", "closeTime", "runId"],
+          "required": ["status", "steps", "startTime", "closeTime", "runId"],
           "properties": {
             "status": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/stepStatus" }
+            },
             "startTime": { "type": "string" },
             "closeTime": { "type": ["string", "null"] },
             "runId": { "type": "string" }
@@ -250,6 +273,7 @@
         "temporal",
         "workspace",
         "currentStep",
+        "steps",
         "error",
         "liveTemporal",
         "paths",
@@ -266,6 +290,10 @@
         "temporal": { "$ref": "#/$defs/temporal" },
         "workspace": { "type": ["string", "null"] },
         "currentStep": { "type": ["string", "null"] },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stepStatus" }
+        },
         "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },
         "liveTemporal": { "$ref": "#/$defs/liveTemporal" },
         "paths": { "$ref": "#/$defs/paths" },

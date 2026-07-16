@@ -13,6 +13,7 @@ requirements:
 profile: codex
 steps:
   - id: implement
+    dependsOn: []
     command:
       id: darrow-delivery:implement
       version: ^0.1.0

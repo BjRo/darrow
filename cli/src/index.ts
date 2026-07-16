@@ -150,6 +150,7 @@ async function createInitialRun(
   runDir: string,
   runId: string,
   workflowId: string,
+  plan: ResolvedPlan,
 ): Promise<RunRecord> {
   const now = new Date().toISOString();
   const record: RunRecord = {
@@ -163,6 +164,11 @@ async function createInitialRun(
     temporal: {},
     workspace: null,
     currentStep: null,
+    steps: plan.steps.map((step) => ({
+      stepId: step.id,
+      state: "pending",
+      attempt: 0,
+    })),
     error: null,
   };
   await validateSchema("run.schema.json", record, "initial run record");
@@ -185,7 +191,12 @@ async function stageRun(
   try {
     for (const name of ["content", "artifacts", "results"])
       await mkdir(resolve(stagingDir, name), { recursive: true });
-    const record = await createInitialRun(stagingDir, runId, workflowId);
+    const record = await createInitialRun(
+      stagingDir,
+      runId,
+      workflowId,
+      compilation.plan,
+    );
     await writeJson(resolve(stagingDir, "plan.json"), compilation.plan);
     await writeJson(
       resolve(stagingDir, "lock.json"),
@@ -251,6 +262,11 @@ async function applyBoundary(
     ...boundary.temporal,
     request: boundary.request,
   };
+  if (boundary.steps.length > 0) record.steps = boundary.steps;
+  record.currentStep =
+    record.steps.find((step) =>
+      ["running", "waiting_for_input"].includes(step.state),
+    )?.stepId ?? null;
   if (boundary.status === "waiting_for_input") {
     record.state = "waiting_for_input";
     const reason = boundary.request?.reason ?? "model_unavailable";
@@ -268,14 +284,20 @@ async function applyBoundary(
       boundary.request ?? {},
     );
   } else {
-    const terminal = boundary.results.at(-1);
+    const failedResult = boundary.results.findLast(
+      (result) => result.status === "failed",
+    );
+    const graphFailed = record.steps.some((step) =>
+      ["failed", "blocked"].includes(step.state),
+    );
     record.state = "completed";
     record.conclusion = cancelled
       ? "cancelled"
-      : terminal?.status === "failed"
+      : graphFailed
         ? "failed"
         : "succeeded";
-    record.error = cancelled ? null : (terminal?.error ?? null);
+    record.error =
+      cancelled || !graphFailed ? null : (failedResult?.error ?? null);
     record.currentStep = null;
     await event(runDir, record.runId, "run.completed", {
       conclusion: record.conclusion,

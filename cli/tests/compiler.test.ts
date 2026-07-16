@@ -12,13 +12,16 @@ import { resolve } from "node:path";
 import {
   compile,
   createLock,
+  orderWorkflowSteps,
   snapshot,
+  validateWorkflowGraph,
   verifyRunSnapshot,
 } from "../src/compiler";
 import { writeJson } from "../src/io";
 import { SOURCE_PLUGIN_ROOT } from "../src/paths";
 import { initRepository } from "../src/repository";
 import { validateSchema } from "../src/schema";
+import type { WorkflowDefinition } from "../src/types";
 
 const temps: string[] = [];
 afterEach(async () => {
@@ -69,6 +72,7 @@ describe("M1 compiler", () => {
     expect(compilation.plan.steps[0]?.commandId).toBe(
       "darrow-delivery:implement",
     );
+    expect(compilation.plan.steps[0]?.dependsOn).toEqual([]);
     expect(compilation.plan.capabilities[0]?.providerId).toBe(
       "darrow-git:create-branch",
     );
@@ -130,5 +134,66 @@ describe("M1 compiler", () => {
     ).rejects.toThrow("does not satisfy ^1.0.0");
     process.env.DARROW_PLUGIN_ROOTS = previous;
     expect(await readdir(resolve(root, ".darrow", "worktrees"))).toEqual([]);
+  });
+});
+
+function graphWorkflow(
+  steps: Array<{ id: string; dependsOn: string[] }>,
+): WorkflowDefinition {
+  return {
+    schemaVersion: "0.1.0",
+    id: "graph-test",
+    version: "0.1.0",
+    engine: "^0.1.0",
+    inputs: {},
+    requirements: { capabilities: [] },
+    profile: "codex",
+    steps: steps.map((step) => ({
+      ...step,
+      command: { id: "darrow-delivery:implement", version: "^0.1.0" },
+      with: {},
+    })),
+  };
+}
+
+describe("M2 static workflow graph", () => {
+  test("accepts roots, joins, and dependencies declared after their consumer", () => {
+    const workflow = graphWorkflow([
+      { id: "join", dependsOn: ["left", "right"] },
+      { id: "left", dependsOn: [] },
+      { id: "right", dependsOn: [] },
+    ]);
+    expect(() => validateWorkflowGraph(workflow)).not.toThrow();
+    expect(orderWorkflowSteps(workflow).map((step) => step.id)).toEqual([
+      "left",
+      "right",
+      "join",
+    ]);
+  });
+
+  test("rejects duplicate, missing, self, and cyclic dependencies", () => {
+    const invalid: Array<[WorkflowDefinition, string]> = [
+      [
+        graphWorkflow([
+          { id: "same", dependsOn: [] },
+          { id: "same", dependsOn: [] },
+        ]),
+        "duplicate workflow step ID",
+      ],
+      [graphWorkflow([{ id: "step", dependsOn: ["missing"] }]), "unknown step"],
+      [
+        graphWorkflow([{ id: "step", dependsOn: ["step"] }]),
+        "depend on itself",
+      ],
+      [
+        graphWorkflow([
+          { id: "left", dependsOn: ["right"] },
+          { id: "right", dependsOn: ["left"] },
+        ]),
+        "workflow dependency cycle",
+      ],
+    ];
+    for (const [workflow, message] of invalid)
+      expect(() => validateWorkflowGraph(workflow)).toThrow(message);
   });
 });

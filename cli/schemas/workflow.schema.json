@@ -49,9 +49,14 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "command", "with"],
+        "required": ["id", "dependsOn", "command", "with"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
+          "dependsOn": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/id" },
+            "uniqueItems": true
+          },
           "command": {
             "type": "object",
             "additionalProperties": false,

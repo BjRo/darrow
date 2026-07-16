@@ -48,6 +48,21 @@ examples are illustrative rather than an alternate schema.
 - **WR-6 — Allowlisted subworkflows.** A workflow may select among statically
   declared subworkflows. Models cannot introduce another subworkflow or mutate
   the selected graph.
+- **WR-6a — Explicit step dependencies.** Every step declares `dependsOn` as a
+  list of step IDs. An empty list identifies a root step. Step IDs are unique,
+  dependencies must exist, self-dependencies are invalid, and the compiler
+  rejects every cycle before execution.
+- **WR-6b — Deterministic ready-set scheduling.** The backend may start every
+  pending step whose declared dependencies succeeded. The compiler emits a
+  stable topological plan using workflow order as the tie-breaker. Ready steps
+  are selected in immutable plan order, may execute concurrently, and their
+  recorded results remain in plan order regardless of completion order. A failed
+  step blocks its transitive dependents without preventing an independent ready
+  path from completing.
+- **WR-6c — Shared workspace ordering.** Parallel paths in one run use that
+  run's dedicated workspace. Workflow authors declare a dependency between
+  steps whose workspace effects must be ordered; parallel paths do not imply
+  additional Git worktrees or filesystem isolation.
 
 ## Commands, capabilities, and built-ins
 

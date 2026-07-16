@@ -14,6 +14,7 @@
     "temporal",
     "workspace",
     "currentStep",
+    "steps",
     "error"
   ],
   "properties": {
@@ -73,6 +74,28 @@
     },
     "workspace": { "type": ["null", "string"] },
     "currentStep": { "type": ["null", "string"] },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepId", "state", "attempt"],
+        "properties": {
+          "stepId": { "type": "string" },
+          "state": {
+            "enum": [
+              "pending",
+              "running",
+              "waiting_for_input",
+              "succeeded",
+              "failed",
+              "blocked"
+            ]
+          },
+          "attempt": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
     "error": {
       "oneOf": [
         { "type": "null" },

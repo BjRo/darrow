@@ -116,6 +116,79 @@ function validateInputs(
   }
 }
 
+export function validateWorkflowGraph(workflow: WorkflowDefinition): void {
+  const steps = new Map<string, WorkflowDefinition["steps"][number]>();
+  for (const step of workflow.steps) {
+    if (steps.has(step.id))
+      throw new DarrowError(
+        `duplicate workflow step ID: ${step.id}`,
+        "validation",
+      );
+    steps.set(step.id, step);
+  }
+
+  for (const step of workflow.steps) {
+    for (const dependency of step.dependsOn) {
+      if (dependency === step.id)
+        throw new DarrowError(
+          `workflow step ${step.id} cannot depend on itself`,
+          "validation",
+        );
+      if (!steps.has(dependency))
+        throw new DarrowError(
+          `workflow step ${step.id} depends on unknown step ${dependency}`,
+          "validation",
+        );
+    }
+  }
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (stepId: string, path: string[]): void => {
+    if (visited.has(stepId)) return;
+    if (visiting.has(stepId)) {
+      const start = path.indexOf(stepId);
+      const cycle = [...path.slice(start), stepId];
+      throw new DarrowError(
+        `workflow dependency cycle: ${cycle.join(" -> ")}`,
+        "validation",
+      );
+    }
+    visiting.add(stepId);
+    const step = steps.get(stepId)!;
+    for (const dependency of step.dependsOn)
+      visit(dependency, [...path, stepId]);
+    visiting.delete(stepId);
+    visited.add(stepId);
+  };
+
+  for (const step of workflow.steps) visit(step.id, []);
+}
+
+export function orderWorkflowSteps(
+  workflow: WorkflowDefinition,
+): WorkflowDefinition["steps"] {
+  const ordered: WorkflowDefinition["steps"] = [];
+  const emitted = new Set<string>();
+  while (ordered.length < workflow.steps.length) {
+    const ready = workflow.steps.filter(
+      (step) =>
+        !emitted.has(step.id) &&
+        step.dependsOn.every((dependency) => emitted.has(dependency)),
+    );
+    if (ready.length === 0)
+      throw new DarrowError(
+        "validated workflow graph has no topological order",
+        "validation",
+      );
+    for (const step of ready) {
+      ordered.push(step);
+      emitted.add(step.id);
+    }
+  }
+  return ordered;
+}
+
 export interface Compilation {
   plan: ResolvedPlan;
   workflow: WorkflowDefinition;
@@ -255,6 +328,8 @@ export async function compile(
       `workflow requires engine ${workflow.engine}, installed engine is 0.1.0`,
       "compatibility",
     );
+  validateWorkflowGraph(workflow);
+  const orderedSteps = orderWorkflowSteps(workflow);
   validateInputs(workflow, inputs);
   const profileFile = await selectFile(
     workflow.profile || project.defaultProfile,
@@ -266,14 +341,14 @@ export async function compile(
     "profile.schema.json",
   );
   const catalog = await loadCatalog(repoRoot, project);
-  const commands = workflow.steps.map((step) =>
+  const commands = orderedSteps.map((step) =>
     resolveCommand(catalog, step.command.id, step.command.version),
   );
-  for (let index = 0; index < workflow.steps.length; index += 1) {
+  for (let index = 0; index < orderedSteps.length; index += 1) {
     const command = commands[index]!;
     const metadata = command.metadata as CommandMetadata;
     const resolvedInput = resolveInput(
-      workflow.steps[index]!.with,
+      orderedSteps[index]!.with,
       inputs,
     ) as Record<string, unknown>;
     await validateExternalSchema(
@@ -329,11 +404,12 @@ export async function compile(
         digest: candidate.digest,
       }),
     ),
-    steps: workflow.steps.map((step, index) => {
+    steps: orderedSteps.map((step, index) => {
       const command = commands[index]!;
       const metadata = command.metadata as CommandMetadata;
       return {
         id: step.id,
+        dependsOn: step.dependsOn,
         commandId: command.id,
         contractVersion: metadata.contractVersion,
         source: command.skillDir,

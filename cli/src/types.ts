@@ -1,3 +1,5 @@
+import type { StepExecutionStatus } from "./scheduler";
+
 export const CONTRACT_VERSION = "0.1.0" as const;
 
 export type Scope = "explicit" | "project" | "user" | "bundled";
@@ -23,6 +25,7 @@ export interface WorkflowDefinition {
   profile: string;
   steps: Array<{
     id: string;
+    dependsOn: string[];
     command: { id: string; version: string };
     with: Record<string, unknown>;
   }>;
@@ -97,6 +100,7 @@ export interface ResolvedPlan {
   }>;
   steps: Array<{
     id: string;
+    dependsOn: string[];
     commandId: string;
     contractVersion: string;
     source: string;
@@ -118,6 +122,7 @@ export interface RunRecord {
   temporal: Record<string, unknown>;
   workspace: string | null;
   currentStep: string | null;
+  steps: StepExecutionStatus[];
   error: { category: string; message: string } | null;
 }
 

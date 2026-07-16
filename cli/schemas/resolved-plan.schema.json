@@ -104,6 +104,7 @@
       "additionalProperties": false,
       "required": [
         "id",
+        "dependsOn",
         "commandId",
         "contractVersion",
         "source",
@@ -112,6 +113,11 @@
       ],
       "properties": {
         "id": { "type": "string" },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
         "commandId": { "type": "string" },
         "contractVersion": { "type": "string" },
         "source": { "type": "string" },

@@ -205,7 +205,9 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
       ),
     ).toContain("SKILL.md");
     expect(
-      await readdir(resolve(runDir, "artifacts", "implement", "attempt-1-2")),
+      await readdir(
+        resolve(runDir, "artifacts", "implement", "attempt-implement-2"),
+      ),
     ).toContain("artifact.json");
     const inspect = command(
       ["bun", cli, "inspect", envelope.data.runId, "--json"],
@@ -214,10 +216,18 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
     );
     expect(inspect.code, inspect.stderr).toBe(0);
     const inspected = JSON.parse(inspect.stdout.trim()) as {
-      data: { state: string; conclusion: string; counts: { events: number } };
+      data: {
+        state: string;
+        conclusion: string;
+        steps: Array<{ stepId: string; state: string; attempt: number }>;
+        counts: { events: number };
+      };
     };
     expect(inspected.data.state).toBe("completed");
     expect(inspected.data.conclusion).toBe("succeeded");
+    expect(inspected.data.steps).toEqual([
+      { stepId: "implement", state: "succeeded", attempt: 2 },
+    ]);
     expect(inspected.data.counts.events).toBeGreaterThan(5);
   },
   120_000,
