@@ -1,9 +1,12 @@
 # Darrow
 
-Darrow is a marketplace of reusable workflow plugins for coding agents. Each
-plugin packages one capability as intent-triggered skills, deterministic helper
-scripts, and evals. The plugins support Claude Code and Codex and can be adopted
-independently.
+Darrow is a local-first workflow runtime and marketplace of reusable plugins for
+coding agents. The runtime composes durable, declarative workflows; plugins
+package explicit commands and intent-triggered capabilities with deterministic
+helpers and evals. Claude Code and Codex can adopt the plugins independently.
+
+The runtime architecture and delivery roadmap are defined in the
+[product specification](docs/product-spec.md).
 
 ## Plugins
 
@@ -30,7 +33,7 @@ not call a tracker directly, which keeps their behavior consistent when the
 backing system changes.
 
 - **`create-ticket`** searches for duplicates, chooses the correct ticket
-  type, and creates one evidence-based issue with the required structure.
+  type, and creates one evidence-based ticket with the required structure.
 - **`list-tickets`** reports matching work items with explicit state, type,
   label, milestone, and text filters. It is always read-only.
 - **`update-ticket`** resolves one verified ticket and applies exactly one
@@ -59,8 +62,12 @@ design model and boundaries.
 
 ## Package model
 
-- **Plugins are opt-in capabilities.** No plugin assumes that a sibling plugin
-  is installed.
+- **Plugins are independently adoptable.** No plugin assumes that a sibling
+  plugin is installed.
+- **Commands are explicit.** The orchestrator invokes command skills by stable
+  `<plugin>:<skill>` identity.
+- **Capabilities load by intent.** Optional behavior advertises portable
+  contracts but remains selected by the surrounding harness and environment.
 - **Skills hold judgment.** They decide what the user means and what action is
   appropriate.
 - **Scripts enforce mechanics.** Checkable safety rules live in deterministic,
@@ -72,3 +79,5 @@ design model and boundaries.
 The marketplace manifest is
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json); Codex uses
 the same marketplace and each plugin also ships a Codex-specific manifest.
+Darrow-aware skills keep workflow metadata in a colocated `darrow.json` rather
+than extending either runtime's native plugin manifest.

@@ -5,9 +5,10 @@ Date: 2026-07-05
 
 ## Context
 
-Every darrow skill must be evaluated (product spec F2) across multiple agent
-harnesses (Claude Code, Codex; later Pi) and multiple models. Skills are
-prompts executed by a harness, so evals must run the skill in the real
+Every Darrow skill must satisfy the product's
+[release requirements](../product-spec.md#14-release-requirements) across
+multiple agent harnesses (Claude Code, Codex; later Pi) and multiple models.
+Skills are prompts executed by a harness, so evals must run the skill in the real
 harness, headless, and assert on outcomes (git state, files), not transcripts.
 Off-the-shelf options fit poorly: skill-creator evals are Claude-only,
 promptfoo is provider-centric (filesystem/git fixtures and assertions would
@@ -41,11 +42,12 @@ LLM-judge only for qualitative checks, added when needed.
 ## Consequences
 
 - New harness support = one adapter file; eval definitions stay agent-neutral,
-  mirroring the kernel/adapter architecture of darrow itself.
+  mirroring Darrow's runtime/adapter architecture.
 - MVP mounts skills via the fixture repo's `.claude/skills/` (project-level
   discovery) rather than plugin installation — simpler and stable headless;
   plugin-level mounting can replace it later without touching cases.
-- Runner language (TS) is independent of shipped-CLI language (TS vs Go),
-  which stays an open question until the first shipped CLI lands.
+- The runner and global orchestration CLI both use TypeScript/Bun, but remain
+  independently versioned product surfaces; see
+  [ADR-0003](ADR-0003-global-cli.md).
 - Eval runs cost real tokens; CI gating uses a pinned model list and the
   budget guard once implemented.

@@ -1,18 +1,26 @@
 # darrow — Agent Instructions
 
-Reusable agentic delivery factory: kernel → generator → marketplace of plugins
-for Claude Code and Codex. Read `docs/product-spec.md` for architecture,
-`docs/specs/<capability>.md` for capability invariants, `docs/decisions/` for ADRs.
+Local-first agentic workflow runtime plus directly authored plugins for Claude
+Code and Codex. Read `docs/product-spec.md` for product direction and follow its
+direct links to the applicable runtime specification or ADR before changing a
+contract.
 
 ## Layout
 
-- `plugins/<name>/` — one plugin per capability (currently `darrow-git`). Skills
-  in `skills/<skill>/SKILL.md` + `scripts/` + `evals/` (case yamls colocated
-  with the skill they test). Plugins are self-contained: never reference files
-  outside the plugin dir; cross-plugin references go through intent, never
-  assume a sibling plugin is installed.
-- `docs/specs/<capability>.md` — invariants (e.g. GW-C1…) that scripts, tests
-  and evals trace to.
+- `cli/` — global TypeScript/Bun workflow CLI and Temporal worker (M1 onward),
+  versioned independently from plugins.
+- `plugins/<name>/` — independently adoptable plugins. Skills live in
+  `skills/<skill>/SKILL.md` with colocated `scripts/` and `evals/`. Plugins are
+  self-contained: never reference files outside the plugin directory or assume
+  a sibling plugin is installed. Workflows invoke command skills by canonical
+  `<plugin>:<skill>` ID; capability composition uses intent and portable
+  contracts.
+- `docs/specs/` — normative invariants. Runtime contracts live in
+  `workflow-runtime.md`, `workspaces-artifacts.md`, `compatibility.md`, and
+  `observability.md`; capability contracts live in their named files. Tests and
+  evals trace to stable invariant IDs (for example, WR-20 or GW-C1).
+- `docs/decisions/` — accepted architecture choices. Read the directly linked
+  ADR before revisiting a selected technology or distribution boundary.
 - `evals/` — shared runner (`runner/`) and results (`results/`, gitignored).
   The runner discovers cases via `plugins/*/skills/*/evals/*.yaml`.
 
@@ -77,3 +85,10 @@ Review agents must never run git/gh against this repo — temp dirs via
 - Marketplace manifest: `.claude-plugin/marketplace.json` (Codex reads it too).
 - Each plugin needs BOTH `.claude-plugin/plugin.json` and
   `.codex-plugin/plugin.json` (Codex variant adds `"skills": "./skills/"`).
+- Each skill that participates in the Darrow workflow runtime (M1 onward) needs
+  `skills/<skill>/darrow.json`, validated against
+  `docs/specs/darrow-skill-metadata.schema.json`. Native plugin manifests retain
+  plugin identity and package version; never add arbitrary Darrow fields to
+  them.
+- A command skill is invoked explicitly by canonical name. A capability skill is
+  loaded by harness intent and advertises portable contracts in `darrow.json`.

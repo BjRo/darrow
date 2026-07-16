@@ -1,6 +1,6 @@
 # Capability: Ticket Management
 
-Consolidates ticket/issue operations into intent-triggered skills so that
+Consolidates ticket operations into intent-triggered skills so that
 creating and updating tickets is consistent, traceable, and backend-neutral
 regardless of which agent runtime executes them and which tracker backs them.
 
@@ -13,6 +13,10 @@ are separate capabilities that reach this one through intent ("create a
 ticket for X") and a ticket is only as elaborate as what its caller already
 knows.
 
+Repository-resident artifacts associated with an external ticket are governed
+by [workspaces and artifacts](workspaces-artifacts.md); they do not make the
+repository a ticket backend.
+
 ## Why
 
 Agents left to improvise tracker usage produce duplicate tickets, vague
@@ -20,16 +24,18 @@ one-line bodies, invented repro steps, and tool attribution in ticket
 history. Worse, every skill that needs a ticket ends up hard-coding one
 tracker's CLI. Encapsulating the workflow as skills gives other capabilities
 a stable intent ("create a ticket for X") while the backend stays swappable —
-the decoupling the product spec's F5 requires.
+the command/capability decoupling required by the
+[product specification](../product-spec.md#5-skills-commands-and-capabilities).
 
 ## Backend contract
 
 - The skill layer is backend-neutral: intents and invariants hold for any
   tracker. All backend specifics (CLI calls, field names, linking syntax)
   live in the bundled scripts — SKILL.md never names a tracker.
-- First backend: GitHub Issues via `gh`. Planned: the in-repo ticket store
-  behind the ticket CLI (product spec F5) as a second backend; others when
-  needed. Adding a backend touches scripts only.
+- First backend: GitHub Issues via `gh`. Future backends are external tracker
+  systems behind the same CLI contract. Repository-resident Darrow ticket
+  directories contain published artifacts only; they are never a tracker or a
+  file-backed ticket store. Adding a backend touches scripts only.
 - **TM-1 — Deliberate backend.** The script resolves exactly one usable
   backend deterministically and the report names it. No usable backend
   (no remote, issues disabled, missing CLI) → refuse with a clear error
@@ -99,9 +105,9 @@ build the body from real evidence, then create.
   and only to existing values.
 - **TM-C7 — No tool attribution.** No "Generated with ..." lines, no AI
   co-author credits, no tool emoji in title or body.
-- **TM-C8 — Traceable report.** The report states the ticket id and URL (or
-  path, for a file-backed store), the type, the labels applied, and
-  anything omitted under TM-C1/TM-C6.
+- **TM-C8 — Traceable report.** The report states the external ticket id and
+  canonical URL, the type, the labels applied, and anything omitted under
+  TM-C1/TM-C6.
 - **TM-C9 — Relations by request.** `depends-on` and `parent` relations are
   set at creation only when the caller names them, per the relations
   contract (TM-2/TM-3).
@@ -120,7 +126,7 @@ through the git capability's intents).
 ### Intent triggers
 
 "update the ticket", "comment on <id>", "add my findings to the ticket",
-"close the issue", "reopen <id>", or an explicit skill invocation.
+"close the ticket", "reopen <id>", or an explicit skill invocation.
 
 ### Contract
 

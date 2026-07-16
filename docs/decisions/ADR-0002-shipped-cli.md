@@ -1,4 +1,4 @@
-# ADR-0002: Shipped CLIs are bash, placed at plugin level
+# ADR-0002: Plugin-local shared CLIs use Bash
 
 Status: Accepted
 Date: 2026-07-07
@@ -6,9 +6,10 @@ Date: 2026-07-07
 ## Context
 
 darrow-tickets needs a backend facade (`ticket`) shared by three skills
-(create-ticket, update-ticket, list-tickets) — the first shipped CLI, which
-ADR-0001 and the product spec (§8) deferred deciding a language for. Two
-constraints shape the decision:
+(create-ticket, update-ticket, list-tickets). This ADR covers small shared tools
+that ship inside a plugin, not the independently installed global orchestration
+CLI covered by [ADR-0003](ADR-0003-global-cli.md). Two constraints shape the
+decision:
 
 - **Consumer footprint.** Plugins install into arbitrary projects via the
   marketplace; every runtime dependency the CLI needs is friction for every
@@ -23,10 +24,9 @@ constraints shape the decision:
 **Language: bash.** Zero runtime dependencies beyond the backend's own CLI
 (`gh` for GitHub Issues); JSON handling via gh's built-in `--jq` (embedded,
 no external jq). Consistent with the existing skill scripts and the shell
-portability rules already codified in AGENTS.md. Revisit (Go static binary)
-if a shipped CLI outgrows bash — complex state, concurrency, or heavy
-parsing; TS/Bun stays runner-only because consumers can't be assumed to
-have bun.
+portability rules already codified in AGENTS.md. Revisit the plugin-local tool
+if it outgrows Bash through complex state, concurrency, or heavy parsing;
+consumers of capability-only plugins cannot be assumed to have Bun.
 
 **Placement: `plugins/<name>/bin/<cli>`**, referenced from skills as
 `<skill-dir>/../../bin/<cli>`. Two levels above the skill dir is the plugin
@@ -50,5 +50,5 @@ shouldn't carry. The CLI's deterministic test sits next to it
   mounts) that applies to all future plugins with shared CLIs.
 - bash caps CLI complexity; the AGENTS.md portability classes apply in
   full. A future CLI that fights bash triggers a new ADR, not a workaround.
-- M1's generator emits plugin-level `bin/` as-is — the layout is already
-  the generated artifact shape.
+- Directly authored plugins retain `bin/` as canonical source. Mechanical
+  packaging may copy it, but no generator owns a second plugin tree.
