@@ -12,6 +12,7 @@ import { DarrowError } from "./errors";
 import { exists, readJson, replaceJson, sha256 } from "./io";
 import { withDirectoryLock } from "./locks";
 import { globalToolchainHome } from "./paths";
+import type { HumanResponse } from "./types";
 import {
   continuationSignal,
   runResolvedPlanWorkflow,
@@ -309,12 +310,17 @@ async function clientFor(
 export async function waitForBoundary(
   handle: ReturnType<Client["workflow"]["getHandle"]>,
   temporal: Record<string, unknown>,
+  answered?: Pick<HumanResponse, "requestId" | "version">,
 ): Promise<ExecutionBoundary> {
   let consecutiveErrors = 0;
   while (true) {
     try {
       const status = await handle.query(runStatusQuery);
-      if (status.state === "waiting_for_input")
+      const answerAccepted =
+        !answered ||
+        (status.lastResponse?.requestId === answered.requestId &&
+          status.lastResponse.version === answered.version);
+      if (status.state === "waiting_for_input" && answerAccepted)
         return {
           status: status.state,
           results: status.results,
@@ -484,9 +490,7 @@ export async function resumePlan(
 export async function continuePlan(
   repoRoot: string,
   temporal: Record<string, unknown>,
-  version: number,
-  choice: "retry" | "amend" | "abort",
-  model?: string,
+  response: HumanResponse,
 ): Promise<ExecutionBoundary> {
   const workflowId = String(temporal.workflowId ?? "");
   const taskQueue = String(temporal.taskQueue ?? "");
@@ -501,23 +505,34 @@ export async function continuePlan(
         "Temporal workflow is not waiting for input",
         "state",
       );
-    if (status.request.version !== version)
+    if (
+      status.request.requestId !== response.requestId ||
+      status.request.version !== response.version
+    )
       throw new DarrowError(
-        `stale continuation version ${version}; current version is ${status.request.version}`,
+        `stale continuation ${response.requestId}@${response.version}; current request is ${status.request.requestId}@${status.request.version}`,
         "state",
       );
-    if (!status.request.choices.includes(choice))
+    const selected = status.request.choices.find(
+      (choice) => choice.id === response.choice,
+    );
+    if (!selected)
       throw new DarrowError(
-        `continuation ${choice} is not allowed for ${status.request.reason}`,
+        `continuation ${response.choice} is not allowed for ${status.request.reason}`,
         "state",
       );
-    if (choice === "amend" && !model)
+    if (response.instructions && !selected.acceptsInstructions)
+      throw new DarrowError(
+        `continuation ${response.choice} does not accept supplemental instructions`,
+        "usage",
+      );
+    if (response.choice === "amend" && !response.model)
       throw new DarrowError(
         "model amendment requires an explicit model",
         "usage",
       );
-    await handle.signal(continuationSignal, { version, choice, model });
-    return await waitForBoundary(handle, temporal);
+    await handle.signal(continuationSignal, response);
+    return await waitForBoundary(handle, temporal, response);
   } finally {
     await runtime.connection.close();
   }

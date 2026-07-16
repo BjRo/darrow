@@ -7,6 +7,43 @@ export type RunState = "running" | "waiting_for_input" | "completed";
 export type Conclusion =
   "succeeded" | "succeeded_with_waivers" | "failed" | "cancelled";
 
+export interface HumanChoice {
+  id: string;
+  consequence: string;
+  acceptsInstructions: boolean;
+}
+
+export interface HumanRequest {
+  requestId: string;
+  version: number;
+  stepId: string | null;
+  reason: string;
+  question: string;
+  choices: HumanChoice[];
+  context: Array<{ label: string; reference: string }>;
+}
+
+export interface ContentReference {
+  contentId: string;
+  mediaType: "text/plain";
+  contentHash: string;
+  size: number;
+  location: string;
+}
+
+export interface HumanResponse {
+  requestId: string;
+  version: number;
+  choice: string;
+  actor: {
+    id: string | null;
+    harness: string | null;
+    verified: false;
+  };
+  instructions: ContentReference | null;
+  model?: string;
+}
+
 export interface Requirement {
   contract: string;
   version: string;
@@ -123,6 +160,7 @@ export interface RunRecord {
   workspace: string | null;
   currentStep: string | null;
   steps: StepExecutionStatus[];
+  request: HumanRequest | null;
   error: { category: string; message: string } | null;
 }
 
@@ -136,6 +174,7 @@ export interface ActivityInput {
   planCapabilities: ResolvedPlan["capabilities"];
   profile: Omit<ResolvedPlan["profile"], "model"> & { model: string };
   attemptId: string;
+  instructions: ContentReference[];
 }
 
 export interface CommandResult {

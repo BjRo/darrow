@@ -94,6 +94,87 @@ describe("0.1.0 contract fixtures", () => {
     ).rejects.toThrow("must match exactly one schema");
   });
 
+  test("waiting protocol exposes a correlated human request", async () => {
+    const waiting = {
+      protocolVersion: "0.1.0",
+      command: "run",
+      ok: true,
+      data: {
+        runId: "run-1",
+        state: "waiting_for_input",
+        request: {
+          requestId: "implement-model-unavailable-1",
+          version: 1,
+          stepId: "implement",
+          reason: "model_unavailable",
+          question: "Retry the implementation?",
+          choices: [
+            {
+              id: "retry",
+              consequence: "Run another attempt.",
+              acceptsInstructions: true,
+            },
+          ],
+          context: [],
+        },
+        continuation: "darrow continue run-1",
+      },
+      error: null,
+    };
+    await expect(
+      validateSchema("protocol.schema.json", waiting, "waiting protocol"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "protocol.schema.json",
+        {
+          ...waiting,
+          data: {
+            ...waiting.data,
+            request: { ...waiting.data.request, version: 0 },
+          },
+        },
+        "stale waiting protocol",
+      ),
+    ).rejects.toThrow("must be >= 1");
+  });
+
+  test("human response events contain references instead of raw instructions", async () => {
+    const received = {
+      schemaVersion: "0.1.0",
+      eventId: "event-response",
+      runId: "run-1",
+      timestamp: "2026-07-16T20:00:00.000Z",
+      type: "human.input.received",
+      data: {
+        requestId: "implement-model-unavailable-1",
+        version: 1,
+        choice: "retry",
+        actor: { id: "user-1", harness: "codex", verified: false },
+        instructions: {
+          contentId: "human-response-1",
+          mediaType: "text/plain",
+          contentHash: `sha256:${"a".repeat(64)}`,
+          size: 12,
+          location: ".darrow/runs/run-1/content/human/response.txt",
+        },
+      },
+    };
+    await expect(
+      validateSchema("event.schema.json", received, "human response"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "event.schema.json",
+        {
+          ...received,
+          data: { ...received.data, content: "raw instructions" },
+        },
+        "human response",
+      ),
+    ).rejects.toThrow("additional properties");
+  });
+
   test("recovery event records the authoritative reconciliation mode", async () => {
     const recovered = {
       schemaVersion: "0.1.0",

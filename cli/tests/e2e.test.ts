@@ -80,6 +80,9 @@ while [[ $# -gt 0 ]]; do
   if [[ "$1" == "--output-last-message" ]]; then output=$2; shift 2; else shift; fi
 done
 prompt=$(cat)
+printf '%s' "$prompt" > "$(dirname "$0")/last-prompt"
+grep -F 'Supplemental human instructions:' <<<"$prompt"
+grep -F 'Use the restart-safe path.' <<<"$prompt"
 skill=$(printf '%s\n' "$prompt" | sed -n 's/^Read and follow \\(.*\\/SKILL.md\\) exactly\\.$/\\1/p')
 evidence=$(printf '%s\n' "$prompt" | sed -n 's/^Evidence directory: //p')
 git switch -q -c feat/e2e-change
@@ -118,10 +121,37 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
     );
     expect(requested.code, `${requested.stderr}\n${requested.stdout}`).toBe(0);
     const waiting = JSON.parse(requested.stdout.trim()) as {
-      data: { runId: string; state: string };
+      data: {
+        runId: string;
+        state: string;
+        request: {
+          requestId: string;
+          version: number;
+          reason: string;
+          choices: Array<{ id: string; consequence: string }>;
+        };
+      };
     };
     expect(waiting.data.state).toBe("waiting_for_input");
-    const allocated = command(
+    expect(waiting.data.request.reason).toBe("dirty_checkout");
+    expect(waiting.data.request.choices.map((choice) => choice.id)).toEqual([
+      "head",
+      "current",
+      "abort",
+    ]);
+    const handoff = command(
+      ["bun", cli, "inspect", waiting.data.runId],
+      root,
+      env,
+    );
+    expect(handoff.code, handoff.stderr).toBe(0);
+    expect(handoff.stdout).toContain(
+      "Question: How should Darrow handle the uncommitted invoking checkout?",
+    );
+    expect(handoff.stdout.trim().split("\n").at(-1)).toBe(
+      `Continue: darrow continue ${waiting.data.runId}`,
+    );
+    const uncorrelated = command(
       [
         "bun",
         cli,
@@ -134,11 +164,65 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
       root,
       env,
     );
+    expect(uncorrelated.code).not.toBe(0);
+    expect(uncorrelated.stderr).toContain(
+      "requires --request and --version in non-interactive mode",
+    );
+    const allocated = command(
+      [
+        "bun",
+        cli,
+        "continue",
+        waiting.data.runId,
+        "--request",
+        waiting.data.request.requestId,
+        "--version",
+        String(waiting.data.request.version),
+        "--choice",
+        "head",
+        "--json",
+      ],
+      root,
+      env,
+    );
     expect(allocated.code, `${allocated.stderr}\n${allocated.stdout}`).toBe(0);
     const modelWait = JSON.parse(allocated.stdout.trim()) as {
-      data: { runId: string; state: string };
+      data: {
+        runId: string;
+        state: string;
+        request: {
+          requestId: string;
+          version: number;
+          reason: string;
+          choices: Array<{ id: string; acceptsInstructions: boolean }>;
+        };
+      };
     };
     expect(modelWait.data.state).toBe("waiting_for_input");
+    expect(modelWait.data.request.reason).toBe("model_unavailable");
+    expect(
+      modelWait.data.request.choices.find((choice) => choice.id === "retry")
+        ?.acceptsInstructions,
+    ).toBe(true);
+    const stale = command(
+      [
+        "bun",
+        cli,
+        "continue",
+        waiting.data.runId,
+        "--request",
+        modelWait.data.request.requestId,
+        "--version",
+        String(modelWait.data.request.version + 1),
+        "--choice",
+        "retry",
+        "--json",
+      ],
+      root,
+      env,
+    );
+    expect(stale.code).not.toBe(0);
+    expect(stale.stderr).toContain("stale continuation");
     const firstWorker = (await Bun.file(
       resolve(root, ".darrow", "runtime", "worker.json"),
     ).json()) as { pid: number };
@@ -151,14 +235,26 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
         break;
       }
     }
+    const instructions = resolve(root, "continuation-instructions.txt");
+    await writeFile(instructions, "Use the restart-safe path.\n");
     const foreground = Bun.spawn(
       [
         "bun",
         cli,
         "continue",
         waiting.data.runId,
+        "--request",
+        modelWait.data.request.requestId,
+        "--version",
+        String(modelWait.data.request.version),
         "--choice",
         "retry",
+        "--instructions-file",
+        instructions,
+        "--actor",
+        "e2e-user",
+        "--harness",
+        "codex",
         "--json",
       ],
       {
@@ -229,6 +325,26 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
       { stepId: "implement", state: "succeeded", attempt: 2 },
     ]);
     expect(inspected.data.counts.events).toBeGreaterThan(5);
+    const events = await Bun.file(resolve(runDir, "events.jsonl")).text();
+    expect(events).not.toContain("Use the restart-safe path.");
+    const received = events
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line))
+      .find(
+        (item) =>
+          item.type === "human.input.received" &&
+          item.data.requestId === modelWait.data.request.requestId,
+      );
+    expect(received.data.actor).toEqual({
+      id: "e2e-user",
+      harness: "codex",
+      verified: false,
+    });
+    expect(received.data.instructions.contentHash).toMatch(/^sha256:/);
+    expect(
+      await Bun.file(resolve(root, received.data.instructions.location)).text(),
+    ).toBe("Use the restart-safe path.\n");
   },
   120_000,
 );

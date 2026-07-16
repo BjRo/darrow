@@ -104,13 +104,17 @@ happened after the previous Darrow invocation and before the current one.
 
 - **OB-19 — Content stored before reference.** Free-form human input and
   supporting material are written to the repository-local content store before
-  a bounded reference and hash enter workflow state.
+  a bounded reference and hash enter workflow state. Repeating the same response
+  may reuse identical stored content; it never overwrites different content at an
+  existing immutable response location.
 - **OB-20 — Decision metadata remains inspectable.** The journal records the
   human request ID and version, question summary, allowed choices, accepted
   choice, actor metadata, time, next-step instructions, waiver state, and content
-  reference.
+  reference. Local actor and harness identity are optional, unverified audit
+  metadata rather than authorization.
 - **OB-21 — No command-line interpolation.** Raw human response content never
-  appears inside a generated `darrow continue` shell command.
+  appears inside a generated `darrow continue` shell command or Temporal history.
+  Workflow state carries only its bounded content reference and hash.
 
 ## OpenTelemetry
 

@@ -38,16 +38,11 @@
     "waitingData": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runId", "state", "reason", "choices", "continuation"],
+      "required": ["runId", "state", "request", "continuation"],
       "properties": {
         "runId": { "type": "string" },
         "state": { "const": "waiting_for_input" },
-        "reason": { "type": "string" },
-        "choices": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "type": "string" }
-        },
+        "request": { "$ref": "#/$defs/humanRequest" },
         "continuation": { "type": "string" }
       }
     },
@@ -159,20 +154,54 @@
         "conclusion": { "const": "failed" }
       }
     },
-    "request": {
-      "oneOf": [
-        { "type": "null" },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["version", "reason", "choices"],
-          "properties": {
-            "version": { "type": "integer" },
-            "reason": { "type": "string" },
-            "choices": { "type": "array", "items": { "type": "string" } }
+    "humanRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestId",
+        "version",
+        "stepId",
+        "reason",
+        "question",
+        "choices",
+        "context"
+      ],
+      "properties": {
+        "requestId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "version": { "type": "integer", "minimum": 1 },
+        "stepId": { "type": ["string", "null"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "consequence", "acceptsInstructions"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "consequence": { "type": "string", "minLength": 1 },
+              "acceptsInstructions": { "type": "boolean" }
+            }
+          }
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "reference"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "reference": { "type": "string", "minLength": 1 }
+            }
           }
         }
-      ]
+      }
+    },
+    "request": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/humanRequest" }]
     },
     "stepStatus": {
       "type": "object",
@@ -214,8 +243,7 @@
         "runId": { "type": ["string", "null"] },
         "startPending": { "type": "boolean" },
         "attached": { "const": true },
-        "pending": { "$ref": "#/$defs/pending" },
-        "request": { "$ref": "#/$defs/request" }
+        "pending": { "$ref": "#/$defs/pending" }
       }
     },
     "liveTemporal": {
@@ -274,6 +302,7 @@
         "workspace",
         "currentStep",
         "steps",
+        "request",
         "error",
         "liveTemporal",
         "paths",
@@ -294,6 +323,7 @@
           "type": "array",
           "items": { "$ref": "#/$defs/stepStatus" }
         },
+        "request": { "$ref": "#/$defs/request" },
         "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },
         "liveTemporal": { "$ref": "#/$defs/liveTemporal" },
         "paths": { "$ref": "#/$defs/paths" },

@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { checkpointEvidence } from "./artifacts";
 import { DarrowError } from "./errors";
+import { readHumanInstructions } from "./human";
 import {
   canonicalJson,
   exists,
@@ -497,11 +498,19 @@ async function executeCodexCommandInternal(
     ["git", "rev-parse", "HEAD"],
     input.workspace,
   ).stdout.trim();
+  const supplementalInstructions = await Promise.all(
+    input.instructions.map((reference) =>
+      readHumanInstructions(input.repoRoot, input.runDir, reference),
+    ),
+  );
   const prompt = [
     `Invoke the snapshotted Darrow command ${input.step.commandId}@${input.step.contractVersion}.`,
     `Read and follow ${resolve(commandDir, "SKILL.md")} exactly.`,
     `Requested change: ${String(input.step.input.change)}`,
     `Evidence directory: ${evidenceDir}`,
+    ...supplementalInstructions.map(
+      (instructions) => `Supplemental human instructions:\n${instructions}`,
+    ),
     "Darrow already preflighted a compatible branch-creation capability. Create the local branch by expressing that intent; do not name a capability provider.",
     "Return only the structured result required by the supplied output schema.",
   ].join("\n");

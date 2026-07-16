@@ -22,7 +22,7 @@ export async function event(
   runDir: string,
   runId: string,
   type: string,
-  data: Record<string, unknown>,
+  data: object,
 ): Promise<void> {
   const item = {
     schemaVersion: "0.1.0",

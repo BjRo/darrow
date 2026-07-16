@@ -4,7 +4,13 @@ import { resolve } from "node:path";
 import { compile, createLock, snapshot, verifyRunSnapshot } from "./compiler";
 import { verifyArtifacts } from "./artifacts";
 import { DarrowError } from "./errors";
-import { exists, readJson, writeJson } from "./io";
+import {
+  assertCurrentRequest,
+  createHumanRequest,
+  selectedChoice,
+  storeHumanInstructions,
+} from "./human";
+import { exists, readJson, readText, writeJson } from "./io";
 import {
   allocateManagedWorkspace,
   claimCurrentWorkspace,
@@ -28,7 +34,12 @@ import {
   type ExecutionBoundary,
 } from "./temporal";
 import { validateSchema } from "./schema";
-import type { Conclusion, ResolvedPlan, RunRecord } from "./types";
+import type {
+  Conclusion,
+  HumanResponse,
+  ResolvedPlan,
+  RunRecord,
+} from "./types";
 
 interface RunOptions {
   workflow: string;
@@ -47,7 +58,7 @@ function usage(): string {
     "  darrow init [--json]",
     "  darrow run <workflow|path> --input <name=value> [--base <ref>] [--workspace current|--worktree <path>] [--json]",
     "  darrow run implement-change --change <description> [--base <ref>] [--json]",
-    "  darrow continue <run-id> --choice head|current|retry|amend|abort [--model <id>] [--json]",
+    "  darrow continue <run-id> --request <id> --version <n> --choice <choice> [--instructions-file <path|->] [--actor <id>] [--harness <id>] [--model <id>] [--json]",
     "  darrow resume <run-id> [--json]",
     "  darrow inspect <run-id> [--json]",
     "  darrow --version",
@@ -110,22 +121,52 @@ function parseRun(args: string[]): RunOptions {
 function parseContinuation(args: string[]): {
   runId: string;
   choice: string;
+  requestId?: string;
+  version?: number;
+  instructionsFile?: string;
+  actor?: string;
+  harness?: string;
   model?: string;
   json: boolean;
 } {
   const runId = args.shift();
   if (!runId) throw new DarrowError("continue requires a run ID", "usage");
   let choice = "";
+  let requestId: string | undefined;
+  let version: number | undefined;
+  let instructionsFile: string | undefined;
+  let actor: string | undefined;
+  let harness: string | undefined;
   let model: string | undefined;
   let json = false;
   while (args.length) {
     const flag = args.shift();
     if (flag === "--json") json = true;
     else if (flag === "--choice") choice = args.shift() ?? "";
+    else if (flag === "--request") requestId = args.shift() ?? "";
+    else if (flag === "--version") {
+      const value = args.shift() ?? "";
+      version = Number(value);
+      if (!Number.isSafeInteger(version) || version < 1)
+        throw new DarrowError("--version requires a positive integer", "usage");
+    } else if (flag === "--instructions-file")
+      instructionsFile = args.shift() ?? "";
+    else if (flag === "--actor") actor = args.shift() ?? "";
+    else if (flag === "--harness") harness = args.shift() ?? "";
     else if (flag === "--model") model = args.shift() ?? "";
     else throw new DarrowError(`unknown continue argument: ${flag}`, "usage");
   }
-  return { runId, choice, model, json };
+  return {
+    runId,
+    choice,
+    requestId,
+    version,
+    instructionsFile,
+    actor,
+    harness,
+    model,
+    json,
+  };
 }
 
 async function emitJson(
@@ -169,6 +210,7 @@ async function createInitialRun(
       state: "pending",
       attempt: 0,
     })),
+    request: null,
     error: null,
   };
   await validateSchema("run.schema.json", record, "initial run record");
@@ -223,23 +265,37 @@ async function printWaiting(
   json: boolean,
   command: "run" | "continue" | "resume" = "run",
 ): Promise<void> {
-  const dirty = record.error?.category === "dirty_checkout";
-  const request = record.temporal.request as { choices?: string[] } | undefined;
-  const choices = dirty
-    ? ["head", "current", "abort"]
-    : (request?.choices ?? ["retry", "abort"]);
+  const request = record.request;
+  if (!request)
+    throw new DarrowError(
+      `run ${record.runId} is waiting without a human request`,
+      "state",
+    );
   const data = {
     runId: record.runId,
     state: record.state,
-    reason: record.error?.message,
-    choices,
+    request,
     continuation: `darrow continue ${record.runId}`,
   };
   if (json) await emitJson(command, true, data, null);
-  else
-    console.log(
-      `Run: ${record.runId}\nState: waiting_for_input\nReason: ${record.error?.message}\nChoices: ${choices.join(", ")}\nContinue: ${data.continuation}`,
-    );
+  else {
+    const lines = [
+      `Run: ${record.runId}`,
+      `Step: ${request.stepId ?? "(run setup)"}`,
+      `Reason: ${request.reason}`,
+      `Question: ${request.question}`,
+      "Choices:",
+      ...request.choices.map(
+        (choice) => `  ${choice.id}: ${choice.consequence}`,
+      ),
+      "Context:",
+      ...(request.context.length > 0
+        ? request.context.map((item) => `  ${item.label}: ${item.reference}`)
+        : ["  (none)"]),
+      `Continue: ${data.continuation}`,
+    ];
+    console.log(lines.join("\n"));
+  }
 }
 
 async function releaseOwnership(
@@ -257,11 +313,12 @@ async function applyBoundary(
   boundary: ExecutionBoundary,
   cancelled = false,
 ): Promise<void> {
+  const previousRequest = record.request;
   record.temporal = {
     ...record.temporal,
     ...boundary.temporal,
-    request: boundary.request,
   };
+  record.request = boundary.request;
   if (boundary.steps.length > 0) record.steps = boundary.steps;
   record.currentStep =
     record.steps.find((step) =>
@@ -277,12 +334,17 @@ async function applyBoundary(
           ? "the effectful activity ended without a trustworthy outcome"
           : "the selected Codex model is currently unavailable",
     };
-    await event(
-      runDir,
-      record.runId,
-      "human.input.requested",
-      boundary.request ?? {},
-    );
+    if (
+      boundary.request &&
+      (previousRequest?.requestId !== boundary.request.requestId ||
+        previousRequest?.version !== boundary.request.version)
+    )
+      await event(
+        runDir,
+        record.runId,
+        "human.input.requested",
+        boundary.request,
+      );
   } else {
     const failedResult = boundary.results.findLast(
       (result) => result.status === "failed",
@@ -299,6 +361,7 @@ async function applyBoundary(
     record.error =
       cancelled || !graphFailed ? null : (failedResult?.error ?? null);
     record.currentStep = null;
+    record.request = null;
     await event(runDir, record.runId, "run.completed", {
       conclusion: record.conclusion,
       results: boundary.results.map((item) => ({
@@ -395,12 +458,34 @@ async function runWorkflow(options: RunOptions): Promise<number> {
     record.temporal = {
       pending: { kind: "dirty_checkout", commit, invokedRoot },
     };
-    await saveRun(runDir, record);
-    await event(runDir, runId, "human.input.requested", {
-      reason: "dirty_checkout",
-      choices: ["head", "current", "abort"],
+    record.request = createHumanRequest({
+      requestId: "dirty-checkout-1",
       version: 1,
+      stepId: null,
+      reason: "dirty_checkout",
+      question: "How should Darrow handle the uncommitted invoking checkout?",
+      choices: [
+        {
+          id: "head",
+          consequence:
+            "Create a managed worktree from the current HEAD commit.",
+          acceptsInstructions: false,
+        },
+        {
+          id: "current",
+          consequence: "Attach this run to the current dirty checkout.",
+          acceptsInstructions: false,
+        },
+        {
+          id: "abort",
+          consequence: "Cancel the run before allocating a workspace.",
+          acceptsInstructions: false,
+        },
+      ],
+      context: [{ label: "Invoking checkout", reference: invokedRoot }],
     });
+    await saveRun(runDir, record);
+    await event(runDir, runId, "human.input.requested", record.request);
     await printWaiting(record, options.json);
     return 0;
   }
@@ -440,6 +525,7 @@ async function runWorkflow(options: RunOptions): Promise<number> {
       message: error instanceof Error ? error.message : String(error),
     };
     record.currentStep = null;
+    record.request = null;
     await releaseOwnership(repoRoot, record);
     await saveRun(runDir, record);
     await event(runDir, runId, "run.completed", {
@@ -462,11 +548,10 @@ async function runWorkflow(options: RunOptions): Promise<number> {
 }
 
 async function continueRun(
-  runId: string,
-  choice: string,
-  json: boolean,
-  model?: string,
+  options: ReturnType<typeof parseContinuation>,
 ): Promise<number> {
+  const { runId, json, model, instructionsFile, actor, harness } = options;
+  let { choice, requestId, version } = options;
   const repoRoot = primaryRepoRoot();
   await requireInitialized(repoRoot);
   const runDir = resolve(repoRoot, ".darrow", "runs", runId);
@@ -476,6 +561,25 @@ async function continueRun(
   await verifyArtifacts(repoRoot, runDir);
   if (record.state !== "waiting_for_input")
     throw new DarrowError(`run is not waiting for input: ${runId}`, "state");
+  if ((requestId === undefined) !== (version === undefined))
+    throw new DarrowError(
+      "continue requires both --request and --version",
+      "usage",
+    );
+  if (requestId === "")
+    throw new DarrowError("--request requires an ID", "usage");
+  if (requestId === undefined || version === undefined) {
+    if (json || !process.stdin.isTTY)
+      throw new DarrowError(
+        "continue requires --request and --version in non-interactive mode",
+        "usage",
+      );
+    if (!record.request)
+      throw new DarrowError("run has no open human request", "state");
+    requestId = record.request.requestId;
+    version = record.request.version;
+  }
+  const request = assertCurrentRequest(record.request, requestId, version);
   if (!choice) {
     if (json || !process.stdin.isTTY)
       throw new DarrowError(
@@ -486,23 +590,59 @@ async function continueRun(
     if (!choice)
       throw new DarrowError("no continuation choice supplied", "usage");
   }
-  await event(runDir, runId, "human.input.received", {
+  const selected = selectedChoice(request, choice);
+  if (actor === "") throw new DarrowError("--actor requires an ID", "usage");
+  if (harness === "")
+    throw new DarrowError("--harness requires an ID", "usage");
+  if (model === "")
+    throw new DarrowError("--model requires a model ID", "usage");
+  if (choice === "amend" && !model)
+    throw new DarrowError(
+      "model amendment requires an explicit model",
+      "usage",
+    );
+  if (choice !== "amend" && model !== undefined)
+    throw new DarrowError("--model is only valid with choice amend", "usage");
+  if (instructionsFile === "")
+    throw new DarrowError("--instructions-file requires a path or -", "usage");
+  if (instructionsFile !== undefined && !selected.acceptsInstructions)
+    throw new DarrowError(
+      `continuation ${choice} does not accept supplemental instructions`,
+      "usage",
+    );
+  const instructionContent =
+    instructionsFile === undefined
+      ? null
+      : instructionsFile === "-"
+        ? await Bun.stdin.text()
+        : await readText(resolve(instructionsFile));
+  const response: HumanResponse = {
+    requestId,
+    version,
     choice,
+    actor: {
+      id: actor || null,
+      harness: harness || null,
+      verified: false,
+    },
+    instructions: await storeHumanInstructions(
+      repoRoot,
+      runDir,
+      request,
+      instructionContent,
+    ),
     ...(model ? { model } : {}),
-  });
+  };
+  await event(runDir, runId, "human.input.received", response);
   const pending = record.temporal.pending as
     { kind?: string; commit?: string; invokedRoot?: string } | undefined;
   if (pending?.kind === "dirty_checkout") {
-    if (!["head", "current", "abort"].includes(choice))
-      throw new DarrowError(
-        "dirty-checkout continuation requires head, current, or abort",
-        "usage",
-      );
     if (choice === "abort") {
       record.state = "completed";
       record.conclusion = "cancelled";
       record.error = null;
       record.temporal = {};
+      record.request = null;
       await saveRun(runDir, record);
       await event(runDir, runId, "run.completed", { conclusion: "cancelled" });
       return presentResult("continue", record, [], json);
@@ -521,6 +661,7 @@ async function continueRun(
     record.temporal = choice === "current" ? { attached: true } : {};
     record.state = "running";
     record.error = null;
+    record.request = null;
     record.currentStep = plan.steps[0]?.id ?? null;
     await saveRun(runDir, record);
     await event(runDir, runId, "workspace.allocated", {
@@ -532,22 +673,7 @@ async function continueRun(
     await applyBoundary(repoRoot, runDir, record, boundary);
     return presentResult("continue", record, boundary.results, json);
   }
-  const allowed = (
-    record.temporal.request as { choices?: string[] } | undefined
-  )?.choices ?? ["retry", "abort"];
-  if (!allowed.includes(choice))
-    throw new DarrowError(
-      `continuation requires one of: ${allowed.join(", ")}`,
-      "usage",
-    );
-  const request = record.temporal.request as { version?: number } | undefined;
-  const boundary = await continuePlan(
-    repoRoot,
-    record.temporal,
-    Number(request?.version),
-    choice as "retry" | "amend" | "abort",
-    model,
-  );
+  const boundary = await continuePlan(repoRoot, record.temporal, response);
   await applyBoundary(repoRoot, runDir, record, boundary, choice === "abort");
   return presentResult("continue", record, boundary.results, json);
 }
@@ -634,6 +760,8 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
     counts: { events: eventCount, results: results.length },
   };
   if (json) await emitJson("inspect", true, data, null);
+  else if (record.state === "waiting_for_input")
+    await printWaiting(record, false);
   else
     console.log(
       `Run: ${runId}\nState: ${record.state}\nConclusion: ${record.conclusion ?? "(none)"}\nWorkflow: ${record.workflowId}\nWorkspace: ${record.workspace ?? "(not allocated)"}\nEvents: ${eventCount}\nResults: ${results.length}\nRun record: ${runDir}`,
@@ -666,7 +794,7 @@ async function main(): Promise<number> {
   if (command === "run") return runWorkflow(parseRun(args));
   if (command === "continue") {
     const parsed = parseContinuation(args);
-    return continueRun(parsed.runId, parsed.choice, parsed.json, parsed.model);
+    return continueRun(parsed);
   }
   if (command === "resume") {
     const runId = args.shift();

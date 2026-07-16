@@ -34,6 +34,64 @@
         "digest": { "$ref": "#/$defs/digest" }
       }
     },
+    "humanRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestId",
+        "version",
+        "stepId",
+        "reason",
+        "question",
+        "choices",
+        "context"
+      ],
+      "properties": {
+        "requestId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "version": { "type": "integer", "minimum": 1 },
+        "stepId": { "type": ["string", "null"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "consequence", "acceptsInstructions"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "consequence": { "type": "string", "minLength": 1 },
+              "acceptsInstructions": { "type": "boolean" }
+            }
+          }
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "reference"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "reference": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "contentReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentId", "mediaType", "contentHash", "size", "location"],
+      "properties": {
+        "contentId": { "type": "string", "minLength": 1 },
+        "mediaType": { "const": "text/plain" },
+        "contentHash": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 0 },
+        "location": { "type": "string", "minLength": 1 }
+      }
+    },
     "capability": {
       "type": "object",
       "additionalProperties": false,
@@ -164,16 +222,7 @@
         "runId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "type": { "const": "human.input.requested" },
-        "data": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["reason", "choices", "version"],
-          "properties": {
-            "reason": { "type": "string" },
-            "choices": { "type": "array", "items": { "type": "string" } },
-            "version": { "type": "integer" }
-          }
-        }
+        "data": { "$ref": "#/$defs/humanRequest" }
       }
     },
     "humanReceived": {
@@ -196,9 +245,33 @@
         "data": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["choice"],
+          "required": [
+            "requestId",
+            "version",
+            "choice",
+            "actor",
+            "instructions"
+          ],
           "properties": {
+            "requestId": { "type": "string" },
+            "version": { "type": "integer", "minimum": 1 },
             "choice": { "type": "string" },
+            "actor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "harness", "verified"],
+              "properties": {
+                "id": { "type": ["string", "null"] },
+                "harness": { "type": ["string", "null"] },
+                "verified": { "const": false }
+              }
+            },
+            "instructions": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/contentReference" }
+              ]
+            },
             "model": { "type": "string" }
           }
         }

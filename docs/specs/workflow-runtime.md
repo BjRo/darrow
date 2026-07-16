@@ -138,7 +138,8 @@ examples are illustrative rather than an alternate schema.
 - **WR-20 — Waiting is not failure.** When human input is needed, Darrow persists
   `waiting_for_input` and the CLI exits successfully. Nonzero exit statuses are
   reserved for actual command, configuration, preflight, infrastructure, or run
-  failures.
+  failures. Every wait, including pre-execution repository decisions and runtime
+  exceptions, uses the same typed human-request contract.
 - **WR-21 — Complete handoff.** Text output contains the run and step IDs, reason,
   question, allowed continuations and consequences, referenced context, and a
   final line in this exact form:
@@ -149,10 +150,13 @@ examples are illustrative rather than an alternate schema.
 
   Agent entrypoint skills return the same information to Codex or Claude Code.
 
-- **WR-22 — Machine-readable continuation.** Structured output contains the same
-  state and continuation command as fields and contains no extra prose. Free-form
-  input is accepted through an interactive prompt, stdin, or structured request;
-  it is never interpolated into a generated command line.
+- **WR-22 — Machine-readable continuation.** A human request has a stable request
+  ID, positive version, nullable step ID, reason, question, nonempty allowed
+  choices with their consequences, and bounded context references. Structured
+  output contains that request, the run state, and continuation command as fields
+  and contains no extra prose. Free-form input is accepted through an interactive
+  prompt, stdin, or structured request; it is never interpolated into a generated
+  command line.
 - **WR-23 — Turn boundary, not polling.** Returning `waiting_for_input` ends the
   CLI invocation and the current agent turn. No Darrow CLI or agent process polls
   while waiting. A later `darrow continue <run-id>` resumes the run.
@@ -170,9 +174,13 @@ examples are illustrative rather than an alternate schema.
   timeout. Any caller able to invoke `darrow continue` may respond. Darrow records
   supplied actor and harness identity as unverified audit metadata. Hosted
   deadlines, notifications, verified identity, and responder roles are deferred.
-- **WR-25 — Stale responses rejected.** A response identifies the open request
-  and its expected version. Duplicate, malformed, or stale responses cannot
-  advance the run.
+- **WR-25 — Correlated responses.** A non-interactive response identifies the open
+  request and its expected version; an interactive caller may accept the single
+  currently displayed request implicitly. A response records its selected choice,
+  optional unverified actor and harness identity, and any bounded content
+  reference. Duplicate, malformed, disallowed, or stale responses cannot advance
+  the run. Request correlation and accepted response state survive CLI and worker
+  restarts.
 
 ## Attempts and bounded convergence
 
