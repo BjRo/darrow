@@ -1,0 +1,18 @@
+{
+  "name": "darrow-delivery",
+  "description": "Darrow-managed red/green implementation commands",
+  "version": "0.1.0",
+  "skills": "./skills/",
+  "author": {
+    "name": "Björn Rochel"
+  },
+  "interface": {
+    "displayName": "Darrow Delivery",
+    "shortDescription": "Managed red/green implementation workflows",
+    "longDescription": "Implements one requested change with meaningful red, same-test green, regression evidence, and bounded local effects.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": ["Implement this change with Darrow."]
+  }
+}

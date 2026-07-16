@@ -19,6 +19,11 @@
       "name": "darrow-information-architecture",
       "source": "./plugins/darrow-information-architecture",
       "description": "Set up and doctor lean, routed repository information architecture"
+    },
+    {
+      "name": "darrow-delivery",
+      "source": "./plugins/darrow-delivery",
+      "description": "Darrow-managed red/green implementation commands"
     }
   ]
 }

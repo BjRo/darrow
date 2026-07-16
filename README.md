@@ -8,6 +8,58 @@ helpers and evals. Claude Code and Codex can adopt the plugins independently.
 The runtime architecture and delivery roadmap are defined in the
 [product specification](docs/product-spec.md).
 
+## M1 CLI quick start
+
+The independently versioned CLI lives in [`cli/`](cli). Installation scope is
+always explicit. From this source checkout, choose one:
+
+```sh
+# Global CLI and pinned, platform-specific Temporal executable
+bun install --global ./cli
+darrow-install --scope global
+
+# Or repository-local CLI and Temporal executable
+bun add --dev ./cli
+bunx darrow-install --scope local
+```
+
+The installer pins Temporal CLI 1.8.0 and verifies its platform archive by
+SHA-256. `darrow init`, `run`, and `inspect` never download or upgrade it.
+
+Install and enable `darrow-git` and `darrow-delivery` from this marketplace in
+Codex. `DARROW_PLUGIN_ROOTS` may identify an already harness-enabled custom
+plugin environment; it does not install or enable plugins. Darrow catalogs
+explicit project roots for commands, but only a provider verifiably enabled in
+the Codex environment can satisfy a hard capability. It preflights the portable
+`git.branch.create@^1.0.0` contract but leaves provider selection to Codex's
+intent routing.
+
+In a Git repository with at least one commit:
+
+```sh
+darrow init
+darrow run implement-change --change "describe the requested behavior"
+# If the checkout is dirty, choose head/current/abort when prompted:
+darrow continue <run-id>
+# A non-interactive caller supplies the same typed choice explicitly:
+darrow continue <run-id> --choice head
+darrow inspect <run-id>
+```
+
+`--base HEAD` can bypass the dirty-checkout question and deliberately starts the
+managed worktree from the committed HEAD while leaving uncommitted files in the
+invoking checkout. A run waiting on model availability accepts `retry`,
+`abort`, or an explicit `amend --model <id>`; amendments are journaled and do
+not rewrite the locked initial profile. `darrow resume <run-id>` reconnects to
+an already running Temporal execution after a CLI interruption. Temporal and
+its task worker start lazily under `.darrow/runtime`, persist independently of
+the foreground CLI, and never download or upgrade themselves. The bundled
+profile requests Codex with provider `openai`, model `gpt-5.6-sol`, and high
+reasoning effort while inheriting native Codex permissions. It defines no model
+fallback. On non-macOS hosts, authenticated evidence capture requires
+`DARROW_CODEX_PERMISSION_PROFILE` to name a configured native Codex permission
+profile; Darrow refuses to run test commands outside a verifiable sandbox.
+
 ## Plugins
 
 ### [`darrow-git`](plugins/darrow-git)
@@ -59,6 +111,14 @@ Its `ia-doctor` checker verifies structural reachability, adapters, cycles,
 duplicates, and root context size. See the
 [plugin README](plugins/darrow-information-architecture/README.md) for the
 design model and boundaries.
+
+### [`darrow-delivery`](plugins/darrow-delivery)
+
+Provides the M1 `darrow-delivery:implement` command. It creates one local
+branch through intent routing, requires meaningful red evidence, proves the
+same focused test green, runs the relevant regression suite, and checkpoints
+ordered immutable evidence. It never commits, pushes, opens a pull request,
+updates a ticket, or installs dependencies.
 
 ## Package model
 

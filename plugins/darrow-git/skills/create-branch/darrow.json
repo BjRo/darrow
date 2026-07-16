@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "capability",
+  "provides": [
+    {
+      "contract": "git.branch.create",
+      "version": "1.0.0"
+    }
+  ]
+}

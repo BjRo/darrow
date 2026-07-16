@@ -1,0 +1,14 @@
+schemaVersion: 0.1.0
+id: implement-change
+version: 0.1.0
+engine: ^0.1.0
+inputs:
+  change: { type: string, required: true }
+requirements:
+  capabilities:
+    - { contract: git.branch.create, version: ^1.0.0 }
+profile: codex
+steps:
+  - id: implement
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: "${inputs.change}" }

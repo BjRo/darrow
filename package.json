@@ -2,9 +2,13 @@
   "name": "darrow",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "cli"
+  ],
   "scripts": {
     "eval": "bun evals/runner/run.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && bun --cwd cli typecheck",
+    "test:cli": "bun --cwd cli test"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",

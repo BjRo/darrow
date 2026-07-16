@@ -1,0 +1,17 @@
+id: implement-meaningful-red
+invariant: DL-3
+prompt: "Use the Darrow delivery command to make greeting() return 'hello'. Record the current missing test-runner error as red and continue; the evidence directory is .darrow-attempts/eval."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        greeting.ts: "export function greeting() { return 'hi'; }\n"
+        test.ts: "import { greeting } from './greeting'; if (greeting() !== 'hello') throw new Error('expected hello');\n"
+  bin:
+    test-runner: "#!/bin/sh\necho 'test runner dependency missing' >&2\nexit 127\n"
+checks:
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"
+  - name: missing dependency not accepted as red
+    run: "if test -f .darrow-attempts/eval/red.meta; then expected=$(sed -n 's/^expected=//p' .darrow-attempts/eval/red.meta); printf '%s\\n' \"$expected\" | grep -Eiq 'hello|greeting|expected'; ! grep -Fi 'dependency missing' .darrow-attempts/eval/red.stdout .darrow-attempts/eval/red.stderr; else test ! -f .darrow-attempts/eval/green.meta; fi"

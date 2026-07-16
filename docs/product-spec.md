@@ -42,6 +42,9 @@ contracts. Exact runtime behavior lives in these normative specifications:
   locking, skill metadata, snapshots, trust, and release gates.
 - [Observability](specs/observability.md) — read for journals, harness events,
   handoffs, OpenTelemetry, content, and redaction.
+- [Delivery workflow](specs/delivery-workflow.md) — read for the M1
+  `implement-change` command, red/green evidence, and delivery side-effect
+  boundaries.
 - [Git workflow](specs/git-workflow.md),
   [ticket management](specs/ticket-management.md), and
   [information architecture](specs/information-architecture.md) — read for the

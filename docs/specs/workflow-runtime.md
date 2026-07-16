@@ -140,6 +140,9 @@ examples are illustrative rather than an alternate schema.
 - **WR-23 — Turn boundary, not polling.** Returning `waiting_for_input` ends the
   CLI invocation and the current agent turn. No Darrow CLI or agent process polls
   while waiting. A later `darrow continue <run-id>` resumes the run.
+  The repository-scoped Temporal service and worker may remain alive without
+  the foreground CLI; `darrow resume <run-id>` reconnects after an interrupted
+  invocation and reconciles authoritative workflow state.
 - **WR-24 — No local expiry or role authorization.** Local waiting has no default
   timeout. Any caller able to invoke `darrow continue` may respond. Darrow records
   supplied actor and harness identity as unverified audit metadata. Hosted

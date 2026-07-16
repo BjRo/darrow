@@ -1,0 +1,7 @@
+{
+  "protocolVersion": "0.1.0",
+  "command": "init",
+  "ok": true,
+  "data": { "repository": "/repo", "stateDirectory": "/repo/.darrow" },
+  "error": null
+}

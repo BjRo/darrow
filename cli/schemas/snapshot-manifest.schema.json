@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://darrow.dev/schemas/snapshot-manifest/0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workflow", "profile", "commands", "capabilities", "schemas", "plan"],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "workflow": { "$ref": "#/$defs/digest" },
+    "profile": { "$ref": "#/$defs/digest" },
+    "commands": { "type": "object", "additionalProperties": { "$ref": "#/$defs/digest" } },
+    "capabilities": { "type": "object", "additionalProperties": { "$ref": "#/$defs/digest" } },
+    "schemas": { "$ref": "#/$defs/digest" },
+    "plan": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } }
+}

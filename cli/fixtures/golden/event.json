@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "0.1.0",
+  "eventId": "event-1",
+  "runId": "run-1",
+  "timestamp": "2026-07-16T12:00:00.000Z",
+  "type": "run.completed",
+  "data": { "conclusion": "succeeded" }
+}

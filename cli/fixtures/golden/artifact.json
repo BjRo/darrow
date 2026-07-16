@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "0.1.0",
+  "artifactId": "artifact-1",
+  "type": "darrow.tdd-evidence",
+  "schema": "https://darrow.dev/contracts/darrow-delivery/implement/output/0.1.0#/$defs/phase",
+  "schemaDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "size": 42,
+  "stepId": "implement",
+  "attemptId": "attempt-1",
+  "location": ".darrow/runs/run-1/artifacts/implement/attempt-1/tdd-evidence",
+  "createdAt": "2026-07-16T12:00:00.000Z"
+}

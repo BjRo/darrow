@@ -135,6 +135,9 @@ The initial layout is:
   otherwise write-protected by verification. Resume verifies digests before
   executing another attempt. Plugin, workflow, or marketplace updates affect new
   runs only.
+  Initial execution, continuation, resume, and inspection validate the lock,
+  plan digest, snapshot manifest, workflow, profile, schema tree, command, and
+  capability digests. Artifact inspection recomputes each content hash.
 - **WA-25 — External binaries recorded, not copied.** Darrow records engine,
   adapter, harness, provider, model, and native permission provenance but does
   not copy their binaries or model weights. If no compatible runtime is
