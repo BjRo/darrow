@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import {
   chmod,
+  cp,
   mkdir,
   mkdtemp,
   readdir,
@@ -72,6 +73,7 @@ test.skipIf(!temporal)(
       resolve(bin, "codex"),
       `#!/usr/bin/env bash
 set -euo pipefail
+trap 'exit 143' TERM
 if [[ "\${1:-}" == "--version" ]]; then echo 'codex-cli 1.0.0'; exit 0; fi
 if [[ "\${1:-}" == "sandbox" ]]; then
   shift; cwd=''
@@ -81,7 +83,13 @@ fi
 marker="$(dirname "$0")/unavailable-once"
 if [[ ! -f "$marker" ]]; then touch "$marker"; echo 'requested model unavailable' >&2; exit 1; fi
 touch "$(dirname "$0")/activity-started"
-sleep 1
+basename "$PWD" > "$(dirname "$0")/active-run"
+if [[ -f "$(dirname "$0")/pause-next" ]]; then
+  rm "$(dirname "$0")/pause-next"
+  sleep 3
+else
+  sleep 1
+fi
 output=''
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == "--output-last-message" ]]; then output=$2; shift 2; else shift; fi
@@ -452,6 +460,260 @@ steps:
     expect(
       await Bun.file(resolve(root, received.data.instructions.location)).text(),
     ).toBe("Use the restart-safe path.\n");
+
+    const waitingCancellation = command(
+      [
+        "bun",
+        cli,
+        "run",
+        "implement-change",
+        "--change",
+        "cancel before allocation",
+        "--json",
+      ],
+      root,
+      env,
+    );
+    expect(waitingCancellation.code, waitingCancellation.stderr).toBe(0);
+    const waitingCancellationRun = JSON.parse(waitingCancellation.stdout.trim())
+      .data.runId as string;
+    const cancelledWhileWaiting = command(
+      ["bun", cli, "cancel", waitingCancellationRun, "--json"],
+      root,
+      env,
+    );
+    expect(
+      cancelledWhileWaiting.code,
+      `${cancelledWhileWaiting.stderr}\n${cancelledWhileWaiting.stdout}`,
+    ).toBe(0);
+    const waitingCancelledData = JSON.parse(cancelledWhileWaiting.stdout.trim())
+      .data as {
+      conclusion: string;
+      cancellation: { completed: string[]; incomplete: string[] };
+    };
+    expect(waitingCancelledData.conclusion).toBe("cancelled");
+    expect(waitingCancelledData.cancellation.completed).toEqual([]);
+    expect(waitingCancelledData.cancellation.incomplete).toEqual([
+      "implement",
+      "review",
+    ]);
+
+    await rm(resolve(bin, "unavailable-once"), { force: true });
+    const restartWait = command(
+      [
+        "bun",
+        cli,
+        "run",
+        "implement-change",
+        "--change",
+        "cancel after worker restart",
+        "--base",
+        "HEAD",
+        "--json",
+      ],
+      root,
+      env,
+    );
+    expect(
+      restartWait.code,
+      `${restartWait.stderr}\n${restartWait.stdout}`,
+    ).toBe(0);
+    const restartWaitRunId = JSON.parse(restartWait.stdout.trim()).data
+      .runId as string;
+    const workerBeforeCancellation = (await Bun.file(
+      resolve(root, ".darrow", "runtime", "worker.json"),
+    ).json()) as { pid: number };
+    process.kill(workerBeforeCancellation.pid, "SIGTERM");
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        process.kill(workerBeforeCancellation.pid, 0);
+        await Bun.sleep(20);
+      } catch {
+        break;
+      }
+    }
+    const cancelledAfterRestart = command(
+      ["bun", cli, "cancel", restartWaitRunId, "--json"],
+      root,
+      env,
+    );
+    expect(
+      cancelledAfterRestart.code,
+      `${cancelledAfterRestart.stderr}\n${cancelledAfterRestart.stdout}`,
+    ).toBe(0);
+    expect(
+      JSON.parse(cancelledAfterRestart.stdout.trim()).data.conclusion,
+    ).toBe("cancelled");
+    const workerAfterCancellation = (await Bun.file(
+      resolve(root, ".darrow", "runtime", "worker.json"),
+    ).json()) as { pid: number };
+    expect(workerAfterCancellation.pid).not.toBe(workerBeforeCancellation.pid);
+
+    await rm(resolve(bin, "activity-started"), { force: true });
+    await rm(resolve(bin, "active-run"), { force: true });
+    await writeFile(resolve(bin, "pause-next"), "pause\n");
+    const boundaryForeground = Bun.spawn(
+      [
+        "bun",
+        cli,
+        "run",
+        "implement-change",
+        "--change",
+        "cancel at safe boundary",
+        "--base",
+        "HEAD",
+        "--json",
+      ],
+      {
+        cwd: root,
+        env: { ...process.env, ...env },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    for (
+      let attempt = 0;
+      attempt < 200 && !(await Bun.file(resolve(bin, "active-run")).exists());
+      attempt += 1
+    )
+      await Bun.sleep(20);
+    const boundaryRunId = (
+      await Bun.file(resolve(bin, "active-run")).text()
+    ).trim();
+    const boundaryCancellation = command(
+      ["bun", cli, "cancel", boundaryRunId, "--json"],
+      root,
+      env,
+    );
+    expect(
+      boundaryCancellation.code,
+      `${boundaryCancellation.stderr}\n${boundaryCancellation.stdout}`,
+    ).toBe(0);
+    await boundaryForeground.exited;
+    const boundaryData = JSON.parse(boundaryCancellation.stdout.trim())
+      .data as {
+      conclusion: string;
+      cancellation: {
+        completed: string[];
+        incomplete: string[];
+        uncertain: string[];
+      };
+    };
+    expect(boundaryData.conclusion).toBe("cancelled");
+    expect(boundaryData.cancellation).toMatchObject({
+      completed: ["implement"],
+      incomplete: ["review"],
+      uncertain: [],
+    });
+    const repeatedCancellation = command(
+      ["bun", cli, "cancel", boundaryRunId, "--json"],
+      root,
+      env,
+    );
+    expect(repeatedCancellation.code, repeatedCancellation.stderr).toBe(0);
+    const boundaryEvents = await Bun.file(
+      resolve(root, ".darrow", "runs", boundaryRunId, "events.jsonl"),
+    ).text();
+    expect(boundaryEvents.match(/"type":"run.cancel.requested"/g)).toHaveLength(
+      1,
+    );
+    expect(boundaryEvents.match(/"type":"run.completed"/g)).toHaveLength(1);
+
+    const interruptPlugins = resolve(root, "interrupt-plugins");
+    await mkdir(interruptPlugins);
+    for (const plugin of ["darrow-delivery", "darrow-git"])
+      await cp(
+        resolve(CLI_ROOT, "..", "plugins", plugin),
+        resolve(interruptPlugins, plugin),
+        { recursive: true },
+      );
+    const interruptMetadataPath = resolve(
+      interruptPlugins,
+      "darrow-delivery",
+      "skills",
+      "implement",
+      "darrow.json",
+    );
+    const interruptMetadata = (await Bun.file(
+      interruptMetadataPath,
+    ).json()) as Record<string, unknown>;
+    interruptMetadata.cancellation = "interrupt";
+    await writeFile(
+      interruptMetadataPath,
+      `${JSON.stringify(interruptMetadata, null, 2)}\n`,
+    );
+    const interruptEnv = {
+      ...env,
+      DARROW_PLUGIN_ROOTS: interruptPlugins,
+    };
+    await rm(resolve(bin, "activity-started"), { force: true });
+    await rm(resolve(bin, "active-run"), { force: true });
+    await writeFile(resolve(bin, "pause-next"), "pause\n");
+    const interruptForeground = Bun.spawn(
+      [
+        "bun",
+        cli,
+        "run",
+        "implement-change",
+        "--change",
+        "interrupt active command",
+        "--base",
+        "HEAD",
+        "--json",
+      ],
+      {
+        cwd: root,
+        env: { ...process.env, ...interruptEnv },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    for (
+      let attempt = 0;
+      attempt < 200 && !(await Bun.file(resolve(bin, "active-run")).exists());
+      attempt += 1
+    )
+      await Bun.sleep(20);
+    const interruptRunId = (
+      await Bun.file(resolve(bin, "active-run")).text()
+    ).trim();
+    const interrupted = command(
+      ["bun", cli, "cancel", interruptRunId, "--json"],
+      root,
+      interruptEnv,
+    );
+    expect(
+      interrupted.code,
+      `${interrupted.stderr}\n${interrupted.stdout}`,
+    ).toBe(0);
+    await interruptForeground.exited;
+    const interruptedData = JSON.parse(interrupted.stdout.trim()).data as {
+      conclusion: string;
+      cancellation: {
+        completed: string[];
+        incomplete: string[];
+        uncertain: string[];
+      };
+    };
+    expect(interruptedData.conclusion).toBe("cancelled");
+    expect(interruptedData.cancellation).toMatchObject({
+      completed: [],
+      incomplete: ["review"],
+      uncertain: ["implement"],
+    });
+    const interruptEvents = await Bun.file(
+      resolve(root, ".darrow", "runs", interruptRunId, "events.jsonl"),
+    ).text();
+    expect(interruptEvents).toContain('"type":"command.invocation.cancelled"');
+    const unaffected = command(
+      ["bun", cli, "inspect", envelope.data.runId, "--json"],
+      root,
+      env,
+    );
+    expect(unaffected.code, unaffected.stderr).toBe(0);
+    expect(JSON.parse(unaffected.stdout.trim()).data.conclusion).toBe(
+      "succeeded",
+    );
 
     const waiverWorkflow = await Bun.file(
       resolve(root, ".darrow", "workflows", "implement-change.yaml"),

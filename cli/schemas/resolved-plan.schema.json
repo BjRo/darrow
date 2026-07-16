@@ -160,6 +160,7 @@
         "dependsOn",
         "commandId",
         "contractVersion",
+        "cancellation",
         "source",
         "digest",
         "input"
@@ -173,6 +174,9 @@
         },
         "commandId": { "type": "string" },
         "contractVersion": { "type": "string" },
+        "cancellation": {
+          "enum": ["wait_for_boundary", "interrupt"]
+        },
         "source": { "type": "string" },
         "digest": { "$ref": "#/$defs/digest" },
         "input": { "type": "object" }

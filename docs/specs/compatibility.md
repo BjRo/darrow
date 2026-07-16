@@ -111,6 +111,7 @@ Command metadata has this shape:
   "contractVersion": "1.0.0",
   "inputSchema": "./input.schema.json",
   "outputSchema": "./output.schema.json",
+  "cancellation": "wait_for_boundary",
   "requires": [
     {
       "contract": "tickets.create",
@@ -122,7 +123,10 @@ Command metadata has this shape:
 
 `requires` contains hard capability requirements and may be omitted when empty.
 Optional capabilities are expressed only through natural-language intent and
-therefore do not appear here.
+therefore do not appear here. `cancellation` may be `wait_for_boundary` or
+`interrupt`; omission safely defaults to `wait_for_boundary`. A command may
+declare `interrupt` only when terminating its active invocation at that boundary
+is safe according to the command's checkpoint contract.
 
 Capability metadata has this shape:
 

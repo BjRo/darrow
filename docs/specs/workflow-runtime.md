@@ -249,7 +249,11 @@ despite the review result, or abort.
 - **WR-38 — Safe cancellation boundary.** Cancellation stops scheduling new
   work. An active activity is interrupted only when its checkpoint policy says
   cancellation is safe; otherwise Darrow waits for the activity boundary and
-  records the result.
+  records the result. Command metadata may declare `cancellation: interrupt`;
+  omission resolves to `wait_for_boundary`, and the resolved value is locked per
+  step in the immutable plan. A cancellation request is durable and idempotent,
+  wakes human waits, survives worker or CLI restart, and concludes with explicit
+  completed, incomplete, and uncertain step lists.
 - **WR-39 — Path independence.** Failure or cancellation of one concurrent run
   or execution path does not mutate another unless the static workflow declares
   that dependency.

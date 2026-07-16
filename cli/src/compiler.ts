@@ -527,6 +527,7 @@ export async function compile(
         dependsOn: step.dependsOn,
         commandId: command.id,
         contractVersion: metadata.contractVersion,
+        cancellation: metadata.cancellation ?? "wait_for_boundary",
         source: command.skillDir,
         digest: command.digest,
         input: resolveInput(step.with, inputs) as Record<string, unknown>,

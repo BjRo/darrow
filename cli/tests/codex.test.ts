@@ -224,6 +224,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
           dependsOn: [],
           commandId: "darrow-delivery:implement",
           contractVersion: "0.1.0",
+          cancellation: "wait_for_boundary",
           source: resolve(
             snapshotDir,
             "commands",

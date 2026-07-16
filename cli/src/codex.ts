@@ -1,3 +1,4 @@
+import { CancelledFailure, Context } from "@temporalio/activity";
 import { createHmac, randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -551,6 +552,15 @@ async function executeCodexCommandInternal(
   let stdout: string;
   let stderr: string;
   let exitCode: number;
+  let activityContext: Context | null = null;
+  try {
+    activityContext = Context.current();
+  } catch {
+    /* direct invocation outside a Temporal activity */
+  }
+  const heartbeat = activityContext
+    ? setInterval(() => activityContext!.heartbeat(), 1_000)
+    : null;
   try {
     const child = Bun.spawn(args, {
       cwd: input.workspace,
@@ -565,15 +575,29 @@ async function executeCodexCommandInternal(
       stdout: "pipe",
       stderr: "pipe",
     });
+    const cancelChild = () => child.kill("SIGTERM");
+    activityContext?.cancellationSignal.addEventListener("abort", cancelChild, {
+      once: true,
+    });
     child.stdin.write(prompt);
     child.stdin.end();
-    [stdout, stderr, exitCode] = await Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ]);
+    try {
+      [stdout, stderr, exitCode] = await Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
+      ]);
+    } finally {
+      activityContext?.cancellationSignal.removeEventListener(
+        "abort",
+        cancelChild,
+      );
+    }
   } catch (error) {
     broker.stop();
+    if (heartbeat) clearInterval(heartbeat);
+    if (activityContext?.cancellationSignal.aborted)
+      throw new CancelledFailure("command invocation cancelled");
     return failure(
       input,
       invocationId,
@@ -583,8 +607,18 @@ async function executeCodexCommandInternal(
     );
   }
   broker.stop();
+  if (heartbeat) clearInterval(heartbeat);
   await writeFile(transcript, stdout);
   await writeFile(stderrPath, stderr);
+  if (activityContext?.cancellationSignal.aborted) {
+    await event(input.runDir, input.runId, "command.invocation.cancelled", {
+      invocationId,
+      stepId: input.step.id,
+      attemptId: input.attemptId,
+      transcript,
+    });
+    throw new CancelledFailure("command invocation cancelled");
+  }
   let nativeSessionId: string | undefined;
   let usage: Record<string, number> | undefined;
   for (const line of stdout.split("\n").filter(Boolean)) {
@@ -747,6 +781,7 @@ export async function executeCodexCommand(
   try {
     return await executeCodexCommandInternal(input, invocationId, startedAt);
   } catch (error) {
+    if (error instanceof CancelledFailure) throw error;
     const category = error instanceof DarrowError ? error.category : "harness";
     const message = error instanceof Error ? error.message : String(error);
     const result = failure(input, invocationId, startedAt, category, message);

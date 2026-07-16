@@ -4,6 +4,7 @@ export type StepExecutionState =
   | "waiting_for_input"
   | "succeeded"
   | "accepted_with_waiver"
+  | "cancelled"
   | "failed"
   | "blocked";
 

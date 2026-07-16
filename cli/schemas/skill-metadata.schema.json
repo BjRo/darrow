@@ -18,6 +18,9 @@
         "contractVersion": { "$ref": "#/$defs/semver" },
         "inputSchema": { "$ref": "#/$defs/path" },
         "outputSchema": { "$ref": "#/$defs/path" },
+        "cancellation": {
+          "enum": ["wait_for_boundary", "interrupt"]
+        },
         "requires": {
           "type": "array",
           "items": { "$ref": "#/$defs/requirement" },

@@ -38,6 +38,7 @@
       "dependsOn": [],
       "commandId": "darrow-delivery:implement",
       "contractVersion": "0.1.0",
+      "cancellation": "wait_for_boundary",
       "source": "/plugins/darrow-delivery/skills/implement",
       "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       "input": { "change": "make it work" }

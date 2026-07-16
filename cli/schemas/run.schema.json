@@ -17,6 +17,7 @@
     "steps",
     "request",
     "waivers",
+    "cancellation",
     "error"
   ],
   "properties": {
@@ -76,6 +77,7 @@
               "waiting_for_input",
               "succeeded",
               "accepted_with_waiver",
+              "cancelled",
               "failed",
               "blocked"
             ]
@@ -90,6 +92,9 @@
     "waivers": {
       "type": "array",
       "items": { "$ref": "#/$defs/waiver" }
+    },
+    "cancellation": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/cancellation" }]
     },
     "error": {
       "oneOf": [
@@ -107,6 +112,29 @@
     }
   },
   "$defs": {
+    "cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestedAt", "completed", "incomplete", "uncertain"],
+      "properties": {
+        "requestedAt": { "type": "string", "format": "date-time" },
+        "completed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "incomplete": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "uncertain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
     "outcomeValue": {
       "oneOf": [
         { "type": "string" },

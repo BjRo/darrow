@@ -31,6 +31,10 @@
         "outputSchema": {
           "$ref": "#/$defs/schemaPath"
         },
+        "cancellation": {
+          "description": "Whether an active invocation may be interrupted safely; omission means wait_for_boundary.",
+          "enum": ["wait_for_boundary", "interrupt"]
+        },
         "requires": {
           "type": "array",
           "items": {

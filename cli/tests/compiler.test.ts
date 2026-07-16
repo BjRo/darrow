@@ -81,6 +81,7 @@ describe("M1 compiler", () => {
       "darrow-delivery:implement",
     );
     expect(compilation.plan.steps[0]?.dependsOn).toEqual([]);
+    expect(compilation.plan.steps[0]?.cancellation).toBe("wait_for_boundary");
     expect(compilation.plan.capabilities[0]?.providerId).toBe(
       "darrow-git:create-branch",
     );

@@ -1,4 +1,6 @@
 import {
+  ActivityCancellationType,
+  CancellationScope,
   condition,
   defineQuery,
   defineSignal,
@@ -14,6 +16,8 @@ import {
 import type {
   ActivityInput,
   ArtifactReference,
+  CancellationRequest,
+  CancellationSummary,
   CommandResult,
   ContentReference,
   HumanChoice,
@@ -27,6 +31,8 @@ const { executeCommand } = proxyActivities<{
   executeCommand(input: ActivityInput): Promise<CommandResult>;
 }>({
   startToCloseTimeout: "6 hours",
+  cancellationType: ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
+  heartbeatTimeout: "30 seconds",
   retry: { maximumAttempts: 1 },
 });
 
@@ -46,11 +52,14 @@ export interface WorkflowStatus {
   request: HumanRequest | null;
   lastResponse: Pick<HumanResponse, "requestId" | "version"> | null;
   waivers: WaiverRecord[];
+  cancellation: CancellationSummary | null;
 }
 
 export const runStatusQuery = defineQuery<WorkflowStatus>("darrowRunStatus");
 export const continuationSignal =
   defineSignal<[HumanResponse]>("darrowContinue");
+export const cancellationSignal =
+  defineSignal<[CancellationRequest]>("darrowCancel");
 
 function validContentReference(value: unknown): value is ContentReference {
   if (!value || typeof value !== "object") return false;
@@ -104,9 +113,40 @@ export async function runResolvedPlanWorkflow(
   let amendedModel: string | null = null;
   let requestVersion = 0;
   let waitQueue = Promise.resolve();
+  let cancellationRequest: CancellationRequest | null = null;
+  const cancellableActivities = new Map<string, CancellationScope>();
+  const uncertainSteps = new Set<string>();
 
   const orderedResults = (): CommandResult[] =>
     input.plan.steps.flatMap((step) => attempts.get(step.id) ?? []);
+
+  const cancellationSummary = (): CancellationSummary | null => {
+    if (!cancellationRequest) return null;
+    const completed = steps
+      .filter((step) =>
+        ["succeeded", "accepted_with_waiver", "failed"].includes(step.state),
+      )
+      .map((step) => step.stepId);
+    const uncertain = steps
+      .filter((step) => uncertainSteps.has(step.stepId))
+      .map((step) => step.stepId);
+    const incomplete = steps
+      .filter(
+        (step) =>
+          !completed.includes(step.stepId) && !uncertainSteps.has(step.stepId),
+      )
+      .map((step) => step.stepId);
+    return { ...cancellationRequest, completed, incomplete, uncertain };
+  };
+
+  const requestCancellation = (value?: CancellationRequest): void => {
+    cancellationRequest ??= value ?? {
+      requestedAt: new Date().toISOString(),
+    };
+    request = null;
+    continuation = null;
+    for (const scope of cancellableActivities.values()) scope.cancel();
+  };
 
   setHandler(runStatusQuery, () => ({
     state,
@@ -115,6 +155,7 @@ export async function runResolvedPlanWorkflow(
     request,
     lastResponse,
     waivers,
+    cancellation: cancellationSummary(),
   }));
   setHandler(continuationSignal, (value) => {
     if (
@@ -135,6 +176,14 @@ export async function runResolvedPlanWorkflow(
     )
       continuation = value;
   });
+  setHandler(cancellationSignal, (value) => {
+    if (
+      value &&
+      typeof value.requestedAt === "string" &&
+      !Number.isNaN(Date.parse(value.requestedAt))
+    )
+      requestCancellation(value);
+  });
 
   const waitForDecision = async (
     status: StepExecutionStatus,
@@ -142,7 +191,7 @@ export async function runResolvedPlanWorkflow(
     question: string,
     choices: HumanChoice[],
     context: HumanRequest["context"] = [],
-  ): Promise<HumanResponse> => {
+  ): Promise<HumanResponse | null> => {
     const previousWait = waitQueue;
     let releaseWait!: () => void;
     waitQueue = new Promise<void>((resolve) => {
@@ -163,7 +212,16 @@ export async function runResolvedPlanWorkflow(
       continuation = null;
       status.state = "waiting_for_input";
       state = "waiting_for_input";
-      await condition(() => continuation !== null);
+      await condition(
+        () => continuation !== null || cancellationRequest !== null,
+      );
+      if (cancellationRequest) {
+        request = null;
+        continuation = null;
+        status.state = "cancelled";
+        state = "running";
+        return null;
+      }
       const decision = continuation!;
       lastResponse = {
         requestId: decision.requestId,
@@ -184,32 +242,50 @@ export async function runResolvedPlanWorkflow(
     status: StepExecutionStatus,
     initialInstructions: ContentReference[],
     priorArtifacts: ArtifactReference[],
-  ): Promise<{ result: CommandResult | null; aborted: boolean }> => {
+  ): Promise<{
+    result: CommandResult | null;
+    aborted: boolean;
+    cancelled: boolean;
+  }> => {
     const instructions = [...initialInstructions];
     while (true) {
+      if (cancellationRequest) {
+        status.state = "cancelled";
+        return { result: null, aborted: false, cancelled: true };
+      }
       const attempt = (attemptCounts.get(step.id) ?? 0) + 1;
       attemptCounts.set(step.id, attempt);
       status.state = "running";
       status.attempt = attempt;
       let result: CommandResult;
+      const activityScope = new CancellationScope();
+      if (step.cancellation === "interrupt")
+        cancellableActivities.set(step.id, activityScope);
       try {
-        result = await executeCommand({
-          runId: input.runId,
-          repoRoot: input.repoRoot,
-          runDir: input.runDir,
-          workspace: input.workspace,
-          snapshotDir: input.snapshotDir,
-          step,
-          planCapabilities: input.plan.capabilities,
-          profile: amendedModel
-            ? { ...input.plan.profile, model: amendedModel }
-            : input.plan.profile,
-          attemptId: `attempt-${step.id}-${attempt}`,
-          instructions,
-          priorArtifacts,
-        });
+        result = await activityScope.run(() =>
+          executeCommand({
+            runId: input.runId,
+            repoRoot: input.repoRoot,
+            runDir: input.runDir,
+            workspace: input.workspace,
+            snapshotDir: input.snapshotDir,
+            step,
+            planCapabilities: input.plan.capabilities,
+            profile: amendedModel
+              ? { ...input.plan.profile, model: amendedModel }
+              : input.plan.profile,
+            attemptId: `attempt-${step.id}-${attempt}`,
+            instructions,
+            priorArtifacts,
+          }),
+        );
       } catch {
-        await waitForDecision(
+        if (cancellationRequest && step.cancellation === "interrupt") {
+          uncertainSteps.add(step.id);
+          status.state = "cancelled";
+          return { result: null, aborted: false, cancelled: true };
+        }
+        const decision = await waitForDecision(
           status,
           "uncertain_activity",
           "The activity ended without a trustworthy outcome. Abort this run?",
@@ -222,18 +298,29 @@ export async function runResolvedPlanWorkflow(
             },
           ],
         );
-        status.state = "failed";
-        return { result: null, aborted: true };
+        requestCancellation();
+        status.state = decision ? "failed" : "cancelled";
+        return { result: null, aborted: true, cancelled: true };
+      } finally {
+        cancellableActivities.delete(step.id);
       }
 
       attempts.get(step.id)!.push(result);
       if (result.status === "succeeded") {
         status.state = "succeeded";
-        return { result, aborted: false };
+        return {
+          result,
+          aborted: false,
+          cancelled: cancellationRequest !== null,
+        };
       }
       if (result.error?.category !== "model_unavailable") {
         status.state = "failed";
-        return { result, aborted: false };
+        return {
+          result,
+          aborted: false,
+          cancelled: cancellationRequest !== null,
+        };
       }
 
       const decision = await waitForDecision(
@@ -258,9 +345,10 @@ export async function runResolvedPlanWorkflow(
           },
         ],
       );
-      if (decision.choice === "abort") {
-        status.state = "failed";
-        return { result, aborted: true };
+      if (!decision || decision.choice === "abort") {
+        requestCancellation();
+        status.state = decision ? "failed" : "cancelled";
+        return { result, aborted: true, cancelled: true };
       }
       if (decision.choice === "amend") amendedModel = decision.model ?? null;
       if (decision.instructions) instructions.push(decision.instructions);
@@ -279,11 +367,15 @@ export async function runResolvedPlanWorkflow(
         const instructions = forwardInstructions.get(step.id) ?? [];
         const outcome = await invokeStep(step, status, instructions, []);
         return outcome.result?.status === "succeeded"
-          ? { state: "succeeded", value: outcome.result }
+          ? {
+              state: "succeeded",
+              value: outcome.result,
+              stop: outcome.cancelled,
+            }
           : {
               state: "failed",
               ...(outcome.result ? { value: outcome.result } : {}),
-              stop: outcome.aborted,
+              stop: outcome.aborted || outcome.cancelled,
             };
       }
 
@@ -309,16 +401,20 @@ export async function runResolvedPlanWorkflow(
               const remainingStatus = steps.find(
                 (item) => item.stepId === remaining,
               )!;
-              remainingStatus.state = "blocked";
+              remainingStatus.state = outcome.cancelled
+                ? "cancelled"
+                : "blocked";
             }
             return {
               state: "failed",
               ...(outcome.result ? { value: outcome.result } : {}),
-              stop: outcome.aborted,
+              stop: outcome.aborted || outcome.cancelled,
             };
           }
           finalResult = outcome.result;
           priorArtifacts.push(...outcome.result.artifacts);
+          if (outcome.cancelled)
+            return { state: "succeeded", value: outcome.result, stop: true };
         }
 
         if (loopSatisfied(loop, finalResult!))
@@ -366,8 +462,9 @@ export async function runResolvedPlanWorkflow(
             })),
           ],
         );
-        if (decision.choice === "abort") {
-          finalStatus.state = "failed";
+        if (!decision || decision.choice === "abort") {
+          requestCancellation();
+          finalStatus.state = decision ? "failed" : "cancelled";
           return { state: "failed", value: finalResult!, stop: true };
         }
         if (decision.choice === "waive") {
@@ -409,9 +506,19 @@ export async function runResolvedPlanWorkflow(
     const node = nodes.find((item) => item.id === nodeStatus.stepId)!;
     for (const stepId of node.stepIds) {
       const status = steps.find((item) => item.stepId === stepId)!;
-      if (status.state === "pending") status.state = "blocked";
+      if (status.state === "pending")
+        status.state = cancellationRequest ? "cancelled" : "blocked";
     }
   }
+
+  if (cancellationRequest)
+    for (const status of steps)
+      if (
+        ["pending", "running", "waiting_for_input", "blocked"].includes(
+          status.state,
+        )
+      )
+        status.state = "cancelled";
 
   state = "completed";
   return orderedResults();

@@ -43,6 +43,8 @@ darrow run implement-change --change "describe the requested behavior"
 darrow continue <run-id>
 # A non-interactive caller supplies the same typed choice explicitly:
 darrow continue <run-id> --request <request-id> --version <version> --choice head
+# From another process, request durable cancellation:
+darrow cancel <run-id>
 darrow inspect <run-id>
 ```
 
@@ -65,6 +67,10 @@ The region's final command exposes a required scalar outcome; an unsatisfied
 outcome can offer a bounded retry with supplemental instructions, a declared
 waiver with `--rationale-file`, or abort. Every attempt remains immutable, and
 an accepted waiver produces `succeeded_with_waivers`.
+
+`darrow cancel <run-id>` durably stops new scheduling. Active commands wait for
+their activity boundary unless their command metadata explicitly declares safe
+interruption; inspection reports completed, incomplete, and uncertain steps.
 
 ## Plugins
 

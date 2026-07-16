@@ -248,4 +248,41 @@ describe("0.1.0 contract fixtures", () => {
       ),
     ).rejects.toThrow("allowed values");
   });
+
+  test("cancellation contracts reject unsafe or incomplete records", async () => {
+    const requested = {
+      schemaVersion: "0.1.0",
+      eventId: "event-cancel",
+      runId: "run-1",
+      timestamp: "2026-07-16T20:00:00.000Z",
+      type: "run.cancel.requested",
+      data: { requestedAt: "2026-07-16T20:00:00.000Z" },
+    };
+    await expect(
+      validateSchema("event.schema.json", requested, "cancellation request"),
+    ).resolves.toBeUndefined();
+
+    const metadata = {
+      schemaVersion: 1,
+      kind: "command",
+      contractVersion: "1.0.0",
+      inputSchema: "./input.schema.json",
+      outputSchema: "./output.schema.json",
+      cancellation: "interrupt",
+    };
+    await expect(
+      validateSchema(
+        "skill-metadata.schema.json",
+        metadata,
+        "command metadata",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "skill-metadata.schema.json",
+        { ...metadata, cancellation: "kill" },
+        "unsafe command metadata",
+      ),
+    ).rejects.toThrow("allowed values");
+  });
 });

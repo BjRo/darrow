@@ -7,6 +7,18 @@ export type RunState = "running" | "waiting_for_input" | "completed";
 export type Conclusion =
   "succeeded" | "succeeded_with_waivers" | "failed" | "cancelled";
 
+export type CancellationMode = "wait_for_boundary" | "interrupt";
+
+export interface CancellationRequest {
+  requestedAt: string;
+}
+
+export interface CancellationSummary extends CancellationRequest {
+  completed: string[];
+  incomplete: string[];
+  uncertain: string[];
+}
+
 export interface HumanChoice {
   id: string;
   consequence: string;
@@ -126,6 +138,7 @@ export interface CommandMetadata {
   contractVersion: string;
   inputSchema: string;
   outputSchema: string;
+  cancellation?: CancellationMode;
   requires?: Requirement[];
 }
 
@@ -177,6 +190,7 @@ export interface ResolvedPlan {
     dependsOn: string[];
     commandId: string;
     contractVersion: string;
+    cancellation: CancellationMode;
     source: string;
     digest: string;
     input: Record<string, unknown>;
@@ -199,6 +213,7 @@ export interface RunRecord {
   steps: StepExecutionStatus[];
   request: HumanRequest | null;
   waivers: WaiverRecord[];
+  cancellation: CancellationSummary | null;
   error: { category: string; message: string } | null;
 }
 

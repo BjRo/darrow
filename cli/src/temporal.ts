@@ -12,8 +12,14 @@ import { DarrowError } from "./errors";
 import { exists, readJson, replaceJson, sha256 } from "./io";
 import { withDirectoryLock } from "./locks";
 import { globalToolchainHome } from "./paths";
-import type { HumanResponse, WaiverRecord } from "./types";
+import type {
+  CancellationRequest,
+  CancellationSummary,
+  HumanResponse,
+  WaiverRecord,
+} from "./types";
 import {
+  cancellationSignal,
   continuationSignal,
   runResolvedPlanWorkflow,
   runStatusQuery,
@@ -49,6 +55,7 @@ export interface ExecutionBoundary {
   steps: WorkflowStatus["steps"];
   request: WorkflowStatus["request"];
   waivers: WaiverRecord[];
+  cancellation: CancellationSummary | null;
   temporal: Record<string, unknown>;
   recovery?: "reattached" | "started_pending";
 }
@@ -328,6 +335,7 @@ export async function waitForBoundary(
           steps: status.steps,
           request: status.request,
           waivers: status.waivers,
+          cancellation: status.cancellation,
           temporal,
         };
       if (status.state === "completed") {
@@ -338,6 +346,7 @@ export async function waitForBoundary(
           steps: status.steps,
           request: null,
           waivers: status.waivers,
+          cancellation: status.cancellation,
           temporal,
         };
       }
@@ -356,6 +365,7 @@ export async function waitForBoundary(
               steps: [],
               request: null,
               waivers: [],
+              cancellation: null,
               temporal,
             };
           } catch (resultError) {
@@ -550,6 +560,57 @@ export async function continuePlan(
       );
     await handle.signal(continuationSignal, response);
     return await waitForBoundary(handle, temporal, response);
+  } finally {
+    await runtime.connection.close();
+  }
+}
+
+export async function cancelPlan(
+  repoRoot: string,
+  temporal: Record<string, unknown>,
+  request: CancellationRequest,
+  input?: WorkflowInput,
+  onRequested?: (request: CancellationRequest) => Promise<void>,
+): Promise<ExecutionBoundary> {
+  const workflowId = String(temporal.workflowId ?? "");
+  const taskQueue = String(temporal.taskQueue ?? "");
+  if (!workflowId || !taskQueue)
+    throw new DarrowError("run has no cancellable Temporal execution", "state");
+  const runtime = await clientFor(repoRoot, taskQueue);
+  try {
+    const reconciled = await reconcileWorkflowHandle(
+      runtime.client.workflow,
+      workflowId,
+      taskQueue,
+      input,
+      temporal.startPending === true,
+    );
+    const handle = reconciled.handle;
+    const current = {
+      ...temporal,
+      workflowId,
+      namespace: runtime.service.namespace,
+      address: runtime.service.address,
+      taskQueue,
+      runId: reconciled.runId,
+      startPending: false,
+    };
+    const status = await handle.query(runStatusQuery);
+    if (status.state === "completed" && !status.cancellation)
+      throw new DarrowError(
+        `run completed before cancellation was requested: ${workflowId}`,
+        "state",
+      );
+    const acceptedRequest = status.cancellation
+      ? { requestedAt: status.cancellation.requestedAt }
+      : request;
+    if (!status.cancellation)
+      await handle.signal(cancellationSignal, acceptedRequest);
+    await onRequested?.(acceptedRequest);
+    return {
+      ...(await waitForBoundary(handle, current)),
+      recovery: reconciled.recovery,
+    };
   } finally {
     await runtime.connection.close();
   }

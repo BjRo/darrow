@@ -27,9 +27,37 @@
         "message": { "type": "string" }
       }
     },
+    "cancellationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestedAt", "completed", "incomplete", "uncertain"],
+      "properties": {
+        "requestedAt": { "type": "string" },
+        "completed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "incomplete": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "uncertain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "cancellation": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/cancellationSummary" }]
+    },
     "envelopeProperties": {
       "protocolVersion": { "const": "0.1.0" },
-      "command": { "enum": ["init", "run", "continue", "resume", "inspect"] },
+      "command": {
+        "enum": ["init", "run", "continue", "resume", "cancel", "inspect"]
+      },
       "ok": { "type": "boolean" },
       "data": {},
       "error": {}
@@ -135,7 +163,8 @@
         "conclusion",
         "workspace",
         "results",
-        "waivers"
+        "waivers",
+        "cancellation"
       ],
       "properties": {
         "runId": { "type": "string" },
@@ -148,7 +177,8 @@
         "waivers": {
           "type": "array",
           "items": { "$ref": "#/$defs/waiver" }
-        }
+        },
+        "cancellation": { "$ref": "#/$defs/cancellation" }
       }
     },
     "terminalFailureData": {
@@ -160,7 +190,8 @@
         "conclusion",
         "workspace",
         "results",
-        "waivers"
+        "waivers",
+        "cancellation"
       ],
       "properties": {
         "runId": { "type": "string" },
@@ -171,7 +202,8 @@
         "waivers": {
           "type": "array",
           "items": { "$ref": "#/$defs/waiver" }
-        }
+        },
+        "cancellation": { "$ref": "#/$defs/cancellation" }
       }
     },
     "failedStartData": {
@@ -246,6 +278,7 @@
             "waiting_for_input",
             "succeeded",
             "accepted_with_waiver",
+            "cancelled",
             "failed",
             "blocked"
           ]
@@ -393,6 +426,7 @@
         "steps",
         "request",
         "waivers",
+        "cancellation",
         "error",
         "liveTemporal",
         "paths",
@@ -418,6 +452,7 @@
           "type": "array",
           "items": { "$ref": "#/$defs/waiver" }
         },
+        "cancellation": { "$ref": "#/$defs/cancellation" },
         "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },
         "liveTemporal": { "$ref": "#/$defs/liveTemporal" },
         "paths": { "$ref": "#/$defs/paths" },
@@ -454,7 +489,7 @@
       "required": ["protocolVersion", "command", "ok", "data", "error"],
       "properties": {
         "protocolVersion": { "const": "0.1.0" },
-        "command": { "enum": ["run", "continue", "resume"] },
+        "command": { "enum": ["run", "continue", "resume", "cancel"] },
         "ok": { "const": true },
         "data": { "$ref": "#/$defs/terminalSuccessData" },
         "error": { "type": "null" }

@@ -13,6 +13,7 @@ import {
   storeHumanRationale,
 } from "./human";
 import { exists, readJson, readText, writeJson } from "./io";
+import { withDirectoryLock } from "./locks";
 import {
   allocateManagedWorkspace,
   claimCurrentWorkspace,
@@ -28,6 +29,7 @@ import {
 } from "./repository";
 import { event, readRun, saveRun } from "./state";
 import {
+  cancelPlan,
   continuePlan,
   describeWorkflow,
   executePlan,
@@ -37,6 +39,7 @@ import {
 } from "./temporal";
 import { validateSchema } from "./schema";
 import type {
+  CancellationSummary,
   Conclusion,
   HumanResponse,
   ResolvedPlan,
@@ -62,6 +65,7 @@ function usage(): string {
     "  darrow run implement-change --change <description> [--base <ref>] [--json]",
     "  darrow continue <run-id> --request <id> --version <n> --choice <choice> [--instructions-file <path|->] [--rationale-file <path|->] [--actor <id>] [--harness <id>] [--model <id>] [--json]",
     "  darrow resume <run-id> [--json]",
+    "  darrow cancel <run-id> [--json]",
     "  darrow inspect <run-id> [--json]",
     "  darrow --version",
     "",
@@ -176,7 +180,7 @@ function parseContinuation(args: string[]): {
 }
 
 async function emitJson(
-  command: "init" | "run" | "continue" | "resume" | "inspect",
+  command: "init" | "run" | "continue" | "resume" | "cancel" | "inspect",
   ok: boolean,
   data: Record<string, unknown> | null,
   error: { category: string; message: string } | null,
@@ -218,6 +222,7 @@ async function createInitialRun(
     })),
     request: null,
     waivers: [],
+    cancellation: null,
     error: null,
   };
   await validateSchema("run.schema.json", record, "initial run record");
@@ -270,7 +275,7 @@ async function stageRun(
 async function printWaiting(
   record: RunRecord,
   json: boolean,
-  command: "run" | "continue" | "resume" = "run",
+  command: "run" | "continue" | "resume" | "cancel" = "run",
 ): Promise<void> {
   const request = record.request;
   if (!request)
@@ -330,81 +335,101 @@ async function applyBoundary(
   runDir: string,
   record: RunRecord,
   boundary: ExecutionBoundary,
-  cancelled = false,
 ): Promise<void> {
-  const previousRequest = record.request;
-  const previousWaivers = new Set(
-    record.waivers.map((waiver) => waiver.waiverId),
-  );
-  await verifyWaiverContent(repoRoot, runDir, boundary);
-  record.temporal = {
-    ...record.temporal,
-    ...boundary.temporal,
-  };
-  record.request = boundary.request;
-  record.waivers = boundary.waivers;
-  for (const waiver of boundary.waivers)
-    if (!previousWaivers.has(waiver.waiverId))
-      await event(runDir, record.runId, "waiver.accepted", waiver);
-  if (boundary.steps.length > 0) record.steps = boundary.steps;
-  record.currentStep =
-    record.steps.find((step) =>
-      ["running", "waiting_for_input"].includes(step.state),
-    )?.stepId ?? null;
-  if (boundary.status === "waiting_for_input") {
-    record.state = "waiting_for_input";
-    const reason = boundary.request?.reason ?? "model_unavailable";
-    record.error = {
-      category: reason,
-      message:
-        reason === "uncertain_activity"
-          ? "the effectful activity ended without a trustworthy outcome"
-          : reason === "loop_outcome"
-            ? "a bounded loop did not satisfy its declared outcome"
-            : "the selected Codex model is currently unavailable",
-    };
-    if (
-      boundary.request &&
-      (previousRequest?.requestId !== boundary.request.requestId ||
-        previousRequest?.version !== boundary.request.version)
-    )
-      await event(
-        runDir,
-        record.runId,
-        "human.input.requested",
-        boundary.request,
+  await withDirectoryLock(
+    resolve(runDir, "state.lock"),
+    `run ${record.runId} state`,
+    async () => {
+      const current = await readRun(runDir);
+      if (current.state === "completed") {
+        Object.assign(record, current);
+        return;
+      }
+      const previousRequest = current.request;
+      const previousWaivers = new Set(
+        current.waivers.map((waiver) => waiver.waiverId),
       );
-  } else {
-    const failedResult = boundary.results.findLast(
-      (result) => result.status === "failed",
-    );
-    const graphFailed = record.steps.some((step) =>
-      ["failed", "blocked"].includes(step.state),
-    );
-    record.state = "completed";
-    record.conclusion = cancelled
-      ? "cancelled"
-      : graphFailed
-        ? "failed"
-        : record.waivers.length > 0
-          ? "succeeded_with_waivers"
-          : "succeeded";
-    record.error =
-      cancelled || !graphFailed ? null : (failedResult?.error ?? null);
-    record.currentStep = null;
-    record.request = null;
-    await event(runDir, record.runId, "run.completed", {
-      conclusion: record.conclusion,
-      results: boundary.results.map((item) => ({
-        invocationId: item.invocationId,
-        status: item.status,
-        artifacts: item.artifacts,
-      })),
-      waivers: record.waivers,
-    });
-    await releaseOwnership(repoRoot, record);
-  }
-  await saveRun(runDir, record);
+      const previousCancellation = current.cancellation;
+      await verifyWaiverContent(repoRoot, runDir, boundary);
+      Object.assign(record, current);
+      record.temporal = {
+        ...current.temporal,
+        ...boundary.temporal,
+      };
+      record.request = boundary.request;
+      record.waivers = boundary.waivers;
+      record.cancellation = boundary.cancellation ?? current.cancellation;
+      if (!previousCancellation && record.cancellation)
+        await event(runDir, record.runId, "run.cancel.requested", {
+          requestedAt: record.cancellation.requestedAt,
+        });
+      for (const waiver of boundary.waivers)
+        if (!previousWaivers.has(waiver.waiverId))
+          await event(runDir, record.runId, "waiver.accepted", waiver);
+      if (boundary.steps.length > 0) record.steps = boundary.steps;
+      record.currentStep =
+        record.steps.find((step) =>
+          ["running", "waiting_for_input"].includes(step.state),
+        )?.stepId ?? null;
+      if (boundary.status === "waiting_for_input") {
+        record.state = "waiting_for_input";
+        const reason = boundary.request?.reason ?? "model_unavailable";
+        record.error = {
+          category: reason,
+          message:
+            reason === "uncertain_activity"
+              ? "the effectful activity ended without a trustworthy outcome"
+              : reason === "loop_outcome"
+                ? "a bounded loop did not satisfy its declared outcome"
+                : "the selected Codex model is currently unavailable",
+        };
+        if (
+          boundary.request &&
+          (previousRequest?.requestId !== boundary.request.requestId ||
+            previousRequest?.version !== boundary.request.version)
+        )
+          await event(
+            runDir,
+            record.runId,
+            "human.input.requested",
+            boundary.request,
+          );
+      } else {
+        const failedResult = boundary.results.findLast(
+          (result) => result.status === "failed",
+        );
+        const graphFailed = record.steps.some((step) =>
+          ["failed", "blocked"].includes(step.state),
+        );
+        record.state = "completed";
+        record.conclusion = record.cancellation
+          ? "cancelled"
+          : graphFailed
+            ? "failed"
+            : record.waivers.length > 0
+              ? "succeeded_with_waivers"
+              : "succeeded";
+        record.error =
+          record.cancellation || !graphFailed
+            ? null
+            : (failedResult?.error ?? null);
+        record.currentStep = null;
+        record.request = null;
+        await event(runDir, record.runId, "run.completed", {
+          conclusion: record.conclusion,
+          results: boundary.results.map((item) => ({
+            invocationId: item.invocationId,
+            status: item.status,
+            artifacts: item.artifacts,
+          })),
+          waivers: record.waivers,
+          ...(record.cancellation ? { cancellation: record.cancellation } : {}),
+        });
+        await releaseOwnership(repoRoot, record);
+      }
+      await saveRun(runDir, record);
+    },
+  );
 }
 
 async function executeStarted(
@@ -441,7 +466,7 @@ async function executeStarted(
 }
 
 async function presentResult(
-  command: "run" | "continue" | "resume",
+  command: "run" | "continue" | "resume" | "cancel",
   record: RunRecord,
   results: ExecutionBoundary["results"],
   json: boolean,
@@ -457,6 +482,7 @@ async function presentResult(
     workspace: record.workspace,
     results,
     waivers: record.waivers,
+    cancellation: record.cancellation,
   };
   if (json)
     await emitJson(command, record.conclusion !== "failed", data, record.error);
@@ -712,13 +738,20 @@ async function continueRun(
     { kind?: string; commit?: string; invokedRoot?: string } | undefined;
   if (pending?.kind === "dirty_checkout") {
     if (choice === "abort") {
+      const requestedAt = new Date().toISOString();
+      for (const step of record.steps) step.state = "cancelled";
+      record.cancellation = cancellationAtBoundary(record, requestedAt);
       record.state = "completed";
       record.conclusion = "cancelled";
       record.error = null;
       record.temporal = {};
       record.request = null;
+      await event(runDir, runId, "run.cancel.requested", { requestedAt });
       await saveRun(runDir, record);
-      await event(runDir, runId, "run.completed", { conclusion: "cancelled" });
+      await event(runDir, runId, "run.completed", {
+        conclusion: "cancelled",
+        cancellation: record.cancellation,
+      });
       return presentResult("continue", record, [], json);
     }
     const workspace =
@@ -748,7 +781,7 @@ async function continueRun(
     return presentResult("continue", record, boundary.results, json);
   }
   const boundary = await continuePlan(repoRoot, record.temporal, response);
-  await applyBoundary(repoRoot, runDir, record, boundary, choice === "abort");
+  await applyBoundary(repoRoot, runDir, record, boundary);
   return presentResult("continue", record, boundary.results, json);
 }
 
@@ -799,6 +832,132 @@ async function resumeRun(runId: string, json: boolean): Promise<number> {
   });
   await applyBoundary(repoRoot, runDir, record, boundary);
   return presentResult("resume", record, boundary.results, json);
+}
+
+function cancellationAtBoundary(
+  record: RunRecord,
+  requestedAt: string,
+): CancellationSummary {
+  const completed = record.steps
+    .filter((step) =>
+      ["succeeded", "accepted_with_waiver", "failed"].includes(step.state),
+    )
+    .map((step) => step.stepId);
+  return {
+    requestedAt,
+    completed,
+    incomplete: record.steps
+      .filter((step) => !completed.includes(step.stepId))
+      .map((step) => step.stepId),
+    uncertain: [],
+  };
+}
+
+async function cancelRun(runId: string, json: boolean): Promise<number> {
+  const repoRoot = primaryRepoRoot();
+  await requireInitialized(repoRoot);
+  const runDir = resolve(repoRoot, ".darrow", "runs", runId);
+  let record = await readRun(runDir);
+  let results: ExecutionBoundary["results"] = [];
+  const plan = await readJson<ResolvedPlan>(resolve(runDir, "plan.json"));
+  await verifyRunSnapshot(runDir, plan);
+  await verifyArtifacts(repoRoot, runDir);
+  await verifyWaiverContent(repoRoot, runDir, record);
+  let locallyCompleted = false;
+  let requestedAt =
+    record.cancellation?.requestedAt ?? new Date().toISOString();
+  await withDirectoryLock(
+    resolve(runDir, "state.lock"),
+    `run ${runId} state`,
+    async () => {
+      record = await readRun(runDir);
+      if (record.state === "completed") {
+        if (record.conclusion !== "cancelled")
+          throw new DarrowError(
+            `run is already ${record.conclusion}: ${runId}`,
+            "state",
+          );
+        locallyCompleted = true;
+        return;
+      }
+      if (!record.temporal.workflowId) {
+        if (!record.cancellation) {
+          record.cancellation = cancellationAtBoundary(record, requestedAt);
+          await event(runDir, runId, "run.cancel.requested", { requestedAt });
+        }
+        for (const step of record.steps)
+          if (
+            ["pending", "running", "waiting_for_input", "blocked"].includes(
+              step.state,
+            )
+          )
+            step.state = "cancelled";
+        record.cancellation = cancellationAtBoundary(
+          record,
+          record.cancellation.requestedAt,
+        );
+        record.state = "completed";
+        record.conclusion = "cancelled";
+        record.temporal = {};
+        record.currentStep = null;
+        record.request = null;
+        record.error = null;
+        await event(runDir, runId, "run.completed", {
+          conclusion: "cancelled",
+          results: [],
+          waivers: record.waivers,
+          cancellation: record.cancellation,
+        });
+        await releaseOwnership(repoRoot, record);
+        locallyCompleted = true;
+      }
+      await saveRun(runDir, record);
+    },
+  );
+  if (!locallyCompleted) {
+    const input = {
+      runId,
+      repoRoot,
+      runDir,
+      workspace: record.workspace!,
+      snapshotDir: resolve(runDir, "snapshot"),
+      plan,
+    };
+    const boundary = await cancelPlan(
+      repoRoot,
+      record.temporal,
+      { requestedAt },
+      input,
+      async (accepted) => {
+        requestedAt = accepted.requestedAt;
+        await withDirectoryLock(
+          resolve(runDir, "state.lock"),
+          `run ${runId} state`,
+          async () => {
+            const current = await readRun(runDir);
+            if (!current.cancellation) {
+              current.cancellation = cancellationAtBoundary(
+                current,
+                accepted.requestedAt,
+              );
+              await event(runDir, runId, "run.cancel.requested", accepted);
+              await saveRun(runDir, current);
+            }
+            Object.assign(record, current);
+          },
+        );
+      },
+    );
+    results = boundary.results;
+    if (boundary.recovery)
+      await event(runDir, runId, "run.recovered", {
+        mode: boundary.recovery,
+        workflowId: boundary.temporal.workflowId,
+        workspace: record.workspace,
+      });
+    await applyBoundary(repoRoot, runDir, record, boundary);
+  }
+  return presentResult("cancel", record, results, json);
 }
 
 async function inspectRun(runId: string, json: boolean): Promise<void> {
@@ -879,6 +1038,14 @@ async function main(): Promise<number> {
     if (args.length > (json ? 1 : 0))
       throw new DarrowError(`unknown resume argument: ${args[0]}`, "usage");
     return resumeRun(runId, json);
+  }
+  if (command === "cancel") {
+    const runId = args.shift();
+    if (!runId) throw new DarrowError("cancel requires a run ID", "usage");
+    const json = args.length === 1 && args[0] === "--json";
+    if (args.length > (json ? 1 : 0))
+      throw new DarrowError(`unknown cancel argument: ${args[0]}`, "usage");
+    return cancelRun(runId, json);
   }
   if (command === "inspect") {
     const runId = args.shift();

@@ -10,8 +10,10 @@
     { "$ref": "#/$defs/workspaceAllocated" },
     { "$ref": "#/$defs/runStarted" },
     { "$ref": "#/$defs/runRecovered" },
+    { "$ref": "#/$defs/runCancelRequested" },
     { "$ref": "#/$defs/runCompleted" },
     { "$ref": "#/$defs/invocationStarted" },
+    { "$ref": "#/$defs/invocationCancelled" },
     { "$ref": "#/$defs/invocationFailed" },
     { "$ref": "#/$defs/invocationCompleted" }
   ],
@@ -24,6 +26,29 @@
         { "type": "boolean" },
         { "type": "null" }
       ]
+    },
+    "cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestedAt", "completed", "incomplete", "uncertain"],
+      "properties": {
+        "requestedAt": { "type": "string", "format": "date-time" },
+        "completed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "incomplete": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "uncertain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
     },
     "baseProperties": {
       "schemaVersion": { "const": "0.1.0" },
@@ -413,6 +438,33 @@
         }
       }
     },
+    "runCancelRequested": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "timestamp",
+        "type",
+        "data"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "eventId": { "type": "string" },
+        "runId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "const": "run.cancel.requested" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requestedAt"],
+          "properties": {
+            "requestedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
     "resultSummary": {
       "type": "object",
       "additionalProperties": false,
@@ -519,6 +571,7 @@
               "type": "array",
               "items": { "$ref": "#/$defs/waiver" }
             },
+            "cancellation": { "$ref": "#/$defs/cancellation" },
             "error": { "$ref": "#/$defs/error" }
           }
         }
@@ -550,6 +603,36 @@
             "stepId": { "type": "string" },
             "attemptId": { "type": "string" },
             "commandId": { "type": "string" }
+          }
+        }
+      }
+    },
+    "invocationCancelled": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "timestamp",
+        "type",
+        "data"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "eventId": { "type": "string" },
+        "runId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "const": "command.invocation.cancelled" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["invocationId", "stepId", "attemptId", "transcript"],
+          "properties": {
+            "invocationId": { "type": "string" },
+            "stepId": { "type": "string" },
+            "attemptId": { "type": "string" },
+            "transcript": { "type": "string" }
           }
         }
       }

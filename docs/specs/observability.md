@@ -55,6 +55,11 @@ The initial run record is:
 - **OB-9 — Actor honesty.** Local actor, harness, and session identity is recorded
   as supplied and labeled unverified. Hosted verified identity is a later
   authorization concern.
+- **OB-9a — Cancellation audit.** A cancellation appends one
+  `run.cancel.requested` event before the terminal `run.completed` event. Safe
+  interruption of an active harness process also appends
+  `command.invocation.cancelled`. The terminal event and run record preserve the
+  request time plus completed, incomplete, and uncertain step IDs.
 
 ## Harness-owned events
 
