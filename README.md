@@ -42,7 +42,7 @@ darrow run implement-change --change "describe the requested behavior"
 # If the checkout is dirty, choose head/current/abort when prompted:
 darrow continue <run-id>
 # A non-interactive caller supplies the same typed choice explicitly:
-darrow continue <run-id> --choice head
+darrow continue <run-id> --request <request-id> --version <version> --choice head
 darrow inspect <run-id>
 ```
 
@@ -59,6 +59,12 @@ reasoning effort while inheriting native Codex permissions. It defines no model
 fallback. On non-macOS hosts, authenticated evidence capture requires
 `DARROW_CODEX_PERMISSION_PROFILE` to name a configured native Codex permission
 profile; Darrow refuses to run test commands outside a verifiable sandbox.
+
+Workflow schema `0.1.0` also supports finite `loops` over linear step regions.
+The region's final command exposes a required scalar outcome; an unsatisfied
+outcome can offer a bounded retry with supplemental instructions, a declared
+waiver with `--rationale-file`, or abort. Every attempt remains immutable, and
+an accepted waiver produces `succeeded_with_waivers`.
 
 ## Plugins
 

@@ -7,8 +7,10 @@ import { DarrowError } from "./errors";
 import {
   assertCurrentRequest,
   createHumanRequest,
+  readHumanInstructions,
   selectedChoice,
   storeHumanInstructions,
+  storeHumanRationale,
 } from "./human";
 import { exists, readJson, readText, writeJson } from "./io";
 import {
@@ -58,7 +60,7 @@ function usage(): string {
     "  darrow init [--json]",
     "  darrow run <workflow|path> --input <name=value> [--base <ref>] [--workspace current|--worktree <path>] [--json]",
     "  darrow run implement-change --change <description> [--base <ref>] [--json]",
-    "  darrow continue <run-id> --request <id> --version <n> --choice <choice> [--instructions-file <path|->] [--actor <id>] [--harness <id>] [--model <id>] [--json]",
+    "  darrow continue <run-id> --request <id> --version <n> --choice <choice> [--instructions-file <path|->] [--rationale-file <path|->] [--actor <id>] [--harness <id>] [--model <id>] [--json]",
     "  darrow resume <run-id> [--json]",
     "  darrow inspect <run-id> [--json]",
     "  darrow --version",
@@ -124,6 +126,7 @@ function parseContinuation(args: string[]): {
   requestId?: string;
   version?: number;
   instructionsFile?: string;
+  rationaleFile?: string;
   actor?: string;
   harness?: string;
   model?: string;
@@ -135,6 +138,7 @@ function parseContinuation(args: string[]): {
   let requestId: string | undefined;
   let version: number | undefined;
   let instructionsFile: string | undefined;
+  let rationaleFile: string | undefined;
   let actor: string | undefined;
   let harness: string | undefined;
   let model: string | undefined;
@@ -151,6 +155,7 @@ function parseContinuation(args: string[]): {
         throw new DarrowError("--version requires a positive integer", "usage");
     } else if (flag === "--instructions-file")
       instructionsFile = args.shift() ?? "";
+    else if (flag === "--rationale-file") rationaleFile = args.shift() ?? "";
     else if (flag === "--actor") actor = args.shift() ?? "";
     else if (flag === "--harness") harness = args.shift() ?? "";
     else if (flag === "--model") model = args.shift() ?? "";
@@ -162,6 +167,7 @@ function parseContinuation(args: string[]): {
     requestId,
     version,
     instructionsFile,
+    rationaleFile,
     actor,
     harness,
     model,
@@ -211,6 +217,7 @@ async function createInitialRun(
       attempt: 0,
     })),
     request: null,
+    waivers: [],
     error: null,
   };
   await validateSchema("run.schema.json", record, "initial run record");
@@ -306,6 +313,18 @@ async function releaseOwnership(
     await releaseWorkspace(repoRoot, record.runId, record.workspace);
 }
 
+async function verifyWaiverContent(
+  repoRoot: string,
+  runDir: string,
+  record: Pick<RunRecord, "waivers">,
+): Promise<void> {
+  for (const waiver of record.waivers) {
+    await readHumanInstructions(repoRoot, runDir, waiver.rationale);
+    if (waiver.instructions)
+      await readHumanInstructions(repoRoot, runDir, waiver.instructions);
+  }
+}
+
 async function applyBoundary(
   repoRoot: string,
   runDir: string,
@@ -314,11 +333,19 @@ async function applyBoundary(
   cancelled = false,
 ): Promise<void> {
   const previousRequest = record.request;
+  const previousWaivers = new Set(
+    record.waivers.map((waiver) => waiver.waiverId),
+  );
+  await verifyWaiverContent(repoRoot, runDir, boundary);
   record.temporal = {
     ...record.temporal,
     ...boundary.temporal,
   };
   record.request = boundary.request;
+  record.waivers = boundary.waivers;
+  for (const waiver of boundary.waivers)
+    if (!previousWaivers.has(waiver.waiverId))
+      await event(runDir, record.runId, "waiver.accepted", waiver);
   if (boundary.steps.length > 0) record.steps = boundary.steps;
   record.currentStep =
     record.steps.find((step) =>
@@ -332,7 +359,9 @@ async function applyBoundary(
       message:
         reason === "uncertain_activity"
           ? "the effectful activity ended without a trustworthy outcome"
-          : "the selected Codex model is currently unavailable",
+          : reason === "loop_outcome"
+            ? "a bounded loop did not satisfy its declared outcome"
+            : "the selected Codex model is currently unavailable",
     };
     if (
       boundary.request &&
@@ -357,7 +386,9 @@ async function applyBoundary(
       ? "cancelled"
       : graphFailed
         ? "failed"
-        : "succeeded";
+        : record.waivers.length > 0
+          ? "succeeded_with_waivers"
+          : "succeeded";
     record.error =
       cancelled || !graphFailed ? null : (failedResult?.error ?? null);
     record.currentStep = null;
@@ -369,6 +400,7 @@ async function applyBoundary(
         status: item.status,
         artifacts: item.artifacts,
       })),
+      waivers: record.waivers,
     });
     await releaseOwnership(repoRoot, record);
   }
@@ -384,6 +416,7 @@ async function executeStarted(
   const snapshotDir = resolve(runDir, "snapshot");
   await verifyRunSnapshot(runDir, plan);
   await verifyArtifacts(repoRoot, runDir);
+  await verifyWaiverContent(repoRoot, runDir, record);
   const identity = executionIdentity(repoRoot, record.runId);
   record.temporal = { ...record.temporal, ...identity, startPending: true };
   await saveRun(runDir, record);
@@ -423,6 +456,7 @@ async function presentResult(
     conclusion: record.conclusion,
     workspace: record.workspace,
     results,
+    waivers: record.waivers,
   };
   if (json)
     await emitJson(command, record.conclusion !== "failed", data, record.error);
@@ -550,7 +584,15 @@ async function runWorkflow(options: RunOptions): Promise<number> {
 async function continueRun(
   options: ReturnType<typeof parseContinuation>,
 ): Promise<number> {
-  const { runId, json, model, instructionsFile, actor, harness } = options;
+  const {
+    runId,
+    json,
+    model,
+    instructionsFile,
+    rationaleFile,
+    actor,
+    harness,
+  } = options;
   let { choice, requestId, version } = options;
   const repoRoot = primaryRepoRoot();
   await requireInitialized(repoRoot);
@@ -559,6 +601,7 @@ async function continueRun(
   const plan = await readJson<ResolvedPlan>(resolve(runDir, "plan.json"));
   await verifyRunSnapshot(runDir, plan);
   await verifyArtifacts(repoRoot, runDir);
+  await verifyWaiverContent(repoRoot, runDir, record);
   if (record.state !== "waiting_for_input")
     throw new DarrowError(`run is not waiting for input: ${runId}`, "state");
   if ((requestId === undefined) !== (version === undefined))
@@ -605,9 +648,26 @@ async function continueRun(
     throw new DarrowError("--model is only valid with choice amend", "usage");
   if (instructionsFile === "")
     throw new DarrowError("--instructions-file requires a path or -", "usage");
+  if (rationaleFile === "")
+    throw new DarrowError("--rationale-file requires a path or -", "usage");
   if (instructionsFile !== undefined && !selected.acceptsInstructions)
     throw new DarrowError(
       `continuation ${choice} does not accept supplemental instructions`,
+      "usage",
+    );
+  if (choice === "waive" && rationaleFile === undefined)
+    throw new DarrowError(
+      "waiver continuation requires --rationale-file",
+      "usage",
+    );
+  if (choice !== "waive" && rationaleFile !== undefined)
+    throw new DarrowError(
+      "--rationale-file is only valid with choice waive",
+      "usage",
+    );
+  if (instructionsFile === "-" && rationaleFile === "-")
+    throw new DarrowError(
+      "instructions and rationale cannot both read from stdin",
       "usage",
     );
   const instructionContent =
@@ -616,6 +676,14 @@ async function continueRun(
       : instructionsFile === "-"
         ? await Bun.stdin.text()
         : await readText(resolve(instructionsFile));
+  const rationaleContent =
+    rationaleFile === undefined
+      ? null
+      : rationaleFile === "-"
+        ? await Bun.stdin.text()
+        : await readText(resolve(rationaleFile));
+  if (choice === "waive" && !rationaleContent?.trim())
+    throw new DarrowError("waiver rationale must not be empty", "usage");
   const response: HumanResponse = {
     requestId,
     version,
@@ -630,6 +698,12 @@ async function continueRun(
       runDir,
       request,
       instructionContent,
+    ),
+    rationale: await storeHumanRationale(
+      repoRoot,
+      runDir,
+      request,
+      rationaleContent,
     ),
     ...(model ? { model } : {}),
   };
@@ -686,6 +760,7 @@ async function resumeRun(runId: string, json: boolean): Promise<number> {
   const plan = await readJson<ResolvedPlan>(resolve(runDir, "plan.json"));
   await verifyRunSnapshot(runDir, plan);
   await verifyArtifacts(repoRoot, runDir);
+  await verifyWaiverContent(repoRoot, runDir, record);
   if (!record.workspace) {
     const owner = await ownedWorkspaceForRun(repoRoot, runId);
     if (owner) {
@@ -736,6 +811,7 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
   const plan = await readJson<ResolvedPlan>(resolve(runDir, "plan.json"));
   await verifyRunSnapshot(runDir, plan);
   await verifyArtifacts(repoRoot, runDir);
+  await verifyWaiverContent(repoRoot, runDir, record);
   const temporal =
     record.state === "completed" || !record.temporal.workflowId
       ? null

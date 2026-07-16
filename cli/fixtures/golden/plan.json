@@ -31,6 +31,7 @@
       "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
     }
   ],
+  "loops": [],
   "steps": [
     {
       "id": "implement",

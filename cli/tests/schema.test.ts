@@ -158,6 +158,7 @@ describe("0.1.0 contract fixtures", () => {
           size: 12,
           location: ".darrow/runs/run-1/content/human/response.txt",
         },
+        rationale: null,
       },
     };
     await expect(
@@ -173,6 +174,54 @@ describe("0.1.0 contract fixtures", () => {
         "human response",
       ),
     ).rejects.toThrow("additional properties");
+  });
+
+  test("workflow loop bounds and waiver records are strict", async () => {
+    const workflow = parse(
+      await Bun.file(
+        resolve(CLI_ROOT, "fixtures", "golden", "workflow.yaml"),
+      ).text(),
+    );
+    workflow.loops = [
+      {
+        id: "implementation-review",
+        steps: ["implement"],
+        maxAttempts: 0,
+        until: { stepId: "implement", output: "summary", equals: "approved" },
+        waiver: null,
+      },
+    ];
+    await expect(
+      validateSchema("workflow.schema.json", workflow, "bounded workflow"),
+    ).rejects.toThrow("must be >= 1");
+
+    const waiver = {
+      schemaVersion: "0.1.0",
+      eventId: "event-waiver",
+      runId: "run-1",
+      timestamp: "2026-07-16T20:00:00.000Z",
+      type: "waiver.accepted",
+      data: {
+        waiverId: "review-rejection-1",
+        loopId: "implementation-review",
+        stepId: "review",
+        attempt: 1,
+        outcome: { output: "approved", expected: true, actual: false },
+        actor: { id: "user-1", harness: "codex", verified: false },
+        rationale: {
+          contentId: "waiver-rationale",
+          mediaType: "text/plain",
+          contentHash: `sha256:${"b".repeat(64)}`,
+          size: 18,
+          location: ".darrow/runs/run-1/content/human/rationale.txt",
+        },
+        instructions: null,
+        instructionsTo: null,
+      },
+    };
+    await expect(
+      validateSchema("event.schema.json", waiver, "waiver event"),
+    ).resolves.toBeUndefined();
   });
 
   test("recovery event records the authoritative reconciliation mode", async () => {

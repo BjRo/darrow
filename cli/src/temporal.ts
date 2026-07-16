@@ -12,7 +12,7 @@ import { DarrowError } from "./errors";
 import { exists, readJson, replaceJson, sha256 } from "./io";
 import { withDirectoryLock } from "./locks";
 import { globalToolchainHome } from "./paths";
-import type { HumanResponse } from "./types";
+import type { HumanResponse, WaiverRecord } from "./types";
 import {
   continuationSignal,
   runResolvedPlanWorkflow,
@@ -48,6 +48,7 @@ export interface ExecutionBoundary {
   results: WorkflowStatus["results"];
   steps: WorkflowStatus["steps"];
   request: WorkflowStatus["request"];
+  waivers: WaiverRecord[];
   temporal: Record<string, unknown>;
   recovery?: "reattached" | "started_pending";
 }
@@ -326,6 +327,7 @@ export async function waitForBoundary(
           results: status.results,
           steps: status.steps,
           request: status.request,
+          waivers: status.waivers,
           temporal,
         };
       if (status.state === "completed") {
@@ -335,6 +337,7 @@ export async function waitForBoundary(
           results,
           steps: status.steps,
           request: null,
+          waivers: status.waivers,
           temporal,
         };
       }
@@ -352,6 +355,7 @@ export async function waitForBoundary(
               results,
               steps: [],
               request: null,
+              waivers: [],
               temporal,
             };
           } catch (resultError) {
@@ -524,6 +528,19 @@ export async function continuePlan(
     if (response.instructions && !selected.acceptsInstructions)
       throw new DarrowError(
         `continuation ${response.choice} does not accept supplemental instructions`,
+        "usage",
+      );
+    if (
+      response.choice === "waive" &&
+      (!response.rationale || response.rationale.size === 0)
+    )
+      throw new DarrowError(
+        "waiver continuation requires a rationale",
+        "usage",
+      );
+    if (response.choice !== "waive" && response.rationale)
+      throw new DarrowError(
+        "a rationale is only valid with choice waive",
         "usage",
       );
     if (response.choice === "amend" && !response.model)

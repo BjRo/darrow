@@ -3,6 +3,7 @@ export type StepExecutionState =
   | "running"
   | "waiting_for_input"
   | "succeeded"
+  | "accepted_with_waiver"
   | "failed"
   | "blocked";
 
@@ -66,8 +67,10 @@ export async function executeStaticGraph<T>(
       const status = byId.get(step.id)!;
       return (
         status.state === "pending" &&
-        step.dependsOn.every(
-          (dependency) => byId.get(dependency)!.state === "succeeded",
+        step.dependsOn.every((dependency) =>
+          ["succeeded", "accepted_with_waiver"].includes(
+            byId.get(dependency)!.state,
+          ),
         )
       );
     });

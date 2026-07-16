@@ -112,6 +112,12 @@ happened after the previous Darrow invocation and before the current one.
   choice, actor metadata, time, next-step instructions, waiver state, and content
   reference. Local actor and harness identity are optional, unverified audit
   metadata rather than authorization.
+- **OB-20a — Waiver audit record.** Accepting a declared loop outcome appends a
+  `waiver.accepted` event and preserves the same typed record in the run: waiver,
+  loop, step, and attempt IDs; expected and actual scalar outcome; unverified
+  actor metadata; immutable rationale reference; optional forward-instruction
+  reference; and its declared target. Raw rationale and instruction text do not
+  enter the journal or Temporal history.
 - **OB-21 — No command-line interpolation.** Raw human response content never
   appears inside a generated `darrow continue` shell command or Temporal history.
   Workflow state carries only its bounded content reference and hash.

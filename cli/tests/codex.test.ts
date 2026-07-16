@@ -217,6 +217,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
         snapshotDir,
         attemptId: "attempt-1",
         instructions: [],
+        priorArtifacts: [],
         planCapabilities: [],
         step: {
           id: "implement",

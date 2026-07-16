@@ -10,6 +10,7 @@ import {
   hashFile,
   listFiles,
   makeReadOnly,
+  readJson,
   sha256,
   writeJson,
 } from "./io";
@@ -163,6 +164,86 @@ export function validateWorkflowGraph(workflow: WorkflowDefinition): void {
   };
 
   for (const step of workflow.steps) visit(step.id, []);
+
+  const loopIds = new Set<string>();
+  const waiverIds = new Set<string>();
+  const membership = new Map<string, string>();
+  for (const loop of workflow.loops) {
+    if (loopIds.has(loop.id))
+      throw new DarrowError(
+        `duplicate workflow loop ID: ${loop.id}`,
+        "validation",
+      );
+    loopIds.add(loop.id);
+    if (loop.waiver) {
+      if (waiverIds.has(loop.waiver.id))
+        throw new DarrowError(
+          `duplicate workflow waiver ID: ${loop.waiver.id}`,
+          "validation",
+        );
+      waiverIds.add(loop.waiver.id);
+    }
+    for (const stepId of loop.steps) {
+      if (!steps.has(stepId))
+        throw new DarrowError(
+          `workflow loop ${loop.id} contains unknown step ${stepId}`,
+          "validation",
+        );
+      const prior = membership.get(stepId);
+      if (prior)
+        throw new DarrowError(
+          `workflow step ${stepId} belongs to loops ${prior} and ${loop.id}`,
+          "validation",
+        );
+      membership.set(stepId, loop.id);
+    }
+    const last = loop.steps.at(-1)!;
+    if (loop.until.stepId !== last)
+      throw new DarrowError(
+        `workflow loop ${loop.id} outcome must be produced by its final step ${last}`,
+        "validation",
+      );
+    for (let index = 1; index < loop.steps.length; index += 1) {
+      const stepId = loop.steps[index]!;
+      const previous = loop.steps[index - 1]!;
+      const dependencies = steps.get(stepId)!.dependsOn;
+      if (dependencies.length !== 1 || dependencies[0] !== previous)
+        throw new DarrowError(
+          `workflow loop ${loop.id} must be a linear region; ${stepId} must depend only on ${previous}`,
+          "validation",
+        );
+    }
+    if (loop.waiver?.instructionsTo) {
+      const target = steps.get(loop.waiver.instructionsTo);
+      if (!target)
+        throw new DarrowError(
+          `workflow loop ${loop.id} forwards waiver instructions to unknown step ${loop.waiver.instructionsTo}`,
+          "validation",
+        );
+      if (
+        membership.get(target.id) === loop.id ||
+        !target.dependsOn.includes(last)
+      )
+        throw new DarrowError(
+          `workflow loop ${loop.id} may forward waiver instructions only to a direct dependent outside the loop`,
+          "validation",
+        );
+    }
+  }
+  for (const step of workflow.steps) {
+    const loopId = membership.get(step.id);
+    if (loopId) continue;
+    for (const dependency of step.dependsOn) {
+      const dependencyLoop = membership.get(dependency);
+      if (!dependencyLoop) continue;
+      const loop = workflow.loops.find((item) => item.id === dependencyLoop)!;
+      if (dependency !== loop.steps.at(-1))
+        throw new DarrowError(
+          `workflow step ${step.id} must depend on final step ${loop.steps.at(-1)} of loop ${loop.id}`,
+          "validation",
+        );
+    }
+  }
 }
 
 export function orderWorkflowSteps(
@@ -357,6 +438,39 @@ export async function compile(
       `input for ${command.id}`,
     );
   }
+  for (const loop of workflow.loops) {
+    const outcomeIndex = orderedSteps.findIndex(
+      (step) => step.id === loop.until.stepId,
+    );
+    const command = commands[outcomeIndex]!;
+    const metadata = command.metadata as CommandMetadata;
+    const outputSchema = await readJson<{
+      required?: unknown;
+      properties?: Record<string, { type?: string | string[] }>;
+    }>(resolve(command.skillDir, metadata.outputSchema));
+    const property = outputSchema.properties?.[loop.until.output];
+    const required = Array.isArray(outputSchema.required)
+      ? outputSchema.required
+      : [];
+    const types = Array.isArray(property?.type)
+      ? property.type
+      : property?.type
+        ? [property.type]
+        : [];
+    if (
+      !required.includes(loop.until.output) ||
+      !property ||
+      types.length === 0 ||
+      types.some(
+        (type) =>
+          !["string", "number", "integer", "boolean", "null"].includes(type),
+      )
+    )
+      throw new DarrowError(
+        `workflow loop ${loop.id} outcome ${loop.until.output} must be a required scalar output of ${loop.until.stepId}`,
+        "validation",
+      );
+  }
   const requirements = new Map<string, string>();
   for (const requirement of workflow.requirements.capabilities)
     requirements.set(requirement.contract, requirement.version);
@@ -404,6 +518,7 @@ export async function compile(
         digest: candidate.digest,
       }),
     ),
+    loops: workflow.loops,
     steps: orderedSteps.map((step, index) => {
       const command = commands[index]!;
       const metadata = command.metadata as CommandMetadata;
@@ -424,13 +539,17 @@ export async function compile(
     digest: sha256(canonicalJson(planBase)),
   };
   await verifyResolvedPlan(plan);
+  const uniqueCommands = commands.filter(
+    (command, index, all) =>
+      all.findIndex((candidate) => candidate.id === command.id) === index,
+  );
   return {
     plan,
     workflow,
     profile,
     workflowFile,
     profileFile,
-    commands,
+    commands: uniqueCommands,
     capabilities: resolvedCapabilities.map((item) => item.candidate),
     project,
   };

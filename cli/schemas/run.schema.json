@@ -16,6 +16,7 @@
     "currentStep",
     "steps",
     "request",
+    "waivers",
     "error"
   ],
   "properties": {
@@ -74,6 +75,7 @@
               "running",
               "waiting_for_input",
               "succeeded",
+              "accepted_with_waiver",
               "failed",
               "blocked"
             ]
@@ -84,6 +86,10 @@
     },
     "request": {
       "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/humanRequest" }]
+    },
+    "waivers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/waiver" }
     },
     "error": {
       "oneOf": [
@@ -101,6 +107,73 @@
     }
   },
   "$defs": {
+    "outcomeValue": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "contentReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentId", "mediaType", "contentHash", "size", "location"],
+      "properties": {
+        "contentId": { "type": "string" },
+        "mediaType": { "const": "text/plain" },
+        "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "size": { "type": "integer", "minimum": 0 },
+        "location": { "type": "string" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "harness", "verified"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "harness": { "type": ["string", "null"] },
+        "verified": { "const": false }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiverId",
+        "loopId",
+        "stepId",
+        "attempt",
+        "outcome",
+        "actor",
+        "rationale",
+        "instructions",
+        "instructionsTo"
+      ],
+      "properties": {
+        "waiverId": { "type": "string" },
+        "loopId": { "type": "string" },
+        "stepId": { "type": "string" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "outcome": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["output", "expected", "actual"],
+          "properties": {
+            "output": { "type": "string" },
+            "expected": { "$ref": "#/$defs/outcomeValue" },
+            "actual": { "$ref": "#/$defs/outcomeValue" }
+          }
+        },
+        "actor": { "$ref": "#/$defs/actor" },
+        "rationale": { "$ref": "#/$defs/contentReference" },
+        "instructions": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/contentReference" }]
+        },
+        "instructionsTo": { "type": ["string", "null"] }
+      }
+    },
     "humanRequest": {
       "type": "object",
       "additionalProperties": false,

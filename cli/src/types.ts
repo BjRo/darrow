@@ -41,7 +41,42 @@ export interface HumanResponse {
     verified: false;
   };
   instructions: ContentReference | null;
+  rationale: ContentReference | null;
   model?: string;
+}
+
+export type OutcomeValue = string | number | boolean | null;
+
+export interface LoopRegion {
+  id: string;
+  steps: string[];
+  maxAttempts: number;
+  until: {
+    stepId: string;
+    output: string;
+    equals: OutcomeValue;
+  };
+  waiver: {
+    id: string;
+    description: string;
+    instructionsTo: string | null;
+  } | null;
+}
+
+export interface WaiverRecord {
+  waiverId: string;
+  loopId: string;
+  stepId: string;
+  attempt: number;
+  outcome: {
+    output: string;
+    expected: OutcomeValue;
+    actual: OutcomeValue;
+  };
+  actor: HumanResponse["actor"];
+  rationale: ContentReference;
+  instructions: ContentReference | null;
+  instructionsTo: string | null;
 }
 
 export interface Requirement {
@@ -60,6 +95,7 @@ export interface WorkflowDefinition {
   >;
   requirements: { capabilities: Requirement[] };
   profile: string;
+  loops: LoopRegion[];
   steps: Array<{
     id: string;
     dependsOn: string[];
@@ -135,6 +171,7 @@ export interface ResolvedPlan {
     source: string;
     digest: string;
   }>;
+  loops: LoopRegion[];
   steps: Array<{
     id: string;
     dependsOn: string[];
@@ -161,6 +198,7 @@ export interface RunRecord {
   currentStep: string | null;
   steps: StepExecutionStatus[];
   request: HumanRequest | null;
+  waivers: WaiverRecord[];
   error: { category: string; message: string } | null;
 }
 
@@ -175,6 +213,7 @@ export interface ActivityInput {
   profile: Omit<ResolvedPlan["profile"], "model"> & { model: string };
   attemptId: string;
   instructions: ContentReference[];
+  priorArtifacts: ArtifactReference[];
 }
 
 export interface CommandResult {

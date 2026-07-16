@@ -5,6 +5,7 @@ import {
   proxyActivities,
   setHandler,
 } from "@temporalio/workflow";
+import { executionNodes, loopOutcome, loopSatisfied } from "./convergence";
 import {
   executeStaticGraph,
   initialStepStatuses,
@@ -12,12 +13,14 @@ import {
 } from "./scheduler";
 import type {
   ActivityInput,
+  ArtifactReference,
   CommandResult,
   ContentReference,
   HumanChoice,
   HumanRequest,
   HumanResponse,
   ResolvedPlan,
+  WaiverRecord,
 } from "./types";
 
 const { executeCommand } = proxyActivities<{
@@ -42,6 +45,7 @@ export interface WorkflowStatus {
   steps: StepExecutionStatus[];
   request: HumanRequest | null;
   lastResponse: Pick<HumanResponse, "requestId" | "version"> | null;
+  waivers: WaiverRecord[];
 }
 
 export const runStatusQuery = defineQuery<WorkflowStatus>("darrowRunStatus");
@@ -77,6 +81,8 @@ function validHumanResponse(value: unknown): value is HumanResponse {
     actor.verified === false &&
     (response.instructions === null ||
       validContentReference(response.instructions)) &&
+    (response.rationale === null ||
+      validContentReference(response.rationale)) &&
     (response.model === undefined || typeof response.model === "string")
   );
 }
@@ -88,6 +94,9 @@ export async function runResolvedPlanWorkflow(
     input.plan.steps.map((step) => [step.id, []]),
   );
   const steps = initialStepStatuses(input.plan.steps);
+  const attemptCounts = new Map(input.plan.steps.map((step) => [step.id, 0]));
+  const waivers: WaiverRecord[] = [];
+  const forwardInstructions = new Map<string, ContentReference[]>();
   let state: WorkflowStatus["state"] = "running";
   let request: WorkflowStatus["request"] = null;
   let continuation: HumanResponse | null = null;
@@ -105,6 +114,7 @@ export async function runResolvedPlanWorkflow(
     steps,
     request,
     lastResponse,
+    waivers,
   }));
   setHandler(continuationSignal, (value) => {
     if (
@@ -118,6 +128,9 @@ export async function runResolvedPlanWorkflow(
           choice.id === value.choice &&
           (value.instructions === null || choice.acceptsInstructions),
       ) &&
+      (value.choice === "waive"
+        ? value.rationale !== null && value.rationale.size > 0
+        : value.rationale === null) &&
       (value.choice !== "amend" || Boolean(value.model))
     )
       continuation = value;
@@ -128,6 +141,7 @@ export async function runResolvedPlanWorkflow(
     reason: string,
     question: string,
     choices: HumanChoice[],
+    context: HumanRequest["context"] = [],
   ): Promise<HumanResponse> => {
     const previousWait = waitQueue;
     let releaseWait!: () => void;
@@ -144,7 +158,7 @@ export async function runResolvedPlanWorkflow(
         reason,
         question,
         choices,
-        context: [],
+        context,
       };
       continuation = null;
       status.state = "waiting_for_input";
@@ -165,87 +179,239 @@ export async function runResolvedPlanWorkflow(
     }
   };
 
-  await executeStaticGraph(
-    input.plan.steps,
-    async (scheduledStep, status) => {
-      const step = input.plan.steps.find(
-        (item) => item.id === scheduledStep.id,
-      )!;
-      let attempt = 1;
-      const instructions: ContentReference[] = [];
-      while (true) {
-        status.attempt = attempt;
-        let result: CommandResult;
-        try {
-          result = await executeCommand({
-            runId: input.runId,
-            repoRoot: input.repoRoot,
-            runDir: input.runDir,
-            workspace: input.workspace,
-            snapshotDir: input.snapshotDir,
-            step,
-            planCapabilities: input.plan.capabilities,
-            profile: amendedModel
-              ? { ...input.plan.profile, model: amendedModel }
-              : input.plan.profile,
-            attemptId: `attempt-${step.id}-${attempt}`,
-            instructions,
-          });
-        } catch {
-          await waitForDecision(
-            status,
-            "uncertain_activity",
-            "The activity ended without a trustworthy outcome. Abort this run?",
-            [
-              {
-                id: "abort",
-                consequence:
-                  "Cancel the run without retrying the uncertain effect.",
-                acceptsInstructions: false,
-              },
-            ],
-          );
-          return { state: "failed", stop: true };
-        }
-
-        attempts.get(step.id)!.push(result);
-        if (result.status === "succeeded")
-          return { state: "succeeded", value: result };
-        if (result.error?.category !== "model_unavailable")
-          return { state: "failed", value: result };
-
-        const decision = await waitForDecision(
+  const invokeStep = async (
+    step: ResolvedPlan["steps"][number],
+    status: StepExecutionStatus,
+    initialInstructions: ContentReference[],
+    priorArtifacts: ArtifactReference[],
+  ): Promise<{ result: CommandResult | null; aborted: boolean }> => {
+    const instructions = [...initialInstructions];
+    while (true) {
+      const attempt = (attemptCounts.get(step.id) ?? 0) + 1;
+      attemptCounts.set(step.id, attempt);
+      status.state = "running";
+      status.attempt = attempt;
+      let result: CommandResult;
+      try {
+        result = await executeCommand({
+          runId: input.runId,
+          repoRoot: input.repoRoot,
+          runDir: input.runDir,
+          workspace: input.workspace,
+          snapshotDir: input.snapshotDir,
+          step,
+          planCapabilities: input.plan.capabilities,
+          profile: amendedModel
+            ? { ...input.plan.profile, model: amendedModel }
+            : input.plan.profile,
+          attemptId: `attempt-${step.id}-${attempt}`,
+          instructions,
+          priorArtifacts,
+        });
+      } catch {
+        await waitForDecision(
           status,
-          "model_unavailable",
-          "How should Darrow proceed after the selected model was unavailable?",
+          "uncertain_activity",
+          "The activity ended without a trustworthy outcome. Abort this run?",
           [
             {
-              id: "retry",
-              consequence: "Retry this step with the same model.",
-              acceptsInstructions: true,
-            },
-            {
-              id: "amend",
-              consequence:
-                "Retry this step with the explicitly supplied model.",
-              acceptsInstructions: true,
-            },
-            {
               id: "abort",
-              consequence: "Cancel the run without another attempt.",
+              consequence:
+                "Cancel the run without retrying the uncertain effect.",
               acceptsInstructions: false,
             },
           ],
         );
-        if (decision.choice === "abort")
-          return { state: "failed", value: result, stop: true };
-        if (decision.choice === "amend") amendedModel = decision.model ?? null;
-        if (decision.instructions) instructions.push(decision.instructions);
-        attempt += 1;
+        status.state = "failed";
+        return { result: null, aborted: true };
       }
+
+      attempts.get(step.id)!.push(result);
+      if (result.status === "succeeded") {
+        status.state = "succeeded";
+        return { result, aborted: false };
+      }
+      if (result.error?.category !== "model_unavailable") {
+        status.state = "failed";
+        return { result, aborted: false };
+      }
+
+      const decision = await waitForDecision(
+        status,
+        "model_unavailable",
+        "How should Darrow proceed after the selected model was unavailable?",
+        [
+          {
+            id: "retry",
+            consequence: "Retry this step with the same model.",
+            acceptsInstructions: true,
+          },
+          {
+            id: "amend",
+            consequence: "Retry this step with the explicitly supplied model.",
+            acceptsInstructions: true,
+          },
+          {
+            id: "abort",
+            consequence: "Cancel the run without another attempt.",
+            acceptsInstructions: false,
+          },
+        ],
+      );
+      if (decision.choice === "abort") {
+        status.state = "failed";
+        return { result, aborted: true };
+      }
+      if (decision.choice === "amend") amendedModel = decision.model ?? null;
+      if (decision.instructions) instructions.push(decision.instructions);
+    }
+  };
+
+  const nodes = executionNodes(input.plan);
+  const nodeStatuses = initialStepStatuses(nodes);
+  await executeStaticGraph<CommandResult>(
+    nodes,
+    async (scheduledNode) => {
+      const node = nodes.find((item) => item.id === scheduledNode.id)!;
+      if (!node.loop) {
+        const step = input.plan.steps.find((item) => item.id === node.id)!;
+        const status = steps.find((item) => item.stepId === step.id)!;
+        const instructions = forwardInstructions.get(step.id) ?? [];
+        const outcome = await invokeStep(step, status, instructions, []);
+        return outcome.result?.status === "succeeded"
+          ? { state: "succeeded", value: outcome.result }
+          : {
+              state: "failed",
+              ...(outcome.result ? { value: outcome.result } : {}),
+              stop: outcome.aborted,
+            };
+      }
+
+      const loop = node.loop;
+      const priorArtifacts: ArtifactReference[] = [];
+      let retryInstructions = [
+        ...(forwardInstructions.get(loop.steps[0]!) ?? []),
+      ];
+      for (let iteration = 1; iteration <= loop.maxAttempts; iteration += 1) {
+        let finalResult: CommandResult | null = null;
+        for (let index = 0; index < loop.steps.length; index += 1) {
+          const stepId = loop.steps[index]!;
+          const step = input.plan.steps.find((item) => item.id === stepId)!;
+          const status = steps.find((item) => item.stepId === stepId)!;
+          const outcome = await invokeStep(
+            step,
+            status,
+            index === 0 ? retryInstructions : [],
+            priorArtifacts,
+          );
+          if (!outcome.result || outcome.result.status === "failed") {
+            for (const remaining of loop.steps.slice(index + 1)) {
+              const remainingStatus = steps.find(
+                (item) => item.stepId === remaining,
+              )!;
+              remainingStatus.state = "blocked";
+            }
+            return {
+              state: "failed",
+              ...(outcome.result ? { value: outcome.result } : {}),
+              stop: outcome.aborted,
+            };
+          }
+          finalResult = outcome.result;
+          priorArtifacts.push(...outcome.result.artifacts);
+        }
+
+        if (loopSatisfied(loop, finalResult!))
+          return { state: "succeeded", value: finalResult! };
+
+        const actual = loopOutcome(loop, finalResult!);
+        const finalStatus = steps.find(
+          (item) => item.stepId === loop.until.stepId,
+        )!;
+        const choices: HumanChoice[] = [];
+        if (iteration < loop.maxAttempts)
+          choices.push({
+            id: "retry",
+            consequence: `Run loop ${loop.id} again; at most ${loop.maxAttempts - iteration} additional attempt(s) remain.`,
+            acceptsInstructions: true,
+          });
+        if (loop.waiver)
+          choices.push({
+            id: "waive",
+            consequence: `${loop.waiver.description} A rationale is required.`,
+            acceptsInstructions: loop.waiver.instructionsTo !== null,
+          });
+        choices.push({
+          id: "abort",
+          consequence: "Cancel the run without accepting this outcome.",
+          acceptsInstructions: false,
+        });
+        const decision = await waitForDecision(
+          finalStatus,
+          "loop_outcome",
+          `Loop ${loop.id} did not satisfy its declared outcome. How should Darrow proceed?`,
+          choices,
+          [
+            {
+              label: "Expected outcome",
+              reference: `${loop.until.output}=${JSON.stringify(loop.until.equals)}`,
+            },
+            {
+              label: "Actual outcome",
+              reference: `${loop.until.output}=${JSON.stringify(actual)}`,
+            },
+            ...finalResult!.artifacts.map((artifact) => ({
+              label: "Outcome artifact",
+              reference: artifact.location,
+            })),
+          ],
+        );
+        if (decision.choice === "abort") {
+          finalStatus.state = "failed";
+          return { state: "failed", value: finalResult!, stop: true };
+        }
+        if (decision.choice === "waive") {
+          const declaration = loop.waiver!;
+          const waiver: WaiverRecord = {
+            waiverId: `${declaration.id}-${iteration}`,
+            loopId: loop.id,
+            stepId: loop.until.stepId,
+            attempt: finalStatus.attempt,
+            outcome: {
+              output: loop.until.output,
+              expected: loop.until.equals,
+              actual,
+            },
+            actor: decision.actor,
+            rationale: decision.rationale!,
+            instructions: decision.instructions,
+            instructionsTo: declaration.instructionsTo,
+          };
+          waivers.push(waiver);
+          finalStatus.state = "accepted_with_waiver";
+          if (decision.instructions && declaration.instructionsTo)
+            forwardInstructions.set(declaration.instructionsTo, [
+              decision.instructions,
+            ]);
+          return { state: "succeeded", value: finalResult! };
+        }
+        retryInstructions = decision.instructions
+          ? [decision.instructions]
+          : [];
+      }
+      throw new Error(`bounded loop ${loop.id} exhausted without a decision`);
     },
-    steps,
+    nodeStatuses,
   );
+
+  for (const nodeStatus of nodeStatuses) {
+    if (nodeStatus.state !== "blocked") continue;
+    const node = nodes.find((item) => item.id === nodeStatus.stepId)!;
+    for (const stepId of node.stepIds) {
+      const status = steps.find((item) => item.stepId === stepId)!;
+      if (status.state === "pending") status.state = "blocked";
+    }
+  }
 
   state = "completed";
   return orderedResults();

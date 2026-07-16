@@ -8,6 +8,7 @@ import {
   readHumanInstructions,
   selectedChoice,
   storeHumanInstructions,
+  storeHumanRationale,
 } from "../src/human";
 
 const temps: string[] = [];
@@ -78,6 +79,16 @@ test("human instructions are immutable, referenced, and verified", async () => {
   ).rejects.toThrow("immutable human response content");
   expect(await readHumanInstructions(root, runDir, first!)).toBe(
     "Keep the existing API.\n",
+  );
+  const rationale = await storeHumanRationale(
+    root,
+    runDir,
+    current,
+    "Known limitation accepted.\n",
+  );
+  expect(rationale?.location).not.toBe(first?.location);
+  expect(await readHumanInstructions(root, runDir, rationale!)).toBe(
+    "Known limitation accepted.\n",
   );
   await expect(
     readHumanInstructions(root, runDir, {

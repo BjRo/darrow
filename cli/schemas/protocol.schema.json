@@ -10,6 +10,14 @@
     { "$ref": "#/$defs/inspect" }
   ],
   "$defs": {
+    "outcomeValue": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
     "error": {
       "type": "object",
       "additionalProperties": false,
@@ -121,7 +129,14 @@
     "terminalSuccessData": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runId", "state", "conclusion", "workspace", "results"],
+      "required": [
+        "runId",
+        "state",
+        "conclusion",
+        "workspace",
+        "results",
+        "waivers"
+      ],
       "properties": {
         "runId": { "type": "string" },
         "state": { "const": "completed" },
@@ -129,19 +144,34 @@
           "enum": ["succeeded", "succeeded_with_waivers", "cancelled"]
         },
         "workspace": { "type": ["string", "null"] },
-        "results": { "type": "array", "items": { "$ref": "#/$defs/result" } }
+        "results": { "type": "array", "items": { "$ref": "#/$defs/result" } },
+        "waivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/waiver" }
+        }
       }
     },
     "terminalFailureData": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runId", "state", "conclusion", "workspace", "results"],
+      "required": [
+        "runId",
+        "state",
+        "conclusion",
+        "workspace",
+        "results",
+        "waivers"
+      ],
       "properties": {
         "runId": { "type": "string" },
         "state": { "const": "completed" },
         "conclusion": { "const": "failed" },
         "workspace": { "type": ["string", "null"] },
-        "results": { "type": "array", "items": { "$ref": "#/$defs/result" } }
+        "results": { "type": "array", "items": { "$ref": "#/$defs/result" } },
+        "waivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/waiver" }
+        }
       }
     },
     "failedStartData": {
@@ -215,6 +245,7 @@
             "running",
             "waiting_for_input",
             "succeeded",
+            "accepted_with_waiver",
             "failed",
             "blocked"
           ]
@@ -230,6 +261,64 @@
         "kind": { "const": "dirty_checkout" },
         "commit": { "type": "string" },
         "invokedRoot": { "type": "string" }
+      }
+    },
+    "contentReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentId", "mediaType", "contentHash", "size", "location"],
+      "properties": {
+        "contentId": { "type": "string" },
+        "mediaType": { "const": "text/plain" },
+        "contentHash": { "type": "string" },
+        "size": { "type": "integer", "minimum": 0 },
+        "location": { "type": "string" }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiverId",
+        "loopId",
+        "stepId",
+        "attempt",
+        "outcome",
+        "actor",
+        "rationale",
+        "instructions",
+        "instructionsTo"
+      ],
+      "properties": {
+        "waiverId": { "type": "string" },
+        "loopId": { "type": "string" },
+        "stepId": { "type": "string" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "outcome": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["output", "expected", "actual"],
+          "properties": {
+            "output": { "type": "string" },
+            "expected": { "$ref": "#/$defs/outcomeValue" },
+            "actual": { "$ref": "#/$defs/outcomeValue" }
+          }
+        },
+        "actor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "harness", "verified"],
+          "properties": {
+            "id": { "type": ["string", "null"] },
+            "harness": { "type": ["string", "null"] },
+            "verified": { "const": false }
+          }
+        },
+        "rationale": { "$ref": "#/$defs/contentReference" },
+        "instructions": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/contentReference" }]
+        },
+        "instructionsTo": { "type": ["string", "null"] }
       }
     },
     "temporal": {
@@ -303,6 +392,7 @@
         "currentStep",
         "steps",
         "request",
+        "waivers",
         "error",
         "liveTemporal",
         "paths",
@@ -324,6 +414,10 @@
           "items": { "$ref": "#/$defs/stepStatus" }
         },
         "request": { "$ref": "#/$defs/request" },
+        "waivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/waiver" }
+        },
         "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },
         "liveTemporal": { "$ref": "#/$defs/liveTemporal" },
         "paths": { "$ref": "#/$defs/paths" },

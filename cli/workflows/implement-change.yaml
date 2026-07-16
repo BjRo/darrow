@@ -11,6 +11,7 @@ requirements:
     - contract: git.branch.create
       version: ^1.0.0
 profile: codex
+loops: []
 steps:
   - id: implement
     dependsOn: []

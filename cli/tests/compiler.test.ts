@@ -46,6 +46,11 @@ function git(cwd: string, args: string[]): void {
   if (result.exitCode !== 0) throw new Error(result.stderr.toString());
 }
 
+function restoreEnvironment(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
 async function repo(): Promise<string> {
   const path = await mkdtemp(resolve(tmpdir(), "darrow-compiler-"));
   temps.push(path);
@@ -63,11 +68,14 @@ describe("M1 compiler", () => {
   test("resolves command and hard capability into a valid immutable plan and lock", async () => {
     const root = await repo();
     const previous = process.env.DARROW_PLUGIN_ROOTS;
+    const previousCodexHome = process.env.CODEX_HOME;
     process.env.DARROW_PLUGIN_ROOTS = SOURCE_PLUGIN_ROOT;
+    process.env.CODEX_HOME = resolve(root, "codex-home");
     const compilation = await compile(root, "implement-change", {
       change: "return hello",
     }).finally(() => {
-      process.env.DARROW_PLUGIN_ROOTS = previous;
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previous);
+      restoreEnvironment("CODEX_HOME", previousCodexHome);
     });
     expect(compilation.plan.steps[0]?.commandId).toBe(
       "darrow-delivery:implement",
@@ -128,11 +136,17 @@ describe("M1 compiler", () => {
       }),
     );
     const previous = process.env.DARROW_PLUGIN_ROOTS;
+    const previousCodexHome = process.env.CODEX_HOME;
     process.env.DARROW_PLUGIN_ROOTS = plugin;
-    await expect(
-      compile(root, "implement-change", { change: "return hello" }),
-    ).rejects.toThrow("does not satisfy ^1.0.0");
-    process.env.DARROW_PLUGIN_ROOTS = previous;
+    process.env.CODEX_HOME = resolve(root, "codex-home");
+    try {
+      await expect(
+        compile(root, "implement-change", { change: "return hello" }),
+      ).rejects.toThrow("does not satisfy ^1.0.0");
+    } finally {
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previous);
+      restoreEnvironment("CODEX_HOME", previousCodexHome);
+    }
     expect(await readdir(resolve(root, ".darrow", "worktrees"))).toEqual([]);
   });
 });
@@ -148,6 +162,7 @@ function graphWorkflow(
     inputs: {},
     requirements: { capabilities: [] },
     profile: "codex",
+    loops: [],
     steps: steps.map((step) => ({
       ...step,
       command: { id: "darrow-delivery:implement", version: "^0.1.0" },
@@ -195,5 +210,86 @@ describe("M2 static workflow graph", () => {
     ];
     for (const [workflow, message] of invalid)
       expect(() => validateWorkflowGraph(workflow)).toThrow(message);
+  });
+
+  test("accepts a finite linear loop with a declared downstream waiver target", () => {
+    const workflow = graphWorkflow([
+      { id: "implement", dependsOn: [] },
+      { id: "review", dependsOn: ["implement"] },
+      { id: "publish", dependsOn: ["review"] },
+    ]);
+    workflow.loops = [
+      {
+        id: "implementation-review",
+        steps: ["implement", "review"],
+        maxAttempts: 3,
+        until: { stepId: "review", output: "summary", equals: "approved" },
+        waiver: {
+          id: "review-rejection",
+          description: "Accept the implementation despite review.",
+          instructionsTo: "publish",
+        },
+      },
+    ];
+    expect(() => validateWorkflowGraph(workflow)).not.toThrow();
+  });
+
+  test("rejects overlapping, nonlinear, and externally exposed loop regions", () => {
+    const overlapping = graphWorkflow([
+      { id: "implement", dependsOn: [] },
+      { id: "review", dependsOn: ["implement"] },
+    ]);
+    overlapping.loops = [
+      {
+        id: "first-loop",
+        steps: ["implement", "review"],
+        maxAttempts: 2,
+        until: { stepId: "review", output: "summary", equals: "approved" },
+        waiver: null,
+      },
+      {
+        id: "second-loop",
+        steps: ["review"],
+        maxAttempts: 2,
+        until: { stepId: "review", output: "summary", equals: "approved" },
+        waiver: null,
+      },
+    ];
+    expect(() => validateWorkflowGraph(overlapping)).toThrow(
+      "belongs to loops",
+    );
+
+    const nonlinear = graphWorkflow([
+      { id: "implement", dependsOn: [] },
+      { id: "review", dependsOn: [] },
+    ]);
+    nonlinear.loops = [
+      {
+        id: "bad-loop",
+        steps: ["implement", "review"],
+        maxAttempts: 2,
+        until: { stepId: "review", output: "summary", equals: "approved" },
+        waiver: null,
+      },
+    ];
+    expect(() => validateWorkflowGraph(nonlinear)).toThrow("linear region");
+
+    const exposed = graphWorkflow([
+      { id: "implement", dependsOn: [] },
+      { id: "review", dependsOn: ["implement"] },
+      { id: "publish", dependsOn: ["implement"] },
+    ]);
+    exposed.loops = [
+      {
+        id: "bad-loop",
+        steps: ["implement", "review"],
+        maxAttempts: 2,
+        until: { stepId: "review", output: "summary", equals: "approved" },
+        waiver: null,
+      },
+    ];
+    expect(() => validateWorkflowGraph(exposed)).toThrow(
+      "must depend on final step",
+    );
   });
 });

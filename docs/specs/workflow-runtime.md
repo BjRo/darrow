@@ -31,7 +31,11 @@ examples are illustrative rather than an alternate schema.
   invalid.
 - **WR-2 — Acyclic outside bounded loops.** The static graph is acyclic.
   Repetition exists only inside an explicitly declared loop region with a finite
-  attempt bound and declared exhaustion behavior.
+  attempt bound and declared exhaustion behavior. In workflow schema `0.1.0`, a
+  loop region is an ordered linear sequence: its first step may depend on work
+  outside the region, each later step depends only on its predecessor, and work
+  outside the region may depend only on the region's final step. A step belongs
+  to at most one loop.
 - **WR-3 — Typed boundaries.** Workflow inputs, step inputs and outputs, built-in
   arguments, artifacts, human responses, and workflow outputs have versioned
   schemas. Producers and consumers validate their side of each boundary.
@@ -189,20 +193,29 @@ examples are illustrative rather than an alternate schema.
   inspectable.
 - **WR-27 — Supplemental instructions.** A human can authorize another declared
   attempt with extra instructions. The instructions are stored as an immutable
-  input artifact and the new attempt receives relevant prior outputs.
+  input artifact and the first step of the new loop attempt receives relevant
+  prior artifact references. Those references are bounded by the declared loop
+  attempt limit.
 - **WR-28 — Finite human authorization.** Each human response authorizes a finite
   number of additional attempts. It never converts a bounded loop into autonomous
-  unbounded execution.
+  unbounded execution. The retry choice disappears when the immutable
+  `maxAttempts` bound is reached.
 - **WR-29 — Declared waiver only.** Only a workflow-declared quality or outcome
   failure can be waived. Corrupt state, a missing required artifact, hard
-  capability failure, and infrastructure failure are unwaivable.
+  capability failure, and infrastructure failure are unwaivable. Schema `0.1.0`
+  declares a loop outcome as a required scalar output of the region's final
+  command and may attach one named waiver to an unsatisfied value. Command or
+  infrastructure failures never enter this outcome-waiver path.
 - **WR-30 — Waiver provenance.** A waived step records
   `accepted_with_waiver`, the failed outcome, actor metadata, rationale, and any
   next-step instructions. At least one waiver produces run conclusion
-  `succeeded_with_waivers`.
+  `succeeded_with_waivers`. The rationale is mandatory, immutable local content;
+  workflow state and journal events carry only its bounded reference and hash.
 - **WR-31 — Scoped forward instructions.** Instructions attached to a waiver are
   passed only to the next declared target step unless the workflow explicitly
-  propagates them. They cannot add steps or mutate the plan.
+  propagates them. Schema `0.1.0` requires that target to be an explicitly named
+  direct dependent outside the loop. Instructions cannot add steps or mutate the
+  plan.
 
 An implementation/review loop therefore exposes, when declared, these human
 choices: retry with supplemental instructions, accept the current implementation

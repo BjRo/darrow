@@ -511,6 +511,10 @@ async function executeCodexCommandInternal(
     ...supplementalInstructions.map(
       (instructions) => `Supplemental human instructions:\n${instructions}`,
     ),
+    ...input.priorArtifacts.map(
+      (artifact) =>
+        `Prior attempt artifact: ${artifact.location} (${artifact.contentHash})`,
+    ),
     "Darrow already preflighted a compatible branch-creation capability. Create the local branch by expressing that intent; do not name a capability provider.",
     "Return only the structured result required by the supplied output schema.",
   ].join("\n");

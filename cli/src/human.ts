@@ -52,25 +52,30 @@ export function assertCurrentRequest(
   return current;
 }
 
-function contentPath(runDir: string, request: HumanRequest): string {
+function contentPath(
+  runDir: string,
+  request: HumanRequest,
+  kind: "response" | "rationale",
+): string {
   return resolve(
     runDir,
     "content",
     "human",
     request.requestId,
-    `response-v${request.version}.txt`,
+    `${kind}-v${request.version}.txt`,
   );
 }
 
-export async function storeHumanInstructions(
+async function storeHumanContent(
   repoRoot: string,
   runDir: string,
   request: HumanRequest,
   content: string | null,
+  kind: "response" | "rationale",
 ): Promise<ContentReference | null> {
   if (content === null) return null;
   const bytes = new TextEncoder().encode(content);
-  const path = contentPath(runDir, request);
+  const path = contentPath(runDir, request, kind);
   await mkdir(dirname(path), { recursive: true });
   try {
     await writeFile(path, bytes, { flag: "wx", mode: 0o444 });
@@ -90,12 +95,30 @@ export async function storeHumanInstructions(
   }
   await chmod(path, 0o444);
   return {
-    contentId: `human-response-${request.requestId}-v${request.version}`,
+    contentId: `human-${kind}-${request.requestId}-v${request.version}`,
     mediaType: "text/plain",
     contentHash: sha256(bytes),
     size: bytes.byteLength,
     location: relative(repoRoot, path).replaceAll("\\", "/"),
   };
+}
+
+export async function storeHumanInstructions(
+  repoRoot: string,
+  runDir: string,
+  request: HumanRequest,
+  content: string | null,
+): Promise<ContentReference | null> {
+  return storeHumanContent(repoRoot, runDir, request, content, "response");
+}
+
+export async function storeHumanRationale(
+  repoRoot: string,
+  runDir: string,
+  request: HumanRequest,
+  content: string | null,
+): Promise<ContentReference | null> {
+  return storeHumanContent(repoRoot, runDir, request, content, "rationale");
 }
 
 export async function readHumanInstructions(
