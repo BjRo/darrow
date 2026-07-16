@@ -41,8 +41,8 @@ The initial run record is:
 - **OB-5 — Append-only events.** Darrow appends a structured event for workflow
   compilation, dependency resolution, run and step transitions, attempts,
   command invocations, capability preflight, artifacts, human requests and
-  responses, waivers, cancellations, cleanup eligibility, and terminal
-  conclusions.
+  responses, recovery reconciliation, waivers, cancellations, cleanup
+  eligibility, and terminal conclusions.
 - **OB-6 — Stable correlation.** Every event carries protocol/schema version,
   timestamp, run ID, and event ID. Step, attempt, invocation, artifact, human
   request, Temporal workflow/run, and native session IDs appear when applicable.

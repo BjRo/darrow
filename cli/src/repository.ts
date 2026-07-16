@@ -1,8 +1,9 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { stringify } from "yaml";
 import { DarrowError } from "./errors";
 import { exists, readJson, sha256, writeJson } from "./io";
+import { withDirectoryLock } from "./locks";
 import { BUNDLED_WORKFLOWS_DIR } from "./paths";
 import { mustRun, run } from "./process";
 import type { ProjectDefinition } from "./types";
@@ -61,7 +62,7 @@ export function isDirty(cwd: string): boolean {
   return run(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd).stdout.length > 0;
 }
 
-export async function allocateWorktree(root: string, runId: string, commit: string, customPath?: string): Promise<string> {
+async function allocateWorktree(root: string, runId: string, commit: string, customPath?: string): Promise<string> {
   const defaultPath = resolve(root, ".darrow", "worktrees", runId);
   const path = customPath ? resolve(customPath) : defaultPath;
   if (await exists(path)) throw new DarrowError(`worktree path already exists: ${path}`, "workspace");
@@ -76,44 +77,94 @@ export async function allocateWorktree(root: string, runId: string, commit: stri
   return path;
 }
 
-export async function withAllocationLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
+async function withAllocationLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
   const lock = resolve(root, ".darrow", "locks", "allocation.lock");
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    try { await mkdir(lock); break; }
-    catch {
-      if (attempt === 99) throw new DarrowError(`allocation lock is busy: ${lock}`, "concurrency");
-      await Bun.sleep(20);
-    }
-  }
-  try { return await operation(); }
-  finally { await rm(lock, { recursive: true, force: true }); }
+  return withDirectoryLock(lock, "allocation", operation);
 }
 
 function ownerPath(root: string, workspace: string): string {
   return resolve(root, ".darrow", "runtime", "workspace-owners", `${sha256(resolve(workspace)).slice(7)}.json`);
 }
 
-export async function claimCurrentWorkspace(root: string, runId: string, workspace: string): Promise<void> {
-  await withAllocationLock(root, async () => {
-    const path = ownerPath(root, workspace);
-    if (await exists(path)) {
-      const owner = await readJson<{ runId: string; workspace: string }>(path);
-      if (owner.runId !== runId) throw new DarrowError(`current worktree is already attached to run ${owner.runId}: ${workspace}`, "concurrency");
-      return;
+interface WorkspaceOwner {
+  schemaVersion: "0.1.0";
+  runId: string;
+  workspace: string;
+  kind: "managed" | "attached";
+  claimedAt: string;
+}
+
+async function claimWorkspaceUnlocked(root: string, runId: string, workspace: string, kind: WorkspaceOwner["kind"]): Promise<void> {
+  const absolute = resolve(workspace);
+  const path = ownerPath(root, absolute);
+  if (await exists(path)) {
+    const owner = await readJson<WorkspaceOwner>(path);
+    if (owner.runId !== runId) throw new DarrowError(`workspace is already owned by run ${owner.runId}: ${absolute}`, "concurrency");
+    if (resolve(owner.workspace) !== absolute || owner.kind !== kind) throw new DarrowError(`workspace ownership record is inconsistent: ${path}`, "state");
+    return;
+  }
+  await writeJson(path, { schemaVersion: "0.1.0", runId, workspace: absolute, kind, claimedAt: new Date().toISOString() } satisfies WorkspaceOwner);
+}
+
+export async function allocateManagedWorkspace(root: string, runId: string, commit: string, customPath?: string): Promise<string> {
+  return withAllocationLock(root, async () => {
+    const workspace = customPath ? resolve(customPath) : resolve(root, ".darrow", "worktrees", runId);
+    let allocated = false;
+    try {
+      const path = await allocateWorktree(root, runId, commit, customPath);
+      allocated = true;
+      await claimWorkspaceUnlocked(root, runId, path, "managed");
+      return path;
+    } catch (error) {
+      if (allocated) {
+        const removed = run(["git", "worktree", "remove", "--force", workspace], root);
+        if (removed.exitCode !== 0) throw new DarrowError(`workspace ownership failed and rollback could not remove ${workspace}: ${removed.stderr.trim()}`, "workspace");
+      }
+      throw error;
     }
-    await writeJson(path, { schemaVersion: "0.1.0", runId, workspace: resolve(workspace), claimedAt: new Date().toISOString() });
   });
 }
 
-export async function releaseCurrentWorkspace(root: string, runId: string, workspace: string): Promise<void> {
+export async function claimCurrentWorkspace(root: string, runId: string, workspace: string): Promise<void> {
+  await withAllocationLock(root, () => claimWorkspaceUnlocked(root, runId, workspace, "attached"));
+}
+
+export async function ownedWorkspaceForRun(root: string, runId: string): Promise<WorkspaceOwner | null> {
+  const directory = resolve(root, ".darrow", "runtime", "workspace-owners");
+  if (!(await exists(directory))) return null;
+  const matches: WorkspaceOwner[] = [];
+  for (const name of await readdir(directory)) {
+    if (!name.endsWith(".json")) continue;
+    const owner = await readJson<WorkspaceOwner>(resolve(directory, name));
+    if (owner.runId === runId) matches.push(owner);
+  }
+  if (matches.length > 1) throw new DarrowError(`run ${runId} owns more than one workspace`, "state");
+  return matches[0] ?? null;
+}
+
+export async function releaseWorkspace(root: string, runId: string, workspace: string): Promise<void> {
   await withAllocationLock(root, async () => {
     const path = ownerPath(root, workspace);
     if (!(await exists(path))) return;
-    const owner = await readJson<{ runId: string }>(path);
+    const owner = await readJson<WorkspaceOwner>(path);
     if (owner.runId === runId) await rm(path, { force: true });
   });
 }
 
-export function newRunId(): string {
+export async function reserveRunDirectory(root: string): Promise<{ runId: string; stagingDir: string }> {
+  return withAllocationLock(root, async () => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const runId = newRunId();
+      const stagingDir = resolve(root, ".darrow", "runs", `.staging-${runId}`);
+      const finalDir = resolve(root, ".darrow", "runs", runId);
+      if (await exists(stagingDir) || await exists(finalDir)) continue;
+      await mkdir(stagingDir);
+      return { runId, stagingDir };
+    }
+    throw new DarrowError("could not allocate a unique run ID", "concurrency");
+  });
+}
+
+function newRunId(): string {
   return `${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${crypto.randomUUID().slice(0, 12)}`;
 }

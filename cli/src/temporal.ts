@@ -1,10 +1,11 @@
-import { Client, Connection, WorkflowNotFoundError } from "@temporalio/client";
+import { Client, Connection, WorkflowExecutionAlreadyStartedError, WorkflowNotFoundError } from "@temporalio/client";
 import { spawn } from "node:child_process";
 import { open, mkdir, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { DarrowError } from "./errors";
 import { exists, readJson, replaceJson, sha256 } from "./io";
+import { withDirectoryLock } from "./locks";
 import { globalToolchainHome } from "./paths";
 import {
   continuationSignal,
@@ -41,6 +42,19 @@ export interface ExecutionBoundary {
   results: WorkflowStatus["results"];
   request: WorkflowStatus["request"];
   temporal: Record<string, unknown>;
+  recovery?: "reattached" | "started_pending";
+}
+
+export interface ExecutionIdentity {
+  workflowId: string;
+  taskQueue: string;
+}
+
+export function executionIdentity(repoRoot: string, runId: string): ExecutionIdentity {
+  return {
+    taskQueue: `darrow-${sha256(repoRoot).slice(7, 19)}`,
+    workflowId: `darrow-${sha256(repoRoot).slice(7, 15)}-${runId}`,
+  };
 }
 
 function platformKey(): string {
@@ -61,15 +75,7 @@ function temporalBinary(repoRoot: string): string {
 
 async function withRuntimeLock<T>(runtimeDir: string, operation: () => Promise<T>): Promise<T> {
   const lock = resolve(runtimeDir, "runtime.lock");
-  for (let attempt = 0; attempt < 150; attempt += 1) {
-    try { await mkdir(lock); break; }
-    catch {
-      if (attempt === 149) throw new DarrowError(`Temporal runtime lock is busy: ${lock}`, "concurrency");
-      await Bun.sleep(20);
-    }
-  }
-  try { return await operation(); }
-  finally { await rm(lock, { recursive: true, force: true }); }
+  return withDirectoryLock(lock, "Temporal runtime", operation);
 }
 
 function alive(pid: number): boolean {
@@ -218,8 +224,7 @@ export async function waitForBoundary(handle: ReturnType<Client["workflow"]["get
 }
 
 export async function executePlan(input: WorkflowInput, onStarted?: (temporal: Record<string, unknown>) => Promise<void>): Promise<ExecutionBoundary> {
-  const taskQueue = `darrow-${sha256(input.repoRoot).slice(7, 19)}`;
-  const workflowId = `darrow-${sha256(input.repoRoot).slice(7, 15)}-${input.runId}`;
+  const { taskQueue, workflowId } = executionIdentity(input.repoRoot, input.runId);
   const runtime = await clientFor(input.repoRoot, taskQueue);
   try {
     const handle = await runtime.client.workflow.start(runResolvedPlanWorkflow, {
@@ -227,18 +232,58 @@ export async function executePlan(input: WorkflowInput, onStarted?: (temporal: R
       taskQueue,
       args: [input],
     });
-    const temporal = { workflowId, namespace: runtime.service.namespace, address: runtime.service.address, taskQueue, runId: handle.firstExecutionRunId };
+    const temporal = { workflowId, namespace: runtime.service.namespace, address: runtime.service.address, taskQueue, runId: handle.firstExecutionRunId, startPending: false };
     await onStarted?.(temporal);
     return await waitForBoundary(handle, temporal);
   } finally { await runtime.connection.close(); }
 }
 
-export async function resumePlan(repoRoot: string, temporal: Record<string, unknown>): Promise<ExecutionBoundary> {
+export async function reconcileWorkflowHandle(
+  workflow: Pick<Client["workflow"], "getHandle" | "start">,
+  workflowId: string,
+  taskQueue: string,
+  input: WorkflowInput | undefined,
+  startPending: boolean,
+): Promise<{ handle: ReturnType<Client["workflow"]["getHandle"]>; runId: string; recovery: "reattached" | "started_pending" }> {
+  let handle = workflow.getHandle(workflowId);
+  try {
+    const description = await handle.describe();
+    return { handle, runId: description.runId, recovery: "reattached" };
+  } catch (error) {
+    if (!(error instanceof WorkflowNotFoundError)) throw error;
+    if (!startPending) throw new DarrowError(`confirmed Temporal workflow is missing: ${workflowId}`, "recovery");
+    if (!input) throw new DarrowError(`pending Temporal workflow cannot be started without its immutable input: ${workflowId}`, "recovery");
+  }
+  try {
+    handle = await workflow.start(runResolvedPlanWorkflow, { workflowId, taskQueue, args: [input] });
+    const description = await handle.describe();
+    return { handle, runId: description.runId, recovery: "started_pending" };
+  } catch (error) {
+    if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
+    handle = workflow.getHandle(workflowId);
+    const description = await handle.describe();
+    return { handle, runId: description.runId, recovery: "reattached" };
+  }
+}
+
+export async function resumePlan(repoRoot: string, temporal: Record<string, unknown>, input?: WorkflowInput): Promise<ExecutionBoundary> {
   const workflowId = String(temporal.workflowId ?? "");
   const taskQueue = String(temporal.taskQueue ?? "");
   if (!workflowId || !taskQueue) throw new DarrowError("run has no resumable Temporal execution", "state");
   const runtime = await clientFor(repoRoot, taskQueue);
-  try { return await waitForBoundary(runtime.client.workflow.getHandle(workflowId), temporal); }
+  try {
+    const reconciled = await reconcileWorkflowHandle(runtime.client.workflow, workflowId, taskQueue, input, temporal.startPending === true);
+    const current = {
+      ...temporal,
+      workflowId,
+      namespace: runtime.service.namespace,
+      address: runtime.service.address,
+      taskQueue,
+      runId: reconciled.runId,
+      startPending: false,
+    };
+    return { ...await waitForBoundary(reconciled.handle, current), recovery: reconciled.recovery };
+  }
   finally { await runtime.connection.close(); }
 }
 

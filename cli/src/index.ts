@@ -6,20 +6,20 @@ import { verifyArtifacts } from "./artifacts";
 import { DarrowError } from "./errors";
 import { exists, readJson, writeJson } from "./io";
 import {
-  allocateWorktree,
+  allocateManagedWorkspace,
   claimCurrentWorkspace,
   currentWorktreeRoot,
   initRepository,
   isDirty,
-  newRunId,
+  ownedWorkspaceForRun,
   pinnedCommit,
   primaryRepoRoot,
-  releaseCurrentWorkspace,
+  releaseWorkspace,
+  reserveRunDirectory,
   requireInitialized,
-  withAllocationLock,
 } from "./repository";
 import { event, readRun, saveRun } from "./state";
-import { continuePlan, describeWorkflow, executePlan, resumePlan, type ExecutionBoundary } from "./temporal";
+import { continuePlan, describeWorkflow, executePlan, executionIdentity, resumePlan, type ExecutionBoundary } from "./temporal";
 import { validateSchema } from "./schema";
 import type { Conclusion, ResolvedPlan, RunRecord } from "./types";
 
@@ -122,9 +122,9 @@ async function createInitialRun(runDir: string, runId: string, workflowId: strin
   return record;
 }
 
-async function stageRun(repoRoot: string, runId: string, workflowId: string, compilation: Awaited<ReturnType<typeof compile>>): Promise<{ runDir: string; record: RunRecord; snapshotDir: string }> {
+async function stageRun(repoRoot: string, workflowId: string, compilation: Awaited<ReturnType<typeof compile>>): Promise<{ runId: string; runDir: string; record: RunRecord; snapshotDir: string }> {
+  const { runId, stagingDir } = await reserveRunDirectory(repoRoot);
   const finalDir = resolve(repoRoot, ".darrow", "runs", runId);
-  const stagingDir = resolve(repoRoot, ".darrow", "runs", `.staging-${runId}`);
   try {
     for (const name of ["content", "artifacts", "results"]) await mkdir(resolve(stagingDir, name), { recursive: true });
     const record = await createInitialRun(stagingDir, runId, workflowId);
@@ -134,7 +134,7 @@ async function stageRun(repoRoot: string, runId: string, workflowId: string, com
     await chmod(resolve(stagingDir, "lock.json"), 0o444);
     await snapshot(compilation, stagingDir);
     await rename(stagingDir, finalDir);
-    return { runDir: finalDir, record, snapshotDir: resolve(finalDir, "snapshot") };
+    return { runId, runDir: finalDir, record, snapshotDir: resolve(finalDir, "snapshot") };
   } catch (error) {
     await rm(stagingDir, { recursive: true, force: true });
     throw error;
@@ -150,8 +150,8 @@ async function printWaiting(record: RunRecord, json: boolean, command: "run" | "
   else console.log(`Run: ${record.runId}\nState: waiting_for_input\nReason: ${record.error?.message}\nChoices: ${choices.join(", ")}\nContinue: ${data.continuation}`);
 }
 
-async function releaseAttachment(repoRoot: string, record: RunRecord): Promise<void> {
-  if (record.workspace && record.temporal.attached === true) await releaseCurrentWorkspace(repoRoot, record.runId, record.workspace);
+async function releaseOwnership(repoRoot: string, record: RunRecord): Promise<void> {
+  if (record.workspace) await releaseWorkspace(repoRoot, record.runId, record.workspace);
 }
 
 async function applyBoundary(repoRoot: string, runDir: string, record: RunRecord, boundary: ExecutionBoundary, cancelled = false): Promise<void> {
@@ -168,7 +168,7 @@ async function applyBoundary(repoRoot: string, runDir: string, record: RunRecord
     record.error = cancelled ? null : terminal?.error ?? null;
     record.currentStep = null;
     await event(runDir, record.runId, "run.completed", { conclusion: record.conclusion, results: boundary.results.map((item) => ({ invocationId: item.invocationId, status: item.status, artifacts: item.artifacts })) });
-    await releaseAttachment(repoRoot, record);
+    await releaseOwnership(repoRoot, record);
   }
   await saveRun(runDir, record);
 }
@@ -177,6 +177,9 @@ async function executeStarted(repoRoot: string, runDir: string, record: RunRecor
   const snapshotDir = resolve(runDir, "snapshot");
   await verifyRunSnapshot(runDir, plan);
   await verifyArtifacts(repoRoot, runDir);
+  const identity = executionIdentity(repoRoot, record.runId);
+  record.temporal = { ...record.temporal, ...identity, startPending: true };
+  await saveRun(runDir, record);
   return executePlan({ runId: record.runId, repoRoot, runDir, workspace: record.workspace!, snapshotDir, plan }, async (temporal) => {
     record.temporal = { ...record.temporal, ...temporal };
     await saveRun(runDir, record);
@@ -198,9 +201,8 @@ async function runWorkflow(options: RunOptions): Promise<number> {
   await requireInitialized(repoRoot);
   const compilation = await compile(repoRoot, options.workflow, options.inputs);
   const commit = pinnedCommit(invokedRoot, options.base);
-  const runId = newRunId();
-  const staged = await stageRun(repoRoot, runId, compilation.workflow.id, compilation);
-  const { runDir, record } = staged;
+  const staged = await stageRun(repoRoot, compilation.workflow.id, compilation);
+  const { runId, runDir, record } = staged;
   await event(runDir, runId, "workflow.compiled", { workflow: compilation.plan.workflow, planDigest: compilation.plan.digest });
   await event(runDir, runId, "dependencies.resolved", { commands: compilation.plan.steps.map((step) => step.commandId), capabilities: compilation.plan.capabilities });
   if (isDirty(invokedRoot) && !options.base && !options.workspace) {
@@ -217,7 +219,7 @@ async function runWorkflow(options: RunOptions): Promise<number> {
       await claimCurrentWorkspace(repoRoot, runId, invokedRoot);
       record.workspace = invokedRoot;
       record.temporal = { attached: true };
-    } else record.workspace = await withAllocationLock(repoRoot, () => allocateWorktree(repoRoot, runId, commit, options.worktree));
+    } else record.workspace = await allocateManagedWorkspace(repoRoot, runId, commit, options.worktree);
     record.currentStep = compilation.plan.steps[0]?.id ?? null;
     await saveRun(runDir, record);
     await event(runDir, runId, "workspace.allocated", { workspace: record.workspace, commit, attached: options.workspace === "current" });
@@ -229,7 +231,7 @@ async function runWorkflow(options: RunOptions): Promise<number> {
     record.conclusion = "failed";
     record.error = { category: error instanceof DarrowError ? error.category : "infrastructure", message: error instanceof Error ? error.message : String(error) };
     record.currentStep = null;
-    await releaseAttachment(repoRoot, record);
+    await releaseOwnership(repoRoot, record);
     await saveRun(runDir, record);
     await event(runDir, runId, "run.completed", { conclusion: "failed", error: record.error });
     if (options.json) await emitJson("run", false, { runId, state: record.state, conclusion: record.conclusion }, record.error);
@@ -261,7 +263,7 @@ async function continueRun(runId: string, choice: string, json: boolean, model?:
       await saveRun(runDir, record); await event(runDir, runId, "run.completed", { conclusion: "cancelled" });
       return presentResult("continue", record, [], json);
     }
-    const workspace = choice === "current" ? resolve(pending.invokedRoot!) : await withAllocationLock(repoRoot, () => allocateWorktree(repoRoot, runId, String(pending.commit)));
+    const workspace = choice === "current" ? resolve(pending.invokedRoot!) : await allocateManagedWorkspace(repoRoot, runId, String(pending.commit));
     if (choice === "current") await claimCurrentWorkspace(repoRoot, runId, workspace);
     record.workspace = workspace;
     record.temporal = choice === "current" ? { attached: true } : {};
@@ -288,8 +290,22 @@ async function resumeRun(runId: string, json: boolean): Promise<number> {
   const plan = await readJson<ResolvedPlan>(resolve(runDir, "plan.json"));
   await verifyRunSnapshot(runDir, plan);
   await verifyArtifacts(repoRoot, runDir);
-  if (!record.temporal.workflowId) throw new DarrowError(`run has no started Temporal workflow: ${runId}`, "state");
-  const boundary = await resumePlan(repoRoot, record.temporal);
+  if (!record.workspace) {
+    const owner = await ownedWorkspaceForRun(repoRoot, runId);
+    if (owner) {
+      record.workspace = owner.workspace;
+      if (owner.kind === "attached") record.temporal = { ...record.temporal, attached: true };
+    }
+  }
+  if (!record.workspace) throw new DarrowError(`run has no recoverable workspace: ${runId}`, "recovery");
+  if (!record.temporal.workflowId || !record.temporal.taskQueue) {
+    record.temporal = { ...record.temporal, ...executionIdentity(repoRoot, runId), startPending: true };
+  }
+  record.currentStep ??= plan.steps[0]?.id ?? null;
+  await saveRun(runDir, record);
+  const input = { runId, repoRoot, runDir, workspace: record.workspace, snapshotDir: resolve(runDir, "snapshot"), plan };
+  const boundary = await resumePlan(repoRoot, record.temporal, input);
+  await event(runDir, runId, "run.recovered", { mode: boundary.recovery ?? "reattached", workflowId: boundary.temporal.workflowId, workspace: record.workspace });
   await applyBoundary(repoRoot, runDir, record, boundary);
   return presentResult("resume", record, boundary.results, json);
 }

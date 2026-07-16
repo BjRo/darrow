@@ -44,4 +44,17 @@ describe("0.1.0 contract fixtures", () => {
     const contradictory = { protocolVersion: "0.1.0", command: "run", ok: true, data: { runId: "run-1", state: "completed", conclusion: "failed", workspace: "/repo", results: [] }, error: null };
     await expect(validateSchema("protocol.schema.json", contradictory, "protocol")).rejects.toThrow("must match exactly one schema");
   });
+
+  test("recovery event records the authoritative reconciliation mode", async () => {
+    const recovered = {
+      schemaVersion: "0.1.0",
+      eventId: "event-recovered",
+      runId: "run-1",
+      timestamp: "2026-07-16T20:00:00.000Z",
+      type: "run.recovered",
+      data: { mode: "started_pending", workflowId: "workflow-1", workspace: "/repo/.darrow/worktrees/run-1" },
+    };
+    await expect(validateSchema("event.schema.json", recovered, "recovery event")).resolves.toBeUndefined();
+    await expect(validateSchema("event.schema.json", { ...recovered, data: { ...recovered.data, mode: "reconstructed" } }, "recovery event")).rejects.toThrow("allowed values");
+  });
 });

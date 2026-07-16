@@ -11,7 +11,7 @@
     "temporal": {
       "type": "object", "additionalProperties": false,
       "properties": {
-        "workflowId": { "type": "string" }, "namespace": { "type": "string" }, "address": { "type": "string" }, "taskQueue": { "type": "string" }, "runId": { "type": ["string", "null"] }, "attached": { "const": true },
+        "workflowId": { "type": "string" }, "namespace": { "type": "string" }, "address": { "type": "string" }, "taskQueue": { "type": "string" }, "runId": { "type": ["string", "null"] }, "startPending": { "type": "boolean" }, "attached": { "const": true },
         "pending": { "type": "object", "additionalProperties": false, "required": ["kind", "commit", "invokedRoot"], "properties": { "kind": { "const": "dirty_checkout" }, "commit": { "type": "string" }, "invokedRoot": { "type": "string" } } },
         "request": { "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["version", "reason", "choices"], "properties": { "version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string" }, "choices": { "type": "array", "items": { "type": "string" } } } }] }
       }

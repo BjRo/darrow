@@ -91,6 +91,12 @@ The initial layout is:
   `.darrow/locks/` serializes run-ID, worktree-path, attached-workspace, and branch
   ownership allocation. A process releases the allocation lock before agent work
   begins.
+- **WA-15a — Persistent workspace ownership.** Managed and attached workspaces
+  receive a repository-local ownership record while the allocation lock is held.
+  The record is visible to later Darrow processes before the lock is released,
+  identifies exactly one run and absolute workspace path, and is removed only by
+  that run at a terminal boundary. A restart may recover the run's workspace from
+  this record; it never adopts another run's workspace.
 - **WA-16 — Independent run state.** Each run has its own plan, attempts,
   artifacts, worktree, and conclusion. Failure or cancellation of one process
   cannot cancel, clean, or mutate another run.

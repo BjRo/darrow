@@ -143,6 +143,13 @@ examples are illustrative rather than an alternate schema.
   The repository-scoped Temporal service and worker may remain alive without
   the foreground CLI; `darrow resume <run-id>` reconnects after an interrupted
   invocation and reconciles authoritative workflow state.
+- **WR-23a — Restart-safe startup reconciliation.** Before attempting to start a
+  workflow, Darrow persists its deterministic workflow ID, task queue, immutable
+  execution input, and an unconfirmed-start marker. On resume it queries Temporal
+  with that identity. If the start is still unconfirmed and no execution exists,
+  Darrow may start the exact locked input with the same ID. If a previously
+  confirmed execution is missing, Darrow reports recovery failure and never
+  reconstructs control state from repository files.
 - **WR-24 — No local expiry or role authorization.** Local waiting has no default
   timeout. Any caller able to invoke `darrow continue` may respond. Darrow records
   supplied actor and harness identity as unverified audit metadata. Hosted

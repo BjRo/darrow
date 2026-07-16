@@ -73,9 +73,17 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
   expect(allocated.code, `${allocated.stderr}\n${allocated.stdout}`).toBe(0);
   const modelWait = JSON.parse(allocated.stdout.trim()) as { data: { runId: string; state: string } };
   expect(modelWait.data.state).toBe("waiting_for_input");
+  const firstWorker = await Bun.file(resolve(root, ".darrow", "runtime", "worker.json")).json() as { pid: number };
+  process.kill(firstWorker.pid, "SIGTERM");
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try { process.kill(firstWorker.pid, 0); await Bun.sleep(20); }
+    catch { break; }
+  }
   const foreground = Bun.spawn(["bun", cli, "continue", waiting.data.runId, "--choice", "retry", "--json"], { cwd: root, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
   for (let attempt = 0; attempt < 100 && !await Bun.file(resolve(bin, "activity-started")).exists(); attempt += 1) await Bun.sleep(20);
   expect(await Bun.file(resolve(bin, "activity-started")).exists()).toBe(true);
+  const restartedWorker = await Bun.file(resolve(root, ".darrow", "runtime", "worker.json")).json() as { pid: number };
+  expect(restartedWorker.pid).not.toBe(firstWorker.pid);
   foreground.kill("SIGTERM");
   await foreground.exited;
   const execution = command(["bun", cli, "resume", waiting.data.runId, "--json"], root, env);
