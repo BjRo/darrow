@@ -561,6 +561,10 @@ in profiles and provenance.
 - **Temporal feasibility:** validate replay safety, local startup, recovery,
   bounded history, uncertain side effects, long waits, and deployment parity
   against the re-evaluation criteria in section 11.
+- **CLI implementation language:** after Temporal feasibility is established and
+  the Rust SDK matures, compare the TypeScript/Bun runtime with a standalone
+  Rust implementation across distribution footprint, runtime support,
+  development cost, protocol compatibility, and active-run migration.
 - **Dynamic model policy:** evaluate difficulty estimation and model/effort
   routing against fixed policies on representative workloads before scheduling
   it.
