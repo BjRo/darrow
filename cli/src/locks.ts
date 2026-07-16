@@ -11,12 +11,20 @@ interface LockOwner {
 }
 
 function alive(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch { return false; }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function owner(path: string): Promise<LockOwner | null> {
-  try { return await readJson<LockOwner>(resolve(path, "owner.json")); }
-  catch { return null; }
+  try {
+    return await readJson<LockOwner>(resolve(path, "owner.json"));
+  } catch {
+    return null;
+  }
 }
 
 async function reclaimIfStale(path: string): Promise<boolean> {
@@ -26,15 +34,22 @@ async function reclaimIfStale(path: string): Promise<boolean> {
     try {
       const info = await stat(path);
       if (Date.now() - info.mtimeMs < 5_000) return false;
-    } catch { return true; }
+    } catch {
+      return true;
+    }
   }
   const current = await owner(path);
-  if (observed?.token !== current?.token || current && alive(current.pid)) return false;
+  if (observed?.token !== current?.token || (current && alive(current.pid)))
+    return false;
   await rm(path, { recursive: true, force: true });
   return true;
 }
 
-export async function withDirectoryLock<T>(path: string, label: string, operation: () => Promise<T>): Promise<T> {
+export async function withDirectoryLock<T>(
+  path: string,
+  label: string,
+  operation: () => Promise<T>,
+): Promise<T> {
   const token = crypto.randomUUID();
   let acquired = false;
   for (let attempt = 0; attempt < 350; attempt += 1) {
@@ -43,7 +58,12 @@ export async function withDirectoryLock<T>(path: string, label: string, operatio
       await mkdir(path);
       created = true;
       try {
-        await writeJson(resolve(path, "owner.json"), { schemaVersion: "0.1.0", pid: process.pid, token, acquiredAt: new Date().toISOString() } satisfies LockOwner);
+        await writeJson(resolve(path, "owner.json"), {
+          schemaVersion: "0.1.0",
+          pid: process.pid,
+          token,
+          acquiredAt: new Date().toISOString(),
+        } satisfies LockOwner);
         acquired = true;
         break;
       } catch (error) {
@@ -54,15 +74,18 @@ export async function withDirectoryLock<T>(path: string, label: string, operatio
       if (acquired) throw error;
       if (created) throw error;
       if (await exists(path)) await reclaimIfStale(path);
-      if (attempt === 349) throw new DarrowError(`${label} lock is busy: ${path}`, "concurrency");
+      if (attempt === 349)
+        throw new DarrowError(`${label} lock is busy: ${path}`, "concurrency");
       await Bun.sleep(20);
     }
   }
-  try { return await operation(); }
-  finally {
+  try {
+    return await operation();
+  } finally {
     if (acquired) {
       const current = await owner(path);
-      if (current?.token === token) await rm(path, { recursive: true, force: true });
+      if (current?.token === token)
+        await rm(path, { recursive: true, force: true });
     }
   }
 }

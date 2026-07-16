@@ -2,14 +2,84 @@
   "schemaVersion": "0.1.0",
   "runId": "run-1",
   "createdAt": "2026-07-16T12:00:00.000Z",
-  "versions": { "engine": "0.1.0", "cliProtocol": "0.1.0", "workflowSchema": "0.1.0" },
+  "versions": {
+    "engine": "0.1.0",
+    "cliProtocol": "0.1.0",
+    "workflowSchema": "0.1.0"
+  },
   "planDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  "workflow": { "id": "implement-change", "version": "0.1.0", "source": "/repo/.darrow/workflows/implement-change.yaml", "scope": "project", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-  "commands": [{ "id": "darrow-delivery:implement", "contractVersion": "0.1.0", "pluginVersion": "0.1.0", "source": "/plugins/darrow-delivery/skills/implement", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }],
-  "capabilities": [{ "contract": "git.branch.create", "requested": "^1.0.0", "version": "1.0.0", "providerId": "darrow-git:create-branch", "pluginVersion": "0.1.1", "scope": "user", "source": "/plugins/darrow-git/skills/create-branch", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" }],
-  "profile": { "schemaVersion": "0.1.0", "id": "codex", "harness": "codex", "provider": "openai", "model": "gpt-5.6-sol", "reasoningEffort": "high", "permissions": { "inherit": true }, "source": "/cli/profiles/codex.yaml", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
-  "schemas": [{ "identity": "darrow:workflow.schema.json", "version": "0.1.0", "location": "schemas/workflow.schema.json", "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" }],
-  "builtins": [{ "name": "temporal", "version": "1.8.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }],
-  "adapter": { "id": "codex-cli", "version": "0.1.0", "executable": "/usr/local/bin/codex", "detectedVersion": "codex-cli 1.0.0", "harness": "codex", "provider": "openai", "model": "gpt-5.6-sol", "reasoningEffort": "high", "nativePermissions": { "inherit": true, "configurationSource": "/home/user/.codex/config.toml", "configurationDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
-  "engine": { "id": "darrow", "version": "0.1.0", "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }
+  "workflow": {
+    "id": "implement-change",
+    "version": "0.1.0",
+    "source": "/repo/.darrow/workflows/implement-change.yaml",
+    "scope": "project",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "commands": [
+    {
+      "id": "darrow-delivery:implement",
+      "contractVersion": "0.1.0",
+      "pluginVersion": "0.1.0",
+      "source": "/plugins/darrow-delivery/skills/implement",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "capabilities": [
+    {
+      "contract": "git.branch.create",
+      "requested": "^1.0.0",
+      "version": "1.0.0",
+      "providerId": "darrow-git:create-branch",
+      "pluginVersion": "0.1.1",
+      "scope": "user",
+      "source": "/plugins/darrow-git/skills/create-branch",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "profile": {
+    "schemaVersion": "0.1.0",
+    "id": "codex",
+    "harness": "codex",
+    "provider": "openai",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "high",
+    "permissions": { "inherit": true },
+    "source": "/cli/profiles/codex.yaml",
+    "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "schemas": [
+    {
+      "identity": "darrow:workflow.schema.json",
+      "version": "0.1.0",
+      "location": "schemas/workflow.schema.json",
+      "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+  ],
+  "builtins": [
+    {
+      "name": "temporal",
+      "version": "1.8.0",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "adapter": {
+    "id": "codex-cli",
+    "version": "0.1.0",
+    "executable": "/usr/local/bin/codex",
+    "detectedVersion": "codex-cli 1.0.0",
+    "harness": "codex",
+    "provider": "openai",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "high",
+    "nativePermissions": {
+      "inherit": true,
+      "configurationSource": "/home/user/.codex/config.toml",
+      "configurationDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "engine": {
+    "id": "darrow",
+    "version": "0.1.0",
+    "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
 }

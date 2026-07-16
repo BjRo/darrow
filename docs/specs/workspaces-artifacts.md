@@ -61,6 +61,7 @@ The initial layout is:
   ```
 
   Darrow reports its absolute path in model-facing and machine-readable output.
+
 - **WA-9 — Exact custom path.** An explicitly requested worktree path is used
   exactly or rejected. Darrow never invents a substitute. An existing path is
   never reused or overwritten. A custom path inside the primary checkout must
@@ -113,6 +114,7 @@ The initial layout is:
   ```
 
   A later attempt never overwrites an earlier path.
+
 - **WA-19 — Typed reference.** An artifact reference contains a stable artifact
   ID, type, schema identity and digest, content hash, size, producer step and
   attempt, repository-relative or content-store location, and creation time.
@@ -137,6 +139,7 @@ The initial layout is:
   ```text
   .darrow/runs/<run-id>/snapshot/
   ```
+
 - **WA-24 — Immutable snapshot.** Snapshot content is content-addressed or
   otherwise write-protected by verification. Resume verifies digests before
   executing another attempt. Plugin, workflow, or marketplace updates affect new
@@ -167,6 +170,7 @@ The initial layout is:
         <attempt-id>/
           <artifact>
   ```
+
 - **WA-29 — Explicit publication.** A run-local artifact enters a ticket
   workspace only through a declared publication step. Workflows without a ticket
   or publication step keep artifacts run-local.

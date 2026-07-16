@@ -101,18 +101,18 @@ examples are illustrative rather than an alternate schema.
 - **WR-18 — Separate lifecycle and outcome.** A run has one lifecycle state and,
   only after completion, one conclusion.
 
-| State | Meaning |
-|---|---|
-| `running` | Darrow may schedule or execute work. |
+| State               | Meaning                                             |
+| ------------------- | --------------------------------------------------- |
+| `running`           | Darrow may schedule or execute work.                |
 | `waiting_for_input` | Durable state requires explicit human continuation. |
-| `completed` | No more workflow work will be scheduled. |
+| `completed`         | No more workflow work will be scheduled.            |
 
-| Conclusion | Meaning |
-|---|---|
-| `succeeded` | All required outcomes completed without a waiver. |
+| Conclusion               | Meaning                                                                     |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `succeeded`              | All required outcomes completed without a waiver.                           |
 | `succeeded_with_waivers` | Required outcomes completed and at least one declared failure was accepted. |
-| `failed` | The workflow could not satisfy its required outcomes. |
-| `cancelled` | An explicit cancellation stopped the run. |
+| `failed`                 | The workflow could not satisfy its required outcomes.                       |
+| `cancelled`              | An explicit cancellation stopped the run.                                   |
 
 - **WR-19 — Skipped is a step state.** `skipped` describes a step that a static
   condition did not select. It is distinct from an unavailable optional
@@ -133,6 +133,7 @@ examples are illustrative rather than an alternate schema.
   ```
 
   Agent entrypoint skills return the same information to Codex or Claude Code.
+
 - **WR-22 — Machine-readable continuation.** Structured output contains the same
   state and continuation command as fields and contains no extra prose. Free-form
   input is accepted through an interactive prompt, stdin, or structured request;

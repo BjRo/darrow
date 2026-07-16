@@ -3,17 +3,29 @@ import type { CaseResult } from "./types";
 
 const [baselinePath, candidatePath] = process.argv.slice(2);
 if (!baselinePath || !candidatePath) {
-  console.error("Usage: bun evals/runner/compare.ts <baseline.json> <candidate.json>");
+  console.error(
+    "Usage: bun evals/runner/compare.ts <baseline.json> <candidate.json>",
+  );
   process.exit(1);
 }
 
 const baseline: CaseResult[] = JSON.parse(await readFile(baselinePath, "utf8"));
-const candidate: CaseResult[] = JSON.parse(await readFile(candidatePath, "utf8"));
+const candidate: CaseResult[] = JSON.parse(
+  await readFile(candidatePath, "utf8"),
+);
 
-const fmtDelta = (base: number, cand: number, unit: string, lowerBetter = true): string => {
+const fmtDelta = (
+  base: number,
+  cand: number,
+  unit: string,
+  lowerBetter = true,
+): string => {
   const delta = cand - base;
   if (base === 0 && cand === 0) return "±0";
-  const pct = base !== 0 ? ` (${delta > 0 ? "+" : ""}${((delta / base) * 100).toFixed(0)}%)` : "";
+  const pct =
+    base !== 0
+      ? ` (${delta > 0 ? "+" : ""}${((delta / base) * 100).toFixed(0)}%)`
+      : "";
   const better = lowerBetter ? delta < 0 : delta > 0;
   const marker = delta === 0 ? "=" : better ? "▲" : "▼";
   return `${marker} ${delta > 0 ? "+" : ""}${delta.toFixed(unit === "s" ? 1 : 0)}${unit}${pct}`;

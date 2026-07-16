@@ -2,9 +2,21 @@
   "version": "1.8.0",
   "baseUrl": "https://github.com/temporalio/cli/releases/download/v1.8.0",
   "platforms": {
-    "darwin-amd64": { "asset": "temporal_cli_1.8.0_darwin_amd64.tar.gz", "sha256": "7ea6edf15329e8169233d3e38a0c1f6464cf84ee25140c16ff059ea4f802762e" },
-    "darwin-arm64": { "asset": "temporal_cli_1.8.0_darwin_arm64.tar.gz", "sha256": "46b4ac2b603e2b68d684da728bccd938a69acfad9c5e1a469d28d00a64e8bc9c" },
-    "linux-amd64": { "asset": "temporal_cli_1.8.0_linux_amd64.tar.gz", "sha256": "896c6132d6d969f84c3f2382a31abd9a67a06ed3008c1a37c3573fe81d730e4a" },
-    "linux-arm64": { "asset": "temporal_cli_1.8.0_linux_arm64.tar.gz", "sha256": "52d2d3e4f35c4ad2d45d0677eae1e1e3c7ba3c7f40a6a42d9a7f34e541c3dd57" }
+    "darwin-amd64": {
+      "asset": "temporal_cli_1.8.0_darwin_amd64.tar.gz",
+      "sha256": "7ea6edf15329e8169233d3e38a0c1f6464cf84ee25140c16ff059ea4f802762e"
+    },
+    "darwin-arm64": {
+      "asset": "temporal_cli_1.8.0_darwin_arm64.tar.gz",
+      "sha256": "46b4ac2b603e2b68d684da728bccd938a69acfad9c5e1a469d28d00a64e8bc9c"
+    },
+    "linux-amd64": {
+      "asset": "temporal_cli_1.8.0_linux_amd64.tar.gz",
+      "sha256": "896c6132d6d969f84c3f2382a31abd9a67a06ed3008c1a37c3573fe81d730e4a"
+    },
+    "linux-arm64": {
+      "asset": "temporal_cli_1.8.0_linux_arm64.tar.gz",
+      "sha256": "52d2d3e4f35c4ad2d45d0677eae1e1e3c7ba3c7f40a6a42d9a7f34e541c3dd57"
+    }
   }
 }

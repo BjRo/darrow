@@ -66,7 +66,12 @@ export interface HarnessAdapter {
   skillMounts: string[];
   /** CLI version string, recorded per run (versions have drifted mid-experiment before). */
   version(): Promise<string>;
-  run(repoDir: string, prompt: string, model: string, effort: string): Promise<HarnessResult>;
+  run(
+    repoDir: string,
+    prompt: string,
+    model: string,
+    effort: string,
+  ): Promise<HarnessResult>;
 }
 
 export interface CheckResult {

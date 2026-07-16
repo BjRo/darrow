@@ -3,14 +3,42 @@
   "$id": "https://darrow.dev/schemas/lock/0.1.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "runId", "createdAt", "versions", "planDigest", "workflow", "commands", "capabilities", "profile", "schemas", "builtins", "adapter", "engine"],
+  "required": [
+    "schemaVersion",
+    "runId",
+    "createdAt",
+    "versions",
+    "planDigest",
+    "workflow",
+    "commands",
+    "capabilities",
+    "profile",
+    "schemas",
+    "builtins",
+    "adapter",
+    "engine"
+  ],
   "properties": {
-    "schemaVersion": { "const": "0.1.0" }, "runId": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" },
-    "versions": { "type": "object", "additionalProperties": false, "required": ["engine", "cliProtocol", "workflowSchema"], "properties": { "engine": { "const": "0.1.0" }, "cliProtocol": { "const": "0.1.0" }, "workflowSchema": { "const": "0.1.0" } } },
+    "schemaVersion": { "const": "0.1.0" },
+    "runId": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "cliProtocol", "workflowSchema"],
+      "properties": {
+        "engine": { "const": "0.1.0" },
+        "cliProtocol": { "const": "0.1.0" },
+        "workflowSchema": { "const": "0.1.0" }
+      }
+    },
     "planDigest": { "$ref": "#/$defs/digest" },
     "workflow": { "$ref": "#/$defs/workflow" },
     "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
-    "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    },
     "profile": { "$ref": "#/$defs/profile" },
     "schemas": { "type": "array", "items": { "$ref": "#/$defs/schema" } },
     "builtins": { "type": "array", "items": { "$ref": "#/$defs/builtin" } },
@@ -20,43 +48,155 @@
   "$defs": {
     "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "workflow": {
-      "type": "object", "additionalProperties": false, "required": ["id", "version", "source", "scope", "digest"],
-      "properties": { "id": { "type": "string" }, "version": { "type": "string" }, "source": { "type": "string" }, "scope": { "enum": ["explicit", "project", "user", "bundled"] }, "digest": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "source", "scope", "digest"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "source": { "type": "string" },
+        "scope": { "enum": ["explicit", "project", "user", "bundled"] },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
     },
     "command": {
-      "type": "object", "additionalProperties": false, "required": ["id", "contractVersion", "pluginVersion", "source", "digest"],
-      "properties": { "id": { "type": "string" }, "contractVersion": { "type": "string" }, "pluginVersion": { "type": "string" }, "source": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "contractVersion",
+        "pluginVersion",
+        "source",
+        "digest"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "contractVersion": { "type": "string" },
+        "pluginVersion": { "type": "string" },
+        "source": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
     },
     "capability": {
-      "type": "object", "additionalProperties": false, "required": ["contract", "requested", "version", "providerId", "pluginVersion", "scope", "source", "digest"],
-      "properties": { "contract": { "type": "string" }, "requested": { "type": "string" }, "version": { "type": "string" }, "providerId": { "type": "string" }, "pluginVersion": { "type": "string" }, "scope": { "enum": ["explicit", "project", "user", "bundled"] }, "source": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "requested",
+        "version",
+        "providerId",
+        "pluginVersion",
+        "scope",
+        "source",
+        "digest"
+      ],
+      "properties": {
+        "contract": { "type": "string" },
+        "requested": { "type": "string" },
+        "version": { "type": "string" },
+        "providerId": { "type": "string" },
+        "pluginVersion": { "type": "string" },
+        "scope": { "enum": ["explicit", "project", "user", "bundled"] },
+        "source": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
     },
     "profile": {
-      "type": "object", "additionalProperties": false, "required": ["schemaVersion", "id", "harness", "provider", "model", "reasoningEffort", "permissions", "source", "digest"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "permissions",
+        "source",
+        "digest"
+      ],
       "properties": {
-        "schemaVersion": { "const": "0.1.0" }, "id": { "type": "string" }, "harness": { "const": "codex" }, "provider": { "const": "openai" }, "model": { "const": "gpt-5.6-sol" }, "reasoningEffort": { "const": "high" },
-        "permissions": { "type": "object", "additionalProperties": false, "required": ["inherit"], "properties": { "inherit": { "const": true } } },
-        "source": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" }
+        "schemaVersion": { "const": "0.1.0" },
+        "id": { "type": "string" },
+        "harness": { "const": "codex" },
+        "provider": { "const": "openai" },
+        "model": { "const": "gpt-5.6-sol" },
+        "reasoningEffort": { "const": "high" },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit"],
+          "properties": { "inherit": { "const": true } }
+        },
+        "source": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
       }
     },
     "schema": {
-      "type": "object", "additionalProperties": false, "required": ["identity", "version", "location", "digest"],
-      "properties": { "identity": { "type": "string" }, "version": { "type": "string" }, "location": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "version", "location", "digest"],
+      "properties": {
+        "identity": { "type": "string" },
+        "version": { "type": "string" },
+        "location": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
     },
     "builtin": {
-      "type": "object", "additionalProperties": false, "required": ["name", "version", "digest"],
-      "properties": { "name": { "type": "string" }, "version": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "digest"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
     },
     "adapter": {
-      "type": "object", "additionalProperties": false, "required": ["id", "version", "executable", "detectedVersion", "harness", "provider", "model", "reasoningEffort", "nativePermissions"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "executable",
+        "detectedVersion",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "nativePermissions"
+      ],
       "properties": {
-        "id": { "const": "codex-cli" }, "version": { "const": "0.1.0" }, "executable": { "type": "string" }, "detectedVersion": { "type": "string" }, "harness": { "const": "codex" }, "provider": { "const": "openai" }, "model": { "const": "gpt-5.6-sol" }, "reasoningEffort": { "const": "high" },
-        "nativePermissions": { "type": "object", "additionalProperties": false, "required": ["inherit", "configurationSource", "configurationDigest"], "properties": { "inherit": { "const": true }, "configurationSource": { "type": "string" }, "configurationDigest": { "$ref": "#/$defs/digest" } } }
+        "id": { "const": "codex-cli" },
+        "version": { "const": "0.1.0" },
+        "executable": { "type": "string" },
+        "detectedVersion": { "type": "string" },
+        "harness": { "const": "codex" },
+        "provider": { "const": "openai" },
+        "model": { "const": "gpt-5.6-sol" },
+        "reasoningEffort": { "const": "high" },
+        "nativePermissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit", "configurationSource", "configurationDigest"],
+          "properties": {
+            "inherit": { "const": true },
+            "configurationSource": { "type": "string" },
+            "configurationDigest": { "$ref": "#/$defs/digest" }
+          }
+        }
       }
     },
     "engine": {
-      "type": "object", "additionalProperties": false, "required": ["id", "version", "digest"],
-      "properties": { "id": { "const": "darrow" }, "version": { "const": "0.1.0" }, "digest": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": { "const": "darrow" },
+        "version": { "const": "0.1.0" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
     }
   }
 }

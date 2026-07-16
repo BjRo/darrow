@@ -1,21 +1,47 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, cp, mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  cp,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { DarrowError } from "./errors";
 
 export async function exists(path: string): Promise<boolean> {
-  try { await stat(path); return true; } catch { return false; }
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function readText(path: string): Promise<string> {
-  try { return await readFile(path, "utf8"); }
-  catch (error) { throw new DarrowError(`cannot read ${resolve(path)}: ${String(error)}`, "unreadable_file"); }
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    throw new DarrowError(
+      `cannot read ${resolve(path)}: ${String(error)}`,
+      "unreadable_file",
+    );
+  }
 }
 
 export async function readJson<T>(path: string): Promise<T> {
   const text = await readText(path);
-  try { return JSON.parse(text) as T; }
-  catch (error) { throw new DarrowError(`invalid JSON in ${resolve(path)}: ${String(error)}`, "invalid_schema"); }
+  try {
+    return JSON.parse(text) as T;
+  } catch (error) {
+    throw new DarrowError(
+      `invalid JSON in ${resolve(path)}: ${String(error)}`,
+      "invalid_schema",
+    );
+  }
 }
 
 export async function writeJson(path: string, value: unknown): Promise<void> {
@@ -36,8 +62,11 @@ export function sha256(value: string | Uint8Array): string {
 
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
-  const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+  if (Array.isArray(value))
+    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  const entries = Object.entries(value as Record<string, unknown>).sort(
+    ([left], [right]) => left.localeCompare(right),
+  );
   return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
 }
 
@@ -71,14 +100,26 @@ export async function hashDirectory(root: string): Promise<string> {
   return `sha256:${hash.digest("hex")}`;
 }
 
-export async function copyTree(source: string, destination: string): Promise<void> {
-  if (await exists(destination)) throw new DarrowError(`snapshot destination already exists: ${destination}`, "immutable_violation");
+export async function copyTree(
+  source: string,
+  destination: string,
+): Promise<void> {
+  if (await exists(destination))
+    throw new DarrowError(
+      `snapshot destination already exists: ${destination}`,
+      "immutable_violation",
+    );
   await mkdir(dirname(destination), { recursive: true });
-  await cp(source, destination, { recursive: true, errorOnExist: true, force: false });
+  await cp(source, destination, {
+    recursive: true,
+    errorOnExist: true,
+    force: false,
+  });
 }
 
 export async function makeReadOnly(root: string): Promise<void> {
-  for (const path of (await listFiles(root)).reverse()) await chmod(path, 0o444);
+  for (const path of (await listFiles(root)).reverse())
+    await chmod(path, 0o444);
   const directories: string[] = [];
   async function walk(dir: string): Promise<void> {
     for (const entry of await readdir(dir, { withFileTypes: true })) {

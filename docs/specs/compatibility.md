@@ -12,15 +12,15 @@ Read [workflow runtime](workflow-runtime.md) for execution behavior and
 - **CP-1 — Independent compatibility.** These versions change independently and
   appear separately in metadata and run locks:
 
-| Axis | Identifies |
-|---|---|
-| `engine_version` | Darrow interpreter behavior and backend integration. |
-| `cli_protocol_version` | Commands, structured help, input/output, continuation, and exit semantics. |
-| `workflow_schema_version` | Accepted workflow syntax and its meaning. |
-| `workflow_version` | One workflow's behavior and public input/output contract. |
-| `command_contract_version` | One explicitly invoked command's typed behavior. |
-| `capability_contract_version` | One portable intent-based behavioral guarantee. |
-| `plugin_version` | One distributed plugin package and its contents. |
+| Axis                          | Identifies                                                                 |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| `engine_version`              | Darrow interpreter behavior and backend integration.                       |
+| `cli_protocol_version`        | Commands, structured help, input/output, continuation, and exit semantics. |
+| `workflow_schema_version`     | Accepted workflow syntax and its meaning.                                  |
+| `workflow_version`            | One workflow's behavior and public input/output contract.                  |
+| `command_contract_version`    | One explicitly invoked command's typed behavior.                           |
+| `capability_contract_version` | One portable intent-based behavioral guarantee.                            |
+| `plugin_version`              | One distributed plugin package and its contents.                           |
 
 - **CP-2 — Versions express compatibility; digests express identity.** Semantic
   versions say which consumers may interoperate. A cryptographic content digest
@@ -156,6 +156,7 @@ Capability metadata has this shape:
   ```text
   explicit path or override > project > user > bundled defaults
   ```
+
 - **CP-24 — First matching scope wins.** Darrow examines one scope at a time. The
   first scope containing an identity match wins; lower scopes cannot influence
   the choice. An incompatible selected candidate is an error rather than a reason

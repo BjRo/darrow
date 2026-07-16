@@ -6,7 +6,12 @@ import { buildFixture, destroyFixture } from "./fixture";
 import { runChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import type { CaseResult, EvalCase, HarnessAdapter, TrialResult } from "./types";
+import type {
+  CaseResult,
+  EvalCase,
+  HarnessAdapter,
+  TrialResult,
+} from "./types";
 
 const ADAPTERS: Record<string, HarnessAdapter> = {
   claude: claudeAdapter,
@@ -18,7 +23,10 @@ const RESULTS_ROOT = join(ROOT, "evals", "results");
 
 function p95(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)] ?? 0;
+  return (
+    sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)] ??
+    0
+  );
 }
 
 function mean(values: number[]): number {
@@ -38,7 +46,9 @@ async function loadCases(filter?: string): Promise<EvalCase[]> {
   }
   const expGlob = new Bun.Glob("evals/experiments/*/cases/*.yaml");
   for await (const rel of expGlob.scan(ROOT)) {
-    const evalCase: EvalCase = parseYaml(await readFile(join(ROOT, rel), "utf8"));
+    const evalCase: EvalCase = parseYaml(
+      await readFile(join(ROOT, rel), "utf8"),
+    );
     evalCase.skillDir = ""; // no skill under test — nothing gets mounted
     cases.push(evalCase);
   }
@@ -55,20 +65,35 @@ async function runCase(
   dry: boolean,
   condition?: { label: string; text: string },
 ): Promise<CaseResult> {
-  const prompt = condition ? `${condition.text.trim()}\n\n${evalCase.prompt}` : evalCase.prompt;
+  const prompt = condition
+    ? `${condition.text.trim()}\n\n${evalCase.prompt}`
+    : evalCase.prompt;
   const trialResults: TrialResult[] = [];
 
   for (let trial = 1; trial <= trials; trial++) {
-    const repoDir = await buildFixture(evalCase.fixture, evalCase.skillDir, adapter.skillMounts);
+    const repoDir = await buildFixture(
+      evalCase.fixture,
+      evalCase.skillDir,
+      adapter.skillMounts,
+    );
     try {
       if (dry) {
-        console.log(`  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`);
+        console.log(
+          `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
+        );
         const checks = await runChecks(repoDir, evalCase.checks);
         trialResults.push({
           trial,
           passed: false,
           checks,
-          harness: { ok: true, durationMs: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, raw: "" },
+          harness: {
+            ok: true,
+            durationMs: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            costUsd: 0,
+            raw: "",
+          },
         });
         continue;
       }
@@ -89,7 +114,9 @@ async function runCase(
   }
 
   const durations = trialResults.map((t) => t.harness.durationMs);
-  const tokens = trialResults.map((t) => t.harness.inputTokens + t.harness.outputTokens);
+  const tokens = trialResults.map(
+    (t) => t.harness.inputTokens + t.harness.outputTokens,
+  );
   return {
     caseId: evalCase.id,
     invariant: evalCase.invariant,
@@ -98,7 +125,9 @@ async function runCase(
     effort,
     condition: condition?.label,
     trials: trialResults,
-    passRate: trialResults.filter((t) => t.passed).length / Math.max(1, trialResults.length),
+    passRate:
+      trialResults.filter((t) => t.passed).length /
+      Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
     p95DurationMs: p95(durations),
     meanTokens: mean(tokens),
@@ -121,7 +150,9 @@ const { values } = parseArgs({
 
 const adapter = ADAPTERS[values.harness!];
 if (!adapter) {
-  console.error(`Unknown harness '${values.harness}'. Available: ${Object.keys(ADAPTERS).join(", ")}`);
+  console.error(
+    `Unknown harness '${values.harness}'. Available: ${Object.keys(ADAPTERS).join(", ")}`,
+  );
   process.exit(1);
 }
 
@@ -130,7 +161,10 @@ let condition: { label: string; text: string } | undefined;
 if (values.condition) {
   const condPath = resolve(process.cwd(), values.condition);
   condition = {
-    label: condPath.split("/").pop()!.replace(/\.[^.]+$/, ""),
+    label: condPath
+      .split("/")
+      .pop()!
+      .replace(/\.[^.]+$/, ""),
     text: await readFile(condPath, "utf8"),
   };
 }
@@ -153,7 +187,15 @@ console.log(
 const results: CaseResult[] = [];
 for (const evalCase of cases) {
   console.log(`\n${evalCase.id} (${evalCase.invariant})`);
-  const result = await runCase(evalCase, adapter, model, values.effort!, trials, values.dry!, condition);
+  const result = await runCase(
+    evalCase,
+    adapter,
+    model,
+    values.effort!,
+    trials,
+    values.dry!,
+    condition,
+  );
   result.harnessVersion = harnessVersion || undefined;
   results.push(result);
 }
@@ -173,7 +215,10 @@ for (const r of results) {
 await mkdir(RESULTS_ROOT, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const condSuffix = condition ? `-${condition.label}` : "";
-const outPath = join(RESULTS_ROOT, `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`);
+const outPath = join(
+  RESULTS_ROOT,
+  `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`,
+);
 await writeFile(outPath, JSON.stringify(results, null, 2));
 console.log(`\nResults: ${outPath}`);
 

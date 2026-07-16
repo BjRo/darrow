@@ -13,7 +13,10 @@ export const claudeAdapter: HarnessAdapter = {
   skillMounts: [".claude/skills"],
 
   async version(): Promise<string> {
-    const proc = Bun.spawn(["claude", "--version"], { stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn(["claude", "--version"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const out = await new Response(proc.stdout).text();
     await proc.exited;
     return out.trim();
@@ -40,7 +43,10 @@ export const claudeAdapter: HarnessAdapter = {
         stderr: "pipe",
         // Fixture mocks (e.g. gh) shadow real network tools for the harness
         // and every subprocess it spawns.
-        env: { ...process.env, PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}` },
+        env: {
+          ...process.env,
+          PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}`,
+        },
       },
     );
     const [out, err, code] = await Promise.all([
@@ -62,12 +68,22 @@ export const claudeAdapter: HarnessAdapter = {
       costUsd = parsed.total_cost_usd ?? 0;
       // Mirror the codex adapter: final agent message under .git/ for checks.
       if (typeof parsed.result === "string") {
-        await writeFile(join(repoDir, ".git", "last-message.md"), parsed.result);
+        await writeFile(
+          join(repoDir, ".git", "last-message.md"),
+          parsed.result,
+        );
       }
     } catch {
       ok = false;
     }
 
-    return { ok, durationMs, inputTokens, outputTokens, costUsd, raw: ok ? out : out + err };
+    return {
+      ok,
+      durationMs,
+      inputTokens,
+      outputTokens,
+      costUsd,
+      raw: ok ? out : out + err,
+    };
   },
 };

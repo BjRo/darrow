@@ -1,10 +1,46 @@
 {
   "schemaVersion": "0.1.0",
   "engineVersion": "0.1.0",
-  "workflow": { "id": "implement-change", "version": "0.1.0", "source": "/repo/.darrow/workflows/implement-change.yaml", "scope": "project", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-  "profile": { "schemaVersion": "0.1.0", "id": "codex", "harness": "codex", "provider": "openai", "model": "gpt-5.6-sol", "reasoningEffort": "high", "permissions": { "inherit": true }, "source": "/cli/profiles/codex.yaml", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
-  "capabilities": [{ "contract": "git.branch.create", "requested": "^1.0.0", "version": "1.0.0", "providerId": "darrow-git:create-branch", "pluginVersion": "0.1.1", "scope": "user", "source": "/plugins/darrow-git/skills/create-branch", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" }],
-  "steps": [{ "id": "implement", "commandId": "darrow-delivery:implement", "contractVersion": "0.1.0", "source": "/plugins/darrow-delivery/skills/implement", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "input": { "change": "make it work" } }],
+  "workflow": {
+    "id": "implement-change",
+    "version": "0.1.0",
+    "source": "/repo/.darrow/workflows/implement-change.yaml",
+    "scope": "project",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "profile": {
+    "schemaVersion": "0.1.0",
+    "id": "codex",
+    "harness": "codex",
+    "provider": "openai",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "high",
+    "permissions": { "inherit": true },
+    "source": "/cli/profiles/codex.yaml",
+    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "capabilities": [
+    {
+      "contract": "git.branch.create",
+      "requested": "^1.0.0",
+      "version": "1.0.0",
+      "providerId": "darrow-git:create-branch",
+      "pluginVersion": "0.1.1",
+      "scope": "user",
+      "source": "/plugins/darrow-git/skills/create-branch",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "steps": [
+    {
+      "id": "implement",
+      "commandId": "darrow-delivery:implement",
+      "contractVersion": "0.1.0",
+      "source": "/plugins/darrow-delivery/skills/implement",
+      "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "input": { "change": "make it work" }
+    }
+  ],
   "inputs": { "change": "make it work" },
   "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 }

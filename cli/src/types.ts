@@ -2,7 +2,8 @@ export const CONTRACT_VERSION = "0.1.0" as const;
 
 export type Scope = "explicit" | "project" | "user" | "bundled";
 export type RunState = "running" | "waiting_for_input" | "completed";
-export type Conclusion = "succeeded" | "succeeded_with_waivers" | "failed" | "cancelled";
+export type Conclusion =
+  "succeeded" | "succeeded_with_waivers" | "failed" | "cancelled";
 
 export interface Requirement {
   contract: string;
@@ -14,7 +15,10 @@ export interface WorkflowDefinition {
   id: string;
   version: string;
   engine: string;
-  inputs: Record<string, { type: "string" | "boolean" | "number"; required: boolean }>;
+  inputs: Record<
+    string,
+    { type: "string" | "boolean" | "number"; required: boolean }
+  >;
   requirements: { capabilities: Requirement[] };
   profile: string;
   steps: Array<{
@@ -73,7 +77,13 @@ export interface SkillCandidate {
 export interface ResolvedPlan {
   schemaVersion: typeof CONTRACT_VERSION;
   engineVersion: typeof CONTRACT_VERSION;
-  workflow: { id: string; version: string; source: string; scope: Scope; digest: string };
+  workflow: {
+    id: string;
+    version: string;
+    source: string;
+    scope: Scope;
+    digest: string;
+  };
   profile: ProfileDefinition & { source: string; digest: string };
   capabilities: Array<{
     contract: string;

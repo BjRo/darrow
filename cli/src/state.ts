@@ -9,13 +9,21 @@ export async function readRun(runDir: string): Promise<RunRecord> {
   return record;
 }
 
-export async function saveRun(runDir: string, record: RunRecord): Promise<void> {
+export async function saveRun(
+  runDir: string,
+  record: RunRecord,
+): Promise<void> {
   record.updatedAt = new Date().toISOString();
   await validateSchema("run.schema.json", record, "run record");
   await replaceJson(resolve(runDir, "run.json"), record);
 }
 
-export async function event(runDir: string, runId: string, type: string, data: Record<string, unknown>): Promise<void> {
+export async function event(
+  runDir: string,
+  runId: string,
+  type: string,
+  data: Record<string, unknown>,
+): Promise<void> {
   const item = {
     schemaVersion: "0.1.0",
     eventId: crypto.randomUUID(),

@@ -44,11 +44,7 @@
       "title": "Capability skill",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schemaVersion",
-        "kind",
-        "provides"
-      ],
+      "required": ["schemaVersion", "kind", "provides"],
       "properties": {
         "schemaVersion": {
           "const": 1
@@ -96,10 +92,7 @@
     "requirement": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "contract",
-        "version"
-      ],
+      "required": ["contract", "version"],
       "properties": {
         "contract": {
           "$ref": "#/$defs/contractId"
@@ -112,10 +105,7 @@
     "provision": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "contract",
-        "version"
-      ],
+      "required": ["contract", "version"],
       "properties": {
         "contract": {
           "$ref": "#/$defs/contractId"

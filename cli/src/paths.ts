@@ -18,7 +18,10 @@ export function globalToolchainHome(): string {
   const explicit = process.env.DARROW_TOOLCHAIN_HOME;
   if (explicit) return resolve(explicit);
   const home = process.env.HOME;
-  if (!home) throw new Error("HOME is unavailable; set DARROW_TOOLCHAIN_HOME explicitly");
+  if (!home)
+    throw new Error(
+      "HOME is unavailable; set DARROW_TOOLCHAIN_HOME explicitly",
+    );
   return resolve(home, ".local", "share", "darrow", "toolchains");
 }
 

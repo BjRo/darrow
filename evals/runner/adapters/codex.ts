@@ -14,7 +14,10 @@ export const codexAdapter: HarnessAdapter = {
   skillMounts: [".agents/skills"],
 
   async version(): Promise<string> {
-    const proc = Bun.spawn(["codex", "--version"], { stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn(["codex", "--version"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const out = await new Response(proc.stdout).text();
     await proc.exited;
     return out.trim();
@@ -45,7 +48,10 @@ export const codexAdapter: HarnessAdapter = {
         stderr: "pipe",
         // Fixture mocks (e.g. gh) shadow real network tools for the harness
         // and every subprocess it spawns.
-        env: { ...process.env, PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}` },
+        env: {
+          ...process.env,
+          PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}`,
+        },
       },
     );
     const [out, err, code] = await Promise.all([
@@ -66,8 +72,12 @@ export const codexAdapter: HarnessAdapter = {
       try {
         const event = JSON.parse(trimmed);
         const type: string = event.type ?? event.msg?.type ?? "";
-        if (type.includes("failed") || type.includes("error")) sawFailure = true;
-        const usage = event.usage ?? event.msg?.info?.total_token_usage ?? event.info?.total_token_usage;
+        if (type.includes("failed") || type.includes("error"))
+          sawFailure = true;
+        const usage =
+          event.usage ??
+          event.msg?.info?.total_token_usage ??
+          event.info?.total_token_usage;
         if (usage) {
           inputTokens = usage.input_tokens ?? inputTokens;
           outputTokens = usage.output_tokens ?? outputTokens;

@@ -7,7 +7,11 @@
   "properties": {
     "branch": { "type": "string", "minLength": 1 },
     "summary": { "type": "string", "minLength": 1 },
-    "changedPaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "changedPaths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
@@ -23,7 +27,15 @@
     "phase": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["command", "exitStatus", "startedAt", "finishedAt", "stdout", "stderr", "workspaceDigest"],
+      "required": [
+        "command",
+        "exitStatus",
+        "startedAt",
+        "finishedAt",
+        "stdout",
+        "stderr",
+        "workspaceDigest"
+      ],
       "properties": {
         "command": { "type": "string", "minLength": 1 },
         "exitStatus": { "type": "integer", "minimum": 0, "maximum": 255 },
@@ -31,7 +43,10 @@
         "finishedAt": { "type": "string", "format": "date-time" },
         "stdout": { "type": "string", "minLength": 1 },
         "stderr": { "type": "string", "minLength": 1 },
-        "workspaceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+        "workspaceDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
       }
     }
   }

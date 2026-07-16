@@ -20,29 +20,78 @@ describe("0.1.0 contract fixtures", () => {
   for (const [fixture, schema] of fixtures) {
     test(`${fixture} satisfies ${schema}`, async () => {
       const path = resolve(CLI_ROOT, "fixtures", "golden", fixture);
-      const value = fixture.endsWith(".yaml") ? parse(await Bun.file(path).text()) : await readJson(path);
-      await expect(validateSchema(schema, value, fixture)).resolves.toBeUndefined();
+      const value = fixture.endsWith(".yaml")
+        ? parse(await Bun.file(path).text())
+        : await readJson(path);
+      await expect(
+        validateSchema(schema, value, fixture),
+      ).resolves.toBeUndefined();
     });
   }
 
   test("strict schemas reject unknown top-level fields", async () => {
-    const value = { ...await readJson<Record<string, unknown>>(resolve(CLI_ROOT, "fixtures", "golden", "engine.json")), unexpected: true };
-    await expect(validateSchema("engine.schema.json", value, "engine")).rejects.toThrow("additional properties");
+    const value = {
+      ...(await readJson<Record<string, unknown>>(
+        resolve(CLI_ROOT, "fixtures", "golden", "engine.json"),
+      )),
+      unexpected: true,
+    };
+    await expect(
+      validateSchema("engine.schema.json", value, "engine"),
+    ).rejects.toThrow("additional properties");
   });
 
   test("strict lock schema rejects unknown nested fields", async () => {
-    const value = await readJson<Record<string, any>>(resolve(CLI_ROOT, "fixtures", "golden", "lock.json"));
+    const value = await readJson<Record<string, any>>(
+      resolve(CLI_ROOT, "fixtures", "golden", "lock.json"),
+    );
     value.adapter.unexpected = true;
-    await expect(validateSchema("lock.schema.json", value, "lock")).rejects.toThrow("additional properties");
+    await expect(
+      validateSchema("lock.schema.json", value, "lock"),
+    ).rejects.toThrow("additional properties");
   });
 
   test("protocol schema discriminates command payloads", async () => {
-    const emptyInit = { protocolVersion: "0.1.0", command: "init", ok: true, data: {}, error: null };
-    await expect(validateSchema("protocol.schema.json", emptyInit, "protocol")).rejects.toThrow("required property");
-    const mixedInit = { protocolVersion: "0.1.0", command: "init", ok: true, data: { repository: "/repo", stateDirectory: "/repo/.darrow", runId: "run-1" }, error: null };
-    await expect(validateSchema("protocol.schema.json", mixedInit, "protocol")).rejects.toThrow("additional properties");
-    const contradictory = { protocolVersion: "0.1.0", command: "run", ok: true, data: { runId: "run-1", state: "completed", conclusion: "failed", workspace: "/repo", results: [] }, error: null };
-    await expect(validateSchema("protocol.schema.json", contradictory, "protocol")).rejects.toThrow("must match exactly one schema");
+    const emptyInit = {
+      protocolVersion: "0.1.0",
+      command: "init",
+      ok: true,
+      data: {},
+      error: null,
+    };
+    await expect(
+      validateSchema("protocol.schema.json", emptyInit, "protocol"),
+    ).rejects.toThrow("required property");
+    const mixedInit = {
+      protocolVersion: "0.1.0",
+      command: "init",
+      ok: true,
+      data: {
+        repository: "/repo",
+        stateDirectory: "/repo/.darrow",
+        runId: "run-1",
+      },
+      error: null,
+    };
+    await expect(
+      validateSchema("protocol.schema.json", mixedInit, "protocol"),
+    ).rejects.toThrow("additional properties");
+    const contradictory = {
+      protocolVersion: "0.1.0",
+      command: "run",
+      ok: true,
+      data: {
+        runId: "run-1",
+        state: "completed",
+        conclusion: "failed",
+        workspace: "/repo",
+        results: [],
+      },
+      error: null,
+    };
+    await expect(
+      validateSchema("protocol.schema.json", contradictory, "protocol"),
+    ).rejects.toThrow("must match exactly one schema");
   });
 
   test("recovery event records the authoritative reconciliation mode", async () => {
@@ -52,9 +101,21 @@ describe("0.1.0 contract fixtures", () => {
       runId: "run-1",
       timestamp: "2026-07-16T20:00:00.000Z",
       type: "run.recovered",
-      data: { mode: "started_pending", workflowId: "workflow-1", workspace: "/repo/.darrow/worktrees/run-1" },
+      data: {
+        mode: "started_pending",
+        workflowId: "workflow-1",
+        workspace: "/repo/.darrow/worktrees/run-1",
+      },
     };
-    await expect(validateSchema("event.schema.json", recovered, "recovery event")).resolves.toBeUndefined();
-    await expect(validateSchema("event.schema.json", { ...recovered, data: { ...recovered.data, mode: "reconstructed" } }, "recovery event")).rejects.toThrow("allowed values");
+    await expect(
+      validateSchema("event.schema.json", recovered, "recovery event"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "event.schema.json",
+        { ...recovered, data: { ...recovered.data, mode: "reconstructed" } },
+        "recovery event",
+      ),
+    ).rejects.toThrow("allowed values");
   });
 });

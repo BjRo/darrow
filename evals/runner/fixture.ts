@@ -9,18 +9,26 @@ async function git(repoDir: string, ...args: string[]): Promise<string> {
     cwd: repoDir,
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" },
+    env: {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_SYSTEM: "/dev/null",
+    },
   });
   const [out, err, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
-  if (code !== 0) throw new Error(`git ${args.join(" ")} failed (${code}): ${err}`);
+  if (code !== 0)
+    throw new Error(`git ${args.join(" ")} failed (${code}): ${err}`);
   return out;
 }
 
-async function writeFiles(repoDir: string, files: Record<string, string>): Promise<void> {
+async function writeFiles(
+  repoDir: string,
+  files: Record<string, string>,
+): Promise<void> {
   for (const [path, content] of Object.entries(files)) {
     const abs = join(repoDir, path);
     await mkdir(dirname(abs), { recursive: true });
@@ -36,7 +44,8 @@ export async function buildFixture(
 ): Promise<string> {
   const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
   if (fixture.repo) {
-    if (fixture.commits?.length) throw new Error("fixture: repo and commits are mutually exclusive");
+    if (fixture.commits?.length)
+      throw new Error("fixture: repo and commits are mutually exclusive");
     await git(repoDir, "clone", "--local", "--no-hardlinks", fixture.repo, ".");
     // The eval clone must have no route back to the source repo.
     await git(repoDir, "remote", "remove", "origin");
@@ -72,9 +81,16 @@ export async function buildFixture(
       cwd: repoDir,
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" },
+      env: {
+        ...process.env,
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_CONFIG_SYSTEM: "/dev/null",
+      },
     });
-    const [err, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+    const [err, code] = await Promise.all([
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
     if (code !== 0) throw new Error(`fixture setup failed (${code}): ${err}`);
   }
 
@@ -95,7 +111,9 @@ export async function buildFixture(
       filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
     });
     if (existsSync(pluginBin)) {
-      await cp(pluginBin, join(repoDir, mount, "..", "bin"), { recursive: true });
+      await cp(pluginBin, join(repoDir, mount, "..", "bin"), {
+        recursive: true,
+      });
     }
   }
   // Keep mounts invisible to git: they are eval infrastructure, not repo

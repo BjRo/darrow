@@ -141,3 +141,16 @@ The marketplace manifest is
 the same marketplace and each plugin also ships a Codex-specific manifest.
 Darrow-aware skills keep workflow metadata in a colocated `darrow.json` rather
 than extending either runtime's native plugin manifest.
+
+## Development
+
+Install dependencies and the repository-managed Git hooks explicitly:
+
+```sh
+bun install
+bun run hooks:install
+```
+
+`bun run lint` checks all Prettier-supported project content. `bun run format`
+updates it. The pre-commit hook runs the same check against staged content and
+refuses commits that are not formatted.

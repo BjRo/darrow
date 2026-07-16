@@ -3,7 +3,15 @@
   "$id": "https://darrow.dev/schemas/profile/0.1.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "id", "harness", "provider", "model", "reasoningEffort", "permissions"],
+  "required": [
+    "schemaVersion",
+    "id",
+    "harness",
+    "provider",
+    "model",
+    "reasoningEffort",
+    "permissions"
+  ],
   "properties": {
     "schemaVersion": { "const": "0.1.0" },
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },

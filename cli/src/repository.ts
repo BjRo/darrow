@@ -9,9 +9,14 @@ import { mustRun, run } from "./process";
 import type { ProjectDefinition } from "./types";
 
 export function primaryRepoRoot(cwd = process.cwd()): string {
-  const output = mustRun(["git", "worktree", "list", "--porcelain"], cwd, "git");
+  const output = mustRun(
+    ["git", "worktree", "list", "--porcelain"],
+    cwd,
+    "git",
+  );
   const first = output.split("\n").find((line) => line.startsWith("worktree "));
-  if (!first) throw new DarrowError("git did not report a primary worktree", "git");
+  if (!first)
+    throw new DarrowError("git did not report a primary worktree", "git");
   return resolve(first.slice("worktree ".length));
 }
 
@@ -29,61 +34,117 @@ async function ensureLine(path: string, line: string): Promise<void> {
 export async function initRepository(cwd = process.cwd()): Promise<string> {
   const root = primaryRepoRoot(cwd);
   const home = resolve(root, ".darrow");
-  for (const dir of ["workflows", "tickets", "runs", "locks", "runtime", "worktrees"]) {
+  for (const dir of [
+    "workflows",
+    "tickets",
+    "runs",
+    "locks",
+    "runtime",
+    "worktrees",
+  ]) {
     await mkdir(resolve(home, dir), { recursive: true });
   }
   const projectPath = resolve(home, "project.yaml");
   if (!(await exists(projectPath))) {
-    const project: ProjectDefinition = { schemaVersion: "0.1.0", defaultProfile: "codex", pluginRoots: [] };
+    const project: ProjectDefinition = {
+      schemaVersion: "0.1.0",
+      defaultProfile: "codex",
+      pluginRoots: [],
+    };
     await writeFile(projectPath, stringify(project));
   }
   const workflowPath = resolve(home, "workflows", "implement-change.yaml");
   if (!(await exists(workflowPath))) {
-    await Bun.write(workflowPath, Bun.file(resolve(BUNDLED_WORKFLOWS_DIR, "implement-change.yaml")));
+    await Bun.write(
+      workflowPath,
+      Bun.file(resolve(BUNDLED_WORKFLOWS_DIR, "implement-change.yaml")),
+    );
   }
-  for (const ignored of [".darrow/runs/", ".darrow/locks/", ".darrow/runtime/", ".darrow/worktrees/"]) {
+  for (const ignored of [
+    ".darrow/runs/",
+    ".darrow/locks/",
+    ".darrow/runtime/",
+    ".darrow/worktrees/",
+  ]) {
     await ensureLine(resolve(root, ".gitignore"), ignored);
   }
-  await ensureLine(resolve(root, ".gitattributes"), ".darrow/tickets/**/artifacts/** linguist-generated");
+  await ensureLine(
+    resolve(root, ".gitattributes"),
+    ".darrow/tickets/**/artifacts/** linguist-generated",
+  );
   return root;
 }
 
 export async function requireInitialized(root: string): Promise<void> {
   const project = resolve(root, ".darrow", "project.yaml");
-  if (!(await exists(project))) throw new DarrowError(`Darrow is not initialized in ${root}; run darrow init`, "not_initialized");
+  if (!(await exists(project)))
+    throw new DarrowError(
+      `Darrow is not initialized in ${root}; run darrow init`,
+      "not_initialized",
+    );
 }
 
 export function pinnedCommit(cwd: string, base?: string): string {
   const ref = base ?? "HEAD";
-  return mustRun(["git", "rev-parse", "--verify", `${ref}^{commit}`], cwd, "git");
+  return mustRun(
+    ["git", "rev-parse", "--verify", `${ref}^{commit}`],
+    cwd,
+    "git",
+  );
 }
 
 export function isDirty(cwd: string): boolean {
-  return run(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd).stdout.length > 0;
+  return (
+    run(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd)
+      .stdout.length > 0
+  );
 }
 
-async function allocateWorktree(root: string, runId: string, commit: string, customPath?: string): Promise<string> {
+async function allocateWorktree(
+  root: string,
+  runId: string,
+  commit: string,
+  customPath?: string,
+): Promise<string> {
   const defaultPath = resolve(root, ".darrow", "worktrees", runId);
   const path = customPath ? resolve(customPath) : defaultPath;
-  if (await exists(path)) throw new DarrowError(`worktree path already exists: ${path}`, "workspace");
+  if (await exists(path))
+    throw new DarrowError(`worktree path already exists: ${path}`, "workspace");
   if (customPath) {
     const inside = relative(root, path);
     if (!inside.startsWith("..") && !isAbsolute(inside)) {
       const ignored = run(["git", "check-ignore", "-q", path], root);
-      if (ignored.exitCode !== 0) throw new DarrowError(`custom worktree path inside the repository must already be ignored: ${path}`, "workspace");
+      if (ignored.exitCode !== 0)
+        throw new DarrowError(
+          `custom worktree path inside the repository must already be ignored: ${path}`,
+          "workspace",
+        );
     }
   }
-  mustRun(["git", "worktree", "add", "--detach", path, commit], root, "workspace");
+  mustRun(
+    ["git", "worktree", "add", "--detach", path, commit],
+    root,
+    "workspace",
+  );
   return path;
 }
 
-async function withAllocationLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
+async function withAllocationLock<T>(
+  root: string,
+  operation: () => Promise<T>,
+): Promise<T> {
   const lock = resolve(root, ".darrow", "locks", "allocation.lock");
   return withDirectoryLock(lock, "allocation", operation);
 }
 
 function ownerPath(root: string, workspace: string): string {
-  return resolve(root, ".darrow", "runtime", "workspace-owners", `${sha256(resolve(workspace)).slice(7)}.json`);
+  return resolve(
+    root,
+    ".darrow",
+    "runtime",
+    "workspace-owners",
+    `${sha256(resolve(workspace)).slice(7)}.json`,
+  );
 }
 
 interface WorkspaceOwner {
@@ -94,21 +155,47 @@ interface WorkspaceOwner {
   claimedAt: string;
 }
 
-async function claimWorkspaceUnlocked(root: string, runId: string, workspace: string, kind: WorkspaceOwner["kind"]): Promise<void> {
+async function claimWorkspaceUnlocked(
+  root: string,
+  runId: string,
+  workspace: string,
+  kind: WorkspaceOwner["kind"],
+): Promise<void> {
   const absolute = resolve(workspace);
   const path = ownerPath(root, absolute);
   if (await exists(path)) {
     const owner = await readJson<WorkspaceOwner>(path);
-    if (owner.runId !== runId) throw new DarrowError(`workspace is already owned by run ${owner.runId}: ${absolute}`, "concurrency");
-    if (resolve(owner.workspace) !== absolute || owner.kind !== kind) throw new DarrowError(`workspace ownership record is inconsistent: ${path}`, "state");
+    if (owner.runId !== runId)
+      throw new DarrowError(
+        `workspace is already owned by run ${owner.runId}: ${absolute}`,
+        "concurrency",
+      );
+    if (resolve(owner.workspace) !== absolute || owner.kind !== kind)
+      throw new DarrowError(
+        `workspace ownership record is inconsistent: ${path}`,
+        "state",
+      );
     return;
   }
-  await writeJson(path, { schemaVersion: "0.1.0", runId, workspace: absolute, kind, claimedAt: new Date().toISOString() } satisfies WorkspaceOwner);
+  await writeJson(path, {
+    schemaVersion: "0.1.0",
+    runId,
+    workspace: absolute,
+    kind,
+    claimedAt: new Date().toISOString(),
+  } satisfies WorkspaceOwner);
 }
 
-export async function allocateManagedWorkspace(root: string, runId: string, commit: string, customPath?: string): Promise<string> {
+export async function allocateManagedWorkspace(
+  root: string,
+  runId: string,
+  commit: string,
+  customPath?: string,
+): Promise<string> {
   return withAllocationLock(root, async () => {
-    const workspace = customPath ? resolve(customPath) : resolve(root, ".darrow", "worktrees", runId);
+    const workspace = customPath
+      ? resolve(customPath)
+      : resolve(root, ".darrow", "worktrees", runId);
     let allocated = false;
     try {
       const path = await allocateWorktree(root, runId, commit, customPath);
@@ -117,19 +204,35 @@ export async function allocateManagedWorkspace(root: string, runId: string, comm
       return path;
     } catch (error) {
       if (allocated) {
-        const removed = run(["git", "worktree", "remove", "--force", workspace], root);
-        if (removed.exitCode !== 0) throw new DarrowError(`workspace ownership failed and rollback could not remove ${workspace}: ${removed.stderr.trim()}`, "workspace");
+        const removed = run(
+          ["git", "worktree", "remove", "--force", workspace],
+          root,
+        );
+        if (removed.exitCode !== 0)
+          throw new DarrowError(
+            `workspace ownership failed and rollback could not remove ${workspace}: ${removed.stderr.trim()}`,
+            "workspace",
+          );
       }
       throw error;
     }
   });
 }
 
-export async function claimCurrentWorkspace(root: string, runId: string, workspace: string): Promise<void> {
-  await withAllocationLock(root, () => claimWorkspaceUnlocked(root, runId, workspace, "attached"));
+export async function claimCurrentWorkspace(
+  root: string,
+  runId: string,
+  workspace: string,
+): Promise<void> {
+  await withAllocationLock(root, () =>
+    claimWorkspaceUnlocked(root, runId, workspace, "attached"),
+  );
 }
 
-export async function ownedWorkspaceForRun(root: string, runId: string): Promise<WorkspaceOwner | null> {
+export async function ownedWorkspaceForRun(
+  root: string,
+  runId: string,
+): Promise<WorkspaceOwner | null> {
   const directory = resolve(root, ".darrow", "runtime", "workspace-owners");
   if (!(await exists(directory))) return null;
   const matches: WorkspaceOwner[] = [];
@@ -138,11 +241,16 @@ export async function ownedWorkspaceForRun(root: string, runId: string): Promise
     const owner = await readJson<WorkspaceOwner>(resolve(directory, name));
     if (owner.runId === runId) matches.push(owner);
   }
-  if (matches.length > 1) throw new DarrowError(`run ${runId} owns more than one workspace`, "state");
+  if (matches.length > 1)
+    throw new DarrowError(`run ${runId} owns more than one workspace`, "state");
   return matches[0] ?? null;
 }
 
-export async function releaseWorkspace(root: string, runId: string, workspace: string): Promise<void> {
+export async function releaseWorkspace(
+  root: string,
+  runId: string,
+  workspace: string,
+): Promise<void> {
   await withAllocationLock(root, async () => {
     const path = ownerPath(root, workspace);
     if (!(await exists(path))) return;
@@ -151,13 +259,15 @@ export async function releaseWorkspace(root: string, runId: string, workspace: s
   });
 }
 
-export async function reserveRunDirectory(root: string): Promise<{ runId: string; stagingDir: string }> {
+export async function reserveRunDirectory(
+  root: string,
+): Promise<{ runId: string; stagingDir: string }> {
   return withAllocationLock(root, async () => {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const runId = newRunId();
       const stagingDir = resolve(root, ".darrow", "runs", `.staging-${runId}`);
       const finalDir = resolve(root, ".darrow", "runs", runId);
-      if (await exists(stagingDir) || await exists(finalDir)) continue;
+      if ((await exists(stagingDir)) || (await exists(finalDir))) continue;
       await mkdir(stagingDir);
       return { runId, stagingDir };
     }
@@ -166,5 +276,8 @@ export async function reserveRunDirectory(root: string): Promise<{ runId: string
 }
 
 function newRunId(): string {
-  return `${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${crypto.randomUUID().slice(0, 12)}`;
+  return `${new Date()
+    .toISOString()
+    .replace(/[-:.TZ]/g, "")
+    .slice(0, 14)}-${crypto.randomUUID().slice(0, 12)}`;
 }

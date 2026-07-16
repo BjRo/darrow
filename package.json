@@ -7,11 +7,17 @@
   ],
   "scripts": {
     "eval": "bun evals/runner/run.ts",
+    "format": "prettier --write .",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "lint": "prettier --check .",
+    "lint:staged": "lint-staged",
     "typecheck": "tsc --noEmit && bun --cwd cli typecheck",
     "test:cli": "bun --cwd cli test"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.9.5",
     "typescript": "^5.7.0",
     "yaml": "^2.6.0"
   }

@@ -1,7 +1,15 @@
-import { condition, defineQuery, defineSignal, proxyActivities, setHandler } from "@temporalio/workflow";
+import {
+  condition,
+  defineQuery,
+  defineSignal,
+  proxyActivities,
+  setHandler,
+} from "@temporalio/workflow";
 import type { ActivityInput, CommandResult, ResolvedPlan } from "./types";
 
-const { executeCommand } = proxyActivities<{ executeCommand(input: ActivityInput): Promise<CommandResult> }>({
+const { executeCommand } = proxyActivities<{
+  executeCommand(input: ActivityInput): Promise<CommandResult>;
+}>({
   startToCloseTimeout: "6 hours",
   retry: { maximumAttempts: 1 },
 });
@@ -22,13 +30,22 @@ export interface WorkflowStatus {
 }
 
 export const runStatusQuery = defineQuery<WorkflowStatus>("darrowRunStatus");
-export const continuationSignal = defineSignal<[ { version: number; choice: "retry" | "amend" | "abort"; model?: string } ]>("darrowContinue");
+export const continuationSignal =
+  defineSignal<
+    [{ version: number; choice: "retry" | "amend" | "abort"; model?: string }]
+  >("darrowContinue");
 
-export async function runResolvedPlanWorkflow(input: WorkflowInput): Promise<CommandResult[]> {
+export async function runResolvedPlanWorkflow(
+  input: WorkflowInput,
+): Promise<CommandResult[]> {
   const results: CommandResult[] = [];
   let state: WorkflowStatus["state"] = "running";
   let request: WorkflowStatus["request"] = null;
-  let continuation: { version: number; choice: "retry" | "amend" | "abort"; model?: string } | null = null;
+  let continuation: {
+    version: number;
+    choice: "retry" | "amend" | "abort";
+    model?: string;
+  } | null = null;
   let amendedModel: string | null = null;
   setHandler(runStatusQuery, () => ({ state, results, request }));
   setHandler(continuationSignal, (value) => {
@@ -48,12 +65,18 @@ export async function runResolvedPlanWorkflow(input: WorkflowInput): Promise<Com
           snapshotDir: input.snapshotDir,
           step,
           planCapabilities: input.plan.capabilities,
-          profile: amendedModel ? { ...input.plan.profile, model: amendedModel } : input.plan.profile,
+          profile: amendedModel
+            ? { ...input.plan.profile, model: amendedModel }
+            : input.plan.profile,
           attemptId: `attempt-${index + 1}-${attempt}`,
         });
       } catch {
         state = "waiting_for_input";
-        request = { version: attempt, reason: "uncertain_activity", choices: ["abort"] };
+        request = {
+          version: attempt,
+          reason: "uncertain_activity",
+          choices: ["abort"],
+        };
         continuation = null;
         await condition(() => continuation !== null);
         state = "completed";
@@ -66,14 +89,21 @@ export async function runResolvedPlanWorkflow(input: WorkflowInput): Promise<Com
         return results;
       }
       state = "waiting_for_input";
-      request = { version: attempt, reason: "model_unavailable", choices: ["retry", "amend", "abort"] };
+      request = {
+        version: attempt,
+        reason: "model_unavailable",
+        choices: ["retry", "amend", "abort"],
+      };
       continuation = null;
       await condition(() => continuation !== null);
       if ((continuation as unknown as { choice: string }).choice === "abort") {
         state = "completed";
         return results;
       }
-      const response = continuation as unknown as { choice: string; model?: string };
+      const response = continuation as unknown as {
+        choice: string;
+        model?: string;
+      };
       if (response.choice === "amend") amendedModel = response.model ?? null;
       attempt += 1;
       state = "running";

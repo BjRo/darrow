@@ -4,9 +4,12 @@ import { resolve } from "node:path";
 import { executeCodexCommand } from "./codex";
 
 const [address, namespace, taskQueue] = process.argv.slice(2);
-if (!address || !namespace || !taskQueue) throw new Error("worker requires address, namespace, and task queue");
+if (!address || !namespace || !taskQueue)
+  throw new Error("worker requires address, namespace, and task queue");
 
-Runtime.install({ telemetryOptions: { logging: { filter: "WARN", forward: {} } } });
+Runtime.install({
+  telemetryOptions: { logging: { filter: "WARN", forward: {} } },
+});
 const connection = await NativeConnection.connect({ address });
 try {
   const worker = await Worker.create({
@@ -17,4 +20,6 @@ try {
     activities: { executeCommand: executeCodexCommand },
   });
   await worker.run();
-} finally { await connection.close(); }
+} finally {
+  await connection.close();
+}
