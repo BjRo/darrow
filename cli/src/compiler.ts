@@ -310,6 +310,7 @@ export function orderWorkflowSteps(
 }
 
 export interface Compilation {
+  repoRoot: string;
   plan: ResolvedPlan;
   workflow: WorkflowDefinition;
   profile: ProfileDefinition;
@@ -460,7 +461,7 @@ export async function compile(
     profileFile.path,
     "profile.schema.json",
   );
-  const catalog = await loadCatalog(repoRoot, project);
+  const catalog = await loadCatalog(repoRoot, project, profile.harness);
   const commands = orderedSteps.map((step) =>
     resolveCommand(catalog, step.command.id, step.command.version),
   );
@@ -585,6 +586,7 @@ export async function compile(
       all.findIndex((candidate) => candidate.id === command.id) === index,
   );
   return {
+    repoRoot,
     plan,
     workflow,
     profile,
@@ -711,26 +713,57 @@ export async function createLock(
       all.findIndex((other) => other.identity === item.identity) === index,
   );
   const schemas = [...cliSchemas, ...commandSchemas];
-  const codexExecutable = Bun.which("codex");
-  const detectedCodex = codexExecutable
-    ? run([codexExecutable, "--version"])
-    : null;
-  const codexHome =
-    process.env.CODEX_HOME ??
-    (process.env.HOME ? resolve(process.env.HOME, ".codex") : null);
-  const codexConfig = codexHome ? resolve(codexHome, "config.toml") : null;
-  const nativePermissions =
-    codexConfig && (await exists(codexConfig))
-      ? {
-          inherit: true,
-          configurationSource: codexConfig,
-          configurationDigest: await hashFile(codexConfig),
-        }
-      : {
-          inherit: true,
-          configurationSource: "environment-defaults",
-          configurationDigest: sha256("environment-defaults"),
-        };
+  const harness = compilation.profile.harness;
+  const executableName = harness === "codex" ? "codex" : "claude";
+  const executable = Bun.which(executableName);
+  const detected = executable ? run([executable, "--version"]) : null;
+  const configurationPaths: Array<{
+    path: string;
+    scope: "environment" | "user" | "project" | "local";
+  }> = [];
+  if (harness === "codex") {
+    const codexHome =
+      process.env.CODEX_HOME ??
+      (process.env.HOME ? resolve(process.env.HOME, ".codex") : null);
+    if (codexHome)
+      configurationPaths.push({
+        path: resolve(codexHome, "config.toml"),
+        scope: "user",
+      });
+  } else {
+    const claudeHome =
+      process.env.CLAUDE_CONFIG_DIR ??
+      (process.env.HOME ? resolve(process.env.HOME, ".claude") : null);
+    if (claudeHome)
+      configurationPaths.push({
+        path: resolve(claudeHome, "settings.json"),
+        scope: "user",
+      });
+    configurationPaths.push(
+      {
+        path: resolve(compilation.repoRoot, ".claude", "settings.json"),
+        scope: "project",
+      },
+      {
+        path: resolve(compilation.repoRoot, ".claude", "settings.local.json"),
+        scope: "local",
+      },
+    );
+  }
+  const configurationSources = await Promise.all(
+    configurationPaths.map(async ({ path, scope }) =>
+      (await exists(path))
+        ? { path, scope, digest: await hashFile(path) }
+        : null,
+    ),
+  ).then((items) => items.filter((item) => item !== null));
+  if (configurationSources.length === 0)
+    configurationSources.push({
+      path: "environment-defaults",
+      scope: "environment",
+      digest: sha256("environment-defaults"),
+    });
+  const nativePermissions = { inherit: true, configurationSources };
   const temporalManifest = resolve(import.meta.dir, "..", "temporal.json");
   const lock = {
     schemaVersion: "0.1.0",
@@ -761,14 +794,12 @@ export async function createLock(
       },
     ],
     adapter: {
-      id: "codex-cli",
+      id: harness === "codex" ? "codex-cli" : "claude-code",
       version: "0.1.0",
-      executable: codexExecutable ?? "unavailable",
+      executable: executable ?? "unavailable",
       detectedVersion:
-        detectedCodex?.exitCode === 0
-          ? detectedCodex.stdout.trim()
-          : "unavailable",
-      harness: "codex",
+        detected?.exitCode === 0 ? detected.stdout.trim() : "unavailable",
+      harness,
       provider: compilation.profile.provider,
       model: compilation.profile.model,
       reasoningEffort: compilation.profile.reasoningEffort,

@@ -15,9 +15,9 @@
   "properties": {
     "schemaVersion": { "const": "0.1.0" },
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-    "harness": { "const": "codex" },
-    "provider": { "const": "openai" },
-    "model": { "const": "gpt-5.6-sol" },
+    "harness": { "enum": ["codex", "claude"] },
+    "provider": { "enum": ["openai", "anthropic"] },
+    "model": { "enum": ["gpt-5.6-sol", "claude-sonnet-4-6"] },
     "reasoningEffort": { "const": "high" },
     "permissions": {
       "type": "object",
@@ -25,5 +25,25 @@
       "required": ["inherit"],
       "properties": { "inherit": { "const": true } }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "harness": { "const": "codex" } } },
+      "then": {
+        "properties": {
+          "provider": { "const": "openai" },
+          "model": { "const": "gpt-5.6-sol" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "harness": { "const": "claude" } } },
+      "then": {
+        "properties": {
+          "provider": { "const": "anthropic" },
+          "model": { "const": "claude-sonnet-4-6" }
+        }
+      }
+    }
+  ]
 }

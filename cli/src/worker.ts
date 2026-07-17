@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { NativeConnection, Runtime, Worker } from "@temporalio/worker";
 import { resolve } from "node:path";
-import { executeCodexCommand } from "./codex";
+import { executeCommand } from "./harness";
 import { executeTicketPublication } from "./publication";
 
 const [address, namespace, taskQueue] = process.argv.slice(2);
@@ -19,7 +19,7 @@ try {
     taskQueue,
     workflowsPath: resolve(import.meta.dir, "temporal-workflow.ts"),
     activities: {
-      executeCommand: executeCodexCommand,
+      executeCommand,
       publishArtifacts: executeTicketPublication,
     },
   });

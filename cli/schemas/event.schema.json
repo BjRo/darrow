@@ -726,12 +726,21 @@
         "data": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["invocationId", "stepId", "attemptId", "commandId"],
+          "required": [
+            "invocationId",
+            "stepId",
+            "attemptId",
+            "commandId",
+            "harness",
+            "model"
+          ],
           "properties": {
             "invocationId": { "type": "string" },
             "stepId": { "type": "string" },
             "attemptId": { "type": "string" },
-            "commandId": { "type": "string" }
+            "commandId": { "type": "string" },
+            "harness": { "enum": ["codex", "claude"] },
+            "model": { "type": "string" }
           }
         }
       }
@@ -756,12 +765,21 @@
         "data": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["invocationId", "stepId", "attemptId", "transcript"],
+          "required": [
+            "invocationId",
+            "stepId",
+            "attemptId",
+            "transcript",
+            "harness",
+            "model"
+          ],
           "properties": {
             "invocationId": { "type": "string" },
             "stepId": { "type": "string" },
             "attemptId": { "type": "string" },
-            "transcript": { "type": "string" }
+            "transcript": { "type": "string" },
+            "harness": { "enum": ["codex", "claude"] },
+            "model": { "type": "string" }
           }
         }
       }
@@ -786,13 +804,21 @@
         "data": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["invocationId", "category", "transcript"],
+          "required": [
+            "invocationId",
+            "category",
+            "transcript",
+            "harness",
+            "model"
+          ],
           "properties": {
             "invocationId": { "type": "string" },
             "category": { "type": "string" },
             "message": { "type": "string" },
             "exitCode": { "type": "integer" },
-            "transcript": { "type": ["string", "null"] }
+            "transcript": { "type": ["string", "null"] },
+            "harness": { "enum": ["codex", "claude"] },
+            "model": { "type": "string" }
           }
         }
       }
@@ -824,7 +850,9 @@
             "artifacts",
             "transcript",
             "nativeSessionId",
-            "usage"
+            "usage",
+            "harness",
+            "model"
           ],
           "properties": {
             "invocationId": { "type": "string" },
@@ -839,7 +867,9 @@
             "usage": {
               "type": ["object", "null"],
               "additionalProperties": { "type": "number" }
-            }
+            },
+            "harness": { "enum": ["codex", "claude"] },
+            "model": { "type": "string" }
           }
         }
       }

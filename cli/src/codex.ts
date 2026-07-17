@@ -1,7 +1,7 @@
 import { CancelledFailure, Context } from "@temporalio/activity";
 import { createHmac, randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { checkpointEvidence } from "./artifacts";
 import { DarrowError } from "./errors";
 import { readHumanInstructions } from "./human";
@@ -19,6 +19,25 @@ import { run } from "./process";
 import { validateExternalSchema } from "./schema";
 import { event } from "./state";
 import type { ActivityInput, CommandResult } from "./types";
+
+export interface NativeHarnessOutput {
+  nativeSessionId?: string;
+  usage?: Record<string, number>;
+  payload?: Record<string, unknown>;
+  errorCategory?: string;
+  errorMessage?: string;
+}
+
+export interface CommandHarnessAdapter {
+  executable: "codex" | "claude";
+  displayName: string;
+  invocation(
+    input: ActivityInput,
+    outputSchema: string,
+    outputFile: string,
+  ): Promise<string[]>;
+  parseOutput(stdout: string): NativeHarnessOutput;
+}
 
 function failure(
   input: ActivityInput,
@@ -394,10 +413,11 @@ function changedPaths(workspace: string): string[] {
   ].sort();
 }
 
-async function executeCodexCommandInternal(
+async function executeHarnessCommandInternal(
   input: ActivityInput,
   invocationId: string,
   startedAt: string,
+  adapter: CommandHarnessAdapter,
 ): Promise<CommandResult> {
   const [pluginName, skillName, ...extra] = input.step.commandId.split(":");
   if (!pluginName || !skillName || extra.length > 0)
@@ -441,24 +461,35 @@ async function executeCodexCommandInternal(
     const lock = await readJson<{
       adapter: {
         nativePermissions: {
-          configurationSource: string;
-          configurationDigest: string;
+          configurationSources: Array<{
+            path: string;
+            scope: "environment" | "user" | "project" | "local";
+            digest: string;
+          }>;
         };
       };
     }>(lockPath);
-    const permissionConfig = lock.adapter.nativePermissions;
-    if (
-      permissionConfig.configurationSource !== "environment-defaults" &&
-      (await hashFile(permissionConfig.configurationSource)) !==
-        permissionConfig.configurationDigest
-    ) {
-      return failure(
-        input,
-        invocationId,
-        startedAt,
-        "preflight_stale",
-        "native Codex permission configuration changed after the run was locked",
-      );
+    for (const source of lock.adapter.nativePermissions.configurationSources) {
+      if (source.path === "environment-defaults") continue;
+      const repoRelative = relative(input.repoRoot, source.path);
+      const runtimePath =
+        source.scope === "project" &&
+        (repoRelative === "" ||
+          (!repoRelative.startsWith("..") && !repoRelative.startsWith("/")))
+          ? resolve(input.workspace, repoRelative)
+          : source.path;
+      if (
+        !(await exists(runtimePath)) ||
+        (await hashFile(runtimePath)) !== source.digest
+      ) {
+        return failure(
+          input,
+          invocationId,
+          startedAt,
+          "preflight_stale",
+          `native ${adapter.displayName} permission configuration changed after the run was locked`,
+        );
+      }
     }
   }
   for (const capability of input.planCapabilities ?? []) {
@@ -486,14 +517,14 @@ async function executeCodexCommandInternal(
         `enabled capability changed after preflight: ${capability.contract}`,
       );
   }
-  const installed = run(["codex", "--version"], input.workspace);
+  const installed = run([adapter.executable, "--version"], input.workspace);
   if (installed.exitCode !== 0)
     return failure(
       input,
       invocationId,
       startedAt,
       "model_unavailable",
-      installed.stderr.trim() || "Codex CLI is unavailable",
+      installed.stderr.trim() || `${adapter.displayName} is unavailable`,
     );
   const headBefore = run(
     ["git", "rev-parse", "HEAD"],
@@ -519,29 +550,14 @@ async function executeCodexCommandInternal(
     "Darrow already preflighted a compatible branch-creation capability. Create the local branch by expressing that intent; do not name a capability provider.",
     "Return only the structured result required by the supplied output schema.",
   ].join("\n");
-  const args = [
-    "codex",
-    "exec",
-    "--json",
-    "--model",
-    input.profile.model,
-    "--config",
-    `model_provider=\"${input.profile.provider}\"`,
-    "--config",
-    `model_reasoning_effort=\"${input.profile.reasoningEffort}\"`,
-    "--cd",
-    input.workspace,
-    "--output-schema",
-    outputSchema,
-    "--output-last-message",
-    outputFile,
-    "-",
-  ];
+  const args = await adapter.invocation(input, outputSchema, outputFile);
   await event(input.runDir, input.runId, "command.invocation.started", {
     invocationId,
     stepId: input.step.id,
     attemptId: input.attemptId,
     commandId: input.step.commandId,
+    harness: input.profile.harness,
+    model: input.profile.model,
   });
   const broker = await startEvidenceBroker(
     commandDir,
@@ -616,34 +632,29 @@ async function executeCodexCommandInternal(
       stepId: input.step.id,
       attemptId: input.attemptId,
       transcript,
+      harness: input.profile.harness,
+      model: input.profile.model,
     });
     throw new CancelledFailure("command invocation cancelled");
   }
-  let nativeSessionId: string | undefined;
-  let usage: Record<string, number> | undefined;
-  for (const line of stdout.split("\n").filter(Boolean)) {
-    try {
-      const item = JSON.parse(line) as {
-        type?: string;
-        thread_id?: string;
-        usage?: Record<string, number>;
-      };
-      if (item.type === "thread.started") nativeSessionId = item.thread_id;
-      if (item.type === "turn.completed" && item.usage) usage = item.usage;
-    } catch {
-      /* preserve malformed native output in the transcript */
-    }
-  }
-  if (exitCode !== 0) {
-    const category = /model|not found|unavailable|unsupported/i.test(stderr)
-      ? "model_unavailable"
-      : "harness";
+  const native = adapter.parseOutput(stdout);
+  const nativeSessionId = native.nativeSessionId;
+  const usage = native.usage;
+  if (native.payload && !(await exists(outputFile)))
+    await writeJson(outputFile, native.payload);
+  if (exitCode !== 0 || native.errorCategory) {
+    const category =
+      native.errorCategory ??
+      (/model|not found|unavailable|unsupported/i.test(`${stderr}\n${stdout}`)
+        ? "model_unavailable"
+        : "harness");
     const result = failure(
       input,
       invocationId,
       startedAt,
       category,
-      stderr.trim() || `Codex exited ${exitCode}`,
+      native.errorMessage ??
+        (stderr.trim() || `${adapter.displayName} exited ${exitCode}`),
     );
     result.transcript = transcript;
     result.nativeSessionId = nativeSessionId;
@@ -652,6 +663,8 @@ async function executeCodexCommandInternal(
       category,
       exitCode,
       transcript,
+      harness: input.profile.harness,
+      model: input.profile.model,
     });
     return result;
   }
@@ -691,7 +704,7 @@ async function executeCodexCommandInternal(
       invocationId,
       startedAt,
       "contract",
-      "Codex did not produce the command result",
+      `${adapter.displayName} did not produce the command result`,
     );
   const payload = await readJson<Record<string, unknown>>(outputFile);
   payload.evidence = await evidencePayload(evidenceDir);
@@ -769,17 +782,25 @@ async function executeCodexCommandInternal(
     transcript,
     nativeSessionId: nativeSessionId ?? null,
     usage: usage ?? null,
+    harness: input.profile.harness,
+    model: input.profile.model,
   });
   return result;
 }
 
-export async function executeCodexCommand(
+export async function executeHarnessCommand(
   input: ActivityInput,
+  adapter: CommandHarnessAdapter,
 ): Promise<CommandResult> {
   const invocationId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   try {
-    return await executeCodexCommandInternal(input, invocationId, startedAt);
+    return await executeHarnessCommandInternal(
+      input,
+      invocationId,
+      startedAt,
+      adapter,
+    );
   } catch (error) {
     if (error instanceof CancelledFailure) throw error;
     const category = error instanceof DarrowError ? error.category : "harness";
@@ -805,7 +826,58 @@ export async function executeCodexCommand(
       category,
       message,
       transcript: result.transcript ?? null,
+      harness: input.profile.harness,
+      model: input.profile.model,
     }).catch(() => {});
     return result;
   }
+}
+
+const codexAdapter: CommandHarnessAdapter = {
+  executable: "codex",
+  displayName: "Codex CLI",
+  async invocation(input, outputSchema, outputFile) {
+    return [
+      "codex",
+      "exec",
+      "--json",
+      "--model",
+      input.profile.model,
+      "--config",
+      `model_provider=\"${input.profile.provider}\"`,
+      "--config",
+      `model_reasoning_effort=\"${input.profile.reasoningEffort}\"`,
+      "--cd",
+      input.workspace,
+      "--output-schema",
+      outputSchema,
+      "--output-last-message",
+      outputFile,
+      "-",
+    ];
+  },
+  parseOutput(stdout) {
+    let nativeSessionId: string | undefined;
+    let usage: Record<string, number> | undefined;
+    for (const line of stdout.split("\n").filter(Boolean)) {
+      try {
+        const item = JSON.parse(line) as {
+          type?: string;
+          thread_id?: string;
+          usage?: Record<string, number>;
+        };
+        if (item.type === "thread.started") nativeSessionId = item.thread_id;
+        if (item.type === "turn.completed" && item.usage) usage = item.usage;
+      } catch {
+        /* preserve malformed native output in the transcript */
+      }
+    }
+    return { nativeSessionId, usage };
+  },
+};
+
+export async function executeCodexCommand(
+  input: ActivityInput,
+): Promise<CommandResult> {
+  return executeHarnessCommand(input, codexAdapter);
 }

@@ -20,7 +20,10 @@ interface Root {
 
 async function pluginDirectories(root: string, depth = 0): Promise<string[]> {
   if (!(await exists(root))) return [];
-  if (await exists(resolve(root, ".codex-plugin", "plugin.json")))
+  if (
+    (await exists(resolve(root, ".codex-plugin", "plugin.json"))) ||
+    (await exists(resolve(root, ".claude-plugin", "plugin.json")))
+  )
     return [root];
   if (depth >= 5) return [];
   let entries;
@@ -66,6 +69,8 @@ async function inspectPlugin(
       darrowEntries.push(entry);
   }
   if (darrowEntries.length === 0) return [];
+  if (!(await exists(codexPath)))
+    throw new DarrowError(`plugin is missing ${codexPath}`, "catalog");
   if (!(await exists(claudePath)))
     throw new DarrowError(`plugin is missing ${claudePath}`, "catalog");
   const codex = await readJson<{ name: string; version: string }>(codexPath);
@@ -118,6 +123,7 @@ async function inspectPlugin(
 export async function loadCatalog(
   repoRoot: string,
   project: ProjectDefinition,
+  harness: "codex" | "claude",
 ): Promise<SkillCandidate[]> {
   const roots: Root[] = [];
   for (const path of project.pluginRoots)
@@ -133,7 +139,7 @@ export async function loadCatalog(
   const codexHome =
     process.env.CODEX_HOME ??
     (process.env.HOME ? resolve(process.env.HOME, ".codex") : undefined);
-  if (codexHome) {
+  if (harness === "codex" && codexHome) {
     const configPath = resolve(codexHome, "config.toml");
     if (await exists(configPath)) {
       let parsed: { plugins?: Record<string, { enabled?: boolean }> };
@@ -174,6 +180,54 @@ export async function loadCatalog(
             harnessEnabled: true,
           });
       }
+    }
+  }
+  const claudeHome =
+    process.env.CLAUDE_CONFIG_DIR ??
+    (process.env.HOME ? resolve(process.env.HOME, ".claude") : undefined);
+  if (harness === "claude" && claudeHome) {
+    const enabledPlugins: Record<string, boolean> = {};
+    for (const settingsPath of [
+      resolve(claudeHome, "settings.json"),
+      resolve(repoRoot, ".claude", "settings.json"),
+      resolve(repoRoot, ".claude", "settings.local.json"),
+    ]) {
+      if (!(await exists(settingsPath))) continue;
+      let settings: { enabledPlugins?: Record<string, boolean> };
+      try {
+        settings = await readJson<typeof settings>(settingsPath);
+      } catch (error) {
+        throw new DarrowError(
+          `cannot parse Claude Code plugin configuration ${settingsPath}: ${String(error)}`,
+          "catalog",
+        );
+      }
+      Object.assign(enabledPlugins, settings.enabledPlugins ?? {});
+    }
+    for (const [identity, enabled] of Object.entries(enabledPlugins)) {
+      if (enabled !== true) continue;
+      const separator = identity.lastIndexOf("@");
+      if (separator < 1) continue;
+      const name = identity.slice(0, separator);
+      const marketplace = identity.slice(separator + 1);
+      const versionsRoot = resolve(
+        claudeHome,
+        "plugins",
+        "cache",
+        marketplace,
+        name,
+      );
+      if (!(await exists(versionsRoot))) continue;
+      const versions = (await readdir(versionsRoot, { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory() && semver.valid(entry.name))
+        .map((entry) => entry.name)
+        .sort(semver.rcompare);
+      if (versions[0])
+        roots.push({
+          path: resolve(versionsRoot, versions[0]),
+          scope: "user",
+          harnessEnabled: true,
+        });
     }
   }
   roots.push({

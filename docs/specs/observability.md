@@ -41,8 +41,9 @@ The initial run record is:
 - **OB-5 — Append-only events.** Darrow appends a structured event for workflow
   compilation, dependency resolution, run and step transitions, attempts,
   command invocations, capability preflight, artifacts, human requests and
-  responses, recovery reconciliation, waivers, cancellations, cleanup
-  eligibility, and terminal conclusions.
+  responses, route resolution, route selection and amendment, recovery
+  reconciliation, waivers, cancellations, cleanup eligibility, and terminal
+  conclusions.
 - **OB-5a — Cleanup audit.** Every completed resource deletion appends a
   `cleanup.resource.deleted` event with its resource ID, kind, absolute path,
   measured size, and completion time. A durable `cleanup.json` beside the run
@@ -57,7 +58,8 @@ The initial run record is:
   reconciliation is idempotent across CLI restart.
 - **OB-6 — Stable correlation.** Every event carries protocol/schema version,
   timestamp, run ID, and event ID. Step, attempt, invocation, artifact, human
-  request, Temporal workflow/run, and native session IDs appear when applicable.
+  request, workflow role, profile, route, Temporal workflow/run, and native
+  session IDs appear when applicable.
 - **OB-7 — References over payload duplication.** Large prompts, responses,
   source, diffs, patches, logs, and test output are stored once in local content
   or artifacts. Journal events contain typed references, hashes, sizes, and safe
@@ -79,7 +81,22 @@ The initial run record is:
   input and normalized output, exposed message and reasoning-summary events, tool
   calls and results, file-change events, stdout/stderr, usage, timing, reported
   side effects, errors, and native session references when the harness exposes
-  them.
+  them. Invocation lifecycle events identify the locked harness and requested
+  model so Codex and Claude Code activity remains distinguishable without
+  opening transcript content.
+- **OB-10a — Effective route provenance.** Every command invocation start,
+  completion, failure, and cancellation record identifies its workflow role,
+  profile ID and digest, route ID, harness, provider, model, reasoning effort,
+  adapter, and whether the route came from the fixed plan, a scoped human
+  amendment, an explicit user pin, or a future router. Results preserve
+  the same effective route so inspection does not have to infer it from a
+  run-wide default.
+- **OB-10b — Router decision provenance.** A future router decision event records
+  the router step and invocation, declared target step and attempt scope,
+  candidate-envelope digest, selected candidate route ID, selection source, and
+  concise exposed reason before the target is scheduled. The event contains no
+  hidden chain-of-thought and is sufficient to prove that replay reused the
+  recorded selection.
 - **OB-11 — Outer conversation boundary.** Darrow does not claim visibility into
   the entire surrounding Codex or Claude Code conversation, user interface, or
   hidden provider state between CLI invocations.
@@ -135,6 +152,11 @@ happened after the previous Darrow invocation and before the current one.
   actor metadata; immutable rationale reference; optional forward-instruction
   reference; and its declared target. Raw rationale and instruction text do not
   enter the journal or Temporal history.
+- **OB-20b — Route-amendment audit record.** An approved route replacement
+  records the unavailable route, complete replacement route ID and provenance,
+  target step and attempt scope, request and response IDs, unverified actor
+  metadata, and time. It never rewrites the original step route or changes an
+  unrelated step.
 - **OB-21 — No command-line interpolation.** Raw human response content never
   appears inside a generated `darrow continue` shell command or Temporal history.
   Workflow state carries only its bounded content reference and hash.
@@ -155,8 +177,9 @@ happened after the previous Darrow invocation and before the current one.
   span held open across human time.
 - **OB-26 — Default safe metadata.** Default export may include run and workflow
   identity, versions and digests, step and attempt identity, state transitions,
-  command/capability contracts, harness and model routing, timing, usage, error
-  category, waiver state, and artifact hashes.
+  command/capability contracts, role/profile/route identity, harness, provider,
+  model and effort routing, route-selection source, timing, usage, error category,
+  waiver state, and artifact hashes.
 - **OB-27 — Content excluded by default.** Prompts, responses, transcript text,
   free-form human input, source, diffs, tool payloads, stdout/stderr, and artifact
   bodies are not telemetry attributes or log bodies by default.

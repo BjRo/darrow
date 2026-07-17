@@ -236,6 +236,36 @@ Runtime-generated workflow YAML and model-directed graph rewriting are out of
 scope. A workflow may use static conditions, optional steps, bounded loops, and
 allowlisted subworkflows.
 
+Starting in M2b, every command step names a workflow role. Each role resolves to
+an execution profile, and each fixed profile selects one complete execution
+route: harness, provider, model, reasoning effort, native permission
+configuration, and limits. Different roles in one static graph may resolve to
+different Claude Code or Codex routes. Workflows name roles and profile IDs; they
+do not embed provider-specific model or effort names in step definitions.
+
+The M2b shape is equivalent to this illustrative fragment; the versioned
+workflow JSON Schema remains authoritative:
+
+```yaml
+roles:
+  implement:
+    profile: codex-deep
+  review:
+    profile: claude-review
+steps:
+  - id: implement
+    role: implement
+    command: { id: darrow-delivery:implement, version: ^1.0.0 }
+  - id: review
+    role: review
+    dependsOn: [implement]
+    command: { id: darrow-delivery:review, version: ^1.0.0 }
+```
+
+The compiler resolves every role and embeds the complete selected route in each
+step of the immutable plan. A legacy workflow with one top-level profile remains
+a shorthand for one implicit role applied to every command step.
+
 ### 6.1 Compilation and resolution
 
 Before execution, Darrow deterministically performs:
@@ -244,6 +274,7 @@ Before execution, Darrow deterministically performs:
 workflow source
   → schema and expression validation
   → scoped workflow resolution
+  → role, profile, and execution-route resolution
   → command and hard-capability preflight
   → artifact and graph validation
   → exact version and digest resolution
@@ -382,27 +413,35 @@ or rewrites history, and active-run references remain protected.
 
 **Status:** Invariant
 
-Engine, CLI protocol, workflow schema, workflow, command contract, capability
-contract, and plugin package versions are independent. Semantic versions express
-compatibility; content digests identify exact bytes. The lock records exact
-resolved versions and digests plus the requested model/provider, harness and
-adapter version, profile digest, native permission configuration, and resolved
-model snapshot when exposed.
+Engine, CLI protocol, workflow schema, workflow, execution-profile schema,
+command contract, capability contract, and plugin package versions are
+independent. Semantic versions express compatibility; content digests identify
+exact bytes. The lock records every resolved role and profile plus each step's
+requested harness, provider, model, reasoning effort, adapter,
+permission configuration, and resolved model snapshot when exposed.
 
-The model and harness are external dependencies and may disappear. Darrow never
-silently substitutes a requested fixed model. Unavailability produces
-`waiting_for_input`; an approved substitution creates an explicit run amendment
-without rewriting the original plan.
+Models, harnesses, providers, and their supported effort levels are external
+dependencies and may disappear. Darrow never silently substitutes any component
+of a requested fixed route. Unavailability produces `waiting_for_input`; an
+approved replacement names a complete compatible route and creates an explicit,
+scoped run amendment without rewriting the original plan. Native automatic
+fallback is not enabled for fixed routes.
 
 **Status:** Deferred
 
-Execution profiles may later select a versioned dynamic model policy instead of
-a fixed model. The policy chooses model, effort, and mode per step or attempt
-from an allowed envelope using task characteristics, prior outcomes, quality,
-latency, and budget. The lock records the policy and allowed envelope; every
-invocation records the actual route and a concise reason. An explicit user pin
-overrides routing. Model-family-specific names remain profile data, not workflow
-schema.
+Execution profiles may later select a versioned dynamic routing policy instead
+of one fixed route. A router step or deterministic policy may choose the route
+for one declared downstream step or attempt from a finite allowed envelope that
+was resolved, compatibility-checked, and locked before execution. A routing
+decision selects a candidate route ID; it cannot emit an arbitrary provider,
+model, effort, permission configuration, command, or graph mutation.
+
+The policy may use task characteristics, prior outcomes, quality, latency, and
+budget. The lock records the policy and candidate envelope; every invocation
+records the actual route, selection source, and a concise reason. An explicit
+user pin overrides dynamic routing within the same declared envelope.
+Provider- and model-family-specific names remain profile data, not workflow step
+syntax.
 
 ## 11. Temporal and portability
 
@@ -439,8 +478,9 @@ journal, artifacts, and authorized local content.
 
 Darrow captures the harness events it owns or receives: command inputs and
 outputs, exposed reasoning-summary items, tool activity, stdout/stderr, human
-continuations, artifacts, and native session references. It cannot observe the
-entire outer Codex or Claude Code conversation.
+continuations, artifacts, native session references, and the effective role,
+profile, harness, provider, model, effort, and route-selection source for every
+invocation. It cannot observe the entire outer Codex or Claude Code conversation.
 
 On the next agent-mediated invocation, the agent may provide a self-reported
 `AgentHandoff` summarizing work between Darrow invocations: actions, files,
@@ -527,17 +567,40 @@ one repository; one run can survive a process restart and a human wait; a bounde
 implementation/review loop can retry or conclude with a recorded waiver; and
 cleanup refuses active or dirty state.
 
+### M2b — Per-step execution routing
+
+**Status:** Milestone requirement
+
+Replace the run-wide execution profile with role-bound profiles resolved per
+command step while retaining the single-profile workflow form as compatible
+shorthand. Profiles may pin different Claude Code or Codex harnesses, providers,
+models, reasoning efforts, native permission configurations, and limits.
+Compilation preflights every route that the static workflow can execute, locks
+the complete route per step, dispatches each attempt through its selected
+adapter, and records the effective route in results and journal events.
+
+Define the future routing seam at the same time: a declared router may later
+select one candidate route for one declared downstream step from a finite,
+preflighted, locked envelope. M2b does not require automatic routing, difficulty
+estimation, or budget optimization.
+
+**Exit criterion:** one locked workflow executes at least two dependent command
+steps through different Claude Code and Codex profiles with independently chosen
+models and reasoning efforts; restart and inspection preserve each attempt's
+effective route; structurally incompatible routes fail before mutation; and a
+model or effort change cannot silently affect another step.
+
 ### M3 — Evaluated delivery packs
 
 **Status:** Milestone requirement
 
-Package evidence-backed delivery workflows, mixed-runtime profiles, ticket
-artifact publication, and cross-runtime eval coverage. Do not require one
+Package evidence-backed delivery workflows that exercise M2b role routing,
+ticket artifact publication, and cross-runtime eval coverage. Do not require one
 universal delivery sequence.
 
-**Exit criterion:** at least one locked workflow completes representative tasks
-with Codex and Claude Code assigned to different roles while satisfying its
-declared quality gates and compatibility checks.
+**Exit criterion:** at least one released delivery pack completes its declared
+cross-runtime evaluation matrix with Codex and Claude Code assigned to different
+roles while satisfying its quality gates and compatibility checks.
 
 ### M4 — Hosted operation
 
@@ -565,9 +628,9 @@ in profiles and provenance.
   the Rust SDK matures, compare the TypeScript/Bun runtime with a standalone
   Rust implementation across distribution footprint, runtime support,
   development cost, protocol compatibility, and active-run migration.
-- **Dynamic model policy:** evaluate difficulty estimation and model/effort
-  routing against fixed policies on representative workloads before scheduling
-  it.
+- **Dynamic routing policy:** evaluate router-step and deterministic-policy
+  selection across fixed candidate routes using quality, latency, token cost,
+  and route-selection stability before scheduling automatic routing.
 - **Development tooling:** consider a future `darrow-dev` capability for
   scaffolding, validation, manifest maintenance, and runtime packaging without
   creating another canonical source tree.
@@ -577,6 +640,8 @@ in profiles and provenance.
 - Making probabilistic model output byte-for-byte deterministic.
 - Turning workflow YAML into a general-purpose programming language.
 - Runtime-generated workflow graphs or candidate YAML.
+- Router-generated routes outside a finite preflighted candidate envelope.
+- Silent native fallback to an unrecorded harness, provider, model, or effort.
 - Building Git, ticket, ideation, or another domain application into the
   orchestration engine.
 - A file-backed ticket backend.

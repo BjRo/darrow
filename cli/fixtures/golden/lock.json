@@ -73,8 +73,13 @@
     "reasoningEffort": "high",
     "nativePermissions": {
       "inherit": true,
-      "configurationSource": "/home/user/.codex/config.toml",
-      "configurationDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "configurationSources": [
+        {
+          "path": "/home/user/.codex/config.toml",
+          "scope": "user",
+          "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
     }
   },
   "engine": {

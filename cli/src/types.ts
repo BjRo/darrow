@@ -156,15 +156,27 @@ export interface WorkflowDefinition {
   }>;
 }
 
-export interface ProfileDefinition {
+interface BaseProfileDefinition {
   schemaVersion: typeof CONTRACT_VERSION;
   id: string;
-  harness: "codex";
-  provider: "openai";
-  model: "gpt-5.6-sol";
   reasoningEffort: "high";
   permissions: { inherit: true };
 }
+
+export interface CodexProfileDefinition extends BaseProfileDefinition {
+  harness: "codex";
+  provider: "openai";
+  model: "gpt-5.6-sol";
+}
+
+export interface ClaudeProfileDefinition extends BaseProfileDefinition {
+  harness: "claude";
+  provider: "anthropic";
+  model: "claude-sonnet-4-6";
+}
+
+export type ProfileDefinition =
+  CodexProfileDefinition | ClaudeProfileDefinition;
 
 export interface ProjectDefinition {
   schemaVersion: typeof CONTRACT_VERSION;

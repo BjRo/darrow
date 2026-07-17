@@ -8,7 +8,7 @@ helpers and evals. Claude Code and Codex can adopt the plugins independently.
 The runtime architecture and delivery roadmap are defined in the
 [product specification](docs/product-spec.md).
 
-## M1 CLI quick start
+## Local CLI quick start
 
 The independently versioned CLI lives in [`cli/`](cli). Installation scope is
 always explicit. From this source checkout, choose one:
@@ -27,12 +27,12 @@ The installer pins Temporal CLI 1.8.0 and verifies its platform archive by
 SHA-256. `darrow init`, `run`, and `inspect` never download or upgrade it.
 
 Install and enable `darrow-git` and `darrow-delivery` from this marketplace in
-Codex. `DARROW_PLUGIN_ROOTS` may identify an already harness-enabled custom
-plugin environment; it does not install or enable plugins. Darrow catalogs
-explicit project roots for commands, but only a provider verifiably enabled in
-the Codex environment can satisfy a hard capability. It preflights the portable
-`git.branch.create@^1.0.0` contract but leaves provider selection to Codex's
-intent routing.
+Codex or Claude Code. `DARROW_PLUGIN_ROOTS` may identify an already
+harness-enabled custom plugin environment; it does not install or enable
+plugins. Darrow catalogs explicit project roots for commands, but only a
+provider verifiably enabled in the selected harness can satisfy a hard
+capability. It preflights the portable `git.branch.create@^1.0.0` contract but
+leaves provider selection to the harness's intent routing.
 
 In a Git repository with at least one commit:
 
@@ -62,9 +62,13 @@ not rewrite the locked initial profile. `darrow resume <run-id>` reconnects to
 an already running Temporal execution after a CLI interruption. Temporal and
 its task worker start lazily under `.darrow/runtime`, persist independently of
 the foreground CLI, and never download or upgrade themselves. The bundled
-profile requests Codex with provider `openai`, model `gpt-5.6-sol`, and high
-reasoning effort while inheriting native Codex permissions. It defines no model
-fallback. On non-macOS hosts, authenticated evidence capture requires
+`codex` profile requests provider `openai`, model `gpt-5.6-sol`, and high
+reasoning effort. The bundled `claude` profile requests provider `anthropic`,
+model `claude-sonnet-4-6`, and high effort. Set `profile: claude` in a workflow
+to select Claude Code for the entire run; mixed harnesses within one workflow
+are deferred. Both adapters inherit, lock, and revalidate native permission
+settings, never request a permission-bypass mode, and define no model fallback.
+On non-macOS hosts, authenticated evidence capture requires
 `DARROW_CODEX_PERMISSION_PROFILE` to name a configured native Codex permission
 profile; Darrow refuses to run test commands outside a verifiable sandbox.
 

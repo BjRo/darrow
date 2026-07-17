@@ -118,9 +118,9 @@
       "properties": {
         "schemaVersion": { "const": "0.1.0" },
         "id": { "type": "string" },
-        "harness": { "const": "codex" },
-        "provider": { "const": "openai" },
-        "model": { "const": "gpt-5.6-sol" },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "enum": ["gpt-5.6-sol", "claude-sonnet-4-6"] },
         "reasoningEffort": { "const": "high" },
         "permissions": {
           "type": "object",
@@ -130,7 +130,27 @@
         },
         "source": { "type": "string" },
         "digest": { "$ref": "#/$defs/digest" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "harness": { "const": "codex" } } },
+          "then": {
+            "properties": {
+              "provider": { "const": "openai" },
+              "model": { "const": "gpt-5.6-sol" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "harness": { "const": "claude" } } },
+          "then": {
+            "properties": {
+              "provider": { "const": "anthropic" },
+              "model": { "const": "claude-sonnet-4-6" }
+            }
+          }
+        }
+      ]
     },
     "schema": {
       "type": "object",
@@ -168,25 +188,61 @@
         "nativePermissions"
       ],
       "properties": {
-        "id": { "const": "codex-cli" },
+        "id": { "enum": ["codex-cli", "claude-code"] },
         "version": { "const": "0.1.0" },
         "executable": { "type": "string" },
         "detectedVersion": { "type": "string" },
-        "harness": { "const": "codex" },
-        "provider": { "const": "openai" },
-        "model": { "const": "gpt-5.6-sol" },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "enum": ["gpt-5.6-sol", "claude-sonnet-4-6"] },
         "reasoningEffort": { "const": "high" },
         "nativePermissions": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["inherit", "configurationSource", "configurationDigest"],
+          "required": ["inherit", "configurationSources"],
           "properties": {
             "inherit": { "const": true },
-            "configurationSource": { "type": "string" },
-            "configurationDigest": { "$ref": "#/$defs/digest" }
+            "configurationSources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "scope", "digest"],
+                "properties": {
+                  "path": { "type": "string" },
+                  "scope": {
+                    "enum": ["environment", "user", "project", "local"]
+                  },
+                  "digest": { "$ref": "#/$defs/digest" }
+                }
+              }
+            }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "harness": { "const": "codex" } } },
+          "then": {
+            "properties": {
+              "id": { "const": "codex-cli" },
+              "provider": { "const": "openai" },
+              "model": { "const": "gpt-5.6-sol" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "harness": { "const": "claude" } } },
+          "then": {
+            "properties": {
+              "id": { "const": "claude-code" },
+              "provider": { "const": "anthropic" },
+              "model": { "const": "claude-sonnet-4-6" }
+            }
+          }
+        }
+      ]
     },
     "engine": {
       "type": "object",

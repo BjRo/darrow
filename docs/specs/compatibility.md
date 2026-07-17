@@ -18,6 +18,7 @@ Read [workflow runtime](workflow-runtime.md) for execution behavior and
 | `cli_protocol_version`        | Commands, structured help, input/output, continuation, and exit semantics. |
 | `workflow_schema_version`     | Accepted workflow syntax and its meaning.                                  |
 | `workflow_version`            | One workflow's behavior and public input/output contract.                  |
+| `profile_schema_version`      | Accepted execution-profile and route syntax and its meaning.               |
 | `command_contract_version`    | One explicitly invoked command's typed behavior.                           |
 | `capability_contract_version` | One portable intent-based behavioral guarantee.                            |
 | `plugin_version`              | One distributed plugin package and its contents.                           |
@@ -45,6 +46,10 @@ Read [workflow runtime](workflow-runtime.md) for execution behavior and
   validation without changing accepted meaning. Minor accepts additional syntax
   while preserving all previously valid workflows. Major makes previously valid
   workflows invalid or changes their meaning.
+- **CP-7a — Profile schema bumps.** Patch changes documentation, diagnostics, or
+  validation without changing accepted meaning. Minor accepts additional route
+  syntax or values while preserving prior profiles. Major makes a prior profile
+  invalid or changes the route it selects.
 - **CP-8 — Workflow bumps.** Patch fixes behavior within existing public inputs,
   outputs, permission needs, and side-effect classes. Minor adds optional
   compatible behavior. Major changes required input/output, permissions,
@@ -155,7 +160,8 @@ Capability metadata has this shape:
 
 ## Scoped resolution
 
-- **CP-23 — Scope precedence.** Workflow and Darrow-aware skill resolution uses:
+- **CP-23 — Scope precedence.** Workflow, execution-profile, and Darrow-aware
+  skill resolution uses:
 
   ```text
   explicit path or override > project > user > bundled defaults
@@ -173,9 +179,20 @@ Capability metadata has this shape:
   or source override select content when ordinary precedence is insufficient.
 - **CP-27 — No implicit acquisition.** Resolution never installs or updates a
   CLI, plugin, workflow pack, harness, model, or worker.
-- **CP-28 — Multi-harness preflight.** For every harness eligible to execute a
-  step, all hard command and capability requirements must be compatible, or the
-  profile must disambiguate the eligible harness/provider set.
+- **CP-28 — Multi-harness preflight.** For every route eligible to execute a
+  step, all hard command and capability requirements must be compatible with
+  that route's harness and provider. Fixed profiles disambiguate the route;
+  future dynamic routing preflights every candidate in the locked envelope.
+- **CP-28a — Profile identity and scope.** A workflow role references a profile
+  ID resolved by ordinary scope precedence. The plan and lock record the selected
+  profile source, scope, schema version, content digest, and shadowed candidates.
+  Two roles may resolve to the same profile without duplicating its snapshot.
+- **CP-28b — Native route values stay in profiles.** Provider-specific model IDs
+  and reasoning-effort names are nonempty profile values rather than
+  workflow-schema enum members. The profile schema validates route shape
+  and harness/provider pairing; the selected adapter validates native support.
+  Supporting a newly released model or effort level therefore does not require a
+  workflow-schema release.
 
 ## Run lock and snapshot
 
@@ -188,11 +205,21 @@ Capability metadata has this shape:
     digests;
   - built-in names, versions, and engine digest;
   - all referenced schema identities, versions, and digests;
-  - profile and model-policy digest;
-  - requested harness, provider, model, reasoning configuration, and native
-    permission configuration;
-  - adapter and engine versions; and
+  - every workflow role binding and selected profile identity, source, scope,
+    schema version, and digest;
+  - each step's fixed route or future candidate-envelope digest;
+  - requested harness, provider, model, reasoning configuration, limits, and
+    native permission configuration for every eligible route;
+  - every eligible adapter identity, detected executable version, and adapter
+    contract version;
+  - any model-policy identity, version, and digest;
+  - the engine version; and
   - resolved model snapshot identifier when the provider exposes one.
+    The local `0.1.0` lock identifies one of `codex-cli` or `claude-code`. The
+    M2b lock records every adapter reachable through its step routes. Both record
+    detected executable versions and hash every selected native
+    permission-settings file. A changed settings digest is stale preflight, not
+    an invitation to silently adopt the new permissions.
 - **CP-30 — Local snapshot.** The exact workflow, Darrow-aware skills, bundled
   scripts, metadata, and schemas named by the lock are copied into
   `.darrow/runs/<run-id>/snapshot/`. Resume verifies their digests and invokes
@@ -200,10 +227,21 @@ Capability metadata has this shape:
 - **CP-31 — External provenance limitation.** Harness executables, provider
   services, and model weights are recorded but not snapshotted. The lock promises
   reproducible control, inputs, and provenance, not identical model output.
-- **CP-32 — No silent substitution.** If a fixed harness or model is unavailable,
-  the run enters `waiting_for_input`. An approved alternative is an append-only
-  run amendment. A dynamic model policy may choose another candidate only when
-  the original locked policy explicitly allowed that candidate.
+- **CP-32 — No silent substitution.** If any component of a fixed route is
+  unavailable or unsupported, the run enters `waiting_for_input`. An approved
+  complete replacement route is an append-only amendment scoped to the declared
+  target step and attempts. Native fallback settings cannot select an unrecorded
+  model, provider, harness, effort, or permission configuration.
+- **CP-32a — Locked candidate envelope.** A future router or dynamic model policy
+  may choose another route only from the finite candidate envelope in the
+  original lock. Each candidate has a stable route ID and complete profile and
+  compatibility provenance. Adding or changing a candidate requires a new run,
+  not mutation of the active lock.
+- **CP-32b — Selection is not substitution.** A valid dynamic selection records
+  the candidate ID, target step and attempt scope, selector identity, envelope
+  digest, selection source, and concise reason. Replay reuses that selection.
+  Failure or invalid output from the selector cannot fall through to another
+  candidate.
 - **CP-33 — No active-run migration contract.** A new compatible engine may read
   completed artifacts and workflows. Migrating active control state between
   local and hosted environments or incompatible engine releases is out of scope.

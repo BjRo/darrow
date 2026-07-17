@@ -53,6 +53,28 @@ describe("0.1.0 contract fixtures", () => {
     ).rejects.toThrow("additional properties");
   });
 
+  test("profiles reject cross-harness provider and model combinations", async () => {
+    const claude = {
+      schemaVersion: "0.1.0",
+      id: "claude",
+      harness: "claude",
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      reasoningEffort: "high",
+      permissions: { inherit: true },
+    };
+    await expect(
+      validateSchema("profile.schema.json", claude, "Claude profile"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "profile.schema.json",
+        { ...claude, provider: "openai", model: "gpt-5.6-sol" },
+        "mixed profile",
+      ),
+    ).rejects.toThrow();
+  });
+
   test("protocol schema discriminates command payloads", async () => {
     const emptyInit = {
       protocolVersion: "0.1.0",

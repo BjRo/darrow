@@ -35,6 +35,7 @@ test("packed CLI contains both executables and every runtime input", async () =>
     "package/src/worker.ts",
     "package/schemas/lock.schema.json",
     "package/profiles/codex.yaml",
+    "package/profiles/claude.yaml",
     "package/workflows/implement-change.yaml",
     "package/temporal.json",
   ])

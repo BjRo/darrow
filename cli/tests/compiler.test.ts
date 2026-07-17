@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   chmod,
+  cp,
   mkdir,
   mkdtemp,
   readdir,
@@ -202,6 +203,85 @@ steps:
     } finally {
       restoreEnvironment("DARROW_PLUGIN_ROOTS", previous);
       restoreEnvironment("CODEX_HOME", previousCodexHome);
+    }
+  });
+
+  test("resolves a Claude Code profile and locks its native adapter and enabled capability", async () => {
+    const root = await repo();
+    const claudeHome = resolve(root, "claude-home");
+    const cachedPlugin = resolve(
+      claudeHome,
+      "plugins",
+      "cache",
+      "darrow",
+      "darrow-git",
+      "0.1.1",
+    );
+    await mkdir(resolve(claudeHome), { recursive: true });
+    await cp(resolve(SOURCE_PLUGIN_ROOT, "darrow-git"), cachedPlugin, {
+      recursive: true,
+    });
+    await writeFile(resolve(claudeHome, "settings.json"), JSON.stringify({}));
+    await mkdir(resolve(root, ".claude"), { recursive: true });
+    await writeFile(
+      resolve(root, ".claude", "settings.json"),
+      JSON.stringify({ enabledPlugins: { "darrow-git@darrow": true } }),
+    );
+    const workflowPath = resolve(
+      root,
+      ".darrow",
+      "workflows",
+      "implement-change.yaml",
+    );
+    await writeFile(
+      workflowPath,
+      (await Bun.file(workflowPath).text()).replace(
+        "profile: codex",
+        "profile: claude",
+      ),
+    );
+    const previousRoots = process.env.DARROW_PLUGIN_ROOTS;
+    const previousClaudeHome = process.env.CLAUDE_CONFIG_DIR;
+    process.env.DARROW_PLUGIN_ROOTS = "";
+    process.env.CLAUDE_CONFIG_DIR = claudeHome;
+    try {
+      const compilation = await compile(root, "implement-change", {
+        change: "return hello",
+      });
+      expect(compilation.plan.profile).toMatchObject({
+        harness: "claude",
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+      });
+      expect(compilation.plan.capabilities[0]?.source).toContain(cachedPlugin);
+      const lock = (await createLock(compilation, "claude-run")) as Record<
+        string,
+        any
+      >;
+      expect(lock.adapter).toMatchObject({
+        id: "claude-code",
+        harness: "claude",
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+      });
+      expect(lock.adapter.nativePermissions.configurationSources).toEqual([
+        {
+          path: resolve(claudeHome, "settings.json"),
+          scope: "user",
+          digest: expect.stringMatching(/^sha256:/),
+        },
+        {
+          path: resolve(root, ".claude", "settings.json"),
+          scope: "project",
+          digest: expect.stringMatching(/^sha256:/),
+        },
+      ]);
+      await expect(
+        validateSchema("lock.schema.json", lock, "Claude lock"),
+      ).resolves.toBeUndefined();
+    } finally {
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previousRoots);
+      restoreEnvironment("CLAUDE_CONFIG_DIR", previousClaudeHome);
     }
   });
 });

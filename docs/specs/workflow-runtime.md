@@ -12,6 +12,15 @@ Read [compatibility](compatibility.md) for version resolution and skill metadata
 - **Command skill** — an operation the orchestrator invokes by canonical name.
 - **Capability skill** — an optional provider the harness loads from intent.
 - **Built-in** — a typed operation owned by the Darrow runtime.
+- **Role** — a workflow-local semantic name that binds command steps to an
+  execution profile.
+- **Execution profile** — a versioned configuration object that defines one
+  fixed execution route in M2b and may define a locked candidate envelope later.
+- **Execution route** — the complete harness, provider, model, reasoning effort,
+  native permission configuration, limits, and compatible adapter used for one
+  attempt.
+- **Route envelope** — a finite set of complete candidate routes resolved and
+  locked before execution.
 - **Step** — one node in the static workflow graph.
 - **Attempt** — one immutable execution of a step.
 - **Execution path** — one sequential path through the workflow graph. This is
@@ -99,18 +108,20 @@ examples are illustrative rather than an alternate schema.
 
 - **WR-13 — Complete compilation.** Compilation validates the workflow schema,
   expression types, graph bounds, command contracts, hard capabilities, artifact
-  flow, execution profile, version compatibility, and resolved content digests.
+  flow, every role-bound execution profile and eligible route, version
+  compatibility, and resolved content digests.
 - **WR-14 — Preflight precedes mutation.** Hard requirement failure occurs before
   worktree allocation, agent invocation, ticket mutation, or another externally
   visible effect.
 - **WR-15 — Immutable plan.** The execution backend receives an immutable
   `ResolvedPlan`, never a path to mutable YAML. It includes the resolved graph,
   workflow and schema versions, step contracts, built-ins, capability
-  environment, profile, model policy, retry rules, loop bounds, artifact schemas,
-  and content digests.
-- **WR-16 — Immutable original intent.** Human continuation, approved model
+  environment, role and profile bindings, each step's fixed route or allowed
+  route envelope, model policy, retry rules, loop bounds, artifact schemas, and
+  content digests.
+- **WR-16 — Immutable original intent.** Human continuation, approved route
   substitution, and other allowed changes create append-only run amendments.
-  They do not rewrite the original plan.
+  They do not rewrite the original plan or silently change another step's route.
 - **WR-17 — Snapshot before execution.** Exact workflow, skill, script, and schema
   inputs are copied into the repository-local run snapshot before the backend
   starts. See [compatibility](compatibility.md#run-lock-and-snapshot).
@@ -258,11 +269,70 @@ despite the review result, or abort.
   or execution path does not mutate another unless the static workflow declares
   that dependency.
 
+## Per-step execution routing
+
+The fixed routing contract below is required by M2b. The router-selection
+contract defines the boundary for later dynamic routing without requiring M2b to
+implement a router.
+
+- **WR-48 — Role-bound profiles.** Every command step resolves through a
+  workflow-local role to an execution profile. Multiple roles may reference the
+  same profile, and different roles may select different Claude Code or Codex
+  profiles in one graph. A legacy workflow-wide profile is compatible shorthand
+  for one implicit role assigned to every command step.
+- **WR-49 — Complete fixed route.** An M2b profile pins one complete execution
+  route: harness, provider, model, reasoning effort, native permission
+  configuration, limits, and compatible adapter. Provider- and model-specific
+  identifiers and effort names are profile data; command steps contain only the
+  role reference. An adapter rejects a route value unsupported by its installed
+  harness instead of substituting another value.
+- **WR-50 — Route-aware preflight.** Before mutation, compilation resolves and
+  validates every route that a static step can use, including routes on
+  conditional paths. Command and hard-capability compatibility, configuration
+  provenance, and adapter support are checked for the step's own harness. Native
+  executable, model, and effort availability is recorded when the environment
+  exposes it; later unavailability waits or fails explicitly. Failure of one
+  eligible route cannot fall through to another profile or harness.
+- **WR-51 — Route-stable attempts.** The immutable plan embeds the resolved role,
+  profile identity and digest, and complete route on every command step. Each
+  attempt receives that exact route and dispatches through its locked adapter.
+  Retries retain it unless an explicit scoped amendment or a future declared
+  router selection applies.
+- **WR-52 — Scoped route amendments.** When a route is unavailable, a human may
+  select a complete compatible replacement route through an append-only
+  amendment. The amendment identifies its target step and attempt scope. The
+  default scope is the unavailable step's remaining attempts; it never changes
+  an unrelated or merely subsequent step. Replacing only a model string without
+  validating the associated harness, provider, effort, permissions, and
+  command compatibility is invalid.
+
+**Status:** Deferred — dynamic routing after M2b
+
+- **WR-53 — Finite router envelope.** A workflow may later declare that one
+  router selects the route for one named downstream command step or attempt. The
+  target declares a finite candidate envelope of profile-backed routes. The
+  compiler resolves, compatibility-checks, and locks every candidate before
+  execution; a router cannot introduce a new candidate at runtime.
+- **WR-54 — Bounded router authority.** The router is an ordinary typed step with
+  its own statically resolved route. Its validated output names exactly one
+  candidate route ID for the declared target. It cannot change commands,
+  dependencies, graph shape, permissions, candidate contents, or the route of
+  any other step. An invalid or unavailable selection is an explicit routing
+  failure, not permission to fall back silently.
+- **WR-55 — Durable routing decision.** The backend durably records the selected
+  candidate, target step and attempt scope, router invocation, envelope digest,
+  selection source, and concise exposed reason before scheduling the target.
+  Replay uses that recorded decision and never calls the router again for the
+  same target attempt.
+
 ## Harness adapter contract
 
 - **WR-40 — Common invocation envelope.** Every adapter accepts a stable
   invocation ID, command identity and version, typed input, resolved profile,
-  workspace reference, artifact references, and cancellation context.
+  complete resolved route, workspace reference, artifact references, and
+  cancellation context. Local schema `0.1.0` uses one locked profile for all
+  command steps; the M2b schema adds role-bound per-step routes while retaining
+  that form as compatible shorthand.
 - **WR-41 — Common result envelope.** Every adapter returns:
   - invocation ID and status;
   - canonical command identity and resolved contract/implementation versions;
@@ -286,8 +356,12 @@ despite the review result, or abort.
 
 - **WR-44 — Environment-owned permissions.** Codex, Claude Code, or the hosted
   environment enforces permissions. The profile selects native permission
-  configuration. Darrow records it, never broadens it, and normalizes permission
-  denials as adapter errors.
+  configuration for its route. Darrow records it, never broadens it, and
+  normalizes permission denials as adapter errors. The local adapters inherit
+  each route's locked native configuration and never enable a permission-bypass
+  mode. User and project configuration is revalidated before invocation; Claude
+  Code local settings are passed explicitly so managed worktrees receive the
+  same locked policy.
 - **WR-45 — Temporal authority.** Temporal history is authoritative for active
   workflow control state. `darrow inspect` queries live state and joins it with
   repository-local plan, lock, journal, content, and artifacts.
