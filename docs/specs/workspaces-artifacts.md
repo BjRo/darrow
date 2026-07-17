@@ -186,17 +186,27 @@ The initial layout is:
   collection.
 - **WA-32 — Report before delete.** `darrow clean` without a deletion selection
   lists eligible worktrees and artifacts with their run state, age, size,
-  reference status, and proposed action. Deletion requires an explicit selection
-  and may be filtered, for example with `--older-than 30d`.
+  reference status, and proposed action. `--run-data` and `--worktrees` are the
+  deletion selections; `--run <run-id>` and `--older-than 30d` filter either a
+  report or a selection. Darrow validates every matching selected resource
+  before deleting any of them and refuses the entire selection when one is
+  protected.
 - **WA-33 — Active references protected.** An artifact, snapshot, content item,
   worktree, or ticket artifact referenced by an active run is not eligible for
   deletion.
 - **WA-34 — Run-local eligibility.** Run-local artifacts and snapshots are
   eligible only after their run is terminal and no active run references them.
+  `--run-data` selects the run's artifacts, snapshot, content, and normalized
+  command results while retaining its plan, lock, run record, audit journal, and
+  cleanup record. A terminal run remains inspectable after those selected bodies
+  are removed.
 - **WA-35 — Safe worktree removal.** A managed worktree is eligible only after
   its run is terminal and it is clean, or after Darrow can prove every remaining
   change was checkpointed and the explicit cleanup selection includes it. Darrow
-  refuses uncheckpointed dirty state. Cleanup never deletes a Git branch.
+  refuses uncheckpointed dirty state. The local M2 implementation conservatively
+  refuses every dirty managed worktree; checkpoint-proof deletion remains a
+  compatible future expansion. Cleanup never deletes a Git branch and never
+  removes an attached current workspace.
 - **WA-36 — Ticket purge is a working-tree change.** `darrow clean --tickets`
   may delete old checked-in ticket artifacts that are not protected by an active
   run. The deletions remain ordinary uncommitted working-tree changes for user

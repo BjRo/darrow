@@ -46,6 +46,12 @@ darrow continue <run-id> --request <request-id> --version <version> --choice hea
 # From another process, request durable cancellation:
 darrow cancel <run-id>
 darrow inspect <run-id>
+# Report cleanup eligibility without changing anything:
+darrow clean
+# Explicitly delete terminal run data older than 30 days:
+darrow clean --run-data --older-than 30d
+# A worktree selection still refuses active or dirty workspaces:
+darrow clean --worktrees --run <run-id>
 ```
 
 `--base HEAD` can bypass the dirty-checkout question and deliberately starts the
@@ -71,6 +77,13 @@ an accepted waiver produces `succeeded_with_waivers`.
 `darrow cancel <run-id>` durably stops new scheduling. Active commands wait for
 their activity boundary unless their command metadata explicitly declares safe
 interruption; inspection reports completed, incomplete, and uncertain steps.
+
+`darrow clean` is report-only unless `--run-data` or `--worktrees` is present.
+`--run <run-id>` and `--older-than <duration>` narrow the report or deletion.
+Run data is eligible only after terminal completion with no active references;
+managed worktrees must additionally be clean. Darrow refuses a selected set
+before deleting anything if any matching resource is protected, never removes
+an attached workspace or Git branch, and performs no background cleanup.
 
 ## Plugins
 

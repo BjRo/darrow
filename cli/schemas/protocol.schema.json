@@ -7,7 +7,9 @@
     { "$ref": "#/$defs/terminalSuccess" },
     { "$ref": "#/$defs/terminalFailure" },
     { "$ref": "#/$defs/failedStart" },
-    { "$ref": "#/$defs/inspect" }
+    { "$ref": "#/$defs/inspect" },
+    { "$ref": "#/$defs/cleanSuccess" },
+    { "$ref": "#/$defs/cleanFailure" }
   ],
   "$defs": {
     "outcomeValue": {
@@ -56,7 +58,15 @@
     "envelopeProperties": {
       "protocolVersion": { "const": "0.1.0" },
       "command": {
-        "enum": ["init", "run", "continue", "resume", "cancel", "inspect"]
+        "enum": [
+          "init",
+          "run",
+          "continue",
+          "resume",
+          "cancel",
+          "inspect",
+          "clean"
+        ]
       },
       "ok": { "type": "boolean" },
       "data": {},
@@ -409,6 +419,145 @@
         "results": { "type": "integer" }
       }
     },
+    "cleanupFilters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "olderThanSeconds"],
+      "properties": {
+        "runId": { "type": ["string", "null"] },
+        "olderThanSeconds": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "cleanupSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runData", "worktrees"],
+      "properties": {
+        "runData": { "type": "boolean" },
+        "worktrees": { "type": "boolean" }
+      }
+    },
+    "cleanupItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resourceId",
+        "runId",
+        "kind",
+        "path",
+        "runState",
+        "ageSeconds",
+        "size",
+        "referenceStatus",
+        "eligible",
+        "selected",
+        "reason",
+        "proposedAction"
+      ],
+      "properties": {
+        "resourceId": { "type": "string" },
+        "runId": { "type": "string" },
+        "kind": {
+          "enum": ["artifacts", "snapshot", "content", "results", "worktree"]
+        },
+        "path": { "type": "string" },
+        "runState": { "enum": ["running", "waiting_for_input", "completed"] },
+        "ageSeconds": { "type": "integer", "minimum": 0 },
+        "size": { "type": "integer", "minimum": 0 },
+        "referenceStatus": {
+          "enum": ["unreferenced", "active_run", "referenced_by_active_run"]
+        },
+        "eligible": { "type": "boolean" },
+        "selected": { "type": "boolean" },
+        "reason": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "active_run",
+            "active_reference",
+            "dirty_worktree",
+            "missing",
+            "already_deleted"
+          ]
+        },
+        "proposedAction": { "enum": ["delete", "retain"] }
+      }
+    },
+    "cleanupData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "filters",
+        "selection",
+        "items",
+        "deleted",
+        "blockers"
+      ],
+      "properties": {
+        "mode": { "enum": ["report", "delete"] },
+        "filters": { "$ref": "#/$defs/cleanupFilters" },
+        "selection": { "$ref": "#/$defs/cleanupSelection" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cleanupItem" }
+        },
+        "deleted": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cleanupItem" }
+        }
+      }
+    },
+    "cleanupRecord": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "runId", "resources"],
+          "properties": {
+            "schemaVersion": { "const": "0.1.0" },
+            "runId": { "type": "string" },
+            "resources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "resourceId",
+                  "kind",
+                  "path",
+                  "size",
+                  "selectedAt",
+                  "completedAt"
+                ],
+                "properties": {
+                  "resourceId": { "type": "string" },
+                  "kind": {
+                    "enum": [
+                      "artifacts",
+                      "snapshot",
+                      "content",
+                      "results",
+                      "worktree"
+                    ]
+                  },
+                  "path": { "type": "string" },
+                  "size": { "type": "integer", "minimum": 0 },
+                  "selectedAt": { "type": "string" },
+                  "completedAt": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "inspectData": {
       "type": "object",
       "additionalProperties": false,
@@ -428,6 +577,7 @@
         "waivers",
         "cancellation",
         "error",
+        "cleanup",
         "liveTemporal",
         "paths",
         "counts"
@@ -454,6 +604,7 @@
         },
         "cancellation": { "$ref": "#/$defs/cancellation" },
         "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },
+        "cleanup": { "$ref": "#/$defs/cleanupRecord" },
         "liveTemporal": { "$ref": "#/$defs/liveTemporal" },
         "paths": { "$ref": "#/$defs/paths" },
         "counts": { "$ref": "#/$defs/counts" }
@@ -516,6 +667,30 @@
         "command": { "const": "run" },
         "ok": { "const": false },
         "data": { "$ref": "#/$defs/failedStartData" },
+        "error": { "$ref": "#/$defs/error" }
+      }
+    },
+    "cleanSuccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "command", "ok", "data", "error"],
+      "properties": {
+        "protocolVersion": { "const": "0.1.0" },
+        "command": { "const": "clean" },
+        "ok": { "const": true },
+        "data": { "$ref": "#/$defs/cleanupData" },
+        "error": { "type": "null" }
+      }
+    },
+    "cleanFailure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "command", "ok", "data", "error"],
+      "properties": {
+        "protocolVersion": { "const": "0.1.0" },
+        "command": { "const": "clean" },
+        "ok": { "const": false },
+        "data": { "$ref": "#/$defs/cleanupData" },
         "error": { "$ref": "#/$defs/error" }
       }
     },

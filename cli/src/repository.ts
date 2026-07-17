@@ -259,6 +259,41 @@ export async function releaseWorkspace(
   });
 }
 
+export async function removeManagedWorkspace(
+  root: string,
+  runId: string,
+  workspace: string,
+): Promise<void> {
+  await withAllocationLock(root, async () => {
+    const absolute = resolve(workspace);
+    const path = ownerPath(root, absolute);
+    if (await exists(path)) {
+      const owner = await readJson<WorkspaceOwner>(path);
+      if (owner.runId !== runId)
+        throw new DarrowError(
+          `workspace is owned by active run ${owner.runId}: ${absolute}`,
+          "cleanup_active",
+        );
+    }
+    const status = run(
+      ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+      absolute,
+    );
+    if (status.exitCode !== 0)
+      throw new DarrowError(
+        `cannot inspect managed worktree ${absolute}: ${status.stderr.trim() || status.stdout.trim() || `exit ${status.exitCode}`}`,
+        "cleanup_state",
+      );
+    if (status.stdout.length > 0)
+      throw new DarrowError(
+        `refusing to remove dirty managed worktree: ${absolute}`,
+        "cleanup_dirty",
+      );
+    mustRun(["git", "worktree", "remove", absolute], root, "cleanup_worktree");
+    if (await exists(path)) await rm(path, { force: true });
+  });
+}
+
 export async function reserveRunDirectory(
   root: string,
 ): Promise<{ runId: string; stagingDir: string }> {

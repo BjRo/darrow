@@ -43,6 +43,12 @@ The initial run record is:
   command invocations, capability preflight, artifacts, human requests and
   responses, recovery reconciliation, waivers, cancellations, cleanup
   eligibility, and terminal conclusions.
+- **OB-5a — Cleanup audit.** Every completed resource deletion appends a
+  `cleanup.resource.deleted` event with its resource ID, kind, absolute path,
+  measured size, and completion time. A durable `cleanup.json` beside the run
+  record stores selection and completion markers so intentional removal remains
+  distinguishable from corruption and terminal inspection can explain missing
+  bodies.
 - **OB-6 — Stable correlation.** Every event carries protocol/schema version,
   timestamp, run ID, and event ID. Step, attempt, invocation, artifact, human
   request, Temporal workflow/run, and native session IDs appear when applicable.
@@ -165,7 +171,8 @@ happened after the previous Darrow invocation and before the current one.
 - **OB-32 — Explicit local cleanup.** Raw harness events, transcripts, logs,
   patches, and test output remain eligible for explicit age-based cleanup after
   the run is terminal and active references are absent. No background cleanup
-  occurs.
+  occurs. Cleanup retains the bounded audit journal and cleanup markers even when
+  selected content, results, artifacts, and snapshots are removed.
 - **OB-33 — Compact retained learning.** A workflow may publish a smaller ticket
   summary for long-term learning while allowing raw intermediate content to be
   purged. Published content remains subject to explicit ticket cleanup.

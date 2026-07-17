@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "0.1.0",
+  "runId": "run-1",
+  "resources": [
+    {
+      "resourceId": "run-1:artifacts",
+      "kind": "artifacts",
+      "path": "/repo/.darrow/runs/run-1/artifacts",
+      "size": 128,
+      "selectedAt": "2026-07-16T20:00:00.000Z",
+      "completedAt": "2026-07-16T20:00:01.000Z"
+    }
+  ]
+}

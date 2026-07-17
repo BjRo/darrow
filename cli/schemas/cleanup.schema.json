@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://darrow.dev/schemas/cleanup/0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "resources"],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "runId": { "type": "string" },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "kind",
+          "path",
+          "size",
+          "selectedAt",
+          "completedAt"
+        ],
+        "properties": {
+          "resourceId": { "type": "string" },
+          "kind": {
+            "enum": ["artifacts", "snapshot", "content", "results", "worktree"]
+          },
+          "path": { "type": "string" },
+          "size": { "type": "integer", "minimum": 0 },
+          "selectedAt": { "type": "string", "format": "date-time" },
+          "completedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

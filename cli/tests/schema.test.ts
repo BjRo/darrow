@@ -14,6 +14,7 @@ const fixtures: Array<[string, string]> = [
   ["lock.json", "lock.schema.json"],
   ["event.json", "event.schema.json"],
   ["artifact.json", "artifact.schema.json"],
+  ["cleanup.json", "cleanup.schema.json"],
 ];
 
 describe("0.1.0 contract fixtures", () => {
@@ -284,5 +285,32 @@ describe("0.1.0 contract fixtures", () => {
         "unsafe command metadata",
       ),
     ).rejects.toThrow("allowed values");
+  });
+
+  test("cleanup events preserve bounded deletion evidence", async () => {
+    const deleted = {
+      schemaVersion: "0.1.0",
+      eventId: "event-cleanup",
+      runId: "run-1",
+      timestamp: "2026-07-16T20:00:01.000Z",
+      type: "cleanup.resource.deleted",
+      data: {
+        resourceId: "run-1:artifacts",
+        kind: "artifacts",
+        path: "/repo/.darrow/runs/run-1/artifacts",
+        size: 128,
+        completedAt: "2026-07-16T20:00:01.000Z",
+      },
+    };
+    await expect(
+      validateSchema("event.schema.json", deleted, "cleanup event"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "event.schema.json",
+        { ...deleted, data: { ...deleted.data, body: "raw artifact" } },
+        "cleanup event",
+      ),
+    ).rejects.toThrow("additional properties");
   });
 });

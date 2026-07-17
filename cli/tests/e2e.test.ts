@@ -714,6 +714,59 @@ steps:
     expect(JSON.parse(unaffected.stdout.trim()).data.conclusion).toBe(
       "succeeded",
     );
+    const cleanupReport = command(
+      ["bun", cli, "clean", "--run", envelope.data.runId, "--json"],
+      root,
+      env,
+    );
+    expect(cleanupReport.code, cleanupReport.stderr).toBe(0);
+    const reportData = JSON.parse(cleanupReport.stdout.trim()).data as {
+      mode: string;
+      deleted: string[];
+      items: Array<{ kind: string; eligible: boolean }>;
+    };
+    expect(reportData.mode).toBe("report");
+    expect(reportData.deleted).toEqual([]);
+    expect(
+      reportData.items
+        .filter((item) => item.kind !== "worktree")
+        .every((item) => item.eligible),
+    ).toBe(true);
+    const cleaned = command(
+      [
+        "bun",
+        cli,
+        "clean",
+        "--run",
+        envelope.data.runId,
+        "--run-data",
+        "--json",
+      ],
+      root,
+      env,
+    );
+    expect(cleaned.code, `${cleaned.stderr}\n${cleaned.stdout}`).toBe(0);
+    expect(JSON.parse(cleaned.stdout.trim()).data.deleted).toEqual([
+      `${envelope.data.runId}:artifacts`,
+      `${envelope.data.runId}:snapshot`,
+      `${envelope.data.runId}:content`,
+      `${envelope.data.runId}:results`,
+    ]);
+    const inspectedAfterCleanup = command(
+      ["bun", cli, "inspect", envelope.data.runId, "--json"],
+      root,
+      env,
+    );
+    expect(inspectedAfterCleanup.code, inspectedAfterCleanup.stderr).toBe(0);
+    const cleanedInspection = JSON.parse(inspectedAfterCleanup.stdout.trim())
+      .data as {
+      conclusion: string;
+      cleanup: { resources: Array<{ completedAt: string }> };
+      counts: { results: number };
+    };
+    expect(cleanedInspection.conclusion).toBe("succeeded");
+    expect(cleanedInspection.cleanup.resources).toHaveLength(4);
+    expect(cleanedInspection.counts.results).toBe(0);
 
     const waiverWorkflow = await Bun.file(
       resolve(root, ".darrow", "workflows", "implement-change.yaml"),

@@ -12,6 +12,7 @@
     { "$ref": "#/$defs/runRecovered" },
     { "$ref": "#/$defs/runCancelRequested" },
     { "$ref": "#/$defs/runCompleted" },
+    { "$ref": "#/$defs/cleanupResourceDeleted" },
     { "$ref": "#/$defs/invocationStarted" },
     { "$ref": "#/$defs/invocationCancelled" },
     { "$ref": "#/$defs/invocationFailed" },
@@ -573,6 +574,45 @@
             },
             "cancellation": { "$ref": "#/$defs/cancellation" },
             "error": { "$ref": "#/$defs/error" }
+          }
+        }
+      }
+    },
+    "cleanupResourceDeleted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "timestamp",
+        "type",
+        "data"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "eventId": { "type": "string" },
+        "runId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "const": "cleanup.resource.deleted" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["resourceId", "kind", "path", "size", "completedAt"],
+          "properties": {
+            "resourceId": { "type": "string" },
+            "kind": {
+              "enum": [
+                "artifacts",
+                "snapshot",
+                "content",
+                "results",
+                "worktree"
+              ]
+            },
+            "path": { "type": "string" },
+            "size": { "type": "integer", "minimum": 0 },
+            "completedAt": { "type": "string", "format": "date-time" }
           }
         }
       }

@@ -3,6 +3,14 @@ import { chmod, mkdir, readdir, rename, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { compile, createLock, snapshot, verifyRunSnapshot } from "./compiler";
 import { verifyArtifacts } from "./artifacts";
+import {
+  cleanRepository,
+  cleanupUnavailable,
+  readCleanupRecord,
+  type CleanupFilters,
+  type CleanupResult,
+  type CleanupSelection,
+} from "./cleanup";
 import { DarrowError } from "./errors";
 import {
   assertCurrentRequest,
@@ -67,10 +75,52 @@ function usage(): string {
     "  darrow resume <run-id> [--json]",
     "  darrow cancel <run-id> [--json]",
     "  darrow inspect <run-id> [--json]",
+    "  darrow clean [--run <run-id>] [--older-than <duration>] [--run-data] [--worktrees] [--json]",
     "  darrow --version",
     "",
     "Install the pinned Temporal executable explicitly with darrow-install --scope global|local.",
   ].join("\n");
+}
+
+function parseDuration(value: string): number {
+  const match = /^([1-9][0-9]*)([smhdw])$/.exec(value);
+  if (!match)
+    throw new DarrowError(
+      "--older-than requires a positive duration such as 12h, 30d, or 8w",
+      "usage",
+    );
+  const units = { s: 1, m: 60, h: 3_600, d: 86_400, w: 604_800 };
+  const seconds = Number(match[1]) * units[match[2] as keyof typeof units];
+  if (!Number.isSafeInteger(seconds))
+    throw new DarrowError("--older-than duration is too large", "usage");
+  return seconds;
+}
+
+function parseClean(args: string[]): {
+  filters: CleanupFilters;
+  selection: CleanupSelection;
+  json: boolean;
+} {
+  const filters: CleanupFilters = { runId: null, olderThanSeconds: null };
+  const selection: CleanupSelection = { runData: false, worktrees: false };
+  let json = false;
+  while (args.length > 0) {
+    const flag = args.shift();
+    if (flag === "--json") json = true;
+    else if (flag === "--run") {
+      filters.runId = args.shift() ?? "";
+      if (!filters.runId)
+        throw new DarrowError("--run requires a run ID", "usage");
+    } else if (flag === "--older-than") {
+      const duration = args.shift();
+      if (!duration)
+        throw new DarrowError("--older-than requires a duration", "usage");
+      filters.olderThanSeconds = parseDuration(duration);
+    } else if (flag === "--run-data") selection.runData = true;
+    else if (flag === "--worktrees") selection.worktrees = true;
+    else throw new DarrowError(`unknown clean argument: ${flag}`, "usage");
+  }
+  return { filters, selection, json };
 }
 
 function parseValue(value: string): string | boolean | number {
@@ -180,14 +230,49 @@ function parseContinuation(args: string[]): {
 }
 
 async function emitJson(
-  command: "init" | "run" | "continue" | "resume" | "cancel" | "inspect",
+  command:
+    "init" | "run" | "continue" | "resume" | "cancel" | "inspect" | "clean",
   ok: boolean,
-  data: Record<string, unknown> | null,
+  data: object | null,
   error: { category: string; message: string } | null,
 ): Promise<void> {
   const output = { protocolVersion: "0.1.0", command, ok, data, error };
   await validateSchema("protocol.schema.json", output, `${command} output`);
   console.log(JSON.stringify(output));
+}
+
+async function clean(
+  filters: CleanupFilters,
+  selection: CleanupSelection,
+  json: boolean,
+): Promise<number> {
+  const repoRoot = primaryRepoRoot();
+  await requireInitialized(repoRoot);
+  const result = await cleanRepository(repoRoot, filters, selection);
+  const refused = result.blockers.length > 0;
+  const error = refused
+    ? {
+        category: "cleanup_refused",
+        message: `refusing cleanup of ${result.blockers.map((item) => `${item.resourceId} (${item.reason})`).join(", ")}`,
+      }
+    : null;
+  if (json) await emitJson("clean", !refused, result, error);
+  else printCleanup(result, error?.message ?? null);
+  return refused ? 2 : 0;
+}
+
+function printCleanup(result: CleanupResult, error: string | null): void {
+  const lines = [
+    `Cleanup mode: ${result.mode}`,
+    ...result.items.map(
+      (item) =>
+        `${item.eligible ? "eligible" : "protected"} ${item.resourceId} state=${item.runState} age=${item.ageSeconds}s size=${item.size} reference=${item.referenceStatus} action=${item.proposedAction}${item.reason ? ` reason=${item.reason}` : ""} path=${item.path}`,
+    ),
+  ];
+  if (result.deleted.length > 0)
+    lines.push(`Deleted: ${result.deleted.join(", ")}`);
+  if (error) lines.push(`Refused: ${error}`);
+  console.log(lines.join("\n"));
 }
 
 async function initialize(json: boolean): Promise<void> {
@@ -968,9 +1053,13 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
     throw new DarrowError(`run not found: ${runId}`, "not_found");
   const record = await readRun(runDir);
   const plan = await readJson<ResolvedPlan>(resolve(runDir, "plan.json"));
-  await verifyRunSnapshot(runDir, plan);
-  await verifyArtifacts(repoRoot, runDir);
-  await verifyWaiverContent(repoRoot, runDir, record);
+  const cleanup = await readCleanupRecord(runDir);
+  if (!(await cleanupUnavailable(cleanup, "snapshot")))
+    await verifyRunSnapshot(runDir, plan);
+  if (!(await cleanupUnavailable(cleanup, "artifacts")))
+    await verifyArtifacts(repoRoot, runDir);
+  if (!(await cleanupUnavailable(cleanup, "content")))
+    await verifyWaiverContent(repoRoot, runDir, record);
   const temporal =
     record.state === "completed" || !record.temporal.workflowId
       ? null
@@ -979,11 +1068,14 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
   const eventCount = (await exists(eventsPath))
     ? (await Bun.file(eventsPath).text()).split("\n").filter(Boolean).length
     : 0;
-  const results = (await readdir(resolve(runDir, "results"))).filter((name) =>
-    name.endsWith(".json"),
-  );
+  const results = (await cleanupUnavailable(cleanup, "results"))
+    ? []
+    : (await readdir(resolve(runDir, "results"))).filter((name) =>
+        name.endsWith(".json"),
+      );
   const data = {
     ...record,
+    cleanup,
     liveTemporal: temporal,
     paths: {
       run: runDir,
@@ -1055,6 +1147,10 @@ async function main(): Promise<number> {
       throw new DarrowError(`unknown inspect argument: ${args[0]}`, "usage");
     await inspectRun(runId, json);
     return 0;
+  }
+  if (command === "clean") {
+    const parsed = parseClean(args);
+    return clean(parsed.filters, parsed.selection, parsed.json);
   }
   throw new DarrowError(`unknown command: ${command}\n${usage()}`, "usage");
 }
