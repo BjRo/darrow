@@ -12,23 +12,24 @@ Read [workflow runtime](workflow-runtime.md) for execution behavior and
 - **CP-1 — Independent compatibility.** These versions change independently and
   appear separately in metadata and run locks:
 
-| Axis                          | Identifies                                                                 |
-| ----------------------------- | -------------------------------------------------------------------------- |
-| `engine_version`              | Darrow interpreter behavior and backend integration.                       |
-| `cli_protocol_version`        | Commands, structured help, input/output, continuation, and exit semantics. |
-| `workflow_schema_version`     | Accepted workflow syntax and its meaning.                                  |
-| `workflow_version`            | One workflow's behavior and public input/output contract.                  |
-| `profile_schema_version`      | Accepted execution-profile and route syntax and its meaning.               |
-| `command_contract_version`    | One explicitly invoked command's typed behavior.                           |
-| `capability_contract_version` | One portable intent-based behavioral guarantee.                            |
-| `plugin_version`              | One distributed plugin package and its contents.                           |
+| Axis                              | Identifies                                                                 |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `engine_version`                  | Darrow interpreter behavior and backend integration.                       |
+| `cli_protocol_version`            | Commands, structured help, input/output, continuation, and exit semantics. |
+| `workflow_schema_version`         | Accepted workflow syntax and its meaning.                                  |
+| `workflow_version`                | One workflow's behavior and public input/output contract.                  |
+| `profile_schema_version`          | Accepted execution-profile and route syntax and its meaning.               |
+| `command_contract_version`        | One explicitly invoked command's typed behavior.                           |
+| `capability_contract_version`     | One portable intent-based behavioral guarantee.                            |
+| `routing_policy_contract_version` | One portable control-plane route-selection guarantee.                      |
+| `plugin_version`                  | One distributed plugin package and its contents.                           |
 
 - **CP-2 — Versions express compatibility; digests express identity.** Semantic
   versions say which consumers may interoperate. A cryptographic content digest
   identifies exact resolved bytes. Neither substitutes for the other.
 - **CP-3 — Package and contract versions differ.** A plugin package version does
-  not imply the versions of the command and capability contracts it contains.
-  Every contract declares its own version.
+  not imply the versions of the command, capability, or routing-policy contracts
+  it contains. Every contract declares its own version.
 - **CP-4 — Every shipped change is versioned.** A shipped content change bumps at
   least the owning plugin or workflow patch version, even if no public contract
   changes.
@@ -61,6 +62,10 @@ Read [workflow runtime](workflow-runtime.md) for execution behavior and
 - **CP-10 — Capability contract bumps.** Patch clarifies or fixes an
   implementation without changing the guarantee. Minor adds a compatible
   guarantee. Major removes, weakens, or incompatibly changes a guarantee.
+- **CP-10a — Routing-policy contract bumps.** Patch clarifies or fixes selection
+  behavior within the existing request and decision contract. Minor adds an
+  optional compatible signal or stronger guarantee. Major changes required
+  inputs, candidate-selection meaning, authority, or fallback behavior.
 - **CP-11 — Plugin bumps.** Patch changes compatible implementation or
   documentation. Minor adds a compatible skill or contract implementation. Major
   removes or renames a skill or makes packaging incompatible.
@@ -88,6 +93,10 @@ Humans remain responsible for semantic classification of behavior changes.
 - **CP-16 — Provider plurality.** Several native skills may provide the same
   capability contract. Environment configuration selects the eligible provider;
   Darrow does not add an alias registry.
+- **CP-16a — Routing-policy identity.** An M2c routing-policy provider has the
+  canonical `<plugin-name>:<skill-name>` identity and one exact portable policy
+  contract version. Workflow or profile configuration selects it explicitly;
+  harness intent routing never selects a control-plane provider.
 
 ## Darrow skill metadata
 
@@ -106,6 +115,11 @@ runtime; existing M0 skills remain ordinary harness skills until migrated.
 - **CP-19 — Ordinary skills remain ordinary.** A harness skill without
   `darrow.json` remains usable by that harness but is absent from Darrow command
   resolution and capability preflight.
+- **CP-19a — Routing-policy metadata.** M2c extends the strict metadata schema
+  with a `routing-policy` kind, exact policy contract version, owned request and
+  decision schemas, and an implementation mode that distinguishes deterministic
+  from agent-backed providers. An agent bootstrap profile is selected and locked
+  by routing configuration rather than embedded in provider identity.
 
 Command metadata has this shape:
 
@@ -149,14 +163,14 @@ Capability metadata has this shape:
 ```
 
 - **CP-20 — Metadata schema version.** `schemaVersion` versions the metadata file
-  shape, not a command or capability contract. Darrow must understand it before
-  considering the skill eligible.
+  shape, not a command, capability, or routing-policy contract. Darrow must
+  understand it before considering the skill eligible.
 - **CP-21 — Exact implementation claims.** `contractVersion` and each
   `provides[].version` are exact semantic versions. Workflow and command
   requirements use semantic-version ranges.
-- **CP-22 — Relative schema ownership.** Command input and output schemas resolve
-  relative to the skill directory and remain inside it. They ship in the same
-  self-contained plugin.
+- **CP-22 — Relative schema ownership.** Command and routing-policy input and
+  output schemas resolve relative to the skill directory and remain inside it.
+  They ship in the same self-contained plugin.
 
 ## Scoped resolution
 
@@ -182,7 +196,7 @@ Capability metadata has this shape:
 - **CP-28 — Multi-harness preflight.** For every route eligible to execute a
   step, all hard command and capability requirements must be compatible with
   that route's harness and provider. Fixed profiles disambiguate the route;
-  future dynamic routing preflights every candidate in the locked envelope.
+  M2c policy routing preflights every candidate in the locked envelope.
 - **CP-28a — Profile identity and scope.** A workflow role references a profile
   ID resolved by ordinary scope precedence. The plan and lock record the selected
   profile source, scope, schema version, content digest, and shadowed candidates.
@@ -207,12 +221,13 @@ Capability metadata has this shape:
   - all referenced schema identities, versions, and digests;
   - every workflow role binding and selected profile identity, source, scope,
     schema version, and digest;
-  - each step's fixed route or future candidate-envelope digest;
+  - each step's fixed route or M2c candidate-envelope digest;
   - requested harness, provider, model, reasoning configuration, limits, and
     native permission configuration for every eligible route;
   - every eligible adapter identity, detected executable version, and adapter
     contract version;
-  - any model-policy identity, version, and digest;
+  - any routing-policy provider identity, contract version, implementation
+    digest, configuration digest, and fixed bootstrap profile when agent-backed;
   - the engine version; and
   - resolved model snapshot identifier when the provider exposes one.
     The local `0.1.0` lock identifies one of `codex-cli` or `claude-code`. The
@@ -232,16 +247,16 @@ Capability metadata has this shape:
   complete replacement route is an append-only amendment scoped to the declared
   target step and attempts. Native fallback settings cannot select an unrecorded
   model, provider, harness, effort, or permission configuration.
-- **CP-32a — Locked candidate envelope.** A future router or dynamic model policy
-  may choose another route only from the finite candidate envelope in the
-  original lock. Each candidate has a stable route ID and complete profile and
+- **CP-32a — Locked candidate envelope.** An M2c routing-policy provider may
+  choose another route only from the finite candidate envelope in the original
+  lock. Each candidate has a stable route ID and complete profile and
   compatibility provenance. Adding or changing a candidate requires a new run,
   not mutation of the active lock.
 - **CP-32b — Selection is not substitution.** A valid dynamic selection records
-  the candidate ID, target step and attempt scope, selector identity, envelope
-  digest, selection source, and concise reason. Replay reuses that selection.
-  Failure or invalid output from the selector cannot fall through to another
-  candidate.
+  the candidate ID, target step and attempt scope, policy identity and decision
+  invocation, envelope digest, selection source, and concise reason. Replay
+  reuses that selection. Failure or invalid output from the provider cannot fall
+  through to another candidate.
 - **CP-33 — No active-run migration contract.** A new compatible engine may read
   completed artifacts and workflows. Migrating active control state between
   local and hosted environments or incompatible engine releases is out of scope.

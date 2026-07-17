@@ -75,8 +75,8 @@ the contract and must remain valid.
 3. **Local-first, hosted-capable.** Local use needs no user-managed database,
    container stack, telemetry collector, or first-party UI.
 4. **Loose coupling.** The engine, CLI protocol, workflow schema, workflows,
-   command contracts, capability contracts, and plugin packages evolve on
-   independent compatibility axes.
+   command contracts, capability contracts, routing-policy contracts, and plugin
+   packages evolve on independent compatibility axes.
 5. **Artifact-first handoff.** Steps exchange typed, immutable artifact
    references instead of repeatedly rewriting one ticket or shared prompt.
 6. **Durable human control.** A run can end an agent turn, wait without holding a
@@ -151,11 +151,14 @@ committed; runtime state and managed worktrees are ignored.
 repository silently. Exact layout and cleanup rules are defined in
 [workspaces and artifacts](specs/workspaces-artifacts.md).
 
-## 5. Skills: commands and capabilities
+## 5. Skills and control-plane providers
 
 **Status:** Invariant
 
-darrow recognizes two kinds of runtime-aware skill.
+darrow initially recognizes two kinds of runtime-aware skill. M2c adds a
+control-plane routing-policy provider that may be packaged with skills but is
+resolved and invoked by Darrow rather than loaded by a selected harness from
+intent.
 
 ### 5.1 Command skills
 
@@ -194,14 +197,32 @@ preflight; preflight does not turn it into direct command invocation.
 
 ### 5.3 Skill metadata
 
-Every Darrow-aware command or capability skill has a colocated `darrow.json`.
-Runtime manifests continue to own plugin identity and package version;
-`darrow.json` owns command/capability classification and Darrow contract
-metadata. Skill and plugin names are derived rather than duplicated. Exact shape
-and validation rules are defined in [compatibility](specs/compatibility.md).
+Every Darrow-aware command, capability, or M2c routing-policy provider has a
+colocated `darrow.json`. Runtime manifests continue to own plugin identity and
+package version; `darrow.json` owns command, capability, or routing-policy
+classification and Darrow contract metadata. Skill and plugin names are derived
+rather than duplicated. Exact shape and validation rules are defined in
+[compatibility](specs/compatibility.md).
 
-Skills without `darrow.json` remain ordinary harness skills and are invisible to
-Darrow preflight.
+Skills or providers without `darrow.json` remain ordinary harness content and
+are invisible to Darrow preflight.
+
+### 5.4 Routing-policy providers
+
+**Status:** Milestone requirement — M2c
+
+A routing-policy provider implements a portable, versioned contract that selects
+one complete candidate route for one declared target step or attempt. Darrow
+selects the provider explicitly through scoped configuration and invokes it at
+the engine scheduling boundary. It is not a capability skill: capability intent
+routing occurs inside a harness after the execution route has already been
+chosen.
+
+A provider may be deterministic code or use model judgment through an
+agent-backed skill. An agent-backed provider has one fixed, locked bootstrap
+profile and cannot route its own invocation. Providers receive bounded typed
+inputs and return a candidate route ID plus concise exposed rationale; Darrow
+retains authority to validate, persist, and apply the decision.
 
 ## 6. Declarative workflow model
 
@@ -414,11 +435,11 @@ or rewrites history, and active-run references remain protected.
 **Status:** Invariant
 
 Engine, CLI protocol, workflow schema, workflow, execution-profile schema,
-command contract, capability contract, and plugin package versions are
-independent. Semantic versions express compatibility; content digests identify
-exact bytes. The lock records every resolved role and profile plus each step's
-requested harness, provider, model, reasoning effort, adapter,
-permission configuration, and resolved model snapshot when exposed.
+command contract, capability contract, routing-policy contract, and plugin
+package versions are independent. Semantic versions express compatibility;
+content digests identify exact bytes. The lock records every resolved role and
+profile plus each step's requested harness, provider, model, reasoning effort,
+adapter, permission configuration, and resolved model snapshot when exposed.
 
 Models, harnesses, providers, and their supported effort levels are external
 dependencies and may disappear. Darrow never silently substitutes any component
@@ -427,14 +448,14 @@ approved replacement names a complete compatible route and creates an explicit,
 scoped run amendment without rewriting the original plan. Native automatic
 fallback is not enabled for fixed routes.
 
-**Status:** Deferred
+**Status:** Milestone requirement — M2c
 
-Execution profiles may later select a versioned dynamic routing policy instead
-of one fixed route. A router step or deterministic policy may choose the route
-for one declared downstream step or attempt from a finite allowed envelope that
-was resolved, compatibility-checked, and locked before execution. A routing
-decision selects a candidate route ID; it cannot emit an arbitrary provider,
-model, effort, permission configuration, command, or graph mutation.
+An M2c role may select a versioned routing-policy provider instead of one fixed
+route. The engine asks that provider to choose the route for one declared target
+step or attempt from a finite allowed envelope that was resolved,
+compatibility-checked, and locked before execution. A routing decision selects a
+candidate route ID; it cannot emit an arbitrary provider, model, effort,
+permission configuration, command, or graph mutation.
 
 The policy may use task characteristics, prior outcomes, quality, latency, and
 budget. The lock records the policy and candidate envelope; every invocation
@@ -579,10 +600,10 @@ Compilation preflights every route that the static workflow can execute, locks
 the complete route per step, dispatches each attempt through its selected
 adapter, and records the effective route in results and journal events.
 
-Define the future routing seam at the same time: a declared router may later
-select one candidate route for one declared downstream step from a finite,
-preflighted, locked envelope. M2b does not require automatic routing, difficulty
-estimation, or budget optimization.
+Define the M2c routing seam at the same time: a routing-policy provider may select
+one candidate route for one declared target step from a finite, preflighted,
+locked envelope. M2b does not require automatic routing, difficulty estimation,
+or budget optimization.
 
 **Exit criterion:** one locked workflow executes at least two dependent command
 steps through different Claude Code and Codex profiles with independently chosen
@@ -590,17 +611,42 @@ models and reasoning efforts; restart and inspection preserve each attempt's
 effective route; structurally incompatible routes fail before mutation; and a
 model or effort change cannot silently affect another step.
 
+### M2c — Pluggable adaptive routing
+
+**Status:** Milestone requirement
+
+Add an engine-owned routing decision point after a target step becomes ready and
+before its command invocation is scheduled. Define a portable, versioned
+routing-policy provider contract with scoped explicit resolution, bounded typed
+requests, candidate-route decisions, abstention, explicit user pins, and durable
+replay-safe history. The provider runs as a durable activity; the workflow engine
+records and validates its decision before applying it.
+
+Ship at least one deterministic policy and one interchangeable agent-backed
+policy. The agent-backed policy uses a fixed locked bootstrap profile and cannot
+route itself. M2c proves the mechanism and interchangeability; it does not make
+adaptive routing the default or claim that its selections outperform fixed
+routes.
+
+**Exit criterion:** the same locked workflow and candidate envelope can use two
+different routing-policy providers without changing its graph; both select only
+eligible Claude Code or Codex routes from resolved upcoming work; explicit pins
+and abstention behave as declared; invalid selections never fall through; and a
+restart reuses the recorded decision without invoking the provider again.
+
 ### M3 — Evaluated delivery packs
 
 **Status:** Milestone requirement
 
-Package evidence-backed delivery workflows that exercise M2b role routing,
-ticket artifact publication, and cross-runtime eval coverage. Do not require one
-universal delivery sequence.
+Package evidence-backed delivery workflows that exercise M2b role routing and
+M2c policy routing, ticket artifact publication, and cross-runtime eval coverage.
+Compare routed runs with fixed-route baselines using quality, cost, latency, and
+route-selection stability. Do not require one universal delivery sequence.
 
 **Exit criterion:** at least one released delivery pack completes its declared
 cross-runtime evaluation matrix with Codex and Claude Code assigned to different
-roles while satisfying its quality gates and compatibility checks.
+roles while satisfying its quality gates and compatibility checks; routing
+results state whether and where the evaluated policies outperform fixed routes.
 
 ### M4 — Hosted operation
 
@@ -628,9 +674,9 @@ in profiles and provenance.
   the Rust SDK matures, compare the TypeScript/Bun runtime with a standalone
   Rust implementation across distribution footprint, runtime support,
   development cost, protocol compatibility, and active-run migration.
-- **Dynamic routing policy:** evaluate router-step and deterministic-policy
-  selection across fixed candidate routes using quality, latency, token cost,
-  and route-selection stability before scheduling automatic routing.
+- **Dynamic routing policy:** use M3 evidence to determine confidence and
+  abstention thresholds, per-step versus per-attempt reconsideration, and whether
+  any routing policy should become a recommended or default profile behavior.
 - **Development tooling:** consider a future `darrow-dev` capability for
   scaffolding, validation, manifest maintenance, and runtime packaging without
   creating another canonical source tree.

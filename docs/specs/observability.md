@@ -88,15 +88,16 @@ The initial run record is:
   completion, failure, and cancellation record identifies its workflow role,
   profile ID and digest, route ID, harness, provider, model, reasoning effort,
   adapter, and whether the route came from the fixed plan, a scoped human
-  amendment, an explicit user pin, or a future router. Results preserve
-  the same effective route so inspection does not have to infer it from a
-  run-wide default.
-- **OB-10b — Router decision provenance.** A future router decision event records
-  the router step and invocation, declared target step and attempt scope,
-  candidate-envelope digest, selected candidate route ID, selection source, and
-  concise exposed reason before the target is scheduled. The event contains no
-  hidden chain-of-thought and is sufficient to prove that replay reused the
-  recorded selection.
+  amendment, an explicit user pin, or an M2c routing policy. Results preserve the
+  same effective route so inspection does not have to infer it from a run-wide
+  default.
+- **OB-10b — Routing decision provenance.** An M2c policy decision event records
+  the policy provider and decision invocation, declared target step and attempt
+  scope, candidate-envelope digest, selected candidate route ID, selection
+  source, and concise exposed reason before the target is scheduled. An
+  agent-backed decision also identifies its fixed bootstrap route. The event
+  contains no hidden chain-of-thought and is sufficient to prove that replay
+  reused the recorded selection.
 - **OB-11 — Outer conversation boundary.** Darrow does not claim visibility into
   the entire surrounding Codex or Claude Code conversation, user interface, or
   hidden provider state between CLI invocations.

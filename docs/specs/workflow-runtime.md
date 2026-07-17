@@ -15,12 +15,14 @@ Read [compatibility](compatibility.md) for version resolution and skill metadata
 - **Role** — a workflow-local semantic name that binds command steps to an
   execution profile.
 - **Execution profile** — a versioned configuration object that defines one
-  fixed execution route in M2b and may define a locked candidate envelope later.
+  fixed execution route in M2b and may define an M2c candidate envelope.
 - **Execution route** — the complete harness, provider, model, reasoning effort,
   native permission configuration, limits, and compatible adapter used for one
   attempt.
 - **Route envelope** — a finite set of complete candidate routes resolved and
   locked before execution.
+- **Routing-policy provider** — an explicitly selected, versioned control-plane
+  implementation that chooses one candidate route for one target step or attempt.
 - **Step** — one node in the static workflow graph.
 - **Attempt** — one immutable execution of a step.
 - **Execution path** — one sequential path through the workflow graph. This is
@@ -271,9 +273,8 @@ despite the review result, or abort.
 
 ## Per-step execution routing
 
-The fixed routing contract below is required by M2b. The router-selection
-contract defines the boundary for later dynamic routing without requiring M2b to
-implement a router.
+The fixed routing contract below is required by M2b. The policy-selection
+contract is implemented by M2c without requiring M2b to perform dynamic routing.
 
 - **WR-48 — Role-bound profiles.** Every command step resolves through a
   workflow-local role to an execution profile. Multiple roles may reference the
@@ -296,8 +297,8 @@ implement a router.
 - **WR-51 — Route-stable attempts.** The immutable plan embeds the resolved role,
   profile identity and digest, and complete route on every command step. Each
   attempt receives that exact route and dispatches through its locked adapter.
-  Retries retain it unless an explicit scoped amendment or a future declared
-  router selection applies.
+  Retries retain it unless an explicit scoped amendment or an M2c policy
+  selection applies.
 - **WR-52 — Scoped route amendments.** When a route is unavailable, a human may
   select a complete compatible replacement route through an append-only
   amendment. The amendment identifies its target step and attempt scope. The
@@ -306,24 +307,40 @@ implement a router.
   validating the associated harness, provider, effort, permissions, and
   command compatibility is invalid.
 
-**Status:** Deferred — dynamic routing after M2b
+**Status:** Milestone requirement — M2c
 
-- **WR-53 — Finite router envelope.** A workflow may later declare that one
-  router selects the route for one named downstream command step or attempt. The
-  target declares a finite candidate envelope of profile-backed routes. The
-  compiler resolves, compatibility-checks, and locks every candidate before
-  execution; a router cannot introduce a new candidate at runtime.
-- **WR-54 — Bounded router authority.** The router is an ordinary typed step with
-  its own statically resolved route. Its validated output names exactly one
-  candidate route ID for the declared target. It cannot change commands,
-  dependencies, graph shape, permissions, candidate contents, or the route of
-  any other step. An invalid or unavailable selection is an explicit routing
-  failure, not permission to fall back silently.
-- **WR-55 — Durable routing decision.** The backend durably records the selected
-  candidate, target step and attempt scope, router invocation, envelope digest,
-  selection source, and concise exposed reason before scheduling the target.
-  Replay uses that recorded decision and never calls the router again for the
-  same target attempt.
+- **WR-53 — Finite policy envelope.** A workflow may declare that a
+  routing-policy provider selects the route for one named target command step or
+  attempt. The target declares a finite candidate envelope of profile-backed
+  routes. The compiler resolves, compatibility-checks, and locks every candidate
+  before execution; a provider cannot introduce a new candidate at runtime.
+- **WR-54 — Engine-owned decision point.** After the target becomes ready and its
+  inputs are resolved, but before its command invocation is scheduled, the engine
+  invokes the selected provider as a durable activity. The provider is not an
+  intent-loaded capability or an ordinary command node in the workflow graph.
+- **WR-55 — Bounded route request.** The provider receives a typed bounded request
+  containing target step, role and command-contract identity; resolved input and
+  relevant artifact references; declared limits and prior attempt outcomes; and
+  locked candidate-route metadata. Raw content remains referenced outside
+  workflow history unless the policy contract explicitly authorizes it.
+- **WR-56 — Bounded provider authority.** The validated output names exactly one
+  candidate route ID for the declared target and includes concise exposed
+  rationale. It cannot change commands, dependencies, graph shape, permissions,
+  candidate contents, or the route of any other step. An invalid or unavailable
+  selection is an explicit routing failure, not permission to fall back silently.
+- **WR-57 — Fixed routing bootstrap.** A deterministic provider runs without a
+  model route. An agent-backed provider uses one fixed, preflighted, locked
+  bootstrap profile. The provider cannot dynamically route its own invocation;
+  bootstrap unavailability waits or fails explicitly.
+- **WR-58 — Durable routing decision.** The backend records the selected
+  candidate, target step and attempt scope, policy identity and decision
+  invocation, envelope digest, selection source, and concise exposed reason
+  before scheduling the target. Replay reuses that decision and never invokes
+  the provider again for the same target attempt.
+- **WR-59 — Pins and abstention.** An explicit user pin selects one candidate
+  inside the locked envelope without consulting the provider. A provider may
+  abstain only when the workflow declares whether abstention selects one fixed
+  candidate or enters `waiting_for_input`; it never triggers implicit fallback.
 
 ## Harness adapter contract
 
