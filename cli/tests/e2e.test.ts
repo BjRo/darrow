@@ -462,6 +462,35 @@ steps:
       true,
     );
     const runDir = resolve(root, ".darrow", "runs", envelope.data.runId);
+    const plan = (await Bun.file(resolve(runDir, "plan.json")).json()) as {
+      roles: Array<{ id: string; profile: { digest: string } }>;
+      steps: Array<{
+        role: string;
+        route: { routeId: string; profileDigest: string };
+      }>;
+    };
+    expect(plan.roles.map((role) => role.id)).toEqual(["default"]);
+    expect(new Set(plan.steps.map((step) => step.route.routeId)).size).toBe(1);
+    expect(
+      plan.steps.every(
+        (step) =>
+          step.role === "default" &&
+          step.route.profileDigest === plan.roles[0]!.profile.digest,
+      ),
+    ).toBe(true);
+    const lock = (await Bun.file(resolve(runDir, "lock.json")).json()) as {
+      routes: Array<{ routeId: string }>;
+      adapters: Array<{ id: string; routeIds: string[] }>;
+    };
+    expect(lock.routes.map((route) => route.routeId)).toEqual([
+      plan.steps[0]!.route.routeId,
+    ]);
+    expect(lock.adapters).toMatchObject([
+      {
+        id: "codex-cli",
+        routeIds: [plan.steps[0]!.route.routeId],
+      },
+    ]);
     expect(
       await readdir(
         resolve(runDir, "snapshot", "commands", "darrow-delivery", "implement"),
@@ -501,6 +530,33 @@ steps:
     expect(events).not.toContain("Use the restart-safe path.");
     expect(events).not.toContain("Address the rejected outcome.");
     expect(events).toContain('"type":"ticket.artifacts.published"');
+    const invocationEvents = events
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line))
+      .filter((item) => item.type.startsWith("command.invocation."));
+    expect(invocationEvents.length).toBeGreaterThan(3);
+    expect(
+      invocationEvents.every(
+        (item) =>
+          item.data.role === "default" &&
+          item.data.profileDigest === plan.roles[0]!.profile.digest &&
+          item.data.routeId === plan.steps[0]!.route.routeId &&
+          item.data.routeSelectionSource === "fixed_plan",
+      ),
+    ).toBe(true);
+    const persistedResults = await Promise.all(
+      (await readdir(resolve(runDir, "results")))
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => Bun.file(resolve(runDir, "results", name)).json()),
+    );
+    expect(
+      persistedResults.every(
+        (result) =>
+          result.route?.routeId === plan.steps[0]!.route.routeId &&
+          result.route?.selectionSource === "fixed_plan",
+      ),
+    ).toBe(true);
     const received = events
       .trim()
       .split("\n")

@@ -12,10 +12,11 @@
     "workflow",
     "commands",
     "capabilities",
-    "profile",
+    "roles",
+    "routes",
     "schemas",
     "builtins",
-    "adapter",
+    "adapters",
     "engine"
   ],
   "properties": {
@@ -39,10 +40,23 @@
       "type": "array",
       "items": { "$ref": "#/$defs/capability" }
     },
-    "profile": { "$ref": "#/$defs/profile" },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/role" }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/route" }
+    },
     "schemas": { "type": "array", "items": { "$ref": "#/$defs/schema" } },
     "builtins": { "type": "array", "items": { "$ref": "#/$defs/builtin" } },
-    "adapter": { "$ref": "#/$defs/adapter" },
+    "adapters": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/adapter" }
+    },
     "engine": { "$ref": "#/$defs/engine" }
   },
   "$defs": {
@@ -113,6 +127,7 @@
         "reasoningEffort",
         "permissions",
         "source",
+        "scope",
         "digest"
       ],
       "properties": {
@@ -120,8 +135,8 @@
         "id": { "type": "string" },
         "harness": { "enum": ["codex", "claude"] },
         "provider": { "enum": ["openai", "anthropic"] },
-        "model": { "enum": ["gpt-5.6-sol", "claude-sonnet-4-6"] },
-        "reasoningEffort": { "const": "high" },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
         "permissions": {
           "type": "object",
           "additionalProperties": false,
@@ -129,6 +144,7 @@
           "properties": { "inherit": { "const": true } }
         },
         "source": { "type": "string" },
+        "scope": { "enum": ["explicit", "project", "user", "bundled"] },
         "digest": { "$ref": "#/$defs/digest" }
       },
       "allOf": [
@@ -136,8 +152,7 @@
           "if": { "properties": { "harness": { "const": "codex" } } },
           "then": {
             "properties": {
-              "provider": { "const": "openai" },
-              "model": { "const": "gpt-5.6-sol" }
+              "provider": { "const": "openai" }
             }
           }
         },
@@ -145,12 +160,73 @@
           "if": { "properties": { "harness": { "const": "claude" } } },
           "then": {
             "properties": {
-              "provider": { "const": "anthropic" },
-              "model": { "const": "claude-sonnet-4-6" }
+              "provider": { "const": "anthropic" }
             }
           }
         }
       ]
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "profile"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "profile": { "$ref": "#/$defs/profile" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routeId",
+        "profileId",
+        "profileDigest",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "permissions",
+        "limits",
+        "adapter",
+        "selectionSource"
+      ],
+      "properties": {
+        "routeId": { "$ref": "#/$defs/digest" },
+        "profileId": { "type": "string", "minLength": 1 },
+        "profileDigest": { "$ref": "#/$defs/digest" },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit"],
+          "properties": { "inherit": { "const": true } }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "adapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version"],
+          "properties": {
+            "id": { "enum": ["codex-cli", "claude-code"] },
+            "version": { "const": "0.1.0" }
+          }
+        },
+        "selectionSource": {
+          "enum": [
+            "fixed_plan",
+            "scoped_human_amendment",
+            "explicit_user_pin",
+            "routing_policy"
+          ]
+        }
+      }
     },
     "schema": {
       "type": "object",
@@ -185,6 +261,7 @@
         "provider",
         "model",
         "reasoningEffort",
+        "routeIds",
         "nativePermissions"
       ],
       "properties": {
@@ -194,8 +271,14 @@
         "detectedVersion": { "type": "string" },
         "harness": { "enum": ["codex", "claude"] },
         "provider": { "enum": ["openai", "anthropic"] },
-        "model": { "enum": ["gpt-5.6-sol", "claude-sonnet-4-6"] },
-        "reasoningEffort": { "const": "high" },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
+        "routeIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/digest" },
+          "uniqueItems": true
+        },
         "nativePermissions": {
           "type": "object",
           "additionalProperties": false,
@@ -227,8 +310,7 @@
           "then": {
             "properties": {
               "id": { "const": "codex-cli" },
-              "provider": { "const": "openai" },
-              "model": { "const": "gpt-5.6-sol" }
+              "provider": { "const": "openai" }
             }
           }
         },
@@ -237,8 +319,7 @@
           "then": {
             "properties": {
               "id": { "const": "claude-code" },
-              "provider": { "const": "anthropic" },
-              "model": { "const": "claude-sonnet-4-6" }
+              "provider": { "const": "anthropic" }
             }
           }
         }

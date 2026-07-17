@@ -13,6 +13,7 @@ import {
   initialStepStatuses,
   type StepExecutionStatus,
 } from "./scheduler";
+import { amendRouteModel } from "./routing";
 import type {
   ActivityInput,
   ArtifactReference,
@@ -126,7 +127,7 @@ export async function runResolvedPlanWorkflow(
   let request: WorkflowStatus["request"] = null;
   let continuation: HumanResponse | null = null;
   let lastResponse: WorkflowStatus["lastResponse"] = null;
-  let amendedModel: string | null = null;
+  const amendedModels = new Map<string, string>();
   let requestVersion = 0;
   let waitQueue = Promise.resolve();
   let cancellationRequest: CancellationRequest | null = null;
@@ -281,6 +282,10 @@ export async function runResolvedPlanWorkflow(
       if (step.cancellation === "interrupt")
         cancellableActivities.set(step.id, activityScope);
       try {
+        const amendedModel = amendedModels.get(step.id);
+        const effectiveRoute = amendedModel
+          ? amendRouteModel(step.route, amendedModel)
+          : step.route;
         result = await activityScope.run(() =>
           executeCommand({
             runId: input.runId,
@@ -290,9 +295,7 @@ export async function runResolvedPlanWorkflow(
             snapshotDir: input.snapshotDir,
             step,
             planCapabilities: input.plan.capabilities,
-            profile: amendedModel
-              ? { ...input.plan.profile, model: amendedModel }
-              : input.plan.profile,
+            effectiveRoute,
             attemptId: `attempt-${step.id}-${attempt}`,
             instructions,
             priorArtifacts,
@@ -409,7 +412,8 @@ export async function runResolvedPlanWorkflow(
         status.state = decision ? "failed" : "cancelled";
         return { result, aborted: true, cancelled: true };
       }
-      if (decision.choice === "amend") amendedModel = decision.model ?? null;
+      if (decision.choice === "amend")
+        amendedModels.set(step.id, decision.model!);
       if (decision.instructions) instructions.push(decision.instructions);
     }
   };

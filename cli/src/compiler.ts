@@ -31,6 +31,8 @@ import type {
   Scope,
   SkillCandidate,
   ArtifactPublication,
+  ExecutionRoute,
+  ResolvedProfile,
   WorkflowDefinition,
 } from "./types";
 
@@ -313,16 +315,53 @@ export interface Compilation {
   repoRoot: string;
   plan: ResolvedPlan;
   workflow: WorkflowDefinition;
-  profile: ProfileDefinition;
   workflowFile: Located;
-  profileFile: Located;
+  profiles: Array<{ profile: ResolvedProfile; file: Located }>;
   commands: SkillCandidate[];
   capabilities: SkillCandidate[];
   project: ProjectDefinition;
 }
 
+function fixedRoute(profile: ResolvedProfile): ExecutionRoute {
+  const base = {
+    profileId: profile.id,
+    profileDigest: profile.digest,
+    harness: profile.harness,
+    provider: profile.provider,
+    model: profile.model,
+    reasoningEffort: profile.reasoningEffort,
+    permissions: profile.permissions,
+    limits: {},
+    adapter: {
+      id: profile.harness === "codex" ? "codex-cli" : "claude-code",
+      version: "0.1.0" as const,
+    } as const,
+    selectionSource: "fixed_plan" as const,
+  };
+  return { routeId: sha256(canonicalJson(base)), ...base };
+}
+
 export async function verifyResolvedPlan(plan: ResolvedPlan): Promise<void> {
   await validateSchema("resolved-plan.schema.json", plan, "resolved plan");
+  const roles = new Map(plan.roles.map((role) => [role.id, role]));
+  if (roles.size !== plan.roles.length)
+    throw new DarrowError(
+      "resolved plan contains duplicate workflow roles",
+      "immutable_violation",
+    );
+  for (const step of plan.steps) {
+    const role = roles.get(step.role);
+    if (!role)
+      throw new DarrowError(
+        `resolved step ${step.id} references unknown role ${step.role}`,
+        "immutable_violation",
+      );
+    if (canonicalJson(step.route) !== canonicalJson(fixedRoute(role.profile)))
+      throw new DarrowError(
+        `resolved step ${step.id} route does not match role ${step.role}`,
+        "immutable_violation",
+      );
+  }
   const { digest, ...base } = plan;
   if (sha256(canonicalJson(base)) !== digest)
     throw new DarrowError(
@@ -343,6 +382,19 @@ export async function verifyRunSnapshot(
   if (lock.planDigest !== plan.digest)
     throw new DarrowError(
       "run lock does not anchor the resolved plan",
+      "immutable_violation",
+    );
+  const planRoutes = [
+    ...new Map(
+      plan.steps.map((step) => [step.route.routeId, step.route]),
+    ).values(),
+  ];
+  if (
+    canonicalJson(lock.roles) !== canonicalJson(plan.roles) ||
+    canonicalJson(lock.routes) !== canonicalJson(planRoutes)
+  )
+    throw new DarrowError(
+      "run lock routing does not match the resolved plan",
       "immutable_violation",
     );
   const root = resolve(runDir, "snapshot");
@@ -374,14 +426,20 @@ export async function verifyRunSnapshot(
       "snapshot workflow digest mismatch",
       "immutable_violation",
     );
-  if (
-    manifest.profile !== lock.profile.digest ||
-    (await hashFile(resolve(root, "profile.yaml"))) !== lock.profile.digest
-  )
-    throw new DarrowError(
-      "snapshot profile digest mismatch",
-      "immutable_violation",
-    );
+  for (const role of lock.roles as Array<{
+    id: string;
+    profile: ResolvedProfile;
+  }>) {
+    const profilePath = resolve(root, "profiles", `${role.profile.id}.yaml`);
+    if (
+      manifest.profiles[role.profile.id] !== role.profile.digest ||
+      (await hashFile(profilePath)) !== role.profile.digest
+    )
+      throw new DarrowError(
+        `snapshot profile digest mismatch: ${role.profile.id}`,
+        "immutable_violation",
+      );
+  }
   if (manifest.schemas !== (await hashDirectory(resolve(root, "schemas"))))
     throw new DarrowError(
       "snapshot schema tree digest mismatch",
@@ -461,6 +519,13 @@ export async function compile(
     profileFile.path,
     "profile.schema.json",
   );
+  const resolvedProfile: ResolvedProfile = {
+    ...profile,
+    source: resolve(profileFile.path),
+    scope: profileFile.scope,
+    digest: await hashFile(profileFile.path),
+  };
+  const route = fixedRoute(resolvedProfile);
   const catalog = await loadCatalog(repoRoot, project, profile.harness);
   const commands = orderedSteps.map((step) =>
     resolveCommand(catalog, step.command.id, step.command.version),
@@ -541,11 +606,7 @@ export async function compile(
       scope: workflowFile.scope,
       digest: await hashFile(workflowFile.path),
     },
-    profile: {
-      ...profile,
-      source: resolve(profileFile.path),
-      digest: await hashFile(profileFile.path),
-    },
+    roles: [{ id: "default", profile: resolvedProfile }],
     capabilities: resolvedCapabilities.map(
       ({ contract, range, version, candidate }) => ({
         contract,
@@ -568,6 +629,8 @@ export async function compile(
         commandId: command.id,
         contractVersion: metadata.contractVersion,
         cancellation: metadata.cancellation ?? "wait_for_boundary",
+        role: "default",
+        route,
         source: command.skillDir,
         digest: command.digest,
         input: resolveInput(step.with, inputs) as Record<string, unknown>,
@@ -589,9 +652,8 @@ export async function compile(
     repoRoot,
     plan,
     workflow,
-    profile,
     workflowFile,
-    profileFile,
+    profiles: [{ profile: resolvedProfile, file: profileFile }],
     commands: uniqueCommands,
     capabilities: resolvedCapabilities.map((item) => item.candidate),
     project,
@@ -607,9 +669,11 @@ export async function snapshot(
   await cp(compilation.workflowFile.path, resolve(root, "workflow.yaml"), {
     errorOnExist: true,
   });
-  await cp(compilation.profileFile.path, resolve(root, "profile.yaml"), {
-    errorOnExist: true,
-  });
+  await mkdir(resolve(root, "profiles"));
+  for (const { profile, file } of compilation.profiles)
+    await cp(file.path, resolve(root, "profiles", `${profile.id}.yaml`), {
+      errorOnExist: true,
+    });
   await copyTree(SCHEMAS_DIR, resolve(root, "schemas"));
   for (const command of compilation.commands)
     await copyTree(
@@ -628,17 +692,20 @@ export async function snapshot(
     );
   await writeJson(resolve(root, "plan.json"), compilation.plan);
   const copiedWorkflow = resolve(root, "workflow.yaml");
-  const copiedProfile = resolve(root, "profile.yaml");
   if ((await hashFile(copiedWorkflow)) !== compilation.plan.workflow.digest)
     throw new DarrowError(
       "workflow changed while its snapshot was created",
       "immutable_violation",
     );
-  if ((await hashFile(copiedProfile)) !== compilation.plan.profile.digest)
-    throw new DarrowError(
-      "profile changed while its snapshot was created",
-      "immutable_violation",
-    );
+  for (const { profile } of compilation.profiles)
+    if (
+      (await hashFile(resolve(root, "profiles", `${profile.id}.yaml`))) !==
+      profile.digest
+    )
+      throw new DarrowError(
+        `profile changed while its snapshot was created: ${profile.id}`,
+        "immutable_violation",
+      );
   for (const command of compilation.commands) {
     const copied = resolve(
       root,
@@ -668,7 +735,9 @@ export async function snapshot(
   await writeJson(resolve(root, "manifest.json"), {
     schemaVersion: "0.1.0",
     workflow: compilation.plan.workflow.digest,
-    profile: compilation.plan.profile.digest,
+    profiles: Object.fromEntries(
+      compilation.profiles.map(({ profile }) => [profile.id, profile.digest]),
+    ),
     commands: Object.fromEntries(
       compilation.commands.map((item) => [item.id, item.digest]),
     ),
@@ -713,7 +782,9 @@ export async function createLock(
       all.findIndex((other) => other.identity === item.identity) === index,
   );
   const schemas = [...cliSchemas, ...commandSchemas];
-  const harness = compilation.profile.harness;
+  const profile = compilation.profiles[0]!.profile;
+  const route = compilation.plan.steps[0]!.route;
+  const harness = route.harness;
   const executableName = harness === "codex" ? "codex" : "claude";
   const executable = Bun.which(executableName);
   const detected = executable ? run([executable, "--version"]) : null;
@@ -784,7 +855,12 @@ export async function createLock(
       digest: candidate.digest,
     })),
     capabilities: compilation.plan.capabilities,
-    profile: compilation.plan.profile,
+    roles: compilation.plan.roles,
+    routes: [
+      ...new Map(
+        compilation.plan.steps.map((step) => [step.route.routeId, step.route]),
+      ).values(),
+    ],
     schemas,
     builtins: [
       {
@@ -793,18 +869,21 @@ export async function createLock(
         digest: await hashFile(temporalManifest),
       },
     ],
-    adapter: {
-      id: harness === "codex" ? "codex-cli" : "claude-code",
-      version: "0.1.0",
-      executable: executable ?? "unavailable",
-      detectedVersion:
-        detected?.exitCode === 0 ? detected.stdout.trim() : "unavailable",
-      harness,
-      provider: compilation.profile.provider,
-      model: compilation.profile.model,
-      reasoningEffort: compilation.profile.reasoningEffort,
-      nativePermissions,
-    },
+    adapters: [
+      {
+        id: route.adapter.id,
+        version: route.adapter.version,
+        executable: executable ?? "unavailable",
+        detectedVersion:
+          detected?.exitCode === 0 ? detected.stdout.trim() : "unavailable",
+        routeIds: [route.routeId],
+        harness,
+        provider: profile.provider,
+        model: profile.model,
+        reasoningEffort: profile.reasoningEffort,
+        nativePermissions,
+      },
+    ],
     engine: {
       id: "darrow",
       version: "0.1.0",

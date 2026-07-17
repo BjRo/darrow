@@ -186,6 +186,62 @@
         "finishedAt": { "type": "string" }
       }
     },
+    "executionRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routeId",
+        "profileId",
+        "profileDigest",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "permissions",
+        "limits",
+        "adapter",
+        "selectionSource"
+      ],
+      "properties": {
+        "routeId": { "type": "string", "minLength": 1 },
+        "profileId": { "type": "string", "minLength": 1 },
+        "profileDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit"],
+          "properties": { "inherit": { "const": true } }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "adapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version"],
+          "properties": {
+            "id": { "enum": ["codex-cli", "claude-code"] },
+            "version": { "const": "0.1.0" }
+          }
+        },
+        "selectionSource": {
+          "enum": [
+            "fixed_plan",
+            "scoped_human_amendment",
+            "explicit_user_pin",
+            "routing_policy"
+          ]
+        }
+      }
+    },
     "result": {
       "type": "object",
       "additionalProperties": false,
@@ -195,6 +251,7 @@
         "commandId",
         "contractVersion",
         "implementationVersion",
+        "route",
         "artifacts",
         "timing"
       ],
@@ -204,6 +261,7 @@
         "commandId": { "type": "string" },
         "contractVersion": { "type": "string" },
         "implementationVersion": { "type": "string" },
+        "route": { "$ref": "#/$defs/executionRoute" },
         "payload": { "type": "object" },
         "artifacts": {
           "type": "array",

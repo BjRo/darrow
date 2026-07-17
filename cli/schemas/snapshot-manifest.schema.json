@@ -6,7 +6,7 @@
   "required": [
     "schemaVersion",
     "workflow",
-    "profile",
+    "profiles",
     "commands",
     "capabilities",
     "schemas",
@@ -15,7 +15,11 @@
   "properties": {
     "schemaVersion": { "const": "0.1.0" },
     "workflow": { "$ref": "#/$defs/digest" },
-    "profile": { "$ref": "#/$defs/digest" },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/digest" }
+    },
     "commands": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/digest" }

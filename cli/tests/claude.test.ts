@@ -81,18 +81,35 @@ async function fixture(script?: string): Promise<{
   const localSettings = resolve(root, ".claude", "settings.local.json");
   await mkdir(resolve(localSettings, ".."), { recursive: true });
   await writeFile(localSettings, '{"permissions":{"deny":[]}}\n');
+  const route = {
+    routeId: `sha256:${"a".repeat(64)}`,
+    profileId: "claude",
+    profileDigest: `sha256:${"b".repeat(64)}`,
+    harness: "claude",
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    reasoningEffort: "high",
+    permissions: { inherit: true },
+    limits: {},
+    adapter: { id: "claude-code", version: "0.1.0" },
+    selectionSource: "fixed_plan",
+  } as const;
   await writeJson(resolve(runDir, "lock.json"), {
-    adapter: {
-      nativePermissions: {
-        configurationSources: [
-          {
-            path: localSettings,
-            scope: "local",
-            digest: await hashFile(localSettings),
-          },
-        ],
+    adapters: [
+      {
+        id: "claude-code",
+        routeIds: [route.routeId],
+        nativePermissions: {
+          configurationSources: [
+            {
+              path: localSettings,
+              scope: "local",
+              digest: await hashFile(localSettings),
+            },
+          ],
+        },
       },
-    },
+    ],
   });
   const bin = resolve(root, "mock-bin");
   await mkdir(bin);
@@ -116,22 +133,14 @@ async function fixture(script?: string): Promise<{
         commandId: "darrow-delivery:implement",
         contractVersion: "0.1.0",
         cancellation: "wait_for_boundary",
+        role: "default",
+        route,
         source: commandDir,
         digest: await hashDirectory(commandDir),
         input: { change: "write new" },
         publish: null,
       },
-      profile: {
-        schemaVersion: "0.1.0",
-        id: "claude",
-        harness: "claude",
-        provider: "anthropic",
-        model: "claude-sonnet-4-6",
-        reasoningEffort: "high",
-        permissions: { inherit: true },
-        source: "/profile",
-        digest: `sha256:${"b".repeat(64)}`,
-      },
+      effectiveRoute: route,
     },
   };
 }
@@ -252,9 +261,13 @@ touch "$(dirname "$0")/invoked"
               },
             ];
       await replaceJson(resolve(input.runDir, "lock.json"), {
-        adapter: {
-          nativePermissions: { inherit: true, configurationSources },
-        },
+        adapters: [
+          {
+            id: "claude-code",
+            routeIds: [input.effectiveRoute.routeId],
+            nativePermissions: { inherit: true, configurationSources },
+          },
+        ],
       });
       const result = await executeCommand(input);
       expect(result.status, result.error?.message).toBe("succeeded");

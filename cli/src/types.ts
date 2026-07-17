@@ -159,24 +159,50 @@ export interface WorkflowDefinition {
 interface BaseProfileDefinition {
   schemaVersion: typeof CONTRACT_VERSION;
   id: string;
-  reasoningEffort: "high";
+  model: string;
+  reasoningEffort: string;
   permissions: { inherit: true };
 }
 
 export interface CodexProfileDefinition extends BaseProfileDefinition {
   harness: "codex";
   provider: "openai";
-  model: "gpt-5.6-sol";
 }
 
 export interface ClaudeProfileDefinition extends BaseProfileDefinition {
   harness: "claude";
   provider: "anthropic";
-  model: "claude-sonnet-4-6";
 }
 
 export type ProfileDefinition =
   CodexProfileDefinition | ClaudeProfileDefinition;
+
+export type AdapterId = "codex-cli" | "claude-code";
+export type RouteSelectionSource =
+  | "fixed_plan"
+  | "scoped_human_amendment"
+  | "explicit_user_pin"
+  | "routing_policy";
+
+export type ResolvedProfile = ProfileDefinition & {
+  source: string;
+  scope: Scope;
+  digest: string;
+};
+
+export interface ExecutionRoute {
+  routeId: string;
+  profileId: string;
+  profileDigest: string;
+  harness: ProfileDefinition["harness"];
+  provider: ProfileDefinition["provider"];
+  model: string;
+  reasoningEffort: string;
+  permissions: { inherit: true };
+  limits: Record<string, number>;
+  adapter: { id: AdapterId; version: typeof CONTRACT_VERSION };
+  selectionSource: RouteSelectionSource;
+}
 
 export interface ProjectDefinition {
   schemaVersion: typeof CONTRACT_VERSION;
@@ -225,7 +251,7 @@ export interface ResolvedPlan {
     scope: Scope;
     digest: string;
   };
-  profile: ProfileDefinition & { source: string; digest: string };
+  roles: Array<{ id: string; profile: ResolvedProfile }>;
   capabilities: Array<{
     contract: string;
     requested: string;
@@ -243,6 +269,8 @@ export interface ResolvedPlan {
     commandId: string;
     contractVersion: string;
     cancellation: CancellationMode;
+    role: string;
+    route: ExecutionRoute;
     source: string;
     digest: string;
     input: Record<string, unknown>;
@@ -278,7 +306,7 @@ export interface ActivityInput {
   snapshotDir: string;
   step: ResolvedPlan["steps"][number];
   planCapabilities: ResolvedPlan["capabilities"];
-  profile: Omit<ResolvedPlan["profile"], "model"> & { model: string };
+  effectiveRoute: ExecutionRoute;
   attemptId: string;
   instructions: ContentReference[];
   priorArtifacts: ArtifactReference[];
@@ -307,6 +335,7 @@ export interface CommandResult {
   commandId: string;
   contractVersion: string;
   implementationVersion: string;
+  route: ExecutionRoute;
   payload?: Record<string, unknown>;
   artifacts: ArtifactReference[];
   transcript?: string;

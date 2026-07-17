@@ -8,17 +8,23 @@
     "scope": "project",
     "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
-  "profile": {
-    "schemaVersion": "0.1.0",
-    "id": "codex",
-    "harness": "codex",
-    "provider": "openai",
-    "model": "gpt-5.6-sol",
-    "reasoningEffort": "high",
-    "permissions": { "inherit": true },
-    "source": "/cli/profiles/codex.yaml",
-    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  },
+  "roles": [
+    {
+      "id": "default",
+      "profile": {
+        "schemaVersion": "0.1.0",
+        "id": "codex",
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-sol",
+        "reasoningEffort": "high",
+        "permissions": { "inherit": true },
+        "source": "/cli/profiles/codex.yaml",
+        "scope": "bundled",
+        "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  ],
   "capabilities": [
     {
       "contract": "git.branch.create",
@@ -39,6 +45,20 @@
       "commandId": "darrow-delivery:implement",
       "contractVersion": "0.1.0",
       "cancellation": "wait_for_boundary",
+      "role": "default",
+      "route": {
+        "routeId": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "profileId": "codex",
+        "profileDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-sol",
+        "reasoningEffort": "high",
+        "permissions": { "inherit": true },
+        "limits": {},
+        "adapter": { "id": "codex-cli", "version": "0.1.0" },
+        "selectionSource": "fixed_plan"
+      },
       "source": "/plugins/darrow-delivery/skills/implement",
       "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       "input": { "change": "make it work" },

@@ -23,14 +23,18 @@ const claudeAdapter: CommandHarnessAdapter = {
   async invocation(input, outputSchema) {
     const schema = await readJson<Record<string, unknown>>(outputSchema);
     const lock = await readJson<{
-      adapter: {
+      adapters: Array<{
+        id: string;
         nativePermissions: {
           configurationSources: Array<{ path: string; scope: string }>;
         };
-      };
+      }>;
     }>(resolve(input.runDir, "lock.json"));
+    const lockedAdapter = lock.adapters.find(
+      (item) => item.id === input.effectiveRoute.adapter.id,
+    );
     const localSettings =
-      lock.adapter.nativePermissions.configurationSources.find(
+      lockedAdapter?.nativePermissions.configurationSources.find(
         (source) => source.scope === "local",
       )?.path;
     const args = [
@@ -40,9 +44,9 @@ const claudeAdapter: CommandHarnessAdapter = {
       "stream-json",
       "--verbose",
       "--model",
-      input.profile.model,
+      input.effectiveRoute.model,
       "--effort",
-      input.profile.reasoningEffort,
+      input.effectiveRoute.reasoningEffort,
       "--json-schema",
       JSON.stringify(schema),
       "--setting-sources",

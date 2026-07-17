@@ -347,12 +347,15 @@ contract is implemented by M2c without requiring M2b to perform dynamic routing.
 - **WR-40 — Common invocation envelope.** Every adapter accepts a stable
   invocation ID, command identity and version, typed input, resolved profile,
   complete resolved route, workspace reference, artifact references, and
-  cancellation context. Local schema `0.1.0` uses one locked profile for all
-  command steps; the M2b schema adds role-bound per-step routes while retaining
-  that form as compatible shorthand.
+  cancellation context. Local schema `0.1.0` workflow authoring uses one locked
+  profile for all command steps; compilation normalizes it to an implicit
+  `default` role and one complete fixed route per step. Explicit workflow roles
+  extend that representation while retaining the single-profile form as
+  compatible shorthand.
 - **WR-41 — Common result envelope.** Every adapter returns:
   - invocation ID and status;
   - canonical command identity and resolved contract/implementation versions;
+  - the complete effective route and its selection source;
   - validated command payload;
   - produced artifact references;
   - transcript or event-stream reference;

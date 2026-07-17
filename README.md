@@ -57,17 +57,22 @@ darrow clean --worktrees --run <run-id>
 `--base HEAD` can bypass the dirty-checkout question and deliberately starts the
 managed worktree from the committed HEAD while leaving uncommitted files in the
 invoking checkout. A run waiting on model availability accepts `retry`,
-`abort`, or an explicit `amend --model <id>`; amendments are journaled and do
-not rewrite the locked initial profile. `darrow resume <run-id>` reconnects to
-an already running Temporal execution after a CLI interruption. Temporal and
+`abort`, or an explicit `amend --model <id>`; amendments create a new effective
+route scoped to that step and do not rewrite its locked plan route or affect
+another step. `darrow resume <run-id>` reconnects to an already running Temporal
+execution after a CLI interruption. Temporal and
 its task worker start lazily under `.darrow/runtime`, persist independently of
 the foreground CLI, and never download or upgrade themselves. The bundled
 `codex` profile requests provider `openai`, model `gpt-5.6-sol`, and high
 reasoning effort. The bundled `claude` profile requests provider `anthropic`,
 model `claude-sonnet-4-6`, and high effort. Set `profile: claude` in a workflow
 to select Claude Code for the entire run; mixed harnesses within one workflow
-are deferred. Both adapters inherit, lock, and revalidate native permission
-settings, never request a permission-bypass mode, and define no model fallback.
+are deferred. The compiler normalizes this legacy workflow-wide profile into an
+implicit `default` role and embeds a complete digest-addressed route in every
+command step. Locks, persisted results, and invocation events preserve that
+effective route across retries and restarts. Both adapters inherit, lock, and
+revalidate native permission settings, never request a permission-bypass mode,
+and define no model fallback.
 On non-macOS hosts, authenticated evidence capture requires
 `DARROW_CODEX_PERMISSION_PROFILE` to name a configured native Codex permission
 profile; Darrow refuses to run test commands outside a verifiable sandbox.

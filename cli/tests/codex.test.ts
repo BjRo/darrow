@@ -209,6 +209,19 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
     const previousPath = process.env.PATH;
     process.env.PATH = `${bin}:${previousPath}`;
     try {
+      const route = {
+        routeId: `sha256:${"a".repeat(64)}`,
+        profileId: "codex",
+        profileDigest: `sha256:${"b".repeat(64)}`,
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        reasoningEffort: "high",
+        permissions: { inherit: true },
+        limits: {},
+        adapter: { id: "codex-cli", version: "0.1.0" },
+        selectionSource: "fixed_plan",
+      } as const;
       const input: ActivityInput = {
         runId: "run-1",
         repoRoot: root,
@@ -225,6 +238,8 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
           commandId: "darrow-delivery:implement",
           contractVersion: "0.1.0",
           cancellation: "wait_for_boundary",
+          role: "default",
+          route,
           source: resolve(
             snapshotDir,
             "commands",
@@ -237,21 +252,17 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
           input: { change: "write new" },
           publish: null,
         },
-        profile: {
-          schemaVersion: "0.1.0",
-          id: "codex",
-          harness: "codex",
-          provider: "openai",
-          model: "gpt-5.6-sol",
-          reasoningEffort: "high",
-          permissions: { inherit: true },
-          source: "/profile",
-          digest: "sha256:" + "b".repeat(64),
-        },
+        effectiveRoute: route,
       };
       const result = await executeCodexCommand(input);
       expect(result.status, result.error?.message).toBe("succeeded");
       expect(result.nativeSessionId).toBe("thread-1");
+      expect(result.route).toEqual(route);
+      expect(
+        await Bun.file(
+          resolve(runDir, "results", "implement-attempt-1.json"),
+        ).json(),
+      ).toMatchObject({ route });
       expect(result.artifacts).toHaveLength(1);
       expect(
         (result.payload?.evidence as Record<string, unknown>).red,
@@ -259,6 +270,24 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
       expect(await readFile(resolve(root, "behavior.txt"), "utf8")).toBe(
         "new\n",
       );
+      const invocationEvents = (
+        await Bun.file(resolve(runDir, "events.jsonl")).text()
+      )
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as { data: Record<string, unknown> });
+      expect(invocationEvents[0]?.data).toMatchObject({
+        role: "default",
+        profileId: "codex",
+        profileDigest: route.profileDigest,
+        routeId: route.routeId,
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        reasoningEffort: "high",
+        adapter: "codex-cli",
+        routeSelectionSource: "fixed_plan",
+      });
       const head = Bun.spawnSync(["git", "rev-parse", "HEAD"], {
         cwd: root,
         stdout: "pipe",

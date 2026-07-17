@@ -47,13 +47,13 @@ describe("0.1.0 contract fixtures", () => {
     const value = await readJson<Record<string, any>>(
       resolve(CLI_ROOT, "fixtures", "golden", "lock.json"),
     );
-    value.adapter.unexpected = true;
+    value.adapters[0].unexpected = true;
     await expect(
       validateSchema("lock.schema.json", value, "lock"),
     ).rejects.toThrow("additional properties");
   });
 
-  test("profiles reject cross-harness provider and model combinations", async () => {
+  test("profiles allow native model values but reject cross-harness providers", async () => {
     const claude = {
       schemaVersion: "0.1.0",
       id: "claude",
@@ -69,9 +69,30 @@ describe("0.1.0 contract fixtures", () => {
     await expect(
       validateSchema(
         "profile.schema.json",
-        { ...claude, provider: "openai", model: "gpt-5.6-sol" },
+        {
+          ...claude,
+          model: "claude-opus-future",
+          reasoningEffort: "max",
+        },
+        "future Claude profile",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "profile.schema.json",
+        { ...claude, provider: "openai" },
         "mixed profile",
       ),
+    ).rejects.toThrow();
+  });
+
+  test("resolved routes reject cross-harness adapters", async () => {
+    const plan = await readJson<Record<string, any>>(
+      resolve(CLI_ROOT, "fixtures", "golden", "plan.json"),
+    );
+    plan.steps[0].route.adapter.id = "claude-code";
+    await expect(
+      validateSchema("resolved-plan.schema.json", plan, "cross-harness route"),
     ).rejects.toThrow();
   });
 

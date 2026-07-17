@@ -10,6 +10,20 @@ const loop = {
   waiver: null,
 };
 
+const route = {
+  routeId: `sha256:${"a".repeat(64)}`,
+  profileId: "codex",
+  profileDigest: `sha256:${"b".repeat(64)}`,
+  harness: "codex",
+  provider: "openai",
+  model: "gpt-5.6-sol",
+  reasoningEffort: "high",
+  permissions: { inherit: true },
+  limits: {},
+  adapter: { id: "codex-cli", version: "0.1.0" },
+  selectionSource: "fixed_plan",
+} as const;
+
 function result(approved: unknown): CommandResult {
   return {
     invocationId: "invocation-1",
@@ -17,6 +31,7 @@ function result(approved: unknown): CommandResult {
     commandId: "test:review",
     contractVersion: "0.1.0",
     implementationVersion: "0.1.0",
+    route,
     payload: { approved },
     artifacts: [],
     timing: { startedAt: "start", finishedAt: "finish" },

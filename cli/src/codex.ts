@@ -52,9 +52,25 @@ function failure(
     commandId: input.step.commandId,
     contractVersion: input.step.contractVersion,
     implementationVersion: input.step.contractVersion,
+    route: input.effectiveRoute,
     artifacts: [],
     timing: { startedAt, finishedAt: new Date().toISOString() },
     error: { category, message },
+  };
+}
+
+function routeProvenance(input: ActivityInput): Record<string, string> {
+  return {
+    role: input.step.role,
+    profileId: input.effectiveRoute.profileId,
+    profileDigest: input.effectiveRoute.profileDigest,
+    routeId: input.effectiveRoute.routeId,
+    harness: input.effectiveRoute.harness,
+    provider: input.effectiveRoute.provider,
+    model: input.effectiveRoute.model,
+    reasoningEffort: input.effectiveRoute.reasoningEffort,
+    adapter: input.effectiveRoute.adapter.id,
+    routeSelectionSource: input.effectiveRoute.selectionSource,
   };
 }
 
@@ -459,7 +475,9 @@ async function executeHarnessCommandInternal(
   const lockPath = resolve(input.runDir, "lock.json");
   if (await exists(lockPath)) {
     const lock = await readJson<{
-      adapter: {
+      adapters: Array<{
+        id: string;
+        routeIds: string[];
         nativePermissions: {
           configurationSources: Array<{
             path: string;
@@ -467,9 +485,34 @@ async function executeHarnessCommandInternal(
             digest: string;
           }>;
         };
-      };
+      }>;
     }>(lockPath);
-    for (const source of lock.adapter.nativePermissions.configurationSources) {
+    const lockedAdapter = lock.adapters.find(
+      (item) => item.id === input.effectiveRoute.adapter.id,
+    );
+    if (!lockedAdapter)
+      return failure(
+        input,
+        invocationId,
+        startedAt,
+        "snapshot_corrupt",
+        `run lock does not contain adapter ${input.effectiveRoute.adapter.id}`,
+      );
+    const routeIsLocked = lockedAdapter.routeIds.some(
+      (routeId) =>
+        input.effectiveRoute.routeId === routeId ||
+        (input.effectiveRoute.selectionSource === "scoped_human_amendment" &&
+          input.effectiveRoute.routeId.startsWith(`${routeId}:model:`)),
+    );
+    if (!routeIsLocked)
+      return failure(
+        input,
+        invocationId,
+        startedAt,
+        "snapshot_corrupt",
+        `run lock does not authorize route ${input.effectiveRoute.routeId}`,
+      );
+    for (const source of lockedAdapter.nativePermissions.configurationSources) {
       if (source.path === "environment-defaults") continue;
       const repoRelative = relative(input.repoRoot, source.path);
       const runtimePath =
@@ -556,8 +599,7 @@ async function executeHarnessCommandInternal(
     stepId: input.step.id,
     attemptId: input.attemptId,
     commandId: input.step.commandId,
-    harness: input.profile.harness,
-    model: input.profile.model,
+    ...routeProvenance(input),
   });
   const broker = await startEvidenceBroker(
     commandDir,
@@ -632,8 +674,7 @@ async function executeHarnessCommandInternal(
       stepId: input.step.id,
       attemptId: input.attemptId,
       transcript,
-      harness: input.profile.harness,
-      model: input.profile.model,
+      ...routeProvenance(input),
     });
     throw new CancelledFailure("command invocation cancelled");
   }
@@ -663,8 +704,7 @@ async function executeHarnessCommandInternal(
       category,
       exitCode,
       transcript,
-      harness: input.profile.harness,
-      model: input.profile.model,
+      ...routeProvenance(input),
     });
     return result;
   }
@@ -753,20 +793,13 @@ async function executeHarnessCommandInternal(
     payload,
     "checkpointed command result",
   );
-  await writeJson(
-    resolve(
-      input.runDir,
-      "results",
-      `${input.step.id}-${input.attemptId}.json`,
-    ),
-    payload,
-  );
   const result: CommandResult = {
     invocationId,
     status: "succeeded",
     commandId: input.step.commandId,
     contractVersion: input.step.contractVersion,
     implementationVersion: input.step.contractVersion,
+    route: input.effectiveRoute,
     payload,
     artifacts: [artifact],
     transcript,
@@ -774,6 +807,14 @@ async function executeHarnessCommandInternal(
     usage,
     timing: { startedAt, finishedAt: new Date().toISOString() },
   };
+  await writeJson(
+    resolve(
+      input.runDir,
+      "results",
+      `${input.step.id}-${input.attemptId}.json`,
+    ),
+    result,
+  );
   await event(input.runDir, input.runId, "command.invocation.completed", {
     invocationId,
     stepId: input.step.id,
@@ -782,8 +823,7 @@ async function executeHarnessCommandInternal(
     transcript,
     nativeSessionId: nativeSessionId ?? null,
     usage: usage ?? null,
-    harness: input.profile.harness,
-    model: input.profile.model,
+    ...routeProvenance(input),
   });
   return result;
 }
@@ -795,12 +835,24 @@ export async function executeHarnessCommand(
   const invocationId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   try {
-    return await executeHarnessCommandInternal(
+    const result = await executeHarnessCommandInternal(
       input,
       invocationId,
       startedAt,
       adapter,
     );
+    if (result.status === "failed") {
+      await mkdir(resolve(input.runDir, "results"), { recursive: true });
+      await writeJson(
+        resolve(
+          input.runDir,
+          "results",
+          `${input.step.id}-${input.attemptId}.failure.json`,
+        ),
+        result,
+      );
+    }
+    return result;
   } catch (error) {
     if (error instanceof CancelledFailure) throw error;
     const category = error instanceof DarrowError ? error.category : "harness";
@@ -826,8 +878,7 @@ export async function executeHarnessCommand(
       category,
       message,
       transcript: result.transcript ?? null,
-      harness: input.profile.harness,
-      model: input.profile.model,
+      ...routeProvenance(input),
     }).catch(() => {});
     return result;
   }
@@ -842,11 +893,11 @@ const codexAdapter: CommandHarnessAdapter = {
       "exec",
       "--json",
       "--model",
-      input.profile.model,
+      input.effectiveRoute.model,
       "--config",
-      `model_provider=\"${input.profile.provider}\"`,
+      `model_provider=\"${input.effectiveRoute.provider}\"`,
       "--config",
-      `model_reasoning_effort=\"${input.profile.reasoningEffort}\"`,
+      `model_reasoning_effort=\"${input.effectiveRoute.reasoningEffort}\"`,
       "--cd",
       input.workspace,
       "--output-schema",

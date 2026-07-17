@@ -731,16 +731,39 @@
             "stepId",
             "attemptId",
             "commandId",
+            "role",
+            "profileId",
+            "profileDigest",
+            "routeId",
             "harness",
-            "model"
+            "provider",
+            "model",
+            "reasoningEffort",
+            "adapter",
+            "routeSelectionSource"
           ],
           "properties": {
             "invocationId": { "type": "string" },
             "stepId": { "type": "string" },
             "attemptId": { "type": "string" },
             "commandId": { "type": "string" },
+            "role": { "type": "string" },
+            "profileId": { "type": "string" },
+            "profileDigest": { "$ref": "#/$defs/digest" },
+            "routeId": { "type": "string" },
             "harness": { "enum": ["codex", "claude"] },
-            "model": { "type": "string" }
+            "provider": { "enum": ["openai", "anthropic"] },
+            "model": { "type": "string" },
+            "reasoningEffort": { "type": "string" },
+            "adapter": { "enum": ["codex-cli", "claude-code"] },
+            "routeSelectionSource": {
+              "enum": [
+                "fixed_plan",
+                "scoped_human_amendment",
+                "explicit_user_pin",
+                "routing_policy"
+              ]
+            }
           }
         }
       }
@@ -770,16 +793,39 @@
             "stepId",
             "attemptId",
             "transcript",
+            "role",
+            "profileId",
+            "profileDigest",
+            "routeId",
             "harness",
-            "model"
+            "provider",
+            "model",
+            "reasoningEffort",
+            "adapter",
+            "routeSelectionSource"
           ],
           "properties": {
             "invocationId": { "type": "string" },
             "stepId": { "type": "string" },
             "attemptId": { "type": "string" },
             "transcript": { "type": "string" },
+            "role": { "type": "string" },
+            "profileId": { "type": "string" },
+            "profileDigest": { "$ref": "#/$defs/digest" },
+            "routeId": { "type": "string" },
             "harness": { "enum": ["codex", "claude"] },
-            "model": { "type": "string" }
+            "provider": { "enum": ["openai", "anthropic"] },
+            "model": { "type": "string" },
+            "reasoningEffort": { "type": "string" },
+            "adapter": { "enum": ["codex-cli", "claude-code"] },
+            "routeSelectionSource": {
+              "enum": [
+                "fixed_plan",
+                "scoped_human_amendment",
+                "explicit_user_pin",
+                "routing_policy"
+              ]
+            }
           }
         }
       }
@@ -808,8 +854,16 @@
             "invocationId",
             "category",
             "transcript",
+            "role",
+            "profileId",
+            "profileDigest",
+            "routeId",
             "harness",
-            "model"
+            "provider",
+            "model",
+            "reasoningEffort",
+            "adapter",
+            "routeSelectionSource"
           ],
           "properties": {
             "invocationId": { "type": "string" },
@@ -817,8 +871,23 @@
             "message": { "type": "string" },
             "exitCode": { "type": "integer" },
             "transcript": { "type": ["string", "null"] },
+            "role": { "type": "string" },
+            "profileId": { "type": "string" },
+            "profileDigest": { "$ref": "#/$defs/digest" },
+            "routeId": { "type": "string" },
             "harness": { "enum": ["codex", "claude"] },
-            "model": { "type": "string" }
+            "provider": { "enum": ["openai", "anthropic"] },
+            "model": { "type": "string" },
+            "reasoningEffort": { "type": "string" },
+            "adapter": { "enum": ["codex-cli", "claude-code"] },
+            "routeSelectionSource": {
+              "enum": [
+                "fixed_plan",
+                "scoped_human_amendment",
+                "explicit_user_pin",
+                "routing_policy"
+              ]
+            }
           }
         }
       }
@@ -851,8 +920,16 @@
             "transcript",
             "nativeSessionId",
             "usage",
+            "role",
+            "profileId",
+            "profileDigest",
+            "routeId",
             "harness",
-            "model"
+            "provider",
+            "model",
+            "reasoningEffort",
+            "adapter",
+            "routeSelectionSource"
           ],
           "properties": {
             "invocationId": { "type": "string" },
@@ -868,8 +945,23 @@
               "type": ["object", "null"],
               "additionalProperties": { "type": "number" }
             },
+            "role": { "type": "string" },
+            "profileId": { "type": "string" },
+            "profileDigest": { "$ref": "#/$defs/digest" },
+            "routeId": { "type": "string" },
             "harness": { "enum": ["codex", "claude"] },
-            "model": { "type": "string" }
+            "provider": { "enum": ["openai", "anthropic"] },
+            "model": { "type": "string" },
+            "reasoningEffort": { "type": "string" },
+            "adapter": { "enum": ["codex-cli", "claude-code"] },
+            "routeSelectionSource": {
+              "enum": [
+                "fixed_plan",
+                "scoped_human_amendment",
+                "explicit_user_pin",
+                "routing_policy"
+              ]
+            }
           }
         }
       }

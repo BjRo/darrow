@@ -16,9 +16,10 @@ import {
   orderWorkflowSteps,
   snapshot,
   validateWorkflowGraph,
+  verifyResolvedPlan,
   verifyRunSnapshot,
 } from "../src/compiler";
-import { writeJson } from "../src/io";
+import { replaceJson, writeJson } from "../src/io";
 import { SOURCE_PLUGIN_ROOT } from "../src/paths";
 import { initRepository } from "../src/repository";
 import { validateSchema } from "../src/schema";
@@ -83,6 +84,20 @@ describe("M1 compiler", () => {
     );
     expect(compilation.plan.steps[0]?.dependsOn).toEqual([]);
     expect(compilation.plan.steps[0]?.cancellation).toBe("wait_for_boundary");
+    expect(compilation.plan.steps[0]?.role).toBe("default");
+    expect(compilation.plan.steps[0]?.route).toMatchObject({
+      profileId: "codex",
+      harness: "codex",
+      provider: "openai",
+      adapter: { id: "codex-cli", version: "0.1.0" },
+      selectionSource: "fixed_plan",
+    });
+    expect(compilation.plan.steps[0]?.route.routeId).toMatch(/^sha256:/);
+    const mismatchedRoute = structuredClone(compilation.plan);
+    mismatchedRoute.steps[0]!.route.model = "silently-substituted-model";
+    await expect(verifyResolvedPlan(mismatchedRoute)).rejects.toThrow(
+      "route does not match role",
+    );
     expect(compilation.plan.capabilities[0]?.providerId).toBe(
       "darrow-git:create-branch",
     );
@@ -101,6 +116,13 @@ describe("M1 compiler", () => {
     await expect(
       verifyRunSnapshot(runDir, compilation.plan),
     ).resolves.toBeUndefined();
+    const tamperedLock = structuredClone(lock) as Record<string, any>;
+    tamperedLock.routes[0].model = "silently-substituted-model";
+    await replaceJson(resolve(runDir, "lock.json"), tamperedLock);
+    await expect(verifyRunSnapshot(runDir, compilation.plan)).rejects.toThrow(
+      "lock routing does not match",
+    );
+    await replaceJson(resolve(runDir, "lock.json"), lock);
     await chmod(resolve(snapshotDir, "workflow.yaml"), 0o644);
     await writeFile(resolve(snapshotDir, "workflow.yaml"), "corrupt\n");
     await expect(verifyRunSnapshot(runDir, compilation.plan)).rejects.toThrow(
@@ -248,23 +270,28 @@ steps:
       const compilation = await compile(root, "implement-change", {
         change: "return hello",
       });
-      expect(compilation.plan.profile).toMatchObject({
+      expect(compilation.plan.roles[0]?.profile).toMatchObject({
         harness: "claude",
         provider: "anthropic",
         model: "claude-sonnet-4-6",
+      });
+      expect(compilation.plan.steps[0]?.route).toMatchObject({
+        profileId: "claude",
+        harness: "claude",
+        adapter: { id: "claude-code" },
       });
       expect(compilation.plan.capabilities[0]?.source).toContain(cachedPlugin);
       const lock = (await createLock(compilation, "claude-run")) as Record<
         string,
         any
       >;
-      expect(lock.adapter).toMatchObject({
+      expect(lock.adapters[0]).toMatchObject({
         id: "claude-code",
         harness: "claude",
         provider: "anthropic",
         model: "claude-sonnet-4-6",
       });
-      expect(lock.adapter.nativePermissions.configurationSources).toEqual([
+      expect(lock.adapters[0].nativePermissions.configurationSources).toEqual([
         {
           path: resolve(claudeHome, "settings.json"),
           scope: "user",
