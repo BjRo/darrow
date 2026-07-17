@@ -41,7 +41,8 @@
       "cancellation": "wait_for_boundary",
       "source": "/plugins/darrow-delivery/skills/implement",
       "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-      "input": { "change": "make it work" }
+      "input": { "change": "make it work" },
+      "publish": null
     }
   ],
   "inputs": { "change": "make it work" },

@@ -159,7 +159,10 @@ The initial layout is:
   ticket backend.
 - **WA-27 — Repository-unique ticket key.** The publication key is stable and
   repository-unique across backend, tracker project, and native ticket ID. Its
-  metadata records all three components and the canonical ticket URL.
+  metadata records all three components and the canonical ticket URL. The local
+  implementation derives the key from the three identity components, not from
+  the URL, so a URL presentation change cannot silently create a second ticket
+  workspace.
 - **WA-28 — Publication layout.** Published artifacts use:
 
   ```text
@@ -173,7 +176,14 @@ The initial layout is:
 
 - **WA-29 — Explicit publication.** A run-local artifact enters a ticket
   workspace only through a declared publication step. Workflows without a ticket
-  or publication step keep artifacts run-local.
+  or publication step keep artifacts run-local. The local workflow declaration
+  attaches `publish` to a command step outside any retry loop, locks the resolved
+  ticket identity and a nonempty set of artifact types, and publishes matching
+  artifacts only after that attempt succeeds. A declared type that the attempt
+  did not produce fails the publication instead of silently publishing a partial
+  selection. Repeating the same publication is idempotent; conflicting metadata
+  or content is refused. Publication never mutates the external ticket, commits,
+  pushes, or rewrites history.
 - **WA-30 — Learning summary.** A delivery workflow may publish a compact summary
   of decisions, outcomes, failed approaches, and lessons for cross-ticket
   reasoning. Publishing the summary does not require retaining every raw

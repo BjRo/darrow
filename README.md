@@ -85,6 +85,28 @@ managed worktrees must additionally be clean. Darrow refuses a selected set
 before deleting anything if any matching resource is protected, never removes
 an attached workspace or Git branch, and performs no background cleanup.
 
+A command step may explicitly publish selected successful-attempt artifacts to
+an external ticket's repository workspace:
+
+```yaml
+- id: summarize
+  dependsOn: [review]
+  command: { id: delivery:summarize, version: ^1.0.0 }
+  with: { ticket: "${inputs.ticket-id}" }
+  publish:
+    ticket:
+      backend: github
+      project: example/project
+      nativeId: "${inputs.ticket-id}"
+      url: "${inputs.ticket-url}"
+    artifactTypes: [darrow.learning-summary]
+```
+
+The resolved identity and selection are locked into the plan. Darrow publishes
+matching immutable artifacts under `.darrow/tickets/<ticket-key>/`, reports them
+in structured terminal output, and refuses missing types, digest changes, or
+conflicting metadata. It does not update the tracker, commit, or push.
+
 ## Plugins
 
 ### [`darrow-git`](plugins/darrow-git)

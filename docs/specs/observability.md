@@ -49,6 +49,11 @@ The initial run record is:
   record stores selection and completion markers so intentional removal remains
   distinguishable from corruption and terminal inspection can explain missing
   bodies.
+- **OB-5b — Publication audit.** After a declared ticket publication becomes
+  durable, Darrow appends one `ticket.artifacts.published` event containing the
+  stable ticket key and identity plus bounded published-artifact records with
+  source and destination references, hashes, sizes, and publication time. Event
+  reconciliation is idempotent across CLI restart.
 - **OB-6 — Stable correlation.** Every event carries protocol/schema version,
   timestamp, run ID, and event ID. Step, attempt, invocation, artifact, human
   request, Temporal workflow/run, and native session IDs appear when applicable.

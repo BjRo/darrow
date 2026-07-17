@@ -23,7 +23,10 @@ import type {
   HumanChoice,
   HumanRequest,
   HumanResponse,
+  PublicationActivityInput,
+  PublicationActivityResult,
   ResolvedPlan,
+  TicketPublicationResult,
   WaiverRecord,
 } from "./types";
 
@@ -34,6 +37,16 @@ const { executeCommand } = proxyActivities<{
   cancellationType: ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
   heartbeatTimeout: "30 seconds",
   retry: { maximumAttempts: 1 },
+});
+
+const { publishArtifacts } = proxyActivities<{
+  publishArtifacts(
+    input: PublicationActivityInput,
+  ): Promise<PublicationActivityResult>;
+}>({
+  startToCloseTimeout: "1 hour",
+  cancellationType: ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
+  retry: { maximumAttempts: 3 },
 });
 
 export interface WorkflowInput {
@@ -53,6 +66,8 @@ export interface WorkflowStatus {
   lastResponse: Pick<HumanResponse, "requestId" | "version"> | null;
   waivers: WaiverRecord[];
   cancellation: CancellationSummary | null;
+  publications: TicketPublicationResult[];
+  error: { category: string; message: string } | null;
 }
 
 export const runStatusQuery = defineQuery<WorkflowStatus>("darrowRunStatus");
@@ -105,6 +120,7 @@ export async function runResolvedPlanWorkflow(
   const steps = initialStepStatuses(input.plan.steps);
   const attemptCounts = new Map(input.plan.steps.map((step) => [step.id, 0]));
   const waivers: WaiverRecord[] = [];
+  const publications: TicketPublicationResult[] = [];
   const forwardInstructions = new Map<string, ContentReference[]>();
   let state: WorkflowStatus["state"] = "running";
   let request: WorkflowStatus["request"] = null;
@@ -114,6 +130,7 @@ export async function runResolvedPlanWorkflow(
   let requestVersion = 0;
   let waitQueue = Promise.resolve();
   let cancellationRequest: CancellationRequest | null = null;
+  let workflowError: WorkflowStatus["error"] = null;
   const cancellableActivities = new Map<string, CancellationScope>();
   const uncertainSteps = new Set<string>();
 
@@ -156,6 +173,8 @@ export async function runResolvedPlanWorkflow(
     lastResponse,
     waivers,
     cancellation: cancellationSummary(),
+    publications,
+    error: workflowError,
   }));
   setHandler(continuationSignal, (value) => {
     if (
@@ -307,6 +326,46 @@ export async function runResolvedPlanWorkflow(
 
       attempts.get(step.id)!.push(result);
       if (result.status === "succeeded") {
+        if (step.publish && !cancellationRequest) {
+          try {
+            const publication = await publishArtifacts({
+              repoRoot: input.repoRoot,
+              runDir: input.runDir,
+              runId: input.runId,
+              stepId: step.id,
+              attemptId: `attempt-${step.id}-${attempt}`,
+              publication: step.publish,
+              artifacts: result.artifacts,
+            });
+            if (publication.status === "failed") {
+              workflowError = publication.error;
+              status.state = "failed";
+              return {
+                result,
+                aborted: true,
+                cancelled: false,
+              };
+            }
+            publications.push(publication.publication);
+          } catch {
+            const decision = await waitForDecision(
+              status,
+              "uncertain_activity",
+              "Ticket artifact publication ended without a trustworthy outcome. Abort this run?",
+              [
+                {
+                  id: "abort",
+                  consequence:
+                    "Cancel the run without attempting another publication effect.",
+                  acceptsInstructions: false,
+                },
+              ],
+            );
+            requestCancellation();
+            status.state = decision ? "failed" : "cancelled";
+            return { result, aborted: true, cancelled: true };
+          }
+        }
         status.state = "succeeded";
         return {
           result,
@@ -366,7 +425,7 @@ export async function runResolvedPlanWorkflow(
         const status = steps.find((item) => item.stepId === step.id)!;
         const instructions = forwardInstructions.get(step.id) ?? [];
         const outcome = await invokeStep(step, status, instructions, []);
-        return outcome.result?.status === "succeeded"
+        return outcome.result?.status === "succeeded" && !outcome.aborted
           ? {
               state: "succeeded",
               value: outcome.result,

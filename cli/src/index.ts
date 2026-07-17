@@ -23,6 +23,10 @@ import {
 import { exists, readJson, readText, writeJson } from "./io";
 import { withDirectoryLock } from "./locks";
 import {
+  readTicketPublicationEvents,
+  verifyPublishedArtifacts,
+} from "./publication";
+import {
   allocateManagedWorkspace,
   claimCurrentWorkspace,
   currentWorktreeRoot,
@@ -421,6 +425,7 @@ async function applyBoundary(
   record: RunRecord,
   boundary: ExecutionBoundary,
 ): Promise<void> {
+  await verifyPublishedArtifacts(repoRoot, boundary.publications);
   await withDirectoryLock(
     resolve(runDir, "state.lock"),
     `run ${record.runId} state`,
@@ -435,6 +440,11 @@ async function applyBoundary(
         current.waivers.map((waiver) => waiver.waiverId),
       );
       const previousCancellation = current.cancellation;
+      const recordedPublicationIds = new Set(
+        (await readTicketPublicationEvents(runDir)).flatMap((publication) =>
+          publication.artifacts.map((artifact) => artifact.publicationId),
+        ),
+      );
       await verifyWaiverContent(repoRoot, runDir, boundary);
       Object.assign(record, current);
       record.temporal = {
@@ -451,6 +461,21 @@ async function applyBoundary(
       for (const waiver of boundary.waivers)
         if (!previousWaivers.has(waiver.waiverId))
           await event(runDir, record.runId, "waiver.accepted", waiver);
+      for (const publication of boundary.publications)
+        if (
+          publication.artifacts.some(
+            (artifact) => !recordedPublicationIds.has(artifact.publicationId),
+          )
+        ) {
+          await event(
+            runDir,
+            record.runId,
+            "ticket.artifacts.published",
+            publication,
+          );
+          for (const artifact of publication.artifacts)
+            recordedPublicationIds.add(artifact.publicationId);
+        }
       if (boundary.steps.length > 0) record.steps = boundary.steps;
       record.currentStep =
         record.steps.find((step) =>
@@ -497,7 +522,7 @@ async function applyBoundary(
         record.error =
           record.cancellation || !graphFailed
             ? null
-            : (failedResult?.error ?? null);
+            : (boundary.error ?? failedResult?.error ?? null);
         record.currentStep = null;
         record.request = null;
         await event(runDir, record.runId, "run.completed", {
@@ -555,6 +580,7 @@ async function presentResult(
   record: RunRecord,
   results: ExecutionBoundary["results"],
   json: boolean,
+  publications: ExecutionBoundary["publications"] = [],
 ): Promise<number> {
   if (record.state === "waiting_for_input") {
     await printWaiting(record, json, command);
@@ -568,12 +594,13 @@ async function presentResult(
     results,
     waivers: record.waivers,
     cancellation: record.cancellation,
+    publications,
   };
   if (json)
     await emitJson(command, record.conclusion !== "failed", data, record.error);
   else
     console.log(
-      `Run ${record.runId} ${record.conclusion}\nWorkspace: ${record.workspace ?? "(none)"}\nInspect: darrow inspect ${record.runId}`,
+      `Run ${record.runId} ${record.conclusion}\nWorkspace: ${record.workspace ?? "(none)"}\nPublished: ${publications.flatMap((publication) => publication.artifacts).length}\nInspect: darrow inspect ${record.runId}`,
     );
   return record.conclusion === "failed" ? 1 : 0;
 }
@@ -660,7 +687,13 @@ async function runWorkflow(options: RunOptions): Promise<number> {
       compilation.plan,
     );
     await applyBoundary(repoRoot, runDir, record, boundary);
-    return await presentResult("run", record, boundary.results, options.json);
+    return await presentResult(
+      "run",
+      record,
+      boundary.results,
+      options.json,
+      boundary.publications,
+    );
   } catch (error) {
     record.state = "completed";
     record.conclusion = "failed";
@@ -863,11 +896,23 @@ async function continueRun(
     });
     const boundary = await executeStarted(repoRoot, runDir, record, plan);
     await applyBoundary(repoRoot, runDir, record, boundary);
-    return presentResult("continue", record, boundary.results, json);
+    return presentResult(
+      "continue",
+      record,
+      boundary.results,
+      json,
+      boundary.publications,
+    );
   }
   const boundary = await continuePlan(repoRoot, record.temporal, response);
   await applyBoundary(repoRoot, runDir, record, boundary);
-  return presentResult("continue", record, boundary.results, json);
+  return presentResult(
+    "continue",
+    record,
+    boundary.results,
+    json,
+    boundary.publications,
+  );
 }
 
 async function resumeRun(runId: string, json: boolean): Promise<number> {
@@ -916,7 +961,13 @@ async function resumeRun(runId: string, json: boolean): Promise<number> {
     workspace: record.workspace,
   });
   await applyBoundary(repoRoot, runDir, record, boundary);
-  return presentResult("resume", record, boundary.results, json);
+  return presentResult(
+    "resume",
+    record,
+    boundary.results,
+    json,
+    boundary.publications,
+  );
 }
 
 function cancellationAtBoundary(
@@ -1042,7 +1093,13 @@ async function cancelRun(runId: string, json: boolean): Promise<number> {
       });
     await applyBoundary(repoRoot, runDir, record, boundary);
   }
-  return presentResult("cancel", record, results, json);
+  return presentResult(
+    "cancel",
+    record,
+    results,
+    json,
+    await readTicketPublicationEvents(runDir),
+  );
 }
 
 async function inspectRun(runId: string, json: boolean): Promise<void> {
@@ -1060,6 +1117,10 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
     await verifyArtifacts(repoRoot, runDir);
   if (!(await cleanupUnavailable(cleanup, "content")))
     await verifyWaiverContent(repoRoot, runDir, record);
+  await verifyPublishedArtifacts(
+    repoRoot,
+    await readTicketPublicationEvents(runDir),
+  );
   const temporal =
     record.state === "completed" || !record.temporal.workflowId
       ? null

@@ -54,6 +54,17 @@ function command(
   };
 }
 
+async function waitForText(path: string): Promise<string> {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    if (await Bun.file(path).exists()) {
+      const value = (await Bun.file(path).text()).trim();
+      if (value) return value;
+    }
+    await Bun.sleep(20);
+  }
+  return "";
+}
+
 const temporal = process.env.DARROW_E2E_TEMPORAL_BIN;
 
 test.skipIf(!temporal)(
@@ -100,7 +111,10 @@ skill=$(printf '%s\n' "$prompt" | sed -n 's/^Read and follow \\(.*\\/SKILL.md\\)
 evidence=$(printf '%s\n' "$prompt" | sed -n 's/^Evidence directory: //p')
 workspace=$(basename "$PWD")
 change=$(sed -n 's/^Requested change: //p' <<<"$prompt")
-if [[ "$change" == 'review current implementation' ]]; then kind=review; else kind=implement; fi
+if [[ "$change" == 'review current implementation' ]]; then kind=review
+elif [[ "$change" == 'publish retained evidence' ]]; then kind=publish
+else kind=implement
+fi
 counter="$(dirname "$0")/count-$workspace-$kind"
 count=$(($(cat "$counter" 2>/dev/null || echo 0) + 1))
 printf '%s\n' "$count" > "$counter"
@@ -115,6 +129,8 @@ fi
 if [[ "$kind" == review ]]; then
   grep -F 'Prior attempt artifact:' <<<"$prompt"
   if [[ "$count" -eq 1 ]]; then target=reviewed; summary='Review rejected'; else target=reviewed-again; summary=Approved; fi
+elif [[ "$kind" == publish ]]; then
+  target=published; summary='Published retained evidence'
 else
   if [[ "$count" -eq 1 ]]; then target=new; summary=Implemented; else target=newer; summary=Implemented; fi
 fi
@@ -170,6 +186,17 @@ steps:
     dependsOn: [implement]
     command: { id: darrow-delivery:implement, version: ^0.1.0 }
     with: { change: review current implementation }
+  - id: publish
+    dependsOn: [review]
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: publish retained evidence }
+    publish:
+      ticket:
+        backend: github
+        project: BjRo/darrow
+        nativeId: "4"
+        url: https://github.com/BjRo/darrow/issues/4
+      artifactTypes: [darrow.tdd-evidence]
 `,
     );
     const requested = command(
@@ -394,13 +421,43 @@ steps:
     );
     expect(converged.code, `${converged.stderr}\n${converged.stdout}`).toBe(0);
     const envelope = JSON.parse(converged.stdout.trim()) as {
-      data: { runId: string; conclusion: string; workspace: string };
+      data: {
+        runId: string;
+        conclusion: string;
+        workspace: string;
+        publications: Array<{
+          ticketKey: string;
+          artifacts: Array<{ location: string }>;
+        }>;
+      };
     };
     expect(envelope.data.conclusion).toBe("succeeded");
     expect(envelope.data.runId).toBe(waiting.data.runId);
     expect(envelope.data.workspace).toContain(
       resolve(root, ".darrow", "worktrees"),
     );
+    expect(envelope.data.publications).toHaveLength(1);
+    expect(envelope.data.publications[0]!.artifacts).toHaveLength(1);
+    expect(
+      await Bun.file(
+        resolve(
+          root,
+          envelope.data.publications[0]!.artifacts[0]!.location,
+          "green.meta",
+        ),
+      ).exists(),
+    ).toBe(true);
+    expect(
+      await Bun.file(
+        resolve(
+          root,
+          ".darrow",
+          "tickets",
+          envelope.data.publications[0]!.ticketKey,
+          "ticket.json",
+        ),
+      ).exists(),
+    ).toBe(true);
     expect(await Bun.file(resolve(bin, "received-instructions")).exists()).toBe(
       true,
     );
@@ -437,11 +494,13 @@ steps:
     expect(inspected.data.steps).toEqual([
       { stepId: "implement", state: "succeeded", attempt: 3 },
       { stepId: "review", state: "succeeded", attempt: 2 },
+      { stepId: "publish", state: "succeeded", attempt: 1 },
     ]);
     expect(inspected.data.counts.events).toBeGreaterThan(5);
     const events = await Bun.file(resolve(runDir, "events.jsonl")).text();
     expect(events).not.toContain("Use the restart-safe path.");
     expect(events).not.toContain("Address the rejected outcome.");
+    expect(events).toContain('"type":"ticket.artifacts.published"');
     const received = events
       .trim()
       .split("\n")
@@ -496,6 +555,7 @@ steps:
     expect(waitingCancelledData.cancellation.incomplete).toEqual([
       "implement",
       "review",
+      "publish",
     ]);
 
     await rm(resolve(bin, "unavailable-once"), { force: true });
@@ -571,15 +631,8 @@ steps:
         stderr: "pipe",
       },
     );
-    for (
-      let attempt = 0;
-      attempt < 200 && !(await Bun.file(resolve(bin, "active-run")).exists());
-      attempt += 1
-    )
-      await Bun.sleep(20);
-    const boundaryRunId = (
-      await Bun.file(resolve(bin, "active-run")).text()
-    ).trim();
+    const boundaryRunId = await waitForText(resolve(bin, "active-run"));
+    expect(boundaryRunId).not.toBe("");
     const boundaryCancellation = command(
       ["bun", cli, "cancel", boundaryRunId, "--json"],
       root,
@@ -602,7 +655,7 @@ steps:
     expect(boundaryData.conclusion).toBe("cancelled");
     expect(boundaryData.cancellation).toMatchObject({
       completed: ["implement"],
-      incomplete: ["review"],
+      incomplete: ["review", "publish"],
       uncertain: [],
     });
     const repeatedCancellation = command(
@@ -668,15 +721,8 @@ steps:
         stderr: "pipe",
       },
     );
-    for (
-      let attempt = 0;
-      attempt < 200 && !(await Bun.file(resolve(bin, "active-run")).exists());
-      attempt += 1
-    )
-      await Bun.sleep(20);
-    const interruptRunId = (
-      await Bun.file(resolve(bin, "active-run")).text()
-    ).trim();
+    const interruptRunId = await waitForText(resolve(bin, "active-run"));
+    expect(interruptRunId).not.toBe("");
     const interrupted = command(
       ["bun", cli, "cancel", interruptRunId, "--json"],
       root,
@@ -698,7 +744,7 @@ steps:
     expect(interruptedData.conclusion).toBe("cancelled");
     expect(interruptedData.cancellation).toMatchObject({
       completed: [],
-      incomplete: ["review"],
+      incomplete: ["review", "publish"],
       uncertain: ["implement"],
     });
     const interruptEvents = await Bun.file(

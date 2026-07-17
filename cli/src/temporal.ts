@@ -16,6 +16,7 @@ import type {
   CancellationRequest,
   CancellationSummary,
   HumanResponse,
+  TicketPublicationResult,
   WaiverRecord,
 } from "./types";
 import {
@@ -56,6 +57,8 @@ export interface ExecutionBoundary {
   request: WorkflowStatus["request"];
   waivers: WaiverRecord[];
   cancellation: CancellationSummary | null;
+  publications: TicketPublicationResult[];
+  error: { category: string; message: string } | null;
   temporal: Record<string, unknown>;
   recovery?: "reattached" | "started_pending";
 }
@@ -336,6 +339,8 @@ export async function waitForBoundary(
           request: status.request,
           waivers: status.waivers,
           cancellation: status.cancellation,
+          publications: status.publications,
+          error: status.error,
           temporal,
         };
       if (status.state === "completed") {
@@ -347,6 +352,8 @@ export async function waitForBoundary(
           request: null,
           waivers: status.waivers,
           cancellation: status.cancellation,
+          publications: status.publications,
+          error: status.error,
           temporal,
         };
       }
@@ -366,6 +373,8 @@ export async function waitForBoundary(
               request: null,
               waivers: [],
               cancellation: null,
+              publications: [],
+              error: null,
               temporal,
             };
           } catch (resultError) {

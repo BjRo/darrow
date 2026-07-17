@@ -122,6 +122,61 @@
         "createdAt": { "type": "string" }
       }
     },
+    "ticketIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "project", "nativeId", "url"],
+      "properties": {
+        "backend": { "type": "string", "minLength": 1 },
+        "project": { "type": "string", "minLength": 1 },
+        "nativeId": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "publishedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publicationId",
+        "artifactId",
+        "runId",
+        "stepId",
+        "attemptId",
+        "type",
+        "contentHash",
+        "size",
+        "sourceLocation",
+        "location",
+        "publishedAt"
+      ],
+      "properties": {
+        "publicationId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "stepId": { "type": "string", "minLength": 1 },
+        "attemptId": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "contentHash": { "type": "string" },
+        "size": { "type": "integer", "minimum": 0 },
+        "sourceLocation": { "type": "string", "minLength": 1 },
+        "location": { "type": "string", "minLength": 1 },
+        "publishedAt": { "type": "string" }
+      }
+    },
+    "ticketPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ticketKey", "ticket", "artifacts"],
+      "properties": {
+        "ticketKey": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "ticket": { "$ref": "#/$defs/ticketIdentity" },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publishedArtifact" }
+        }
+      }
+    },
     "timing": {
       "type": "object",
       "additionalProperties": false,
@@ -174,7 +229,8 @@
         "workspace",
         "results",
         "waivers",
-        "cancellation"
+        "cancellation",
+        "publications"
       ],
       "properties": {
         "runId": { "type": "string" },
@@ -188,7 +244,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/waiver" }
         },
-        "cancellation": { "$ref": "#/$defs/cancellation" }
+        "cancellation": { "$ref": "#/$defs/cancellation" },
+        "publications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ticketPublication" }
+        }
       }
     },
     "terminalFailureData": {
@@ -201,7 +261,8 @@
         "workspace",
         "results",
         "waivers",
-        "cancellation"
+        "cancellation",
+        "publications"
       ],
       "properties": {
         "runId": { "type": "string" },
@@ -213,7 +274,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/waiver" }
         },
-        "cancellation": { "$ref": "#/$defs/cancellation" }
+        "cancellation": { "$ref": "#/$defs/cancellation" },
+        "publications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ticketPublication" }
+        }
       }
     },
     "failedStartData": {

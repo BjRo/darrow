@@ -14,6 +14,7 @@ const fixtures: Array<[string, string]> = [
   ["lock.json", "lock.schema.json"],
   ["event.json", "event.schema.json"],
   ["artifact.json", "artifact.schema.json"],
+  ["ticket.json", "ticket-publication.schema.json"],
   ["cleanup.json", "cleanup.schema.json"],
 ];
 
@@ -310,6 +311,37 @@ describe("0.1.0 contract fixtures", () => {
         "event.schema.json",
         { ...deleted, data: { ...deleted.data, body: "raw artifact" } },
         "cleanup event",
+      ),
+    ).rejects.toThrow("additional properties");
+  });
+
+  test("publication events contain bounded ticket and artifact references", async () => {
+    const record = await readJson<Record<string, any>>(
+      resolve(CLI_ROOT, "fixtures", "golden", "ticket.json"),
+    );
+    const published = {
+      schemaVersion: "0.1.0",
+      eventId: "event-publication",
+      runId: "run-1",
+      timestamp: "2026-07-17T10:00:01.000Z",
+      type: "ticket.artifacts.published",
+      data: {
+        ticketKey: record.ticketKey,
+        ticket: record.ticket,
+        artifacts: record.publications,
+      },
+    };
+    await expect(
+      validateSchema("event.schema.json", published, "publication event"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "event.schema.json",
+        {
+          ...published,
+          data: { ...published.data, body: "published artifact content" },
+        },
+        "publication event with body",
       ),
     ).rejects.toThrow("additional properties");
   });

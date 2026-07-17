@@ -12,6 +12,7 @@
     { "$ref": "#/$defs/runRecovered" },
     { "$ref": "#/$defs/runCancelRequested" },
     { "$ref": "#/$defs/runCompleted" },
+    { "$ref": "#/$defs/ticketArtifactsPublished" },
     { "$ref": "#/$defs/cleanupResourceDeleted" },
     { "$ref": "#/$defs/invocationStarted" },
     { "$ref": "#/$defs/invocationCancelled" },
@@ -179,6 +180,42 @@
         "attemptId": { "type": "string" },
         "location": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "publishedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publicationId",
+        "artifactId",
+        "runId",
+        "stepId",
+        "attemptId",
+        "type",
+        "contentHash",
+        "size",
+        "sourceLocation",
+        "location",
+        "publishedAt"
+      ],
+      "properties": {
+        "publicationId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "stepId": { "type": "string", "minLength": 1 },
+        "attemptId": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "contentHash": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 0 },
+        "sourceLocation": { "type": "string", "minLength": 1 },
+        "location": {
+          "type": "string",
+          "pattern": "^\\.darrow/tickets/[a-f0-9]{64}/artifacts/"
+        },
+        "publishedAt": { "type": "string", "format": "date-time" }
       }
     },
     "workflowCompiled": {
@@ -574,6 +611,49 @@
             },
             "cancellation": { "$ref": "#/$defs/cancellation" },
             "error": { "$ref": "#/$defs/error" }
+          }
+        }
+      }
+    },
+    "ticketArtifactsPublished": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "timestamp",
+        "type",
+        "data"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "eventId": { "type": "string" },
+        "runId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "const": "ticket.artifacts.published" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ticketKey", "ticket", "artifacts"],
+          "properties": {
+            "ticketKey": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "ticket": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["backend", "project", "nativeId", "url"],
+              "properties": {
+                "backend": { "type": "string", "minLength": 1 },
+                "project": { "type": "string", "minLength": 1 },
+                "nativeId": { "type": "string", "minLength": 1 },
+                "url": { "type": "string", "format": "uri" }
+              }
+            },
+            "artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/publishedArtifact" }
+            }
           }
         }
       }

@@ -235,6 +235,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
             resolve(snapshotDir, "commands", "darrow-delivery", "implement"),
           ),
           input: { change: "write new" },
+          publish: null,
         },
         profile: {
           schemaVersion: "0.1.0",

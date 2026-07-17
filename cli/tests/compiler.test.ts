@@ -150,6 +150,60 @@ describe("M1 compiler", () => {
     }
     expect(await readdir(resolve(root, ".darrow", "worktrees"))).toEqual([]);
   });
+
+  test("resolves a declared ticket publication into the immutable plan", async () => {
+    const root = await repo();
+    await writeFile(
+      resolve(root, ".darrow", "workflows", "implement-change.yaml"),
+      `schemaVersion: 0.1.0
+id: implement-change
+version: 0.1.0
+engine: ^0.1.0
+inputs:
+  change: { type: string, required: true }
+  ticket-id: { type: string, required: true }
+requirements:
+  capabilities:
+    - { contract: git.branch.create, version: ^1.0.0 }
+profile: codex
+loops: []
+steps:
+  - id: implement
+    dependsOn: []
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: "\${inputs.change}" }
+    publish:
+      ticket:
+        backend: github
+        project: BjRo/darrow
+        nativeId: "\${inputs.ticket-id}"
+        url: "https://github.com/BjRo/darrow/issues/4"
+      artifactTypes: [darrow.tdd-evidence]
+`,
+    );
+    const previous = process.env.DARROW_PLUGIN_ROOTS;
+    const previousCodexHome = process.env.CODEX_HOME;
+    process.env.DARROW_PLUGIN_ROOTS = SOURCE_PLUGIN_ROOT;
+    process.env.CODEX_HOME = resolve(root, "codex-home");
+    try {
+      const compilation = await compile(root, "implement-change", {
+        change: "return hello",
+        "ticket-id": "4",
+      });
+      expect(compilation.plan.steps[0]?.publish).toEqual({
+        ticket: {
+          backend: "github",
+          project: "BjRo/darrow",
+          nativeId: "4",
+          url: "https://github.com/BjRo/darrow/issues/4",
+        },
+        artifactTypes: ["darrow.tdd-evidence"],
+      });
+    } finally {
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previous);
+      restoreEnvironment("CODEX_HOME", previousCodexHome);
+    }
+  });
 });
 
 function graphWorkflow(
@@ -291,6 +345,34 @@ describe("M2 static workflow graph", () => {
     ];
     expect(() => validateWorkflowGraph(exposed)).toThrow(
       "must depend on final step",
+    );
+  });
+
+  test("rejects publication from inside a retry loop", () => {
+    const workflow = graphWorkflow([
+      { id: "implement", dependsOn: [] },
+      { id: "review", dependsOn: ["implement"] },
+    ]);
+    workflow.steps[1]!.publish = {
+      ticket: {
+        backend: "github",
+        project: "BjRo/darrow",
+        nativeId: "4",
+        url: "https://github.com/BjRo/darrow/issues/4",
+      },
+      artifactTypes: ["darrow.tdd-evidence"],
+    };
+    workflow.loops = [
+      {
+        id: "implementation-review",
+        steps: ["implement", "review"],
+        maxAttempts: 2,
+        until: { stepId: "review", output: "summary", equals: "approved" },
+        waiver: null,
+      },
+    ];
+    expect(() => validateWorkflowGraph(workflow)).toThrow(
+      "cannot publish from inside loop",
     );
   });
 });

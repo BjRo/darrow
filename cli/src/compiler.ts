@@ -30,6 +30,7 @@ import type {
   ResolvedPlan,
   Scope,
   SkillCandidate,
+  ArtifactPublication,
   WorkflowDefinition,
 } from "./types";
 
@@ -117,6 +118,39 @@ function validateInputs(
   }
 }
 
+function resolvePublication(
+  publication: WorkflowDefinition["steps"][number]["publish"],
+  inputs: Record<string, unknown>,
+): ArtifactPublication | null {
+  if (!publication) return null;
+  const resolved = resolveInput(publication, inputs) as ArtifactPublication;
+  for (const [name, value] of Object.entries(resolved.ticket))
+    if (typeof value !== "string" || value.trim().length === 0)
+      throw new DarrowError(
+        `ticket publication ${name} must resolve to a nonempty string`,
+        "validation",
+      );
+  let url: URL;
+  try {
+    url = new URL(resolved.ticket.url);
+  } catch {
+    throw new DarrowError(
+      `ticket publication URL is not absolute: ${resolved.ticket.url}`,
+      "validation",
+    );
+  }
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username.length > 0 ||
+    url.password.length > 0
+  )
+    throw new DarrowError(
+      `ticket publication URL must be an HTTP(S) URL without credentials: ${resolved.ticket.url}`,
+      "validation",
+    );
+  return resolved;
+}
+
 export function validateWorkflowGraph(workflow: WorkflowDefinition): void {
   const steps = new Map<string, WorkflowDefinition["steps"][number]>();
   for (const step of workflow.steps) {
@@ -196,6 +230,11 @@ export function validateWorkflowGraph(workflow: WorkflowDefinition): void {
           "validation",
         );
       membership.set(stepId, loop.id);
+      if (steps.get(stepId)!.publish)
+        throw new DarrowError(
+          `workflow step ${stepId} cannot publish from inside loop ${loop.id}`,
+          "validation",
+        );
     }
     const last = loop.steps.at(-1)!;
     if (loop.until.stepId !== last)
@@ -531,6 +570,7 @@ export async function compile(
         source: command.skillDir,
         digest: command.digest,
         input: resolveInput(step.with, inputs) as Record<string, unknown>,
+        publish: resolvePublication(step.publish, inputs),
       };
     }),
     inputs,

@@ -96,6 +96,45 @@ export interface Requirement {
   version: string;
 }
 
+export interface TicketIdentity {
+  backend: string;
+  project: string;
+  nativeId: string;
+  url: string;
+}
+
+export interface ArtifactPublication {
+  ticket: TicketIdentity;
+  artifactTypes: string[];
+}
+
+export interface PublishedArtifact {
+  publicationId: string;
+  artifactId: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  type: string;
+  contentHash: string;
+  size: number;
+  sourceLocation: string;
+  location: string;
+  publishedAt: string;
+}
+
+export interface TicketPublicationRecord {
+  schemaVersion: typeof CONTRACT_VERSION;
+  ticketKey: string;
+  ticket: TicketIdentity;
+  publications: PublishedArtifact[];
+}
+
+export interface TicketPublicationResult {
+  ticketKey: string;
+  ticket: TicketIdentity;
+  artifacts: PublishedArtifact[];
+}
+
 export interface WorkflowDefinition {
   schemaVersion: typeof CONTRACT_VERSION;
   id: string;
@@ -113,6 +152,7 @@ export interface WorkflowDefinition {
     dependsOn: string[];
     command: { id: string; version: string };
     with: Record<string, unknown>;
+    publish?: ArtifactPublication;
   }>;
 }
 
@@ -194,6 +234,7 @@ export interface ResolvedPlan {
     source: string;
     digest: string;
     input: Record<string, unknown>;
+    publish: ArtifactPublication | null;
   }>;
   inputs: Record<string, unknown>;
   digest: string;
@@ -230,6 +271,23 @@ export interface ActivityInput {
   instructions: ContentReference[];
   priorArtifacts: ArtifactReference[];
 }
+
+export interface PublicationActivityInput {
+  repoRoot: string;
+  runDir: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  publication: ArtifactPublication;
+  artifacts: ArtifactReference[];
+}
+
+export type PublicationActivityResult =
+  | { status: "succeeded"; publication: TicketPublicationResult }
+  | {
+      status: "failed";
+      error: { category: string; message: string };
+    };
 
 export interface CommandResult {
   invocationId: string;

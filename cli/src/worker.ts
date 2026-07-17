@@ -2,6 +2,7 @@
 import { NativeConnection, Runtime, Worker } from "@temporalio/worker";
 import { resolve } from "node:path";
 import { executeCodexCommand } from "./codex";
+import { executeTicketPublication } from "./publication";
 
 const [address, namespace, taskQueue] = process.argv.slice(2);
 if (!address || !namespace || !taskQueue)
@@ -17,7 +18,10 @@ try {
     namespace,
     taskQueue,
     workflowsPath: resolve(import.meta.dir, "temporal-workflow.ts"),
-    activities: { executeCommand: executeCodexCommand },
+    activities: {
+      executeCommand: executeCodexCommand,
+      publishArtifacts: executeTicketPublication,
+    },
   });
   await worker.run();
 } finally {
