@@ -196,11 +196,11 @@ The initial layout is:
   collection.
 - **WA-32 — Report before delete.** `darrow clean` without a deletion selection
   lists eligible worktrees and artifacts with their run state, age, size,
-  reference status, and proposed action. `--run-data` and `--worktrees` are the
-  deletion selections; `--run <run-id>` and `--older-than 30d` filter either a
-  report or a selection. Darrow validates every matching selected resource
-  before deleting any of them and refuses the entire selection when one is
-  protected.
+  reference status, and proposed action. `--run-data`, `--worktrees`, and
+  `--tickets` are the deletion selections; `--run` and `--older-than` filter
+  either a report or a selection. Ticket age is the publication time. Darrow
+  validates every matching selected resource before deleting any of them and
+  refuses the entire selection when one is protected.
 - **WA-33 — Active references protected.** An artifact, snapshot, content item,
   worktree, or ticket artifact referenced by an active run is not eligible for
   deletion.
@@ -219,8 +219,14 @@ The initial layout is:
   removes an attached current workspace.
 - **WA-36 — Ticket purge is a working-tree change.** `darrow clean --tickets`
   may delete old checked-in ticket artifacts that are not protected by an active
-  run. The deletions remain ordinary uncommitted working-tree changes for user
-  review. Darrow never commits, pushes, or rewrites history.
+  run. A ticket artifact is eligible only when its source run is locally known
+  and terminal, its content still matches the publication digest, and both its
+  body and `ticket.json` have no pre-existing staged, unstaged, or untracked
+  changes. Each publication is a cleanup resource; removing it also removes its
+  record from `ticket.json`, retaining the ticket identity when no publications
+  remain. The resulting deletion and metadata update remain ordinary
+  uncommitted working-tree changes for user review. Darrow never commits,
+  pushes, rewrites history, or mutates the external ticket.
 - **WA-37 — No remote store dependency.** Configurable automatic retention and a
   remote artifact store are deferred to hosted operation. Local cleanup and
   resume do not require either.

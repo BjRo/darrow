@@ -687,8 +687,17 @@
                 "snapshot",
                 "content",
                 "results",
-                "worktree"
+                "worktree",
+                "ticket_artifact"
               ]
+            },
+            "ticketKey": {
+              "type": ["string", "null"],
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "publicationId": {
+              "type": ["string", "null"],
+              "pattern": "^[a-f0-9]{64}$"
             },
             "path": { "type": "string" },
             "size": { "type": "integer", "minimum": 0 },

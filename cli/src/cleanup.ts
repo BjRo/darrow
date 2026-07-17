@@ -1,16 +1,34 @@
-import { chmod, lstat, readdir, readFile, rm } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  rename,
+  rm,
+} from "node:fs/promises";
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { DarrowError } from "./errors";
-import { exists, readJson, replaceJson, writeJson } from "./io";
+import { exists, hashDirectory, readJson, replaceJson, writeJson } from "./io";
 import { withDirectoryLock } from "./locks";
 import { run } from "./process";
 import { removeManagedWorkspace } from "./repository";
 import { validateSchema } from "./schema";
 import { event, readRun } from "./state";
-import type { RunRecord } from "./types";
+import type {
+  PublishedArtifact,
+  RunRecord,
+  TicketPublicationRecord,
+} from "./types";
 
 export type CleanupKind =
-  "artifacts" | "snapshot" | "content" | "results" | "worktree";
+  | "artifacts"
+  | "snapshot"
+  | "content"
+  | "results"
+  | "worktree"
+  | "ticket_artifact";
 
 export interface CleanupFilters {
   runId: string | null;
@@ -20,14 +38,18 @@ export interface CleanupFilters {
 export interface CleanupSelection {
   runData: boolean;
   worktrees: boolean;
+  tickets: boolean;
 }
 
 export interface CleanupItem {
   resourceId: string;
   runId: string;
   kind: CleanupKind;
+  ticketKey: string | null;
+  publicationId: string | null;
+  contentHash: string | null;
   path: string;
-  runState: RunRecord["state"];
+  runState: RunRecord["state"] | "unavailable";
   ageSeconds: number;
   size: number;
   referenceStatus: "unreferenced" | "active_run" | "referenced_by_active_run";
@@ -37,6 +59,9 @@ export interface CleanupItem {
     | "active_run"
     | "active_reference"
     | "dirty_worktree"
+    | "dirty_ticket_artifact"
+    | "digest_mismatch"
+    | "source_run_missing"
     | "missing"
     | "already_deleted"
     | null;
@@ -49,6 +74,8 @@ export interface CleanupRecord {
   resources: Array<{
     resourceId: string;
     kind: CleanupKind;
+    ticketKey?: string;
+    publicationId?: string;
     path: string;
     size: number;
     selectedAt: string;
@@ -97,6 +124,7 @@ async function makeRemovable(path: string): Promise<void> {
 }
 
 async function cleanupRecord(runDir: string): Promise<CleanupRecord | null> {
+  runDir = await realpath(runDir);
   const path = resolve(runDir, "cleanup.json");
   if (!(await exists(path))) return null;
   const record = await readJson<CleanupRecord>(path);
@@ -107,19 +135,50 @@ async function cleanupRecord(runDir: string): Promise<CleanupRecord | null> {
       "state",
     );
   const seen = new Set<string>();
+  const root = await realpath(resolve(runDir, "../../.."));
   for (const resource of record.resources) {
-    if (
-      seen.has(resource.kind) ||
+    const ticketResource = resource.kind === "ticket_artifact";
+    if (seen.has(resource.resourceId))
+      throw new DarrowError(
+        `cleanup record contains duplicate resource ${resource.resourceId}: ${path}`,
+        "state",
+      );
+    if (!isAbsolute(resource.path))
+      throw new DarrowError(
+        `cleanup record contains a relative resource path: ${path}`,
+        "state",
+      );
+    if (ticketResource) {
+      if (!resource.ticketKey || !resource.publicationId)
+        throw new DarrowError(
+          `cleanup record omits ticket resource identity ${resource.resourceId}: ${path}`,
+          "state",
+        );
+      if (
+        resource.resourceId !==
+        ticketResourceId(resource.ticketKey, resource.publicationId)
+      )
+        throw new DarrowError(
+          `cleanup record ticket resource ID is inconsistent ${resource.resourceId}: ${path}`,
+          "state",
+        );
+      if (!inside(resolve(root, ".darrow", "tickets"), resource.path))
+        throw new DarrowError(
+          `cleanup record ticket path escapes its repository ${resource.path}: ${path}`,
+          "state",
+        );
+    } else if (
+      resource.ticketKey !== undefined ||
+      resource.publicationId !== undefined ||
       resource.resourceId !== `${record.runId}:${resource.kind}` ||
-      !isAbsolute(resource.path) ||
       (resource.kind !== "worktree" &&
         resource.path !== resolve(runDir, resource.kind))
     )
       throw new DarrowError(
-        `cleanup record contains an inconsistent resource: ${path}`,
+        `cleanup record contains inconsistent run resource ${resource.resourceId}: ${path}`,
         "state",
       );
-    seen.add(resource.kind);
+    seen.add(resource.resourceId);
   }
   return record;
 }
@@ -157,7 +216,9 @@ async function controlCorpus(runDir: string): Promise<string> {
 }
 
 function selectedKind(kind: CleanupKind, selection: CleanupSelection): boolean {
-  return kind === "worktree" ? selection.worktrees : selection.runData;
+  if (kind === "worktree") return selection.worktrees;
+  if (kind === "ticket_artifact") return selection.tickets;
+  return selection.runData;
 }
 
 function referencedByActiveRun(
@@ -227,6 +288,9 @@ async function candidate(
     resourceId: `${record.runId}:${kind}`,
     runId: record.runId,
     kind,
+    ticketKey: null,
+    publicationId: null,
+    contentHash: null,
     path: resolve(path),
     runState: record.state,
     ageSeconds,
@@ -237,6 +301,215 @@ async function candidate(
     reason,
     proposedAction: eligible && matchesRun && matchesAge ? "delete" : "retain",
   };
+}
+
+function inside(root: string, path: string): boolean {
+  const child = relative(resolve(root), resolve(path));
+  return (
+    child.length > 0 &&
+    child !== ".." &&
+    !child.startsWith("../") &&
+    !child.startsWith("..\\") &&
+    !isAbsolute(child)
+  );
+}
+
+async function rejectCleanupSymlinks(path: string): Promise<void> {
+  const info = await lstat(path);
+  if (info.isSymbolicLink())
+    throw new DarrowError(
+      `ticket cleanup refuses a symbolic link: ${resolve(path)}`,
+      "cleanup",
+    );
+  if (!info.isDirectory()) return;
+  for (const entry of await readdir(path))
+    await rejectCleanupSymlinks(resolve(path, entry));
+}
+
+function ticketResourceId(ticketKey: string, publicationId: string): string {
+  return `ticket:${ticketKey}:${publicationId}`;
+}
+
+function ticketWorkingTreeDirty(
+  root: string,
+  ticketPath: string,
+  artifactPath: string,
+): boolean {
+  for (const path of [ticketPath, artifactPath]) {
+    const tracked = run(
+      ["git", "ls-files", "--error-unmatch", "--", relative(root, path)],
+      root,
+    );
+    if (tracked.exitCode !== 0) return true;
+  }
+  const status = run(
+    [
+      "git",
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=all",
+      "--ignored=matching",
+      "--",
+      relative(root, ticketPath),
+      relative(root, artifactPath),
+    ],
+    root,
+  );
+  if (status.exitCode !== 0)
+    throw new DarrowError(
+      `git could not inspect ticket cleanup paths: ${status.stderr.trim() || status.stdout.trim()}`,
+      "git",
+    );
+  return status.stdout.length > 0;
+}
+
+async function ticketCandidate(
+  root: string,
+  ticketPath: string,
+  ticketKey: string,
+  publication: PublishedArtifact,
+  records: Map<string, { runDir: string; record: RunRecord }>,
+  filters: CleanupFilters,
+  selection: CleanupSelection,
+  activeCorpora: Array<{ runId: string; corpus: string }>,
+  now: number,
+): Promise<CleanupItem> {
+  const run = records.get(publication.runId);
+  const path = resolve(root, publication.location);
+  const ticketDir = resolve(root, ".darrow", "tickets", ticketKey);
+  if (!inside(resolve(ticketDir, "artifacts"), path))
+    throw new DarrowError(
+      `ticket publication location escapes ticket ${ticketKey}: ${publication.location}`,
+      "state",
+    );
+  const prior = run
+    ? (await cleanupRecord(run.runDir))?.resources.find(
+        (resource) =>
+          resource.resourceId ===
+          ticketResourceId(ticketKey, publication.publicationId),
+      )
+    : undefined;
+  const present = await exists(path);
+  if (present) await rejectCleanupSymlinks(path);
+  const publishedAt = Date.parse(publication.publishedAt);
+  const ageSeconds = Math.max(0, Math.floor((now - publishedAt) / 1_000));
+  const repositoryRelative = relative(root, path).replaceAll("\\", "/");
+  const activeReference = activeCorpora.some(
+    ({ runId, corpus }) =>
+      runId !== publication.runId &&
+      (corpus.includes(path) ||
+        corpus.includes(repositoryRelative) ||
+        corpus.includes(publication.publicationId)),
+  );
+  const referenceStatus =
+    run?.record.state !== undefined && run.record.state !== "completed"
+      ? "active_run"
+      : activeReference
+        ? "referenced_by_active_run"
+        : "unreferenced";
+  let reason: CleanupItem["reason"] = null;
+  if (!run) reason = "source_run_missing";
+  else if (run.record.state !== "completed") reason = "active_run";
+  else if (activeReference) reason = "active_reference";
+  else if (!present && prior?.completedAt) reason = "already_deleted";
+  else if (!present) reason = "missing";
+  else if (ticketWorkingTreeDirty(root, ticketPath, path))
+    reason = "dirty_ticket_artifact";
+  else if ((await hashDirectory(path)) !== publication.contentHash)
+    reason = "digest_mismatch";
+  const eligible = reason === null;
+  const matchesRun =
+    filters.runId === null || filters.runId === publication.runId;
+  const matchesAge =
+    filters.olderThanSeconds === null || ageSeconds >= filters.olderThanSeconds;
+  return {
+    resourceId: ticketResourceId(ticketKey, publication.publicationId),
+    runId: publication.runId,
+    kind: "ticket_artifact",
+    ticketKey,
+    publicationId: publication.publicationId,
+    contentHash: publication.contentHash,
+    path,
+    runState: run?.record.state ?? "unavailable",
+    ageSeconds,
+    size: present ? await sizeOf(path) : (prior?.size ?? publication.size),
+    referenceStatus,
+    eligible,
+    selected: selection.tickets && matchesRun && matchesAge,
+    reason,
+    proposedAction: eligible && matchesRun && matchesAge ? "delete" : "retain",
+  };
+}
+
+async function ticketCandidates(
+  root: string,
+  records: Map<string, { runDir: string; record: RunRecord }>,
+  filters: CleanupFilters,
+  selection: CleanupSelection,
+  activeCorpora: Array<{ runId: string; corpus: string }>,
+  now: number,
+): Promise<CleanupItem[]> {
+  const ticketsRoot = resolve(root, ".darrow", "tickets");
+  const lockRoot = resolve(root, ".darrow", "locks", "tickets");
+  await mkdir(lockRoot, { recursive: true });
+  const items: CleanupItem[] = [];
+  const entries = await readdir(ticketsRoot, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
+  for (const entry of entries) {
+    if (entry.isSymbolicLink() || !entry.isDirectory())
+      throw new DarrowError(
+        `invalid ticket workspace entry: ${resolve(ticketsRoot, entry.name)}`,
+        "state",
+      );
+    if (!/^[a-f0-9]{64}$/.test(entry.name))
+      throw new DarrowError(
+        `invalid ticket workspace key: ${entry.name}`,
+        "state",
+      );
+    const ticketDir = resolve(ticketsRoot, entry.name);
+    const ticketPath = resolve(ticketDir, "ticket.json");
+    await withDirectoryLock(
+      resolve(lockRoot, `${entry.name}.lock`),
+      `ticket ${entry.name} cleanup inventory`,
+      async () => {
+        await rejectCleanupSymlinks(ticketPath);
+        const record = await readJson<TicketPublicationRecord>(ticketPath);
+        await validateSchema(
+          "ticket-publication.schema.json",
+          record,
+          `ticket publication ${entry.name}`,
+        );
+        if (record.ticketKey !== entry.name)
+          throw new DarrowError(
+            `ticket publication key disagrees with its directory: ${ticketPath}`,
+            "state",
+          );
+        const seen = new Set<string>();
+        for (const publication of record.publications) {
+          if (seen.has(publication.publicationId))
+            throw new DarrowError(
+              `ticket publication contains duplicate artifact ${publication.publicationId}: ${ticketPath}`,
+              "state",
+            );
+          seen.add(publication.publicationId);
+          items.push(
+            await ticketCandidate(
+              root,
+              ticketPath,
+              entry.name,
+              publication,
+              records,
+              filters,
+              selection,
+              activeCorpora,
+              now,
+            ),
+          );
+        }
+      },
+    );
+  }
+  return items;
 }
 
 async function runRecords(
@@ -259,12 +532,11 @@ export async function inventoryCleanup(
   selection: CleanupSelection,
   now = Date.now(),
 ): Promise<CleanupItem[]> {
+  root = await realpath(root);
   const records = await runRecords(root);
-  if (
-    filters.runId !== null &&
-    !records.some(({ record }) => record.runId === filters.runId)
-  )
-    throw new DarrowError(`run not found: ${filters.runId}`, "not_found");
+  const recordsById = new Map(
+    records.map((entry) => [entry.record.runId, entry] as const),
+  );
   const activeCorpora = await Promise.all(
     records
       .filter(({ record }) => record.state !== "completed")
@@ -304,6 +576,21 @@ export async function inventoryCleanup(
         ),
       );
   }
+  items.push(
+    ...(await ticketCandidates(
+      root,
+      recordsById,
+      filters,
+      selection,
+      activeCorpora,
+      now,
+    )),
+  );
+  if (
+    filters.runId !== null &&
+    !items.some((item) => item.runId === filters.runId)
+  )
+    throw new DarrowError(`run not found: ${filters.runId}`, "not_found");
   return items;
 }
 
@@ -329,6 +616,8 @@ async function writeCleanupMarker(
     record.resources.push({
       resourceId: item.resourceId,
       kind: item.kind,
+      ...(item.ticketKey ? { ticketKey: item.ticketKey } : {}),
+      ...(item.publicationId ? { publicationId: item.publicationId } : {}),
       path: item.path,
       size: item.size,
       selectedAt: new Date().toISOString(),
@@ -338,6 +627,20 @@ async function writeCleanupMarker(
   await validateSchema("cleanup.schema.json", record, `cleanup record ${path}`);
   if (await exists(path)) await replaceJson(path, record);
   else await writeJson(path, record);
+}
+
+export async function cleanedTicketPublicationIds(
+  record: CleanupRecord | null,
+): Promise<Set<string>> {
+  const ids = new Set<string>();
+  for (const resource of record?.resources ?? [])
+    if (
+      resource.kind === "ticket_artifact" &&
+      resource.publicationId &&
+      (resource.completedAt !== null || !(await exists(resource.path)))
+    )
+      ids.add(resource.publicationId);
+  return ids;
 }
 
 async function deleteItem(root: string, item: CleanupItem): Promise<void> {
@@ -372,12 +675,157 @@ async function deleteItem(root: string, item: CleanupItem): Promise<void> {
   );
 }
 
+async function deleteTicketItems(
+  root: string,
+  items: CleanupItem[],
+): Promise<void> {
+  const ticketKey = items[0]?.ticketKey;
+  if (!ticketKey || items.some((item) => item.ticketKey !== ticketKey))
+    throw new DarrowError("inconsistent ticket cleanup selection", "state");
+  const ticketDir = resolve(root, ".darrow", "tickets", ticketKey);
+  const ticketPath = resolve(ticketDir, "ticket.json");
+  const lockPath = resolve(
+    root,
+    ".darrow",
+    "locks",
+    "tickets",
+    `${ticketKey}.lock`,
+  );
+  await mkdir(resolve(lockPath, ".."), { recursive: true });
+  await withDirectoryLock(lockPath, `ticket ${ticketKey} cleanup`, async () => {
+    const record = await readJson<TicketPublicationRecord>(ticketPath);
+    await validateSchema(
+      "ticket-publication.schema.json",
+      record,
+      `ticket publication ${ticketKey}`,
+    );
+    if (record.ticketKey !== ticketKey)
+      throw new DarrowError(
+        `ticket publication key disagrees with its directory: ${ticketPath}`,
+        "state",
+      );
+    const selectedIds = new Set(
+      items.map((item) => item.publicationId).filter(Boolean),
+    );
+    const selectedPublications = record.publications.filter((publication) =>
+      selectedIds.has(publication.publicationId),
+    );
+    if (selectedPublications.length !== items.length)
+      throw new DarrowError(
+        `ticket cleanup selection changed before deletion: ${ticketPath}`,
+        "concurrency",
+      );
+    for (const item of items) {
+      const publication = selectedPublications.find(
+        (candidate) => candidate.publicationId === item.publicationId,
+      )!;
+      if (
+        resolve(root, publication.location) !== item.path ||
+        publication.runId !== item.runId ||
+        publication.contentHash !== item.contentHash ||
+        !(await exists(item.path)) ||
+        ticketWorkingTreeDirty(root, ticketPath, item.path) ||
+        (await hashDirectory(item.path)) !== publication.contentHash
+      )
+        throw new DarrowError(
+          `ticket cleanup resource changed before deletion: ${item.resourceId}`,
+          "concurrency",
+        );
+    }
+    for (const item of items) {
+      const runDir = resolve(root, ".darrow", "runs", item.runId);
+      await withDirectoryLock(
+        resolve(runDir, "state.lock"),
+        `run ${item.runId} cleanup`,
+        async () => {
+          const current = await readRun(runDir);
+          if (current.state !== "completed")
+            throw new DarrowError(
+              `refusing cleanup for active run ${item.runId}`,
+              "cleanup_active",
+            );
+          await writeCleanupMarker(runDir, item, null);
+        },
+      );
+    }
+
+    const prepared: Array<{ item: CleanupItem; mode: number }> = [];
+    const moved: Array<{
+      item: CleanupItem;
+      mode: number;
+      staging: string;
+    }> = [];
+    try {
+      for (const item of items) {
+        const staging = resolve(
+          root,
+          ".darrow",
+          "runtime",
+          "ticket-cleanup",
+          `${item.publicationId}-${crypto.randomUUID()}`,
+        );
+        await mkdir(resolve(staging, ".."), { recursive: true });
+        const mode = (await lstat(item.path)).mode & 0o777;
+        prepared.push({ item, mode });
+        await chmod(item.path, 0o755);
+        await rename(item.path, staging);
+        moved.push({ item, mode, staging });
+      }
+      record.publications = record.publications.filter(
+        (publication) => !selectedIds.has(publication.publicationId),
+      );
+      await validateSchema(
+        "ticket-publication.schema.json",
+        record,
+        `ticket publication ${ticketKey}`,
+      );
+      await replaceJson(ticketPath, record);
+    } catch (error) {
+      for (const { item, mode, staging } of moved.reverse())
+        if ((await exists(staging)) && !(await exists(item.path))) {
+          await rename(staging, item.path);
+          await chmod(item.path, mode);
+        }
+      for (const { item, mode } of prepared)
+        if (await exists(item.path)) await chmod(item.path, mode);
+      throw error;
+    }
+
+    for (const { item, staging } of moved) {
+      if (await exists(staging)) await makeRemovable(staging);
+      await rm(staging, { recursive: true, force: true });
+      const runDir = resolve(root, ".darrow", "runs", item.runId);
+      const completedAt = new Date().toISOString();
+      await withDirectoryLock(
+        resolve(runDir, "state.lock"),
+        `run ${item.runId} cleanup`,
+        async () => {
+          await writeCleanupMarker(runDir, item, completedAt);
+          await event(runDir, item.runId, "cleanup.resource.deleted", {
+            resourceId: item.resourceId,
+            kind: item.kind,
+            ticketKey: item.ticketKey,
+            publicationId: item.publicationId,
+            path: item.path,
+            size: item.size,
+            completedAt,
+          });
+        },
+      );
+    }
+  });
+}
+
 export async function cleanRepository(
   root: string,
   filters: CleanupFilters,
   selection: CleanupSelection,
 ): Promise<CleanupResult> {
-  const mode = selection.runData || selection.worktrees ? "delete" : "report";
+  root = await realpath(root);
+  const mode =
+    selection.runData || selection.worktrees || selection.tickets
+      ? "delete"
+      : "report";
   const items = await inventoryCleanup(root, filters, selection);
   const blockers = items.filter((item) => item.selected && !item.eligible);
   const result: CleanupResult = {
@@ -389,8 +837,23 @@ export async function cleanRepository(
     blockers,
   };
   if (blockers.length > 0) return result;
+  const ticketItems = items.filter(
+    (candidate) => candidate.selected && candidate.kind === "ticket_artifact",
+  );
+  const tickets = new Map<string, CleanupItem[]>();
+  for (const item of ticketItems) {
+    const grouped = tickets.get(item.ticketKey!);
+    if (grouped) grouped.push(item);
+    else tickets.set(item.ticketKey!, [item]);
+  }
+  for (const ticketItems of tickets.values()) {
+    await deleteTicketItems(root, ticketItems);
+    result.deleted.push(...ticketItems.map((item) => item.resourceId));
+  }
   const selected = items
-    .filter((candidate) => candidate.selected)
+    .filter(
+      (candidate) => candidate.selected && candidate.kind !== "ticket_artifact",
+    )
     .sort(
       (left, right) =>
         Number(right.kind === "worktree") - Number(left.kind === "worktree"),

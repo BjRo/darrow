@@ -427,7 +427,7 @@ steps:
         workspace: string;
         publications: Array<{
           ticketKey: string;
-          artifacts: Array<{ location: string }>;
+          artifacts: Array<{ location: string; publicationId: string }>;
         }>;
       };
     };
@@ -775,9 +775,18 @@ steps:
     expect(reportData.deleted).toEqual([]);
     expect(
       reportData.items
-        .filter((item) => item.kind !== "worktree")
+        .filter(
+          (item) => item.kind !== "worktree" && item.kind !== "ticket_artifact",
+        )
         .every((item) => item.eligible),
     ).toBe(true);
+    expect(reportData.items).toContainEqual(
+      expect.objectContaining({
+        kind: "ticket_artifact",
+        eligible: false,
+        reason: "dirty_ticket_artifact",
+      }),
+    );
     const cleaned = command(
       [
         "bun",
@@ -813,6 +822,53 @@ steps:
     expect(cleanedInspection.conclusion).toBe("succeeded");
     expect(cleanedInspection.cleanup.resources).toHaveLength(4);
     expect(cleanedInspection.counts.results).toBe(0);
+
+    const ticketKey = envelope.data.publications[0]!.ticketKey;
+    const publicationId =
+      envelope.data.publications[0]!.artifacts[0]!.publicationId;
+    const ticketDirectory = resolve(root, ".darrow", "tickets", ticketKey);
+    expect(command(["git", "add", ticketDirectory], root).code).toBe(0);
+    expect(
+      command(["git", "commit", "-qm", "checkpoint ticket publication"], root)
+        .code,
+    ).toBe(0);
+    const ticketCleaned = command(
+      [
+        "bun",
+        cli,
+        "clean",
+        "--run",
+        envelope.data.runId,
+        "--tickets",
+        "--json",
+      ],
+      root,
+      env,
+    );
+    expect(
+      ticketCleaned.code,
+      `${ticketCleaned.stderr}\n${ticketCleaned.stdout}`,
+    ).toBe(0);
+    expect(JSON.parse(ticketCleaned.stdout.trim()).data.deleted).toEqual([
+      `ticket:${ticketKey}:${publicationId}`,
+    ]);
+    expect(
+      (await Bun.file(resolve(ticketDirectory, "ticket.json")).json())
+        .publications,
+    ).toEqual([]);
+    const inspectedAfterTicketCleanup = command(
+      ["bun", cli, "inspect", envelope.data.runId, "--json"],
+      root,
+      env,
+    );
+    expect(
+      inspectedAfterTicketCleanup.code,
+      inspectedAfterTicketCleanup.stderr,
+    ).toBe(0);
+    expect(
+      JSON.parse(inspectedAfterTicketCleanup.stdout.trim()).data.cleanup
+        .resources,
+    ).toHaveLength(5);
 
     const waiverWorkflow = await Bun.file(
       resolve(root, ".darrow", "workflows", "implement-change.yaml"),

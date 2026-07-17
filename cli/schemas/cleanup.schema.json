@@ -23,7 +23,22 @@
         "properties": {
           "resourceId": { "type": "string" },
           "kind": {
-            "enum": ["artifacts", "snapshot", "content", "results", "worktree"]
+            "enum": [
+              "artifacts",
+              "snapshot",
+              "content",
+              "results",
+              "worktree",
+              "ticket_artifact"
+            ]
+          },
+          "ticketKey": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "publicationId": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           },
           "path": { "type": "string" },
           "size": { "type": "integer", "minimum": 0 },

@@ -78,12 +78,16 @@ an accepted waiver produces `succeeded_with_waivers`.
 their activity boundary unless their command metadata explicitly declares safe
 interruption; inspection reports completed, incomplete, and uncertain steps.
 
-`darrow clean` is report-only unless `--run-data` or `--worktrees` is present.
-`--run <run-id>` and `--older-than <duration>` narrow the report or deletion.
-Run data is eligible only after terminal completion with no active references;
-managed worktrees must additionally be clean. Darrow refuses a selected set
-before deleting anything if any matching resource is protected, never removes
-an attached workspace or Git branch, and performs no background cleanup.
+`darrow clean` is report-only unless `--run-data`, `--worktrees`, or `--tickets`
+is present. `--run <run-id>` and `--older-than <duration>` narrow the report or
+deletion. Run data is eligible only after terminal completion with no active
+references; managed worktrees must additionally be clean. Ticket cleanup
+selects individual checked-in publications, refuses pre-existing ticket-path
+changes or digest mismatches, and leaves the artifact deletion plus
+`ticket.json` update as ordinary uncommitted changes. Darrow refuses a selected
+set before deleting anything if any matching resource is protected, never
+removes an attached workspace or Git branch, and performs no background
+cleanup, commit, or push.
 
 A command step may explicitly publish selected successful-attempt artifacts to
 an external ticket's repository workspace:

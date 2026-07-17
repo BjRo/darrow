@@ -325,8 +325,13 @@ export async function executeTicketPublication(
 export async function verifyPublishedArtifacts(
   repoRoot: string,
   publications: TicketPublicationResult[],
+  cleanedPublicationIds = new Set<string>(),
 ): Promise<void> {
   for (const publication of publications) {
+    const expectedArtifacts = publication.artifacts.filter(
+      (artifact) => !cleanedPublicationIds.has(artifact.publicationId),
+    );
+    if (expectedArtifacts.length === 0) continue;
     const ticketPath = resolve(
       repoRoot,
       ".darrow",
@@ -348,7 +353,7 @@ export async function verifyPublishedArtifacts(
         `ticket publication identity mismatch: ${publication.ticketKey}`,
         "immutable_violation",
       );
-    for (const expected of publication.artifacts) {
+    for (const expected of expectedArtifacts) {
       const actual = record.publications.find(
         (item) => item.publicationId === expected.publicationId,
       );

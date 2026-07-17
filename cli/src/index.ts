@@ -5,6 +5,7 @@ import { compile, createLock, snapshot, verifyRunSnapshot } from "./compiler";
 import { verifyArtifacts } from "./artifacts";
 import {
   cleanRepository,
+  cleanedTicketPublicationIds,
   cleanupUnavailable,
   readCleanupRecord,
   type CleanupFilters,
@@ -79,7 +80,7 @@ function usage(): string {
     "  darrow resume <run-id> [--json]",
     "  darrow cancel <run-id> [--json]",
     "  darrow inspect <run-id> [--json]",
-    "  darrow clean [--run <run-id>] [--older-than <duration>] [--run-data] [--worktrees] [--json]",
+    "  darrow clean [--run <run-id>] [--older-than <duration>] [--run-data] [--worktrees] [--tickets] [--json]",
     "  darrow --version",
     "",
     "Install the pinned Temporal executable explicitly with darrow-install --scope global|local.",
@@ -106,7 +107,11 @@ function parseClean(args: string[]): {
   json: boolean;
 } {
   const filters: CleanupFilters = { runId: null, olderThanSeconds: null };
-  const selection: CleanupSelection = { runData: false, worktrees: false };
+  const selection: CleanupSelection = {
+    runData: false,
+    worktrees: false,
+    tickets: false,
+  };
   let json = false;
   while (args.length > 0) {
     const flag = args.shift();
@@ -122,6 +127,7 @@ function parseClean(args: string[]): {
       filters.olderThanSeconds = parseDuration(duration);
     } else if (flag === "--run-data") selection.runData = true;
     else if (flag === "--worktrees") selection.worktrees = true;
+    else if (flag === "--tickets") selection.tickets = true;
     else throw new DarrowError(`unknown clean argument: ${flag}`, "usage");
   }
   return { filters, selection, json };
@@ -1120,6 +1126,7 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
   await verifyPublishedArtifacts(
     repoRoot,
     await readTicketPublicationEvents(runDir),
+    await cleanedTicketPublicationIds(cleanup),
   );
   const temporal =
     record.state === "completed" || !record.temporal.workflowId

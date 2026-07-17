@@ -309,6 +309,22 @@ describe("0.1.0 contract fixtures", () => {
     await expect(
       validateSchema(
         "event.schema.json",
+        {
+          ...deleted,
+          data: {
+            ...deleted.data,
+            resourceId: `ticket:${"a".repeat(64)}:${"b".repeat(64)}`,
+            kind: "ticket_artifact",
+            ticketKey: "a".repeat(64),
+            publicationId: "b".repeat(64),
+          },
+        },
+        "ticket cleanup event",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateSchema(
+        "event.schema.json",
         { ...deleted, data: { ...deleted.data, body: "raw artifact" } },
         "cleanup event",
       ),

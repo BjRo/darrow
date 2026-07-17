@@ -496,10 +496,11 @@
     "cleanupSelection": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runData", "worktrees"],
+      "required": ["runData", "worktrees", "tickets"],
       "properties": {
         "runData": { "type": "boolean" },
-        "worktrees": { "type": "boolean" }
+        "worktrees": { "type": "boolean" },
+        "tickets": { "type": "boolean" }
       }
     },
     "cleanupItem": {
@@ -509,6 +510,9 @@
         "resourceId",
         "runId",
         "kind",
+        "ticketKey",
+        "publicationId",
+        "contentHash",
         "path",
         "runState",
         "ageSeconds",
@@ -523,10 +527,31 @@
         "resourceId": { "type": "string" },
         "runId": { "type": "string" },
         "kind": {
-          "enum": ["artifacts", "snapshot", "content", "results", "worktree"]
+          "enum": [
+            "artifacts",
+            "snapshot",
+            "content",
+            "results",
+            "worktree",
+            "ticket_artifact"
+          ]
+        },
+        "ticketKey": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "publicationId": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "contentHash": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "path": { "type": "string" },
-        "runState": { "enum": ["running", "waiting_for_input", "completed"] },
+        "runState": {
+          "enum": ["running", "waiting_for_input", "completed", "unavailable"]
+        },
         "ageSeconds": { "type": "integer", "minimum": 0 },
         "size": { "type": "integer", "minimum": 0 },
         "referenceStatus": {
@@ -541,6 +566,9 @@
             "active_run",
             "active_reference",
             "dirty_worktree",
+            "dirty_ticket_artifact",
+            "digest_mismatch",
+            "source_run_missing",
             "missing",
             "already_deleted"
           ]
@@ -609,8 +637,17 @@
                       "snapshot",
                       "content",
                       "results",
-                      "worktree"
+                      "worktree",
+                      "ticket_artifact"
                     ]
+                  },
+                  "ticketKey": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "publicationId": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
                   },
                   "path": { "type": "string" },
                   "size": { "type": "integer", "minimum": 0 },

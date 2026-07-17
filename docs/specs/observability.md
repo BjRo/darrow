@@ -48,7 +48,8 @@ The initial run record is:
   measured size, and completion time. A durable `cleanup.json` beside the run
   record stores selection and completion markers so intentional removal remains
   distinguishable from corruption and terminal inspection can explain missing
-  bodies.
+  bodies. Ticket-artifact cleanup records also carry the ticket key and
+  publication ID and remain attached to the source run's journal.
 - **OB-5b — Publication audit.** After a declared ticket publication becomes
   durable, Darrow appends one `ticket.artifacts.published` event containing the
   stable ticket key and identity plus bounded published-artifact records with

@@ -1,20 +1,26 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import {
   cleanRepository,
+  cleanedTicketPublicationIds,
   inventoryCleanup,
   readCleanupRecord,
 } from "../src/cleanup";
-import { exists, writeJson } from "../src/io";
+import { exists, hashDirectory, readJson, writeJson } from "../src/io";
 import { CLI_ROOT } from "../src/paths";
+import { verifyPublishedArtifacts } from "../src/publication";
 import {
   allocateManagedWorkspace,
   initRepository,
   releaseWorkspace,
 } from "../src/repository";
-import type { RunRecord } from "../src/types";
+import type {
+  RunRecord,
+  TicketPublicationRecord,
+  TicketPublicationResult,
+} from "../src/types";
 
 const temps: string[] = [];
 afterEach(async () => {
@@ -100,6 +106,61 @@ async function createRun(
   return { runDir, workspace };
 }
 
+async function createTicketPublication(
+  root: string,
+  runId: string,
+): Promise<{
+  artifactPath: string;
+  result: TicketPublicationResult;
+  ticketPath: string;
+}> {
+  const ticketKey = "a".repeat(64);
+  const publicationId = "b".repeat(64);
+  const location = `.darrow/tickets/${ticketKey}/artifacts/summarize/attempt-summarize-1/${publicationId}-learning-summary`;
+  const artifactPath = resolve(root, location);
+  await mkdir(artifactPath, { recursive: true });
+  await writeFile(resolve(artifactPath, "summary.md"), "retained learning\n");
+  const artifact = {
+    publicationId,
+    artifactId: "artifact-summary",
+    runId,
+    stepId: "summarize",
+    attemptId: "attempt-summarize-1",
+    type: "darrow.learning-summary",
+    contentHash: await hashDirectory(artifactPath),
+    size: 18,
+    sourceLocation: `.darrow/runs/${runId}/artifacts/summarize/attempt-summarize-1/learning-summary`,
+    location,
+    publishedAt: "2026-01-01T00:00:00.000Z",
+  };
+  const ticket = {
+    backend: "github",
+    project: "BjRo/darrow",
+    nativeId: "4",
+    url: "https://github.com/BjRo/darrow/issues/4",
+  };
+  const ticketPath = resolve(
+    root,
+    ".darrow",
+    "tickets",
+    ticketKey,
+    "ticket.json",
+  );
+  await writeJson(ticketPath, {
+    schemaVersion: "0.1.0",
+    ticketKey,
+    ticket,
+    publications: [artifact],
+  } satisfies TicketPublicationRecord);
+  git(root, ["add", relative(root, resolve(ticketPath, ".."))]);
+  git(root, ["commit", "-qm", "add ticket publication"]);
+  return {
+    artifactPath,
+    ticketPath,
+    result: { ticketKey, ticket, artifacts: [artifact] },
+  };
+}
+
 describe("M2 explicit cleanup", () => {
   test("reports eligibility without deleting and applies age filters", async () => {
     const { root, commit } = await fixture();
@@ -108,7 +169,7 @@ describe("M2 explicit cleanup", () => {
     const items = await inventoryCleanup(
       root,
       { runId: null, olderThanSeconds: 86_400 },
-      { runData: false, worktrees: false },
+      { runData: false, worktrees: false, tickets: false },
       Date.parse("2026-07-16T00:00:00.000Z"),
     );
     expect(
@@ -138,7 +199,7 @@ describe("M2 explicit cleanup", () => {
     const result = await cleanRepository(
       root,
       { runId: null, olderThanSeconds: null },
-      { runData: true, worktrees: true },
+      { runData: true, worktrees: true, tickets: false },
     );
     expect(result.deleted).toEqual([]);
     expect(result.blockers.some((item) => item.reason === "active_run")).toBe(
@@ -162,7 +223,7 @@ describe("M2 explicit cleanup", () => {
     const result = await cleanRepository(
       root,
       { runId: "run-terminal", olderThanSeconds: null },
-      { runData: true, worktrees: false },
+      { runData: true, worktrees: false, tickets: false },
     );
     expect(result.deleted).toEqual([]);
     expect(
@@ -183,7 +244,7 @@ describe("M2 explicit cleanup", () => {
     const result = await cleanRepository(
       root,
       { runId: "run-terminal", olderThanSeconds: null },
-      { runData: true, worktrees: true },
+      { runData: true, worktrees: true, tickets: false },
     );
     expect(result.blockers).toEqual([]);
     expect(result.deleted).toEqual([
@@ -207,6 +268,139 @@ describe("M2 explicit cleanup", () => {
       resolve(terminal.runDir, "events.jsonl"),
     ).text();
     expect(events.match(/"type":"cleanup.resource.deleted"/g)).toHaveLength(5);
+  });
+
+  test("reports and explicitly deletes old checked-in ticket artifacts as working-tree changes", async () => {
+    const { root, commit } = await fixture();
+    const terminal = await createRun(root, commit, "run-terminal", "completed");
+    const publication = await createTicketPublication(root, "run-terminal");
+    const cli = resolve(CLI_ROOT, "src", "index.ts");
+    const report = command(
+      ["bun", cli, "clean", "--run", "run-terminal", "--json"],
+      root,
+    );
+    expect(report.code, report.stderr).toBe(0);
+    const reported = JSON.parse(report.stdout) as {
+      data: { items: Array<Record<string, unknown>> };
+    };
+    expect(
+      reported.data.items.find((item) => item.kind === "ticket_artifact"),
+    ).toMatchObject({
+      runId: "run-terminal",
+      ticketKey: publication.result.ticketKey,
+      publicationId: publication.result.artifacts[0]!.publicationId,
+      eligible: true,
+      selected: false,
+      proposedAction: "delete",
+    });
+
+    const cleaned = command(
+      [
+        "bun",
+        cli,
+        "clean",
+        "--run",
+        "run-terminal",
+        "--older-than",
+        "1d",
+        "--tickets",
+        "--json",
+      ],
+      root,
+    );
+    expect(cleaned.code, `${cleaned.stderr}\n${cleaned.stdout}`).toBe(0);
+    const resourceId = `ticket:${publication.result.ticketKey}:${publication.result.artifacts[0]!.publicationId}`;
+    expect(JSON.parse(cleaned.stdout).data.deleted).toEqual([resourceId]);
+    expect(await exists(publication.artifactPath)).toBe(false);
+    const ticket = await readJson<TicketPublicationRecord>(
+      publication.ticketPath,
+    );
+    expect(ticket.publications).toEqual([]);
+    const status = git(root, [
+      "status",
+      "--short",
+      "--",
+      relative(root, resolve(publication.ticketPath, "..")),
+    ]);
+    expect(status).toContain("M .darrow/tickets/");
+    expect(status).toContain("D .darrow/tickets/");
+    const marker = await readCleanupRecord(terminal.runDir);
+    expect(marker?.resources).toContainEqual(
+      expect.objectContaining({
+        resourceId,
+        kind: "ticket_artifact",
+        ticketKey: publication.result.ticketKey,
+        publicationId: publication.result.artifacts[0]!.publicationId,
+        completedAt: expect.any(String),
+      }),
+    );
+    const cleanedIds = await cleanedTicketPublicationIds(marker);
+    expect(cleanedIds).toEqual(
+      new Set([publication.result.artifacts[0]!.publicationId]),
+    );
+    await expect(
+      verifyPublishedArtifacts(root, [publication.result], cleanedIds),
+    ).resolves.toBeUndefined();
+    const events = await Bun.file(
+      resolve(terminal.runDir, "events.jsonl"),
+    ).text();
+    expect(events).toContain('"kind":"ticket_artifact"');
+    expect(events).toContain(
+      `"publicationId":"${publication.result.artifacts[0]!.publicationId}"`,
+    );
+  });
+
+  test("refuses ticket cleanup when an artifact is dirty and leaves the whole selection untouched", async () => {
+    const { root, commit } = await fixture();
+    const terminal = await createRun(root, commit, "run-terminal", "completed");
+    const publication = await createTicketPublication(root, "run-terminal");
+    await writeFile(
+      resolve(publication.artifactPath, "summary.md"),
+      "locally edited learning\n",
+    );
+    const result = await cleanRepository(
+      root,
+      { runId: "run-terminal", olderThanSeconds: null },
+      { runData: true, worktrees: false, tickets: true },
+    );
+    expect(result.deleted).toEqual([]);
+    expect(result.blockers).toContainEqual(
+      expect.objectContaining({
+        kind: "ticket_artifact",
+        reason: "dirty_ticket_artifact",
+      }),
+    );
+    expect(await exists(resolve(terminal.runDir, "artifacts"))).toBe(true);
+    expect(await exists(publication.artifactPath)).toBe(true);
+    expect(
+      (await readJson<TicketPublicationRecord>(publication.ticketPath))
+        .publications,
+    ).toHaveLength(1);
+  });
+
+  test("protects ticket artifacts referenced by another active run", async () => {
+    const { root, commit } = await fixture();
+    await createRun(root, commit, "run-terminal", "completed");
+    const publication = await createTicketPublication(root, "run-terminal");
+    const active = await createRun(root, commit, "run-active", "running");
+    await writeFile(
+      resolve(active.runDir, "events.jsonl"),
+      `${JSON.stringify({ publicationId: publication.result.artifacts[0]!.publicationId })}\n`,
+    );
+    const result = await cleanRepository(
+      root,
+      { runId: "run-terminal", olderThanSeconds: null },
+      { runData: false, worktrees: false, tickets: true },
+    );
+    expect(result.deleted).toEqual([]);
+    expect(result.blockers).toContainEqual(
+      expect.objectContaining({
+        kind: "ticket_artifact",
+        reason: "active_reference",
+        referenceStatus: "referenced_by_active_run",
+      }),
+    );
+    expect(await exists(publication.artifactPath)).toBe(true);
   });
 
   test("CLI report is read-only and selected active cleanup returns a typed refusal", async () => {
