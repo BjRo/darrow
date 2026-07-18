@@ -4,6 +4,7 @@
   "contractVersion": "0.1.0",
   "inputSchema": "./input.schema.json",
   "outputSchema": "./output.schema.json",
+  "execution": { "protocol": "delivery-tdd" },
   "requires": [
     {
       "contract": "git.branch.create",

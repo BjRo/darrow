@@ -15,6 +15,7 @@ import {
   createLock,
   orderWorkflowSteps,
   snapshot,
+  validateExecutionProtocolSupport,
   validateWorkflowGraph,
   verifyResolvedPlan,
   verifyRunSnapshot,
@@ -67,6 +68,49 @@ async function repo(): Promise<string> {
 }
 
 describe("M1 compiler", () => {
+  test("preflights portable delivery evidence execution", () => {
+    expect(() =>
+      validateExecutionProtocolSupport(
+        "structured",
+        "claude",
+        "linux",
+        undefined,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateExecutionProtocolSupport(
+        "delivery-tdd",
+        "claude",
+        "darwin",
+        undefined,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateExecutionProtocolSupport(
+        "delivery-tdd",
+        "codex",
+        "linux",
+        "workspace-write",
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateExecutionProtocolSupport(
+        "delivery-tdd",
+        "claude",
+        "linux",
+        undefined,
+      ),
+    ).toThrow("without a locked Codex evidence permission profile");
+    expect(() =>
+      validateExecutionProtocolSupport(
+        "delivery-tdd",
+        "codex",
+        "linux",
+        undefined,
+      ),
+    ).toThrow("without a locked Codex evidence permission profile");
+  });
+
   test("resolves command and hard capability into a valid immutable plan and lock", async () => {
     const root = await repo();
     const previous = process.env.DARROW_PLUGIN_ROOTS;
@@ -300,17 +344,27 @@ steps:
         {
           path: resolve(claudeHome, "settings.json"),
           scope: "user",
+          present: true,
           digest: expect.stringMatching(/^sha256:/),
         },
         {
           path: resolve(root, ".claude", "settings.json"),
           scope: "project",
+          present: true,
+          digest: expect.stringMatching(/^sha256:/),
+        },
+        {
+          path: resolve(root, ".claude", "settings.local.json"),
+          scope: "local",
+          present: false,
           digest: expect.stringMatching(/^sha256:/),
         },
       ]);
-      await expect(
-        validateSchema("lock.schema.json", lock, "Claude lock"),
-      ).resolves.toBeUndefined();
+      const configurationEnvironment =
+        lock.adapters[0].nativePermissions.configurationEnvironment;
+      expect(configurationEnvironment.CLAUDE_CONFIG_DIR).toBe(claudeHome);
+      expect(typeof configurationEnvironment.PATH).toBe("string");
+      await validateSchema("lock.schema.json", lock, "Claude lock");
     } finally {
       restoreEnvironment("DARROW_PLUGIN_ROOTS", previousRoots);
       restoreEnvironment("CLAUDE_CONFIG_DIR", previousClaudeHome);
@@ -660,6 +714,42 @@ describe("M2 static workflow graph", () => {
     ];
     expect(() => validateWorkflowGraph(exposed)).toThrow(
       "must depend on final step",
+    );
+  });
+
+  test("rejects a dependency on a collapsed member of another loop", () => {
+    const workflow = graphWorkflow([
+      { id: "first-implement", dependsOn: [] },
+      { id: "first-review", dependsOn: ["first-implement"] },
+      { id: "second-implement", dependsOn: ["first-implement"] },
+      { id: "second-review", dependsOn: ["second-implement"] },
+    ]);
+    workflow.loops = [
+      {
+        id: "first-loop",
+        steps: ["first-implement", "first-review"],
+        maxAttempts: 2,
+        until: {
+          stepId: "first-review",
+          output: "summary",
+          equals: "approved",
+        },
+        waiver: null,
+      },
+      {
+        id: "second-loop",
+        steps: ["second-implement", "second-review"],
+        maxAttempts: 2,
+        until: {
+          stepId: "second-review",
+          output: "summary",
+          equals: "approved",
+        },
+        waiver: null,
+      },
+    ];
+    expect(() => validateWorkflowGraph(workflow)).toThrow(
+      "second-implement in loop second-loop must depend on final step first-review of loop first-loop, not collapsed member first-implement",
     );
   });
 

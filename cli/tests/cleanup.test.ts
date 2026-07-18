@@ -15,6 +15,7 @@ import {
   allocateManagedWorkspace,
   initRepository,
   releaseWorkspace,
+  withRepositoryCoordination,
 } from "../src/repository";
 import type {
   RunRecord,
@@ -233,6 +234,49 @@ describe("M2 explicit cleanup", () => {
       reason: "active_reference",
       referenceStatus: "referenced_by_active_run",
     });
+    expect(await exists(resolve(terminal.runDir, "artifacts"))).toBe(true);
+  });
+
+  test("coordinates run creation with cleanup inventory and deletion", async () => {
+    const { root, commit } = await fixture();
+    const terminal = await createRun(root, commit, "run-terminal", "completed");
+    let entered!: () => void;
+    let publish!: () => void;
+    const coordinationEntered = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const publishRun = new Promise<void>((resolve) => {
+      publish = resolve;
+    });
+    const creating = withRepositoryCoordination(
+      root,
+      "test run compilation",
+      async () => {
+        entered();
+        await publishRun;
+        const active = await createRun(root, commit, "run-active", "running");
+        await writeFile(
+          resolve(active.runDir, "events.jsonl"),
+          `${JSON.stringify({ artifact: resolve(terminal.runDir, "artifacts") })}\n`,
+        );
+      },
+    );
+    await coordinationEntered;
+    const cleaning = cleanRepository(
+      root,
+      { runId: "run-terminal", olderThanSeconds: null },
+      { runData: true, worktrees: false, tickets: false },
+    );
+    publish();
+    await creating;
+    const result = await cleaning;
+    expect(result.deleted).toEqual([]);
+    expect(result.blockers).toContainEqual(
+      expect.objectContaining({
+        resourceId: "run-terminal:artifacts",
+        reason: "active_reference",
+      }),
+    );
     expect(await exists(resolve(terminal.runDir, "artifacts"))).toBe(true);
   });
 

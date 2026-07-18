@@ -99,8 +99,11 @@ async function fixture(script?: string): Promise<{
     adapters: [
       {
         id: "claude-code",
+        executable: resolve(root, "mock-bin", "claude"),
+        detectedVersion: "2.1.185 (Claude Code)",
         routeIds: [route.routeId],
         nativePermissions: {
+          configurationEnvironment: { PATH: process.env.PATH ?? "" },
           configurationSources: [
             {
               path: localSettings,
@@ -219,6 +222,7 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_i
   test("refuses changed native permission settings before invoking Claude Code", async () => {
     const { root, input, bin } = await fixture(`#!/usr/bin/env bash
 set -euo pipefail
+if [[ "\${1:-}" == "--version" ]]; then echo '2.1.185 (Claude Code)'; exit 0; fi
 touch "$(dirname "$0")/invoked"
 `);
     await writeFile(
@@ -234,6 +238,171 @@ touch "$(dirname "$0")/invoked"
       expect(await exists(resolve(bin, "invoked"))).toBe(false);
     } finally {
       process.env.PATH = previousPath;
+    }
+  });
+
+  test("executes a generic metadata-owned command with the locked Claude environment", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "darrow-claude-generic-"));
+    temps.push(root);
+    const workspace = resolve(root, "workspace");
+    const runDir = resolve(root, ".darrow", "runs", "run-generic");
+    const snapshotDir = resolve(runDir, "snapshot");
+    const commandDir = resolve(
+      snapshotDir,
+      "commands",
+      "claude",
+      "example",
+      "generic",
+    );
+    for (const path of [workspace, commandDir, resolve(runDir, "results")])
+      await mkdir(path, { recursive: true });
+    await writeFile(resolve(commandDir, "SKILL.md"), "# generic\n");
+    await writeJson(resolve(commandDir, "darrow.json"), {
+      schemaVersion: 1,
+      kind: "command",
+      contractVersion: "1.0.0",
+      inputSchema: "./request.contract.json",
+      outputSchema: "./response.contract.json",
+    });
+    await writeJson(resolve(commandDir, "request.contract.json"), {
+      type: "object",
+      additionalProperties: false,
+      required: ["topic", "depth"],
+      properties: {
+        topic: { type: "string" },
+        depth: { type: "integer" },
+      },
+    });
+    await writeJson(resolve(commandDir, "response.contract.json"), {
+      type: "object",
+      additionalProperties: false,
+      required: ["answer"],
+      properties: { answer: { type: "string" } },
+    });
+    const lockedBin = resolve(root, "locked-bin");
+    const changedBin = resolve(root, "changed-bin");
+    const lockedHome = resolve(root, "locked-claude-home");
+    const changedHome = resolve(root, "changed-claude-home");
+    for (const path of [lockedBin, changedBin, lockedHome, changedHome])
+      await mkdir(path);
+    const lockedSettings = resolve(lockedHome, "settings.json");
+    await writeFile(lockedSettings, '{"permissions":{"deny":[]}}\n');
+    await writeFile(
+      resolve(lockedBin, "claude"),
+      `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" == "--version" ]]; then echo 'Claude Code locked'; exit 0; fi
+printf '%s' "\${CLAUDE_CONFIG_DIR:-}" > "$(dirname "$0")/home"
+printf '%s\\n' "$@" > "$(dirname "$0")/args"
+prompt=$(cat)
+printf '%s' "$prompt" > "$(dirname "$0")/prompt"
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"generic-claude","usage":{},"permission_denials":[],"structured_output":{"answer":"generic succeeded"}}'
+`,
+      { mode: 0o755 },
+    );
+    await writeFile(
+      resolve(changedBin, "claude"),
+      `#!/usr/bin/env bash
+touch "$(dirname "$0")/invoked"
+echo 'Claude Code changed'
+`,
+      { mode: 0o755 },
+    );
+    await writeFile(
+      resolve(changedBin, "bash"),
+      `#!/bin/sh
+touch "$(dirname "$0")/interpreter-invoked"
+exit 99
+`,
+      { mode: 0o755 },
+    );
+    const route = {
+      routeId: `sha256:${"f".repeat(64)}`,
+      profileId: "claude",
+      profileDigest: `sha256:${"a".repeat(64)}`,
+      harness: "claude",
+      provider: "anthropic",
+      model: "claude-test",
+      reasoningEffort: "high",
+      permissions: { inherit: true },
+      limits: {},
+      adapter: { id: "claude-code", version: "0.1.0" },
+      selectionSource: "fixed_plan",
+    } as const;
+    await writeJson(resolve(runDir, "lock.json"), {
+      adapters: [
+        {
+          id: "claude-code",
+          executable: resolve(lockedBin, "claude"),
+          detectedVersion: "Claude Code locked",
+          routeIds: [route.routeId],
+          nativePermissions: {
+            configurationEnvironment: {
+              CLAUDE_CONFIG_DIR: lockedHome,
+              PATH: process.env.PATH ?? "",
+            },
+            configurationSources: [
+              {
+                path: lockedSettings,
+                scope: "user",
+                digest: await hashFile(lockedSettings),
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const previousPath = process.env.PATH;
+    const previousHome = process.env.CLAUDE_CONFIG_DIR;
+    process.env.PATH = `${changedBin}:${previousPath}`;
+    process.env.CLAUDE_CONFIG_DIR = changedHome;
+    try {
+      const result = await executeClaudeCommand({
+        runId: "run-generic",
+        repoRoot: root,
+        runDir,
+        workspace,
+        snapshotDir,
+        attemptId: "attempt-1",
+        instructions: [],
+        priorArtifacts: [],
+        planCapabilities: [],
+        step: {
+          id: "generic",
+          dependsOn: [],
+          commandId: "example:generic",
+          contractVersion: "1.0.0",
+          cancellation: "wait_for_boundary",
+          role: "default",
+          route,
+          source: commandDir,
+          digest: await hashDirectory(commandDir),
+          input: { topic: "runtime", depth: 3 },
+          publish: null,
+        },
+        effectiveRoute: route,
+        routeAmendment: null,
+      });
+      expect(result.status, result.error?.message).toBe("succeeded");
+      expect(result.payload).toEqual({ answer: "generic succeeded" });
+      expect(result.artifacts).toEqual([]);
+      expect(await readFile(resolve(lockedBin, "home"), "utf8")).toBe(
+        lockedHome,
+      );
+      expect(await readFile(resolve(lockedBin, "prompt"), "utf8")).toContain(
+        'Command input (JSON): {"depth":3,"topic":"runtime"}',
+      );
+      expect(await readFile(resolve(lockedBin, "args"), "utf8")).toContain(
+        '"required":["answer"]',
+      );
+      expect(await exists(resolve(changedBin, "invoked"))).toBe(false);
+      expect(await exists(resolve(changedBin, "interpreter-invoked"))).toBe(
+        false,
+      );
+    } finally {
+      process.env.PATH = previousPath;
+      if (previousHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+      else process.env.CLAUDE_CONFIG_DIR = previousHome;
     }
   });
 
@@ -266,8 +435,23 @@ touch "$(dirname "$0")/invoked"
         adapters: [
           {
             id: "claude-code",
+            executable: Bun.which("claude")!,
+            detectedVersion: Bun.spawnSync(["claude", "--version"], {
+              stdout: "pipe",
+            })
+              .stdout.toString()
+              .trim(),
             routeIds: [input.effectiveRoute.routeId],
-            nativePermissions: { inherit: true, configurationSources },
+            nativePermissions: {
+              inherit: true,
+              configurationEnvironment: claudeHome
+                ? {
+                    CLAUDE_CONFIG_DIR: claudeHome,
+                    PATH: process.env.PATH ?? "",
+                  }
+                : { PATH: process.env.PATH ?? "" },
+              configurationSources,
+            },
           },
         ],
       });

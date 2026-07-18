@@ -97,10 +97,14 @@
       "harness": "codex",
       "nativePermissions": {
         "inherit": true,
+        "configurationEnvironment": {
+          "CODEX_HOME": "/home/user/.codex"
+        },
         "configurationSources": [
           {
             "path": "/home/user/.codex/config.toml",
             "scope": "user",
+            "present": true,
             "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           }
         ]

@@ -41,6 +41,20 @@ interface Located {
   scope: Scope;
 }
 
+export function validateExecutionProtocolSupport(
+  protocol: NonNullable<CommandMetadata["execution"]>["protocol"],
+  harness: "codex" | "claude",
+  platform = process.platform,
+  evidencePermissionProfile = process.env.DARROW_CODEX_PERMISSION_PROFILE,
+): void {
+  if (protocol !== "delivery-tdd" || platform === "darwin") return;
+  if (harness === "codex" && evidencePermissionProfile) return;
+  throw new DarrowError(
+    `delivery-tdd cannot execute through ${harness} on ${platform} without a locked Codex evidence permission profile`,
+    "preflight",
+  );
+}
+
 async function selectFile(
   idOrPath: string,
   repoRoot: string,
@@ -298,14 +312,13 @@ export function validateWorkflowGraph(workflow: WorkflowDefinition): void {
   }
   for (const step of workflow.steps) {
     const loopId = membership.get(step.id);
-    if (loopId) continue;
     for (const dependency of step.dependsOn) {
       const dependencyLoop = membership.get(dependency);
-      if (!dependencyLoop) continue;
+      if (!dependencyLoop || dependencyLoop === loopId) continue;
       const loop = workflow.loops.find((item) => item.id === dependencyLoop)!;
       if (dependency !== loop.steps.at(-1))
         throw new DarrowError(
-          `workflow step ${step.id} must depend on final step ${loop.steps.at(-1)} of loop ${loop.id}`,
+          `workflow step ${step.id}${loopId ? ` in loop ${loopId}` : ""} must depend on final step ${loop.steps.at(-1)} of loop ${loop.id}, not collapsed member ${dependency}`,
           "validation",
         );
     }
@@ -609,6 +622,10 @@ export async function compile(
   for (let index = 0; index < orderedSteps.length; index += 1) {
     const command = commands[index]!.candidate;
     const metadata = command.metadata as CommandMetadata;
+    validateExecutionProtocolSupport(
+      metadata.execution?.protocol ?? "structured",
+      commands[index]!.harness,
+    );
     const resolvedInput = resolveInput(
       orderedSteps[index]!.with,
       inputs,
@@ -903,24 +920,37 @@ export async function createLock(
         path: string;
         scope: "environment" | "user" | "project" | "local";
       }> = [];
+      const configurationEnvironment: Record<string, string> = {};
+      if (process.env.PATH) configurationEnvironment.PATH = process.env.PATH;
+      if (process.env.DARROW_CODEX_PERMISSION_PROFILE)
+        configurationEnvironment.DARROW_CODEX_PERMISSION_PROFILE =
+          process.env.DARROW_CODEX_PERMISSION_PROFILE;
       if (harness === "codex") {
         const codexHome =
           process.env.CODEX_HOME ??
           (process.env.HOME ? resolve(process.env.HOME, ".codex") : null);
-        if (codexHome)
+        if (codexHome) {
+          configurationEnvironment.CODEX_HOME = resolve(codexHome);
           configurationPaths.push({
             path: resolve(codexHome, "config.toml"),
             scope: "user",
           });
+        }
+        configurationPaths.push({
+          path: resolve(compilation.repoRoot, ".codex", "config.toml"),
+          scope: "project",
+        });
       } else {
         const claudeHome =
           process.env.CLAUDE_CONFIG_DIR ??
           (process.env.HOME ? resolve(process.env.HOME, ".claude") : null);
-        if (claudeHome)
+        if (claudeHome) {
+          configurationEnvironment.CLAUDE_CONFIG_DIR = resolve(claudeHome);
           configurationPaths.push({
             path: resolve(claudeHome, "settings.json"),
             scope: "user",
           });
+        }
         configurationPaths.push(
           {
             path: resolve(compilation.repoRoot, ".claude", "settings.json"),
@@ -937,16 +967,23 @@ export async function createLock(
         );
       }
       const configurationSources = await Promise.all(
-        configurationPaths.map(async ({ path, scope }) =>
-          (await exists(path))
-            ? { path, scope, digest: await hashFile(path) }
-            : null,
-        ),
-      ).then((items) => items.filter((item) => item !== null));
+        configurationPaths.map(async ({ path, scope }) => {
+          const present = await exists(path);
+          return {
+            path,
+            scope,
+            present,
+            digest: present
+              ? await hashFile(path)
+              : sha256(`missing:${resolve(path)}`),
+          };
+        }),
+      );
       if (configurationSources.length === 0)
         configurationSources.push({
           path: "environment-defaults",
           scope: "environment",
+          present: false,
           digest: sha256("environment-defaults"),
         });
       const adapterRoutes = routes.filter((route) => route.harness === harness);
@@ -958,7 +995,11 @@ export async function createLock(
           detected?.exitCode === 0 ? detected.stdout.trim() : "unavailable",
         routeIds: adapterRoutes.map((route) => route.routeId),
         harness,
-        nativePermissions: { inherit: true, configurationSources },
+        nativePermissions: {
+          inherit: true,
+          configurationEnvironment,
+          configurationSources,
+        },
       };
     }),
   );

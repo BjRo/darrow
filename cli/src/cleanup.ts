@@ -13,7 +13,10 @@ import { DarrowError } from "./errors";
 import { exists, hashDirectory, readJson, replaceJson, writeJson } from "./io";
 import { withDirectoryLock } from "./locks";
 import { run } from "./process";
-import { removeManagedWorkspace } from "./repository";
+import {
+  removeManagedWorkspace,
+  withRepositoryCoordination,
+} from "./repository";
 import { validateSchema } from "./schema";
 import { event, readRun } from "./state";
 import type {
@@ -526,6 +529,44 @@ async function runRecords(
   return records;
 }
 
+async function assertDeletionAuthority(
+  root: string,
+  item: CleanupItem,
+): Promise<void> {
+  const records = await runRecords(root);
+  const owner = records.find(({ record }) => record.runId === item.runId);
+  if (!owner || owner.record.state !== "completed")
+    throw new DarrowError(
+      `refusing cleanup for active or unavailable run ${item.runId}`,
+      "cleanup_active",
+    );
+  const activeCorpora = await Promise.all(
+    records
+      .filter(({ record }) => record.state !== "completed")
+      .map(async ({ runDir, record }) => ({
+        runId: record.runId,
+        corpus: await controlCorpus(runDir),
+      })),
+  );
+  const referenced = referencedByActiveRun(
+    root,
+    item.path,
+    activeCorpora,
+    item.runId,
+  );
+  const ticketReferenced =
+    item.publicationId !== null &&
+    activeCorpora.some(
+      ({ runId, corpus }) =>
+        runId !== item.runId && corpus.includes(item.publicationId!),
+    );
+  if (referenced || ticketReferenced)
+    throw new DarrowError(
+      `refusing cleanup of ${item.resourceId}; it is referenced by an active run`,
+      "cleanup_active",
+    );
+}
+
 export async function inventoryCleanup(
   root: string,
   filters: CleanupFilters,
@@ -655,6 +696,7 @@ async function deleteItem(root: string, item: CleanupItem): Promise<void> {
           `refusing cleanup for active run ${item.runId}`,
           "cleanup_active",
         );
+      await assertDeletionAuthority(root, item);
       await writeCleanupMarker(runDir, item, null);
       if (item.kind === "worktree")
         await removeManagedWorkspace(root, item.runId, item.path);
@@ -715,6 +757,7 @@ async function deleteTicketItems(
         `ticket cleanup selection changed before deletion: ${ticketPath}`,
         "concurrency",
       );
+    for (const item of items) await assertDeletionAuthority(root, item);
     for (const item of items) {
       const publication = selectedPublications.find(
         (candidate) => candidate.publicationId === item.publicationId,
@@ -816,12 +859,11 @@ async function deleteTicketItems(
   });
 }
 
-export async function cleanRepository(
+async function cleanWithInventory(
   root: string,
   filters: CleanupFilters,
   selection: CleanupSelection,
 ): Promise<CleanupResult> {
-  root = await realpath(root);
   const mode =
     selection.runData || selection.worktrees || selection.tickets
       ? "delete"
@@ -837,6 +879,9 @@ export async function cleanRepository(
     blockers,
   };
   if (blockers.length > 0) return result;
+  const selectedItems = items.filter((item) => item.selected);
+  if (mode === "report") return result;
+  for (const item of selectedItems) await assertDeletionAuthority(root, item);
   const ticketItems = items.filter(
     (candidate) => candidate.selected && candidate.kind === "ticket_artifact",
   );
@@ -863,4 +908,18 @@ export async function cleanRepository(
     result.deleted.push(item.resourceId);
   }
   return result;
+}
+
+export async function cleanRepository(
+  root: string,
+  filters: CleanupFilters,
+  selection: CleanupSelection,
+): Promise<CleanupResult> {
+  root = await realpath(root);
+  const deleting =
+    selection.runData || selection.worktrees || selection.tickets;
+  if (!deleting) return cleanWithInventory(root, filters, selection);
+  return withRepositoryCoordination(root, "repository cleanup", () =>
+    cleanWithInventory(root, filters, selection),
+  );
 }

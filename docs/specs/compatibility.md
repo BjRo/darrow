@@ -130,6 +130,7 @@ Command metadata has this shape:
   "contractVersion": "1.0.0",
   "inputSchema": "./input.schema.json",
   "outputSchema": "./output.schema.json",
+  "execution": { "protocol": "structured" },
   "cancellation": "wait_for_boundary",
   "requires": [
     {
@@ -145,7 +146,10 @@ Optional capabilities are expressed only through natural-language intent and
 therefore do not appear here. `cancellation` may be `wait_for_boundary` or
 `interrupt`; omission safely defaults to `wait_for_boundary`. A command may
 declare `interrupt` only when terminating its active invocation at that boundary
-is safe according to the command's checkpoint contract.
+is safe according to the command's checkpoint contract. `execution.protocol`
+may be `structured` or `delivery-tdd` and defaults to `structured`. The latter
+opts into Darrow's versioned delivery evidence broker and bounded Git-workspace
+checks; ordinary commands receive only the common structured adapter envelope.
 
 Capability metadata has this shape:
 
@@ -171,6 +175,10 @@ Capability metadata has this shape:
 - **CP-22 — Relative schema ownership.** Command and routing-policy input and
   output schemas resolve relative to the skill directory and remain inside it.
   They ship in the same self-contained plugin.
+- **CP-22a — Explicit execution protocol.** Command metadata selects its runtime
+  execution protocol. Omission means the generic structured protocol. A
+  command-specific protocol is opt-in and snapshotted; adapters never infer it
+  from a command ID, schema basename, input property, or bundled script.
 
 ## Scoped resolution
 
@@ -225,7 +233,9 @@ Capability metadata has this shape:
   - requested harness, provider, model, reasoning configuration, limits, and
     native permission configuration for every eligible route;
   - every eligible adapter identity, detected executable version, and adapter
-    contract version;
+    contract version, including its absolute executable path and the bounded
+    launcher, native configuration-root, and evidence-sandbox environment used
+    for interpreter and permission discovery;
   - any routing-policy provider identity, contract version, implementation
     digest, configuration digest, and fixed bootstrap profile when agent-backed;
   - the engine version; and

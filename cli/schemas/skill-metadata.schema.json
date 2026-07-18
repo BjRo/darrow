@@ -18,6 +18,7 @@
         "contractVersion": { "$ref": "#/$defs/semver" },
         "inputSchema": { "$ref": "#/$defs/path" },
         "outputSchema": { "$ref": "#/$defs/path" },
+        "execution": { "$ref": "#/$defs/execution" },
         "cancellation": {
           "enum": ["wait_for_boundary", "interrupt"]
         },
@@ -60,6 +61,14 @@
         { "pattern": "^\\./.+\\.json$" },
         { "not": { "pattern": "(^|/)\\.\\.(/|$)" } }
       ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol"],
+      "properties": {
+        "protocol": { "enum": ["structured", "delivery-tdd"] }
+      }
     },
     "requirement": {
       "type": "object",

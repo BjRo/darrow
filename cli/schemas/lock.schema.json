@@ -283,6 +283,16 @@
           "required": ["inherit", "configurationSources"],
           "properties": {
             "inherit": { "const": true },
+            "configurationEnvironment": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "CODEX_HOME": { "type": "string" },
+                "CLAUDE_CONFIG_DIR": { "type": "string" },
+                "DARROW_CODEX_PERMISSION_PROFILE": { "type": "string" },
+                "PATH": { "type": "string" }
+              }
+            },
             "configurationSources": {
               "type": "array",
               "minItems": 1,
@@ -295,6 +305,7 @@
                   "scope": {
                     "enum": ["environment", "user", "project", "local"]
                   },
+                  "present": { "type": "boolean" },
                   "digest": { "$ref": "#/$defs/digest" }
                 }
               }

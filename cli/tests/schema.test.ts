@@ -384,6 +384,7 @@ describe("0.1.0 contract fixtures", () => {
       contractVersion: "1.0.0",
       inputSchema: "./input.schema.json",
       outputSchema: "./output.schema.json",
+      execution: { protocol: "delivery-tdd" },
       cancellation: "interrupt",
     };
     await expect(
@@ -398,6 +399,13 @@ describe("0.1.0 contract fixtures", () => {
         "skill-metadata.schema.json",
         { ...metadata, cancellation: "kill" },
         "unsafe command metadata",
+      ),
+    ).rejects.toThrow("allowed values");
+    await expect(
+      validateSchema(
+        "skill-metadata.schema.json",
+        { ...metadata, execution: { protocol: "inferred" } },
+        "implicit execution protocol",
       ),
     ).rejects.toThrow("allowed values");
   });

@@ -204,6 +204,12 @@ The initial layout is:
 - **WA-33 — Active references protected.** An artifact, snapshot, content item,
   worktree, or ticket artifact referenced by an active run is not eligible for
   deletion.
+- **WA-33a — Deletion-time revalidation.** A deleting cleanup holds repository
+  coordination from authoritative inventory through deletion and revalidates
+  the complete active-reference set immediately before each destructive step.
+  Run creation uses the same coordination while compiling and publishing its
+  immutable control record, so a new active reference cannot appear between
+  inventory and delete.
 - **WA-34 — Run-local eligibility.** Run-local artifacts and snapshots are
   eligible only after their run is terminal and no active run references them.
   `--run-data` selects the run's artifacts, snapshot, content, and normalized

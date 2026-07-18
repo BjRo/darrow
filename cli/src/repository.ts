@@ -137,6 +137,15 @@ async function withAllocationLock<T>(
   return withDirectoryLock(lock, "allocation", operation);
 }
 
+export async function withRepositoryCoordination<T>(
+  root: string,
+  label: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const lock = resolve(root, ".darrow", "locks", "repository-state.lock");
+  return withDirectoryLock(lock, label, operation);
+}
+
 function ownerPath(root: string, workspace: string): string {
   return resolve(
     root,

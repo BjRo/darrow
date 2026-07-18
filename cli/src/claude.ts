@@ -1,5 +1,3 @@
-import { readJson } from "./io";
-import { resolve } from "node:path";
 import {
   executeHarnessCommand,
   type CommandHarnessAdapter,
@@ -18,27 +16,14 @@ function numericUsage(value: unknown): Record<string, number> | undefined {
 }
 
 const claudeAdapter: CommandHarnessAdapter = {
-  executable: "claude",
   displayName: "Claude Code",
-  async invocation(input, outputSchema) {
-    const schema = await readJson<Record<string, unknown>>(outputSchema);
-    const lock = await readJson<{
-      adapters: Array<{
-        id: string;
-        nativePermissions: {
-          configurationSources: Array<{ path: string; scope: string }>;
-        };
-      }>;
-    }>(resolve(input.runDir, "lock.json"));
-    const lockedAdapter = lock.adapters.find(
-      (item) => item.id === input.effectiveRoute.adapter.id,
-    );
-    const localSettings =
-      lockedAdapter?.nativePermissions.configurationSources.find(
-        (source) => source.scope === "local",
-      )?.path;
+  async invocation(input, outputSchema, _outputFile, locked) {
+    const schema = await Bun.file(outputSchema).json();
+    const localSettings = locked.configurationSources.find(
+      (source) => source.scope === "local",
+    )?.path;
     const args = [
-      "claude",
+      locked.executable,
       "--print",
       "--output-format",
       "stream-json",

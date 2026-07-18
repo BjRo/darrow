@@ -235,6 +235,7 @@ export interface CommandMetadata {
   contractVersion: string;
   inputSchema: string;
   outputSchema: string;
+  execution?: { protocol: "structured" | "delivery-tdd" };
   cancellation?: CancellationMode;
   requires?: Requirement[];
 }

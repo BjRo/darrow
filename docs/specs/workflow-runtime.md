@@ -46,7 +46,9 @@ examples are illustrative rather than an alternate schema.
   loop region is an ordered linear sequence: its first step may depend on work
   outside the region, each later step depends only on its predecessor, and work
   outside the region may depend only on the region's final step. A step belongs
-  to at most one loop.
+  to at most one loop. A dependency crossing between two loop regions must also
+  target the final step of the dependency loop so convergence never leaves a
+  scheduler dependency on a collapsed member.
 - **WR-3 — Typed boundaries.** Workflow inputs, step inputs and outputs, built-in
   arguments, artifacts, human responses, and workflow outputs have versioned
   schemas. Producers and consumers validate their side of each boundary.
@@ -370,7 +372,11 @@ contract is implemented by M2c without requiring M2b to perform dynamic routing.
 - **WR-42 — Translation, not reinterpretation.** The adapter owns native
   invocation syntax, event streaming, timeout, cancellation, and session resume.
   It does not reinterpret the command's domain result or fabricate missing
-  guarantees.
+  guarantees. It reads the snapshotted command metadata, resolves the declared
+  input and output schemas relative to that snapshot, and supplies the complete
+  structured input. Delivery-specific evidence, Git branching, changed-path,
+  and no-commit enforcement applies only when the command explicitly opts into
+  the versioned delivery execution protocol.
 - **WR-43 — Portable resume.** Native session continuation is an optimization.
   A compatible adapter can resume from the locked plan, run snapshot, workspace,
   artifacts, transcript reference, and human response without provider-owned
@@ -385,7 +391,10 @@ contract is implemented by M2c without requiring M2b to perform dynamic routing.
   each route's locked native configuration and never enable a permission-bypass
   mode. User and project configuration is revalidated before invocation; Claude
   Code local settings are passed explicitly so managed worktrees receive the
-  same locked policy.
+  same locked policy. Every attempt invokes the exact absolute executable in the
+  run lock and reconstructs the locked launcher and permission-configuration
+  environment, including `PATH`; current interpreter lookup, configuration-root,
+  or evidence-sandbox variables cannot substitute another harness or policy.
 - **WR-45 — Temporal authority.** Temporal history is authoritative for active
   workflow control state. `darrow inspect` queries live state and joins it with
   repository-local plan, lock, journal, content, and artifacts.

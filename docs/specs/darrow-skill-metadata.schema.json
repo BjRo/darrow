@@ -31,6 +31,9 @@
         "outputSchema": {
           "$ref": "#/$defs/schemaPath"
         },
+        "execution": {
+          "$ref": "#/$defs/execution"
+        },
         "cancellation": {
           "description": "Whether an active invocation may be interrupted safely; omission means wait_for_boundary.",
           "enum": ["wait_for_boundary", "interrupt"]
@@ -92,6 +95,16 @@
           }
         }
       ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol"],
+      "properties": {
+        "protocol": {
+          "enum": ["structured", "delivery-tdd"]
+        }
+      }
     },
     "requirement": {
       "type": "object",

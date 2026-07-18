@@ -40,7 +40,12 @@ change, and proves the same test plus the relevant regression suite pass.
   executes the exact argv inside a non-networked workspace-write sandbox, and
   HMAC-attests the observation outside the model workspace with a key never
   exposed to the model subprocess. Hand-authored, repeated, or altered phase
-  files cannot satisfy completion.
+  files cannot satisfy completion. The command opts into this behavior through
+  its snapshotted `delivery-tdd` execution protocol metadata; adapters do not
+  impose it on unrelated commands. Non-macOS capture uses only the locked Codex
+  executable and locked sandbox-profile selector; if the route cannot provide
+  that executor, compilation refuses before workspace allocation instead of
+  consulting current `PATH` or environment fallbacks.
 - **DL-7 — Evidence enforcement.** The command's bundled script validates the
   evidence document and refuses completion when phases are missing, reordered,
   use different focused commands, have invalid exit semantics, reference

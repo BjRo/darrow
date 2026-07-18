@@ -40,6 +40,7 @@ import {
   releaseWorkspace,
   reserveRunDirectory,
   requireInitialized,
+  withRepositoryCoordination,
 } from "./repository";
 import { event, readRun, saveRun } from "./state";
 import {
@@ -624,9 +625,22 @@ async function runWorkflow(options: RunOptions): Promise<number> {
   const invokedRoot = currentWorktreeRoot();
   const repoRoot = primaryRepoRoot();
   await requireInitialized(repoRoot);
-  const compilation = await compile(repoRoot, options.workflow, options.inputs);
   const commit = pinnedCommit(invokedRoot, options.base);
-  const staged = await stageRun(repoRoot, compilation.workflow.id, compilation);
+  const { compilation, staged } = await withRepositoryCoordination(
+    repoRoot,
+    "run compilation",
+    async () => {
+      const compilation = await compile(
+        repoRoot,
+        options.workflow,
+        options.inputs,
+      );
+      return {
+        compilation,
+        staged: await stageRun(repoRoot, compilation.workflow.id, compilation),
+      };
+    },
+  );
   const { runId, runDir, record } = staged;
   await event(runDir, runId, "workflow.compiled", {
     workflow: compilation.plan.workflow,

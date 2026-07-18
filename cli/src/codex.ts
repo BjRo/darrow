@@ -1,7 +1,7 @@
 import { CancelledFailure, Context } from "@temporalio/activity";
 import { createHmac, randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { delimiter, isAbsolute, relative, resolve } from "node:path";
 import { checkpointEvidence } from "./artifacts";
 import { DarrowError } from "./errors";
 import { readHumanInstructions } from "./human";
@@ -19,7 +19,7 @@ import { run } from "./process";
 import { validRouteAmendment } from "./routing";
 import { validateExternalSchema } from "./schema";
 import { event } from "./state";
-import type { ActivityInput, CommandResult } from "./types";
+import type { ActivityInput, CommandMetadata, CommandResult } from "./types";
 
 export interface NativeHarnessOutput {
   nativeSessionId?: string;
@@ -30,14 +30,25 @@ export interface NativeHarnessOutput {
 }
 
 export interface CommandHarnessAdapter {
-  executable: "codex" | "claude";
   displayName: string;
   invocation(
     input: ActivityInput,
     outputSchema: string,
     outputFile: string,
+    locked: LockedHarnessAdapter,
   ): Promise<string[]>;
   parseOutput(stdout: string): NativeHarnessOutput;
+}
+
+export interface LockedHarnessAdapter {
+  executable: string;
+  detectedVersion: string;
+  environment: Record<string, string>;
+  configurationSources: Array<{
+    path: string;
+    scope: "environment" | "user" | "project" | "local";
+    digest: string;
+  }>;
 }
 
 function failure(
@@ -121,6 +132,10 @@ export async function startEvidenceBroker(
   evidenceDir: string,
   workspace: string,
   attestationDir: string,
+  runtime: {
+    codexExecutable?: string;
+    environment?: Record<string, string | undefined>;
+  } = {},
 ): Promise<EvidenceBroker> {
   const token = randomBytes(24).toString("hex");
   const key = randomBytes(32);
@@ -178,13 +193,13 @@ export async function startEvidenceBroker(
     args: string[],
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     const env = Object.fromEntries(
-      Object.entries(process.env).filter(
+      Object.entries(runtime.environment ?? process.env).filter(
         ([name]) => !name.startsWith("DARROW_EVIDENCE_BROKER_"),
       ),
     ) as Record<string, string>;
     Object.assign(
       env,
-      await guardEnvironment(resolve(attestationDir, "guards")),
+      await guardEnvironment(resolve(attestationDir, "guards"), env.PATH),
     );
     let command: string[];
     if (process.platform === "darwin") {
@@ -216,20 +231,23 @@ export async function startEvidenceBroker(
         "/usr/bin/sandbox-exec",
         "-f",
         profile,
-        "bash",
+        "/bin/bash",
         script,
         ...args,
       ];
-    } else if (process.env.DARROW_CODEX_PERMISSION_PROFILE) {
+    } else if (
+      runtime.codexExecutable &&
+      runtime.environment?.DARROW_CODEX_PERMISSION_PROFILE
+    ) {
       command = [
-        "codex",
+        runtime.codexExecutable,
         "sandbox",
         "-P",
-        process.env.DARROW_CODEX_PERMISSION_PROFILE,
+        runtime.environment.DARROW_CODEX_PERMISSION_PROFILE,
         "-C",
         workspace,
         "--",
-        "bash",
+        "/bin/bash",
         script,
         ...args,
       ];
@@ -341,7 +359,16 @@ export async function startEvidenceBroker(
 
 export async function guardEnvironment(
   root: string,
+  inheritedPath = process.env.PATH,
 ): Promise<Record<string, string>> {
+  async function executable(name: string): Promise<string | null> {
+    for (const directory of (inheritedPath ?? "").split(delimiter)) {
+      if (!directory) continue;
+      const candidate = resolve(directory, name);
+      if (await exists(candidate)) return candidate;
+    }
+    return null;
+  }
   const hooks = resolve(root, ".guard-hooks");
   const bin = resolve(root, ".guard-bin");
   await mkdir(hooks, { recursive: true });
@@ -353,7 +380,7 @@ export async function guardEnvironment(
       { mode: 0o755 },
     );
   }
-  const git = Bun.which("git");
+  const git = await executable("git");
   if (!git) throw new DarrowError("git is unavailable", "git");
   await writeFile(
     resolve(bin, "git"),
@@ -383,13 +410,13 @@ exec ${shellQuote(git)} "$@"
     composer: ["install", "update", "require", "remove"],
   };
   for (const [name, forbidden] of Object.entries(guards)) {
-    const executable = Bun.which(name);
-    if (!executable) continue;
+    const path = await executable(name);
+    if (!path) continue;
     await writeFile(
       resolve(bin, name),
       `#!/bin/sh
 case "\${1:-}" in ${forbidden.join("|")}) echo "Darrow M1 forbids dependency changes through ${name}" >&2; exit 1 ;; esac
-exec ${shellQuote(executable)} "$@"
+exec ${shellQuote(path)} "$@"
 `,
       { mode: 0o755 },
     );
@@ -408,7 +435,7 @@ exec ${shellQuote(executable)} "$@"
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: "core.hooksPath",
     GIT_CONFIG_VALUE_0: hooks,
-    PATH: `${bin}:${process.env.PATH ?? ""}`,
+    PATH: `${bin}:${inheritedPath ?? ""}`,
   };
 }
 
@@ -452,8 +479,7 @@ async function executeHarnessCommandInternal(
     pluginName,
     skillName,
   );
-  const outputSchema = resolve(commandDir, "output.schema.json");
-  const inputSchema = resolve(commandDir, "input.schema.json");
+  const metadataPath = resolve(commandDir, "darrow.json");
   const evidenceDir = resolve(
     input.workspace,
     ".darrow-attempts",
@@ -473,71 +499,104 @@ async function executeHarnessCommandInternal(
       "snapshot_corrupt",
       "snapshotted command digest does not match the immutable plan",
     );
+  const commandMetadata = await readJson<CommandMetadata>(metadataPath);
+  if (
+    commandMetadata.kind !== "command" ||
+    commandMetadata.contractVersion !== input.step.contractVersion
+  )
+    return failure(
+      input,
+      invocationId,
+      startedAt,
+      "snapshot_corrupt",
+      "snapshotted command metadata disagrees with the immutable plan",
+    );
+  const outputSchema = resolve(commandDir, commandMetadata.outputSchema);
+  const inputSchema = resolve(commandDir, commandMetadata.inputSchema);
+  const deliveryProtocol =
+    commandMetadata.execution?.protocol === "delivery-tdd";
   await validateExternalSchema(inputSchema, input.step.input, "command input");
   const lockPath = resolve(input.runDir, "lock.json");
-  if (await exists(lockPath)) {
-    const lock = await readJson<{
-      adapters: Array<{
-        id: string;
-        routeIds: string[];
-        nativePermissions: {
-          configurationSources: Array<{
-            path: string;
-            scope: "environment" | "user" | "project" | "local";
-            digest: string;
-          }>;
-        };
-      }>;
-    }>(lockPath);
-    const lockedAdapter = lock.adapters.find(
-      (item) => item.id === input.effectiveRoute.adapter.id,
+  if (!(await exists(lockPath)))
+    return failure(
+      input,
+      invocationId,
+      startedAt,
+      "snapshot_corrupt",
+      "run lock is missing",
     );
-    if (!lockedAdapter)
-      return failure(
-        input,
-        invocationId,
-        startedAt,
-        "snapshot_corrupt",
-        `run lock does not contain adapter ${input.effectiveRoute.adapter.id}`,
-      );
-    const amendment = input.routeAmendment;
-    const attempt = Number(/-(\d+)$/.exec(input.attemptId)?.[1] ?? 0);
-    let amendmentIsAuthorized = false;
-    if (amendment && validRouteAmendment(amendment)) {
-      const { amendmentId, ...amendmentBase } = amendment;
-      amendmentIsAuthorized =
-        sha256(canonicalJson(amendmentBase)) === amendmentId &&
-        amendment.stepId === input.step.id &&
-        amendment.planRouteId === input.step.route.routeId &&
-        lockedAdapter.routeIds.includes(amendment.planRouteId) &&
-        amendment.attemptScope.fromAttempt <= attempt &&
-        canonicalJson(amendment.replacementRoute) ===
-          canonicalJson(input.effectiveRoute);
-    }
-    const routeIsLocked =
-      lockedAdapter.routeIds.includes(input.effectiveRoute.routeId) ||
-      amendmentIsAuthorized;
-    if (!routeIsLocked)
-      return failure(
-        input,
-        invocationId,
-        startedAt,
-        "snapshot_corrupt",
-        `run lock does not authorize route ${input.effectiveRoute.routeId}`,
-      );
-    for (const source of lockedAdapter.nativePermissions.configurationSources) {
-      if (source.path === "environment-defaults") continue;
+  const lock = await readJson<{
+    adapters: Array<{
+      id: string;
+      executable: string;
+      detectedVersion: string;
+      routeIds: string[];
+      nativePermissions: {
+        configurationEnvironment?: Record<string, string>;
+        configurationSources: Array<{
+          path: string;
+          scope: "environment" | "user" | "project" | "local";
+          present?: boolean;
+          digest: string;
+        }>;
+      };
+    }>;
+  }>(lockPath);
+  const locked = lock.adapters.find(
+    (item) => item.id === input.effectiveRoute.adapter.id,
+  );
+  if (!locked)
+    return failure(
+      input,
+      invocationId,
+      startedAt,
+      "snapshot_corrupt",
+      `run lock does not contain adapter ${input.effectiveRoute.adapter.id}`,
+    );
+  const amendment = input.routeAmendment;
+  const attempt = Number(/-(\d+)$/.exec(input.attemptId)?.[1] ?? 0);
+  let amendmentIsAuthorized = false;
+  if (amendment && validRouteAmendment(amendment)) {
+    const { amendmentId, ...amendmentBase } = amendment;
+    amendmentIsAuthorized =
+      sha256(canonicalJson(amendmentBase)) === amendmentId &&
+      amendment.stepId === input.step.id &&
+      amendment.planRouteId === input.step.route.routeId &&
+      locked.routeIds.includes(amendment.planRouteId) &&
+      amendment.attemptScope.fromAttempt <= attempt &&
+      canonicalJson(amendment.replacementRoute) ===
+        canonicalJson(input.effectiveRoute);
+  }
+  const routeIsLocked =
+    locked.routeIds.includes(input.effectiveRoute.routeId) ||
+    amendmentIsAuthorized;
+  if (!routeIsLocked)
+    return failure(
+      input,
+      invocationId,
+      startedAt,
+      "snapshot_corrupt",
+      `run lock does not authorize route ${input.effectiveRoute.routeId}`,
+    );
+  const configurationSources =
+    locked.nativePermissions.configurationSources.map((source) => {
+      if (source.path === "environment-defaults") return source;
       const repoRelative = relative(input.repoRoot, source.path);
-      const runtimePath =
-        source.scope === "project" &&
+      const workspaceScoped =
+        ["project", "local"].includes(source.scope) &&
         (repoRelative === "" ||
-          (!repoRelative.startsWith("..") && !repoRelative.startsWith("/")))
+          (!repoRelative.startsWith("..") && !isAbsolute(repoRelative)));
+      return {
+        ...source,
+        path: workspaceScoped
           ? resolve(input.workspace, repoRelative)
-          : source.path;
-      if (
-        !(await exists(runtimePath)) ||
-        (await hashFile(runtimePath)) !== source.digest
-      ) {
+          : source.path,
+      };
+    });
+  for (const source of configurationSources) {
+    if (source.path === "environment-defaults") continue;
+    if (source.present === false) {
+      if (await exists(source.path))
         return failure(
           input,
           invocationId,
@@ -545,9 +604,56 @@ async function executeHarnessCommandInternal(
           "preflight_stale",
           `native ${adapter.displayName} permission configuration changed after the run was locked`,
         );
-      }
+      continue;
     }
+    if (
+      !(await exists(source.path)) ||
+      (await hashFile(source.path)) !== source.digest
+    )
+      return failure(
+        input,
+        invocationId,
+        startedAt,
+        "preflight_stale",
+        `native ${adapter.displayName} permission configuration changed after the run was locked`,
+      );
   }
+  if (
+    typeof locked.executable !== "string" ||
+    !isAbsolute(locked.executable) ||
+    locked.detectedVersion === "unavailable"
+  )
+    return failure(
+      input,
+      invocationId,
+      startedAt,
+      "model_unavailable",
+      `locked ${adapter.displayName} executable is unavailable`,
+    );
+  const controlledEnvironment = { ...process.env };
+  delete controlledEnvironment.CODEX_HOME;
+  delete controlledEnvironment.CLAUDE_CONFIG_DIR;
+  delete controlledEnvironment.DARROW_CODEX_PERMISSION_PROFILE;
+  delete controlledEnvironment.PATH;
+  const recordedEnvironment =
+    locked.nativePermissions.configurationEnvironment ?? {};
+  const lockedUserConfiguration = configurationSources.find(
+    (source) =>
+      source.scope === "user" && source.path !== "environment-defaults",
+  );
+  if (Object.keys(recordedEnvironment).length === 0 && lockedUserConfiguration)
+    recordedEnvironment[
+      input.effectiveRoute.harness === "codex"
+        ? "CODEX_HOME"
+        : "CLAUDE_CONFIG_DIR"
+    ] = resolve(lockedUserConfiguration.path, "..");
+  Object.assign(controlledEnvironment, recordedEnvironment);
+  const lockedAdapter: LockedHarnessAdapter = {
+    executable: locked.executable,
+    detectedVersion: locked.detectedVersion,
+    environment: controlledEnvironment as Record<string, string>,
+    configurationSources,
+  };
   for (const capability of input.planCapabilities ?? []) {
     const providerParts = capability.providerId.split(":");
     const capabilityDir = resolve(
@@ -574,19 +680,26 @@ async function executeHarnessCommandInternal(
         `enabled capability changed after preflight: ${capability.contract}`,
       );
   }
-  const installed = run([adapter.executable, "--version"], input.workspace);
-  if (installed.exitCode !== 0)
+  const installed = run(
+    [lockedAdapter.executable, "--version"],
+    input.workspace,
+    lockedAdapter.environment,
+  );
+  if (
+    installed.exitCode !== 0 ||
+    installed.stdout.trim() !== lockedAdapter.detectedVersion
+  )
     return failure(
       input,
       invocationId,
       startedAt,
       "model_unavailable",
-      installed.stderr.trim() || `${adapter.displayName} is unavailable`,
+      installed.stderr.trim() ||
+        `locked ${adapter.displayName} executable version changed after compilation`,
     );
-  const headBefore = run(
-    ["git", "rev-parse", "HEAD"],
-    input.workspace,
-  ).stdout.trim();
+  const headBefore = deliveryProtocol
+    ? run(["git", "rev-parse", "HEAD"], input.workspace).stdout.trim()
+    : null;
   const supplementalInstructions = await Promise.all(
     input.instructions.map((reference) =>
       readHumanInstructions(input.repoRoot, input.runDir, reference),
@@ -595,8 +708,13 @@ async function executeHarnessCommandInternal(
   const prompt = [
     `Invoke the snapshotted Darrow command ${input.step.commandId}@${input.step.contractVersion}.`,
     `Read and follow ${resolve(commandDir, "SKILL.md")} exactly.`,
-    `Requested change: ${String(input.step.input.change)}`,
-    `Evidence directory: ${evidenceDir}`,
+    `Command input (JSON): ${canonicalJson(input.step.input)}`,
+    ...(deliveryProtocol
+      ? [
+          `Requested change: ${String(input.step.input.change)}`,
+          `Evidence directory: ${evidenceDir}`,
+        ]
+      : []),
     ...supplementalInstructions.map(
       (instructions) => `Supplemental human instructions:\n${instructions}`,
     ),
@@ -604,10 +722,19 @@ async function executeHarnessCommandInternal(
       (artifact) =>
         `Prior attempt artifact: ${artifact.location} (${artifact.contentHash})`,
     ),
-    "Darrow already preflighted a compatible branch-creation capability. Create the local branch by expressing that intent; do not name a capability provider.",
+    ...(deliveryProtocol
+      ? [
+          "Darrow already preflighted a compatible branch-creation capability. Create the local branch by expressing that intent; do not name a capability provider.",
+        ]
+      : []),
     "Return only the structured result required by the supplied output schema.",
   ].join("\n");
-  const args = await adapter.invocation(input, outputSchema, outputFile);
+  const args = await adapter.invocation(
+    input,
+    outputSchema,
+    outputFile,
+    lockedAdapter,
+  );
   await event(input.runDir, input.runId, "command.invocation.started", {
     invocationId,
     stepId: input.step.id,
@@ -615,12 +742,21 @@ async function executeHarnessCommandInternal(
     commandId: input.step.commandId,
     ...routeProvenance(input),
   });
-  const broker = await startEvidenceBroker(
-    commandDir,
-    evidenceDir,
-    input.workspace,
-    resolve(input.runDir, "content", "attestations", invocationId),
-  );
+  const broker = deliveryProtocol
+    ? await startEvidenceBroker(
+        commandDir,
+        evidenceDir,
+        input.workspace,
+        resolve(input.runDir, "content", "attestations", invocationId),
+        {
+          codexExecutable:
+            input.effectiveRoute.harness === "codex"
+              ? lockedAdapter.executable
+              : undefined,
+          environment: lockedAdapter.environment,
+        },
+      )
+    : null;
   let stdout: string;
   let stderr: string;
   let exitCode: number;
@@ -634,14 +770,18 @@ async function executeHarnessCommandInternal(
     ? setInterval(() => activityContext!.heartbeat(), 1_000)
     : null;
   try {
+    const guards = deliveryProtocol
+      ? await guardEnvironment(
+          resolve(input.runDir, "runtime", "guards", invocationId),
+          lockedAdapter.environment.PATH,
+        )
+      : {};
     const child = Bun.spawn(args, {
       cwd: input.workspace,
       env: {
-        ...process.env,
-        ...(await guardEnvironment(
-          resolve(input.runDir, "runtime", "guards", invocationId),
-        )),
-        ...broker.env,
+        ...lockedAdapter.environment,
+        ...guards,
+        ...(broker?.env ?? {}),
       },
       stdin: "pipe",
       stdout: "pipe",
@@ -666,7 +806,7 @@ async function executeHarnessCommandInternal(
       );
     }
   } catch (error) {
-    broker.stop();
+    broker?.stop();
     if (heartbeat) clearInterval(heartbeat);
     if (activityContext?.cancellationSignal.aborted)
       throw new CancelledFailure("command invocation cancelled");
@@ -678,7 +818,7 @@ async function executeHarnessCommandInternal(
       error instanceof Error ? error.message : String(error),
     );
   }
-  broker.stop();
+  broker?.stop();
   if (heartbeat) clearInterval(heartbeat);
   await writeFile(transcript, stdout);
   await writeFile(stderrPath, stderr);
@@ -730,28 +870,30 @@ async function executeHarnessCommandInternal(
       "snapshot_corrupt",
       "snapshotted command changed during invocation",
     );
-  const validate = run(
-    [
-      "bash",
-      resolve(commandDir, "scripts", "evidence.sh"),
-      "validate",
-      evidenceDir,
-    ],
-    input.workspace,
-  );
-  if (validate.exitCode !== 0) {
-    const result = failure(
-      input,
-      invocationId,
-      startedAt,
-      "evidence",
-      validate.stderr.trim() || "TDD evidence validation failed",
+  if (deliveryProtocol) {
+    const validate = run(
+      [
+        "bash",
+        resolve(commandDir, "scripts", "evidence.sh"),
+        "validate",
+        evidenceDir,
+      ],
+      input.workspace,
     );
-    result.transcript = transcript;
-    result.nativeSessionId = nativeSessionId;
-    return result;
+    if (validate.exitCode !== 0) {
+      const result = failure(
+        input,
+        invocationId,
+        startedAt,
+        "evidence",
+        validate.stderr.trim() || "TDD evidence validation failed",
+      );
+      result.transcript = transcript;
+      result.nativeSessionId = nativeSessionId;
+      return result;
+    }
+    await broker!.verify();
   }
-  await broker.verify();
   if (!(await exists(outputFile)))
     return failure(
       input,
@@ -761,52 +903,59 @@ async function executeHarnessCommandInternal(
       `${adapter.displayName} did not produce the command result`,
     );
   const payload = await readJson<Record<string, unknown>>(outputFile);
-  payload.evidence = await evidencePayload(evidenceDir);
-  payload.changedPaths = changedPaths(input.workspace);
-  const branch = run(
-    ["git", "symbolic-ref", "--short", "HEAD"],
-    input.workspace,
-  );
-  if (branch.exitCode !== 0)
-    return failure(
-      input,
-      invocationId,
-      startedAt,
-      "side_effect",
-      "command did not create a local branch",
+  const artifacts: CommandResult["artifacts"] = [];
+  if (deliveryProtocol) {
+    payload.evidence = await evidencePayload(evidenceDir);
+    payload.changedPaths = changedPaths(input.workspace);
+    const branch = run(
+      ["git", "symbolic-ref", "--short", "HEAD"],
+      input.workspace,
     );
-  payload.branch = branch.stdout.trim();
-  const headAfter = run(
-    ["git", "rev-parse", "HEAD"],
-    input.workspace,
-  ).stdout.trim();
-  if (headAfter !== headBefore)
-    return failure(
-      input,
-      invocationId,
-      startedAt,
-      "forbidden_effect",
-      "command created a commit; M1 permits working-tree changes only",
+    if (branch.exitCode !== 0)
+      return failure(
+        input,
+        invocationId,
+        startedAt,
+        "side_effect",
+        "command did not create a local branch",
+      );
+    payload.branch = branch.stdout.trim();
+    const headAfter = run(
+      ["git", "rev-parse", "HEAD"],
+      input.workspace,
+    ).stdout.trim();
+    if (headAfter !== headBefore)
+      return failure(
+        input,
+        invocationId,
+        startedAt,
+        "forbidden_effect",
+        "command created a commit; delivery-tdd permits working-tree changes only",
+      );
+    await validateExternalSchema(outputSchema, payload, "command result");
+    const artifact = await checkpointEvidence(
+      input.repoRoot,
+      input.runDir,
+      input.step.id,
+      input.attemptId,
+      evidenceDir,
+      outputSchema,
     );
-  await validateExternalSchema(outputSchema, payload, "command result");
-  const artifact = await checkpointEvidence(
-    input.repoRoot,
-    input.runDir,
-    input.step.id,
-    input.attemptId,
-    evidenceDir,
-    outputSchema,
-  );
-  const evidence = payload.evidence as Record<string, Record<string, unknown>>;
-  for (const phase of ["red", "green", "regression"]) {
-    evidence[phase]!.stdout = `${artifact.location}/${phase}.stdout`;
-    evidence[phase]!.stderr = `${artifact.location}/${phase}.stderr`;
-  }
-  await validateExternalSchema(
-    outputSchema,
-    payload,
-    "checkpointed command result",
-  );
+    artifacts.push(artifact);
+    const evidence = payload.evidence as Record<
+      string,
+      Record<string, unknown>
+    >;
+    for (const phase of ["red", "green", "regression"]) {
+      evidence[phase]!.stdout = `${artifact.location}/${phase}.stdout`;
+      evidence[phase]!.stderr = `${artifact.location}/${phase}.stderr`;
+    }
+    await validateExternalSchema(
+      outputSchema,
+      payload,
+      "checkpointed command result",
+    );
+  } else await validateExternalSchema(outputSchema, payload, "command result");
   const result: CommandResult = {
     invocationId,
     status: "succeeded",
@@ -815,7 +964,7 @@ async function executeHarnessCommandInternal(
     implementationVersion: input.step.contractVersion,
     route: input.effectiveRoute,
     payload,
-    artifacts: [artifact],
+    artifacts,
     transcript,
     nativeSessionId,
     usage,
@@ -833,7 +982,7 @@ async function executeHarnessCommandInternal(
     invocationId,
     stepId: input.step.id,
     attemptId: input.attemptId,
-    artifacts: [artifact],
+    artifacts,
     transcript,
     nativeSessionId: nativeSessionId ?? null,
     usage: usage ?? null,
@@ -899,11 +1048,10 @@ export async function executeHarnessCommand(
 }
 
 const codexAdapter: CommandHarnessAdapter = {
-  executable: "codex",
   displayName: "Codex CLI",
-  async invocation(input, outputSchema, outputFile) {
+  async invocation(input, outputSchema, outputFile, locked) {
     return [
-      "codex",
+      locked.executable,
       "exec",
       "--json",
       "--model",

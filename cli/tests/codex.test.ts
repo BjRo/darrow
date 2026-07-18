@@ -16,7 +16,7 @@ import {
   guardEnvironment,
   startEvidenceBroker,
 } from "../src/codex";
-import { hashDirectory } from "../src/io";
+import { hashDirectory, hashFile, writeJson } from "../src/io";
 import { CLI_ROOT } from "../src/paths";
 import type { ActivityInput } from "../src/types";
 import { verifyArtifacts } from "../src/artifacts";
@@ -261,6 +261,26 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
         effectiveRoute: route,
         routeAmendment: null,
       };
+      await writeJson(resolve(runDir, "lock.json"), {
+        adapters: [
+          {
+            id: "codex-cli",
+            executable: resolve(bin, "codex"),
+            detectedVersion: "codex-cli 1.0.0",
+            routeIds: [route.routeId],
+            nativePermissions: {
+              configurationEnvironment: { PATH: previousPath ?? "" },
+              configurationSources: [
+                {
+                  path: "environment-defaults",
+                  scope: "environment",
+                  digest: `sha256:${"c".repeat(64)}`,
+                },
+              ],
+            },
+          },
+        ],
+      });
       const result = await executeCodexCommand(input);
       expect(result.status, result.error?.message).toBe("succeeded");
       expect(result.nativeSessionId).toBe("thread-1");
@@ -318,6 +338,187 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
       );
     } finally {
       process.env.PATH = previousPath;
+    }
+  });
+
+  test("uses locked execution identity and generic command metadata", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "darrow-codex-generic-"));
+    temps.push(root);
+    const workspace = resolve(root, "workspace");
+    const runDir = resolve(root, ".darrow", "runs", "run-generic");
+    const snapshotDir = resolve(runDir, "snapshot");
+    const commandDir = resolve(
+      snapshotDir,
+      "commands",
+      "codex",
+      "example",
+      "generic",
+    );
+    for (const path of [workspace, commandDir, resolve(runDir, "results")])
+      await mkdir(path, { recursive: true });
+    await writeFile(resolve(commandDir, "SKILL.md"), "# generic\n");
+    await writeFile(
+      resolve(commandDir, "darrow.json"),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        kind: "command",
+        contractVersion: "1.0.0",
+        inputSchema: "./request.contract.json",
+        outputSchema: "./response.contract.json",
+      })}\n`,
+    );
+    await writeFile(
+      resolve(commandDir, "request.contract.json"),
+      `${JSON.stringify({
+        type: "object",
+        additionalProperties: false,
+        required: ["subject", "count"],
+        properties: {
+          subject: { type: "string" },
+          count: { type: "integer" },
+        },
+      })}\n`,
+    );
+    await writeFile(
+      resolve(commandDir, "response.contract.json"),
+      `${JSON.stringify({
+        type: "object",
+        additionalProperties: false,
+        required: ["message"],
+        properties: { message: { type: "string" } },
+      })}\n`,
+    );
+    const lockedBin = resolve(root, "locked-bin");
+    const changedBin = resolve(root, "changed-bin");
+    const lockedHome = resolve(root, "locked-codex-home");
+    const changedHome = resolve(root, "changed-codex-home");
+    for (const path of [lockedBin, changedBin, lockedHome, changedHome])
+      await mkdir(path);
+    const lockedConfig = resolve(lockedHome, "config.toml");
+    await writeFile(lockedConfig, "approval_policy = 'never'\n");
+    await writeFile(
+      resolve(lockedBin, "codex"),
+      `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" == "--version" ]]; then echo 'codex-cli locked'; exit 0; fi
+printf '%s' "\${CODEX_HOME:-}" > "$(dirname "$0")/home"
+printf '%s\\n' "$@" > "$(dirname "$0")/args"
+output=''
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--output-last-message" ]]; then output=$2; shift 2; else shift; fi
+done
+prompt=$(cat)
+printf '%s' "$prompt" > "$(dirname "$0")/prompt"
+printf '%s\\n' '{"message":"generic succeeded"}' > "$output"
+printf '%s\\n' '{"type":"thread.started","thread_id":"generic-thread"}'
+`,
+      { mode: 0o755 },
+    );
+    await writeFile(
+      resolve(changedBin, "codex"),
+      `#!/usr/bin/env bash
+touch "$(dirname "$0")/invoked"
+echo 'codex-cli changed'
+`,
+      { mode: 0o755 },
+    );
+    await writeFile(
+      resolve(changedBin, "bash"),
+      `#!/bin/sh
+touch "$(dirname "$0")/interpreter-invoked"
+exit 99
+`,
+      { mode: 0o755 },
+    );
+    const route = {
+      routeId: `sha256:${"d".repeat(64)}`,
+      profileId: "codex",
+      profileDigest: `sha256:${"e".repeat(64)}`,
+      harness: "codex",
+      provider: "openai",
+      model: "gpt-test",
+      reasoningEffort: "high",
+      permissions: { inherit: true },
+      limits: {},
+      adapter: { id: "codex-cli", version: "0.1.0" },
+      selectionSource: "fixed_plan",
+    } as const;
+    await writeJson(resolve(runDir, "lock.json"), {
+      adapters: [
+        {
+          id: "codex-cli",
+          executable: resolve(lockedBin, "codex"),
+          detectedVersion: "codex-cli locked",
+          routeIds: [route.routeId],
+          nativePermissions: {
+            configurationEnvironment: {
+              CODEX_HOME: lockedHome,
+              PATH: process.env.PATH ?? "",
+            },
+            configurationSources: [
+              {
+                path: lockedConfig,
+                scope: "user",
+                digest: await hashFile(lockedConfig),
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const previousPath = process.env.PATH;
+    const previousHome = process.env.CODEX_HOME;
+    process.env.PATH = `${changedBin}:${previousPath}`;
+    process.env.CODEX_HOME = changedHome;
+    try {
+      const result = await executeCodexCommand({
+        runId: "run-generic",
+        repoRoot: root,
+        runDir,
+        workspace,
+        snapshotDir,
+        attemptId: "attempt-1",
+        instructions: [],
+        priorArtifacts: [],
+        planCapabilities: [],
+        step: {
+          id: "generic",
+          dependsOn: [],
+          commandId: "example:generic",
+          contractVersion: "1.0.0",
+          cancellation: "wait_for_boundary",
+          role: "default",
+          route,
+          source: commandDir,
+          digest: await hashDirectory(commandDir),
+          input: { subject: "alpha", count: 2 },
+          publish: null,
+        },
+        effectiveRoute: route,
+        routeAmendment: null,
+      });
+      expect(result.status, result.error?.message).toBe("succeeded");
+      expect(result.payload).toEqual({ message: "generic succeeded" });
+      expect(result.artifacts).toEqual([]);
+      expect(await readFile(resolve(lockedBin, "home"), "utf8")).toBe(
+        lockedHome,
+      );
+      expect(await readFile(resolve(lockedBin, "prompt"), "utf8")).toContain(
+        'Command input (JSON): {"count":2,"subject":"alpha"}',
+      );
+      expect(await readFile(resolve(lockedBin, "args"), "utf8")).toContain(
+        resolve(commandDir, "response.contract.json"),
+      );
+      expect(await Bun.file(resolve(changedBin, "invoked")).exists()).toBe(
+        false,
+      );
+      expect(
+        await Bun.file(resolve(changedBin, "interpreter-invoked")).exists(),
+      ).toBe(false);
+    } finally {
+      process.env.PATH = previousPath;
+      if (previousHome === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = previousHome;
     }
   });
 });
