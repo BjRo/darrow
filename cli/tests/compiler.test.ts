@@ -109,7 +109,13 @@ describe("M1 compiler", () => {
     const snapshotDir = await snapshot(compilation, runDir);
     expect(
       await readdir(
-        resolve(snapshotDir, "commands", "darrow-delivery", "implement"),
+        resolve(
+          snapshotDir,
+          "commands",
+          "codex",
+          "darrow-delivery",
+          "implement",
+        ),
       ),
     ).toContain("SKILL.md");
     await validateSchema("lock.schema.json", lock, "lock");
@@ -288,8 +294,7 @@ steps:
       expect(lock.adapters[0]).toMatchObject({
         id: "claude-code",
         harness: "claude",
-        provider: "anthropic",
-        model: "claude-sonnet-4-6",
+        routeIds: [compilation.plan.steps[0]!.route.routeId],
       });
       expect(lock.adapters[0].nativePermissions.configurationSources).toEqual([
         {
@@ -310,6 +315,209 @@ steps:
       restoreEnvironment("DARROW_PLUGIN_ROOTS", previousRoots);
       restoreEnvironment("CLAUDE_CONFIG_DIR", previousClaudeHome);
     }
+  });
+});
+
+describe("M2b role-bound routing", () => {
+  test("locks dependent command steps to independent Codex and Claude routes", async () => {
+    const root = await repo();
+    await mkdir(resolve(root, ".darrow", "profiles"), { recursive: true });
+    await writeFile(
+      resolve(root, ".darrow", "profiles", "claude-review.yaml"),
+      `schemaVersion: 0.1.0
+id: claude-review
+harness: claude
+provider: anthropic
+model: claude-sonnet-4-6
+reasoningEffort: medium
+permissions:
+  inherit: true
+`,
+    );
+    await writeFile(
+      resolve(root, ".darrow", "workflows", "mixed-review.yaml"),
+      `schemaVersion: 0.1.0
+id: mixed-review
+version: 0.1.0
+engine: ^0.1.0
+inputs:
+  change: { type: string, required: true }
+requirements:
+  capabilities:
+    - { contract: git.branch.create, version: ^1.0.0 }
+roles:
+  implement: { profile: codex }
+  review: { profile: claude-review }
+loops: []
+steps:
+  - id: implement
+    role: implement
+    dependsOn: []
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: "\${inputs.change}" }
+  - id: review
+    role: review
+    dependsOn: [implement]
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: review current implementation }
+`,
+    );
+    const previousRoots = process.env.DARROW_PLUGIN_ROOTS;
+    const previousCodexHome = process.env.CODEX_HOME;
+    const previousClaudeHome = process.env.CLAUDE_CONFIG_DIR;
+    process.env.DARROW_PLUGIN_ROOTS = SOURCE_PLUGIN_ROOT;
+    process.env.CODEX_HOME = resolve(root, "codex-home");
+    process.env.CLAUDE_CONFIG_DIR = resolve(root, "claude-home");
+    try {
+      const compilation = await compile(root, "mixed-review", {
+        change: "return hello",
+      });
+      expect(
+        compilation.plan.roles.map(({ id, profile }) => ({
+          id,
+          harness: profile.harness,
+        })),
+      ).toEqual([
+        { id: "implement", harness: "codex" },
+        { id: "review", harness: "claude" },
+      ]);
+      expect(
+        compilation.plan.steps.map(({ id, role, route }) => ({
+          id,
+          role,
+          harness: route.harness,
+          model: route.model,
+          effort: route.reasoningEffort,
+        })),
+      ).toEqual([
+        {
+          id: "implement",
+          role: "implement",
+          harness: "codex",
+          model: "gpt-5.6-sol",
+          effort: "high",
+        },
+        {
+          id: "review",
+          role: "review",
+          harness: "claude",
+          model: "claude-sonnet-4-6",
+          effort: "medium",
+        },
+      ]);
+      expect(
+        compilation.plan.capabilities.map((capability) => capability.harness),
+      ).toEqual(["codex", "claude"]);
+      expect(compilation.commands.map(({ harness }) => harness)).toEqual([
+        "codex",
+        "claude",
+      ]);
+
+      const runDir = resolve(root, ".darrow", "runs", "mixed-run");
+      await mkdir(runDir, { recursive: true });
+      const lock = (await createLock(compilation, "mixed-run")) as Record<
+        string,
+        any
+      >;
+      expect(lock.routes).toHaveLength(2);
+      expect(
+        lock.adapters.map((adapter: { id: string }) => adapter.id),
+      ).toEqual(["codex-cli", "claude-code"]);
+      expect(lock.adapters[0].routeIds).toEqual([
+        compilation.plan.steps[0]!.route.routeId,
+      ]);
+      expect(lock.adapters[1].routeIds).toEqual([
+        compilation.plan.steps[1]!.route.routeId,
+      ]);
+      await writeJson(resolve(runDir, "lock.json"), lock);
+      const snapshotDir = await snapshot(compilation, runDir);
+      for (const harness of ["codex", "claude"])
+        expect(
+          await readdir(
+            resolve(
+              snapshotDir,
+              "commands",
+              harness,
+              "darrow-delivery",
+              "implement",
+            ),
+          ),
+        ).toContain("SKILL.md");
+      await expect(
+        verifyRunSnapshot(runDir, compilation.plan),
+      ).resolves.toBeUndefined();
+    } finally {
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previousRoots);
+      restoreEnvironment("CODEX_HOME", previousCodexHome);
+      restoreEnvironment("CLAUDE_CONFIG_DIR", previousClaudeHome);
+    }
+  });
+
+  test("deduplicates profile and adapter locks when roles share one profile", async () => {
+    const root = await repo();
+    const workflowPath = resolve(
+      root,
+      ".darrow",
+      "workflows",
+      "implement-change.yaml",
+    );
+    const source = await Bun.file(workflowPath).text();
+    await writeFile(
+      workflowPath,
+      source
+        .replace(
+          "profile: codex",
+          "roles:\n  implement: { profile: codex }\n  review: { profile: codex }",
+        )
+        .replace(
+          "  - id: implement\n",
+          "  - id: implement\n    role: implement\n",
+        ),
+    );
+    const previousRoots = process.env.DARROW_PLUGIN_ROOTS;
+    const previousCodexHome = process.env.CODEX_HOME;
+    process.env.DARROW_PLUGIN_ROOTS = SOURCE_PLUGIN_ROOT;
+    process.env.CODEX_HOME = resolve(root, "codex-home");
+    try {
+      const compilation = await compile(root, "implement-change", {
+        change: "return hello",
+      });
+      expect(compilation.plan.roles).toHaveLength(2);
+      expect(compilation.profiles).toHaveLength(1);
+      const lock = (await createLock(compilation, "shared-run")) as Record<
+        string,
+        any
+      >;
+      expect(lock.routes).toHaveLength(1);
+      expect(lock.adapters).toHaveLength(1);
+      expect(lock.adapters[0].routeIds).toEqual([lock.routes[0].routeId]);
+    } finally {
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previousRoots);
+      restoreEnvironment("CODEX_HOME", previousCodexHome);
+    }
+  });
+
+  test("rejects a command step that names an unknown explicit role", async () => {
+    const root = await repo();
+    const workflowPath = resolve(
+      root,
+      ".darrow",
+      "workflows",
+      "implement-change.yaml",
+    );
+    const source = await Bun.file(workflowPath).text();
+    await writeFile(
+      workflowPath,
+      source
+        .replace("profile: codex", "roles:\n  implement: { profile: codex }")
+        .replace(
+          "  - id: implement\n",
+          "  - id: implement\n    role: review\n",
+        ),
+    );
+    await expect(
+      compile(root, "implement-change", { change: "return hello" }),
+    ).rejects.toThrow("references unknown role review");
   });
 });
 

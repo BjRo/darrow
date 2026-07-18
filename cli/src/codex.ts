@@ -447,6 +447,7 @@ async function executeHarnessCommandInternal(
   const commandDir = resolve(
     input.snapshotDir,
     "commands",
+    input.effectiveRoute.harness,
     pluginName,
     skillName,
   );
@@ -540,6 +541,7 @@ async function executeHarnessCommandInternal(
     const capabilityDir = resolve(
       input.snapshotDir,
       "capabilities",
+      capability.harness,
       providerParts[0]!,
       providerParts[1]!,
     );

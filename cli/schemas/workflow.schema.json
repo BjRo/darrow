@@ -10,9 +10,39 @@
     "engine",
     "inputs",
     "requirements",
-    "profile",
     "loops",
     "steps"
+  ],
+  "oneOf": [
+    {
+      "required": ["profile"],
+      "properties": {
+        "profile": { "$ref": "#/$defs/id" },
+        "roles": false,
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "role": false }
+          }
+        }
+      }
+    },
+    {
+      "required": ["roles"],
+      "properties": {
+        "profile": false,
+        "roles": { "type": "object" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role"],
+            "properties": { "role": { "$ref": "#/$defs/id" } }
+          }
+        }
+      }
+    }
   ],
   "properties": {
     "schemaVersion": { "const": "0.1.0" },
@@ -44,6 +74,19 @@
       }
     },
     "profile": { "$ref": "#/$defs/id" },
+    "roles": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["profile"],
+        "properties": {
+          "profile": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
     "loops": {
       "type": "array",
       "items": { "$ref": "#/$defs/loop" }
@@ -57,6 +100,7 @@
         "required": ["id", "dependsOn", "command", "with"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
+          "role": { "$ref": "#/$defs/id" },
           "dependsOn": {
             "type": "array",
             "items": { "$ref": "#/$defs/id" },

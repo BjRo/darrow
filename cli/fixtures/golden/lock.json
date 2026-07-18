@@ -17,6 +17,7 @@
   },
   "commands": [
     {
+      "harness": "codex",
       "id": "darrow-delivery:implement",
       "contractVersion": "0.1.0",
       "pluginVersion": "0.1.0",
@@ -26,6 +27,7 @@
   ],
   "capabilities": [
     {
+      "harness": "codex",
       "contract": "git.branch.create",
       "requested": "^1.0.0",
       "version": "1.0.0",
@@ -93,9 +95,6 @@
         "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       ],
       "harness": "codex",
-      "provider": "openai",
-      "model": "gpt-5.6-sol",
-      "reasoningEffort": "high",
       "nativePermissions": {
         "inherit": true,
         "configurationSources": [

@@ -159,7 +159,7 @@ describe("Codex command adapter", () => {
     await mkdir(resolve(runDir, "content"), { recursive: true });
     await mkdir(resolve(runDir, "results"), { recursive: true });
     await mkdir(resolve(runDir, "artifacts"), { recursive: true });
-    await mkdir(resolve(snapshotDir, "commands", "darrow-delivery"), {
+    await mkdir(resolve(snapshotDir, "commands", "codex", "darrow-delivery"), {
       recursive: true,
     });
     await cp(
@@ -171,7 +171,7 @@ describe("Codex command adapter", () => {
         "skills",
         "implement",
       ),
-      resolve(snapshotDir, "commands", "darrow-delivery", "implement"),
+      resolve(snapshotDir, "commands", "codex", "darrow-delivery", "implement"),
       { recursive: true },
     );
     const bin = resolve(root, "mock-bin");
@@ -247,7 +247,13 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
             "implement",
           ),
           digest: await hashDirectory(
-            resolve(snapshotDir, "commands", "darrow-delivery", "implement"),
+            resolve(
+              snapshotDir,
+              "commands",
+              "codex",
+              "darrow-delivery",
+              "implement",
+            ),
           ),
           input: { change: "write new" },
           publish: null,

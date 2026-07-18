@@ -62,6 +62,7 @@ async function fixture(script?: string): Promise<{
   const commandDir = resolve(
     snapshotDir,
     "commands",
+    "claude",
     "darrow-delivery",
     "implement",
   );

@@ -19,6 +19,30 @@ const fixtures: Array<[string, string]> = [
 ];
 
 describe("0.1.0 contract fixtures", () => {
+  test("compiles one shared validator for concurrent schema requests", async () => {
+    const digest = `sha256:${"a".repeat(64)}`;
+    const manifest = {
+      schemaVersion: "0.1.0",
+      workflow: digest,
+      profiles: { codex: digest },
+      commands: {},
+      capabilities: {},
+      schemas: digest,
+      plan: digest,
+    };
+    await expect(
+      Promise.all(
+        Array.from({ length: 4 }, () =>
+          validateSchema(
+            "snapshot-manifest.schema.json",
+            manifest,
+            "concurrent manifest",
+          ),
+        ),
+      ),
+    ).resolves.toEqual([undefined, undefined, undefined, undefined]);
+  });
+
   for (const [fixture, schema] of fixtures) {
     test(`${fixture} satisfies ${schema}`, async () => {
       const path = resolve(CLI_ROOT, "fixtures", "golden", fixture);
@@ -82,6 +106,52 @@ describe("0.1.0 contract fixtures", () => {
         "profile.schema.json",
         { ...claude, provider: "openai" },
         "mixed profile",
+      ),
+    ).rejects.toThrow();
+  });
+
+  test("workflows choose either a legacy profile or explicit role bindings", async () => {
+    const legacy = parse(
+      await Bun.file(
+        resolve(CLI_ROOT, "fixtures", "golden", "workflow.yaml"),
+      ).text(),
+    ) as Record<string, any>;
+    const explicit = structuredClone(legacy);
+    delete explicit.profile;
+    explicit.roles = {
+      implement: { profile: "codex" },
+      review: { profile: "claude" },
+    };
+    explicit.steps[0].role = "implement";
+    await expect(
+      validateSchema("workflow.schema.json", explicit, "explicit roles"),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      validateSchema(
+        "workflow.schema.json",
+        { ...explicit, profile: "codex" },
+        "mixed workflow forms",
+      ),
+    ).rejects.toThrow("exactly one schema");
+
+    const missingRole = structuredClone(explicit);
+    delete missingRole.steps[0].role;
+    await expect(
+      validateSchema(
+        "workflow.schema.json",
+        missingRole,
+        "missing explicit role",
+      ),
+    ).rejects.toThrow("required property");
+
+    const legacyWithRole = structuredClone(legacy);
+    legacyWithRole.steps[0].role = "implement";
+    await expect(
+      validateSchema(
+        "workflow.schema.json",
+        legacyWithRole,
+        "legacy role override",
       ),
     ).rejects.toThrow();
   });

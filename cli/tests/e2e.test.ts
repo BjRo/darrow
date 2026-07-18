@@ -493,7 +493,14 @@ steps:
     ]);
     expect(
       await readdir(
-        resolve(runDir, "snapshot", "commands", "darrow-delivery", "implement"),
+        resolve(
+          runDir,
+          "snapshot",
+          "commands",
+          "codex",
+          "darrow-delivery",
+          "implement",
+        ),
       ),
     ).toContain("SKILL.md");
     expect(
@@ -1043,4 +1050,198 @@ steps:
     expect(corrupted.stderr).toContain("failed verification");
   },
   120_000,
+);
+
+test.skipIf(!temporal)(
+  "dependent command steps execute through independently locked Codex and Claude roles",
+  async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "darrow-mixed-e2e-"));
+    temps.push(root);
+    expect(command(["git", "init", "-q"], root).code).toBe(0);
+    command(["git", "config", "user.name", "Test"], root);
+    command(["git", "config", "user.email", "test@example.com"], root);
+    await writeFile(resolve(root, "behavior.txt"), "old\n");
+    command(["git", "add", "behavior.txt"], root);
+    command(["git", "commit", "-qm", "fixture"], root);
+    const bin = resolve(root, "mock-bin");
+    await mkdir(bin);
+    await writeFile(
+      resolve(bin, "codex"),
+      `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" == "--version" ]]; then echo 'codex-cli 1.0.0'; exit 0; fi
+if [[ "\${1:-}" == "sandbox" ]]; then
+  shift; cwd=''
+  while [[ $# -gt 0 && "$1" != "--" ]]; do if [[ "$1" == "-C" ]]; then cwd=$2; shift 2; else shift; fi; done
+  shift; [[ -z "$cwd" ]] || cd "$cwd"; exec "$@"
+fi
+printf '%s\\n' "$@" > "$(dirname "$0")/codex-args"
+output=''
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--output-last-message" ]]; then output=$2; shift 2; else shift; fi
+done
+prompt=$(cat)
+skill=$(sed -n 's/^Read and follow \\(.*\\/SKILL.md\\) exactly\\.$/\\1/p' <<<"$prompt")
+evidence=$(sed -n 's/^Evidence directory: //p' <<<"$prompt")
+git switch -q -c feat/mixed
+focused='grep -F codex behavior.txt || { echo expected-codex; exit 1; }'
+bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" red --expected expected-codex -- sh -c "$focused"
+printf 'codex\\n' > behavior.txt
+bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" green -- sh -c "$focused"
+bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" regression -- git diff --check
+mkdir -p "$(dirname "$output")"
+printf '%s\\n' '{"branch":"feat/mixed","summary":"Implemented with Codex","changedPaths":["behavior.txt"],"evidence":{"red":{},"green":{},"regression":{}}}' > "$output"
+printf '%s\\n' '{"type":"thread.started","thread_id":"mixed-codex"}'
+printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":4,"output_tokens":2}}'
+`,
+      { mode: 0o755 },
+    );
+    await writeFile(
+      resolve(bin, "claude"),
+      `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" == "--version" ]]; then echo '2.1.185 (Claude Code)'; exit 0; fi
+printf '%s\\n' "$@" > "$(dirname "$0")/claude-args"
+prompt=$(cat)
+skill=$(sed -n 's/^Read and follow \\(.*\\/SKILL.md\\) exactly\\.$/\\1/p' <<<"$prompt")
+evidence=$(sed -n 's/^Evidence directory: //p' <<<"$prompt")
+focused='grep -F claude behavior.txt || { echo expected-claude; exit 1; }'
+bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" red --expected expected-claude -- sh -c "$focused"
+printf 'claude\\n' >> behavior.txt
+bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" green -- sh -c "$focused"
+bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" regression -- git diff --check
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"mixed-claude","usage":{"input_tokens":5,"output_tokens":3},"permission_denials":[],"structured_output":{"branch":"feat/mixed","summary":"Reviewed with Claude","changedPaths":["behavior.txt"],"evidence":{"red":{},"green":{},"regression":{}}}}'
+`,
+      { mode: 0o755 },
+    );
+    const cli = resolve(CLI_ROOT, "src", "index.ts");
+    const env = {
+      DARROW_TEMPORAL_BIN: temporal!,
+      DARROW_PLUGIN_ROOTS: resolve(CLI_ROOT, "..", "plugins"),
+      CODEX_HOME: resolve(root, "codex-home"),
+      CLAUDE_CONFIG_DIR: resolve(root, "claude-home"),
+      PATH: `${bin}:${process.env.PATH}`,
+    };
+    const init = command(["bun", cli, "init", "--json"], root, env);
+    expect(init.code, init.stderr).toBe(0);
+    await mkdir(resolve(root, ".darrow", "profiles"), { recursive: true });
+    await writeFile(
+      resolve(root, ".darrow", "profiles", "claude-review.yaml"),
+      `schemaVersion: 0.1.0
+id: claude-review
+harness: claude
+provider: anthropic
+model: claude-sonnet-4-6
+reasoningEffort: medium
+permissions:
+  inherit: true
+`,
+    );
+    await writeFile(
+      resolve(root, ".darrow", "workflows", "mixed-review.yaml"),
+      `schemaVersion: 0.1.0
+id: mixed-review
+version: 0.1.0
+engine: ^0.1.0
+inputs:
+  change: { type: string, required: true }
+requirements:
+  capabilities:
+    - { contract: git.branch.create, version: ^1.0.0 }
+roles:
+  implement: { profile: codex }
+  review: { profile: claude-review }
+loops: []
+steps:
+  - id: implement
+    role: implement
+    dependsOn: []
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: "\${inputs.change}" }
+  - id: review
+    role: review
+    dependsOn: [implement]
+    command: { id: darrow-delivery:implement, version: ^0.1.0 }
+    with: { change: review current implementation }
+`,
+    );
+    const execution = command(
+      [
+        "bun",
+        cli,
+        "run",
+        "mixed-review",
+        "--change",
+        "write codex",
+        "--base",
+        "HEAD",
+        "--json",
+      ],
+      root,
+      env,
+    );
+    expect(execution.code, `${execution.stderr}\n${execution.stdout}`).toBe(0);
+    const envelope = JSON.parse(execution.stdout.trim()) as {
+      data: { runId: string; conclusion: string };
+    };
+    expect(envelope.data.conclusion).toBe("succeeded");
+    const runDir = resolve(root, ".darrow", "runs", envelope.data.runId);
+    const plan = (await Bun.file(resolve(runDir, "plan.json")).json()) as {
+      roles: Array<{ id: string; profile: { harness: string } }>;
+      steps: Array<{
+        id: string;
+        role: string;
+        route: {
+          routeId: string;
+          harness: string;
+          model: string;
+          reasoningEffort: string;
+        };
+      }>;
+    };
+    expect(plan.roles.map(({ id, profile }) => [id, profile.harness])).toEqual([
+      ["implement", "codex"],
+      ["review", "claude"],
+    ]);
+    expect(
+      plan.steps.map(({ id, role, route }) => [
+        id,
+        role,
+        route.harness,
+        route.model,
+        route.reasoningEffort,
+      ]),
+    ).toEqual([
+      ["implement", "implement", "codex", "gpt-5.6-sol", "high"],
+      ["review", "review", "claude", "claude-sonnet-4-6", "medium"],
+    ]);
+    const lock = (await Bun.file(resolve(runDir, "lock.json")).json()) as {
+      routes: Array<{ routeId: string }>;
+      adapters: Array<{ id: string; routeIds: string[] }>;
+    };
+    expect(lock.routes).toHaveLength(2);
+    expect(lock.adapters.map(({ id }) => id)).toEqual([
+      "codex-cli",
+      "claude-code",
+    ]);
+    expect(await Bun.file(resolve(bin, "codex-args")).text()).toContain(
+      "gpt-5.6-sol",
+    );
+    expect(await Bun.file(resolve(bin, "claude-args")).text()).toContain(
+      "claude-sonnet-4-6",
+    );
+    expect(await Bun.file(resolve(bin, "claude-args")).text()).toContain(
+      "medium",
+    );
+    const results = await Promise.all(
+      (await readdir(resolve(runDir, "results")))
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => Bun.file(resolve(runDir, "results", name)).json()),
+    );
+    expect(results.map((result) => result.route.harness).sort()).toEqual([
+      "claude",
+      "codex",
+    ]);
+  },
+  60_000,
 );

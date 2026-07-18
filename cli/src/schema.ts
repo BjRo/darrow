@@ -11,7 +11,7 @@ import { SCHEMAS_DIR } from "./paths";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
-const validators = new Map<string, ValidateFunction>();
+const validators = new Map<string, Promise<ValidateFunction>>();
 
 function diagnostics(errors: ErrorObject[] | null | undefined): string {
   return (errors ?? [])
@@ -25,11 +25,13 @@ function diagnostics(errors: ErrorObject[] | null | undefined): string {
 export async function validator(schemaName: string): Promise<ValidateFunction> {
   const cached = validators.get(schemaName);
   if (cached) return cached;
-  const schemaPath = resolve(SCHEMAS_DIR, schemaName);
-  const schema = await readJson<Record<string, unknown>>(schemaPath);
-  const compiled = ajv.compile(schema);
-  validators.set(schemaName, compiled);
-  return compiled;
+  const pending = (async () => {
+    const schemaPath = resolve(SCHEMAS_DIR, schemaName);
+    const schema = await readJson<Record<string, unknown>>(schemaPath);
+    return ajv.compile(schema);
+  })();
+  validators.set(schemaName, pending);
+  return pending;
 }
 
 export async function validateSchema(

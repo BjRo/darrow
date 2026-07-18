@@ -317,8 +317,14 @@ export interface Compilation {
   workflow: WorkflowDefinition;
   workflowFile: Located;
   profiles: Array<{ profile: ResolvedProfile; file: Located }>;
-  commands: SkillCandidate[];
-  capabilities: SkillCandidate[];
+  commands: Array<{
+    harness: ProfileDefinition["harness"];
+    candidate: SkillCandidate;
+  }>;
+  capabilities: Array<{
+    harness: ProfileDefinition["harness"];
+    candidate: SkillCandidate;
+  }>;
   project: ProjectDefinition;
 }
 
@@ -457,14 +463,17 @@ export async function verifyRunSnapshot(
       );
   }
   for (const command of lock.commands as Array<{
+    harness: ProfileDefinition["harness"];
     id: string;
     digest: string;
   }>) {
     const [plugin, skill] = command.id.split(":");
     if (
-      manifest.commands[command.id] !== command.digest ||
-      (await hashDirectory(resolve(root, "commands", plugin!, skill!))) !==
-        command.digest
+      manifest.commands[`${command.harness}:${command.id}`] !==
+        command.digest ||
+      (await hashDirectory(
+        resolve(root, "commands", command.harness, plugin!, skill!),
+      )) !== command.digest
     )
       throw new DarrowError(
         `snapshot command digest mismatch: ${command.id}`,
@@ -472,14 +481,18 @@ export async function verifyRunSnapshot(
       );
   }
   for (const capability of lock.capabilities as Array<{
+    harness: ProfileDefinition["harness"];
     providerId: string;
     digest: string;
   }>) {
     const [plugin, skill] = capability.providerId.split(":");
     if (
-      manifest.capabilities[capability.providerId] !== capability.digest ||
-      (await hashDirectory(resolve(root, "capabilities", plugin!, skill!))) !==
-        capability.digest
+      manifest.capabilities[
+        `${capability.harness}:${capability.providerId}`
+      ] !== capability.digest ||
+      (await hashDirectory(
+        resolve(root, "capabilities", capability.harness, plugin!, skill!),
+      )) !== capability.digest
     )
       throw new DarrowError(
         `snapshot capability digest mismatch: ${capability.providerId}`,
@@ -510,28 +523,72 @@ export async function compile(
   validateWorkflowGraph(workflow);
   const orderedSteps = orderWorkflowSteps(workflow);
   validateInputs(workflow, inputs);
-  const profileFile = await selectFile(
-    workflow.profile || project.defaultProfile,
-    repoRoot,
-    "profile",
+  const roleReferences = workflow.roles
+    ? Object.entries(workflow.roles)
+    : [["default", { profile: workflow.profile! }] as const];
+  const locatedProfiles = await Promise.all(
+    roleReferences.map(async ([roleId, reference]) => {
+      const file = await selectFile(reference.profile, repoRoot, "profile");
+      const profile = await readYaml<ProfileDefinition>(
+        file.path,
+        "profile.schema.json",
+      );
+      if (profile.id !== reference.profile)
+        throw new DarrowError(
+          `workflow role ${roleId} references profile ${reference.profile}, but ${file.path} declares ${profile.id}`,
+          "resolution",
+        );
+      return {
+        role: {
+          id: roleId,
+          profile: {
+            ...profile,
+            source: resolve(file.path),
+            scope: file.scope,
+            digest: await hashFile(file.path),
+          } satisfies ResolvedProfile,
+        },
+        file,
+      };
+    }),
   );
-  const profile = await readYaml<ProfileDefinition>(
-    profileFile.path,
-    "profile.schema.json",
+  const roles = locatedProfiles.map(({ role }) => role);
+  const roleMap = new Map(roles.map((role) => [role.id, role]));
+  const routeByRole = new Map(
+    roles.map((role) => [role.id, fixedRoute(role.profile)]),
   );
-  const resolvedProfile: ResolvedProfile = {
-    ...profile,
-    source: resolve(profileFile.path),
-    scope: profileFile.scope,
-    digest: await hashFile(profileFile.path),
-  };
-  const route = fixedRoute(resolvedProfile);
-  const catalog = await loadCatalog(repoRoot, project, profile.harness);
-  const commands = orderedSteps.map((step) =>
-    resolveCommand(catalog, step.command.id, step.command.version),
+  const harnesses = [...new Set(roles.map((role) => role.profile.harness))];
+  const catalogs = new Map(
+    await Promise.all(
+      harnesses.map(
+        async (harness) =>
+          [harness, await loadCatalog(repoRoot, project, harness)] as const,
+      ),
+    ),
   );
+  const stepRoles = orderedSteps.map((step) => {
+    const roleId = workflow.roles ? step.role! : "default";
+    const role = roleMap.get(roleId);
+    if (!role)
+      throw new DarrowError(
+        `workflow step ${step.id} references unknown role ${roleId}`,
+        "validation",
+      );
+    return role;
+  });
+  const commands = orderedSteps.map((step, index) => {
+    const harness = stepRoles[index]!.profile.harness;
+    return {
+      harness,
+      candidate: resolveCommand(
+        catalogs.get(harness)!,
+        step.command.id,
+        step.command.version,
+      ),
+    };
+  });
   for (let index = 0; index < orderedSteps.length; index += 1) {
-    const command = commands[index]!;
+    const command = commands[index]!.candidate;
     const metadata = command.metadata as CommandMetadata;
     const resolvedInput = resolveInput(
       orderedSteps[index]!.with,
@@ -547,7 +604,7 @@ export async function compile(
     const outcomeIndex = orderedSteps.findIndex(
       (step) => step.id === loop.until.stepId,
     );
-    const command = commands[outcomeIndex]!;
+    const command = commands[outcomeIndex]!.candidate;
     const metadata = command.metadata as CommandMetadata;
     const outputSchema = await readJson<{
       required?: unknown;
@@ -576,26 +633,33 @@ export async function compile(
         "validation",
       );
   }
-  const requirements = new Map<string, string>();
-  for (const requirement of workflow.requirements.capabilities)
-    requirements.set(requirement.contract, requirement.version);
-  for (const command of commands) {
+  const requirementsByHarness = new Map(
+    harnesses.map((harness) => [harness, new Map<string, string>()]),
+  );
+  for (const requirements of requirementsByHarness.values())
+    for (const requirement of workflow.requirements.capabilities)
+      requirements.set(requirement.contract, requirement.version);
+  for (const { harness, candidate: command } of commands) {
+    const requirements = requirementsByHarness.get(harness)!;
     const metadata = command.metadata as CommandMetadata;
     for (const requirement of metadata.requires ?? []) {
       const current = requirements.get(requirement.contract);
       if (current && current !== requirement.version)
         throw new DarrowError(
-          `conflicting ranges for ${requirement.contract}: ${current} and ${requirement.version}`,
+          `conflicting ${harness} ranges for ${requirement.contract}: ${current} and ${requirement.version}`,
           "preflight",
         );
       requirements.set(requirement.contract, requirement.version);
     }
   }
-  const resolvedCapabilities = [...requirements].map(([contract, range]) => ({
-    contract,
-    range,
-    ...resolveCapability(catalog, contract, range),
-  }));
+  const resolvedCapabilities = harnesses.flatMap((harness) =>
+    [...requirementsByHarness.get(harness)!].map(([contract, range]) => ({
+      harness,
+      contract,
+      range,
+      ...resolveCapability(catalogs.get(harness)!, contract, range),
+    })),
+  );
   const planBase = {
     schemaVersion: "0.1.0" as const,
     engineVersion: "0.1.0" as const,
@@ -606,9 +670,10 @@ export async function compile(
       scope: workflowFile.scope,
       digest: await hashFile(workflowFile.path),
     },
-    roles: [{ id: "default", profile: resolvedProfile }],
+    roles,
     capabilities: resolvedCapabilities.map(
-      ({ contract, range, version, candidate }) => ({
+      ({ harness, contract, range, version, candidate }) => ({
+        harness,
         contract,
         requested: range,
         version,
@@ -621,7 +686,8 @@ export async function compile(
     ),
     loops: workflow.loops,
     steps: orderedSteps.map((step, index) => {
-      const command = commands[index]!;
+      const role = stepRoles[index]!;
+      const command = commands[index]!.candidate;
       const metadata = command.metadata as CommandMetadata;
       return {
         id: step.id,
@@ -629,8 +695,8 @@ export async function compile(
         commandId: command.id,
         contractVersion: metadata.contractVersion,
         cancellation: metadata.cancellation ?? "wait_for_boundary",
-        role: "default",
-        route,
+        role: role.id,
+        route: routeByRole.get(role.id)!,
         source: command.skillDir,
         digest: command.digest,
         input: resolveInput(step.with, inputs) as Record<string, unknown>,
@@ -645,17 +711,29 @@ export async function compile(
   };
   await verifyResolvedPlan(plan);
   const uniqueCommands = commands.filter(
-    (command, index, all) =>
-      all.findIndex((candidate) => candidate.id === command.id) === index,
+    ({ harness, candidate }, index, all) =>
+      all.findIndex(
+        (item) =>
+          item.harness === harness && item.candidate.id === candidate.id,
+      ) === index,
   );
+  const profiles = locatedProfiles
+    .map(({ role, file }) => ({ profile: role.profile, file }))
+    .filter(
+      ({ profile }, index, all) =>
+        all.findIndex((item) => item.profile.id === profile.id) === index,
+    );
   return {
     repoRoot,
     plan,
     workflow,
     workflowFile,
-    profiles: [{ profile: resolvedProfile, file: profileFile }],
+    profiles,
     commands: uniqueCommands,
-    capabilities: resolvedCapabilities.map((item) => item.candidate),
+    capabilities: resolvedCapabilities.map(({ harness, candidate }) => ({
+      harness,
+      candidate,
+    })),
     project,
   };
 }
@@ -675,17 +753,18 @@ export async function snapshot(
       errorOnExist: true,
     });
   await copyTree(SCHEMAS_DIR, resolve(root, "schemas"));
-  for (const command of compilation.commands)
+  for (const { harness, candidate: command } of compilation.commands)
     await copyTree(
       command.skillDir,
-      resolve(root, "commands", command.pluginName, command.skillName),
+      resolve(root, "commands", harness, command.pluginName, command.skillName),
     );
-  for (const capability of compilation.capabilities)
+  for (const { harness, candidate: capability } of compilation.capabilities)
     await copyTree(
       capability.skillDir,
       resolve(
         root,
         "capabilities",
+        harness,
         capability.pluginName,
         capability.skillName,
       ),
@@ -706,10 +785,11 @@ export async function snapshot(
         `profile changed while its snapshot was created: ${profile.id}`,
         "immutable_violation",
       );
-  for (const command of compilation.commands) {
+  for (const { harness, candidate: command } of compilation.commands) {
     const copied = resolve(
       root,
       "commands",
+      harness,
       command.pluginName,
       command.skillName,
     );
@@ -719,10 +799,11 @@ export async function snapshot(
         "immutable_violation",
       );
   }
-  for (const capability of compilation.capabilities) {
+  for (const { harness, candidate: capability } of compilation.capabilities) {
     const copied = resolve(
       root,
       "capabilities",
+      harness,
       capability.pluginName,
       capability.skillName,
     );
@@ -739,10 +820,16 @@ export async function snapshot(
       compilation.profiles.map(({ profile }) => [profile.id, profile.digest]),
     ),
     commands: Object.fromEntries(
-      compilation.commands.map((item) => [item.id, item.digest]),
+      compilation.commands.map(({ harness, candidate }) => [
+        `${harness}:${candidate.id}`,
+        candidate.digest,
+      ]),
     ),
     capabilities: Object.fromEntries(
-      compilation.capabilities.map((item) => [item.id, item.digest]),
+      compilation.capabilities.map(({ harness, candidate }) => [
+        `${harness}:${candidate.id}`,
+        candidate.digest,
+      ]),
     ),
     schemas: await hashDirectory(resolve(root, "schemas")),
     plan: await hashFile(resolve(root, "plan.json")),
@@ -765,13 +852,13 @@ export async function createLock(
   );
   const commandSchemas = (
     await Promise.all(
-      compilation.commands.flatMap((candidate) => {
+      compilation.commands.flatMap(({ harness, candidate }) => {
         const metadata = candidate.metadata as CommandMetadata;
         return [metadata.inputSchema, metadata.outputSchema].map(
           async (schemaPath) => ({
-            identity: `${candidate.id}:${basename(schemaPath)}`,
+            identity: `${harness}:${candidate.id}:${basename(schemaPath)}`,
             version: metadata.contractVersion,
-            location: `commands/${candidate.pluginName}/${candidate.skillName}/${schemaPath.replace(/^\.\//, "")}`,
+            location: `commands/${harness}/${candidate.pluginName}/${candidate.skillName}/${schemaPath.replace(/^\.\//, "")}`,
             digest: await hashFile(resolve(candidate.skillDir, schemaPath)),
           }),
         );
@@ -782,59 +869,80 @@ export async function createLock(
       all.findIndex((other) => other.identity === item.identity) === index,
   );
   const schemas = [...cliSchemas, ...commandSchemas];
-  const profile = compilation.profiles[0]!.profile;
-  const route = compilation.plan.steps[0]!.route;
-  const harness = route.harness;
-  const executableName = harness === "codex" ? "codex" : "claude";
-  const executable = Bun.which(executableName);
-  const detected = executable ? run([executable, "--version"]) : null;
-  const configurationPaths: Array<{
-    path: string;
-    scope: "environment" | "user" | "project" | "local";
-  }> = [];
-  if (harness === "codex") {
-    const codexHome =
-      process.env.CODEX_HOME ??
-      (process.env.HOME ? resolve(process.env.HOME, ".codex") : null);
-    if (codexHome)
-      configurationPaths.push({
-        path: resolve(codexHome, "config.toml"),
-        scope: "user",
-      });
-  } else {
-    const claudeHome =
-      process.env.CLAUDE_CONFIG_DIR ??
-      (process.env.HOME ? resolve(process.env.HOME, ".claude") : null);
-    if (claudeHome)
-      configurationPaths.push({
-        path: resolve(claudeHome, "settings.json"),
-        scope: "user",
-      });
-    configurationPaths.push(
-      {
-        path: resolve(compilation.repoRoot, ".claude", "settings.json"),
-        scope: "project",
-      },
-      {
-        path: resolve(compilation.repoRoot, ".claude", "settings.local.json"),
-        scope: "local",
-      },
-    );
-  }
-  const configurationSources = await Promise.all(
-    configurationPaths.map(async ({ path, scope }) =>
-      (await exists(path))
-        ? { path, scope, digest: await hashFile(path) }
-        : null,
-    ),
-  ).then((items) => items.filter((item) => item !== null));
-  if (configurationSources.length === 0)
-    configurationSources.push({
-      path: "environment-defaults",
-      scope: "environment",
-      digest: sha256("environment-defaults"),
-    });
-  const nativePermissions = { inherit: true, configurationSources };
+  const routes = [
+    ...new Map(
+      compilation.plan.steps.map((step) => [step.route.routeId, step.route]),
+    ).values(),
+  ];
+  const adapterHarnesses = [...new Set(routes.map((route) => route.harness))];
+  const adapters = await Promise.all(
+    adapterHarnesses.map(async (harness) => {
+      const executableName = harness === "codex" ? "codex" : "claude";
+      const executable = Bun.which(executableName);
+      const detected = executable ? run([executable, "--version"]) : null;
+      const configurationPaths: Array<{
+        path: string;
+        scope: "environment" | "user" | "project" | "local";
+      }> = [];
+      if (harness === "codex") {
+        const codexHome =
+          process.env.CODEX_HOME ??
+          (process.env.HOME ? resolve(process.env.HOME, ".codex") : null);
+        if (codexHome)
+          configurationPaths.push({
+            path: resolve(codexHome, "config.toml"),
+            scope: "user",
+          });
+      } else {
+        const claudeHome =
+          process.env.CLAUDE_CONFIG_DIR ??
+          (process.env.HOME ? resolve(process.env.HOME, ".claude") : null);
+        if (claudeHome)
+          configurationPaths.push({
+            path: resolve(claudeHome, "settings.json"),
+            scope: "user",
+          });
+        configurationPaths.push(
+          {
+            path: resolve(compilation.repoRoot, ".claude", "settings.json"),
+            scope: "project",
+          },
+          {
+            path: resolve(
+              compilation.repoRoot,
+              ".claude",
+              "settings.local.json",
+            ),
+            scope: "local",
+          },
+        );
+      }
+      const configurationSources = await Promise.all(
+        configurationPaths.map(async ({ path, scope }) =>
+          (await exists(path))
+            ? { path, scope, digest: await hashFile(path) }
+            : null,
+        ),
+      ).then((items) => items.filter((item) => item !== null));
+      if (configurationSources.length === 0)
+        configurationSources.push({
+          path: "environment-defaults",
+          scope: "environment",
+          digest: sha256("environment-defaults"),
+        });
+      const adapterRoutes = routes.filter((route) => route.harness === harness);
+      return {
+        id: adapterRoutes[0]!.adapter.id,
+        version: adapterRoutes[0]!.adapter.version,
+        executable: executable ?? "unavailable",
+        detectedVersion:
+          detected?.exitCode === 0 ? detected.stdout.trim() : "unavailable",
+        routeIds: adapterRoutes.map((route) => route.routeId),
+        harness,
+        nativePermissions: { inherit: true, configurationSources },
+      };
+    }),
+  );
   const temporalManifest = resolve(import.meta.dir, "..", "temporal.json");
   const lock = {
     schemaVersion: "0.1.0",
@@ -847,7 +955,8 @@ export async function createLock(
     },
     planDigest: compilation.plan.digest,
     workflow: compilation.plan.workflow,
-    commands: compilation.commands.map((candidate) => ({
+    commands: compilation.commands.map(({ harness, candidate }) => ({
+      harness,
       id: candidate.id,
       contractVersion: (candidate.metadata as CommandMetadata).contractVersion,
       pluginVersion: candidate.pluginVersion,
@@ -856,11 +965,7 @@ export async function createLock(
     })),
     capabilities: compilation.plan.capabilities,
     roles: compilation.plan.roles,
-    routes: [
-      ...new Map(
-        compilation.plan.steps.map((step) => [step.route.routeId, step.route]),
-      ).values(),
-    ],
+    routes,
     schemas,
     builtins: [
       {
@@ -869,21 +974,7 @@ export async function createLock(
         digest: await hashFile(temporalManifest),
       },
     ],
-    adapters: [
-      {
-        id: route.adapter.id,
-        version: route.adapter.version,
-        executable: executable ?? "unavailable",
-        detectedVersion:
-          detected?.exitCode === 0 ? detected.stdout.trim() : "unavailable",
-        routeIds: [route.routeId],
-        harness,
-        provider: profile.provider,
-        model: profile.model,
-        reasoningEffort: profile.reasoningEffort,
-        nativePermissions,
-      },
-    ],
+    adapters,
     engine: {
       id: "darrow",
       version: "0.1.0",

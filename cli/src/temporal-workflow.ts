@@ -294,7 +294,9 @@ export async function runResolvedPlanWorkflow(
             workspace: input.workspace,
             snapshotDir: input.snapshotDir,
             step,
-            planCapabilities: input.plan.capabilities,
+            planCapabilities: input.plan.capabilities.filter(
+              (capability) => capability.harness === effectiveRoute.harness,
+            ),
             effectiveRoute,
             attemptId: `attempt-${step.id}-${attempt}`,
             instructions,

@@ -145,11 +145,13 @@ export interface WorkflowDefinition {
     { type: "string" | "boolean" | "number"; required: boolean }
   >;
   requirements: { capabilities: Requirement[] };
-  profile: string;
+  profile?: string;
+  roles?: Record<string, { profile: string }>;
   loops: LoopRegion[];
   steps: Array<{
     id: string;
     dependsOn: string[];
+    role?: string;
     command: { id: string; version: string };
     with: Record<string, unknown>;
     publish?: ArtifactPublication;
@@ -253,6 +255,7 @@ export interface ResolvedPlan {
   };
   roles: Array<{ id: string; profile: ResolvedProfile }>;
   capabilities: Array<{
+    harness: ProfileDefinition["harness"];
     contract: string;
     requested: string;
     version: string;

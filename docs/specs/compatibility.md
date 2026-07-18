@@ -238,7 +238,9 @@ Capability metadata has this shape:
 - **CP-30 — Local snapshot.** The exact workflow, Darrow-aware skills, bundled
   scripts, metadata, and schemas named by the lock are copied into
   `.darrow/runs/<run-id>/snapshot/`. Resume verifies their digests and invokes
-  the snapshot rather than mutable installed content.
+  the snapshot rather than mutable installed content. Command and capability
+  snapshots are qualified by harness so independently resolved Codex and Claude
+  implementations cannot overwrite or impersonate one another.
 - **CP-31 — External provenance limitation.** Harness executables, provider
   services, and model weights are recorded but not snapshotted. The lock promises
   reproducible control, inputs, and provenance, not identical model output.

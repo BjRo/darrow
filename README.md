@@ -65,14 +65,31 @@ its task worker start lazily under `.darrow/runtime`, persist independently of
 the foreground CLI, and never download or upgrade themselves. The bundled
 `codex` profile requests provider `openai`, model `gpt-5.6-sol`, and high
 reasoning effort. The bundled `claude` profile requests provider `anthropic`,
-model `claude-sonnet-4-6`, and high effort. Set `profile: claude` in a workflow
-to select Claude Code for the entire run; mixed harnesses within one workflow
-are deferred. The compiler normalizes this legacy workflow-wide profile into an
-implicit `default` role and embeds a complete digest-addressed route in every
-command step. Locks, persisted results, and invocation events preserve that
-effective route across retries and restarts. Both adapters inherit, lock, and
-revalidate native permission settings, never request a permission-bypass mode,
-and define no model fallback.
+model `claude-sonnet-4-6`, and high effort. A top-level `profile: claude`
+selects Claude Code for the entire run and remains shorthand for an implicit
+`default` role. To route steps independently, declare explicit roles and name
+one on every command step:
+
+```yaml
+roles:
+  implement: { profile: codex }
+  review: { profile: claude }
+steps:
+  - id: implement
+    role: implement
+    # ...
+  - id: review
+    role: review
+    dependsOn: [implement]
+    # ...
+```
+
+The compiler resolves and preflights each role against its own harness, embeds
+the complete digest-addressed route in every command step, and snapshots
+commands and capabilities by harness. Locks, persisted results, and invocation
+events preserve each effective route across retries and restarts. Both adapters
+inherit, lock, and revalidate native permission settings, never request a
+permission-bypass mode, and define no model fallback.
 On non-macOS hosts, authenticated evidence capture requires
 `DARROW_CODEX_PERMISSION_PROFILE` to name a configured native Codex permission
 profile; Darrow refuses to run test commands outside a verifiable sandbox.

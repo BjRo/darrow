@@ -77,6 +77,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "harness",
         "id",
         "contractVersion",
         "pluginVersion",
@@ -84,6 +85,7 @@
         "digest"
       ],
       "properties": {
+        "harness": { "enum": ["codex", "claude"] },
         "id": { "type": "string" },
         "contractVersion": { "type": "string" },
         "pluginVersion": { "type": "string" },
@@ -95,6 +97,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "harness",
         "contract",
         "requested",
         "version",
@@ -105,6 +108,7 @@
         "digest"
       ],
       "properties": {
+        "harness": { "enum": ["codex", "claude"] },
         "contract": { "type": "string" },
         "requested": { "type": "string" },
         "version": { "type": "string" },
@@ -258,9 +262,6 @@
         "executable",
         "detectedVersion",
         "harness",
-        "provider",
-        "model",
-        "reasoningEffort",
         "routeIds",
         "nativePermissions"
       ],
@@ -270,9 +271,6 @@
         "executable": { "type": "string" },
         "detectedVersion": { "type": "string" },
         "harness": { "enum": ["codex", "claude"] },
-        "provider": { "enum": ["openai", "anthropic"] },
-        "model": { "type": "string", "minLength": 1 },
-        "reasoningEffort": { "type": "string", "minLength": 1 },
         "routeIds": {
           "type": "array",
           "minItems": 1,
@@ -309,8 +307,7 @@
           "if": { "properties": { "harness": { "const": "codex" } } },
           "then": {
             "properties": {
-              "id": { "const": "codex-cli" },
-              "provider": { "const": "openai" }
+              "id": { "const": "codex-cli" }
             }
           }
         },
@@ -318,8 +315,7 @@
           "if": { "properties": { "harness": { "const": "claude" } } },
           "then": {
             "properties": {
-              "id": { "const": "claude-code" },
-              "provider": { "const": "anthropic" }
+              "id": { "const": "claude-code" }
             }
           }
         }

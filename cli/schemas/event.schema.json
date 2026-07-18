@@ -132,6 +132,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "harness",
         "contract",
         "requested",
         "version",
@@ -142,6 +143,7 @@
         "digest"
       ],
       "properties": {
+        "harness": { "enum": ["codex", "claude"] },
         "contract": { "type": "string" },
         "requested": { "type": "string" },
         "version": { "type": "string" },
