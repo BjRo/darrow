@@ -42,6 +42,9 @@ contracts. Exact runtime behavior lives in these normative specifications:
   locking, skill metadata, snapshots, trust, and release gates.
 - [Observability](specs/observability.md) — read for journals, harness events,
   handoffs, OpenTelemetry, content, and redaction.
+- [Product-value evaluation](specs/product-value-evaluation.md) — read for the
+  M2 product gate, controlled treatments, task-level inference, and decision
+  rules.
 - [Delivery workflow](specs/delivery-workflow.md) — read for the M1
   `implement-change` command, red/green evidence, and delivery side-effect
   boundaries.
@@ -515,6 +518,12 @@ contains identifiers, timing, transitions, model routing, usage, and error
 categories—not prompts, transcripts, free-form human input, source, diffs, or
 artifact bodies.
 
+Before full OpenTelemetry integration or M3 investment, Darrow must pass the
+preregistered product-value evaluation in the
+[product-value evaluation specification](specs/product-value-evaluation.md).
+Only the lightweight structured records needed by that experiment are required
+for the gate.
+
 ## 13. Security and permissions
 
 **Status:** Invariant
@@ -637,6 +646,13 @@ restart reuses the recorded decision without invoking the provider again.
 ### M3 — Evaluated delivery packs
 
 **Status:** Milestone requirement
+
+Entry into M3 is conditional on applying the preregistered M2 product-value
+gate. A `continue` result permits the milestone as written; `narrow` limits M3
+to the task strata that demonstrated practical value; `redesign` requires a new
+preregistered confirmatory evaluation before M3; and `stop` ends investment in
+the current orchestration approach. Full OpenTelemetry integration follows the
+same gate and is not used to produce its evidence.
 
 Package evidence-backed delivery workflows that exercise M2b role routing and
 M2c policy routing, ticket artifact publication, and cross-runtime eval coverage.

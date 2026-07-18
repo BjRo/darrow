@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "eval": "bun evals/runner/run.ts",
+    "eval:product": "bun evals/product-value/cli.ts",
     "format": "prettier --write .",
     "hooks:install": "git config core.hooksPath .githooks",
     "lint": "prettier --check .",
