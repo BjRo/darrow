@@ -16,6 +16,7 @@ import type {
   CancellationRequest,
   CancellationSummary,
   HumanResponse,
+  RouteAmendment,
   TicketPublicationResult,
   WaiverRecord,
 } from "./types";
@@ -56,6 +57,7 @@ export interface ExecutionBoundary {
   steps: WorkflowStatus["steps"];
   request: WorkflowStatus["request"];
   waivers: WaiverRecord[];
+  amendments: RouteAmendment[];
   cancellation: CancellationSummary | null;
   publications: TicketPublicationResult[];
   error: { category: string; message: string } | null;
@@ -338,6 +340,7 @@ export async function waitForBoundary(
           steps: status.steps,
           request: status.request,
           waivers: status.waivers,
+          amendments: status.amendments,
           cancellation: status.cancellation,
           publications: status.publications,
           error: status.error,
@@ -351,6 +354,7 @@ export async function waitForBoundary(
           steps: status.steps,
           request: null,
           waivers: status.waivers,
+          amendments: status.amendments,
           cancellation: status.cancellation,
           publications: status.publications,
           error: status.error,
@@ -372,6 +376,7 @@ export async function waitForBoundary(
               steps: [],
               request: null,
               waivers: [],
+              amendments: [],
               cancellation: null,
               publications: [],
               error: null,
@@ -562,9 +567,14 @@ export async function continuePlan(
         "a rationale is only valid with choice waive",
         "usage",
       );
-    if (response.choice === "amend" && !response.model)
+    if (response.choice === "amend" && !response.amendment)
       throw new DarrowError(
-        "model amendment requires an explicit model",
+        "route amendment requires an explicit compatible profile",
+        "usage",
+      );
+    if (response.choice !== "amend" && response.amendment)
+      throw new DarrowError(
+        "a route amendment is only valid with choice amend",
         "usage",
       );
     await handle.signal(continuationSignal, response);

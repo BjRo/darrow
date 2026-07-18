@@ -54,7 +54,7 @@ export interface HumanResponse {
   };
   instructions: ContentReference | null;
   rationale: ContentReference | null;
-  model?: string;
+  amendment: RouteAmendment | null;
 }
 
 export type OutcomeValue = string | number | boolean | null;
@@ -206,6 +206,23 @@ export interface ExecutionRoute {
   selectionSource: RouteSelectionSource;
 }
 
+export interface RouteAmendment {
+  amendmentId: string;
+  requestId: string;
+  responseId: string;
+  stepId: string;
+  planRouteId: string;
+  attemptScope: {
+    fromAttempt: number;
+    throughAttempt: null;
+  };
+  unavailableRoute: ExecutionRoute;
+  replacementProfile: ResolvedProfile;
+  replacementRoute: ExecutionRoute;
+  actor: HumanResponse["actor"];
+  approvedAt: string;
+}
+
 export interface ProjectDefinition {
   schemaVersion: typeof CONTRACT_VERSION;
   defaultProfile: string;
@@ -297,6 +314,7 @@ export interface RunRecord {
   steps: StepExecutionStatus[];
   request: HumanRequest | null;
   waivers: WaiverRecord[];
+  amendments: RouteAmendment[];
   cancellation: CancellationSummary | null;
   error: { category: string; message: string } | null;
 }
@@ -310,6 +328,7 @@ export interface ActivityInput {
   step: ResolvedPlan["steps"][number];
   planCapabilities: ResolvedPlan["capabilities"];
   effectiveRoute: ExecutionRoute;
+  routeAmendment: RouteAmendment | null;
   attemptId: string;
   instructions: ContentReference[];
   priorArtifacts: ArtifactReference[];

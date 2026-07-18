@@ -142,6 +142,7 @@ async function fixture(script?: string): Promise<{
         publish: null,
       },
       effectiveRoute: route,
+      routeAmendment: null,
     },
   };
 }

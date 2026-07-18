@@ -6,6 +6,7 @@
     { "$ref": "#/$defs/dependenciesResolved" },
     { "$ref": "#/$defs/humanRequested" },
     { "$ref": "#/$defs/humanReceived" },
+    { "$ref": "#/$defs/routeAmended" },
     { "$ref": "#/$defs/waiverAccepted" },
     { "$ref": "#/$defs/workspaceAllocated" },
     { "$ref": "#/$defs/runStarted" },
@@ -21,6 +22,140 @@
   ],
   "$defs": {
     "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "harness", "verified"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "harness": { "type": ["string", "null"] },
+        "verified": { "const": false }
+      }
+    },
+    "executionRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routeId",
+        "profileId",
+        "profileDigest",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "permissions",
+        "limits",
+        "adapter",
+        "selectionSource"
+      ],
+      "properties": {
+        "routeId": { "type": "string", "minLength": 1 },
+        "profileId": { "type": "string", "minLength": 1 },
+        "profileDigest": { "$ref": "#/$defs/digest" },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit"],
+          "properties": { "inherit": { "const": true } }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "adapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version"],
+          "properties": {
+            "id": { "enum": ["codex-cli", "claude-code"] },
+            "version": { "const": "0.1.0" }
+          }
+        },
+        "selectionSource": {
+          "enum": [
+            "fixed_plan",
+            "scoped_human_amendment",
+            "explicit_user_pin",
+            "routing_policy"
+          ]
+        }
+      }
+    },
+    "resolvedProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "permissions",
+        "source",
+        "scope",
+        "digest"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit"],
+          "properties": { "inherit": { "const": true } }
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["explicit", "project", "user", "bundled"] },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "routeAmendment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amendmentId",
+        "requestId",
+        "responseId",
+        "stepId",
+        "planRouteId",
+        "attemptScope",
+        "unavailableRoute",
+        "replacementProfile",
+        "replacementRoute",
+        "actor",
+        "approvedAt"
+      ],
+      "properties": {
+        "amendmentId": { "$ref": "#/$defs/digest" },
+        "requestId": { "type": "string", "minLength": 1 },
+        "responseId": { "type": "string", "minLength": 1 },
+        "stepId": { "type": "string", "minLength": 1 },
+        "planRouteId": { "type": "string", "minLength": 1 },
+        "attemptScope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fromAttempt", "throughAttempt"],
+          "properties": {
+            "fromAttempt": { "type": "integer", "minimum": 1 },
+            "throughAttempt": { "type": "null" }
+          }
+        },
+        "unavailableRoute": { "$ref": "#/$defs/executionRoute" },
+        "replacementProfile": { "$ref": "#/$defs/resolvedProfile" },
+        "replacementRoute": { "$ref": "#/$defs/executionRoute" },
+        "actor": { "$ref": "#/$defs/actor" },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "outcomeValue": {
       "oneOf": [
         { "type": "string" },
@@ -325,7 +460,8 @@
             "choice",
             "actor",
             "instructions",
-            "rationale"
+            "rationale",
+            "amendment"
           ],
           "properties": {
             "requestId": { "type": "string" },
@@ -353,9 +489,34 @@
                 { "$ref": "#/$defs/contentReference" }
               ]
             },
-            "model": { "type": "string" }
+            "amendment": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/routeAmendment" }
+              ]
+            }
           }
         }
+      }
+    },
+    "routeAmended": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "timestamp",
+        "type",
+        "data"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "eventId": { "type": "string" },
+        "runId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "const": "route.amended" },
+        "data": { "$ref": "#/$defs/routeAmendment" }
       }
     },
     "waiverAccepted": {

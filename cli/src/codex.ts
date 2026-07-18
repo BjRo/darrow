@@ -16,6 +16,7 @@ import {
   writeJson,
 } from "./io";
 import { run } from "./process";
+import { validRouteAmendment } from "./routing";
 import { validateExternalSchema } from "./schema";
 import { event } from "./state";
 import type { ActivityInput, CommandResult } from "./types";
@@ -499,12 +500,23 @@ async function executeHarnessCommandInternal(
         "snapshot_corrupt",
         `run lock does not contain adapter ${input.effectiveRoute.adapter.id}`,
       );
-    const routeIsLocked = lockedAdapter.routeIds.some(
-      (routeId) =>
-        input.effectiveRoute.routeId === routeId ||
-        (input.effectiveRoute.selectionSource === "scoped_human_amendment" &&
-          input.effectiveRoute.routeId.startsWith(`${routeId}:model:`)),
-    );
+    const amendment = input.routeAmendment;
+    const attempt = Number(/-(\d+)$/.exec(input.attemptId)?.[1] ?? 0);
+    let amendmentIsAuthorized = false;
+    if (amendment && validRouteAmendment(amendment)) {
+      const { amendmentId, ...amendmentBase } = amendment;
+      amendmentIsAuthorized =
+        sha256(canonicalJson(amendmentBase)) === amendmentId &&
+        amendment.stepId === input.step.id &&
+        amendment.planRouteId === input.step.route.routeId &&
+        lockedAdapter.routeIds.includes(amendment.planRouteId) &&
+        amendment.attemptScope.fromAttempt <= attempt &&
+        canonicalJson(amendment.replacementRoute) ===
+          canonicalJson(input.effectiveRoute);
+    }
+    const routeIsLocked =
+      lockedAdapter.routeIds.includes(input.effectiveRoute.routeId) ||
+      amendmentIsAuthorized;
     if (!routeIsLocked)
       return failure(
         input,

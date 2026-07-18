@@ -242,6 +242,87 @@
         }
       }
     },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "harness", "verified"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "harness": { "type": ["string", "null"] },
+        "verified": { "const": false }
+      }
+    },
+    "resolvedProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "harness",
+        "provider",
+        "model",
+        "reasoningEffort",
+        "permissions",
+        "source",
+        "scope",
+        "digest"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "0.1.0" },
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "harness": { "enum": ["codex", "claude"] },
+        "provider": { "enum": ["openai", "anthropic"] },
+        "model": { "type": "string", "minLength": 1 },
+        "reasoningEffort": { "type": "string", "minLength": 1 },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inherit"],
+          "properties": { "inherit": { "const": true } }
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["explicit", "project", "user", "bundled"] },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "routeAmendment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amendmentId",
+        "requestId",
+        "responseId",
+        "stepId",
+        "planRouteId",
+        "attemptScope",
+        "unavailableRoute",
+        "replacementProfile",
+        "replacementRoute",
+        "actor",
+        "approvedAt"
+      ],
+      "properties": {
+        "amendmentId": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "requestId": { "type": "string", "minLength": 1 },
+        "responseId": { "type": "string", "minLength": 1 },
+        "stepId": { "type": "string", "minLength": 1 },
+        "planRouteId": { "type": "string", "minLength": 1 },
+        "attemptScope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fromAttempt", "throughAttempt"],
+          "properties": {
+            "fromAttempt": { "type": "integer", "minimum": 1 },
+            "throughAttempt": { "type": "null" }
+          }
+        },
+        "unavailableRoute": { "$ref": "#/$defs/executionRoute" },
+        "replacementProfile": { "$ref": "#/$defs/resolvedProfile" },
+        "replacementRoute": { "$ref": "#/$defs/executionRoute" },
+        "actor": { "$ref": "#/$defs/actor" },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "result": {
       "type": "object",
       "additionalProperties": false,
@@ -735,6 +816,7 @@
         "steps",
         "request",
         "waivers",
+        "amendments",
         "cancellation",
         "error",
         "cleanup",
@@ -761,6 +843,10 @@
         "waivers": {
           "type": "array",
           "items": { "$ref": "#/$defs/waiver" }
+        },
+        "amendments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/routeAmendment" }
         },
         "cancellation": { "$ref": "#/$defs/cancellation" },
         "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },

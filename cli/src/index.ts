@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { chmod, mkdir, readdir, rename, rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import { prepareRouteAmendment } from "./amendments";
 import { compile, createLock, snapshot, verifyRunSnapshot } from "./compiler";
 import { verifyArtifacts } from "./artifacts";
 import {
@@ -76,7 +77,7 @@ function usage(): string {
     "  darrow init [--json]",
     "  darrow run <workflow|path> --input <name=value> [--base <ref>] [--workspace current|--worktree <path>] [--json]",
     "  darrow run implement-change --change <description> [--base <ref>] [--json]",
-    "  darrow continue <run-id> --request <id> --version <n> --choice <choice> [--instructions-file <path|->] [--rationale-file <path|->] [--actor <id>] [--harness <id>] [--model <id>] [--json]",
+    "  darrow continue <run-id> --request <id> --version <n> --choice <choice> [--profile <id>] [--instructions-file <path|->] [--rationale-file <path|->] [--actor <id>] [--harness <id>] [--json]",
     "  darrow resume <run-id> [--json]",
     "  darrow cancel <run-id> [--json]",
     "  darrow inspect <run-id> [--json]",
@@ -193,7 +194,7 @@ function parseContinuation(args: string[]): {
   rationaleFile?: string;
   actor?: string;
   harness?: string;
-  model?: string;
+  profile?: string;
   json: boolean;
 } {
   const runId = args.shift();
@@ -205,7 +206,7 @@ function parseContinuation(args: string[]): {
   let rationaleFile: string | undefined;
   let actor: string | undefined;
   let harness: string | undefined;
-  let model: string | undefined;
+  let profile: string | undefined;
   let json = false;
   while (args.length) {
     const flag = args.shift();
@@ -222,7 +223,7 @@ function parseContinuation(args: string[]): {
     else if (flag === "--rationale-file") rationaleFile = args.shift() ?? "";
     else if (flag === "--actor") actor = args.shift() ?? "";
     else if (flag === "--harness") harness = args.shift() ?? "";
-    else if (flag === "--model") model = args.shift() ?? "";
+    else if (flag === "--profile") profile = args.shift() ?? "";
     else throw new DarrowError(`unknown continue argument: ${flag}`, "usage");
   }
   return {
@@ -234,7 +235,7 @@ function parseContinuation(args: string[]): {
     rationaleFile,
     actor,
     harness,
-    model,
+    profile,
     json,
   };
 }
@@ -317,6 +318,7 @@ async function createInitialRun(
     })),
     request: null,
     waivers: [],
+    amendments: [],
     cancellation: null,
     error: null,
   };
@@ -445,6 +447,9 @@ async function applyBoundary(
       const previousWaivers = new Set(
         current.waivers.map((waiver) => waiver.waiverId),
       );
+      const previousAmendments = new Set(
+        current.amendments.map((amendment) => amendment.amendmentId),
+      );
       const previousCancellation = current.cancellation;
       const recordedPublicationIds = new Set(
         (await readTicketPublicationEvents(runDir)).flatMap((publication) =>
@@ -459,6 +464,7 @@ async function applyBoundary(
       };
       record.request = boundary.request;
       record.waivers = boundary.waivers;
+      record.amendments = boundary.amendments;
       record.cancellation = boundary.cancellation ?? current.cancellation;
       if (!previousCancellation && record.cancellation)
         await event(runDir, record.runId, "run.cancel.requested", {
@@ -467,6 +473,9 @@ async function applyBoundary(
       for (const waiver of boundary.waivers)
         if (!previousWaivers.has(waiver.waiverId))
           await event(runDir, record.runId, "waiver.accepted", waiver);
+      for (const amendment of boundary.amendments)
+        if (!previousAmendments.has(amendment.amendmentId))
+          await event(runDir, record.runId, "route.amended", amendment);
       for (const publication of boundary.publications)
         if (
           publication.artifacts.some(
@@ -497,7 +506,7 @@ async function applyBoundary(
               ? "the effectful activity ended without a trustworthy outcome"
               : reason === "loop_outcome"
                 ? "a bounded loop did not satisfy its declared outcome"
-                : "the selected Codex model is currently unavailable",
+                : "the selected execution route is currently unavailable",
         };
         if (
           boundary.request &&
@@ -737,7 +746,7 @@ async function continueRun(
   const {
     runId,
     json,
-    model,
+    profile,
     instructionsFile,
     rationaleFile,
     actor,
@@ -787,15 +796,15 @@ async function continueRun(
   if (actor === "") throw new DarrowError("--actor requires an ID", "usage");
   if (harness === "")
     throw new DarrowError("--harness requires an ID", "usage");
-  if (model === "")
-    throw new DarrowError("--model requires a model ID", "usage");
-  if (choice === "amend" && !model)
+  if (profile === "")
+    throw new DarrowError("--profile requires a profile ID", "usage");
+  if (choice === "amend" && !profile)
     throw new DarrowError(
-      "model amendment requires an explicit model",
+      "route amendment requires an explicit profile",
       "usage",
     );
-  if (choice !== "amend" && model !== undefined)
-    throw new DarrowError("--model is only valid with choice amend", "usage");
+  if (choice !== "amend" && profile !== undefined)
+    throw new DarrowError("--profile is only valid with choice amend", "usage");
   if (instructionsFile === "")
     throw new DarrowError("--instructions-file requires a path or -", "usage");
   if (rationaleFile === "")
@@ -834,15 +843,29 @@ async function continueRun(
         : await readText(resolve(rationaleFile));
   if (choice === "waive" && !rationaleContent?.trim())
     throw new DarrowError("waiver rationale must not be empty", "usage");
+  const responseId = crypto.randomUUID();
+  const responseActor: HumanResponse["actor"] = {
+    id: actor || null,
+    harness: harness || null,
+    verified: false,
+  };
+  const amendment = profile
+    ? await prepareRouteAmendment({
+        repoRoot,
+        plan,
+        record,
+        request,
+        profileId: profile,
+        responseId,
+        actor: responseActor,
+        approvedAt: new Date().toISOString(),
+      })
+    : null;
   const response: HumanResponse = {
     requestId,
     version,
     choice,
-    actor: {
-      id: actor || null,
-      harness: harness || null,
-      verified: false,
-    },
+    actor: responseActor,
     instructions: await storeHumanInstructions(
       repoRoot,
       runDir,
@@ -855,7 +878,7 @@ async function continueRun(
       request,
       rationaleContent,
     ),
-    ...(model ? { model } : {}),
+    amendment,
   };
   await event(runDir, runId, "human.input.received", response);
   const pending = record.temporal.pending as
@@ -1159,7 +1182,7 @@ async function inspectRun(runId: string, json: boolean): Promise<void> {
     await printWaiting(record, false);
   else
     console.log(
-      `Run: ${runId}\nState: ${record.state}\nConclusion: ${record.conclusion ?? "(none)"}\nWorkflow: ${record.workflowId}\nWorkspace: ${record.workspace ?? "(not allocated)"}\nEvents: ${eventCount}\nResults: ${results.length}\nRun record: ${runDir}`,
+      `Run: ${runId}\nState: ${record.state}\nConclusion: ${record.conclusion ?? "(none)"}\nWorkflow: ${record.workflowId}\nWorkspace: ${record.workspace ?? "(not allocated)"}\nAmendments: ${record.amendments.length}\nEvents: ${eventCount}\nResults: ${results.length}\nRun record: ${runDir}`,
     );
 }
 

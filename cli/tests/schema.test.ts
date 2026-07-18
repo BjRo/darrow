@@ -274,6 +274,7 @@ describe("0.1.0 contract fixtures", () => {
           location: ".darrow/runs/run-1/content/human/response.txt",
         },
         rationale: null,
+        amendment: null,
       },
     };
     await expect(

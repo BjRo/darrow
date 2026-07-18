@@ -306,6 +306,11 @@ contract is implemented by M2c without requiring M2b to perform dynamic routing.
   an unrelated or merely subsequent step. Replacing only a model string without
   validating the associated harness, provider, effort, permissions, and
   command compatibility is invalid.
+  Local schema `0.1.0` accepts the replacement as `--profile <id>`, resolves the
+  complete profile at continuation time, and scopes it from the target step's
+  next attempt through its remaining attempts. It permits only the harness
+  already preflighted for that step; changing harness requires a new run or a
+  preflighted M2c candidate envelope.
 
 **Status:** Milestone requirement — M2c
 

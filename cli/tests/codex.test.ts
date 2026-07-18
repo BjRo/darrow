@@ -259,6 +259,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
           publish: null,
         },
         effectiveRoute: route,
+        routeAmendment: null,
       };
       const result = await executeCodexCommand(input);
       expect(result.status, result.error?.message).toBe("succeeded");

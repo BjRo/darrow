@@ -249,6 +249,10 @@ Capability metadata has this shape:
   complete replacement route is an append-only amendment scoped to the declared
   target step and attempts. Native fallback settings cannot select an unrecorded
   model, provider, harness, effort, or permission configuration.
+  A local `0.1.0` human amendment records the newly resolved profile definition,
+  source, scope, and digest in durable amendment state while leaving the original
+  lock and snapshot unchanged. It may reuse only the target step's locked harness,
+  adapter, command implementation, and capability environment.
 - **CP-32a — Locked candidate envelope.** An M2c routing-policy provider may
   choose another route only from the finite candidate envelope in the original
   lock. Each candidate has a stable route ID and complete profile and

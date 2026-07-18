@@ -13,7 +13,7 @@ import {
   initialStepStatuses,
   type StepExecutionStatus,
 } from "./scheduler";
-import { amendRouteModel } from "./routing";
+import { validRouteAmendment } from "./routing";
 import type {
   ActivityInput,
   ArtifactReference,
@@ -27,6 +27,7 @@ import type {
   PublicationActivityInput,
   PublicationActivityResult,
   ResolvedPlan,
+  RouteAmendment,
   TicketPublicationResult,
   WaiverRecord,
 } from "./types";
@@ -66,6 +67,7 @@ export interface WorkflowStatus {
   request: HumanRequest | null;
   lastResponse: Pick<HumanResponse, "requestId" | "version"> | null;
   waivers: WaiverRecord[];
+  amendments: RouteAmendment[];
   cancellation: CancellationSummary | null;
   publications: TicketPublicationResult[];
   error: { category: string; message: string } | null;
@@ -108,7 +110,7 @@ function validHumanResponse(value: unknown): value is HumanResponse {
       validContentReference(response.instructions)) &&
     (response.rationale === null ||
       validContentReference(response.rationale)) &&
-    (response.model === undefined || typeof response.model === "string")
+    (response.amendment === null || validRouteAmendment(response.amendment))
   );
 }
 
@@ -121,13 +123,14 @@ export async function runResolvedPlanWorkflow(
   const steps = initialStepStatuses(input.plan.steps);
   const attemptCounts = new Map(input.plan.steps.map((step) => [step.id, 0]));
   const waivers: WaiverRecord[] = [];
+  const amendments: RouteAmendment[] = [];
   const publications: TicketPublicationResult[] = [];
   const forwardInstructions = new Map<string, ContentReference[]>();
   let state: WorkflowStatus["state"] = "running";
   let request: WorkflowStatus["request"] = null;
   let continuation: HumanResponse | null = null;
   let lastResponse: WorkflowStatus["lastResponse"] = null;
-  const amendedModels = new Map<string, string>();
+  const activeAmendments = new Map<string, RouteAmendment>();
   let requestVersion = 0;
   let waitQueue = Promise.resolve();
   let cancellationRequest: CancellationRequest | null = null;
@@ -173,18 +176,20 @@ export async function runResolvedPlanWorkflow(
     request,
     lastResponse,
     waivers,
+    amendments,
     cancellation: cancellationSummary(),
     publications,
     error: workflowError,
   }));
   setHandler(continuationSignal, (value) => {
+    const currentRequest = request;
     if (
       validHumanResponse(value) &&
-      request &&
+      currentRequest &&
       continuation === null &&
-      value.requestId === request.requestId &&
-      value.version === request.version &&
-      request.choices.some(
+      value.requestId === currentRequest.requestId &&
+      value.version === currentRequest.version &&
+      currentRequest.choices.some(
         (choice) =>
           choice.id === value.choice &&
           (value.instructions === null || choice.acceptsInstructions),
@@ -192,7 +197,23 @@ export async function runResolvedPlanWorkflow(
       (value.choice === "waive"
         ? value.rationale !== null && value.rationale.size > 0
         : value.rationale === null) &&
-      (value.choice !== "amend" || Boolean(value.model))
+      (value.choice === "amend"
+        ? value.amendment !== null &&
+          value.amendment.requestId === currentRequest.requestId &&
+          value.amendment.stepId === currentRequest.stepId &&
+          value.amendment.planRouteId ===
+            input.plan.steps.find((step) => step.id === currentRequest.stepId)
+              ?.route.routeId &&
+          value.amendment.attemptScope.fromAttempt ===
+            (steps.find((step) => step.stepId === currentRequest.stepId)
+              ?.attempt ?? -1) +
+              1 &&
+          value.amendment.unavailableRoute.routeId ===
+            (activeAmendments.get(currentRequest.stepId!)?.replacementRoute
+              .routeId ??
+              input.plan.steps.find((step) => step.id === currentRequest.stepId)
+                ?.route.routeId)
+        : value.amendment === null)
     )
       continuation = value;
   });
@@ -282,10 +303,8 @@ export async function runResolvedPlanWorkflow(
       if (step.cancellation === "interrupt")
         cancellableActivities.set(step.id, activityScope);
       try {
-        const amendedModel = amendedModels.get(step.id);
-        const effectiveRoute = amendedModel
-          ? amendRouteModel(step.route, amendedModel)
-          : step.route;
+        const routeAmendment = activeAmendments.get(step.id) ?? null;
+        const effectiveRoute = routeAmendment?.replacementRoute ?? step.route;
         result = await activityScope.run(() =>
           executeCommand({
             runId: input.runId,
@@ -298,6 +317,7 @@ export async function runResolvedPlanWorkflow(
               (capability) => capability.harness === effectiveRoute.harness,
             ),
             effectiveRoute,
+            routeAmendment,
             attemptId: `attempt-${step.id}-${attempt}`,
             instructions,
             priorArtifacts,
@@ -399,7 +419,8 @@ export async function runResolvedPlanWorkflow(
           },
           {
             id: "amend",
-            consequence: "Retry this step with the explicitly supplied model.",
+            consequence:
+              "Retry this step with the complete route from an explicitly supplied compatible profile.",
             acceptsInstructions: true,
           },
           {
@@ -414,8 +435,11 @@ export async function runResolvedPlanWorkflow(
         status.state = decision ? "failed" : "cancelled";
         return { result, aborted: true, cancelled: true };
       }
-      if (decision.choice === "amend")
-        amendedModels.set(step.id, decision.model!);
+      if (decision.choice === "amend") {
+        const amendment = decision.amendment!;
+        amendments.push(amendment);
+        activeAmendments.set(step.id, amendment);
+      }
       if (decision.instructions) instructions.push(decision.instructions);
     }
   };

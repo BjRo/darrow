@@ -158,6 +158,8 @@ happened after the previous Darrow invocation and before the current one.
   target step and attempt scope, request and response IDs, unverified actor
   metadata, and time. It never rewrites the original step route or changes an
   unrelated step.
+  Local `0.1.0` emits this record as `route.amended` and preserves the same typed
+  amendment in inspection state.
 - **OB-21 — No command-line interpolation.** Raw human response content never
   appears inside a generated `darrow continue` shell command or Temporal history.
   Workflow state carries only its bounded content reference and hash.

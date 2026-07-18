@@ -57,10 +57,12 @@ darrow clean --worktrees --run <run-id>
 `--base HEAD` can bypass the dirty-checkout question and deliberately starts the
 managed worktree from the committed HEAD while leaving uncommitted files in the
 invoking checkout. A run waiting on model availability accepts `retry`,
-`abort`, or an explicit `amend --model <id>`; amendments create a new effective
-route scoped to that step and do not rewrite its locked plan route or affect
-another step. `darrow resume <run-id>` reconnects to an already running Temporal
-execution after a CLI interruption. Temporal and
+`abort`, or an explicit `amend --profile <id>`. An amendment resolves and records
+the profile's complete route, applies it to that step's remaining attempts, and
+does not rewrite the locked plan route or affect another step. The replacement
+must use the harness already preflighted for that step. `darrow resume <run-id>`
+reconnects to an already running Temporal execution after a CLI interruption.
+Temporal and
 its task worker start lazily under `.darrow/runtime`, persist independently of
 the foreground CLI, and never download or upgrade themselves. The bundled
 `codex` profile requests provider `openai`, model `gpt-5.6-sol`, and high

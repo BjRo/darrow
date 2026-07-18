@@ -156,6 +156,19 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
     };
     const init = command(["bun", cli, "init", "--json"], root, env);
     expect(init.code, init.stderr).toBe(0);
+    await mkdir(resolve(root, ".darrow", "profiles"));
+    await writeFile(
+      resolve(root, ".darrow", "profiles", "codex-recovery.yaml"),
+      `schemaVersion: 0.1.0
+id: codex-recovery
+harness: codex
+provider: openai
+model: gpt-5.5-codex
+reasoningEffort: medium
+permissions:
+  inherit: true
+`,
+    );
     await writeFile(
       resolve(root, ".darrow", "workflows", "implement-change.yaml"),
       `schemaVersion: 0.1.0
@@ -341,7 +354,9 @@ steps:
         "--version",
         String(modelWait.data.request.version),
         "--choice",
-        "retry",
+        "amend",
+        "--profile",
+        "codex-recovery",
         "--instructions-file",
         instructions,
         "--actor",
@@ -522,6 +537,16 @@ steps:
         state: string;
         conclusion: string;
         steps: Array<{ stepId: string; state: string; attempt: number }>;
+        amendments: Array<{
+          stepId: string;
+          attemptScope: { fromAttempt: number; throughAttempt: null };
+          replacementRoute: {
+            profileId: string;
+            model: string;
+            reasoningEffort: string;
+            selectionSource: string;
+          };
+        }>;
         counts: { events: number };
       };
     };
@@ -532,21 +557,46 @@ steps:
       { stepId: "review", state: "succeeded", attempt: 2 },
       { stepId: "publish", state: "succeeded", attempt: 1 },
     ]);
+    expect(inspected.data.amendments).toMatchObject([
+      {
+        stepId: "implement",
+        attemptScope: { fromAttempt: 2, throughAttempt: null },
+        replacementRoute: {
+          profileId: "codex-recovery",
+          model: "gpt-5.5-codex",
+          reasoningEffort: "medium",
+          selectionSource: "scoped_human_amendment",
+        },
+      },
+    ]);
     expect(inspected.data.counts.events).toBeGreaterThan(5);
     const events = await Bun.file(resolve(runDir, "events.jsonl")).text();
     expect(events).not.toContain("Use the restart-safe path.");
     expect(events).not.toContain("Address the rejected outcome.");
     expect(events).toContain('"type":"ticket.artifacts.published"');
+    expect(events).toContain('"type":"route.amended"');
     const invocationEvents = events
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line))
       .filter((item) => item.type.startsWith("command.invocation."));
     expect(invocationEvents.length).toBeGreaterThan(3);
+    const implementEvents = invocationEvents.filter(
+      (item) => item.data.stepId === "implement",
+    );
+    const unrelatedEvents = invocationEvents.filter(
+      (item) => item.data.stepId !== "implement",
+    );
     expect(
-      invocationEvents.every(
+      implementEvents.some(
         (item) =>
-          item.data.role === "default" &&
+          item.data.profileId === "codex-recovery" &&
+          item.data.routeSelectionSource === "scoped_human_amendment",
+      ),
+    ).toBe(true);
+    expect(
+      unrelatedEvents.every(
+        (item) =>
           item.data.profileDigest === plan.roles[0]!.profile.digest &&
           item.data.routeId === plan.steps[0]!.route.routeId &&
           item.data.routeSelectionSource === "fixed_plan",
@@ -558,11 +608,21 @@ steps:
         .map((name) => Bun.file(resolve(runDir, "results", name)).json()),
     );
     expect(
-      persistedResults.every(
+      persistedResults.some(
         (result) =>
-          result.route?.routeId === plan.steps[0]!.route.routeId &&
-          result.route?.selectionSource === "fixed_plan",
+          result.commandId === "darrow-delivery:implement" &&
+          result.route?.profileId === "codex-recovery" &&
+          result.route?.selectionSource === "scoped_human_amendment",
       ),
+    ).toBe(true);
+    expect(
+      persistedResults
+        .filter((result) => result.commandId !== "darrow-delivery:implement")
+        .every(
+          (result) =>
+            result.route?.routeId === plan.steps[0]!.route.routeId &&
+            result.route?.selectionSource === "fixed_plan",
+        ),
     ).toBe(true);
     const received = events
       .trim()

@@ -78,6 +78,31 @@ async function selectFile(
   throw new DarrowError(`${kind} not found: ${idOrPath}`, "resolution");
 }
 
+export async function resolveProfileReference(
+  repoRoot: string,
+  profileId: string,
+): Promise<{ profile: ResolvedProfile; file: Located }> {
+  const file = await selectFile(profileId, repoRoot, "profile");
+  const profile = await readYaml<ProfileDefinition>(
+    file.path,
+    "profile.schema.json",
+  );
+  if (profile.id !== profileId)
+    throw new DarrowError(
+      `profile reference ${profileId} resolved to ${file.path}, which declares ${profile.id}`,
+      "resolution",
+    );
+  return {
+    profile: {
+      ...profile,
+      source: resolve(file.path),
+      scope: file.scope,
+      digest: await hashFile(file.path),
+    },
+    file,
+  };
+}
+
 function resolveInput(
   value: unknown,
   inputs: Record<string, unknown>,
@@ -328,7 +353,10 @@ export interface Compilation {
   project: ProjectDefinition;
 }
 
-function fixedRoute(profile: ResolvedProfile): ExecutionRoute {
+export function routeForProfile(
+  profile: ResolvedProfile,
+  selectionSource: ExecutionRoute["selectionSource"] = "fixed_plan",
+): ExecutionRoute {
   const base = {
     profileId: profile.id,
     profileDigest: profile.digest,
@@ -342,7 +370,7 @@ function fixedRoute(profile: ResolvedProfile): ExecutionRoute {
       id: profile.harness === "codex" ? "codex-cli" : "claude-code",
       version: "0.1.0" as const,
     } as const,
-    selectionSource: "fixed_plan" as const,
+    selectionSource,
   };
   return { routeId: sha256(canonicalJson(base)), ...base };
 }
@@ -362,7 +390,9 @@ export async function verifyResolvedPlan(plan: ResolvedPlan): Promise<void> {
         `resolved step ${step.id} references unknown role ${step.role}`,
         "immutable_violation",
       );
-    if (canonicalJson(step.route) !== canonicalJson(fixedRoute(role.profile)))
+    if (
+      canonicalJson(step.route) !== canonicalJson(routeForProfile(role.profile))
+    )
       throw new DarrowError(
         `resolved step ${step.id} route does not match role ${step.role}`,
         "immutable_violation",
@@ -528,25 +558,14 @@ export async function compile(
     : [["default", { profile: workflow.profile! }] as const];
   const locatedProfiles = await Promise.all(
     roleReferences.map(async ([roleId, reference]) => {
-      const file = await selectFile(reference.profile, repoRoot, "profile");
-      const profile = await readYaml<ProfileDefinition>(
-        file.path,
-        "profile.schema.json",
+      const { profile, file } = await resolveProfileReference(
+        repoRoot,
+        reference.profile,
       );
-      if (profile.id !== reference.profile)
-        throw new DarrowError(
-          `workflow role ${roleId} references profile ${reference.profile}, but ${file.path} declares ${profile.id}`,
-          "resolution",
-        );
       return {
         role: {
           id: roleId,
-          profile: {
-            ...profile,
-            source: resolve(file.path),
-            scope: file.scope,
-            digest: await hashFile(file.path),
-          } satisfies ResolvedProfile,
+          profile,
         },
         file,
       };
@@ -555,7 +574,7 @@ export async function compile(
   const roles = locatedProfiles.map(({ role }) => role);
   const roleMap = new Map(roles.map((role) => [role.id, role]));
   const routeByRole = new Map(
-    roles.map((role) => [role.id, fixedRoute(role.profile)]),
+    roles.map((role) => [role.id, routeForProfile(role.profile)]),
   );
   const harnesses = [...new Set(roles.map((role) => role.profile.harness))];
   const catalogs = new Map(

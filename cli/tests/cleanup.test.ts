@@ -99,6 +99,7 @@ async function createRun(
     ],
     request: null,
     waivers: [],
+    amendments: [],
     cancellation: null,
     error: null,
   } satisfies RunRecord);
