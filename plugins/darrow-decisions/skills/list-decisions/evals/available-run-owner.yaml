@@ -1,0 +1,54 @@
+id: list-decisions-available-run-owner
+invariant: DM-L2
+prompt: >-
+  List the recorded decisions for the active Darrow run run-eval-42 using the available
+  read-only owner integration. Report the canonical external owner, scope, and
+  effect without changing repository or run state.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+  bin:
+    darrow: |
+      #!/bin/sh
+      printf '%s\n' "$*" >> .git/darrow-calls
+      case " $* " in
+        *" continue "*|*" waive "*|*" apply "*|*" update "*|*" set "*|*" record "*)
+          echo 'mutating runtime operation forbidden' >&2
+          exit 9
+          ;;
+      esac
+      printf '%s\n' 'owner: Darrow active run run-eval-42'
+      printf '%s\n' 'decision: retry QA evidence collection once after transient grader failure'
+      printf '%s\n' 'status: applied'
+      printf '%s\n' 'scope: run-local'
+      exit 0
+checks:
+  - name: listing is read-only
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: reports owner result and effect
+    run: >-
+      message=.git/last-message.md;
+      grep -Ei 'Darrow' "$message" >/dev/null;
+      grep -Ei 'run-eval-42' "$message" >/dev/null;
+      grep -Ei 'retry[^.]*QA evidence|QA evidence[^.]*retry' "$message" >/dev/null;
+      grep -Ei 'status[^.]*applied|applied[^.]*status' "$message" >/dev/null;
+      grep -Ei 'scope[^.]*run-local|run-local[^.]*scope' "$message" >/dev/null;
+      echo complete
+    expect_exact: "complete"
+  - name: owner integration was queried read-only
+    run: >-
+      test -s .git/darrow-calls;
+      calls=$(cat .git/darrow-calls);
+      printf '%s\n' "$calls" | grep -Ei 'inspect[ ]+run-eval-42[ ]+--json|inspect[ ]+--json[ ]+run-eval-42' >/dev/null;
+      printf '%s\n' "$calls"
+    not_regex: "(^| )(continue|waive|apply|update|set|record)( |$)"
+  - name: does not falsely mark accessible owner result incomplete
+    run: cat .git/last-message.md
+    not_regex: "(Darrow|active run)[^\\n]{0,160}(unavailable|inaccessible|incomplete)|(unavailable|inaccessible|incomplete)[^\\n]{0,160}(Darrow|active run)"
+    flags: i
+  - name: listing creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

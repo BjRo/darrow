@@ -1,0 +1,22 @@
+{
+  "name": "darrow-decisions",
+  "version": "0.1.0",
+  "description": "Capture and query durable repository decisions at their canonical scope",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow Decisions",
+    "shortDescription": "Capture and find authoritative decisions",
+    "longDescription": "Route explicit decisions to ADRs, specifications, policies, work items, or run-local state without duplicating canonical records.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Record this repository decision at the right scope.",
+      "List the decisions about this architecture choice."
+    ]
+  }
+}

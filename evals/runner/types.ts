@@ -29,6 +29,8 @@ export interface Check {
   run: string;
   /** Check passes only if stdout matches. */
   expect_regex?: string;
+  /** Check passes only if stdout, excluding one final newline, equals this value. */
+  expect_exact?: string;
   /** Check fails if stdout matches. */
   not_regex?: string;
   /** Extra regex flags, e.g. "i". "m" is always applied. */

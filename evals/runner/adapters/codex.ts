@@ -1,10 +1,32 @@
 import { join } from "node:path";
 import type { HarnessAdapter, HarnessResult } from "../types";
+import { sandboxedAgentCommand } from "../sandbox";
+import { isolatedHarnessEnvironment } from "../environment";
+
+export function codexRunSucceeded(code: number, stream: string): boolean {
+  let completed = false;
+  let failed = false;
+  for (const line of stream.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    try {
+      const event = JSON.parse(trimmed);
+      const types = [event.type, event.msg?.type].filter(
+        (type): type is string => typeof type === "string",
+      );
+      if (types.includes("turn.completed")) completed = true;
+      if (types.includes("turn.failed")) failed = true;
+    } catch {
+      // non-JSON noise in the stream is fine
+    }
+  }
+  return code === 0 && completed && !failed;
+}
 
 /**
  * Runs the skill via headless Codex (`codex exec`). The skill is mounted in
  * the fixture repo at .agents/skills/ (Codex agent-skills discovery).
- * Sandbox/approvals are bypassed: the fixture is a disposable temp repo.
+ * Native approvals are bypassed inside the runner's outer OS sandbox.
  * Codex reports token usage in its JSONL event stream but no cost — costUsd
  * stays 0 for this adapter.
  */
@@ -25,7 +47,8 @@ export const codexAdapter: HarnessAdapter = {
 
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
-    const proc = Bun.spawn(
+    const env = await isolatedHarnessEnvironment("codex", repoDir);
+    const argv = await sandboxedAgentCommand(
       [
         "codex",
         "exec",
@@ -36,24 +59,28 @@ export const codexAdapter: HarnessAdapter = {
         "-c",
         `model_reasoning_effort="${effort}"`,
         "--skip-git-repo-check",
+        "--ephemeral",
+        "--ignore-user-config",
+        "--ignore-rules",
         "--dangerously-bypass-approvals-and-sandbox",
         // Final agent message lands under .git/ so checks can read it without
         // it ever appearing in the model's worktree (same trick as fixture-bin).
         "-o",
         join(repoDir, ".git", "last-message.md"),
       ],
-      {
-        cwd: repoDir,
-        stdout: "pipe",
-        stderr: "pipe",
-        // Fixture mocks (e.g. gh) shadow real network tools for the harness
-        // and every subprocess it spawns.
-        env: {
-          ...process.env,
-          PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}`,
-        },
-      },
+      repoDir,
     );
+    const proc = Bun.spawn(argv, {
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      // Fixture mocks (e.g. gh) shadow real network tools for the harness
+      // and every subprocess it spawns.
+      env: {
+        ...env,
+        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+      },
+    });
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
@@ -63,17 +90,12 @@ export const codexAdapter: HarnessAdapter = {
 
     let inputTokens = 0;
     let outputTokens = 0;
-    let ok = code === 0;
-    let sawFailure = false;
 
     for (const line of out.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed.startsWith("{")) continue;
       try {
         const event = JSON.parse(trimmed);
-        const type: string = event.type ?? event.msg?.type ?? "";
-        if (type.includes("failed") || type.includes("error"))
-          sawFailure = true;
         const usage =
           event.usage ??
           event.msg?.info?.total_token_usage ??
@@ -86,7 +108,7 @@ export const codexAdapter: HarnessAdapter = {
         // non-JSON noise in the stream is fine
       }
     }
-    ok = ok && !sawFailure;
+    const ok = codexRunSucceeded(code, out);
 
     return {
       ok,

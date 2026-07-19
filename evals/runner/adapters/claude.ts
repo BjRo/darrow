@@ -1,11 +1,13 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HarnessAdapter, HarnessResult } from "../types";
+import { sandboxedAgentCommand } from "../sandbox";
+import { isolatedHarnessEnvironment } from "../environment";
 
 /**
  * Runs the skill via headless Claude Code (`claude -p`). The skill is already
  * mounted in the fixture repo at .claude/skills/ (project-level discovery).
- * Permissions are skipped: the fixture is a disposable temp repo.
+ * Native permissions are skipped inside the runner's outer OS sandbox.
  */
 export const claudeAdapter: HarnessAdapter = {
   name: "claude",
@@ -24,7 +26,8 @@ export const claudeAdapter: HarnessAdapter = {
 
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
-    const proc = Bun.spawn(
+    const env = await isolatedHarnessEnvironment("claude", repoDir);
+    const argv = await sandboxedAgentCommand(
       [
         "claude",
         "-p",
@@ -35,20 +38,28 @@ export const claudeAdapter: HarnessAdapter = {
         model,
         "--effort",
         effort,
+        "--setting-sources",
+        "project,local",
+        "--strict-mcp-config",
+        "--mcp-config",
+        '{"mcpServers":{}}',
+        "--no-chrome",
+        "--no-session-persistence",
         "--dangerously-skip-permissions",
       ],
-      {
-        cwd: repoDir,
-        stdout: "pipe",
-        stderr: "pipe",
-        // Fixture mocks (e.g. gh) shadow real network tools for the harness
-        // and every subprocess it spawns.
-        env: {
-          ...process.env,
-          PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH}`,
-        },
-      },
+      repoDir,
     );
+    const proc = Bun.spawn(argv, {
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      // Fixture mocks (e.g. gh) shadow real network tools for the harness
+      // and every subprocess it spawns.
+      env: {
+        ...env,
+        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+      },
+    });
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
