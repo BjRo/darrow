@@ -925,6 +925,9 @@ export async function createLock(
       if (process.env.DARROW_CODEX_PERMISSION_PROFILE)
         configurationEnvironment.DARROW_CODEX_PERMISSION_PROFILE =
           process.env.DARROW_CODEX_PERMISSION_PROFILE;
+      if (process.env.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT)
+        configurationEnvironment.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT =
+          process.env.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT;
       if (harness === "codex") {
         const codexHome =
           process.env.CODEX_HOME ??

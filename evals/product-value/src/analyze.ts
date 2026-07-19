@@ -277,14 +277,15 @@ export async function analyze(
   const expectedTasks = corpus.tasks.filter(
     (task) => task.phase === "confirmatory",
   );
-  const expectedObservations = expectedTasks.length * 2 * 3 * protocol.repeats;
+  const repeats = protocol.phases.confirmatory.repeats;
+  const expectedObservations = expectedTasks.length * 2 * 3 * repeats;
   if (raw.length !== expectedObservations)
     throw new Error(
       `confirmatory analysis requires ${expectedObservations} observations; found ${raw.length}`,
     );
   for (const task of expectedTasks) {
     const taskRuns = raw.filter((run) => run.assignment.taskId === task.id);
-    if (taskRuns.length !== 2 * 3 * protocol.repeats)
+    if (taskRuns.length !== 2 * 3 * repeats)
       throw new Error(`confirmatory block is incomplete: ${task.id}`);
     if (
       task.grading === "mixed" &&

@@ -77,6 +77,18 @@ describe("0.1.0 contract fixtures", () => {
     ).rejects.toThrow("additional properties");
   });
 
+  test("lock schema records a verified external workspace sandbox root", async () => {
+    const value = await readJson<Record<string, any>>(
+      resolve(CLI_ROOT, "fixtures", "golden", "lock.json"),
+    );
+    value.adapters[0].nativePermissions.configurationEnvironment ??= {};
+    value.adapters[0].nativePermissions.configurationEnvironment.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT =
+      "/private/tmp/disposable-run";
+    await expect(
+      validateSchema("lock.schema.json", value, "external sandbox lock"),
+    ).resolves.toBeUndefined();
+  });
+
   test("profiles allow native model values but reject cross-harness providers", async () => {
     const claude = {
       schemaVersion: "0.1.0",

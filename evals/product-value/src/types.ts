@@ -1,27 +1,48 @@
-export const TREATMENTS = ["native", "plugins", "cli"] as const;
+export const CORE_TREATMENTS = ["native", "plugins", "cli"] as const;
+export const POLICY_DIAGNOSTIC_TREATMENTS = [
+  "native-matched-policy",
+  "plugins-matched-policy",
+] as const;
+export const TREATMENTS = [
+  ...CORE_TREATMENTS,
+  ...POLICY_DIAGNOSTIC_TREATMENTS,
+] as const;
 export const HARNESSES = ["codex", "claude"] as const;
 
+export type CoreTreatment = (typeof CORE_TREATMENTS)[number];
 export type Treatment = (typeof TREATMENTS)[number];
 export type Harness = (typeof HARNESSES)[number];
-export type Phase = "pilot" | "confirmatory";
+export type Phase = "smoke" | "pilot" | "confirmatory";
 export type Stratum = "simple" | "orchestrated";
 
 export interface Route {
   executable: string;
   version: string;
   model: string;
-  effort: string;
   permissionMode: string;
   authFiles: string[];
+}
+
+export interface EffectiveRoute extends Route {
+  effort: string;
 }
 
 export interface Protocol {
   schemaVersion: string;
   preregisteredAt: string;
+  amendedAt: string;
   frozenSeed: string;
-  repeats: number;
-  treatments: Treatment[];
+  treatments: CoreTreatment[];
   harnesses: Record<Harness, Route>;
+  phases: Record<
+    Phase,
+    {
+      repeats: number;
+      timeoutMinutes: number;
+      effort: string;
+      taskId?: string;
+    }
+  >;
   design: {
     alpha: number;
     power: number;
@@ -35,12 +56,7 @@ export interface Protocol {
     bootstrapSamples: number;
     randomizationSamples: number;
   };
-  budgets: {
-    pilotCostUsd: number;
-    confirmatoryCostUsd: number;
-    pilotTokens: number;
-    confirmatoryTokens: number;
-  };
+  budgets: Record<Phase, { costUsd: number; tokens: number }>;
   paths: {
     pluginRoot: string;
     bunExecutable: string;
@@ -100,6 +116,8 @@ export interface CheckObservation {
   exitCode: number;
   durationMs: number;
   passed: boolean;
+  failureCategory: string | null;
+  outputPath: string | null;
 }
 
 export interface Observation {
@@ -114,6 +132,7 @@ export interface Observation {
   harnessVersion: string;
   model: string;
   effort: string;
+  timeoutMs: number;
   permissionMode: string;
   sourceRevision: string;
   runnerRevision: string;
@@ -125,6 +144,7 @@ export interface Observation {
   costUsd: number | null;
   wallTimeMs: number;
   preparationTimeMs: number;
+  treatmentSetupTimeMs: number;
   harnessTimeMs: number;
   humanAttentionMinutes: number | null;
   interventions: number;
@@ -138,6 +158,7 @@ export interface Observation {
   verification: CheckObservation | null;
   patchPath: string | null;
   rawOutputPath: string;
+  tracePath: string | null;
   darrowRunId: string | null;
   retainedWorkspacePath: string | null;
 }

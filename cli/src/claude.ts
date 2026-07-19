@@ -20,7 +20,7 @@ const claudeAdapter: CommandHarnessAdapter = {
   async invocation(input, outputSchema, _outputFile, locked) {
     const schema = await Bun.file(outputSchema).json();
     const localSettings = locked.configurationSources.find(
-      (source) => source.scope === "local",
+      (source) => source.scope === "local" && source.present !== false,
     )?.path;
     const args = [
       locked.executable,

@@ -290,6 +290,9 @@
                 "CODEX_HOME": { "type": "string" },
                 "CLAUDE_CONFIG_DIR": { "type": "string" },
                 "DARROW_CODEX_PERMISSION_PROFILE": { "type": "string" },
+                "DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT": {
+                  "type": "string"
+                },
                 "PATH": { "type": "string" }
               }
             },

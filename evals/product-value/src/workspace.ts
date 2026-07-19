@@ -119,14 +119,19 @@ export async function capturePatch(
   repo: string,
   destination: string,
   baseCommit: string,
+  excludedPaths: string[] = [],
 ): Promise<void> {
-  const intentToAdd = await command(["git", "add", "-N", "--", "."], repo);
+  const pathspecs = [".", ...excludedPaths.map((path) => `:(exclude)${path}`)];
+  const intentToAdd = await command(
+    ["git", "add", "-N", "--", ...pathspecs],
+    repo,
+  );
   if (intentToAdd.code !== 0)
     throw new Error(
       `cannot expose untracked participant files: ${intentToAdd.stderr.trim()}`,
     );
   const result = await command(
-    ["git", "diff", "--binary", baseCommit, "--"],
+    ["git", "diff", "--binary", baseCommit, "--", ...pathspecs],
     repo,
   );
   if (result.code !== 0)
@@ -199,6 +204,7 @@ export async function verifyOutcome(
   repo: string,
   task: TaskDefinition,
   oracleTests: string[],
+  outputPath?: string,
 ): Promise<CheckObservation> {
   const tests = oracleTests.map(shellQuote).join(" ");
   const script = task.verificationCommand.replaceAll("{tests}", tests);
@@ -208,17 +214,56 @@ export async function verifyOutcome(
     process.env,
     20 * 60_000,
   );
+  if (outputPath)
+    await writeFile(outputPath, `${result.stdout}${result.stderr}`);
+  const output = `${result.stdout}\n${result.stderr}`;
+  const failureCategory = result.timedOut
+    ? "timeout"
+    : result.code === 0
+      ? null
+      : /Cannot find package ['"]bun:/i.test(output)
+        ? "runtime_mismatch"
+        : /(Cannot find (package|module)|MODULE_NOT_FOUND|command not found)/i.test(
+              output,
+            )
+          ? "missing_dependency"
+          : /(Failed Tests|Failed Suites|Test Files.*failed|\bFAIL\b)/i.test(
+                output,
+              )
+            ? "test_failure"
+            : "command_failure";
   return {
     command: script,
     exitCode: result.code,
     durationMs: result.durationMs,
     passed: result.code === 0,
+    failureCategory,
+    outputPath: outputPath ?? null,
   };
 }
 
 export async function destroyWorkspace(
   workspace: TrialWorkspace,
 ): Promise<void> {
+  const writable = await command(
+    [
+      "find",
+      "-P",
+      workspace.root,
+      "-type",
+      "d",
+      "-exec",
+      "chmod",
+      "u+w",
+      "{}",
+      "+",
+    ],
+    dirname(workspace.root),
+  );
+  if (writable.code !== 0)
+    throw new Error(
+      `cannot prepare disposable workspace for removal: ${writable.stderr.trim()}`,
+    );
   await rm(workspace.root, { recursive: true, force: true });
 }
 

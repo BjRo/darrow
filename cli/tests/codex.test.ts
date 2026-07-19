@@ -109,6 +109,64 @@ describe("Codex command adapter", () => {
     }
   });
 
+  test("refuses an unconfined external evidence sandbox declaration", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "darrow-external-sandbox-"));
+    temps.push(root);
+    git(root, ["init", "-q"]);
+    const evidence = resolve(root, "evidence");
+    await mkdir(evidence);
+    const commandDir = resolve(
+      CLI_ROOT,
+      "..",
+      "plugins",
+      "darrow-delivery",
+      "skills",
+      "implement",
+    );
+    const broker = await startEvidenceBroker(
+      commandDir,
+      evidence,
+      root,
+      resolve(root, "attestations"),
+      {
+        environment: {
+          ...process.env,
+          DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT: root,
+        },
+      },
+    );
+    try {
+      const proc = Bun.spawn(
+        [
+          "bash",
+          resolve(commandDir, "scripts", "evidence.sh"),
+          "run",
+          evidence,
+          "red",
+          "--expected",
+          "expected",
+          "--",
+          "sh",
+          "-c",
+          "echo expected; exit 1",
+        ],
+        {
+          cwd: root,
+          env: { ...process.env, ...broker.env },
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      expect(await proc.exited).not.toBe(0);
+      expect(await new Response(proc.stderr).text()).toContain(
+        "not confining writes",
+      );
+      await expect(broker.verify()).rejects.toThrow("incomplete");
+    } finally {
+      broker.stop();
+    }
+  });
+
   test("blocks bypass attempts for commits and dependency installation", async () => {
     const root = await mkdtemp(resolve(tmpdir(), "darrow-guards-"));
     temps.push(root);
@@ -186,10 +244,13 @@ if [[ "\${1:-}" == "sandbox" ]]; then
   while [[ $# -gt 0 && "$1" != "--" ]]; do if [[ "$1" == "-C" ]]; then cwd=$2; shift 2; else shift; fi; done
   shift; [[ -z "$cwd" ]] || cd "$cwd"; exec "$@"
 fi
-output=''
+output=''; schema=''
 while [[ $# -gt 0 ]]; do
-  if [[ "$1" == "--output-last-message" ]]; then output=$2; shift 2; else shift; fi
+  if [[ "$1" == "--output-last-message" ]]; then output=$2; shift 2
+  elif [[ "$1" == "--output-schema" ]]; then schema=$2; shift 2
+  else shift; fi
 done
+if grep -q '"uniqueItems"' "$schema"; then exit 66; fi
 prompt=$(cat)
 skill=$(printf '%s\n' "$prompt" | sed -n 's/^Read and follow \\(.*\\/SKILL.md\\) exactly\\.$/\\1/p')
 evidence=$(printf '%s\n' "$prompt" | sed -n 's/^Evidence directory: //p')
@@ -291,6 +352,27 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
         ).json(),
       ).toMatchObject({ route });
       expect(result.artifacts).toHaveLength(1);
+      const providerSchema = await Bun.file(
+        resolve(
+          runDir,
+          "runtime",
+          "schemas",
+          "implement-attempt-1.codex-output.json",
+        ),
+      ).text();
+      expect(providerSchema).not.toContain('"uniqueItems"');
+      expect(
+        await Bun.file(
+          resolve(
+            snapshotDir,
+            "commands",
+            "codex",
+            "darrow-delivery",
+            "implement",
+            "output.schema.json",
+          ),
+        ).text(),
+      ).toContain('"uniqueItems"');
       expect(
         (result.payload?.evidence as Record<string, unknown>).red,
       ).toBeDefined();
@@ -507,7 +589,12 @@ exit 99
         'Command input (JSON): {"count":2,"subject":"alpha"}',
       );
       expect(await readFile(resolve(lockedBin, "args"), "utf8")).toContain(
-        resolve(commandDir, "response.contract.json"),
+        resolve(
+          runDir,
+          "runtime",
+          "schemas",
+          "generic-attempt-1.codex-output.json",
+        ),
       );
       expect(await Bun.file(resolve(changedBin, "invoked")).exists()).toBe(
         false,

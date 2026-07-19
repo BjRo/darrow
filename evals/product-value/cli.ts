@@ -11,7 +11,7 @@ import {
   REPO_ROOT,
   SUITE_ROOT,
 } from "./src/config";
-import { buildSchedule } from "./src/schedule";
+import { buildPolicyDiagnosticSchedule, buildSchedule } from "./src/schedule";
 import { poweredTasks } from "./src/stats";
 import { runAssignment } from "./src/runner";
 import { exportBlindBundles, importBlindGrades } from "./src/grading";
@@ -23,7 +23,7 @@ const command = process.argv[2];
 const { values } = parseArgs({
   args: process.argv.slice(3),
   options: {
-    phase: { type: "string", default: "pilot" },
+    phase: { type: "string", default: "smoke" },
     source: { type: "string", multiple: true, default: [] },
     task: { type: "string" },
     harness: { type: "string" },
@@ -39,8 +39,8 @@ const { values } = parseArgs({
 const protocol = await loadProtocol();
 const corpus = await loadCorpus();
 const phase = values.phase as Phase;
-if (phase !== "pilot" && phase !== "confirmatory")
-  throw new Error("--phase must be pilot or confirmatory");
+if (phase !== "smoke" && phase !== "pilot" && phase !== "confirmatory")
+  throw new Error("--phase must be smoke, pilot, or confirmatory");
 const schedule = buildSchedule(protocol, corpus, phase);
 
 async function phaseSpend(resultsRoot: string) {
@@ -62,14 +62,7 @@ async function phaseSpend(resultsRoot: string) {
 }
 
 function assertBudget(spend: { costUsd: number; tokens: number }) {
-  const costLimit =
-    phase === "pilot"
-      ? protocol.budgets.pilotCostUsd
-      : protocol.budgets.confirmatoryCostUsd;
-  const tokenLimit =
-    phase === "pilot"
-      ? protocol.budgets.pilotTokens
-      : protocol.budgets.confirmatoryTokens;
+  const { costUsd: costLimit, tokens: tokenLimit } = protocol.budgets[phase];
   if (spend.costUsd >= costLimit || spend.tokens >= tokenLimit)
     throw new Error(
       `${phase} operational budget reached: $${spend.costUsd.toFixed(2)}/${costLimit}, ${spend.tokens}/${tokenLimit} tokens`,
@@ -151,6 +144,7 @@ if (command === "install-toolchain") {
     protocol,
     corpus,
     parseSourceArgs(values.source),
+    phase,
   );
   console.log(
     JSON.stringify(
@@ -169,6 +163,32 @@ if (command === "install-toolchain") {
   );
 } else if (command === "schedule") {
   console.log(stringifyYaml(schedule));
+} else if (command === "diagnose-policy") {
+  if (phase !== "smoke")
+    throw new Error("diagnose-policy is restricted to the smoke phase");
+  const sources = parseSourceArgs(values.source);
+  await mkdir(values.results!, { recursive: true });
+  const diagnostic = buildPolicyDiagnosticSchedule(protocol, corpus).filter(
+    (assignment) =>
+      (!values.treatment ||
+        assignment.treatment === (values.treatment as Treatment)) &&
+      (!values.harness || assignment.harness === (values.harness as Harness)),
+  );
+  if (!diagnostic.length) throw new Error("no policy diagnostic cells matched");
+  for (const [index, assignment] of diagnostic.entries()) {
+    assertBudget(await phaseSpend(values.results!));
+    console.log(
+      `[${index + 1}/${diagnostic.length}] ${assignment.taskId} ${assignment.harness}/${assignment.treatment} r${assignment.repeat}`,
+    );
+    const observation = await runAssignment(
+      protocol,
+      corpus,
+      assignment,
+      sources,
+      values.results!,
+    );
+    console.log(`  ${observation.status} quality=${observation.quality}`);
+  }
 } else if (command === "run") {
   assertConfirmatoryFrozen();
   const sources = parseSourceArgs(values.source);
@@ -237,7 +257,7 @@ if (command === "install-toolchain") {
   );
 } else {
   console.error(
-    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|run|blind|import-grades|import-annotations|analyze [options]",
+    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|diagnose-policy|run|blind|import-grades|import-annotations|analyze [options]",
   );
   process.exit(1);
 }

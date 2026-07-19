@@ -19,6 +19,13 @@ import {
 } from "./workspace";
 import { invoke } from "./harness";
 import { REPO_ROOT, SUITE_ROOT } from "./config";
+import {
+  installMatchedPolicy,
+  matchedPolicyPrompt,
+  usesMatchedPolicy,
+  validateMatchedPolicyEvidence,
+} from "./policy";
+import { createExecutionTrace, traceTokenUsage } from "./trace";
 
 async function digestDirectory(path: string): Promise<string> {
   const hasher = new Bun.CryptoHasher("sha256");
@@ -63,6 +70,30 @@ function runKey(assignment: Assignment): string {
   ].join("-");
 }
 
+async function persistTrace(
+  runRoot: string,
+  assignment: Assignment,
+  invocation: Awaited<ReturnType<typeof invoke>>,
+  evidenceDirectory?: string,
+): Promise<{
+  path: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+} | null> {
+  try {
+    const path = join(runRoot, "trace.json");
+    const trace = await createExecutionTrace(
+      invocation,
+      assignment.treatment,
+      evidenceDirectory,
+    );
+    await writeFile(path, JSON.stringify(trace, null, 2) + "\n");
+    return { path, ...traceTokenUsage(trace) };
+  } catch {
+    return null;
+  }
+}
+
 export async function runAssignment(
   protocol: Protocol,
   corpus: Corpus,
@@ -81,7 +112,7 @@ export async function runAssignment(
   if (!source) throw new Error(`missing --source ${repository.id}=<path>`);
 
   const runId = runKey(assignment);
-  const runRoot = join(resultsRoot, "runs", runId);
+  const runRoot = resolve(resultsRoot, "runs", runId);
   const observationPath = join(runRoot, "observation.json");
   if (await Bun.file(observationPath).exists())
     return JSON.parse(await readFile(observationPath, "utf8"));
@@ -91,7 +122,12 @@ export async function runAssignment(
   const pluginRoot = resolve(REPO_ROOT, protocol.paths.pluginRoot);
   const darrowExecutable = resolve(REPO_ROOT, protocol.paths.darrowExecutable);
   const bunExecutable = protocol.paths.bunExecutable;
-  const route = protocol.harnesses[assignment.harness];
+  const phaseSettings = protocol.phases[assignment.phase];
+  const timeoutMs = phaseSettings.timeoutMinutes * 60_000;
+  const route = {
+    ...protocol.harnesses[assignment.harness],
+    effort: phaseSettings.effort,
+  };
   const currentHarnessVersion = await harnessVersion(
     route.executable,
     REPO_ROOT,
@@ -109,6 +145,11 @@ export async function runAssignment(
   let setupFailure: string | null = null;
   let operationalFailure: string | null = null;
   let preparationTimeMs = 0;
+  let tracePath: string | null = null;
+  let evidenceDirectory: string | undefined;
+  let matchedPolicy: Awaited<ReturnType<typeof installMatchedPolicy>> | null =
+    null;
+  let matchedPolicyFailure: string | null = null;
   try {
     const preparationStarted = performance.now();
     workspace = await prepareWorkspace(source, repository, task);
@@ -117,35 +158,80 @@ export async function runAssignment(
       join(runRoot, "sanitization.json"),
       JSON.stringify(workspace.sanitization, null, 2) + "\n",
     );
-    if (assignment.treatment === "plugins")
+    if (
+      assignment.treatment === "plugins" ||
+      assignment.treatment === "plugins-matched-policy"
+    )
       await mountPlugins(workspace.repo, pluginRoot, assignment.harness);
+    let invocationPrompt = task.prompt;
+    let outputSchema: string | undefined;
+    if (usesMatchedPolicy(assignment.treatment)) {
+      const policy = await installMatchedPolicy(workspace.repo, pluginRoot);
+      matchedPolicy = policy;
+      invocationPrompt = matchedPolicyPrompt(task.prompt, policy);
+      evidenceDirectory = policy.evidenceDirectory;
+      outputSchema = policy.outputSchema;
+    }
     invocation = await invoke(
       protocol,
+      assignment.phase,
       assignment.harness,
       assignment.treatment,
       workspace.repo,
       workspace.state,
-      task.prompt,
+      invocationPrompt,
       pluginRoot,
       bunExecutable,
       darrowExecutable,
       [source, SUITE_ROOT],
+      outputSchema,
     );
+    if (matchedPolicy) {
+      if (
+        !(await validateMatchedPolicyEvidence(workspace.repo, matchedPolicy))
+      ) {
+        invocation.ok = false;
+        matchedPolicyFailure = "matched_policy_evidence_invalid";
+      }
+    }
     await writeFile(join(runRoot, "harness.log"), invocation.raw);
+    const persistedTrace = await persistTrace(
+      runRoot,
+      assignment,
+      invocation,
+      evidenceDirectory,
+    );
+    tracePath = persistedTrace?.path ?? null;
+    invocation.inputTokens ??= persistedTrace?.inputTokens ?? null;
+    invocation.outputTokens ??= persistedTrace?.outputTokens ?? null;
     const resultWorkspace = resolve(invocation.workspace);
     patchPath = join(runRoot, "change.patch");
-    await capturePatch(resultWorkspace, patchPath, workspace.baseCommit);
+    await capturePatch(
+      resultWorkspace,
+      patchPath,
+      invocation.patchBaseCommit ?? workspace.baseCommit,
+      [".darrow", ".darrow-attempts"],
+    );
     const oracleTests = await injectOracleTests(
       source,
       task,
       resultWorkspace,
       workspace.baseCommit,
     );
-    verification = await verifyOutcome(resultWorkspace, task, oracleTests);
+    verification = await verifyOutcome(
+      resultWorkspace,
+      task,
+      oracleTests,
+      join(runRoot, "verification.log"),
+    );
     if (!invocation.ok)
-      operationalFailure = invocation.waiting
-        ? "waiting_for_input"
-        : "harness_or_runtime_failure";
+      operationalFailure = matchedPolicyFailure
+        ? matchedPolicyFailure
+        : invocation.timedOut
+          ? "timeout"
+          : invocation.waiting
+            ? "waiting_for_input"
+            : "harness_or_runtime_failure";
   } catch (error) {
     if (!workspace) preparationTimeMs = performance.now() - wallStarted;
     const message = error instanceof Error ? error.message : String(error);
@@ -154,6 +240,8 @@ export async function runAssignment(
     invocation ??= {
       ok: false,
       waiting: false,
+      timedOut: false,
+      setupDurationMs: 0,
       durationMs: 0,
       inputTokens: null,
       outputTokens: null,
@@ -161,8 +249,18 @@ export async function runAssignment(
       raw: message,
       darrowRunId: null,
       workspace: workspace?.repo ?? "",
+      patchBaseCommit: null,
     };
     await writeFile(join(runRoot, "harness.log"), invocation.raw);
+    const persistedTrace = await persistTrace(
+      runRoot,
+      assignment,
+      invocation,
+      evidenceDirectory,
+    );
+    tracePath = persistedTrace?.path ?? null;
+    invocation.inputTokens ??= persistedTrace?.inputTokens ?? null;
+    invocation.outputTokens ??= persistedTrace?.outputTokens ?? null;
   }
 
   const deterministicQuality = verification?.passed ? 1 : 0;
@@ -170,7 +268,7 @@ export async function runAssignment(
   const retainedWorkspacePath =
     workspace && !invocation!.ok ? workspace.root : null;
   const observation: Observation = {
-    schemaVersion: "1.0.0",
+    schemaVersion: "1.2.0",
     runId,
     assignment,
     startedAt,
@@ -186,6 +284,7 @@ export async function runAssignment(
     harnessVersion: currentHarnessVersion,
     model: route.model,
     effort: route.effort,
+    timeoutMs,
     permissionMode: route.permissionMode,
     sourceRevision: repository.pinnedRevision,
     runnerRevision,
@@ -195,6 +294,7 @@ export async function runAssignment(
       treatment: assignment.treatment,
       paths: protocol.paths,
       isolation: "sandbox-exec:hidden-source-and-evaluator",
+      workspaceMode: "prepared-current",
     }),
     sanitizationDigest: workspace?.sanitization.treeDigest ?? "unavailable",
     inputTokens: invocation!.inputTokens,
@@ -202,6 +302,7 @@ export async function runAssignment(
     costUsd: invocation!.costUsd,
     wallTimeMs: performance.now() - wallStarted,
     preparationTimeMs,
+    treatmentSetupTimeMs: invocation!.setupDurationMs,
     harnessTimeMs: invocation!.durationMs,
     humanAttentionMinutes: invocation!.ok ? 0 : null,
     interventions: 0,
@@ -215,6 +316,7 @@ export async function runAssignment(
     verification,
     patchPath,
     rawOutputPath: join(runRoot, "harness.log"),
+    tracePath,
     darrowRunId: invocation!.darrowRunId,
     retainedWorkspacePath,
   };

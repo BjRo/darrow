@@ -17,7 +17,14 @@ and M3 investment. The preregistration and executable configuration live under
 - **PV-3 — Common harness routes.** Within one harness block, model, effort,
   executable, permission policy, environment allowlist, and task prompt are
   fixed across treatments. Harness state and workspaces are isolated per run.
-  Versions and configuration digests are recorded.
+  Repository setup completes before measured agent execution, and every
+  treatment operates in that same prepared disposable checkout. The CLI
+  treatment explicitly attaches the checkout instead of allocating a second
+  worktree that would omit ignored setup outputs such as installed dependencies.
+  Versions and configuration digests are recorded. The evaluator owns the
+  single operating-system sandbox boundary: it denies writes outside the
+  disposable run root and hides source and evaluator inputs. A harness may
+  disable its nested sandbox only inside that boundary.
 
 ## Corpus integrity
 
@@ -63,13 +70,26 @@ and M3 investment. The preregistration and executable configuration live under
   and output tokens, provider-reported cost, wall time, human-attention minutes,
   interventions, failures, retries, recovery, rework, run-to-run variance, and
   setup or operational failure categories. Missing values remain explicit.
+  Preflight performs minimal real inference and exercises pinned-runtime access
+  through the same isolated environment used by trials, refusing before the
+  phase if either is unavailable. Headless Claude evaluation uses a dedicated
+  setup token or API key; disposable copies of rotating login credentials are
+  forbidden.
 - **PV-13 — Outcome-first grading.** Deterministic hidden checks supply the
   primary quality evidence wherever possible. Qualitative grading uses a frozen
   rubric, opaque sample IDs, randomized presentation, and graders blinded to
-  treatment. Calibration examples are separate from the holdout.
+  treatment. Calibration examples are separate from the holdout. The evaluator
+  retains deterministic verifier output after agent execution and records a
+  typed failure category so runtime mismatch, missing dependency, timeout, and
+  behavioral test failure are distinguishable.
 - **PV-14 — Lightweight instrumentation.** The experiment writes append-only
   JSON Lines observations, sanitization manifests, harness output, patches, and
-  Darrow run references. It does not require or introduce full OpenTelemetry.
+  Darrow run references. Before a disposable CLI workspace is removed, the
+  evaluator also writes a compact trace summary containing runtime/model spans,
+  model event counts, token accounting, TDD phase timestamps and inter-phase
+  latency, plus command counts grouped into fixed non-content categories and
+  nonzero status counts. It retains no tool commands, model text, paths, or tool
+  output. It does not require or introduce full OpenTelemetry.
 
 ## Decision
 
@@ -82,3 +102,27 @@ and M3 investment. The preregistration and executable configuration live under
   harness, model, configuration, and plugin revisions and reports all three
   treatments overall, by harness, repository, and task stratum. Exclusions and
   deviations are listed with reasons.
+
+## Operational qualification
+
+- **PV-17 — Bounded operational qualification.** Before pilot calibration, the
+  evaluator runs exactly one pilot task once in all six harness/treatment cells
+  at medium reasoning with a 15-minute per-observation deadline. Smoke results
+  qualify evaluator isolation, authentication, routing, artifact capture, and
+  resource assumptions only; they are stored under a distinct phase and are
+  excluded from pilot calibration and confirmatory inference. The pilot uses
+  one repeat per cell initially and proceeds only after operators inspect smoke
+  completion, time, token, and cost measurements.
+- **PV-18 — Matched-policy diagnostic.** If smoke results show that CLI and
+  direct treatments execute materially different delivery policies, the
+  evaluator may run one Codex-only auxiliary pair on the smoke task:
+  `native-matched-policy` and `plugins-matched-policy`. These are evaluator-only
+  diagnostic labels, not product treatments. Both receive an identical
+  evaluator-owned
+  red/green/regression prompt, evidence helper, and output schema; fresh Codex
+  `native` and `plugins` controls run beside them. The auxiliary cells remain
+  outside the three-treatment schedule and all product inference. Their purpose
+  is to estimate policy cost (each matched-policy cell minus its plain
+  counterpart) and describe the remaining CLI bundle before spending on the
+  second harness or pilot. A failed auxiliary cell is not a valid overhead
+  baseline.

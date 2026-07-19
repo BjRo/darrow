@@ -374,9 +374,12 @@ contract is implemented by M2c without requiring M2b to perform dynamic routing.
   It does not reinterpret the command's domain result or fabricate missing
   guarantees. It reads the snapshotted command metadata, resolves the declared
   input and output schemas relative to that snapshot, and supplies the complete
-  structured input. Delivery-specific evidence, Git branching, changed-path,
-  and no-commit enforcement applies only when the command explicitly opts into
-  the versioned delivery execution protocol.
+  structured input. An adapter may project the output schema onto a provider's
+  documented structured-output subset, but Darrow validates the returned value
+  against the complete snapshotted schema so omitted provider keywords do not
+  weaken the command contract. Delivery-specific evidence, Git branching,
+  changed-path, and no-commit enforcement applies only when the command
+  explicitly opts into the versioned delivery execution protocol.
 - **WR-43 — Portable resume.** Native session continuation is an optimization.
   A compatible adapter can resume from the locked plan, run snapshot, workspace,
   artifacts, transcript reference, and human response without provider-owned
@@ -387,7 +390,10 @@ contract is implemented by M2c without requiring M2b to perform dynamic routing.
 - **WR-44 — Environment-owned permissions.** Codex, Claude Code, or the hosted
   environment enforces permissions. The profile selects native permission
   configuration for its route. Darrow records it, never broadens it, and
-  normalizes permission denials as adapter errors. The local adapters inherit
+  normalizes permission denials as adapter errors. A declared external
+  workspace sandbox may replace a nested evidence sandbox only when Darrow
+  actively proves that the workspace is inside its declared root and a write
+  outside that root is denied. The local adapters inherit
   each route's locked native configuration and never enable a permission-bypass
   mode. User and project configuration is revalidated before invocation; Claude
   Code local settings are passed explicitly so managed worktrees receive the

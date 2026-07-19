@@ -1,11 +1,29 @@
-import { cp, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  cp,
+  mkdir,
+  readFile,
+  realpath,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import type { Harness, Protocol, Route, Treatment } from "./types";
+import { stringify as stringifyYaml } from "yaml";
+import type {
+  EffectiveRoute,
+  Harness,
+  Phase,
+  Protocol,
+  Route,
+  Treatment,
+} from "./types";
 import { command } from "./process";
+import { temporalExecutable } from "./toolchain";
 
 export interface InvocationResult {
   ok: boolean;
   waiting: boolean;
+  timedOut: boolean;
+  setupDurationMs: number;
   durationMs: number;
   inputTokens: number | null;
   outputTokens: number | null;
@@ -13,40 +31,102 @@ export interface InvocationResult {
   raw: string;
   darrowRunId: string | null;
   workspace: string;
+  patchBaseCommit: string | null;
 }
 
-function sandboxProfile(hiddenPaths: string[]): string {
+async function commitEvaluationSetup(repo: string): Promise<string> {
+  const add = await command(
+    ["git", "add", "-A", "--", ".darrow", ".gitignore", ".gitattributes"],
+    repo,
+  );
+  if (add.code !== 0)
+    throw new Error(
+      `cannot stage evaluator-owned Darrow setup: ${add.stderr.trim()}`,
+    );
+  const staged = await command(["git", "diff", "--cached", "--quiet"], repo);
+  if (staged.code === 1) {
+    const commit = await command(
+      [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "chore: configure evaluation workflow",
+      ],
+      repo,
+    );
+    if (commit.code !== 0)
+      throw new Error(
+        `cannot checkpoint evaluator-owned Darrow setup: ${commit.stderr.trim()}`,
+      );
+  } else if (staged.code !== 0)
+    throw new Error(
+      `cannot inspect evaluator-owned Darrow setup: ${staged.stderr.trim()}`,
+    );
+  const revision = await command(["git", "rev-parse", "HEAD"], repo);
+  if (revision.code !== 0)
+    throw new Error(
+      `cannot resolve evaluator setup revision: ${revision.stderr.trim()}`,
+    );
+  return revision.stdout.trim();
+}
+
+function sandboxProfile(
+  writeRoot: string,
+  hiddenPaths: string[],
+  readablePaths: string[],
+): string {
   const escaped = hiddenPaths.map((path) =>
     path.replaceAll("\\", "\\\\").replaceAll('"', '\\"'),
   );
+  const readable = readablePaths.map((path) =>
+    path.replaceAll("\\", "\\\\").replaceAll('"', '\\"'),
+  );
+  const writable = writeRoot.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   return [
     "(version 1)",
-    "(allow default)",
+    `(allow file-write*
+  (subpath "${writable}")
+  (literal "/dev/null")
+  (literal "/dev/random")
+  (literal "/dev/zero")
+  (regex #"^/dev/fd/[0-9]+$"))`,
     ...escaped.flatMap((path) => [
       `(deny file-read* (subpath "${path}"))`,
       `(deny file-write* (subpath "${path}"))`,
     ]),
+    "(deny file-write*)",
+    "(allow default)",
+    ...readable.map((path) => `(allow file-read* (literal "${path}"))`),
   ].join("\n");
 }
 
-async function sandboxed(
+export async function sandboxed(
   argv: string[],
   state: string,
   hiddenPaths: string[],
+  readablePaths: string[] = [],
 ): Promise<string[]> {
   if (process.platform !== "darwin")
     throw new Error(
       "product-value harness isolation requires macOS sandbox-exec or an external container boundary",
     );
   const profile = join(state, "evaluation.sb");
-  const canonicalHiddenPaths = await Promise.all(
-    hiddenPaths.map((path) => realpath(path)),
+  const [writeRoot, canonicalHiddenPaths, canonicalReadablePaths] =
+    await Promise.all([
+      realpath(dirname(state)),
+      Promise.all(hiddenPaths.map((path) => realpath(path))),
+      Promise.all(readablePaths.map((path) => realpath(path))),
+    ]);
+  await writeFile(
+    profile,
+    sandboxProfile(writeRoot, canonicalHiddenPaths, canonicalReadablePaths),
   );
-  await writeFile(profile, sandboxProfile(canonicalHiddenPaths));
   return ["/usr/bin/sandbox-exec", "-f", profile, ...argv];
 }
 
-async function copyAuth(
+export async function isolatedEnvironment(
   harness: Harness,
   route: Route,
   state: string,
@@ -59,6 +139,7 @@ async function copyAuth(
     "TERM",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
+    "CLAUDE_CODE_OAUTH_TOKEN",
     "SSL_CERT_FILE",
     "SSL_CERT_DIR",
     "HTTP_PROXY",
@@ -76,20 +157,50 @@ async function copyAuth(
       : (process.env.CLAUDE_CONFIG_DIR ??
         resolve(process.env.HOME ?? "", ".claude"));
   const targetRoot = join(state, harness);
-  await mkdir(targetRoot, { recursive: true });
+  const tempRoot = join(state, "tmp");
+  await Promise.all([
+    mkdir(targetRoot, { recursive: true }),
+    mkdir(tempRoot, { recursive: true }),
+  ]);
+  let copiedCredentials = 0;
   for (const relativePath of route.authFiles) {
+    if (harness === "claude" && relativePath === ".credentials.json") continue;
     const source = resolve(sourceRoot, relativePath);
-    if (!(await Bun.file(source).exists())) continue;
     const target = resolve(targetRoot, relativePath);
-    await mkdir(dirname(target), { recursive: true });
-    await cp(source, target);
+    if (await Bun.file(source).exists()) {
+      await mkdir(dirname(target), { recursive: true });
+      await cp(source, target);
+      await chmod(target, 0o600);
+      copiedCredentials += 1;
+      continue;
+    }
   }
+  const environmentCredential =
+    harness === "codex"
+      ? cleanEnvironment.OPENAI_API_KEY
+      : (cleanEnvironment.ANTHROPIC_API_KEY ??
+        cleanEnvironment.CLAUDE_CODE_OAUTH_TOKEN);
+  if (
+    (harness === "claude" || route.authFiles.length > 0) &&
+    copiedCredentials === 0 &&
+    !environmentCredential
+  )
+    throw new Error(
+      harness === "claude"
+        ? "claude evaluation requires ANTHROPIC_API_KEY or a dedicated CLAUDE_CODE_OAUTH_TOKEN; rotating login credentials are not copied"
+        : `${harness} credentials are unavailable in the isolated environment`,
+    );
   if (harness === "codex") {
     await writeFile(
       join(targetRoot, "config.toml"),
-      `approval_policy = "never"\nsandbox_mode = "workspace-write"\n`,
+      `approval_policy = "never"\nsandbox_mode = "danger-full-access"\n`,
     );
-    return { ...cleanEnvironment, HOME: state, CODEX_HOME: targetRoot };
+    return {
+      ...cleanEnvironment,
+      HOME: state,
+      TMPDIR: tempRoot,
+      CODEX_HOME: targetRoot,
+    };
   }
   await writeFile(
     join(targetRoot, "settings.json"),
@@ -107,6 +218,7 @@ async function copyAuth(
   return {
     ...cleanEnvironment,
     HOME: state,
+    TMPDIR: tempRoot,
     CLAUDE_CONFIG_DIR: targetRoot,
   };
 }
@@ -134,13 +246,15 @@ function codexUsage(raw: string): {
 
 async function runNative(
   harness: Harness,
-  route: Route,
+  route: EffectiveRoute,
   repo: string,
   state: string,
   prompt: string,
   hiddenPaths: string[],
+  timeoutMs: number,
+  outputSchema?: string,
 ): Promise<InvocationResult> {
-  const env = await copyAuth(harness, route, state);
+  const env = await isolatedEnvironment(harness, route, state);
   if (harness === "codex") {
     const result = await command(
       await sandboxed(
@@ -149,13 +263,11 @@ async function runNative(
           "exec",
           prompt,
           "--json",
+          ...(outputSchema ? ["--output-schema", outputSchema] : []),
           "--ephemeral",
           "--ignore-user-config",
           "--ignore-rules",
-          "--sandbox",
-          "workspace-write",
-          "-c",
-          'approval_policy="never"',
+          "--dangerously-bypass-approvals-and-sandbox",
           "-m",
           route.model,
           "-c",
@@ -167,11 +279,14 @@ async function runNative(
       ),
       repo,
       env,
+      timeoutMs,
     );
     const usage = codexUsage(result.stdout);
     return {
       ok: result.code === 0,
       waiting: false,
+      timedOut: result.timedOut,
+      setupDurationMs: 0,
       durationMs: result.durationMs,
       inputTokens: usage.input,
       outputTokens: usage.output,
@@ -179,6 +294,7 @@ async function runNative(
       raw: result.stdout + result.stderr,
       darrowRunId: null,
       workspace: repo,
+      patchBaseCommit: null,
     };
   }
   const result = await command(
@@ -189,6 +305,7 @@ async function runNative(
         prompt,
         "--output-format",
         "json",
+        ...(outputSchema ? ["--json-schema", outputSchema] : []),
         "--model",
         route.model,
         "--effort",
@@ -204,6 +321,7 @@ async function runNative(
     ),
     repo,
     env,
+    timeoutMs,
   );
   let parsed: any = {};
   try {
@@ -214,6 +332,8 @@ async function runNative(
   return {
     ok: result.code === 0 && parsed.subtype === "success",
     waiting: false,
+    timedOut: result.timedOut,
+    setupDurationMs: 0,
     durationMs: result.durationMs,
     inputTokens: parsed.usage?.input_tokens ?? null,
     outputTokens: parsed.usage?.output_tokens ?? null,
@@ -221,11 +341,13 @@ async function runNative(
     raw: result.stdout + result.stderr,
     darrowRunId: null,
     workspace: repo,
+    patchBaseCommit: null,
   };
 }
 
 export async function invoke(
   protocol: Protocol,
+  phase: Phase,
   harness: Harness,
   treatment: Treatment,
   repo: string,
@@ -235,24 +357,40 @@ export async function invoke(
   bunExecutable: string,
   darrowExecutable: string,
   hiddenPaths: string[],
+  outputSchema?: string,
 ): Promise<InvocationResult> {
-  const route = protocol.harnesses[harness];
+  const settings = protocol.phases[phase];
+  const timeoutMs = settings.timeoutMinutes * 60_000;
+  const route: EffectiveRoute = {
+    ...protocol.harnesses[harness],
+    effort: settings.effort,
+  };
   if (treatment !== "cli")
-    return runNative(harness, route, repo, state, prompt, hiddenPaths);
+    return runNative(
+      harness,
+      route,
+      repo,
+      state,
+      prompt,
+      hiddenPaths,
+      timeoutMs,
+      outputSchema,
+    );
 
-  const env = await copyAuth(harness, route, state);
+  const setupStarted = performance.now();
+  const env = await isolatedEnvironment(harness, route, state);
   env.DARROW_PLUGIN_ROOTS = pluginRoot;
   env.DARROW_HOME = join(state, "darrow-home");
-  env.DARROW_TOOLCHAIN_HOME = resolve(
-    protocol.paths.toolchainHome.startsWith("/")
-      ? protocol.paths.toolchainHome
-      : join(dirname(pluginRoot), protocol.paths.toolchainHome),
-  );
+  env.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT = await realpath(dirname(state));
+  const temporal = await temporalExecutable(protocol);
+  env.DARROW_TEMPORAL_BIN = temporal;
+  env.DARROW_TOOLCHAIN_HOME = join(state, "toolchain");
   const init = await command(
     await sandboxed(
       [bunExecutable, darrowExecutable, "init", "--json"],
       state,
       hiddenPaths,
+      [temporal],
     ),
     repo,
     env,
@@ -261,6 +399,8 @@ export async function invoke(
     return {
       ok: false,
       waiting: false,
+      timedOut: init.timedOut,
+      setupDurationMs: performance.now() - setupStarted,
       durationMs: init.durationMs,
       inputTokens: null,
       outputTokens: null,
@@ -268,7 +408,22 @@ export async function invoke(
       raw: init.stdout + init.stderr,
       darrowRunId: null,
       workspace: repo,
+      patchBaseCommit: null,
     };
+  const profileDirectory = join(repo, ".darrow", "profiles");
+  await mkdir(profileDirectory, { recursive: true });
+  await writeFile(
+    join(profileDirectory, `${harness}.yaml`),
+    stringifyYaml({
+      schemaVersion: "0.1.0",
+      id: harness,
+      harness,
+      provider: harness === "codex" ? "openai" : "anthropic",
+      model: route.model,
+      reasoningEffort: route.effort,
+      permissions: { inherit: true },
+    }),
+  );
   const workflowPath = join(
     repo,
     ".darrow",
@@ -280,6 +435,8 @@ export async function invoke(
     workflowPath,
     workflow.replace(/^profile: .*$/m, `profile: ${harness}`),
   );
+  const patchBaseCommit = await commitEvaluationSetup(repo);
+  const setupDurationMs = performance.now() - setupStarted;
   const result = await command(
     await sandboxed(
       [
@@ -289,16 +446,17 @@ export async function invoke(
         "implement-change",
         "--change",
         prompt,
-        "--base",
-        "HEAD",
+        "--workspace",
+        "current",
         "--json",
       ],
       state,
       hiddenPaths,
+      [temporal],
     ),
     repo,
     env,
-    60 * 60_000,
+    timeoutMs,
   );
   let envelope: any = {};
   try {
@@ -307,6 +465,31 @@ export async function invoke(
     // Preserve raw output below.
   }
   const runId = envelope.data?.runId ?? envelope.data?.id ?? null;
+  if (result.code === 0 && envelope.ok === true && runId) {
+    const lockPath = join(repo, ".darrow", "runs", runId, "lock.json");
+    if (!(await Bun.file(lockPath).exists()))
+      throw new Error("Darrow run did not retain its locked harness route");
+    const lock = (await Bun.file(lockPath).json()) as {
+      routes?: Array<{
+        harness?: string;
+        model?: string;
+        reasoningEffort?: string;
+      }>;
+    };
+    const routes = lock.routes ?? [];
+    if (
+      routes.length === 0 ||
+      routes.some(
+        (locked) =>
+          locked.harness !== harness ||
+          locked.model !== route.model ||
+          locked.reasoningEffort !== route.effort,
+      )
+    )
+      throw new Error(
+        `Darrow locked a route outside the ${phase} harness block`,
+      );
+  }
   let workspace =
     (typeof envelope.data?.workspace === "string"
       ? envelope.data.workspace
@@ -340,6 +523,8 @@ export async function invoke(
   return {
     ok: result.code === 0 && envelope.ok === true && !waiting,
     waiting,
+    timedOut: result.timedOut,
+    setupDurationMs,
     durationMs: result.durationMs,
     inputTokens:
       envelope.data?.usage?.inputTokens ??
@@ -353,5 +538,6 @@ export async function invoke(
     raw: result.stdout + result.stderr,
     darrowRunId: runId,
     workspace,
+    patchBaseCommit,
   };
 }

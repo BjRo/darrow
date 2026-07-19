@@ -219,6 +219,33 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_i
     }
   });
 
+  test("does not pass a local settings path locked as absent", async () => {
+    const { root, input, bin } = await fixture(`#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\${1:-}" == "--version" ]]; then echo '2.1.185 (Claude Code)'; exit 0; fi
+printf '%s\n' "$@" > "$(dirname "$0")/args"
+cat >/dev/null
+printf '%s\n' '{"type":"result","subtype":"error","is_error":true,"session_id":"absent-settings","usage":{},"permission_denials":[],"result":"fixture failure"}'
+`);
+    const localSettings = resolve(root, ".claude", "settings.local.json");
+    await rm(localSettings);
+    const lockPath = resolve(input.runDir, "lock.json");
+    const lock = await Bun.file(lockPath).json();
+    lock.adapters[0].nativePermissions.configurationSources[0].present = false;
+    await replaceJson(lockPath, lock);
+    const previousPath = process.env.PATH;
+    process.env.PATH = `${bin}:${previousPath}`;
+    try {
+      const result = await executeClaudeCommand(input);
+      expect(result.status).toBe("failed");
+      const args = await readFile(resolve(bin, "args"), "utf8");
+      expect(args).not.toContain("--settings");
+      expect(args).toContain("--setting-sources\nuser,project");
+    } finally {
+      process.env.PATH = previousPath;
+    }
+  });
+
   test("refuses changed native permission settings before invoking Claude Code", async () => {
     const { root, input, bin } = await fixture(`#!/usr/bin/env bash
 set -euo pipefail

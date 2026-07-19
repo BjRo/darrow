@@ -3,6 +3,7 @@ export interface CommandResult {
   stdout: string;
   stderr: string;
   durationMs: number;
+  timedOut: boolean;
 }
 
 export async function command(
@@ -12,20 +13,33 @@ export async function command(
   timeoutMs = 30 * 60_000,
 ): Promise<CommandResult> {
   const started = performance.now();
+  let timedOut = false;
   const proc = Bun.spawn(argv, {
     cwd,
     env,
     stdout: "pipe",
     stderr: "pipe",
   });
-  const timer = setTimeout(() => proc.kill(), timeoutMs);
+  let forceTimer: ReturnType<typeof setTimeout> | undefined;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    proc.kill("SIGTERM");
+    forceTimer = setTimeout(() => proc.kill("SIGKILL"), 1_000);
+  }, timeoutMs);
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
   clearTimeout(timer);
-  return { code, stdout, stderr, durationMs: performance.now() - started };
+  if (forceTimer) clearTimeout(forceTimer);
+  return {
+    code,
+    stdout,
+    stderr,
+    durationMs: performance.now() - started,
+    timedOut,
+  };
 }
 
 export async function checked(

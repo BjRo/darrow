@@ -53,13 +53,17 @@ test("mechanically applies the confirmatory continue gate at task level", async 
   for (const task of tasks)
     for (const harness of ["codex", "claude"] as Harness[])
       for (const treatment of ["native", "plugins", "cli"] as Treatment[])
-        for (let repeat = 1; repeat <= 2; repeat++) {
+        for (
+          let repeat = 1;
+          repeat <= protocol.phases.confirmatory.repeats;
+          repeat++
+        ) {
           ordinal++;
           const quality =
             treatment === "cli" ? 0.8 : treatment === "plugins" ? 0.7 : 0.6;
           const runId = `run-${ordinal}`;
           const observation: Observation = {
-            schemaVersion: "1.0.0",
+            schemaVersion: "1.2.0",
             runId,
             assignment: {
               ordinal,
@@ -80,6 +84,7 @@ test("mechanically applies the confirmatory continue gate at task level", async 
             harnessVersion: protocol.harnesses[harness].version,
             model: protocol.harnesses[harness].model,
             effort: "high",
+            timeoutMs: 60 * 60_000,
             permissionMode: "test",
             sourceRevision: "c".repeat(40),
             runnerRevision: "e".repeat(40),
@@ -91,6 +96,7 @@ test("mechanically applies the confirmatory continue gate at task level", async 
             costUsd: null,
             wallTimeMs: treatment === "cli" ? 1200 : 1000,
             preparationTimeMs: 100,
+            treatmentSetupTimeMs: 0,
             harnessTimeMs: 900,
             humanAttentionMinutes: treatment === "cli" ? 0.8 : 1,
             interventions: 0,
@@ -104,6 +110,7 @@ test("mechanically applies the confirmatory continue gate at task level", async 
             verification: null,
             patchPath: null,
             rawOutputPath: "raw",
+            tracePath: null,
             darrowRunId: null,
             retainedWorkspacePath: null,
           };

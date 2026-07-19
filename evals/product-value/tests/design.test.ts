@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { loadCorpus, loadProtocol } from "../src/config";
-import { buildSchedule } from "../src/schedule";
+import { buildPolicyDiagnosticSchedule, buildSchedule } from "../src/schedule";
 import { pairedEstimate, poweredTasks } from "../src/stats";
 
 describe("product-value design (PV-7 through PV-11)", () => {
@@ -39,6 +39,19 @@ describe("product-value design (PV-7 through PV-11)", () => {
     const second = buildSchedule(protocol, corpus, "confirmatory");
     expect(first).toEqual(second);
     expect(first).toHaveLength(312);
+    expect(buildSchedule(protocol, corpus, "pilot")).toHaveLength(36);
+    const smoke = buildSchedule(protocol, corpus, "smoke");
+    expect(smoke).toHaveLength(6);
+    expect(new Set(smoke.map((assignment) => assignment.taskId))).toEqual(
+      new Set([protocol.phases.smoke.taskId!]),
+    );
+    expect(smoke.every((assignment) => assignment.repeat === 1)).toBe(true);
+    expect(new Set(smoke.map((assignment) => assignment.harness))).toEqual(
+      new Set(["codex", "claude"]),
+    );
+    expect(new Set(smoke.map((assignment) => assignment.treatment))).toEqual(
+      new Set(["native", "plugins", "cli"]),
+    );
     const cells = new Map<string, Set<string>>();
     for (const assignment of first) {
       const key = `${assignment.taskId}:${assignment.harness}:${assignment.repeat}`;
@@ -59,6 +72,28 @@ describe("product-value design (PV-7 through PV-11)", () => {
       ).toBe(1);
       expect(block.map((assignment) => assignment.order)).toEqual([1, 2, 3]);
     }
+  });
+
+  test("keeps the matched-policy diagnostic outside the core schedule", async () => {
+    const protocol = await loadProtocol();
+    const corpus = await loadCorpus();
+    const diagnostic = buildPolicyDiagnosticSchedule(protocol, corpus);
+    expect(diagnostic).toHaveLength(4);
+    expect(new Set(diagnostic.map((item) => item.treatment))).toEqual(
+      new Set([
+        "native",
+        "native-matched-policy",
+        "plugins",
+        "plugins-matched-policy",
+      ]),
+    );
+    expect(diagnostic.every((item) => item.harness === "codex")).toBe(true);
+    expect(diagnostic.every((item) => item.phase === "smoke")).toBe(true);
+    expect(
+      buildSchedule(protocol, corpus, "smoke").some((item) =>
+        item.treatment.endsWith("-matched-policy"),
+      ),
+    ).toBe(false);
   });
 
   test("uses seeded task-level bootstrap and sign flips", () => {

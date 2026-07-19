@@ -1,6 +1,13 @@
 import { CancelledFailure, Context } from "@temporalio/activity";
 import { createHmac, randomBytes } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { delimiter, isAbsolute, relative, resolve } from "node:path";
 import { checkpointEvidence } from "./artifacts";
 import { DarrowError } from "./errors";
@@ -47,6 +54,7 @@ export interface LockedHarnessAdapter {
   configurationSources: Array<{
     path: string;
     scope: "environment" | "user" | "project" | "local";
+    present?: boolean;
     digest: string;
   }>;
 }
@@ -84,6 +92,31 @@ function routeProvenance(input: ActivityInput): Record<string, string> {
     adapter: input.effectiveRoute.adapter.id,
     routeSelectionSource: input.effectiveRoute.selectionSource,
   };
+}
+
+function codexStructuredOutputSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(codexStructuredOutputSchema);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "uniqueItems")
+      .map(([key, item]) => [key, codexStructuredOutputSchema(item)]),
+  );
+}
+
+async function writeCodexOutputSchema(
+  input: ActivityInput,
+  source: string,
+): Promise<string> {
+  const target = resolve(
+    input.runDir,
+    "runtime",
+    "schemas",
+    `${input.step.id}-${input.attemptId}.codex-output.json`,
+  );
+  await mkdir(resolve(target, ".."), { recursive: true });
+  await writeJson(target, codexStructuredOutputSchema(await readJson(source)));
+  return target;
 }
 
 function metadata(path: string): Promise<Record<string, string>> {
@@ -202,7 +235,44 @@ export async function startEvidenceBroker(
       await guardEnvironment(resolve(attestationDir, "guards"), env.PATH),
     );
     let command: string[];
-    if (process.platform === "darwin") {
+    const externalRoot =
+      runtime.environment?.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT;
+    if (externalRoot) {
+      let canonicalRoot: string;
+      let canonicalWorkspace: string;
+      try {
+        [canonicalRoot, canonicalWorkspace] = await Promise.all([
+          realpath(externalRoot),
+          realpath(workspace),
+        ]);
+      } catch {
+        return {
+          exitCode: 2,
+          stdout: "",
+          stderr: "declared external workspace sandbox root is unavailable",
+        };
+      }
+      const workspaceRelative = relative(canonicalRoot, canonicalWorkspace);
+      if (workspaceRelative.startsWith("..") || isAbsolute(workspaceRelative))
+        return {
+          exitCode: 2,
+          stdout: "",
+          stderr: "workspace is outside the declared external sandbox root",
+        };
+      const probe = `/private/tmp/darrow-sandbox-probe-${randomBytes(12).toString("hex")}`;
+      try {
+        await writeFile(probe, "external sandbox probe\n", { flag: "wx" });
+        await rm(probe, { force: true });
+        return {
+          exitCode: 2,
+          stdout: "",
+          stderr: "declared external workspace sandbox is not confining writes",
+        };
+      } catch {
+        // A normally writable path outside the declared root must be denied.
+      }
+      command = ["/bin/bash", script, ...args];
+    } else if (process.platform === "darwin") {
       const gitCommon = run(
         ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
         workspace,
@@ -634,6 +704,7 @@ async function executeHarnessCommandInternal(
   delete controlledEnvironment.CODEX_HOME;
   delete controlledEnvironment.CLAUDE_CONFIG_DIR;
   delete controlledEnvironment.DARROW_CODEX_PERMISSION_PROFILE;
+  delete controlledEnvironment.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT;
   delete controlledEnvironment.PATH;
   const recordedEnvironment =
     locked.nativePermissions.configurationEnvironment ?? {};
@@ -1050,6 +1121,10 @@ export async function executeHarnessCommand(
 const codexAdapter: CommandHarnessAdapter = {
   displayName: "Codex CLI",
   async invocation(input, outputSchema, outputFile, locked) {
+    const providerOutputSchema = await writeCodexOutputSchema(
+      input,
+      outputSchema,
+    );
     return [
       locked.executable,
       "exec",
@@ -1063,7 +1138,7 @@ const codexAdapter: CommandHarnessAdapter = {
       "--cd",
       input.workspace,
       "--output-schema",
-      outputSchema,
+      providerOutputSchema,
       "--output-last-message",
       outputFile,
       "-",

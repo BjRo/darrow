@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { HARNESSES, TREATMENTS, type Corpus, type Protocol } from "./types";
+import {
+  CORE_TREATMENTS,
+  HARNESSES,
+  type Corpus,
+  type Phase,
+  type Protocol,
+} from "./types";
 
 export const SUITE_ROOT = resolve(import.meta.dir, "..");
 export const REPO_ROOT = resolve(SUITE_ROOT, "..", "..");
@@ -10,20 +16,45 @@ export async function loadProtocol(
   path = resolve(SUITE_ROOT, "protocol.yaml"),
 ): Promise<Protocol> {
   const value = parseYaml(await readFile(path, "utf8")) as Protocol;
-  if (value.schemaVersion !== "1.0.0")
+  if (value.schemaVersion !== "1.1.0")
     throw new Error(`unsupported protocol schema: ${value.schemaVersion}`);
+  if (!value.amendedAt || !Number.isFinite(Date.parse(value.amendedAt)))
+    throw new Error("protocol amendment timestamp is invalid");
   if (
-    value.treatments.length !== TREATMENTS.length ||
-    TREATMENTS.some((t) => !value.treatments.includes(t))
+    value.treatments.length !== CORE_TREATMENTS.length ||
+    CORE_TREATMENTS.some((t) => !value.treatments.includes(t))
   )
     throw new Error("protocol must contain each treatment exactly once");
   for (const harness of HARNESSES) {
     const route = value.harnesses[harness];
-    if (!route?.executable || !route.version || !route.model || !route.effort)
+    if (!route?.executable || !route.version || !route.model)
       throw new Error(`protocol route is incomplete: ${harness}`);
   }
-  if (!Number.isSafeInteger(value.repeats) || value.repeats < 2)
-    throw new Error("protocol repeats must be an integer >= 2");
+  for (const phase of ["smoke", "pilot", "confirmatory"] as Phase[]) {
+    const settings = value.phases?.[phase];
+    if (
+      !settings ||
+      !Number.isSafeInteger(settings.repeats) ||
+      settings.repeats < 1 ||
+      !Number.isFinite(settings.timeoutMinutes) ||
+      settings.timeoutMinutes <= 0 ||
+      !settings.effort ||
+      !Number.isFinite(value.budgets?.[phase]?.costUsd) ||
+      value.budgets[phase].costUsd <= 0 ||
+      !Number.isSafeInteger(value.budgets[phase].tokens) ||
+      value.budgets[phase].tokens <= 0
+    )
+      throw new Error(`protocol phase is incomplete: ${phase}`);
+  }
+  if (!value.phases.smoke.taskId)
+    throw new Error("protocol smoke phase requires one taskId");
+  if (
+    value.phases.smoke.repeats !== 1 ||
+    value.phases.smoke.timeoutMinutes !== 15 ||
+    value.phases.smoke.effort !== "medium" ||
+    value.phases.pilot.repeats !== 1
+  )
+    throw new Error("protocol bounded smoke and pilot calibration changed");
   return value;
 }
 

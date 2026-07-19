@@ -1,13 +1,13 @@
 import type {
   Assignment,
+  CoreTreatment,
   Corpus,
   Harness,
   Phase,
   Protocol,
-  Treatment,
 } from "./types";
 
-const ORDERS: Treatment[][] = [
+const ORDERS: CoreTreatment[][] = [
   ["native", "plugins", "cli"],
   ["native", "cli", "plugins"],
   ["plugins", "native", "cli"],
@@ -32,9 +32,16 @@ export function buildSchedule(
   phase: Phase,
 ): Assignment[] {
   const blocks: Array<{ key: number; assignments: Assignment[] }> = [];
-  for (const task of corpus.tasks.filter((item) => item.phase === phase)) {
+  const phaseSettings = protocol.phases[phase];
+  const tasks =
+    phase === "smoke"
+      ? corpus.tasks.filter((item) => item.id === phaseSettings.taskId)
+      : corpus.tasks.filter((item) => item.phase === phase);
+  if (phase === "smoke" && tasks.length !== 1)
+    throw new Error(`smoke task is unavailable: ${phaseSettings.taskId}`);
+  for (const task of tasks) {
     for (const harness of Object.keys(protocol.harnesses) as Harness[]) {
-      for (let repeat = 1; repeat <= protocol.repeats; repeat++) {
+      for (let repeat = 1; repeat <= phaseSettings.repeats; repeat++) {
         const start =
           hash(`${protocol.frozenSeed}:${task.id}:${harness}:${repeat}`) %
           ORDERS.length;
@@ -67,4 +74,43 @@ export function buildSchedule(
     ...assignment,
     ordinal: index + 1,
   }));
+}
+
+export function buildPolicyDiagnosticSchedule(
+  protocol: Protocol,
+  corpus: Corpus,
+): Assignment[] {
+  const taskId = protocol.phases.smoke.taskId;
+  const task = corpus.tasks.find((item) => item.id === taskId);
+  if (!task) throw new Error(`smoke task is unavailable: ${taskId}`);
+  const treatments = [
+    "native-matched-policy",
+    "plugins-matched-policy",
+  ] as const;
+  const start =
+    hash(`${protocol.frozenSeed}:${task.id}:codex:matched-policy`) % 2;
+  const auxiliary = treatments
+    .slice(start)
+    .concat(treatments.slice(0, start))
+    .map((treatment, index) => ({
+      ordinal: index + 1,
+      taskId: task.id,
+      repository: task.repository,
+      phase: "smoke" as const,
+      stratum: task.stratum,
+      harness: "codex" as const,
+      treatment,
+      repeat: 1,
+      order: index + 1,
+    }));
+  const baselines = buildSchedule(protocol, corpus, "smoke").filter(
+    (assignment) =>
+      assignment.harness === "codex" &&
+      (assignment.treatment === "native" || assignment.treatment === "plugins"),
+  );
+  return [...baselines, ...auxiliary].sort(
+    (left, right) =>
+      hash(`${protocol.frozenSeed}:policy-order:${left.treatment}`) -
+      hash(`${protocol.frozenSeed}:policy-order:${right.treatment}`),
+  );
 }
