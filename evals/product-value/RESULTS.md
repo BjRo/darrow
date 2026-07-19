@@ -12,17 +12,19 @@ outputs under `evals/results/` are a separate test corpus.
 ## Current status — 2026-07-19
 
 The current protocol is v3: all three core treatments receive the same minimal
-Red/Green TDD policy. Because Claude-side limits prevented a complete six-cell
-smoke, the operator accepted a Codex-only operational checkpoint and requested
-a fresh run at current `main`. This is an explicit scope limitation, not product
-evidence and not an amendment of the two-harness confirmatory design.
+Red/Green TDD policy. The qualifying six-cell smoke is complete. All three
+treatments passed deterministic verification in both Codex and Claude Code.
+Smoke results qualify the evaluator and resource assumptions only and are not
+product evidence.
 
 Local evidence root: `results/shared-tdd-codex-v2/`
 
 - Runner revision: `9ea1ab273a9d4f93cf3fc095265c7f67629fdac5`
-- Harness: Codex CLI 0.144.6
-- Model: `gpt-5.6-sol`, medium effort
+- Harnesses: Codex CLI 0.144.6 and Claude Code 2.1.185
+- Models: `gpt-5.6-sol` and `claude-sonnet-4-6`, medium effort
 - Task: `mynab-flags-now`, one repeat
+
+### Codex
 
 | Treatment | Status    | Deterministic quality | Wall time | Input tokens | Output tokens | Commands |
 | --------- | --------- | --------------------: | --------: | -----------: | ------------: | -------: |
@@ -37,6 +39,35 @@ to native, it used 1.06× wall time and 1.07× total tokens.
 The CLI cell spent 0.46 s in treatment setup and 2.96 s in the runtime wrapper;
 115.35 s was model invocation. Measured host-side CLI machinery therefore
 accounted for about 2.7% of its wall time.
+
+### Claude Code
+
+| Treatment | Status    | Deterministic quality | Wall time | Provider cost | Output tokens | Commands |
+| --------- | --------- | --------------------: | --------: | ------------: | ------------: | -------: |
+| Native    | completed |                  1.00 |   135.1 s |        $0.393 |         6,122 |       11 |
+| Plugins   | completed |                  1.00 |   153.9 s |        $0.460 |         7,019 |       12 |
+| CLI       | completed |                  1.00 |   157.7 s |        $0.485 |         6,780 |       15 |
+
+Relative to direct plugins, the Claude CLI used 1.03× wall time and 1.05×
+provider cost. Relative to native, it used 1.17× wall time and 1.23× provider
+cost. The CLI cell spent 0.43 s in treatment setup and 4.32 s in the runtime
+wrapper; 147.36 s was model invocation. Measured host-side CLI machinery
+accounted for about 3.0% of its wall time.
+
+The first Claude CLI attempt in the detached evaluator checkout is preserved
+under `excluded/`. The checkout lacked evaluator `node_modules`, so Temporal's
+worker failed to bundle before model invocation; the outer invocation then
+timed out with no transcript or patch. This is classified as evaluator
+infrastructure, not a product outcome. After installing the frozen evaluator
+dependencies, the same scheduled cell completed successfully as reported
+above.
+
+Process inspection after the block found 16 Temporal `start-dev` services and
+16 matching workers tied to older `darrow-product-eval-*` workspaces. They were
+shut down gracefully before pilot work; verification found no product-eval
+service remaining. Six unrelated `darrow-e2e-*` service pairs were left
+untouched. Neither the excluded attempt nor its valid replacement leaked a
+process.
 
 ### Replication signal
 
@@ -56,21 +87,26 @@ the reversal shows that a one-run smoke cannot rank treatment efficiency.
 
 ### Interpretation
 
-- All three Codex treatments passed the deterministic smoke check.
-- The CLI remained approximately level with native in both checkpoints.
+- All six valid treatments passed the deterministic smoke check.
+- The CLI remained approximately level with native in both Codex checkpoints.
 - CLI-versus-plugins time and token rankings reversed between checkpoints, so
   the earlier apparent plugin advantage was not stable.
-- Measured CLI setup/runtime work remained below 3% of CLI wall time. Most
-  variation occurred during model execution; the smoke does not isolate
-  structured-result prompting from other instruction effects within that time.
+- In Claude, CLI versus direct plugins was close: 3% more wall time and 5% more
+  provider cost. Both stayed below the preregistered 1.75× time and 1.50× cost
+  ceilings on this smoke task.
+- Measured CLI setup/runtime work was about 3% of CLI wall time in both
+  harnesses. Most variation occurred during model execution; the smoke does not
+  isolate structured-result prompting from other instruction effects within
+  that time.
 - One simple smoke task cannot reveal orchestration value. The product case
   depends on pilot tasks where runtime orchestration can unlock behavior that
   native or direct-plugin treatments cannot reliably provide.
-- No product-value conclusion is admissible from either checkpoint.
+- The smoke passes operational qualification after the explicit infrastructure
+  exclusion. No product-value conclusion is admissible from it.
 
 ## Operational checkpoint and excluded diagnostic history
 
-As of 2026-07-19, 59 local observation files exist across the roots below. They
+As of 2026-07-19, 63 local observation files exist across the roots below. They
 are retained as infrastructure evidence but must not be pooled with the current
 protocol. Counts refer to finalized `observation.json` files, not attempted
 shell invocations.
@@ -91,7 +127,7 @@ shell invocations.
 | `results/portable-implement-smoke-v2/`       |            6 | All six deterministic checks passed after simplifying the implementation skill.                                             | Predates the shared TDD policy and final Claude trace/launcher repairs.       |
 | `results/claude-cli-tools-repair-v1`–`v5`    |            5 | Repaired bounded Claude tools, cleanup, usage recovery, and tracing; v5 completed with quality 1.                           | Targeted sequential repair attempts, not a balanced block.                    |
 | `results/shared-tdd-smoke-v1/`               |            3 | First policy-matched Codex checkpoint; all three deterministic checks passed.                                               | Earlier operational checkpoint; not pooled with the current rerun.            |
-| `results/shared-tdd-codex-v2/`               |            3 | Current-revision Codex checkpoint summarized above; all three deterministic checks passed.                                  | Operational qualification only; Claude was explicitly left out of scope.      |
+| `results/shared-tdd-codex-v2/`               |            7 | Complete current six-cell smoke plus one preserved evaluator-infrastructure exclusion; all six valid checks passed.         | Smoke is operational qualification only and excluded from product inference.  |
 
 The historical diagnostics support four evaluator changes now encoded in the
 protocol and preregistration:
@@ -107,8 +143,8 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Run the optional clean no-TDD diagnostic if Red/Green policy cost still matters.
-Before pilot work, decide whether the formal evaluation remains two-harness or
-is amended to Codex-only, and raise or redefine the phase token ceilings using
-the observed resource usage. Then run the calibration pilot into a fresh result
-root; do not mix either smoke checkpoint into product analysis.
+Harden preflight so a missing evaluator dependency fails before treatment
+assignment. Then run the optional clean no-TDD diagnostic if Red/Green policy
+cost still matters. Before pilot work, raise or redefine the phase token
+ceilings using observed resource usage. Run the 36-cell calibration pilot into
+a fresh result root; do not mix either smoke checkpoint into product analysis.
