@@ -96,7 +96,7 @@ describe("compact execution traces", () => {
     );
     const trace = await createExecutionTrace(
       invocation(lines),
-      "native-matched-policy",
+      "native-no-tdd",
       root,
     );
     expect(trace.modelInvocationDurationMs).toBe(12_000);

@@ -60,21 +60,29 @@ runs. The frozen seed assigns one of six treatment permutations to each task/
 harness/repeat block. Repetition reduces measurement noise but does not inflate
 inferential sample size.
 
-After the excluded Codex smoke showed a large process mismatch, an auxiliary
-matched-policy diagnostic was added before authenticated Claude or pilot work.
-It runs the smoke task once in two Codex-only cells: `native-matched-policy` and
-`plugins-matched-policy`. These evaluator-only diagnostic labels are not Darrow
-treatments. Both direct cells receive the same evaluator-owned behavioral TDD
-instructions without a helper script or structured output protocol, with fresh
-`native` and `plugins` controls on the same Codex version.
-The auxiliary cells are absent from the frozen three-treatment schedule and
-excluded from every product estimate. The diagnostic attributes
-each matched-policy cell minus its plain counterpart to policy. A successful
-matched-plugin cell may be compared descriptively with CLI, but a failed cell
-is not an overhead baseline. The diagnostic can motivate a later protocol
-redesign, but cannot silently change the estimand.
-The diagnostic records Codex CLI 0.144.6; the original excluded smoke used
-0.144.4. Comparisons across that boundary are descriptive and the harness
+Excluded smoke diagnostics showed that the original design confounded Darrow
+orchestration with a prescriptive delivery policy. Before pilot work, the core
+estimand was amended so all three treatments receive this same minimal policy:
+"Use Red/Green TDD to implement the requested change. Use an existing focused
+behavioral test when it covers the requested behavior; otherwise add or adjust
+one. Run that test before changing production code and confirm it fails because
+the requested behavior is missing. Then make the smallest change that passes
+the same test and run the relevant regression tests. If the normal test command
+fails for an unrelated setup reason, run the focused test directly or through
+another available command; an unrelated failure is not red." Direct `native`
+and `plugins` cells receive it in the evaluator prompt; CLI receives it once
+through the invoked implementation skill. This leaves branching, structured
+results, command packaging, and runtime orchestration inside the CLI product
+treatment while removing delivery-method instructions as a comparison confound.
+Every core observation created before this amendment remains excluded and must
+not be mixed with the v3 schedule.
+
+The earlier matched-policy diagnostic and all of its result roots remain
+excluded historical diagnostics. The optional Codex-only policy diagnostic now
+runs `native-no-tdd` and `plugins-no-tdd` beside fresh core controls. These
+evaluator-only cells omit the shared policy, remain outside the frozen
+three-treatment schedule and every product estimate, and estimate the policy's
+own process cost. A failed auxiliary cell is not an overhead baseline. Harness
 version remains visible in every observation.
 
 ## Sources, sanitization, and execution

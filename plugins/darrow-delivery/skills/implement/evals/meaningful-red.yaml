@@ -5,8 +5,9 @@ fixture:
   commits:
     - message: "chore: init"
       files:
+        package.json: '{"scripts":{"test":"test-runner"},"packageManager":"bun@1.3.13"}'
         greeting.ts: "export function greeting() { return 'hi'; }\n"
-        test.ts: "import { appendFileSync } from 'node:fs';\nimport { greeting } from './greeting';\nconst actual = greeting();\nappendFileSync('.test-runs', `${actual}\\n`);\nif (actual !== 'hello') throw new Error('expected hello');\n"
+        test.ts: "import { appendFileSync } from 'node:fs';\nimport { greeting } from './greeting';\nconst actual = greeting();\nappendFileSync('.git/test-runs', `${actual}\\n`);\nif (actual !== 'hello') throw new Error('expected hello');\n"
   bin:
     test-runner: "#!/bin/sh\necho 'test runner dependency missing' >&2\nexit 127\n"
 checks:
@@ -18,6 +19,6 @@ checks:
   - name: behavioral check retained
     run: "test -f test.ts && grep -F 'expected hello' test.ts && grep -F 'appendFileSync' test.ts"
   - name: behavioral check observed red and green
-    run: "grep -Fx 'hi' .test-runs && grep -Fx 'hello' .test-runs"
+    run: "grep -Fx 'hi' .git/test-runs && grep -Fx 'hello' .git/test-runs"
   - name: no dependency setup added
-    run: "test ! -e package.json && test ! -e bun.lock && test ! -e bun.lockb"
+    run: "git diff --exit-code -- package.json && test ! -e bun.lock && test ! -e bun.lockb"

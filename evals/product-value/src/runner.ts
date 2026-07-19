@@ -19,7 +19,7 @@ import {
 } from "./workspace";
 import { invoke } from "./harness";
 import { REPO_ROOT, SUITE_ROOT } from "./config";
-import { matchedPolicyPrompt, usesMatchedPolicy } from "./policy";
+import { sharedTddPrompt, usesSharedTddPolicy } from "./policy";
 import { createExecutionTrace, traceCostUsd, traceTokenUsage } from "./trace";
 
 async function digestDirectory(path: string): Promise<string> {
@@ -152,12 +152,12 @@ export async function runAssignment(
     );
     if (
       assignment.treatment === "plugins" ||
-      assignment.treatment === "plugins-matched-policy"
+      assignment.treatment === "plugins-no-tdd"
     )
       await mountPlugins(workspace.repo, pluginRoot, assignment.harness);
     let invocationPrompt = task.prompt;
-    if (usesMatchedPolicy(assignment.treatment))
-      invocationPrompt = matchedPolicyPrompt(task.prompt);
+    if (usesSharedTddPolicy(assignment.treatment))
+      invocationPrompt = sharedTddPrompt(task.prompt);
     invocation = await invoke(
       protocol,
       assignment.phase,

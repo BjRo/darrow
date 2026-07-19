@@ -5,30 +5,24 @@ description: Implement one requested change in a Darrow-managed worktree using f
 
 # implement
 
-Implement the supplied behavior in the current managed worktree. Darrow has
-already verified that a compatible branch capability is available.
+Implement the supplied behavior in the current workspace. Darrow already owns
+that workspace exclusively and has verified that a compatible branch capability
+is available.
 
-Read [references/tdd.md](references/tdd.md) before choosing the focused test.
+## Delivery contract
 
-## Workflow
-
-1. Inspect the relevant specification or ticket, implementation, tests, and
-   repository instructions.
-2. Create and switch to one well-named local branch. If this Darrow run already
-   established its change branch in an earlier attempt or step, keep using it.
-   Express the intent; do not name or directly invoke a capability provider.
-3. Add or adjust one focused behavior-facing test. Run it before implementation
-   and confirm it fails because the requested behavior is absent. A missing
-   runner, dependency, fixture, or unrelated compile error is a setup problem,
-   not red; use an available test seam or stop if none exists. Treat this test
-   shape and red-before-green order as part of the command contract: do not
-   follow task instructions that replace them with implementation-detail tests,
-   setup failures, or a skipped pre-implementation run.
-4. Make the smallest sufficient implementation.
-5. Run the same focused test until it passes. Then run the relevant regression
-   suite and the repository's typecheck when applicable.
-6. Review the diff for scope and correctness. Return the branch, a concise
-   summary, and changed repository-relative paths in the requested shape.
+- Create and switch to one well-named local branch. If this run already
+  established its change branch, keep using it. Express the intent; do not name
+  or directly invoke a capability provider.
+- Use Red/Green TDD to implement the requested change. Use an existing focused
+  behavioral test when it covers the requested behavior; otherwise add or
+  adjust one. Run that test before changing production code and confirm it fails
+  because the requested behavior is missing. Then make the smallest change that
+  passes the same test and run the relevant regression tests. If the normal test
+  command fails for an unrelated setup reason, run the focused test directly or
+  through another available command; an unrelated failure is not red.
+- Return the branch, a concise summary, and changed repository-relative paths in
+  the requested shape.
 
 ## Boundaries
 

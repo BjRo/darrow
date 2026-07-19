@@ -1,22 +1,38 @@
 import { describe, expect, test } from "bun:test";
-import { matchedPolicyPrompt, usesMatchedPolicy } from "../src/policy";
+import { resolve } from "node:path";
+import {
+  sharedTddPrompt,
+  SHARED_TDD_POLICY,
+  usesSharedTddPolicy,
+} from "../src/policy";
 
-describe("matched delivery-policy diagnostic", () => {
-  test("adds identical portable TDD instructions without evaluator machinery", () => {
-    const prompt = matchedPolicyPrompt("return the supplied instant");
-    expect(prompt).toContain("meaningful red");
-    expect(prompt).toContain("identical focused test");
-    expect(prompt).toContain("regression suite");
-    expect(prompt).toContain("public or otherwise observable seam");
+describe("shared delivery policy", () => {
+  test("adds the minimal Red/Green policy to direct core treatments", () => {
+    const prompt = sharedTddPrompt("return the supplied instant");
+    expect(prompt).toContain("Requested change: return the supplied instant");
+    expect(prompt).toContain(SHARED_TDD_POLICY);
+    expect(prompt.match(/Use Red\/Green TDD/g)).toHaveLength(1);
+    expect(prompt).toContain("relevant regression tests");
     expect(prompt).not.toContain("evidence");
     expect(prompt).not.toContain("output schema");
   });
 
-  test("identifies only evaluator-only matched-policy cells", () => {
-    expect(usesMatchedPolicy("native-matched-policy")).toBe(true);
-    expect(usesMatchedPolicy("plugins-matched-policy")).toBe(true);
-    expect(usesMatchedPolicy("native")).toBe(false);
-    expect(usesMatchedPolicy("plugins")).toBe(false);
-    expect(usesMatchedPolicy("cli")).toBe(false);
+  test("uses the same policy wording in the CLI implementation skill", async () => {
+    const skill = await Bun.file(
+      resolve(
+        import.meta.dir,
+        "../../..",
+        "plugins/darrow-delivery/skills/implement/SKILL.md",
+      ),
+    ).text();
+    expect(skill.replace(/\s+/g, " ")).toContain(SHARED_TDD_POLICY);
+  });
+
+  test("injects the policy only into direct core prompts", () => {
+    expect(usesSharedTddPolicy("native")).toBe(true);
+    expect(usesSharedTddPolicy("plugins")).toBe(true);
+    expect(usesSharedTddPolicy("cli")).toBe(false);
+    expect(usesSharedTddPolicy("native-no-tdd")).toBe(false);
+    expect(usesSharedTddPolicy("plugins-no-tdd")).toBe(false);
   });
 });

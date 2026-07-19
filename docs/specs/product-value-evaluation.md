@@ -15,8 +15,11 @@ and M3 investment. The preregistration and executable configuration live under
   through the Darrow CLI. Native versus direct estimates plugin value; direct
   versus CLI estimates incremental orchestration value.
 - **PV-3 — Common harness routes.** Within one harness block, model, effort,
-  executable, permission policy, environment allowlist, and task prompt are
-  fixed across treatments. Harness state and workspaces are isolated per run.
+  executable, permission policy, environment allowlist, requested change, and
+  minimal Red/Green delivery policy are fixed across treatments. Direct native
+  and plugin cells receive the policy in their task prompt; the CLI cell
+  receives the identical policy once through the invoked implementation skill.
+  Harness state and workspaces are isolated per run.
   The evaluator applies one treatment-independent native launcher policy,
   including the same available-tool set, to direct and CLI invocations.
   Repository setup completes before measured agent execution, and every
@@ -121,15 +124,11 @@ and M3 investment. The preregistration and executable configuration live under
   excluded from pilot calibration and confirmatory inference. The pilot uses
   one repeat per cell initially and proceeds only after operators inspect smoke
   completion, time, token, and cost measurements.
-- **PV-18 — Matched-policy diagnostic.** If smoke results show that CLI and
-  direct treatments execute materially different delivery policies, the
-  evaluator may run one Codex-only auxiliary pair on the smoke task:
-  `native-matched-policy` and `plugins-matched-policy`. These are evaluator-only
-  diagnostic labels, not product treatments. Both receive an identical
-  evaluator-owned behavioral TDD prompt without helper scripts or an output
-  protocol; fresh Codex `native` and `plugins` controls run beside them. The auxiliary cells remain
-  outside the three-treatment schedule and all product inference. Their purpose
-  is to estimate policy cost (each matched-policy cell minus its plain
-  counterpart) and describe the remaining CLI bundle before spending on the
-  second harness or pilot. A failed auxiliary cell is not a valid overhead
-  baseline.
+- **PV-18 — No-policy diagnostic.** The evaluator may run one Codex-only
+  auxiliary pair on the smoke task: `native-no-tdd` and `plugins-no-tdd`. These
+  evaluator-only labels omit the shared Red/Green policy while retaining the
+  corresponding direct harness and plugin setup. Fresh core `native` and
+  `plugins` cells run beside them. The auxiliary cells remain outside the
+  three-treatment schedule and all product inference. Their purpose is to
+  estimate the cost of the shared delivery policy before pilot work. A failed
+  auxiliary cell is not a valid overhead baseline.

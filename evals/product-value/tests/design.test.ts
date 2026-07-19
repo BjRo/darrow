@@ -74,24 +74,19 @@ describe("product-value design (PV-7 through PV-11)", () => {
     }
   });
 
-  test("keeps the matched-policy diagnostic outside the core schedule", async () => {
+  test("keeps the no-TDD diagnostic outside the core schedule", async () => {
     const protocol = await loadProtocol();
     const corpus = await loadCorpus();
     const diagnostic = buildPolicyDiagnosticSchedule(protocol, corpus);
     expect(diagnostic).toHaveLength(4);
     expect(new Set(diagnostic.map((item) => item.treatment))).toEqual(
-      new Set([
-        "native",
-        "native-matched-policy",
-        "plugins",
-        "plugins-matched-policy",
-      ]),
+      new Set(["native", "native-no-tdd", "plugins", "plugins-no-tdd"]),
     );
     expect(diagnostic.every((item) => item.harness === "codex")).toBe(true);
     expect(diagnostic.every((item) => item.phase === "smoke")).toBe(true);
     expect(
       buildSchedule(protocol, corpus, "smoke").some((item) =>
-        item.treatment.endsWith("-matched-policy"),
+        item.treatment.endsWith("-no-tdd"),
       ),
     ).toBe(false);
   });

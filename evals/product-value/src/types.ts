@@ -1,7 +1,7 @@
 export const CORE_TREATMENTS = ["native", "plugins", "cli"] as const;
 export const POLICY_DIAGNOSTIC_TREATMENTS = [
-  "native-matched-policy",
-  "plugins-matched-policy",
+  "native-no-tdd",
+  "plugins-no-tdd",
 ] as const;
 export const TREATMENTS = [
   ...CORE_TREATMENTS,

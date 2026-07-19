@@ -37,6 +37,7 @@ diagnosis, with provider usage recovered from their transcript.
 
 ```sh
 bun evals/product-value/cli.ts run --phase smoke \
+  --results evals/product-value/results/shared-tdd-smoke-v1 \
   --source mynab=../mynab \
   --source credfolio2=../credfolio2
 ```
@@ -54,23 +55,21 @@ Smoke results are operational evidence, not product evidence. Inspect all six
 observations for completion, tokens, cost, and wall time before starting the
 36-run, one-repeat calibration pilot:
 
-If the smoke shows that CLI and direct treatments used materially different
-delivery policies, run the excluded Codex-only matched-policy diagnostic before
-spending on Claude or pilot work:
+All three core treatments receive the same minimal Red/Green policy. To measure
+the policy's own process cost, run the excluded Codex-only no-TDD diagnostic
+before pilot work:
 
 ```sh
 bun evals/product-value/cli.ts diagnose-policy --phase smoke \
-  --results evals/product-value/results/policy-diagnostic-v1 \
+  --results evals/product-value/results/no-tdd-diagnostic-v1 \
   --source mynab=../mynab
 ```
 
-This runs fresh `native` and `plugins` controls plus the evaluator-only
-`native-matched-policy` and `plugins-matched-policy` cells. Both auxiliary cells
-receive the same evaluator-owned behavioral TDD instructions, with no helper or
-output protocol. They never enter the three-treatment schedule or product
-analysis. Use the matched direct pairs to estimate instruction-policy cost.
-Compare a matched-policy result with the excluded CLI smoke only when both cells
-complete successfully.
+This runs fresh policy-matched `native` and `plugins` controls plus the
+evaluator-only `native-no-tdd` and `plugins-no-tdd` cells. The auxiliary cells
+omit the shared policy and never enter the three-treatment schedule or product
+analysis. Compare each no-TDD cell only with its corresponding fresh core cell;
+a failed cell is not an overhead baseline.
 
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml

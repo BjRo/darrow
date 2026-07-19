@@ -83,12 +83,9 @@ export function buildPolicyDiagnosticSchedule(
   const taskId = protocol.phases.smoke.taskId;
   const task = corpus.tasks.find((item) => item.id === taskId);
   if (!task) throw new Error(`smoke task is unavailable: ${taskId}`);
-  const treatments = [
-    "native-matched-policy",
-    "plugins-matched-policy",
-  ] as const;
+  const treatments = ["native-no-tdd", "plugins-no-tdd"] as const;
   const start =
-    hash(`${protocol.frozenSeed}:${task.id}:codex:matched-policy`) % 2;
+    hash(`${protocol.frozenSeed}:${task.id}:codex:no-tdd-policy`) % 2;
   const auxiliary = treatments
     .slice(start)
     .concat(treatments.slice(0, start))

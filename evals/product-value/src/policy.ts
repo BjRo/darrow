@@ -1,24 +1,12 @@
 import type { Treatment } from "./types";
 
-export function usesMatchedPolicy(treatment: Treatment): boolean {
-  return (
-    treatment === "native-matched-policy" ||
-    treatment === "plugins-matched-policy"
-  );
+export const SHARED_TDD_POLICY =
+  "Use Red/Green TDD to implement the requested change. Use an existing focused behavioral test when it covers the requested behavior; otherwise add or adjust one. Run that test before changing production code and confirm it fails because the requested behavior is missing. Then make the smallest change that passes the same test and run the relevant regression tests. If the normal test command fails for an unrelated setup reason, run the focused test directly or through another available command; an unrelated failure is not red.";
+
+export function usesSharedTddPolicy(treatment: Treatment): boolean {
+  return treatment === "native" || treatment === "plugins";
 }
 
-export function matchedPolicyPrompt(change: string): string {
-  return [
-    "Implement the requested change using this evaluator-matched TDD policy.",
-    `Requested change: ${change}`,
-    "Create and switch to one well-named local branch for the change.",
-    "Inspect only the repository context needed to locate the implementation and tests.",
-    "Add or adjust one focused behavior-facing test through a public or otherwise observable seam.",
-    "Run it before implementation and confirm it fails because the requested behavior is absent.",
-    "A missing runner, dependency, fixture, unrelated compile error, or generic nonzero exit is not meaningful red. Do not install dependencies.",
-    "Make the smallest sufficient implementation.",
-    "Run the identical focused test until it passes, then run the relevant regression suite and typecheck when applicable.",
-    "Review the diff for scope and correctness.",
-    "Do not commit, push, open a pull request, mutate a ticket, change dependencies, or weaken existing tests.",
-  ].join("\n");
+export function sharedTddPrompt(change: string): string {
+  return [`Requested change: ${change}`, SHARED_TDD_POLICY].join("\n\n");
 }
