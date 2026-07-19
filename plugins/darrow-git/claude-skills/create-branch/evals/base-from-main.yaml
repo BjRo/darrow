@@ -1,0 +1,24 @@
+id: create-branch-base-from-main
+invariant: GW-B4
+prompt: Create a branch for updating the install docs — base it on main, not on this branch.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        docs/install.md: "# Install\n"
+  setup: |
+    git switch -qc feat/other
+    printf 'other\n' > other.txt
+    git add other.txt
+    git commit -qm "feat: other work"
+checks:
+  - name: on a new docs branch
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^(docs|chore)/[a-z0-9]+(-[a-z0-9]+)*$"
+  - name: based on main, not the feature branch
+    run: test "$(git rev-parse HEAD)" = "$(git rev-parse main)" && echo same-as-main
+    expect_regex: "^same-as-main$"
+  - name: feature branch untouched
+    run: git rev-list --count feat/other
+    expect_regex: "^2$"

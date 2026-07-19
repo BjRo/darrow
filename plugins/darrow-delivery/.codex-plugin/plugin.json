@@ -1,8 +1,8 @@
 {
   "name": "darrow-delivery",
   "description": "Darrow-managed red/green implementation commands",
-  "version": "0.1.1",
-  "skills": "./skills/",
+  "version": "0.1.2",
+  "skills": "./codex-skills/",
   "author": {
     "name": "Björn Rochel"
   },

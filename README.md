@@ -235,7 +235,10 @@ The marketplace manifest is
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json); Codex uses
 the same marketplace and each plugin also ships a Codex-specific manifest.
 Darrow-aware skills keep workflow metadata in a colocated `darrow.json` rather
-than extending either runtime's native plugin manifest.
+than extending either runtime's native plugin manifest. Each plugin directly
+authors one canonical `source/` tree plus optional harness overlays; native
+manifests select committed `claude-skills/` and `codex-skills/` projections from
+the same package and version.
 
 ## Development
 
@@ -248,4 +251,8 @@ bun run hooks:install
 
 `bun run lint` checks all Prettier-supported project content. `bun run format`
 updates it. The pre-commit hook runs the same check against staged content and
-refuses commits that are not formatted.
+refuses commits that are not formatted. `bun run plugins:generate` regenerates
+all harness projections, `bun run plugins:generate -- <plugin>` scopes generation
+to one plugin, and `bun run plugins:check` verifies deterministic provenance
+without mutation. Pre-commit performs projection checks from the staged index;
+CI performs the full check.

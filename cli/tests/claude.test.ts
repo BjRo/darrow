@@ -73,7 +73,7 @@ async function fixture(script?: string): Promise<{
       "..",
       "plugins",
       "darrow-delivery",
-      "skills",
+      "claude-skills",
       "implement",
     ),
     commandDir,

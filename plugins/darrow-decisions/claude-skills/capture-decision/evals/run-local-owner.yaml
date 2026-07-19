@@ -1,0 +1,48 @@
+id: capture-decision-run-local-owner
+invariant: DM-7
+prompt: >-
+  In the active Darrow run, waive the QA step failure and continue this run.
+  Capture that run decision in the repository so it is not lost.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/.gitkeep: ""
+  bin:
+    darrow: |
+      #!/bin/sh
+      printf '%s\n' "$*" >> .git/darrow-calls
+      echo 'active run integration unavailable' >&2
+      exit 1
+checks:
+  - name: no repository decision duplicate is created
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: Darrow owner integration was attempted
+    run: >-
+      test -s .git/darrow-calls;
+      cat .git/darrow-calls
+    expect_regex: "\\S"
+  - name: response identifies Darrow run state as owner
+    run: >-
+      text=$(tr '\n' ' ' < .git/last-message.md); printf '%s\n' "$text";
+      printf '%s\n' "$text" | grep -Ei '(owned|belong|belongs).{0,40}(by|to|only to).{0,100}(Darrow|active run|run state)|(live|stored|recorded|persisted).{0,40}(in|within).{0,100}(Darrow|active run|run state)|(authoritative|canonical)[ ]+owner.{0,100}(Darrow|active run|run state)|(Darrow|active run|run state).{0,100}(owns|canonical owner|run-state-owned)|path/owner:.{0,80}Darrow.{0,80}(active run|run state)' >/dev/null
+    expect_regex: "(Darrow|run state|active run)"
+    flags: i
+  - name: response refuses a repository substitute
+    run: >-
+      text=$(tr '\n' ' ' < .git/last-message.md);
+      printf '%s\n' "$text"
+    expect_regex: "(no|not|won't|cannot|should not|do not).{0,120}(ADR|repository|file|duplicate)|(ADR|repository|file|duplicate).{0,120}(no|not|won't|cannot|should not|do not)"
+    flags: i
+  - name: response reports unavailable and unverified run state
+    run: cat .git/last-message.md
+    expect_regex: "(unavailable|cannot apply|can't apply|unable to apply|inaccessible)[\\s\\S]*(unverified|unapplied|not verified|could not verify|could not be verified|cannot verify|can't verify|cannot truthfully confirm|cannot confirm|could not confirm|incomplete)|(unverified|unapplied|not verified|could not verify|could not be verified|cannot verify|can't verify|cannot truthfully confirm|cannot confirm|could not confirm|incomplete)[\\s\\S]*(unavailable|cannot apply|can't apply|unable to apply|inaccessible)"
+    flags: i
+  # Contradictory success language is semantic and belongs in a model-graded
+  # rubric; the deterministic checks above establish the observable owner call,
+  # unavailable/unverified state, and refusal to create a repository substitute.
+  - name: capture creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

@@ -1,0 +1,55 @@
+id: capture-decision-metadata-correction
+invariant: DM-10
+prompt: >-
+  Correct the Date metadata on accepted ADR-0001 from 2026-06-01 to
+  2026-06-02. This is a non-semantic metadata correction; the accepted
+  architecture meaning must remain unchanged.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/ADR-0001-sqlite.md: |
+          # ADR-0001: Use SQLite for local state
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          Local state needs transactions without a service dependency.
+
+          ## Decision
+
+          Use SQLite for local state.
+
+          ## Consequences
+
+          The application owns one repository-local database.
+checks:
+  - name: changes exactly the existing ADR
+    run: >-
+      { git diff --name-only; git ls-files --others --exclude-standard; } |
+      LC_ALL=C sort -u
+    expect_exact: "docs/decisions/ADR-0001-sqlite.md"
+  - name: corrects only metadata and preserves accepted meaning
+    run: >-
+      grep -Fx 'Status: Accepted' docs/decisions/ADR-0001-sqlite.md >/dev/null;
+      grep -Fx 'Date: 2026-06-02' docs/decisions/ADR-0001-sqlite.md >/dev/null;
+      old=$(git show HEAD:docs/decisions/ADR-0001-sqlite.md | sed '/^Date:/d');
+      new=$(sed '/^Date:/d' docs/decisions/ADR-0001-sqlite.md);
+      test "$old" = "$new" && echo preserved
+    expect_regex: "^preserved$"
+  - name: deterministic validation passes
+    run: >-
+      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
+      else facade=.claude/bin/decision; fi;
+      bash "$facade" validate --repo .
+    expect_regex: "^valid: 1 ADR\\(s\\) in /"
+  - name: response identifies correction and absolute canonical path
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/docs/decisions/ADR-0001-sqlite.md" "$message" >/dev/null;
+      grep -Ei 'metadata|Date|non-semantic|correction' "$message" >/dev/null;
+      echo corrected
+    expect_regex: "^corrected$"

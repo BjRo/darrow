@@ -1,0 +1,4 @@
+interface:
+  display_name: "List Tickets"
+  short_description: "List tracked issues and tickets"
+  default_prompt: "Use $list-tickets to show the open tickets for this project."

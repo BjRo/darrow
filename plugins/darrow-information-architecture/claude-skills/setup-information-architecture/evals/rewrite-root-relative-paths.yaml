@@ -1,0 +1,57 @@
+id: setup-information-architecture-rewrite-root-relative-paths
+invariant: IA-S10
+prompt: >-
+  Reorganize the existing routed guidance into a valid lean information
+  architecture and fix any path-position problems you find. I approve applying
+  the file-level proposal.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          Before backend work, read `src/backend/MAP.md`.
+        CLAUDE.md: |
+          # Claude adapter
+
+          Read `AGENTS.md` before work.
+        src/backend/MAP.md: |
+          # Backend map
+
+          Before document assembly work, read `internal/export/assembler.go`.
+
+          @../../docs/native-loader-note.md
+        src/backend/internal/export/assembler.go: "package export\n"
+        docs/native-loader-note.md: "# Native loader note\n"
+        .agents/skills/export-check/SKILL.md: |
+          ---
+          name: export-check
+          description: Check document export assembly.
+          ---
+
+          Run `scripts/check.sh` from this skill.
+        .agents/skills/export-check/scripts/check.sh: "#!/bin/sh\nexit 0\n"
+checks:
+  - name: nested-relative path is rewritten from the session root
+    run: cat src/backend/MAP.md
+    expect_regex: "`src/backend/internal/export/assembler\\.go`"
+  - name: stale nested-relative form is gone
+    run: cat src/backend/MAP.md
+    not_regex: "`internal/export/assembler\\.go`"
+  - name: loader-native relative import is preserved
+    run: cat src/backend/MAP.md
+    expect_regex: "@\\.\\./\\.\\./docs/native-loader-note\\.md"
+  - name: skill-bundled resource path is preserved
+    run: cat .agents/skills/export-check/SKILL.md
+    expect_regex: "`scripts/check\\.sh`"
+  - name: deterministic path verification passes
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: setup creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

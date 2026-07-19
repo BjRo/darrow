@@ -1,11 +1,11 @@
 {
   "name": "darrow-tickets",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, update-ticket, list-tickets",
   "author": {
     "name": "Björn Rochel"
   },
-  "skills": "./skills/",
+  "skills": "./codex-skills/",
   "interface": {
     "displayName": "Darrow -> Tickets",
     "shortDescription": "Create, find, and update project tickets",

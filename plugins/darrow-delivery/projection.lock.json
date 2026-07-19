@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "plugin": {
+    "name": "darrow-delivery",
+    "version": "0.1.2"
+  },
+  "generator": {
+    "version": "1.0.0",
+    "digest": "sha256:ee6de7f8cfdb63ea4ef446b9a8cf7b16bd8f7e4ec326dc8055d9075f343290d9"
+  },
+  "source": {
+    "path": "./source/",
+    "digest": "sha256:709d9d108e151d2b726dbb956db93026fa93b06418a497d2c338607dfc034cdc"
+  },
+  "overlays": {
+    "claude": {
+      "path": "./overlays/claude/",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "codex": {
+      "path": "./overlays/codex/",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "projections": {
+    "claude": {
+      "path": "./claude-skills/",
+      "digest": "sha256:709d9d108e151d2b726dbb956db93026fa93b06418a497d2c338607dfc034cdc"
+    },
+    "codex": {
+      "path": "./codex-skills/",
+      "digest": "sha256:709d9d108e151d2b726dbb956db93026fa93b06418a497d2c338607dfc034cdc"
+    }
+  }
+}

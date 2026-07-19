@@ -1,0 +1,116 @@
+id: list-decisions-status-and-reference-dedup
+invariant: "DM-L2,DM-L3"
+prompt: >-
+  List recorded authentication decisions and unresolved authentication
+  proposals across ADR and specification surfaces. Distinguish actual statuses,
+  report each canonical effect once with an absolute path, and silently omit
+  unrelated records without naming them, even as excluded examples. Do not
+  change anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/specs/authentication.md: |
+          # Authentication capability
+
+          External identity follows [ADR-0001](../decisions/ADR-0001-oidc.md).
+          API sessions must use HttpOnly SameSite cookies.
+        docs/decisions/ADR-0001-oidc.md: |
+          # ADR-0001: Use OIDC for external identity
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          External users need federated identity.
+
+          ## Decision
+
+          Use OIDC for external identity.
+
+          ## Consequences
+
+          Identity providers must support OIDC.
+        docs/decisions/ADR-0002-passwordless.md: |
+          # ADR-0002: Evaluate passwordless authentication
+
+          Status: Proposed
+          Date: 2026-07-10
+
+          ## Context
+
+          Password recovery creates support load.
+
+          ## Decision
+
+          Evaluate passkeys before selecting a replacement.
+
+          ## Consequences
+
+          This proposal has not taken effect.
+        docs/decisions/ADR-0003-storage.md: |
+          # ADR-0003: Use object storage for exports
+
+          Status: Accepted
+          Date: 2026-07-11
+
+          ## Context
+
+          Exports need durable storage.
+
+          ## Decision
+
+          Use object storage.
+
+          ## Consequences
+
+          Workers upload exports.
+checks:
+  - name: listing is read-only
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: reports accepted and proposed statuses separately
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      oidc="$root/docs/decisions/ADR-0001-oidc.md";
+      proposal="$root/docs/decisions/ADR-0002-passwordless.md";
+      specification="$root/docs/specs/authentication.md";
+      oidc_line=$(grep -F "$oidc" "$message");
+      proposal_line=$(grep -F "$proposal" "$message");
+      specification_line=$(grep -F "$specification" "$message");
+      printf '%s\n' "$oidc_line" | grep -Ei 'Accepted' >/dev/null;
+      printf '%s\n' "$oidc_line" | grep -Ei 'OIDC|external identity|federated identity' >/dev/null;
+      printf '%s\n' "$oidc_line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
+      ! printf '%s\n' "$oidc_line" | grep -F "$proposal" >/dev/null;
+      ! printf '%s\n' "$oidc_line" | grep -F "$specification" >/dev/null;
+      printf '%s\n' "$proposal_line" | grep -Ei 'Proposed' >/dev/null;
+      printf '%s\n' "$proposal_line" | grep -Ei 'passkey|passwordless' >/dev/null;
+      printf '%s\n' "$proposal_line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
+      ! printf '%s\n' "$proposal_line" | grep -F "$oidc" >/dev/null;
+      ! printf '%s\n' "$proposal_line" | grep -F "$specification" >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'no recorded status|no status|status.{0,80}(none|not applicable|n/a)' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'normative capability|capability scope|scope.{0,80}(normative|capability|product|specification)' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'HttpOnly' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'SameSite|same-site' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'cookie' >/dev/null;
+      ! printf '%s\n' "$specification_line" | grep -F "$oidc" >/dev/null;
+      ! printf '%s\n' "$specification_line" | grep -F "$proposal" >/dev/null;
+      echo distinguished
+    expect_exact: "distinguished"
+  - name: canonical records are deduplicated
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      test "$(NEEDLE="$root/docs/decisions/ADR-0001-oidc.md" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      test "$(NEEDLE="$root/docs/decisions/ADR-0002-passwordless.md" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      test "$(NEEDLE="$root/docs/specs/authentication.md" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      echo unique
+    expect_exact: "unique"
+  - name: unrelated record is omitted
+    run: cat .git/last-message.md
+    not_regex: "ADR-0003\\b|ADR-0003-storage|object storage|exports"
+    flags: i
+  - name: listing creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

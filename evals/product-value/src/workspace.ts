@@ -91,7 +91,8 @@ export async function mountPlugins(
   const mountRoot = join(repo, harness === "codex" ? ".agents" : ".claude");
   const skillsRoot = join(mountRoot, "skills");
   await mkdir(skillsRoot, { recursive: true });
-  const glob = new Bun.Glob("*/skills/*/SKILL.md");
+  const projection = harness === "codex" ? "codex-skills" : "claude-skills";
+  const glob = new Bun.Glob(`*/${projection}/*/SKILL.md`);
   for await (const rel of glob.scan(pluginRoot)) {
     const skillDirectory = dirname(resolve(pluginRoot, rel));
     await cp(skillDirectory, join(skillsRoot, basename(skillDirectory)), {

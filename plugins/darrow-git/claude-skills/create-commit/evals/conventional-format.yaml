@@ -1,0 +1,23 @@
+id: create-commit-conventional-format
+invariant: GW-C3
+prompt: Commit the staged change.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/greeter.ts: "export const greet = (name: string) => `Hello ${name}`;\n"
+  files:
+    src/greeter.ts: "export const greet = (name: string) => `Hello, ${name}!`;\n"
+  staged:
+    - src/greeter.ts
+checks:
+  - name: conventional subject
+    run: git log -1 --format=%s
+    expect_regex: "^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)(\\([^)]+\\))?!?: \\S"
+  - name: subject within 72 chars, no trailing period
+    run: git log -1 --format=%s
+    expect_regex: "^.{1,72}$"
+  - name: no trailing period
+    run: git log -1 --format=%s
+    not_regex: "\\.$"

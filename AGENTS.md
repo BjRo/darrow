@@ -9,12 +9,14 @@ contract.
 
 - `cli/` — global TypeScript/Bun workflow CLI and Temporal worker (M1 onward),
   versioned independently from plugins.
-- `plugins/<name>/` — independently adoptable plugins. Skills live in
-  `skills/<skill>/SKILL.md` with colocated `scripts/` and `evals/`. Plugins are
-  self-contained: never reference files outside the plugin directory or assume
-  a sibling plugin is installed. Workflows invoke command skills by canonical
-  `<plugin>:<skill>` ID; capability composition uses intent and portable
-  contracts.
+- `plugins/<name>/` — independently adoptable plugins. Canonical skills live in
+  `source/<skill>/SKILL.md` with colocated `scripts/` and `evals/`; optional
+  harness overlays live under `overlays/<harness>/`. `claude-skills/` and
+  `codex-skills/` are generated, committed projections and must never be edited
+  directly. Plugins are self-contained: never reference files outside the
+  plugin directory or assume a sibling plugin is installed. Workflows invoke
+  command skills by canonical `<plugin>:<skill>` ID; capability composition uses
+  intent and portable contracts.
 - `docs/specs/` — normative invariants. Runtime contracts live in
   `workflow-runtime.md`, `workspaces-artifacts.md`, `compatibility.md`, and
   `observability.md`; capability contracts live in their named files. Tests and
@@ -22,7 +24,7 @@ contract.
 - `docs/decisions/` — accepted architecture choices. Read the directly linked
   ADR before revisiting a selected technology or distribution boundary.
 - `evals/` — shared runner (`runner/`) and results (`results/`, gitignored).
-  The runner discovers cases via `plugins/*/skills/*/evals/*.yaml`.
+  The runner discovers cases via `plugins/*/source/*/evals/*.yaml`.
 
 ## Skill development loop (mandatory, in order)
 
@@ -56,7 +58,7 @@ Review agents must never run git/gh against this repo — temp dirs via
 
 ## Tests & evals
 
-- Script tests: `bash plugins/darrow-git/skills/<skill>/scripts/<name>.test.sh`
+- Script tests: `bash plugins/darrow-git/source/<skill>/scripts/<name>.test.sh`
   (also with `/bin/bash`).
 - Evals: `cd evals && bun runner/run.ts --case <substring> [--dry]`.
   5 trials/case, pass-rate threshold 0.8, ~$0.5/case — use `--case` to scope.
@@ -84,11 +86,16 @@ Review agents must never run git/gh against this repo — temp dirs via
 
 - Marketplace manifest: `.claude-plugin/marketplace.json` (Codex reads it too).
 - Each plugin needs BOTH `.claude-plugin/plugin.json` and
-  `.codex-plugin/plugin.json` (Codex variant adds `"skills": "./skills/"`).
+  `.codex-plugin/plugin.json`; they declare `"skills": "./claude-skills/"` and
+  `"skills": "./codex-skills/"` respectively and share identity and version.
 - Each skill that participates in the Darrow workflow runtime (M1 onward) needs
-  `skills/<skill>/darrow.json`, validated against
+  `source/<skill>/darrow.json`, validated against
   `docs/specs/darrow-skill-metadata.schema.json`. Native plugin manifests retain
   plugin identity and package version; never add arbitrary Darrow fields to
   them.
+- Run `bun run plugins:generate` after canonical or overlay changes, or
+  `bun run plugins:generate -- <plugin>` for one plugin. `bun run plugins:check`
+  validates deterministic provenance without mutation. The pre-commit hook
+  performs the same check from the staged index for affected plugins only.
 - A command skill is invoked explicitly by canonical name. A capability skill is
   loaded by harness intent and advertises portable contracts in `darrow.json`.

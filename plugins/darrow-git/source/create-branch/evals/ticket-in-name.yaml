@@ -1,0 +1,19 @@
+id: create-branch-ticket-in-name
+invariant: GW-B1
+prompt: "I'm starting on ticket DAR-123: add retry logic to the HTTP client. Create the branch."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/http.ts: "export async function get(url: string) { return fetch(url); }\n"
+checks:
+  - name: ticket id in branch name, verbatim case
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "DAR-123"
+  - name: conventional type prefix
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^(feat|fix)/"
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"

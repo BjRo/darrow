@@ -1,0 +1,25 @@
+id: create-commit-no-attribution
+invariant: GW-C4
+prompt: Please commit my staged work.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/config.ts: "export const retries = 1;\n"
+  files:
+    src/config.ts: "export const retries = 3;\n"
+  staged:
+    - src/config.ts
+checks:
+  - name: commit exists
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
+  - name: no AI attribution in message
+    run: git log -1 --format=%B
+    not_regex: "(co-authored-by:.*(claude|gpt|codex|ai)|generated (with|by)|assisted[- ]by|🤖)"
+    flags: i
+  - name: no tool mention at all (broader than the script guard)
+    run: git log -1 --format=%B
+    not_regex: "(claude|codex|copilot|anthropic|openai)"
+    flags: i

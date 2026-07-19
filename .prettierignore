@@ -1,3 +1,5 @@
 docs/research/
 evals/experiments/
-plugins/*/skills/*/SKILL.md
+plugins/*/source/*/SKILL.md
+plugins/*/claude-skills/*/SKILL.md
+plugins/*/codex-skills/*/SKILL.md

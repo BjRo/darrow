@@ -1,0 +1,42 @@
+id: capture-decision-existing-related
+invariant: DM-3
+prompt: >-
+  Capture the accepted repository architecture decision that local state uses
+  SQLite. We already discussed and recorded this choice earlier.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/ADR-0001-sqlite.md: |
+          # ADR-0001: Use SQLite for local state
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          Local state needs durable transactions without a service dependency.
+
+          ## Decision
+
+          Use SQLite for local state.
+
+          ## Consequences
+
+          The application owns one repository-local database.
+checks:
+  - name: existing canonical ADR is not duplicated
+    run: find docs/decisions -maxdepth 1 -type f -name 'ADR-*.md' -print | wc -l
+    expect_regex: "^ *1$"
+  - name: existing accepted record is not rewritten
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: response identifies the existing canonical record
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/docs/decisions/ADR-0001-sqlite.md" "$message" >/dev/null;
+      grep -Ei 'already|existing|canonical' "$message" >/dev/null;
+      grep -Ei 'Accepted' "$message" >/dev/null;
+      echo canonical
+    expect_regex: "^canonical$"

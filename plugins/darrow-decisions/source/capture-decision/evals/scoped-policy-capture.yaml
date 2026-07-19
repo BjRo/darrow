@@ -1,0 +1,50 @@
+id: capture-decision-scoped-policy
+invariant: DM-C1
+prompt: >-
+  We have decided that authentication changes in the API service require two
+  security-reviewer approvals. I am the repository maintainer and authorize
+  this durable contributor-policy change. Capture it at the canonical scope
+  selected by the repository's policy routing; do not create a new policy
+  surface or an ADR.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        CONTRIBUTING.md: |
+          # Contributor policy map
+
+          Service-specific contributor policy is authoritative in each
+          `services/<name>/POLICY.md`. Authentication work belongs to the API
+          service policy.
+        services/api/POLICY.md: |
+          # API contributor policy
+
+          Authentication changes require approval from one security reviewer.
+checks:
+  - name: changes exactly the scoped canonical policy
+    run: >-
+      { git diff --name-only; git ls-files --others --exclude-standard; } |
+      LC_ALL=C sort -u
+    expect_exact: "services/api/POLICY.md"
+  - name: scoped policy records the authorized effect
+    run: >-
+      text=$(cat services/api/POLICY.md);
+      printf '%s\n' "$text";
+      printf '%s\n' "$text" | grep -Ei 'Authentication[^.]*(require|must)[^.]*(two|2)[ -]+security[- ]reviewer[ -]+approvals?|Authentication[^.]*(require|must)[^.]*approvals?[ ]+(from|by)[ ]+(two|2)[ -]+security[- ]reviewers?|Authentication[^.]*(require|must)[^.]*(two|2)[ -]+approvals?[ ]+(from|by)[ ]+security[- ]reviewers?|Authentication[^.]*must[^.]*approved[ ]+(from|by)[ ]+(two|2)[ -]+security[- ]reviewers?' >/dev/null;
+      ! printf '%s\n' "$text" | grep -Ei 'one security reviewer|one[^.]*security-reviewer approval' >/dev/null;
+      ! printf '%s\n' "$text" | grep -Ei '(security[- ]review|approval).{0,80}(optional|not required|may be skipped)|(optional|not required|may be skipped).{0,80}(security[- ]review|approval)' >/dev/null;
+      test "$(printf '%s\n' "$text" | grep -Eic 'Authentication changes')" -eq 1
+    expect_regex: "Authentication"
+    flags: i
+  - name: response reports authority scope and absolute canonical sink
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/services/api/POLICY.md" "$message" >/dev/null;
+      grep -Ei 'policy|API service|scoped' "$message" >/dev/null;
+      grep -Ei 'authority|authorized|maintainer|user' "$message" >/dev/null;
+      echo reported
+    expect_regex: "^reported$"
+  - name: capture creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

@@ -1,0 +1,45 @@
+id: doctor-information-architecture-preserve-settled-abandoned-experiment
+invariant: IA-D10
+prompt: >-
+  Doctor the repository information architecture and apply safe cleanup while
+  preserving settled architecture decisions.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          Before persistence work, read `.agent-shared/rules/storage.md`.
+        CLAUDE.md: "# Claude adapter\n\nRead `AGENTS.md` before work.\n"
+        .agent-shared/rules/storage.md: |
+          # Settled storage policy
+
+          Use the ORM for new persistence work. The raw SQL package was an
+          abandoned experiment; do not extend it.
+        src/persistence/orm/users.go: "package orm\n"
+        src/persistence/sql/a.go: "package sql\n"
+        src/persistence/sql/b.go: "package sql\n"
+        src/persistence/sql/c.go: "package sql\n"
+checks:
+  - name: settled ORM direction survives despite pattern frequency
+    run: cat .agent-shared/rules/storage.md
+    expect_regex: "Use the ORM for new persistence work"
+  - name: abandoned experiment warning survives
+    run: cat .agent-shared/rules/storage.md
+    expect_regex: "abandoned experiment[\\s\\S]*do not extend"
+    flags: i
+  - name: response does not reopen the settled choice
+    run: cat .git/last-message.md
+    not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}ORM"
+    flags: i
+  - name: settled deferred decision remains reachable in both runtimes
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

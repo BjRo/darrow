@@ -77,12 +77,46 @@ Read [workflow runtime](workflow-runtime.md) for execution behavior and
 CI may verify schema diffs, manifest consistency, and version formatting.
 Humans remain responsible for semantic classification of behavior changes.
 
+## Canonical source and harness projections
+
+- **CP-12a — One canonical implementation.** A plugin directly authors skills
+  only under `source/`. Optional `overlays/claude/` and `overlays/codex/`
+  content may specialize native metadata, integration, or judgment wording.
+  `claude-skills/` and `codex-skills/` are committed deterministic projections,
+  not independently editable implementations. The root marketplace continues
+  to publish one self-contained plugin directory with one logical identity and
+  package version.
+- **CP-12b — Manifest-selected projection.** Each native manifest declares one
+  relative skills projection inside the plugin package. Catalog discovery reads
+  the manifest for the requested harness and resolves that declared path rather
+  than assuming `<plugin>/skills`. A missing, unreadable, escaping, ambiguous,
+  or incompatible projection is a harness-specific preflight failure.
+- **CP-12c — Deterministic provenance.** The repository generator can materialize
+  all plugins or one named plugin and can check output without mutation. It
+  emits no timestamps, absolute paths, or machine-dependent content. Each plugin
+  carries a compact lock containing the generator, canonical-source,
+  harness-overlay, and per-projection digests. Contract metadata, schemas,
+  scripts, eval criteria, and deterministic safety mechanics remain canonical;
+  overlays cannot replace them.
+- **CP-12d — Exact projection currency.** A shared source or generator change
+  requires both projections to be checked and updated whenever their expected
+  bytes change. A harness overlay may legitimately change only its matching
+  projection. Direct generated edits, unexplained one-sided changes, stale
+  output, or a provenance lock inconsistent with canonical inputs are invalid.
+- **CP-12e — Staged and CI enforcement.** Pre-commit validation identifies
+  affected plugins from the staged index, materializes that index in a temporary
+  directory, and checks expected projections there. It never reads unstaged
+  canonical input into the check, mutates generated files, or stages output; a
+  failure prints the exact regeneration command. CI repeats the full check, and
+  unaffected staged changes skip per-plugin generation.
+
 ## Canonical identities
 
 - **CP-13 — Command ID.** A command's canonical ID is
   `<plugin-name>:<skill-name>`, derived from the selected native plugin manifest
-  and skill-directory basename. The ID contains no version. Workflows express a
-  version range separately. There is no command alias or intent-resolution layer.
+  and declared projection's skill-directory basename. The ID is identical across
+  harness projections and contains no version. Workflows express a version range
+  separately. There is no command alias or intent-resolution layer.
 - **CP-14 — Command rename is breaking.** Changing the plugin name or command
   skill directory changes the canonical ID and requires a major compatibility
   transition.
@@ -100,9 +134,10 @@ Humans remain responsible for semantic classification of behavior changes.
 
 ## Darrow skill metadata
 
-Every Darrow-aware skill contains `darrow.json` beside `SKILL.md`. The native
-Claude Code and Codex manifests continue to own plugin identity and package
-version. The authoritative machine-readable schema is
+Every Darrow-aware skill contains `darrow.json` beside `SKILL.md` in canonical
+source and each generated projection. The native Claude Code and Codex manifests
+continue to own plugin identity and their shared package version. The
+authoritative machine-readable schema is
 [darrow-skill-metadata.schema.json](darrow-skill-metadata.schema.json).
 This metadata becomes mandatory when a skill participates in the M1 workflow
 runtime; existing M0 skills remain ordinary harness skills until migrated.
@@ -174,7 +209,8 @@ Capability metadata has this shape:
   requirements use semantic-version ranges.
 - **CP-22 — Relative schema ownership.** Command and routing-policy input and
   output schemas resolve relative to the skill directory and remain inside it.
-  They ship in the same self-contained plugin.
+  They ship in the same self-contained plugin and are byte-identical canonical
+  content in every harness projection.
 - **CP-22a — Explicit execution protocol.** Command metadata selects its runtime
   execution protocol. Omission means the generic structured protocol. A
   command-specific protocol is opt-in and snapshotted; adapters never infer it
@@ -222,7 +258,7 @@ Capability metadata has this shape:
   - every version axis in use;
   - workflow source, scope, version, and digest;
   - resolved command IDs, implementations, contracts, plugin versions, sources,
-    and digests;
+    selected harness projections, and digests;
   - resolved capability contracts, eligible providers, sources, versions, and
     digests;
   - built-in names, versions, and engine digest;
@@ -250,7 +286,7 @@ Capability metadata has this shape:
   `.darrow/runs/<run-id>/snapshot/`. Resume verifies their digests and invokes
   the snapshot rather than mutable installed content. Command and capability
   snapshots are qualified by harness so independently resolved Codex and Claude
-  implementations cannot overwrite or impersonate one another.
+  projections cannot overwrite or impersonate one another.
 - **CP-31 — External provenance limitation.** Harness executables, provider
   services, and model weights are recorded but not snapshotted. The lock promises
   reproducible control, inputs, and provenance, not identical model output.
@@ -296,10 +332,14 @@ Capability metadata has this shape:
 - **CP-38 — Required validation.** A plugin or workflow-pack release requires
   passing deterministic tests, schema and manifest validation, contract
   compatibility checks, and every applicable eval suite at its declared
-  threshold.
+  threshold. A plugin release additionally requires both harness projections and
+  their provenance lock to match canonical inputs exactly; shared contracts and
+  safety invariants are validated across both projections, while native
+  optimizations have scoped harness evals.
 - **CP-39 — Digest and version consistency.** Published indexes and packages must
-  agree on package version and content digest. A released lock or index never
-  points at mutable content.
+  agree on package version and content digest. Both native manifests in one
+  plugin release agree on identity and version, and both projections publish
+  atomically. A released lock or index never points at mutable content.
 - **CP-40 — CI mechanism is replaceable.** This specification defines release
   invariants, not a particular CI provider, publication script, or marketplace
   promotion workflow.

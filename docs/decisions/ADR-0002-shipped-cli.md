@@ -15,9 +15,10 @@ decision:
   marketplace; every runtime dependency the CLI needs is friction for every
   consumer.
 - **Deployment geometry.** A shared CLI must resolve from a skill in every
-  layout: the repo (`plugins/<name>/skills/<skill>/`), the plugin cache
-  (`…/<plugin>/<hash>/skills/<skill>/`), and the eval fixture (skill dir
-  mounted at `.claude/skills/<skill>` / `.agents/skills/<skill>`).
+  layout: canonical source (`plugins/<name>/source/<skill>/`), either generated
+  native projection (`plugins/<name>/<harness>-skills/<skill>/`), the equivalent
+  plugin-cache layout, and the eval fixture (skill dir mounted at
+  `.claude/skills/<skill>` / `.agents/skills/<skill>`).
 
 ## Decision
 
@@ -30,7 +31,8 @@ consumers of capability-only plugins cannot be assumed to have Bun.
 
 **Placement: `plugins/<name>/bin/<cli>`**, referenced from skills as
 `<skill-dir>/../../bin/<cli>`. Two levels above the skill dir is the plugin
-root in the repo and in the plugin cache; the eval fixture mounts a
+root in canonical source, either generated projection, and the plugin cache; the
+eval fixture mounts a
 plugin's `bin/` at `<mount>/../bin` (e.g. `.claude/bin`), preserving the
 same relative geometry. No env-var dependency (`CLAUDE_PLUGIN_ROOT` has no
 Codex analog); plugin self-containment holds.
@@ -50,5 +52,6 @@ shouldn't carry. The CLI's deterministic test sits next to it
   mounts) that applies to all future plugins with shared CLIs.
 - bash caps CLI complexity; the AGENTS.md portability classes apply in
   full. A future CLI that fights bash triggers a new ADR, not a workaround.
-- Directly authored plugins retain `bin/` as canonical source. Mechanical
-  packaging may copy it, but no generator owns a second plugin tree.
+- Directly authored plugins retain `bin/` as canonical source. Deterministic
+  projections may copy it only when a native layout requires that; no generated
+  tree becomes an independently editable implementation.

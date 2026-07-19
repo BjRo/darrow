@@ -1,0 +1,71 @@
+id: list-decisions-supersession-query
+invariant: DM-L3
+prompt: "Which accepted architecture decision superseded ADR-0001? List the canonical record and relationship read-only."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# API\n"
+        docs/decisions/ADR-0001-rest.md: |
+          # ADR-0001: Use a REST API
+
+          Status: Superseded
+          Date: 2026-06-01
+          Superseded by: ADR-0002
+
+          ## Context
+
+          Clients need a service boundary.
+
+          ## Decision
+
+          Use REST.
+
+          ## Consequences
+
+          Clients use resource endpoints.
+        docs/decisions/ADR-0002-graphql.md: |
+          # ADR-0002: Use GraphQL
+
+          Status: Accepted
+          Date: 2026-07-01
+          Supersedes: ADR-0001
+
+          ## Context
+
+          Clients need flexible queries.
+
+          ## Decision
+
+          Use GraphQL.
+
+          ## Consequences
+
+          Clients use the GraphQL schema.
+checks:
+  - name: reports the accepted replacement and relationship
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      path="$root/docs/decisions/ADR-0002-graphql.md";
+      line=$(grep -F "$path" "$message");
+      test "$(NEEDLE="$path" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      printf '%s\n' "$line" | grep -Ei 'Accepted' >/dev/null;
+      printf '%s\n' "$line" | grep -Ei 'supersedes.{0,120}ADR-0001' >/dev/null;
+      printf '%s\n' "$line" | grep -Ei 'GraphQL' >/dev/null;
+      printf '%s\n' "$line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
+      echo related
+    expect_exact: "related"
+  - name: does not invert the supersession direction
+    run: cat .git/last-message.md
+    not_regex: "ADR-0001[^\\n]{0,120}supersedes[^\\n]{0,80}ADR-0002|ADR-0002[^\\n]{0,120}superseded by[^\\n]{0,80}ADR-0001"
+    flags: i
+  - name: reports the canonical absolute replacement path
+    run: >-
+      root=$(pwd -P); grep -F "$root/docs/decisions/ADR-0002-graphql.md" .git/last-message.md >/dev/null && echo absolute
+    expect_regex: "^absolute$"
+  - name: listing is read-only
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: listing creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

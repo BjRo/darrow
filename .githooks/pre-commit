@@ -1,12 +1,20 @@
 #!/bin/sh
 set -eu
 
-repo_root=$(git rev-parse --show-toplevel)
-cd "$repo_root"
-
 if ! command -v bun >/dev/null 2>&1; then
-  echo "error: Bun is required to run the pre-commit lint check" >&2
+  echo "error: Bun is required to run the pre-commit checks" >&2
   exit 1
 fi
 
-exec bun run lint:staged
+bun run lint:staged
+
+staged_root=$(mktemp -d)
+trap 'rm -rf "$staged_root"' EXIT HUP INT TERM
+git checkout-index --all --prefix="$staged_root/"
+
+if [ ! -f "$staged_root/scripts/plugin-projections.ts" ]; then
+  echo "error: staged projection checker is missing" >&2
+  exit 1
+fi
+
+bun "$staged_root/scripts/plugin-projections.ts" check-staged "$PWD"

@@ -70,16 +70,18 @@ async function deliveryTddPluginFixture(root: string): Promise<string> {
   await cp(resolve(CLI_ROOT, "..", "plugins"), pluginRoot, {
     recursive: true,
   });
-  const implement = resolve(
-    pluginRoot,
-    "darrow-delivery",
-    "skills",
-    "implement",
-  );
-  await rm(implement, { recursive: true, force: true });
-  await cp(resolve(CLI_ROOT, "fixtures", "delivery-tdd"), implement, {
-    recursive: true,
-  });
+  for (const projection of ["codex-skills", "claude-skills"]) {
+    const implement = resolve(
+      pluginRoot,
+      "darrow-delivery",
+      projection,
+      "implement",
+    );
+    await rm(implement, { recursive: true, force: true });
+    await cp(resolve(CLI_ROOT, "fixtures", "delivery-tdd"), implement, {
+      recursive: true,
+    });
+  }
   return pluginRoot;
 }
 
@@ -825,7 +827,7 @@ steps:
     const interruptMetadataPath = resolve(
       interruptPlugins,
       "darrow-delivery",
-      "skills",
+      "codex-skills",
       "implement",
       "darrow.json",
     );

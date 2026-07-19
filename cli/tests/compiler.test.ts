@@ -185,24 +185,24 @@ describe("M1 compiler", () => {
     const plugin = resolve(root, "bad-plugin");
     await mkdir(resolve(plugin, ".codex-plugin"), { recursive: true });
     await mkdir(resolve(plugin, ".claude-plugin"), { recursive: true });
-    await mkdir(resolve(plugin, "skills", "create-branch"), {
+    await mkdir(resolve(plugin, "codex-skills", "create-branch"), {
       recursive: true,
     });
     const manifest = { name: "darrow-git", version: "9.0.0" };
     await writeFile(
       resolve(plugin, ".codex-plugin", "plugin.json"),
-      JSON.stringify({ ...manifest, skills: "./skills/" }),
+      JSON.stringify({ ...manifest, skills: "./codex-skills/" }),
     );
     await writeFile(
       resolve(plugin, ".claude-plugin", "plugin.json"),
-      JSON.stringify(manifest),
+      JSON.stringify({ ...manifest, skills: "./claude-skills/" }),
     );
     await writeFile(
-      resolve(plugin, "skills", "create-branch", "SKILL.md"),
+      resolve(plugin, "codex-skills", "create-branch", "SKILL.md"),
       "# incompatible\n",
     );
     await writeFile(
-      resolve(plugin, "skills", "create-branch", "darrow.json"),
+      resolve(plugin, "codex-skills", "create-branch", "darrow.json"),
       JSON.stringify({
         schemaVersion: 1,
         kind: "capability",
@@ -217,6 +217,35 @@ describe("M1 compiler", () => {
       await expect(
         compile(root, "implement-change", { change: "return hello" }),
       ).rejects.toThrow("does not satisfy ^1.0.0");
+    } finally {
+      restoreEnvironment("DARROW_PLUGIN_ROOTS", previous);
+      restoreEnvironment("CODEX_HOME", previousCodexHome);
+    }
+    expect(await readdir(resolve(root, ".darrow", "worktrees"))).toEqual([]);
+  });
+
+  test("fails preflight when the selected native manifest projection is missing", async () => {
+    const root = await repo();
+    const plugin = resolve(root, "missing-projection-plugin");
+    await mkdir(resolve(plugin, ".codex-plugin"), { recursive: true });
+    await mkdir(resolve(plugin, ".claude-plugin"), { recursive: true });
+    const manifest = { name: "missing-projection", version: "1.0.0" };
+    await writeFile(
+      resolve(plugin, ".codex-plugin", "plugin.json"),
+      JSON.stringify({ ...manifest, skills: "./codex-skills/" }),
+    );
+    await writeFile(
+      resolve(plugin, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ ...manifest, skills: "./claude-skills/" }),
+    );
+    const previous = process.env.DARROW_PLUGIN_ROOTS;
+    const previousCodexHome = process.env.CODEX_HOME;
+    process.env.DARROW_PLUGIN_ROOTS = plugin;
+    process.env.CODEX_HOME = resolve(root, "codex-home");
+    try {
+      await expect(
+        compile(root, "implement-change", { change: "return hello" }),
+      ).rejects.toThrow("cannot resolve codex skills projection");
     } finally {
       restoreEnvironment("DARROW_PLUGIN_ROOTS", previous);
       restoreEnvironment("CODEX_HOME", previousCodexHome);
@@ -287,7 +316,7 @@ steps:
       "cache",
       "darrow",
       "darrow-git",
-      "0.1.1",
+      "0.1.2",
     );
     await mkdir(resolve(claudeHome), { recursive: true });
     await cp(resolve(SOURCE_PLUGIN_ROOT, "darrow-git"), cachedPlugin, {
@@ -466,6 +495,18 @@ steps:
         "codex",
         "claude",
       ]);
+      expect(compilation.commands[0]?.candidate.skillDir).toContain(
+        "/codex-skills/implement",
+      );
+      expect(compilation.commands[1]?.candidate.skillDir).toContain(
+        "/claude-skills/implement",
+      );
+      expect(compilation.plan.steps[0]?.source).toContain(
+        "/codex-skills/implement",
+      );
+      expect(compilation.plan.steps[1]?.source).toContain(
+        "/claude-skills/implement",
+      );
 
       const runDir = resolve(root, ".darrow", "runs", "mixed-run");
       await mkdir(runDir, { recursive: true });

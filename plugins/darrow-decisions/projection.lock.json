@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "plugin": {
+    "name": "darrow-decisions",
+    "version": "0.1.1"
+  },
+  "generator": {
+    "version": "1.0.0",
+    "digest": "sha256:ee6de7f8cfdb63ea4ef446b9a8cf7b16bd8f7e4ec326dc8055d9075f343290d9"
+  },
+  "source": {
+    "path": "./source/",
+    "digest": "sha256:90edb7d5c0f6c1d10140e534bd9194b90f66cb423ff429f5c14949c80fbb011c"
+  },
+  "overlays": {
+    "claude": {
+      "path": "./overlays/claude/",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "codex": {
+      "path": "./overlays/codex/",
+      "digest": "sha256:ad06e8f1d7d0080382d7c2ad11715e58779554a58450063bea3a5a2cca138fbe"
+    }
+  },
+  "projections": {
+    "claude": {
+      "path": "./claude-skills/",
+      "digest": "sha256:90edb7d5c0f6c1d10140e534bd9194b90f66cb423ff429f5c14949c80fbb011c"
+    },
+    "codex": {
+      "path": "./codex-skills/",
+      "digest": "sha256:60fdbdeabca86f9e06afbb05d7d678808f8ab75dca9db9c096704b6a569011fd"
+    }
+  }
+}

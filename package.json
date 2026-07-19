@@ -12,6 +12,9 @@
     "hooks:install": "git config core.hooksPath .githooks",
     "lint": "prettier --check .",
     "lint:staged": "lint-staged",
+    "plugins:check": "bun scripts/plugin-projections.ts check",
+    "plugins:generate": "bun scripts/plugin-projections.ts generate",
+    "test:projections": "bun test scripts/plugin-projections.test.ts",
     "typecheck": "tsc --noEmit && bun --cwd cli typecheck",
     "test:cli": "bun --cwd cli test"
   },

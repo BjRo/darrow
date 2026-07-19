@@ -1,0 +1,70 @@
+id: capture-decision-supersede-accepted
+invariant: DM-10
+prompt: >-
+  We have decided to replace the repository's accepted REST API architecture
+  with GraphQL. Supersede the existing ADR and record the new accepted
+  architecture decision without erasing the old rationale.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# API\n"
+        docs/decisions/ADR-0001-rest-api.md: |
+          # ADR-0001: Use a REST API
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          Clients need a stable service boundary.
+
+          ## Decision
+
+          Expose resources through a REST API.
+
+          ## Consequences
+
+          Clients integrate through resource endpoints.
+checks:
+  - name: changes exactly the old and one new ADR
+    run: >-
+      paths=$({ git diff --name-only; git ls-files --others --exclude-standard; } | LC_ALL=C sort -u);
+      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 2;
+      printf '%s\n' "$paths" | grep -Fx 'docs/decisions/ADR-0001-rest-api.md' >/dev/null;
+      printf '%s\n' "$paths" | grep -E '^docs/decisions/ADR-0002-[a-z0-9-]+\.md$' >/dev/null;
+      printf 'exact\n'
+    expect_exact: "exact"
+  - name: old record changes only lifecycle metadata
+    run: >-
+      old=$(git show HEAD:docs/decisions/ADR-0001-rest-api.md | sed '/^Status:/d; /^Superseded by:/d');
+      new=$(sed '/^Status:/d; /^Superseded by:/d' docs/decisions/ADR-0001-rest-api.md);
+      test "$old" = "$new" && echo preserved
+    expect_regex: "^preserved$"
+  - name: old accepted meaning remains in history
+    run: cat docs/decisions/ADR-0001-rest-api.md
+    expect_regex: "Status: Superseded[\\s\\S]*Superseded by: ADR-0002[\\s\\S]*## Decision[\\s\\S]*REST API"
+  - name: replacement is a new accepted ADR
+    run: >-
+      file=$(find docs/decisions -maxdepth 1 -type f -name 'ADR-0002-*.md' -print);
+      test -n "$file";
+      sed -n '1p' "$file" | grep -Ei '^# ADR-0002: .*GraphQL' >/dev/null;
+      cat "$file"
+    expect_regex: "Status: Accepted[\\s\\S]*Supersedes: ADR-0001[\\s\\S]*## Decision[\\s\\S]*GraphQL"
+  - name: reciprocal supersession validates
+    run: >-
+      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
+      else facade=.claude/bin/decision; fi;
+      bash "$facade" validate --repo .
+    expect_regex: "^valid: 2 ADR\\(s\\) in /"
+  - name: capture creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+  - name: response reports reciprocal relationship and absolute replacement
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -E "$root/docs/decisions/ADR-0002-[a-z0-9-]+\\.md" "$message" >/dev/null;
+      text=$(tr '\n' ' ' < "$message");
+      printf '%s\n' "$text" | grep -Ei 'ADR-0002.{0,160}supersedes.{0,80}ADR-0001|ADR-0001.{0,160}superseded by.{0,80}ADR-0002' >/dev/null;
+      echo reported
+    expect_regex: "^reported$"

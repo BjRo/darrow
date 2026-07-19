@@ -1,0 +1,57 @@
+id: capture-decision-proposed-provenance
+invariant: "DM-2,DM-5,DM-8"
+prompt: >-
+  Record a repository architecture proposal to evaluate Redis for shared cache
+  state. This is not accepted. User-provided observation: one local load test
+  reduced p95 latency by 18 percent. Explicit assumption: production traffic
+  will double next quarter. Preserve those provenance distinctions.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/.gitkeep: ""
+checks:
+  - name: creates exactly one proposed ADR
+    run: >-
+      paths=$({ git diff --name-only; git ls-files --others --exclude-standard; } | LC_ALL=C sort -u);
+      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 1;
+      printf '%s\n' "$paths" | grep -E '^docs/decisions/ADR-0001-[a-z0-9-]+\.md$' >/dev/null;
+      printf 'exact\n'
+    expect_exact: "exact"
+  - name: proposal remains unaccepted
+    run: >-
+      file=$(find docs/decisions -type f -name 'ADR-0001-*.md' -print);
+      cat "$file"
+    expect_regex: "Status: Proposed[\\s\\S]*## Context"
+    flags: i
+  - name: observation and assumption keep independent provenance
+    run: >-
+      file=$(find docs/decisions -type f -name 'ADR-0001-*.md' -print);
+      text=$(tr '\n' ' ' < "$file");
+      printf '%s\n' "$text";
+      printf '%s\n' "$text" | grep -Ei '(observation|observed).{0,160}18|18.{0,160}(observation|observed)' >/dev/null;
+      printf '%s\n' "$text" | grep -Ei '(assumption|assume).{0,160}(double|twofold)|(double|twofold).{0,160}(assumption|assume)' >/dev/null
+    expect_regex: "(observation|observed)"
+    flags: i
+  - name: record does not claim accepted authority
+    run: >-
+      file=$(find docs/decisions -type f -name 'ADR-0001-*.md' -print);
+      cat "$file"
+    not_regex: "Status: Accepted|user (decided|selected|accepted) Redis"
+    flags: i
+  - name: deterministic validation passes
+    run: >-
+      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
+      else facade=.claude/bin/decision; fi;
+      bash "$facade" validate --repo .
+    expect_regex: "^valid: 1 ADR\\(s\\) in /"
+  - name: response reports proposal provenance and absolute sink
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -E "$root/docs/decisions/ADR-0001-[a-z0-9-]+\\.md" "$message" >/dev/null;
+      grep -Ei 'Proposed' "$message" >/dev/null;
+      grep -Ei 'observation|user-provided' "$message" >/dev/null;
+      grep -Ei 'assumption' "$message" >/dev/null;
+      echo reported
+    expect_regex: "^reported$"

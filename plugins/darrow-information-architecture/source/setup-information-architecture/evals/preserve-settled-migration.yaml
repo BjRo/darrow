@@ -1,0 +1,72 @@
+id: setup-information-architecture-preserve-settled-migration
+invariant: IA-S9
+prompt: >-
+  Set up a lean dual-runtime information architecture and record the settled
+  persistence direction from canonical repository evidence. I approve the
+  proposed file-level changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/decisions/004-storage.md: |
+          # ADR 004: Storage access
+
+          Status: Accepted
+
+          New persistence work uses the raw SQL package. The ORM package is
+          legacy migration surface only; do not add new ORM repositories.
+        src/storage/orm/legacy.ts: "export const legacy = true;\n"
+        src/storage/sql/users.ts: "export const users = true;\n"
+        package.json: "{\"private\":true}\n"
+checks:
+  - name: dual-runtime agent entrypoints are created
+    run: test -f AGENTS.md && test -e CLAUDE.md && echo created
+    expect_regex: "^created$"
+  - name: response does not reopen the settled choice
+    run: cat .git/last-message.md
+    not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}ORM"
+    flags: i
+  - name: settled direction and prohibition are resident or routed
+    run: >-
+      if grep -Eiq 'new persistence|new storage|new repositories' AGENTS.md &&
+      grep -Eiq 'raw SQL|SQL package' AGENTS.md &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' AGENTS.md &&
+      grep -Eiq 'new persistence|new storage|new repositories' CLAUDE.md &&
+      grep -Eiq 'raw SQL|SQL package' CLAUDE.md &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' CLAUDE.md; then echo reachable; exit 0; fi;
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      else doctor=.claude/bin/ia-doctor; fi;
+      routes=$(bash "$doctor" inspect --runtime both .);
+      find . -type f -name '*.md' -not -path './.git/*' |
+      while IFS= read -r policy; do
+      if grep -Eiq 'new persistence|new storage|new repositories' "$policy" &&
+      grep -Eiq 'raw SQL|SQL package' "$policy" &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' "$policy"; then
+      policy=$(cd "$(dirname "$policy")" && pwd -P)/$(basename "$policy");
+      printf '%s\n' "$routes" | ROOT=$(pwd -P) POLICY="$policy" awk '
+      function reaches(start, goal, key, changed, i) {
+      seen[key SUBSEP start]=1; changed=1;
+      while (changed) {changed=0; for (i=1; i<=edges; i++)
+      if (seen[key SUBSEP source[i]] && !seen[key SUBSEP target[i]])
+      {seen[key SUBSEP target[i]]=1; changed=1}}
+      return seen[key SUBSEP goal]}
+      $0 == "routes:" {routes=1; next}
+      routes && /^  - / {line=substr($0, 5); split_at=index(line, " -> ");
+      if (split_at) {edges++; source[edges]=substr(line, 1, split_at-1);
+      target[edges]=substr(line, split_at+4)}}
+      END {root=ENVIRON["ROOT"]; goal=ENVIRON["POLICY"];
+      if (reaches(root "/AGENTS.md", goal, "codex") &&
+      reaches(root "/CLAUDE.md", goal, "claude")) print "reachable"}'
+      fi;
+      done
+    expect_regex: "^reachable$"
+  - name: settled guidance passes deterministic dual-runtime verification
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: setup creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

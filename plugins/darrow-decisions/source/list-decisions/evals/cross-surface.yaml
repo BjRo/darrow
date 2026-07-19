@@ -1,0 +1,116 @@
+id: list-decisions-cross-surface
+invariant: DM-L2
+prompt: >-
+  List only recorded decisions whose subject is authentication, considering
+  repository architecture, normative capability behavior, and contributor
+  policy. Report their canonical records and scopes without changing anything.
+  Silently omit decisions about other subjects: do not name them even as
+  excluded records.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        CONTRIBUTING.md: |
+          # Contributor policy
+
+          Authentication changes require a security review before merge.
+        docs/specs/authentication.md: |
+          # Authentication capability
+
+          - **AUTH-1 — Session transport.** API sessions must use HttpOnly
+            SameSite cookies.
+        docs/decisions/ADR-0001-oidc.md: |
+          # ADR-0001: Use OIDC for external identity
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          External users need federated identity.
+
+          ## Decision
+
+          Use OIDC for external identity.
+
+          ## Consequences
+
+          Identity providers must support OIDC.
+        docs/decisions/ADR-0002-storage.md: |
+          # ADR-0002: Use object storage for exports
+
+          Status: Accepted
+          Date: 2026-06-02
+
+          ## Context
+
+          Large exports need durable storage.
+
+          ## Decision
+
+          Use object storage for exports.
+
+          ## Consequences
+
+          Export workers upload generated files.
+checks:
+  - name: listing is read-only
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: reports accepted architecture record
+    run: cat .git/last-message.md
+    expect_regex: "ADR-0001-oidc\\.md[\\s\\S]*(Accepted|architecture)|(Accepted|architecture)[\\s\\S]*ADR-0001-oidc\\.md"
+  - name: reports normative specification record
+    run: cat .git/last-message.md
+    expect_regex: "docs/specs/authentication\\.md[\\s\\S]*(normative|specification|capability)|(normative|specification|capability)[\\s\\S]*docs/specs/authentication\\.md"
+    flags: i
+  - name: reports contributor policy record
+    run: cat .git/last-message.md
+    expect_regex: "CONTRIBUTING\\.md[\\s\\S]*(policy|contributor|security review)|(policy|contributor|security review)[\\s\\S]*CONTRIBUTING\\.md"
+    flags: i
+  - name: reports each authentication effect exactly once
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      adr="$root/docs/decisions/ADR-0001-oidc.md";
+      specification="$root/docs/specs/authentication.md";
+      policy="$root/CONTRIBUTING.md";
+      adr_line=$(grep -F "$adr" "$message");
+      specification_line=$(grep -F "$specification" "$message");
+      policy_line=$(grep -F "$policy" "$message");
+      test "$(NEEDLE="$adr" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      test "$(NEEDLE="$specification" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      test "$(NEEDLE="$policy" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      printf '%s\n' "$adr_line" | grep -Ei 'Accepted' >/dev/null;
+      printf '%s\n' "$adr_line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
+      printf '%s\n' "$adr_line" | grep -Ei 'OIDC|external identity|federated identity' >/dev/null;
+      ! printf '%s\n' "$adr_line" | grep -F "$specification" >/dev/null;
+      ! printf '%s\n' "$adr_line" | grep -F "$policy" >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'no recorded status|no status|status.{0,80}(none|not applicable|n/a)' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'normative capability|capability scope|scope.{0,80}(normative|capability|product)' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'HttpOnly' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'SameSite|same-site' >/dev/null;
+      printf '%s\n' "$specification_line" | grep -Ei 'cookie' >/dev/null;
+      ! printf '%s\n' "$specification_line" | grep -F "$adr" >/dev/null;
+      ! printf '%s\n' "$specification_line" | grep -F "$policy" >/dev/null;
+      printf '%s\n' "$policy_line" | grep -Ei 'no recorded status|no status|status.{0,80}(none|not applicable|n/a)' >/dev/null;
+      printf '%s\n' "$policy_line" | grep -Ei 'contributor policy|policy scope|scope.{0,80}(policy|contributor)' >/dev/null;
+      printf '%s\n' "$policy_line" | grep -Ei 'security review' >/dev/null;
+      ! printf '%s\n' "$policy_line" | grep -F "$adr" >/dev/null;
+      ! printf '%s\n' "$policy_line" | grep -F "$specification" >/dev/null;
+      echo complete
+    expect_exact: "complete"
+  - name: unrelated decision is omitted
+    run: cat .git/last-message.md
+    not_regex: "ADR-0002\\b|ADR-0002-storage|object storage|exports"
+    flags: i
+  - name: all canonical paths are absolute
+    run: >-
+      root=$(pwd -P);
+      grep -F "$root/docs/decisions/ADR-0001-oidc.md" .git/last-message.md >/dev/null &&
+      grep -F "$root/docs/specs/authentication.md" .git/last-message.md >/dev/null &&
+      grep -F "$root/CONTRIBUTING.md" .git/last-message.md >/dev/null && echo absolute
+    expect_regex: "^absolute$"
+  - name: listing creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "plugin": {
+    "name": "darrow-git",
+    "version": "0.1.2"
+  },
+  "generator": {
+    "version": "1.0.0",
+    "digest": "sha256:ee6de7f8cfdb63ea4ef446b9a8cf7b16bd8f7e4ec326dc8055d9075f343290d9"
+  },
+  "source": {
+    "path": "./source/",
+    "digest": "sha256:0bf94aa1030d9fd8ba9bcb88830645b1521ab9134294e59ebb870b98ea3599a6"
+  },
+  "overlays": {
+    "claude": {
+      "path": "./overlays/claude/",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "codex": {
+      "path": "./overlays/codex/",
+      "digest": "sha256:aef847eef34bcc055a2a98ce7da7c2b03bbd7acdc92b913b640ecaf55bce92f4"
+    }
+  },
+  "projections": {
+    "claude": {
+      "path": "./claude-skills/",
+      "digest": "sha256:0bf94aa1030d9fd8ba9bcb88830645b1521ab9134294e59ebb870b98ea3599a6"
+    },
+    "codex": {
+      "path": "./codex-skills/",
+      "digest": "sha256:fec72fd8294d533da1ccd1929e6bdfba393df4a6b1be58662052e93d532abbec"
+    }
+  }
+}

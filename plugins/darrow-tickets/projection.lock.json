@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "plugin": {
+    "name": "darrow-tickets",
+    "version": "0.1.1"
+  },
+  "generator": {
+    "version": "1.0.0",
+    "digest": "sha256:ee6de7f8cfdb63ea4ef446b9a8cf7b16bd8f7e4ec326dc8055d9075f343290d9"
+  },
+  "source": {
+    "path": "./source/",
+    "digest": "sha256:63255b804982595500da0e86346b5a2cb73a07d12d8758a0b1a4f98944a6a11a"
+  },
+  "overlays": {
+    "claude": {
+      "path": "./overlays/claude/",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "codex": {
+      "path": "./overlays/codex/",
+      "digest": "sha256:a46a57e0ee9011fb5fb1b55aa834cb8f3d2b5b61217a0aa749e79cafcdd4e7df"
+    }
+  },
+  "projections": {
+    "claude": {
+      "path": "./claude-skills/",
+      "digest": "sha256:63255b804982595500da0e86346b5a2cb73a07d12d8758a0b1a4f98944a6a11a"
+    },
+    "codex": {
+      "path": "./codex-skills/",
+      "digest": "sha256:05eeebd5f31ab444aae40410f7e85e4848b76fe1a9c0cb40ded9972883e2cec4"
+    }
+  }
+}

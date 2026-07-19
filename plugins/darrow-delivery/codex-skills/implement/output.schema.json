@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://darrow.dev/contracts/darrow-delivery/implement/output/0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["branch", "summary", "changedPaths"],
+  "properties": {
+    "branch": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "changedPaths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}

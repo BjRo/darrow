@@ -22,7 +22,7 @@ describe("shared delivery policy", () => {
       resolve(
         import.meta.dir,
         "../../..",
-        "plugins/darrow-delivery/skills/implement/SKILL.md",
+        "plugins/darrow-delivery/source/implement/SKILL.md",
       ),
     ).text();
     expect(skill.replace(/\s+/g, " ")).toContain(SHARED_TDD_POLICY);

@@ -54,12 +54,51 @@ async function inspectPlugin(
   pluginDir: string,
   scope: Scope,
   harnessEnabled: boolean,
+  harness: "codex" | "claude",
 ): Promise<SkillCandidate[]> {
   const codexPath = resolve(pluginDir, ".codex-plugin", "plugin.json");
   const claudePath = resolve(pluginDir, ".claude-plugin", "plugin.json");
-  const skillsDir = resolve(pluginDir, "skills");
-  if (!(await exists(skillsDir))) return [];
-  const entries = await readdir(skillsDir, { withFileTypes: true });
+  const selectedPath = harness === "codex" ? codexPath : claudePath;
+  if (!(await exists(selectedPath))) return [];
+  const selected = await readJson<{
+    name: string;
+    version: string;
+    skills?: string | string[];
+  }>(selectedPath);
+  if (typeof selected.skills !== "string" || !selected.skills.startsWith("./"))
+    throw new DarrowError(
+      `${harness} plugin manifest must declare one relative skills projection: ${selectedPath}`,
+      "catalog",
+    );
+  const unresolvedSkills = resolve(pluginDir, selected.skills);
+  let skillsDir: string;
+  try {
+    const [realPlugin, realSkills] = await Promise.all([
+      realpath(pluginDir),
+      realpath(unresolvedSkills),
+    ]);
+    if (!inside(realPlugin, realSkills))
+      throw new DarrowError(
+        `${harness} skills projection escapes plugin directory: ${selected.skills}`,
+        "catalog",
+      );
+    skillsDir = realSkills;
+  } catch (error) {
+    if (error instanceof DarrowError) throw error;
+    throw new DarrowError(
+      `cannot resolve ${harness} skills projection ${unresolvedSkills}: ${String(error)}`,
+      "catalog",
+    );
+  }
+  let entries;
+  try {
+    entries = await readdir(skillsDir, { withFileTypes: true });
+  } catch (error) {
+    throw new DarrowError(
+      `cannot read ${harness} skills projection ${skillsDir}: ${String(error)}`,
+      "catalog",
+    );
+  }
   const darrowEntries: typeof entries = [];
   for (const entry of entries) {
     if (
@@ -105,9 +144,9 @@ async function inspectPlugin(
       }
     }
     candidates.push({
-      id: `${codex.name}:${entry.name}`,
-      pluginName: codex.name,
-      pluginVersion: codex.version,
+      id: `${selected.name}:${entry.name}`,
+      pluginName: selected.name,
+      pluginVersion: selected.version,
       skillName: entry.name,
       skillDir,
       pluginDir,
@@ -244,7 +283,12 @@ export async function loadCatalog(
     seen.add(key);
     for (const pluginDir of await pluginDirectories(path))
       candidates.push(
-        ...(await inspectPlugin(pluginDir, root.scope, root.harnessEnabled)),
+        ...(await inspectPlugin(
+          pluginDir,
+          root.scope,
+          root.harnessEnabled,
+          harness,
+        )),
       );
   }
   return candidates;

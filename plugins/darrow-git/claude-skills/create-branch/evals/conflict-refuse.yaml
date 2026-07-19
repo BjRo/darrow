@@ -1,0 +1,27 @@
+id: create-branch-conflict-refuse
+invariant: GW-B5
+prompt: Create a branch chore/config-cleanup for me.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/config.ts: "export const retries = 1;\n"
+  setup: |
+    git switch -qc side
+    printf 'export const retries = 5;\n' > src/config.ts
+    git commit -aqm "feat: side"
+    git switch -q main
+    printf 'export const retries = 9;\n' > src/config.ts
+    git commit -aqm "feat: main"
+    git merge side -q > /dev/null 2>&1 || true
+checks:
+  - name: no branch created mid-conflict
+    run: git for-each-ref refs/heads --format='%(refname:short)' | wc -l
+    expect_regex: "^\\s*2$"
+  - name: still on main
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^main$"
+  - name: conflict left for the user to resolve
+    run: git ls-files -u | wc -l
+    expect_regex: "^\\s*[1-9]"

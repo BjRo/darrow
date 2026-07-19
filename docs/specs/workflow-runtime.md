@@ -85,7 +85,9 @@ examples are illustrative rather than an alternate schema.
 
 - **WR-7 — Explicit command invocation.** A command step references the canonical
   `<plugin-name>:<skill-name>` ID and a compatible command-contract range. The
-  orchestrator invokes that command by name through the selected harness adapter.
+  compiler resolves the requested harness manifest and its declared skills
+  projection; the orchestrator invokes that exact projected command by name
+  through the selected harness adapter.
 - **WR-8 — Intent-based capability use.** Command instructions express domain
   intent in ordinary language and never name a capability provider. The
   surrounding harness resolves and loads configured capabilities by intent.
@@ -129,6 +131,11 @@ examples are illustrative rather than an alternate schema.
 - **WR-17 — Snapshot before execution.** Exact workflow, skill, script, and schema
   inputs are copied into the repository-local run snapshot before the backend
   starts. See [compatibility](compatibility.md#run-lock-and-snapshot).
+- **WR-17a — Harness projection provenance.** Catalog resolution follows the
+  selected harness manifest instead of a fixed plugin-relative directory. The
+  immutable plan and lock identify the selected projection path and digest, and
+  the harness-qualified snapshot copies that exact implementation. A missing or
+  incompatible declared projection fails before execution.
 
 ## State and conclusion
 

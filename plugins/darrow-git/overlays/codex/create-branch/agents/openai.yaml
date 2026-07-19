@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Branch"
+  short_description: "Create traceable git branches"
+  default_prompt: "Use $create-branch to start a branch for this work."

@@ -1,5 +1,6 @@
 {
   "name": "darrow-tickets",
   "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, update-ticket, list-tickets",
-  "version": "0.1.0"
+  "version": "0.1.1",
+  "skills": "./claude-skills/"
 }

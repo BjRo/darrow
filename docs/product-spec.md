@@ -6,9 +6,9 @@
 
 darrow is a local-first, vendor-neutral workflow runtime for agentic software
 delivery. It combines an independently installed CLI, declarative workflow
-packs, directly authored plugin skills, durable execution, and typed artifacts.
-Claude Code and Codex are supported harnesses; Codex is the first reference
-harness.
+packs, canonical plugin skill source with deterministic harness projections,
+durable execution, and typed artifacts. Claude Code and Codex are supported
+harnesses; Codex is the first reference harness.
 
 darrow makes the control plane around probabilistic agents deterministic. It
 does not make model output byte-for-byte reproducible. It does make workflow
@@ -101,9 +101,10 @@ The product has six cooperating surfaces:
 
 1. **Runtime and global CLI** — source under `/cli`; owns workflow compilation,
    resolution, locking, execution, continuation, inspection, and cleanup.
-2. **Plugins** — directly authored, self-contained packages under
-   `plugins/<name>/`; own skills, scripts, evals, Darrow metadata, and both
-   runtime manifests.
+2. **Plugins** — self-contained packages under `plugins/<name>/`; own one
+   directly authored canonical skill source, optional bounded harness overlays,
+   committed deterministic Claude and Codex projections, scripts, evals, Darrow
+   metadata, and both runtime manifests.
 3. **Workflow packs** — versioned YAML processes, project-local or independently
    distributed, with no generated runtime-specific source tree.
 4. **Execution profiles** — bind workflow roles to a harness, provider, model
@@ -113,14 +114,19 @@ The product has six cooperating surfaces:
 6. **Execution backend** — Temporal first, hidden behind a backend interface so
    workflows and plugins do not depend on Temporal APIs.
 
-The root `.claude-plugin/marketplace.json` indexes canonical plugin directories
-for both supported runtimes. Each plugin retains native
-`.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` files. Arbitrary
-Darrow fields are not added to those runtime manifests.
+The root `.claude-plugin/marketplace.json` indexes one plugin directory for both
+supported runtimes. Each plugin retains native `.claude-plugin/plugin.json` and
+`.codex-plugin/plugin.json` files with one identity and package version. Each
+manifest selects its committed generated skills projection. Arbitrary Darrow
+fields are not added to those runtime manifests.
 
-Generation is not a product layer. Future development tooling may scaffold,
-validate, or mechanically package plugins, including runtime-specific tailoring,
-but directly authored plugin directories remain canonical.
+`plugins/<name>/source/` is the only directly authored skill implementation.
+Optional `overlays/claude/` and `overlays/codex/` content may express native
+metadata, integration, or prompt optimization without changing portable
+behavior, inputs, outputs, side effects, or safety guarantees. Deterministic
+development tooling materializes `claude-skills/` and `codex-skills/` in the
+same atomic plugin package. Generated projections and their provenance lock are
+committed publication inputs, never independently edited sources.
 
 ### 4.1 Installation and distribution
 
@@ -167,9 +173,10 @@ intent.
 ### 5.1 Command skills
 
 A command skill is an explicit operation invoked by the orchestrator. Its
-canonical ID is `<plugin-name>:<skill-name>`, derived from the runtime plugin
-manifest and skill directory; for example, `darrow:run` or
-`darrow-delivery:review`. Workflows reference this ID directly. There is no
+canonical ID is `<plugin-name>:<skill-name>`, derived from the selected runtime
+plugin manifest and its declared projection's skill directory; for example,
+`darrow:run` or `darrow-delivery:review`. The same logical skill has that identity
+in every harness projection. Workflows reference this ID directly. There is no
 intent matching or alias registry for commands, and renaming either component is
 a breaking change.
 
@@ -202,10 +209,11 @@ preflight; preflight does not turn it into direct command invocation.
 ### 5.3 Skill metadata
 
 Every Darrow-aware command, capability, or M2c routing-policy provider has a
-colocated `darrow.json`. Runtime manifests continue to own plugin identity and
-package version; `darrow.json` owns command, capability, or routing-policy
-classification and Darrow contract metadata. Skill and plugin names are derived
-rather than duplicated. Exact shape and validation rules are defined in
+colocated `darrow.json` in canonical source and in each generated projection.
+Runtime manifests continue to own plugin identity and package version;
+`darrow.json` owns command, capability, or routing-policy classification and
+Darrow contract metadata. Skill and plugin names are derived rather than
+duplicated. Exact shape, projection, and validation rules are defined in
 [compatibility](specs/compatibility.md).
 
 Skills or providers without `darrow.json` remain ordinary harness content and
@@ -319,9 +327,10 @@ error. Preflight reports the selected source, scope, version, and digest; the ru
 lock records them. Project workflows may intentionally shadow user workflows.
 
 The backend receives the immutable `ResolvedPlan`, never a path to mutable YAML.
-Run creation snapshots the workflow, command skills, capability skills, bundled
-scripts, and schemas under `.darrow/runs/<run-id>/snapshot/`. Later plugin or
-workflow updates affect new runs only.
+Run creation snapshots the workflow plus the exact harness-selected command and
+capability projections, bundled scripts, and schemas under
+`.darrow/runs/<run-id>/snapshot/`. The lock identifies each selected projection
+and digest. Later plugin or workflow updates affect new runs only.
 
 ## 7. Execution and human continuation
 
@@ -440,10 +449,12 @@ or rewrites history, and active-run references remain protected.
 
 Engine, CLI protocol, workflow schema, workflow, execution-profile schema,
 command contract, capability contract, routing-policy contract, and plugin
-package versions are independent. Semantic versions express compatibility;
-content digests identify exact bytes. The lock records every resolved role and
-profile plus each step's requested harness, provider, model, reasoning effort,
-adapter, permission configuration, and resolved model snapshot when exposed.
+package versions are independent. A plugin's Claude and Codex projections ship
+atomically under its one package version. Semantic versions express
+compatibility; content digests identify exact bytes. The lock records every
+resolved role and profile, the selected harness projection and digest, plus each
+step's requested harness, provider, model, reasoning effort, adapter, permission
+configuration, and resolved model snapshot when exposed.
 
 Models, harnesses, providers, and their supported effort levels are external
 dependencies and may disappear. Darrow never silently substitutes any component
@@ -552,8 +563,11 @@ Darrow-managed trust store are deferred to hosted or curated distribution.
 Plugins and workflow packs release independently. Deterministic tests, contract
 validation, and applicable eval suites must pass their declared thresholds.
 Manifest versions, contract versions, and content digests must be consistent,
-and breaking contract changes require the appropriate major-version bump. Exact
-CI, publication automation, and marketplace promotion policy are outside this
+and breaking contract changes require the appropriate major-version bump. Every
+plugin release contains both current harness projections and exact deterministic
+provenance under one package version. Staged-commit validation and CI reject
+stale or directly edited generated content without silently regenerating it.
+Exact publication automation and marketplace promotion policy are outside this
 product specification.
 
 Skill eval criteria are hidden from the harness under evaluation. The shared
@@ -569,9 +583,9 @@ boundary.
 
 **Status:** Milestone requirement — existing foundation
 
-Directly authored dual-runtime plugins, capability specifications,
-deterministic scripts and tests, judgment-focused evals, and the shared
-marketplace prove the opt-in capability model.
+Canonical dual-runtime plugin sources with deterministic harness projections,
+capability specifications, deterministic scripts and tests, judgment-focused
+evals, and the shared marketplace prove the opt-in capability model.
 
 **Exit criterion:** each shipped capability is independently installable and its
 declared invariants are covered by deterministic tests and scoped evals.
@@ -702,8 +716,8 @@ in profiles and provenance.
   abstention thresholds, per-step versus per-attempt reconsideration, and whether
   any routing policy should become a recommended or default profile behavior.
 - **Development tooling:** consider a future `darrow-dev` capability for
-  scaffolding, validation, manifest maintenance, and runtime packaging without
-  creating another canonical source tree.
+  scaffolding, validation, and manifest maintenance beyond the deterministic
+  projection generator, without creating another canonical source tree.
 
 ## 17. Non-goals
 
@@ -722,6 +736,7 @@ in profiles and provenance.
 - Active-run migration between local and hosted environments.
 - Fine-grained portable permission brokering in the local runtime.
 - Cryptographic plugin signing or third-party marketplace curation at launch.
-- Separate generated or hand-authored plugin trees per harness.
+- Independently authored plugin implementations per harness.
+- Independent Claude and Codex release versions for one logical plugin.
 - A second canonical marketplace or release-artifact source tree.
 - Shipping a Pi adapter at launch.

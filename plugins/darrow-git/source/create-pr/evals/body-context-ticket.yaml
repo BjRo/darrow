@@ -1,0 +1,69 @@
+id: create-pr-body-context-ticket
+invariant: GW-P2
+prompt: Open a PR for the retry work.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/http.ts: "export async function get(url: string) { return fetch(url); }\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-fail" ]; then
+            echo "HTTP 502: bad gateway" >&2
+            exit 1
+          fi
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
+            cat "$(git rev-parse --git-dir)/fixture-gh-existing"
+          fi
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          shift 2
+          while [ $# -gt 0 ]; do
+            case "$1" in
+              --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
+              --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
+              --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
+              --draft) : > "$d/draft"; shift ;;
+              *) shift ;;
+            esac
+          done
+          echo "https://github.com/fixture/repo/pull/1"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc feat/DAR-123-retry-logic
+    printf 'export async function get(url: string, tries = 3) { for (let i = 0; i < tries; i++) { try { return await fetch(url); } catch (e) { await new Promise(r => setTimeout(r, 2 ** i * 100)); } } throw new Error("gave up"); }\n' > src/http.ts
+    git add src/http.ts
+    git commit -qm "feat: add retry with exponential backoff to http client"
+    printf 'import { get } from "../src/http";\ntest("retries", async () => { await expect(get("x", 1)).rejects.toThrow(); });\n' > http.test.ts
+    git add http.test.ts
+    git commit -qm "test: cover retry exhaustion and backoff timing"
+checks:
+  - name: PR created
+    run: test -f .git/fixture-gh/body && echo created
+    expect_regex: "^created$"
+  - name: ticket referenced verbatim
+    run: cat .git/fixture-gh/body
+    expect_regex: "DAR-123"
+  - name: body describes the work
+    run: cat .git/fixture-gh/body
+    expect_regex: "(retry|retries|backoff)"
+    flags: i
+  - name: body is non-trivial
+    run: test "$(wc -c < .git/fixture-gh/body)" -ge 80 && echo ok
+    expect_regex: "^ok$"

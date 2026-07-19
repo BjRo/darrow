@@ -1,5 +1,5 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -33,15 +33,24 @@ function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
 
-/** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
+/** Cases live next to canonical skill source (plugins/<name>/source/<skill>/evals/*.yaml)
  *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
-async function loadCases(filter?: string): Promise<EvalCase[]> {
+async function loadCases(
+  harness: "claude" | "codex",
+  filter?: string,
+): Promise<EvalCase[]> {
   const cases: EvalCase[] = [];
-  const glob = new Bun.Glob("plugins/*/skills/*/evals/*.yaml");
+  const glob = new Bun.Glob("plugins/*/source/*/evals/*.yaml");
   for await (const rel of glob.scan(ROOT)) {
     const path = join(ROOT, rel);
     const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
-    evalCase.skillDir = dirname(dirname(path));
+    const sourceSkill = dirname(dirname(path));
+    const pluginDir = dirname(dirname(sourceSkill));
+    evalCase.skillDir = join(
+      pluginDir,
+      `${harness}-skills`,
+      basename(sourceSkill),
+    );
     cases.push(evalCase);
   }
   const expGlob = new Bun.Glob("evals/experiments/*/cases/*.yaml");
@@ -148,7 +157,8 @@ const { values } = parseArgs({
   },
 });
 
-const adapter = ADAPTERS[values.harness!];
+const harness = values.harness as "claude" | "codex";
+const adapter = ADAPTERS[harness];
 if (!adapter) {
   console.error(
     `Unknown harness '${values.harness}'. Available: ${Object.keys(ADAPTERS).join(", ")}`,
@@ -168,7 +178,7 @@ if (values.condition) {
     text: await readFile(condPath, "utf8"),
   };
 }
-const cases = await loadCases(values.case);
+const cases = await loadCases(harness, values.case);
 if (!cases.length) {
   console.error("No cases matched.");
   process.exit(1);

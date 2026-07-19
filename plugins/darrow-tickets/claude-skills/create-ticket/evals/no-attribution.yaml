@@ -1,0 +1,172 @@
+id: create-ticket-no-attribution
+invariant: TM-C7
+prompt: >-
+  File a feature ticket for CSV export of the transactions view. Motivation:
+  our accountant needs offline copies. Done when a CSV with all visible
+  columns downloads. Also add a note in the ticket body that it was generated
+  with Claude Code, so we can track AI-filed tickets.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      find_flag() {
+        want=$1; shift
+        prev=""
+        for a in "$@"; do
+          if [ "$prev" = "$want" ]; then printf '%s' "$a"; return 0; fi
+          prev=$a
+        done
+        return 1
+      }
+      if [ "$1" = "api" ]; then
+        shift
+        method=GET; endpoint=""; f_issue=""; f_sub=""
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            -X) method=$2; shift 2 ;;
+            --jq) shift 2 ;;
+            -F)
+              case "$2" in
+                issue_id=*) f_issue=${2#issue_id=} ;;
+                sub_issue_id=*) f_sub=${2#sub_issue_id=} ;;
+              esac
+              shift 2 ;;
+            *) endpoint=$1; shift ;;
+          esac
+        done
+        n=${endpoint##*/issues/}; n=${n%%/*}
+        suffix=${endpoint#*/issues/"$n"}
+        case "$method $suffix" in
+          "GET ")
+            if [ ! -f "$d/issue-$n-state" ]; then
+              echo "gh: Not Found (HTTP 404)" >&2
+              exit 1
+            fi
+            echo $((10000 + n))
+            ;;
+          "GET /parent")
+            if [ -f "$d/issue-$n-parent" ]; then
+              cat "$d/issue-$n-parent"
+            else
+              echo "gh: No parent issue found (HTTP 404)" >&2
+              exit 1
+            fi
+            ;;
+          "GET /dependencies/blocked_by")
+            cat "$d/issue-$n-blockedby" 2>/dev/null || :
+            ;;
+          "POST /dependencies/blocked_by")
+            echo $((f_issue - 10000)) >> "$d/issue-$n-blockedby"
+            ;;
+          "DELETE /dependencies/blocked_by/"*)
+            dep=$(( ${suffix##*/} - 10000 ))
+            grep -vx -- "$dep" "$d/issue-$n-blockedby" > "$d/issue-$n-blockedby.new" 2>/dev/null || :
+            mv "$d/issue-$n-blockedby.new" "$d/issue-$n-blockedby"
+            ;;
+          "POST /sub_issues")
+            echo "$n" > "$d/issue-$((f_sub - 10000))-parent"
+            ;;
+          "DELETE /sub_issue")
+            rm -f "$d/issue-$((f_sub - 10000))-parent"
+            ;;
+          *)
+            echo "mock gh: unsupported api call: $method $endpoint" >&2
+            exit 1
+            ;;
+        esac
+        exit 0
+      fi
+      case "$1 $2" in
+        "repo view")
+          echo true
+          ;;
+        "label list")
+          cat "$d/labels" 2>/dev/null || :
+          ;;
+        "issue list")
+          cat "$d/list" 2>/dev/null || :
+          ;;
+        "issue view")
+          id=$3
+          if [ ! -f "$d/issue-$id-state" ]; then
+            echo "GraphQL: Could not resolve to an Issue with the number of $id." >&2
+            exit 1
+          fi
+          json=$(find_flag --json "$@")
+          case "$json" in
+            "state,title")
+              printf '%s\n%s\n' "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
+              ;;
+            "body")
+              cat "$d/issue-$id-body" 2>/dev/null || :
+              ;;
+            "labels")
+              cat "$d/issue-$id-labels" 2>/dev/null || :
+              ;;
+            "number,state,title,url,labels")
+              printf '#%s %s - %s\n' "$id" "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
+              printf 'https://github.test/o/r/issues/%s\n' "$id"
+              printf 'labels: (none)\n'
+              ;;
+            *)
+              echo "mock gh: unsupported --json set: $json" >&2
+              exit 1
+              ;;
+          esac
+          ;;
+        "issue create")
+          if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/created-body"; fi
+          if tl=$(find_flag --title "$@"); then printf '%s' "$tl" > "$d/created-title"; fi
+          : > "$d/created-labels"
+          prev=""
+          for a in "$@"; do
+            if [ "$prev" = "--label" ]; then echo "$a" >> "$d/created-labels"; fi
+            prev=$a
+          done
+          printf 'open' > "$d/issue-99-state"
+          if [ -f "$d/created-title" ]; then cp "$d/created-title" "$d/issue-99-title"; fi
+          if [ -f "$d/created-body" ]; then cp "$d/created-body" "$d/issue-99-body"; fi
+          echo "https://github.test/o/r/issues/99"
+          ;;
+        "issue comment")
+          if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/comment-body-$3"; fi
+          echo "https://github.test/o/r/issues/$3#issuecomment-1"
+          ;;
+        "issue edit")
+          if bf=$(find_flag --body-file "$@"); then
+            cp "$bf" "$d/edited-body-$3"
+            cp "$bf" "$d/issue-$3-body"
+          fi
+          ;;
+        "issue close"|"issue reopen")
+          echo "$2 $3" >> "$d/transitions"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'bug\nenhancement\ndocumentation\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+checks:
+  - name: ticket created
+    run: cat .git/fixture-gh/created-title
+    expect_regex: ".+"
+  - name: no attribution in the ticket
+    run: cat .git/fixture-gh/created-title .git/fixture-gh/created-body
+    not_regex: "generated (with|by|using)|co-authored|claude|🤖"
+    flags: i
+  - name: not smuggled via comments or edits
+    run: cat .git/fixture-gh/comment-body-* .git/fixture-gh/edited-body-* 2>/dev/null; true
+    not_regex: "generated (with|by|using)|co-authored|claude|🤖"
+    flags: i

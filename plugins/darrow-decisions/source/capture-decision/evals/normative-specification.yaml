@@ -1,0 +1,64 @@
+id: capture-decision-normative-specification
+invariant: DM-6
+prompt: >-
+  We have decided that API sessions must use HttpOnly same-site cookies rather
+  than bearer tokens. Capture this as normative authentication capability
+  behavior in the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/specs/authentication.md: |
+          # Authentication capability
+
+          ## Sessions
+
+          - **AUTH-1 — Session transport.** The transport is not yet selected.
+        docs/decisions/ADR-0001-runtime.md: |
+          # ADR-0001: Use Node.js for the service runtime
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          The service needs a runtime.
+
+          ## Decision
+
+          Use Node.js.
+
+          ## Consequences
+
+          Runtime tooling follows Node.js conventions.
+checks:
+  - name: changes exactly the governing specification
+    run: >-
+      { git diff --name-only; git ls-files --others --exclude-standard; } |
+      LC_ALL=C sort -u
+    expect_exact: "docs/specs/authentication.md"
+  - name: governing invariant affirmatively requires cookie transport
+    run: >-
+      text=$(awk '/AUTH-1/{seen=1} seen{print} seen && /^$/{exit}' docs/specs/authentication.md | tr '\n' ' ');
+      printf '%s\n' "$text";
+      printf '%s\n' "$text" | grep -Ei 'API sessions?[^.]{0,80}(must|required)[^.]{0,160}(HttpOnly[^.]{0,100}(SameSite|same-site)[^.]{0,100}cookies?|cookies?[^.]{0,100}HttpOnly[^.]{0,100}(SameSite|same-site))|API session cookies?[^.]{0,80}(must|required)[^.]{0,100}HttpOnly[^.]{0,100}(SameSite|same-site)' >/dev/null;
+      printf '%s\n' "$text" | grep -Ei '(must not|rather than|instead of|prohibit|forbid).{0,100}bearer|bearer.{0,100}(must not|prohibit|forbid|not (allowed|permitted|used))' >/dev/null;
+      ! printf '%s\n' "$text" | grep -Ei 'must use bearer|required[^.]*bearer|bearer[^.]*(is|are) required|(^|[.;])[[:space:]]*use bearer' >/dev/null;
+      ! printf '%s\n' "$text" | grep -Ei '(allow|permit)(s|ted)?[^.]*bearer|bearer[^.]*(allowed|permitted|may|can be used)|also[^.]*bearer' >/dev/null;
+      ! printf '%s\n' "$text" | grep -Ei 'not yet selected|remains unresolved' >/dev/null
+    expect_regex: "AUTH-1"
+  - name: no duplicate rationale ADR is created
+    run: find docs/decisions -maxdepth 1 -type f -name 'ADR-*.md' -print | wc -l
+    expect_regex: "^ *1$"
+  - name: response identifies the normative canonical sink
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/docs/specs/authentication.md" "$message" >/dev/null;
+      grep -Ei 'normative|specification|capability' "$message" >/dev/null;
+      grep -Ei 'authority|authorized|user' "$message" >/dev/null;
+      echo canonical
+    expect_regex: "^canonical$"
+  - name: capture creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

@@ -34,7 +34,7 @@
       "providerId": "darrow-git:create-branch",
       "pluginVersion": "0.1.1",
       "scope": "user",
-      "source": "/plugins/darrow-git/skills/create-branch",
+      "source": "/plugins/darrow-git/codex-skills/create-branch",
       "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
     }
   ],
@@ -60,7 +60,7 @@
         "adapter": { "id": "codex-cli", "version": "0.1.0" },
         "selectionSource": "fixed_plan"
       },
-      "source": "/plugins/darrow-delivery/skills/implement",
+      "source": "/plugins/darrow-delivery/codex-skills/implement",
       "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       "input": { "change": "make it work" },
       "publish": null

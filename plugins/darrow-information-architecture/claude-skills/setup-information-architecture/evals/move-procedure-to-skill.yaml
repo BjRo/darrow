@@ -1,0 +1,102 @@
+id: setup-information-architecture-move-procedure-to-skill
+invariant: IA-S5
+prompt: >-
+  Reorganize the existing dual-runtime agent guidance into a lean information
+  architecture. Preserve the release workflow and its safety gates. I approve
+  the proposed file-level changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          Never publish from an unclean worktree.
+
+          ## Release workflow
+
+          1. Run `./tools/preflight`.
+          2. Read the version from package.json.
+          3. Run `./tools/build-release`.
+          4. Inspect dist/checksums.txt.
+          5. Run `./tools/publish` only after explicit confirmation.
+        CLAUDE.md: "# Claude adapter\n\nRead `AGENTS.md` before work.\n"
+        package.json: "{\"private\":true,\"version\":\"1.2.3\"}\n"
+        tools/preflight: "#!/bin/sh\nexit 0\n"
+        tools/build-release: "#!/bin/sh\nexit 0\n"
+        tools/publish: "#!/bin/sh\nexit 0\n"
+        dist/checksums.txt: "fixture\n"
+checks:
+  - name: ordered procedure moves to a repository skill
+    run: >-
+      find . -type f -name SKILL.md
+      ! -path '*setup-information-architecture*' -exec grep -il 'build-release' {} +
+    expect_regex: "SKILL\\.md$"
+  - name: moved skill is visible to version control
+    run: >-
+      skill=$(find . -type f -name SKILL.md
+      ! -path '*setup-information-architecture*' -exec grep -il 'build-release' {} +
+      | sed -n '1p');
+      test -n "$skill";
+      if git check-ignore -q -- "$skill"; then exit 1; fi;
+      echo visible
+    expect_regex: "^visible$"
+  - name: moved skill preserves every step and confirmation gate
+    run: >-
+      skill=$(find . -type f -name SKILL.md
+      ! -path '*setup-information-architecture*' -exec grep -il 'build-release' {} +
+      | sed -n '1p'); cat "$skill"
+    expect_regex: "preflight[\\s\\S]*package\\.json[\\s\\S]*build-release[\\s\\S]*dist/checksums\\.txt[\\s\\S]*tools/publish[\\s\\S]*explicit confirmation"
+    flags: i
+  - name: moved skill has valid discovery metadata
+    run: >-
+      skill=$(find . -type f -name SKILL.md
+      ! -path '*setup-information-architecture*' -exec grep -il 'build-release' {} +
+      | sed -n '1p');
+      awk 'function valid(value, lower) {sub(/^[^:]*:[[:space:]]*/, "", value); sub(/[[:space:]]+#.*$/, "", value); sub(/^[[:space:]]+|[[:space:]]+$/, "", value); lower=tolower(value); return value != "" && value !~ /^(\[|\{)/ && lower !~ /^(null|~|true|false|yes|no|on|off|[0-9]+)$/ && value != "\"\"" && value != "\047\047"} NR==1 && $0=="---" {front=1; next} front && /^name[[:space:]]*:/ && valid($0) {name=1} front && /^description[[:space:]]*:/ && valid($0) {description=1} front && $0=="---" {exit} END {if (name && description) print "valid"}' "$skill"
+    expect_regex: "^valid$"
+  - name: root keeps the universal publish safety gate
+    run: cat AGENTS.md
+    expect_regex: "never publish from an unclean worktree"
+    flags: i
+  - name: full ordered procedure leaves the resident root
+    run: cat AGENTS.md
+    not_regex: "tools/preflight|build-release|dist/checksums\\.txt|tools/publish"
+    flags: i
+  - name: release procedure is reachable by an exact route or both native skill loaders
+    run: >-
+      skill=$(find . -type f -name SKILL.md
+      ! -path '*setup-information-architecture*' -exec grep -il 'build-release' {} +
+      | sed -n '1p');
+      target=${skill#./}; test -n "$target";
+      route=$(TARGET="$target" awk '
+      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
+      function has_loader(value) {return tolower(value) ~ /(^|[^[:alnum:]_])(read|load|follow|use)([^[:alnum:]_]|$)/}
+      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(release|publish)/ && has_loader(lower)) found=1}
+      /\|/ {check(); block=$0; check(); block=""; next}
+      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (has_loader(block) && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
+      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
+      /^[[:space:]]*$/ {if (block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=""} else if (has_loader(block)) block=block " "; else block=""; next}
+      {if (has_loader($0) && $0 ~ /[.A-Za-z0-9_\/-]+\.md/ && block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=$0; next}}
+      {block=block " " $0}
+      END {check(); if (found) print "routed"}' AGENTS.md);
+      if [ "$route" = routed ]; then echo discoverable; exit 0; fi;
+      codex=$(find -L .agents/skills -type f -name SKILL.md -exec grep -il 'build-release' {} + 2>/dev/null || :);
+      claude=$(find -L .claude/skills -type f -name SKILL.md -exec grep -il 'build-release' {} + 2>/dev/null || :);
+      valid_native() { for native in $1; do
+      if git check-ignore -q -- "$native"; then continue; fi;
+      flat=$(tr '\n' ' ' < "$native");
+      if printf '%s\n' "$flat" | grep -Ei 'preflight.*package\.json.*build-release.*dist/checksums\.txt.*tools/publish.*explicit confirmation' >/dev/null; then return 0; fi;
+      done; return 1; };
+      valid_native "$codex" && valid_native "$claude" && echo discoverable
+    expect_regex: "^discoverable$"
+  - name: procedure move passes deterministic dual-runtime verification
+    run: >-
+      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
+      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
+      else echo missing-doctor; exit 1; fi;
+      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: setup creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

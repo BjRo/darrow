@@ -1,0 +1,24 @@
+id: create-branch-dirty-tree-carry
+invariant: GW-B2
+prompt: I've started fixing the request timeout handling in src/api.ts — create a branch for it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/api.ts: "export const timeoutMs = 1000;\n"
+  files:
+    src/api.ts: "export const timeoutMs = 30000;\n"
+checks:
+  - name: on a new fix branch
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^fix/[a-z0-9]+(-[a-z0-9]+)*$"
+  - name: uncommitted change carried along
+    run: git status --porcelain
+    expect_regex: "^ M src/api\\.ts$"
+  - name: nothing stashed
+    run: git stash list
+    not_regex: "stash@"
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"

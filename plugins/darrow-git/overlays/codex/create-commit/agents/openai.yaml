@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Commit"
+  short_description: "Stage and commit intended changes"
+  default_prompt: "Use $create-commit to create one clean commit for the intended changes."

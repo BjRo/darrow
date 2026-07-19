@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "plugin": {
+    "name": "darrow-information-architecture",
+    "version": "0.1.1"
+  },
+  "generator": {
+    "version": "1.0.0",
+    "digest": "sha256:ee6de7f8cfdb63ea4ef446b9a8cf7b16bd8f7e4ec326dc8055d9075f343290d9"
+  },
+  "source": {
+    "path": "./source/",
+    "digest": "sha256:96b83996072ec6800a6903132e184ccb78c039b8709b3ffb2a15d57cc580eecf"
+  },
+  "overlays": {
+    "claude": {
+      "path": "./overlays/claude/",
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "codex": {
+      "path": "./overlays/codex/",
+      "digest": "sha256:bf4de59c49b987c74570f7e5d20d98f78af45c6f9c4412027ec4003c7fe1ecbf"
+    }
+  },
+  "projections": {
+    "claude": {
+      "path": "./claude-skills/",
+      "digest": "sha256:96b83996072ec6800a6903132e184ccb78c039b8709b3ffb2a15d57cc580eecf"
+    },
+    "codex": {
+      "path": "./codex-skills/",
+      "digest": "sha256:5f46e092d287af6af36aabff330040307f946c14d92d9d195fcbbf6ec085fc48"
+    }
+  }
+}
