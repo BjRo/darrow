@@ -11,54 +11,66 @@ outputs under `evals/results/` are a separate test corpus.
 
 ## Current status — 2026-07-19
 
-The current admissible protocol is v3: all three core treatments receive the
-same minimal Red/Green TDD policy. The qualifying smoke is incomplete. Its
-three Codex cells are complete; its three Claude cells have not been run. Smoke
-results qualify the evaluator and resource assumptions only and are not product
-evidence.
+The current protocol is v3: all three core treatments receive the same minimal
+Red/Green TDD policy. Because Claude-side limits prevented a complete six-cell
+smoke, the operator accepted a Codex-only operational checkpoint and requested
+a fresh run at current `main`. This is an explicit scope limitation, not product
+evidence and not an amendment of the two-harness confirmatory design.
 
-Local evidence root: `results/shared-tdd-smoke-v1/`
+Local evidence root: `results/shared-tdd-codex-v2/`
 
-- Runner revision: `3acfcf5ee9e630aa09e8830d4e9aac884b79be15`
+- Runner revision: `9ea1ab273a9d4f93cf3fc095265c7f67629fdac5`
 - Harness: Codex CLI 0.144.6
 - Model: `gpt-5.6-sol`, medium effort
 - Task: `mynab-flags-now`, one repeat
 
 | Treatment | Status    | Deterministic quality | Wall time | Input tokens | Output tokens | Commands |
 | --------- | --------- | --------------------: | --------: | -----------: | ------------: | -------: |
-| Native    | completed |                  1.00 |   163.5 s |      422,015 |         4,641 |       13 |
-| Plugins   | completed |                  1.00 |   111.7 s |      283,847 |         3,070 |       12 |
-| CLI       | completed |                  1.00 |   159.7 s |      430,937 |         4,577 |       17 |
+| Native    | completed |                  1.00 |   117.3 s |      302,751 |         3,247 |       12 |
+| Plugins   | completed |                  1.00 |   188.0 s |      382,745 |         4,465 |       14 |
+| CLI       | completed |                  1.00 |   124.5 s |      325,647 |         3,217 |       12 |
 
 Provider cost was unavailable, so tokens are the economic fallback. Relative
-to direct plugins, the CLI used 1.43× wall time, 1.52× input tokens, and 1.49×
-output tokens. Relative to native, it used 0.98× wall time, 1.02× input tokens,
-and 0.99× output tokens.
+to direct plugins, the CLI used 0.66× wall time and 0.85× total tokens. Relative
+to native, it used 1.06× wall time and 1.07× total tokens.
 
-The CLI cell spent 0.46 s in treatment setup and 2.95 s in the runtime wrapper;
-150.59 s was model invocation. Direct CLI machinery therefore accounted for
-about 2.1% of its wall time. The CLI executed 17 commands versus 12 for direct
-plugins, while both executed seven test commands.
+The CLI cell spent 0.46 s in treatment setup and 2.96 s in the runtime wrapper;
+115.35 s was model invocation. Measured host-side CLI machinery therefore
+accounted for about 2.7% of its wall time.
+
+### Replication signal
+
+The earlier policy-matched Codex checkpoint at runner revision `3acfcf5` also
+passed all three deterministic checks, but the treatment ranking changed:
+
+| Treatment | Earlier wall time | Current wall time | Earlier total tokens | Current total tokens |
+| --------- | ----------------: | ----------------: | -------------------: | -------------------: |
+| Native    |           163.5 s |           117.3 s |              426,656 |              305,998 |
+| Plugins   |           111.7 s |           188.0 s |              286,917 |              387,210 |
+| CLI       |           159.7 s |           124.5 s |              435,514 |              328,864 |
+
+Direct plugins moved from fastest to slowest despite unchanged task, policy,
+harness version, model, and plugin digest. These opportunistic checkpoints are
+not preregistered repeats and must not be pooled into a product estimate, but
+the reversal shows that a one-run smoke cannot rank treatment efficiency.
 
 ### Interpretation
 
 - All three Codex treatments passed the deterministic smoke check.
-- Direct plugins were fastest on this single simple task.
-- The CLI was approximately level with native. Its direct setup/runtime
-  overhead was trivial compared with model execution.
-- The observed CLI-versus-plugins difference occurs primarily during model
-  execution, not measured host-side setup or runtime work. This smoke does not
-  isolate structured-result prompting from other instruction effects within
-  that model time.
+- The CLI remained approximately level with native in both checkpoints.
+- CLI-versus-plugins time and token rankings reversed between checkpoints, so
+  the earlier apparent plugin advantage was not stable.
+- Measured CLI setup/runtime work remained below 3% of CLI wall time. Most
+  variation occurred during model execution; the smoke does not isolate
+  structured-result prompting from other instruction effects within that time.
 - One simple smoke task cannot reveal orchestration value. The product case
   depends on pilot tasks where runtime orchestration can unlock behavior that
   native or direct-plugin treatments cannot reliably provide.
-- No product-value conclusion is admissible until the Claude smoke cells pass,
-  the pilot is accepted, and the confirmatory procedure is completed.
+- No product-value conclusion is admissible from either checkpoint.
 
-## Excluded diagnostic history
+## Operational checkpoint and excluded diagnostic history
 
-As of 2026-07-19, 56 local observation files exist across the roots below. They
+As of 2026-07-19, 59 local observation files exist across the roots below. They
 are retained as infrastructure evidence but must not be pooled with the current
 protocol. Counts refer to finalized `observation.json` files, not attempted
 shell invocations.
@@ -78,7 +90,8 @@ shell invocations.
 | `results/portable-implement-smoke-v1/`       |            6 | All direct Codex/Claude cells passed; Claude CLI timed out after using capabilities unavailable to direct Claude.           | Treatment tool parity was broken.                                             |
 | `results/portable-implement-smoke-v2/`       |            6 | All six deterministic checks passed after simplifying the implementation skill.                                             | Predates the shared TDD policy and final Claude trace/launcher repairs.       |
 | `results/claude-cli-tools-repair-v1`–`v5`    |            5 | Repaired bounded Claude tools, cleanup, usage recovery, and tracing; v5 completed with quality 1.                           | Targeted sequential repair attempts, not a balanced block.                    |
-| `results/shared-tdd-smoke-v1/`               |            3 | Current policy-matched Codex evidence summarized above.                                                                     | Not excluded, but incomplete until the three Claude cells run.                |
+| `results/shared-tdd-smoke-v1/`               |            3 | First policy-matched Codex checkpoint; all three deterministic checks passed.                                               | Earlier operational checkpoint; not pooled with the current rerun.            |
+| `results/shared-tdd-codex-v2/`               |            3 | Current-revision Codex checkpoint summarized above; all three deterministic checks passed.                                  | Operational qualification only; Claude was explicitly left out of scope.      |
 
 The historical diagnostics support four evaluator changes now encoded in the
 protocol and preregistration:
@@ -94,7 +107,8 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Run the three Claude cells into `results/shared-tdd-smoke-v1/`. Because existing
-observations are durable checkpoints, the completed Codex cells will not rerun.
-Then update this journal with the six-cell table and the smoke go/no-go decision
-before starting the 36-run pilot.
+Run the optional clean no-TDD diagnostic if Red/Green policy cost still matters.
+Before pilot work, decide whether the formal evaluation remains two-harness or
+is amended to Codex-only, and raise or redefine the phase token ceilings using
+the observed resource usage. Then run the calibration pilot into a fresh result
+root; do not mix either smoke checkpoint into product analysis.
