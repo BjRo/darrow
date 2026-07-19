@@ -15,6 +15,19 @@ function numericUsage(value: unknown): Record<string, number> | undefined {
   return Object.keys(usage).length > 0 ? usage : undefined;
 }
 
+function projectClaudeOutputSchema(schema: unknown): unknown {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return schema;
+  }
+
+  const {
+    $schema: _schemaDialect,
+    $id: _schemaId,
+    ...projected
+  } = schema as Record<string, unknown>;
+  return projected;
+}
+
 const claudeAdapter: CommandHarnessAdapter = {
   displayName: "Claude Code",
   async invocation(input, outputSchema, _outputFile, locked) {
@@ -33,7 +46,7 @@ const claudeAdapter: CommandHarnessAdapter = {
       "--effort",
       input.effectiveRoute.reasoningEffort,
       "--json-schema",
-      JSON.stringify(schema),
+      JSON.stringify(projectClaudeOutputSchema(schema)),
       "--setting-sources",
       "user,project",
     ];

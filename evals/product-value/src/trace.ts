@@ -89,9 +89,15 @@ function duration(startedAt: unknown, finishedAt: unknown): number | null {
 function modelTrace(raw: string): Record<string, unknown> {
   const eventTypes: Record<string, number> = {};
   const itemTypes: Record<string, number> = {};
+  const toolTypes: Record<string, number> = {};
+  const pendingClaudeCommands = new Map<
+    string,
+    { category: CommandCategory; operation: EvidenceOperation | null }
+  >();
   let jsonEvents = 0;
   let nonJsonLines = 0;
   let usage: Record<string, unknown> | null = null;
+  let costUsd: number | null = null;
   const commands = {
     total: 0,
     nonZero: 0,
@@ -111,6 +117,21 @@ function modelTrace(raw: string): Record<string, unknown> {
       NONZERO_REASONS.map((reason) => [reason, 0]),
     ) as Record<string, number>,
   };
+  const markCommandFailure = (
+    category: CommandCategory,
+    operation: EvidenceOperation | null,
+    output: string,
+  ): void => {
+    commands.nonZero += 1;
+    commands.categories[category].nonZero += 1;
+    if (operation) {
+      const operationStats = commands.evidenceOperations[operation];
+      if (operationStats) operationStats.nonZero += 1;
+    }
+    const reason = nonZeroReason(output);
+    commands.nonZeroReasons[reason] =
+      (commands.nonZeroReasons[reason] ?? 0) + 1;
+  };
   for (const line of raw.split("\n").filter(Boolean)) {
     try {
       const event = JSON.parse(line);
@@ -122,6 +143,50 @@ function modelTrace(raw: string): Record<string, unknown> {
         typeof event.item?.type === "string"
       )
         itemTypes[event.item.type] = (itemTypes[event.item.type] ?? 0) + 1;
+      if (event.type === "assistant" && Array.isArray(event.message?.content)) {
+        for (const item of event.message.content) {
+          if (item?.type !== "tool_use" || typeof item.name !== "string") {
+            continue;
+          }
+          toolTypes[item.name] = (toolTypes[item.name] ?? 0) + 1;
+          if (
+            item.name !== "Bash" ||
+            typeof item.id !== "string" ||
+            typeof item.input?.command !== "string"
+          ) {
+            continue;
+          }
+          const category = commandCategory(item.input.command);
+          const operation = evidenceOperation(item.input.command);
+          commands.total += 1;
+          commands.categories[category].total += 1;
+          if (operation) {
+            const operationStats = commands.evidenceOperations[operation];
+            if (operationStats) operationStats.total += 1;
+          }
+          pendingClaudeCommands.set(item.id, { category, operation });
+        }
+      }
+      if (event.type === "user" && Array.isArray(event.message?.content)) {
+        for (const item of event.message.content) {
+          if (
+            item?.type !== "tool_result" ||
+            typeof item.tool_use_id !== "string"
+          ) {
+            continue;
+          }
+          const command = pendingClaudeCommands.get(item.tool_use_id);
+          if (!command) continue;
+          if (item.is_error === true) {
+            markCommandFailure(
+              command.category,
+              command.operation,
+              typeof item.content === "string" ? item.content : "",
+            );
+          }
+          pendingClaudeCommands.delete(item.tool_use_id);
+        }
+      }
       if (
         event.type === "item.completed" &&
         event.item?.type === "command_execution"
@@ -142,23 +207,22 @@ function modelTrace(raw: string): Record<string, unknown> {
           if (operationStats) operationStats.total += 1;
         }
         if (nonZero) {
-          commands.nonZero += 1;
-          commands.categories[category].nonZero += 1;
-          if (operation) {
-            const operationStats = commands.evidenceOperations[operation];
-            if (operationStats) operationStats.nonZero += 1;
-          }
-          const reason = nonZeroReason(
+          markCommandFailure(
+            category,
+            operation,
             typeof event.item.aggregated_output === "string"
               ? event.item.aggregated_output
               : "",
           );
-          commands.nonZeroReasons[reason] =
-            (commands.nonZeroReasons[reason] ?? 0) + 1;
         }
       }
       const candidate = event.usage ?? event.msg?.info?.total_token_usage;
       if (candidate && typeof candidate === "object") usage = candidate;
+      if (
+        typeof event.total_cost_usd === "number" &&
+        Number.isFinite(event.total_cost_usd)
+      )
+        costUsd = event.total_cost_usd;
     } catch {
       nonJsonLines += 1;
     }
@@ -168,8 +232,10 @@ function modelTrace(raw: string): Record<string, unknown> {
     nonJsonLines,
     eventTypes,
     itemTypes,
+    toolTypes,
     commands,
     usage,
+    costUsd,
   };
 }
 
@@ -209,6 +275,13 @@ export function traceTokenUsage(trace: Record<string, unknown>): {
       "output",
     ),
   };
+}
+
+export function traceCostUsd(trace: Record<string, unknown>): number | null {
+  const model = trace.model;
+  if (!model || typeof model !== "object") return null;
+  const value = (model as Record<string, unknown>).costUsd;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function envelope(raw: string): any {
@@ -338,9 +411,22 @@ export async function createExecutionTrace(
   );
   let transcript = invocation.raw;
   let transcriptAvailable = treatment !== "cli";
-  if (typeof result?.transcript === "string") {
+  const transcriptPath =
+    typeof result?.transcript === "string"
+      ? result.transcript
+      : invocation.darrowRunId && typeof result?.invocationId === "string"
+        ? join(
+            invocation.workspace,
+            ".darrow",
+            "runs",
+            invocation.darrowRunId,
+            "content",
+            `${result.invocationId}.jsonl`,
+          )
+        : null;
+  if (transcriptPath) {
     try {
-      transcript = await readFile(result.transcript, "utf8");
+      transcript = await readFile(transcriptPath, "utf8");
       transcriptAvailable = true;
     } catch {
       transcript = "";

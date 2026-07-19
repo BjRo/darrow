@@ -185,6 +185,12 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_i
       expect(args).toContain(
         `--settings\n${resolve(root, ".claude", "settings.local.json")}`,
       );
+      const argv = args.trim().split("\n");
+      const schemaArg = argv[argv.indexOf("--json-schema") + 1] ?? "";
+      expect(schemaArg).not.toContain('"$schema"');
+      expect(schemaArg).not.toContain('"$id"');
+      expect(schemaArg).toContain('"minLength":1');
+      expect(schemaArg).toContain('"uniqueItems":true');
       expect(args).not.toContain("dangerously-skip-permissions");
       await expect(
         verifyArtifacts(root, input.runDir),

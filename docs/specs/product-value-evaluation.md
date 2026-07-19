@@ -17,6 +17,8 @@ and M3 investment. The preregistration and executable configuration live under
 - **PV-3 — Common harness routes.** Within one harness block, model, effort,
   executable, permission policy, environment allowlist, and task prompt are
   fixed across treatments. Harness state and workspaces are isolated per run.
+  The evaluator applies one treatment-independent native launcher policy,
+  including the same available-tool set, to direct and CLI invocations.
   Repository setup completes before measured agent execution, and every
   treatment operates in that same prepared disposable checkout. The CLI
   treatment explicitly attaches the checkout instead of allocating a second
@@ -24,7 +26,10 @@ and M3 investment. The preregistration and executable configuration live under
   Versions and configuration digests are recorded. The evaluator owns the
   single operating-system sandbox boundary: it denies writes outside the
   disposable run root and hides source and evaluator inputs. A harness may
-  disable its nested sandbox only inside that boundary.
+  disable its nested sandbox only inside that boundary. When a bounded
+  invocation ends or times out, the evaluator terminates its attached
+  descendants and any evaluator-started Darrow worker or Temporal service
+  recorded in that disposable workspace; diagnostic state remains retained.
 
 ## Corpus integrity
 

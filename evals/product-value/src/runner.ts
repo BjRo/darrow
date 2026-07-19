@@ -20,7 +20,7 @@ import {
 import { invoke } from "./harness";
 import { REPO_ROOT, SUITE_ROOT } from "./config";
 import { matchedPolicyPrompt, usesMatchedPolicy } from "./policy";
-import { createExecutionTrace, traceTokenUsage } from "./trace";
+import { createExecutionTrace, traceCostUsd, traceTokenUsage } from "./trace";
 
 async function digestDirectory(path: string): Promise<string> {
   const hasher = new Bun.CryptoHasher("sha256");
@@ -74,6 +74,7 @@ async function persistTrace(
   path: string;
   inputTokens: number | null;
   outputTokens: number | null;
+  costUsd: number | null;
 } | null> {
   try {
     const path = join(runRoot, "trace.json");
@@ -83,7 +84,7 @@ async function persistTrace(
       evidenceDirectory,
     );
     await writeFile(path, JSON.stringify(trace, null, 2) + "\n");
-    return { path, ...traceTokenUsage(trace) };
+    return { path, ...traceTokenUsage(trace), costUsd: traceCostUsd(trace) };
   } catch {
     return null;
   }
@@ -181,6 +182,7 @@ export async function runAssignment(
     tracePath = persistedTrace?.path ?? null;
     invocation.inputTokens ??= persistedTrace?.inputTokens ?? null;
     invocation.outputTokens ??= persistedTrace?.outputTokens ?? null;
+    invocation.costUsd ??= persistedTrace?.costUsd ?? null;
     const resultWorkspace = resolve(invocation.workspace);
     patchPath = join(runRoot, "change.patch");
     await capturePatch(
@@ -236,6 +238,7 @@ export async function runAssignment(
     tracePath = persistedTrace?.path ?? null;
     invocation.inputTokens ??= persistedTrace?.inputTokens ?? null;
     invocation.outputTokens ??= persistedTrace?.outputTokens ?? null;
+    invocation.costUsd ??= persistedTrace?.costUsd ?? null;
   }
 
   const deterministicQuality = verification?.passed ? 1 : 0;

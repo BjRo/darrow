@@ -92,6 +92,24 @@ made during excluded smoke calibration after the original wording admitted a
 different positional-argument implementation; no confirmatory prompt was
 opened or changed.
 
+The excluded `portable-implement-smoke-v1` repair smoke showed that Claude's
+direct launcher bounded available tools while the CLI route could select the
+native `Agent` tool. The CLI cell delegated this simple change, timed out, and
+left its evaluator-started worker and Temporal service running. Before any
+admissible pilot, the evaluator was amended to route both Claude treatments
+through the same evaluator-owned bounded-tool, permission, settings-source,
+and no-session-persistence launcher and pins Claude's supported
+`CLAUDE_CODE_TMPDIR` inside the disposable run root. It now terminates attached
+descendants plus recorded Darrow runtime processes after every CLI invocation
+and recovers provider usage and cost from failed CLI transcripts. Claude's
+adapter projects root JSON Schema dialect and identity annotations out of the
+provider schema while retaining the complete snapshot for runtime validation;
+Claude Code otherwise silently omits its structured result. Compact traces now
+summarize Claude tool types and Bash outcomes as well as Codex command events.
+This repairs PV-3 treatment parity, PV-12 measurement, and cleanup; it does not
+change the task, model, effort, outcome rules, thresholds, or frozen schedule.
+All result roots created before this repair remain excluded.
+
 Dependencies are installed before treatment execution with the frozen lockfile.
 Every treatment runs in that same prepared disposable checkout. Because the
 evaluator already provides exclusive workspace ownership and the outer sandbox,

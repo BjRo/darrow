@@ -10,7 +10,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { invoke, isolatedEnvironment } from "../src/harness";
+import {
+  cleanupDarrowRuntime,
+  invoke,
+  isolatedEnvironment,
+} from "../src/harness";
 import { probeHarnessAuthentication } from "../src/preflight";
 import { checked } from "../src/process";
 import type { Protocol } from "../src/types";
@@ -160,7 +164,14 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
     const state = join(root, "state");
     await Promise.all([mkdir(repo), mkdir(state)]);
     const executable = join(root, "slow-codex");
-    await writeFile(executable, "#!/bin/sh\n/bin/sleep 5\n");
+    const childMarker = join(root, "child-survived");
+    await writeFile(
+      executable,
+      `#!/bin/sh
+( /bin/sleep 0.3; printf survived > '${childMarker}' ) &
+/bin/sleep 5
+`,
+    );
     await chmod(executable, 0o755);
     const protocol = testProtocol(executable);
     protocol.phases.smoke.timeoutMinutes = 0.001;
@@ -182,6 +193,70 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
     expect(result.ok).toBe(false);
     expect(result.timedOut).toBe(true);
     expect(result.durationMs).toBeLessThan(2_000);
+    await Bun.sleep(500);
+    expect(await Bun.file(childMarker).exists()).toBe(false);
+  });
+
+  test("uses the same bounded Claude tool launcher for native and CLI paths", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-claude-tools-test-"));
+    roots.push(root);
+    const state = join(root, "state");
+    await mkdir(state);
+    const executable = join(root, "claude-real");
+    await writeFile(executable, "#!/bin/sh\nexit 0\n");
+    await chmod(executable, 0o755);
+    const previousToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "fake-setup-token";
+    try {
+      const env = await isolatedEnvironment(
+        "claude",
+        {
+          executable,
+          version: "fake",
+          model: "fake",
+          permissionMode: "test",
+          authFiles: [],
+        },
+        state,
+      );
+      const launcher = join(state, "harness-bin", "claude");
+      expect(env.PATH?.split(":")[0]).toBe(join(state, "harness-bin"));
+      expect(env.CLAUDE_CODE_TMPDIR).toBe(join(state, "tmp"));
+      expect(await Bun.file(launcher).text()).toContain(
+        "--tools 'Bash,Edit,Read,Write,Glob,Grep,StructuredOutput'",
+      );
+      expect(await Bun.file(launcher).text()).toContain(
+        "--no-session-persistence",
+      );
+      expect((await stat(launcher)).mode & 0o111).not.toBe(0);
+    } finally {
+      if (previousToken === undefined)
+        delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
+      else process.env.CLAUDE_CODE_OAUTH_TOKEN = previousToken;
+    }
+  });
+
+  test("stops daemonized Darrow runtime processes after an invocation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-runtime-cleanup-test-"));
+    roots.push(root);
+    const runtime = join(root, ".darrow", "runtime");
+    await mkdir(runtime, { recursive: true });
+    const service = Bun.spawn(["/bin/sleep", "30"]);
+    const worker = Bun.spawn(["/bin/sh", "-c", "/bin/sleep 30 & wait"]);
+    await Promise.all([
+      writeFile(
+        join(runtime, "service.json"),
+        JSON.stringify({ pid: service.pid }),
+      ),
+      writeFile(
+        join(runtime, "worker.json"),
+        JSON.stringify({ pid: worker.pid }),
+      ),
+    ]);
+    await cleanupDarrowRuntime(root, 25);
+    await Promise.all([service.exited, worker.exited]);
+    expect(() => process.kill(service.pid, 0)).toThrow();
+    expect(() => process.kill(worker.pid, 0)).toThrow();
   });
 
   test("copies Codex credentials into restrictive disposable state", async () => {

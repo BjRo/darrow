@@ -29,6 +29,11 @@ deadline per observation. Source checkouts are read-only inputs; every trial
 uses a disposable history-free archive. Its frozen dependency setup is shared
 by every treatment; the CLI attaches that prepared checkout rather than
 allocating an unprepared second worktree.
+Claude direct and CLI cells resolve through the same evaluator-owned bounded
+tool and no-session-persistence launcher, with Claude's temporary state pinned
+inside the disposable run root. Every CLI cell stops its evaluator-started
+Darrow runtime processes afterward; failed workspaces remain available for
+diagnosis, with provider usage recovered from their transcript.
 
 ```sh
 bun evals/product-value/cli.ts run --phase smoke \

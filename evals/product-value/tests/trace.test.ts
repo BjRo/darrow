@@ -3,7 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { InvocationResult } from "../src/harness";
-import { createExecutionTrace, traceTokenUsage } from "../src/trace";
+import {
+  createExecutionTrace,
+  traceCostUsd,
+  traceTokenUsage,
+} from "../src/trace";
 
 const roots: string[] = [];
 
@@ -130,6 +134,55 @@ describe("compact execution traces", () => {
     expect(JSON.stringify(trace)).not.toContain("secret command");
   });
 
+  test("summarizes Claude tool use and Bash outcomes without content", async () => {
+    const lines = [
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              id: "tool-1",
+              name: "Bash",
+              input: { command: "bun test focused.test.ts" },
+            },
+            {
+              type: "tool_use",
+              id: "tool-2",
+              name: "Read",
+              input: { file_path: "/private/secret.ts" },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "tool-1",
+              is_error: true,
+              content: "Failed Tests: private assertion text",
+            },
+          ],
+        },
+      }),
+    ].join("\n");
+
+    const trace = await createExecutionTrace(invocation(lines), "native");
+    expect((trace.model as any).toolTypes).toEqual({ Bash: 1, Read: 1 });
+    expect((trace.model as any).commands.total).toBe(1);
+    expect((trace.model as any).commands.nonZero).toBe(1);
+    expect((trace.model as any).commands.categories.test).toEqual({
+      total: 1,
+      nonZero: 1,
+    });
+    expect((trace.model as any).commands.nonZeroReasons.test_failure).toBe(1);
+    expect(JSON.stringify(trace)).not.toContain("private assertion text");
+    expect(JSON.stringify(trace)).not.toContain("secret.ts");
+  });
+
   test("reads a Darrow transcript before its disposable workspace is removed", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-trace-test-"));
     roots.push(root);
@@ -230,5 +283,48 @@ describe("compact execution traces", () => {
       redExecutionMs: 1_000,
       afterRedWithoutGreenMs: 7_000,
     });
+  });
+
+  test("recovers usage and cost from a failed CLI transcript", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-trace-test-"));
+    roots.push(root);
+    const content = join(root, ".darrow", "runs", "run-1", "content");
+    await mkdir(content, { recursive: true });
+    await writeFile(
+      join(content, "invocation-1.jsonl"),
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        usage: { input_tokens: 30, output_tokens: 7 },
+        total_cost_usd: 0.42,
+      }) + "\n",
+    );
+    const raw = JSON.stringify({
+      ok: false,
+      data: {
+        results: [
+          {
+            invocationId: "invocation-1",
+            status: "failed",
+            timing: {
+              startedAt: "2026-01-01T00:00:00Z",
+              finishedAt: "2026-01-01T00:00:10Z",
+            },
+          },
+        ],
+      },
+    });
+    const failed = invocation(raw);
+    failed.ok = false;
+    failed.workspace = root;
+    failed.darrowRunId = "run-1";
+
+    const trace = await createExecutionTrace(failed, "cli");
+    expect(trace.transcriptAvailableForSummary).toBe(true);
+    expect(traceTokenUsage(trace)).toEqual({
+      inputTokens: 30,
+      outputTokens: 7,
+    });
+    expect(traceCostUsd(trace)).toBe(0.42);
   });
 });

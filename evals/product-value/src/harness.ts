@@ -16,7 +16,7 @@ import type {
   Route,
   Treatment,
 } from "./types";
-import { command } from "./process";
+import { command, shellQuote, terminateProcessTree } from "./process";
 import { temporalExecutable } from "./toolchain";
 
 export interface InvocationResult {
@@ -32,6 +32,41 @@ export interface InvocationResult {
   darrowRunId: string | null;
   workspace: string;
   patchBaseCommit: string | null;
+}
+
+const CLAUDE_EVALUATION_TOOLS =
+  "Bash,Edit,Read,Write,Glob,Grep,StructuredOutput";
+
+function evaluationExecutable(
+  harness: Harness,
+  route: Route,
+  state: string,
+): string {
+  return harness === "claude"
+    ? join(state, "harness-bin", "claude")
+    : route.executable;
+}
+
+async function prepareClaudeLauncher(
+  route: Route,
+  state: string,
+): Promise<string> {
+  const bin = join(state, "harness-bin");
+  const launcher = join(bin, "claude");
+  await mkdir(bin, { recursive: true });
+  await writeFile(
+    launcher,
+    [
+      "#!/bin/sh",
+      'if [ "${1-}" = "--version" ]; then',
+      `  exec ${shellQuote(route.executable)} "$@"`,
+      "fi",
+      `exec ${shellQuote(route.executable)} --tools ${shellQuote(CLAUDE_EVALUATION_TOOLS)} --permission-mode acceptEdits --allowedTools ${shellQuote(CLAUDE_EVALUATION_TOOLS)} --setting-sources user,project --no-session-persistence "$@"`,
+      "",
+    ].join("\n"),
+  );
+  await chmod(launcher, 0o755);
+  return bin;
 }
 
 async function commitEvaluationSetup(repo: string): Promise<string> {
@@ -202,6 +237,7 @@ export async function isolatedEnvironment(
       CODEX_HOME: targetRoot,
     };
   }
+  const launcherBin = await prepareClaudeLauncher(route, state);
   await writeFile(
     join(targetRoot, "settings.json"),
     JSON.stringify(
@@ -217,10 +253,37 @@ export async function isolatedEnvironment(
   );
   return {
     ...cleanEnvironment,
+    PATH: `${launcherBin}:${cleanEnvironment.PATH ?? ""}`,
     HOME: state,
     TMPDIR: tempRoot,
+    CLAUDE_CODE_TMPDIR: tempRoot,
     CLAUDE_CONFIG_DIR: targetRoot,
   };
+}
+
+async function runtimePid(path: string): Promise<number | null> {
+  try {
+    const value = (await Bun.file(path).json()) as { pid?: unknown };
+    return Number.isSafeInteger(value.pid) && Number(value.pid) > 1
+      ? Number(value.pid)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cleanupDarrowRuntime(
+  repo: string,
+  graceMs = 1_000,
+): Promise<void> {
+  const runtime = join(repo, ".darrow", "runtime");
+  const [workerPid, servicePid] = await Promise.all([
+    runtimePid(join(runtime, "worker.json")),
+    runtimePid(join(runtime, "service.json")),
+  ]);
+  for (const pid of [workerPid, servicePid]) {
+    if (pid !== null) await terminateProcessTree(pid, graceMs);
+  }
 }
 
 function codexUsage(raw: string): {
@@ -259,7 +322,7 @@ async function runNative(
     const result = await command(
       await sandboxed(
         [
-          route.executable,
+          evaluationExecutable(harness, route, state),
           "exec",
           prompt,
           "--json",
@@ -300,7 +363,7 @@ async function runNative(
   const result = await command(
     await sandboxed(
       [
-        route.executable,
+        evaluationExecutable(harness, route, state),
         "-p",
         prompt,
         "--output-format",
@@ -310,11 +373,6 @@ async function runNative(
         route.model,
         "--effort",
         route.effort,
-        "--permission-mode",
-        "acceptEdits",
-        "--allowedTools",
-        "Bash,Edit,Read,Write,Glob,Grep",
-        "--no-session-persistence",
       ],
       state,
       hiddenPaths,
@@ -458,6 +516,7 @@ export async function invoke(
     env,
     timeoutMs,
   );
+  await cleanupDarrowRuntime(repo);
   let envelope: any = {};
   try {
     envelope = JSON.parse(result.stdout.trim().split("\n").at(-1)!);
