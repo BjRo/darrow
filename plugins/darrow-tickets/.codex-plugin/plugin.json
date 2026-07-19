@@ -2,5 +2,21 @@
   "name": "darrow-tickets",
   "version": "0.1.0",
   "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, update-ticket, list-tickets",
-  "skills": "./skills/"
+  "author": {
+    "name": "Björn Rochel"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Tickets",
+    "shortDescription": "Create, find, and update project tickets",
+    "longDescription": "Create well-formed tracker tickets, find relevant open work, and apply one verified update through a backend-neutral workflow.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Create a ticket for this problem.",
+      "List the open bugs for this project.",
+      "Close the ticket for this completed work."
+    ]
+  }
 }

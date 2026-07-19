@@ -8,7 +8,7 @@
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Darrow Decisions",
+    "displayName": "Darrow -> Decisions",
     "shortDescription": "Capture and find authoritative decisions",
     "longDescription": "Route explicit decisions to ADRs, specifications, policies, work items, or run-local state without duplicating canonical records.",
     "developerName": "Björn Rochel",

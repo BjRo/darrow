@@ -8,7 +8,7 @@
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Darrow Information Architecture",
+    "displayName": "Darrow -> Information Architecture",
     "shortDescription": "Build and audit repository agent guidance",
     "longDescription": "Set up and doctor lean repository information architecture with explicit routing, scoped rules, and safe progressive disclosure.",
     "developerName": "Björn Rochel",
