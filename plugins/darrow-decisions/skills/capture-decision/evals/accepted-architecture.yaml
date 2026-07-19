@@ -1,0 +1,72 @@
+id: capture-decision-accepted-architecture
+invariant: "DM-1,DM-C4"
+prompt: >-
+  We have decided that production persistence will use PostgreSQL. I am the
+  repository maintainer and this is the accepted architecture choice. Capture
+  the decision in the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/ADR-0001-runtime.md: |
+          # ADR-0001: Use Node.js for the service runtime
+
+          Status: Accepted
+          Date: 2026-06-01
+
+          ## Context
+
+          The service needs a supported runtime.
+
+          ## Decision
+
+          Use Node.js.
+
+          ## Consequences
+
+          Runtime tooling follows Node.js conventions.
+checks:
+  - name: changes exactly one next-id ADR path
+    run: >-
+      paths=$({ git diff --name-only; git ls-files --others --exclude-standard; } | LC_ALL=C sort -u);
+      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 1;
+      printf '%s\n' "$paths" | grep -E '^docs/decisions/ADR-0002-[a-z0-9-]+\.md$' >/dev/null;
+      printf 'exact\n'
+    expect_exact: "exact"
+  - name: accepted PostgreSQL decision has compact structure
+    run: >-
+      file=$(find docs/decisions -maxdepth 1 -type f -name 'ADR-0002-*.md' -print);
+      test -n "$file" && cat "$file"
+    expect_regex: "# ADR-0002:.*PostgreSQL[\\s\\S]*Status: Accepted[\\s\\S]*## Context[\\s\\S]+## Decision[\\s\\S]*PostgreSQL[\\s\\S]*## Consequences"
+    flags: i
+  - name: Decision affirmatively selects PostgreSQL
+    run: >-
+      file=$(find docs/decisions -maxdepth 1 -type f -name 'ADR-0002-*.md' -print);
+      decision=$(awk '/^## Decision/{inside=1; next} /^## /{inside=0} inside{print}' "$file");
+      printf '%s\n' "$decision";
+      printf '%s\n' "$decision" | grep -Ei '(use|select|standardize on|adopt)[^.]*PostgreSQL|PostgreSQL[^.]*(is|will be)[^.]*(database|persistence)' >/dev/null;
+      ! printf '%s\n' "$decision" | grep -Ei '(do not|must not|avoid|reject)[^.]*PostgreSQL' >/dev/null
+    expect_regex: "PostgreSQL"
+  - name: deterministic ADR validation passes
+    run: >-
+      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
+      else facade=.claude/bin/decision; fi;
+      bash "$facade" validate --repo .
+    expect_regex: "^valid: 2 ADR\\(s\\) in /"
+  - name: no generic decision store is created
+    run: test ! -e .darrow/decisions && echo absent
+    expect_regex: "^absent$"
+  - name: capture creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+  - name: response reports absolute sink and capture facts
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/docs/decisions/ADR-0002-" "$message" >/dev/null ||
+      grep -E "$root/docs/decisions/ADR-0002-[a-z0-9-]+\\.md" "$message" >/dev/null;
+      grep -Ei 'Accepted' "$message" >/dev/null;
+      grep -Ei 'repository|architecture' "$message" >/dev/null;
+      grep -Ei 'authority|authorized|maintainer|user' "$message" >/dev/null;
+      echo reported
+    expect_regex: "^reported$"

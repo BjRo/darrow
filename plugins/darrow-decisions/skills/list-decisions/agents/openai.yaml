@@ -1,0 +1,4 @@
+interface:
+  display_name: "List Decisions"
+  short_description: "Find recorded repository decisions"
+  default_prompt: "Use $list-decisions to list the recorded decisions about this subject."

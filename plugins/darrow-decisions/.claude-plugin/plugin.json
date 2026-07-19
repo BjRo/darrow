@@ -1,0 +1,5 @@
+{
+  "name": "darrow-decisions",
+  "description": "Capture and query durable repository decisions at their canonical scope",
+  "version": "0.1.0"
+}

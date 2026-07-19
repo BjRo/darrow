@@ -1,0 +1,807 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: decision inspect [--dir <path>] [--repo <path>]
+       decision list [--dir <path>] [--repo <path>]
+                     [--status Proposed|Accepted|Rejected|Deprecated|Superseded]
+                     [--search <text>] [--related-to <ADR-NNNN>] [--limit <n>]
+       decision next-id [--dir <path>] [--repo <path>] [--title <title>]
+       decision validate [--dir <path>] [--repo <path>]
+       decision canonical-path --path <path> [--repo <path>]
+       decision check-transition --from <status> --to <status>
+USAGE
+  exit 2
+}
+
+die() {
+  printf 'error: %s\n' "$1" >&2
+  exit "${2:-2}"
+}
+
+status_is_valid() {
+  case "$1" in
+    Proposed|Accepted|Rejected|Deprecated|Superseded) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+has_control_char() {
+  local LC_ALL=C
+  [[ $1 == *[[:cntrl:]]* ]]
+}
+
+check_transition() {
+  local from=$1 to=$2
+  status_is_valid "$from" || die "unsupported decision status: $from"
+  status_is_valid "$to" || die "unsupported decision status: $to"
+  case "$from:$to" in
+    Proposed:Accepted|Proposed:Rejected|Accepted:Deprecated|Accepted:Superseded)
+      printf '%s -> %s: allowed\n' "$from" "$to"
+      ;;
+    *) die "unsupported decision transition: $from -> $to" 3 ;;
+  esac
+}
+
+resolve_root() {
+  local target=$1 worktrees line
+  if [[ ! -d "$target" || ! -r "$target" ]]; then
+    die "repository path is not a readable directory: $target"
+  fi
+  if ! worktrees=$(git -C "$target" worktree list --porcelain 2>/dev/null); then
+    die "not a Git repository: $target"
+  fi
+  if ! line=$(awk 'NR == 1 && $1 == "worktree" {sub(/^worktree /, ""); print}' <<< "$worktrees"); then
+    die "cannot parse git worktree metadata"
+  fi
+  [[ -n "$line" ]] || die "cannot resolve repository root from git worktree metadata"
+  has_control_char "$line" && die "repository root contains unsupported control bytes"
+  printf '%s' "$line"
+}
+
+inside_root() {
+  case "$1" in
+    "$ROOT"|"$ROOT"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+path_has_symlink_component() {
+  local path=$1 current="" rest component
+  rest=${path#/}
+  while [[ -n "$rest" ]]; do
+    component=${rest%%/*}
+    case "$rest" in
+      */*) rest=${rest#*/} ;;
+      *) rest="" ;;
+    esac
+    [[ -n "$component" ]] || continue
+    current="$current/$component"
+    [[ ! -L "$current" ]] || return 0
+  done
+  return 1
+}
+
+canonical_directory() {
+  local value=$1 candidate resolved
+  case "$value" in
+    /*) candidate=$value ;;
+    *) candidate="$ROOT/$value" ;;
+  esac
+  ! path_has_symlink_component "$candidate" || die "ADR directory symlinks are not allowed: $candidate"
+  [[ -d "$candidate" ]] || die "ADR directory does not exist: $candidate"
+  [[ -r "$candidate" && -x "$candidate" ]] || die "ADR directory is not readable: $candidate"
+  resolved=$(cd "$candidate" 2>/dev/null && pwd -P) || die "cannot resolve ADR directory: $candidate"
+  has_control_char "$resolved" && die "ADR directory contains unsupported control bytes"
+  inside_root "$resolved" || die "ADR directory escapes the repository root: $resolved"
+  printf '%s' "$resolved"
+}
+
+run_canonical_path() {
+  local candidate parent name resolved_parent resolved
+  [[ -n "$PATH_ARG" ]] || usage
+  case "$PATH_ARG" in
+    /*) candidate=$PATH_ARG ;;
+    *) candidate="$ROOT/$PATH_ARG" ;;
+  esac
+  ! path_has_symlink_component "$candidate" || die "canonical record symlinks are not allowed: $candidate"
+  [[ -f "$candidate" ]] || die "canonical record is not a regular file: $candidate"
+  [[ -r "$candidate" ]] || die "canonical record is not readable: $candidate"
+  parent=$(dirname "$candidate") || die "cannot resolve canonical record parent: $candidate"
+  name=$(basename "$candidate") || die "cannot resolve canonical record name: $candidate"
+  resolved_parent=$(cd "$parent" 2>/dev/null && pwd -P) || die "cannot resolve canonical record parent: $candidate"
+  resolved="$resolved_parent/$name"
+  has_control_char "$resolved" && die "canonical record path contains unsupported control bytes"
+  inside_root "$resolved" || die "canonical record escapes the repository root: $resolved"
+  printf 'path: %s\n' "$resolved"
+}
+
+select_adr_directory() {
+  local candidate duplicate existing
+  ADR_DIR=""
+  if [[ -n "$DIR_ARG" ]]; then
+    ADR_DIR=$(canonical_directory "$DIR_ARG")
+    return
+  fi
+
+  ADR_DIR_COUNT=0
+  ADR_DIR_CANDIDATES=()
+  for candidate in \
+    "$ROOT/docs/decisions" \
+    "$ROOT/docs/adrs" \
+    "$ROOT/docs/adr" \
+    "$ROOT/architecture/decisions" \
+    "$ROOT/adrs" \
+    "$ROOT/adr"
+  do
+    if [[ ( -e "$candidate" || -L "$candidate" ) && ! -d "$candidate" ]]; then
+      die "ADR directory candidate is not a directory: $candidate"
+    fi
+    if [[ -d "$candidate" ]]; then
+      candidate=$(canonical_directory "$candidate")
+      duplicate=0
+      for existing in "${ADR_DIR_CANDIDATES[@]:-}"; do
+        [[ "$existing" != "$candidate" ]] || duplicate=1
+      done
+      if [[ $duplicate -eq 0 ]]; then
+        ADR_DIR_CANDIDATES+=("$candidate")
+        ADR_DIR_COUNT=$((ADR_DIR_COUNT + 1))
+      fi
+    fi
+  done
+
+  if [[ $ADR_DIR_COUNT -eq 1 ]]; then
+    ADR_DIR=${ADR_DIR_CANDIDATES[0]}
+  elif [[ $ADR_DIR_COUNT -gt 1 ]]; then
+    printf 'error: multiple ADR directories found; pass --dir explicitly:\n' >&2
+    for candidate in "${ADR_DIR_CANDIDATES[@]}"; do
+      printf '  - %s\n' "$candidate" >&2
+    done
+    exit 3
+  fi
+}
+
+valid_iso_date() {
+  local value=$1 year month day year_n month_n day_n max_day
+  [[ $value =~ ^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$ ]] || return 1
+  year=${value:0:4}
+  month=${value:5:2}
+  day=${value:8:2}
+  year_n=$((10#$year))
+  month_n=$((10#$month))
+  day_n=$((10#$day))
+  [[ $year_n -gt 0 && $month_n -ge 1 && $month_n -le 12 && $day_n -ge 1 ]] || return 1
+  case "$month_n" in
+    1|3|5|7|8|10|12) max_day=31 ;;
+    4|6|9|11) max_day=30 ;;
+    2)
+      max_day=28
+      if (( year_n % 400 == 0 || (year_n % 4 == 0 && year_n % 100 != 0) )); then
+        max_day=29
+      fi
+      ;;
+  esac
+  [[ $day_n -le $max_day ]]
+}
+
+parse_adr() {
+  local file=$1
+  LC_ALL=C awk '
+    function trim(value) {
+      sub(/^[ \t]+/, "", value)
+      sub(/[ \t]+$/, "", value)
+      return value
+    }
+    function clean(value) {
+      gsub(/[[:cntrl:]]/, " ", value)
+      return value
+    }
+    function heading_info(value,    level, rest, text) {
+      level = 0
+      while (substr(value, level + 1, 1) == "#") level++
+      if (level < 1 || level > 6) return 0
+      rest = substr(value, level + 1, 1)
+      if (rest != " " && rest != "\t") return 0
+      text = trim(substr(value, level + 2))
+      sub(/[ \t]+#+[ \t]*$/, "", text)
+      heading_level = level
+      heading_text = text
+      return 1
+    }
+    BEGIN {
+      sep = sprintf("%c", 28)
+      in_fence = 0
+      fence_char = ""
+      fence_size = 0
+      metadata = 1
+      section = ""
+    }
+    {
+      line = $0
+      if (NR == 1) sub(/^\357\273\277/, "", line)
+      scan = line
+      indent = 0
+      while (indent < 3 && substr(scan, 1, 1) == " ") {
+        scan = substr(scan, 2)
+        indent++
+      }
+      marker = substr(scan, 1, 1)
+      marker_size = 0
+      if (marker == "`" || marker == "~") {
+        while (substr(scan, marker_size + 1, 1) == marker) marker_size++
+      }
+      if (marker_size >= 3) {
+        if (!in_fence) {
+          in_fence = 1
+          fence_char = marker
+          fence_size = marker_size
+        } else if (marker == fence_char && marker_size >= fence_size && trim(substr(scan, marker_size + 1)) == "") {
+          in_fence = 0
+          fence_char = ""
+          fence_size = 0
+        } else if (section != "" && trim(line) != "") {
+          nonempty[section] = 1
+        }
+        next
+      }
+      if (in_fence) {
+        if (section != "" && trim(line) != "") nonempty[section] = 1
+        next
+      }
+
+      heading_level = 0
+      heading_text = ""
+      if (heading_info(scan)) {
+        if (heading_level == 1 && heading_text ~ /^ADR-/) {
+          heading_count++
+          colon = index(heading_text, ":")
+          if (colon > 0) {
+            identifier = trim(substr(heading_text, 1, colon - 1))
+            title = trim(substr(heading_text, colon + 1))
+          } else {
+            identifier = trim(heading_text)
+            title = ""
+          }
+        }
+        if (heading_level <= 2) section = ""
+        if (heading_level == 2) {
+          metadata = 0
+          if (heading_text == "Context") {
+            section = "context"
+            context_count++
+          } else if (heading_text == "Decision") {
+            section = "decision"
+            decision_count++
+          } else if (heading_text == "Consequences") {
+            section = "consequences"
+            consequences_count++
+          }
+        }
+        next
+      }
+
+      if (metadata && line ~ /^Status:[ \t]*/) {
+        status_count++
+        status = trim(substr(line, index(line, ":") + 1))
+        next
+      }
+      if (metadata && line ~ /^Date:[ \t]*/) {
+        date_count++
+        date = trim(substr(line, index(line, ":") + 1))
+        next
+      }
+      if (metadata && line ~ /^Supersedes:[ \t]*/) {
+        supersedes_count++
+        supersedes = trim(substr(line, index(line, ":") + 1))
+        next
+      }
+      if (metadata && line ~ /^Superseded by:[ \t]*/) {
+        superseded_by_count++
+        superseded_by = trim(substr(line, index(line, ":") + 1))
+        next
+      }
+      if (metadata && line ~ /^Revisit when:[ \t]*/) {
+        revisit_count++
+        revisit = trim(substr(line, index(line, ":") + 1))
+        next
+      }
+      if (section != "" && trim(line) != "") nonempty[section] = 1
+    }
+    END {
+      printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", \
+        clean(identifier), sep, clean(title), sep, clean(status), sep, clean(date), sep, \
+        clean(supersedes), sep, clean(superseded_by), sep, clean(revisit), sep, \
+        heading_count + 0, sep, status_count + 0, sep, date_count + 0, sep, \
+        supersedes_count + 0, sep, superseded_by_count + 0, sep, revisit_count + 0, sep, \
+        context_count + 0, sep, decision_count + 0, sep, consequences_count + 0, sep, \
+        nonempty["context"] + 0, sep, nonempty["decision"] + 0, sep, nonempty["consequences"] + 0, sep, in_fence + 0
+    }
+  ' "$file"
+}
+
+filename_identifier() {
+  local base
+  base=${1##*/}
+  if [[ $base =~ ^(ADR-[0-9]+)(-|\.md$) ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 1
+}
+
+record_error() {
+  ERROR_COUNT=$((ERROR_COUNT + 1))
+  if [[ $ERROR_COUNT -le 40 ]]; then
+    printf 'error: %s\n' "$1" >> "$ERRORS"
+  fi
+}
+
+relation_contains() {
+  local rest=$1 wanted=$2 item
+  while :; do
+    item=${rest%%,*}
+    item=${item#"${item%%[![:space:]]*}"}
+    item=${item%"${item##*[![:space:]]}"}
+    [[ "$item" != "$wanted" ]] || return 0
+    [[ "$rest" == *,* ]] || break
+    rest=${rest#*,}
+  done
+  return 1
+}
+
+build_inventory() {
+  local file parsed file_id identifier title status date supersedes superseded_by revisit
+  local heading_count status_count date_count supersedes_count superseded_by_count revisit_count
+  local context_count decision_count consequences_count context_nonempty decision_nonempty consequences_nonempty unclosed_fence
+  local unsafe_file_count
+
+  : > "$INVENTORY"
+  : > "$ERRORS"
+  ERROR_COUNT=0
+  [[ -n "$ADR_DIR" ]] || return 0
+
+  if ! find "$ADR_DIR" -maxdepth 1 -mindepth 1 -name '*.md' -print0 > "$DECISION_TMP/files"; then
+    record_error "$ADR_DIR: cannot enumerate Markdown entries"
+    return 1
+  fi
+  : > "$DECISION_TMP/safe-files"
+  unsafe_file_count=0
+  while IFS= read -r -d '' file; do
+    if has_control_char "$file"; then
+      unsafe_file_count=$((unsafe_file_count + 1))
+      continue
+    fi
+    printf '%s\n' "$file" >> "$DECISION_TMP/safe-files"
+  done < "$DECISION_TMP/files"
+  if ! LC_ALL=C sort "$DECISION_TMP/safe-files" -o "$DECISION_TMP/safe-files"; then
+    record_error "$ADR_DIR: cannot sort ADR paths"
+    return 1
+  fi
+  if [[ $unsafe_file_count -gt 0 ]]; then
+      record_error "$ADR_DIR: $unsafe_file_count ADR filename(s) contain unsupported control bytes"
+  fi
+  while IFS= read -r file; do
+    if [[ -L "$file" ]]; then
+      record_error "$file: ADR symlinks are not allowed"
+      continue
+    fi
+    if [[ ! -f "$file" ]]; then
+      record_error "$file: ADR path is occupied by an unsupported file type"
+      continue
+    fi
+    if [[ ! -r "$file" ]]; then
+      record_error "$file: Markdown file is not readable"
+      continue
+    fi
+    file_id=""
+    if filename_identifier "$file" >/dev/null; then
+      file_id=$(filename_identifier "$file")
+    fi
+    if ! parsed=$(parse_adr "$file"); then
+      record_error "$file: cannot parse ADR file"
+      continue
+    fi
+    IFS=$'\034' read -r identifier title status date supersedes superseded_by revisit \
+      heading_count status_count date_count supersedes_count superseded_by_count revisit_count \
+      context_count decision_count consequences_count context_nonempty decision_nonempty consequences_nonempty unclosed_fence <<< "$parsed"
+
+    if [[ -z "$file_id" ]]; then record_error "$file: filename does not carry its ADR identifier"; fi
+    if [[ $heading_count -ne 1 ]]; then record_error "$file: expected exactly one level-1 ADR heading; found $heading_count"; fi
+    if [[ -z "$identifier" ]]; then
+      record_error "$file: ADR heading has no identifier"
+    elif [[ ${#identifier} -gt 22 ]]; then
+      record_error "$file: ADR identifier exceeds the 18-digit limit"
+    elif [[ ! $identifier =~ ^ADR-[0-9][0-9][0-9][0-9][0-9]*$ ]]; then
+      record_error "$file: unsupported ADR identifier: $identifier"
+    fi
+    if [[ -n "$file_id" && -n "$identifier" && "$file_id" != "$identifier" ]]; then
+      record_error "$file: filename identifier $file_id disagrees with heading identifier $identifier"
+    fi
+    if [[ -z "$title" ]]; then
+      record_error "$file: ADR title is empty"
+    elif [[ ${#title} -gt 240 ]]; then
+      record_error "$file: ADR title exceeds 240 bytes"
+    fi
+    if [[ $status_count -ne 1 ]]; then
+      record_error "$file: expected exactly one Status field; found $status_count"
+    elif [[ ${#status} -gt 32 ]]; then
+      record_error "$file: decision status exceeds 32 bytes"
+    elif ! status_is_valid "$status"; then
+      record_error "$file: unsupported decision status: $status"
+    fi
+    if [[ $date_count -ne 1 ]]; then
+      record_error "$file: expected exactly one Date field; found $date_count"
+    elif [[ ${#date} -gt 32 ]]; then
+      record_error "$file: Date exceeds 32 bytes"
+    elif ! valid_iso_date "$date"; then
+      record_error "$file: Date is not a valid ISO calendar date: $date"
+    fi
+    [[ $supersedes_count -le 1 ]] || record_error "$file: duplicate Supersedes fields"
+    [[ $superseded_by_count -le 1 ]] || record_error "$file: duplicate Superseded by fields"
+    [[ $revisit_count -le 1 ]] || record_error "$file: duplicate Revisit when fields"
+    [[ $supersedes_count -ne 1 || -n "$supersedes" ]] || record_error "$file: Supersedes field is blank"
+    [[ $superseded_by_count -ne 1 || -n "$superseded_by" ]] || record_error "$file: Superseded by field is blank"
+    [[ $revisit_count -ne 1 || -n "$revisit" ]] || record_error "$file: Revisit when field is blank"
+    [[ ${#supersedes} -le 1000 ]] || record_error "$file: Supersedes exceeds 1000 bytes"
+    [[ ${#superseded_by} -le 1000 ]] || record_error "$file: Superseded by exceeds 1000 bytes"
+    [[ ${#revisit} -le 500 ]] || record_error "$file: Revisit when exceeds 500 bytes"
+    [[ $unclosed_fence -eq 0 ]] || record_error "$file: Markdown fence is not closed"
+    if [[ $context_count -ne 1 || $context_nonempty -ne 1 ]]; then
+      record_error "$file: Context section must occur once and contain content"
+    fi
+    if [[ $decision_count -ne 1 || $decision_nonempty -ne 1 ]]; then
+      record_error "$file: Decision section must occur once and contain content"
+    fi
+    if [[ $consequences_count -ne 1 || $consequences_nonempty -ne 1 ]]; then
+      record_error "$file: Consequences section must occur once and contain content"
+    fi
+
+    printf '%s\034%s\034%s\034%s\034%s\034%s\034%s\034%s\n' \
+      "$identifier" "$title" "$status" "$date" "$supersedes" "$superseded_by" "$revisit" "$file" >> "$INVENTORY"
+  done < "$DECISION_TMP/safe-files"
+
+  if ! LC_ALL=C sort "$INVENTORY" -o "$INVENTORY"; then
+    record_error "$ADR_DIR: cannot sort ADR inventory"
+    return 1
+  fi
+  if ! DECISION_SEP=$SEP awk '
+    function trim(value) {
+      sub(/^[ \t]+/, "", value)
+      sub(/[ \t]+$/, "", value)
+      return value
+    }
+    function valid_id(value, digits) {
+      if (substr(value, 1, 4) != "ADR-") return 0
+      digits = substr(value, 5)
+      return length(digits) >= 4 && length(digits) <= 18 && digits !~ /[^0-9]/
+    }
+    function contains(value, wanted, count, part, i) {
+      count = split(value, part, ",")
+      for (i = 1; i <= count; i++) if (trim(part[i]) == wanted) return 1
+      return 0
+    }
+    function report(message) {print message}
+    function validate_relations(id, value, kind, count, part, seen, i, target) {
+      if (value == "") return
+      count = split(value, part, ",")
+      if (count > 50) report(path[id] ": " kind " has more than 50 targets")
+      for (i = 1; i <= count; i++) {
+        target = trim(part[i])
+        if (!valid_id(target)) {
+          report(path[id] ": invalid " kind " identifier")
+          continue
+        }
+        if (seen[target]++) {
+          report(path[id] ": duplicate " kind " target: " target)
+          continue
+        }
+        if (target == id) {
+          report(path[id] ": an ADR cannot relate to itself through " kind)
+          continue
+        }
+        if (!(target in present)) {
+          report(path[id] ": " kind " target does not exist: " target)
+          continue
+        }
+        if (kind == "Supersedes") {
+          edge[id, ++edge_count[id]] = target
+          if (status[target] != "Superseded") report(path[id] ": " target " must have status Superseded")
+          if (!contains(superseded_by[target], id)) report(path[id] ": " target " does not reciprocate Superseded by " id)
+        } else {
+          if (status[target] != "Accepted") report(path[id] ": replacement " target " must have status Accepted")
+          if (!contains(supersedes[target], id)) report(path[id] ": " target " does not reciprocate Supersedes " id)
+        }
+      }
+    }
+    function visit(id, i, target) {
+      state[id] = 1
+      for (i = 1; i <= edge_count[id]; i++) {
+        target = edge[id, i]
+        if (state[target] == 1) {
+          report(path[id] ": supersession relationship cycle detected at edge " id " -> " target)
+          return 1
+        }
+        if (state[target] == 0 && visit(target)) return 1
+      }
+      state[id] = 2
+      return 0
+    }
+    BEGIN {FS = ENVIRON["DECISION_SEP"]}
+    $1 != "" {
+      id = $1
+      if (id in present) {
+        report("duplicate ADR identifier: " id)
+        next
+      }
+      present[id] = 1
+      ids[++record_count] = id
+      status[id] = $3
+      supersedes[id] = $5
+      superseded_by[id] = $6
+      path[id] = $8
+    }
+    END {
+      for (record = 1; record <= record_count; record++) {
+        id = ids[record]
+        if (supersedes[id] != "" && status[id] != "Accepted") report(path[id] ": Supersedes is allowed only on an Accepted replacement")
+        if (superseded_by[id] != "" && status[id] != "Superseded") report(path[id] ": Superseded by requires status Superseded")
+        if (superseded_by[id] == "" && status[id] == "Superseded") report(path[id] ": status Superseded requires Superseded by")
+        validate_relations(id, supersedes[id], "Supersedes")
+        validate_relations(id, superseded_by[id], "Superseded by")
+      }
+      for (record = 1; record <= record_count; record++) {
+        id = ids[record]
+        if (state[id] == 0 && visit(id)) break
+      }
+    }
+  ' "$INVENTORY" > "$DECISION_TMP/relationship-errors"; then
+    record_error "$ADR_DIR: cannot validate ADR relationships"
+    return 1
+  fi
+  while IFS= read -r parsed; do
+    [[ -z "$parsed" ]] || record_error "$parsed"
+  done < "$DECISION_TMP/relationship-errors"
+
+  if [[ $ERROR_COUNT -gt 40 ]]; then
+    printf 'error: %d additional diagnostics omitted\n' "$((ERROR_COUNT - 40))" >> "$ERRORS"
+  fi
+  [[ $ERROR_COUNT -eq 0 ]]
+}
+
+inventory_count() {
+  DECISION_SEP=$SEP awk 'BEGIN {FS = ENVIRON["DECISION_SEP"]} $1 != "" {count++} END {print count + 0}' "$INVENTORY"
+}
+
+print_surfaces() {
+  local path count found
+  echo "specification-surfaces:"
+  found=0
+  for path in "$ROOT/docs/product-spec.md" "$ROOT/docs/specs" "$ROOT/specs"; do
+    if [[ -e "$path" ]]; then
+      [[ -r "$path" ]] || die "canonical specification surface is not readable: $path"
+      if [[ -d "$path" ]]; then
+        if ! find "$path" -maxdepth 1 -type f -name '*.md' -print > "$DECISION_TMP/surface-files"; then
+          die "cannot enumerate canonical specification surface: $path"
+        fi
+        if ! count=$(awk 'END {print NR + 0}' "$DECISION_TMP/surface-files"); then
+          die "cannot summarize canonical specification surface: $path"
+        fi
+        printf '  - %s (%s Markdown files)\n' "$path" "$count"
+      else
+        printf '  - %s\n' "$path"
+      fi
+      found=1
+    fi
+  done
+  [[ $found -eq 1 ]] || echo "  - (none detected)"
+
+  echo "policy-surfaces:"
+  found=0
+  for path in "$ROOT/AGENTS.md" "$ROOT/CLAUDE.md" "$ROOT/CONTRIBUTING.md" "$ROOT/GOVERNANCE.md"; do
+    if [[ -e "$path" || -L "$path" ]]; then
+      [[ -r "$path" ]] || die "canonical policy surface is not readable: $path"
+      printf '  - %s\n' "$path"
+      found=1
+    fi
+  done
+  [[ $found -eq 1 ]] || echo "  - (none detected)"
+}
+
+run_inspect() {
+  local count
+  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  if ! count=$(inventory_count); then die "cannot count ADR inventory"; fi
+  printf 'root: %s\n' "$ROOT"
+  if [[ -n "$ADR_DIR" ]]; then
+    printf 'adr-directory: %s\n' "$ADR_DIR"
+  else
+    echo "adr-directory: (none detected)"
+  fi
+  printf 'adr-records: %s\n' "$count"
+  print_surfaces
+}
+
+run_validate() {
+  local count
+  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  if ! count=$(inventory_count); then die "cannot count ADR inventory"; fi
+  if [[ -n "$ADR_DIR" ]]; then
+    printf 'valid: %s ADR(s) in %s\n' "$count" "$ADR_DIR"
+  else
+    echo "valid: 0 ADR(s); no ADR directory detected"
+  fi
+}
+
+run_list() {
+  local identifier title status date supersedes superseded_by revisit file matched shown relation_suffix grep_status
+  if [[ -n "$STATUS_FILTER" ]] && ! status_is_valid "$STATUS_FILTER"; then
+    die "unsupported decision status: $STATUS_FILTER"
+  fi
+  if [[ -n "$RELATED_FILTER" && ! $RELATED_FILTER =~ ^ADR-[0-9][0-9][0-9][0-9][0-9]*$ ]]; then
+    die "invalid related decision identifier: $RELATED_FILTER"
+  fi
+  [[ ${#RELATED_FILTER} -le 22 ]] || die "related decision identifier exceeds the 18-digit limit"
+  [[ ${#SEARCH_FILTER} -le 200 ]] || die "--search must be at most 200 bytes"
+  has_control_char "$SEARCH_FILTER" && die "--search contains unsupported control bytes"
+  [[ $LIMIT =~ ^[0-9]+$ && $LIMIT -gt 0 && $LIMIT -le 200 ]] || die "--limit must be an integer from 1 to 200"
+  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+
+  matched=0
+  shown=0
+  while IFS=$'\034' read -r identifier title status date supersedes superseded_by revisit file; do
+    [[ -n "$identifier" ]] || continue
+    if [[ -n "$STATUS_FILTER" && "$status" != "$STATUS_FILTER" ]]; then continue; fi
+    if [[ -n "$RELATED_FILTER" ]] && ! relation_contains "$supersedes" "$RELATED_FILTER" && ! relation_contains "$superseded_by" "$RELATED_FILTER"; then
+      continue
+    fi
+    if [[ -n "$SEARCH_FILTER" ]]; then
+      grep_status=0
+      LC_ALL=C grep -i -F -- "$SEARCH_FILTER" "$file" >/dev/null 2>&1 || grep_status=$?
+      if [[ $grep_status -eq 1 ]]; then continue; fi
+      [[ $grep_status -eq 0 ]] || die "cannot search ADR file: $file"
+    fi
+    matched=$((matched + 1))
+    if [[ $shown -lt $LIMIT ]]; then
+      relation_suffix=""
+      [[ -z "$supersedes" ]] || relation_suffix="; supersedes: $supersedes"
+      [[ -z "$superseded_by" ]] || relation_suffix="$relation_suffix; superseded by: $superseded_by"
+      printf '%s %s architecture — %s — %s%s\n' "$identifier" "$status" "$title" "$file" "$relation_suffix"
+      shown=$((shown + 1))
+    fi
+  done < "$INVENTORY"
+  printf 'total: %s (status=%s, search=%s, related-to=%s)\n' "$matched" \
+    "${STATUS_FILTER:-all}" "${SEARCH_FILTER:-(none)}" "${RELATED_FILTER:-(none)}"
+  if [[ $matched -gt $LIMIT ]]; then
+    printf 'note: showing first %s of %s matching ADRs\n' "$LIMIT" "$matched"
+  fi
+}
+
+slugify_title() {
+  local value=$1 slug
+  [[ ${#value} -le 200 ]] || die "--title must be at most 200 bytes"
+  if ! slug=$(LC_ALL=C printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//'); then
+    die "cannot derive ADR filename from title"
+  fi
+  [[ -n "$slug" ]] || die "--title must contain an ASCII letter or digit"
+  printf '%s' "$slug"
+}
+
+run_next_id() {
+  local identifier title status date supersedes superseded_by revisit file digits number max next slug target
+  [[ -n "$ADR_DIR" ]] || die "no ADR directory detected; create or select one with --dir"
+  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  max=0
+  while IFS=$'\034' read -r identifier title status date supersedes superseded_by revisit file; do
+    [[ -n "$identifier" ]] || continue
+    digits=${identifier#ADR-}
+    number=$((10#$digits))
+    if [[ $number -gt $max ]]; then max=$number; fi
+  done < "$INVENTORY"
+  [[ $max -lt 999999999999999999 ]] || die "ADR identifier space is exhausted" 4
+  next=$((max + 1))
+  printf -v identifier 'ADR-%04d' "$next"
+  printf 'id: %s\n' "$identifier"
+  if [[ -n "$TITLE_ARG" ]]; then
+    slug=$(slugify_title "$TITLE_ARG")
+    target="$ADR_DIR/$identifier-$slug.md"
+    [[ ! -e "$target" && ! -L "$target" ]] || die "next ADR path is already occupied: $target" 4
+    printf 'path: %s\n' "$target"
+  fi
+}
+
+COMMAND=${1:-}
+[[ -n "$COMMAND" ]] || usage
+shift
+
+if [[ "$COMMAND" == "check-transition" ]]; then
+  FROM_STATUS=""
+  TO_STATUS=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --from) [[ $# -ge 2 ]] || usage; FROM_STATUS=$2; shift 2 ;;
+      --to) [[ $# -ge 2 ]] || usage; TO_STATUS=$2; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  [[ -n "$FROM_STATUS" && -n "$TO_STATUS" ]] || usage
+    has_control_char "$FROM_STATUS" && die "--from contains unsupported control bytes"
+    has_control_char "$TO_STATUS" && die "--to contains unsupported control bytes"
+  check_transition "$FROM_STATUS" "$TO_STATUS"
+  exit 0
+fi
+
+case "$COMMAND" in inspect|list|next-id|validate|canonical-path) ;; *) usage ;; esac
+
+REPO_ARG=.
+DIR_ARG=""
+STATUS_FILTER=""
+SEARCH_FILTER=""
+RELATED_FILTER=""
+LIMIT=50
+TITLE_ARG=""
+PATH_ARG=""
+DIR_SET=0
+STATUS_SET=0
+SEARCH_SET=0
+RELATED_SET=0
+LIMIT_SET=0
+TITLE_SET=0
+PATH_SET=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo) [[ $# -ge 2 ]] || usage; REPO_ARG=$2; shift 2 ;;
+    --dir) [[ $# -ge 2 ]] || usage; DIR_ARG=$2; DIR_SET=1; shift 2 ;;
+    --status) [[ $# -ge 2 ]] || usage; STATUS_FILTER=$2; STATUS_SET=1; shift 2 ;;
+    --search) [[ $# -ge 2 ]] || usage; SEARCH_FILTER=$2; SEARCH_SET=1; shift 2 ;;
+    --related-to) [[ $# -ge 2 ]] || usage; RELATED_FILTER=$2; RELATED_SET=1; shift 2 ;;
+    --limit) [[ $# -ge 2 ]] || usage; LIMIT=$2; LIMIT_SET=1; shift 2 ;;
+    --title) [[ $# -ge 2 ]] || usage; TITLE_ARG=$2; TITLE_SET=1; shift 2 ;;
+    --path) [[ $# -ge 2 ]] || usage; PATH_ARG=$2; PATH_SET=1; shift 2 ;;
+    *) usage ;;
+  esac
+done
+
+case "$COMMAND" in
+  inspect|validate)
+    [[ $STATUS_SET -eq 0 && $SEARCH_SET -eq 0 && $RELATED_SET -eq 0 && $LIMIT_SET -eq 0 && $TITLE_SET -eq 0 && $PATH_SET -eq 0 ]] || usage
+    ;;
+  list)
+    [[ $TITLE_SET -eq 0 && $PATH_SET -eq 0 ]] || usage
+    ;;
+  next-id)
+    [[ $STATUS_SET -eq 0 && $SEARCH_SET -eq 0 && $RELATED_SET -eq 0 && $LIMIT_SET -eq 0 && $PATH_SET -eq 0 ]] || usage
+    ;;
+  canonical-path)
+    [[ $DIR_SET -eq 0 && $STATUS_SET -eq 0 && $SEARCH_SET -eq 0 && $RELATED_SET -eq 0 && $LIMIT_SET -eq 0 && $TITLE_SET -eq 0 && $PATH_SET -eq 1 ]] || usage
+    ;;
+esac
+
+has_control_char "$REPO_ARG" && die "--repo contains unsupported control bytes"
+has_control_char "$DIR_ARG" && die "--dir contains unsupported control bytes"
+has_control_char "$STATUS_FILTER" && die "--status contains unsupported control bytes"
+has_control_char "$SEARCH_FILTER" && die "--search contains unsupported control bytes"
+has_control_char "$RELATED_FILTER" && die "--related-to contains unsupported control bytes"
+has_control_char "$TITLE_ARG" && die "--title contains unsupported control bytes"
+has_control_char "$PATH_ARG" && die "--path contains unsupported control bytes"
+[[ ${#PATH_ARG} -le 1000 ]] || die "--path must be at most 1000 bytes"
+
+ROOT=$(resolve_root "$REPO_ARG")
+if [[ "$COMMAND" == "canonical-path" ]]; then
+  run_canonical_path
+  exit 0
+fi
+select_adr_directory
+DECISION_TMP=$(mktemp -d "${TMPDIR:-/tmp}/darrow-decisions.XXXXXX")
+trap 'rm -rf "$DECISION_TMP"' EXIT
+SEP=$'\034'
+INVENTORY="$DECISION_TMP/inventory"
+ERRORS="$DECISION_TMP/errors"
+
+case "$COMMAND" in
+  inspect) run_inspect ;;
+  list) run_list ;;
+  next-id) run_next_id ;;
+  validate) run_validate ;;
+esac

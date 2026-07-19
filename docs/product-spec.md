@@ -49,9 +49,10 @@ contracts. Exact runtime behavior lives in these normative specifications:
   `implement-change` command, red/green evidence, and delivery side-effect
   boundaries.
 - [Git workflow](specs/git-workflow.md),
-  [ticket management](specs/ticket-management.md), and
-  [information architecture](specs/information-architecture.md) — read for the
-  behavior of the existing capability plugins.
+  [ticket management](specs/ticket-management.md),
+  [information architecture](specs/information-architecture.md), and
+  [decision management](specs/decision-management.md) — read for the behavior of
+  the independently adoptable capability plugins.
 
 Architecture choices with meaningful alternatives are recorded separately:
 
@@ -554,6 +555,13 @@ Manifest versions, contract versions, and content digests must be consistent,
 and breaking contract changes require the appropriate major-version bump. Exact
 CI, publication automation, and marketplace promotion policy are outside this
 product specification.
+
+Skill eval criteria are hidden from the harness under evaluation. The shared
+runner isolates each fixture from the source checkout and sibling fixtures with
+an outer OS boundary that harness flags cannot disable; it refuses execution
+when neither the native boundary nor an explicitly declared equivalent external
+sandbox is available. A disposable Git fixture alone is not an isolation
+boundary.
 
 ## 15. Milestones and exit criteria
 

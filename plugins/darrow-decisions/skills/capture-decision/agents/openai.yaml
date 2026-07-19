@@ -1,0 +1,4 @@
+interface:
+  display_name: "Capture Decision"
+  short_description: "Record a decision at its proper scope"
+  default_prompt: "Use $capture-decision to record this repository decision."

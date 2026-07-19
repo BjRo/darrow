@@ -6,7 +6,7 @@ export async function runChecks(
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   for (const check of checks) {
-    const proc = Bun.spawn(["sh", "-c", check.run], {
+    const proc = Bun.spawn(["sh", "-e", "-c", check.run], {
       cwd: repoDir,
       stdout: "pipe",
       stderr: "pipe",
@@ -22,6 +22,12 @@ export async function runChecks(
     let detail = `exit=${code}`;
 
     const flags = "m" + (check.flags ?? "");
+    if (passed && check.expect_exact !== undefined) {
+      const actual = out.endsWith("\n") ? out.slice(0, -1) : out;
+      passed = actual === check.expect_exact;
+      if (!passed)
+        detail = `expect_exact ${JSON.stringify(check.expect_exact)} missed:\n${JSON.stringify(actual)}`;
+    }
     if (passed && check.expect_regex !== undefined) {
       passed = new RegExp(check.expect_regex, flags).test(out);
       if (!passed)
