@@ -9,6 +9,8 @@ const original = {
   HOME: process.env.HOME,
   CODEX_HOME: process.env.CODEX_HOME,
   CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN,
   UNRELATED_EVAL_SECRET: process.env.UNRELATED_EVAL_SECRET,
 };
 
@@ -62,6 +64,8 @@ describe("isolated harness environment", () => {
     );
     process.env.HOME = source;
     process.env.CLAUDE_CONFIG_DIR = configSource;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
     process.env.UNRELATED_EVAL_SECRET = "must-not-inherit";
 
     const env = await isolatedHarnessEnvironment("claude", repo);
@@ -77,5 +81,24 @@ describe("isolated harness environment", () => {
     expect(await Bun.file(join(claudeConfigDir, "CLAUDE.md")).exists()).toBe(
       false,
     );
+  });
+
+  test("forwards Claude OAuth without copying stale credentials", async () => {
+    const source = await mkdtemp(join(tmpdir(), "darrow-claude-source-"));
+    const repo = await mkdtemp(join(tmpdir(), "darrow-claude-fixture-"));
+    cleanup.push(source, repo);
+    await mkdir(join(repo, ".git"));
+    await writeFile(join(source, ".credentials.json"), '{"oauth":"stale"}');
+    process.env.CLAUDE_CONFIG_DIR = source;
+    delete process.env.ANTHROPIC_API_KEY;
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "test-oauth-token";
+
+    const env = await isolatedHarnessEnvironment("claude", repo);
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("test-oauth-token");
+    expect(
+      await Bun.file(
+        join(env.CLAUDE_CONFIG_DIR!, ".credentials.json"),
+      ).exists(),
+    ).toBe(false);
   });
 });

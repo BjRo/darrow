@@ -10,6 +10,7 @@ const ALLOWED_ENVIRONMENT = [
   "TERM",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
   "SSL_CERT_FILE",
   "SSL_CERT_DIR",
   "HTTP_PROXY",
@@ -18,6 +19,10 @@ const ALLOWED_ENVIRONMENT = [
 ];
 
 async function copyClaudeCredentials(configRoot: string): Promise<void> {
+  if (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    return;
+  }
+
   const source = resolve(
     process.env.CLAUDE_CONFIG_DIR ?? resolve(process.env.HOME ?? "", ".claude"),
     ".credentials.json",
@@ -27,7 +32,7 @@ async function copyClaudeCredentials(configRoot: string): Promise<void> {
     await cp(source, target);
     return;
   }
-  if (process.env.ANTHROPIC_API_KEY || process.platform !== "darwin") return;
+  if (process.platform !== "darwin") return;
 
   const account = process.env.USER ?? process.env.LOGNAME;
   const argv = [
