@@ -10,7 +10,6 @@
   "files": [
     "src",
     "schemas",
-    "fixtures",
     "workflows",
     "profiles",
     "temporal.json"

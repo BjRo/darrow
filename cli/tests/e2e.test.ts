@@ -65,6 +65,24 @@ async function waitForText(path: string): Promise<string> {
   return "";
 }
 
+async function deliveryTddPluginFixture(root: string): Promise<string> {
+  const pluginRoot = resolve(root, "test-plugins");
+  await cp(resolve(CLI_ROOT, "..", "plugins"), pluginRoot, {
+    recursive: true,
+  });
+  const implement = resolve(
+    pluginRoot,
+    "darrow-delivery",
+    "skills",
+    "implement",
+  );
+  await rm(implement, { recursive: true, force: true });
+  await cp(resolve(CLI_ROOT, "fixtures", "delivery-tdd"), implement, {
+    recursive: true,
+  });
+  return pluginRoot;
+}
+
 const temporal = process.env.DARROW_E2E_TEMPORAL_BIN;
 
 test.skipIf(!temporal)(
@@ -148,9 +166,10 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
       { mode: 0o755 },
     );
     const cli = resolve(CLI_ROOT, "src", "index.ts");
+    const pluginRoot = await deliveryTddPluginFixture(root);
     const env = {
       DARROW_TEMPORAL_BIN: temporal!,
-      DARROW_PLUGIN_ROOTS: resolve(CLI_ROOT, "..", "plugins"),
+      DARROW_PLUGIN_ROOTS: pluginRoot,
       CODEX_HOME: resolve(root, "codex-home"),
       PATH: `${bin}:${process.env.PATH}`,
     };
@@ -1175,9 +1194,10 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_i
       { mode: 0o755 },
     );
     const cli = resolve(CLI_ROOT, "src", "index.ts");
+    const pluginRoot = await deliveryTddPluginFixture(root);
     const env = {
       DARROW_TEMPORAL_BIN: temporal!,
-      DARROW_PLUGIN_ROOTS: resolve(CLI_ROOT, "..", "plugins"),
+      DARROW_PLUGIN_ROOTS: pluginRoot,
       CODEX_HOME: resolve(root, "codex-home"),
       CLAUDE_CONFIG_DIR: resolve(root, "claude-home"),
       PATH: `${bin}:${process.env.PATH}`,

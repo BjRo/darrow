@@ -47,14 +47,7 @@ describe("Codex command adapter", () => {
     git(root, ["init", "-q"]);
     const evidence = resolve(root, "evidence");
     await mkdir(evidence);
-    const commandDir = resolve(
-      CLI_ROOT,
-      "..",
-      "plugins",
-      "darrow-delivery",
-      "skills",
-      "implement",
-    );
+    const commandDir = resolve(CLI_ROOT, "fixtures", "delivery-tdd");
     const broker = await startEvidenceBroker(
       commandDir,
       evidence,
@@ -115,14 +108,7 @@ describe("Codex command adapter", () => {
     git(root, ["init", "-q"]);
     const evidence = resolve(root, "evidence");
     await mkdir(evidence);
-    const commandDir = resolve(
-      CLI_ROOT,
-      "..",
-      "plugins",
-      "darrow-delivery",
-      "skills",
-      "implement",
-    );
+    const commandDir = resolve(CLI_ROOT, "fixtures", "delivery-tdd");
     const broker = await startEvidenceBroker(
       commandDir,
       evidence,
@@ -221,14 +207,7 @@ describe("Codex command adapter", () => {
       recursive: true,
     });
     await cp(
-      resolve(
-        CLI_ROOT,
-        "..",
-        "plugins",
-        "darrow-delivery",
-        "skills",
-        "implement",
-      ),
+      resolve(CLI_ROOT, "fixtures", "delivery-tdd"),
       resolve(snapshotDir, "commands", "codex", "darrow-delivery", "implement"),
       { recursive: true },
     );

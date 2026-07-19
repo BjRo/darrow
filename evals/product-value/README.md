@@ -61,11 +61,11 @@ bun evals/product-value/cli.ts diagnose-policy --phase smoke \
 
 This runs fresh `native` and `plugins` controls plus the evaluator-only
 `native-matched-policy` and `plugins-matched-policy` cells. Both auxiliary cells
-receive the same evaluator-owned ordered
-red/green/regression instructions, evidence helper, and output schema. They
-never enter the three-treatment schedule or product analysis. Use the matched
-direct pairs to estimate delivery-policy cost. Compare a matched-policy result
-with the excluded CLI smoke only when both cells complete successfully.
+receive the same evaluator-owned behavioral TDD instructions, with no helper or
+output protocol. They never enter the three-treatment schedule or product
+analysis. Use the matched direct pairs to estimate instruction-policy cost.
+Compare a matched-policy result with the excluded CLI smoke only when both cells
+complete successfully.
 
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml

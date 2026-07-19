@@ -164,13 +164,10 @@ prompt=$(cat)
 skill=$(sed -n 's/^Read and follow \\(.*\\/SKILL.md\\) exactly\\.$/\\1/p' <<<"$prompt")
 evidence=$(sed -n 's/^Evidence directory: //p' <<<"$prompt")
 git switch -q -c feat/claude-change
-focused='grep -F new behavior.txt || { echo expected-new; exit 1; }'
-bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" red --expected expected-new -- sh -c "$focused"
 printf 'new\\n' > behavior.txt
-bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" green -- sh -c "$focused"
-bash "$(dirname "$skill")/scripts/evidence.sh" run "$evidence" regression -- git diff --check
+git diff --check
 printf '%s\\n' '{"type":"system","session_id":"claude-session-1"}'
-printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"claude-session-1","usage":{"input_tokens":12,"output_tokens":7},"permission_denials":[],"structured_output":{"branch":"feat/claude-change","summary":"Implemented with Claude Code","changedPaths":["behavior.txt"],"evidence":{"red":{},"green":{},"regression":{}}}}'
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"claude-session-1","usage":{"input_tokens":12,"output_tokens":7},"permission_denials":[],"structured_output":{"branch":"feat/claude-change","summary":"Implemented with Claude Code","changedPaths":["behavior.txt"]}}'
 `);
     const previousPath = process.env.PATH;
     process.env.PATH = `${bin}:${previousPath}`;

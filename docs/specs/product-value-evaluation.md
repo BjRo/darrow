@@ -86,10 +86,13 @@ and M3 investment. The preregistration and executable configuration live under
   JSON Lines observations, sanitization manifests, harness output, patches, and
   Darrow run references. Before a disposable CLI workspace is removed, the
   evaluator also writes a compact trace summary containing runtime/model spans,
-  model event counts, token accounting, TDD phase timestamps and inter-phase
-  latency, plus command counts grouped into fixed non-content categories and
-  nonzero status counts. It retains no tool commands, model text, paths, or tool
-  output. It does not require or introduce full OpenTelemetry.
+  model event counts, token accounting, plus command counts grouped into fixed
+  non-content categories and nonzero status counts. Trace schema `1.2.0` retains
+  TDD phase timestamps and inter-phase latency only for legacy treatments that
+  emit them; portable instruction-only treatments leave `phases` empty and
+  `timeline` null rather than fabricating phase attribution. It retains no tool
+  commands, model text, paths, or tool output. It does not require or introduce
+  full OpenTelemetry.
 
 ## Decision
 
@@ -118,9 +121,8 @@ and M3 investment. The preregistration and executable configuration live under
   evaluator may run one Codex-only auxiliary pair on the smoke task:
   `native-matched-policy` and `plugins-matched-policy`. These are evaluator-only
   diagnostic labels, not product treatments. Both receive an identical
-  evaluator-owned
-  red/green/regression prompt, evidence helper, and output schema; fresh Codex
-  `native` and `plugins` controls run beside them. The auxiliary cells remain
+  evaluator-owned behavioral TDD prompt without helper scripts or an output
+  protocol; fresh Codex `native` and `plugins` controls run beside them. The auxiliary cells remain
   outside the three-treatment schedule and all product inference. Their purpose
   is to estimate policy cost (each matched-policy cell minus its plain
   counterpart) and describe the remaining CLI bundle before spending on the

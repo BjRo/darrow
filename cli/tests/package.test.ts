@@ -40,4 +40,5 @@ test("packed CLI contains both executables and every runtime input", async () =>
     "package/temporal.json",
   ])
     expect(files).toContain(required);
+  expect(files).not.toContain("delivery-tdd");
 });

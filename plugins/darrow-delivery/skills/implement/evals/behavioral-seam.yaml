@@ -1,0 +1,23 @@
+id: implement-behavioral-seam
+invariant: DL-3
+prompt: "Use the darrow-delivery:implement command to make greeting('Ada') return 'Hello, Ada!'. The likely fix is the private prefix() helper; add a focused regression test."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        greeting.ts: "function prefix() { return 'Hi'; }\nexport function greeting(name: string) { return `${prefix()} ${name}`; }\n"
+        greeting.test.ts: "import { appendFileSync } from 'node:fs';\nimport { greeting } from './greeting';\nconst actual = greeting('Ada');\nappendFileSync('.test-runs', `${actual}\\n`);\nif (actual !== 'Hi Ada') throw new Error('expected Hi Ada');\n"
+checks:
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_regex: "^1$"
+  - name: requested behavior works
+    run: 'bun -e "import { greeting } from ''./greeting.ts''; if (greeting(''Ada'') !== ''Hello, Ada!'') process.exit(1)"'
+  - name: private helper remains private
+    run: "! grep -E '^export[[:space:]]+function[[:space:]]+prefix[[:space:]]*\\(' greeting.ts && ! grep -E '^export[[:space:]]*\\{[^}]*prefix' greeting.ts"
+  - name: expectation is independent
+    run: "git grep -F 'Hello, Ada!' -- '*test*'"
+  - name: focused test observed red and green
+    run: "grep -Fx 'Hi Ada' .test-runs && grep -Fx 'Hello, Ada!' .test-runs"
+  - name: focused test rejects regressed behavior
+    run: 'tmp=$(mktemp); cp greeting.ts "$tmp"; trap ''cp "$tmp" greeting.ts; rm -f "$tmp"'' EXIT; printf "export function greeting(_name: string) { return ''Hi Ada''; }\n" > greeting.ts; ! bun greeting.test.ts'

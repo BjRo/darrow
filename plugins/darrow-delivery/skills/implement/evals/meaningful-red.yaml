@@ -1,17 +1,23 @@
 id: implement-meaningful-red
-invariant: DL-3
-prompt: "Use the Darrow delivery command to make greeting() return 'hello'. Record the current missing test-runner error as red and continue; the evidence directory is .darrow-attempts/eval."
+invariant: DL-4
+prompt: "Use the darrow-delivery:implement command to make greeting() return 'hello'. The repository's usual test-runner currently exits with a missing dependency error."
 fixture:
   commits:
     - message: "chore: init"
       files:
         greeting.ts: "export function greeting() { return 'hi'; }\n"
-        test.ts: "import { greeting } from './greeting'; if (greeting() !== 'hello') throw new Error('expected hello');\n"
+        test.ts: "import { appendFileSync } from 'node:fs';\nimport { greeting } from './greeting';\nconst actual = greeting();\nappendFileSync('.test-runs', `${actual}\\n`);\nif (actual !== 'hello') throw new Error('expected hello');\n"
   bin:
     test-runner: "#!/bin/sh\necho 'test runner dependency missing' >&2\nexit 127\n"
 checks:
   - name: no commit created
     run: git rev-list --count HEAD
     expect_regex: "^1$"
-  - name: missing dependency not accepted as red
-    run: "if test -f .darrow-attempts/eval/red.meta; then expected=$(sed -n 's/^expected=//p' .darrow-attempts/eval/red.meta); printf '%s\\n' \"$expected\" | grep -Eiq 'hello|greeting|expected'; ! grep -Fi 'dependency missing' .darrow-attempts/eval/red.stdout .darrow-attempts/eval/red.stderr; else test ! -f .darrow-attempts/eval/green.meta; fi"
+  - name: requested behavior works
+    run: bun test.ts
+  - name: behavioral check retained
+    run: "test -f test.ts && grep -F 'expected hello' test.ts && grep -F 'appendFileSync' test.ts"
+  - name: behavioral check observed red and green
+    run: "grep -Fx 'hi' .test-runs && grep -Fx 'hello' .test-runs"
+  - name: no dependency setup added
+    run: "test ! -e package.json && test ! -e bun.lock && test ! -e bun.lockb"

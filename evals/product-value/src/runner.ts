@@ -19,12 +19,7 @@ import {
 } from "./workspace";
 import { invoke } from "./harness";
 import { REPO_ROOT, SUITE_ROOT } from "./config";
-import {
-  installMatchedPolicy,
-  matchedPolicyPrompt,
-  usesMatchedPolicy,
-  validateMatchedPolicyEvidence,
-} from "./policy";
+import { matchedPolicyPrompt, usesMatchedPolicy } from "./policy";
 import { createExecutionTrace, traceTokenUsage } from "./trace";
 
 async function digestDirectory(path: string): Promise<string> {
@@ -146,10 +141,6 @@ export async function runAssignment(
   let operationalFailure: string | null = null;
   let preparationTimeMs = 0;
   let tracePath: string | null = null;
-  let evidenceDirectory: string | undefined;
-  let matchedPolicy: Awaited<ReturnType<typeof installMatchedPolicy>> | null =
-    null;
-  let matchedPolicyFailure: string | null = null;
   try {
     const preparationStarted = performance.now();
     workspace = await prepareWorkspace(source, repository, task);
@@ -164,14 +155,8 @@ export async function runAssignment(
     )
       await mountPlugins(workspace.repo, pluginRoot, assignment.harness);
     let invocationPrompt = task.prompt;
-    let outputSchema: string | undefined;
-    if (usesMatchedPolicy(assignment.treatment)) {
-      const policy = await installMatchedPolicy(workspace.repo, pluginRoot);
-      matchedPolicy = policy;
-      invocationPrompt = matchedPolicyPrompt(task.prompt, policy);
-      evidenceDirectory = policy.evidenceDirectory;
-      outputSchema = policy.outputSchema;
-    }
+    if (usesMatchedPolicy(assignment.treatment))
+      invocationPrompt = matchedPolicyPrompt(task.prompt);
     invocation = await invoke(
       protocol,
       assignment.phase,
@@ -184,22 +169,14 @@ export async function runAssignment(
       bunExecutable,
       darrowExecutable,
       [source, SUITE_ROOT],
-      outputSchema,
+      undefined,
     );
-    if (matchedPolicy) {
-      if (
-        !(await validateMatchedPolicyEvidence(workspace.repo, matchedPolicy))
-      ) {
-        invocation.ok = false;
-        matchedPolicyFailure = "matched_policy_evidence_invalid";
-      }
-    }
     await writeFile(join(runRoot, "harness.log"), invocation.raw);
     const persistedTrace = await persistTrace(
       runRoot,
       assignment,
       invocation,
-      evidenceDirectory,
+      undefined,
     );
     tracePath = persistedTrace?.path ?? null;
     invocation.inputTokens ??= persistedTrace?.inputTokens ?? null;
@@ -225,13 +202,11 @@ export async function runAssignment(
       join(runRoot, "verification.log"),
     );
     if (!invocation.ok)
-      operationalFailure = matchedPolicyFailure
-        ? matchedPolicyFailure
-        : invocation.timedOut
-          ? "timeout"
-          : invocation.waiting
-            ? "waiting_for_input"
-            : "harness_or_runtime_failure";
+      operationalFailure = invocation.timedOut
+        ? "timeout"
+        : invocation.waiting
+          ? "waiting_for_input"
+          : "harness_or_runtime_failure";
   } catch (error) {
     if (!workspace) preparationTimeMs = performance.now() - wallStarted;
     const message = error instanceof Error ? error.message : String(error);
@@ -256,7 +231,7 @@ export async function runAssignment(
       runRoot,
       assignment,
       invocation,
-      evidenceDirectory,
+      undefined,
     );
     tracePath = persistedTrace?.path ?? null;
     invocation.inputTokens ??= persistedTrace?.inputTokens ?? null;

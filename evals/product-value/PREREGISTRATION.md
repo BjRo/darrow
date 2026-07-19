@@ -64,9 +64,9 @@ After the excluded Codex smoke showed a large process mismatch, an auxiliary
 matched-policy diagnostic was added before authenticated Claude or pilot work.
 It runs the smoke task once in two Codex-only cells: `native-matched-policy` and
 `plugins-matched-policy`. These evaluator-only diagnostic labels are not Darrow
-treatments. Both direct cells receive the same evaluator-owned ordered
-red/green/regression instructions, evidence helper, and structured output
-schema, with fresh `native` and `plugins` controls on the same Codex version.
+treatments. Both direct cells receive the same evaluator-owned behavioral TDD
+instructions without a helper script or structured output protocol, with fresh
+`native` and `plugins` controls on the same Codex version.
 The auxiliary cells are absent from the frozen three-treatment schedule and
 excluded from every product estimate. The diagnostic attributes
 each matched-policy cell minus its plain counterpart to policy. A successful
@@ -146,10 +146,13 @@ as timeout, runtime mismatch, missing dependency, test failure, or other command
 failure.
 The evaluator additionally retains a compact sanitized execution trace before
 destroying a successful CLI workspace. It records model/runtime durations,
-event counts, token accounting, evidence-phase timestamps and latency, and
-command/nonzero counts grouped into fixed non-content categories, but no model
-messages, commands, paths, or tool output. Participant patches exclude Darrow
-control state and evidence directories.
+event counts, token accounting, and command/nonzero counts grouped into fixed
+non-content categories, but no model messages, commands, paths, or tool output.
+Trace schema `1.2.0` retains phase timestamps for legacy instrumented cells;
+portable instruction-only cells record empty phases and a null timeline. This
+explicit amendment removes obsolete evidence-protocol attribution without
+changing outcomes, scheduling, or the decision rule. Participant patches
+exclude Darrow control state and evidence directories.
 
 ## Exclusions, missingness, and stopping
 

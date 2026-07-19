@@ -365,7 +365,7 @@ export async function createExecutionTrace(
     ).flat(),
   ) as Record<string, PhaseTrace>;
   return {
-    schemaVersion: "1.1.0",
+    schemaVersion: "1.2.0",
     treatment,
     treatmentSetupDurationMs: invocation.setupDurationMs,
     harnessDurationMs: invocation.durationMs,

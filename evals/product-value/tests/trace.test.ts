@@ -31,6 +31,27 @@ function invocation(raw: string): InvocationResult {
 }
 
 describe("compact execution traces", () => {
+  test("leaves TDD phases empty for portable instruction-only treatments", async () => {
+    const trace = await createExecutionTrace(
+      invocation(
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: "bun test focused.test.ts",
+            exit_code: 0,
+            aggregated_output: "passed",
+          },
+        }),
+      ),
+      "native",
+    );
+    expect(trace.schemaVersion).toBe("1.2.0");
+    expect(trace.phases).toEqual({});
+    expect(trace.timeline).toBeNull();
+    expect((trace.model as any).commands.categories.test.total).toBe(1);
+  });
+
   test("summarizes direct model events and matched evidence without content", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-trace-test-"));
     roots.push(root);
