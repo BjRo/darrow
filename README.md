@@ -191,6 +191,22 @@ duplicates, and root context size. See the
 [plugin README](plugins/darrow-information-architecture/README.md) for the
 design model and boundaries.
 
+### [`darrow-decisions`](plugins/darrow-decisions)
+
+Captures and queries durable decisions at the canonical scope their consumers
+must follow, without creating a competing decision store.
+
+- **`capture-decision`** records one explicit choice in its authoritative ADR,
+  specification, policy, work item, or Darrow run owner and refuses duplicate
+  repository substitutes.
+- **`list-decisions`** answers read-only decision queries across ADRs,
+  specifications, policies, work items, reviews, and run state, reporting
+  canonical owners and incomplete inventories honestly.
+
+Its portable `decision` facade inventories and validates ADR lifecycle,
+numbering, structure, and supersession relationships while the skills retain
+authority, scope, and routing judgment.
+
 ### [`darrow-delivery`](plugins/darrow-delivery)
 
 Provides the M1 `darrow-delivery:implement` command. It creates one local
