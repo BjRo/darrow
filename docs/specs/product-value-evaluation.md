@@ -14,12 +14,18 @@ and M3 investment. The preregistration and executable configuration live under
   with the same Darrow plugins mounted directly, and (c) those plugins invoked
   through the Darrow CLI. Native versus direct estimates plugin value; direct
   versus CLI estimates incremental orchestration value.
-- **PV-3 — Common harness routes.** Within one harness block, model, effort,
-  executable, permission policy, environment allowlist, requested change, and
-  minimal Red/Green delivery policy are fixed across treatments. Direct native
-  and plugin cells receive the policy in their task prompt; the CLI cell
-  receives the identical policy once through the invoked implementation skill.
-  Harness state and workspaces are isolated per run.
+- **PV-3 — Common harness routes and outcome.** Within one harness block, model,
+  effort, executable, permission policy, environment allowlist, requested
+  change, and minimal Red/Green implementation policy are fixed across
+  treatments. Direct native and plugin cells receive the policy in their task
+  prompt; the CLI implementation step receives the identical policy once
+  through the invoked implementation skill. Harness state and workspaces are
+  isolated per run. The CLI treatment then invokes the same locked harness route
+  in a fresh session to review material risks, repair findings, and verify the
+  resulting change. Direct treatments may review within their native agent loop
+  but do not receive an evaluator-mandated second invocation. That enforced
+  fresh-context pass is the intended orchestration difference; the top-level
+  requested outcome does not change between treatments.
   The evaluator applies one treatment-independent native launcher policy,
   including the same available-tool set, to direct and CLI invocations.
   Repository setup completes before measured agent execution, and every
@@ -95,12 +101,14 @@ and M3 investment. The preregistration and executable configuration live under
   Darrow run references. Before a disposable CLI workspace is removed, the
   evaluator also writes a compact trace summary containing runtime/model spans,
   model event counts, token accounting, plus command counts grouped into fixed
-  non-content categories and nonzero status counts. Trace schema `1.2.0` retains
-  TDD phase timestamps and inter-phase latency only for legacy treatments that
-  emit them; portable instruction-only treatments leave `phases` empty and
-  `timeline` null rather than fabricating phase attribution. It retains no tool
-  commands, model text, paths, or tool output. It does not require or introduce
-  full OpenTelemetry.
+  non-content categories and nonzero status counts. Trace schema `1.3.0`
+  preserves a bounded entry for every model invocation and aggregates sanitized
+  duration, usage, cost, event, and command counts across multi-step workflows.
+  TDD phase timestamps and inter-phase latency remain tied to the implementation
+  step only for legacy treatments that emit them; portable instruction-only
+  treatments leave `phases` empty and `timeline` null rather than fabricating
+  phase attribution. It retains no tool commands, model text, paths, or tool
+  output. It does not require or introduce full OpenTelemetry.
 
 ## Decision
 

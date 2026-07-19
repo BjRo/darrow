@@ -50,7 +50,7 @@ describe("compact execution traces", () => {
       ),
       "native",
     );
-    expect(trace.schemaVersion).toBe("1.2.0");
+    expect(trace.schemaVersion).toBe("1.3.0");
     expect(trace.phases).toEqual({});
     expect(trace.timeline).toBeNull();
     expect((trace.model as any).commands.categories.test.total).toBe(1);
@@ -242,6 +242,103 @@ describe("compact execution traces", () => {
     expect(trace.transcriptAvailableForSummary).toBe(true);
     expect((trace.model as any).itemTypes.file_change).toBe(1);
     expect(JSON.stringify(trace)).not.toContain("sensitive.ts");
+  });
+
+  test("aggregates every command invocation in a multi-step CLI run", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-trace-test-"));
+    roots.push(root);
+    const implementTranscript = join(root, "implement.jsonl");
+    const verifyTranscript = join(root, "verify.jsonl");
+    await writeFile(
+      implementTranscript,
+      [
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: "git diff --check",
+            exit_code: 0,
+          },
+        }),
+        JSON.stringify({
+          type: "turn.completed",
+          usage: { input_tokens: 100, output_tokens: 10 },
+          total_cost_usd: 0.1,
+        }),
+      ].join("\n"),
+    );
+    await writeFile(
+      verifyTranscript,
+      [
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: "bun test",
+            exit_code: 0,
+          },
+        }),
+        JSON.stringify({
+          type: "turn.completed",
+          usage: { input_tokens: 200, output_tokens: 20 },
+          total_cost_usd: 0.2,
+        }),
+      ].join("\n"),
+    );
+    const raw = JSON.stringify({
+      ok: true,
+      data: {
+        results: [
+          {
+            invocationId: "invocation-implement",
+            commandId: "darrow-delivery:implement",
+            transcript: implementTranscript,
+            timing: {
+              startedAt: "2026-01-01T00:00:00Z",
+              finishedAt: "2026-01-01T00:00:10Z",
+            },
+          },
+          {
+            invocationId: "invocation-verify",
+            commandId: "darrow-delivery:verify-and-repair",
+            transcript: verifyTranscript,
+            timing: {
+              startedAt: "2026-01-01T00:00:10Z",
+              finishedAt: "2026-01-01T00:00:18Z",
+            },
+          },
+        ],
+      },
+    });
+    const trace = await createExecutionTrace(
+      { ...invocation(raw), durationMs: 20_000 },
+      "cli",
+    );
+    expect(trace.modelInvocationCount).toBe(2);
+    expect(trace.modelInvocations).toEqual([
+      {
+        invocationId: "invocation-implement",
+        commandId: "darrow-delivery:implement",
+        durationMs: 10_000,
+        transcriptAvailable: true,
+      },
+      {
+        invocationId: "invocation-verify",
+        commandId: "darrow-delivery:verify-and-repair",
+        durationMs: 8_000,
+        transcriptAvailable: true,
+      },
+    ]);
+    expect(trace.modelInvocationDurationMs).toBe(18_000);
+    expect(trace.runtimeWrapperDurationMs).toBe(2_000);
+    expect((trace.model as any).commands.total).toBe(2);
+    expect((trace.model as any).commands.categories.git.total).toBe(1);
+    expect((trace.model as any).commands.categories.test.total).toBe(1);
+    expect(traceTokenUsage(trace)).toEqual({
+      inputTokens: 300,
+      outputTokens: 30,
+    });
+    expect(traceCostUsd(trace)).toBeCloseTo(0.3);
   });
 
   test("recovers partial CLI evidence timing after an evidence failure", async () => {

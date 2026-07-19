@@ -22,12 +22,16 @@ import { REPO_ROOT, SUITE_ROOT } from "./config";
 import { sharedTddPrompt, usesSharedTddPolicy } from "./policy";
 import { createExecutionTrace, traceCostUsd, traceTokenUsage } from "./trace";
 
-async function digestDirectory(path: string): Promise<string> {
+async function digestDirectory(
+  path: string,
+  ignore: (relativePath: string) => boolean = (relativePath) =>
+    relativePath.includes("/evals/"),
+): Promise<string> {
   const hasher = new Bun.CryptoHasher("sha256");
   const glob = new Bun.Glob("**/*");
   const files: string[] = [];
   for await (const rel of glob.scan(path)) {
-    if (rel.includes("/evals/")) continue;
+    if (ignore(rel)) continue;
     if ((await lstat(resolve(path, rel))).isFile()) files.push(rel);
   }
   files.sort();
@@ -38,6 +42,10 @@ async function digestDirectory(path: string): Promise<string> {
     hasher.update("\0");
   }
   return `sha256:${hasher.digest("hex")}`;
+}
+
+async function digestFile(path: string): Promise<string> {
+  return `sha256:${new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex")}`;
 }
 
 function digestJson(value: unknown): string {
@@ -63,6 +71,48 @@ function runKey(assignment: Assignment): string {
     assignment.treatment,
     `r${assignment.repeat}`,
   ].join("-");
+}
+
+interface ObservationIdentity {
+  assignment: Assignment;
+  runnerRevision: string;
+  pluginDigest: string;
+  configurationDigest: string;
+  harnessVersion: string;
+  sourceRevision: string;
+  model: string;
+  effort: string;
+  permissionMode: string;
+}
+
+export function assertObservationIdentity(
+  existing: ObservationIdentity,
+  expected: ObservationIdentity,
+  observationPath: string,
+): void {
+  const mismatches = [
+    [
+      "assignment",
+      digestJson(existing.assignment),
+      digestJson(expected.assignment),
+    ],
+    ["runnerRevision", existing.runnerRevision, expected.runnerRevision],
+    ["pluginDigest", existing.pluginDigest, expected.pluginDigest],
+    [
+      "configurationDigest",
+      existing.configurationDigest,
+      expected.configurationDigest,
+    ],
+    ["harnessVersion", existing.harnessVersion, expected.harnessVersion],
+    ["sourceRevision", existing.sourceRevision, expected.sourceRevision],
+    ["model", existing.model, expected.model],
+    ["effort", existing.effort, expected.effort],
+    ["permissionMode", existing.permissionMode, expected.permissionMode],
+  ].filter(([, actual, wanted]) => actual !== wanted);
+  if (mismatches.length)
+    throw new Error(
+      `existing observation does not match the current evaluation identity (${mismatches.map(([field]) => field).join(", ")}): ${observationPath}; use a fresh --results root`,
+    );
 }
 
 async function persistTrace(
@@ -110,11 +160,6 @@ export async function runAssignment(
   const runId = runKey(assignment);
   const runRoot = resolve(resultsRoot, "runs", runId);
   const observationPath = join(runRoot, "observation.json");
-  if (await Bun.file(observationPath).exists())
-    return JSON.parse(await readFile(observationPath, "utf8"));
-  await mkdir(runRoot, { recursive: true });
-  const startedAt = new Date().toISOString();
-  const wallStarted = performance.now();
   const pluginRoot = resolve(REPO_ROOT, protocol.paths.pluginRoot);
   const darrowExecutable = resolve(REPO_ROOT, protocol.paths.darrowExecutable);
   const bunExecutable = protocol.paths.bunExecutable;
@@ -133,7 +178,58 @@ export async function runAssignment(
       `${assignment.harness} version drift: expected ${route.version}, found ${currentHarnessVersion}`,
     );
   const runnerRevision = await checked(["git", "rev-parse", "HEAD"], REPO_ROOT);
-  const pluginDigest = await digestDirectory(pluginRoot);
+  const [pluginDigest, runtimeDigest, evaluatorSourceDigest] =
+    await Promise.all([
+      digestDirectory(pluginRoot),
+      digestDirectory(
+        resolve(REPO_ROOT, "cli"),
+        (relativePath) =>
+          relativePath.startsWith("tests/") ||
+          relativePath.startsWith("fixtures/"),
+      ),
+      digestDirectory(resolve(SUITE_ROOT, "src"), () => false),
+    ]);
+  const [evaluatorCliDigest, protocolDigest, corpusDigest] = await Promise.all([
+    digestFile(resolve(SUITE_ROOT, "cli.ts")),
+    digestFile(resolve(SUITE_ROOT, "protocol.yaml")),
+    digestFile(resolve(SUITE_ROOT, "corpus.yaml")),
+  ]);
+  const configurationDigest = digestJson({
+    route,
+    treatment: assignment.treatment,
+    paths: protocol.paths,
+    isolation: "sandbox-exec:hidden-source-and-evaluator",
+    workspaceMode: "prepared-current",
+    runtimeDigest,
+    evaluatorSourceDigest,
+    evaluatorCliDigest,
+    protocolDigest,
+    corpusDigest,
+  });
+  if (await Bun.file(observationPath).exists()) {
+    const existing = JSON.parse(
+      await readFile(observationPath, "utf8"),
+    ) as Observation;
+    assertObservationIdentity(
+      existing,
+      {
+        assignment,
+        runnerRevision,
+        pluginDigest,
+        configurationDigest,
+        harnessVersion: currentHarnessVersion,
+        sourceRevision: repository.pinnedRevision,
+        model: route.model,
+        effort: route.effort,
+        permissionMode: route.permissionMode,
+      },
+      observationPath,
+    );
+    return existing;
+  }
+  await mkdir(runRoot, { recursive: true });
+  const startedAt = new Date().toISOString();
+  const wallStarted = performance.now();
   let workspace;
   let invocation;
   let verification = null;
@@ -267,13 +363,7 @@ export async function runAssignment(
     sourceRevision: repository.pinnedRevision,
     runnerRevision,
     pluginDigest,
-    configurationDigest: digestJson({
-      route,
-      treatment: assignment.treatment,
-      paths: protocol.paths,
-      isolation: "sandbox-exec:hidden-source-and-evaluator",
-      workspaceMode: "prepared-current",
-    }),
+    configurationDigest,
     sanitizationDigest: workspace?.sanitization.treeDigest ?? "unavailable",
     inputTokens: invocation!.inputTokens,
     outputTokens: invocation!.outputTokens,

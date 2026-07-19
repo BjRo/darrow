@@ -28,7 +28,7 @@
     {
       "name": "darrow-delivery",
       "source": "./plugins/darrow-delivery",
-      "description": "Darrow-managed red/green implementation commands"
+      "description": "Darrow-managed implementation and fresh-context verification commands"
     }
   ]
 }

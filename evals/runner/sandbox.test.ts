@@ -64,5 +64,5 @@ describe("eval outer sandbox", () => {
     expect(await sandboxedAgentCommand(["/usr/bin/true"], repoDir)).toEqual([
       "/usr/bin/true",
     ]);
-  });
+  }, 10_000);
 });

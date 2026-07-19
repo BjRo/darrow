@@ -1,5 +1,5 @@
 {
   "name": "darrow-delivery",
-  "description": "Darrow-managed red/green implementation commands",
-  "version": "0.1.1"
+  "description": "Darrow-managed implementation and fresh-context verification commands",
+  "version": "0.2.0"
 }

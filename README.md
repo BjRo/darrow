@@ -209,11 +209,12 @@ authority, scope, and routing judgment.
 
 ### [`darrow-delivery`](plugins/darrow-delivery)
 
-Provides the M1 `darrow-delivery:implement` command. It creates one local
-branch through intent routing, requires meaningful red evidence, proves the
-same focused test green, runs the relevant regression suite, and checkpoints
-ordered immutable evidence. It never commits, pushes, opens a pull request,
-updates a ticket, or installs dependencies.
+Provides the `darrow-delivery:implement` and
+`darrow-delivery:verify-and-repair` commands. The bundled workflow creates one
+local branch through intent routing, implements the requested behavior with
+Red/Green TDD, then starts a fresh agent context to review material risks,
+repair issues, and independently verify the result. It never commits, pushes,
+opens a pull request, updates a ticket, or installs dependencies.
 
 ## Package model
 

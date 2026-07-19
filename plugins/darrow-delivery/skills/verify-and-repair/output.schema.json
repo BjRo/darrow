@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://darrow.dev/contracts/darrow-delivery/verify-and-repair/output/0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verified",
+    "summary",
+    "findings",
+    "changedPaths",
+    "verification"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": ["verified"],
+        "properties": { "verified": { "const": true } }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "resolution": { "const": "fixed" } }
+            }
+          },
+          "verification": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "exitStatus": { "const": 0 } }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "verified": { "type": "boolean" },
+    "summary": { "type": "string", "minLength": 1 },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "issue", "resolution", "paths"],
+        "properties": {
+          "severity": { "enum": ["critical", "high", "medium"] },
+          "issue": { "type": "string", "minLength": 1 },
+          "resolution": { "enum": ["fixed", "unresolved"] },
+          "paths": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "changedPaths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "verification": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exitStatus", "purpose"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "exitStatus": { "type": "integer", "minimum": 0 },
+          "purpose": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

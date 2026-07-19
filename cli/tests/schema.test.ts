@@ -3,7 +3,7 @@ import { parse } from "yaml";
 import { resolve } from "node:path";
 import { readJson } from "../src/io";
 import { CLI_ROOT } from "../src/paths";
-import { validateSchema } from "../src/schema";
+import { validateExternalSchema, validateSchema } from "../src/schema";
 
 const fixtures: Array<[string, string]> = [
   ["engine.json", "engine.schema.json"],
@@ -19,6 +19,73 @@ const fixtures: Array<[string, string]> = [
 ];
 
 describe("0.1.0 contract fixtures", () => {
+  test("verification verdict cannot contradict its findings or checks", async () => {
+    const schema = resolve(
+      CLI_ROOT,
+      "..",
+      "plugins",
+      "darrow-delivery",
+      "skills",
+      "verify-and-repair",
+      "output.schema.json",
+    );
+    const base = {
+      verified: true,
+      summary: "review complete",
+      findings: [
+        {
+          severity: "high",
+          issue: "boundary gap",
+          resolution: "fixed",
+          paths: ["src/example.ts"],
+        },
+      ],
+      changedPaths: ["src/example.ts"],
+      verification: [
+        { command: "bun test", exitStatus: 0, purpose: "regression" },
+      ],
+    };
+    await expect(
+      validateExternalSchema(schema, base, "verified repair"),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateExternalSchema(
+        schema,
+        {
+          ...base,
+          findings: [{ ...base.findings[0], resolution: "unresolved" }],
+        },
+        "contradictory finding",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      validateExternalSchema(
+        schema,
+        {
+          ...base,
+          verification: [
+            { command: "bun test", exitStatus: 1, purpose: "regression" },
+          ],
+        },
+        "contradictory check",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      validateExternalSchema(
+        schema,
+        {
+          ...base,
+          verified: false,
+          findings: [{ ...base.findings[0], resolution: "unresolved" }],
+          verification: [
+            { command: "bun test", exitStatus: 1, purpose: "regression" },
+          ],
+        },
+        "unverified repair",
+      ),
+    ).resolves.toBeUndefined();
+  });
+
   test("compiles one shared validator for concurrent schema requests", async () => {
     const digest = `sha256:${"a".repeat(64)}`;
     const manifest = {

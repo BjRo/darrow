@@ -137,6 +137,28 @@ describe("M1 compiler", () => {
       selectionSource: "fixed_plan",
     });
     expect(compilation.plan.steps[0]?.route.routeId).toMatch(/^sha256:/);
+    expect(compilation.plan.steps[1]).toMatchObject({
+      id: "verify-and-repair",
+      dependsOn: ["implement"],
+      commandId: "darrow-delivery:verify-and-repair",
+      role: "default",
+    });
+    expect(compilation.plan.steps[1]?.route.routeId).toBe(
+      compilation.plan.steps[0]!.route.routeId,
+    );
+    expect(compilation.plan.loops).toEqual([
+      {
+        id: "final-verification",
+        steps: ["verify-and-repair"],
+        maxAttempts: 2,
+        until: {
+          stepId: "verify-and-repair",
+          output: "verified",
+          equals: true,
+        },
+        waiver: null,
+      },
+    ]);
     const mismatchedRoute = structuredClone(compilation.plan);
     mismatchedRoute.steps[0]!.route.model = "silently-substituted-model";
     await expect(verifyResolvedPlan(mismatchedRoute)).rejects.toThrow(
@@ -159,6 +181,17 @@ describe("M1 compiler", () => {
           "codex",
           "darrow-delivery",
           "implement",
+        ),
+      ),
+    ).toContain("SKILL.md");
+    expect(
+      await readdir(
+        resolve(
+          snapshotDir,
+          "commands",
+          "codex",
+          "darrow-delivery",
+          "verify-and-repair",
         ),
       ),
     ).toContain("SKILL.md");
@@ -526,6 +559,10 @@ steps:
         .replace(
           "  - id: implement\n",
           "  - id: implement\n    role: implement\n",
+        )
+        .replace(
+          "  - id: verify-and-repair\n",
+          "  - id: verify-and-repair\n    role: review\n",
         ),
     );
     const previousRoots = process.env.DARROW_PLUGIN_ROOTS;
@@ -564,9 +601,10 @@ steps:
       workflowPath,
       source
         .replace("profile: codex", "roles:\n  implement: { profile: codex }")
+        .replace("  - id: implement\n", "  - id: implement\n    role: review\n")
         .replace(
-          "  - id: implement\n",
-          "  - id: implement\n    role: review\n",
+          "  - id: verify-and-repair\n",
+          "  - id: verify-and-repair\n    role: implement\n",
         ),
     );
     await expect(

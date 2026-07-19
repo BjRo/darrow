@@ -1,12 +1,13 @@
 # Darrow product-value evaluation preregistration
 
 **Frozen:** 2026-07-18, before any admissible pilot or confirmatory run. The
-machine-readable counterpart is `protocol.yaml`. Protocol v2 supersedes the
-initial oversized design after infrastructure-only diagnostics showed that its
-72-run, high-effort pilot could not fit its recorded time and token budgets.
-Those diagnostic result roots are excluded. Changes after the first admissible
-pilot run require another protocol version. Changes after opening the holdout
-require a new holdout and a new preregistration.
+machine-readable counterpart is `protocol.yaml`. Protocol v4 supersedes the
+one-command v3 smoke before any admissible pilot run. The CLI treatment now
+executes the product's implementation command followed by a fresh-context
+verification-and-repair command. Earlier smoke and diagnostic result roots are
+excluded. Changes after the first admissible pilot run require another protocol
+version. Changes after opening the holdout require a new holdout and a new
+preregistration.
 
 ## Question and estimands
 
@@ -17,7 +18,8 @@ Within each task and harness, three treatments are paired:
 1. `native`: native harness, no Darrow plugins;
 2. `plugins`: native harness, all current Darrow plugins mounted directly;
 3. `cli`: the same harness route and plugins invoked by `darrow run
-implement-change`.
+implement-change`, which runs implementation and then fresh-context material
+   review, targeted repair, and verification.
 
 The primary estimand is the task-level mean quality difference `cli - plugins`,
 averaged across the two harnesses. `plugins - native` is a secondary estimand
@@ -71,11 +73,21 @@ the same test and run the relevant regression tests. If the normal test command
 fails for an unrelated setup reason, run the focused test directly or through
 another available command; an unrelated failure is not red." Direct `native`
 and `plugins` cells receive it in the evaluator prompt; CLI receives it once
-through the invoked implementation skill. This leaves branching, structured
-results, command packaging, and runtime orchestration inside the CLI product
-treatment while removing delivery-method instructions as a comparison confound.
-Every core observation created before this amendment remains excluded and must
-not be mixed with the v3 schedule.
+through the invoked implementation skill. The CLI then starts a second session
+of the same locked harness route with the `verify-and-repair` command. It reviews
+the current diff for material defects, repairs findings, and verifies the final
+change. Direct treatments may choose to review during their native loop but are
+not forced into a second invocation. The common top-level outcome and
+implementation policy therefore remain controlled while the enforced fresh
+perspective is the orchestration behavior under test. Every core observation
+created before this amendment remains excluded and must not be mixed with the
+v4 schedule.
+
+The completed v3 six-cell smoke used the earlier one-command CLI treatment and
+is retained as operational history only. Protocol v4 requires a new six-cell
+smoke before pilot work. The CLI's two steps deliberately use the same
+harness/model route within each block; cross-harness model diversity is not part
+of this estimand.
 
 The earlier matched-policy diagnostic and all of its result roots remain
 excluded historical diagnostics. The optional Codex-only policy diagnostic now
@@ -180,14 +192,14 @@ retains its output separately from model transcripts, and classifies failures
 as timeout, runtime mismatch, missing dependency, test failure, or other command
 failure.
 The evaluator additionally retains a compact sanitized execution trace before
-destroying a successful CLI workspace. It records model/runtime durations,
-event counts, token accounting, and command/nonzero counts grouped into fixed
-non-content categories, but no model messages, commands, paths, or tool output.
-Trace schema `1.2.0` retains phase timestamps for legacy instrumented cells;
-portable instruction-only cells record empty phases and a null timeline. This
-explicit amendment removes obsolete evidence-protocol attribution without
-changing outcomes, scheduling, or the decision rule. Participant patches
-exclude Darrow control state and evidence directories.
+destroying a successful CLI workspace. Trace schema `1.3.0` records one bounded
+entry per model invocation and aggregates model/runtime durations, event counts,
+token accounting, and command/nonzero counts across the implementation and
+verification sessions. It retains no model messages, commands, paths, or tool
+output. Phase timestamps remain tied to the implementation result for legacy
+instrumented cells; portable instruction-only cells record empty phases and a
+null timeline. Participant patches exclude Darrow control state and evidence
+directories.
 
 ## Exclusions, missingness, and stopping
 
@@ -197,9 +209,13 @@ entire block; evaluator infrastructure corrupts the workspace; or an externally
 documented provider outage. Agent failure, timeout, permission denial, Darrow
 failure, retry, and waiting for human input are outcomes, not exclusions.
 
-There is no efficacy stopping. The smoke stops at USD 15 or 3 million tokens.
+There is no efficacy stopping. The smoke stops at USD 15 or 4 million tokens.
 The pilot and confirmatory phases stop at USD 75 or USD 250, or at fallback
-token ceilings of 5 million or 25 million respectively. Every phase also stops
+token ceilings of 20 million or 175 million respectively. The token ceilings
+were raised before pilot work using the observed roughly 0.34-million-token
+one-command Codex cells and an explicit allowance for the CLI's second
+invocation. These are operational limits rather than economic success
+thresholds. Every phase also stops
 if a harness version changes, more than 10% of scheduled runs are blocked by the
 same evaluator defect, or credentials are unavailable.
 After repair, incomplete blocks resume using their existing assignments. The

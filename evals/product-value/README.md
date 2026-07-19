@@ -40,7 +40,7 @@ diagnosis, with provider usage recovered from their transcript.
 
 ```sh
 bun evals/product-value/cli.ts run --phase smoke \
-  --results evals/product-value/results/shared-tdd-smoke-v1 \
+  --results evals/product-value/results/v4-fresh-review-smoke-v1 \
   --source mynab=../mynab \
   --source credfolio2=../credfolio2
 ```
@@ -51,6 +51,7 @@ smoke cell can be selected while diagnosing evaluator infrastructure:
 ```sh
 bun evals/product-value/cli.ts run --phase smoke \
   --harness codex --treatment native \
+  --results evals/product-value/results/v4-fresh-review-smoke-v1 \
   --source mynab=../mynab --source credfolio2=../credfolio2
 ```
 
@@ -58,9 +59,11 @@ Smoke results are operational evidence, not product evidence. Inspect all six
 observations for completion, tokens, cost, and wall time before starting the
 36-run, one-repeat calibration pilot:
 
-All three core treatments receive the same minimal Red/Green policy. To measure
-the policy's own process cost, run the excluded Codex-only no-TDD diagnostic
-before pilot work:
+All three core treatments receive the same minimal Red/Green implementation
+policy. The CLI treatment additionally runs the bundled fresh-context
+verification-and-repair step; that is the orchestration behavior being measured.
+To measure the implementation policy's own process cost, run the excluded
+Codex-only no-TDD diagnostic before pilot work:
 
 ```sh
 bun evals/product-value/cli.ts diagnose-policy --phase smoke \
@@ -77,6 +80,7 @@ a failed cell is not an overhead baseline.
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml
 bun evals/product-value/cli.ts run --phase pilot \
+  --results evals/product-value/results/v4-fresh-review-pilot-v1 \
   --source mynab=../mynab \
   --source credfolio2=../credfolio2
 ```
@@ -85,21 +89,30 @@ After the pilot procedure is accepted, execute the frozen holdout and analyze:
 
 ```sh
 bun evals/product-value/cli.ts run --phase confirmatory \
+  --results evals/product-value/results/v4-fresh-review-confirmatory-v1 \
   --source mynab=../mynab \
   --source credfolio2=../credfolio2
-bun evals/product-value/cli.ts blind --phase confirmatory
-# Grade the randomized files under results/blind/bundles, then fill grades.jsonl.
+bun evals/product-value/cli.ts blind --phase confirmatory \
+  --results evals/product-value/results/v4-fresh-review-confirmatory-v1
+# Grade the randomized files under that root's blind/bundles, then fill grades.jsonl.
 bun evals/product-value/cli.ts import-grades \
-  --grades evals/product-value/results/blind/grades.jsonl
-bun evals/product-value/cli.ts analyze --phase confirmatory
+  --results evals/product-value/results/v4-fresh-review-confirmatory-v1 \
+  --grades evals/product-value/results/v4-fresh-review-confirmatory-v1/blind/grades.jsonl
+bun evals/product-value/cli.ts analyze --phase confirmatory \
+  --results evals/product-value/results/v4-fresh-review-confirmatory-v1
 ```
 
-Results default to `evals/product-value/results/` and are ignored by Git. Each
-run contains an immutable observation, raw harness output, a participant patch,
-and a compact `trace.json`. The trace retains timings, event counts, and token
-accounting plus categorized command/nonzero counts without commands, paths,
-model text, or tool output. Participant patches exclude evaluator-owned Darrow
-state. Do not publish raw patches or output without reviewing them for secrets.
+Results default to `evals/product-value/results/` and are ignored by Git, but
+every protocol revision and phase should use a fresh explicit results root as
+shown above. A durable observation is reused only when its assignment, source,
+runner, plugin, harness route, and evaluator configuration identity still
+match; otherwise the runner refuses and asks for a fresh root. Each run contains
+an immutable observation, raw harness output, a participant patch, and a compact
+`trace.json`. The trace retains timings, event counts, per-invocation timing and
+availability, and aggregate token accounting plus categorized command/nonzero
+counts without commands, paths, model text, or tool output. Participant patches
+exclude evaluator-owned Darrow state. Do not publish raw patches or output
+without reviewing them for secrets.
 Completed disposable workspaces are removed. Failed or waiting trials retain
 their isolated workspace path in the observation so an operator can inspect the
 failure or exercise recovery before recording annotations; they are never

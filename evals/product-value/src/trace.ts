@@ -239,6 +239,92 @@ function modelTrace(raw: string): Record<string, unknown> {
   };
 }
 
+function addCounts(
+  target: Record<string, number>,
+  source: Record<string, number>,
+): void {
+  for (const [key, value] of Object.entries(source))
+    target[key] = (target[key] ?? 0) + value;
+}
+
+function aggregateModelTraces(
+  traces: Array<Record<string, any>>,
+): Record<string, unknown> {
+  const eventTypes: Record<string, number> = {};
+  const itemTypes: Record<string, number> = {};
+  const toolTypes: Record<string, number> = {};
+  const usage: Record<string, number> = {};
+  const commands = {
+    total: 0,
+    nonZero: 0,
+    categories: Object.fromEntries(
+      COMMAND_CATEGORIES.map((category) => [
+        category,
+        { total: 0, nonZero: 0 },
+      ]),
+    ) as Record<CommandCategory, { total: number; nonZero: number }>,
+    evidenceOperations: Object.fromEntries(
+      EVIDENCE_OPERATIONS.map((operation) => [
+        operation,
+        { total: 0, nonZero: 0 },
+      ]),
+    ) as Record<string, { total: number; nonZero: number }>,
+    nonZeroReasons: Object.fromEntries(
+      NONZERO_REASONS.map((reason) => [reason, 0]),
+    ) as Record<string, number>,
+  };
+  let jsonEvents = 0;
+  let nonJsonLines = 0;
+  let costUsd = 0;
+  let hasCost = false;
+  let hasUsage = false;
+  for (const trace of traces) {
+    jsonEvents += trace.jsonEvents ?? 0;
+    nonJsonLines += trace.nonJsonLines ?? 0;
+    addCounts(eventTypes, trace.eventTypes ?? {});
+    addCounts(itemTypes, trace.itemTypes ?? {});
+    addCounts(toolTypes, trace.toolTypes ?? {});
+    commands.total += trace.commands?.total ?? 0;
+    commands.nonZero += trace.commands?.nonZero ?? 0;
+    for (const category of COMMAND_CATEGORIES) {
+      commands.categories[category].total +=
+        trace.commands?.categories?.[category]?.total ?? 0;
+      commands.categories[category].nonZero +=
+        trace.commands?.categories?.[category]?.nonZero ?? 0;
+    }
+    for (const operation of EVIDENCE_OPERATIONS) {
+      commands.evidenceOperations[operation]!.total +=
+        trace.commands?.evidenceOperations?.[operation]?.total ?? 0;
+      commands.evidenceOperations[operation]!.nonZero +=
+        trace.commands?.evidenceOperations?.[operation]?.nonZero ?? 0;
+    }
+    for (const reason of NONZERO_REASONS)
+      commands.nonZeroReasons[reason] +=
+        trace.commands?.nonZeroReasons?.[reason] ?? 0;
+    if (trace.usage && typeof trace.usage === "object") {
+      for (const [key, value] of Object.entries(trace.usage)) {
+        if (typeof value !== "number" || !Number.isFinite(value)) continue;
+        usage[key] = (usage[key] ?? 0) + value;
+        hasUsage = true;
+      }
+    }
+    if (typeof trace.costUsd === "number" && Number.isFinite(trace.costUsd)) {
+      costUsd += trace.costUsd;
+      hasCost = true;
+    }
+  }
+  return {
+    jsonEvents,
+    nonJsonLines,
+    eventTypes,
+    itemTypes,
+    toolTypes,
+    commands,
+    usage: hasUsage ? usage : null,
+    costUsd: hasCost ? costUsd : null,
+  };
+}
+
 function finiteUsageValue(
   usage: Record<string, unknown>,
   ...keys: string[]
@@ -404,35 +490,70 @@ export async function createExecutionTrace(
   evidenceDirectory?: string,
 ): Promise<Record<string, unknown>> {
   const darrow = treatment === "cli" ? envelope(invocation.raw) : null;
-  const result = darrow?.data?.results?.[0];
-  const innerDurationMs = duration(
-    result?.timing?.startedAt,
-    result?.timing?.finishedAt,
-  );
-  let transcript = invocation.raw;
-  let transcriptAvailable = treatment !== "cli";
-  const transcriptPath =
-    typeof result?.transcript === "string"
-      ? result.transcript
-      : invocation.darrowRunId && typeof result?.invocationId === "string"
-        ? join(
-            invocation.workspace,
-            ".darrow",
-            "runs",
-            invocation.darrowRunId,
-            "content",
-            `${result.invocationId}.jsonl`,
-          )
-        : null;
-  if (transcriptPath) {
-    try {
-      transcript = await readFile(transcriptPath, "utf8");
-      transcriptAvailable = true;
-    } catch {
-      transcript = "";
-      transcriptAvailable = false;
+  const results: any[] = Array.isArray(darrow?.data?.results)
+    ? darrow.data.results
+    : [];
+  const result =
+    results.find((item) => item?.commandId === "darrow-delivery:implement") ??
+    results[0];
+  const modelInvocations: Array<{
+    invocationId: string | null;
+    commandId: string | null;
+    durationMs: number | null;
+    transcriptAvailable: boolean;
+  }> = [];
+  const transcripts: string[] = [];
+  if (treatment !== "cli") {
+    transcripts.push(invocation.raw);
+    modelInvocations.push({
+      invocationId: null,
+      commandId: null,
+      durationMs: invocation.durationMs,
+      transcriptAvailable: true,
+    });
+  } else {
+    for (const item of results) {
+      const transcriptPath =
+        typeof item?.transcript === "string"
+          ? item.transcript
+          : invocation.darrowRunId && typeof item?.invocationId === "string"
+            ? join(
+                invocation.workspace,
+                ".darrow",
+                "runs",
+                invocation.darrowRunId,
+                "content",
+                `${item.invocationId}.jsonl`,
+              )
+            : null;
+      let transcript = "";
+      let transcriptAvailable = false;
+      if (transcriptPath) {
+        try {
+          transcript = await readFile(transcriptPath, "utf8");
+          transcriptAvailable = true;
+          transcripts.push(transcript);
+        } catch {
+          // Keep the observability gap explicit below.
+        }
+      }
+      modelInvocations.push({
+        invocationId:
+          typeof item?.invocationId === "string" ? item.invocationId : null,
+        commandId: typeof item?.commandId === "string" ? item.commandId : null,
+        durationMs: duration(item?.timing?.startedAt, item?.timing?.finishedAt),
+        transcriptAvailable,
+      });
     }
   }
+  const durations = modelInvocations.map((item) => item.durationMs);
+  const innerDurationMs =
+    durations.length > 0 && durations.every((value) => value !== null)
+      ? (durations as number[]).reduce((sum, value) => sum + value, 0)
+      : null;
+  const transcriptAvailable =
+    modelInvocations.length > 0 &&
+    modelInvocations.every((item) => item.transcriptAvailable);
   const resolvedEvidenceDirectory =
     evidenceDirectory ??
     (treatment === "cli" ? await cliEvidenceDirectory(invocation) : null);
@@ -451,7 +572,7 @@ export async function createExecutionTrace(
     ).flat(),
   ) as Record<string, PhaseTrace>;
   return {
-    schemaVersion: "1.2.0",
+    schemaVersion: "1.3.0",
     treatment,
     treatmentSetupDurationMs: invocation.setupDurationMs,
     harnessDurationMs: invocation.durationMs,
@@ -462,7 +583,9 @@ export async function createExecutionTrace(
         ? null
         : Math.max(0, invocation.durationMs - innerDurationMs),
     transcriptAvailableForSummary: transcriptAvailable,
-    model: modelTrace(transcript),
+    modelInvocationCount: modelInvocations.length,
+    modelInvocations,
+    model: aggregateModelTraces(transcripts.map(modelTrace)),
     phases,
     timeline: phaseTimeline(result, phases),
   };

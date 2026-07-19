@@ -1,7 +1,7 @@
 schemaVersion: 1.1.0
 preregisteredAt: "2026-07-18T00:00:00+02:00"
-amendedAt: "2026-07-19T17:57:52+02:00"
-frozenSeed: darrow-issue-12-confirmatory-v3
+amendedAt: "2026-07-19T20:38:54+02:00"
+frozenSeed: darrow-issue-12-confirmatory-v4
 treatments: [native, plugins, cli]
 harnesses:
   codex:
@@ -43,9 +43,9 @@ design:
   bootstrapSamples: 10000
   randomizationSamples: 10000
 budgets:
-  smoke: { costUsd: 15, tokens: 3000000 }
-  pilot: { costUsd: 75, tokens: 5000000 }
-  confirmatory: { costUsd: 250, tokens: 25000000 }
+  smoke: { costUsd: 15, tokens: 4000000 }
+  pilot: { costUsd: 75, tokens: 20000000 }
+  confirmatory: { costUsd: 250, tokens: 175000000 }
 paths:
   pluginRoot: plugins
   bunExecutable: /Users/bjro/.local/share/mise/installs/node/24.13.0/bin/bun

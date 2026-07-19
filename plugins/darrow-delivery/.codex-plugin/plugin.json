@@ -1,15 +1,15 @@
 {
   "name": "darrow-delivery",
-  "description": "Darrow-managed red/green implementation commands",
-  "version": "0.1.1",
+  "description": "Darrow-managed implementation and fresh-context verification commands",
+  "version": "0.2.0",
   "skills": "./skills/",
   "author": {
     "name": "Björn Rochel"
   },
   "interface": {
     "displayName": "Darrow -> Delivery",
-    "shortDescription": "Managed red/green implementation workflows",
-    "longDescription": "Implements one requested change with meaningful red, same-test green, regression evidence, and bounded local effects.",
+    "shortDescription": "Implementation with independent verification",
+    "longDescription": "Implements one requested change with Red/Green TDD, then reviews, repairs, and verifies it from a fresh agent context.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],

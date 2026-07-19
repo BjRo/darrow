@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
+import { parse as parseYaml } from "yaml";
 import {
   sharedTddPrompt,
   SHARED_TDD_POLICY,
@@ -26,6 +27,41 @@ describe("shared delivery policy", () => {
       ),
     ).text();
     expect(skill.replace(/\s+/g, " ")).toContain(SHARED_TDD_POLICY);
+  });
+
+  test("makes fresh verification the explicit CLI orchestration difference", async () => {
+    const workflow = parseYaml(
+      await Bun.file(
+        resolve(
+          import.meta.dir,
+          "../../..",
+          "cli/workflows/implement-change.yaml",
+        ),
+      ).text(),
+    ) as {
+      profile: string;
+      steps: Array<{
+        id: string;
+        dependsOn: string[];
+        command: { id: string };
+      }>;
+    };
+    expect(workflow.profile).toBe("codex");
+    expect(workflow.steps).toEqual([
+      expect.objectContaining({
+        id: "implement",
+        dependsOn: [],
+        command: { id: "darrow-delivery:implement", version: "^0.1.0" },
+      }),
+      expect.objectContaining({
+        id: "verify-and-repair",
+        dependsOn: ["implement"],
+        command: {
+          id: "darrow-delivery:verify-and-repair",
+          version: "^0.1.0",
+        },
+      }),
+    ]);
   });
 
   test("injects the policy only into direct core prompts", () => {
