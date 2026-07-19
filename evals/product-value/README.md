@@ -4,6 +4,9 @@ This suite implements the product gate in `PV-1`–`PV-17`. It is separate from
 the colocated skill eval runner because it compares treatments and generalizes
 over real tasks.
 
+Tracked run summaries and conclusions are maintained in [RESULTS.md](RESULTS.md).
+Raw run artifacts remain under the gitignored `results/` directory.
+
 ## Safe workflow
 
 Preregistration must remain frozen before confirmatory work. Start with the
