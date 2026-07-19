@@ -17,6 +17,7 @@ import {
 } from "../src/harness";
 import { probeHarnessAuthentication } from "../src/preflight";
 import { checked } from "../src/process";
+import { createExecutionTrace } from "../src/trace";
 import type { Protocol } from "../src/types";
 
 const roots: string[] = [];
@@ -229,6 +230,67 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
         "--no-session-persistence",
       );
       expect((await stat(launcher)).mode & 0o111).not.toBe(0);
+    } finally {
+      if (previousToken === undefined)
+        delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
+      else process.env.CLAUDE_CODE_OAUTH_TOKEN = previousToken;
+    }
+  });
+
+  test("captures direct Claude tool events and terminal usage from stream JSON", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-claude-trace-test-"));
+    roots.push(root);
+    const repo = join(root, "repo");
+    const state = join(root, "state");
+    await Promise.all([mkdir(repo), mkdir(state)]);
+    const executable = join(root, "claude-real");
+    await writeFile(
+      executable,
+      `#!/bin/sh
+printf '%s' "$*" > invocation-args.txt
+printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool-1","name":"Bash","input":{"command":"bun test focused.test.ts"}},{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"private.ts"}}]}}'
+printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool-1","is_error":true,"content":"Failed Tests: expected red"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"usage":{"input_tokens":21,"output_tokens":8},"total_cost_usd":0.25}'
+`,
+    );
+    await chmod(executable, 0o755);
+    const protocol = testProtocol(executable);
+    protocol.harnesses.claude.executable = executable;
+    const previousToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "fake-setup-token";
+    try {
+      const result = await invoke(
+        protocol,
+        "smoke",
+        "claude",
+        "native",
+        repo,
+        state,
+        "task",
+        join(root, "plugins"),
+        Bun.which("bun")!,
+        join(root, "cli.ts"),
+        [],
+      );
+
+      expect(result.ok).toBe(true);
+      expect(result.inputTokens).toBe(21);
+      expect(result.outputTokens).toBe(8);
+      expect(result.costUsd).toBe(0.25);
+      expect(
+        await Bun.file(join(repo, "invocation-args.txt")).text(),
+      ).toContain("--output-format stream-json --verbose");
+      const trace = await createExecutionTrace(result, "native");
+      expect((trace.model as any).toolTypes).toEqual({ Bash: 1, Read: 1 });
+      expect((trace.model as any).commands.categories.test).toEqual({
+        total: 1,
+        nonZero: 1,
+      });
+      expect((trace.model as any).usage).toEqual({
+        input_tokens: 21,
+        output_tokens: 8,
+      });
+      expect((trace.model as any).costUsd).toBe(0.25);
     } finally {
       if (previousToken === undefined)
         delete process.env.CLAUDE_CODE_OAUTH_TOKEN;

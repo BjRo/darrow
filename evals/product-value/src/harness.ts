@@ -307,6 +307,31 @@ function codexUsage(raw: string): {
   return { input, output };
 }
 
+interface ClaudeResult {
+  type?: string;
+  subtype?: string;
+  is_error?: boolean;
+  usage?: Record<string, unknown>;
+  total_cost_usd?: number;
+}
+
+function claudeResult(raw: string): ClaudeResult | null {
+  let result: ClaudeResult | null = null;
+  for (const line of raw.split("\n")) {
+    try {
+      const event = JSON.parse(line) as ClaudeResult;
+      if (event.type === "result") result = event;
+    } catch {
+      // Streaming output can contain non-JSON diagnostics.
+    }
+  }
+  return result;
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 async function runNative(
   harness: Harness,
   route: EffectiveRoute,
@@ -367,7 +392,8 @@ async function runNative(
         "-p",
         prompt,
         "--output-format",
-        "json",
+        "stream-json",
+        "--verbose",
         ...(outputSchema ? ["--json-schema", outputSchema] : []),
         "--model",
         route.model,
@@ -381,21 +407,19 @@ async function runNative(
     env,
     timeoutMs,
   );
-  let parsed: any = {};
-  try {
-    parsed = JSON.parse(result.stdout);
-  } catch {
-    // The raw response remains available for failure triage.
-  }
+  const parsed = claudeResult(result.stdout);
   return {
-    ok: result.code === 0 && parsed.subtype === "success",
+    ok:
+      result.code === 0 &&
+      parsed?.subtype === "success" &&
+      parsed.is_error !== true,
     waiting: false,
     timedOut: result.timedOut,
     setupDurationMs: 0,
     durationMs: result.durationMs,
-    inputTokens: parsed.usage?.input_tokens ?? null,
-    outputTokens: parsed.usage?.output_tokens ?? null,
-    costUsd: parsed.total_cost_usd ?? null,
+    inputTokens: finiteNumber(parsed?.usage?.input_tokens),
+    outputTokens: finiteNumber(parsed?.usage?.output_tokens),
+    costUsd: finiteNumber(parsed?.total_cost_usd),
     raw: result.stdout + result.stderr,
     darrowRunId: null,
     workspace: repo,

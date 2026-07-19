@@ -86,6 +86,15 @@ skills, hooks/state, issue-agent files, demos, Darrow state, and non-example
 `.env` files, rejects escaping symlinks, then initializes a new one-commit Git
 repository. It records the removed paths and sanitized tree digest.
 
+Before the pilot, direct Claude execution was changed from terminal JSON to
+verbose streaming JSON so its compact trace observes the same tool-use event
+stream available to the CLI treatment. The terminal `result` event remains the
+sole source of success, usage, and cost. This is a measurement-only repair to
+PV-14: it exposes process counts for treatment comparison without changing the
+prompt, tools, permissions, model, effort, timeout, outcomes, or decision rule.
+The excluded smoke created before this repair remains an infrastructure
+diagnostic and is not pooled with later process measurements.
+
 The smoke task's deterministic-time request explicitly declares the historical
 oracle's `{ readonly now?: Date }` options-object API. This clarification was
 made during excluded smoke calibration after the original wording admitted a
