@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HarnessAdapter, HarnessResult } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
@@ -109,6 +110,15 @@ export const codexAdapter: HarnessAdapter = {
       }
     }
     const ok = codexRunSucceeded(code, out);
+    let resultText = "";
+    try {
+      resultText = await readFile(
+        join(repoDir, ".git", "last-message.md"),
+        "utf8",
+      );
+    } catch {
+      // A missing final message is observable to output checks and raw output.
+    }
 
     return {
       ok,
@@ -116,6 +126,7 @@ export const codexAdapter: HarnessAdapter = {
       inputTokens,
       outputTokens,
       costUsd: 0,
+      resultText,
       raw: ok ? out : out + err,
     };
   },

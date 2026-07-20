@@ -23,6 +23,9 @@ function projectClaudeOutputSchema(schema: unknown): unknown {
   const {
     $schema: _schemaDialect,
     $id: _schemaId,
+    oneOf: _rootOneOf,
+    allOf: _rootAllOf,
+    anyOf: _rootAnyOf,
     ...projected
   } = schema as Record<string, unknown>;
   return projected;

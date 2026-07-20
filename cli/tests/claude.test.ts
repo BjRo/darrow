@@ -169,6 +169,15 @@ git diff --check
 printf '%s\\n' '{"type":"system","session_id":"claude-session-1"}'
 printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"claude-session-1","usage":{"input_tokens":12,"output_tokens":7},"permission_denials":[],"structured_output":{"branch":"feat/claude-change","summary":"Implemented with Claude Code","changedPaths":["behavior.txt"]}}'
 `);
+    const outputSchema = resolve(input.step.source, "output.schema.json");
+    const schema = await Bun.file(outputSchema).json();
+    schema.allOf = [
+      {
+        properties: { summary: { type: "string", minLength: 1 } },
+      },
+    ];
+    await writeFile(outputSchema, `${JSON.stringify(schema, null, 2)}\n`);
+    input.step.digest = await hashDirectory(input.step.source);
     const previousPath = process.env.PATH;
     process.env.PATH = `${bin}:${previousPath}`;
     try {
@@ -189,6 +198,7 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_i
       const schemaArg = argv[argv.indexOf("--json-schema") + 1] ?? "";
       expect(schemaArg).not.toContain('"$schema"');
       expect(schemaArg).not.toContain('"$id"');
+      expect(schemaArg).not.toContain('"allOf"');
       expect(schemaArg).toContain('"minLength":1');
       expect(schemaArg).toContain('"uniqueItems":true');
       expect(args).not.toContain("dangerously-skip-permissions");

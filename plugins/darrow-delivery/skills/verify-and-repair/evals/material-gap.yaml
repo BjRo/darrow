@@ -11,6 +11,12 @@ fixture:
   files:
     calculator.ts: "export function add(left: number, right: number) { return left + right; }\nexport function safeDivide(dividend: number, divisor: number) { return dividend / divisor; }\n"
     calculator.test.ts: "import { add, safeDivide } from './calculator';\nif (add(2, 3) !== 5) throw new Error('add regression');\nif (safeDivide(6, 3) !== 2) throw new Error('divide regression');\n"
+output_checks:
+  - name: result satisfies the verification contract
+    schema: ./output.schema.json
+  - name: repaired behavior is verified
+    json_path: /verified
+    expect_json: true
 checks:
   - name: no commit or branch created
     run: 'test "$(git rev-list --count HEAD)" = 1 && test "$(git for-each-ref --format=''%(refname)'' refs/heads | wc -l | tr -d '' '')" = 1 && test "$(git branch --show-current)" = main'

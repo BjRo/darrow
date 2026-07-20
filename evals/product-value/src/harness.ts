@@ -165,6 +165,7 @@ export async function isolatedEnvironment(
   harness: Harness,
   route: Route,
   state: string,
+  workspace?: string,
 ): Promise<Record<string, string | undefined>> {
   const allowedEnvironment = [
     "PATH",
@@ -226,9 +227,12 @@ export async function isolatedEnvironment(
         : `${harness} credentials are unavailable in the isolated environment`,
     );
   if (harness === "codex") {
+    const trustedProject = workspace
+      ? `\n[projects.${JSON.stringify(await realpath(workspace))}]\ntrust_level = "trusted"\n`
+      : "";
     await writeFile(
       join(targetRoot, "config.toml"),
-      `approval_policy = "never"\nsandbox_mode = "danger-full-access"\n`,
+      `approval_policy = "never"\nsandbox_mode = "danger-full-access"\n${trustedProject}`,
     );
     return {
       ...cleanEnvironment,
@@ -342,7 +346,7 @@ async function runNative(
   timeoutMs: number,
   outputSchema?: string,
 ): Promise<InvocationResult> {
-  const env = await isolatedEnvironment(harness, route, state);
+  const env = await isolatedEnvironment(harness, route, state, repo);
   if (harness === "codex") {
     const result = await command(
       await sandboxed(
@@ -460,7 +464,7 @@ export async function invoke(
     );
 
   const setupStarted = performance.now();
-  const env = await isolatedEnvironment(harness, route, state);
+  const env = await isolatedEnvironment(harness, route, state, repo);
   env.DARROW_PLUGIN_ROOTS = pluginRoot;
   env.DARROW_HOME = join(state, "darrow-home");
   env.DARROW_EXTERNAL_WORKSPACE_SANDBOX_ROOT = await realpath(dirname(state));

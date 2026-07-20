@@ -50,16 +50,25 @@ index_tree() {
     die "cannot capture the Git index; resolve its unreadable or unmerged state first"
 }
 
+is_runtime_path() {
+  case "$1" in
+    .darrow-attempts | .darrow-attempts/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 changed_paths() {
   local workspace path count
   workspace=$1
   count=0
   printf 'changed_paths:\n'
   while IFS= read -r -d '' path; do
+    if is_runtime_path "$path"; then continue; fi
     printf '  %q\n' "$workspace/$path"
     count=$((count + 1))
   done < <(git diff --name-only -z HEAD --)
   while IFS= read -r -d '' path; do
+    if is_runtime_path "$path"; then continue; fi
     printf '  %q\n' "$workspace/$path"
     count=$((count + 1))
   done < <(git ls-files --others --exclude-standard -z)

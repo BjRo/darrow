@@ -20,6 +20,8 @@ git -C "$TMP_ROOT" add "tracked file.txt"
 git -C "$TMP_ROOT" commit -qm 'chore: initialize fixture'
 printf 'changed\n' >"$TMP_ROOT/tracked file.txt"
 printf 'new\n' >"$TMP_ROOT/new file.txt"
+mkdir -p "$TMP_ROOT/.darrow-attempts/run/attempt"
+printf 'runtime evidence\n' >"$TMP_ROOT/.darrow-attempts/run/attempt/internal.json"
 
 capture=$(cd "$TMP_ROOT" && bash "$GUARD" capture)
 guard=$(sed -n 's/^guard=//p' <<<"$capture")
@@ -28,6 +30,9 @@ grep -F "$TMP_ROOT/tracked\\ file.txt" <<<"$capture" >/dev/null ||
   fail "capture omitted the absolute tracked path"
 grep -F "$TMP_ROOT/new\\ file.txt" <<<"$capture" >/dev/null ||
   fail "capture omitted the absolute untracked path"
+if grep -F '.darrow-attempts' <<<"$capture" >/dev/null; then
+  fail "capture exposed Darrow runtime paths as implementation changes"
+fi
 validated=$(cd "$TMP_ROOT" && bash "$GUARD" validate "$guard")
 grep -F 'git_boundary=preserved' <<<"$validated" >/dev/null ||
   fail "unchanged boundary did not validate"

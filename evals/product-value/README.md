@@ -40,7 +40,7 @@ diagnosis, with provider usage recovered from their transcript.
 
 ```sh
 bun evals/product-value/cli.ts run --phase smoke \
-  --results evals/product-value/results/v4-fresh-review-smoke-v1 \
+  --results evals/product-value/results/v4-fresh-review-smoke-v4 \
   --source mynab=../mynab \
   --source credfolio2=../credfolio2
 ```
@@ -51,7 +51,7 @@ smoke cell can be selected while diagnosing evaluator infrastructure:
 ```sh
 bun evals/product-value/cli.ts run --phase smoke \
   --harness codex --treatment native \
-  --results evals/product-value/results/v4-fresh-review-smoke-v1 \
+  --results evals/product-value/results/v4-fresh-review-smoke-v4 \
   --source mynab=../mynab --source credfolio2=../credfolio2
 ```
 

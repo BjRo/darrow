@@ -211,6 +211,24 @@ describe("Codex command adapter", () => {
       resolve(snapshotDir, "commands", "codex", "darrow-delivery", "implement"),
       { recursive: true },
     );
+    const outputSchema = resolve(
+      snapshotDir,
+      "commands",
+      "codex",
+      "darrow-delivery",
+      "implement",
+      "output.schema.json",
+    );
+    const completeSchema = await Bun.file(outputSchema).json();
+    completeSchema.allOf = [
+      {
+        properties: { summary: { type: "string", minLength: 1 } },
+      },
+    ];
+    await writeFile(
+      outputSchema,
+      `${JSON.stringify(completeSchema, null, 2)}\n`,
+    );
     const bin = resolve(root, "mock-bin");
     await mkdir(bin);
     await writeFile(
@@ -229,7 +247,7 @@ while [[ $# -gt 0 ]]; do
   elif [[ "$1" == "--output-schema" ]]; then schema=$2; shift 2
   else shift; fi
 done
-if grep -q '"uniqueItems"' "$schema"; then exit 66; fi
+if grep -Eq '"(uniqueItems|allOf)"' "$schema"; then exit 66; fi
 prompt=$(cat)
 skill=$(printf '%s\n' "$prompt" | sed -n 's/^Read and follow \\(.*\\/SKILL.md\\) exactly\\.$/\\1/p')
 evidence=$(printf '%s\n' "$prompt" | sed -n 's/^Evidence directory: //p')
@@ -340,6 +358,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
         ),
       ).text();
       expect(providerSchema).not.toContain('"uniqueItems"');
+      expect(providerSchema).not.toContain('"allOf"');
       expect(
         await Bun.file(
           resolve(
@@ -351,7 +370,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"output_token
             "output.schema.json",
           ),
         ).text(),
-      ).toContain('"uniqueItems"');
+      ).toContain('"allOf"');
       expect(
         (result.payload?.evidence as Record<string, unknown>).red,
       ).toBeDefined();

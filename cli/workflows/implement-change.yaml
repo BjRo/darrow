@@ -1,6 +1,6 @@
 schemaVersion: 0.1.0
 id: implement-change
-version: 0.2.0
+version: 0.2.1
 engine: ^0.1.0
 inputs:
   change:
@@ -29,6 +29,6 @@ steps:
     dependsOn: [implement]
     command:
       id: darrow-delivery:verify-and-repair
-      version: ^0.1.0
+      version: ^0.2.0
     with:
       change: ${inputs.change}

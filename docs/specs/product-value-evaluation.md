@@ -39,6 +39,10 @@ and M3 investment. The preregistration and executable configuration live under
   invocation ends or times out, the evaluator terminates its attached
   descendants and any evaluator-started Darrow worker or Temporal service
   recorded in that disposable workspace; diagnostic state remains retained.
+  The evaluator predeclares the disposable Codex checkout as trusted in its
+  isolated native configuration before the run lock is created, preventing the
+  native CLI from mutating that locked permission source between workflow
+  steps.
 
 ## Corpus integrity
 
@@ -85,10 +89,11 @@ and M3 investment. The preregistration and executable configuration live under
   interventions, failures, retries, recovery, rework, run-to-run variance, and
   setup or operational failure categories. Missing values remain explicit.
   Preflight performs minimal real inference and exercises pinned-runtime access
-  through the same isolated environment used by trials, refusing before the
-  phase if either is unavailable. Headless Claude evaluation uses a dedicated
-  setup token or API key; disposable copies of rotating login credentials are
-  forbidden.
+  through the same isolated environment used by trials. It also bundles the
+  exact Darrow Temporal workflow with the pinned evaluator runtime, refusing
+  before treatment assignment if the evaluator dependencies are absent or the
+  worker cannot bundle. Headless Claude evaluation uses a dedicated setup token
+  or API key; disposable copies of rotating login credentials are forbidden.
 - **PV-13 — Outcome-first grading.** Deterministic hidden checks supply the
   primary quality evidence wherever possible. Qualitative grading uses a frozen
   rubric, opaque sample IDs, randomized presentation, and graders blinded to

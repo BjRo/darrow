@@ -58,7 +58,7 @@ describe("shared delivery policy", () => {
         dependsOn: ["implement"],
         command: {
           id: "darrow-delivery:verify-and-repair",
-          version: "^0.1.0",
+          version: "^0.2.0",
         },
       }),
     ]);

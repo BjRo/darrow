@@ -9,13 +9,64 @@ observations.
 This journal covers the product-value evaluation only. Colocated skill-eval
 outputs under `evals/results/` are a separate test corpus.
 
-## Current status — 2026-07-19
+## Current status — 2026-07-20
 
 The current protocol is v4: all three core treatments receive the same minimal
 Red/Green TDD implementation policy, while the CLI product treatment runs a
 second fresh-context `verify-and-repair` command through the same locked harness
-route. The top-level requested outcome remains identical. No v4 smoke cell has
-run yet, so the current evaluator is not operationally qualified for pilot work.
+route. The top-level requested outcome remains identical across treatments. The
+fresh v4 six-cell smoke is now operationally qualified: every cell
+completed, every hidden deterministic check scored 1.00, both CLI traces contain
+two real model invocations, and no evaluator-owned process remains. Pilot work
+may begin, but this one-task smoke is not product-value evidence.
+
+Qualifying v4 evidence root: `results/v4-fresh-review-smoke-v4/`
+
+- Runner revision: `384c8dd180f9cbf6705a1105396b6e42146871a3`
+- Harnesses: Codex CLI 0.144.6 and Claude Code 2.1.185
+- Models: `gpt-5.6-sol` and `claude-sonnet-4-6`, medium effort
+- Task: `mynab-flags-now`, one repeat
+- Preflight: both isolated inference probes passed; the exact Temporal worker
+  bundled with Bun 1.3.13; Temporal 1.8.0 was available
+
+### V4 smoke results
+
+| Harness | Treatment | Status    | Quality | Wall time | Input tokens | Output tokens | Provider cost | Invocations |
+| ------- | --------- | --------- | ------: | --------: | -----------: | ------------: | ------------: | ----------: |
+| Claude  | Native    | completed |    1.00 |   194.2 s |           27 |         9,391 |        $0.619 |           1 |
+| Claude  | Plugins   | completed |    1.00 |   211.8 s |           21 |        10,536 |        $0.581 |           1 |
+| Claude  | CLI       | completed |    1.00 |   413.2 s |           59 |        19,272 |        $1.101 |           2 |
+| Codex   | Native    | completed |    1.00 |   104.8 s |      305,395 |         3,803 |             — |           1 |
+| Codex   | Plugins   | completed |    1.00 |   136.3 s |      443,754 |         4,579 |             — |           1 |
+| Codex   | CLI       | completed |    1.00 |   176.0 s |      554,592 |         5,663 |             — |           2 |
+
+Claude reports cache creation/read tokens separately; its provider cost is the
+economic measure above. Codex has no provider cost, so total input plus output
+tokens remain the fallback. Across all six cells the smoke used 1,303,848 input
+tokens, 53,244 output tokens, and $2.301 of known Claude provider cost.
+
+Relative to direct plugins, CLI used 1.95× wall time and 1.90× provider cost on
+Claude, and 1.29× wall time and 1.25× total tokens on Codex. Relative to native,
+CLI used 2.13× wall time and 1.78× provider cost on Claude, and 1.68× wall time
+and 1.81× total tokens on Codex. The CLI treatment intentionally performs two
+model invocations, so these ratios measure the added fresh review as well as the
+runtime.
+
+The trace separates those effects. Claude CLI spent 404.17 s in model
+invocations and 3.24 s in the runtime wrapper; Codex CLI spent 166.91 s in model
+invocations and 2.76 s in the runtime wrapper. Runtime-wrapper work was therefore
+about 0.8% and 1.6% of harness time respectively. Both CLI traces retained both
+transcripts and aggregated usage across both invocations. No Temporal service or
+Darrow worker remained after the smoke; six stale `/tmp/darrow-e2e-*` Temporal
+test services discovered during the audit were terminated separately.
+
+Three preceding v4 roots are excluded calibration evidence. V1 exposed Claude's
+unsupported root schema combinator and Codex's auto-written project trust entry.
+V2 fixed those and exposed the equivalent Codex root-combinator restriction. V3
+reached both Codex model invocations and exposed an ambiguous flat verification
+verdict contract. The qualifying v4 root uses provider-compatible projections,
+predeclared trust, full runtime validation, and structurally linked
+`diagnosticChecks`.
 
 The completed six-cell smoke below belongs to the superseded one-command v3 CLI
 treatment. All three v3 treatments passed deterministic verification in both
@@ -71,8 +122,8 @@ Process inspection after the block found 16 Temporal `start-dev` services and
 16 matching workers tied to older `darrow-product-eval-*` workspaces. They were
 shut down gracefully before pilot work; verification found no product-eval
 service remaining. Six unrelated `darrow-e2e-*` service pairs were left
-untouched. Neither the excluded attempt nor its valid replacement leaked a
-process.
+untouched at that checkpoint and were later terminated during the v4 audit.
+Neither the excluded attempt nor its valid replacement leaked a process.
 
 ### Replication signal
 
@@ -111,28 +162,31 @@ the reversal shows that a one-run smoke cannot rank treatment efficiency.
 
 ## Operational checkpoint and excluded diagnostic history
 
-As of 2026-07-19, 63 local observation files exist across the roots below. They
+As of 2026-07-20, 76 local observation files exist across the roots below. They
 are retained as infrastructure evidence but must not be pooled with the current
 protocol. Counts refer to finalized `observation.json` files, not attempted
 shell invocations.
 
-| Local result root                            | Observations | What it established                                                                                                         | Why excluded                                                                     |
-| -------------------------------------------- | -----------: | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `results/runs/`                              |            9 | Initial pilot exposed CLI startup and Claude authentication failures.                                                       | Predates protocol v2 and evaluator repairs.                                      |
-| `results/repair-smoke/`, `-2`–`-4`           |            7 | Iterative Codex CLI repair ended with a runnable CLI cell.                                                                  | Targeted repair runs, not a balanced treatment block.                            |
-| `results/repair-smoke-claude/`               |            2 | Claude CLI cells stopped waiting for input and exposed launcher/authentication problems.                                    | Incomplete targeted repair runs.                                                 |
-| `results/repair-smoke-claude-2/`             |            0 | No finalized observation was written.                                                                                       | No result to analyze.                                                            |
-| `results/protocol-v2/`                       |            6 | Codex ran, but the CLI appeared dramatically slower; all deterministic checks failed and all Claude cells failed at launch. | Confounded delivery policy and broken Claude execution.                          |
-| `results/protocol-v2-invalid-high-effort/`   |            2 | Reproduced the large Codex CLI gap under the wrong effort setting.                                                          | Invalid high-effort smoke configuration.                                         |
-| `results/workspace-parity-v1/`               |            1 | Showed that allocating a second CLI worktree discarded prepared ignored dependencies and disadvantaged the CLI.             | Targeted evaluator diagnostic; fixed by shared prepared workspaces.              |
-| `results/insight-v1/`, `results/insight-v2/` |            2 | Exercised compact timing and tool-trace instrumentation.                                                                    | Trace diagnostics with failed verification.                                      |
-| `results/policy-diagnostic-v1/`              |            2 | Attempted to isolate the cost of prescriptive TDD instructions.                                                             | Both cells failed verification, so neither is a valid overhead baseline.         |
-| `results/policy-diagnostic-v2/`              |            5 | Added native/plugin controls and made the policy mismatch visible.                                                          | TDD and CLI cells failed; the comparison is not a valid policy-cost estimate.    |
-| `results/portable-implement-smoke-v1/`       |            6 | All direct Codex/Claude cells passed; Claude CLI timed out after using capabilities unavailable to direct Claude.           | Treatment tool parity was broken.                                                |
-| `results/portable-implement-smoke-v2/`       |            6 | All six deterministic checks passed after simplifying the implementation skill.                                             | Predates the shared TDD policy and final Claude trace/launcher repairs.          |
-| `results/claude-cli-tools-repair-v1`–`v5`    |            5 | Repaired bounded Claude tools, cleanup, usage recovery, and tracing; v5 completed with quality 1.                           | Targeted sequential repair attempts, not a balanced block.                       |
-| `results/shared-tdd-smoke-v1/`               |            3 | First policy-matched Codex checkpoint; all three deterministic checks passed.                                               | Earlier operational checkpoint; not pooled with the current rerun.               |
-| `results/shared-tdd-codex-v2/`               |            7 | Complete v3 six-cell smoke plus one preserved evaluator-infrastructure exclusion; all six valid checks passed.              | Superseded by the two-command v4 CLI treatment; excluded from product inference. |
+| Local result root                            | Observations | What it established                                                                                                         | Why excluded                                                                                                    |
+| -------------------------------------------- | -----------: | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `results/runs/`                              |            9 | Initial pilot exposed CLI startup and Claude authentication failures.                                                       | Predates protocol v2 and evaluator repairs.                                                                     |
+| `results/repair-smoke/`, `-2`–`-4`           |            7 | Iterative Codex CLI repair ended with a runnable CLI cell.                                                                  | Targeted repair runs, not a balanced treatment block.                                                           |
+| `results/repair-smoke-claude/`               |            2 | Claude CLI cells stopped waiting for input and exposed launcher/authentication problems.                                    | Incomplete targeted repair runs.                                                                                |
+| `results/repair-smoke-claude-2/`             |            0 | No finalized observation was written.                                                                                       | No result to analyze.                                                                                           |
+| `results/protocol-v2/`                       |            6 | Codex ran, but the CLI appeared dramatically slower; all deterministic checks failed and all Claude cells failed at launch. | Confounded delivery policy and broken Claude execution.                                                         |
+| `results/protocol-v2-invalid-high-effort/`   |            2 | Reproduced the large Codex CLI gap under the wrong effort setting.                                                          | Invalid high-effort smoke configuration.                                                                        |
+| `results/workspace-parity-v1/`               |            1 | Showed that allocating a second CLI worktree discarded prepared ignored dependencies and disadvantaged the CLI.             | Targeted evaluator diagnostic; fixed by shared prepared workspaces.                                             |
+| `results/insight-v1/`, `results/insight-v2/` |            2 | Exercised compact timing and tool-trace instrumentation.                                                                    | Trace diagnostics with failed verification.                                                                     |
+| `results/policy-diagnostic-v1/`              |            2 | Attempted to isolate the cost of prescriptive TDD instructions.                                                             | Both cells failed verification, so neither is a valid overhead baseline.                                        |
+| `results/policy-diagnostic-v2/`              |            5 | Added native/plugin controls and made the policy mismatch visible.                                                          | TDD and CLI cells failed; the comparison is not a valid policy-cost estimate.                                   |
+| `results/portable-implement-smoke-v1/`       |            6 | All direct Codex/Claude cells passed; Claude CLI timed out after using capabilities unavailable to direct Claude.           | Treatment tool parity was broken.                                                                               |
+| `results/portable-implement-smoke-v2/`       |            6 | All six deterministic checks passed after simplifying the implementation skill.                                             | Predates the shared TDD policy and final Claude trace/launcher repairs.                                         |
+| `results/claude-cli-tools-repair-v1`–`v5`    |            5 | Repaired bounded Claude tools, cleanup, usage recovery, and tracing; v5 completed with quality 1.                           | Targeted sequential repair attempts, not a balanced block.                                                      |
+| `results/shared-tdd-smoke-v1/`               |            3 | First policy-matched Codex checkpoint; all three deterministic checks passed.                                               | Earlier operational checkpoint; not pooled with the current rerun.                                              |
+| `results/shared-tdd-codex-v2/`               |            7 | Complete v3 six-cell smoke plus one preserved evaluator-infrastructure exclusion; all six valid checks passed.              | Superseded by the two-command v4 CLI treatment; excluded from product inference.                                |
+| `results/v4-fresh-review-smoke-v1/`          |            6 | First v4 block exposed Claude schema projection and Codex trust-lock incompatibilities.                                     | Four cells completed; two CLI cells failed before review for evaluator compatibility reasons.                   |
+| `results/v4-fresh-review-smoke-v2/`          |            6 | Claude CLI completed and Codex reached its second command boundary.                                                         | Codex CLI still used an unsupported provider root combinator.                                                   |
+| `results/v4-fresh-review-smoke-v3/`          |            1 | Codex CLI ran both model invocations and passed hidden verification.                                                        | Flat verification evidence could not audit whether failed diagnostics were covered by a relevant passing check. |
 
 The historical diagnostics support four evaluator changes now encoded in the
 protocol and preregistration:
@@ -148,12 +202,10 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Harden preflight so a missing evaluator dependency fails before treatment
-assignment. Then run the mandatory v4 six-cell smoke into a fresh result root
-and inspect the second invocation's quality, cost, time, cleanup, and trace
-capture. The v4 operational token ceilings are 4 million for smoke, 20 million
-for pilot, and 175 million for confirmatory; they account for the observed
-one-command usage plus the additional review invocation. Run the optional clean
-no-TDD diagnostic only if implementation-policy cost still matters. Do not start
-the 36-cell calibration pilot or mix any earlier smoke into product analysis
-until the v4 smoke qualifies.
+Run the preregistered 36-cell, one-repeat v4 calibration pilot across the real
+simple and orchestrated task strata. Inspect task-level quality, fresh-review
+repairs, paired time/cost effects, and trace completeness before applying the
+confirmatory continue gate. The v4 operational token ceilings are 20 million
+for pilot and 175 million for confirmatory. Do not pool any excluded smoke root
+with pilot or confirmatory product estimates; run the optional clean no-TDD
+diagnostic only if implementation-policy cost still matters.

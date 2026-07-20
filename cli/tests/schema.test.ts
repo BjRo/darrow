@@ -42,7 +42,13 @@ describe("0.1.0 contract fixtures", () => {
       ],
       changedPaths: ["src/example.ts"],
       verification: [
-        { command: "bun test", exitStatus: 0, purpose: "regression" },
+        {
+          id: "regression",
+          command: "bun test",
+          exitStatus: 0,
+          purpose: "regression",
+          diagnosticChecks: [],
+        },
       ],
     };
     await expect(
@@ -64,7 +70,13 @@ describe("0.1.0 contract fixtures", () => {
         {
           ...base,
           verification: [
-            { command: "bun test", exitStatus: 1, purpose: "regression" },
+            {
+              id: "regression",
+              command: "bun test",
+              exitStatus: 1,
+              purpose: "regression",
+              diagnosticChecks: [],
+            },
           ],
         },
         "contradictory check",
@@ -75,10 +87,80 @@ describe("0.1.0 contract fixtures", () => {
         schema,
         {
           ...base,
+          verification: [
+            {
+              ...base.verification[0],
+              diagnosticChecks: [
+                {
+                  id: "broad-suite",
+                  command: "bun test",
+                  exitStatus: 1,
+                  purpose: "broader regression diagnostic",
+                  nonBlockingReason:
+                    "pre-existing runner incompatibility; focused regression passed",
+                },
+              ],
+            },
+          ],
+        },
+        "covered non-blocking diagnostic",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateExternalSchema(
+        schema,
+        {
+          ...base,
+          verification: [
+            {
+              id: "broad-suite",
+              command: "bun test",
+              exitStatus: 1,
+              purpose: "regression",
+              diagnosticChecks: [],
+            },
+          ],
+        },
+        "relevant failure hidden as a verdict pass",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      validateExternalSchema(
+        schema,
+        {
+          ...base,
+          verification: [
+            {
+              ...base.verification[0],
+              diagnosticChecks: [
+                {
+                  id: "broad-suite",
+                  command: "bun test",
+                  exitStatus: 1,
+                  purpose: "broader regression diagnostic",
+                },
+              ],
+            },
+          ],
+        },
+        "diagnostic without a non-blocking reason",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      validateExternalSchema(
+        schema,
+        {
+          ...base,
           verified: false,
           findings: [{ ...base.findings[0], resolution: "unresolved" }],
           verification: [
-            { command: "bun test", exitStatus: 1, purpose: "regression" },
+            {
+              id: "regression",
+              command: "bun test",
+              exitStatus: 1,
+              purpose: "regression",
+              diagnosticChecks: [],
+            },
           ],
         },
         "unverified repair",

@@ -15,7 +15,10 @@ import {
   invoke,
   isolatedEnvironment,
 } from "../src/harness";
-import { probeHarnessAuthentication } from "../src/preflight";
+import {
+  probeDarrowWorkerBundle,
+  probeHarnessAuthentication,
+} from "../src/preflight";
 import { checked } from "../src/process";
 import { createExecutionTrace } from "../src/trace";
 import type { Protocol } from "../src/types";
@@ -326,7 +329,8 @@ printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"usage":{"i
     roots.push(root);
     const source = join(root, "source");
     const state = join(root, "state");
-    await Promise.all([mkdir(source), mkdir(state)]);
+    const workspace = join(root, "workspace");
+    await Promise.all([mkdir(source), mkdir(state), mkdir(workspace)]);
     await writeFile(join(source, "auth.json"), '{"token":"fake"}\n');
     const previous = process.env.CODEX_HOME;
     process.env.CODEX_HOME = source;
@@ -341,11 +345,15 @@ printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"usage":{"i
           authFiles: ["auth.json"],
         },
         state,
+        workspace,
       );
       const target = join(state, "codex", "auth.json");
       expect(env.CODEX_HOME).toBe(join(state, "codex"));
       expect(await Bun.file(target).text()).toBe('{"token":"fake"}\n');
       expect((await stat(target)).mode & 0o077).toBe(0);
+      expect(
+        await Bun.file(join(state, "codex", "config.toml")).text(),
+      ).toContain(`[projects.${JSON.stringify(await realpath(workspace))}]`);
     } finally {
       if (previous === undefined) delete process.env.CODEX_HOME;
       else process.env.CODEX_HOME = previous;
@@ -441,6 +449,22 @@ esac
       else process.env.CLAUDE_CODE_OAUTH_TOKEN = previousToken;
     }
   });
+
+  test("preflight bundles the Darrow worker and refuses missing dependencies", async () => {
+    const protocol = testProtocol("fake");
+    expect(await probeDarrowWorkerBundle(protocol)).toBe("ready");
+
+    const root = await mkdtemp(join(tmpdir(), "darrow-worker-probe-test-"));
+    roots.push(root);
+    await mkdir(join(root, "src"));
+    await writeFile(
+      join(root, "src", "temporal-workflow.ts"),
+      "export async function workflow() {}\n",
+    );
+    await expect(probeDarrowWorkerBundle(protocol, root)).rejects.toThrow(
+      "Darrow worker dependencies are unavailable",
+    );
+  }, 10_000);
 
   test("exposes only the pinned Temporal binary from hidden evaluator state", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-cli-harness-test-"));

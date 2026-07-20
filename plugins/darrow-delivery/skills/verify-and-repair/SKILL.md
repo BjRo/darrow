@@ -40,9 +40,26 @@ and stop without claiming verification.
 - Run the smallest checks that exercise each material concern, then the relevant
   regression suite. Do not install or update dependencies to make checks run.
 
-Return `verified: true` only when the relevant checks pass and no material issue
-remains unresolved. Return only the requested structured result, with actual
-commands and exit statuses, material findings (if any), and a concise summary.
+Report every verification command you attempted. Each top-level `verification`
+entry is a verdict-determining check and contains `id`, `command`, `exitStatus`,
+`purpose`, and `diagnosticChecks` (an empty array when no other command was
+attempted for that concern). Put an exploratory or broader command check under
+the successful verification check that exercises the same material concern.
+Each nested diagnostic check contains `id`, `command`, `exitStatus`, `purpose`,
+and `nonBlockingReason`. `diagnosticChecks` contains command-check objects, not
+stderr or explanatory strings. Nest a failed diagnostic check only when its
+failure is demonstrably caused by an unrelated pre-existing problem or runner
+incompatibility; otherwise it remains a top-level verification failure. Do not
+hide a relevant failure under an unrelated passing check.
+
+Return `verified: true` only when at least one verdict-determining check ran,
+every top-level verification check passed, and no material issue remains
+unresolved. Return only the requested structured result, with actual commands
+and exit statuses, material findings (if any), a `changedPaths` array, and a
+concise `summary`. Each finding contains `severity`, `issue`, `resolution`, and
+`paths`. Severity is `critical`, `high`, or `medium`; resolution is `fixed` or
+`unresolved`. Use an empty `findings` array when there are none, and use
+`resolution: fixed` for every finding when returning `verified: true`.
 
 ## Boundaries
 

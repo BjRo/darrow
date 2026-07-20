@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
-import { runChecks } from "./checks";
+import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import type {
@@ -92,13 +92,21 @@ async function runCase(
             inputTokens: 0,
             outputTokens: 0,
             costUsd: 0,
+            resultText: "",
             raw: "",
           },
         });
         continue;
       }
       const harness = await adapter.run(repoDir, prompt, model, effort);
-      const checks = await runChecks(repoDir, evalCase.checks);
+      const checks = [
+        ...(await runChecks(repoDir, evalCase.checks)),
+        ...(await runOutputChecks(
+          harness.resultText,
+          evalCase.output_checks ?? [],
+          evalCase.skillDir,
+        )),
+      ];
       const passed = harness.ok && checks.every((c) => c.passed);
       trialResults.push({ trial, passed, checks, harness });
       const failed = checks.filter((c) => !c.passed);

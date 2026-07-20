@@ -39,6 +39,28 @@ export interface Check {
   exit_code?: number;
 }
 
+export interface OutputCheck {
+  name: string;
+  /** Check passes only if the final agent message is one JSON value. */
+  valid_json?: boolean;
+  /** JSON Schema path, relative to the case's skill directory. */
+  schema?: string;
+  /** RFC 6901 pointer selecting a value from the parsed final JSON. */
+  json_path?: string;
+  /** Deep-equality expectation for the selected JSON value. */
+  expect_json?: unknown;
+  /** Selected array must contain an item with this recursive subset. */
+  contains_json?: unknown;
+  /** Check passes only if the final agent message matches. */
+  expect_regex?: string;
+  /** Check passes only if the final agent message exactly equals this value. */
+  expect_exact?: string;
+  /** Check fails if the final agent message matches. */
+  not_regex?: string;
+  /** Extra regex flags, e.g. "i". "m" is always applied. */
+  flags?: string;
+}
+
 export interface EvalCase {
   id: string;
   /** Invariant ID from the capability spec, e.g. GW-C1. */
@@ -50,6 +72,8 @@ export interface EvalCase {
   prompt: string;
   fixture: Fixture;
   checks: Check[];
+  /** Assertions over the final agent message, kept outside the model workspace. */
+  output_checks?: OutputCheck[];
 }
 
 export interface HarnessResult {
@@ -58,6 +82,8 @@ export interface HarnessResult {
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
+  /** Normalized final agent message, excluding harness protocol events. */
+  resultText: string;
   raw: string;
 }
 

@@ -1,6 +1,6 @@
 schemaVersion: 1.1.0
 preregisteredAt: "2026-07-18T00:00:00+02:00"
-amendedAt: "2026-07-19T20:38:54+02:00"
+amendedAt: "2026-07-20T01:08:48+02:00"
 frozenSeed: darrow-issue-12-confirmatory-v4
 treatments: [native, plugins, cli]
 harnesses:

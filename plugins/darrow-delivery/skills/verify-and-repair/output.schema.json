@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://darrow.dev/contracts/darrow-delivery/verify-and-repair/output/0.1.0",
+  "$id": "https://darrow.dev/contracts/darrow-delivery/verify-and-repair/output/0.2.0",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -31,6 +31,7 @@
             "type": "array",
             "items": {
               "type": "object",
+              "required": ["exitStatus"],
               "properties": { "exitStatus": { "const": 0 } }
             }
           }
@@ -70,11 +71,39 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["command", "exitStatus", "purpose"],
+        "required": [
+          "id",
+          "command",
+          "exitStatus",
+          "purpose",
+          "diagnosticChecks"
+        ],
         "properties": {
+          "id": { "type": "string", "minLength": 1 },
           "command": { "type": "string", "minLength": 1 },
           "exitStatus": { "type": "integer", "minimum": 0 },
-          "purpose": { "type": "string", "minLength": 1 }
+          "purpose": { "type": "string", "minLength": 1 },
+          "diagnosticChecks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "command",
+                "exitStatus",
+                "purpose",
+                "nonBlockingReason"
+              ],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "command": { "type": "string", "minLength": 1 },
+                "exitStatus": { "type": "integer", "minimum": 0 },
+                "purpose": { "type": "string", "minLength": 1 },
+                "nonBlockingReason": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
         }
       }
     }

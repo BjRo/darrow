@@ -22,6 +22,7 @@ export async function probeHarnessAuthentication(
       name,
       protocol.harnesses[name],
       state,
+      repo,
     );
     const route = protocol.harnesses[name];
     const effort = protocol.phases[phase].effort;
@@ -122,6 +123,30 @@ async function probeTemporal(
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+}
+
+export async function probeDarrowWorkerBundle(
+  protocol: Protocol,
+  cliRoot = resolve(REPO_ROOT, "cli"),
+): Promise<string> {
+  const workflowsPath = resolve(cliRoot, "src", "temporal-workflow.ts");
+  if (!(await Bun.file(workflowsPath).exists()))
+    throw new Error(`Darrow workflow source is unavailable: ${workflowsPath}`);
+  const script = [
+    'import { bundleWorkflowCode } from "@temporalio/worker";',
+    `await bundleWorkflowCode({ workflowsPath: ${JSON.stringify(workflowsPath)} });`,
+  ].join("\n");
+  const result = await command(
+    [protocol.paths.bunExecutable, "-e", script],
+    cliRoot,
+    process.env,
+    2 * 60_000,
+  );
+  if (result.code !== 0)
+    throw new Error(
+      "Darrow worker dependencies are unavailable or its workflow cannot be bundled; run `bun install --frozen-lockfile` before evaluation",
+    );
+  return "ready";
 }
 
 export async function preflightSources(
@@ -242,6 +267,7 @@ export async function preflightSources(
   );
   if (bunVersion.code !== 0)
     throw new Error("pinned Bun executable is unavailable");
+  const workerBundle = await probeDarrowWorkerBundle(protocol);
   const temporal = await temporalExecutable(protocol);
   const temporalVersion = await probeTemporal(temporal, hiddenPaths);
   return {
@@ -252,6 +278,7 @@ export async function preflightSources(
       version: bunVersion.stdout.trim(),
     },
     darrowExecutable,
+    workerBundle,
     temporalExecutable: temporal,
     temporalVersion,
   };

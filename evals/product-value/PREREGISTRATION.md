@@ -154,7 +154,33 @@ isolated harness state. CLI runs additionally use isolated Darrow and toolchain
 state. Headless Claude trials require a dedicated long-lived setup token or API
 key; rotating interactive-login credentials are never copied into disposable
 state. Preflight performs one minimal inference per harness inside the trial
-sandbox, rather than trusting local login metadata.
+sandbox, rather than trusting local login metadata. Before the first v4 smoke,
+preflight was also amended to bundle the exact Darrow Temporal workflow with
+the pinned evaluator Bun runtime. This fails before treatment assignment when
+evaluator dependencies are absent or worker bundling is broken; it changes no
+treatment, task, prompt, outcome, or decision rule.
+
+The first v4 smoke exposed two adapter-compatibility failures before the new
+review step could execute. Claude Code rejected the command's complete output
+schema because its structured-output surface forbids root combinators. Codex
+automatically added the disposable project trust entry to its isolated config
+after the implementation step, correctly tripping the immutable permission
+digest before review. The evaluator now writes that exact trust entry before
+compilation, so the locked file remains stable. A fresh smoke then showed Codex
+also rejects a root combinator when the review command reaches its provider.
+Both adapters now omit those provider-unsupported root keywords while Darrow
+retains and validates the complete snapshotted contract, as required by WR-42.
+A third targeted Codex diagnostic reached both model invocations but exposed an
+ambiguous verification-result contract: a relevant focused check passed while
+broader runner-incompatible checks failed, and the flat blocking flag could not
+audit whether the passing check covered the same concern. Verdict checks are now
+top-level and `diagnosticChecks` are nested under the successful verdict check
+that covers their concern, with a required non-blocking reason. Skill evals assert
+on the normalized final structured message and include the converse case where
+an unavailable authoritative verifier must produce `verified: false`. The first
+three v4 result roots are infrastructure or contract-calibration evidence only;
+protocol v4 restarts in a fresh root. These repairs change no product-evaluation
+prompts, tools, models, effort, task outcomes, thresholds, or schedule.
 
 The recorded route is Codex `gpt-5.6-sol` and Claude
 `claude-sonnet-4-6`. Smoke and pilot use medium effort with a 15-minute

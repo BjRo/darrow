@@ -63,20 +63,29 @@ and commit boundary it received.
   unrelated code alone and reports material issues it cannot resolve.
 - **DL-13 — Independent verification.** After any repair, the command runs the
   smallest checks that exercise each material concern plus the relevant
-  regression suite. It reports `verified: true` only when those checks pass and
-  no material issue remains unresolved.
+  regression suite. It distinguishes checks that determine the verdict from
+  diagnostic attempts whose failure is caused by a demonstrated pre-existing
+  problem or runner incompatibility. A diagnostic is nested under the
+  successful verdict check that covers the same material concern and states why
+  it is non-blocking. It reports `verified: true` only when at least one verdict
+  check ran, every verdict check passed, and no material issue remains
+  unresolved.
 - **DL-14 — Preserved Git boundary.** Verification may modify and test the
   existing working tree. It does not create or switch branches, change local
   branch refs, alter the index state it received, create commits, push, open a
   pull request, mutate a ticket, or install dependencies. A bundled guard
   records the incoming active branch, HEAD, and index tree and rejects a changed
   boundary while returning compact absolute changed paths. It ignores unrelated
-  branch refs that may advance concurrently in other worktrees. This is a
+  branch refs that may advance concurrently in other worktrees and excludes the
+  runtime-owned `.darrow-attempts/` tree from implementation changes. This is a
   command postcondition, not a security or process-isolation boundary.
 - **DL-15 — Typed verification result.** The command returns `verified`, a
   concise summary, material findings and their resolution state, changed paths,
-  and the verification commands with exit statuses. The workflow treats a
-  false verdict as an unsatisfied bounded outcome rather than successful
+  and every attempted verification command with a stable ID and exit status.
+  Verdict checks are top-level; `diagnosticChecks` structurally nests each
+  non-blocking attempted command under the successful check that covers its
+  concern and explains why it does not invalidate the verdict. The workflow
+  treats a false verdict as an unsatisfied bounded outcome rather than successful
   delivery.
 - **DL-16 — Product workflow.** The bundled `implement-change` workflow runs
   `implement` and then `verify-and-repair` in dependency order. The same locked

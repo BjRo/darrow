@@ -94,13 +94,18 @@ function routeProvenance(input: ActivityInput): Record<string, string> {
   };
 }
 
-function codexStructuredOutputSchema(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(codexStructuredOutputSchema);
+function codexStructuredOutputSchema(value: unknown, root = true): unknown {
+  if (Array.isArray(value))
+    return value.map((item) => codexStructuredOutputSchema(item, false));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => key !== "uniqueItems")
-      .map(([key, item]) => [key, codexStructuredOutputSchema(item)]),
+      .filter(
+        ([key]) =>
+          key !== "uniqueItems" &&
+          (!root || !["oneOf", "allOf", "anyOf"].includes(key)),
+      )
+      .map(([key, item]) => [key, codexStructuredOutputSchema(item, false)]),
   );
 }
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "command",
-  "contractVersion": "0.1.0",
+  "contractVersion": "0.2.0",
   "inputSchema": "./input.schema.json",
   "outputSchema": "./output.schema.json"
 }

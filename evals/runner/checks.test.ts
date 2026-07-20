@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runChecks } from "./checks";
+import { runChecks, runOutputChecks } from "./checks";
 
 describe("eval checks", () => {
   test("expect_exact rejects an expected line amid extra output", async () => {
@@ -41,5 +41,135 @@ describe("eval checks", () => {
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
+  });
+
+  test("output checks inspect only the normalized final message", async () => {
+    const [present, forbidden, exact] = await runOutputChecks(
+      '{"verified":true,"summary":"done"}',
+      [
+        {
+          name: "present",
+          valid_json: true,
+          expect_regex: '"verified"\\s*:\\s*true',
+        },
+        { name: "forbidden", not_regex: '"verified"\\s*:\\s*false' },
+        {
+          name: "exact",
+          expect_exact: '{"verified":true,"summary":"done"}',
+        },
+      ],
+    );
+    expect(present?.passed).toBe(true);
+    expect(forbidden?.passed).toBe(true);
+    expect(exact?.passed).toBe(true);
+  });
+
+  test("output checks reject missing and forbidden content compactly", async () => {
+    const [missing, forbidden] = await runOutputChecks('{"verified":false}', [
+      { name: "missing", expect_regex: '"verified"\\s*:\\s*true' },
+      { name: "forbidden", not_regex: '"verified"\\s*:\\s*false' },
+    ]);
+    expect(missing?.passed).toBe(false);
+    expect(missing?.detail).not.toContain('{"verified":false}');
+    expect(forbidden?.passed).toBe(false);
+  });
+
+  test("output checks reject prose around a JSON object", async () => {
+    const [result] = await runOutputChecks('Result: {"verified":true}', [
+      { name: "json only", valid_json: true },
+    ]);
+    expect(result?.passed).toBe(false);
+    expect(result?.detail).toBe("final message is not valid JSON");
+  });
+
+  test("output checks make order-independent semantic JSON assertions", async () => {
+    const [verdict, nested, missing, exact] = await runOutputChecks(
+      JSON.stringify({
+        verification: [
+          {
+            diagnosticChecks: [
+              {
+                exitStatus: 1,
+                command: "bun run test",
+                nonBlockingReason: "pre-existing runner failure",
+              },
+            ],
+            exitStatus: 0,
+          },
+        ],
+        metadata: { expected: true, extra: true },
+        verified: true,
+      }),
+      [
+        { name: "verdict", json_path: "/verified", expect_json: true },
+        {
+          name: "nested",
+          json_path: "/verification",
+          contains_json: {
+            exitStatus: 0,
+            diagnosticChecks: [
+              {
+                command: "bun run test",
+                exitStatus: 1,
+                nonBlockingReason: { $regex: "pre-existing|runner" },
+              },
+            ],
+          },
+        },
+        {
+          name: "missing",
+          json_path: "/verification",
+          contains_json: { command: "verify-remote-contract" },
+        },
+        {
+          name: "exact",
+          json_path: "/metadata",
+          expect_json: { expected: true },
+        },
+      ],
+    );
+    expect(verdict?.passed).toBe(true);
+    expect(nested?.passed).toBe(true);
+    expect(missing?.passed).toBe(false);
+    expect(exact?.passed).toBe(false);
+  });
+
+  test("output checks validate the final JSON against a skill schema", async () => {
+    const skillDir = join(
+      import.meta.dir,
+      "..",
+      "..",
+      "plugins",
+      "darrow-delivery",
+      "skills",
+      "verify-and-repair",
+    );
+    const valid = {
+      verified: true,
+      summary: "complete",
+      findings: [],
+      changedPaths: [],
+      verification: [
+        {
+          id: "focused",
+          command: "bun test",
+          exitStatus: 0,
+          purpose: "focused behavior",
+          diagnosticChecks: [],
+        },
+      ],
+    };
+    const [accepted] = await runOutputChecks(
+      JSON.stringify(valid),
+      [{ name: "schema", schema: "./output.schema.json" }],
+      skillDir,
+    );
+    const [rejected] = await runOutputChecks(
+      JSON.stringify({ ...valid, verification: [] }),
+      [{ name: "schema", schema: "./output.schema.json" }],
+      skillDir,
+    );
+    expect(accepted?.passed).toBe(true);
+    expect(rejected?.passed).toBe(false);
   });
 });

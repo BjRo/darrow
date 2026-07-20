@@ -1,7 +1,7 @@
 {
   "name": "darrow-delivery",
   "description": "Darrow-managed implementation and fresh-context verification commands",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "skills": "./skills/",
   "author": {
     "name": "Björn Rochel"

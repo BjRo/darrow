@@ -70,6 +70,7 @@ export const claudeAdapter: HarnessAdapter = {
     let inputTokens = 0;
     let outputTokens = 0;
     let costUsd = 0;
+    let resultText = "";
     let ok = code === 0;
     try {
       const parsed = JSON.parse(out);
@@ -79,6 +80,7 @@ export const claudeAdapter: HarnessAdapter = {
       costUsd = parsed.total_cost_usd ?? 0;
       // Mirror the codex adapter: final agent message under .git/ for checks.
       if (typeof parsed.result === "string") {
+        resultText = parsed.result;
         await writeFile(
           join(repoDir, ".git", "last-message.md"),
           parsed.result,
@@ -94,6 +96,7 @@ export const claudeAdapter: HarnessAdapter = {
       inputTokens,
       outputTokens,
       costUsd,
+      resultText,
       raw: ok ? out : out + err,
     };
   },
