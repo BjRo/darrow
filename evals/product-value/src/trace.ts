@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { InvocationResult } from "./harness";
 import type { Treatment } from "./types";
+import { isCliPlaybookTreatment } from "./policy";
 
 interface PhaseTrace {
   exitStatus: number;
@@ -489,7 +490,8 @@ export async function createExecutionTrace(
   treatment: Treatment,
   evidenceDirectory?: string,
 ): Promise<Record<string, unknown>> {
-  const darrow = treatment === "cli" ? envelope(invocation.raw) : null;
+  const cliPlaybook = isCliPlaybookTreatment(treatment);
+  const darrow = cliPlaybook ? envelope(invocation.raw) : null;
   const results: any[] = Array.isArray(darrow?.data?.results)
     ? darrow.data.results
     : [];
@@ -503,7 +505,17 @@ export async function createExecutionTrace(
     transcriptAvailable: boolean;
   }> = [];
   const transcripts: string[] = [];
-  if (treatment !== "cli") {
+  if (invocation.modelInvocations?.length) {
+    for (const item of invocation.modelInvocations) {
+      transcripts.push(item.raw);
+      modelInvocations.push({
+        invocationId: null,
+        commandId: item.commandId,
+        durationMs: item.durationMs,
+        transcriptAvailable: true,
+      });
+    }
+  } else if (!cliPlaybook) {
     transcripts.push(invocation.raw);
     modelInvocations.push({
       invocationId: null,
@@ -556,7 +568,7 @@ export async function createExecutionTrace(
     modelInvocations.every((item) => item.transcriptAvailable);
   const resolvedEvidenceDirectory =
     evidenceDirectory ??
-    (treatment === "cli" ? await cliEvidenceDirectory(invocation) : null);
+    (cliPlaybook ? await cliEvidenceDirectory(invocation) : null);
   const phases = Object.fromEntries(
     (
       await Promise.all(
@@ -577,7 +589,7 @@ export async function createExecutionTrace(
     treatmentSetupDurationMs: invocation.setupDurationMs,
     harnessDurationMs: invocation.durationMs,
     modelInvocationDurationMs:
-      innerDurationMs ?? (treatment === "cli" ? null : invocation.durationMs),
+      innerDurationMs ?? (cliPlaybook ? null : invocation.durationMs),
     runtimeWrapperDurationMs:
       innerDurationMs === null
         ? null

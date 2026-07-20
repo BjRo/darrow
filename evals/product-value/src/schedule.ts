@@ -3,6 +3,8 @@ import type {
   CoreTreatment,
   Corpus,
   Harness,
+  OperationalDiagnostic,
+  OperationalDiagnosticTreatment,
   Phase,
   Protocol,
 } from "./types";
@@ -110,4 +112,65 @@ export function buildPolicyDiagnosticSchedule(
       hash(`${protocol.frozenSeed}:policy-order:${left.treatment}`) -
       hash(`${protocol.frozenSeed}:policy-order:${right.treatment}`),
   );
+}
+
+export function buildOperationalDiagnosticSchedule(
+  protocol: Protocol,
+  corpus: Corpus,
+  diagnostic: OperationalDiagnostic,
+): Assignment[] {
+  const tasks = diagnostic.taskIds.map((taskId) => {
+    const task = corpus.tasks.find((item) => item.id === taskId);
+    if (!task || task.phase !== diagnostic.phase)
+      throw new Error(`operational diagnostic task is unavailable: ${taskId}`);
+    return task;
+  });
+  const simple = tasks.filter((task) => task.stratum === "simple").length;
+  const orchestrated = tasks.filter(
+    (task) => task.stratum === "orchestrated",
+  ).length;
+  if (simple !== 1 || orchestrated !== 2)
+    throw new Error(
+      "operational diagnostic requires one simple and two orchestrated tasks",
+    );
+
+  const blocks: Array<{ key: number; assignments: Assignment[] }> = [];
+  for (const task of tasks) {
+    for (const harness of Object.keys(protocol.harnesses) as Harness[]) {
+      for (let repeat = 1; repeat <= diagnostic.repeats; repeat++) {
+        const start =
+          hash(
+            `${protocol.frozenSeed}:${diagnostic.id}:${task.id}:${harness}:${repeat}`,
+          ) % diagnostic.treatments.length;
+        const order = diagnostic.treatments
+          .slice(start)
+          .concat(
+            diagnostic.treatments.slice(0, start),
+          ) as OperationalDiagnosticTreatment[];
+        blocks.push({
+          key: hash(
+            `${protocol.frozenSeed}:${diagnostic.id}:block:${task.id}:${harness}:${repeat}`,
+          ),
+          assignments: order.map((treatment, index) => ({
+            ordinal: 0,
+            taskId: task.id,
+            repository: task.repository,
+            phase: diagnostic.phase,
+            stratum: task.stratum,
+            harness,
+            treatment,
+            repeat,
+            order: index + 1,
+          })),
+        });
+      }
+    }
+  }
+  blocks.sort((left, right) => left.key - right.key);
+  return blocks
+    .flatMap((block) => block.assignments)
+    .map((assignment, index) => ({
+      ...assignment,
+      ordinal: index + 1,
+    }));
 }

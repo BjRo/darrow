@@ -41,6 +41,41 @@ Derived v5 verification root:
   agreement duplicates); mean rubric score was 0.780 across presented bundles
   and duplicate mean absolute difference was 0.000
 
+### Playbook-autonomy smoke qualification
+
+The excluded `playbook-autonomy-v1` diagnostic now has a qualifying four-cell
+smoke on `mynab-flags-now`. Both treatments ran the same implementation and
+fresh verification-and-repair command skills with provider-compatible
+structured output and one shared 15-minute deadline. The manual arm represents
+two operator launches and one handoff; the CLI arm represents one launch and no
+handoff. Evaluator automation did not manufacture a human-attention value:
+attention remains null in all four observations.
+
+Raw smoke root: `results/playbook-autonomy-smoke-v1/`
+
+- Execution checkout base: `7f7298c`; the pending evaluator content and
+  diagnostic configuration are bound into each observation's configuration
+  digest
+- Scope: `mynab-flags-now`, both harnesses, both operational treatments, one
+  repeat (four cells)
+- Completion: 4/4 completed, 4/4 passed hidden verification, and every cell
+  recorded two model invocations with both playbook stages finished
+- Structural autonomy: manual required two launches and one handoff; CLI
+  required one launch, no handoff, and completed unattended in both harnesses
+- Mean wall time: 266.7 seconds manual and 281.8 seconds CLI (CLI/manual 1.056×)
+- Claude: CLI/manual wall time was 1.187×, provider cost 1.344×, and reported
+  tokens 1.189×
+- Codex: CLI/manual wall time was 0.922× and reported tokens 0.979×
+- Darrow's runtime wrapper averaged 3.2 seconds across the two CLI cells; no
+  evaluator-started Temporal or worker process remained afterward
+
+This smoke qualifies the matched-playbook route and measurement contract only.
+It is too small and too easy to estimate attention savings or product value.
+The next operational step is to commit the evaluator checkpoint, then run the
+fresh 12-cell diagnostic under `results/playbook-autonomy-v1/` so every
+observation records the committed runner revision. Timed attention annotations
+and the descriptive operational report follow that run.
+
 ### V5 deterministic pilot calibration
 
 | Harness | Treatment | Passes | Quality | Wall time | Cost / token fallback | Operational failures |
@@ -294,11 +329,13 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Review and accept the pilot calibration, then commit the evaluator correction
-before any confirmatory model execution; the runner correctly refuses a dirty
-holdout configuration. If the +0.099 overall and +0.173 orchestrated quality
-signals justify the projected 312-cell spend despite the pilot's Codex token and
-reliability overruns, execute the frozen confirmatory schedule without further
-protocol, corpus, rubric, threshold, or analysis changes. Do not overwrite or
-pool the original v4 quality fields; the digest-bound v5 re-verification and
-derived grading overlay are the authoritative pilot grades.
+Before deciding whether the current +0.099 overall and +0.173 orchestrated
+quality signals justify the projected 312-cell spend, run the excluded
+playbook-autonomy diagnostic. It compares a manually initiated two-session
+implementation/review playbook with the model-matched one-command Darrow
+workflow on one simple and two orchestrated pilot tasks across both harnesses.
+This diagnostic leaves the confirmatory holdout closed and reports structural
+operator actions separately from explicitly timed human attention. Do not
+overwrite or pool the original v4 quality fields; the digest-bound v5
+re-verification and derived grading overlay remain the authoritative pilot
+grades.

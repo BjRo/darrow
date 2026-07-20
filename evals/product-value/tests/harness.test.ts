@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   cleanupDarrowRuntime,
   invoke,
@@ -159,6 +159,63 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
     expect(
       await Bun.file(join(state, "codex", "config.toml")).text(),
     ).toContain('sandbox_mode = "danger-full-access"');
+  });
+
+  test("runs the manual playbook as two fresh model invocations", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-manual-playbook-test-"));
+    roots.push(root);
+    const repo = join(root, "repo");
+    const state = join(root, "state");
+    await Promise.all([mkdir(repo), mkdir(state)]);
+    const executable = join(root, "fake-codex");
+    const pluginRoot = resolve(import.meta.dir, "../../..", "plugins");
+    await writeFile(
+      executable,
+      `#!/bin/sh
+printf '%s\\n' "$*" >> invocation-args.txt
+printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_tokens":3}}'
+`,
+    );
+    await chmod(executable, 0o755);
+
+    const result = await invoke(
+      testProtocol(executable),
+      "pilot",
+      "codex",
+      "manual-playbook",
+      repo,
+      state,
+      "requested behavior",
+      pluginRoot,
+      Bun.which("bun")!,
+      join(root, "cli.ts"),
+      [],
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.inputTokens).toBe(24);
+    expect(result.outputTokens).toBe(6);
+    expect(result.modelInvocations?.map((item) => item.commandId)).toEqual([
+      "darrow-delivery:implement",
+      "darrow-delivery:verify-and-repair",
+    ]);
+    expect(result.operationalMetrics).toEqual({
+      operatorLaunchesRequired: 2,
+      operatorHandoffsRequired: 1,
+      expectedStages: 2,
+      executedStages: 2,
+      finishedStages: 2,
+      unattendedCompletion: false,
+    });
+    const args = await Bun.file(join(repo, "invocation-args.txt")).text();
+    expect(args).toContain("darrow-delivery:implement");
+    expect(args).toContain("darrow-delivery:verify-and-repair");
+    expect(await createExecutionTrace(result, "manual-playbook")).toEqual(
+      expect.objectContaining({
+        modelInvocationCount: 2,
+        modelInvocationDurationMs: result.durationMs,
+      }),
+    );
   });
 
   test("terminates a smoke invocation at its phase deadline", async () => {

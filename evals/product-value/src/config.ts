@@ -5,6 +5,8 @@ import {
   CORE_TREATMENTS,
   HARNESSES,
   type Corpus,
+  OPERATIONAL_DIAGNOSTIC_TREATMENTS,
+  type OperationalDiagnostic,
   type Phase,
   type Protocol,
 } from "./types";
@@ -89,6 +91,39 @@ export async function loadCorpus(
       throw new Error(`task ${task.id} has invalid grading mode`);
     if (!task.rubric.length) throw new Error(`task ${task.id} has no rubric`);
   }
+  return value;
+}
+
+export async function loadOperationalDiagnostic(
+  path = resolve(SUITE_ROOT, "operational-diagnostic.yaml"),
+): Promise<OperationalDiagnostic> {
+  const value = parseYaml(
+    await readFile(path, "utf8"),
+  ) as OperationalDiagnostic;
+  if (value.schemaVersion !== "1.0.0")
+    throw new Error(
+      `unsupported operational diagnostic schema: ${value.schemaVersion}`,
+    );
+  if (!value.id?.trim())
+    throw new Error("operational diagnostic requires an id");
+  if (value.phase !== "pilot")
+    throw new Error("operational diagnostic is restricted to pilot tasks");
+  if (!Number.isSafeInteger(value.repeats) || value.repeats !== 1)
+    throw new Error("operational diagnostic requires exactly one repeat");
+  if (
+    value.treatments.length !== OPERATIONAL_DIAGNOSTIC_TREATMENTS.length ||
+    OPERATIONAL_DIAGNOSTIC_TREATMENTS.some(
+      (treatment) => !value.treatments.includes(treatment),
+    )
+  )
+    throw new Error(
+      "operational diagnostic must contain both playbook treatments exactly once",
+    );
+  if (
+    value.taskIds.length !== 3 ||
+    new Set(value.taskIds).size !== value.taskIds.length
+  )
+    throw new Error("operational diagnostic requires three distinct tasks");
   return value;
 }
 

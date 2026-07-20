@@ -2,6 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
+  isCliPlaybookTreatment,
+  isOperationalDiagnosticTreatment,
+  manualPlaybookImplementationPrompt,
+  manualPlaybookReviewPrompt,
   sharedTddPrompt,
   SHARED_TDD_POLICY,
   usesSharedTddPolicy,
@@ -70,5 +74,20 @@ describe("shared delivery policy", () => {
     expect(usesSharedTddPolicy("cli")).toBe(false);
     expect(usesSharedTddPolicy("native-no-tdd")).toBe(false);
     expect(usesSharedTddPolicy("plugins-no-tdd")).toBe(false);
+  });
+
+  test("makes the manual diagnostic invoke the same two command skills", () => {
+    expect(
+      manualPlaybookImplementationPrompt("change", "/skill/implement"),
+    ).toContain("darrow-delivery:implement");
+    expect(manualPlaybookReviewPrompt("change", "/skill/review")).toContain(
+      "darrow-delivery:verify-and-repair",
+    );
+    expect(isCliPlaybookTreatment("cli")).toBe(true);
+    expect(isCliPlaybookTreatment("cli-playbook")).toBe(true);
+    expect(isCliPlaybookTreatment("manual-playbook")).toBe(false);
+    expect(isOperationalDiagnosticTreatment("manual-playbook")).toBe(true);
+    expect(isOperationalDiagnosticTreatment("cli-playbook")).toBe(true);
+    expect(isOperationalDiagnosticTreatment("plugins")).toBe(false);
   });
 });

@@ -77,6 +77,59 @@ omit the shared policy and never enter the three-treatment schedule or product
 analysis. Compare each no-TDD cell only with its corresponding fresh core cell;
 a failed cell is not an overhead baseline.
 
+## Playbook-autonomy diagnostic
+
+The excluded operational diagnostic isolates Darrow's playbook automation from
+additional model work. Both treatments use the same plugins and run the same
+fresh-context implementation and verification-and-repair stages:
+
+- `manual-playbook` represents an operator launching both native sessions and
+  performing the handoff;
+- `cli-playbook` launches the two-stage Darrow workflow once.
+
+The fixed diagnostic configuration selects one simple and two orchestrated
+pilot tasks and produces 12 cells across Codex and Claude. It does not change or
+enter the frozen three-treatment confirmatory schedule.
+
+Inspect the schedule, then qualify the route on the simple task before running
+the complete diagnostic:
+
+```sh
+bun evals/product-value/cli.ts schedule-operations \
+  > /tmp/playbook-autonomy-schedule.yaml
+bun evals/product-value/cli.ts diagnose-operations \
+  --task mynab-flags-now \
+  --results evals/product-value/results/playbook-autonomy-smoke-v1 \
+  --source mynab=../mynab \
+  --source credfolio2=../credfolio2
+bun evals/product-value/cli.ts diagnose-operations \
+  --results evals/product-value/results/playbook-autonomy-v1 \
+  --source mynab=../mynab \
+  --source credfolio2=../credfolio2
+```
+
+For repeatable model measurement, the evaluator executes the manual arm's two
+native calls itself. It records the user-facing launches and handoffs required
+by that treatment contract, but it does not pretend those automated actions are
+zero human attention. Both operational treatments therefore retain null
+`humanAttentionMinutes` until a corresponding timed operator observation is
+imported. Structural action counts, executed/finished stages, unattended
+completion, quality, wall time, usage, and failures remain directly observable.
+
+After importing timed annotations, write the descriptive report:
+
+```sh
+bun evals/product-value/cli.ts import-annotations \
+  --results evals/product-value/results/playbook-autonomy-v1 \
+  --annotations evals/product-value/results/playbook-autonomy-v1/annotations.jsonl
+bun evals/product-value/cli.ts analyze-operations \
+  --results evals/product-value/results/playbook-autonomy-v1
+```
+
+The report leaves its attention comparison null unless all 12 cells have timed
+annotations. The operational diagnostic is descriptive and cannot be pooled
+with pilot or confirmatory product inference.
+
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml
 bun evals/product-value/cli.ts run --phase pilot \

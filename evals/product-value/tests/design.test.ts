@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { loadCorpus, loadProtocol } from "../src/config";
-import { buildPolicyDiagnosticSchedule, buildSchedule } from "../src/schedule";
+import {
+  loadCorpus,
+  loadOperationalDiagnostic,
+  loadProtocol,
+} from "../src/config";
+import {
+  buildOperationalDiagnosticSchedule,
+  buildPolicyDiagnosticSchedule,
+  buildSchedule,
+} from "../src/schedule";
 import { pairedEstimate, poweredTasks } from "../src/stats";
 
 describe("product-value design (PV-7 through PV-11)", () => {
@@ -87,6 +95,52 @@ describe("product-value design (PV-7 through PV-11)", () => {
     expect(
       buildSchedule(protocol, corpus, "smoke").some((item) =>
         item.treatment.endsWith("-no-tdd"),
+      ),
+    ).toBe(false);
+  });
+
+  test("builds an excluded paired playbook-autonomy diagnostic", async () => {
+    const protocol = await loadProtocol();
+    const corpus = await loadCorpus();
+    const diagnostic = await loadOperationalDiagnostic();
+    const schedule = buildOperationalDiagnosticSchedule(
+      protocol,
+      corpus,
+      diagnostic,
+    );
+    expect(schedule).toHaveLength(12);
+    expect(new Set(schedule.map((item) => item.treatment))).toEqual(
+      new Set(["manual-playbook", "cli-playbook"]),
+    );
+    expect(new Set(schedule.map((item) => item.taskId))).toEqual(
+      new Set(diagnostic.taskIds),
+    );
+    expect(
+      new Set(
+        schedule
+          .filter((item) => item.stratum === "simple")
+          .map((item) => item.taskId),
+      ).size,
+    ).toBe(1);
+    expect(
+      new Set(
+        schedule
+          .filter((item) => item.stratum === "orchestrated")
+          .map((item) => item.taskId),
+      ).size,
+    ).toBe(2);
+    for (let index = 0; index < schedule.length; index += 2) {
+      const block = schedule.slice(index, index + 2);
+      expect(
+        new Set(
+          block.map((item) => `${item.taskId}:${item.harness}:${item.repeat}`),
+        ).size,
+      ).toBe(1);
+      expect(block.map((item) => item.order)).toEqual([1, 2]);
+    }
+    expect(
+      buildSchedule(protocol, corpus, "pilot").some((item) =>
+        item.treatment.endsWith("-playbook"),
       ),
     ).toBe(false);
   });

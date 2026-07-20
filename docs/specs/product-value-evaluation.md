@@ -156,3 +156,17 @@ and M3 investment. The preregistration and executable configuration live under
   three-treatment schedule and all product inference. Their purpose is to
   estimate the cost of the shared delivery policy before pilot work. A failed
   auxiliary cell is not a valid overhead baseline.
+- **PV-19 — Playbook-autonomy diagnostic.** Before opening the confirmatory
+  holdout, the evaluator may run a separately configured, excluded operational
+  diagnostic on frozen pilot tasks. It compares the same two fresh-context
+  model stages and plugins when an operator must initiate the implementation
+  and review handoff directly versus when one Darrow command owns that
+  playbook. Model, harness route, requested outcome, prepared workspace, and
+  verification remain paired. The diagnostic records the operator launches and
+  handoffs required by the treatment contract, the workflow stages that
+  actually execute, unattended completion, quality, usage, failures, and wall
+  time. Human-attention minutes remain null until supplied from a timed
+  operator observation; evaluator automation is never counted as zero human
+  attention or credited to either product treatment. These descriptive results
+  remain outside the three-treatment schedule, confirmatory inference, and its
+  decision rule.

@@ -10,3 +10,39 @@ export function usesSharedTddPolicy(treatment: Treatment): boolean {
 export function sharedTddPrompt(change: string): string {
   return [`Requested change: ${change}`, SHARED_TDD_POLICY].join("\n\n");
 }
+
+export function isCliPlaybookTreatment(treatment: Treatment): boolean {
+  return treatment === "cli" || treatment === "cli-playbook";
+}
+
+export function isOperationalDiagnosticTreatment(
+  treatment: Treatment,
+): boolean {
+  return treatment === "manual-playbook" || treatment === "cli-playbook";
+}
+
+export function manualPlaybookImplementationPrompt(
+  change: string,
+  skillPath: string,
+): string {
+  return [
+    "Invoke the command darrow-delivery:implement@0.1.0.",
+    `Read and follow ${skillPath} exactly.`,
+    `Command input (JSON): ${JSON.stringify({ change })}`,
+    `Requested change: ${change}`,
+    "Return only the structured result required by the supplied output schema.",
+  ].join("\n\n");
+}
+
+export function manualPlaybookReviewPrompt(
+  change: string,
+  skillPath: string,
+): string {
+  return [
+    "Invoke the command darrow-delivery:verify-and-repair@0.2.0.",
+    `Read and follow ${skillPath} exactly.`,
+    `Command input (JSON): ${JSON.stringify({ change })}`,
+    `Requested behavior: ${change}`,
+    "Return only the structured result required by the supplied output schema.",
+  ].join("\n\n");
+}

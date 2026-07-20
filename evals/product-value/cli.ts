@@ -6,17 +6,23 @@ import { stringify as stringifyYaml } from "yaml";
 import { analyze } from "./src/analyze";
 import {
   loadCorpus,
+  loadOperationalDiagnostic,
   loadProtocol,
   parseSourceArgs,
   REPO_ROOT,
   SUITE_ROOT,
 } from "./src/config";
-import { buildPolicyDiagnosticSchedule, buildSchedule } from "./src/schedule";
+import {
+  buildOperationalDiagnosticSchedule,
+  buildPolicyDiagnosticSchedule,
+  buildSchedule,
+} from "./src/schedule";
 import { poweredTasks } from "./src/stats";
 import { runAssignment } from "./src/runner";
 import { exportBlindBundles, importBlindGrades } from "./src/grading";
 import { preflightSources } from "./src/preflight";
 import { importAnnotations } from "./src/annotations";
+import { analyzeOperationalDiagnostic } from "./src/operations";
 import type {
   Harness,
   Observation,
@@ -47,12 +53,13 @@ const { values } = parseArgs({
 });
 const protocol = await loadProtocol();
 const corpus = await loadCorpus();
+const operationalDiagnostic = await loadOperationalDiagnostic();
 const phase = values.phase as Phase;
 if (phase !== "smoke" && phase !== "pilot" && phase !== "confirmatory")
   throw new Error("--phase must be smoke, pilot, or confirmatory");
 const schedule = buildSchedule(protocol, corpus, phase);
 
-async function phaseSpend(resultsRoot: string) {
+async function phaseSpend(resultsRoot: string, selectedPhase = phase) {
   let costUsd = 0;
   let tokens = 0;
   const glob = new Bun.Glob("runs/*/observation.json");
@@ -60,7 +67,7 @@ async function phaseSpend(resultsRoot: string) {
     const observation = JSON.parse(
       await readFile(join(resultsRoot, rel), "utf8"),
     );
-    if (observation.assignment?.phase !== phase) continue;
+    if (observation.assignment?.phase !== selectedPhase) continue;
     if (typeof observation.costUsd === "number") costUsd += observation.costUsd;
     if (typeof observation.inputTokens === "number")
       tokens += observation.inputTokens;
@@ -70,11 +77,15 @@ async function phaseSpend(resultsRoot: string) {
   return { costUsd, tokens };
 }
 
-function assertBudget(spend: { costUsd: number; tokens: number }) {
-  const { costUsd: costLimit, tokens: tokenLimit } = protocol.budgets[phase];
+function assertBudget(
+  spend: { costUsd: number; tokens: number },
+  selectedPhase = phase,
+) {
+  const { costUsd: costLimit, tokens: tokenLimit } =
+    protocol.budgets[selectedPhase];
   if (spend.costUsd >= costLimit || spend.tokens >= tokenLimit)
     throw new Error(
-      `${phase} operational budget reached: $${spend.costUsd.toFixed(2)}/${costLimit}, ${spend.tokens}/${tokenLimit} tokens`,
+      `${selectedPhase} operational budget reached: $${spend.costUsd.toFixed(2)}/${costLimit}, ${spend.tokens}/${tokenLimit} tokens`,
     );
 }
 
@@ -176,6 +187,16 @@ if (command === "install-toolchain") {
   );
 } else if (command === "schedule") {
   console.log(stringifyYaml(schedule));
+} else if (command === "schedule-operations") {
+  console.log(
+    stringifyYaml(
+      buildOperationalDiagnosticSchedule(
+        protocol,
+        corpus,
+        operationalDiagnostic,
+      ),
+    ),
+  );
 } else if (command === "diagnose-policy") {
   if (phase !== "smoke")
     throw new Error("diagnose-policy is restricted to the smoke phase");
@@ -192,6 +213,40 @@ if (command === "install-toolchain") {
     assertBudget(await phaseSpend(values.results!));
     console.log(
       `[${index + 1}/${diagnostic.length}] ${assignment.taskId} ${assignment.harness}/${assignment.treatment} r${assignment.repeat}`,
+    );
+    const observation = await runAssignment(
+      protocol,
+      corpus,
+      assignment,
+      sources,
+      values.results!,
+    );
+    console.log(`  ${observation.status} quality=${observation.quality}`);
+  }
+} else if (command === "diagnose-operations") {
+  const sources = parseSourceArgs(values.source);
+  await mkdir(values.results!, { recursive: true });
+  const diagnosticSchedule = buildOperationalDiagnosticSchedule(
+    protocol,
+    corpus,
+    operationalDiagnostic,
+  );
+  const selected = diagnosticSchedule.filter(
+    (assignment) =>
+      (!values.task || assignment.taskId === values.task) &&
+      (!values.harness || assignment.harness === (values.harness as Harness)) &&
+      (!values.treatment ||
+        assignment.treatment === (values.treatment as Treatment)),
+  );
+  if (!selected.length)
+    throw new Error("no operational diagnostic cells matched");
+  for (const assignment of selected) {
+    assertBudget(
+      await phaseSpend(values.results!, operationalDiagnostic.phase),
+      operationalDiagnostic.phase,
+    );
+    console.log(
+      `[${assignment.ordinal}/${diagnosticSchedule.length}] ${assignment.taskId} ${assignment.harness}/${assignment.treatment} r${assignment.repeat}`,
     );
     const observation = await runAssignment(
       protocol,
@@ -338,6 +393,17 @@ if (command === "install-toolchain") {
     JSON.stringify(report, null, 2) + "\n",
   );
   console.log(JSON.stringify(report, null, 2));
+} else if (command === "analyze-operations") {
+  const report = await analyzeOperationalDiagnostic(
+    operationalDiagnostic,
+    values.results!,
+  );
+  await mkdir(values.results!, { recursive: true });
+  await writeFile(
+    resolve(values.results!, "operational-report.json"),
+    JSON.stringify(report, null, 2) + "\n",
+  );
+  console.log(JSON.stringify(report, null, 2));
 } else if (command === "blind") {
   console.log(
     JSON.stringify(
@@ -377,7 +443,7 @@ if (command === "install-toolchain") {
   );
 } else {
   console.error(
-    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|diagnose-policy|run|reverify|blind|import-grades|import-annotations|analyze [options]",
+    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|schedule-operations|diagnose-policy|diagnose-operations|run|reverify|blind|import-grades|import-annotations|analyze|analyze-operations [options]",
   );
   process.exit(1);
 }

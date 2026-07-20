@@ -3,13 +3,20 @@ export const POLICY_DIAGNOSTIC_TREATMENTS = [
   "native-no-tdd",
   "plugins-no-tdd",
 ] as const;
+export const OPERATIONAL_DIAGNOSTIC_TREATMENTS = [
+  "manual-playbook",
+  "cli-playbook",
+] as const;
 export const TREATMENTS = [
   ...CORE_TREATMENTS,
   ...POLICY_DIAGNOSTIC_TREATMENTS,
+  ...OPERATIONAL_DIAGNOSTIC_TREATMENTS,
 ] as const;
 export const HARNESSES = ["codex", "claude"] as const;
 
 export type CoreTreatment = (typeof CORE_TREATMENTS)[number];
+export type OperationalDiagnosticTreatment =
+  (typeof OPERATIONAL_DIAGNOSTIC_TREATMENTS)[number];
 export type Treatment = (typeof TREATMENTS)[number];
 export type Harness = (typeof HARNESSES)[number];
 export type Phase = "smoke" | "pilot" | "confirmatory";
@@ -63,6 +70,15 @@ export interface Protocol {
     darrowExecutable: string;
     toolchainHome: string;
   };
+}
+
+export interface OperationalDiagnostic {
+  schemaVersion: string;
+  id: string;
+  phase: Phase;
+  repeats: number;
+  treatments: OperationalDiagnosticTreatment[];
+  taskIds: string[];
 }
 
 export interface RepositoryDefinition {
@@ -121,6 +137,15 @@ export interface CheckObservation {
   outputPath: string | null;
 }
 
+export interface OperationalMetrics {
+  operatorLaunchesRequired: number;
+  operatorHandoffsRequired: number;
+  expectedStages: number;
+  executedStages: number;
+  finishedStages: number;
+  unattendedCompletion: boolean;
+}
+
 export interface Observation {
   schemaVersion: string;
   runId: string;
@@ -148,6 +173,7 @@ export interface Observation {
   treatmentSetupTimeMs: number;
   harnessTimeMs: number;
   humanAttentionMinutes: number | null;
+  operationalMetrics?: OperationalMetrics | null;
   interventions: number;
   failures: number;
   retries: number;

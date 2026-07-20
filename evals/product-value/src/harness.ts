@@ -11,6 +11,7 @@ import { stringify as stringifyYaml } from "yaml";
 import type {
   EffectiveRoute,
   Harness,
+  OperationalMetrics,
   Phase,
   Protocol,
   Route,
@@ -18,6 +19,17 @@ import type {
 } from "./types";
 import { command, shellQuote, terminateProcessTree } from "./process";
 import { temporalExecutable } from "./toolchain";
+import {
+  isCliPlaybookTreatment,
+  manualPlaybookImplementationPrompt,
+  manualPlaybookReviewPrompt,
+} from "./policy";
+
+interface ModelInvocationResult {
+  commandId: string;
+  durationMs: number;
+  raw: string;
+}
 
 export interface InvocationResult {
   ok: boolean;
@@ -32,6 +44,8 @@ export interface InvocationResult {
   darrowRunId: string | null;
   workspace: string;
   patchBaseCommit: string | null;
+  modelInvocations?: ModelInvocationResult[];
+  operationalMetrics?: OperationalMetrics;
 }
 
 const CLAUDE_EVALUATION_TOOLS =
@@ -336,6 +350,51 @@ function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function codexStructuredOutputSchema(value: unknown, root = true): unknown {
+  if (Array.isArray(value))
+    return value.map((item) => codexStructuredOutputSchema(item, false));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        ([key]) =>
+          key !== "uniqueItems" &&
+          (!root || !["oneOf", "allOf", "anyOf"].includes(key)),
+      )
+      .map(([key, item]) => [key, codexStructuredOutputSchema(item, false)]),
+  );
+}
+
+function claudeStructuredOutputSchema(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const {
+    $schema: _schemaDialect,
+    $id: _schemaId,
+    oneOf: _rootOneOf,
+    allOf: _rootAllOf,
+    anyOf: _rootAnyOf,
+    ...projected
+  } = value as Record<string, unknown>;
+  return projected;
+}
+
+async function nativeOutputSchema(
+  harness: Harness,
+  source: string | undefined,
+  state: string,
+): Promise<string | undefined> {
+  if (!source) return undefined;
+  const schema = JSON.parse(await readFile(source, "utf8"));
+  if (harness === "claude")
+    return JSON.stringify(claudeStructuredOutputSchema(schema));
+  const target = join(state, "output.schema.json");
+  await writeFile(
+    target,
+    JSON.stringify(codexStructuredOutputSchema(schema), null, 2) + "\n",
+  );
+  return target;
+}
+
 async function runNative(
   harness: Harness,
   route: EffectiveRoute,
@@ -347,6 +406,11 @@ async function runNative(
   outputSchema?: string,
 ): Promise<InvocationResult> {
   const env = await isolatedEnvironment(harness, route, state, repo);
+  const projectedOutputSchema = await nativeOutputSchema(
+    harness,
+    outputSchema,
+    state,
+  );
   if (harness === "codex") {
     const result = await command(
       await sandboxed(
@@ -355,7 +419,9 @@ async function runNative(
           "exec",
           prompt,
           "--json",
-          ...(outputSchema ? ["--output-schema", outputSchema] : []),
+          ...(projectedOutputSchema
+            ? ["--output-schema", projectedOutputSchema]
+            : []),
           "--ephemeral",
           "--ignore-user-config",
           "--ignore-rules",
@@ -398,7 +464,9 @@ async function runNative(
         "--output-format",
         "stream-json",
         "--verbose",
-        ...(outputSchema ? ["--json-schema", outputSchema] : []),
+        ...(projectedOutputSchema
+          ? ["--json-schema", projectedOutputSchema]
+          : []),
         "--model",
         route.model,
         "--effort",
@@ -431,6 +499,106 @@ async function runNative(
   };
 }
 
+function sumKnown(values: Array<number | null>): number | null {
+  const known = values.filter((value): value is number => value !== null);
+  return known.length ? known.reduce((sum, value) => sum + value, 0) : null;
+}
+
+async function runManualPlaybook(
+  harness: Harness,
+  route: EffectiveRoute,
+  repo: string,
+  state: string,
+  change: string,
+  pluginRoot: string,
+  hiddenPaths: string[],
+  timeoutMs: number,
+): Promise<InvocationResult> {
+  const started = performance.now();
+  const stateRoot = dirname(state);
+  const mountRoot = join(repo, harness === "codex" ? ".agents" : ".claude");
+  const implementSkill = join(mountRoot, "skills", "implement", "SKILL.md");
+  const reviewSkill = join(
+    mountRoot,
+    "skills",
+    "verify-and-repair",
+    "SKILL.md",
+  );
+  const implementation = await runNative(
+    harness,
+    route,
+    repo,
+    join(stateRoot, "manual-implement-state"),
+    manualPlaybookImplementationPrompt(change, implementSkill),
+    hiddenPaths,
+    timeoutMs,
+    join(
+      pluginRoot,
+      "darrow-delivery",
+      "skills",
+      "implement",
+      "output.schema.json",
+    ),
+  );
+  const invocations: Array<InvocationResult & { commandId: string }> = [
+    { ...implementation, commandId: "darrow-delivery:implement" },
+  ];
+  const remainingMs = timeoutMs - (performance.now() - started);
+  if (implementation.ok && remainingMs > 0) {
+    const review = await runNative(
+      harness,
+      route,
+      repo,
+      join(stateRoot, "manual-review-state"),
+      manualPlaybookReviewPrompt(change, reviewSkill),
+      hiddenPaths,
+      Math.max(1, remainingMs),
+      join(
+        pluginRoot,
+        "darrow-delivery",
+        "skills",
+        "verify-and-repair",
+        "output.schema.json",
+      ),
+    );
+    invocations.push({
+      ...review,
+      commandId: "darrow-delivery:verify-and-repair",
+    });
+  }
+  const final = invocations.at(-1)!;
+  const finishedStages = invocations.filter((item) => item.ok).length;
+  return {
+    ok: invocations.length === 2 && invocations.every((item) => item.ok),
+    waiting: invocations.some((item) => item.waiting),
+    timedOut:
+      invocations.some((item) => item.timedOut) ||
+      (implementation.ok && remainingMs <= 0),
+    setupDurationMs: 0,
+    durationMs: invocations.reduce((sum, item) => sum + item.durationMs, 0),
+    inputTokens: sumKnown(invocations.map((item) => item.inputTokens)),
+    outputTokens: sumKnown(invocations.map((item) => item.outputTokens)),
+    costUsd: sumKnown(invocations.map((item) => item.costUsd)),
+    raw: invocations.map((item) => item.raw).join("\n"),
+    darrowRunId: null,
+    workspace: repo,
+    patchBaseCommit: final.patchBaseCommit,
+    modelInvocations: invocations.map((item) => ({
+      commandId: item.commandId,
+      durationMs: item.durationMs,
+      raw: item.raw,
+    })),
+    operationalMetrics: {
+      operatorLaunchesRequired: 2,
+      operatorHandoffsRequired: 1,
+      expectedStages: 2,
+      executedStages: invocations.length,
+      finishedStages,
+      unattendedCompletion: false,
+    },
+  };
+}
+
 export async function invoke(
   protocol: Protocol,
   phase: Phase,
@@ -451,7 +619,18 @@ export async function invoke(
     ...protocol.harnesses[harness],
     effort: settings.effort,
   };
-  if (treatment !== "cli")
+  if (treatment === "manual-playbook")
+    return runManualPlaybook(
+      harness,
+      route,
+      repo,
+      state,
+      prompt,
+      pluginRoot,
+      hiddenPaths,
+      timeoutMs,
+    );
+  if (!isCliPlaybookTreatment(treatment))
     return runNative(
       harness,
       route,
@@ -607,8 +786,20 @@ export async function invoke(
     });
     return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
   };
+  const expectedCommands = new Set([
+    "darrow-delivery:implement",
+    "darrow-delivery:verify-and-repair",
+  ]);
+  const executedStages = results.filter((item: any) =>
+    expectedCommands.has(item?.commandId),
+  ).length;
+  const finishedStages = results.filter(
+    (item: any) =>
+      expectedCommands.has(item?.commandId) && item?.status === "succeeded",
+  ).length;
+  const ok = result.code === 0 && envelope.ok === true && !waiting;
   return {
-    ok: result.code === 0 && envelope.ok === true && !waiting,
+    ok,
     waiting,
     timedOut: result.timedOut,
     setupDurationMs,
@@ -626,5 +817,16 @@ export async function invoke(
     darrowRunId: runId,
     workspace,
     patchBaseCommit,
+    operationalMetrics:
+      treatment === "cli-playbook"
+        ? {
+            operatorLaunchesRequired: 1,
+            operatorHandoffsRequired: 0,
+            expectedStages: 2,
+            executedStages,
+            finishedStages,
+            unattendedCompletion: ok && finishedStages === 2,
+          }
+        : undefined,
   };
 }

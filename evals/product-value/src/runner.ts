@@ -19,7 +19,11 @@ import {
 } from "./workspace";
 import { invoke } from "./harness";
 import { REPO_ROOT, SUITE_ROOT } from "./config";
-import { sharedTddPrompt, usesSharedTddPolicy } from "./policy";
+import {
+  isOperationalDiagnosticTreatment,
+  sharedTddPrompt,
+  usesSharedTddPolicy,
+} from "./policy";
 import { createExecutionTrace, traceCostUsd, traceTokenUsage } from "./trace";
 
 async function digestDirectory(
@@ -194,6 +198,11 @@ export async function runAssignment(
     digestFile(resolve(SUITE_ROOT, "protocol.yaml")),
     digestFile(resolve(SUITE_ROOT, "corpus.yaml")),
   ]);
+  const operationalDiagnosticDigest = isOperationalDiagnosticTreatment(
+    assignment.treatment,
+  )
+    ? await digestFile(resolve(SUITE_ROOT, "operational-diagnostic.yaml"))
+    : null;
   const configurationDigest = digestJson({
     route,
     treatment: assignment.treatment,
@@ -205,6 +214,7 @@ export async function runAssignment(
     evaluatorCliDigest,
     protocolDigest,
     corpusDigest,
+    operationalDiagnosticDigest,
   });
   if (await Bun.file(observationPath).exists()) {
     const existing = JSON.parse(
@@ -248,7 +258,8 @@ export async function runAssignment(
     );
     if (
       assignment.treatment === "plugins" ||
-      assignment.treatment === "plugins-no-tdd"
+      assignment.treatment === "plugins-no-tdd" ||
+      assignment.treatment === "manual-playbook"
     )
       await mountPlugins(workspace.repo, pluginRoot, assignment.harness);
     let invocationPrompt = task.prompt;
@@ -372,7 +383,14 @@ export async function runAssignment(
     preparationTimeMs,
     treatmentSetupTimeMs: invocation!.setupDurationMs,
     harnessTimeMs: invocation!.durationMs,
-    humanAttentionMinutes: invocation!.ok ? 0 : null,
+    humanAttentionMinutes: isOperationalDiagnosticTreatment(
+      assignment.treatment,
+    )
+      ? null
+      : invocation!.ok
+        ? 0
+        : null,
+    operationalMetrics: invocation!.operationalMetrics ?? null,
     interventions: 0,
     failures: invocation!.ok ? 0 : 1,
     retries: 0,
