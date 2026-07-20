@@ -21,7 +21,9 @@ identical across treatments. The v4 six-cell smoke remains operationally
 qualified because its Mynab verifier is unchanged. The first 36-cell model run
 is complete and has been re-verified under v5. Strengthened preflight passes all
 26 confirmatory tasks; the holdout remains closed pending acceptance of the
-pilot calibration.
+pilot calibration. The excluded 12-cell playbook-autonomy diagnostic is also
+complete; it isolates one-command workflow ownership from additional model
+invocations, but does not yet contain timed human-attention observations.
 
 Raw pilot root: `results/v4-fresh-review-pilot-v1/`
 
@@ -71,10 +73,53 @@ Raw smoke root: `results/playbook-autonomy-smoke-v1/`
 
 This smoke qualifies the matched-playbook route and measurement contract only.
 It is too small and too easy to estimate attention savings or product value.
-The next operational step is to commit the evaluator checkpoint, then run the
-fresh 12-cell diagnostic under `results/playbook-autonomy-v1/` so every
-observation records the committed runner revision. Timed attention annotations
-and the descriptive operational report follow that run.
+The full diagnostic below supersedes it for descriptive operational evidence.
+
+### Full playbook-autonomy diagnostic
+
+The committed 12-cell diagnostic completed on the fixed simple task and two
+orchestrated pilot tasks. Manual and CLI treatments each ran the same two
+command skills through fresh model sessions under one shared 15-minute cell
+deadline. The evaluator automated the manual handoff for repeatability, so the
+structural operator-action comparison is observed while human-attention minutes
+remain null.
+
+Raw result root: `results/playbook-autonomy-v1/`
+
+- Runner revision: `0d5be6518f10afbf76b263a8b1e2f8c7c0ec2879`
+- Scope: three tasks, both harnesses, two treatments, one repeat (12 cells)
+- Execution: 9/12 completed and 3/12 failed; 1.704 aggregate wall-clock hours
+- Recorded usage: 13,876,447 total tokens and $10.579 known Claude cost
+- Trace completeness: all cells retained both model invocations; CLI runtime
+  wrapper time averaged 3.2 seconds and was 0.66% of CLI harness time
+
+| Treatment       | Completed | Quality | Mean wall | Mean tokens | Mean Claude cost | Finished stages | Unattended completion |
+| --------------- | --------: | ------: | --------: | ----------: | ---------------: | --------------: | --------------------: |
+| Manual playbook |       4/6 |   0.500 |   530.3 s |      1.113M |           $1.819 |           10/12 |                   0/6 |
+| CLI playbook    |       5/6 |   0.667 |   491.9 s |      1.199M |           $1.708 |           11/12 |                   5/6 |
+
+Paired `cli - manual` deterministic quality was +0.167. CLI/manual wall time
+was 0.928×, known Claude cost was 0.939×, and recorded tokens were 1.077×. By
+harness, Claude quality was 0.667 CLI versus 0.333 manual; Codex quality was
+0.667 in both treatments. Claude CLI used 0.899× manual wall time, 0.939× cost,
+and 0.835× reported tokens. Codex CLI used 0.958× wall time and 1.079× tokens.
+
+The quality difference is not broad: it comes entirely from
+`credfolio-github-profile` under Claude, where CLI passed and manual failed the
+hidden test. Both treatments passed `mynab-flags-now` in both harnesses. Every
+`mynab-import-commit-backend` cell failed hidden verification. Its two manual
+cells timed out after executing both stages but finishing only the first; Codex
+CLI completed both stages but failed the hidden test, while Claude CLI finished
+implementation and then had its review result correctly rejected because it
+claimed `verified: true` while reporting a failing verdict check.
+
+The operational signal is nevertheless concrete: for the same two model
+sessions, the product treatment reduced the user-facing contract from two
+launches plus a handoff to one launch, completed the full playbook unattended in
+five of six cells, and had fewer operational failures. This automated run does
+not establish a percentage reduction in active human minutes. That requires a
+separate timed operator exercise; elapsed model waiting must not be backfilled
+as attention.
 
 ### V5 deterministic pilot calibration
 
@@ -329,13 +374,12 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Before deciding whether the current +0.099 overall and +0.173 orchestrated
-quality signals justify the projected 312-cell spend, run the excluded
-playbook-autonomy diagnostic. It compares a manually initiated two-session
-implementation/review playbook with the model-matched one-command Darrow
-workflow on one simple and two orchestrated pilot tasks across both harnesses.
-This diagnostic leaves the confirmatory holdout closed and reports structural
-operator actions separately from explicitly timed human attention. Do not
-overwrite or pool the original v4 quality fields; the digest-bound v5
-re-verification and derived grading overlay remain the authoritative pilot
-grades.
+Before deciding whether the current quality and autonomy signals justify the
+projected 312-cell confirmatory spend, run a small timed operator exercise for
+the manual two-launch/handoff workflow and the one-command Darrow workflow.
+Keep it separate from the completed automated observations: their null
+attention values are correct and must not be backfilled from a different run.
+Then evaluate the quality, reliability, model economics, and active-attention
+evidence together. The confirmatory holdout remains closed. Do not overwrite or
+pool the original v4 quality fields; the digest-bound v5 re-verification and
+derived grading overlay remain the authoritative pilot grades.
