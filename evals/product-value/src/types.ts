@@ -81,6 +81,7 @@ export interface TaskDefinition {
   oracleRevision: string;
   prompt: string;
   verificationCommand: string;
+  verificationCwd?: string;
   grading: "deterministic" | "mixed";
   rubric: string[];
 }

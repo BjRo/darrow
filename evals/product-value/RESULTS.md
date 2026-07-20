@@ -11,16 +11,108 @@ outputs under `evals/results/` are a separate test corpus.
 
 ## Current status — 2026-07-20
 
-The current protocol is v4: all three core treatments receive the same minimal
+The current protocol is v5: all three core treatments receive the same minimal
 Red/Green TDD implementation policy, while the CLI product treatment runs a
 second fresh-context `verify-and-repair` command through the same locked harness
-route. The top-level requested outcome remains identical across treatments. The
-fresh v4 six-cell smoke is now operationally qualified: every cell
-completed, every hidden deterministic check scored 1.00, both CLI traces contain
-two real model invocations, and no evaluator-owned process remains. Pilot work
-may begin, but this one-task smoke is not product-value evidence.
+route. V5 changes only deterministic grading: task verifiers run the
+oracle-changed tests from their owning package and preflight proves that each
+selected historical oracle passes. The top-level requested outcome remains
+identical across treatments. The v4 six-cell smoke remains operationally
+qualified because its Mynab verifier is unchanged. The first 36-cell model run
+is complete and has been re-verified under v5. Strengthened preflight passes all
+26 confirmatory tasks; the holdout remains closed pending acceptance of the
+pilot calibration.
 
-Qualifying v4 evidence root: `results/v4-fresh-review-smoke-v4/`
+Raw pilot root: `results/v4-fresh-review-pilot-v1/`
+
+Derived v5 verification root:
+`results/v4-fresh-review-pilot-v1/reverification-v5-package-focused/`
+
+- Runner revision for model execution: `b79cce86a1405f87f7b7540e8b69315df198169b`
+- Harnesses: Codex CLI 0.144.6 and Claude Code 2.1.185
+- Models: `gpt-5.6-sol` and `claude-sonnet-4-6`, medium effort
+- Scope: six tasks, both harnesses, three treatments, one repeat (36 cells)
+- Execution: 34 completed, two timed out; 3.746 aggregate wall-clock hours
+- Usage: 19,606,004 recorded input tokens, 418,271 output tokens, and
+  $23.149 known Claude cost; both timed-out cells have incomplete usage
+- Corrected deterministic quality: 15/36 passes (0.417), up from the invalid
+  repository-wide grading's 8/36
+- Blind grading: 42 randomized bundles scored (36 observations plus six
+  agreement duplicates); mean rubric score was 0.780 across presented bundles
+  and duplicate mean absolute difference was 0.000
+
+### V5 deterministic pilot calibration
+
+| Harness | Treatment | Passes | Quality | Wall time | Cost / token fallback | Operational failures |
+| ------- | --------- | -----: | ------: | --------: | --------------------: | -------------------: |
+| Claude  | Native    |    2/6 |   0.333 | 34.79 min |                $7.416 |                  0/6 |
+| Claude  | Plugins   |    2/6 |   0.333 | 41.61 min |          $6.244 known |                  1/6 |
+| Claude  | CLI       |    3/6 |   0.500 | 47.17 min |                $9.489 |                  0/6 |
+| Codex   | Native    |    2/6 |   0.333 | 24.69 min |         5.591M tokens |                  0/6 |
+| Codex   | Plugins   |    3/6 |   0.500 | 23.29 min |         5.574M tokens |                  0/6 |
+| Codex   | CLI       |    3/6 |   0.500 | 53.21 min |   8.575M known tokens |                  1/6 |
+
+### V5 mixed-quality pilot calibration
+
+The single blinded grader scored all four frozen rubric items for 42 randomized
+bundles before the private treatment map was opened. The six repeated bundles
+received identical mean scores, for an intra-grader mean absolute difference of
+0.000. Across the 36 distinct observations, mean blinded rubric quality was
+0.785.
+
+| Harness | Treatment | Deterministic | Blinded rubric | Final mixed quality |
+| ------- | --------- | ------------: | -------------: | ------------------: |
+| Claude  | Native    |         0.333 |          0.792 |               0.471 |
+| Claude  | Plugins   |         0.333 |          0.646 |               0.427 |
+| Claude  | CLI       |         0.500 |          0.729 |               0.569 |
+| Codex   | Native    |         0.333 |          0.813 |               0.477 |
+| Codex   | Plugins   |         0.500 |          0.771 |               0.581 |
+| Codex   | CLI       |         0.500 |          0.958 |               0.638 |
+
+Across both harnesses, final mixed quality was 0.603 for CLI, 0.504 for direct
+plugins, and 0.474 for native. At the preregistered task level, mixed-quality
+`cli - plugins` was +0.099 with a seeded 95% task-bootstrap interval of
+[+0.016, +0.241] and a two-sided sign-flip p-value of 0.057. The effect was
++0.173 on orchestrated tasks and +0.025 on simple tasks. `plugins - native` was
++0.030.
+
+The CLI-minus-plugin effect was nonnegative on every pilot task, but it was
+highly concentrated: `credfolio-finding-index` contributed +0.444. The other
+five task differences ranged from 0.000 to +0.056. This is a useful calibration
+signal for orchestration, not evidence that the effect is broad or stable.
+
+One Claude/plugins timeout and one Codex/CLI timeout have missing usage, so
+their economic totals are incomplete. On the five complete Claude task pairs,
+CLI/provider cost was 1.39× direct plugins. Codex CLI already used 1.54× direct
+plugin tokens before counting its timed-out cell, and used 2.28× wall time.
+Across both harnesses CLI used 1.55× direct-plugin wall time. CLI's operational
+failure rate was 1/12 (8.3%), above the 5% confirmatory ceiling in this small
+calibration sample.
+
+At the preregistered task level, corrected deterministic `cli - plugins` is
++0.083 overall: +0.167 on the three orchestrated tasks and 0.000 on the three
+simple tasks. `plugins - native` is also +0.083 overall. The only CLI-over-plugin
+quality difference is `credfolio-finding-index` under Claude; the corresponding
+Codex block is all-zero. The winning Claude verification session reported no
+finding or repair, so the difference came from the CLI implementation path, not
+an observed second-pass repair. Of 11 completed CLI review sessions, three
+reported and fixed a material finding; none created a unique hidden-test win.
+
+The runtime wrapper remains negligible. Across the six Claude CLI cells it used
+20.1 seconds (0.75% of harness time); across six Codex CLI cells it used 15.3
+seconds (0.50%). The extra time is model execution, including the mandated
+second invocation, not host-side Darrow machinery.
+
+These are calibration results, not the final decision. Mixed quality is more
+encouraging than deterministic pass/fail alone: the overall +0.099 point
+estimate is effectively at the preregistered +0.100 useful-gain target, and the
+orchestrated subgroup exceeds it. The evidence remains only six tasks and is
+dominated by one task. Codex's known token ratio and the CLI operational-failure
+rate also remain above their confirmatory ceilings. All 26 holdout oracle
+verifiers pass strengthened preflight; opening the holdout is now a product and
+budget decision rather than an evaluator-readiness blocker.
+
+Qualifying v4 smoke evidence root: `results/v4-fresh-review-smoke-v4/`
 
 - Runner revision: `384c8dd180f9cbf6705a1105396b6e42146871a3`
 - Harnesses: Codex CLI 0.144.6 and Claude Code 2.1.185
@@ -202,10 +294,11 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Run the preregistered 36-cell, one-repeat v4 calibration pilot across the real
-simple and orchestrated task strata. Inspect task-level quality, fresh-review
-repairs, paired time/cost effects, and trace completeness before applying the
-confirmatory continue gate. The v4 operational token ceilings are 20 million
-for pilot and 175 million for confirmatory. Do not pool any excluded smoke root
-with pilot or confirmatory product estimates; run the optional clean no-TDD
-diagnostic only if implementation-policy cost still matters.
+Review and accept the pilot calibration, then commit the evaluator correction
+before any confirmatory model execution; the runner correctly refuses a dirty
+holdout configuration. If the +0.099 overall and +0.173 orchestrated quality
+signals justify the projected 312-cell spend despite the pilot's Codex token and
+reliability overruns, execute the frozen confirmatory schedule without further
+protocol, corpus, rubric, threshold, or analysis changes. Do not overwrite or
+pool the original v4 quality fields; the digest-bound v5 re-verification and
+derived grading overlay are the authoritative pilot grades.

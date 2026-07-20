@@ -27,7 +27,57 @@ async function observations(resultsRoot: string): Promise<Observation[]> {
   const glob = new Bun.Glob("runs/*/observation.json");
   for await (const rel of glob.scan(resultsRoot))
     values.push(JSON.parse(await readFile(join(resultsRoot, rel), "utf8")));
-  return values;
+  let overlayText: string;
+  try {
+    overlayText = await readFile(
+      join(resultsRoot, "blind", "graded-observations.jsonl"),
+      "utf8",
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return values;
+    throw error;
+  }
+  const overlays = overlayText
+    .split("\n")
+    .filter(Boolean)
+    .map(
+      (line) =>
+        JSON.parse(line) as {
+          schemaVersion: string;
+          runId: string;
+          deterministicQuality: number;
+          blindedQuality: number;
+          quality: number;
+        },
+    );
+  if (
+    overlays.some(
+      (value) =>
+        value.schemaVersion !== "1.0.0" ||
+        !value.runId ||
+        [value.deterministicQuality, value.blindedQuality, value.quality].some(
+          (score) => !Number.isFinite(score) || score < 0 || score > 1,
+        ),
+    )
+  )
+    throw new Error("graded observation overlay is invalid");
+  if (new Set(overlays.map((value) => value.runId)).size !== overlays.length)
+    throw new Error("graded observation overlay contains duplicate run IDs");
+  const byRun = new Map(overlays.map((value) => [value.runId, value]));
+  for (const runId of byRun.keys())
+    if (!values.some((value) => value.runId === runId))
+      throw new Error(`graded observation overlay names unknown run: ${runId}`);
+  return values.map((value) => {
+    const overlay = byRun.get(value.runId);
+    return overlay
+      ? {
+          ...value,
+          deterministicQuality: overlay.deterministicQuality,
+          blindedQuality: overlay.blindedQuality,
+          quality: overlay.quality,
+        }
+      : value;
+  });
 }
 
 function cells(values: Observation[]): Cell[] {

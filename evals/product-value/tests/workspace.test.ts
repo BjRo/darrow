@@ -8,6 +8,8 @@ import {
   destroyWorkspace,
   injectOracleTests,
   prepareWorkspace,
+  reverifyPatch,
+  verifyOracleOutcome,
   verifyOutcome,
 } from "../src/workspace";
 import type { RepositoryDefinition, TaskDefinition } from "../src/types";
@@ -59,15 +61,17 @@ describe("product-value workspace (PV-4 through PV-6)", () => {
       source,
     );
     await mkdir(join(source, "src"));
+    await mkdir(join(source, "tests"));
     await writeFile(
       join(source, "src", "value.ts"),
       "export const value = 1;\n",
     );
     await writeFile(join(source, "AGENTS.md"), "secret instructions\n");
+    await writeFile(join(source, "tests", "obsolete.test.ts"), "obsolete\n");
     await checked(["git", "add", "-A"], source);
     await checked(["git", "commit", "-m", "chore: base"], source);
     const baseRevision = await checked(["git", "rev-parse", "HEAD"], source);
-    await mkdir(join(source, "tests"));
+    await rm(join(source, "tests", "obsolete.test.ts"));
     await writeFile(
       join(source, "src", "value.ts"),
       "export const value = 2;\n",
@@ -146,6 +150,11 @@ describe("product-value workspace (PV-4 through PV-6)", () => {
         workspace.baseCommit,
       );
       expect(tests).toEqual(["tests/value.test.ts"]);
+      expect(
+        await Bun.file(
+          join(workspace.repo, "tests", "obsolete.test.ts"),
+        ).exists(),
+      ).toBe(false);
       const verification = await verifyOutcome(workspace.repo, task, tests);
       expect(verification.passed).toBe(true);
       expect(verification.failureCategory).toBeNull();
@@ -161,6 +170,43 @@ describe("product-value workspace (PV-4 through PV-6)", () => {
       expect(failure.failureCategory).toBe("test_failure");
       expect(failure.outputPath).toBe(failureLog);
       expect(await Bun.file(failureLog).text()).toContain("Failed Suites");
+      task.verificationCommand =
+        "printf \"Failed Suites 1\\nCannot find module './value.ts'\\n\" >&2; exit 1";
+      const missingImplementation = await verifyOutcome(
+        workspace.repo,
+        task,
+        tests,
+      );
+      expect(missingImplementation.failureCategory).toBe("test_failure");
+
+      task.verificationCommand = "test -f {tests}";
+      task.verificationCwd = "tests";
+      const scoped = await verifyOutcome(workspace.repo, task, tests);
+      expect(scoped.command).toBe("test -f 'value.test.ts'");
+      expect(scoped.passed).toBe(true);
+      task.verificationCwd = "../outside";
+      await expect(verifyOutcome(workspace.repo, task, tests)).rejects.toThrow(
+        "verification cwd escapes the workspace",
+      );
+
+      task.verificationCwd = undefined;
+      const reverified = await reverifyPatch(
+        source,
+        repository,
+        task,
+        patchPath,
+        join(workspace.root, "reverification.log"),
+      );
+      expect(reverified.passed).toBe(true);
+
+      task.verificationCommand =
+        "grep -q 'value = 2' src/value.ts && test -f {tests}";
+      const oracleVerification = await verifyOracleOutcome(
+        source,
+        repository,
+        task,
+      );
+      expect(oracleVerification.passed).toBe(true);
     } finally {
       await destroyWorkspace(workspace);
     }

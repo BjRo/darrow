@@ -1,6 +1,13 @@
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import type {
   CheckObservation,
   Harness,
@@ -151,6 +158,16 @@ export async function injectOracleTests(
     ["git", "ls-tree", "-r", "--name-only", baseCommit],
     repo,
   );
+  const oraclePaths = new Set(
+    (
+      await checked(
+        ["git", "ls-tree", "-r", "--name-only", task.oracleRevision],
+        source,
+      )
+    )
+      .split("\n")
+      .filter(Boolean),
+  );
   const verifierInputs = tracked
     .split("\n")
     .filter(Boolean)
@@ -162,6 +179,10 @@ export async function injectOracleTests(
         ),
     );
   for (const path of verifierInputs) {
+    if (!oraclePaths.has(path)) {
+      await rm(join(repo, path), { force: true });
+      continue;
+    }
     const content = await command(
       ["git", "show", `${baseCommit}:${path}`],
       repo,
@@ -177,6 +198,7 @@ export async function injectOracleTests(
       "diff-tree",
       "--no-commit-id",
       "--name-only",
+      "--diff-filter=AMR",
       "-r",
       task.oracleRevision,
     ],
@@ -206,32 +228,55 @@ export async function verifyOutcome(
   oracleTests: string[],
   outputPath?: string,
 ): Promise<CheckObservation> {
-  const tests = oracleTests.map(shellQuote).join(" ");
+  const cwd = resolve(repo, task.verificationCwd ?? ".");
+  const cwdFromRepo = relative(repo, cwd);
+  if (
+    cwdFromRepo === ".." ||
+    cwdFromRepo.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) ||
+    isAbsolute(cwdFromRepo)
+  )
+    throw new Error(`${task.id} verification cwd escapes the workspace`);
+  const tests = oracleTests
+    .map((path) => {
+      const fromCwd = relative(cwd, resolve(repo, path));
+      if (
+        fromCwd === ".." ||
+        fromCwd.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) ||
+        isAbsolute(fromCwd)
+      )
+        throw new Error(
+          `${task.id} oracle test is outside its verification cwd: ${path}`,
+        );
+      return shellQuote(fromCwd);
+    })
+    .join(" ");
   const script = task.verificationCommand.replaceAll("{tests}", tests);
   const result = await command(
     ["sh", "-lc", script],
-    repo,
+    cwd,
     process.env,
     20 * 60_000,
   );
   if (outputPath)
     await writeFile(outputPath, `${result.stdout}${result.stderr}`);
   const output = `${result.stdout}\n${result.stderr}`;
+  const testFailure =
+    /(Failed Tests|Failed Suites|Test Files.*failed|\bFAIL\b)/i.test(output);
   const failureCategory = result.timedOut
     ? "timeout"
     : result.code === 0
       ? null
       : /Cannot find package ['"]bun:/i.test(output)
         ? "runtime_mismatch"
-        : /(Cannot find (package|module)|MODULE_NOT_FOUND|command not found)/i.test(
-              output,
-            )
-          ? "missing_dependency"
-          : /(Failed Tests|Failed Suites|Test Files.*failed|\bFAIL\b)/i.test(
+        : testFailure && /Cannot find module ['"]\.{1,2}\//i.test(output)
+          ? "test_failure"
+          : /(Cannot find (package|module)|MODULE_NOT_FOUND|command not found)/i.test(
                 output,
               )
-            ? "test_failure"
-            : "command_failure";
+            ? "missing_dependency"
+            : testFailure
+              ? "test_failure"
+              : "command_failure";
   return {
     command: script,
     exitCode: result.code,
@@ -240,6 +285,67 @@ export async function verifyOutcome(
     failureCategory,
     outputPath: outputPath ?? null,
   };
+}
+
+export async function reverifyPatch(
+  source: string,
+  repository: RepositoryDefinition,
+  task: TaskDefinition,
+  patchPath: string,
+  outputPath: string,
+): Promise<CheckObservation> {
+  const workspace = await prepareWorkspace(source, repository, task);
+  try {
+    if ((await Bun.file(patchPath).size) > 0)
+      await checked(["git", "apply", "--binary", patchPath], workspace.repo);
+    const oracleTests = await injectOracleTests(
+      source,
+      task,
+      workspace.repo,
+      workspace.baseCommit,
+    );
+    return await verifyOutcome(workspace.repo, task, oracleTests, outputPath);
+  } finally {
+    await destroyWorkspace(workspace);
+  }
+}
+
+export async function verifyOracleOutcome(
+  source: string,
+  repository: RepositoryDefinition,
+  task: TaskDefinition,
+  outputPath?: string,
+): Promise<CheckObservation> {
+  const workspace = await prepareWorkspace(source, repository, task);
+  try {
+    const patchPath = join(workspace.root, "oracle.patch");
+    const patch = await command(
+      ["git", "diff", "--binary", task.baseRevision, task.oracleRevision],
+      source,
+    );
+    if (patch.code !== 0)
+      throw new Error(`${task.id} cannot export its oracle patch`);
+    await writeFile(patchPath, patch.stdout);
+    if (patch.stdout.length > 0) {
+      const excluded = workspace.sanitization.removedPaths.flatMap((path) => [
+        `--exclude=${path}`,
+        `--exclude=${path}/**`,
+      ]);
+      await checked(
+        ["git", "apply", "--binary", ...excluded, patchPath],
+        workspace.repo,
+      );
+    }
+    const oracleTests = await injectOracleTests(
+      source,
+      task,
+      workspace.repo,
+      workspace.baseCommit,
+    );
+    return await verifyOutcome(workspace.repo, task, oracleTests, outputPath);
+  } finally {
+    await destroyWorkspace(workspace);
+  }
 }
 
 export async function destroyWorkspace(

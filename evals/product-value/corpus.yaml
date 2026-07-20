@@ -18,7 +18,8 @@ tasks:
     baseRevision: ad07327367e5d8810721bb8ba94f7783cba6644e
     oracleRevision: b936d473b5f754056a90c4217621466045df20c0
     prompt: "Add an optional `{ readonly now?: Date }` options object parameter to resolveFlagEvaluationContext so callers can evaluate flags against a deterministic instant while preserving current behavior by default."
-    verificationCommand: bun --bun node_modules/.bin/vitest run {tests}
+    verificationCommand: bun --bun vitest run {tests}
+    verificationCwd: apps/api
     grading: mixed
     rubric: [correct behavior, focused tests, compatibility, maintainability]
   - <<: *mynab_simple
@@ -39,30 +40,35 @@ tasks:
     baseRevision: a1bd9a0f5cc46efb01816fb4a73f01808deb1c36
     oracleRevision: 2128680d4f123ba8b12925fcfc6e8658f2cbb02e
     prompt: Fix the account audit decoder so mapped account types decode correctly.
+    verificationCwd: packages/shared
   - <<: *mynab_simple
     id: mynab-locale-snapshot
     phase: confirmatory
     baseRevision: be5289761e934ad4feee4a818263ad636d72a632
     oracleRevision: 334a55131aca608a671743089aa388dfa0341593
     prompt: Make the affected snapshot locale-agnostic and keep its render-budget assertion stable in CI.
+    verificationCwd: apps/web
   - <<: *mynab_simple
     id: mynab-dialog-position
     phase: confirmatory
     baseRevision: f4914e17c8572c5fc7bc44c3bce7a8fb6f3c81e7
     oracleRevision: 587b6991be5008696e0ce6ce13b5cdbfc26c6cda
     prompt: Stabilize mobile dialog-sheet positioning across viewport sizes.
+    verificationCwd: apps/web
   - <<: *mynab_simple
     id: mynab-shortcut-disabled
     phase: confirmatory
     baseRevision: 729860c96018dff35e5d25d564b65d6a0e8606d2
     oracleRevision: 28ec3988b38a3c79839a1d9d301f815879b71b7d
     prompt: Ensure dialog keyboard shortcuts honor the disabled state of their actions.
+    verificationCwd: apps/web
   - <<: *mynab_simple
     id: mynab-memo-truncation
     phase: confirmatory
     baseRevision: f72bc4adc09377151277f575919929ec03ebe199
     oracleRevision: 0f885539daae4474b4fa66b24b3fb19b30d72bea
     prompt: Prevent long memo strings from overflowing the desktop ledger while retaining accessible content.
+    verificationCwd: apps/web
 
   - &mynab_orchestrated
     id: mynab-import-commit-backend
@@ -72,7 +78,8 @@ tasks:
     baseRevision: f1d7aba7ceb8ca20f24126136c5fca428c9bd905
     oracleRevision: f1535cf6eb0189812daa60b0393df45983376300
     prompt: Add the backend commit endpoint and dry-run schemas for transaction import, including validation and tests across the affected packages.
-    verificationCommand: bun --bun node_modules/.bin/vitest run {tests}
+    verificationCommand: bun --bun vitest run {tests}
+    verificationCwd: apps/api
     grading: mixed
     rubric:
       [end-to-end behavior, focused tests, boundary handling, maintainability]
@@ -82,42 +89,81 @@ tasks:
     baseRevision: 020b269047749a6715aa5de7ebbb65649d42a42f
     oracleRevision: 56727b8f4ba637e2abc29855c72f01c291d814f4
     prompt: Resolve the import workflow's outstanding warning-level review findings without regressing its dry-run and commit behavior.
+    verificationCwd: apps/web
   - <<: *mynab_orchestrated
     id: mynab-import-frontend
     phase: confirmatory
     baseRevision: f1535cf6eb0189812daa60b0393df45983376300
     oracleRevision: f478ef4dba04fc20384f562c5fa669449c9d337f
     prompt: Add the frontend dry-run preview and commit flow for transaction import with complete UI state and test coverage.
+    verificationCwd: apps/web
   - <<: *mynab_orchestrated
     id: mynab-import-dedup
     phase: confirmatory
     baseRevision: fbb05da928cb8cd88fcb625cbdf389be4c8cf958
     oracleRevision: bf6812c7752e74c042a01653e8d855e1679c9b3e
     prompt: Implement an idempotent deduplication layer for import uploads across repository, service, and tests.
+    verificationCommand: >-
+      (cd apps/api && bun --bun vitest run
+      src/db/household-repo.test.ts src/db/import-dedup-repo.test.ts
+      src/db/schema.tables.test.ts src/import/content-hash.test.ts
+      src/import/dedup.test.ts src/routes/import.test.ts) &&
+      (cd apps/web && bun --bun vitest run src/routes/import.test.tsx) &&
+      (cd packages/shared && bun --bun vitest run src/import.test.ts)
+    verificationCwd: .
   - <<: *mynab_orchestrated
     id: mynab-import-plan
     phase: confirmatory
     baseRevision: ac257af52169303eb0692db9820543050fbdcc15
     oracleRevision: 13938cca5401be501a5c6310a1830404a4bb8a28
     prompt: Add a transaction-import dry-run plan that reports intended changes without persisting them.
+    verificationCommand: >-
+      (cd apps/api && bun --bun vitest run
+      src/import/account-mapper.test.ts src/import/csv-parser.test.ts
+      src/import/payee-mapper.test.ts src/import/transaction-mapper.test.ts
+      src/routes/import.test.ts) &&
+      (cd apps/web && bun --bun vitest run src/routes/import.test.tsx) &&
+      (cd packages/shared && bun --bun vitest run
+      src/import.test.ts src/money.test.ts)
+    verificationCwd: .
   - <<: *mynab_orchestrated
     id: mynab-category-mapping
     phase: confirmatory
     baseRevision: e19aca6c668f68407146bd262a6e57400123d5bb
     oracleRevision: 0f50c69754107b48a59f06655bd4c4c4865f0b66
     prompt: Add a dry-run workflow for mapping YNAB categories, including collision and exclusion behavior.
+    verificationCommand: >-
+      (cd apps/api && bun --bun vitest run
+      src/import/category-mapper.test.ts src/routes/import.test.ts) &&
+      (cd apps/web && bun --bun vitest run src/routes/import.test.tsx)
+    verificationCwd: .
   - <<: *mynab_orchestrated
     id: mynab-account-mapping
     phase: confirmatory
     baseRevision: 06ec6171ae7324e77084446820c0863ede190954
     oracleRevision: a1bd9a0f5cc46efb01816fb4a73f01808deb1c36
     prompt: Add the YNAB account-mapping dry run across shared types, backend logic, and tests.
+    verificationCommand: >-
+      (cd apps/api && bun --bun vitest run
+      src/db/schema.tables.test.ts src/import/account-mapper.test.ts
+      src/routes/import.test.ts) &&
+      (cd apps/web && bun --bun vitest run src/routes/import.test.tsx) &&
+      (cd packages/shared && bun --bun vitest run src/table-schemas.test.ts)
+    verificationCwd: .
   - <<: *mynab_orchestrated
     id: mynab-import-surface
     phase: confirmatory
     baseRevision: 96302e477556b970debcd090f3ed32c73d045adc
     oracleRevision: e0f26a6b0c6f4d68b3a54f7ceb60f984488472e4
     prompt: Implement the YNAB import frontend and sidebar navigation against the existing upload-and-parse backend.
+    verificationCommand: >-
+      (cd apps/api && bun --bun vitest run
+      src/auth/provision-household.test.ts src/flags/dogfood-enable.test.ts
+      src/flags/flag-definitions.test.ts) &&
+      (cd apps/web && bun --bun vitest run
+      src/components/import-upload-form.test.tsx src/routes/import.test.tsx
+      src/styles/tokens.test.ts)
+    verificationCwd: .
 
   - &credfolio_simple
     id: credfolio-github-username
@@ -127,7 +173,8 @@ tasks:
     baseRevision: aa57c3c24129bd136d9ca9fea55b35a919b783fe
     oracleRevision: 9fc03884f1eb0052ffb04338d28443052f6e6805
     prompt: Add frontend utilities to extract and validate GitHub usernames from supported user input.
-    verificationCommand: pnpm test
+    verificationCommand: pnpm exec vitest run {tests}
+    verificationCwd: src/frontend
     grading: mixed
     rubric: [correct behavior, focused tests, edge cases, maintainability]
   - <<: *credfolio_simple
@@ -172,6 +219,8 @@ tasks:
     baseRevision: 7724fca8f3e27c97f48959cf326125a8dc27b08d
     oracleRevision: c84e5909ace979d89b15ddbffed74388e99ac482
     prompt: Differentiate positioning-review log messages for unmarshal failures and empty assessments.
+    verificationCommand: go test ./internal/job
+    verificationCwd: src/backend
 
   - &credfolio_orchestrated
     id: credfolio-github-profile
@@ -181,7 +230,8 @@ tasks:
     baseRevision: f5203ade0858a0c9ca6857af252cd386445533dc
     oracleRevision: 24f7c711dd5296cb0fe4cdeb1b8d18de9f3ef7e7
     prompt: Add a GitHub link to the profile header, profile edit form, and dialog with validation and complete test coverage.
-    verificationCommand: pnpm test
+    verificationCommand: pnpm exec vitest run {tests}
+    verificationCwd: src/frontend
     grading: mixed
     rubric:
       [end-to-end behavior, focused tests, boundary handling, maintainability]
@@ -197,6 +247,8 @@ tasks:
     baseRevision: 04471034fafe8f9999c1ee0550055f39404e05e6
     oracleRevision: 66b88d3a5bc49cd9fe3f102d9f0bd637906e5aef
     prompt: Extract a shared ProfileDataLoader with concurrent loading, cancellation, and consistent error propagation.
+    verificationCommand: go test ./internal/job
+    verificationCwd: src/backend
   - <<: *credfolio_orchestrated
     id: credfolio-entity-mutations
     phase: confirmatory
@@ -227,3 +279,5 @@ tasks:
     baseRevision: 719662e6a275d98fcc1cb545f3684d5b3afcc4f9
     oracleRevision: 36bc2a12ecdb840a4a1a58ee287fe40d68567d81
     prompt: Implement the asynchronous positioning-review backend with durable repository state, worker behavior, and tests.
+    verificationCommand: go test ./internal/service -run '^(TestSplitExperiences|TestSplitSkills|TestSplitTestimonials|TestSplitEducation|TestBuildSidebarStrengths)'
+    verificationCwd: src/backend

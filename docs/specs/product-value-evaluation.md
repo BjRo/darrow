@@ -56,9 +56,17 @@ and M3 investment. The preregistration and executable configuration live under
   manifest and refuses residual prohibited paths or escaping symlinks.
 - **PV-6 — Hidden verification.** Oracle test files are read from the pinned
   source only after agent execution. Before deterministic verification, the
-  runner restores base tests and test-runner manifests, then overwrites
-  same-named participant tests with the oracle versions. The trial workspace
-  contains neither source history nor evaluator criteria during execution.
+  runner restores base tests and test-runner manifests that remain in the oracle
+  tree, removes verifier inputs deleted or renamed away by the oracle, then
+  overwrites same-named participant tests with the oracle versions. Each task runs the
+  smallest oracle-focused command from an optional repository-relative working
+  directory; a working directory may not escape the disposable checkout, and
+  every oracle test must be below it. Before a phase, preflight reconstructs
+  each selected historical oracle change in the sanitized workspace and refuses
+  unless that exact verifier passes. The trial workspace contains neither
+  source history nor evaluator criteria during execution. A calibration repair
+  may re-verify an immutable participant patch into a separate digest-bound
+  derived record, but it never overwrites the original observation or output.
 - **PV-7 — Strata and holdout.** Both repositories contribute simple overhead
   controls and representative multi-step changes. Pilot tasks calibrate the
   procedure. Confirmatory holdout tasks cannot be used to change hypotheses,
@@ -98,7 +106,10 @@ and M3 investment. The preregistration and executable configuration live under
   primary quality evidence wherever possible. Qualitative grading uses a frozen
   rubric, opaque sample IDs, randomized presentation, and graders blinded to
   treatment. Calibration examples are separate from the holdout. The evaluator
-  retains deterministic verifier output after agent execution and records a
+  stores imported grades as a derived overlay, optionally bound to corrected
+  deterministic re-verification, without rewriting raw observations. Analysis
+  applies that overlay before combining deterministic and rubric quality. The
+  evaluator retains deterministic verifier output after agent execution and records a
   typed failure category so runtime mismatch, missing dependency, timeout, and
   behavioral test failure are distinguishable.
 - **PV-14 — Lightweight instrumentation.** The experiment writes append-only

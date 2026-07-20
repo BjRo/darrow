@@ -122,8 +122,20 @@ test("mechanically applies the confirmatory continue gate at task level", async 
           );
         }
 
+  await mkdir(join(root, "blind"), { recursive: true });
+  await writeFile(
+    join(root, "blind", "graded-observations.jsonl"),
+    JSON.stringify({
+      schemaVersion: "1.0.0",
+      runId: "run-1",
+      deterministicQuality: 1,
+      blindedQuality: 1,
+      quality: 1,
+    }) + "\n",
+  );
   const report = await analyze(protocol, corpus, root);
   expect(report.decision).toBe("continue");
   expect(report.distinctTasks).toBe(26);
+  expect((report.treatments as any).native.meanQuality).toBeGreaterThan(0.6);
   expect((report.economics as any).modelResourceRatio).toBeCloseTo(1.2);
 });

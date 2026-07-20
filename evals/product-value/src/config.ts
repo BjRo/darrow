@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { isAbsolute, normalize, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
   CORE_TREATMENTS,
@@ -75,6 +75,16 @@ export async function loadCorpus(
       throw new Error(`task ${task.id} names unknown repository`);
     if (!task.prompt.trim() || !task.verificationCommand.trim())
       throw new Error(`task ${task.id} is incomplete`);
+    if (task.verificationCwd !== undefined) {
+      const normalized = normalize(task.verificationCwd);
+      if (
+        !task.verificationCwd.trim() ||
+        isAbsolute(task.verificationCwd) ||
+        normalized === ".." ||
+        normalized.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
+      )
+        throw new Error(`task ${task.id} has invalid verification cwd`);
+    }
     if (task.grading !== "deterministic" && task.grading !== "mixed")
       throw new Error(`task ${task.id} has invalid grading mode`);
     if (!task.rubric.length) throw new Error(`task ${task.id} has no rubric`);

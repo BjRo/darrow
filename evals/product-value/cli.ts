@@ -17,7 +17,15 @@ import { runAssignment } from "./src/runner";
 import { exportBlindBundles, importBlindGrades } from "./src/grading";
 import { preflightSources } from "./src/preflight";
 import { importAnnotations } from "./src/annotations";
-import type { Harness, Phase, Treatment } from "./src/types";
+import type {
+  Harness,
+  Observation,
+  Phase,
+  RepositoryDefinition,
+  TaskDefinition,
+  Treatment,
+} from "./src/types";
+import { reverifyPatch } from "./src/workspace";
 
 const command = process.argv[2];
 const { values } = parseArgs({
@@ -34,6 +42,7 @@ const { values } = parseArgs({
     },
     grades: { type: "string" },
     annotations: { type: "string" },
+    reverification: { type: "string" },
   },
 });
 const protocol = await loadProtocol();
@@ -88,6 +97,10 @@ function assertConfirmatoryFrozen() {
     throw new Error(
       `confirmatory evaluation requires committed frozen inputs${output ? `:\n${output}` : ""}`,
     );
+}
+
+async function fileDigest(path: string): Promise<string> {
+  return `sha256:${new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex")}`;
 }
 
 if (command === "install-toolchain") {
@@ -215,6 +228,108 @@ if (command === "install-toolchain") {
     );
     console.log(`  ${observation.status} quality=${observation.quality}`);
   }
+} else if (command === "reverify") {
+  if (!values.reverification)
+    throw new Error("reverify requires --reverification <path>");
+  const sources = parseSourceArgs(values.source);
+  const outputRoot = resolve(values.reverification);
+  await mkdir(outputRoot, { recursive: true });
+  const observationGlob = new Bun.Glob("runs/*/observation.json");
+  const observationPaths: string[] = [];
+  for await (const path of observationGlob.scan(values.results!))
+    observationPaths.push(resolve(values.results!, path));
+  observationPaths.sort();
+  let selected = 0;
+  for (const observationPath of observationPaths) {
+    const observation = JSON.parse(
+      await readFile(observationPath, "utf8"),
+    ) as Observation;
+    const assignment = observation.assignment;
+    if (
+      assignment.phase !== phase ||
+      (values.task && assignment.taskId !== values.task) ||
+      (values.harness && assignment.harness !== values.harness) ||
+      (values.treatment && assignment.treatment !== values.treatment)
+    )
+      continue;
+    selected += 1;
+    const task = corpus.tasks.find((item) => item.id === assignment.taskId) as
+      TaskDefinition | undefined;
+    const repository = corpus.repositories.find(
+      (item) => item.id === assignment.repository,
+    ) as RepositoryDefinition | undefined;
+    const source = repository ? sources.get(repository.id) : undefined;
+    if (!task || !repository || !source)
+      throw new Error(`cannot reverify ${observation.runId}: missing input`);
+    if (
+      !observation.patchPath ||
+      !(await Bun.file(observation.patchPath).exists())
+    )
+      throw new Error(
+        `cannot reverify ${observation.runId}: patch unavailable`,
+      );
+    const runRoot = join(outputRoot, observation.runId);
+    const recordPath = join(runRoot, "reverification.json");
+    const identity = {
+      sourceObservationDigest: await fileDigest(observationPath),
+      patchDigest: await fileDigest(observation.patchPath),
+      sourceRevision: observation.sourceRevision,
+      task: {
+        id: task.id,
+        oracleRevision: task.oracleRevision,
+        verificationCommand: task.verificationCommand,
+        verificationCwd: task.verificationCwd ?? ".",
+      },
+    };
+    const identityDigest = `sha256:${new Bun.CryptoHasher("sha256")
+      .update(JSON.stringify(identity))
+      .digest("hex")}`;
+    if (await Bun.file(recordPath).exists()) {
+      const existing = JSON.parse(await readFile(recordPath, "utf8")) as {
+        identityDigest?: string;
+        quality?: number;
+      };
+      if (existing.identityDigest !== identityDigest)
+        throw new Error(
+          `stale reverification for ${observation.runId}; use a fresh --reverification root`,
+        );
+      console.log(
+        `[${selected}] ${observation.runId} reused quality=${existing.quality}`,
+      );
+      continue;
+    }
+    await mkdir(runRoot, { recursive: true });
+    const verification = await reverifyPatch(
+      source,
+      repository,
+      task,
+      observation.patchPath,
+      join(runRoot, "verification.log"),
+    );
+    const quality = verification.passed ? 1 : 0;
+    await writeFile(
+      recordPath,
+      JSON.stringify(
+        {
+          schemaVersion: "1.0.0",
+          runId: observation.runId,
+          assignment,
+          reverifiedAt: new Date().toISOString(),
+          identityDigest,
+          identity,
+          sourceStatus: observation.status,
+          sourceOperationalFailure: observation.operationalFailure,
+          verification,
+          deterministicQuality: quality,
+          quality,
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    console.log(`[${selected}] ${observation.runId} quality=${quality}`);
+  }
+  if (!selected) throw new Error("no observations matched for reverification");
 } else if (command === "analyze") {
   const report = await analyze(protocol, corpus, values.results!);
   await mkdir(values.results!, { recursive: true });
@@ -240,7 +355,12 @@ if (command === "install-toolchain") {
   if (!values.grades) throw new Error("import-grades requires --grades <path>");
   console.log(
     JSON.stringify(
-      await importBlindGrades(corpus, values.results!, resolve(values.grades)),
+      await importBlindGrades(
+        corpus,
+        values.results!,
+        resolve(values.grades),
+        values.reverification ? resolve(values.reverification) : undefined,
+      ),
       null,
       2,
     ),
@@ -257,7 +377,7 @@ if (command === "install-toolchain") {
   );
 } else {
   console.error(
-    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|diagnose-policy|run|blind|import-grades|import-annotations|analyze [options]",
+    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|diagnose-policy|run|reverify|blind|import-grades|import-annotations|analyze [options]",
   );
   process.exit(1);
 }

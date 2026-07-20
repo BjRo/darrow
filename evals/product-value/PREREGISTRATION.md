@@ -1,13 +1,17 @@
 # Darrow product-value evaluation preregistration
 
 **Frozen:** 2026-07-18, before any admissible pilot or confirmatory run. The
-machine-readable counterpart is `protocol.yaml`. Protocol v4 supersedes the
-one-command v3 smoke before any admissible pilot run. The CLI treatment now
-executes the product's implementation command followed by a fresh-context
-verification-and-repair command. Earlier smoke and diagnostic result roots are
-excluded. Changes after the first admissible pilot run require another protocol
-version. Changes after opening the holdout require a new holdout and a new
-preregistration.
+machine-readable counterpart is `protocol.yaml`. Protocol v5 retains v4's
+two-command CLI treatment and supersedes its deterministic grading procedure
+after the first 36-cell calibration run exposed repository-wide baseline test
+failures in Credfolio. V5 changes no task prompt, treatment, harness route,
+model output, threshold, or analysis rule. It runs only the oracle-changed tests
+from their owning package and preflight reconstructs every selected historical
+oracle change to prove that its exact verifier passes. The immutable v4 pilot
+observations and patches remain frozen; v5 quality is a separately stored,
+digest-bound deterministic re-verification of those patches. Original v4
+quality fields are excluded. The confirmatory holdout has not been opened.
+Changes after opening it require a new holdout and a new preregistration.
 
 ## Question and estimands
 
@@ -149,16 +153,17 @@ The model sees neither source history nor the evaluator's oracle tests. After
 execution, the runner captures the patch, overwrites every test changed by the
 oracle commit with the oracle version, restores base tests and test-runner
 manifests so participants cannot weaken verification, and executes the
-preregistered repository verification command. Direct and native runs use
-isolated harness state. CLI runs additionally use isolated Darrow and toolchain
-state. Headless Claude trials require a dedicated long-lived setup token or API
-key; rotating interactive-login credentials are never copied into disposable
-state. Preflight performs one minimal inference per harness inside the trial
-sandbox, rather than trusting local login metadata. Before the first v4 smoke,
-preflight was also amended to bundle the exact Darrow Temporal workflow with
-the pinned evaluator Bun runtime. This fails before treatment assignment when
-evaluator dependencies are absent or worker bundling is broken; it changes no
-treatment, task, prompt, outcome, or decision rule.
+preregistered oracle-focused command from its owning package. Direct and native
+runs use isolated harness state. CLI runs additionally use isolated Darrow and
+toolchain state. Headless Claude trials require a dedicated long-lived setup
+token or API key; rotating interactive-login credentials are never copied into
+disposable state. Preflight performs one minimal inference per harness inside
+the trial sandbox, rather than trusting local login metadata. It also
+reconstructs each selected historical oracle patch in a sanitized checkout and
+requires its exact verifier to pass. Before the first v4 smoke, preflight was
+amended to bundle the exact Darrow Temporal workflow with the pinned evaluator
+Bun runtime. These checks fail before treatment assignment when evaluation
+inputs are unusable; they change no treatment prompt or model behavior.
 
 The first v4 smoke exposed two adapter-compatibility failures before the new
 review step could execute. Claude Code rejected the command's complete output
@@ -181,6 +186,16 @@ an unavailable authoritative verifier must produce `verified: false`. The first
 three v4 result roots are infrastructure or contract-calibration evidence only;
 protocol v4 restarts in a fresh root. These repairs change no product-evaluation
 prompts, tools, models, effort, task outcomes, thresholds, or schedule.
+
+The first complete v4 pilot then exposed a grading defect before any
+confirmatory run: all Credfolio tasks used the monorepo-wide `pnpm test`, whose
+base revisions contain unrelated time-sensitive and service-environment
+failures. That command forced otherwise passing oracle-focused patches to zero.
+Protocol v5 replaces it with package-relative Vitest filters for frontend tasks
+and explicit Go package checks for backend tasks. The historical oracle for
+every pilot task passes the corrected verifier. Re-verification operates only
+on the frozen participant patch and writes a separate identity-bound result;
+the v4 observation, transcript, timing, usage, status, and patch are unchanged.
 
 The recorded route is Codex `gpt-5.6-sol` and Claude
 `claude-sonnet-4-6`. Smoke and pilot use medium effort with a 15-minute

@@ -6,6 +6,7 @@ import { command, checked } from "./process";
 import { REPO_ROOT, SUITE_ROOT } from "./config";
 import { isolatedEnvironment, sandboxed } from "./harness";
 import { temporalExecutable } from "./toolchain";
+import { verifyOracleOutcome } from "./workspace";
 
 export async function probeHarnessAuthentication(
   name: "codex" | "claude",
@@ -207,6 +208,7 @@ export async function preflightSources(
           "diff-tree",
           "--no-commit-id",
           "--name-only",
+          "--diff-filter=AMR",
           "-r",
           task.oracleRevision,
         ],
@@ -219,7 +221,28 @@ export async function preflightSources(
         );
       if (!oracleTests.length)
         throw new Error(`${task.id} has no oracle tests`);
-      taskResults.push({ taskId: task.id, oracleTests: oracleTests.length });
+      const selectedForPhase =
+        phase === "smoke"
+          ? task.id === protocol.phases.smoke.taskId
+          : task.phase === phase;
+      let oracleVerification = "not-selected";
+      if (selectedForPhase) {
+        const verification = await verifyOracleOutcome(
+          source,
+          repository,
+          task,
+        );
+        if (!verification.passed)
+          throw new Error(
+            `${task.id} historical oracle fails its verifier (${verification.failureCategory ?? "unknown"}): ${verification.command}`,
+          );
+        oracleVerification = "passed";
+      }
+      taskResults.push({
+        taskId: task.id,
+        oracleTests: oracleTests.length,
+        oracleVerification,
+      });
     }
     repositoryResults.push({
       id: repository.id,

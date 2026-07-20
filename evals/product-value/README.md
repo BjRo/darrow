@@ -85,6 +85,40 @@ bun evals/product-value/cli.ts run --phase pilot \
   --source credfolio2=../credfolio2
 ```
 
+The first complete v4 pilot exposed a repository-wide Credfolio verifier that
+failed on unrelated baseline tests. Protocol v5 keeps those model runs and raw
+observations immutable and deterministically re-verifies their patches with the
+corrected oracle-focused commands:
+
+```sh
+bun evals/product-value/cli.ts reverify --phase pilot \
+  --results evals/product-value/results/v4-fresh-review-pilot-v1 \
+  --reverification evals/product-value/results/v4-fresh-review-pilot-v1/reverification-v5-package-focused \
+  --source mynab=../mynab \
+  --source credfolio2=../credfolio2
+```
+
+Re-verification records are keyed to the source observation, participant patch,
+source revision, and verifier definition. A mismatch refuses reuse and requires
+a fresh derived root. It never edits `observation.json`, `verification.log`, or
+the captured patch.
+
+Export and import the pilot's blinded rubric grades without rewriting those raw
+observations:
+
+```sh
+bun evals/product-value/cli.ts blind --phase pilot \
+  --results evals/product-value/results/v4-fresh-review-pilot-v1
+# Grade the randomized files under blind/bundles, then fill grades.jsonl.
+bun evals/product-value/cli.ts import-grades \
+  --results evals/product-value/results/v4-fresh-review-pilot-v1 \
+  --grades evals/product-value/results/v4-fresh-review-pilot-v1/blind/grades.jsonl \
+  --reverification evals/product-value/results/v4-fresh-review-pilot-v1/reverification-v5-package-focused
+```
+
+The importer writes `blind/graded-observations.jsonl`; analysis overlays those
+derived quality fields while retaining the immutable raw observations.
+
 After the pilot procedure is accepted, execute the frozen holdout and analyze:
 
 ```sh

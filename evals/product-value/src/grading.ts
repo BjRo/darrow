@@ -35,6 +35,7 @@ export async function exportBlindBundles(
   const blindRoot = join(resultsRoot, "blind");
   const bundleRoot = join(blindRoot, "bundles");
   await rm(bundleRoot, { recursive: true, force: true });
+  await rm(join(blindRoot, "graded-observations.jsonl"), { force: true });
   await mkdir(bundleRoot, { recursive: true });
   const samples: BlindMapping["samples"] = observations.map((observation) => ({
     sampleId: opaque(seed, observation.runId),
@@ -107,6 +108,7 @@ export async function importBlindGrades(
   corpus: Corpus,
   resultsRoot: string,
   gradesPath: string,
+  reverificationRoot?: string,
 ): Promise<{
   observations: number;
   agreementMeanAbsoluteDifference: number | null;
@@ -151,20 +153,61 @@ export async function importBlindGrades(
   const agreement: number[] = [];
   for (const scores of byRun.values())
     if (scores.length > 1) agreement.push(Math.abs(scores[0]! - scores[1]!));
+  const graded: Array<{
+    schemaVersion: "1.0.0";
+    runId: string;
+    deterministicQuality: number;
+    blindedQuality: number;
+    quality: number;
+  }> = [];
   for (const [runId, scores] of byRun) {
     const path = join(resultsRoot, "runs", runId, "observation.json");
-    const observation: Observation = JSON.parse(await readFile(path, "utf8"));
+    const observationText = await readFile(path, "utf8");
+    const observation: Observation = JSON.parse(observationText);
     const task = corpus.tasks.find(
       (item) => item.id === observation.assignment.taskId,
     )!;
     const blindedQuality = mean(scores);
-    observation.blindedQuality = blindedQuality;
-    observation.quality =
+    let deterministicQuality = observation.deterministicQuality;
+    if (reverificationRoot) {
+      const record = JSON.parse(
+        await readFile(
+          join(reverificationRoot, runId, "reverification.json"),
+          "utf8",
+        ),
+      ) as {
+        runId?: string;
+        deterministicQuality?: number;
+        identity?: { sourceObservationDigest?: string };
+      };
+      const observationDigest = `sha256:${new Bun.CryptoHasher("sha256")
+        .update(observationText)
+        .digest("hex")}`;
+      if (
+        record.runId !== runId ||
+        record.identity?.sourceObservationDigest !== observationDigest ||
+        ![0, 1].includes(record.deterministicQuality ?? Number.NaN)
+      )
+        throw new Error(`invalid reverification record: ${runId}`);
+      deterministicQuality = record.deterministicQuality!;
+    }
+    const quality =
       task.grading === "deterministic"
-        ? observation.deterministicQuality
-        : 0.7 * observation.deterministicQuality + 0.3 * blindedQuality;
-    await writeFile(path, JSON.stringify(observation, null, 2) + "\n");
+        ? deterministicQuality
+        : 0.7 * deterministicQuality + 0.3 * blindedQuality;
+    graded.push({
+      schemaVersion: "1.0.0",
+      runId,
+      deterministicQuality,
+      blindedQuality,
+      quality,
+    });
   }
+  graded.sort((a, b) => a.runId.localeCompare(b.runId));
+  await writeFile(
+    join(resultsRoot, "blind", "graded-observations.jsonl"),
+    graded.map((value) => JSON.stringify(value)).join("\n") + "\n",
+  );
   return {
     observations: byRun.size,
     agreementMeanAbsoluteDifference: agreement.length ? mean(agreement) : null,
