@@ -4,6 +4,7 @@ import type {
   Observation,
   OperationalDiagnostic,
   OperationalDiagnosticTreatment,
+  OperatorStudy,
 } from "./types";
 
 function mean(values: number[]): number | null {
@@ -78,6 +79,15 @@ function treatmentSummary(
       ? []
       : [(observation.inputTokens ?? 0) + (observation.outputTokens ?? 0)],
   );
+  const unattended = selected.filter(
+    (observation) => observation.operationalMetrics?.unattendedCompletion,
+  );
+  const qualityQualifiedUnattended = unattended.filter(
+    (observation) =>
+      observation.status === "completed" &&
+      observation.deterministicQuality === 1 &&
+      (observation.interventions ?? 0) === 0,
+  );
   return {
     observations: selected.length,
     completed: selected.filter(
@@ -98,6 +108,12 @@ function treatmentSummary(
     meanOperatorHandoffsRequired: mean(
       metrics.map((metric) => metric.operatorHandoffsRequired),
     ),
+    meanOperatorReturnsRequired: mean(
+      metrics.map(
+        (metric) =>
+          metric.operatorReturnsRequired ?? metric.operatorHandoffsRequired,
+      ),
+    ),
     playbookStageCompletionRate:
       metrics.length &&
       metrics.reduce((sum, metric) => sum + metric.expectedStages, 0) > 0
@@ -108,6 +124,15 @@ function treatmentSummary(
       ? metrics.filter((metric) => metric.unattendedCompletion).length /
         metrics.length
       : null,
+    unattendedCompletions: unattended.length,
+    qualityQualifiedUnattendedCompletions: qualityQualifiedUnattended.length,
+    interventions: selected.reduce(
+      (sum, observation) => sum + (observation.interventions ?? 0),
+      0,
+    ),
+    operationalFailures: selected.filter((observation) =>
+      Boolean(observation.operationalFailure),
+    ).length,
   };
 }
 
@@ -246,5 +271,63 @@ export async function analyzeOperationalDiagnostic(
           )
         : null,
     },
+  };
+}
+
+export async function analyzeOperatorStudy(
+  study: OperatorStudy,
+  resultsRoot: string,
+  reverificationRoot?: string,
+) {
+  const report = await analyzeOperationalDiagnostic(
+    study,
+    resultsRoot,
+    false,
+    reverificationRoot,
+  );
+  const manual = report.treatments["manual-playbook"]!;
+  const cli = report.treatments["cli-playbook"]!;
+  const resourceRatios = [
+    report.cliToManual.tokens,
+    report.cliToManual.cost,
+  ].filter((value): value is number => value !== null);
+  const complete =
+    report.observations === report.expectedObservations &&
+    report.attentionComplete;
+  const criteria = {
+    completeTimedPairs: complete,
+    noRequiredMidRunReturn:
+      cli.meanOperatorReturnsRequired === 0 &&
+      manual.meanOperatorReturnsRequired === 1,
+    unattendedCompletions:
+      cli.unattendedCompletions >= study.thresholds.minCliUnattendedCompletions,
+    qualityQualifiedUnattendedCompletions:
+      cli.qualityQualifiedUnattendedCompletions >=
+      study.thresholds.minCliQualityQualifiedUnattendedCompletions,
+    qualityGuardrail:
+      report.cliMinusManual.quality !== null &&
+      report.cliMinusManual.quality >= -study.thresholds.maxCliQualityDeficit,
+    interventionGuardrail:
+      cli.interventions <= study.thresholds.maxCliInterventions,
+    operationalFailureGuardrail:
+      cli.operationalFailures <= study.thresholds.maxCliOperationalFailures,
+    wallTimeGuardrail:
+      report.cliToManual.wallTime !== null &&
+      report.cliToManual.wallTime <= study.thresholds.maxWallTimeRatio,
+    resourceGuardrail:
+      resourceRatios.length > 0 &&
+      Math.max(...resourceRatios) <= study.thresholds.maxResourceRatio,
+  };
+  const decision = !complete
+    ? "incomplete"
+    : Object.values(criteria).every(Boolean)
+      ? "supports-narrowed-hypothesis"
+      : "does-not-support";
+  return {
+    ...report,
+    studyId: study.id,
+    thresholds: study.thresholds,
+    criteria,
+    decision,
   };
 }

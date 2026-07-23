@@ -152,6 +152,10 @@ export async function runAssignment(
   sources: Map<string, string>,
   resultsRoot: string,
   attention?: OperatorAttentionSession,
+  operationalConfigurationPath = resolve(
+    SUITE_ROOT,
+    "operational-diagnostic.yaml",
+  ),
 ): Promise<Observation> {
   const task = corpus.tasks.find((item) => item.id === assignment.taskId) as
     TaskDefinition | undefined;
@@ -203,7 +207,7 @@ export async function runAssignment(
   const operationalDiagnosticDigest = isOperationalDiagnosticTreatment(
     assignment.treatment,
   )
-    ? await digestFile(resolve(SUITE_ROOT, "operational-diagnostic.yaml"))
+    ? await digestFile(operationalConfigurationPath)
     : null;
   const configurationDigest = digestJson({
     route,

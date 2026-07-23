@@ -8,6 +8,7 @@ import { analyze } from "./src/analyze";
 import {
   loadCorpus,
   loadOperationalDiagnostic,
+  loadOperatorStudy,
   loadProtocol,
   parseSourceArgs,
   REPO_ROOT,
@@ -15,6 +16,7 @@ import {
 } from "./src/config";
 import {
   buildOperationalDiagnosticSchedule,
+  buildOperatorStudySchedule,
   buildPolicyDiagnosticSchedule,
   buildSchedule,
 } from "./src/schedule";
@@ -23,7 +25,10 @@ import { runAssignment } from "./src/runner";
 import { exportBlindBundles, importBlindGrades } from "./src/grading";
 import { preflightSources } from "./src/preflight";
 import { importAnnotations } from "./src/annotations";
-import { analyzeOperationalDiagnostic } from "./src/operations";
+import {
+  analyzeOperationalDiagnostic,
+  analyzeOperatorStudy,
+} from "./src/operations";
 import type {
   Harness,
   Observation,
@@ -57,6 +62,8 @@ const { values } = parseArgs({
 const protocol = await loadProtocol();
 const corpus = await loadCorpus();
 const operationalDiagnostic = await loadOperationalDiagnostic();
+const operatorStudy = await loadOperatorStudy();
+const operatorStudySchedule = buildOperatorStudySchedule(corpus, operatorStudy);
 const phase = values.phase as Phase;
 if (phase !== "smoke" && phase !== "pilot" && phase !== "confirmatory")
   throw new Error("--phase must be smoke, pilot, or confirmatory");
@@ -92,6 +99,16 @@ function assertBudget(
     );
 }
 
+function assertOperatorStudyBudget(spend: { costUsd: number; tokens: number }) {
+  if (
+    spend.costUsd >= operatorStudy.budget.costUsd ||
+    spend.tokens >= operatorStudy.budget.tokens
+  )
+    throw new Error(
+      `operator study budget reached: $${spend.costUsd.toFixed(2)}/${operatorStudy.budget.costUsd}, ${spend.tokens}/${operatorStudy.budget.tokens} tokens`,
+    );
+}
+
 function assertConfirmatoryFrozen() {
   if (phase !== "confirmatory") return;
   const status = Bun.spawnSync(
@@ -110,6 +127,26 @@ function assertConfirmatoryFrozen() {
   if (status.exitCode !== 0 || output)
     throw new Error(
       `confirmatory evaluation requires committed frozen inputs${output ? `:\n${output}` : ""}`,
+    );
+}
+
+function assertOperatorStudyFrozen() {
+  const status = Bun.spawnSync(
+    [
+      "git",
+      "status",
+      "--porcelain",
+      "--",
+      "evals/product-value",
+      "docs/specs/product-value-evaluation.md",
+      "docs/product-spec.md",
+    ],
+    { cwd: REPO_ROOT },
+  );
+  const output = status.stdout.toString().trim();
+  if (status.exitCode !== 0 || output)
+    throw new Error(
+      `operator study requires committed frozen inputs${output ? `:\n${output}` : ""}`,
     );
 }
 
@@ -188,8 +225,34 @@ if (command === "install-toolchain") {
       2,
     ),
   );
+} else if (command === "preflight-operator-study") {
+  const selectedTasks = new Set(operatorStudy.taskIds);
+  const environment = await preflightSources(
+    protocol,
+    {
+      ...corpus,
+      tasks: corpus.tasks.filter((task) => selectedTasks.has(task.id)),
+    },
+    parseSourceArgs(values.source),
+    operatorStudy.phase,
+  );
+  console.log(
+    JSON.stringify(
+      {
+        status: "ready",
+        studyId: operatorStudy.id,
+        tasks: operatorStudy.taskIds.length,
+        assignments: operatorStudySchedule.length,
+        environment,
+      },
+      null,
+      2,
+    ),
+  );
 } else if (command === "schedule") {
   console.log(stringifyYaml(schedule));
+} else if (command === "schedule-operator-study") {
+  console.log(stringifyYaml(operatorStudySchedule));
 } else if (command === "schedule-operations") {
   console.log(
     stringifyYaml(
@@ -284,6 +347,55 @@ if (command === "install-toolchain") {
     }
   } finally {
     terminal?.close();
+  }
+} else if (command === "run-operator-study") {
+  assertOperatorStudyFrozen();
+  if (!process.stdin.isTTY || !process.stdout.isTTY)
+    throw new Error("run-operator-study requires an interactive terminal");
+  if (!values.task || !values.harness)
+    throw new Error("run-operator-study requires --task and --harness");
+  if (values.treatment)
+    throw new Error(
+      "run-operator-study runs the matched treatment pair; omit --treatment",
+    );
+  const selected = operatorStudySchedule.filter(
+    (assignment) =>
+      assignment.taskId === values.task &&
+      assignment.harness === (values.harness as Harness),
+  );
+  if (selected.length !== operatorStudy.treatments.length)
+    throw new Error("no complete operator study pair matched");
+  const sources = parseSourceArgs(values.source);
+  await mkdir(values.results!, { recursive: true });
+  const terminal = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    for (const assignment of selected) {
+      assertOperatorStudyBudget(
+        await phaseSpend(values.results!, operatorStudy.phase),
+      );
+      console.log(
+        `[${assignment.ordinal}/${operatorStudySchedule.length}] ${assignment.taskId} ${assignment.harness}/${assignment.treatment} r${assignment.repeat}`,
+      );
+      const attention = createOperatorAttentionSession(
+        (prompt) => terminal.question(`${prompt}\n`),
+        (value) => process.stdout.write(value),
+      );
+      const observation = await runAssignment(
+        protocol,
+        corpus,
+        assignment,
+        sources,
+        values.results!,
+        attention,
+        resolve(SUITE_ROOT, "operator-study.yaml"),
+      );
+      console.log(`  ${observation.status} quality=${observation.quality}`);
+    }
+  } finally {
+    terminal.close();
   }
 } else if (command === "run") {
   assertConfirmatoryFrozen();
@@ -422,6 +534,18 @@ if (command === "install-toolchain") {
     JSON.stringify(report, null, 2) + "\n",
   );
   console.log(JSON.stringify(report, null, 2));
+} else if (command === "analyze-operator-study") {
+  const report = await analyzeOperatorStudy(
+    operatorStudy,
+    values.results!,
+    values.reverification ? resolve(values.reverification) : undefined,
+  );
+  await mkdir(values.results!, { recursive: true });
+  await writeFile(
+    resolve(values.results!, "operator-study-report.json"),
+    JSON.stringify(report, null, 2) + "\n",
+  );
+  console.log(JSON.stringify(report, null, 2));
 } else if (command === "analyze-operations") {
   const report = await analyzeOperationalDiagnostic(
     operationalDiagnostic,
@@ -474,7 +598,7 @@ if (command === "install-toolchain") {
   );
 } else {
   console.error(
-    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|schedule|schedule-operations|diagnose-policy|diagnose-operations|run|reverify|blind|import-grades|import-annotations|analyze|analyze-operations [options]",
+    "Usage: bun evals/product-value/cli.ts install-toolchain|preflight|preflight-operator-study|schedule|schedule-operations|schedule-operator-study|diagnose-policy|diagnose-operations|run|run-operator-study|reverify|blind|import-grades|import-annotations|analyze|analyze-operations|analyze-operator-study [options]",
   );
   process.exit(1);
 }

@@ -81,6 +81,25 @@ export interface OperationalDiagnostic {
   taskIds: string[];
 }
 
+export interface OperatorStudy extends OperationalDiagnostic {
+  preregisteredAt: string;
+  frozenSeed: string;
+  harnesses: Harness[];
+  thresholds: {
+    minCliUnattendedCompletions: number;
+    minCliQualityQualifiedUnattendedCompletions: number;
+    maxCliQualityDeficit: number;
+    maxCliInterventions: number;
+    maxCliOperationalFailures: number;
+    maxWallTimeRatio: number;
+    maxResourceRatio: number;
+  };
+  budget: {
+    costUsd: number;
+    tokens: number;
+  };
+}
+
 export interface RepositoryDefinition {
   id: string;
   url: string;
@@ -145,6 +164,7 @@ export interface CheckObservation {
 export interface OperationalMetrics {
   operatorLaunchesRequired: number;
   operatorHandoffsRequired: number;
+  operatorReturnsRequired?: number;
   expectedStages: number;
   executedStages: number;
   finishedStages: number;

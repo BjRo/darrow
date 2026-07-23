@@ -168,6 +168,55 @@ When a digest-bound corrected verifier exists, pass its directory through
 `--reverification` to `analyze-operations`; the overlay changes derived quality
 only and never rewrites the original observations.
 
+## Interruption-free ownership study
+
+`OPERATOR-STUDY.md` and `operator-study.yaml` freeze the follow-up real-operator
+study on all three orchestrated pilot tasks. It keeps planning out of scope and
+makes required mid-run returns plus quality-qualified unattended completion the
+primary outcomes. Commit the frozen inputs before execution; the runner refuses
+an uncommitted study.
+
+Preflight the selected tasks and inspect the 12-cell schedule:
+
+```sh
+bun evals/product-value/cli.ts preflight-operator-study \
+  --source mynab=../mynab \
+  --source credfolio2=../credfolio2
+bun evals/product-value/cli.ts schedule-operator-study \
+  > /tmp/interruption-free-ownership-v1.yaml
+```
+
+Run each task/harness pair from an interactive terminal. Each command runs both
+treatments in their seeded order and uses the guided timer described above:
+
+```sh
+for harness in codex claude; do
+  for task in \
+    mynab-import-commit-backend \
+    credfolio-github-profile \
+    credfolio-finding-index
+  do
+    bun evals/product-value/cli.ts run-operator-study \
+      --task "$task" \
+      --harness "$harness" \
+      --results evals/product-value/results/interruption-free-ownership-v1 \
+      --source mynab=../mynab \
+      --source credfolio2=../credfolio2
+  done
+done
+```
+
+The study stops at its own frozen budget. Analyze only the dedicated results
+root; the report applies every preregistered count and guardrail mechanically:
+
+```sh
+bun evals/product-value/cli.ts analyze-operator-study \
+  --results evals/product-value/results/interruption-free-ownership-v1
+```
+
+The result is `incomplete`, `does-not-support`, or
+`supports-narrowed-hypothesis`. It remains separate from the confirmatory gate.
+
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml
 bun evals/product-value/cli.ts run --phase pilot \

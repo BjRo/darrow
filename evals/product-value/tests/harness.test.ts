@@ -211,6 +211,7 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
     expect(result.operationalMetrics).toEqual({
       operatorLaunchesRequired: 2,
       operatorHandoffsRequired: 1,
+      operatorReturnsRequired: 1,
       expectedStages: 2,
       executedStages: 2,
       finishedStages: 2,

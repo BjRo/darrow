@@ -607,6 +607,7 @@ async function runManualPlaybook(
     operationalMetrics: {
       operatorLaunchesRequired: 2,
       operatorHandoffsRequired: 1,
+      operatorReturnsRequired: 1,
       expectedStages: 2,
       executedStages: invocations.length,
       finishedStages,
@@ -840,6 +841,7 @@ export async function invoke(
         ? {
             operatorLaunchesRequired: 1,
             operatorHandoffsRequired: 0,
+            operatorReturnsRequired: 0,
             expectedStages: 2,
             executedStages,
             finishedStages,

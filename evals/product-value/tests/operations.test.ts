@@ -2,8 +2,16 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { analyzeOperationalDiagnostic } from "../src/operations";
-import type { Harness, Observation, OperationalDiagnostic } from "../src/types";
+import {
+  analyzeOperationalDiagnostic,
+  analyzeOperatorStudy,
+} from "../src/operations";
+import type {
+  Harness,
+  Observation,
+  OperationalDiagnostic,
+  OperatorStudy,
+} from "../src/types";
 
 const roots: string[] = [];
 
@@ -210,5 +218,119 @@ describe("playbook-autonomy analysis (PV-19)", () => {
     expect(report.observations).toBe(0);
     expect(report.expectedObservations).toBe(0);
     expect(report.attentionComplete).toBe(false);
+  });
+});
+
+describe("interruption-free ownership study (PV-20)", () => {
+  test("applies the frozen count and guardrail criteria mechanically", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-operator-study-test-"));
+    roots.push(root);
+    const study: OperatorStudy = {
+      schemaVersion: "1.0.0",
+      id: "test-study",
+      preregisteredAt: "2026-07-23T00:00:00+02:00",
+      frozenSeed: "test-seed",
+      phase: "pilot",
+      repeats: 1,
+      harnesses: ["codex", "claude"],
+      treatments: ["manual-playbook", "cli-playbook"],
+      taskIds: ["complex-a", "complex-b", "complex-c"],
+      thresholds: {
+        minCliUnattendedCompletions: 5,
+        minCliQualityQualifiedUnattendedCompletions: 4,
+        maxCliQualityDeficit: 0,
+        maxCliInterventions: 1,
+        maxCliOperationalFailures: 1,
+        maxWallTimeRatio: 1.75,
+        maxResourceRatio: 1.5,
+      },
+      budget: { costUsd: 50, tokens: 30_000_000 },
+    };
+    expect((await analyzeOperatorStudy(study, root)).decision).toBe(
+      "incomplete",
+    );
+    let ordinal = 0;
+    let cliCell = 0;
+    for (const taskId of study.taskIds) {
+      for (const harness of study.harnesses) {
+        for (const treatment of study.treatments) {
+          ordinal += 1;
+          const cli = treatment === "cli-playbook";
+          if (cli) cliCell += 1;
+          const quality = cli ? (cliCell <= 4 ? 1 : 0) : cliCell < 4 ? 1 : 0;
+          const unattended = cli && cliCell <= 5;
+          const runId = `study-${ordinal}`;
+          const runRoot = join(root, "runs", runId);
+          await mkdir(runRoot, { recursive: true });
+          await writeFile(
+            join(runRoot, "observation.json"),
+            JSON.stringify({
+              runId,
+              assignment: {
+                ordinal,
+                taskId,
+                repository: "repo",
+                phase: "pilot",
+                stratum: "orchestrated",
+                harness,
+                treatment,
+                repeat: 1,
+                order: cli ? 2 : 1,
+              },
+              status: cli && cliCell === 6 ? "failed" : "completed",
+              operationalFailure:
+                cli && cliCell === 6 ? "harness_or_runtime_failure" : null,
+              deterministicQuality: quality,
+              quality,
+              wallTimeMs: cli ? 1_200 : 1_000,
+              inputTokens: cli ? 110 : 90,
+              outputTokens: 10,
+              costUsd: cli ? 0.12 : 0.1,
+              humanAttentionMinutes: cli ? 1 : 2,
+              interventions: cli && cliCell === 5 ? 1 : 0,
+              operationalMetrics: {
+                operatorLaunchesRequired: cli ? 1 : 2,
+                operatorHandoffsRequired: cli ? 0 : 1,
+                operatorReturnsRequired: cli ? 0 : 1,
+                expectedStages: 2,
+                executedStages: 2,
+                finishedStages: unattended || !cli ? 2 : 1,
+                unattendedCompletion: unattended,
+              },
+            } as Observation),
+          );
+        }
+      }
+    }
+
+    const report = await analyzeOperatorStudy(study, root);
+    expect(report.decision).toBe("supports-narrowed-hypothesis");
+    expect(report.criteria).toEqual(
+      expect.objectContaining({
+        completeTimedPairs: true,
+        noRequiredMidRunReturn: true,
+        unattendedCompletions: true,
+        qualityQualifiedUnattendedCompletions: true,
+        qualityGuardrail: true,
+        interventionGuardrail: true,
+        operationalFailureGuardrail: true,
+        wallTimeGuardrail: true,
+        resourceGuardrail: true,
+      }),
+    );
+    expect(
+      report.treatments["cli-playbook"]!.qualityQualifiedUnattendedCompletions,
+    ).toBe(4);
+
+    const stricter = {
+      ...study,
+      thresholds: {
+        ...study.thresholds,
+        minCliQualityQualifiedUnattendedCompletions: 5,
+      },
+    };
+    expect((await analyzeOperatorStudy(stricter, root)).decision).toBe(
+      "does-not-support",
+    );
   });
 });

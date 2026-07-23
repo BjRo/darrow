@@ -7,6 +7,7 @@ import {
   type Corpus,
   OPERATIONAL_DIAGNOSTIC_TREATMENTS,
   type OperationalDiagnostic,
+  type OperatorStudy,
   type Phase,
   type Protocol,
 } from "./types";
@@ -124,6 +125,73 @@ export async function loadOperationalDiagnostic(
     new Set(value.taskIds).size !== value.taskIds.length
   )
     throw new Error("operational diagnostic requires three distinct tasks");
+  return value;
+}
+
+export async function loadOperatorStudy(
+  path = resolve(SUITE_ROOT, "operator-study.yaml"),
+): Promise<OperatorStudy> {
+  const value = parseYaml(await readFile(path, "utf8")) as OperatorStudy;
+  if (value.schemaVersion !== "1.0.0")
+    throw new Error(
+      `unsupported operator study schema: ${value.schemaVersion}`,
+    );
+  if (!value.id?.trim() || !value.frozenSeed?.trim())
+    throw new Error("operator study requires an id and frozen seed");
+  if (
+    !value.preregisteredAt ||
+    !Number.isFinite(Date.parse(value.preregisteredAt))
+  )
+    throw new Error("operator study preregistration timestamp is invalid");
+  if (value.phase !== "pilot" || value.repeats !== 1)
+    throw new Error("operator study is restricted to one pilot repeat");
+  if (
+    value.harnesses.length !== HARNESSES.length ||
+    HARNESSES.some((harness) => !value.harnesses.includes(harness))
+  )
+    throw new Error("operator study must contain both harnesses exactly once");
+  if (
+    value.treatments.length !== OPERATIONAL_DIAGNOSTIC_TREATMENTS.length ||
+    OPERATIONAL_DIAGNOSTIC_TREATMENTS.some(
+      (treatment) => !value.treatments.includes(treatment),
+    )
+  )
+    throw new Error(
+      "operator study must contain both playbook treatments exactly once",
+    );
+  if (
+    value.taskIds.length !== 3 ||
+    new Set(value.taskIds).size !== value.taskIds.length
+  )
+    throw new Error("operator study requires three distinct tasks");
+  const integerThresholds = [
+    value.thresholds?.minCliUnattendedCompletions,
+    value.thresholds?.minCliQualityQualifiedUnattendedCompletions,
+    value.thresholds?.maxCliInterventions,
+    value.thresholds?.maxCliOperationalFailures,
+  ];
+  const ratioThresholds = [
+    value.thresholds?.maxWallTimeRatio,
+    value.thresholds?.maxResourceRatio,
+  ];
+  if (
+    integerThresholds.some(
+      (threshold) => !Number.isSafeInteger(threshold) || threshold < 0,
+    ) ||
+    !Number.isFinite(value.thresholds?.maxCliQualityDeficit) ||
+    value.thresholds.maxCliQualityDeficit < 0 ||
+    ratioThresholds.some(
+      (threshold) => !Number.isFinite(threshold) || threshold <= 0,
+    )
+  )
+    throw new Error("operator study thresholds are invalid");
+  if (
+    !Number.isFinite(value.budget?.costUsd) ||
+    value.budget.costUsd <= 0 ||
+    !Number.isSafeInteger(value.budget?.tokens) ||
+    value.budget.tokens <= 0
+  )
+    throw new Error("operator study budget is invalid");
   return value;
 }
 

@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   loadCorpus,
   loadOperationalDiagnostic,
+  loadOperatorStudy,
   loadProtocol,
 } from "../src/config";
 import {
   buildOperationalDiagnosticSchedule,
+  buildOperatorStudySchedule,
   buildPolicyDiagnosticSchedule,
   buildSchedule,
 } from "../src/schedule";
@@ -148,6 +150,40 @@ describe("product-value design (PV-7 through PV-11)", () => {
         item.treatment.endsWith("-playbook"),
       ),
     ).toBe(false);
+  });
+
+  test("freezes a paired operator study on orchestrated pilot tasks", async () => {
+    const corpus = await loadCorpus();
+    const study = await loadOperatorStudy();
+    const first = buildOperatorStudySchedule(corpus, study);
+    const second = buildOperatorStudySchedule(corpus, study);
+    expect(first).toEqual(second);
+    expect(first).toHaveLength(12);
+    expect(study.taskIds).toEqual([
+      "mynab-import-commit-backend",
+      "credfolio-github-profile",
+      "credfolio-finding-index",
+    ]);
+    expect(
+      first.every((assignment) => assignment.stratum === "orchestrated"),
+    ).toBe(true);
+    expect(new Set(first.map((assignment) => assignment.harness))).toEqual(
+      new Set(["codex", "claude"]),
+    );
+    for (let index = 0; index < first.length; index += 2) {
+      const block = first.slice(index, index + 2);
+      expect(
+        new Set(
+          block.map(
+            (assignment) => `${assignment.taskId}:${assignment.harness}`,
+          ),
+        ).size,
+      ).toBe(1);
+      expect(new Set(block.map((assignment) => assignment.treatment))).toEqual(
+        new Set(["manual-playbook", "cli-playbook"]),
+      );
+      expect(block.map((assignment) => assignment.order)).toEqual([1, 2]);
+    }
   });
 
   test("uses seeded task-level bootstrap and sign flips", () => {

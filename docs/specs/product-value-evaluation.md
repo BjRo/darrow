@@ -180,3 +180,14 @@ and M3 investment. The preregistration and executable configuration live under
   reported descriptively but never represented as full-diagnostic attention
   completeness. These descriptive results remain outside the three-treatment
   schedule, confirmatory inference, and its decision rule.
+- **PV-20 — Interruption-free ownership study.** After pilot calibration and
+  before opening the confirmatory holdout, the evaluator may run a separately
+  preregistered real-operator study on the orchestrated pilot tasks. It compares
+  the same matched manual and CLI playbooks as PV-19, but makes required mid-run
+  returns and quality-qualified unattended completion the primary operational
+  outcomes. Every task/harness pair is timed interactively, treatment order is
+  frozen, and deterministic quality, reliability, wall time, and model resources
+  remain guardrails. Active minutes are secondary. The study excludes explicit
+  planning so planning can be evaluated independently. Its mechanical result is
+  descriptive evidence for or against narrowing the product hypothesis; it does
+  not enter or replace the confirmatory decision rule.

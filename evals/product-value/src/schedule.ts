@@ -5,6 +5,7 @@ import type {
   Harness,
   OperationalDiagnostic,
   OperationalDiagnosticTreatment,
+  OperatorStudy,
   Phase,
   Protocol,
 } from "./types";
@@ -164,6 +165,57 @@ export function buildOperationalDiagnosticSchedule(
           })),
         });
       }
+    }
+  }
+  blocks.sort((left, right) => left.key - right.key);
+  return blocks
+    .flatMap((block) => block.assignments)
+    .map((assignment, index) => ({
+      ...assignment,
+      ordinal: index + 1,
+    }));
+}
+
+export function buildOperatorStudySchedule(
+  corpus: Corpus,
+  study: OperatorStudy,
+): Assignment[] {
+  const tasks = study.taskIds.map((taskId) => {
+    const task = corpus.tasks.find((item) => item.id === taskId);
+    if (!task || task.phase !== study.phase)
+      throw new Error(`operator study task is unavailable: ${taskId}`);
+    return task;
+  });
+  if (tasks.some((task) => task.stratum !== "orchestrated"))
+    throw new Error("operator study requires only orchestrated tasks");
+
+  const blocks: Array<{ key: number; assignments: Assignment[] }> = [];
+  for (const task of tasks) {
+    for (const harness of study.harnesses) {
+      const start =
+        hash(`${study.frozenSeed}:${study.id}:${task.id}:${harness}:1`) %
+        study.treatments.length;
+      const order = study.treatments
+        .slice(start)
+        .concat(
+          study.treatments.slice(0, start),
+        ) as OperationalDiagnosticTreatment[];
+      blocks.push({
+        key: hash(
+          `${study.frozenSeed}:${study.id}:block:${task.id}:${harness}:1`,
+        ),
+        assignments: order.map((treatment, index) => ({
+          ordinal: 0,
+          taskId: task.id,
+          repository: task.repository,
+          phase: study.phase,
+          stratum: task.stratum,
+          harness,
+          treatment,
+          repeat: 1,
+          order: index + 1,
+        })),
+      });
     }
   }
   blocks.sort((left, right) => left.key - right.key);
