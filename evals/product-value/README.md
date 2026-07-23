@@ -164,6 +164,9 @@ bun evals/product-value/cli.ts analyze-operations \
 
 The exercise remains separate from `playbook-autonomy-v1`. Its observed-subset
 report is descriptive and does not satisfy confirmatory attention completeness.
+When a digest-bound corrected verifier exists, pass its directory through
+`--reverification` to `analyze-operations`; the overlay changes derived quality
+only and never rewrites the original observations.
 
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml

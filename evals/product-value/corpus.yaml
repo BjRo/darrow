@@ -222,19 +222,23 @@ tasks:
     verificationCommand: go test ./internal/job
     verificationCwd: src/backend
 
-  - &credfolio_orchestrated
+  - <<: &credfolio_orchestrated
+      repository: credfolio2
+      phase: pilot
+      stratum: orchestrated
+      verificationCommand: pnpm exec vitest run {tests}
+      verificationCwd: src/frontend
+      grading: mixed
+      rubric:
+        [end-to-end behavior, focused tests, boundary handling, maintainability]
     id: credfolio-github-profile
-    repository: credfolio2
-    phase: pilot
-    stratum: orchestrated
     baseRevision: f5203ade0858a0c9ca6857af252cd386445533dc
     oracleRevision: 24f7c711dd5296cb0fe4cdeb1b8d18de9f3ef7e7
+    oracleTestAdjustments:
+      - path: src/frontend/src/components/profile/ProfileHeaderForm.test.tsx
+        find: expect(screen.getByText(/username or full url/i)).toBeInTheDocument();
+        replace: expect(screen.getByText(/username or full (?:profile )?url/i)).toBeInTheDocument();
     prompt: Add a GitHub link to the profile header, profile edit form, and dialog with validation and complete test coverage.
-    verificationCommand: pnpm exec vitest run {tests}
-    verificationCwd: src/frontend
-    grading: mixed
-    rubric:
-      [end-to-end behavior, focused tests, boundary handling, maintainability]
   - <<: *credfolio_orchestrated
     id: credfolio-finding-index
     phase: pilot

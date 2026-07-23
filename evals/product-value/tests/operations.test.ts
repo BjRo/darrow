@@ -124,7 +124,11 @@ describe("playbook-autonomy analysis (PV-19)", () => {
 
   test("analyzes a complete timed subset without treating it as the full diagnostic", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-operations-test-"));
+    const reverificationRoot = await mkdtemp(
+      join(tmpdir(), "darrow-operations-reverification-test-"),
+    );
     roots.push(root);
+    roots.push(reverificationRoot);
     const diagnostic: OperationalDiagnostic = {
       schemaVersion: "1.0.0",
       id: "test",
@@ -137,32 +141,55 @@ describe("playbook-autonomy analysis (PV-19)", () => {
       const runId = `run-${index}`;
       const runRoot = join(root, "runs", runId);
       await mkdir(runRoot, { recursive: true });
-      await writeFile(
-        join(runRoot, "observation.json"),
-        JSON.stringify({
-          runId,
-          assignment: {
-            taskId: "complex-a",
-            harness: "codex",
-            treatment,
-            repeat: 1,
-          },
-          humanAttentionMinutes: treatment === "manual-playbook" ? 2 : 1,
-          quality: 1,
-          wallTimeMs: 1_000,
-          inputTokens: 100,
-          outputTokens: 10,
-          costUsd: null,
-        } as Observation),
-      );
+      const observationText = JSON.stringify({
+        runId,
+        assignment: {
+          taskId: "complex-a",
+          harness: "codex",
+          treatment,
+          repeat: 1,
+        },
+        humanAttentionMinutes: treatment === "manual-playbook" ? 2 : 1,
+        deterministicQuality: treatment === "manual-playbook" ? 1 : 0,
+        quality: treatment === "manual-playbook" ? 1 : 0,
+        wallTimeMs: 1_000,
+        inputTokens: 100,
+        outputTokens: 10,
+        costUsd: null,
+      } as Observation);
+      await writeFile(join(runRoot, "observation.json"), observationText);
+      if (treatment === "cli-playbook") {
+        const recordRoot = join(reverificationRoot, runId);
+        await mkdir(recordRoot, { recursive: true });
+        await writeFile(
+          join(recordRoot, "reverification.json"),
+          JSON.stringify({
+            runId,
+            deterministicQuality: 1,
+            quality: 1,
+            identity: {
+              sourceObservationDigest: `sha256:${new Bun.CryptoHasher("sha256")
+                .update(observationText)
+                .digest("hex")}`,
+            },
+          }),
+        );
+      }
     }
 
-    const report = await analyzeOperationalDiagnostic(diagnostic, root, true);
+    const report = await analyzeOperationalDiagnostic(
+      diagnostic,
+      root,
+      true,
+      reverificationRoot,
+    );
 
     expect(report.scope).toBe("observed-subset");
     expect(report.observations).toBe(2);
     expect(report.expectedObservations).toBe(2);
+    expect(report.reverifiedObservations).toBe(1);
     expect(report.attentionComplete).toBe(true);
+    expect(report.treatments["cli-playbook"]!.meanQuality).toBe(1);
     expect(report.cliToManual.humanAttention).toBe(0.5);
   });
 

@@ -95,6 +95,11 @@ export interface TaskDefinition {
   stratum: Stratum;
   baseRevision: string;
   oracleRevision: string;
+  oracleTestAdjustments?: Array<{
+    path: string;
+    find: string;
+    replace: string;
+  }>;
   prompt: string;
   verificationCommand: string;
   verificationCwd?: string;

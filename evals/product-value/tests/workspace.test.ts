@@ -150,6 +150,22 @@ describe("product-value workspace (PV-4 through PV-6)", () => {
         workspace.baseCommit,
       );
       expect(tests).toEqual(["tests/value.test.ts"]);
+      task.oracleTestAdjustments = [
+        {
+          path: "tests/value.test.ts",
+          find: "oracle",
+          replace: "semantic oracle",
+        },
+      ];
+      await injectOracleTests(
+        source,
+        task,
+        workspace.repo,
+        workspace.baseCommit,
+      );
+      expect(
+        await Bun.file(join(workspace.repo, "tests", "value.test.ts")).text(),
+      ).toBe("semantic oracle\n");
       expect(
         await Bun.file(
           join(workspace.repo, "tests", "obsolete.test.ts"),

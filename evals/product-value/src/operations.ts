@@ -16,16 +16,47 @@ function numeric(values: Array<number | null>): number[] {
   return values.filter((value): value is number => value !== null);
 }
 
-async function observations(resultsRoot: string): Promise<Observation[]> {
+async function observations(
+  resultsRoot: string,
+  reverificationRoot?: string,
+): Promise<{ values: Observation[]; reverifiedObservations: number }> {
   const values: Observation[] = [];
+  let reverifiedObservations = 0;
   const glob = new Bun.Glob("runs/*/observation.json");
-  for await (const relativePath of glob.scan(resultsRoot))
-    values.push(
-      JSON.parse(
-        await readFile(join(resultsRoot, relativePath), "utf8"),
-      ) as Observation,
+  for await (const relativePath of glob.scan(resultsRoot)) {
+    const observationText = await readFile(
+      join(resultsRoot, relativePath),
+      "utf8",
     );
-  return values;
+    const observation = JSON.parse(observationText) as Observation;
+    const recordPath = reverificationRoot
+      ? join(reverificationRoot, observation.runId, "reverification.json")
+      : null;
+    if (recordPath && (await Bun.file(recordPath).exists())) {
+      const record = JSON.parse(await readFile(recordPath, "utf8")) as {
+        runId?: string;
+        deterministicQuality?: number;
+        quality?: number;
+        identity?: { sourceObservationDigest?: string };
+      };
+      const observationDigest = `sha256:${new Bun.CryptoHasher("sha256")
+        .update(observationText)
+        .digest("hex")}`;
+      if (
+        record.runId !== observation.runId ||
+        record.identity?.sourceObservationDigest !== observationDigest ||
+        (record.deterministicQuality !== 0 &&
+          record.deterministicQuality !== 1) ||
+        record.quality !== record.deterministicQuality
+      )
+        throw new Error(`invalid reverification record: ${recordPath}`);
+      observation.deterministicQuality = record.deterministicQuality;
+      observation.quality = record.quality;
+      reverifiedObservations += 1;
+    }
+    values.push(observation);
+  }
+  return { values, reverifiedObservations };
 }
 
 function treatmentSummary(
@@ -140,8 +171,10 @@ export async function analyzeOperationalDiagnostic(
   diagnostic: OperationalDiagnostic,
   resultsRoot: string,
   observedSubset = false,
+  reverificationRoot?: string,
 ) {
-  const values = (await observations(resultsRoot)).filter((observation) =>
+  const loaded = await observations(resultsRoot, reverificationRoot);
+  const values = loaded.values.filter((observation) =>
     diagnostic.treatments.includes(
       observation.assignment.treatment as OperationalDiagnosticTreatment,
     ),
@@ -171,6 +204,7 @@ export async function analyzeOperationalDiagnostic(
     scope: observedSubset ? "observed-subset" : "full-diagnostic",
     observations: values.length,
     expectedObservations,
+    reverifiedObservations: loaded.reverifiedObservations,
     attentionComplete,
     treatments: Object.fromEntries(
       diagnostic.treatments.map((treatment) => [

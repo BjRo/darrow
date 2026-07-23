@@ -360,6 +360,7 @@ if (command === "install-toolchain") {
       task: {
         id: task.id,
         oracleRevision: task.oracleRevision,
+        oracleTestAdjustments: task.oracleTestAdjustments ?? [],
         verificationCommand: task.verificationCommand,
         verificationCwd: task.verificationCwd ?? ".",
       },
@@ -426,6 +427,7 @@ if (command === "install-toolchain") {
     operationalDiagnostic,
     values.results!,
     values["operator-timed"],
+    values.reverification ? resolve(values.reverification) : undefined,
   );
   await mkdir(values.results!, { recursive: true });
   await writeFile(

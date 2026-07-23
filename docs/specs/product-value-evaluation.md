@@ -65,7 +65,12 @@ and M3 investment. The preregistration and executable configuration live under
   each selected historical oracle change in the sanitized workspace and refuses
   unless that exact verifier passes. The trial workspace contains neither
   source history nor evaluator criteria during execution. A calibration repair
-  may re-verify an immutable participant patch into a separate digest-bound
+  may declare an evaluator-owned semantic adjustment to an oracle test when the
+  original assertion encodes incidental wording rather than required behavior.
+  Each adjustment targets a changed oracle test, replaces one exact occurrence,
+  is bound by the corpus digest, and must still pass against the historical
+  oracle implementation in preflight. The repair may re-verify an immutable
+  participant patch into a separate digest-bound
   derived record, but it never overwrites the original observation or output.
 - **PV-7 — Strata and holdout.** Both repositories contribute simple overhead
   controls and representative multi-step changes. Pilot tasks calibrate the

@@ -219,6 +219,27 @@ export async function injectOracleTests(
     await mkdir(dirname(join(repo, path)), { recursive: true });
     await writeFile(join(repo, path), content.stdout);
   }
+  for (const adjustment of task.oracleTestAdjustments ?? []) {
+    if (!tests.includes(adjustment.path))
+      throw new Error(
+        `${task.id} oracle adjustment targets a non-oracle test: ${adjustment.path}`,
+      );
+    if (!adjustment.find)
+      throw new Error(`${task.id} oracle adjustment find text is empty`);
+    const path = join(repo, adjustment.path);
+    const content = await readFile(path, "utf8");
+    const first = content.indexOf(adjustment.find);
+    if (first < 0 || content.indexOf(adjustment.find, first + 1) >= 0)
+      throw new Error(
+        `${task.id} oracle adjustment must match exactly once: ${path}`,
+      );
+    await writeFile(
+      path,
+      content.slice(0, first) +
+        adjustment.replace +
+        content.slice(first + adjustment.find.length),
+    );
+  }
   return tests;
 }
 

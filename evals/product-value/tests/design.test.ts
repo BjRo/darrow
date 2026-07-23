@@ -31,6 +31,11 @@ describe("product-value design (PV-7 through PV-11)", () => {
           ),
         ).toHaveLength(8);
     expect(
+      corpus.tasks
+        .filter((task) => task.oracleTestAdjustments?.length)
+        .map((task) => task.id),
+    ).toEqual(["credfolio-github-profile"]);
+    expect(
       poweredTasks(
         protocol.design.alpha,
         protocol.design.power,
