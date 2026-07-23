@@ -25,6 +25,7 @@ import {
   usesSharedTddPolicy,
 } from "./policy";
 import { createExecutionTrace, traceCostUsd, traceTokenUsage } from "./trace";
+import type { OperatorAttentionSession } from "./operator-attention";
 
 async function digestDirectory(
   path: string,
@@ -150,6 +151,7 @@ export async function runAssignment(
   assignment: Assignment,
   sources: Map<string, string>,
   resultsRoot: string,
+  attention?: OperatorAttentionSession,
 ): Promise<Observation> {
   const task = corpus.tasks.find((item) => item.id === assignment.taskId) as
     TaskDefinition | undefined;
@@ -215,6 +217,7 @@ export async function runAssignment(
     protocolDigest,
     corpusDigest,
     operationalDiagnosticDigest,
+    operatorTimed: Boolean(attention),
   });
   if (await Bun.file(observationPath).exists()) {
     const existing = JSON.parse(
@@ -265,6 +268,16 @@ export async function runAssignment(
     let invocationPrompt = task.prompt;
     if (usesSharedTddPolicy(assignment.treatment))
       invocationPrompt = sharedTddPrompt(task.prompt);
+    await attention?.measure(
+      `${assignment.treatment} launch`,
+      [
+        `Workspace: ${workspace.repo}`,
+        `Treatment: ${assignment.treatment}`,
+        "Requested change:",
+        task.prompt,
+        `Nothing in the workspace is mandatory to inspect. Check only what you normally would before launching ${assignment.treatment}; if the request is sufficient, type done immediately.`,
+      ].join("\n"),
+    );
     invocation = await invoke(
       protocol,
       assignment.phase,
@@ -278,6 +291,7 @@ export async function runAssignment(
       darrowExecutable,
       [source, SUITE_ROOT],
       undefined,
+      attention,
     );
     await writeFile(join(runRoot, "harness.log"), invocation.raw);
     const persistedTrace = await persistTrace(
@@ -350,6 +364,18 @@ export async function runAssignment(
 
   const deterministicQuality = verification?.passed ? 1 : 0;
   const ungradableFailure = patchPath === null;
+  await attention?.measure(
+    "final inspection",
+    [
+      `Workspace: ${invocation?.workspace || workspace?.repo || "unavailable"}`,
+      `Patch: ${patchPath ?? "unavailable"}`,
+      `Harness output: ${join(runRoot, "harness.log")}`,
+      `Verification output: ${join(runRoot, "verification.log")}`,
+      `Status: ${setupFailure || operationalFailure ? "failed" : "completed"}`,
+      `Hidden verification: ${verification?.passed ? "passed" : "failed"}`,
+      "The paths are optional evidence, not a checklist. Inspect only what you normally would before considering the workflow finished; if the status is sufficient, type done immediately.",
+    ].join("\n"),
+  );
   const retainedWorkspacePath =
     workspace && !invocation!.ok ? workspace.root : null;
   const observation: Observation = {
@@ -386,10 +412,11 @@ export async function runAssignment(
     humanAttentionMinutes: isOperationalDiagnosticTreatment(
       assignment.treatment,
     )
-      ? null
+      ? (attention?.totalMinutes() ?? null)
       : invocation!.ok
         ? 0
         : null,
+    operatorAttentionIntervals: attention?.intervals(),
     operationalMetrics: invocation!.operationalMetrics ?? null,
     interventions: 0,
     failures: invocation!.ok ? 0 : 1,

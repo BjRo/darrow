@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import { stringify as stringifyYaml } from "yaml";
 import { analyze } from "./src/analyze";
@@ -32,6 +33,7 @@ import type {
   Treatment,
 } from "./src/types";
 import { reverifyPatch } from "./src/workspace";
+import { createOperatorAttentionSession } from "./src/operator-attention";
 
 const command = process.argv[2];
 const { values } = parseArgs({
@@ -49,6 +51,7 @@ const { values } = parseArgs({
     grades: { type: "string" },
     annotations: { type: "string" },
     reverification: { type: "string" },
+    "operator-timed": { type: "boolean", default: false },
   },
 });
 const protocol = await loadProtocol();
@@ -224,6 +227,17 @@ if (command === "install-toolchain") {
     console.log(`  ${observation.status} quality=${observation.quality}`);
   }
 } else if (command === "diagnose-operations") {
+  if (
+    values["operator-timed"] &&
+    (!process.stdin.isTTY || !process.stdout.isTTY)
+  )
+    throw new Error("--operator-timed requires an interactive terminal");
+  if (values["operator-timed"] && (!values.task || !values.harness))
+    throw new Error("--operator-timed requires --task and --harness");
+  if (values["operator-timed"] && values.treatment)
+    throw new Error(
+      "--operator-timed runs the matched treatment pair; omit --treatment",
+    );
   const sources = parseSourceArgs(values.source);
   await mkdir(values.results!, { recursive: true });
   const diagnosticSchedule = buildOperationalDiagnosticSchedule(
@@ -240,22 +254,36 @@ if (command === "install-toolchain") {
   );
   if (!selected.length)
     throw new Error("no operational diagnostic cells matched");
-  for (const assignment of selected) {
-    assertBudget(
-      await phaseSpend(values.results!, operationalDiagnostic.phase),
-      operationalDiagnostic.phase,
-    );
-    console.log(
-      `[${assignment.ordinal}/${diagnosticSchedule.length}] ${assignment.taskId} ${assignment.harness}/${assignment.treatment} r${assignment.repeat}`,
-    );
-    const observation = await runAssignment(
-      protocol,
-      corpus,
-      assignment,
-      sources,
-      values.results!,
-    );
-    console.log(`  ${observation.status} quality=${observation.quality}`);
+  const terminal = values["operator-timed"]
+    ? createInterface({ input: process.stdin, output: process.stdout })
+    : null;
+  try {
+    for (const assignment of selected) {
+      assertBudget(
+        await phaseSpend(values.results!, operationalDiagnostic.phase),
+        operationalDiagnostic.phase,
+      );
+      console.log(
+        `[${assignment.ordinal}/${diagnosticSchedule.length}] ${assignment.taskId} ${assignment.harness}/${assignment.treatment} r${assignment.repeat}`,
+      );
+      const attention = terminal
+        ? createOperatorAttentionSession(
+            (prompt) => terminal.question(`${prompt}\n`),
+            (value) => process.stdout.write(value),
+          )
+        : undefined;
+      const observation = await runAssignment(
+        protocol,
+        corpus,
+        assignment,
+        sources,
+        values.results!,
+        attention,
+      );
+      console.log(`  ${observation.status} quality=${observation.quality}`);
+    }
+  } finally {
+    terminal?.close();
   }
 } else if (command === "run") {
   assertConfirmatoryFrozen();
@@ -397,6 +425,7 @@ if (command === "install-toolchain") {
   const report = await analyzeOperationalDiagnostic(
     operationalDiagnostic,
     values.results!,
+    values["operator-timed"],
   );
   await mkdir(values.results!, { recursive: true });
   await writeFile(

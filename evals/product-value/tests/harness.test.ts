@@ -178,6 +178,7 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
     );
     await chmod(executable, 0o755);
 
+    const attentionLabels: string[] = [];
     const result = await invoke(
       testProtocol(executable),
       "pilot",
@@ -190,6 +191,14 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
       Bun.which("bun")!,
       join(root, "cli.ts"),
       [],
+      undefined,
+      {
+        async measure(label) {
+          attentionLabels.push(label);
+        },
+        intervals: () => [],
+        totalMinutes: () => 0,
+      },
     );
 
     expect(result.ok).toBe(true);
@@ -210,6 +219,7 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
     const args = await Bun.file(join(repo, "invocation-args.txt")).text();
     expect(args).toContain("darrow-delivery:implement");
     expect(args).toContain("darrow-delivery:verify-and-repair");
+    expect(attentionLabels).toEqual(["manual handoff"]);
     expect(await createExecutionTrace(result, "manual-playbook")).toEqual(
       expect.objectContaining({
         modelInvocationCount: 2,

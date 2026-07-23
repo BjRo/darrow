@@ -130,6 +130,41 @@ The report leaves its attention comparison null unless all 12 cells have timed
 annotations. The operational diagnostic is descriptive and cannot be pooled
 with pilot or confirmatory product inference.
 
+### Timed operator exercise
+
+Use a fresh results root and an interactive terminal. The guided mode pauses at
+the initial launch, the manual handoff, and final inspection. Each pause first
+shows `[WAITING — timer off]`; type `ready` after returning to the terminal. The
+tool then shows `[ACTIVE — timer running]` with the absolute workspace and
+result paths; type `done` after performing the stated action. Blank or unexpected
+input changes no state and prints the expected command. The paths are optional
+evidence rather than a required checklist: inspect only what you normally would,
+then type `done`. Model waiting and time away remain excluded. Run one simple and
+one orchestrated Codex pair:
+
+```sh
+bun evals/product-value/cli.ts diagnose-operations \
+  --operator-timed \
+  --task mynab-flags-now \
+  --harness codex \
+  --results evals/product-value/results/operator-attention-v1 \
+  --source mynab=../mynab \
+  --source credfolio2=../credfolio2
+bun evals/product-value/cli.ts diagnose-operations \
+  --operator-timed \
+  --task credfolio-github-profile \
+  --harness codex \
+  --results evals/product-value/results/operator-attention-v1 \
+  --source mynab=../mynab \
+  --source credfolio2=../credfolio2
+bun evals/product-value/cli.ts analyze-operations \
+  --operator-timed \
+  --results evals/product-value/results/operator-attention-v1
+```
+
+The exercise remains separate from `playbook-autonomy-v1`. Its observed-subset
+report is descriptive and does not satisfy confirmatory attention completeness.
+
 ```sh
 bun evals/product-value/cli.ts schedule --phase pilot > /tmp/pilot-schedule.yaml
 bun evals/product-value/cli.ts run --phase pilot \

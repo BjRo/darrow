@@ -72,6 +72,7 @@ describe("playbook-autonomy analysis (PV-19)", () => {
     }
 
     const report = await analyzeOperationalDiagnostic(diagnostic, root);
+    expect(report.scope).toBe("full-diagnostic");
     expect(report.observations).toBe(12);
     expect(report.attentionComplete).toBe(true);
     expect(report.cliMinusManual.quality).toBeCloseTo(0.1);
@@ -119,5 +120,68 @@ describe("playbook-autonomy analysis (PV-19)", () => {
     const report = await analyzeOperationalDiagnostic(diagnostic, root);
     expect(report.attentionComplete).toBe(false);
     expect(report.cliMinusManual.humanAttentionMinutes).toBeNull();
+  });
+
+  test("analyzes a complete timed subset without treating it as the full diagnostic", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-operations-test-"));
+    roots.push(root);
+    const diagnostic: OperationalDiagnostic = {
+      schemaVersion: "1.0.0",
+      id: "test",
+      phase: "pilot",
+      repeats: 1,
+      treatments: ["manual-playbook", "cli-playbook"],
+      taskIds: ["simple", "complex-a", "complex-b"],
+    };
+    for (const [index, treatment] of diagnostic.treatments.entries()) {
+      const runId = `run-${index}`;
+      const runRoot = join(root, "runs", runId);
+      await mkdir(runRoot, { recursive: true });
+      await writeFile(
+        join(runRoot, "observation.json"),
+        JSON.stringify({
+          runId,
+          assignment: {
+            taskId: "complex-a",
+            harness: "codex",
+            treatment,
+            repeat: 1,
+          },
+          humanAttentionMinutes: treatment === "manual-playbook" ? 2 : 1,
+          quality: 1,
+          wallTimeMs: 1_000,
+          inputTokens: 100,
+          outputTokens: 10,
+          costUsd: null,
+        } as Observation),
+      );
+    }
+
+    const report = await analyzeOperationalDiagnostic(diagnostic, root, true);
+
+    expect(report.scope).toBe("observed-subset");
+    expect(report.observations).toBe(2);
+    expect(report.expectedObservations).toBe(2);
+    expect(report.attentionComplete).toBe(true);
+    expect(report.cliToManual.humanAttention).toBe(0.5);
+  });
+
+  test("does not call an empty observed subset attention-complete", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-operations-test-"));
+    roots.push(root);
+    const diagnostic: OperationalDiagnostic = {
+      schemaVersion: "1.0.0",
+      id: "test",
+      phase: "pilot",
+      repeats: 1,
+      treatments: ["manual-playbook", "cli-playbook"],
+      taskIds: ["simple", "complex-a", "complex-b"],
+    };
+
+    const report = await analyzeOperationalDiagnostic(diagnostic, root, true);
+
+    expect(report.observations).toBe(0);
+    expect(report.expectedObservations).toBe(0);
+    expect(report.attentionComplete).toBe(false);
   });
 });

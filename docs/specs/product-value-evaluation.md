@@ -167,6 +167,11 @@ and M3 investment. The preregistration and executable configuration live under
   actually execute, unattended completion, quality, usage, failures, and wall
   time. Human-attention minutes remain null until supplied from a timed
   operator observation; evaluator automation is never counted as zero human
-  attention or credited to either product treatment. These descriptive results
-  remain outside the three-treatment schedule, confirmatory inference, and its
-  decision rule.
+  attention or credited to either product treatment. A guided observation starts
+  an attention interval only after the operator confirms they have returned to
+  the terminal and ends it when they confirm the launch, handoff, or inspection
+  action is complete. Model waiting and time away from the terminal are excluded.
+  Timed observations use a fresh result root; a complete paired subset may be
+  reported descriptively but never represented as full-diagnostic attention
+  completeness. These descriptive results remain outside the three-treatment
+  schedule, confirmatory inference, and its decision rule.

@@ -146,6 +146,11 @@ export interface OperationalMetrics {
   unattendedCompletion: boolean;
 }
 
+export interface OperatorAttentionInterval {
+  label: string;
+  durationMs: number;
+}
+
 export interface Observation {
   schemaVersion: string;
   runId: string;
@@ -173,6 +178,7 @@ export interface Observation {
   treatmentSetupTimeMs: number;
   harnessTimeMs: number;
   humanAttentionMinutes: number | null;
+  operatorAttentionIntervals?: OperatorAttentionInterval[];
   operationalMetrics?: OperationalMetrics | null;
   interventions: number;
   failures: number;

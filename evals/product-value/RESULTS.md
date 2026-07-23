@@ -9,7 +9,7 @@ observations.
 This journal covers the product-value evaluation only. Colocated skill-eval
 outputs under `evals/results/` are a separate test corpus.
 
-## Current status — 2026-07-20
+## Current status — 2026-07-23
 
 The current protocol is v5: all three core treatments receive the same minimal
 Red/Green TDD implementation policy, while the CLI product treatment runs a
@@ -23,7 +23,10 @@ is complete and has been re-verified under v5. Strengthened preflight passes all
 26 confirmatory tasks; the holdout remains closed pending acceptance of the
 pilot calibration. The excluded 12-cell playbook-autonomy diagnostic is also
 complete; it isolates one-command workflow ownership from additional model
-invocations, but does not yet contain timed human-attention observations.
+invocations. A separate four-cell guided operator exercise now supplies timed
+attention for one simple and one orchestrated Codex pair. It observed structural
+autonomy but only 3.5% less active attention, below the preregistered 20% useful
+reduction. The confirmatory holdout remains closed.
 
 Raw pilot root: `results/v4-fresh-review-pilot-v1/`
 
@@ -120,6 +123,42 @@ five of six cells, and had fewer operational failures. This automated run does
 not establish a percentage reduction in active human minutes. That requires a
 separate timed operator exercise; elapsed model waiting must not be backfilled
 as attention.
+
+### Timed operator exercise
+
+The separate `operator-attention-v1` exercise measured explicit active intervals
+for one simple and one orchestrated Codex pair. At each launch, manual handoff,
+and final inspection, the timer started only after the operator returned and
+stopped when the operator declared the action complete. Model waiting and time
+away remained excluded. The observed-subset report is descriptive and is not
+pooled with the automated diagnostic or pilot.
+
+Raw result root: `results/operator-attention-v1/`
+
+- Execution checkout base: `daa366f`; the pending guided-timing evaluator source
+  is bound into each observation's configuration digest
+- Scope: two tasks, Codex, both operational treatments, one repeat (four cells)
+- Completion: 4/4 operationally completed, all eight model stages finished, and
+  CLI completed unattended in 2/2 cells versus manual in 0/2
+- Deterministic quality: manual 2/2 and CLI 1/2; the CLI
+  `credfolio-github-profile` patch used “username or full profile URL,” which
+  missed the hidden check for “username or full URL,” while the manual patch
+  passed
+- Mean wall time: 574.2 seconds manual and 413.2 seconds CLI (CLI/manual 0.720×)
+- Mean recorded tokens: 1.827M manual and 1.432M CLI (CLI/manual 0.784×)
+- Mean active attention: 1.423 minutes manual and 1.373 minutes CLI (CLI/manual
+  0.965×), a reduction of 0.050 minutes or 3.0 seconds per task
+
+The task-level attention effects point in opposite directions. On
+`mynab-flags-now`, CLI required 10.6 seconds more attention. On the orchestrated
+`credfolio-github-profile` task, CLI required 16.6 seconds less attention, a
+19.0% reduction. Across both manual cells, the extra handoff itself averaged
+only 5.7 seconds; common launch and final-inspection behavior dominated the
+measurement. The exercise therefore does not meet the preregistered 20% useful
+attention reduction and does not support active minutes as the primary value
+case. It does reinforce a different product property: one launch, no required
+handoff, and unattended completion, even though this small sample also warns
+that unattended completion is valuable only when final quality is reliable.
 
 ### V5 deterministic pilot calibration
 
@@ -374,12 +413,14 @@ the matched diagnostic cells needed for that comparison failed verification.
 
 ## Next checkpoint
 
-Before deciding whether the current quality and autonomy signals justify the
-projected 312-cell confirmatory spend, run a small timed operator exercise for
-the manual two-launch/handoff workflow and the one-command Darrow workflow.
-Keep it separate from the completed automated observations: their null
-attention values are correct and must not be backfilled from a different run.
-Then evaluate the quality, reliability, model economics, and active-attention
-evidence together. The confirmatory holdout remains closed. Do not overwrite or
-pool the original v4 quality fields; the digest-bound v5 re-verification and
-derived grading overlay remain the authoritative pilot grades.
+Do not open the projected 312-cell confirmatory holdout: the pilot does not show
+a broad quality advantage, and the timed exercise does not meet the useful
+active-attention threshold. Before more model spend, decide whether to narrow the
+product-value hypothesis to interruption-free ownership of multi-stage work. If
+so, preregister a small real-operator study whose primary operational outcomes
+are required returns, handoffs, interventions, and successful unattended
+completion rather than using active minutes as their proxy. Pair that work with
+a focused reliability investigation of cases where the verification stage
+finishes but hidden behavior still fails. Do not overwrite or pool the original
+v4 quality fields; the digest-bound v5 re-verification and derived grading
+overlay remain the authoritative pilot grades.

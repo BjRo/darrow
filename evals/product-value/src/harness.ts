@@ -17,6 +17,7 @@ import type {
   Route,
   Treatment,
 } from "./types";
+import type { OperatorAttentionSession } from "./operator-attention";
 import { command, shellQuote, terminateProcessTree } from "./process";
 import { temporalExecutable } from "./toolchain";
 import {
@@ -513,6 +514,7 @@ async function runManualPlaybook(
   pluginRoot: string,
   hiddenPaths: string[],
   timeoutMs: number,
+  attention?: OperatorAttentionSession,
 ): Promise<InvocationResult> {
   const started = performance.now();
   const stateRoot = dirname(state);
@@ -545,6 +547,20 @@ async function runManualPlaybook(
   ];
   const remainingMs = timeoutMs - (performance.now() - started);
   if (implementation.ok && remainingMs > 0) {
+    const implementationOutputPath = join(
+      stateRoot,
+      "manual-implementation.log",
+    );
+    await writeFile(implementationOutputPath, implementation.raw);
+    await attention?.measure(
+      "manual handoff",
+      [
+        "The implementation session succeeded.",
+        `Workspace: ${repo}`,
+        `Implementation output: ${implementationOutputPath}`,
+        "Nothing here is mandatory to inspect. Check only what you normally would before launching a fresh verification-and-repair session; if you would launch it immediately, type done immediately.",
+      ].join("\n"),
+    );
     const review = await runNative(
       harness,
       route,
@@ -612,6 +628,7 @@ export async function invoke(
   darrowExecutable: string,
   hiddenPaths: string[],
   outputSchema?: string,
+  attention?: OperatorAttentionSession,
 ): Promise<InvocationResult> {
   const settings = protocol.phases[phase];
   const timeoutMs = settings.timeoutMinutes * 60_000;
@@ -629,6 +646,7 @@ export async function invoke(
       pluginRoot,
       hiddenPaths,
       timeoutMs,
+      attention,
     );
   if (!isCliPlaybookTreatment(treatment))
     return runNative(

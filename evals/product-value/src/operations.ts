@@ -139,20 +139,36 @@ function pairedDifference(
 export async function analyzeOperationalDiagnostic(
   diagnostic: OperationalDiagnostic,
   resultsRoot: string,
+  observedSubset = false,
 ) {
   const values = (await observations(resultsRoot)).filter((observation) =>
     diagnostic.treatments.includes(
       observation.assignment.treatment as OperationalDiagnosticTreatment,
     ),
   );
-  const expectedObservations =
-    diagnostic.taskIds.length * 2 * diagnostic.treatments.length;
+  const observedBlocks = new Map<string, Set<string>>();
+  for (const observation of values) {
+    const key = `${observation.assignment.taskId}:${observation.assignment.harness}:${observation.assignment.repeat}`;
+    const treatments = observedBlocks.get(key) ?? new Set<string>();
+    treatments.add(observation.assignment.treatment);
+    observedBlocks.set(key, treatments);
+  }
+  const expectedObservations = observedSubset
+    ? observedBlocks.size * diagnostic.treatments.length
+    : diagnostic.taskIds.length * 2 * diagnostic.treatments.length;
   const attentionComplete =
+    values.length > 0 &&
     values.length === expectedObservations &&
+    [...observedBlocks.values()].every(
+      (treatments) =>
+        treatments.size === diagnostic.treatments.length &&
+        diagnostic.treatments.every((treatment) => treatments.has(treatment)),
+    ) &&
     values.every((observation) => observation.humanAttentionMinutes !== null);
   return {
     schemaVersion: "1.0.0",
     diagnosticId: diagnostic.id,
+    scope: observedSubset ? "observed-subset" : "full-diagnostic",
     observations: values.length,
     expectedObservations,
     attentionComplete,
