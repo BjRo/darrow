@@ -170,6 +170,10 @@ describe("product-value design (PV-7 through PV-11)", () => {
     expect(new Set(first.map((assignment) => assignment.harness))).toEqual(
       new Set(["codex", "claude"]),
     );
+    expect(study.harnessVersions).toEqual({
+      codex: "codex-cli 0.145.0",
+      claude: "2.1.212 (Claude Code)",
+    });
     for (let index = 0; index < first.length; index += 2) {
       const block = first.slice(index, index + 2);
       expect(

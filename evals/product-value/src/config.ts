@@ -132,7 +132,7 @@ export async function loadOperatorStudy(
   path = resolve(SUITE_ROOT, "operator-study.yaml"),
 ): Promise<OperatorStudy> {
   const value = parseYaml(await readFile(path, "utf8")) as OperatorStudy;
-  if (value.schemaVersion !== "1.0.0")
+  if (value.schemaVersion !== "1.1.0")
     throw new Error(
       `unsupported operator study schema: ${value.schemaVersion}`,
     );
@@ -152,6 +152,15 @@ export async function loadOperatorStudy(
     HARNESSES.some((harness) => !value.harnesses.includes(harness))
   )
     throw new Error("operator study must contain both harnesses exactly once");
+  if (
+    !value.harnessVersions ||
+    HARNESSES.some(
+      (harness) =>
+        typeof value.harnessVersions[harness] !== "string" ||
+        !value.harnessVersions[harness].trim(),
+    )
+  )
+    throw new Error("operator study must pin every harness version");
   if (
     value.treatments.length !== OPERATIONAL_DIAGNOSTIC_TREATMENTS.length ||
     OPERATIONAL_DIAGNOSTIC_TREATMENTS.some(

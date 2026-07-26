@@ -86,6 +86,7 @@ export interface OperatorStudy extends OperationalDiagnostic {
   amendedAt: string;
   frozenSeed: string;
   harnesses: Harness[];
+  harnessVersions: Record<Harness, string>;
   thresholds: {
     minCliUnattendedCompletions: number;
     minCliQualityQualifiedUnattendedCompletions: number;

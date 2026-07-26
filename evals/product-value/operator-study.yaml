@@ -1,11 +1,14 @@
-schemaVersion: 1.0.0
+schemaVersion: 1.1.0
 id: interruption-free-ownership-v1
 preregisteredAt: "2026-07-23T17:56:03+02:00"
-amendedAt: "2026-07-26T12:57:36+02:00"
+amendedAt: "2026-07-26T13:17:36+02:00"
 frozenSeed: darrow-interruption-free-ownership-v1
 phase: pilot
 repeats: 1
 harnesses: [codex, claude]
+harnessVersions:
+  codex: codex-cli 0.145.0
+  claude: 2.1.212 (Claude Code)
 treatments: [manual-playbook, cli-playbook]
 taskIds:
   - mynab-import-commit-backend

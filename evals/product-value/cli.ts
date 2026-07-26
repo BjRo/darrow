@@ -63,6 +63,18 @@ const protocol = await loadProtocol();
 const corpus = await loadCorpus();
 const operationalDiagnostic = await loadOperationalDiagnostic();
 const operatorStudy = await loadOperatorStudy();
+const operatorProtocol = {
+  ...protocol,
+  harnesses: Object.fromEntries(
+    operatorStudy.harnesses.map((harness) => [
+      harness,
+      {
+        ...protocol.harnesses[harness],
+        version: operatorStudy.harnessVersions[harness],
+      },
+    ]),
+  ) as typeof protocol.harnesses,
+};
 const operatorStudySchedule = buildOperatorStudySchedule(corpus, operatorStudy);
 const phase = values.phase as Phase;
 if (phase !== "smoke" && phase !== "pilot" && phase !== "confirmatory")
@@ -228,7 +240,7 @@ if (command === "install-toolchain") {
 } else if (command === "preflight-operator-study") {
   const selectedTasks = new Set(operatorStudy.taskIds);
   const environment = await preflightSources(
-    protocol,
+    operatorProtocol,
     {
       ...corpus,
       tasks: corpus.tasks.filter((task) => selectedTasks.has(task.id)),
@@ -384,7 +396,7 @@ if (command === "install-toolchain") {
         (value) => process.stdout.write(value),
       );
       const observation = await runAssignment(
-        protocol,
+        operatorProtocol,
         corpus,
         assignment,
         sources,

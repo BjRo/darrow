@@ -26,7 +26,7 @@ describe("playbook-autonomy analysis (PV-19)", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-operations-test-"));
     roots.push(root);
     const diagnostic: OperationalDiagnostic = {
-      schemaVersion: "1.0.0",
+      schemaVersion: "1.1.0",
       id: "test",
       phase: "pilot",
       repeats: 1,
@@ -234,6 +234,10 @@ describe("interruption-free ownership study (PV-20)", () => {
       phase: "pilot",
       repeats: 1,
       harnesses: ["codex", "claude"],
+      harnessVersions: {
+        codex: "codex-cli test",
+        claude: "claude-code test",
+      },
       treatments: ["manual-playbook", "cli-playbook"],
       taskIds: ["complex-a", "complex-b", "complex-c"],
       thresholds: {

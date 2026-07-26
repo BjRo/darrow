@@ -427,11 +427,13 @@ a broad quality advantage, and the timed exercise does not meet the useful
 active-attention threshold. The narrowed interruption-free ownership hypothesis
 is now frozen in `OPERATOR-STUDY.md` and `operator-study.yaml`. Its operator
 presentation was amended before observations on 2026-07-26 to keep the goal
-visible and promote the patch as the primary review artifact. No observation has
-been collected under it; one aborted mediated attempt retained only a
-sanitization manifest and is not evidence. The next checkpoint is to commit the
-amended frozen inputs, run its six interactive task/harness pairs, and apply the
-mechanical operator-study report. The operator exercise's original
+visible and promote the patch as the primary review artifact. A second
+pre-observation amendment pins Codex CLI 0.145.0 and Claude Code 2.1.212 in the
+operator-study input after preflight detected drift from the completed core
+evaluation's 0.144.6 and 2.1.185 locks. No observation has been collected under
+it; one aborted mediated attempt is not evidence. The next checkpoint is to
+commit the amended frozen inputs, run its six interactive task/harness pairs,
+and apply the mechanical operator-study report. The operator exercise's original
 false-negative grade remains preserved; its semantic reverification is the
 authoritative derived grade. Do not overwrite or pool the original v4 quality
 fields; the digest-bound v5 re-verification and derived grading overlay remain
