@@ -178,7 +178,7 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
     );
     await chmod(executable, 0o755);
 
-    const attentionLabels: string[] = [];
+    const attentionPrompts: Array<{ label: string; context: string }> = [];
     const result = await invoke(
       testProtocol(executable),
       "pilot",
@@ -193,8 +193,8 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
       [],
       undefined,
       {
-        async measure(label) {
-          attentionLabels.push(label);
+        async measure(label, context) {
+          attentionPrompts.push({ label, context });
         },
         intervals: () => [],
         totalMinutes: () => 0,
@@ -220,7 +220,13 @@ printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_toke
     const args = await Bun.file(join(repo, "invocation-args.txt")).text();
     expect(args).toContain("darrow-delivery:implement");
     expect(args).toContain("darrow-delivery:verify-and-repair");
-    expect(attentionLabels).toEqual(["manual handoff"]);
+    expect(attentionPrompts).toHaveLength(1);
+    expect(attentionPrompts[0]).toEqual(
+      expect.objectContaining({ label: "manual handoff" }),
+    );
+    expect(attentionPrompts[0]!.context).toContain("STEP GOAL");
+    expect(attentionPrompts[0]!.context).toContain("requested behavior");
+    expect(attentionPrompts[0]!.context).toContain("ACTION");
     expect(await createExecutionTrace(result, "manual-playbook")).toEqual(
       expect.objectContaining({
         modelInvocationCount: 2,

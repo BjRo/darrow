@@ -8,6 +8,29 @@ export interface OperatorAttentionSession {
 
 type Ask = (prompt: string) => Promise<string>;
 
+export function formatOperatorGoal(goal: string): string {
+  return [
+    "==================== STEP GOAL ====================",
+    goal.trim(),
+    "===================================================",
+  ].join("\n");
+}
+
+export function formatPatchReview(
+  path: string | null,
+  quickViewCommand?: string,
+): string {
+  return [
+    "=============== PRIMARY REVIEW ARTIFACT ===============",
+    "PATCH",
+    path ?? "unavailable",
+    ...(quickViewCommand
+      ? ["", "Quick view (press q to return):", `  ${quickViewCommand}`]
+      : []),
+    "=======================================================",
+  ].join("\n");
+}
+
 async function waitForCommand(
   expected: "ready" | "done",
   ask: Ask,

@@ -229,6 +229,7 @@ describe("interruption-free ownership study (PV-20)", () => {
       schemaVersion: "1.0.0",
       id: "test-study",
       preregisteredAt: "2026-07-23T00:00:00+02:00",
+      amendedAt: "2026-07-26T00:00:00+02:00",
       frozenSeed: "test-seed",
       phase: "pilot",
       repeats: 1,

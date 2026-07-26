@@ -17,7 +17,10 @@ import type {
   Route,
   Treatment,
 } from "./types";
-import type { OperatorAttentionSession } from "./operator-attention";
+import {
+  formatOperatorGoal,
+  type OperatorAttentionSession,
+} from "./operator-attention";
 import { command, shellQuote, terminateProcessTree } from "./process";
 import { temporalExecutable } from "./toolchain";
 import {
@@ -555,9 +558,14 @@ async function runManualPlaybook(
     await attention?.measure(
       "manual handoff",
       [
+        formatOperatorGoal(change),
+        "",
+        "RESULT",
         "The implementation session succeeded.",
         `Workspace: ${repo}`,
         `Implementation output: ${implementationOutputPath}`,
+        "",
+        "ACTION",
         "Nothing here is mandatory to inspect. Check only what you normally would before launching a fresh verification-and-repair session; if you would launch it immediately, type done immediately.",
       ].join("\n"),
     );

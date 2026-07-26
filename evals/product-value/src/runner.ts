@@ -8,7 +8,7 @@ import type {
   RepositoryDefinition,
   TaskDefinition,
 } from "./types";
-import { command, checked } from "./process";
+import { command, checked, shellQuote } from "./process";
 import {
   capturePatch,
   destroyWorkspace,
@@ -25,7 +25,11 @@ import {
   usesSharedTddPolicy,
 } from "./policy";
 import { createExecutionTrace, traceCostUsd, traceTokenUsage } from "./trace";
-import type { OperatorAttentionSession } from "./operator-attention";
+import {
+  formatOperatorGoal,
+  formatPatchReview,
+  type OperatorAttentionSession,
+} from "./operator-attention";
 
 async function digestDirectory(
   path: string,
@@ -275,10 +279,12 @@ export async function runAssignment(
     await attention?.measure(
       `${assignment.treatment} launch`,
       [
+        formatOperatorGoal(task.prompt),
+        "",
         `Workspace: ${workspace.repo}`,
         `Treatment: ${assignment.treatment}`,
-        "Requested change:",
-        task.prompt,
+        "",
+        "ACTION",
         `Nothing in the workspace is mandatory to inspect. Check only what you normally would before launching ${assignment.treatment}; if the request is sufficient, type done immediately.`,
       ].join("\n"),
     );
@@ -371,12 +377,22 @@ export async function runAssignment(
   await attention?.measure(
     "final inspection",
     [
-      `Workspace: ${invocation?.workspace || workspace?.repo || "unavailable"}`,
-      `Patch: ${patchPath ?? "unavailable"}`,
-      `Harness output: ${join(runRoot, "harness.log")}`,
-      `Verification output: ${join(runRoot, "verification.log")}`,
+      formatOperatorGoal(task.prompt),
+      "",
+      formatPatchReview(
+        patchPath,
+        patchPath ? `less -- ${shellQuote(patchPath)}` : undefined,
+      ),
+      "",
+      "RESULT",
       `Status: ${setupFailure || operationalFailure ? "failed" : "completed"}`,
       `Hidden verification: ${verification?.passed ? "passed" : "failed"}`,
+      "",
+      "SUPPORTING ARTIFACTS",
+      `Workspace: ${invocation?.workspace || workspace?.repo || "unavailable"}`,
+      `Harness output: ${join(runRoot, "harness.log")}`,
+      `Verification output: ${join(runRoot, "verification.log")}`,
+      "",
       "The paths are optional evidence, not a checklist. Inspect only what you normally would before considering the workflow finished; if the status is sufficient, type done immediately.",
     ].join("\n"),
   );

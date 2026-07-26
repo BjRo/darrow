@@ -83,6 +83,7 @@ export interface OperationalDiagnostic {
 
 export interface OperatorStudy extends OperationalDiagnostic {
   preregisteredAt: string;
+  amendedAt: string;
   frozenSeed: string;
   harnesses: Harness[];
   thresholds: {

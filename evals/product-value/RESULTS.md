@@ -425,11 +425,14 @@ the matched diagnostic cells needed for that comparison failed verification.
 Do not open the projected 312-cell confirmatory holdout: the pilot does not show
 a broad quality advantage, and the timed exercise does not meet the useful
 active-attention threshold. The narrowed interruption-free ownership hypothesis
-is now frozen in `OPERATOR-STUDY.md` and `operator-study.yaml`; no observations
-have been collected under it. The next checkpoint is to commit the frozen
-inputs, run its six interactive task/harness pairs, and apply the mechanical
-operator-study report. The operator exercise's original false-negative grade
-remains preserved; its semantic reverification is the authoritative derived
-grade. Do not overwrite or pool the original v4 quality fields; the digest-bound
-v5 re-verification and derived grading overlay remain the authoritative pilot
-grades.
+is now frozen in `OPERATOR-STUDY.md` and `operator-study.yaml`. Its operator
+presentation was amended before observations on 2026-07-26 to keep the goal
+visible and promote the patch as the primary review artifact. No observation has
+been collected under it; one aborted mediated attempt retained only a
+sanitization manifest and is not evidence. The next checkpoint is to commit the
+amended frozen inputs, run its six interactive task/harness pairs, and apply the
+mechanical operator-study report. The operator exercise's original
+false-negative grade remains preserved; its semantic reverification is the
+authoritative derived grade. Do not overwrite or pool the original v4 quality
+fields; the digest-bound v5 re-verification and derived grading overlay remain
+the authoritative pilot grades.

@@ -140,9 +140,11 @@ export async function loadOperatorStudy(
     throw new Error("operator study requires an id and frozen seed");
   if (
     !value.preregisteredAt ||
-    !Number.isFinite(Date.parse(value.preregisteredAt))
+    !Number.isFinite(Date.parse(value.preregisteredAt)) ||
+    !value.amendedAt ||
+    !Number.isFinite(Date.parse(value.amendedAt))
   )
-    throw new Error("operator study preregistration timestamp is invalid");
+    throw new Error("operator study freeze timestamps are invalid");
   if (value.phase !== "pilot" || value.repeats !== 1)
     throw new Error("operator study is restricted to one pilot repeat");
   if (

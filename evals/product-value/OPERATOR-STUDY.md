@@ -2,10 +2,13 @@
 
 ## Status and purpose
 
-This protocol was frozen on 2026-07-23 before collecting any observations under
-`interruption-free-ownership-v1`. It is an excluded follow-up study, not an
-amendment to the three-treatment confirmatory gate and not permission to open
-the confirmatory holdout.
+This protocol was frozen on 2026-07-23 and amended on 2026-07-26 before
+collecting any observations under `interruption-free-ownership-v1`. The
+amendment makes the goal prominent at every operator action and promotes the
+patch plus a quick-view command at final inspection; it changes presentation,
+not treatments, tasks, outcomes, or thresholds. This is an excluded follow-up
+study, not an amendment to the three-treatment confirmatory gate and not
+permission to open the confirmatory holdout.
 
 The narrowed product hypothesis is:
 

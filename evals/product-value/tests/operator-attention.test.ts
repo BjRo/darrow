@@ -1,7 +1,37 @@
 import { describe, expect, test } from "bun:test";
-import { createOperatorAttentionSession } from "../src/operator-attention";
+import {
+  createOperatorAttentionSession,
+  formatOperatorGoal,
+  formatPatchReview,
+} from "../src/operator-attention";
 
 describe("operator attention timing", () => {
+  test("makes the goal and patch review path visually prominent", () => {
+    expect(formatOperatorGoal("  Add the requested behavior.  ")).toBe(
+      [
+        "==================== STEP GOAL ====================",
+        "Add the requested behavior.",
+        "===================================================",
+      ].join("\n"),
+    );
+    expect(
+      formatPatchReview(
+        "/tmp/results/change.patch",
+        "less -- '/tmp/results/change.patch'",
+      ),
+    ).toBe(
+      [
+        "=============== PRIMARY REVIEW ARTIFACT ===============",
+        "PATCH",
+        "/tmp/results/change.patch",
+        "",
+        "Quick view (press q to return):",
+        "  less -- '/tmp/results/change.patch'",
+        "=======================================================",
+      ].join("\n"),
+    );
+  });
+
   test("counts only the interval between begin and complete confirmations", async () => {
     const times = [5_000, 11_000, 20_000, 23_000];
     const answers = ["ready", "done", "ready", "done"];

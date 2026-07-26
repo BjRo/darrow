@@ -135,8 +135,10 @@ with pilot or confirmatory product inference.
 Use a fresh results root and an interactive terminal. The guided mode pauses at
 the initial launch, the manual handoff, and final inspection. Each pause first
 shows `[WAITING — timer off]`; type `ready` after returning to the terminal. The
-tool then shows `[ACTIVE — timer running]` with the absolute workspace and
-result paths; type `done` after performing the stated action. Blank or unexpected
+tool then shows `[ACTIVE — timer running]`, restates the step goal in a prominent
+banner, and shows the absolute workspace and result paths. Final inspection
+promotes the patch as the primary review artifact and prints a copyable `less`
+command. Type `done` after performing the stated action. Blank or unexpected
 input changes no state and prints the expected command. The paths are optional
 evidence rather than a required checklist: inspect only what you normally would,
 then type `done`. Model waiting and time away remain excluded. Run one simple and
