@@ -8,5 +8,6 @@
     "skipLibCheck": true,
     "types": ["bun"]
   },
-  "include": ["evals/**/*.ts"]
+  "include": ["evals/**/*.ts"],
+  "exclude": ["evals/results/**"]
 }

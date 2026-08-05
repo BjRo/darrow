@@ -1,6 +1,6 @@
 ---
 name: list-decisions
-description: List and find recorded decisions by subject, scope, status, owner, or supersession relationship without changing them. Use when the user asks "what did we decide", "list the architecture decisions", "find decisions about X", "which ADR superseded this", "show proposed decisions", "list active Darrow run decisions", or otherwise asks what authoritative repository, policy, work-item, review, or run choices exist.
+description: List and find recorded decisions by subject, scope, status, owner, or supersession relationship without changing them. Use when the user asks "what did we decide", "list the architecture decisions", "find decisions about X", "which ADR superseded this", "show proposed decisions", or otherwise asks what authoritative repository, policy, work-item, or review choices exist.
 ---
 
 # list-decisions
@@ -35,17 +35,11 @@ inside Markdown links or code spans.
    specification and policy surfaces for the subject. Inspect matches closely:
    distinguish a governing decision from historical context, an unresolved
    proposal, or a reference to another canonical record.
-4. When the requested scope includes run state, work items, or reviews, query
+4. When the requested scope includes work items or reviews, query
    an available read-only owner integration. If it is unavailable, name that
    exact inaccessible owner and say the inventory is incomplete; do not infer
-   foreign-owned state from repository files. When the request names Darrow,
-   use `darrow inspect <run-id> --json` before concluding the owner is
-   unavailable or empty, even when `inspect` reports no repository run surface.
-   Reuse the run ID from the request, conversation, or runtime context. If it is
-   unknown, ask for it; never invent a run-listing command or treat
-   `darrow --version` as owner inspection. Do not substitute a harness task
-   list, the decision facade, or repository search for Darrow run state; the
-   facade inventories repository surfaces only.
+   foreign-owned state from repository files. The facade inventories repository
+   surfaces only.
 5. Report each matching decision once. Use one compact result line per
    canonical record containing subject/effect, actual status (or explicitly
    `no recorded status`), scope, and canonical absolute path or external owner;
@@ -79,8 +73,7 @@ inside Markdown links or code spans.
 
 - ADRs normally represent durable architecture. Specifications own normative
   product and capability behavior; policy and repository guidance own durable
-  team rules; work items own local implementation choices; Darrow owns run-local
-  decisions.
+  team rules; work items own local implementation choices.
 - Do not infer `Accepted` from confident wording, code frequency, or a model
   recommendation. Preserve the record's actual status and authority.
 - A document that merely links to a decision is not a second result. Prefer the
@@ -95,7 +88,7 @@ inside Markdown links or code spans.
 - Do not turn listing into a review of whether the choice is still good or
   whether implementation conforms.
 - Do not silently restrict a general decision question to ADRs when a
-  specification, scoped policy, work item, review, or run may be authoritative.
+  specification, scoped policy, work item, or review may be authoritative.
 - Do not perform generic repository search unrelated to recorded decisions.
 - Do not enumerate or name unrelated records, even as examples of what a filter
   excluded. Before responding, remove every excluded identifier, title, path,

@@ -1,7 +1,7 @@
 import type { Check, CheckResult, OutputCheck } from "./types";
 import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { validateExternalSchema } from "../../cli/src/schema";
+import { validateExternalSchema } from "./schema";
 
 function jsonPointer(value: unknown, pointer: string): unknown {
   if (pointer === "") return value;

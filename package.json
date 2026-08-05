@@ -2,18 +2,17 @@
   "name": "darrow",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "cli"
-  ],
   "scripts": {
     "eval": "bun evals/runner/run.ts",
-    "eval:product": "bun evals/product-value/cli.ts",
     "format": "prettier --write .",
     "hooks:install": "git config core.hooksPath .githooks",
     "lint": "prettier --check .",
     "lint:staged": "lint-staged",
-    "typecheck": "tsc --noEmit && bun --cwd cli typecheck",
-    "test:cli": "bun --cwd cli test"
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",

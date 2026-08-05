@@ -1,6 +1,6 @@
 ---
 name: capture-decision
-description: Capture or maintain one explicit decision at its authoritative scope without duplicating another canonical record. Use when the user says "record this decision", "capture what we decided", "write an ADR", "document this architecture choice", "correct ADR metadata", "supersede this ADR", or otherwise asks to preserve or maintain a settled repository, product, policy, work-item, or Darrow run choice.
+description: Capture or maintain one explicit decision at its authoritative scope without duplicating another canonical record. Use when the user says "record this decision", "capture what we decided", "write an ADR", "document this architecture choice", "correct ADR metadata", "supersede this ADR", or otherwise asks to preserve or maintain a settled repository, product, policy, or work-item choice.
 ---
 
 # capture-decision
@@ -35,17 +35,6 @@ applicable, explicit in the same record.
 
 Apply these before any repository write:
 
-- A Darrow waiver, route amendment, or continuation choice belongs only to run
-  state. Never create an ADR, specification entry, policy, or other repository
-  copy for it—even when the request explicitly asks for a repository copy. Use
-  a read-only runtime operation to inspect current owner state when available:
-  - Confirmed present → report the run as canonical without mutation.
-  - Confirmed absent → use the owning mutation only when the request authorizes
-    that exact operation; otherwise report it as unapplied and name the required
-    operation.
-  - Inaccessible → identify the owner and required operation, and say
-    application is unverified and the result incomplete. Do not claim either
-    absence or successful waiver/continuation.
 - A work-item-local choice stays in that work item. If its integration is
   available, inspect the exact work item and attempt the authorized persistence
   operation there. Never infer integration absence from repository contents:
@@ -98,8 +87,6 @@ Apply these before any repository write:
    repository fact, user statement, model inference, or assumption. Ask only
    when one of those would materially change what is recorded.
 5. Route the effect:
-   - Darrow waiver, route amendment, or continuation choice → apply the
-     ownership stop above.
    - Ticket- or PR-local choice → keep it in that work item. Use an available
      integration only when the requested mutation is authorized; otherwise name
      the target and content still needing persistence.
@@ -157,7 +144,6 @@ Apply these before any repository write:
 
 - Capture exactly one requested decision. Do not reorganize documentation,
   review implementation drift, or update unrelated work items.
-- Never invent a generic `.darrow/decisions` store or duplicate run-local state.
 - Never silently replace accepted meaning or accept an unresolved alternative.
 - Never rewrite an observation, model inference, or assumption as user-provided
   rationale or repository authority.

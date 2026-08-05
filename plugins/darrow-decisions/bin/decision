@@ -578,7 +578,7 @@ print_surfaces() {
   local path count found
   echo "specification-surfaces:"
   found=0
-  for path in "$ROOT/docs/product-spec.md" "$ROOT/docs/specs" "$ROOT/specs"; do
+  for path in "$ROOT/docs/specs" "$ROOT/specs"; do
     if [[ -e "$path" ]]; then
       [[ -r "$path" ]] || die "canonical specification surface is not readable: $path"
       if [[ -d "$path" ]]; then

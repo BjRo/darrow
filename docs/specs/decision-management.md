@@ -55,21 +55,20 @@ A decision record has:
 
 Route a settled choice to the surface whose consumers must obey it:
 
-| Scope                                                            | Canonical sink                                                                               | Decision-management behavior                                                                                                                                                                   |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Darrow run-local waiver, route amendment, or continuation choice | Darrow run state                                                                             | Report that the runtime owns it; never duplicate it in repository files, even when the request asks for a repository copy.                                                                     |
-| Ticket- or PR-local implementation choice                        | Existing work item                                                                           | Keep it in that work item. Use an available tracker or review integration only when the user requested that mutation; otherwise report the exact target and content still needing persistence. |
-| Durable repository architecture                                  | Existing related ADR, or a new ADR when none exists                                          | Create, accept, reject, deprecate, or supersede through the ADR lifecycle.                                                                                                                     |
-| Normative product or capability behavior                         | Applicable product or normative specification                                                | Edit the governing invariant. Add an ADR only when the user separately authorizes preserving durable architectural rationale and that rationale is evidenced rather than invented.             |
-| Durable team or repository policy                                | Existing authoritative policy or repository-guidance surface                                 | Amend that surface at the narrowest reliably reachable scope.                                                                                                                                  |
-| Unresolved architecture proposal                                 | Proposed ADR only when the repository uses ADRs for proposals and the user wants it recorded | Keep status `Proposed`; never represent it as accepted.                                                                                                                                        |
+| Scope                                     | Canonical sink                                                                               | Decision-management behavior                                                                                                                                                                   |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ticket- or PR-local implementation choice | Existing work item                                                                           | Keep it in that work item. Use an available tracker or review integration only when the user requested that mutation; otherwise report the exact target and content still needing persistence. |
+| Durable repository architecture           | Existing related ADR, or a new ADR when none exists                                          | Create, accept, reject, deprecate, or supersede through the ADR lifecycle.                                                                                                                     |
+| Normative product or capability behavior  | Applicable product or normative specification                                                | Edit the governing invariant. Add an ADR only when the user separately authorizes preserving durable architectural rationale and that rationale is evidenced rather than invented.             |
+| Durable team or repository policy         | Existing authoritative policy or repository-guidance surface                                 | Amend that surface at the narrowest reliably reachable scope.                                                                                                                                  |
+| Unresolved architecture proposal          | Proposed ADR only when the repository uses ADRs for proposals and the user wants it recorded | Keep status `Proposed`; never represent it as accepted.                                                                                                                                        |
 
 - **DM-6 — Route; do not copy.** The classification table selects one canonical
   effect. References to that effect may be added where useful, but copied rules
   do not become additional authorities. A request to capture does not authorize
   an extra rationale record at another scope.
-- **DM-7 — Respect foreign ownership.** Run-local state, work-item state, and
-  external review state remain owned by their systems. The plugin neither
+- **DM-7 — Respect foreign ownership.** Work-item state and external review
+  state remain owned by their systems. The plugin neither
   invents a file-backed substitute nor assumes a sibling plugin is installed.
   Mutate them only through an available owner integration and only when the
   request authorizes that exact mutation. When the owning integration is

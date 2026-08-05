@@ -1,6 +1,4 @@
 node_modules/
 evals/results/
-evals/product-value/results/
-evals/product-value/.toolchain/
 .tmp/
 .DS_Store

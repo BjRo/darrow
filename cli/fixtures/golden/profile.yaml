@@ -1,7 +1,0 @@
-schemaVersion: 0.1.0
-id: codex
-harness: codex
-provider: openai
-model: gpt-5.6-sol
-reasoningEffort: high
-permissions: { inherit: true }

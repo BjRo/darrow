@@ -1,94 +1,59 @@
 # darrow — Agent Instructions
 
-Local-first agentic workflow runtime plus directly authored plugins for Claude
-Code and Codex. Read `docs/product-spec.md` for product direction and follow its
-direct links to the applicable runtime specification or ADR before changing a
-contract.
+Darrow is a marketplace of independently adoptable plugins for Claude Code and
+Codex. There is no active workflow runtime, delivery orchestrator, goal loop, or
+software-factory implementation in this repository. Do not reconstruct one from
+Git history or old experiment results unless the user explicitly requests it.
 
 ## Layout
 
-- `cli/` — global TypeScript/Bun workflow CLI and Temporal worker (M1 onward),
-  versioned independently from plugins.
-- `plugins/<name>/` — independently adoptable plugins. Skills live in
-  `skills/<skill>/SKILL.md` with colocated `scripts/` and `evals/`. Plugins are
-  self-contained: never reference files outside the plugin directory or assume
-  a sibling plugin is installed. Workflows invoke command skills by canonical
-  `<plugin>:<skill>` ID; capability composition uses intent and portable
-  contracts.
-- `docs/specs/` — normative invariants. Runtime contracts live in
-  `workflow-runtime.md`, `workspaces-artifacts.md`, `compatibility.md`, and
-  `observability.md`; capability contracts live in their named files. Tests and
-  evals trace to stable invariant IDs (for example, WR-20 or GW-C1).
-- `docs/decisions/` — accepted architecture choices. Read the directly linked
-  ADR before revisiting a selected technology or distribution boundary.
-- `evals/` — shared runner (`runner/`) and results (`results/`, gitignored).
-  The runner discovers cases via `plugins/*/skills/*/evals/*.yaml`.
+- `plugins/<name>/` — self-contained plugins. Skills live in
+  `skills/<skill>/SKILL.md` with colocated scripts and evals. Never reference
+  files outside a plugin or assume a sibling plugin is installed.
+- `docs/specs/` — normative capability invariants.
+- `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
+- `evals/runner/` — shared skill-evaluation runner. Results are gitignored.
 
-## Skill development loop (mandatory, in order)
+## Skill development loop
 
-1. Add/adjust the invariant in `docs/specs/<capability>.md`.
-2. Enforce every checkable part in the skill's bundled script; the prompt
-   (SKILL.md) keeps judgment only. Scripts print compact, decision-relevant
-   output for a model — mode-aware, no raw git dumps.
-3. Cover script behavior in the colocated deterministic test
-   (`scripts/<name>.test.sh`) — run with bash 5 AND /bin/bash (3.2).
-4. Add an eval case for the judgment part in the skill's `evals/` dir.
-5. Fresh-context adversarial review of skill + script; fix ALL findings.
-6. Re-run tests + evals, then commit.
+1. Add or adjust the capability invariant.
+2. Put checkable mechanics in the bundled script; keep judgment in `SKILL.md`.
+3. Test scripts with Bash 5 and `/bin/bash` 3.2.
+4. Add an eval case for judgment behavior.
+5. Run a fresh-context adversarial review.
+6. Re-run tests and scoped evals before committing.
 
-Review agents must never run git/gh against this repo — temp dirs via
-`mktemp -d` only; this repo is read-only for them.
+Review agents must not run Git or GitHub commands against this repository.
 
-## Shell portability (recurring bug classes — check before shipping any script)
+## Shell portability
 
-- Never `printf "$var" | grep -q …` or awk-with-early-exit in a pipe under
-  pipefail: SIGPIPE (141) silently discards matches past ~64KB. Use `<<<`.
-- Never `${var//pat/}` on unbounded input: O(n²), 10KB ≈ 1 min. Use `[[ =~ ]]`.
-- Never `awk -v x="$v"`: mangles backslashes. Pass via `X="$v" awk '…ENVIRON["X"]…'`.
-- Old BSD awk: no interval regexes (`{1,6}`) — substr loops. Markdown: fences
-  ``` or ~~~ indented ≤3 spaces; ATX heading = 1–6 `#` + space or tab; strip
-  UTF-8 BOM on line 1.
-- Unreadable config/template file → refuse with a clear error; never skip
-  (skipping silently disables the invariant; unguarded awk dies raw under set -e).
-- Paths in model-facing output must be absolute (cwd may be a subdir).
-- Resolve the repo root via the first `git worktree list --porcelain` entry,
-  not `--show-toplevel` (linked worktrees).
+- Avoid early-exit pipelines under `pipefail`; use here-strings for bounded
+  matching.
+- Avoid `${var//pat/}` on unbounded input and `awk -v` for backslash-bearing
+  values.
+- Support old BSD awk and Bash 3.2 in plugin scripts.
+- Refuse unreadable configuration rather than silently skipping it.
+- Use absolute paths in model-facing output.
+- Resolve the primary repository via the first `git worktree list --porcelain`
+  entry when linked worktrees matter.
 
-## Tests & evals
+## Tests and evals
 
-- Script tests: `bash plugins/darrow-git/skills/<skill>/scripts/<name>.test.sh`
-  (also with `/bin/bash`).
-- Evals: `cd evals && bun runner/run.ts --case <substring> [--dry]`.
-  5 trials/case, pass-rate threshold 0.8, ~$0.5/case — use `--case` to scope.
-- Fixtures: mock external bins via the case's `bin:` field (lands in
-  `.git/fixture-bin`); remotes are bare repos inside `.git/`; skill mounts are
-  hidden via `.git/info/exclude` and never include the skill's `evals/` dir
-  (the model under eval must not see its own pass criteria).
-- Case prompts: quote any prompt containing `#` (plain YAML scalars
-  comment-strip it — "Close ticket #12." silently became "Close ticket");
-  anchor the capability's domain in the prompt ("in the issue tracker",
-  "the open bug tickets") — headless skill routing is unreliable for
-  oblique references; keep the judgment under test ambiguous, never the
-  domain. Mock bins must exit 0 on empty state (`cat file || :`) — a
-  missing state file otherwise fails the whole CLI, and the skill's
-  correct stop-on-refusal behavior fails the eval.
+- Run relevant script tests with both `bash` and `/bin/bash`.
+- Run evals with `cd evals && bun runner/run.ts --case <substring> [--dry]`.
+- Keep eval prompts participant-visible and hide their pass criteria.
+- Quote YAML prompts containing `#` and make fixture binaries succeed on valid
+  empty state.
 
 ## Git
 
-- Conventional Commits, imperative, no trailing period (commit.sh enforces).
-- No AI attribution anywhere — commits, PRs, code comments. No AI
-  Co-authored-by trailers. Script-enforced; never bypass with raw git.
+- Use imperative Conventional Commits without trailing periods.
+- Do not add AI attribution or `Co-authored-by` trailers.
 - Never push unless explicitly asked.
 
-## Plugin format (dual runtime)
+## Plugin format
 
-- Marketplace manifest: `.claude-plugin/marketplace.json` (Codex reads it too).
-- Each plugin needs BOTH `.claude-plugin/plugin.json` and
-  `.codex-plugin/plugin.json` (Codex variant adds `"skills": "./skills/"`).
-- Each skill that participates in the Darrow workflow runtime (M1 onward) needs
-  `skills/<skill>/darrow.json`, validated against
-  `docs/specs/darrow-skill-metadata.schema.json`. Native plugin manifests retain
-  plugin identity and package version; never add arbitrary Darrow fields to
-  them.
-- A command skill is invoked explicitly by canonical name. A capability skill is
-  loaded by harness intent and advertises portable contracts in `darrow.json`.
+- Marketplace: `.claude-plugin/marketplace.json`.
+- Every plugin has `.claude-plugin/plugin.json` and
+  `.codex-plugin/plugin.json`; the Codex manifest points at `./skills/`.
+- Keep each plugin independently installable and self-contained.

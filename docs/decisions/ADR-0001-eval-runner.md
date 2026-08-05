@@ -5,9 +5,8 @@ Date: 2026-07-05
 
 ## Context
 
-Every Darrow skill must satisfy the product's
-[release requirements](../product-spec.md#14-release-requirements) across
-multiple agent harnesses (Claude Code, Codex; later Pi) and multiple models.
+Every Darrow skill must be evaluated across supported agent harnesses (Claude
+Code and Codex) and explicitly pinned models.
 Skills are prompts executed by a harness, so evals must run the skill in the real
 harness, headless, and assert on outcomes (git state, files), not transcripts.
 Off-the-shelf options fit poorly: skill-creator evals are Claude-only,

@@ -1,8 +1,0 @@
-schemaVersion: 0.1.0
-id: claude
-harness: claude
-provider: anthropic
-model: claude-sonnet-4-6
-reasoningEffort: high
-permissions:
-  inherit: true

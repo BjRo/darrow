@@ -1,9 +1,0 @@
-schemaVersion: 1.0.0
-id: playbook-autonomy-v1
-phase: pilot
-repeats: 1
-treatments: [manual-playbook, cli-playbook]
-taskIds:
-  - mynab-flags-now
-  - mynab-import-commit-backend
-  - credfolio-github-profile

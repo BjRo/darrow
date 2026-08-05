@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runChecks, runOutputChecks } from "./checks";
@@ -135,41 +135,34 @@ describe("eval checks", () => {
   });
 
   test("output checks validate the final JSON against a skill schema", async () => {
-    const skillDir = join(
-      import.meta.dir,
-      "..",
-      "..",
-      "plugins",
-      "darrow-delivery",
-      "skills",
-      "verify-and-repair",
-    );
-    const valid = {
-      verified: true,
-      summary: "complete",
-      findings: [],
-      changedPaths: [],
-      verification: [
-        {
-          id: "focused",
-          command: "bun test",
-          exitStatus: 0,
-          purpose: "focused behavior",
-          diagnosticChecks: [],
-        },
-      ],
-    };
-    const [accepted] = await runOutputChecks(
-      JSON.stringify(valid),
-      [{ name: "schema", schema: "./output.schema.json" }],
-      skillDir,
-    );
-    const [rejected] = await runOutputChecks(
-      JSON.stringify({ ...valid, verification: [] }),
-      [{ name: "schema", schema: "./output.schema.json" }],
-      skillDir,
-    );
-    expect(accepted?.passed).toBe(true);
-    expect(rejected?.passed).toBe(false);
+    const schemaDir = await mkdtemp(join(tmpdir(), "darrow-schema-"));
+    try {
+      await writeFile(
+        join(schemaDir, "output.schema.json"),
+        JSON.stringify({
+          type: "object",
+          required: ["verification"],
+          properties: {
+            verification: { type: "array", minItems: 1 },
+          },
+          additionalProperties: true,
+        }),
+      );
+      const valid = { verification: [{ id: "focused" }] };
+      const [accepted] = await runOutputChecks(
+        JSON.stringify(valid),
+        [{ name: "schema", schema: "./output.schema.json" }],
+        schemaDir,
+      );
+      const [rejected] = await runOutputChecks(
+        JSON.stringify({ verification: [] }),
+        [{ name: "schema", schema: "./output.schema.json" }],
+        schemaDir,
+      );
+      expect(accepted?.passed).toBe(true);
+      expect(rejected?.passed).toBe(false);
+    } finally {
+      await rm(schemaDir, { recursive: true, force: true });
+    }
   });
 });

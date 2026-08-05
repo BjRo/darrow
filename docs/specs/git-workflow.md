@@ -6,12 +6,8 @@ which agent runtime executes them.
 
 Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`, `create-pr`.
 
-Darrow runtime-managed worktrees are orchestration workspaces governed by
-[workspaces and artifacts](workspaces-artifacts.md), not worktrees created by the
-`create-branch` capability. Inside an attached managed worktree, `create-branch`
-may create and switch the requested Git branch in place. GW-B6 applies only when
-the caller explicitly asks this capability to allocate an additional ad-hoc
-worktree.
+GW-B6 applies only when the caller explicitly asks the `create-branch`
+capability to allocate an additional linked worktree.
 
 ## Why
 

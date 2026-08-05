@@ -1,7 +1,0 @@
-{
-  "schemaVersion": "0.1.0",
-  "engineVersion": "0.1.0",
-  "backend": { "id": "temporal", "adapterVersion": "0.1.0" },
-  "workflowSchemaVersions": ["0.1.0"],
-  "cliProtocolVersions": ["0.1.0"]
-}

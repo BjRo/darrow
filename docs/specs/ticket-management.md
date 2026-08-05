@@ -13,19 +13,13 @@ are separate capabilities that reach this one through intent ("create a
 ticket for X") and a ticket is only as elaborate as what its caller already
 knows.
 
-Repository-resident artifacts associated with an external ticket are governed
-by [workspaces and artifacts](workspaces-artifacts.md); they do not make the
-repository a ticket backend.
-
 ## Why
 
 Agents left to improvise tracker usage produce duplicate tickets, vague
 one-line bodies, invented repro steps, and tool attribution in ticket
 history. Worse, every skill that needs a ticket ends up hard-coding one
-tracker's CLI. Encapsulating the workflow as skills gives other capabilities
-a stable intent ("create a ticket for X") while the backend stays swappable —
-the command/capability decoupling required by the
-[product specification](../product-spec.md#5-skills-commands-and-capabilities).
+tracker's CLI. Encapsulating the workflow as skills gives other capabilities a
+stable intent ("create a ticket for X") while the backend stays swappable.
 
 ## Backend contract
 
