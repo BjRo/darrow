@@ -242,10 +242,11 @@ other external mutation.
 6. **SFL-G6 — Final-tree evidence.** Completion evidence MUST describe the
    final working tree, not an earlier intermediate state. Changed tests alone
    do not prove the requested behavior unless they are run and pass.
-7. **SFL-G7 — Thin slice when useful.** For non-trivial behavior, the executor
-   SHOULD establish a narrow end-to-end seam and a corresponding acceptance
-   test before broadening the change when the repository architecture permits.
-   This is worker judgment, not a mandatory factory phase or a separate role.
+7. **SFL-G7 — Intent-only disciplines.** The executor packet MAY ask for an
+   implementation discipline when it materially helps the task, for example,
+   “implement the changes via test-driven development.” This is worker intent,
+   not a factory phase. The factory MUST NOT discover, invoke, require, or
+   coordinate a separately installed discipline plugin.
 
 ### Independent verification invariants
 
