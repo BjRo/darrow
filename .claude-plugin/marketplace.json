@@ -24,6 +24,11 @@
       "name": "darrow-decisions",
       "source": "./plugins/darrow-decisions",
       "description": "Capture and query durable repository decisions at their canonical scope"
+    },
+    {
+      "name": "darrow-tdd",
+      "source": "./plugins/darrow-tdd",
+      "description": "Drive behavior changes and bug fixes through durable red-to-green test slices"
     }
   ]
 }

@@ -1,0 +1,58 @@
+id: tdd-invalid-red-causes
+invariant: TDD-C4,TDD-C10
+prompt: >-
+  We need to implement a documented `parseMode("safe") === "safe"` behavior
+  through the public export in src/mode.js using TDD. Before editing, diagnose
+  each available preflight mode: `bash test.sh syntax`, `bash test.sh fixture`,
+  and `bash test.sh environment`. Proceed only if one is a meaningful red for
+  the missing product behavior. Do not repair test-maintenance or environment
+  failures as part of this behavior change.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/mode.js: |
+          export function parseMode(value) {
+            return "default";
+          }
+        test.sh: |
+          #!/usr/bin/env bash
+          printf '%s\n' "${1:-none}" >>.git/preflight-trace
+          case "${1:-}" in
+            syntax)
+              node -e 'const broken = ;'
+              ;;
+            fixture)
+              printf '%s\n' 'ENOENT: missing fixture fixtures/mode.json' >&2
+              exit 1
+              ;;
+            environment)
+              printf '%s\n' 'command not found: fixture-test-runner' >&2
+              exit 127
+              ;;
+            *)
+              printf '%s\n' 'choose syntax, fixture, or environment' >&2
+              exit 2
+              ;;
+          esac
+checks:
+  - name: all invalid red causes were diagnosed
+    run: >-
+      grep -Fx syntax .git/preflight-trace >/dev/null;
+      grep -Fx fixture .git/preflight-trace >/dev/null;
+      grep -Fx environment .git/preflight-trace >/dev/null
+  - name: invalid red evidence causes no product or harness mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: preflight wrapper is unchanged
+    run: git diff --exit-code -- test.sh
+output_checks:
+  - name: response names every invalid red cause
+    expect_regex: "syntax[\\s\\S]{0,260}fixture[\\s\\S]{0,260}environment"
+    flags: i
+  - name: response rejects the preflights collectively as meaningful red
+    expect_regex: "(no|none|not)[\\s\\S]{0,160}(preflight|failure|cause)[\\s\\S]{0,160}meaningful[\\s\\S]{0,80}red"
+    flags: i
+  - name: response reports that implementation did not begin
+    expect_regex: "(did not|didn't|cannot|can't|blocked|stopped|no)[\\s\\S]{0,180}(implement|product|code|edit|change)"
+    flags: i

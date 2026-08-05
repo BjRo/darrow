@@ -1,0 +1,41 @@
+id: tdd-test-maintenance-only
+invariant: TDD-C1
+prompt: >-
+  Update the test fixture's displayName from "Old Name" to "Ada Lovelace".
+  This is fixture maintenance only: do not modify product code or tests and do
+  not run a test-first implementation cycle.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        fixtures/user.json: |
+          {"id": 42, "displayName": "Old Name"}
+        src/user.js: |
+          export function readDisplayName(user) {
+            return user.displayName;
+          }
+        test/user.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import fixture from "../fixtures/user.json" with { type: "json" };
+          import { readDisplayName } from "../src/user.js";
+
+          test("reads the fixture display name", () => {
+            assert.equal(readDisplayName(fixture), "Old Name");
+          });
+checks:
+  - name: only the requested fixture changes
+    run: >-
+      { git diff --name-only; git ls-files --others --exclude-standard; } |
+      LC_ALL=C sort -u
+    expect_exact: "fixtures/user.json"
+  - name: fixture value is updated without changing its shape
+    run: >-
+      node -e "const f=require('./fixtures/user.json');
+      if(f.id!==42 || f.displayName!=='Ada Lovelace' || Object.keys(f).length!==2) process.exit(1)"
+  - name: product and test files remain unchanged
+    run: git diff --exit-code -- src/user.js test/user.test.js
+output_checks:
+  - name: maintenance response does not invent red or green evidence
+    not_regex: "(^|\\b)(red|green)(\\b|:)"
+    flags: i

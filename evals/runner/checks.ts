@@ -183,7 +183,12 @@ export async function runChecks(
     if (code !== expectedCode)
       detail = `exit=${code} (expected ${expectedCode}): ${err.trim()}`;
 
-    results.push({ name: check.name, passed, detail: passed ? "ok" : detail });
+    results.push({
+      name: check.name,
+      passed,
+      detail: passed ? "ok" : detail,
+      metric: check.metric,
+    });
   }
   return results;
 }

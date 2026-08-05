@@ -1,0 +1,42 @@
+id: tdd-test-quality-selection
+invariant: TDD-C2,TDD-C3,TDD-C7,TDD-C8
+prompt: >-
+  We are about to implement order quoting test-first, but should choose a
+  durable starting test before editing. The documented public seam is
+  quoteOrder(items) from src/orders.js, and the accepted example says two items
+  priced 10 and 5 produce { total: 15 }. Evaluate these proposals: A imports
+  _sum and asserts its private call sequence; B calls quoteOrder but computes
+  expected with the same reduce algorithm proposed for production; C mocks
+  quoteOrder itself and asserts a console log; D calls the real quoteOrder
+  export and compares its returned object with the accepted example. Select the
+  valid starting test and explain why the others are not evidence. Also state
+  where a fake would be permitted if a later slice called a nondeterministic
+  external exchange-rate service. Do not edit files yet.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/orders.js: |
+          export function quoteOrder(items) {
+            return { total: 0 };
+          }
+checks:
+  - name: test-quality decision does not edit before the chosen test is accepted
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: response selects the public independent example
+    expect_regex: "(proposal|option|test)?[ ]*D[\\s\\S]{0,260}(public|quoteOrder)[\\s\\S]{0,260}(15|accepted example|independent)"
+    flags: i
+  - name: response rejects private call-sequence coupling
+    expect_regex: "(proposal|option|test)?[ ]*A[\\s\\S]{0,260}(private|call sequence|implementation|coupl)"
+    flags: i
+  - name: response rejects the tautological oracle
+    expect_regex: "(proposal|option|test)?[ ]*B[\\s\\S]{0,280}(same|repeat|reimplement|tautolog|independent oracle|algorithm)"
+    flags: i
+  - name: response rejects mocking the behavior and its side channel
+    expect_regex: "(proposal|option|test)?[ ]*C[\\s\\S]{0,300}(mock|behavior under test|console|side channel)"
+    flags: i
+  - name: response permits a fake only at the external boundary
+    expect_regex: "(fake|mock)[\\s\\S]{0,220}(external|exchange-rate|nondeterministic|boundary)"
+    flags: i

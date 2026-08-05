@@ -1,0 +1,37 @@
+id: tdd-review-only
+invariant: TDD-C1
+prompt: >-
+  Review the existing tests for implementation coupling. Do not modify any
+  files and do not implement new behavior; report only the most important
+  finding.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/counter.js: |
+          export function increment(value) {
+            return addOne(value);
+          }
+
+          export function addOne(value) {
+            return value + 1;
+          }
+        test/counter.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { addOne } from "../src/counter.js";
+
+          test("counter calls its internal addition step", () => {
+            assert.equal(addOne(2), 3);
+          });
+checks:
+  - name: review-only intent leaves repository unchanged
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: review identifies the private-structure coupling
+    expect_regex: "(addOne|internal|implementation)[\\s\\S]{0,260}(coupl|public|increment)"
+    flags: i
+  - name: review does not claim a red-green implementation cycle
+    not_regex: "red[ -]?green (cycle|implementation)|implemented.*red[ -]?green"
+    flags: i

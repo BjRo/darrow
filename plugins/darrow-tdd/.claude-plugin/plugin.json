@@ -1,0 +1,9 @@
+{
+  "name": "darrow-tdd",
+  "description": "Test-first behavior implementation through durable public seams",
+  "version": "0.1.0",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  }
+}

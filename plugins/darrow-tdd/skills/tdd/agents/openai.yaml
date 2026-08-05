@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test-Driven Development"
+  short_description: "Drive behavior changes red to green"
+  default_prompt: "Use $tdd to implement this behavior test-first."

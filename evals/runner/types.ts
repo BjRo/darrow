@@ -25,6 +25,8 @@ export interface Fixture {
 
 export interface Check {
   name: string;
+  /** Optional product-value metric represented by this outcome check. */
+  metric?: "escaped_defect" | "defect_detection";
   /** Shell command executed in the fixture repo. */
   run: string;
   /** Check passes only if stdout matches. */
@@ -106,6 +108,7 @@ export interface CheckResult {
   name: string;
   passed: boolean;
   detail: string;
+  metric?: "escaped_defect" | "defect_detection";
 }
 
 export interface TrialResult {

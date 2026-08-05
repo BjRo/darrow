@@ -1,0 +1,112 @@
+id: tdd-public-red-green
+invariant: TDD-C2,TDD-C3,TDD-C4,TDD-C12
+prompt: >-
+  Implement the blank-name greeting behavior test-first. The documented public
+  seam is renderGreeting from src/greeting.js. The product rule is that an
+  all-whitespace name returns exactly "Hello, stranger!". Add the focused test
+  named "blank names greet a stranger" and use bash test.sh as the smallest and
+  final test command.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Use `bash test.sh` for the JavaScript test suite.
+        package.json: '{"type":"module","scripts":{"test":"bash test.sh"}}'
+        src/greeting.js: |
+          export function renderGreeting(name) {
+            return `Hello, ${name}!`;
+          }
+        test/greeting.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { renderGreeting } from "../src/greeting.js";
+
+          test("named users receive a greeting", () => {
+            assert.equal(renderGreeting("Ada"), "Hello, Ada!");
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          set +e
+          node --test test/greeting.test.js >.git/test-output 2>&1
+          status=$?
+          cat .git/test-output
+          exit "$status"
+  bin:
+    node: |
+      #!/usr/bin/env bash
+      real_node=$(PATH="${PATH#*:}" command -v node)
+      "$real_node" "$@"
+      status=$?
+      case " $* " in
+        *--test*) ;;
+        *) exit "$status" ;;
+      esac
+      if grep -Fq 'blank names greet a stranger' test/greeting.test.js; then
+        added=1
+      else
+            added=0
+          fi
+          if git diff --quiet -- src/greeting.js; then
+            implementation=unchanged
+          else
+            implementation=changed
+          fi
+          if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
+      printf '%s|blank_test=%s|implementation=%s\n' \
+        "$result" "$added" "$implementation" >>.git/tdd-trace
+      exit "$status"
+checks:
+  - name: blank-name behavior is implemented through the public seam
+    run: >-
+      node --input-type=module -e
+      "import('./src/greeting.js').then(({renderGreeting}) => {
+      if (renderGreeting('   ') !== 'Hello, stranger!') process.exit(1) })"
+  - name: focused public test is durable
+    run: >-
+      grep -F 'from "../src/greeting.js"' test/greeting.test.js >/dev/null;
+      grep -F 'blank names greet a stranger' test/greeting.test.js >/dev/null;
+      ! grep -Ei 'internal|private|readFile|mock\.|spy|console\.' test/greeting.test.js
+  - name: test failed before product implementation changed and then passed
+    run: >-
+      awk -F'|' '
+      $1=="fail" && $2=="blank_test=1" && $3=="implementation=unchanged" { red=NR }
+      $1=="pass" && $2=="blank_test=1" && $3=="implementation=changed" && red && NR>red { green=NR }
+      END { exit !(red && green) }' .git/tdd-trace
+  - name: test telemetry wrapper is unchanged
+    run: git diff --exit-code -- test.sh
+  - name: durable test survives an equivalent implementation refactor
+    run: >-
+      cp src/greeting.js .git/greeting.original;
+      trap 'cp .git/greeting.original src/greeting.js' EXIT HUP INT TERM;
+      printf '%s\n' 'export function renderGreeting(name) {'
+      '  const blank = String(name).trim().length === 0;'
+      '  return blank ? "Hello, stranger!" : `Hello, ${name}!`;'
+      '}' >src/greeting.js;
+      node --test test/greeting.test.js >/dev/null
+  - name: public test detects a contract regression
+    run: >-
+      cp src/greeting.js .git/greeting.original;
+      trap 'cp .git/greeting.original src/greeting.js' EXIT HUP INT TERM;
+      node --test test/greeting.test.js >/dev/null || exit 1;
+      printf '%s\n' 'export function renderGreeting(name) {'
+      '  return `Hello, ${name}!`;'
+      '}' >src/greeting.js;
+      set +e;
+      node --test test/greeting.test.js >.git/greeting-mutation-output 2>&1;
+      status=$?;
+      set -e;
+      test "$status" -ne 0;
+      grep -F 'blank names greet a stranger' .git/greeting-mutation-output >/dev/null;
+      ! grep -E 'SyntaxError|ERR_MODULE_NOT_FOUND|Cannot find module' .git/greeting-mutation-output
+  - name: final suite is green
+    run: bash test.sh >/dev/null
+output_checks:
+  - name: response reports observed red command and cause
+    expect_regex: "red[\\s\\S]{0,240}(bash test\\.sh|npm test)[\\s\\S]{0,240}(fail|blank|stranger)"
+    flags: i
+  - name: response reports observed green command
+    expect_regex: "green[\\s\\S]{0,240}(bash test\\.sh|npm test)[\\s\\S]{0,120}(pass|passed|green)"
+    flags: i

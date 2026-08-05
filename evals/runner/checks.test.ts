@@ -43,6 +43,28 @@ describe("eval checks", () => {
     }
   });
 
+  test("product-value metrics survive outcome evaluation", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-checks-"));
+    try {
+      const [escaped, detection] = await runChecks(repo, [
+        {
+          name: "seeded behavior",
+          metric: "escaped_defect",
+          run: "true",
+        },
+        {
+          name: "mutation killed",
+          metric: "defect_detection",
+          run: "true",
+        },
+      ]);
+      expect(escaped?.metric).toBe("escaped_defect");
+      expect(detection?.metric).toBe("defect_detection");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   test("output checks inspect only the normalized final message", async () => {
     const [present, forbidden, exact] = await runOutputChecks(
       '{"verified":true,"summary":"done"}',

@@ -28,7 +28,8 @@ async function siblingFixtures(repoDir: string): Promise<string[]> {
   const entries = await readdir(tmpdir(), { withFileTypes: true });
   const paths: string[] = [];
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || !entry.name.startsWith("darrow-eval-"))
+      continue;
     const candidate = join(tmpdir(), entry.name);
     try {
       const candidateReal = await realpath(candidate);

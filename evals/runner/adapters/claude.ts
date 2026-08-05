@@ -4,6 +4,27 @@ import type { HarnessAdapter, HarnessResult } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 
+export interface ClaudeUsage {
+  input_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
+export function claudeInputTokens(usage: ClaudeUsage | undefined): number {
+  return (
+    (usage?.input_tokens ?? 0) +
+    (usage?.cache_creation_input_tokens ?? 0) +
+    (usage?.cache_read_input_tokens ?? 0)
+  );
+}
+
+export function claudeRunSucceeded(
+  code: number,
+  result: { subtype?: string; is_error?: boolean },
+): boolean {
+  return code === 0 && result.subtype === "success" && result.is_error !== true;
+}
+
 /**
  * Runs the skill via headless Claude Code (`claude -p`). The skill is already
  * mounted in the fixture repo at .claude/skills/ (project-level discovery).
@@ -71,11 +92,11 @@ export const claudeAdapter: HarnessAdapter = {
     let outputTokens = 0;
     let costUsd = 0;
     let resultText = "";
-    let ok = code === 0;
+    let ok = false;
     try {
       const parsed = JSON.parse(out);
-      ok = ok && parsed.subtype === "success";
-      inputTokens = parsed.usage?.input_tokens ?? 0;
+      ok = claudeRunSucceeded(code, parsed);
+      inputTokens = claudeInputTokens(parsed.usage);
       outputTokens = parsed.usage?.output_tokens ?? 0;
       costUsd = parsed.total_cost_usd ?? 0;
       // Mirror the codex adapter: final agent message under .git/ for checks.

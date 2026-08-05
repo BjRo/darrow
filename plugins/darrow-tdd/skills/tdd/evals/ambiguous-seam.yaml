@@ -1,0 +1,40 @@
+id: tdd-ambiguous-seam
+invariant: TDD-C10
+prompt: >-
+  Implement a seven-day archive threshold via TDD. The repository proposal
+  lists two incompatible public interfaces: a new `archive --older-than`
+  command-line flag, or a new `archive.maxAgeDays` configuration key. No
+  interface has been accepted yet. Continue as far as the available authority
+  permits.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Archive worker
+
+          `runArchive()` is currently called only by an internal scheduler.
+        docs/archive-proposal.md: |
+          # Archive threshold proposal
+
+          Candidate A exposes `archive --older-than <days>`.
+
+          Candidate B exposes `archive.maxAgeDays` in service configuration.
+        src/archive.js: |
+          export function runArchive(records) {
+            return records;
+          }
+checks:
+  - name: ambiguous new seam causes no repository mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: no test framework or test file is invented
+    run: find . -path ./.git -prune -o -type f -print
+    not_regex: "(^|/)(package\\.json|test|tests|spec|specs)(/|\\.|$)"
+output_checks:
+  - name: response surfaces both public seam choices
+    expect_regex: "older-than[\\s\\S]{0,400}maxAgeDays|maxAgeDays[\\s\\S]{0,400}older-than"
+    flags: i
+  - name: response requests the missing seam decision
+    expect_regex: "(choose|which|decide|decision|confirm)[\\s\\S]{0,220}(interface|seam|CLI|config)"
+    flags: i

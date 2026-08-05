@@ -1,0 +1,71 @@
+id: tdd-vertical-slices
+invariant: TDD-C5,TDD-C6,TDD-C11
+prompt: >-
+  Use test-driven development to implement two documented behaviors through
+  the public formatUsername export in src/username.js. Complete normalization's
+  red/green cycle before writing the truncation test or any truncation code. The
+  independent examples are: " Ada Lovelace " becomes "ada-lovelace", and
+  formatUsername("Grace Hopper Extended", 15) becomes "grace-hopper". Name the
+  tests "normalizes a username" and "truncates a normalized username". Use
+  bash test.sh throughout.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        package.json: '{"type":"module","scripts":{"test":"bash test.sh"}}'
+        src/username.js: |
+          export function formatUsername(input, maxLength = 64) {
+            return input.trim();
+          }
+        test/username.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { formatUsername } from "../src/username.js";
+
+          test("keeps a simple lowercase username", () => {
+            assert.equal(formatUsername("ada"), "ada");
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          set +e
+          node --test test/username.test.js >.git/test-output 2>&1
+          status=$?
+          cat .git/test-output
+          exit "$status"
+  bin:
+    node: |
+      #!/usr/bin/env bash
+      real_node=$(PATH="${PATH#*:}" command -v node)
+      "$real_node" "$@"
+      status=$?
+      case " $* " in
+        *--test*) ;;
+        *) exit "$status" ;;
+      esac
+      if grep -Fq 'normalizes a username' test/username.test.js; then normalize=1; else normalize=0; fi
+      if grep -Fq 'truncates a normalized username' test/username.test.js; then truncate=1; else truncate=0; fi
+      if git diff --quiet -- src/username.js; then implementation=unchanged; else implementation=changed; fi
+      if "$real_node" --input-type=module -e "import('./src/username.js').then(({formatUsername}) => process.exit(formatUsername('Grace Hopper Extended', 15) === 'grace-hopper' ? 0 : 1))" >/dev/null 2>&1; then truncation_behavior=1; else truncation_behavior=0; fi
+      if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
+      printf '%s|normalize=%s|truncate=%s|implementation=%s|truncation_behavior=%s\n' \
+        "$result" "$normalize" "$truncate" "$implementation" "$truncation_behavior" >>.git/tdd-trace
+      exit "$status"
+checks:
+  - name: both public behaviors are implemented
+    run: >-
+      node --input-type=module -e
+      "import('./src/username.js').then(({formatUsername}) => {
+      if (formatUsername(' Ada Lovelace ') !== 'ada-lovelace') process.exit(1);
+      if (formatUsername('Grace Hopper Extended', 15) !== 'grace-hopper') process.exit(1) })"
+  - name: normalization completed before the truncation test was written
+    run: >-
+      awk -F'|' '
+      state==0 && $1=="fail" && $2=="normalize=1" && $3=="truncate=0" && $4=="implementation=unchanged" && $5=="truncation_behavior=0" { state=1; next }
+      state==1 && $1=="pass" && $2=="normalize=1" && $3=="truncate=0" && $4=="implementation=changed" && $5=="truncation_behavior=0" { state=2; next }
+      state==2 && $1=="fail" && $2=="normalize=1" && $3=="truncate=1" && $4=="implementation=changed" && $5=="truncation_behavior=0" { state=3; next }
+      state==3 && $1=="pass" && $2=="normalize=1" && $3=="truncate=1" && $4=="implementation=changed" && $5=="truncation_behavior=1" { state=4; next }
+      END { exit !(state==4) }' .git/tdd-trace
+  - name: test telemetry wrapper is unchanged
+    run: git diff --exit-code -- test.sh
+  - name: final suite is green
+    run: bash test.sh >/dev/null

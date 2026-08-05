@@ -24,7 +24,11 @@ describe("eval outer sandbox", () => {
 
   test("wraps agents on macOS or requires declared external isolation", async () => {
     const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-sandbox-test-"));
+    const unrelatedDir = await mkdtemp(
+      join(tmpdir(), "unrelated-sandbox-test-"),
+    );
     cleanup.push(repoDir);
+    cleanup.push(unrelatedDir);
     await mkdir(join(repoDir, ".git"));
 
     if (process.platform === "darwin") {
@@ -43,6 +47,7 @@ describe("eval outer sandbox", () => {
       expect(profile).toContain(
         `(deny file-read* (subpath "${await realpath(main!)}"))`,
       );
+      expect(profile).not.toContain(await realpath(unrelatedDir));
 
       const deniedRead = await sandboxedAgentCommand(
         ["/bin/cat", join(import.meta.dir, "types.ts")],

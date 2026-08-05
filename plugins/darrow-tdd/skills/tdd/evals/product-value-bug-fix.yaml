@@ -1,0 +1,94 @@
+id: tdd-product-value-bug-fix
+invariant: TDD-E7
+prompt: >-
+  Use test-driven development to fix the production Retry-After parser bug.
+  parseRetryAfter(value, nowMs) in
+  src/retry-after.js is the documented public API, but it ignores HTTP-date
+  values. For the independent example nowMs=1893456000000 and
+  value="Tue, 01 Jan 2030 00:00:05 GMT", it must return 5000. Preserve numeric
+  Retry-After behavior and add durable regression coverage. Use bash test.sh
+  for the test suite.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        package.json: '{"type":"module","scripts":{"test":"bash test.sh"}}'
+        src/retry-after.js: |
+          export function parseRetryAfter(value, nowMs) {
+            const seconds = Number(value);
+            if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+            return null;
+          }
+        test/retry-after.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { parseRetryAfter } from "../src/retry-after.js";
+
+          test("numeric values are seconds", () => {
+            assert.equal(parseRetryAfter("3", 0), 3000);
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          set +e
+          node --test test/retry-after.test.js >.git/test-output 2>&1
+          status=$?
+          cat .git/test-output
+          exit "$status"
+  bin:
+    node: |
+      #!/usr/bin/env bash
+      real_node=$(PATH="${PATH#*:}" command -v node)
+      "$real_node" "$@"
+      status=$?
+      case " $* " in
+        *--test*) ;;
+        *) exit "$status" ;;
+      esac
+      if grep -Eqi 'HTTP.?date|2030|1893456000000' test/retry-after.test.js; then added=1; else added=0; fi
+      if git diff --quiet -- src/retry-after.js; then implementation=unchanged; else implementation=changed; fi
+      if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
+      printf '%s|regression_test=%s|implementation=%s\n' \
+        "$result" "$added" "$implementation" >>.git/tdd-trace
+      exit "$status"
+checks:
+  - name: no seeded Retry-After defect escapes
+    metric: escaped_defect
+    run: >-
+      node --input-type=module -e
+      "import('./src/retry-after.js').then(({parseRetryAfter}) => {
+      if (parseRetryAfter('Tue, 01 Jan 2030 00:00:05 GMT', 1893456000000) !== 5000) process.exit(1);
+      if (parseRetryAfter('3', 0) !== 3000) process.exit(1) })"
+  - name: durable regression test kills a reverted implementation
+    metric: defect_detection
+    run: >-
+      node --test test/retry-after.test.js >/dev/null || exit 1;
+      cp src/retry-after.js .git/retry-after.original;
+      trap 'cp .git/retry-after.original src/retry-after.js' EXIT HUP INT TERM;
+      printf '%s\n' 'export function parseRetryAfter(value) {'
+      '  const seconds = Number(value);'
+      '  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);'
+      '  return null;'
+      '}' >src/retry-after.js;
+      set +e;
+      node --test test/retry-after.test.js >.git/retry-mutation-output 2>&1;
+      status=$?;
+      set -e;
+      test "$status" -ne 0;
+      grep -E 'HTTP.?date|2030|5000' .git/retry-mutation-output >/dev/null;
+      ! grep -E 'SyntaxError|ERR_MODULE_NOT_FOUND|Cannot find module' .git/retry-mutation-output;
+      echo killed
+    expect_exact: "killed"
+  - name: bug fix was driven through an observed red and green cycle
+    run: >-
+      awk -F'|' '
+      $1=="fail" && $2=="regression_test=1" && $3=="implementation=unchanged" { red=NR }
+      $1=="pass" && $2=="regression_test=1" && $3=="implementation=changed" && red && NR>red { green=NR }
+      END { exit !(red && green) }' .git/tdd-trace
+  - name: test telemetry wrapper is unchanged
+    run: git diff --exit-code -- test.sh
+  - name: final suite is green
+    run: bash test.sh >/dev/null
+output_checks:
+  - name: response reports red and green evidence
+    expect_regex: "red[\\s\\S]{0,240}(bash test\\.sh|node --test)[\\s\\S]{0,240}green[\\s\\S]{0,240}(bash test\\.sh|node --test)"
+    flags: i

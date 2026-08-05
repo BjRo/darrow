@@ -64,8 +64,9 @@ async function runCase(
   trials: number,
   dry: boolean,
   condition?: { label: string; text: string },
+  withoutSkill = false,
 ): Promise<CaseResult> {
-  const prompt = condition
+  const prompt = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
   const trialResults: TrialResult[] = [];
@@ -73,7 +74,7 @@ async function runCase(
   for (let trial = 1; trial <= trials; trial++) {
     const repoDir = await buildFixture(
       evalCase.fixture,
-      evalCase.skillDir,
+      withoutSkill ? "" : evalCase.skillDir,
       adapter.skillMounts,
     );
     try {
@@ -153,6 +154,7 @@ const { values } = parseArgs({
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
     condition: { type: "string" },
+    "without-skill": { type: "boolean", default: false },
   },
 });
 
@@ -174,6 +176,12 @@ if (values.condition) {
       .pop()!
       .replace(/\.[^.]+$/, ""),
     text: await readFile(condPath, "utf8"),
+  };
+}
+if (values["without-skill"]) {
+  condition = {
+    label: condition ? `${condition.label}-without-skill` : "without-skill",
+    text: condition?.text ?? "",
   };
 }
 const cases = await loadCases(values.case);
@@ -203,6 +211,7 @@ for (const evalCase of cases) {
     trials,
     values.dry!,
     condition,
+    values["without-skill"],
   );
   result.harnessVersion = harnessVersion || undefined;
   results.push(result);

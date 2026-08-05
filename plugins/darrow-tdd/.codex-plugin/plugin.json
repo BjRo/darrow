@@ -1,0 +1,22 @@
+{
+  "name": "darrow-tdd",
+  "version": "0.1.0",
+  "description": "Test-first behavior implementation through durable public seams",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> TDD",
+    "shortDescription": "Drive behavior changes red to green",
+    "longDescription": "Implement behavior changes and bug fixes as focused red-to-green slices through stable public seams, with observable test evidence.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Implement this behavior test-first.",
+      "Fix this bug through a red-to-green test cycle."
+    ]
+  }
+}

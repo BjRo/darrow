@@ -29,6 +29,12 @@ Skills and deterministic helpers for capturing decisions at their canonical
 scope and querying ADR/specification relationships without creating a competing
 decision store.
 
+### [`darrow-tdd`](plugins/darrow-tdd)
+
+A compact, model-invoked test-driven-development discipline for implementing
+behavior changes and bug fixes as durable red-to-green slices through public
+seams.
+
 ## Package model
 
 - Plugins are independently adoptable and never require sibling plugins.
