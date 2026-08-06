@@ -104,8 +104,11 @@ files. Verify the resulting graph before reporting it.
   breaks another runtime's reachability.
 - **IA-S7 — Confirm before mutation.** The initial inventory and proposal are
   read-only. Creation, movement, deletion, or rewriting begins only after the
-  user confirms the proposed file-level actions. No commit is an implicit side
-  effect of setup.
+  user confirms the proposed file-level actions. An explicit request to apply
+  the proposed structural actions may confirm decision-free file changes in
+  advance; a request to inspect or show the graph first requires a pause.
+  Neither form of approval settles an open policy decision. No commit is an
+  implicit side effect of setup.
 - **IA-S8 — Verified result.** After applying changes, rerun the deterministic
   audit. A missing entrypoint, unrouted deferred guidance, broken local
   references, position-dependent ordinary paths, instruction cycles, declared
@@ -180,7 +183,10 @@ decisions, then rerun the audit.
   when it can load by intent without losing reachability.
 - **IA-D7 — Propose, confirm, apply.** The report groups exact file-level
   actions as keep, move, rewrite, or remove, with estimated resident-context
-  impact and reasoning. No checked-in file changes before confirmation and no
+  impact and reasoning. An explicit request to apply safe fixes may confirm
+  decision-free actions in advance; a request to see the proposal before
+  changes requires a pause. Neither form of approval settles an open policy
+  decision. No checked-in file changes before applicable confirmation and no
   automatic commit.
 - **IA-D8 — Fail closed on unreadable evidence.** An unreadable instruction,
   relevant project configuration, skill, or declared adapter source is reported

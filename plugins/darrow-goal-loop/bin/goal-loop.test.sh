@@ -134,6 +134,37 @@ run_goal_loop packet-create --preflight "$preflight" --role planner \
   --plan none --gate discovery none not_applicable 'planner does not run product gates' \
   --route 'codex|openai|gpt-5.6-sol|high|none' --output "$planner" >/dev/null
 check_contains 'planner packet is read only' "write_boundary${TAB}read_only" "$(cat "$planner")"
+
+claude_planner=$TEMP_ROOT/claude-planner.tsv
+run_goal_loop packet-create --preflight "$preflight" --role planner \
+  --objective 'Plan value behavior' --criterion 'produce a bounded plan' \
+  --scope 'value.txt' --non-goal 'editing' --instruction none --decision none \
+  --plan none --gate discovery none not_applicable 'planner does not run product gates' \
+  --route 'claude|anthropic|claude-opus-4-6|high|none' --output "$claude_planner" >/dev/null
+bridge_bin=$TEMP_ROOT/bridge-bin
+mkdir -p "$bridge_bin"
+{
+  printf '#!/usr/bin/env bash\n'
+  printf 'printf '\''format\\tdarrow-goal-loop-role-result-v1\\n'\''\n'
+  printf 'printf '\''run_id\\tstable-run\\n'\''\n'
+  printf 'printf '\''role\\tplanner\\n'\''\n'
+  printf 'printf '\''outcome\\tcomplete\\n'\''\n'
+  printf 'printf '\''summary\\tbounded plan produced\\n'\''\n'
+  printf 'printf '\''plan\\treview value.txt without edits\\n'\''\n'
+  printf 'printf '\''gate\\tdiscovery\\tnone\\tnot_applicable\\tnot_applicable\\tplanner does not run product gates\\n'\''\n'
+  printf 'printf '\''route\\tclaude\\tanthropic\\tclaude-opus-4-6\\thigh\\tnone\\n'\''\n'
+  printf 'printf '\''risk\\tnone observed\\n'\''\n'
+  printf 'printf '\''next_action\\trun executor\\n'\''\n'
+} >"$bridge_bin/claude"
+chmod +x "$bridge_bin/claude"
+out=$(DARROW_GOAL_LOOP_EXTERNAL_SANDBOX=1 PATH="$bridge_bin:/usr/bin:/bin" \
+  run_goal_loop bridge --harness claude --packet "$claude_planner" \
+  --output "$TEMP_ROOT/claude-bridge.tsv" --model claude-opus-4-6 --effort high)
+check_contains 'external sandbox bridge works under nounset' "result${TAB}$TEMP_ROOT/claude-bridge.tsv" "$out"
+check_contains 'external sandbox bridge preserves route evidence' \
+  "route${TAB}claude${TAB}anthropic${TAB}claude-opus-4-6${TAB}high${TAB}none" \
+  "$(cat "$TEMP_ROOT/claude-bridge.tsv")"
+
 awk -F '\t' 'BEGIN{OFS="\t"} $1=="write_boundary"{$2="local_worktree"}{print}' "$planner" >"$planner.bad"
 set +e
 out=$(run_goal_loop validate-packet "$planner.bad" 2>&1)

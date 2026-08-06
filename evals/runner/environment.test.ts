@@ -45,6 +45,7 @@ describe("isolated harness environment", () => {
     const codexHome = env.CODEX_HOME!;
     expect(home).toStartWith(join(repo, ".git", "darrow-eval"));
     expect(codexHome).toStartWith(home);
+    expect(env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX).toBe("1");
     expect(env.UNRELATED_EVAL_SECRET).toBeUndefined();
     expect(await readFile(join(codexHome, "auth.json"), "utf8")).toBe(
       '{"token":"test"}',
@@ -76,6 +77,7 @@ describe("isolated harness environment", () => {
     const claudeConfigDir = env.CLAUDE_CONFIG_DIR!;
     expect(home).toStartWith(join(repo, ".git", "darrow-eval"));
     expect(claudeConfigDir).toStartWith(home);
+    expect(env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX).toBe("1");
     expect(env.UNRELATED_EVAL_SECRET).toBeUndefined();
     expect(env.TMPDIR).toStartWith(join(repo, ".git", "darrow-eval"));
     expect(

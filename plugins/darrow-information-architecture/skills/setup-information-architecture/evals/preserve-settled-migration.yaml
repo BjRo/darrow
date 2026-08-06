@@ -24,7 +24,7 @@ checks:
     expect_regex: "^created$"
   - name: response does not reopen the settled choice
     run: cat .git/last-message.md
-    not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}ORM"
+    not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(\\bor\\b|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(\\bor\\b|versus|vs\\.?)[^\\n]{0,40}ORM"
     flags: i
   - name: settled direction and prohibition are resident or routed
     run: >-
@@ -34,6 +34,12 @@ checks:
       grep -Eiq 'new persistence|new storage|new repositories' CLAUDE.md &&
       grep -Eiq 'raw SQL|SQL package' CLAUDE.md &&
       grep -Eiq 'do not add new ORM|ORM.*legacy' CLAUDE.md; then echo reachable; exit 0; fi;
+      if grep -Eiq 'new persistence|new storage|new repositories' AGENTS.md &&
+      grep -Eiq 'raw SQL|SQL package' AGENTS.md &&
+      grep -Eiq 'do not add new ORM|ORM.*legacy' AGENTS.md &&
+      { { [ -L CLAUDE.md ] && [ CLAUDE.md -ef AGENTS.md ]; } ||
+      grep -Eiq '@AGENTS\.md|(read|consult|load|follow).{0,80}AGENTS\.md' CLAUDE.md; };
+      then echo reachable; exit 0; fi;
       if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
       else doctor=.claude/bin/ia-doctor; fi;
       routes=$(bash "$doctor" inspect --runtime both .);
@@ -56,7 +62,7 @@ checks:
       target[edges]=substr(line, split_at+4)}}
       END {root=ENVIRON["ROOT"]; goal=ENVIRON["POLICY"];
       if (reaches(root "/AGENTS.md", goal, "codex") &&
-      reaches(root "/CLAUDE.md", goal, "claude")) print "reachable"}'
+      reaches(root "/CLAUDE.md", goal, "claude")) print "reachable"}';
       fi;
       done
     expect_regex: "^reachable$"

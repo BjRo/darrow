@@ -1090,7 +1090,9 @@ bridge() {
   else
     claude_profile=
     if [ "${DARROW_GOAL_LOOP_EXTERNAL_SANDBOX:-0}" = 1 ]; then
-      claude_prefix=()
+      # Bash 3.2 treats expansion of an empty array as an unbound variable
+      # under `set -u`. Keep the command shape uniform with a no-op prefix.
+      claude_prefix=(/usr/bin/env)
     elif [ -x /usr/bin/sandbox-exec ]; then
       claude_profile=$(mktemp "/tmp/darrow-goal-loop-claude-profile.XXXXXX") || fail 3 "cannot create Claude bridge sandbox profile"
       escaped_repo=$(printf '%s' "$repo" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')

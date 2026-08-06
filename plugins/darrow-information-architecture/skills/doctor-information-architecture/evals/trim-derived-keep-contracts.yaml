@@ -75,10 +75,10 @@ checks:
       after_claude=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_bytes=\([0-9][0-9]*\).*/\1/p');
       after_claude_tokens=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
       flat=$(tr '\n' ' ' < .git/last-message.md);
-      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,300}(before|previous|from)[^0-9]{0,80}$before_codex[[:space:]]*bytes.{0,300}(after|now|to)[^0-9]{0,80}$after_codex[[:space:]]*bytes" &&
-      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,300}(before|previous|from)[^0-9]{0,80}$before_codex_tokens[~[:space:]]*tokens.{0,300}(after|now|to)[^0-9]{0,80}$after_codex_tokens[~[:space:]]*tokens" &&
-      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,300}(before|previous|from)[^0-9]{0,80}$before_claude[[:space:]]*bytes.{0,300}(after|now|to)[^0-9]{0,80}$after_claude[[:space:]]*bytes" &&
-      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,300}(before|previous|from)[^0-9]{0,80}$before_claude_tokens[~[:space:]]*tokens.{0,300}(after|now|to)[^0-9]{0,80}$after_claude_tokens[~[:space:]]*tokens" && echo metrics-ok
+      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,240}(before|previous|from)[^0-9]{0,80}$before_codex[[:space:]]*bytes.{0,240}(after|now|to)[^0-9]{0,80}$after_codex[[:space:]]*bytes" &&
+      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,240}(before|previous|from)[^0-9]{0,80}$before_codex_tokens[~[:space:]]*tokens.{0,240}(after|now|to)[^0-9]{0,80}$after_codex_tokens[~[:space:]]*tokens" &&
+      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,240}(before|previous|from)[^0-9]{0,80}$before_claude[[:space:]]*bytes.{0,240}(after|now|to)[^0-9]{0,80}$after_claude[[:space:]]*bytes" &&
+      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,240}(before|previous|from)[^0-9]{0,80}$before_claude_tokens[~[:space:]]*tokens.{0,240}(after|now|to)[^0-9]{0,80}$after_claude_tokens[~[:space:]]*tokens" && echo metrics-ok
     expect_regex: "^metrics-ok$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count
