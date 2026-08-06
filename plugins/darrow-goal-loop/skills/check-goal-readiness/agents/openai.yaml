@@ -1,0 +1,6 @@
+interface:
+  display_name: "Check Goal Readiness"
+  short_description: "Check available goal-loop execution paths"
+  default_prompt: "Use $check-goal-readiness to report which goal-loop paths are ready without spending model budget."
+policy:
+  allow_implicit_invocation: false

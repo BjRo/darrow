@@ -1,0 +1,52 @@
+id: goal-loop-normal-code-change
+invariant: AGL-A1,AGL-A2,AGL-A4,AGL-P1,AGL-G3,AGL-V1,AGL-V3,AGL-E1
+prompt: >-
+  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to add an exported double(value) function to
+  src/math.js and focused tests for zero and a negative number. Acceptance is
+  that double returns exactly two times its numeric input and bash test.sh
+  passes. Do not plan or publish; the objective, scope, and verification are
+  already clear.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/math.js: |
+          export const identity = (value) => value;
+        test/math.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identity } from "../src/math.js";
+
+          test("identity", () => assert.equal(identity(-2), -2));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/math.test.js
+checks:
+  - name: behavior is implemented
+    run: >-
+      node --input-type=module -e
+      "import('./src/math.js').then(({double}) => {
+      if (double(0) !== 0 || double(-4) !== -8) process.exit(1) })"
+  - name: focused tests are durable
+    run: >-
+      grep -F 'double(0)' test/math.test.js >/dev/null &&
+      grep -F 'double(-' test/math.test.js >/dev/null && bash test.sh >/dev/null
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: result is locally verified
+    expect_regex: "status\\tverified"
+  - name: executor and verifier are the normal path
+    expect_regex: "route\\texecutor\\t[\\s\\S]*route\\tverifier\\t"
+  - name: normal code roles use the standard profile mapping
+    expect_regex: "route\\texecutor\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium[\\s\\S]*route\\tverifier\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium"
+  - name: no undeclared planner or repair was added
+    metric: false_positive
+    not_regex: "route\\t(planner|repair)\\t"
+  - name: independent verification passed
+    expect_regex: "verification\\trequired\\tpass"

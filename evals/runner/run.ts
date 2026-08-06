@@ -7,11 +7,11 @@ import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import {
-  extractFactoryMetrics,
-  hasForeignFactoryRoute,
-  observeCodexDeliveryRoutes,
-  reconcileObservedDeliveryRoutes,
-} from "./factory-metrics";
+  extractOrchestrationMetrics,
+  hasForeignOrchestrationRoute,
+  observeCodexTicketPipelineRoutes,
+  reconcileObservedTicketPipelineRoutes,
+} from "./orchestration-metrics";
 import type {
   CaseResult,
   EvalCase,
@@ -109,18 +109,18 @@ async function runCase(
         continue;
       }
       const harness = await adapter.run(repoDir, prompt, model, effort);
-      const observedDeliveryCheck = reconcileObservedDeliveryRoutes(
+      const observedTicketPipelineCheck = reconcileObservedTicketPipelineRoutes(
         harness.resultText,
         harness.raw,
       );
-      const observedDeliveryRoutes =
-        /^format\tdarrow-delivery-result-v1$/m.test(harness.resultText)
-          ? observeCodexDeliveryRoutes(harness.raw)
+      const observedTicketPipelineRoutes =
+        /^format\tdarrow-ticket-pipeline-result-v1$/m.test(harness.resultText)
+          ? observeCodexTicketPipelineRoutes(harness.raw)
           : undefined;
       const checks = [
         ...(await runChecks(repoDir, evalCase.checks)),
         // A no-skill baseline is judged on the same repository outcomes, not
-        // on the factory-specific reporting contract it cannot know about.
+        // on the orchestration-specific reporting contract it cannot know about.
         ...(withoutSkill
           ? []
           : await runOutputChecks(
@@ -128,7 +128,7 @@ async function runCase(
               evalCase.output_checks ?? [],
               evalCase.skillDir,
             )),
-        ...(observedDeliveryCheck ? [observedDeliveryCheck] : []),
+        ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
       ];
       const passed = harness.ok && checks.every((c) => c.passed);
       trialResults.push({
@@ -136,10 +136,10 @@ async function runCase(
         passed,
         checks,
         harness,
-        factoryMetrics: extractFactoryMetrics(
+        orchestrationMetrics: extractOrchestrationMetrics(
           harness.resultText,
           checks,
-          observedDeliveryRoutes?.length,
+          observedTicketPipelineRoutes?.length,
         ),
       });
       const failed = checks.filter((c) => !c.passed);
@@ -156,12 +156,12 @@ async function runCase(
 
   const durations = trialResults.map((t) => t.harness.durationMs);
   const tokenTotals = trialResults.map((trial) =>
-    hasForeignFactoryRoute(trial.harness.resultText, adapter.name)
+    hasForeignOrchestrationRoute(trial.harness.resultText, adapter.name)
       ? null
       : trial.harness.inputTokens + trial.harness.outputTokens,
   );
-  const measuredFactoryTrials = trialResults
-    .map((trial) => trial.factoryMetrics)
+  const measuredOrchestrationTrials = trialResults
+    .map((trial) => trial.orchestrationMetrics)
     .filter(
       (metric): metric is NonNullable<typeof metric> => metric !== undefined,
     );
@@ -185,7 +185,7 @@ async function runCase(
     totalCostUsd: trialResults.every(
       (trial) =>
         trial.harness.costUsd !== null &&
-        !hasForeignFactoryRoute(trial.harness.resultText, adapter.name),
+        !hasForeignOrchestrationRoute(trial.harness.resultText, adapter.name),
     )
       ? trialResults.reduce(
           (total, trial) => total + (trial.harness.costUsd ?? 0),
@@ -193,36 +193,41 @@ async function runCase(
         )
       : null,
     humanReviewMinutes: humanReviewMinutes ?? null,
-    meanChildInvocationCount: measuredFactoryTrials.length
-      ? mean(measuredFactoryTrials.map((metric) => metric.childInvocationCount))
+    meanChildInvocationCount: measuredOrchestrationTrials.length
+      ? mean(
+          measuredOrchestrationTrials.map(
+            (metric) => metric.childInvocationCount,
+          ),
+        )
       : undefined,
-    childInvocationCountSource: measuredFactoryTrials.length
+    childInvocationCountSource: measuredOrchestrationTrials.length
       ? withoutSkill
         ? "condition_report"
         : trialResults.some(
               (trial) =>
-                /^format\tdarrow-delivery-result-v1$/m.test(
+                /^format\tdarrow-ticket-pipeline-result-v1$/m.test(
                   trial.harness.resultText,
                 ) &&
-                observeCodexDeliveryRoutes(trial.harness.raw) !== undefined,
+                observeCodexTicketPipelineRoutes(trial.harness.raw) !==
+                  undefined,
             )
           ? "harness_observed"
           : "controller_result"
       : undefined,
-    totalHumanInterruptions: measuredFactoryTrials.length
-      ? measuredFactoryTrials.reduce(
+    totalHumanInterruptions: measuredOrchestrationTrials.length
+      ? measuredOrchestrationTrials.reduce(
           (total, metric) => total + metric.humanInterruptions,
           0,
         )
       : undefined,
-    escapedDefects: measuredFactoryTrials.length
-      ? measuredFactoryTrials.reduce(
+    escapedDefects: measuredOrchestrationTrials.length
+      ? measuredOrchestrationTrials.reduce(
           (total, metric) => total + metric.escapedDefects,
           0,
         )
       : undefined,
-    falsePositiveVerifierFindings: measuredFactoryTrials.length
-      ? measuredFactoryTrials.reduce(
+    falsePositiveVerifierFindings: measuredOrchestrationTrials.length
+      ? measuredOrchestrationTrials.reduce(
           (total, metric) => total + metric.falsePositiveVerifierFindings,
           0,
         )
@@ -328,7 +333,7 @@ for (const r of results) {
   );
   if (r.meanChildInvocationCount !== undefined) {
     console.log(
-      `  factory: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +
+      `  orchestration: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +
         `${r.totalHumanInterruptions} interruptions | ${r.escapedDefects} escaped defects | ` +
         `${r.falsePositiveVerifierFindings} false-positive findings`,
     );

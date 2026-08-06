@@ -1,0 +1,66 @@
+id: ticket-pipeline-challenge-material-plan-gap
+invariant: TP-P1,TP-E1,TP-L1
+prompt: >-
+  Explicitly invoke $challenge-ticket for run eval-challenge, phase challenge,
+  iteration 1, agent challenger-eval. Use the current absolute repository,
+  read .ticket-pipeline-input/ticket.md, keep the product tree read-only, and write the
+  artifact to the absolute path {{repo_dir}}/.git/challenge-artifact.tsv.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Configuration readers must preserve the documented default when a key is absent. Run `bash check.sh` for schema changes.
+        .ticket-pipeline-input/ticket.md: |
+          ## Outcome
+
+          Add optional `tag` string configuration. Omitting it must preserve the current empty-string default.
+
+          ## Done criteria
+
+          - [ ] Present string tags are returned.
+          - [ ] Omitted tags return the empty string.
+          - [ ] `bash check.sh` passes.
+
+          ## Ticket Pipeline Artifact — refine — Iteration 1
+
+          format	darrow-ticket-pipeline-phase-v1
+          run_id	eval-challenge
+          phase	refine
+          iteration	1
+          agent	refiner-eval
+          status	complete
+          summary	Plan adds the tag field
+          ---
+          ### Implementation plan
+
+          1. Add `tag` to config.schema.json.
+          2. Change readTag(config) to return config.tag.
+
+          ### Verification
+
+          Inspect the schema manually.
+        config.schema.json: |
+          {"type":"object","properties":{}}
+        config.js: |
+          export const readTag = () => "";
+        check.sh: |
+          #!/usr/bin/env bash
+          node --input-type=module -e 'import("./config.js").then(({readTag}) => { if(readTag({}) !== "") process.exit(1) })'
+checks:
+  - name: challenge remains read only
+    run: git diff --exit-code && test -z "$(git status --porcelain --untracked-files=all)"
+  - name: material omission requests revision
+    run: >-
+      test -f .git/challenge-artifact.tsv &&
+      awk -F '\t' '$1=="phase" && $2=="challenge" {f=1} END {exit !f}' .git/challenge-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="needs_revision" {f=1} END {exit !f}' .git/challenge-artifact.tsv
+  - name: evidence names default and required gate
+    run: >-
+      grep -E 'default|omitt' .git/challenge-artifact.tsv >/dev/null &&
+      grep -F 'bash check.sh' .git/challenge-artifact.tsv >/dev/null
+output_checks:
+  - name: challenge reports the artifact
+    expect_regex: "challenge-artifact\\.tsv"

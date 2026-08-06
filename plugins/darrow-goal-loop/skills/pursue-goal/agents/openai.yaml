@@ -1,0 +1,6 @@
+interface:
+  display_name: "Pursue Goal"
+  short_description: "Pursue a bounded verified engineering goal"
+  default_prompt: "Use $pursue-goal to pursue and independently verify this local engineering goal."
+policy:
+  allow_implicit_invocation: false

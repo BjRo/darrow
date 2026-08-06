@@ -1,0 +1,43 @@
+id: goal-loop-mechanical-fast-path
+invariant: AGL-A4,AGL-P1,AGL-V2,AGL-E1,AGL-E4
+prompt: >-
+  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to alphabetize the three entries in NOTES.md.
+  Acceptance is exact alphabetical order under the existing heading. This is
+  a prose-only mechanical transformation completely covered by the command
+  bash check.sh. Keep the local-working-tree publication boundary.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash check.sh` for NOTES.md changes.
+        NOTES.md: |
+          # Notes
+
+          - zebra
+          - alpha
+          - maple
+        check.sh: |
+          #!/usr/bin/env bash
+          printf '%s\n' '# Notes' '' '- alpha' '- maple' '- zebra' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+checks:
+  - name: deterministic prose transformation is correct
+    run: bash check.sh
+  - name: no hidden publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: goal-loop result is emitted
+    expect_regex: "format\\tdarrow-goal-loop-result-v1"
+  - name: deterministic fast path finishes verified
+    expect_regex: "status\\tverified"
+  - name: deterministic exception is explicit
+    expect_regex: "verification\\tnot_required\\tnot_run"
+  - name: planner and verifier were omitted
+    not_regex: "route\\t(planner|verifier|repair)\\t"
+  - name: executor is the sole child
+    expect_regex: "route\\texecutor\\t"
+  - name: result remains local
+    expect_regex: "permission\\tpublication\\tnone"

@@ -1,0 +1,58 @@
+id: ticket-pipeline-refine-decision-complete-plan
+invariant: TP-P1,TP-E1,TP-S1
+prompt: >-
+  Explicitly invoke $refine-ticket for run eval-refine, phase refine,
+  iteration 1, agent refiner-eval. The repository is the current absolute
+  working directory, the ticket snapshot is .ticket-pipeline-input/ticket.md, the
+  product boundary is read-only, and the required artifact output is the
+  absolute path {{repo_dir}}/.git/refine-artifact.tsv. Produce the phase artifact only;
+  do not implement the ticket.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes. Preserve exported API names.
+        .ticket-pipeline-input/ticket.md: |
+          ## Outcome
+
+          Export normalizeEmail(value), trimming surrounding whitespace and lowercasing the address.
+
+          ## Done criteria
+
+          - [ ] Existing mixed-case addresses normalize.
+          - [ ] Surrounding whitespace is removed.
+          - [ ] `bash test.sh` passes.
+        src/email.js: |
+          export const identityEmail = (value) => value;
+        test/email.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identityEmail } from "../src/email.js";
+
+          test("identity", () => assert.equal(identityEmail("A@B.COM"), "A@B.COM"));
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/email.test.js
+checks:
+  - name: refine does not mutate the product tree
+    run: git diff --exit-code && test -z "$(git status --porcelain --untracked-files=all)"
+  - name: artifact has the refine contract
+    run: >-
+      test -f .git/refine-artifact.tsv &&
+      awk -F '\t' '$1=="format" && $2=="darrow-ticket-pipeline-phase-v1" {f=1} END {exit !f}' .git/refine-artifact.tsv &&
+      awk -F '\t' '$1=="run_id" && $2=="eval-refine" {f=1} END {exit !f}' .git/refine-artifact.tsv &&
+      awk -F '\t' '$1=="phase" && $2=="refine" {f=1} END {exit !f}' .git/refine-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="complete" {f=1} END {exit !f}' .git/refine-artifact.tsv
+  - name: plan binds behavior and repository gate
+    run: >-
+      grep -E 'normalizeEmail|normalize email' .git/refine-artifact.tsv >/dev/null &&
+      grep -F 'bash test.sh' .git/refine-artifact.tsv >/dev/null &&
+      grep -E 'trim|whitespace' .git/refine-artifact.tsv >/dev/null &&
+      grep -E 'lowercase|lowercas' .git/refine-artifact.tsv >/dev/null
+output_checks:
+  - name: phase reports its artifact path
+    expect_regex: "refine-artifact\\.tsv"

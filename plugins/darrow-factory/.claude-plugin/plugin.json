@@ -1,9 +1,0 @@
-{
-  "name": "darrow-factory",
-  "description": "Run bounded engineering tasks through isolated execution and independent verification",
-  "version": "0.1.0",
-  "author": {
-    "name": "Björn Rochel",
-    "email": "bjoern@bjro.de"
-  }
-}

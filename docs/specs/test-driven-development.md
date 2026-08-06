@@ -16,8 +16,8 @@ are worth keeping: where to observe behavior, what constitutes an independent
 oracle, how to prove the red result, and how to avoid horizontal test batches.
 
 Keeping this as an independently installable, model-invoked capability lets any
-compatible agent apply it when the user's intent calls for TDD. No factory,
-planner, or sibling plugin must know whether it is installed.
+compatible agent apply it when the user's intent calls for TDD. No goal loop,
+pipeline, planner, or sibling plugin must know whether it is installed.
 
 ## Intent
 
@@ -160,5 +160,5 @@ feature, but each cycle incorporates what the preceding cycle revealed.
 - Testing every internal function or maximizing line coverage as an end in
   itself.
 - Replacing repository-specific test conventions or established public seams.
-- Depending on a software factory, review plugin, issue tracker, or sibling
+- Depending on an orchestration, review, issue-tracker, or sibling plugin
   capability.

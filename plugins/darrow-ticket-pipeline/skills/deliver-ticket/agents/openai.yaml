@@ -1,0 +1,6 @@
+interface:
+  display_name: "Deliver Ticket"
+  short_description: "Deliver a ticket through a static multi-agent pipeline"
+  default_prompt: "Use $deliver-ticket to deliver this ticket through isolated phase agents."
+policy:
+  allow_implicit_invocation: false

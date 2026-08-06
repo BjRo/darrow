@@ -1,9 +1,10 @@
 # Darrow
 
 Darrow is a marketplace of focused, independently adoptable plugins for coding
-agents. It does not ship a daemon or general workflow runtime; its two factory
-plugins are explicitly invoked, skill-driven compositions of native child
-agents. Claude Code and Codex can use the same plugin packages directly.
+agents. It does not ship a daemon or general workflow runtime; its goal loop
+and ticket pipeline are explicitly invoked, skill-driven compositions of
+native child agents. Claude Code and Codex can use the same plugin packages
+directly.
 
 ## Plugins
 
@@ -42,15 +43,15 @@ A read-only code-review capability that pins the exact committed and declared
 working-tree scope, then evaluates repository standards and originating-spec
 fulfillment through isolated reviewers before producing one validated verdict.
 
-### [`darrow-factory`](plugins/darrow-factory)
+### [`darrow-goal-loop`](plugins/darrow-goal-loop)
 
-A light native microfactory for bounded local engineering work. It chooses the
+A bounded adaptive goal loop for local engineering work. It chooses the
 shortest safe planner/executor/verifier path, permits at most one repair, and
 keeps orchestration state transient.
 
-### [`darrow-delivery`](plugins/darrow-delivery)
+### [`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline)
 
-A deliberately heavier comparison factory modeled on Mynab's delivery
+A deliberately static, ticket-backed pipeline modeled on Mynab's delivery
 approach. A user-invoked controller persists all phase artifacts in one ticket
 and delegates refine/challenge, implementation, review/rework, QA/fix, and
 codification to fresh phase-skill agents with bounded loops.
@@ -58,7 +59,7 @@ codification to fresh phase-skill agents with bounded loops.
 ## Package model
 
 - Plugins are independently adoptable and never reference sibling-plugin
-  files. `darrow-delivery` detects a compatible host ticket capability at
+  files. `darrow-ticket-pipeline` detects a compatible host ticket capability at
   runtime and blocks cleanly when none is installed.
 - Skills hold judgment; scripts enforce deterministic mechanics.
 - Capability invariants live in [`docs/specs`](docs/specs).

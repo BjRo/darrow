@@ -1,0 +1,21 @@
+{
+  "name": "darrow-ticket-pipeline",
+  "version": "0.1.0",
+  "description": "Deliver engineering tickets through a durable static pipeline with bounded revision branches",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Ticket Pipeline",
+    "shortDescription": "Deliver tickets through a durable static pipeline",
+    "longDescription": "Deliver one engineering ticket through predefined refine, challenge, implementation, review, repair, QA, and codification phases with bounded revision branches and durable ticket evidence.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Deliver this ticket through the static multi-agent pipeline."
+    ]
+  }
+}

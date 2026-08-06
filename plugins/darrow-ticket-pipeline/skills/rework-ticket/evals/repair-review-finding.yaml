@@ -1,0 +1,58 @@
+id: ticket-pipeline-rework-review-finding
+invariant: TP-P1,TP-S1,TP-E1
+prompt: >-
+  Explicitly invoke $rework-ticket in review mode for run eval-rework, phase
+  rework, iteration 1, agent repairer-eval. Use the current repository as the
+  local write boundary, read .ticket-pipeline-input/ticket.md, preserve unrelated
+  work, repair only the recorded finding, and write the artifact to the
+  absolute path {{repo_dir}}/.git/rework-artifact.tsv. Do not publish.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        .ticket-pipeline-input/ticket.md: |
+          ## Outcome
+
+          clampPositive returns zero for negative values and the original value otherwise.
+
+          ## Ticket Pipeline Artifact — review — Iteration 1
+
+          ### New findings
+
+          WARNING at value.js: clampPositive only handles -1; acceptance requires every negative value, including -8.
+        package.json: '{"type":"module"}'
+        value.js: |
+          export const clampPositive = (value) => value;
+        unrelated.txt: |
+          preserve me
+        test.sh: |
+          #!/usr/bin/env bash
+          node --input-type=module -e 'import("./value.js").then(({clampPositive}) => { if(clampPositive(-8) !== 0 || clampPositive(3) !== 3) process.exit(1) })'
+  files:
+    value.js: |
+      export const clampPositive = (value) => value === -1 ? 0 : value;
+checks:
+  - name: review defect is repaired
+    run: >-
+      bash test.sh &&
+      node --input-type=module -e
+      'import("./value.js").then(({clampPositive}) => { if(clampPositive(-8) !== 0 || clampPositive(3) !== 3) process.exit(1) })'
+  - name: unrelated content is preserved
+    run: >-
+      git diff --exit-code -- unrelated.txt test.sh AGENTS.md .ticket-pipeline-input/ticket.md &&
+      test "$(git status --porcelain --untracked-files=all)" = ' M value.js' &&
+      test -z "$(git diff --summary)"
+  - name: repair is not published
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: repair artifact records evidence
+    run: >-
+      awk -F '\t' '$1=="phase" && $2=="rework" {f=1} END {exit !f}' .git/rework-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="complete" {f=1} END {exit !f}' .git/rework-artifact.tsv &&
+      grep -F 'bash test.sh' .git/rework-artifact.tsv >/dev/null
+output_checks:
+  - name: repair reports its artifact
+    expect_regex: "rework-artifact\\.tsv"

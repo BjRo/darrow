@@ -121,7 +121,7 @@ export interface TrialResult {
   passed: boolean;
   checks: CheckResult[];
   harness: HarnessResult;
-  factoryMetrics?: {
+  orchestrationMetrics?: {
     childInvocationCount: number;
     humanInterruptions: number;
     escapedDefects: number;
@@ -149,7 +149,7 @@ export interface CaseResult {
   totalCostUsd: number | null;
   /** Manually measured minutes needed to assess one trial's review output, or null when unmeasured. */
   humanReviewMinutes: number | null;
-  /** Factory-specific outcome metrics, present when factory wire records appear. */
+  /** Orchestration-specific outcome metrics, present when orchestration result records appear. */
   meanChildInvocationCount?: number;
   /** Invocation counts come from controller/baseline result records. */
   childInvocationCountSource?:

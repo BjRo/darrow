@@ -15,8 +15,8 @@ Reviewing those questions independently reduces anchoring and keeps findings
 traceable to their actual source.
 
 This capability is independently installable and selected from review intent.
-It does not depend on a delivery workflow, issue tracker, software factory, or
-another Darrow plugin.
+It does not depend on a goal loop, ticket pipeline, issue tracker, or another
+Darrow plugin.
 
 ## Intent
 
@@ -184,5 +184,5 @@ next_action
 - Treating a bundled smell baseline as repository law.
 - Reviewing the entire repository when the user requested a bounded diff.
 - Publishing comments, approvals, or review status to a remote forge.
-- Depending on a TDD plugin, software factory, Git workflow, or sibling
+- Depending on a TDD plugin, orchestration plugin, Git workflow, or sibling
   capability.

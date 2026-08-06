@@ -1,9 +1,0 @@
-{
-  "name": "darrow-delivery",
-  "description": "Deliver engineering tickets through durable phase artifacts and bounded multi-agent loops",
-  "version": "0.1.0",
-  "author": {
-    "name": "Björn Rochel",
-    "email": "bjoern@bjro.de"
-  }
-}

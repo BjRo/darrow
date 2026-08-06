@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "capability",
+  "provides": [
+    {
+      "contract": "ticket_pipeline.ticket.implement",
+      "version": "1.0.0"
+    }
+  ]
+}

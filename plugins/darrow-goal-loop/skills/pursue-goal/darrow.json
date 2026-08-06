@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "capability",
+  "provides": [
+    {
+      "contract": "goal_loop.pursue",
+      "version": "1.0.0"
+    }
+  ]
+}

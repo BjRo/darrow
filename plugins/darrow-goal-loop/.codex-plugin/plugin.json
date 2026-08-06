@@ -1,0 +1,22 @@
+{
+  "name": "darrow-goal-loop",
+  "version": "0.1.0",
+  "description": "Pursue bounded engineering goals through adaptive execution and independent verification",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Goal Loop",
+    "shortDescription": "Pursue and diagnose bounded engineering goals",
+    "longDescription": "Pursue a concrete engineering goal through adaptive planning, one isolated writer, independent verification, bounded repair, and privacy-safe telemetry.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Pursue this bounded engineering goal through the adaptive goal loop.",
+      "Check whether the goal loop is ready before spending model budget."
+    ]
+  }
+}
