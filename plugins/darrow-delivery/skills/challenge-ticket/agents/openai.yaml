@@ -1,0 +1,6 @@
+interface:
+  display_name: "Challenge Ticket Plan"
+  short_description: "Stress-test a ticket implementation plan"
+  default_prompt: "Use $challenge-ticket to challenge this ticket plan."
+policy:
+  allow_implicit_invocation: false

@@ -7,9 +7,127 @@ export interface FactoryMetrics {
   falsePositiveVerifierFindings: number;
 }
 
+interface ObservedDeliveryRoute {
+  phase: string;
+  iteration: number;
+  childId: string;
+  skill: string;
+  threadId: string;
+}
+
+export function observeCodexDeliveryRoutes(
+  raw: string,
+): ObservedDeliveryRoute[] | undefined {
+  const routes: ObservedDeliveryRoute[] = [];
+  let sawCodexEvent = false;
+  for (const line of raw.split("\n")) {
+    if (!line.trim().startsWith("{")) continue;
+    try {
+      const event = JSON.parse(line);
+      if (/^(thread|turn|item)\./.test(event.type ?? "")) sawCodexEvent = true;
+      const item = event.item;
+      if (
+        event.type !== "item.completed" ||
+        item?.type !== "collab_tool_call" ||
+        item?.tool !== "spawn_agent" ||
+        item?.status !== "completed" ||
+        !Array.isArray(item.receiver_thread_ids) ||
+        item.receiver_thread_ids.length !== 1
+      )
+        continue;
+      const prompt = typeof item.prompt === "string" ? item.prompt : "";
+      const phase = prompt.match(/^- phase: ([a-z]+)$/m)?.[1];
+      const iteration = prompt.match(/^- iteration: ([0-9]+)$/m)?.[1];
+      const childId = prompt.match(/^- stable_child_id: (.+)$/m)?.[1];
+      const skill = prompt.match(
+        /^- (?:required skill|phase_skill): \$([a-z-]+)$/m,
+      )?.[1];
+      if (phase && iteration && childId && skill) {
+        routes.push({
+          phase,
+          iteration: Number(iteration),
+          childId,
+          skill,
+          threadId: item.receiver_thread_ids[0],
+        });
+      }
+    } catch {
+      // Ignore non-JSON harness noise.
+    }
+  }
+  return sawCodexEvent ? routes : undefined;
+}
+
+export function reconcileObservedDeliveryRoutes(
+  resultText: string,
+  raw: string,
+): CheckResult | undefined {
+  if (!/^format\tdarrow-delivery-result-v1$/m.test(resultText))
+    return undefined;
+  const observed = observeCodexDeliveryRoutes(raw);
+  if (!observed) return undefined;
+  const declaredRoutes = [
+    ...resultText.matchAll(
+      /^route\t([a-z]+)\t([0-9]+)\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t([^\t\n]+)$/gm,
+    ),
+  ].map((match) => `${match[1]}:${match[2]}:${match[3]}`);
+  const declaredCount = Number(
+    resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
+  );
+  const expectedSkills: Record<string, string> = {
+    refine: "refine-ticket",
+    challenge: "challenge-ticket",
+    implement: "implement-ticket",
+    review: "review-ticket",
+    rework: "rework-ticket",
+    qa: "qa-ticket",
+    codify: "codify-ticket",
+  };
+  const observedRoutes = observed.map(
+    (route) => `${route.phase}:${route.iteration}:${route.childId}`,
+  );
+  const observedAttempts = observed.map(
+    (route) => `${route.phase}:${route.iteration}`,
+  );
+  const declaredAttempts = declaredRoutes.map((route) =>
+    route.split(":").slice(0, 2).join(":"),
+  );
+  const identitiesMatch =
+    new Set(observedRoutes).size === observedRoutes.length &&
+    new Set(declaredRoutes).size === declaredRoutes.length &&
+    new Set(observedAttempts).size === observedAttempts.length &&
+    new Set(declaredAttempts).size === declaredAttempts.length &&
+    new Set(observed.map((route) => route.threadId)).size === observed.length &&
+    observed.every((route) => expectedSkills[route.phase] === route.skill) &&
+    declaredRoutes.length === observedRoutes.length &&
+    declaredRoutes.every((route) => observedRoutes.includes(route)) &&
+    observedRoutes.every((route) => declaredRoutes.includes(route));
+  const passed = identitiesMatch && declaredCount === observed.length;
+  return {
+    name: "harness-observed delivery children match controller routes",
+    passed,
+    detail: passed
+      ? `${observed.length} unique phase children observed`
+      : `observed=${observedRoutes.join(",") || "none"}; declared=${declaredRoutes.join(",") || "none"}; declared_count=${declaredCount}`,
+  };
+}
+
+export function hasForeignFactoryRoute(
+  resultText: string,
+  hostHarness: string,
+): boolean {
+  for (const match of resultText.matchAll(
+    /^route\t(?:(?:planner|executor|verifier|repair)\t([^\t\n]+)|(?:refine|challenge|implement|review|rework|qa|codify)\t[0-9]+\t([^\t\n]+))\t/gm,
+  )) {
+    if ((match[1] ?? match[2]) !== hostHarness) return true;
+  }
+  return false;
+}
+
 export function extractFactoryMetrics(
   resultText: string,
   checks: CheckResult[],
+  observedChildInvocationCount?: number,
 ): FactoryMetrics | undefined {
   const routeRecords = resultText.match(
     /^route\t(?:planner|executor|verifier|repair)\t/gm,
@@ -26,7 +144,9 @@ export function extractFactoryMetrics(
   if (!hasFactoryResult && !routeRecords && !declaredChildren) return undefined;
   return {
     childInvocationCount:
-      routeRecords?.length ?? Number(declaredChildren?.[1] ?? 0),
+      observedChildInvocationCount ??
+      routeRecords?.length ??
+      Number(declaredChildren?.[1] ?? 0),
     humanInterruptions: declaredInterruptions
       ? Number(declaredInterruptions[1])
       : /^status\tneeds_human$/m.test(resultText)

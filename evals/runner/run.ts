@@ -6,7 +6,12 @@ import { buildFixture, destroyFixture } from "./fixture";
 import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import { extractFactoryMetrics } from "./factory-metrics";
+import {
+  extractFactoryMetrics,
+  hasForeignFactoryRoute,
+  observeCodexDeliveryRoutes,
+  reconcileObservedDeliveryRoutes,
+} from "./factory-metrics";
 import type {
   CaseResult,
   EvalCase,
@@ -32,15 +37,6 @@ function p95(values: number[]): number {
 
 function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-}
-
-function hasForeignRoute(resultText: string, hostHarness: string): boolean {
-  for (const match of resultText.matchAll(
-    /^route\t(?:planner|executor|verifier|repair)\t([^\t\n]+)\t/gm,
-  )) {
-    if (match[1] !== hostHarness) return true;
-  }
-  return false;
 }
 
 /** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
@@ -77,7 +73,7 @@ async function runCase(
   withoutSkill = false,
   humanReviewMinutes?: number,
 ): Promise<CaseResult> {
-  const prompt = condition?.text.trim()
+  const promptTemplate = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
   const trialResults: TrialResult[] = [];
@@ -87,8 +83,10 @@ async function runCase(
       evalCase.fixture,
       withoutSkill ? "" : evalCase.skillDir,
       adapter.skillMounts,
+      evalCase.mount_plugin_skills ?? false,
     );
     try {
+      const prompt = promptTemplate.replaceAll("{{repo_dir}}", repoDir);
       if (dry) {
         console.log(
           `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
@@ -111,6 +109,14 @@ async function runCase(
         continue;
       }
       const harness = await adapter.run(repoDir, prompt, model, effort);
+      const observedDeliveryCheck = reconcileObservedDeliveryRoutes(
+        harness.resultText,
+        harness.raw,
+      );
+      const observedDeliveryRoutes =
+        /^format\tdarrow-delivery-result-v1$/m.test(harness.resultText)
+          ? observeCodexDeliveryRoutes(harness.raw)
+          : undefined;
       const checks = [
         ...(await runChecks(repoDir, evalCase.checks)),
         // A no-skill baseline is judged on the same repository outcomes, not
@@ -122,6 +128,7 @@ async function runCase(
               evalCase.output_checks ?? [],
               evalCase.skillDir,
             )),
+        ...(observedDeliveryCheck ? [observedDeliveryCheck] : []),
       ];
       const passed = harness.ok && checks.every((c) => c.passed);
       trialResults.push({
@@ -129,7 +136,11 @@ async function runCase(
         passed,
         checks,
         harness,
-        factoryMetrics: extractFactoryMetrics(harness.resultText, checks),
+        factoryMetrics: extractFactoryMetrics(
+          harness.resultText,
+          checks,
+          observedDeliveryRoutes?.length,
+        ),
       });
       const failed = checks.filter((c) => !c.passed);
       console.log(
@@ -145,7 +156,7 @@ async function runCase(
 
   const durations = trialResults.map((t) => t.harness.durationMs);
   const tokenTotals = trialResults.map((trial) =>
-    hasForeignRoute(trial.harness.resultText, adapter.name)
+    hasForeignFactoryRoute(trial.harness.resultText, adapter.name)
       ? null
       : trial.harness.inputTokens + trial.harness.outputTokens,
   );
@@ -174,7 +185,7 @@ async function runCase(
     totalCostUsd: trialResults.every(
       (trial) =>
         trial.harness.costUsd !== null &&
-        !hasForeignRoute(trial.harness.resultText, adapter.name),
+        !hasForeignFactoryRoute(trial.harness.resultText, adapter.name),
     )
       ? trialResults.reduce(
           (total, trial) => total + (trial.harness.costUsd ?? 0),
@@ -188,7 +199,15 @@ async function runCase(
     childInvocationCountSource: measuredFactoryTrials.length
       ? withoutSkill
         ? "condition_report"
-        : "controller_result"
+        : trialResults.some(
+              (trial) =>
+                /^format\tdarrow-delivery-result-v1$/m.test(
+                  trial.harness.resultText,
+                ) &&
+                observeCodexDeliveryRoutes(trial.harness.raw) !== undefined,
+            )
+          ? "harness_observed"
+          : "controller_result"
       : undefined,
     totalHumanInterruptions: measuredFactoryTrials.length
       ? measuredFactoryTrials.reduce(

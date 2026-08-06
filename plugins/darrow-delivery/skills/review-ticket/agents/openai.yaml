@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Ticket Change"
+  short_description: "Review a ticket change independently"
+  default_prompt: "Use $review-ticket to review this ticket change."
+policy:
+  allow_implicit_invocation: false

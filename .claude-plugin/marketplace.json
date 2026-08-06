@@ -39,6 +39,11 @@
       "name": "darrow-factory",
       "source": "./plugins/darrow-factory",
       "description": "Run and diagnose bounded engineering work with isolated execution and independent verification"
+    },
+    {
+      "name": "darrow-delivery",
+      "source": "./plugins/darrow-delivery",
+      "description": "Deliver tickets through durable phase artifacts and bounded multi-agent convergence loops"
     }
   ]
 }

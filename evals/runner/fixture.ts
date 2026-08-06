@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, mkdir, cp, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, cp, rm, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -41,6 +41,7 @@ export async function buildFixture(
   fixture: Fixture,
   skillDir: string,
   skillMounts: string[],
+  mountPluginSkills = false,
 ): Promise<string> {
   const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
   if (fixture.repo) {
@@ -97,20 +98,29 @@ export async function buildFixture(
   // Skill-less cases (experiments) mount nothing.
   if (!skillDir) return repoDir;
 
-  const skillName = skillDir.split("/").filter(Boolean).pop()!;
-  // Never mount the skill's colocated evals/ — the model under eval could
-  // read its own pass criteria from the case files.
-  const evalsDir = join(skillDir, "evals");
   // Plugin-level mechanics and deterministic config mount two levels above
   // the skill so relative paths resolve exactly like the repo/plugin cache.
   const pluginRoot = dirname(dirname(skillDir));
   const pluginBin = join(pluginRoot, "bin");
   const pluginConfig = join(pluginRoot, "config");
+  const skillDirs = mountPluginSkills
+    ? (await readdir(dirname(skillDir), { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(dirname(skillDir), entry.name))
+    : [skillDir];
   for (const mount of skillMounts) {
-    await cp(skillDir, join(repoDir, mount, skillName), {
-      recursive: true,
-      filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
-    });
+    for (const mountedSkillDir of skillDirs) {
+      const mountedSkillName = mountedSkillDir
+        .split("/")
+        .filter(Boolean)
+        .pop()!;
+      const evalsDir = join(mountedSkillDir, "evals");
+      await cp(mountedSkillDir, join(repoDir, mount, mountedSkillName), {
+        recursive: true,
+        // Never expose any skill's colocated pass criteria to the model.
+        filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
+      });
+    }
     if (existsSync(pluginBin)) {
       await cp(pluginBin, join(repoDir, mount, "..", "bin"), {
         recursive: true,

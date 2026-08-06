@@ -1,0 +1,6 @@
+interface:
+  display_name: "Rework Ticket Change"
+  short_description: "Repair review or QA findings"
+  default_prompt: "Use $rework-ticket to repair these ticket findings."
+policy:
+  allow_implicit_invocation: false

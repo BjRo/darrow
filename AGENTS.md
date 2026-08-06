@@ -1,9 +1,12 @@
 # darrow — Agent Instructions
 
 Darrow is a marketplace of independently adoptable plugins for Claude Code and
-Codex. There is no active workflow runtime, delivery orchestrator, goal loop, or
-software-factory implementation in this repository. Do not reconstruct one from
-Git history or old experiment results unless the user explicitly requests it.
+Codex. It includes two explicit, native-agent factory capabilities:
+`darrow-factory` is a transient light microfactory and `darrow-delivery` is a
+ticket-backed phase orchestrator. Neither is a daemon, queue, general workflow
+runtime, or license to restore the removed runtime experiments. Do not
+reconstruct other runtime machinery from Git history unless the user explicitly
+requests it.
 
 ## Layout
 

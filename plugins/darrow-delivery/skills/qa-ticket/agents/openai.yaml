@@ -1,0 +1,6 @@
+interface:
+  display_name: "QA Ticket Change"
+  short_description: "Verify ticket acceptance evidence"
+  default_prompt: "Use $qa-ticket to verify this ticket change."
+policy:
+  allow_implicit_invocation: false

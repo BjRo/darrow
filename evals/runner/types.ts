@@ -75,6 +75,8 @@ export interface EvalCase {
   skillDir: string;
   prompt: string;
   fixture: Fixture;
+  /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
+  mount_plugin_skills?: boolean;
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];
@@ -150,7 +152,8 @@ export interface CaseResult {
   /** Factory-specific outcome metrics, present when factory wire records appear. */
   meanChildInvocationCount?: number;
   /** Invocation counts come from controller/baseline result records. */
-  childInvocationCountSource?: "controller_result" | "condition_report";
+  childInvocationCountSource?:
+    "harness_observed" | "controller_result" | "condition_report";
   totalHumanInterruptions?: number;
   escapedDefects?: number;
   falsePositiveVerifierFindings?: number;

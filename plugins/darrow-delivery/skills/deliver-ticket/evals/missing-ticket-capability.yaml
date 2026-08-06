@@ -1,0 +1,29 @@
+id: delivery-missing-ticket-capability
+invariant: TSF-A1,TSF-T1,TSF-S1,TSF-C1
+prompt: >-
+  Explicitly invoke $deliver-ticket for ticket 17 in this repository. No
+  ticket connector or backend-neutral ticket capability has been installed in
+  this fixture. Keep all work local and do not substitute raw tracker commands.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Do not modify product files without a readable delivery ticket.
+        value.txt: |
+          unchanged
+checks:
+  - name: product tree remains untouched
+    run: git diff --exit-code && test -z "$(git status --porcelain --untracked-files=all)"
+  - name: no publication occurs
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: unavailable ticket capability is blocked
+    expect_regex: "status\\tblocked"
+  - name: no child phase is launched
+    expect_regex: "evaluation_child_invocations\\t0"
+  - name: missing capability is named
+    expect_regex: "(ticket|tracker).*(capability|connector|read|description)"
+    flags: i

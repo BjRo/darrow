@@ -1,0 +1,6 @@
+interface:
+  display_name: "Refine Ticket"
+  short_description: "Turn a ticket into an executable plan"
+  default_prompt: "Use $refine-ticket to refine this delivery ticket into a plan."
+policy:
+  allow_implicit_invocation: false

@@ -1,8 +1,9 @@
 # Darrow
 
 Darrow is a marketplace of focused, independently adoptable plugins for coding
-agents. It does not ship a workflow runtime or delivery orchestrator. Claude
-Code and Codex can use the same plugin packages directly.
+agents. It does not ship a daemon or general workflow runtime; its two factory
+plugins are explicitly invoked, skill-driven compositions of native child
+agents. Claude Code and Codex can use the same plugin packages directly.
 
 ## Plugins
 
@@ -41,9 +42,24 @@ A read-only code-review capability that pins the exact committed and declared
 working-tree scope, then evaluates repository standards and originating-spec
 fulfillment through isolated reviewers before producing one validated verdict.
 
+### [`darrow-factory`](plugins/darrow-factory)
+
+A light native microfactory for bounded local engineering work. It chooses the
+shortest safe planner/executor/verifier path, permits at most one repair, and
+keeps orchestration state transient.
+
+### [`darrow-delivery`](plugins/darrow-delivery)
+
+A deliberately heavier comparison factory modeled on Mynab's delivery
+approach. A user-invoked controller persists all phase artifacts in one ticket
+and delegates refine/challenge, implementation, review/rework, QA/fix, and
+codification to fresh phase-skill agents with bounded loops.
+
 ## Package model
 
-- Plugins are independently adoptable and never require sibling plugins.
+- Plugins are independently adoptable and never reference sibling-plugin
+  files. `darrow-delivery` detects a compatible host ticket capability at
+  runtime and blocks cleanly when none is installed.
 - Skills hold judgment; scripts enforce deterministic mechanics.
 - Capability invariants live in [`docs/specs`](docs/specs).
 - Judgment-focused evals are colocated with their skills and use the shared

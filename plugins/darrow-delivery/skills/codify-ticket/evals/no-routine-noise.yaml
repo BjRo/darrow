@@ -1,0 +1,49 @@
+id: delivery-codify-no-routine-noise
+invariant: TSF-P1,TSF-E1,TSF-V1
+prompt: >-
+  Explicitly invoke $codify-ticket for run eval-codify, phase codify,
+  iteration 1, agent codifier-eval. Inspect .factory-input/ticket.md and the
+  final diff, keep repository guidance and product files read-only, and write
+  the artifact to the absolute path {{repo_dir}}/.git/codify-artifact.tsv.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          JavaScript utility fixes use node:test and `bash test.sh`.
+        .factory-input/ticket.md: |
+          ## Outcome
+
+          Fix add(a, b) to return the sum.
+
+          ## Factory Artifact — review — Iteration 1
+
+          Approved: routine correction using the established utility pattern.
+
+          ## Factory Artifact — qa — Iteration 1
+
+          Passed: focused and repository tests pass.
+        math.js: |
+          export const add = (a, b) => a - b;
+        test.sh: |
+          #!/usr/bin/env bash
+          node --input-type=module -e 'import("./math.js").then(({add}) => { if(add(2, 3) !== 5) process.exit(1) })'
+  files:
+    math.js: |
+      export const add = (a, b) => a + b;
+checks:
+  - name: codify does not edit repository files
+    run: >-
+      test "$(cat math.js)" = 'export const add = (a, b) => a + b;' &&
+      test "$(git status --porcelain --untracked-files=all)" = ' M math.js' &&
+      test -z "$(git diff --summary)"
+  - name: routine fix produces no codification noise
+    run: >-
+      awk -F '\t' '$1=="phase" && $2=="codify" {f=1} END {exit !f}' .git/codify-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="no_change" {f=1} END {exit !f}' .git/codify-artifact.tsv &&
+      grep -F 'No new patterns to codify' .git/codify-artifact.tsv >/dev/null
+output_checks:
+  - name: codify reports its artifact
+    expect_regex: "codify-artifact\\.tsv"
