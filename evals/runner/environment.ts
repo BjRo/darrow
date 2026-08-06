@@ -3,6 +3,10 @@ import { dirname, join, resolve } from "node:path";
 
 type Harness = "claude" | "codex";
 
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
 const ALLOWED_ENVIRONMENT = [
   "PATH",
   "LANG",
@@ -56,9 +60,21 @@ export async function isolatedHarnessEnvironment(
 ): Promise<Record<string, string>> {
   const stateRoot = join(repoDir, ".git", "darrow-eval", "state", harness);
   const configRoot = join(stateRoot, "config");
+  const shellRoot = join(stateRoot, "shell");
   const tempRoot = join(stateRoot, "tmp");
   await mkdir(configRoot, { recursive: true });
+  await mkdir(shellRoot, { recursive: true });
   await mkdir(tempRoot, { recursive: true });
+
+  // Codex and Claude may execute tools through `zsh -lc`; macOS path_helper
+  // rewrites PATH for login shells. Re-prepend fixture mocks after that system
+  // startup so evals cannot fall through to real network tools.
+  const fixtureBin = join(repoDir, ".git", "fixture-bin");
+  await writeFile(
+    join(shellRoot, ".zprofile"),
+    `export PATH=${shellQuote(fixtureBin)}:"$PATH"\n`,
+    { mode: 0o600 },
+  );
 
   if (harness === "codex") {
     const source = resolve(
@@ -81,6 +97,7 @@ export async function isolatedHarnessEnvironment(
   );
   env.HOME = stateRoot;
   env.TMPDIR = tempRoot;
+  env.ZDOTDIR = shellRoot;
   if (harness === "codex") env.CODEX_HOME = configRoot;
   else env.CLAUDE_CONFIG_DIR = configRoot;
   return env;

@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isolatedHarnessEnvironment } from "./environment";
@@ -77,5 +84,28 @@ describe("isolated harness environment", () => {
     expect(await Bun.file(join(claudeConfigDir, "CLAUDE.md")).exists()).toBe(
       false,
     );
+  });
+
+  test("keeps fixture tools ahead of host tools in zsh login shells", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-shell-fixture-"));
+    cleanup.push(repo);
+    const fixtureBin = join(repo, ".git", "fixture-bin");
+    await mkdir(fixtureBin, { recursive: true });
+    const fixtureGh = join(fixtureBin, "gh");
+    await writeFile(fixtureGh, "#!/bin/sh\nexit 0\n");
+    await chmod(fixtureGh, 0o755);
+
+    const env = await isolatedHarnessEnvironment("codex", repo);
+    const proc = Bun.spawn(["/bin/zsh", "-lc", "command -v gh"], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        ...env,
+        PATH: `${fixtureBin}:${env.PATH ?? ""}`,
+      },
+    });
+    const output = (await new Response(proc.stdout).text()).trim();
+    expect(await proc.exited).toBe(0);
+    expect(output).toBe(fixtureGh);
   });
 });

@@ -1,95 +1,109 @@
 ---
 name: list-decisions
-description: List and find recorded decisions by subject, scope, status, owner, or supersession relationship without changing them. Use when the user asks "what did we decide", "list the architecture decisions", "find decisions about X", "which ADR superseded this", "show proposed decisions", or otherwise asks what authoritative repository, policy, work-item, or review choices exist.
+description: Find recorded decisions read-only across ADRs, specifications, policies, work items, and review state. Use for decision inventories, subject or status filters, and supersession queries.
 ---
 
-# list-decisions
+# List decisions
 
-Answer decision questions read-only and identify each result's canonical scope.
+Answer the requested decision question from canonical records without changing
+repository or external state.
 
 Use the `decision` facade at `<skill-dir>/../../bin/decision`, where
-`<skill-dir>` is the directory containing this `SKILL.md`. Run it with Bash.
-The facade owns ADR discovery, validation, filtering, relationships, caps, and
-compact output. Relay a facade refusal; never skip an unreadable or malformed
-required record.
+`<skill-dir>` contains this file. Run it with Bash. The facade owns ADR
+discovery, validation, filtering, relationships, and output caps. Treat an
+unreadable or malformed required record as a refusal rather than a skippable
+result.
 
-Every displayed repository path must be the exact absolute path returned by the
-facade or `inspect`. Never shorten it to a repository-relative path, including
-inside Markdown links or code spans.
+## Working model
+
+- **Canonical effect:** report the authoritative effect once. A document that
+  merely links to it is a reference, not another result. A specification may
+  still own a different normative effect beside its ADR reference.
+- **Silent filter:** inspect candidates as needed, but expose only matches.
+  Excluded identifiers, titles, paths, and effects stay out of the response.
+- **Complete inventory:** a requested foreign owner that cannot be queried makes
+  the overall result `incomplete`, even when repository results are available.
+- **Actual status:** preserve the record's status. Confident language, code
+  frequency, or a model recommendation does not imply `Accepted`.
 
 ## Workflow
 
-1. Run `bash <skill-dir>/../../bin/decision inspect` to inventory ADR,
-   specification, and policy discovery candidates. Follow repository routers,
-   referenced guidance, and scoped instructions applicable to the query; root
-   policy filenames are not an exhaustive policy map.
-2. Derive the requested ADR filters and run:
-   `bash <skill-dir>/../../bin/decision list [--dir <adr-dir>]
-   [--status Proposed|Accepted|Rejected|Deprecated|Superseded]
-   [--search <subject>] [--related-to <ADR-NNNN>] [--limit <n>]`.
-   For a broad concept, follow aliases and references discovered in governing
-   surfaces. If a literal search returns no ADRs, inspect the bounded
-   unfiltered ADR inventory before concluding there is no semantic match; never
-   expose the unrelated candidates used for filtering.
-3. When the request is not explicitly ADR-only, search the reported
-   specification and policy surfaces for the subject. Inspect matches closely:
-   distinguish a governing decision from historical context, an unresolved
-   proposal, or a reference to another canonical record.
-4. When the requested scope includes work items or reviews, query
-   an available read-only owner integration. If it is unavailable, name that
-   exact inaccessible owner and say the inventory is incomplete; do not infer
-   foreign-owned state from repository files. The facade inventories repository
-   surfaces only.
-5. Report each matching decision once. Use one compact result line per
-   canonical record containing subject/effect, actual status (or explicitly
-   `no recorded status`), scope, and canonical absolute path or external owner;
-   add relevant supersession relationships on that same line. Do not split one
-   record's fields across a table and later prose. State the filters, any cap or
-   ambiguity, and any inaccessible owner separately. When any requested owner
-   is inaccessible, explicitly call the overall inventory `incomplete`;
-   listing only the accessible portion is not a complete result.
+### 1. Bound the question
 
-   Use scope values such as `repository architecture`, `normative capability
-   behavior`, or `contributor policy`, not merely a surface name. Required
-   result shape (one physical line per result; no multi-line table or
-   continuation prose):
+Derive the requested subject, scope, status, owner, relationship, and result
+limit. Treat an explicitly ADR-only request as ADR-only; otherwise include every
+canonical surface that could own the requested scope.
 
-   `- <subject and effect> | status: <actual status or no recorded status> | scope: <scope> | path/owner: <absolute path or owner> | relationships: <value or none>`
+**Complete when:** each requested dimension has a value or is explicitly
+unfiltered, and the intended owner set is known.
 
-   A specification that references an ADR can still own a different normative
-   effect. Report that effect on its own result line and treat the ADR link only
-   as a reference. Do not add an excluded-items section; filter silently.
-   Before responding, verify each displayed repository path exists and matches
-   the exact discovered absolute filename, then delete every mention of an
-   excluded record, including bare identifiers in summaries.
-6. Run a final response audit. For every displayed repository record, run
-   `bash <skill-dir>/../../bin/decision canonical-path --path <record>` and copy
-   its `path:` value verbatim; this verifies a regular in-repository record and
-   rejects symlinked or escaping paths. Then scan the draft and remove each
-   excluded identifier, title, path, effect, and “X was excluded” statement.
-   Filter summaries may name criteria and inspected surfaces only.
+### 2. Discover canonical surfaces
 
-## Judgment
+Run:
 
-- ADRs normally represent durable architecture. Specifications own normative
-  product and capability behavior; policy and repository guidance own durable
-  team rules; work items own local implementation choices.
-- Do not infer `Accepted` from confident wording, code frequency, or a model
-  recommendation. Preserve the record's actual status and authority.
-- A document that merely links to a decision is not a second result. Prefer the
-  canonical effect and mention useful references only as references.
-- An empty result is an answer. State which subject, scope, status, and relation
-  filters were applied and which canonical surfaces were inspected.
+```sh
+bash <skill-dir>/../../bin/decision inspect
+bash <skill-dir>/../../bin/decision list [--dir <adr-dir>] \
+  [--status Proposed|Accepted|Rejected|Deprecated|Superseded] \
+  [--search <subject>] [--related-to <ADR-NNNN>] [--limit <n>]
+```
 
-## Boundaries
+Follow repository routers, referenced guidance, aliases, and scoped
+instructions relevant to the query. Reported root policy files are discovery
+candidates, not an exhaustive map. For a broad concept, follow semantic aliases
+and references. If literal ADR search is empty, inspect the bounded unfiltered
+ADR inventory before concluding there is no semantic match.
 
-- Read-only: never create, edit, accept, reject, deprecate, or supersede a
-  decision while listing.
-- Do not turn listing into a review of whether the choice is still good or
-  whether implementation conforms.
-- Do not silently restrict a general decision question to ADRs when a
-  specification, scoped policy, work item, or review may be authoritative.
-- Do not perform generic repository search unrelated to recorded decisions.
-- Do not enumerate or name unrelated records, even as examples of what a filter
-  excluded. Before responding, remove every excluded identifier, title, path,
-  and effect; state only that the subject filter omitted unrelated records.
+Unless the request is ADR-only, search applicable specification and policy
+surfaces and classify each match as a governing effect, unresolved proposal,
+historical context, or reference. Query requested work-item and review owners
+through their read-only integration. Name an inaccessible exact owner and mark
+the inventory incomplete; repository search cannot substitute for foreign-owned
+state.
+
+**Complete when:** every requested canonical surface is inspected or named as
+inaccessible, and every plausible semantic ADR match is resolved.
+
+### 3. Build a deduplicated result set
+
+Keep one entry per canonical effect. Use these scope classes where applicable:
+`repository architecture`, `normative capability behavior`, `contributor
+policy`, or the exact external owner scope. Preserve supersession direction and
+place relevant relationships on the owning result.
+
+An empty set is valid. Retain the applied filters and inspected surfaces so the
+response can explain its coverage without naming excluded records.
+
+**Complete when:** each matching effect has exactly one owner, actual status,
+scope, and relationship set, with no excluded record in the draft.
+
+### 4. Verify paths and report
+
+For every repository result, run:
+
+```sh
+bash <skill-dir>/../../bin/decision canonical-path --path <record>
+```
+
+Copy each emitted `path:` value verbatim. Every displayed repository path must
+be that existing absolute filename, including paths inside Markdown.
+
+Render each result as one physical line:
+
+`- <subject and effect> | status: <actual status or no recorded status> | scope: <scope> | path/owner: <absolute path or owner> | relationships: <value or none>`
+
+State filters, caps, ambiguity, and inaccessible owners separately. Call the
+overall inventory `incomplete` whenever a requested owner was inaccessible.
+For an empty result, state the filters and canonical surfaces inspected.
+
+Finish with a **silent-filter audit**: remove every excluded identifier, title,
+path, effect, and exclusion explanation. Keep only criteria and surface names in
+the coverage summary.
+
+**Complete when:** every result occupies one line, every repository path is
+facade-verified and absolute, the requested coverage is explicit, and excluded
+records are absent from the entire response.
+
+Keep this operation read-only and scoped to recorded decisions. Evaluation of
+decision quality, implementation conformance, and unrelated repository content
+belongs to separate work.
