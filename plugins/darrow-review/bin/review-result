@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# Validate Darrow's line-oriented, machine-readable review result.
+set -u
+
+PROGRAM=${0##*/}
+
+usage() {
+  printf 'Usage: %s validate FILE|-\n' "$PROGRAM"
+  printf '       %s validate-axis standards|spec FILE|-\n' "$PROGRAM"
+}
+
+fail() {
+  code=$1
+  shift
+  printf '%s: %s\n' "$PROGRAM" "$*" >&2
+  exit "$code"
+}
+
+command=${1:-}
+
+if [ "$command" = "validate-axis" ]; then
+  [ "$#" -eq 3 ] || { usage >&2; exit 2; }
+  expected_axis=$2
+  input=$3
+  case "$expected_axis" in
+    standards|spec) ;;
+    *) fail 2 "axis must be standards or spec" ;;
+  esac
+  if [ "$input" != "-" ]; then
+    [ -f "$input" ] && [ -r "$input" ] || fail 2 "axis result is not a readable regular file: $input"
+  fi
+  awk -F '\t' -v expected_axis="$expected_axis" '
+  function bad(message) {
+    print "review-result: " message > "/dev/stderr"
+    invalid = 1
+  }
+  function required(value, label) {
+    if (value == "") bad(label " must not be empty")
+  }
+  NR == 1 {
+    if (NF != 2 || $1 != "format" || $2 != "darrow-review-axis-v1")
+      bad("first record must be format<TAB>darrow-review-axis-v1")
+  }
+  {
+    kind = $1
+    if (kind == "format") {
+      format_count++
+      if (NF != 2) bad("format record must have 2 fields")
+    } else if (kind == "axis") {
+      axis_count++
+      axis = $2
+      if (NF != 2 || $2 !~ /^(standards|spec)$/) bad("axis is invalid")
+    } else if (kind == "status") {
+      status_count++
+      status = $2
+      if (NF != 2 || $2 !~ /^(pass|fail|blocked)$/) bad("status is invalid")
+    } else if (kind == "source") {
+      source_count++
+      if (NF != 2) bad("source record must have 2 fields")
+      required($2, "source")
+    } else if (kind == "finding") {
+      finding_count++
+      if (NF != 6) bad("axis finding record must have 6 fields")
+      if ($2 !~ /^(critical|high|medium|low)$/) bad("finding severity is invalid")
+      if ($3 !~ /^(blocking|advisory)$/) bad("finding disposition is invalid")
+      required($4, "finding location")
+      required($5, "finding source")
+      required($6, "finding evidence")
+      if ($3 == "blocking") {
+        blocking++
+        if (expected_axis == "spec" && $5 ~ /^(none|not_available|heuristic:)/)
+          bad("blocking Spec finding must cite an originating requirement")
+      }
+    } else {
+      bad("unknown axis record on line " NR ": " kind)
+    }
+  }
+  END {
+    if (format_count != 1) bad("exactly one format record is required")
+    if (axis_count != 1 || axis != expected_axis) bad("axis does not match " expected_axis)
+    if (status_count != 1) bad("exactly one status record is required")
+    if (source_count < 1) bad("at least one source record is required")
+    if (status == "pass" && blocking) bad("passing axis cannot contain blocking findings")
+    if (status == "fail" && !blocking) bad("failing axis requires a blocking finding")
+    exit invalid ? 4 : 0
+  }
+  ' "$input" || exit $?
+  printf 'valid: darrow-review-axis-v1 (%s)\n' "$expected_axis"
+  exit 0
+fi
+
+[ "$command" = "validate" ] || { usage >&2; exit 2; }
+[ "$#" -eq 2 ] || { usage >&2; exit 2; }
+input=$2
+if [ "$input" != "-" ]; then
+  [ -f "$input" ] && [ -r "$input" ] || fail 2 "result is not a readable regular file: $input"
+fi
+
+awk -F '\t' '
+function bad(message) {
+  print "review-result: " message > "/dev/stderr"
+  invalid = 1
+}
+function required(value, label) {
+  if (value == "") bad(label " must not be empty")
+}
+NR == 1 {
+  if (NF != 2 || $1 != "format" || $2 != "darrow-review-result-v1")
+    bad("first record must be format<TAB>darrow-review-result-v1")
+}
+{
+  kind = $1
+  if (kind == "format") {
+    format_count++
+    if (NF != 2) bad("format record must have 2 fields")
+  } else if (kind == "base") {
+    base_count++
+    if (NF != 2) bad("base record must have 2 fields")
+    required($2, "base")
+  } else if (kind == "target") {
+    target_count++
+    if (NF != 2) bad("target record must have 2 fields")
+    required($2, "target")
+  } else if (kind == "changed_file") {
+    changed_count++
+    if (NF != 2) bad("changed_file record must have 2 fields")
+    if ($2 !~ /^\//) bad("changed_file must be an absolute path")
+  } else if (kind == "standards") {
+    standards_count++
+    standards = $2
+    if (NF != 2 || $2 !~ /^(pass|fail|blocked)$/)
+      bad("standards must be pass, fail, or blocked")
+  } else if (kind == "standards_source") {
+    standards_source_count++
+    if (NF != 2) bad("standards_source record must have 2 fields")
+    required($2, "standards_source")
+  } else if (kind == "spec") {
+    spec_count++
+    spec = $2
+    if (NF != 2 || $2 !~ /^(pass|fail|blocked|not_available)$/)
+      bad("spec must be pass, fail, blocked, or not_available")
+  } else if (kind == "spec_source") {
+    spec_source_count++
+    spec_source = $2
+    if (NF != 2) bad("spec_source record must have 2 fields")
+    required($2, "spec_source")
+  } else if (kind == "finding") {
+    finding_count++
+    if (NF != 7) bad("finding record must have 7 fields")
+    axis = $2
+    if (axis == "spec") spec_finding_count++
+    severity = $3
+    disposition = $4
+    if (axis !~ /^(standards|spec)$/) bad("finding axis must be standards or spec")
+    if (severity !~ /^(critical|high|medium|low)$/) bad("finding severity is invalid")
+    if (disposition !~ /^(blocking|advisory)$/) bad("finding disposition is invalid")
+    required($5, "finding location")
+    required($6, "finding source")
+    required($7, "finding evidence")
+    if (disposition == "blocking") {
+      blocking[axis]++
+      if (axis == "spec" && $6 ~ /^(none|not_available|heuristic:)/)
+        bad("blocking Spec finding must cite an originating requirement")
+    }
+  } else if (kind == "check") {
+    check_count++
+    if (NF != 5) bad("check record must have 5 fields")
+    required($2, "check command")
+    required($5, "check evidence")
+    if ($3 == "applicable") {
+      if ($4 !~ /^(pass|fail|blocked)$/) bad("applicable check status is invalid")
+      if ($4 == "fail") check_fail++
+      if ($4 == "blocked") check_blocked++
+    } else if ($3 == "not_applicable") {
+      if ($4 != "not_applicable") bad("not_applicable check must have not_applicable status")
+    } else {
+      bad("check applicability is invalid")
+    }
+  } else if (kind == "verdict") {
+    verdict_count++
+    verdict = $2
+    if (NF != 2 || $2 !~ /^(pass|fail|blocked)$/)
+      bad("verdict must be pass, fail, or blocked")
+  } else if (kind == "risk") {
+    risk_count++
+    if (NF != 2) bad("risk record must have 2 fields")
+    required($2, "risk")
+  } else if (kind == "next_action") {
+    next_count++
+    if (NF != 2) bad("next_action record must have 2 fields")
+    required($2, "next_action")
+  } else {
+    bad("unknown record on line " NR ": " kind)
+  }
+}
+END {
+  if (format_count != 1) bad("exactly one format record is required")
+  if (base_count != 1) bad("exactly one base record is required")
+  if (target_count != 1) bad("exactly one target record is required")
+  if (standards_count != 1) bad("exactly one standards record is required")
+  if (standards_source_count < 1) bad("at least one standards_source is required")
+  if (spec_count != 1) bad("exactly one spec record is required")
+  if (spec_source_count != 1) bad("exactly one spec_source record is required")
+  if (check_count < 1) bad("at least one check or explicit not_applicable check is required")
+  if (verdict_count != 1) bad("exactly one verdict record is required")
+  if (risk_count < 1) bad("at least one risk record is required")
+  if (next_count != 1) bad("exactly one next_action record is required")
+
+  if (spec == "not_available") {
+    if (spec_source != "not_available") bad("not_available Spec axis requires spec_source=not_available")
+    if (blocking["spec"] || finding_count && spec_finding_count)
+      bad("not_available Spec axis must not contain Spec findings")
+  } else if (spec_source == "not_available") {
+    bad("available Spec axis must identify its source")
+  }
+  if (standards == "pass" && blocking["standards"])
+    bad("passing Standards axis cannot contain blocking findings")
+  if (spec == "pass" && blocking["spec"])
+    bad("passing Spec axis cannot contain blocking findings")
+  if (standards == "fail" && !blocking["standards"])
+    bad("failing Standards axis requires a blocking finding")
+  if (spec == "fail" && !blocking["spec"])
+    bad("failing Spec axis requires a blocking finding")
+
+  known_fail = standards == "fail" || spec == "fail" || check_fail
+  missing = standards == "blocked" || spec == "blocked" || check_blocked
+  expected = known_fail ? "fail" : missing ? "blocked" : "pass"
+  if (verdict != expected) bad("verdict must be " expected " from axis and check statuses")
+  if (changed_count == 0 && verdict != "blocked")
+    bad("a non-blocked result requires at least one changed_file")
+
+  exit invalid ? 4 : 0
+}
+' "$input" || exit $?
+
+printf 'valid: darrow-review-result-v1\n'

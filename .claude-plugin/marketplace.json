@@ -29,6 +29,11 @@
       "name": "darrow-tdd",
       "source": "./plugins/darrow-tdd",
       "description": "Drive behavior changes and bug fixes through durable red-to-green test slices"
+    },
+    {
+      "name": "darrow-review",
+      "source": "./plugins/darrow-review",
+      "description": "Review pinned changes independently for repository standards and specification fulfillment"
     }
   ]
 }

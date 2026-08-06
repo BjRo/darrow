@@ -1,0 +1,57 @@
+id: code-review-low-noise
+invariant: CR-E5,CR-C6,CR-C7
+prompt: >-
+  Review my uncommitted changes against this originating requirement: add an
+  admin health handler that repeats the local two-line auth guard and returns
+  status 204. Report only.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Accepted local design
+
+          Endpoint modules intentionally duplicate the two-line auth guard so each
+          deployment unit stays independent. Do not centralize that guard.
+
+          Formatting is settled only by `bash format-check.sh`; reviewers do not
+          restate formatter output as prose findings.
+        src/user-health.js: |
+          export function userHealth(token) {
+            if (!token) return 401;
+            if (token !== "ok") return 403;
+            return 204;
+          }
+        format-check.sh: |
+          #!/usr/bin/env bash
+          echo 'src/admin-health.js:1 needs formatting'
+          exit 1
+  files:
+    src/admin-health.js: |
+      export function adminHealth(token) {
+        if (!token) return 401;
+        if (token !== "ok") return 403;
+        return 204;
+      }
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: review remains read-only despite failed check
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: local duplication decision overrides smell baseline
+    not_regex: "^finding\\tstandards[^\\n]+(duplicat|generalit|central)"
+    flags: i
+  - name: formatter failure remains check evidence only
+    expect_regex: "^check\\tbash format-check\\.sh\\tapplicable\\tfail\\t[^\\n]+format"
+    flags: i
+  - name: tool-enforced style is not duplicated as a finding
+    not_regex: "^finding\\tstandards[^\\n]+format"
+    flags: i
+  - name: axes pass while failed check determines verdict
+    expect_regex: "^standards\\tpass$[\\s\\S]*^spec\\tpass$[\\s\\S]*^verdict\\tfail$"

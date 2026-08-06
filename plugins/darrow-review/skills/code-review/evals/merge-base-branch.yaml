@@ -1,0 +1,36 @@
+id: code-review-merge-base-branch
+invariant: CR-E1,CR-E3
+prompt: >-
+  Review the current feature branch against main. Use the branch merge base and
+  do not review changes that exist only on main. There is no product spec.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  setup: |
+    git checkout -qb feature
+    printf 'feature\n' >feature.txt
+    git add feature.txt
+    git commit -qm 'feat: feature side'
+    git checkout -q main
+    printf 'main\n' >main-only.txt
+    git add main-only.txt
+    git commit -qm 'feat: main side'
+    git checkout -q feature
+checks:
+  - name: branch review remains read-only
+    run: test -z "$(git status --porcelain --untracked-files=all)"
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: feature-side file is reviewed
+    expect_regex: "^changed_file\\t/.+/feature\\.txt$"
+  - name: main-only file is excluded
+    not_regex: "^changed_file\\t.+/main-only\\.txt$"
+  - name: clean branch target is a commit
+    expect_regex: "^target\\t[0-9a-f]{40,64}$"

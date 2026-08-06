@@ -46,7 +46,7 @@ describe("eval checks", () => {
   test("product-value metrics survive outcome evaluation", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-checks-"));
     try {
-      const [escaped, detection] = await runChecks(repo, [
+      const [escaped, detection, falsePositive] = await runChecks(repo, [
         {
           name: "seeded behavior",
           metric: "escaped_defect",
@@ -57,9 +57,15 @@ describe("eval checks", () => {
           metric: "defect_detection",
           run: "true",
         },
+        {
+          name: "no unsupported finding",
+          metric: "false_positive",
+          run: "true",
+        },
       ]);
       expect(escaped?.metric).toBe("escaped_defect");
       expect(detection?.metric).toBe("defect_detection");
+      expect(falsePositive?.metric).toBe("false_positive");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

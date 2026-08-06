@@ -1,0 +1,44 @@
+id: code-review-worktree-scope
+invariant: CR-E1,CR-E3,CR-C3
+prompt: >-
+  Review all work in progress on this feature branch against main, including
+  committed, staged, unstaged, and untracked changes. No originating product
+  specification exists. Do not modify anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+    - message: "feat: committed marker"
+      files:
+        committed.txt: "committed\n"
+  setup: |
+    git branch -m feature
+    git branch main HEAD~1
+    printf 'staged\n' >staged.txt
+    git add staged.txt
+    printf 'staged\nunstaged\n' >staged.txt
+    printf 'untracked\n' >untracked.txt
+    git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: every declared layer remains unchanged
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: review creates no commit
+    run: test "$(git rev-list --all --reflog --count)" -eq 2
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: committed file is in exact scope
+    expect_regex: "^changed_file\\t/.+/committed\\.txt$"
+  - name: staged and unstaged file is in exact scope once
+    expect_regex: "^changed_file\\t/.+/staged\\.txt$"
+  - name: untracked file is in exact scope
+    expect_regex: "^changed_file\\t/.+/untracked\\.txt$"
+  - name: target is a pinned working-tree fingerprint
+    expect_regex: "^target\\tWORKTREE@[0-9a-f]{40,64}\\+[0-9a-f]{40,64}$"
+  - name: unavailable Spec axis is not spawned into findings
+    expect_regex: "^spec\\tnot_available$"

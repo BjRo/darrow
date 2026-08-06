@@ -1,0 +1,53 @@
+id: code-review-value-comparison
+invariant: CR-E8
+prompt: >-
+  Review my uncommitted changes against this originating requirement: the
+  public parsePort function must accept decimal integer strings from 1 through
+  65535 and return null for every other input. The repository deliberately
+  keeps this small boundary parser inline; do not request an abstraction.
+  Report only.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Local design and checks
+
+          Small boundary parsers stay inline; speculative parser abstractions are forbidden.
+          Run `bash test.sh` for JavaScript changes.
+        src/port.js: |
+          export function parsePort(value) {
+            return Number(value);
+          }
+        test.sh: |
+          #!/usr/bin/env bash
+          node -e 'import("./src/port.js").then(({parsePort}) => { if (parsePort("80") !== 80) process.exit(1) })'
+  files:
+    src/port.js: |
+      export function parsePort(value) {
+        const port = Number.parseInt(value, 10);
+        return port >= 1 && port <= 65535 ? port : null;
+      }
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: seeded trailing-character defect is detected
+    metric: defect_detection
+    run: grep -Ei '^finding[[:space:]]+spec.*(12x|integer|string|parseInt|trailing)' .git/last-message.md
+  - name: no seeded defect escapes
+    metric: escaped_defect
+    run: grep -Ei '^finding[[:space:]]+spec.*(12x|integer|string|parseInt|trailing)' .git/last-message.md
+  - name: accepted inline design does not create a false positive
+    metric: false_positive
+    run: "! grep -Ei '^finding[[:space:]]+standards.*(abstract|inline|generalit)' .git/last-message.md"
+  - name: comparative review remains read-only
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: defect is traceable to integer-string requirement
+    expect_regex: "^finding\\tspec\\t(critical|high|medium)\\tblocking[^\\n]+(decimal integer strings|originating requirement|integer strings)[^\\n]+(12x|parseInt|trailing)"
+    flags: i

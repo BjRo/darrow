@@ -1,0 +1,42 @@
+id: code-review-pull-request
+invariant: CR-E1,CR-E3,CR-E7
+prompt: >-
+  Review pull request 12. Use its pinned base, head, and body as the originating
+  objective. Report only and do not publish review comments or approvals.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+    - message: "feat: add health response"
+      files:
+        health.txt: "ok\n"
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      case "$*" in
+        *"pr view"*) ;;
+        *) printf '%s\n' "$*" >>.git/forbidden-gh; exit 9 ;;
+      esac
+      base=$(git rev-parse HEAD~1)
+      head=$(git rev-parse HEAD)
+      printf '{"baseRefOid":"%s","headRefOid":"%s","body":"Requirement: add health.txt containing exactly ok.","url":"https://example.invalid/pr/12"}\n' "$base" "$head"
+checks:
+  - name: pull-request review does not mutate Git state
+    run: test -z "$(git status --porcelain --untracked-files=all)"
+  - name: pull-request review does not publish or approve
+    run: test "$(git rev-list --all --reflog --count)" -eq 2; test ! -s .git/forbidden-gh
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: PR change is scoped
+    expect_regex: "^changed_file\\t/.+/health\\.txt$"
+  - name: PR body is used as Spec source
+    expect_regex: "^spec_source\\t[^\\n]*(pull request|PR|health\\.txt|Requirement)"
+    flags: i
+  - name: fulfilled PR passes
+    expect_regex: "^spec\\tpass$[\\s\\S]*^verdict\\tpass$"

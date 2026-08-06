@@ -1,0 +1,27 @@
+id: code-review-fixed-point
+invariant: CR-E1,CR-C2
+prompt: >-
+  Review the committed change from HEAD~1 to HEAD. There is no originating
+  product spec. Report only.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        before.txt: "before\n"
+    - message: "feat: add after"
+      files:
+        after.txt: "after\n"
+checks:
+  - name: fixed-point review remains clean
+    run: test -z "$(git status --porcelain --untracked-files=all)"
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: only the fixed-point addition is scoped
+    expect_regex: "^changed_file\\t/.+/after\\.txt$"
+  - name: base and target are pinned OIDs
+    expect_regex: "^base\\t[0-9a-f]{40,64}$[\\s\\S]*^target\\t[0-9a-f]{40,64}$"

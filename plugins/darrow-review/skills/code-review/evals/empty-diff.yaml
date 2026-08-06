@@ -1,0 +1,27 @@
+id: code-review-empty-diff
+invariant: CR-E3,CR-C2
+prompt: >-
+  Review my uncommitted changes. Report only and do not make a change just to
+  create something to review.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Clean fixture\n"
+checks:
+  - name: clean repository remains clean
+    run: test -z "$(git status --porcelain --untracked-files=all)"
+  - name: final blocked record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: empty scope blocks before findings
+    expect_regex: "^standards\\tblocked$[\\s\\S]*^verdict\\tblocked$"
+  - name: empty diff evidence is explicit
+    expect_regex: "^check\\t[^\\n]+review-scope[^\\n]+\\tapplicable\\tblocked\\t[^\\n]+empty"
+    flags: i
+  - name: no changed file is fabricated
+    not_regex: "^changed_file\\t"

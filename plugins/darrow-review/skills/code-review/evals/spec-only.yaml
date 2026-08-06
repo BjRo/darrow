@@ -1,0 +1,48 @@
+id: code-review-spec-only
+invariant: CR-E2,CR-E4,CR-E7,CR-E8
+prompt: >-
+  Review my uncommitted changes against this originating requirement:
+  formatName must trim outer whitespace and return exactly "Anonymous" when
+  the trimmed name is empty. Report only and do not modify files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Checks
+
+          Run `bash test.sh` for changed JavaScript.
+        src/name.js: |
+          export function formatName(value) {
+            return value;
+          }
+        test.sh: |
+          #!/usr/bin/env bash
+          node -e 'import("./src/name.js").then(({formatName}) => { if (formatName("Ada") !== "Ada") process.exit(1) })'
+  files:
+    src/name.js: |
+      export function formatName(value) {
+        return value.trim();
+      }
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: review is read-only
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: Standards passes independently
+    expect_regex: "^standards\\tpass$"
+  - name: Spec fails independently
+    expect_regex: "^spec\\tfail$"
+  - name: blocking Spec finding cites the request
+    expect_regex: "^finding\\tspec\\t(critical|high|medium)\\tblocking\\t[^\\n]+name\\.js[^\\n]+(originating requirement|Anonymous|trimmed name)[^\\n]+empty"
+    flags: i
+  - name: deterministic test is recorded as passing
+    expect_regex: "^check\\tbash test\\.sh\\tapplicable\\tpass\\t"
+  - name: style preference is not invented
+    not_regex: "^finding\\tstandards\\t"

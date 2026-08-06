@@ -16,13 +16,13 @@ const candidate: CaseResult[] = JSON.parse(
 
 function metricMean(
   result: CaseResult,
-  metric: "escaped_defect" | "defect_detection",
+  metric: "escaped_defect" | "defect_detection" | "false_positive",
 ): number | undefined {
   if (!result.trials.length) return undefined;
   const values = result.trials.map((trial) => {
     const checks = trial.checks.filter((check) => check.metric === metric);
     if (!checks.length) return undefined;
-    if (metric === "escaped_defect")
+    if (metric === "escaped_defect" || metric === "false_positive")
       return checks.filter((check) => !check.passed).length;
     return checks.filter((check) => check.passed).length / checks.length;
   });
@@ -104,6 +104,8 @@ for (const base of baseline) {
   const candEscaped = metricMean(cand, "escaped_defect");
   const baseDetection = metricMean(base, "defect_detection");
   const candDetection = metricMean(cand, "defect_detection");
+  const baseFalsePositives = metricMean(base, "false_positive");
+  const candFalsePositives = metricMean(cand, "false_positive");
   if (baseEscaped !== undefined && candEscaped !== undefined) {
     console.log(
       `  escaped ${baseEscaped.toFixed(1)} → ${candEscaped.toFixed(1)}  ` +
@@ -123,6 +125,33 @@ for (const base of baseline) {
   } else if (baseDetection !== candDetection) {
     invalidComparison = true;
     console.log("  detect  incomparable — metric missing from one run");
+  }
+  if (baseFalsePositives !== undefined && candFalsePositives !== undefined) {
+    console.log(
+      `  false+  ${baseFalsePositives.toFixed(1)} → ${candFalsePositives.toFixed(1)}  ` +
+        fmtDelta(baseFalsePositives, candFalsePositives, ""),
+    );
+  } else if (baseFalsePositives !== candFalsePositives) {
+    invalidComparison = true;
+    console.log("  false+  incomparable — metric missing from one run");
+  }
+  if (
+    base.humanReviewMinutes !== undefined &&
+    cand.humanReviewMinutes !== undefined
+  ) {
+    console.log(
+      `  human   ${base.humanReviewMinutes.toFixed(1)}m → ${cand.humanReviewMinutes.toFixed(1)}m  ` +
+        fmtDelta(
+          base.humanReviewMinutes,
+          cand.humanReviewMinutes,
+          "m",
+          true,
+          1,
+        ),
+    );
+  } else if (base.humanReviewMinutes !== cand.humanReviewMinutes) {
+    invalidComparison = true;
+    console.log("  human   incomparable — measurement missing from one run");
   }
 }
 

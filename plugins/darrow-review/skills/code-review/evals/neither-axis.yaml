@@ -1,0 +1,45 @@
+id: code-review-neither-axis
+invariant: CR-E2,CR-E5
+prompt: >-
+  Review my uncommitted changes against this originating requirement:
+  parseAge must return null for non-numeric input. Report only.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Boundary policy
+
+          Public parsers return null for non-string, blank, and non-finite input.
+          Run `bash test.sh` for JavaScript changes.
+        src/age.js: |
+          export function parseAge(value) {
+            return Number(value);
+          }
+        test.sh: |
+          #!/usr/bin/env bash
+          node -e 'import("./src/age.js").then(({parseAge}) => { if (parseAge("42") !== 42 || parseAge("x") !== null) process.exit(1) })'
+  files:
+    src/age.js: |
+      export function parseAge(value) {
+        if (typeof value !== "string" || value.trim() === "") return null;
+        const parsed = Number(value.trim());
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: review is read-only
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: both axes pass
+    expect_regex: "^standards\\tpass$[\\s\\S]*^spec\\tpass$"
+  - name: aggregate verdict passes
+    expect_regex: "^verdict\\tpass$"
+  - name: no unsupported finding is emitted
+    not_regex: "^finding\\t"

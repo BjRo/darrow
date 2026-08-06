@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Review standards and spec fulfillment"
+  default_prompt: "Use $code-review to review my uncommitted changes."

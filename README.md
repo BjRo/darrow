@@ -35,6 +35,12 @@ A compact, model-invoked test-driven-development discipline for implementing
 behavior changes and bug fixes as durable red-to-green slices through public
 seams.
 
+### [`darrow-review`](plugins/darrow-review)
+
+A read-only code-review capability that pins the exact committed and declared
+working-tree scope, then evaluates repository standards and originating-spec
+fulfillment through isolated reviewers before producing one validated verdict.
+
 ## Package model
 
 - Plugins are independently adoptable and never require sibling plugins.

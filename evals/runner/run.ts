@@ -65,6 +65,7 @@ async function runCase(
   dry: boolean,
   condition?: { label: string; text: string },
   withoutSkill = false,
+  humanReviewMinutes?: number,
 ): Promise<CaseResult> {
   const prompt = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
@@ -141,6 +142,7 @@ async function runCase(
     p95DurationMs: p95(durations),
     meanTokens: mean(tokens),
     totalCostUsd: trialResults.reduce((a, t) => a + t.harness.costUsd, 0),
+    humanReviewMinutes,
   };
 }
 
@@ -155,6 +157,7 @@ const { values } = parseArgs({
     dry: { type: "boolean", default: false },
     condition: { type: "string" },
     "without-skill": { type: "boolean", default: false },
+    "human-review-minutes": { type: "string" },
   },
 });
 
@@ -192,6 +195,17 @@ if (!cases.length) {
 
 const trials = Number(values.trials);
 const threshold = Number(values.threshold);
+const humanReviewMinutes =
+  values["human-review-minutes"] === undefined
+    ? undefined
+    : Number(values["human-review-minutes"]);
+if (
+  humanReviewMinutes !== undefined &&
+  (!Number.isFinite(humanReviewMinutes) || humanReviewMinutes < 0)
+) {
+  console.error("--human-review-minutes must be a non-negative number");
+  process.exit(1);
+}
 const harnessVersion = values.dry ? "" : await adapter.version();
 console.log(
   `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${values.effort}` +
@@ -212,6 +226,7 @@ for (const evalCase of cases) {
     values.dry!,
     condition,
     values["without-skill"],
+    humanReviewMinutes,
   );
   result.harnessVersion = harnessVersion || undefined;
   results.push(result);

@@ -1,0 +1,22 @@
+{
+  "name": "darrow-review",
+  "version": "0.1.0",
+  "description": "Read-only code review across repository standards and originating specifications",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Code Review",
+    "shortDescription": "Review a pinned change on two axes",
+    "longDescription": "Review an exact branch, pull request, fixed-point, or working-tree change independently for repository standards and fulfillment of its originating specification.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": [
+      "Review my uncommitted changes.",
+      "Review this branch against main and its spec."
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+id: code-review-invalid-base
+invariant: CR-E3,CR-C2
+prompt: >-
+  Review the current changes since release/does-not-exist. Do not guess a
+  different base and do not modify files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        value.txt: "before\n"
+  files:
+    value.txt: "after\n"
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: invalid preflight preserves the working tree
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: final blocked record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: invalid base blocks before findings
+    expect_regex: "^base\\trelease/does-not-exist$[\\s\\S]*^standards\\tblocked$[\\s\\S]*^verdict\\tblocked$"
+  - name: failure evidence identifies the invalid base
+    expect_regex: "^check\\t[^\\n]+review-scope[^\\n]+\\tapplicable\\tblocked\\t[^\\n]+invalid base"
+    flags: i
+  - name: no reviewer finding is produced
+    not_regex: "^finding\\t"

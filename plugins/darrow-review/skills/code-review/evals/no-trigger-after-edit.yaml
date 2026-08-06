@@ -1,0 +1,18 @@
+id: code-review-no-trigger-after-edit
+invariant: CR-E1
+prompt: >-
+  Change DEFAULT_TIMEOUT_MS from 1000 to 2500. Do not perform a code review;
+  just make the requested edit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+checks:
+  - name: ordinary edit intent is fulfilled
+    run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
+  - name: no review artifact was returned
+    run: "! grep -F 'darrow-review-result-v1' .git/last-message.md"
+output_checks:
+  - name: skill does not claim a review
+    not_regex: "darrow-review-result-v1|^standards\\t|^spec\\t"

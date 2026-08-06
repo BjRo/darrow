@@ -1,0 +1,45 @@
+id: code-review-standards-only
+invariant: CR-E1,CR-E2,CR-E4
+prompt: >-
+  Review my uncommitted changes. Report only; do not modify any files. There is
+  no originating product specification for this cleanup.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository standards
+
+          Public string helpers must reject non-string input before calling string methods.
+        src/name.js: |
+          export function normalizeName(value) {
+            if (typeof value !== "string") return "";
+            return value.trim();
+          }
+  files:
+    src/name.js: |
+      export function normalizeName(value) {
+        return value.trim();
+      }
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: review preserves the complete working tree
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: review creates no commit
+    run: test "$(git rev-list --all --reflog --count)" -eq 1
+  - name: final review record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: Standards fails independently
+    expect_regex: "^standards\\tfail$"
+  - name: Spec is honestly unavailable
+    expect_regex: "^spec\\tnot_available$"
+  - name: Standards finding cites repository guidance
+    expect_regex: "^finding\\tstandards\\t(critical|high|medium)\\tblocking\\t[^\\n]+name\\.js[^\\n]+AGENTS\\.md[^\\n]+trim"
+    flags: i
+  - name: no Spec finding is invented
+    not_regex: "^finding\\tspec\\t"
