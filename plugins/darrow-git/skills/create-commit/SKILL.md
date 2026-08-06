@@ -1,47 +1,110 @@
 ---
 name: create-commit
-description: Create a single, well-formed git commit for the user's intended change. Use when the user says "commit this", "commit my changes", "create a commit", "commit the staged files", or otherwise asks to commit work. Inspects state, stages deliberately, writes a Conventional Commit message.
+description: Create exactly one new commit for the user's intended change. Use when asked to commit current work, commit selected files, or commit an existing staged set.
 ---
 
-# create-commit
+# Create a commit
 
-Create exactly one commit for the user's intended change.
+Record one intended change as one new Conventional Commit.
 
-All git interaction goes through `scripts/commit.sh` — `<skill-dir>` below
-means the directory containing this SKILL.md; run the script with `bash`. It
-prints compact context, enforces message format and staging rules, and
-rejects invalid input with an explanatory error — fix and retry if it does.
-No raw `git` commands.
+Run every Git operation for this task through
+`<skill-dir>/scripts/commit.sh`, where `<skill-dir>` contains this file. Run
+the script with Bash. It owns state inspection, staging, message validation,
+hook execution, and the final commit; execute it without reading or
+reimplementing it. Treat its refusals as authoritative.
+
+## Working model
+
+- **Staged means selected:** an existing staged set is the complete commit set.
+  Working-tree and untracked files remain outside it.
+- **Unstaged means choose:** when nothing is staged, select only literal paths
+  that belong to the user's described change.
+- **New means additive:** this capability always creates a new commit. Saying
+  that a change belongs with the previous commit or asking for clean or compact
+  history does not authorize amendment. Only a literal request to `amend`,
+  `rewrite`, or `rebase` selects a different operation, which falls outside
+  this workflow. Leave pushing, branching, and pull requests outside it too.
+- **Message split:** the subject says what changed; a body exists only to
+  explain non-obvious motivation, a breaking change, or migration guidance.
 
 ## Workflow
 
-1. `bash <skill-dir>/scripts/commit.sh inspect`
-   - `mode: staged` → the commit set is already decided. Don't re-reason it;
-     pass no paths in step 2. Mention the "not included" files to the user
-     without committing them.
-   - `mode: unstaged` → pick only the files belonging to the change the user
-     described; unrelated dirty files stay untouched. Peek at a specific file
-     with `... commit.sh diff <path>` if needed. If the user's description
-     and the actual changes clearly conflict, say so instead of guessing.
-   - `mode: conflict` → don't commit; tell the user to resolve the
-     merge/rebase first.
-2. `bash <skill-dir>/scripts/commit.sh commit -m "<subject>" [-m "<body>"] [<path>...]`
-   — stages given paths, validates, commits, prints `<hash> <subject>`.
-   Report that line to the user.
+### 1. Establish the commit set
 
-## Message judgment
+Run:
 
-- Subject: `<type>(<scope>): <imperative summary>` — concise, specific, match
-  the style of the recent subjects from step 1.
-- Body only when the *why* is non-obvious, breaking (`<type>!:` +
-  `BREAKING CHANGE:` note), or a migration — the diff already says what
-  changed; a body explains why. Wrap at 72 chars.
-- No emoji unless recent history uses them.
+```sh
+bash <skill-dir>/scripts/commit.sh inspect
+```
 
-## Boundaries
+Follow the reported mode:
 
-- One commit per invocation; don't bundle clearly separate concerns — commit
-  what the user described and mention the rest.
-- Never amend, rebase, force, or bypass hooks unless the user explicitly
-  asked for that exact operation. If the script reports a commit failure
-  (hook, identity, conflict), relay it verbatim and stop.
+- `conflict`: report the unmerged files and stop. A merge or rebase must be
+  resolved before committing.
+- `staged`: accept the staged files as the exact commit set. Do not reconsider
+  that selection or add paths later. Preserve every file listed under `not
+  included`.
+- `unstaged`: match changed and untracked files to the user's stated intent.
+  Inspect an uncertain candidate with:
+
+  ```sh
+  bash <skill-dir>/scripts/commit.sh diff <literal-path>...
+  ```
+
+  Keep unrelated paths untouched. If the user's description conflicts with
+  the available changes, report the mismatch instead of guessing.
+- `unstaged` with no changed or untracked files: report that there is nothing
+  to commit and stop.
+
+**Complete when:** the exact commit set is known, every excluded path remains
+excluded, and the repository is neither conflicted nor clean.
+
+### 2. Compose the message
+
+Use `<type>(<scope>): <imperative summary>`; omit the scope when it adds no
+useful precision. Match relevant recent subjects from inspection. Allowed
+types are `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, `build`,
+`ci`, `style`, and `revert`.
+
+Keep the subject at most 72 characters with no trailing period. Add a body only
+for non-obvious motivation, a breaking change (`<type>!:` plus `BREAKING
+CHANGE:`), or migration guidance; wrap it at 72 characters. Follow repository
+instructions for trailers and never add tool attribution. Use emoji only when
+recent repository convention establishes it.
+
+**Complete when:** the subject identifies the commit's actual effect, satisfies
+the format, and any body contributes necessary why rather than restating the
+diff.
+
+### 3. Create the commit
+
+For `staged` mode, pass no paths:
+
+```sh
+bash <skill-dir>/scripts/commit.sh commit -m "<subject>" [-m "<body>"]
+```
+
+For `unstaged` mode, pass every selected literal path and no others:
+
+```sh
+bash <skill-dir>/scripts/commit.sh commit -m "<subject>" [-m "<body>"] <path>...
+```
+
+This `commit.sh commit` call is the only commit-creation command in the
+workflow. Use neither raw Git nor a history-rewriting option. Do not use sweep
+paths such as `.` or globs. If the script rejects the input, correct only the
+proposed selection or message and retry. If commit execution fails because of
+a hook, identity, or conflict, relay the error verbatim and stop; do not bypass
+the failure.
+
+**Complete when:** the script prints `<hash> <subject>` for one newly added
+commit, or its execution failure has been reported without changing existing
+history or bypassing safeguards.
+
+### 4. Report the result
+
+Report the emitted `<hash> <subject>`. Also name any dirty files that inspection
+listed as not included. Do not claim that excluded work was committed.
+
+**Complete when:** the user can identify the new commit and distinguish its
+contents from every remaining local change.
