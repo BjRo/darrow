@@ -1,0 +1,22 @@
+{
+  "name": "darrow-factory",
+  "version": "0.1.0",
+  "description": "Run bounded engineering tasks through isolated execution and independent verification",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Light Factory",
+    "shortDescription": "Run and diagnose bounded verified engineering work",
+    "longDescription": "Turn a concrete engineering request into a verified local working tree through one isolated writer, an independent verifier, bounded repair, and privacy-safe telemetry.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Run this bounded engineering task through the light factory.",
+      "Check which factory routes are ready before spending model budget."
+    ]
+  }
+}

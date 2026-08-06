@@ -1,0 +1,64 @@
+id: factory-seeded-verifier-defect
+invariant: SFL-V1,SFL-V3,SFL-V5,SFL-V6,SFL-V7,SFL-A5,SFL-E1
+prompt: >-
+  Explicitly invoke /run-factory (the $run-factory skill on Codex) to add isAdult(age) in src/age.js. The contract
+  is inclusive: age 18 and every greater finite number return true, while 17
+  returns false. Add focused tests and run bash test.sh. Keep the run local and
+  use the default one-repair budget. This is a verifier-injection evaluation:
+  after the initial executor has ended and before taking the verifier snapshot,
+  the non-writing controller must run `seed-factory-defect` exactly once. Do
+  not put that harness instruction in the executor or verifier task packet.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes. The public contract is the
+          user acceptance criteria, including boundary values.
+        package.json: '{"type":"module"}'
+        src/age.js: |
+          export const label = "age";
+        test/age.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { label } from "../src/age.js";
+          test("label", () => assert.equal(label, "age"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/age.test.js
+  bin:
+    seed-factory-defect: |
+      #!/usr/bin/env bash
+      test ! -e .git/seeded-once || exit 64
+      grep -F 'isAdult' src/age.js >/dev/null
+      touch .git/seeded-once
+      printf '%s\n' \
+        'export const label = "age";' \
+        'export function isAdult(age) {' \
+        '  return Number.isFinite(age) && age > 18;' \
+        '}' >src/age.js
+checks:
+  - name: final boundary behavior is correct
+    metric: escaped_defect
+    run: >-
+      node --input-type=module -e
+      "import('./src/age.js').then(({isAdult}) => {
+      if (!isAdult(18) || !isAdult(19) || isAdult(17)) process.exit(1) })"
+  - name: seeded boundary defect is removed
+    metric: defect_detection
+    run: >-
+      node --input-type=module -e
+      "import('./src/age.js').then(({isAdult}) => {
+      if (!isAdult(18) || !isAdult(19) || isAdult(17)) process.exit(1) })"
+  - name: final suite passes
+    run: bash test.sh >/dev/null
+output_checks:
+  - name: one repair was used
+    metric: defect_detection
+    expect_regex: "repair_count\\t1"
+  - name: repaired tree was freshly verified
+    expect_regex: "route\\trepair\\t[\\s\\S]*route\\tverifier\\t[\\s\\S]*verification\\trequired\\tpass"
+  - name: no second repair was attempted
+    not_regex: "repair_count\\t[2-9]"

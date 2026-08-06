@@ -78,6 +78,7 @@ export const claudeAdapter: HarnessAdapter = {
       // and every subprocess it spawns.
       env: {
         ...env,
+        DARROW_FACTORY_EXTERNAL_SANDBOX: "1",
         PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
       },
     });
@@ -90,7 +91,7 @@ export const claudeAdapter: HarnessAdapter = {
 
     let inputTokens = 0;
     let outputTokens = 0;
-    let costUsd = 0;
+    let costUsd: number | null = null;
     let resultText = "";
     let ok = false;
     try {
@@ -98,7 +99,10 @@ export const claudeAdapter: HarnessAdapter = {
       ok = claudeRunSucceeded(code, parsed);
       inputTokens = claudeInputTokens(parsed.usage);
       outputTokens = parsed.usage?.output_tokens ?? 0;
-      costUsd = parsed.total_cost_usd ?? 0;
+      costUsd =
+        typeof parsed.total_cost_usd === "number"
+          ? parsed.total_cost_usd
+          : null;
       // Mirror the codex adapter: final agent message under .git/ for checks.
       if (typeof parsed.result === "string") {
         resultText = parsed.result;

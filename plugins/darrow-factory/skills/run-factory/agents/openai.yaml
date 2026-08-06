@@ -1,0 +1,6 @@
+interface:
+  display_name: "Run Factory"
+  short_description: "Run a bounded verified engineering task"
+  default_prompt: "Use $run-factory to implement and independently verify this local engineering task."
+policy:
+  allow_implicit_invocation: false

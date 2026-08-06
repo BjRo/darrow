@@ -79,6 +79,7 @@ export const codexAdapter: HarnessAdapter = {
       // and every subprocess it spawns.
       env: {
         ...env,
+        DARROW_FACTORY_EXTERNAL_SANDBOX: "1",
         PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
       },
     });
@@ -125,7 +126,7 @@ export const codexAdapter: HarnessAdapter = {
       durationMs,
       inputTokens,
       outputTokens,
-      costUsd: 0,
+      costUsd: null,
       resultText,
       raw: ok ? out : out + err,
     };

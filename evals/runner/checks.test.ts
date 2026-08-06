@@ -77,6 +77,7 @@ describe("eval checks", () => {
       [
         {
           name: "present",
+          metric: "defect_detection",
           valid_json: true,
           expect_regex: '"verified"\\s*:\\s*true',
         },
@@ -88,6 +89,7 @@ describe("eval checks", () => {
       ],
     );
     expect(present?.passed).toBe(true);
+    expect(present?.metric).toBe("defect_detection");
     expect(forbidden?.passed).toBe(true);
     expect(exact?.passed).toBe(true);
   });

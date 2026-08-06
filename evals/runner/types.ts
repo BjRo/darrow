@@ -43,6 +43,8 @@ export interface Check {
 
 export interface OutputCheck {
   name: string;
+  /** Optional product-value metric represented by this output assertion. */
+  metric?: "escaped_defect" | "defect_detection" | "false_positive";
   /** Check passes only if the final agent message is one JSON value. */
   valid_json?: boolean;
   /** JSON Schema path, relative to the case's skill directory. */
@@ -83,7 +85,8 @@ export interface HarnessResult {
   durationMs: number;
   inputTokens: number;
   outputTokens: number;
-  costUsd: number;
+  /** Actual provider cost when supplied by the harness; null means unknown. */
+  costUsd: number | null;
   /** Normalized final agent message, excluding harness protocol events. */
   resultText: string;
   raw: string;
@@ -116,6 +119,12 @@ export interface TrialResult {
   passed: boolean;
   checks: CheckResult[];
   harness: HarnessResult;
+  factoryMetrics?: {
+    childInvocationCount: number;
+    humanInterruptions: number;
+    escapedDefects: number;
+    falsePositiveVerifierFindings: number;
+  };
 }
 
 export interface CaseResult {
@@ -132,8 +141,17 @@ export interface CaseResult {
   passRate: number;
   meanDurationMs: number;
   p95DurationMs: number;
-  meanTokens: number;
-  totalCostUsd: number;
-  /** Manually measured minutes needed to assess one trial's review output. */
-  humanReviewMinutes?: number;
+  /** Total harness tokens when complete; null when foreign child usage is not reconciled. */
+  meanTokens: number | null;
+  /** Sum of actual provider cost, or null when any trial cost is unknown. */
+  totalCostUsd: number | null;
+  /** Manually measured minutes needed to assess one trial's review output, or null when unmeasured. */
+  humanReviewMinutes: number | null;
+  /** Factory-specific outcome metrics, present when factory wire records appear. */
+  meanChildInvocationCount?: number;
+  /** Invocation counts come from controller/baseline result records. */
+  childInvocationCountSource?: "controller_result" | "condition_report";
+  totalHumanInterruptions?: number;
+  escapedDefects?: number;
+  falsePositiveVerifierFindings?: number;
 }

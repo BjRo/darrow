@@ -101,10 +101,11 @@ export async function buildFixture(
   // Never mount the skill's colocated evals/ — the model under eval could
   // read its own pass criteria from the case files.
   const evalsDir = join(skillDir, "evals");
-  // A plugin-level bin/ (shared CLI, ADR-0002) mounts two levels above the
-  // skill dir so <skill-dir>/../../bin/<cli> resolves in fixtures exactly
-  // like in the repo and the plugin cache.
-  const pluginBin = join(dirname(dirname(skillDir)), "bin");
+  // Plugin-level mechanics and deterministic config mount two levels above
+  // the skill so relative paths resolve exactly like the repo/plugin cache.
+  const pluginRoot = dirname(dirname(skillDir));
+  const pluginBin = join(pluginRoot, "bin");
+  const pluginConfig = join(pluginRoot, "config");
   for (const mount of skillMounts) {
     await cp(skillDir, join(repoDir, mount, skillName), {
       recursive: true,
@@ -112,6 +113,11 @@ export async function buildFixture(
     });
     if (existsSync(pluginBin)) {
       await cp(pluginBin, join(repoDir, mount, "..", "bin"), {
+        recursive: true,
+      });
+    }
+    if (existsSync(pluginConfig)) {
+      await cp(pluginConfig, join(repoDir, mount, "..", "config"), {
         recursive: true,
       });
     }

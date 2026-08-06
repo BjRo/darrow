@@ -34,6 +34,11 @@
       "name": "darrow-review",
       "source": "./plugins/darrow-review",
       "description": "Review pinned changes independently for repository standards and specification fulfillment"
+    },
+    {
+      "name": "darrow-factory",
+      "source": "./plugins/darrow-factory",
+      "description": "Run and diagnose bounded engineering work with isolated execution and independent verification"
     }
   ]
 }

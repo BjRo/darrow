@@ -1,0 +1,26 @@
+id: factory-doctor-no-paid-probe
+invariant: SFL-D1,SFL-D2,SFL-D3,SFL-D4
+prompt: >-
+  Explicitly invoke /doctor-factory (the $doctor-factory skill on Codex) to diagnose factory readiness from this Codex
+  host. Do not run a live model probe or mutate setup. Explain optional route
+  degradation and do not reveal credential values.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: fixture
+checks:
+  - name: no model harness was invoked
+    run: test ! -e .git/model-probes
+  - name: doctor changed no files
+    run: test -z "$(git status --porcelain --untracked-files=all)"
+output_checks:
+  - name: native support is reported
+    expect_regex: "(native|child)"
+    flags: i
+  - name: semantic profiles are reported
+    expect_regex: "(fast|standard|deep)"
+    flags: i
+  - name: remediation is actionable
+    expect_regex: "(install|authenticate|configure|ready|no remediation)"
+    flags: i

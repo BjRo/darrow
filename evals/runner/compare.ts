@@ -19,6 +19,15 @@ function metricMean(
   metric: "escaped_defect" | "defect_detection" | "false_positive",
 ): number | undefined {
   if (!result.trials.length) return undefined;
+  if (
+    metric === "false_positive" &&
+    result.falsePositiveVerifierFindings !== undefined
+  ) {
+    return result.falsePositiveVerifierFindings / result.trials.length;
+  }
+  if (metric === "escaped_defect" && result.escapedDefects !== undefined) {
+    return result.escapedDefects / result.trials.length;
+  }
   const values = result.trials.map((trial) => {
     const checks = trial.checks.filter((check) => check.metric === metric);
     if (!checks.length) return undefined;
@@ -34,7 +43,13 @@ function metricMean(
 
 function comparisonErrors(base: CaseResult, cand: CaseResult): string[] {
   const errors: string[] = [];
-  for (const key of ["invariant", "harness", "model", "effort"] as const) {
+  for (const key of [
+    "invariant",
+    "harness",
+    "harnessVersion",
+    "model",
+    "effort",
+  ] as const) {
     if (base[key] !== cand[key])
       errors.push(`${key} differs (${base[key]} vs ${cand[key]})`);
   }
@@ -92,14 +107,34 @@ for (const base of baseline) {
     `  wall    ${(base.meanDurationMs / 1000).toFixed(1)}s → ${(cand.meanDurationMs / 1000).toFixed(1)}s  ` +
       fmtDelta(base.meanDurationMs / 1000, cand.meanDurationMs / 1000, "s"),
   );
-  console.log(
-    `  tokens  ${Math.round(base.meanTokens)} → ${Math.round(cand.meanTokens)}  ` +
-      fmtDelta(base.meanTokens, cand.meanTokens, ""),
-  );
-  console.log(
-    `  cost    $${base.totalCostUsd.toFixed(4)} → $${cand.totalCostUsd.toFixed(4)}  ` +
-      fmtDelta(base.totalCostUsd, cand.totalCostUsd, "", true, 4),
-  );
+  if (
+    typeof base.meanTokens === "number" &&
+    typeof cand.meanTokens === "number"
+  ) {
+    console.log(
+      `  tokens  ${Math.round(base.meanTokens)} → ${Math.round(cand.meanTokens)}  ` +
+        fmtDelta(base.meanTokens, cand.meanTokens, ""),
+    );
+  } else if (base.meanTokens == null && cand.meanTokens == null) {
+    console.log("  tokens  unknown → unknown");
+  } else {
+    invalidComparison = true;
+    console.log("  tokens  incomparable — total usage missing from one run");
+  }
+  if (
+    typeof base.totalCostUsd === "number" &&
+    typeof cand.totalCostUsd === "number"
+  ) {
+    console.log(
+      `  cost    $${base.totalCostUsd.toFixed(4)} → $${cand.totalCostUsd.toFixed(4)}  ` +
+        fmtDelta(base.totalCostUsd, cand.totalCostUsd, "", true, 4),
+    );
+  } else if (base.totalCostUsd == null && cand.totalCostUsd == null) {
+    console.log("  cost    unknown → unknown");
+  } else {
+    invalidComparison = true;
+    console.log("  cost    incomparable — actual cost missing from one run");
+  }
   const baseEscaped = metricMean(base, "escaped_defect");
   const candEscaped = metricMean(cand, "escaped_defect");
   const baseDetection = metricMean(base, "defect_detection");
@@ -136,8 +171,8 @@ for (const base of baseline) {
     console.log("  false+  incomparable — metric missing from one run");
   }
   if (
-    base.humanReviewMinutes !== undefined &&
-    cand.humanReviewMinutes !== undefined
+    typeof base.humanReviewMinutes === "number" &&
+    typeof cand.humanReviewMinutes === "number"
   ) {
     console.log(
       `  human   ${base.humanReviewMinutes.toFixed(1)}m → ${cand.humanReviewMinutes.toFixed(1)}m  ` +
@@ -149,9 +184,46 @@ for (const base of baseline) {
           1,
         ),
     );
-  } else if (base.humanReviewMinutes !== cand.humanReviewMinutes) {
+  } else if (
+    base.humanReviewMinutes == null &&
+    cand.humanReviewMinutes == null
+  ) {
+    console.log("  human   unknown → unknown");
+  } else {
     invalidComparison = true;
     console.log("  human   incomparable — measurement missing from one run");
+  }
+  if (
+    base.meanChildInvocationCount !== undefined &&
+    cand.meanChildInvocationCount !== undefined
+  ) {
+    console.log(
+      `  child(reported) ${base.meanChildInvocationCount.toFixed(1)} → ${cand.meanChildInvocationCount.toFixed(1)}  ` +
+        fmtDelta(
+          base.meanChildInvocationCount,
+          cand.meanChildInvocationCount,
+          "",
+        ),
+    );
+  } else if (base.meanChildInvocationCount !== cand.meanChildInvocationCount) {
+    invalidComparison = true;
+    console.log("  child   incomparable — measurement missing from one run");
+  }
+  if (
+    base.totalHumanInterruptions !== undefined &&
+    cand.totalHumanInterruptions !== undefined
+  ) {
+    console.log(
+      `  interrupts ${base.totalHumanInterruptions} → ${cand.totalHumanInterruptions}  ` +
+        fmtDelta(
+          base.totalHumanInterruptions,
+          cand.totalHumanInterruptions,
+          "",
+        ),
+    );
+  } else if (base.totalHumanInterruptions !== cand.totalHumanInterruptions) {
+    invalidComparison = true;
+    console.log("  interrupts incomparable — measurement missing from one run");
   }
 }
 

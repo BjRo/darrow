@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "capability",
+  "provides": [
+    {
+      "contract": "factory.doctor",
+      "version": "1.0.0"
+    }
+  ]
+}

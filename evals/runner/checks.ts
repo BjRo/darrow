@@ -111,7 +111,7 @@ async function textCheck(
     passed = !new RegExp(check.not_regex, flags).test(text);
     if (!passed) detail = `not_regex /${check.not_regex}/ matched`;
   }
-  return { name: check.name, passed, detail };
+  return { name: check.name, passed, detail, metric: check.metric };
 }
 
 export function runOutputChecks(

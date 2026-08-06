@@ -1,0 +1,25 @@
+# role<TAB>host<TAB>profile<TAB>harness<TAB>provider<TAB>model<TAB>effort<TAB>fallback-harness<TAB>fallback-provider<TAB>fallback-model<TAB>fallback-effort
+planner	codex	fast	codex	openai	gpt-5.6-terra	low	none	none	none	none
+planner	codex	standard	codex	openai	gpt-5.6-sol	medium	none	none	none	none
+planner	codex	deep	codex	openai	gpt-5.6-sol	high	none	none	none	none
+executor	codex	fast	codex	openai	gpt-5.6-terra	low	none	none	none	none
+executor	codex	standard	codex	openai	gpt-5.6-sol	medium	none	none	none	none
+executor	codex	deep	codex	openai	gpt-5.6-sol	high	none	none	none	none
+verifier	codex	fast	codex	openai	gpt-5.6-terra	low	none	none	none	none
+verifier	codex	standard	codex	openai	gpt-5.6-sol	medium	none	none	none	none
+verifier	codex	deep	codex	openai	gpt-5.6-sol	high	none	none	none	none
+repair	codex	fast	codex	openai	gpt-5.6-terra	low	none	none	none	none
+repair	codex	standard	codex	openai	gpt-5.6-sol	medium	none	none	none	none
+repair	codex	deep	codex	openai	gpt-5.6-sol	high	none	none	none	none
+planner	claude	fast	claude	anthropic	claude-haiku-4-5	low	none	none	none	none
+planner	claude	standard	claude	anthropic	claude-sonnet-4-6	medium	none	none	none	none
+planner	claude	deep	claude	anthropic	claude-opus-4-6	high	none	none	none	none
+executor	claude	fast	codex	openai	gpt-5.6-terra	low	claude	anthropic	claude-haiku-4-5	low
+executor	claude	standard	codex	openai	gpt-5.6-sol	medium	claude	anthropic	claude-sonnet-4-6	medium
+executor	claude	deep	codex	openai	gpt-5.6-sol	high	claude	anthropic	claude-opus-4-6	high
+verifier	claude	fast	codex	openai	gpt-5.6-terra	low	claude	anthropic	claude-haiku-4-5	low
+verifier	claude	standard	codex	openai	gpt-5.6-sol	medium	claude	anthropic	claude-sonnet-4-6	medium
+verifier	claude	deep	codex	openai	gpt-5.6-sol	high	claude	anthropic	claude-opus-4-6	high
+repair	claude	fast	codex	openai	gpt-5.6-terra	low	claude	anthropic	claude-haiku-4-5	low
+repair	claude	standard	codex	openai	gpt-5.6-sol	medium	claude	anthropic	claude-sonnet-4-6	medium
+repair	claude	deep	codex	openai	gpt-5.6-sol	high	claude	anthropic	claude-opus-4-6	high

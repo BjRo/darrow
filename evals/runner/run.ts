@@ -6,6 +6,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
+import { extractFactoryMetrics } from "./factory-metrics";
 import type {
   CaseResult,
   EvalCase,
@@ -31,6 +32,15 @@ function p95(values: number[]): number {
 
 function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+}
+
+function hasForeignRoute(resultText: string, hostHarness: string): boolean {
+  for (const match of resultText.matchAll(
+    /^route\t(?:planner|executor|verifier|repair)\t([^\t\n]+)\t/gm,
+  )) {
+    if (match[1] !== hostHarness) return true;
+  }
+  return false;
 }
 
 /** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
@@ -93,7 +103,7 @@ async function runCase(
             durationMs: 0,
             inputTokens: 0,
             outputTokens: 0,
-            costUsd: 0,
+            costUsd: null,
             resultText: "",
             raw: "",
           },
@@ -103,14 +113,24 @@ async function runCase(
       const harness = await adapter.run(repoDir, prompt, model, effort);
       const checks = [
         ...(await runChecks(repoDir, evalCase.checks)),
-        ...(await runOutputChecks(
-          harness.resultText,
-          evalCase.output_checks ?? [],
-          evalCase.skillDir,
-        )),
+        // A no-skill baseline is judged on the same repository outcomes, not
+        // on the factory-specific reporting contract it cannot know about.
+        ...(withoutSkill
+          ? []
+          : await runOutputChecks(
+              harness.resultText,
+              evalCase.output_checks ?? [],
+              evalCase.skillDir,
+            )),
       ];
       const passed = harness.ok && checks.every((c) => c.passed);
-      trialResults.push({ trial, passed, checks, harness });
+      trialResults.push({
+        trial,
+        passed,
+        checks,
+        harness,
+        factoryMetrics: extractFactoryMetrics(harness.resultText, checks),
+      });
       const failed = checks.filter((c) => !c.passed);
       console.log(
         `  ${passed ? "PASS" : "FAIL"} ${evalCase.id} trial ${trial}/${trials} ` +
@@ -124,9 +144,16 @@ async function runCase(
   }
 
   const durations = trialResults.map((t) => t.harness.durationMs);
-  const tokens = trialResults.map(
-    (t) => t.harness.inputTokens + t.harness.outputTokens,
+  const tokenTotals = trialResults.map((trial) =>
+    hasForeignRoute(trial.harness.resultText, adapter.name)
+      ? null
+      : trial.harness.inputTokens + trial.harness.outputTokens,
   );
+  const measuredFactoryTrials = trialResults
+    .map((trial) => trial.factoryMetrics)
+    .filter(
+      (metric): metric is NonNullable<typeof metric> => metric !== undefined,
+    );
   return {
     caseId: evalCase.id,
     invariant: evalCase.invariant,
@@ -140,9 +167,47 @@ async function runCase(
       Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
     p95DurationMs: p95(durations),
-    meanTokens: mean(tokens),
-    totalCostUsd: trialResults.reduce((a, t) => a + t.harness.costUsd, 0),
-    humanReviewMinutes,
+    meanTokens:
+      !dry && tokenTotals.every((value) => value !== null)
+        ? mean(tokenTotals as number[])
+        : null,
+    totalCostUsd: trialResults.every(
+      (trial) =>
+        trial.harness.costUsd !== null &&
+        !hasForeignRoute(trial.harness.resultText, adapter.name),
+    )
+      ? trialResults.reduce(
+          (total, trial) => total + (trial.harness.costUsd ?? 0),
+          0,
+        )
+      : null,
+    humanReviewMinutes: humanReviewMinutes ?? null,
+    meanChildInvocationCount: measuredFactoryTrials.length
+      ? mean(measuredFactoryTrials.map((metric) => metric.childInvocationCount))
+      : undefined,
+    childInvocationCountSource: measuredFactoryTrials.length
+      ? withoutSkill
+        ? "condition_report"
+        : "controller_result"
+      : undefined,
+    totalHumanInterruptions: measuredFactoryTrials.length
+      ? measuredFactoryTrials.reduce(
+          (total, metric) => total + metric.humanInterruptions,
+          0,
+        )
+      : undefined,
+    escapedDefects: measuredFactoryTrials.length
+      ? measuredFactoryTrials.reduce(
+          (total, metric) => total + metric.escapedDefects,
+          0,
+        )
+      : undefined,
+    falsePositiveVerifierFindings: measuredFactoryTrials.length
+      ? measuredFactoryTrials.reduce(
+          (total, metric) => total + metric.falsePositiveVerifierFindings,
+          0,
+        )
+      : undefined,
   };
 }
 
@@ -240,8 +305,15 @@ for (const r of results) {
   console.log(
     `${ok ? "✓" : "✗"} ${r.caseId} [${r.invariant}] pass ${(r.passRate * 100).toFixed(0)}% ` +
       `| ${(r.meanDurationMs / 1000).toFixed(1)}s mean, ${(r.p95DurationMs / 1000).toFixed(1)}s p95 ` +
-      `| ${Math.round(r.meanTokens)} tok mean | $${r.totalCostUsd.toFixed(4)}`,
+      `| ${r.meanTokens === null ? "tokens unknown" : `${Math.round(r.meanTokens)} tok mean`} | ${r.totalCostUsd === null ? "cost unknown" : `$${r.totalCostUsd.toFixed(4)}`}`,
   );
+  if (r.meanChildInvocationCount !== undefined) {
+    console.log(
+      `  factory: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +
+        `${r.totalHumanInterruptions} interruptions | ${r.escapedDefects} escaped defects | ` +
+        `${r.falsePositiveVerifierFindings} false-positive findings`,
+    );
+  }
 }
 
 await mkdir(RESULTS_ROOT, { recursive: true });

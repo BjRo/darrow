@@ -1,0 +1,38 @@
+id: factory-cross-vendor-planning
+invariant: SFL-R1,SFL-R3,SFL-R5,SFL-X2,SFL-X3,SFL-X4,SFL-X5,SFL-X6,SFL-E1,SFL-E2
+prompt: >-
+  Explicitly invoke /run-factory (the $run-factory skill on Codex) to add the approved optional `tag` string field
+  to config.schema.json and document it in API.md. Use Claude at deep effort
+  for the planner and Codex standard for execution; stop if either pinned route
+  is unavailable. The approved compatibility rule is that omitting tag keeps
+  all current behavior. Validate with bash check.sh and keep everything local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Schema changes require planning and `bash check.sh`.
+        config.schema.json: |
+          {"type":"object","properties":{"enabled":{"type":"boolean"}}}
+        API.md: |
+          # Configuration
+
+          `enabled` is optional.
+        check.sh: |
+          #!/usr/bin/env bash
+          node -e 'const s=require("./config.schema.json"); if(s.properties.tag.type!=="string") process.exit(1)'
+          grep -F '`tag`' API.md >/dev/null
+checks:
+  - name: schema and documentation satisfy the approved plan
+    run: bash check.sh
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: pinned planner identity is honest
+    expect_regex: "route\\tplanner\\tclaude\\tanthropic\\t"
+  - name: pinned execution route is Codex
+    expect_regex: "route\\texecutor\\tcodex\\topenai\\t"
+  - name: local result is independently verified
+    expect_regex: "status\\tverified[\\s\\S]*verification\\trequired\\tpass"
