@@ -7,7 +7,7 @@ it applies, and moves repeatable procedures into skills.
 It supports both Codex (`AGENTS.md`) and Claude Code (`CLAUDE.md`) while
 preserving the loading behavior of each runtime.
 
-## Skills
+## What it provides
 
 ### `setup-information-architecture`
 
@@ -30,7 +30,16 @@ remove actions and reports the context impact before editing.
 
 Example: _“Doctor this repository's agent instructions.”_
 
-## Design model
+### Bundled inspectors
+
+`skills/setup-information-architecture/scripts/ia-setup.sh` inventories the
+repository surfaces needed to design an instruction graph. `bin/ia-doctor`
+inspects routes, runtime reachability, adapter drift, duplicates, cycles, and
+root context size; the doctor skill reaches it through its colocated script.
+These are compact structural checks, not complete validators for every Codex
+or Claude Code configuration format.
+
+## Design model and boundaries
 
 - **Root guidance** contains rules needed in most sessions and routes to
   everything else.
@@ -43,12 +52,6 @@ The skills preserve settled decisions from explicit policy or accepted ADRs.
 When the repository supports multiple live patterns without an arbiter, they
 surface the choice instead of silently turning the dominant pattern into a
 rule.
-
-## Structural checker
-
-`bin/ia-doctor` inspects routes, runtime reachability, adapter drift,
-duplicates, cycles, and root context size. It is a compact structural check,
-not a complete validator for every Codex or Claude Code configuration format.
 
 Both skills inspect and propose first, require confirmation before changing
 checked-in guidance, and never commit or push implicitly.

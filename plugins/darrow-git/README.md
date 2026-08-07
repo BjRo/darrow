@@ -1,0 +1,55 @@
+# Darrow Git
+
+This plugin turns common Git publication requests into small, explicit
+workflows. The agent still decides what the user's change means, while bundled
+scripts enforce the mechanical boundaries that are easy to get subtly wrong:
+branch naming, staging, commit shape, duplicate pull requests, and non-force
+publication.
+
+Each workflow is independently intent-triggered. Installing the plugin does not
+run Git commands automatically.
+
+## What it provides
+
+### `create-branch`
+
+Creates one conventionally named branch for the current work. It can switch the
+current checkout or, only when requested, create a linked worktree. Existing
+changes are preserved and existing branch names are never clobbered.
+
+Example: _“Create a branch for DAR-123 retry handling.”_
+
+### `create-commit`
+
+Creates one new Conventional Commit. An existing staged set is treated as the
+user's exact selection; otherwise the skill deliberately selects only paths
+belonging to the requested change. Hooks run normally, and history is never
+rewritten as part of this workflow.
+
+Example: _“Commit these changes.”_
+
+### `create-pr`
+
+Pushes the current feature branch without rewriting history and opens exactly
+one pull request for its committed delta. It respects the repository's default
+base, pull-request template, and an explicitly requested draft state, and stops
+when an open pull request already exists.
+
+Example: _“Push this branch and open a draft PR.”_
+
+### Bundled workflow scripts
+
+Each skill includes its own Bash script under `skills/<skill>/scripts/`. The
+scripts inspect and validate repository state, perform only the authorized Git
+or GitHub operation, and return structured evidence for the skill to interpret.
+They are implementation details of the workflows rather than a general Git
+wrapper.
+
+## Design boundaries
+
+- The three skills do not chain implicitly: creating a commit does not push,
+  and creating a branch does not commit.
+- Commit and pull-request text follows Conventional Commits and contains no AI
+  attribution.
+- Hooks and repository safety checks are respected rather than bypassed.
+- No workflow force-pushes, amends, rebases, merges, releases, or deploys.

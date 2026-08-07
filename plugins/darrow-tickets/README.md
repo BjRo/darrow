@@ -1,0 +1,59 @@
+# Darrow Tickets
+
+This plugin gives agents a small, backend-neutral boundary for everyday ticket
+work. The skills decide what the user means and how to present evidence; one
+bundled CLI resolves the actual tracker, validates targets and taxonomy, and
+performs only the requested operation.
+
+The result is a consistent ticket workflow without teaching every skill raw
+tracker commands. The first bundled backend is GitHub Issues through `gh`;
+other plugins can depend on the capability contract without reading this
+plugin's files.
+
+## What it provides
+
+### `create-ticket`
+
+Creates at most one evidence-grounded ticket after checking open work for a
+plausible duplicate. It selects an explicit type, uses the tracker's existing
+label taxonomy, structures the body for that type, preserves unknowns as open
+questions, and records relations only when the user names them.
+
+Example: _“File a bug for the failing CSV import.”_
+
+### `list-tickets`
+
+Runs one read-only query using only the state, type, label, milestone, topic,
+and limit filters present in the request. It returns compact results with honest
+totals and truncation information.
+
+Example: _“Which open bugs are in the next milestone?”_
+
+### `update-ticket`
+
+Applies exactly one requested mutation to exactly one verified ticket. It can
+comment, close or reopen, add or remove a label, add or remove a dependency or
+parent relation, or explicitly replace the description. Progress and evidence
+append as comments by default.
+
+Example: _“Comment on #42 with the failing command.”_
+
+### `bin/ticket`
+
+A portable Bash facade used by all three skills. It discovers the configured
+tracker backend, inspects its taxonomy, searches and fetches tickets, validates
+structured bodies and transition targets, owns backend-specific relation
+syntax, and rejects ambiguous or unsupported mutations. It exposes the
+capability through deterministic commands rather than as a general tracker
+client.
+
+## Design boundaries
+
+- One invocation creates or mutates at most one ticket; bulk operations require
+  the user to select work explicitly.
+- Similar titles are not enough to guess a target, duplicate, label, relation,
+  milestone, or assignee.
+- Ticket content contains repository or user evidence, never invented versions,
+  reproduction steps, acceptance criteria, or AI attribution.
+- `list-tickets` is strictly read-only, and `update-ticket` applies only the
+  single mutation requested.

@@ -8,48 +8,47 @@ directly.
 
 ## Plugins
 
-### [`darrow-git`](plugins/darrow-git)
+### [`darrow-git`](plugins/darrow-git/README.md)
 
 Safe Git workflows for creating branches, commits, and pull requests. Bundled
 scripts enforce naming, staging, message, and duplicate-PR boundaries while the
 skills retain judgment about scope and descriptions.
 
-### [`darrow-tickets`](plugins/darrow-tickets)
+### [`darrow-tickets`](plugins/darrow-tickets/README.md)
 
 Backend-neutral ticket workflows for creating, listing, and updating work
 items. The plugin validates targets and transitions before changing a tracker.
 
-### [`darrow-information-architecture`](plugins/darrow-information-architecture)
+### [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md)
 
 Tools for setting up and auditing lean, routed repository guidance across Codex
-and Claude Code. See the [plugin README](plugins/darrow-information-architecture/README.md)
-for its design and boundaries.
+and Claude Code.
 
-### [`darrow-decisions`](plugins/darrow-decisions)
+### [`darrow-decisions`](plugins/darrow-decisions/README.md)
 
 Skills and deterministic helpers for capturing decisions at their canonical
 scope and querying ADR/specification relationships without creating a competing
 decision store.
 
-### [`darrow-tdd`](plugins/darrow-tdd)
+### [`darrow-tdd`](plugins/darrow-tdd/README.md)
 
 A compact, model-invoked test-driven-development discipline for implementing
 behavior changes and bug fixes as durable red-to-green slices through public
 seams.
 
-### [`darrow-review`](plugins/darrow-review)
+### [`darrow-review`](plugins/darrow-review/README.md)
 
 A read-only code-review capability that pins the exact committed and declared
 working-tree scope, then evaluates repository standards and originating-spec
 fulfillment through isolated reviewers before producing one validated verdict.
 
-### [`darrow-goal-loop`](plugins/darrow-goal-loop)
+### [`darrow-goal-loop`](plugins/darrow-goal-loop/README.md)
 
 A bounded adaptive goal loop for local engineering work. It chooses the
 shortest safe planner/executor/verifier path, permits at most one repair, and
 keeps orchestration state transient.
 
-### [`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline)
+### [`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline/README.md)
 
 A deliberately static, ticket-backed pipeline modeled on Mynab's delivery
 approach. A user-invoked controller persists all phase artifacts in one ticket
