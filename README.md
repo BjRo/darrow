@@ -69,6 +69,12 @@ The marketplace manifest is
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Each plugin
 also contains native Claude Code and Codex manifests.
 
+## Research and opportunities
+
+- [Workflow opportunities from Matt Pocock's skills](docs/research/matt-pocock-workflow-opportunities.md)
+  records possible discovery, diagnosis, work-planning, and workflow-design
+  additions. It is exploratory and non-normative.
+
 ## Development
 
 ```sh
