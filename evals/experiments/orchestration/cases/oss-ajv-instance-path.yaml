@@ -1,0 +1,62 @@
+id: orchestration-oss-ajv-instance-path
+invariant: ORCH-OSS-CODE-GENERATION
+prompt: &task |-
+  Work directly in this Ajv repository and implement the requested behavior. Do not commit or publish changes.
+
+  Add `instancePath` diagnostics to compiled JTD parsers. When parsing fails, the parser function must expose `instancePath` as an RFC 6901 JSON Pointer to the value whose schema could not be satisfied. Track object property names (escaping `~` as `~0` and `/` as `~1`), array indexes, `values`, discriminator mappings, and referenced definitions. Keep the existing `message` and `position` behavior. Clear `instancePath` at the start of every call and leave it undefined after a successful parse, including when the same parser previously failed.
+
+  Update the public `JTDParser` type and add focused tests covering nested objects, arrays, escaped property names, refs, and success after failure. Use the pinned TypeScript compiler command documented in AGENTS.md before finishing.
+fixture:
+  source: ajv-8.5.0
+  files:
+    AGENTS.md: |-
+      This is a pinned evaluation checkout. Do not commit or publish changes.
+      Work only on the requested Ajv behavior. Production dependencies and a pinned TypeScript compiler are preinstalled.
+      Compile with `rm -rf dist && node .git/eval-tools/node_modules/typescript/bin/tsc -p .git/eval-tsconfig.json && cp -R lib/refs dist`.
+  commit_files: true
+  setup: |-
+    npm install --omit=dev --ignore-scripts --no-audit --no-fund --package-lock=false
+    mkdir -p .git/eval-tools
+    npm install --prefix .git/eval-tools --ignore-scripts --no-audit --no-fund --package-lock=false typescript@4.2.4 @types/node@16.11.10
+    cp "$DARROW_EVAL_CASE_DIR/ajv-eval-tsconfig.json" .git/eval-tsconfig.json
+    cp "$DARROW_EVAL_CASE_DIR/ajv-eval-stubs.d.ts" .git/eval-stubs.d.ts
+  ticket:
+    id: "1"
+    title: Add instancePath to compiled JTD parsers
+    body: *task
+checks:
+  - name: Ajv TypeScript build
+    run: rm -rf dist && node .git/eval-tools/node_modules/typescript/bin/tsc -p .git/eval-tsconfig.json && cp -R lib/refs dist
+  - name: hidden JTD instancePath contract
+    metric: escaped_defect
+    run: |-
+      node - <<'JS'
+      var assert = require('assert');
+      var Ajv = require('./dist/jtd').default;
+      var ajv = new Ajv();
+      var parse = ajv.compileParser({
+        definitions: {
+          row: { properties: { 'a/b~c': { elements: { type: 'uint8' } } } }
+        },
+        properties: { payload: { ref: 'row' } }
+      });
+
+      assert.strictEqual(parse('{"payload":{"a/b~c":[1,-1]}}'), undefined);
+      assert.strictEqual(parse.instancePath, '/payload/a~1b~0c/1');
+      assert.strictEqual(typeof parse.message, 'string');
+      assert.strictEqual(typeof parse.position, 'number');
+
+      assert.deepStrictEqual(parse('{"payload":{"a/b~c":[1,2]}}'), {payload: {'a/b~c': [1, 2]}});
+      assert.strictEqual(parse.instancePath, undefined);
+
+      var values = ajv.compileParser({ values: { properties: { enabled: { type: 'boolean' } } } });
+      assert.strictEqual(values('{"first":{"enabled":1}}'), undefined);
+      assert.strictEqual(values.instancePath, '/first/enabled');
+
+      var mapped = ajv.compileParser({
+        discriminator: 'kind',
+        mapping: { item: { properties: { count: { type: 'uint8' } } } }
+      });
+      assert.strictEqual(mapped('{"kind":"item","count":-1}'), undefined);
+      assert.strictEqual(mapped.instancePath, '/count');
+      JS

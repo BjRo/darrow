@@ -4,6 +4,48 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Fixture } from "./types";
 
+const TICKETCTL = `#!/bin/bash
+set -euo pipefail
+git_dir=$(git rev-parse --git-dir)
+case "$git_dir" in /*) ;; *) git_dir="$PWD/$git_dir" ;; esac
+ticket_id=$(<"$git_dir/fixture-ticket-id")
+ticket_title=$(<"$git_dir/fixture-ticket-title")
+ticket_body="$git_dir/fixture-ticket.md"
+log="$git_dir/ticketctl.log"
+
+usage() {
+  echo "usage: ticketctl get <id> --body-file <path> | describe <id> --body-file <path>" >&2
+  exit 2
+}
+
+[[ $# -ge 1 ]] || usage
+command=$1
+shift
+if [[ "$command" == "help" || "$command" == "--help" ]]; then
+  echo "get <id> --body-file <path>"
+  echo "describe <id> --body-file <path>"
+  exit 0
+fi
+[[ $# -eq 3 && "$2" == "--body-file" ]] || usage
+[[ "$1" == "$ticket_id" ]] || { echo "error: ticket not found: $1" >&2; exit 1; }
+body_file=$3
+
+case "$command" in
+  get)
+    cp "$ticket_body" "$body_file"
+    printf 'id: %s\nstate: open\ntitle: %s\n' "$ticket_id" "$ticket_title"
+    printf 'get %s\n' "$ticket_id" >>"$log"
+    ;;
+  describe)
+    [[ -f "$body_file" ]] || { echo "error: unreadable body file" >&2; exit 1; }
+    cp "$body_file" "$ticket_body"
+    printf 'describe %s\n' "$ticket_id" >>"$log"
+    printf 'updated: %s\n' "$ticket_id"
+    ;;
+  *) usage ;;
+esac
+`;
+
 async function git(repoDir: string, ...args: string[]): Promise<string> {
   const proc = Bun.spawn(["git", ...args], {
     cwd: repoDir,
@@ -42,6 +84,7 @@ export async function buildFixture(
   skillDir: string,
   skillMounts: string[],
   mountPluginSkills = false,
+  caseDir = "",
 ): Promise<string> {
   const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
   if (fixture.repo) {
@@ -62,7 +105,15 @@ export async function buildFixture(
     await git(repoDir, "commit", "-m", commit.message);
   }
 
-  if (fixture.files) await writeFiles(repoDir, fixture.files);
+  if (fixture.files) {
+    await writeFiles(repoDir, fixture.files);
+    if (fixture.commit_files) {
+      await git(repoDir, "add", ...Object.keys(fixture.files));
+      await git(repoDir, "commit", "-m", "Add evaluation scaffolding");
+    }
+  } else if (fixture.commit_files) {
+    throw new Error("fixture: commit_files requires files");
+  }
   if (fixture.staged?.length) await git(repoDir, "add", ...fixture.staged);
   if (fixture.hooks) {
     for (const [name, content] of Object.entries(fixture.hooks)) {
@@ -77,8 +128,31 @@ export async function buildFixture(
       await writeFile(join(binDir, name), content, { mode: 0o755 });
     }
   }
+  if (fixture.ticket) {
+    if (!/^[A-Za-z0-9._-]+$/.test(fixture.ticket.id))
+      throw new Error("fixture: ticket id contains unsupported characters");
+    if (/[\r\n]/.test(fixture.ticket.title))
+      throw new Error("fixture: ticket title must be one line");
+    const gitDir = join(repoDir, ".git");
+    const binDir = join(gitDir, "fixture-bin");
+    await mkdir(binDir, { recursive: true });
+    await Promise.all([
+      writeFile(join(binDir, "ticketctl"), TICKETCTL, { mode: 0o755 }),
+      writeFile(join(gitDir, "fixture-ticket-id"), fixture.ticket.id + "\n"),
+      writeFile(
+        join(gitDir, "fixture-ticket-title"),
+        fixture.ticket.title + "\n",
+      ),
+      writeFile(join(gitDir, "fixture-ticket.md"), fixture.ticket.body),
+      writeFile(join(gitDir, "ticketctl.log"), ""),
+    ]);
+  }
   if (fixture.setup) {
-    const proc = Bun.spawn(["bash", "-c", fixture.setup], {
+    const setup = fixture.setup.replaceAll(
+      "{{case_dir}}",
+      "$DARROW_EVAL_CASE_DIR",
+    );
+    const proc = Bun.spawn(["bash", "-c", setup], {
       cwd: repoDir,
       stdout: "pipe",
       stderr: "pipe",
@@ -86,6 +160,7 @@ export async function buildFixture(
         ...process.env,
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_CONFIG_SYSTEM: "/dev/null",
+        DARROW_EVAL_CASE_DIR: caseDir,
       },
     });
     const [err, code] = await Promise.all([

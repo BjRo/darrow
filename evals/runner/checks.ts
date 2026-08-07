@@ -180,8 +180,10 @@ export async function runChecks(
       if (!passed)
         detail = `not_regex /${check.not_regex}/ matched:\n${out.trim()}`;
     }
-    if (code !== expectedCode)
-      detail = `exit=${code} (expected ${expectedCode}): ${err.trim()}`;
+    if (code !== expectedCode) {
+      const processOutput = [out.trim(), err.trim()].filter(Boolean).join("\n");
+      detail = `exit=${code} (expected ${expectedCode}): ${processOutput}`;
+    }
 
     results.push({
       name: check.name,

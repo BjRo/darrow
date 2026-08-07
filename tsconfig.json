@@ -9,5 +9,5 @@
     "types": ["bun"]
   },
   "include": ["evals/**/*.ts"],
-  "exclude": ["evals/results/**"]
+  "exclude": ["evals/results/**", "evals/corpus/**/cache/**"]
 }

@@ -1,0 +1,31 @@
+version: 1
+cache_dir: cache
+sources:
+  click-8.0.0:
+    repository: https://github.com/pallets/click.git
+    commit: 9da166957f5848b641231d485467f6140bca2bc0
+    commit_date: "2021-05-11T20:42:02Z"
+    license: BSD-3-Clause
+    license_file: LICENSE.rst
+    provenance: Upstream 8.0.0 release authored by David Lord before public availability of GitHub Copilot; this source was not generated for the benchmark.
+  ajv-8.5.0:
+    repository: https://github.com/ajv-validator/ajv.git
+    commit: be07d3d8c0aac8fffe68378d25bdd892c61ba2e5
+    commit_date: "2021-05-20T13:18:51Z"
+    license: MIT
+    license_file: LICENSE
+    provenance: Upstream 8.5.0 release authored by Evgeny Poberezkin before public availability of GitHub Copilot; this source was not generated for the benchmark.
+  go-git-5.4.2:
+    repository: https://github.com/go-git/go-git.git
+    commit: da810275bf682d29a530ed819aff175f47bd7634
+    commit_date: "2021-06-02T08:25:31Z"
+    license: Apache-2.0
+    license_file: LICENSE
+    provenance: Upstream 5.4.2 release snapshot from before public availability of GitHub Copilot; named human maintainers are recorded in Git history and this source was not generated for the benchmark.
+  express-4.17.1:
+    repository: https://github.com/expressjs/express.git
+    commit: e1b45ebd050b6f06aa38cda5aaf0c21708b0c71e
+    commit_date: "2019-05-26T04:24:55Z"
+    license: MIT
+    license_file: LICENSE
+    provenance: Upstream 4.17.1 release authored by Douglas Christopher Wilson, two years before public availability of GitHub Copilot; this source was not generated for the benchmark.

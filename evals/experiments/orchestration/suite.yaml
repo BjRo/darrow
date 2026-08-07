@@ -1,0 +1,22 @@
+version: 1
+experiment: orchestration-value
+case_filter: orchestration-oss-
+modes:
+  vanilla:
+    condition: conditions/vanilla.md
+    require_evaluation_records: true
+  native-goal:
+    condition_by_harness:
+      claude: conditions/native-goal-claude.md
+      codex: conditions/native-goal-codex.md
+    require_evaluation_records: true
+  darrow-goal-loop:
+    condition: conditions/darrow-goal-loop.md
+    skill_dir: ../../../plugins/darrow-goal-loop/skills/pursue-goal
+    mount_plugin_skills: true
+    require_evaluation_records: true
+  darrow-ticket-pipeline:
+    condition: conditions/darrow-ticket-pipeline.md
+    skill_dir: ../../../plugins/darrow-ticket-pipeline/skills/deliver-ticket
+    mount_plugin_skills: true
+    require_evaluation_records: true

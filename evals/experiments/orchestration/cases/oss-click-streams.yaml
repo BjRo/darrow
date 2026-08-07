@@ -1,0 +1,51 @@
+id: orchestration-oss-click-streams
+invariant: ORCH-OSS-STREAM-LIFECYCLE
+prompt: &task |-
+  Work directly in this Click repository and implement the requested behavior. Do not commit or publish changes.
+
+  Modernize `click.testing.CliRunner` stream capture so stdout and stderr are always captured independently while `Result.output` and a new `Result.output_bytes` preserve their chronological interleaving. Remove the `mix_stderr` constructor option. `Result.stdout` and `stdout_bytes` must contain stdout only; `Result.stderr` and `stderr_bytes` must contain stderr only; `output` and `output_bytes` must contain both streams in write order. Echoed stdin must appear in that same combined order. Preserve newline normalization and invalid-byte replacement behavior on the text properties.
+
+  Update the public types, docstrings, tests, and release notes needed for a maintainable change. Keep the implementation single-threaded, as `CliRunner` already is. Run the focused testing module before finishing.
+fixture:
+  source: click-8.0.0
+  files:
+    AGENTS.md: |-
+      This is a pinned evaluation checkout. Do not commit or publish changes.
+      Work only on the requested Click behavior. A pinned test environment is preinstalled. Use `PYTHONPATH=src .git/eval-venv/bin/python -m pytest tests/test_testing.py` for the focused suite.
+  commit_files: true
+  setup: python3 -m venv .git/eval-venv && .git/eval-venv/bin/pip install --disable-pip-version-check -r requirements/tests.txt
+  ticket:
+    id: "1"
+    title: Modernize CliRunner stream capture
+    body: *task
+checks:
+  - name: hidden stream interleaving contract
+    metric: escaped_defect
+    run: |-
+      PYTHONPATH=src .git/eval-venv/bin/python - <<'PY'
+      import inspect
+      import sys
+      import click
+      from click.testing import CliRunner
+
+      assert "mix_stderr" not in inspect.signature(CliRunner).parameters
+
+      @click.command()
+      def cli():
+          click.echo("out-1", nl=False)
+          click.echo("err-1", nl=False, err=True)
+          value = sys.stdin.readline().strip()
+          click.echo("out-2:" + value, nl=False)
+          click.echo("err-2", nl=False, err=True)
+
+      result = CliRunner(echo_stdin=True).invoke(cli, input="typed\n")
+      assert result.exit_code == 0, result.exception
+      assert result.stdout_bytes == b"out-1typed\nout-2:typed"
+      assert result.stderr_bytes == b"err-1err-2"
+      assert result.output_bytes == b"out-1err-1typed\nout-2:typederr-2"
+      assert result.stdout == "out-1typed\nout-2:typed"
+      assert result.stderr == "err-1err-2"
+      assert result.output == "out-1err-1typed\nout-2:typederr-2"
+      PY
+  - name: focused upstream Click tests
+    run: PYTHONPATH=src .git/eval-venv/bin/python -m pytest -q tests/test_testing.py

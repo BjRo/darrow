@@ -1,4 +1,5 @@
 node_modules/
 evals/results/
+evals/corpus/orchestration/cache/
 .tmp/
 .DS_Store

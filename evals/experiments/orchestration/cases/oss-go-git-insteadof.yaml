@@ -1,0 +1,61 @@
+id: orchestration-oss-go-git-insteadof
+invariant: ORCH-OSS-PUBLIC-CONFIG-API
+prompt: &task |-
+  Work directly in this go-git repository and implement the requested behavior. Do not commit or publish changes.
+
+  Git config permits more than one `insteadOf` entry in the same `[url "base"]` subsection, but `config.URL` currently retains only one. Change `URL.InsteadOf` to represent all configured values. Unmarshal and marshal every entry without loss, reject rules with no usable `insteadOf` value, and make rewriting choose the longest matching prefix across every value in every URL rule. Preserve the unmatched URL unchanged and retain deterministic round trips.
+
+  Update affected callers, comments, and tests throughout the repository. Keep the public model idiomatic for Go and run the config package tests before finishing.
+fixture:
+  source: go-git-5.4.2
+  files:
+    AGENTS.md: |-
+      This is a pinned evaluation checkout. Do not commit or publish changes.
+      Work only on the requested go-git behavior. Use `go test ./config` for the focused suite.
+  commit_files: true
+  ticket:
+    id: "1"
+    title: Preserve multiple insteadOf entries
+    body: *task
+checks:
+  - name: hidden multiple insteadOf contract
+    metric: escaped_defect
+    run: |-
+      hidden=config/eval_multiple_insteadof_test.go
+      trap 'rm -f "$hidden"' EXIT
+      cat >"$hidden" <<'GO'
+      package config
+
+      import (
+        "strings"
+        "testing"
+      )
+
+      func TestEvalMultipleInsteadOfContract(t *testing.T) {
+        input := []byte("[core]\n\tbare = false\n[url \"ssh://git@example/\"]\n\tinsteadOf = gh:\n\tinsteadOf = gh:team/\n")
+        cfg := NewConfig()
+        if err := cfg.Unmarshal(input); err != nil { t.Fatal(err) }
+        rule := cfg.URLs["ssh://git@example/"]
+        if len(rule.InsteadOf) != 2 || rule.InsteadOf[0] != "gh:" || rule.InsteadOf[1] != "gh:team/" {
+          t.Fatalf("values not preserved: %#v", rule.InsteadOf)
+        }
+        if got := rule.ApplyInsteadOf("gh:team/repo"); got != "ssh://git@example/repo" {
+          t.Fatalf("longest value in rule not applied: %q", got)
+        }
+        other := &URL{Name: "ssh://other/", InsteadOf: []string{"gh:team/repo/"}}
+        rules := map[string]*URL{rule.Name: rule, other.Name: other}
+        selected := findLongestInsteadOfMatch("gh:team/repo/pkg", rules)
+        if selected != other { t.Fatalf("longest rule not selected: %#v", selected) }
+        if got := selected.ApplyInsteadOf("gh:team/repo/pkg"); got != "ssh://other/pkg" {
+          t.Fatalf("selected rewrite wrong: %q", got)
+        }
+        out, err := cfg.Marshal()
+        if err != nil { t.Fatal(err) }
+        if strings.Count(string(out), "insteadOf =") != 2 { t.Fatalf("round trip lost values:\n%s", out) }
+        empty := &URL{Name: "ssh://empty/", InsteadOf: nil}
+        if empty.Validate() == nil { t.Fatal("empty rule must be rejected") }
+      }
+      GO
+      go test ./config -run TestEvalMultipleInsteadOfContract -count=1
+  - name: focused upstream go-git tests
+    run: go test ./config

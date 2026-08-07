@@ -4,6 +4,8 @@ export interface FixtureCommit {
 }
 
 export interface Fixture {
+  /** Corpus source ID resolved by the loader to a pinned local repository. */
+  source?: string;
   /** Absolute path to a local repo to clone (HEAD state) instead of building
    *  commits. Remotes are stripped so nothing can reach the source repo. */
   repo?: string;
@@ -11,6 +13,14 @@ export interface Fixture {
   commits?: FixtureCommit[];
   /** Working-tree files written (or overwritten) after the commits. */
   files?: Record<string, string>;
+  /** Commit `files` as evaluation scaffolding before the harness starts. */
+  commit_files?: boolean;
+  /** One local tracker record exposed through `.git/fixture-bin/ticketctl`. */
+  ticket?: {
+    id: string;
+    title: string;
+    body: string;
+  };
   /** Paths staged with `git add` after `files` are written. */
   staged?: string[];
   /** Git hooks installed executable under .git/hooks, e.g. {"pre-commit": "#!/bin/sh\nexit 1"}. */
@@ -73,6 +83,8 @@ export interface EvalCase {
    *  case file's location (two levels up from evals/<case>.yaml), never set
    *  in the yaml itself. */
   skillDir: string;
+  /** Absolute directory containing the case YAML, derived by the loader. */
+  caseDir: string;
   prompt: string;
   fixture: Fixture;
   /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
@@ -127,6 +139,28 @@ export interface TrialResult {
     escapedDefects: number;
     falsePositiveVerifierFindings: number;
   };
+  judge?: JudgeResult;
+}
+
+export interface JudgeAssessment {
+  verdict: "pass" | "fail";
+  overallScore: number;
+  dimensions: {
+    correctness: number;
+    maintainability: number;
+    testQuality: number;
+    scopeDiscipline: number;
+  };
+  strengths: string[];
+  weaknesses: string[];
+  summary: string;
+}
+
+export interface JudgeResult {
+  ok: boolean;
+  assessment?: JudgeAssessment;
+  parseError?: string;
+  harness: HarnessResult;
 }
 
 export interface CaseResult {
@@ -157,4 +191,8 @@ export interface CaseResult {
   totalHumanInterruptions?: number;
   escapedDefects?: number;
   falsePositiveVerifierFindings?: number;
+  /** Mean blind-judge score (1-5), separate from deterministic pass/fail. */
+  meanJudgeScore?: number;
+  /** Share of trials the blind judge classified as acceptable. */
+  judgePassRate?: number;
 }

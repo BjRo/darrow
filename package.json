@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "eval": "bun evals/runner/run.ts",
+    "eval:orchestration:prepare": "bun evals/corpus/orchestration/prepare.ts",
+    "eval:orchestration": "bun evals/runner/suite.ts",
     "format": "prettier --write .",
     "hooks:install": "git config core.hooksPath .githooks",
     "lint": "prettier --check .",

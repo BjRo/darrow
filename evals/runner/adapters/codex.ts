@@ -29,7 +29,7 @@ export function codexRunSucceeded(code: number, stream: string): boolean {
  * the fixture repo at .agents/skills/ (Codex agent-skills discovery).
  * Native approvals are bypassed inside the runner's outer OS sandbox.
  * Codex reports token usage in its JSONL event stream but no cost — costUsd
- * stays 0 for this adapter.
+ * stays null for this adapter.
  */
 export const codexAdapter: HarnessAdapter = {
   name: "codex",
