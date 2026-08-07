@@ -1086,7 +1086,12 @@ bridge() {
   bridge_status=0
   if [ "$harness" = codex ]; then
     if [ "$boundary" = read_only ]; then sandbox=read-only; else sandbox=workspace-write; fi
-    (cd "$repo" && run_with_timeout "$role_time_limit" codex exec --model "$model" --config "model_reasoning_effort=\"$effort\"" --sandbox "$sandbox" --output-last-message "$output" - <"$prompt_file") >"$output.log" 2>&1 || bridge_status=$?
+    if [ "${DARROW_GOAL_LOOP_EXTERNAL_SANDBOX:-0}" = 1 ]; then
+      codex_boundary=(--dangerously-bypass-approvals-and-sandbox)
+    else
+      codex_boundary=(--sandbox "$sandbox")
+    fi
+    (cd "$repo" && run_with_timeout "$role_time_limit" codex exec --model "$model" --config "model_reasoning_effort=\"$effort\"" "${codex_boundary[@]}" --output-last-message "$output" - <"$prompt_file") >"$output.log" 2>&1 || bridge_status=$?
   else
     claude_profile=
     if [ "${DARROW_GOAL_LOOP_EXTERNAL_SANDBOX:-0}" = 1 ]; then

@@ -1,11 +1,12 @@
 id: goal-loop-cross-vendor-planning
 invariant: AGL-R1,AGL-R3,AGL-R5,AGL-X2,AGL-X3,AGL-X4,AGL-X5,AGL-X6,AGL-E1,AGL-E2
 prompt: >-
-  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to add the approved optional `tag` string field
-  to config.schema.json and document it in API.md. Use Claude at deep effort
-  for the planner and Codex standard for execution; stop if either pinned route
-  is unavailable. The approved compatibility rule is that omitting tag keeps
-  all current behavior. Validate with bash check.sh and keep everything local.
+  /pursue-goal (use $pursue-goal on Codex) Add the approved optional `tag`
+  string field to config.schema.json and document it in API.md. Use Claude at
+  deep effort for the planner and Codex standard for execution; stop if either
+  pinned route is unavailable. The approved compatibility rule is that
+  omitting tag keeps all current behavior. Validate with bash check.sh and keep
+  everything local.
 fixture:
   commits:
     - message: "chore: init"

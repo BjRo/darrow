@@ -1,33 +1,83 @@
 # Ticket pipeline controller protocol
 
-## Ticket boundary
+Use this protocol for one `deliver-ticket` run. It owns the fragile mechanics;
+do not restate or vary them in child packets.
 
-Use an installed backend-neutral ticket-management capability to fetch the
-exact ticket and explicitly replace its description. Detect both operations
-before launching a child. Do not locate another plugin on disk and do not use
-raw tracker-specific commands. A missing or failing operation is `blocked`.
+## 1. Ticket and user-work boundary
 
-The user's explicit invocation with one ticket identifier authorizes reads and
-description replacements on that ticket only. Preserve every byte outside the
-pipeline-owned sections by transforming exported bodies with the bundled
-`ticket-pipeline` command. Re-fetch after each replacement and confirm the
-persisted `Ticket Pipeline` sections match the candidate body before continuing.
+Use an installed backend-neutral ticket-management capability to fetch exactly
+the named ticket and explicitly replace its description. Detect both operations
+before launching a child. Do not locate another plugin on disk or use raw
+tracker-specific commands. A missing or failing operation is `blocked`.
 
-## Child packet
+Explicit invocation authorizes reads and description replacements on that
+ticket only. Preserve every byte outside headings beginning `## Ticket
+Pipeline` by transforming exported bodies with the bundled mechanic. After
+each replacement, re-fetch into a new snapshot, compare all pipeline-owned
+bytes with the candidate, then validate it with `summary`. Never continue from
+the unconfirmed candidate.
 
-Create a fresh child with no parent transcript. Give it only:
+Resolve the mechanic without assuming the current directory:
 
-- absolute repository and current ticket-body snapshot paths;
-- run ID, ticket ID, phase, iteration, stable child ID, and artifact output;
-- rework mode (`review` or `qa_fix`) when the phase is `rework`;
-- the exact phase skill name to invoke;
+```sh
+skill_dir=<absolute directory containing deliver-ticket/SKILL.md>
+pipeline="$skill_dir/../../bin/ticket-pipeline"
+```
+
+Keep exported ticket bodies, candidate replacements, artifacts, baseline data,
+and reason files in private temporary storage outside the repository. Pass only
+absolute paths to model-facing packets and mechanics.
+
+### User-work baseline
+
+Before initialization, record `git rev-parse HEAD` and the exact bytes from
+`git status --porcelain=v1 -z --untracked-files=all`. Convert every
+NUL-delimited status record and filename to a printable, reversible single-line
+encoding before placing it in the baseline file. For every reported path,
+record:
+
+- its encoded status and path;
+- worktree existence, content hash, and mode;
+- the complete index entry or an explicit absent marker.
+
+Handle rename/copy source paths and destinations separately. Refuse unreadable
+paths or a lossy encoding. Writers receive the persisted baseline and must not
+touch any listed path. Before a verified finish, recapture the same evidence
+and require every recorded content, mode, and index fingerprint to match; do
+not clean, reset, restore, stage, unstage, or hide user work to make it match.
+
+### Initialize or reconcile
+
+Fetch the ticket description into a private snapshot. If it has no reserved
+pipeline heading, initialize it with:
+
+```sh
+bash "$pipeline" init --body-file <snapshot> --run-id <safe-stable-id> \
+  --repo <absolute-repository> --base-revision <HEAD> \
+  --baseline-file <baseline> --output <candidate>
+```
+
+Replace, re-fetch, compare, and validate as described above. For an existing
+run, call `summary` on the re-fetched body. A repository byte mismatch, base
+revision mismatch, malformed state, orphaned artifact, or contradictory ledger
+is `blocked`. A completed run is reported without replay. A surviving
+`in_progress` attempt is `needs_human`, because its effects are uncertain.
+
+## 2. Child packet and lifecycle
+
+Create a fresh child with no parent transcript. Include only:
+
+- absolute repository, current ticket snapshot, and artifact-output paths;
+- run ID, ticket ID, phase, iteration, and stable child ID;
+- exact required phase skill;
+- rework mode (`review` or `qa_fix`) only for rework;
 - write boundary (`read_only` or `local_worktree`);
-- pre-existing working-tree status and base revision;
-- time/invocation stopping budget;
-- relevant prior artifact names already present in the ticket.
+- base revision and persisted pre-existing-work baseline;
+- relevant prior artifact names already present in the ticket;
+- time/invocation stopping budget.
 
-For harness-observable reconciliation, render these four packet identities as
-exact single-line bullets (additional packet bullets may follow):
+Render these four identities as exact single-line bullets; additional bounded
+packet bullets may follow:
 
 ```text
 - phase: <phase>
@@ -36,59 +86,92 @@ exact single-line bullets (additional packet bullets may follow):
 - required skill: $<phase-skill-name>
 ```
 
-Before spawning, transform and persist the current ticket with `ticket-pipeline
-launch`, including the stable child ID and harness/model/effort route. Re-fetch
-and validate that in-flight record. Only then tell the child to read the phase
-skill and `<phase-skill-dir>/../../config/phase-artifact.md`. Do not copy phase
-instructions into the packet. Wait for the child, consume its artifact, and
-close it before launching a dependent child. Treat a lost child, missing
-artifact, or malformed artifact as an uncertain phase attempt: retain the
-in-flight launch row, finish `needs_human` with that exact phase, and do not
-execute or repeat the phase inline. A replacement controller treats any
-persisted `in_progress` phase the same way.
+Do not copy phase instructions, the parent transcript, broad repository
+content, hidden reasoning, credentials, or environment values into the packet.
+Tell the child to read its named skill and the shared phase-artifact contract.
 
-## Loop decisions
+### Launch before effect
 
-Use `bash <skill-dir>/../../bin/ticket-pipeline summary --body-file <snapshot>` after
-every persisted artifact. Follow `next_phase` mechanically.
+Before spawning the child:
 
-- `challenge:needs_revision`: launch the next refine iteration, up to three
+1. Choose and pin its stable ID and actual harness/model/effort route.
+2. Transform the current re-fetched body with `ticket-pipeline launch`.
+3. Replace the description, re-fetch it, compare pipeline-owned bytes, and run
+   `summary`.
+4. Require the exact phase and iteration to be `in_progress`; only then spawn.
+
+Wait for the child without an invented timeout. At most one write-capable child
+may be active. Close every child after consuming its result and before any
+dependent launch.
+
+### Consume one artifact
+
+After the child exits:
+
+1. Require exactly one artifact at its absolute packet output path.
+2. Re-fetch the ticket description to incorporate concurrent human edits.
+3. Run `ticket-pipeline record` with that body and artifact.
+4. Replace the description through the ticket capability.
+5. Re-fetch, compare pipeline-owned bytes, and run `summary` on the persisted
+   result.
+
+The mechanic validates run, phase, iteration, child ID, status, and artifact
+shape. Do not repair semantic findings in the controller. Do not pass a lost,
+missing, or malformed artifact to `record`; retain the already-persisted launch
+row, finish `needs_human` with the uncertain phase, and never repeat or execute
+it inline.
+
+## 3. Bounded state transitions
+
+Use `bash "$pipeline" summary --body-file <re-fetched-snapshot>` after every
+persisted artifact and follow `next_phase` mechanically.
+
+- `challenge:needs_revision` launches the next refine iteration, up to three
   challenge attempts. The third unresolved challenge needs a human decision.
-- `review:changes_requested`: launch one rework and a second fresh review. A
+- `review:changes_requested` launches one rework and a second fresh review. A
   second changes-requested verdict needs a human decision.
-- `qa:failed`: launch one QA-focused rework and a second fresh QA. A second
-  failure ends `failed` unless the artifact identifies a product decision, in
-  which case it is `needs_human`.
-- Any `needs_human`, `blocked`, or non-recoverable `failed`: stop. Do not launch
-  downstream phases.
+- `qa:failed` launches one `qa_fix` rework and a second fresh QA. A second
+  failure ends `failed` unless the QA artifact identifies a product decision,
+  in which case it ends `needs_human`.
+- Any `needs_human`, `blocked`, or non-recoverable `failed` result stops the
+  pipeline before downstream phases.
 
-Never exceed the script's iteration limit by inventing another phase, child,
-or inline retry.
+Never exceed the mechanic's limit by inventing another phase, child, inline
+retry, or reinterpretation of a phase status.
 
-## Result record
+## 4. Finish and result record
 
-End with a concise human summary followed by one TSV record:
+Use `ticket-pipeline finish` with the honest terminal status. For
+`needs_human`, supply a reason file containing only the exact decision,
+evidence, and smallest next action. Persist, re-fetch, compare pipeline-owned
+bytes, and validate the final body. The final status must match the persisted
+ticket state; only a pre-initialization failure lacks such state.
+
+End with a concise human summary followed by this TSV record, using one line
+per observed item and absolute paths:
 
 ```text
-format\tdarrow-ticket-pipeline-result-v1
-run_id\t<RUN_ID>
-ticket\t<TICKET_ID>
-status\t<OUTCOME>
-phase\t<PHASE>\t<ITERATION>\t<STATUS>  # repeat
-route\t<PHASE>\t<ITERATION>\t<HARNESS>\t<MODEL>\t<EFFORT>\t<CHILD_ID>  # repeat
-changed_file\t<ABSOLUTE PATH>            # repeat
-gate\t<NAME>\t<COMMAND>\t<STATUS>\t<EVIDENCE>  # repeat
-review\t<STATUS>\t<EVIDENCE>
-qa\t<STATUS>\t<EVIDENCE>
-challenge_iterations\t<N>
-review_iterations\t<N>
-qa_iterations\t<N>
-evaluation_child_invocations\t<N>
-evaluation_human_interruptions\t<0 OR 1>
-risk\t<TEXT>
-next_action\t<TEXT OR none>
+format	darrow-ticket-pipeline-result-v1
+run_id	<RUN_ID OR none before initialization>
+ticket	<TICKET_ID>
+status	<verified|needs_human|blocked|failed|budget_exhausted>
+phase	<PHASE>	<ITERATION>	<STATUS>  # repeat when launched
+route	<PHASE>	<ITERATION>	<HARNESS>	<MODEL>	<EFFORT>	<CHILD_ID>  # repeat when launched
+changed_file	<ABSOLUTE PATH>            # repeat when changed
+gate	<NAME>	<COMMAND>	<STATUS>	<EVIDENCE>  # repeat when applicable
+review	<STATUS OR not_run>	<EVIDENCE>
+qa	<STATUS OR not_run>	<EVIDENCE>
+challenge_iterations	<N>
+review_iterations	<N>
+qa_iterations	<N>
+evaluation_child_invocations	<N>
+evaluation_human_interruptions	<0 OR 1>
+risk	<TEXT OR none observed>
+next_action	<TEXT OR none>
 ```
 
-Use one record per observed item and absolute paths. Count actual child
-launches, including failed or malformed attempts. Do not invent token or cost
-figures. The final status must match the persisted ticket state.
+Count actual child launches, including lost and malformed attempts. Count a
+human interruption only when the run requires a new user decision. Do not
+invent costs, tokens, checks, routes, files, or phase outcomes. For a failure
+before initialization, use `run_id	none`, omit phase/route/file/gate records,
+use `not_run` for review and QA, and set every count to zero.

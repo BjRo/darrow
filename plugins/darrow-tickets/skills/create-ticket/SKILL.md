@@ -1,67 +1,156 @@
 ---
 name: create-ticket
-description: Create exactly one well-formed tracker ticket for a problem or desired outcome. Use when the user says "create a ticket", "file an issue", "open a bug for this", "track this", "turn this into a ticket", or otherwise asks to record work in the tracker.
+description: Create exactly one evidence-grounded tracker ticket after checking for a plausible duplicate. Use when the user asks to create, file, open, track, or turn work into a ticket or issue; do not use for bulk creation, updating an existing ticket, or planning the work.
 ---
 
-# create-ticket
+# Create one ticket
 
-Create exactly one ticket that captures the problem or desired outcome.
+Record the problem or desired outcome already known. Do not refine, decompose,
+review, or start the work.
 
-All tracker interaction goes through the `ticket` CLI at
-`<skill-dir>/../../bin/ticket`, where `<skill-dir>` is the directory
-containing this SKILL.md — two levels up from here, NOT the repo root. A
-skill loaded from `.claude/skills/create-ticket/SKILL.md` finds the CLI at
-`.claude/bin/ticket`; installed as a plugin it sits in the plugin's own
-`bin/`. Run it with `bash`. The CLI resolves the backend, enforces
-body structure per type, existing-labels-only, relation-target existence and
-the no-attribution rule, and rejects invalid input with an explanatory error
-— fix input errors and retry. Backend refusals (missing gh, no remote,
-tracker errors) → relay verbatim and stop. No raw `gh` or tracker commands.
+## Working model
+
+- **One ticket:** one invocation creates at most one tracker object. A bulk
+  request needs the user to select one item first.
+- **Plausible duplicate:** an open ticket appears to describe the same problem
+  or desired outcome, not merely the same component or keyword. Report it and
+  stop; the user decides whether to file anyway.
+- **Evidence-grounded body:** facts come from the request, conversation, or
+  repository. Unknowns stay explicit questions; they never become invented
+  reproduction steps, versions, paths, or acceptance criteria.
+- **Caller-owned structure:** dependency, parent, milestone, and assignee
+  choices are recorded only when the user names them.
+
+## Tracker boundary
+
+All tracker interaction goes through the bundled CLI:
+
+```sh
+skill_dir=<absolute directory containing this SKILL.md>
+ticket="$skill_dir/../../bin/ticket"
+```
+
+Run it with `bash`. It resolves the backend, validates ticket structure,
+restricts labels to the existing taxonomy, verifies relation targets, owns
+backend relation syntax, and rejects tool attribution. Never use raw tracker
+commands or another plugin's files.
+
+Correct and retry a CLI input error caused by your title/body/arguments. Relay
+a backend refusal—missing backend, remote, ticket target, milestone, assignee,
+or tracker operation—verbatim and stop; do not invent a fallback.
 
 ## Workflow
 
-1. `bash <skill-dir>/../../bin/ticket inspect` — note the backend and which
-   labels exist (create maps `--type` to an existing label automatically).
-2. `bash <skill-dir>/../../bin/ticket list --search "<keywords>"` — search
-   with the most distinctive words of the problem. A result that plausibly
-   describes the same problem → report its id and title and stop; the user
-   decides whether to file anyway. Create only when nothing matches.
-3. Write the body to a temp file outside the repo (e.g. under `mktemp -d`;
-   never a file in the working tree), then:
-   `bash <skill-dir>/../../bin/ticket create --title <t> --type <type> --body-file <f> [--label <l>]... [--milestone <m>] [--assignee <a>] [--depends-on <id>]... [--parent <id>]`
-4. Report the CLI's output verbatim (id, URL, type, labels, relations,
-   notes), plus any dedup candidates or labels you left out and why.
+### 1. Inspect taxonomy and classify the request
 
-## Judgment
+Run:
 
-- Type: bug | feature | task | chore — chosen from what the user describes,
-  not the words they use ("it crashes" is a bug even if nobody says "bug").
-- Body structure the CLI requires: bug → `## Observed`, `## Expected`,
-  `## Reproduction`; feature → `## Motivation`, `## Acceptance criteria`;
-  task/chore → `## Outcome`, `## Done criteria`.
-- Evidence only: quote error messages verbatim; take paths, commands and
-  versions from the conversation or the repo. Anything you don't know goes
-  under an optional `## Open questions` heading — never invent repro steps
-  or speculative details.
-- The ticket is only as elaborate as what is already known: record the
-  request, don't refine or expand it.
-- Title: concise, specific, states the problem or outcome — not the
-  implementation. No trailing period.
-- Extra `--label` values: only labels shown by inspect, and only when they
-  clearly apply (e.g. an area label matching the affected code).
-- `--depends-on` / `--parent`: only when the user named the related ticket.
-  Never infer structure from content.
-- `--milestone` / `--assignee`: only when the user asked for them; the
-  backend rejects unknown values — relay that verbatim, never invent
-  alternatives.
+```sh
+bash "$ticket" inspect
+```
 
-## Boundaries
+Require exactly one intended ticket. Choose its type from the described work,
+not the user's vocabulary:
 
-- One ticket per invocation; bulk requests → ask the user to go one by one.
-- A plausible dedup match → report and stop; never file a duplicate on your
-  own judgment.
-- Never create labels or milestones; a label that doesn't exist is omitted
-  and mentioned in your report.
-- Never plan, break down, or review the work itself — other capabilities
-  own that; this skill records.
-- No AI attribution anywhere (the CLI also rejects it).
+- `bug`: observed behavior violates an expected behavior;
+- `feature`: a new user/product capability or outcome;
+- `task`: bounded engineering work with a completion condition;
+- `chore`: maintenance with no new product behavior.
+
+Note existing labels. The CLI maps the type to an existing type label
+automatically; select additional labels only when inspect showed the exact
+label and the evidence clearly matches it.
+
+**Complete when:** one ticket outcome, deliberate type, and usable backend are
+known—or the request/backend has stopped before mutation.
+
+### 2. Search before creating
+
+Choose the few most distinctive outcome, error, command, or component terms
+and run one focused open-ticket search:
+
+```sh
+bash "$ticket" list --search "<distinctive terms>"
+```
+
+Compare the returned titles to the requested problem/outcome. If any is a
+plausible duplicate, report its ID and title plus why it may match, create
+nothing, and stop for the user's decision. Do not dismiss a match merely
+because its wording differs, and do not block on tickets that only share a
+broad area.
+
+**Complete when:** either one or more plausible candidates are reported with
+zero creations, or the search evidence supports creating exactly one ticket.
+
+### 3. Draft only what is known
+
+Write a concise searchable title that states the problem or desired outcome,
+not a speculative implementation. Keep it one line with no trailing period.
+
+Use exactly the required body structure for the chosen type:
+
+| Type | Required sections |
+| --- | --- |
+| `bug` | `## Observed`, `## Expected`, `## Reproduction` |
+| `feature` | `## Motivation`, `## Acceptance criteria` |
+| `task`, `chore` | `## Outcome`, `## Done criteria` |
+
+Give every required section real request/repository evidence. Preserve error
+messages verbatim. When required detail is unknown, state only the known signal
+in its section and put the precise missing question under optional `## Open
+questions`; never fill space with guessed mechanics or boilerplate.
+
+Before creating, make a private claim-to-source checklist: map every factual
+sentence and acceptance bullet to the exact request, conversation, or
+repository words that support it. Do not put this checklist in the ticket.
+Delete any claim without a source. Preserve the source's quantities and
+qualifiers; do not transfer a constraint on one dimension to another (for
+example, “visible columns” constrains columns, not which rows are exported).
+Do not infer that current behavior is absent merely because a feature is
+requested.
+
+Do not derive secondary requirements such as pagination, filtering, naming,
+performance, rollout, or compatibility merely because an implementation might
+need to consider them. Open questions are not discovery prompts: include one
+only when the caller explicitly identified an uncertainty, supplied sources
+conflict, or a fact required to truthfully populate a mandatory section is
+missing. An unstated optional behavior or possible design choice stays omitted.
+
+Do not add AI/tool attribution, co-author credit, or attribution emoji to the
+ticket—even when requested. Keep it no more elaborate than the supplied
+evidence.
+
+**Complete when:** title and required sections are specific, non-empty,
+non-invented, and sufficient to record the user's current knowledge.
+
+### 4. Apply only caller-authorized metadata and create
+
+Write the body to a private temporary file outside the repository, then run:
+
+```sh
+bash "$ticket" create --title <title> --type <type> --body-file <absolute-file> \
+  [--label <existing-label>]... [--milestone <named-value>] \
+  [--assignee <named-value>] [--depends-on <caller-named-id>]... \
+  [--parent <caller-named-id>]
+```
+
+Never infer `depends-on` or `parent` from content, and never hand-write relation
+markers into the body. Include milestone or assignee only when explicitly
+requested. Never create a label, milestone, or alternative value. If a desired
+extra label does not exist, omit it and retain that omission for the report.
+
+**Complete when:** the CLI creates exactly one ticket and verifies every
+requested relation, or reports a verbatim refusal with no second creation
+attempt.
+
+### 5. Report the authoritative result
+
+Return the CLI output verbatim so the report includes backend, created ID,
+canonical URL, type, labels, and relations. Then name any dedup candidates or
+requested labels/metadata omitted and the evidence-based reason. Do not add a
+plan, implementation advice, suggested tracker configuration, attribution, or
+another tracker mutation. If attribution was requested, say only that ticket
+policy required omitting it.
+
+**Complete when:** the user can identify the created ticket and every applied
+or omitted field—or can see exactly why no ticket was created.

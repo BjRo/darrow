@@ -14,6 +14,7 @@ const ALLOWED_ENVIRONMENT = [
   "TERM",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
   "SSL_CERT_FILE",
   "SSL_CERT_DIR",
   "HTTP_PROXY",
@@ -21,7 +22,21 @@ const ALLOWED_ENVIRONMENT = [
   "NO_PROXY",
 ];
 
+async function copyCodexCredentials(configRoot: string): Promise<void> {
+  if (process.env.OPENAI_API_KEY) return;
+  const source = resolve(
+    process.env.CODEX_HOME ?? resolve(process.env.HOME ?? "", ".codex"),
+    "auth.json",
+  );
+  if (!(await Bun.file(source).exists())) return;
+  const target = resolve(configRoot, "auth.json");
+  await mkdir(dirname(target), { recursive: true });
+  await cp(source, target);
+}
+
 async function copyClaudeCredentials(configRoot: string): Promise<void> {
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY)
+    return;
   const source = resolve(
     process.env.CLAUDE_CONFIG_DIR ?? resolve(process.env.HOME ?? "", ".claude"),
     ".credentials.json",
@@ -31,7 +46,7 @@ async function copyClaudeCredentials(configRoot: string): Promise<void> {
     await cp(source, target);
     return;
   }
-  if (process.env.ANTHROPIC_API_KEY || process.platform !== "darwin") return;
+  if (process.platform !== "darwin") return;
 
   const account = process.env.USER ?? process.env.LOGNAME;
   const argv = [
@@ -76,19 +91,12 @@ export async function isolatedHarnessEnvironment(
     { mode: 0o600 },
   );
 
-  if (harness === "codex") {
-    const source = resolve(
-      process.env.CODEX_HOME ?? resolve(process.env.HOME ?? "", ".codex"),
-      "auth.json",
-    );
-    if (await Bun.file(source).exists()) {
-      const target = resolve(configRoot, "auth.json");
-      await mkdir(dirname(target), { recursive: true });
-      await cp(source, target);
-    }
-  } else {
-    await copyClaudeCredentials(configRoot);
-  }
+  // Goal-loop evals may pin a child to the other harness. Provision both
+  // auth channels while keeping settings, hooks, plugins, and caches isolated.
+  await Promise.all([
+    copyCodexCredentials(configRoot),
+    copyClaudeCredentials(configRoot),
+  ]);
 
   const env = Object.fromEntries(
     ALLOWED_ENVIRONMENT.flatMap((name) =>
@@ -102,7 +110,7 @@ export async function isolatedHarnessEnvironment(
   // goal-loop mechanics must reuse that boundary instead of attempting an
   // unsupported second sandbox-exec layer.
   env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX = "1";
-  if (harness === "codex") env.CODEX_HOME = configRoot;
-  else env.CLAUDE_CONFIG_DIR = configRoot;
+  env.CODEX_HOME = configRoot;
+  env.CLAUDE_CONFIG_DIR = configRoot;
   return env;
 }

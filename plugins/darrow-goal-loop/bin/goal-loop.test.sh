@@ -165,6 +165,43 @@ check_contains 'external sandbox bridge preserves route evidence' \
   "route${TAB}claude${TAB}anthropic${TAB}claude-opus-4-6${TAB}high${TAB}none" \
   "$(cat "$TEMP_ROOT/claude-bridge.tsv")"
 
+codex_executor=$TEMP_ROOT/codex-executor.tsv
+run_goal_loop packet-create --preflight "$preflight" --role executor \
+  --objective 'Change value behavior' --criterion 'produce a bounded change' \
+  --scope 'value.txt' --non-goal 'publication' --instruction none --decision none \
+  --plan none --gate discovery none not_applicable 'no product gate in bridge fixture' \
+  --route 'codex|openai|gpt-5.6-sol|medium|none' --output "$codex_executor" >/dev/null
+{
+  printf '%s\n' '#!/usr/bin/env bash'
+  printf '%s\n' 'printf '\''%s\n'\'' "$@" >"$DARROW_CODEX_ARGS"'
+  printf '%s\n' 'output='
+  printf '%s\n' 'while [ "$#" -gt 0 ]; do'
+  printf '%s\n' '  case "$1" in --output-last-message) output=$2; shift 2 ;; *) shift ;; esac'
+  printf '%s\n' 'done'
+  printf '%s\n' '{'
+  printf '%s\n' '  printf '\''format\tdarrow-goal-loop-role-result-v1\n'\'''
+  printf '%s\n' '  printf '\''run_id\tstable-run\n'\'''
+  printf '%s\n' '  printf '\''role\texecutor\n'\'''
+  printf '%s\n' '  printf '\''outcome\tcomplete\n'\'''
+  printf '%s\n' '  printf '\''summary\tbounded change produced\n'\'''
+  printf '%s\n' '  printf '\''gate\tdiscovery\tnone\tnot_applicable\tnot_applicable\tno product gate in bridge fixture\n'\'''
+  printf '%s\n' '  printf '\''route\tcodex\topenai\tgpt-5.6-sol\tmedium\tnone\n'\'''
+  printf '%s\n' '  printf '\''risk\tnone observed\n'\'''
+  printf '%s\n' '  printf '\''next_action\trun verifier\n'\'''
+  printf '%s\n' '} >"$output"'
+} >"$bridge_bin/codex"
+chmod +x "$bridge_bin/codex"
+codex_args=$TEMP_ROOT/codex-args.txt
+out=$(DARROW_GOAL_LOOP_EXTERNAL_SANDBOX=1 DARROW_CODEX_ARGS="$codex_args" \
+  PATH="$bridge_bin:/usr/bin:/bin" run_goal_loop bridge --harness codex \
+  --packet "$codex_executor" --output "$TEMP_ROOT/codex-bridge.tsv" \
+  --model gpt-5.6-sol --effort medium)
+check_contains 'external sandbox Codex bridge works' "result${TAB}$TEMP_ROOT/codex-bridge.tsv" "$out"
+check_contains 'external sandbox Codex bridge bypasses nested sandbox' \
+  '--dangerously-bypass-approvals-and-sandbox' "$(cat "$codex_args")"
+check_not_contains 'external sandbox Codex bridge omits native sandbox flag' \
+  '--sandbox' "$(cat "$codex_args")"
+
 awk -F '\t' 'BEGIN{OFS="\t"} $1=="write_boundary"{$2="local_worktree"}{print}' "$planner" >"$planner.bad"
 set +e
 out=$(run_goal_loop validate-packet "$planner.bad" 2>&1)
