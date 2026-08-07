@@ -74,6 +74,10 @@ also contains native Claude Code and Codex manifests.
 - [Workflow opportunities from Matt Pocock's skills](docs/research/matt-pocock-workflow-opportunities.md)
   records possible discovery, diagnosis, work-planning, and workflow-design
   additions. It is exploratory and non-normative.
+- [Workflow opportunities from oh-my-codex and Ouroboros](docs/research/oh-my-codex-ouroboros-opportunities.md)
+  contrasts their integrated runtimes with Darrow and records complementary
+  discovery, research, verification, maintenance, and ecosystem ideas. It is
+  exploratory and non-normative.
 
 ## Development
 
