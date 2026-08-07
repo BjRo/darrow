@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -114,6 +121,26 @@ describe("eval fixture skill mounts", () => {
     expect(await readFile(bodyPath, "utf8")).toBe("Updated ticket body\n");
 
     await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
+  test("destroys a fixture containing a permission-locked directory", async () => {
+    const fixture = await buildFixture({}, "", []);
+    cleanup.push(fixture);
+    const locked = join(fixture, "locked");
+    await mkdir(locked);
+    await writeFile(join(locked, "value.txt"), "locked\n");
+    await chmod(locked, 0o000);
+
+    let failure: unknown;
+    try {
+      await destroyFixture(fixture);
+    } catch (error) {
+      failure = error;
+    } finally {
+      if (existsSync(fixture)) await chmod(locked, 0o700);
+    }
+    expect(failure).toBeUndefined();
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });
 });

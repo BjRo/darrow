@@ -42,18 +42,28 @@ checks:
         if got := rule.ApplyInsteadOf("gh:team/repo"); got != "ssh://git@example/repo" {
           t.Fatalf("longest value in rule not applied: %q", got)
         }
-        other := &URL{Name: "ssh://other/", InsteadOf: []string{"gh:team/repo/"}}
-        rules := map[string]*URL{rule.Name: rule, other.Name: other}
-        selected := findLongestInsteadOfMatch("gh:team/repo/pkg", rules)
-        if selected != other { t.Fatalf("longest rule not selected: %#v", selected) }
-        if got := selected.ApplyInsteadOf("gh:team/repo/pkg"); got != "ssh://other/pkg" {
-          t.Fatalf("selected rewrite wrong: %q", got)
-        }
         out, err := cfg.Marshal()
         if err != nil { t.Fatal(err) }
         if strings.Count(string(out), "insteadOf =") != 2 { t.Fatalf("round trip lost values:\n%s", out) }
         empty := &URL{Name: "ssh://empty/", InsteadOf: nil}
         if empty.Validate() == nil { t.Fatal("empty rule must be rejected") }
+
+        rewriteInput := []byte(`[core]
+          bare = false
+        [remote "origin"]
+          url = gh:team/repo/pkg
+        [url "ssh://git@example/"]
+          insteadOf = gh:
+          insteadOf = gh:team/
+        [url "ssh://other/"]
+          insteadOf = gh:team/repo/
+        `)
+        rewrite := NewConfig()
+        if err := rewrite.Unmarshal(rewriteInput); err != nil { t.Fatal(err) }
+        remote := rewrite.Remotes["origin"]
+        if remote == nil || len(remote.URLs) != 1 || remote.URLs[0] != "ssh://other/pkg" {
+          t.Fatalf("longest prefix across rules not applied: %#v", remote)
+        }
       }
       GO
       go test ./config -run TestEvalMultipleInsteadOfContract -count=1

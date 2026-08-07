@@ -18,6 +18,21 @@ interface SuiteConfig {
   modes: Record<string, ModeConfig>;
 }
 
+async function git(args: string[]): Promise<string> {
+  const proc = Bun.spawn(["git", ...args], {
+    cwd: resolve(import.meta.dir, "..", ".."),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) throw new Error(`git ${args.join(" ")} failed: ${stderr}`);
+  return stdout;
+}
+
 function seededShuffle<T>(items: T[], seed: string): T[] {
   let state = 2166136261;
   for (let index = 0; index < seed.length; index++) {
@@ -95,6 +110,13 @@ const outputDir = values.output
   ? resolve(process.cwd(), values.output)
   : resolve(import.meta.dir, "..", "results", suite.experiment, stamp);
 await mkdir(outputDir, { recursive: true });
+const runnerRevision = (await git(["rev-parse", "HEAD"])).trim();
+const runnerStatus = await git(["status", "--porcelain"]);
+const runnerPatch = await git(["diff", "--binary", "HEAD"]);
+const runnerPatchSha256 = runnerPatch
+  ? new Bun.CryptoHasher("sha256").update(runnerPatch).digest("hex")
+  : null;
+if (runnerPatch) await writeFile(join(outputDir, "runner.patch"), runnerPatch);
 
 const manifest = {
   format: "darrow-orchestration-suite-v1",
@@ -105,6 +127,12 @@ const manifest = {
   effort: values.effort,
   dry: values.dry,
   orderSeed,
+  runner: {
+    revision: runnerRevision,
+    dirty: runnerStatus.length > 0,
+    patchSha256: runnerPatchSha256,
+    patch: runnerPatch ? join(outputDir, "runner.patch") : null,
+  },
   judge:
     values.dry || values["no-judge"]
       ? null

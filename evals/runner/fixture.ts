@@ -216,5 +216,22 @@ export async function buildFixture(
 }
 
 export async function destroyFixture(repoDir: string): Promise<void> {
-  await rm(repoDir, { recursive: true, force: true });
+  if (!existsSync(repoDir)) return;
+  const writable = Bun.spawn(["chmod", "-R", "u+rwX", repoDir], {
+    stdout: "ignore",
+    stderr: "pipe",
+  });
+  const [stderr, code] = await Promise.all([
+    new Response(writable.stderr).text(),
+    writable.exited,
+  ]);
+  if (code !== 0) {
+    throw new Error(`cannot make eval fixture removable: ${stderr.trim()}`);
+  }
+  await rm(repoDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 100,
+  });
 }
