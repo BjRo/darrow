@@ -1,8 +1,8 @@
 id: goal-loop-normal-code-change
 invariant: AGL-A1,AGL-A2,AGL-A4,AGL-P1,AGL-G3,AGL-V1,AGL-V3,AGL-E1
 prompt: >-
-  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to add an exported double(value) function to
-  src/math.js and focused tests for zero and a negative number. Acceptance is
+  /pursue-goal Add an exported double(value) function to src/math.js. On Codex, invoke the $pursue-goal skill. Add
+  focused tests for zero and a negative number. Acceptance is
   that double returns exactly two times its numeric input and bash test.sh
   passes. Do not plan or publish; the objective, scope, and verification are
   already clear.

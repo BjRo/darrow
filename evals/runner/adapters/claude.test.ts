@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { claudeInputTokens, claudeRunSucceeded } from "./claude";
+import { claudeAdapter, claudeInputTokens, claudeRunSucceeded } from "./claude";
+
+test("uses Sonnet 5 as the default Claude eval model", () => {
+  expect(claudeAdapter.defaultModel).toBe("claude-sonnet-5");
+});
 
 describe("Claude token accounting", () => {
   test("includes uncached, cache-creation, and cache-read input", () => {

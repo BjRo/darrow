@@ -32,7 +32,7 @@ export function claudeRunSucceeded(
  */
 export const claudeAdapter: HarnessAdapter = {
   name: "claude",
-  defaultModel: "claude-sonnet-4-6",
+  defaultModel: "claude-sonnet-5",
   skillMounts: [".claude/skills"],
 
   async version(): Promise<string> {

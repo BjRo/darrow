@@ -1,7 +1,7 @@
 id: goal-loop-seeded-verifier-defect
 invariant: AGL-V1,AGL-V3,AGL-V5,AGL-V6,AGL-V7,AGL-A5,AGL-E1
 prompt: >-
-  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to add isAdult(age) in src/age.js. The contract
+  /pursue-goal Add isAdult(age) in src/age.js. On Codex, invoke the $pursue-goal skill. The contract
   is inclusive: age 18 and every greater finite number return true, while 17
   returns false. Add focused tests and run bash test.sh. Keep the run local and
   use the default one-repair budget. This is a verifier-injection evaluation:

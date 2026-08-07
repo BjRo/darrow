@@ -1,8 +1,8 @@
 id: goal-loop-telemetry-reconciliation
 invariant: AGL-O1,AGL-O2,AGL-O3,AGL-O4,AGL-O5,AGL-O6,AGL-O7,AGL-E3,AGL-E5
 prompt: >-
-  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to change
-  enabled.txt from no to yes and verify with bash check.sh. Use strict telemetry
+  /pursue-goal Change enabled.txt from no to yes and verify with bash check.sh. On Codex, invoke the $pursue-goal skill.
+  Use strict telemetry
   for this evaluation. For preflight, telemetry-check, and every telemetry-emit
   command only, set OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.invalid and
   OTEL_EXPORTER_OTLP_HEADERS=Authorization=fixture-secret-value inline on that

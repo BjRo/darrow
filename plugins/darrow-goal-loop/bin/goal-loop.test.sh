@@ -99,6 +99,20 @@ check_contains 'snapshot detects staging changes to pre-existing work' "pre_exis
 echo 'routing and packet boundaries'
 out=$(run_goal_loop route --host codex --role executor --native yes)
 check_contains 'normal executor route is standard Codex' "route${TAB}codex${TAB}openai${TAB}gpt-5.6-sol${TAB}medium" "$out"
+out=$(run_goal_loop route --host claude --role planner --profile standard --native yes)
+check_contains 'standard Claude planner route uses Sonnet 5' \
+  "route${TAB}claude${TAB}anthropic${TAB}claude-sonnet-5${TAB}medium" "$out"
+out=$(run_goal_loop route --host claude --role planner --profile deep --native yes)
+check_contains 'deep Claude planner route uses Opus 5' \
+  "route${TAB}claude${TAB}anthropic${TAB}claude-opus-5${TAB}high" "$out"
+for role in executor verifier repair; do
+  out=$(run_goal_loop route --host claude --role "$role" --profile standard --native yes)
+  check_contains "standard Claude $role fallback uses Sonnet 5" \
+    "claude|anthropic|claude-sonnet-5|medium" "$out"
+  out=$(run_goal_loop route --host claude --role "$role" --profile deep --native yes)
+  check_contains "deep Claude $role fallback uses Opus 5" \
+    "claude|anthropic|claude-opus-5|high" "$out"
+done
 set +e
 out=$(run_goal_loop route --host codex --role executor --route 'missing-harness|test|model|low' --native yes 2>&1)
 status=$?
@@ -140,7 +154,7 @@ run_goal_loop packet-create --preflight "$preflight" --role planner \
   --objective 'Plan value behavior' --criterion 'produce a bounded plan' \
   --scope 'value.txt' --non-goal 'editing' --instruction none --decision none \
   --plan none --gate discovery none not_applicable 'planner does not run product gates' \
-  --route 'claude|anthropic|claude-opus-4-6|high|none' --output "$claude_planner" >/dev/null
+  --route 'claude|anthropic|claude-opus-5|high|none' --output "$claude_planner" >/dev/null
 bridge_bin=$TEMP_ROOT/bridge-bin
 mkdir -p "$bridge_bin"
 {
@@ -152,17 +166,17 @@ mkdir -p "$bridge_bin"
   printf 'printf '\''summary\\tbounded plan produced\\n'\''\n'
   printf 'printf '\''plan\\treview value.txt without edits\\n'\''\n'
   printf 'printf '\''gate\\tdiscovery\\tnone\\tnot_applicable\\tnot_applicable\\tplanner does not run product gates\\n'\''\n'
-  printf 'printf '\''route\\tclaude\\tanthropic\\tclaude-opus-4-6\\thigh\\tnone\\n'\''\n'
+  printf 'printf '\''route\\tclaude\\tanthropic\\tclaude-opus-5\\thigh\\tnone\\n'\''\n'
   printf 'printf '\''risk\\tnone observed\\n'\''\n'
   printf 'printf '\''next_action\\trun executor\\n'\''\n'
 } >"$bridge_bin/claude"
 chmod +x "$bridge_bin/claude"
 out=$(DARROW_GOAL_LOOP_EXTERNAL_SANDBOX=1 PATH="$bridge_bin:/usr/bin:/bin" \
   run_goal_loop bridge --harness claude --packet "$claude_planner" \
-  --output "$TEMP_ROOT/claude-bridge.tsv" --model claude-opus-4-6 --effort high)
+  --output "$TEMP_ROOT/claude-bridge.tsv" --model claude-opus-5 --effort high)
 check_contains 'external sandbox bridge works under nounset' "result${TAB}$TEMP_ROOT/claude-bridge.tsv" "$out"
 check_contains 'external sandbox bridge preserves route evidence' \
-  "route${TAB}claude${TAB}anthropic${TAB}claude-opus-4-6${TAB}high${TAB}none" \
+  "route${TAB}claude${TAB}anthropic${TAB}claude-opus-5${TAB}high${TAB}none" \
   "$(cat "$TEMP_ROOT/claude-bridge.tsv")"
 
 codex_executor=$TEMP_ROOT/codex-executor.tsv

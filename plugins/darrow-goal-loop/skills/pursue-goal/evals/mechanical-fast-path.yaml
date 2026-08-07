@@ -1,7 +1,7 @@
 id: goal-loop-mechanical-fast-path
 invariant: AGL-A4,AGL-P1,AGL-V2,AGL-E1,AGL-E4
 prompt: >-
-  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to alphabetize the three entries in NOTES.md.
+  /pursue-goal Alphabetize the three entries in NOTES.md. On Codex, invoke the $pursue-goal skill.
   Acceptance is exact alphabetical order under the existing heading. This is
   a prose-only mechanical transformation completely covered by the command
   bash check.sh. Keep the local-working-tree publication boundary.

@@ -1,8 +1,8 @@
 id: goal-loop-readiness-no-paid-probe
 invariant: AGL-D1,AGL-D2,AGL-D3,AGL-D4
 prompt: >-
-  Explicitly invoke /check-goal-readiness (the $check-goal-readiness skill on Codex) to check goal-loop readiness from this Codex
-  host. Do not run a live model probe or mutate setup. Explain optional route
+  /check-goal-readiness Check goal-loop readiness from this Codex host. On Codex, invoke the $check-goal-readiness skill.
+  Do not run a live model probe or mutate setup. Explain optional route
   degradation and do not reveal credential values.
 fixture:
   commits:

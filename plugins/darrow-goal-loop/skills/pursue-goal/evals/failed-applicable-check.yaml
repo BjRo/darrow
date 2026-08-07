@@ -1,7 +1,7 @@
 id: goal-loop-failed-applicable-check
 invariant: AGL-G3,AGL-G4,AGL-G5,AGL-G6,AGL-E1
 prompt: >-
-  Explicitly invoke /pursue-goal (the $pursue-goal skill on Codex) to change message.js so message() returns "new".
+  /pursue-goal Change message.js so message() returns "new". On Codex, invoke the $pursue-goal skill.
   Acceptance also requires the configured bash test.sh gate. Do not alter the
   gate script or claim success when the environment prevents it from running.
 fixture:
