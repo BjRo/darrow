@@ -1,9 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildBlindJudgeFixture, parseJudgeAssessment } from "./judge";
+import {
+  buildBlindJudgeFixture,
+  parseJudgeAssessment,
+  runQualityJudge,
+} from "./judge";
+import type { HarnessAdapter } from "./types";
 
 describe("orchestration quality judge", () => {
   test("parses a fenced assessment and rejects invalid dimensions", () => {
@@ -64,6 +76,62 @@ describe("orchestration quality judge", () => {
       expect(existsSync(join(judge, ".git", "fixture-ticket.md"))).toBe(false);
     } finally {
       if (judge) await rm(judge, { recursive: true, force: true });
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("removes a permission-locked judge fixture", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-judge-source-"));
+    let judgeDir = "";
+    try {
+      const git = (...args: string[]) => {
+        const proc = Bun.spawnSync(["git", ...args], { cwd: repo });
+        if (proc.exitCode !== 0) throw new Error(proc.stderr.toString());
+      };
+      git("init", "-b", "main");
+      git("config", "user.name", "Judge Test");
+      git("config", "user.email", "judge@example.invalid");
+      await writeFile(join(repo, "source.ts"), "export const value = 1;\n");
+      git("add", "source.ts");
+      git("commit", "-m", "initial");
+
+      const adapter: HarnessAdapter = {
+        name: "fixture-locker",
+        defaultModel: "test-model",
+        skillMounts: [],
+        async version() {
+          return "test";
+        },
+        async run(candidateDir) {
+          judgeDir = candidateDir;
+          const locked = join(candidateDir, "locked");
+          await mkdir(locked);
+          await writeFile(join(locked, "value.txt"), "locked\n");
+          await chmod(locked, 0o000);
+          return {
+            ok: true,
+            durationMs: 1,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText:
+              '{"verdict":"pass","overallScore":4,"dimensions":{"correctness":4,"maintainability":4,"testQuality":4,"scopeDiscipline":4},"strengths":[],"weaknesses":[],"summary":"Sound."}',
+            raw: "",
+          };
+        },
+      };
+
+      const result = await runQualityJudge(
+        adapter,
+        repo,
+        "Keep the behavior correct.",
+        [],
+        "test-model",
+        "medium",
+      );
+      expect(result.assessment?.verdict).toBe("pass");
+      expect(existsSync(judgeDir)).toBe(false);
+    } finally {
       await rm(repo, { recursive: true, force: true });
     }
   });

@@ -217,21 +217,31 @@ export async function buildFixture(
 
 export async function destroyFixture(repoDir: string): Promise<void> {
   if (!existsSync(repoDir)) return;
-  const writable = Bun.spawn(["chmod", "-R", "u+rwX", repoDir], {
-    stdout: "ignore",
-    stderr: "pipe",
-  });
-  const [stderr, code] = await Promise.all([
-    new Response(writable.stderr).text(),
-    writable.exited,
-  ]);
-  if (code !== 0) {
-    throw new Error(`cannot make eval fixture removable: ${stderr.trim()}`);
+  let removalError: unknown;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const writable = Bun.spawn(["chmod", "-R", "u+rwX", repoDir], {
+      stdout: "ignore",
+      stderr: "pipe",
+    });
+    const [stderr, code] = await Promise.all([
+      new Response(writable.stderr).text(),
+      writable.exited,
+    ]);
+    if (code !== 0 && existsSync(repoDir)) {
+      throw new Error(`cannot make eval fixture removable: ${stderr.trim()}`);
+    }
+    try {
+      await rm(repoDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 2,
+        retryDelay: 100,
+      });
+    } catch (error) {
+      removalError = error;
+    }
+    if (!existsSync(repoDir)) return;
+    await Bun.sleep(Math.min(100 * 2 ** attempt, 1_000));
   }
-  await rm(repoDir, {
-    recursive: true,
-    force: true,
-    maxRetries: 5,
-    retryDelay: 100,
-  });
+  throw removalError ?? new Error(`cannot remove eval fixture: ${repoDir}`);
 }

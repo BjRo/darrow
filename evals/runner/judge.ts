@@ -4,7 +4,6 @@ import {
   mkdir,
   mkdtemp,
   readlink,
-  rm,
   symlink,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,6 +14,7 @@ import type {
   JudgeAssessment,
   JudgeResult,
 } from "./types";
+import { destroyFixture } from "./fixture";
 
 function score(value: unknown, label: string): number {
   if (
@@ -142,7 +142,7 @@ export async function buildBlindJudgeFixture(repoDir: string): Promise<string> {
     }
     return judgeDir;
   } catch (error) {
-    await rm(judgeDir, { recursive: true, force: true });
+    await destroyFixture(judgeDir);
     throw error;
   }
 }
@@ -192,6 +192,6 @@ All scores are integers 1-5. A pass requires no material correctness defect and 
       };
     }
   } finally {
-    await rm(judgeDir, { recursive: true, force: true });
+    await destroyFixture(judgeDir);
   }
 }

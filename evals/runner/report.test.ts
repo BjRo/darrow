@@ -26,7 +26,7 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
 }
 
 describe("orchestration suite report", () => {
-  test("separates deterministic outcomes, judge quality, and unknown cost", () => {
+  test("separates task outcomes, protocol compliance, judge quality, and unknown cost", () => {
     const markdown = renderSuiteReport([
       {
         harness: "codex",
@@ -48,12 +48,57 @@ describe("orchestration suite report", () => {
         ],
       },
     ]);
-    expect(markdown).toContain("Deterministic pass");
+    expect(markdown).toContain("Task pass");
+    expect(markdown).toContain("Protocol pass");
     expect(markdown).toContain("Judge score");
     expect(markdown).toContain("codex | vanilla");
     expect(markdown).toContain("unknown");
     expect(markdown).toContain("$1.2500");
     expect(markdown).toContain("Human interventions");
     expect(markdown).toContain("Per-task outcomes");
+  });
+
+  test("does not treat missing bookkeeping records as a task failure", () => {
+    const markdown = renderSuiteReport([
+      {
+        harness: "claude",
+        mode: "native-goal",
+        results: [
+          result({
+            harness: "claude",
+            condition: "native-goal",
+            passRate: 0,
+            trials: [
+              {
+                trial: 1,
+                passed: false,
+                checks: [
+                  {
+                    name: "hidden product contract",
+                    passed: true,
+                    detail: "ok",
+                  },
+                  {
+                    name: "reported child invocation count",
+                    passed: false,
+                    detail: "missing",
+                  },
+                ],
+                harness: {
+                  ok: true,
+                  durationMs: 1,
+                  inputTokens: 1,
+                  outputTokens: 1,
+                  costUsd: null,
+                  resultText: "done",
+                  raw: "",
+                },
+              },
+            ],
+          }),
+        ],
+      },
+    ]);
+    expect(markdown).toContain("| claude | native-goal | 100% | 0% |");
   });
 });

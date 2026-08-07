@@ -37,6 +37,24 @@ function cost(value: number | undefined): string {
   return value === undefined ? "unknown" : `$${value.toFixed(4)}`;
 }
 
+function isBookkeepingCheck(name: string): boolean {
+  return (
+    name === "reported child invocation count" ||
+    name === "reported human intervention count"
+  );
+}
+
+function taskPassRate(result: CaseResult): number {
+  if (!result.trials.length) return result.passRate;
+  return (
+    result.trials.filter((trial) =>
+      trial.checks
+        .filter((check) => !isBookkeepingCheck(check.name))
+        .every((check) => check.passed),
+    ).length / result.trials.length
+  );
+}
+
 function cellMetrics(cell: ReportCell) {
   const candidateDurations = cell.results.flatMap((result) =>
     result.trials.length
@@ -62,7 +80,8 @@ function cellMetrics(cell: ReportCell) {
   );
   const judgeCosts = judgeRuns.map((run) => run.costUsd);
   return {
-    deterministicPass: mean(cell.results.map((result) => result.passRate)),
+    taskPass: mean(cell.results.map(taskPassRate)),
+    protocolPass: mean(cell.results.map((result) => result.passRate)),
     judgeScore: assessments.length
       ? mean(assessments.map((assessment) => assessment.overallScore))
       : mean(fallbackJudgeScores),
@@ -112,17 +131,17 @@ export function renderSuiteReport(cells: ReportCell[]): string {
   const lines = [
     "# Orchestration value benchmark",
     "",
-    "Deterministic pass/fail is the primary outcome. The condition-blind LLM judge is advisory and scores final-tree correctness, maintainability, test quality, and scope discipline on a 1–5 scale.",
+    "Task pass is the primary outcome and excludes evaluator bookkeeping records. Protocol pass additionally requires the candidate to report child-invocation and human-intervention counts. The condition-blind LLM judge is advisory and scores final-tree correctness, maintainability, test quality, and scope discipline on a 1–5 scale.",
     "",
     "## Outcomes and candidate efficiency",
     "",
-    "| Harness | Mode | Deterministic pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
   const metrics = cells.map((cell) => ({ cell, metric: cellMetrics(cell) }));
   for (const { cell, metric } of metrics) {
     lines.push(
-      `| ${cell.harness} | ${cell.mode} | ${percent(metric.deterministicPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} |`,
+      `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} |`,
     );
   }
 
@@ -132,13 +151,13 @@ export function renderSuiteReport(cells: ReportCell[]): string {
     "",
     "The aggregate is intentionally paired with task-level results so one task shape cannot hide another.",
     "",
-    "| Harness | Mode | Case | Deterministic pass | Judge score | Wall mean | Candidate tokens mean |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: |",
+    "| Harness | Mode | Case | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
   );
   for (const cell of cells) {
     for (const result of cell.results) {
       lines.push(
-        `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(result.passRate)} | ${result.meanJudgeScore?.toFixed(2) ?? "n/a"} | ${milliseconds(result.meanDurationMs)} | ${result.meanTokens === null ? "unknown" : Math.round(result.meanTokens)} |`,
+        `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(taskPassRate(result))} | ${percent(result.passRate)} | ${result.meanJudgeScore?.toFixed(2) ?? "n/a"} | ${milliseconds(result.meanDurationMs)} | ${result.meanTokens === null ? "unknown" : Math.round(result.meanTokens)} |`,
       );
     }
   }
@@ -194,6 +213,7 @@ export function renderSuiteReport(cells: ReportCell[]): string {
     "- `unknown` cost is intentional when a harness does not report actual provider cost; token counts remain available when the harness reports them.",
     "- Compare modes primarily within the same harness/model/effort block. Cross-harness differences also include model and CLI effects.",
     "- Setup and dependency installation occur before candidate timing. Judge work is measured separately.",
+    "- Protocol-only failures indicate missing evaluation records, not a failed codebase contract; task pass and judge quality remain separately visible.",
     "- Human interventions are explicit stops for human decisions or authority, not ordinary model reasoning.",
     "",
   );

@@ -77,10 +77,21 @@ without rerunning candidates:
 bun evals/runner/report.ts evals/results/orchestration-value/<timestamp>/suite-run.json
 ```
 
+Raw run bundles are gitignored because candidate and judge payloads are large.
+When a run materially informs product direction, preserve a reviewed,
+redacted snapshot under [`snapshots/`](snapshots/). The first such record is
+the [2026-08-07 one-trial benchmark](snapshots/2026-08-07-n1.md), with a
+[machine-readable aggregate](snapshots/2026-08-07-n1.json). A snapshot must
+state its trial count, runner provenance, reruns, missing metrics, limitations,
+and whether its conclusions are exploratory or accepted elsewhere.
+
 ## What is measured
 
-- **Deterministic pass rate:** the primary binary outcome, from hidden behavior
-  checks plus focused upstream tests.
+- **Task pass rate:** the primary binary outcome, from hidden behavior checks
+  plus focused upstream tests. Evaluator bookkeeping records are excluded.
+- **Protocol pass rate:** task checks plus required child-invocation and
+  human-intervention records. A protocol-only failure is not a codebase-contract
+  failure.
 - **Blind quality score:** an advisory LLM judgment of correctness,
   maintainability, test quality, and scope discipline. The judge sees the task,
   check outcomes, and final diff, but not the orchestration condition.

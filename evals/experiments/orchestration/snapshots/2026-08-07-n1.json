@@ -1,0 +1,220 @@
+{
+  "format": "darrow-orchestration-benchmark-snapshot-v1",
+  "status": "exploratory",
+  "runDate": "2026-08-07",
+  "trialsPerTask": 1,
+  "taskCount": 4,
+  "cellCount": 8,
+  "candidateEffort": "medium",
+  "judge": {
+    "harness": "codex",
+    "model": "adapter-default",
+    "effort": "low",
+    "conditionBlind": true
+  },
+  "definitions": {
+    "taskPassRate": "Share of trials passing codebase contracts after excluding evaluator bookkeeping checks.",
+    "protocolPassRate": "Share of trials passing codebase contracts and required evaluation-record checks.",
+    "judgePassRate": "Share of trials accepted by the condition-blind quality judge.",
+    "nullMetrics": "A null token, cost, or intervention value is unknown or unreconciled, not zero."
+  },
+  "provenance": {
+    "main": {
+      "startedAt": "2026-08-07T10:15:59.022Z",
+      "orderSeed": "full-n1-20260807",
+      "runnerRevision": "08048e6e9c70b559cb93964ae8d2099d581c16f0",
+      "runnerPatchSha256": "1664705e8e85df3e54c1760b5f6fed0dc8e654bb1ec083001f8ba69339eac088"
+    },
+    "ticketPipelineRerun": {
+      "reason": "Initial cells were lost while removing permission-locked judge fixtures; the rerun used a cleanup-only evaluator repair.",
+      "startedAt": "2026-08-07T17:32:18.868Z",
+      "orderSeed": "full-n1-20260807-ticket-rerun",
+      "runnerRevision": "bdf487804b68f58d2fe6581df2869b1b2384db0a",
+      "runnerPatchSha256": "a04ca5eba8815309ea18023ec42458f89f914d4746abc6731966a95ae558a7d2"
+    }
+  },
+  "corpus": [
+    {
+      "source": "click-8.0.0",
+      "commit": "9da166957f5848b641231d485467f6140bca2bc0",
+      "case": "orchestration-oss-click-streams"
+    },
+    {
+      "source": "ajv-8.5.0",
+      "commit": "be07d3d8c0aac8fffe68378d25bdd892c61ba2e5",
+      "case": "orchestration-oss-ajv-instance-path"
+    },
+    {
+      "source": "go-git-5.4.2",
+      "commit": "da810275bf682d29a530ed819aff175f47bd7634",
+      "case": "orchestration-oss-go-git-insteadof"
+    },
+    {
+      "source": "express-4.17.1",
+      "commit": "e1b45ebd050b6f06aa38cda5aaf0c21708b0c71e",
+      "case": "orchestration-oss-express-links"
+    }
+  ],
+  "cells": [
+    {
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.145.0",
+      "model": "gpt-5.5",
+      "mode": "vanilla",
+      "taskPassRate": 1.0,
+      "protocolPassRate": 1.0,
+      "judgeScore": 4.75,
+      "judgePassRate": 1.0,
+      "wallMeanSeconds": 216.452,
+      "wallP95Seconds": 270.74,
+      "candidateTokensMean": 649755.75,
+      "candidateCostUsd": null,
+      "childrenMean": 0.0,
+      "humanInterventions": 0,
+      "taskFailures": [],
+      "judgeFailures": []
+    },
+    {
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.145.0",
+      "model": "gpt-5.5",
+      "mode": "native-goal",
+      "taskPassRate": 1.0,
+      "protocolPassRate": 1.0,
+      "judgeScore": 4.75,
+      "judgePassRate": 1.0,
+      "wallMeanSeconds": 223.049,
+      "wallP95Seconds": 303.228,
+      "candidateTokensMean": 759671.75,
+      "candidateCostUsd": null,
+      "childrenMean": 0.0,
+      "humanInterventions": 0,
+      "taskFailures": [],
+      "judgeFailures": []
+    },
+    {
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.145.0",
+      "model": "gpt-5.5",
+      "mode": "darrow-goal-loop",
+      "taskPassRate": 0.75,
+      "protocolPassRate": 0.75,
+      "judgeScore": 3.75,
+      "judgePassRate": 0.75,
+      "wallMeanSeconds": 702.469,
+      "wallP95Seconds": 1185.457,
+      "candidateTokensMean": 924361.0,
+      "candidateCostUsd": null,
+      "childrenMean": 2.0,
+      "humanInterventions": 0,
+      "taskFailures": ["orchestration-oss-click-streams"],
+      "judgeFailures": ["orchestration-oss-click-streams"]
+    },
+    {
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.145.0",
+      "model": "gpt-5.5",
+      "mode": "darrow-ticket-pipeline",
+      "taskPassRate": 0.75,
+      "protocolPassRate": 0.75,
+      "judgeScore": 3.75,
+      "judgePassRate": 0.75,
+      "wallMeanSeconds": 1110.362,
+      "wallP95Seconds": 1398.458,
+      "candidateTokensMean": null,
+      "candidateCostUsd": null,
+      "childrenMean": 6.25,
+      "humanInterventions": 1,
+      "taskFailures": ["orchestration-oss-click-streams"],
+      "judgeFailures": ["orchestration-oss-click-streams"]
+    },
+    {
+      "harness": "claude",
+      "harnessVersion": "2.1.220 (Claude Code)",
+      "model": "claude-sonnet-5",
+      "mode": "vanilla",
+      "taskPassRate": 1.0,
+      "protocolPassRate": 0.5,
+      "judgeScore": 3.25,
+      "judgePassRate": 0.5,
+      "wallMeanSeconds": 413.939,
+      "wallP95Seconds": 663.83,
+      "candidateTokensMean": 2142587.5,
+      "candidateCostUsd": 4.6442431,
+      "childrenMean": 0.0,
+      "humanInterventions": null,
+      "taskFailures": [],
+      "judgeFailures": [
+        "orchestration-oss-click-streams",
+        "orchestration-oss-go-git-insteadof"
+      ]
+    },
+    {
+      "harness": "claude",
+      "harnessVersion": "2.1.220 (Claude Code)",
+      "model": "claude-sonnet-5",
+      "mode": "native-goal",
+      "taskPassRate": 1.0,
+      "protocolPassRate": 0.25,
+      "judgeScore": 3.5,
+      "judgePassRate": 0.75,
+      "wallMeanSeconds": 393.703,
+      "wallP95Seconds": 805.412,
+      "candidateTokensMean": 2345405.0,
+      "candidateCostUsd": 5.1690411,
+      "childrenMean": 0.0,
+      "humanInterventions": null,
+      "taskFailures": [],
+      "judgeFailures": ["orchestration-oss-go-git-insteadof"]
+    },
+    {
+      "harness": "claude",
+      "harnessVersion": "2.1.220 (Claude Code)",
+      "model": "claude-sonnet-5",
+      "mode": "darrow-goal-loop",
+      "taskPassRate": 0.75,
+      "protocolPassRate": 0.5,
+      "judgeScore": 3.5,
+      "judgePassRate": 0.75,
+      "wallMeanSeconds": 877.414,
+      "wallP95Seconds": 2933.345,
+      "candidateTokensMean": 2576961.0,
+      "candidateCostUsd": 9.64664005,
+      "childrenMean": 2.0,
+      "humanInterventions": null,
+      "taskFailures": ["orchestration-oss-click-streams"],
+      "judgeFailures": ["orchestration-oss-click-streams"]
+    },
+    {
+      "harness": "claude",
+      "harnessVersion": "2.1.220 (Claude Code)",
+      "model": "claude-sonnet-5",
+      "mode": "darrow-ticket-pipeline",
+      "taskPassRate": 0.5,
+      "protocolPassRate": 0.5,
+      "judgeScore": 3.0,
+      "judgePassRate": 0.5,
+      "wallMeanSeconds": 1403.966,
+      "wallP95Seconds": 3148.134,
+      "candidateTokensMean": null,
+      "candidateCostUsd": null,
+      "childrenMean": 4.0,
+      "humanInterventions": 2,
+      "taskFailures": [
+        "orchestration-oss-click-streams",
+        "orchestration-oss-go-git-insteadof"
+      ],
+      "judgeFailures": [
+        "orchestration-oss-click-streams",
+        "orchestration-oss-go-git-insteadof"
+      ]
+    }
+  ],
+  "conclusions": {
+    "default": "vanilla",
+    "followUp": "Compare vanilla with native-goal using at least three trials per cell.",
+    "darrowGoalLoop": "No incremental value demonstrated; slower and less reliable than both direct baselines.",
+    "darrowTicketPipeline": "No incremental value demonstrated; highest overhead and lowest aggregate task pass rate.",
+    "languageRewrite": "Not supported as a performance response because measured overhead is dominated by model rounds and child invocations."
+  }
+}
