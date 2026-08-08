@@ -93,12 +93,13 @@ Preflight selects one workflow and one risk level. These dimensions compose; a
 domain label is not a template.
 
 The marked intent-routing section in the parent `pursue-goal` `SKILL.md` is the
-canonical selection policy for workflow, risk, and reasoning demand. It contains
-the concise selection triggers and tie-breakers needed before any workflow
-playbook is visible. Interactive preflight follows that section directly; a
-prepared host classifier MUST load and inject the same section rather than
-maintaining a second classifier-specific copy. The selected workflow document
-contains execution detail only and MUST be read after selection.
+canonical policy for workflow, risk, verification depth, and reasoning demand.
+It contains the concise selection triggers, tie-breakers, and proportional risk
+gates needed before any workflow playbook is visible. Interactive preflight
+follows that section directly; prepared classification and execution MUST load
+and inject the same section rather than maintaining host-specific copies. The
+selected workflow document contains execution detail only and MUST be read after
+selection.
 
 The workflow determines the execution sequence:
 
@@ -345,9 +346,9 @@ without making a paid model call or changing setup.
    only after the host is known; the main skill carries the shared sequence.
 3. **AGL-X3 — User invocation.** Both skills remain explicitly invoked because
    goal activation can consume meaningful model budget and edit the worktree.
-4. **AGL-X4 — Self-contained mappings.** Route and risk configuration,
-   workflow playbooks, and deterministic readiness mechanics ship inside the
-   plugin.
+4. **AGL-X4 — Self-contained mappings.** Route configuration, canonical risk
+   guidance, workflow playbooks, and deterministic readiness mechanics ship
+   inside the plugin.
 5. **AGL-X5 — Portable shell.** Bundled shell mechanics support Bash 5 and
    `/bin/bash` 3.2 and refuse unreadable configuration.
 

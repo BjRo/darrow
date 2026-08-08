@@ -25,6 +25,8 @@ contains() {
 
 test ! -e "$script_dir/../config/routes.gpt-5.6-candidate.tsv" ||
   fail "candidate route configuration still exists"
+test ! -e "$script_dir/../config/risks.tsv" ||
+  fail "duplicate risk configuration still exists"
 
 repo="$tmp_root/repo"
 mkdir -p "$repo"
@@ -61,9 +63,9 @@ contains "$out" 'references/workflows/fix-bug.md'
 contains "$out" 'references/workflows/implement-feature.md'
 contains "$out" 'references/workflows/change-feature.md'
 contains "$out" 'references/workflows/refactor.md'
-contains "$out" $'risk\troutine\t'
-contains "$out" $'risk\televated\t'
-contains "$out" $'risk\thigh\t'
+case "$out" in
+  *$'\nrisk\t'*) fail "prepared evidence still duplicates risk guidance" ;;
+esac
 
 out=$(bash "$goal_loop" prepare --repo "$repo" --host claude)
 contains "$out" $'route\troutine\tclaude\tanthropic\tclaude-haiku-4-5\tlow'

@@ -1,4 +1,0 @@
-# risk	verification
-routine	focused acceptance or characterization evidence plus the scoped repository gate
-elevated	routine gates plus affected-caller or compatibility checks and one plausible counterexample
-high	elevated gates plus an adversarial boundary or state-transition check and broader final-tree review

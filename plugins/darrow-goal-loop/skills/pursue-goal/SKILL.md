@@ -104,19 +104,19 @@ Classify reasoning demand independently from workflow and risk:
 
 Implementation size, reversibility, and consequence risk do not reduce a
 `judgment` task to ordinary coding.
-<!-- intent-routing-end -->
 
-Read the selected workflow document completely. The workflow document
-determines the execution sequence. Do not combine workflows or substitute a
-domain label for one. Small size alone is not mechanical.
-
-Apply its proportional risk gate:
+Apply the selected proportional risk gate:
 
 | Risk | Required verification |
 | --- | --- |
 | `routine` | focused acceptance or characterization evidence plus the scoped repository gate |
 | `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample |
 | `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
+<!-- intent-routing-end -->
+
+Read the selected workflow document completely. The workflow document
+determines the execution sequence. Do not combine workflows or substitute a
+domain label for one. Small size alone is not mechanical.
 
 Choose risk and profile independently. Risk reflects the cost of an incorrect
 result and changes verification; profile reflects the kind and scale of

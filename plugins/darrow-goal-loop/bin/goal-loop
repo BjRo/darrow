@@ -3,7 +3,6 @@ set -euo pipefail
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 routes_file="$script_dir/../config/routes.tsv"
-risks_file="$script_dir/../config/risks.tsv"
 workflows_dir="$script_dir/../skills/pursue-goal/references/workflows"
 tab=$(printf '\t')
 
@@ -143,8 +142,6 @@ prepare() {
     die "not a git working tree: $repo"
   test -d "$workflows_dir" ||
     die "workflow directory is missing: $workflows_dir"
-  test -r "$risks_file" ||
-    die "risk configuration is unreadable: $risks_file"
 
   revision=$(git -C "$repo" rev-parse HEAD)
   status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all)
@@ -196,19 +193,6 @@ prepare() {
     workflow_path=$(CDPATH= cd -- "$workflows_dir" && pwd)/$workflow.md
     printf 'workflow\t%s\t%s\n' "$workflow" "$workflow_path"
   done
-
-  while IFS="$tab" read -r risk verification extra; do
-    case "$risk" in
-      ''|'#'*) continue ;;
-    esac
-    test -n "$verification" && test -z "${extra:-}" ||
-      die "invalid risk configuration row: $risk"
-    case "$risk" in
-      routine|elevated|high) ;;
-      *) die "invalid risk identifier: $risk" ;;
-    esac
-    printf 'risk\t%s\t%s\n' "$risk" "$verification"
-  done <"$risks_file"
 
 }
 

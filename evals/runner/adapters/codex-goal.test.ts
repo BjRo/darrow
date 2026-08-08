@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
+  buildGoalExecutionPrompt,
   buildPreparedGoalPrompt,
   extractIntentRoutingGuidance,
   goalDimensionStage,
@@ -23,19 +25,16 @@ const prepared = [
   "route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh",
   "workflow\tchange-feature\t/plugin/references/workflows/change-feature.md",
   "workflow\tmechanical\t/plugin/references/workflows/mechanical.md",
-  "risk\troutine\tfocused acceptance and scoped gate",
-  "risk\televated\tcompatibility and counterexample",
-  "risk\thigh\tcounterexample and adversarial boundary",
 ].join("\n");
 const dimensions = parsePreparedGoalDimensions(prepared);
 
 function handoffValue() {
   return {
-    format: "darrow-native-goal-handoff-v3",
-    workflow: "change-feature",
-    risk: "high",
+    format: "darrow-native-goal-handoff-v3" as const,
+    workflow: "change-feature" as const,
+    risk: "high" as "routine" | "elevated" | "high",
     profile: "judgment",
-    routeSource: "policy",
+    routeSource: "policy" as const,
     selectedRoute: {
       harness: "codex",
       provider: "openai",
@@ -81,6 +80,18 @@ after`);
     expect(() => extractIntentRoutingGuidance("no marked guidance")).toThrow(
       "intent-routing guidance",
     );
+
+    const parentSkill = readFileSync(
+      "plugins/darrow-goal-loop/skills/pursue-goal/SKILL.md",
+      "utf8",
+    );
+    const canonicalGuidance = extractIntentRoutingGuidance(parentSkill);
+    for (const gate of [
+      "| `routine` | focused acceptance or characterization evidence plus the scoped repository gate |",
+      "| `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample |",
+      "| `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |",
+    ])
+      expect(canonicalGuidance).toContain(gate);
   });
 
   test("recognizes only tab-separated ablation markers", () => {
@@ -113,6 +124,24 @@ after`);
     expect(withRisk).toContain("Select the workflow and proportional risk");
     expect(withRisk).toContain("verification_gate");
     expect(withRisk).not.toContain("technical reference");
+  });
+
+  test("uses the same canonical risk gates in native execution", () => {
+    const guidance = [
+      "Canonical selection triggers.",
+      "| `high` | adversarial boundary and broader final-tree review |",
+    ].join("\n");
+    const prompt = buildGoalExecutionPrompt(
+      handoffValue(),
+      "# Change feature\n\nExecute the selected change.",
+      guidance,
+    );
+
+    expect(prompt.match(/Canonical selection triggers\./g)).toHaveLength(1);
+    expect(prompt).toContain(
+      "Apply the selected high verification gate defined in the canonical guidance above.",
+    );
+    expect(prompt).toContain("# Change feature");
   });
 
   test("ignores commentary and accepts only the final answer", () => {
@@ -154,6 +183,13 @@ after`);
         dimensions,
       ),
     ).toThrow("unknown workflow");
+    expect(() =>
+      parseCodexGoalHandoff(
+        handoff.replace('"risk":"high"', '"risk":"unknown"'),
+        catalog,
+        dimensions,
+      ),
+    ).toThrow("invalid shape");
   });
 
   test("accepts a routine coding route for clear high-risk work", () => {

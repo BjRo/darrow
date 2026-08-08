@@ -44,8 +44,9 @@ Example: _“Check native-goal readiness for Codex.”_
 
 A small portable Bash helper prepares repository state, instruction routes,
 semantic profiles from the single `config/routes.tsv`, workflow playbooks from
-`skills/pursue-goal/references/workflows/`, plus risk gates from
-`config/risks.tsv`; rejects selected/effective route mismatches; diagnoses
+`skills/pursue-goal/references/workflows/`, plus canonical risk selection and
+verification guidance from the parent skill; rejects selected/effective route
+mismatches; diagnoses
 launch boundaries; and provides an injection-safe nested compatibility
 launcher. It does not implement or supervise the goal.
 

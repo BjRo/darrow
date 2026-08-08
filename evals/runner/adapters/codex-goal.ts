@@ -33,13 +33,9 @@ interface GoalHandoff {
 interface WorkflowEntry {
   file: string;
 }
-interface RiskEntry {
-  verification: string;
-}
 export interface PreparedGoalDimensions {
   routes: Map<string, GoalRoute>;
   workflows: Map<string, WorkflowEntry>;
-  risks: Map<string, RiskEntry>;
 }
 
 export function parsePreparedGoalDimensions(
@@ -48,7 +44,6 @@ export function parsePreparedGoalDimensions(
   const dimensions: PreparedGoalDimensions = {
     routes: new Map(),
     workflows: new Map(),
-    risks: new Map(),
   };
   for (const rawLine of text.split("\n")) {
     const fields = rawLine.split("\t");
@@ -82,18 +77,9 @@ export function parsePreparedGoalDimensions(
       if (dimensions.workflows.has(id))
         throw new Error(`duplicate workflow: ${id}`);
       dimensions.workflows.set(id, { file });
-    } else if (kind === "risk") {
-      if (fields.length !== 3 || !fields[2])
-        throw new Error(`invalid risk row: ${rawLine}`);
-      if (dimensions.risks.has(id)) throw new Error(`duplicate risk: ${id}`);
-      dimensions.risks.set(id, { verification: fields[2] });
     }
   }
-  if (
-    !dimensions.routes.size ||
-    !dimensions.workflows.size ||
-    !dimensions.risks.size
-  )
+  if (!dimensions.routes.size || !dimensions.workflows.size)
     throw new Error("prepared goal dimensions are incomplete");
   return dimensions;
 }
@@ -164,6 +150,38 @@ export function buildPreparedGoalPrompt(
   ].join("\n");
 }
 
+export function buildGoalExecutionPrompt(
+  handoff: GoalHandoff,
+  workflowContent: string,
+  intentRoutingGuidance: string,
+): string {
+  const selected = handoff.selectedRoute;
+  return [
+    "The enclosing app-server launcher set the compiled contract as this thread's active native goal.",
+    "Do not call create_goal; this same thread already has the active goal.",
+    `It is applying the selected route ${selected.harness}|${selected.provider}|${selected.model}|${selected.effort} to this turn.`,
+    `Follow the selected ${handoff.workflow} workflow playbook:`,
+    workflowContent.trim(),
+    "Use this canonical workflow, risk, and verification guidance:",
+    intentRoutingGuidance,
+    `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
+    "Pursue the active goal through implementation and final verification.",
+    "Before returning, complete the native goal and include this exact evidence in the v4 launch record:",
+    "format\tdarrow-native-goal-preflight-v4",
+    `workflow\t${handoff.workflow}`,
+    `risk\t${handoff.risk}`,
+    `profile\t${handoff.profile}`,
+    `selected_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
+    `effective_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
+    "route_applied_by\thost-api",
+    "route_verified\ttrue",
+    "launch_boundary\thost_api",
+    `verification_gate\t${handoff.risk}`,
+    "evaluation_child_invocations\t0",
+    "evaluation_human_interruptions\t0",
+  ].join("\n");
+}
+
 export function goalDimensionStage(
   engineeringRequest: string,
 ): GoalDimensionStage {
@@ -193,7 +211,7 @@ export function parseCodexGoalHandoff(
   if (
     handoff.format !== "darrow-native-goal-handoff-v3" ||
     typeof handoff.workflow !== "string" ||
-    typeof handoff.risk !== "string" ||
+    !["routine", "elevated", "high"].includes(handoff.risk ?? "") ||
     typeof handoff.profile !== "string" ||
     !dimensions.routes.has(handoff.profile) ||
     !["policy", "user"].includes(handoff.routeSource ?? "") ||
@@ -209,8 +227,6 @@ export function parseCodexGoalHandoff(
     throw new Error("preflight handoff has an invalid shape");
   if (!dimensions.workflows.has(handoff.workflow))
     throw new Error(`unknown workflow: ${handoff.workflow}`);
-  if (!dimensions.risks.has(handoff.risk))
-    throw new Error(`unknown risk: ${handoff.risk}`);
   const model = catalog.find((entry) => entry.model === route.model);
   if (!model) throw new Error(`unavailable selected model: ${route.model}`);
   if (!model.efforts.includes(route.effort))
@@ -549,6 +565,7 @@ async function prepareGoalPreflight(
 ): Promise<{
   prompt: string;
   dimensions: PreparedGoalDimensions;
+  intentRoutingGuidance: string;
   stage: GoalDimensionStage;
   durationMs: number;
 }> {
@@ -593,6 +610,7 @@ async function prepareGoalPreflight(
       stage,
     ),
     dimensions,
+    intentRoutingGuidance,
     stage,
     durationMs: performance.now() - started,
   };
@@ -725,7 +743,6 @@ export const codexGoalAdapter: HarnessAdapter = {
           `selected route does not match evaluation control: expected ${expectedRoute.slice(1).join("/")}`,
         );
       const workflow = prepared.dimensions.workflows.get(handoff.workflow)!;
-      const risk = prepared.dimensions.risks.get(handoff.risk)!;
       const workflowContent = await readFile(workflow.file, "utf8");
       const workflowSha256 = new Bun.CryptoHasher("sha256")
         .update(workflowContent)
@@ -737,28 +754,11 @@ export const codexGoalAdapter: HarnessAdapter = {
         status: "active",
       });
       const selected = handoff.selectedRoute;
-      const executionPrompt = [
-        "The enclosing app-server launcher set the compiled contract as this thread's active native goal.",
-        "Do not call create_goal; this same thread already has the active goal.",
-        `It is applying the selected route ${selected.harness}|${selected.provider}|${selected.model}|${selected.effort} to this turn.`,
-        `Follow the selected ${handoff.workflow} workflow playbook:`,
-        workflowContent.trim(),
-        `Apply the ${handoff.risk} verification gate: ${risk.verification}.`,
-        "Pursue the active goal through implementation and final verification.",
-        "Before returning, complete the native goal and include this exact evidence in the v4 launch record:",
-        "format\tdarrow-native-goal-preflight-v4",
-        `workflow\t${handoff.workflow}`,
-        `risk\t${handoff.risk}`,
-        `profile\t${handoff.profile}`,
-        `selected_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
-        `effective_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
-        "route_applied_by\thost-api",
-        "route_verified\ttrue",
-        "launch_boundary\thost_api",
-        `verification_gate\t${handoff.risk}`,
-        "evaluation_child_invocations\t0",
-        "evaluation_human_interruptions\t0",
-      ].join("\n");
+      const executionPrompt = buildGoalExecutionPrompt(
+        handoff,
+        workflowContent,
+        prepared.intentRoutingGuidance,
+      );
       const executionStarted = performance.now();
       const execution = await client.request("turn/start", {
         threadId,
