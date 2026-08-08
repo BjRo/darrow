@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   extractOrchestrationMetrics,
   hasUnreconciledOrchestrationUsage,
+  observeCodexGoalRouteApplication,
   observeCodexTicketPipelineRoutes,
+  reconcileObservedGoalRouteApplication,
   reconcileObservedTicketPipelineRoutes,
 } from "./orchestration-metrics";
 
@@ -166,6 +168,172 @@ describe("orchestration outcome metrics", () => {
           "route\tqa\t2\tcodex\tgpt-5.5\tmedium\tqa-2-duplicate",
         ].join("\n"),
         duplicateAttemptRaw,
+      )?.passed,
+    ).toBe(false);
+  });
+
+  test("reconciles goal-loop selected routes with the route actually applied", () => {
+    const result = [
+      "format\tdarrow-native-goal-preflight-v2",
+      "profile\tstandard",
+      "selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium",
+      "effective_route\tcodex\topenai\tgpt-5.6-sol\tmedium",
+      "route_applied_by\tnested-session",
+      "route_verified\ttrue",
+      "launch_boundary\tnested_session",
+      "evaluation_child_invocations\t1",
+      "evaluation_human_interruptions\t0",
+    ].join("\n");
+    const nestedOutput = [
+      JSON.stringify({ type: "thread.started", thread_id: "nested-thread" }),
+      JSON.stringify({
+        type: "turn.completed",
+        usage: { input_tokens: 100, output_tokens: 20 },
+      }),
+      "format\tdarrow-native-goal-route-application-v1",
+      "selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium",
+      "effective_route\tcodex\topenai\tgpt-5.6-sol\tmedium",
+      "route_applied_by\tnested-session",
+      "route_verified\ttrue",
+    ].join("\n");
+    const raw = JSON.stringify({
+      type: "item.completed",
+      item: {
+        type: "command_execution",
+        status: "completed",
+        exit_code: 0,
+        aggregated_output: nestedOutput,
+      },
+    });
+
+    expect(observeCodexGoalRouteApplication(result, raw)).toEqual({
+      profile: "standard",
+      selected: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      },
+      effective: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      },
+      appliedBy: "nested-session",
+      launchBoundary: "nested_session",
+      childInvocationCount: 1,
+      childInputTokens: 100,
+      childOutputTokens: 20,
+    });
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        raw,
+        "codex",
+        "gpt-5.6-terra",
+        "low",
+      )?.passed,
+    ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        raw,
+        "codex",
+        "gpt-5.6-sol",
+        "medium",
+      )?.passed,
+    ).toBe(false);
+
+    const sameThread = result
+      .replaceAll("gpt-5.6-sol\tmedium", "gpt-5.6-terra\tlow")
+      .replaceAll("nested-session", "current-thread")
+      .replace("nested_session", "same_thread")
+      .replace(
+        "evaluation_child_invocations\t1",
+        "evaluation_child_invocations\t0",
+      );
+    expect(
+      reconcileObservedGoalRouteApplication(
+        sameThread,
+        "",
+        "codex",
+        "gpt-5.6-terra",
+        "low",
+      )?.passed,
+    ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        sameThread,
+        "",
+        "codex",
+        "gpt-5.6-terra",
+        "medium",
+      )?.passed,
+    ).toBe(false);
+
+    const hostApi = result
+      .replaceAll("nested-session", "host-api")
+      .replace("nested_session", "host_api")
+      .replace(
+        "evaluation_child_invocations\t1",
+        "evaluation_child_invocations\t0",
+      );
+    const hostRaw = JSON.stringify({
+      type: "darrow.route_applied",
+      accepted: true,
+      threadId: "thread-1",
+      turnId: "turn-2",
+      selected: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      },
+      effective: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      },
+      appliedBy: "host-api",
+    });
+    expect(observeCodexGoalRouteApplication(hostApi, hostRaw)).toEqual({
+      profile: "standard",
+      selected: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      },
+      effective: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      },
+      appliedBy: "host-api",
+      launchBoundary: "host_api",
+      childInvocationCount: 0,
+      childInputTokens: 0,
+      childOutputTokens: 0,
+    });
+    expect(
+      reconcileObservedGoalRouteApplication(
+        hostApi,
+        hostRaw,
+        "codex",
+        "gpt-5.6-terra",
+        "low",
+      )?.passed,
+    ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        hostApi,
+        hostRaw.replace('"accepted":true', '"accepted":false'),
+        "codex",
+        "gpt-5.6-terra",
+        "low",
       )?.passed,
     ).toBe(false);
   });

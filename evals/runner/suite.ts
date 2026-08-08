@@ -9,6 +9,7 @@ interface ModeConfig {
   skill_dir?: string;
   mount_plugin_skills?: boolean;
   require_evaluation_records?: boolean;
+  apply_goal_route?: boolean;
 }
 
 interface SuiteConfig {
@@ -191,6 +192,7 @@ for (const { harness, modeName } of cellPlan) {
   if (mode.mount_plugin_skills) args.push("--mount-plugin-skills");
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
+  if (mode.apply_goal_route) args.push("--apply-goal-route");
   if (values.dry) args.push("--dry");
   if (!values.dry && !values["no-judge"]) {
     args.push(

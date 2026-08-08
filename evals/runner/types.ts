@@ -106,6 +106,24 @@ export interface HarnessResult {
   raw: string;
 }
 
+export interface GoalRoute {
+  harness: string;
+  provider: string;
+  model: string;
+  effort: string;
+}
+
+export interface GoalRouteApplication {
+  profile: string;
+  selected: GoalRoute;
+  effective: GoalRoute;
+  appliedBy: "current-thread" | "host-api" | "nested-session";
+  launchBoundary: "same_thread" | "host_api" | "nested_session";
+  childInvocationCount: number;
+  childInputTokens: number;
+  childOutputTokens: number;
+}
+
 export interface HarnessAdapter {
   name: string;
   defaultModel: string;
@@ -133,6 +151,8 @@ export interface TrialResult {
   passed: boolean;
   checks: CheckResult[];
   harness: HarnessResult;
+  /** Harness-observed application of a goal-loop profile route. */
+  routeApplication?: GoalRouteApplication;
   orchestrationMetrics?: {
     childInvocationCount: number;
     humanInterruptions: number;

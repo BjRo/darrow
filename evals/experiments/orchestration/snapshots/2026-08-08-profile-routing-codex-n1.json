@@ -1,0 +1,260 @@
+{
+  "format": "darrow-goal-profile-routing-snapshot-v1",
+  "status": "exploratory",
+  "runDate": "2026-08-08",
+  "implementation": "native-goal-preflight-v2-host-api-routing",
+  "harness": "codex",
+  "harnessVersion": "codex-cli 0.145.0",
+  "trialsPerTask": 1,
+  "taskCount": 4,
+  "corpus": ["Ajv 8.5.0", "Click 8.0.0", "Express 4.17.1", "go-git 5.4.2"],
+  "classifierRoute": {
+    "harness": "codex",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "effort": "low"
+  },
+  "policyRoutes": {
+    "fast": "codex|openai|gpt-5.6-terra|low",
+    "standard": "codex|openai|gpt-5.6-sol|medium",
+    "deep": "codex|openai|gpt-5.6-sol|high"
+  },
+  "activation": {
+    "handoffFormat": "darrow-native-goal-handoff-v1",
+    "routeSource": "policy",
+    "routeSourceEvidence": "Ajv, Click, and Express were confirmed by post-hoc mapping audit before routeSource became required; the go-git replacement was schema- and policy-enforced.",
+    "boundary": "host_api",
+    "appliedBy": "host-api",
+    "childInvocations": 0,
+    "preflightReadOnly": true
+  },
+  "judge": {
+    "harness": "codex",
+    "model": "adapter-default",
+    "effort": "low",
+    "conditionBlind": true
+  },
+  "provenance": {
+    "runnerRevision": "67165f21980db0d98ddb29f6fba78ecfe82c8454",
+    "acceptedRawArtifacts": [
+      {
+        "purpose": "Ajv, Click, and Express accepted trials; go-git trial excluded for a profile-route mismatch",
+        "startedAt": "2026-08-08T08:46:46.463Z",
+        "orderSeed": "goal-route-host-api-codex-n1-20260808",
+        "manifest": "evals/results/orchestration-value/goal-route-host-api-codex-n1-20260808/suite-run.json",
+        "manifestSha256": "c39c84caae8367d3b99c16606778e0fab1458514e3e968b7a16e7c8043c114e6",
+        "result": "evals/results/orchestration-value/goal-route-host-api-codex-n1-20260808/codex-darrow-goal-loop.json",
+        "resultSha256": "74590d14eeb058866145368fddf5f0f956be6c38657a2d462d493b9140e003e5",
+        "report": "evals/results/orchestration-value/goal-route-host-api-codex-n1-20260808/report.md",
+        "reportSha256": "782d4b2390c9cb8120ba84f7075db00bf911bcfb48c2c8027646acd528d5e3c8",
+        "runnerPatchSha256": "9ad98aac0a5998b139965371cce0c8cf8edd3d84fe814c470ca996d04402403b"
+      },
+      {
+        "purpose": "policy-enforced go-git replacement trial",
+        "startedAt": "2026-08-08T09:14:55.038Z",
+        "orderSeed": "goal-route-host-api-codex-go-git-replacement-n1-20260808",
+        "manifest": "evals/results/orchestration-value/goal-route-host-api-codex-go-git-replacement-n1-20260808/suite-run.json",
+        "manifestSha256": "67a3cd7cbf07abee61f821198928b8791c0dbf246c473cacbdf90c240bb436db",
+        "result": "evals/results/orchestration-value/goal-route-host-api-codex-go-git-replacement-n1-20260808/codex-darrow-goal-loop.json",
+        "resultSha256": "4291c0c5bea884a58206e306cc07a2a8d150bfd999af5087717ef04dcecdd0d8",
+        "report": "evals/results/orchestration-value/goal-route-host-api-codex-go-git-replacement-n1-20260808/report.md",
+        "reportSha256": "8511006fd0703379746961a1d51fb0068a1b4f8b394ce79f1229083a7bf14434",
+        "runnerPatchSha256": "f7e124ac5644e349d83d6fd9a943731bcb4f2d06160079e6d4dd4114c3c170fd"
+      }
+    ],
+    "acceptedCalibration": {
+      "result": "evals/results/orchestration-value/route-application-calibration-v9.json",
+      "sha256": "f22c9c065fd8a2c5220d531a64e39779d9831e9344b73d55dac1cc241c0522e2",
+      "classifier": "gpt-5.6-terra/low",
+      "profile": "standard",
+      "effective": "gpt-5.6-sol/medium",
+      "pass": true
+    },
+    "executionLogAudit": {
+      "status": "pass",
+      "candidateStreamsVerified": 4,
+      "judgeStreamsVerified": 4,
+      "checks": [
+        "Exactly one accepted darrow.route_applied event exists per accepted candidate stream.",
+        "Each accepted event's selected and effective route equals the runner routeApplication record.",
+        "Each policy-sourced route matches the bundled mapping for its named profile.",
+        "Each terminal final_answer equals the runner resultText.",
+        "Each stream contains exactly one complete native-goal update.",
+        "Each final cumulative token-usage event equals the runner input/output token fields.",
+        "Every deterministic and protocol check passed for the accepted trials.",
+        "Each parsed judge score equals its recorded assessment."
+      ]
+    }
+  },
+  "aggregate": {
+    "taskPassRate": 1.0,
+    "protocolPassRate": 1.0,
+    "judgeScore": 3.75,
+    "judgePassRate": 0.75,
+    "wallMeanSeconds": 240.274,
+    "wallP95Seconds": 308.286,
+    "candidateTokensMean": 627552.25,
+    "candidateTokensTotal": 2510209,
+    "candidateCostUsd": null,
+    "childrenMean": 0.0,
+    "humanInterventions": 0
+  },
+  "tasks": [
+    {
+      "case": "orchestration-oss-ajv-instance-path",
+      "source": "Ajv 8.5.0",
+      "shape": "TypeScript code generation and public diagnostics",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 4,
+      "judgePass": true,
+      "wallSeconds": 226.904,
+      "candidateTokens": 552857,
+      "profile": "deep",
+      "selectedRoute": "codex|openai|gpt-5.6-sol|high",
+      "effectiveRoute": "codex|openai|gpt-5.6-sol|high",
+      "launchBoundary": "host_api",
+      "children": 0,
+      "humanInterventions": 0,
+      "rawSource": "primary"
+    },
+    {
+      "case": "orchestration-oss-click-streams",
+      "source": "Click 8.0.0",
+      "shape": "Python stream lifecycle and public API migration",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 2,
+      "judgePass": false,
+      "wallSeconds": 304.735,
+      "candidateTokens": 772163,
+      "profile": "deep",
+      "selectedRoute": "codex|openai|gpt-5.6-sol|high",
+      "effectiveRoute": "codex|openai|gpt-5.6-sol|high",
+      "launchBoundary": "host_api",
+      "children": 0,
+      "humanInterventions": 0,
+      "rawSource": "primary",
+      "judgeFinding": "Independent TextIOWrapper buffering can produce acb instead of abc for unflushed stdout/stderr writes; the deterministic hidden check did not cover this edge."
+    },
+    {
+      "case": "orchestration-oss-express-links",
+      "source": "Express 4.17.1",
+      "shape": "JavaScript HTTP header security hardening",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 5,
+      "judgePass": true,
+      "wallSeconds": 121.173,
+      "candidateTokens": 229886,
+      "profile": "standard",
+      "selectedRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveRoute": "codex|openai|gpt-5.6-sol|medium",
+      "launchBoundary": "host_api",
+      "children": 0,
+      "humanInterventions": 0,
+      "rawSource": "primary"
+    },
+    {
+      "case": "orchestration-oss-go-git-insteadof",
+      "source": "go-git 5.4.2",
+      "shape": "Go public configuration model and rewrite semantics",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 4,
+      "judgePass": true,
+      "wallSeconds": 308.286,
+      "candidateTokens": 955303,
+      "profile": "deep",
+      "selectedRoute": "codex|openai|gpt-5.6-sol|high",
+      "effectiveRoute": "codex|openai|gpt-5.6-sol|high",
+      "launchBoundary": "host_api",
+      "children": 0,
+      "humanInterventions": 0,
+      "rawSource": "policy-enforced-replacement"
+    }
+  ],
+  "rejectedRuns": [
+    {
+      "run": "route-application-calibration-v1",
+      "reason": "The classifier route was incorrectly fed back as a user override."
+    },
+    {
+      "run": "route-application-calibration-v2",
+      "reason": "The parent did not wait for the nested launcher and self-reported completion."
+    },
+    {
+      "run": "route-application-calibration-v3",
+      "reason": "The nested launch used an unset shell variable for the goal contract path."
+    },
+    {
+      "run": "route-application-calibration-v4",
+      "reason": "Recursive Codex model discovery timed out, demonstrating that nested CLI recursion is not a reliable primary boundary."
+    },
+    {
+      "run": "route-application-calibration-v5",
+      "sha256": "be95ffa446957c86c5d8499ce0563d4edb96d608774ddd2ee178edf42b48283a",
+      "reason": "The app-server rejected an invalid structured-output schema before model work."
+    },
+    {
+      "run": "route-application-calibration-v6",
+      "sha256": "66dcd92c7cf999c9fed3dcaae135d9efce6e211e96fddf3b28fa9e093abb688c",
+      "reason": "Native goals cannot be attached to an ephemeral app-server thread."
+    },
+    {
+      "run": "route-application-calibration-v7",
+      "reason": "The native goal completed on an automatic continuation turn, but the adapter waited on the original turn id."
+    },
+    {
+      "run": "route-application-calibration-v8",
+      "sha256": "5c9b43c81dda8058f345c7bef78ae5575cb0c41885577c8df088fe7aaf0c04c0",
+      "reason": "The adapter parsed a commentary message as the final preflight handoff and applied Terra/low."
+    },
+    {
+      "run": "primary go-git trial",
+      "resultSha256": "74590d14eeb058866145368fddf5f0f956be6c38657a2d462d493b9140e003e5",
+      "reason": "The handoff named deep but selected Sol/medium. It was excluded and replaced after policy-route validation was added."
+    }
+  ],
+  "historicalContext": [
+    {
+      "mode": "vanilla gpt-5.5/medium",
+      "taskPassRate": 1.0,
+      "judgeScore": 4.75,
+      "wallMeanSeconds": 216.452,
+      "candidateTokensMean": 649755.75
+    },
+    {
+      "mode": "raw native goal gpt-5.5/medium",
+      "taskPassRate": 1.0,
+      "judgeScore": 4.75,
+      "wallMeanSeconds": 223.049,
+      "candidateTokensMean": 759671.75
+    },
+    {
+      "mode": "pinned preflight gpt-5.5/medium",
+      "taskPassRate": 1.0,
+      "judgeScore": 4.75,
+      "wallMeanSeconds": 266.148,
+      "candidateTokensMean": 939926
+    }
+  ],
+  "conclusions": {
+    "routeApplication": "Verified. A Terra/low preflight selected and the host applied Sol/medium or Sol/high on every accepted task; selected and effective routes matched in the raw logs.",
+    "profileIntegrity": "Verified by post-hoc mapping audit for the first three tasks and live policy-source enforcement for the go-git replacement. The initially accepted deep/medium go-git handoff was detected, excluded, and replaced by deep/high.",
+    "quality": "All deterministic checks passed, but the blind judge rejected Click for a plausible unflushed-text interleaving defect. Treat qualitative success as 3/4, not 4/4.",
+    "value": "Not demonstrated. This N=1 routed cell is not causally comparable to historical gpt-5.5/medium controls, and deep routing did not prevent the Click defect.",
+    "performance": "The accepted composite averaged 240.3 seconds and 627,552 candidate tokens. These figures include the Terra/low preflight plus the routed native goal and no nested-child usage.",
+    "status": "Keep adaptive profile routing exploratory. Do not promote a value claim until vanilla and raw-native controls run on the same per-task effective routes for at least three trials."
+  },
+  "nextEvaluation": {
+    "trialsPerCell": 3,
+    "controls": [
+      "vanilla on each task's effective Sol route",
+      "raw native goal on each task's effective Sol route",
+      "Darrow preflight with Terra/low classification and policy-routed execution"
+    ],
+    "requiredFix": "Add or preserve an oracle for unflushed text-stream interleaving before using Click as a deterministic pass signal.",
+    "comparisonRule": "Attribute only the incremental preflight effect after holding the implementation model and effort constant."
+  }
+}

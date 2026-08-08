@@ -32,7 +32,8 @@ Answer each `controller_must_confirm` item from capabilities exposed by the
 current surface:
 
 1. Can the current thread activate a native goal?
-2. Can the current thread apply the selected model and effort?
+2. Does host metadata expose the current provider, model, and effort so an exact
+   match can be confirmed?
 3. Does an enclosing supported host API control the existing thread?
 4. Is one nested host session available as a compatibility boundary?
 
@@ -50,6 +51,10 @@ CLI presence has been promoted into a same-thread capability claim.
 For each profile, report the mapped harness, provider, model, effort, declared
 fallback, and the narrowest usable launch boundary. Mark a user-pinned
 unavailable route as blocked; do not silently substitute it.
+
+Do not call a profile ready on the current thread unless its mapped route
+exactly matches the host-reported effective route. A goal tool without a route
+override is insufficient evidence.
 
 End with the smallest action that unlocks the requested route, or
 `No remediation required` when it is ready. State explicitly that readiness

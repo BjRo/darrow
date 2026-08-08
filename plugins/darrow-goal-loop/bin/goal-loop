@@ -10,8 +10,9 @@ usage() {
 usage:
   goal-loop preflight --repo <path>
   goal-loop route --host <codex|claude> --profile <fast|standard|deep> [--route <harness|provider|model|effort>]
+  goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|nested-session>
   goal-loop readiness --host <codex|claude>
-  goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --model <id> --effort <level>
+  goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level>
 EOF
 }
 
@@ -155,11 +156,71 @@ EOF
     source=policy
   fi
 
-  printf 'format\tdarrow-native-goal-route-v1\n'
+  printf 'format\tdarrow-native-goal-route-v2\n'
   printf 'profile\t%s\n' "$profile"
-  printf 'route\t%s\t%s\t%s\t%s\n' "$harness" "$provider" "$model" "$effort"
+  printf 'selected_route\t%s\t%s\t%s\t%s\n' "$harness" "$provider" "$model" "$effort"
   printf 'route_source\t%s\n' "$source"
   printf 'fallback\t%s\t%s\n' "$fallback_model" "$fallback_effort"
+}
+
+confirm_route() {
+  selected=
+  effective=
+  applied_by=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --selected)
+        require_value "$@"
+        selected=$2
+        shift 2
+        ;;
+      --effective)
+        require_value "$@"
+        effective=$2
+        shift 2
+        ;;
+      --applied-by)
+        require_value "$@"
+        applied_by=$2
+        shift 2
+        ;;
+      *) die "unknown confirm-route option: $1" ;;
+    esac
+  done
+  test -n "$selected" && test -n "$effective" && test -n "$applied_by" ||
+    die "confirm-route requires --selected, --effective, and --applied-by"
+  case "$applied_by" in
+    current-thread|host-api|nested-session) ;;
+    *) die "unsupported route application boundary: $applied_by" ;;
+  esac
+
+  old_ifs=$IFS
+  IFS='|'
+  read -r selected_harness selected_provider selected_model selected_effort selected_extra <<EOF
+$selected
+EOF
+  read -r effective_harness effective_provider effective_model effective_effort effective_extra <<EOF
+$effective
+EOF
+  IFS=$old_ifs
+  test -n "${selected_harness:-}" && test -n "${selected_provider:-}" &&
+    test -n "${selected_model:-}" && test -n "${selected_effort:-}" &&
+    test -z "${selected_extra:-}" ||
+    die "--selected must be harness|provider|model|effort"
+  test -n "${effective_harness:-}" && test -n "${effective_provider:-}" &&
+    test -n "${effective_model:-}" && test -n "${effective_effort:-}" &&
+    test -z "${effective_extra:-}" ||
+    die "--effective must be harness|provider|model|effort"
+  test "$selected" = "$effective" ||
+    die "selected route does not match effective route"
+
+  printf 'format\tdarrow-native-goal-route-application-v1\n'
+  printf 'selected_route\t%s\t%s\t%s\t%s\n' \
+    "$selected_harness" "$selected_provider" "$selected_model" "$selected_effort"
+  printf 'effective_route\t%s\t%s\t%s\t%s\n' \
+    "$effective_harness" "$effective_provider" "$effective_model" "$effective_effort"
+  printf 'route_applied_by\t%s\n' "$applied_by"
+  printf 'route_verified\ttrue\n'
 }
 
 readiness() {
@@ -213,6 +274,7 @@ launch() {
   host=
   repo=
   goal_file=
+  provider=
   model=
   effort=
   while test "$#" -gt 0; do
@@ -232,6 +294,11 @@ launch() {
         goal_file=$2
         shift 2
         ;;
+      --provider)
+        require_value "$@"
+        provider=$2
+        shift 2
+        ;;
       --model)
         require_value "$@"
         model=$2
@@ -245,9 +312,9 @@ launch() {
       *) die "unknown launch option: $1" ;;
     esac
   done
-  test -n "$host" && test -n "$repo" && test -n "$goal_file" &&
+  test -n "$host" && test -n "$repo" && test -n "$goal_file" && test -n "$provider" &&
     test -n "$model" && test -n "$effort" ||
-    die "launch requires --host, --repo, --goal-file, --model, and --effort"
+    die "launch requires --host, --repo, --goal-file, --provider, --model, and --effort"
   validate_host "$host"
   repo=$(absolute_dir "$repo")
   test -r "$goal_file" || die "goal file is unreadable: $goal_file"
@@ -259,22 +326,66 @@ launch() {
   goal=$(cat "$goal_file")
   export DARROW_GOAL_LOOP_NESTED=1
   if test "$host" = codex; then
+    nested_tmp=$(mktemp -d "${TMPDIR:-/tmp}/darrow-goal-route.XXXXXX")
+    nested_events="$nested_tmp/events.jsonl"
+    nested_result="$nested_tmp/final.txt"
+    nested_status=0
     (
       cd "$repo"
-      exec codex exec "$goal" --model "$model" \
-        -c "model_reasoning_effort=\"$effort\"" \
-        --sandbox workspace-write --skip-git-repo-check
-    )
+      if test "${DARROW_GOAL_LOOP_EXTERNAL_SANDBOX:-0}" = 1; then
+        codex exec "$goal" --model "$model" \
+          -c "model_provider=\"$provider\"" \
+          -c "model_reasoning_effort=\"$effort\"" \
+          --json --dangerously-bypass-approvals-and-sandbox \
+          --skip-git-repo-check -o "$nested_result"
+      else
+        codex exec "$goal" --model "$model" \
+          -c "model_provider=\"$provider\"" \
+          -c "model_reasoning_effort=\"$effort\"" \
+          --json --sandbox workspace-write --skip-git-repo-check \
+          -o "$nested_result"
+      fi
+    ) >"$nested_events" || nested_status=$?
+    if test "$nested_status" -ne 0; then
+      tail -n 40 "$nested_events" >&2 || true
+      rm -f "$nested_events" "$nested_result"
+      rmdir "$nested_tmp" 2>/dev/null || true
+      return "$nested_status"
+    fi
+    completed_event=
+    while IFS= read -r line; do
+      case "$line" in
+        *'"type":"turn.completed"'*) completed_event=$line ;;
+      esac
+    done <"$nested_events"
+    if test -z "$completed_event" || test ! -r "$nested_result"; then
+      rm -f "$nested_events" "$nested_result"
+      rmdir "$nested_tmp" 2>/dev/null || true
+      die "nested Codex session did not produce completion evidence"
+    fi
+    printf '%s\n' "$completed_event"
+    printf 'nested_result_begin\n'
+    cat "$nested_result"
+    printf '\nnested_result_end\n'
+    rm -f "$nested_events" "$nested_result"
+    rmdir "$nested_tmp" 2>/dev/null || true
   else
     (
       cd "$repo"
       if test "${DARROW_GOAL_LOOP_EXTERNAL_SANDBOX:-0}" = 1; then
-        exec claude -p "/goal $goal" --model "$model" --effort "$effort" \
+        claude -p "/goal $goal" --model "$model" --effort "$effort" \
           --dangerously-skip-permissions
+      else
+        claude -p "/goal $goal" --model "$model" --effort "$effort"
       fi
-      exec claude -p "/goal $goal" --model "$model" --effort "$effort"
     )
   fi
+
+  printf 'format\tdarrow-native-goal-route-application-v1\n'
+  printf 'selected_route\t%s\t%s\t%s\t%s\n' "$host" "$provider" "$model" "$effort"
+  printf 'effective_route\t%s\t%s\t%s\t%s\n' "$host" "$provider" "$model" "$effort"
+  printf 'route_applied_by\tnested-session\n'
+  printf 'route_verified\ttrue\n'
 }
 
 test "$#" -gt 0 || {
@@ -286,6 +397,7 @@ shift
 case "$command" in
   preflight) preflight "$@" ;;
   route) route "$@" ;;
+  confirm-route) confirm_route "$@" ;;
   readiness) readiness "$@" ;;
   launch) launch "$@" ;;
   -h|--help|help) usage ;;

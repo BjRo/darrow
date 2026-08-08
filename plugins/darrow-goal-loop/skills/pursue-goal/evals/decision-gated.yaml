@@ -22,6 +22,8 @@ checks:
 output_checks:
   - name: decision-gated template is explicit
     expect_regex: "template\\tdecision-gated"
+  - name: no route is falsely applied
+    expect_regex: "route_applied_by\\tnone[\\s\\S]*route_verified\\tfalse"
   - name: goal launch stops honestly
     expect_regex: "launch_boundary\\tlaunch_required"
   - name: no child was launched

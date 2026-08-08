@@ -41,13 +41,30 @@ contains "$out" $'working_tree\tdirty'
 contains "$out" $'preexisting_change\t M value.txt'
 
 out=$(bash "$goal_loop" route --host codex --profile standard)
+contains "$out" $'format\tdarrow-native-goal-route-v2'
 contains "$out" $'profile\tstandard'
-contains "$out" $'route\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
 contains "$out" $'route_source\tpolicy'
+
+out=$(bash "$goal_loop" confirm-route \
+  --selected 'codex|openai|gpt-5.6-sol|medium' \
+  --effective 'codex|openai|gpt-5.6-sol|medium' \
+  --applied-by current-thread)
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'effective_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'route_applied_by\tcurrent-thread'
+contains "$out" $'route_verified\ttrue'
+
+if bash "$goal_loop" confirm-route \
+  --selected 'codex|openai|gpt-5.6-sol|high' \
+  --effective 'codex|openai|gpt-5.6-sol|medium' \
+  --applied-by current-thread >/dev/null 2>&1; then
+  fail "mismatched selected and effective routes were accepted"
+fi
 
 out=$(bash "$goal_loop" route --host claude --profile deep \
   --route 'claude|anthropic|claude-test|high')
-contains "$out" $'route\tclaude\tanthropic\tclaude-test\thigh'
+contains "$out" $'selected_route\tclaude\tanthropic\tclaude-test\thigh'
 contains "$out" $'route_source\tuser'
 
 if bash "$goal_loop" route --host codex --profile tiny >/dev/null 2>&1; then
@@ -63,7 +80,20 @@ mkdir -p "$fake_bin"
 cat >"$fake_bin/codex" <<'EOF'
 #!/usr/bin/env bash
 if test "${1:-}" = app-server && test "${2:-}" = --help; then exit 0; fi
-printf 'codex-call\t%s\n' "$*"
+test -n "${FAKE_CODEX_ARGS:-}" && printf '%s\n' "$*" >"$FAKE_CODEX_ARGS"
+output_file=
+while test "$#" -gt 0; do
+  if test "$1" = -o; then
+    output_file=$2
+    shift 2
+  else
+    shift
+  fi
+done
+test -n "$output_file" || exit 9
+printf 'nested-final\n' >"$output_file"
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"discarded-noise"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"output_tokens":20}}'
 EOF
 cat >"$fake_bin/claude" <<'EOF'
 #!/usr/bin/env bash
@@ -79,14 +109,31 @@ contains "$out" $'route\tfast\tcodex\topenai\tgpt-5.6-terra\tlow'
 
 goal_file="$tmp_root/goal.txt"
 printf 'Implement the bounded change and run the focused test.\n' >"$goal_file"
-out=$(PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host codex --repo "$repo" \
-  --goal-file "$goal_file" --model codex-test --effort medium)
-contains "$out" 'codex-call'
-contains "$out" '--model codex-test'
-contains "$out" '--sandbox workspace-write'
+codex_args="$tmp_root/codex-args.txt"
+out=$(FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host codex --repo "$repo" \
+  --goal-file "$goal_file" --provider openai --model codex-test --effort medium)
+contains "$out" $'format\tdarrow-native-goal-route-application-v1'
+contains "$out" $'selected_route\tcodex\topenai\tcodex-test\tmedium'
+contains "$out" $'effective_route\tcodex\topenai\tcodex-test\tmedium'
+contains "$out" $'route_applied_by\tnested-session'
+contains "$out" $'route_verified\ttrue'
+contains "$out" $'nested_result_begin\nnested-final'
+contains "$out" 'nested_result_end'
+contains "$out" '"type":"turn.completed"'
+args=$(cat "$codex_args")
+contains "$args" '--model codex-test'
+contains "$args" '--json'
+contains "$args" '--sandbox workspace-write'
+
+out=$(DARROW_GOAL_LOOP_EXTERNAL_SANDBOX=1 FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host codex --repo "$repo" \
+  --goal-file "$goal_file" --provider openai --model codex-test --effort medium)
+args=$(cat "$codex_args")
+contains "$args" '--dangerously-bypass-approvals-and-sandbox'
 
 out=$(PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host claude --repo "$repo" \
-  --goal-file "$goal_file" --model claude-test --effort high)
+  --goal-file "$goal_file" --provider anthropic --model claude-test --effort high)
 contains "$out" 'claude-call'
 contains "$out" '/goal Implement the bounded change'
 contains "$out" '--model claude-test --effort high'
@@ -94,7 +141,7 @@ contains "$out" '--model claude-test --effort high'
 large_goal="$tmp_root/large.txt"
 dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' x >"$large_goal"
 if PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host codex --repo "$repo" \
-  --goal-file "$large_goal" --model codex-test --effort medium >/dev/null 2>&1; then
+  --goal-file "$large_goal" --provider openai --model codex-test --effort medium >/dev/null 2>&1; then
   fail "oversized goal was accepted"
 fi
 

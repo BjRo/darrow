@@ -8,10 +8,13 @@ import { runQualityJudge } from "./judge";
 import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
+import { codexGoalAdapter } from "./adapters/codex-goal";
 import {
   extractOrchestrationMetrics,
   hasUnreconciledOrchestrationUsage,
+  observeCodexGoalRouteApplication,
   observeCodexTicketPipelineRoutes,
+  reconcileObservedGoalRouteApplication,
   reconcileObservedTicketPipelineRoutes,
 } from "./orchestration-metrics";
 import type {
@@ -132,7 +135,11 @@ async function runCase(
     );
     try {
       const baseRevision = await repositoryHead(repoDir);
-      const prompt = promptTemplate.replaceAll("{{repo_dir}}", repoDir);
+      const prompt = promptTemplate
+        .replaceAll("{{repo_dir}}", repoDir)
+        .replaceAll("{{harness}}", adapter.name)
+        .replaceAll("{{model}}", model)
+        .replaceAll("{{effort}}", effort);
       if (dry) {
         console.log(
           `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
@@ -155,6 +162,20 @@ async function runCase(
         continue;
       }
       const harness = await adapter.run(repoDir, prompt, model, effort);
+      const observedGoalRouteApplication =
+        adapter.name === "codex"
+          ? observeCodexGoalRouteApplication(harness.resultText, harness.raw)
+          : undefined;
+      const observedGoalRouteCheck =
+        adapter.name === "codex"
+          ? reconcileObservedGoalRouteApplication(
+              harness.resultText,
+              harness.raw,
+              adapter.name,
+              model,
+              effort,
+            )
+          : undefined;
       const observedTicketPipelineCheck = reconcileObservedTicketPipelineRoutes(
         harness.resultText,
         harness.raw,
@@ -180,8 +201,12 @@ async function runCase(
               evalCase.skillDir,
             )),
         ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
+        ...(observedGoalRouteCheck ? [observedGoalRouteCheck] : []),
         ...(requireEvaluationRecords
-          ? evaluationRecordChecks(harness.resultText)
+          ? evaluationRecordChecks(
+              harness.resultText,
+              evalCase.skillDir.endsWith("/pursue-goal"),
+            )
           : []),
       ];
       const passed = harness.ok && checks.every((c) => c.passed);
@@ -200,10 +225,12 @@ async function runCase(
         passed,
         checks,
         harness,
+        routeApplication: observedGoalRouteApplication,
         orchestrationMetrics: extractOrchestrationMetrics(
           harness.resultText,
           checks,
-          observedTicketPipelineRoutes?.length,
+          observedGoalRouteApplication?.childInvocationCount ??
+            observedTicketPipelineRoutes?.length,
         ),
         judge: judgeResult,
       });
@@ -225,11 +252,23 @@ async function runCase(
   }
 
   const durations = trialResults.map((t) => t.harness.durationMs);
-  const tokenTotals = trialResults.map((trial) =>
-    hasUnreconciledOrchestrationUsage(trial.harness.resultText, adapter.name)
-      ? null
-      : trial.harness.inputTokens + trial.harness.outputTokens,
-  );
+  const tokenTotals = trialResults.map((trial) => {
+    const routeApplication = trial.routeApplication;
+    if (
+      hasUnreconciledOrchestrationUsage(
+        trial.harness.resultText,
+        adapter.name,
+      ) &&
+      routeApplication?.launchBoundary !== "nested_session"
+    )
+      return null;
+    return (
+      trial.harness.inputTokens +
+      trial.harness.outputTokens +
+      (routeApplication?.childInputTokens ?? 0) +
+      (routeApplication?.childOutputTokens ?? 0)
+    );
+  });
   const measuredOrchestrationTrials = trialResults
     .map((trial) => trial.orchestrationMetrics)
     .filter(
@@ -288,16 +327,18 @@ async function runCase(
           ),
         )
         ? "condition_report"
-        : trialResults.some(
-              (trial) =>
-                /^format\tdarrow-ticket-pipeline-result-v1$/m.test(
-                  trial.harness.resultText,
-                ) &&
-                observeCodexTicketPipelineRoutes(trial.harness.raw) !==
-                  undefined,
-            )
+        : trialResults.some((trial) => trial.routeApplication !== undefined)
           ? "harness_observed"
-          : "controller_result"
+          : trialResults.some(
+                (trial) =>
+                  /^format\tdarrow-ticket-pipeline-result-v1$/m.test(
+                    trial.harness.resultText,
+                  ) &&
+                  observeCodexTicketPipelineRoutes(trial.harness.raw) !==
+                    undefined,
+              )
+            ? "harness_observed"
+            : "controller_result"
       : undefined,
     totalHumanInterruptions: measuredOrchestrationTrials.length
       ? measuredOrchestrationTrials.reduce(
@@ -327,7 +368,10 @@ async function runCase(
   };
 }
 
-function evaluationRecordChecks(resultText: string): CheckResult[] {
+function evaluationRecordChecks(
+  resultText: string,
+  requireGoalRouteApplication = false,
+): CheckResult[] {
   return [
     {
       name: "reported child invocation count",
@@ -339,6 +383,36 @@ function evaluationRecordChecks(resultText: string): CheckResult[] {
       passed: /^evaluation_human_interruptions\t\d+$/m.test(resultText),
       detail: "expected evaluation_human_interruptions<TAB><integer>",
     },
+    ...(requireGoalRouteApplication
+      ? [
+          {
+            name: "goal route application record uses v2",
+            passed: /^format\tdarrow-native-goal-preflight-v2$/m.test(
+              resultText,
+            ),
+            detail: "expected darrow-native-goal-preflight-v2",
+          },
+          {
+            name: "selected and effective goal routes are reported",
+            passed:
+              /^selected_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
+                resultText,
+              ) &&
+              /^effective_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
+                resultText,
+              ),
+            detail: "expected selected_route and effective_route records",
+          },
+          {
+            name: "route application and verification are reported",
+            passed:
+              /^route_applied_by\t(?:current-thread|host-api|nested-session|none)$/m.test(
+                resultText,
+              ) && /^route_verified\t(?:true|false)$/m.test(resultText),
+            detail: "expected route_applied_by and route_verified records",
+          },
+        ]
+      : []),
   ];
 }
 
@@ -359,6 +433,7 @@ const { values } = parseArgs({
     "mount-plugin-skills": { type: "boolean", default: false },
     "condition-label": { type: "string" },
     "require-evaluation-records": { type: "boolean", default: false },
+    "apply-goal-route": { type: "boolean", default: false },
     output: { type: "string" },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
@@ -366,13 +441,18 @@ const { values } = parseArgs({
   },
 });
 
-const adapter = ADAPTERS[values.harness!];
-if (!adapter) {
+const baseAdapter = ADAPTERS[values.harness!];
+if (!baseAdapter) {
   console.error(
     `Unknown harness '${values.harness}'. Available: ${Object.keys(ADAPTERS).join(", ")}`,
   );
   process.exit(1);
 }
+if (values["apply-goal-route"] && values.harness !== "codex") {
+  console.error("--apply-goal-route currently requires --harness codex");
+  process.exit(1);
+}
+const adapter = values["apply-goal-route"] ? codexGoalAdapter : baseAdapter;
 const judgeAdapter = values["judge-harness"]
   ? ADAPTERS[values["judge-harness"]]
   : undefined;

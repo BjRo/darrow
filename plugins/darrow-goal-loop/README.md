@@ -15,7 +15,9 @@ agent supervisor, workflow runtime, or publication capability.
 
 Performs a read-only preflight, compiles a concise completion contract, selects
 one of the `fast`, `standard`, or `deep` profiles, and activates exactly one
-native goal.
+native goal. Selection and application are separate: completion records both
+the selected and effective routes, and succeeds only when host or launcher
+evidence proves their provider, model, and effort are identical.
 
 Launch boundaries are ordered by cost and fidelity:
 
@@ -38,14 +40,17 @@ Example: _“Check native-goal readiness for Codex.”_
 ### `bin/goal-loop`
 
 A small portable Bash helper records repository preflight evidence, resolves
-semantic profiles from `config/routes.tsv`, diagnoses launch boundaries, and
-provides an injection-safe nested compatibility launcher. It does not implement
-or supervise the goal.
+semantic profiles from `config/routes.tsv`, rejects selected/effective route
+mismatches, diagnoses launch boundaries, and provides an injection-safe nested
+compatibility launcher that applies provider, model, and effort explicitly. It
+does not implement or supervise the goal.
 
 ## Design boundaries
 
 - Preflight does not edit product files or call a separate routing model.
 - One native goal owns the full adaptive run.
+- A selected route is not effective until the current host, an accepted API
+  turn, or a completed launcher record proves exact application.
 - Darrow creates no planner, verifier, repair, or cross-vendor role.
 - A nested session is disclosed and used only when same-thread activation
   cannot honor an explicit route and an enclosing launcher can prove the

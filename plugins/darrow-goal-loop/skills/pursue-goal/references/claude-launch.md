@@ -4,9 +4,10 @@ Use a same-thread boundary only when the current Claude surface exposes it.
 
 ## Same thread
 
-When the current Claude surface exposes native goal control to the agent, set
-the compiled contract as the current thread's goal and apply the selected model
-and effort through that surface. Record `same_thread` and zero children.
+When the current Claude surface exposes native goal control to the agent, read
+its concrete active route and require `confirm-route` to accept the selected and
+effective routes before setting the compiled contract as the current thread's
+goal. Record `same_thread`, `current-thread`, verified true, and zero children.
 
 Do not treat a `claude` executable on `PATH` as evidence of same-thread control.
 
@@ -20,7 +21,8 @@ one native `/goal` session with:
 
 ```sh
 bash "$goal_loop" launch --host claude --repo "$repo" \
-  --goal-file "$goal_file" --model "$model" --effort "$effort"
+  --goal-file "$goal_file" --provider "$provider" \
+  --model "$model" --effort "$effort"
 ```
 
 This boundary is not available to a skill already running inside Claude:

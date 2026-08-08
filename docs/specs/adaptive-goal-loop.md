@@ -108,6 +108,16 @@ bundled configuration:
 An explicit user model or effort overrides policy. An unavailable user-pinned
 route stops instead of silently substituting another route. A policy-selected
 route MAY use its declared fallback and MUST disclose the substitution.
+Selection alone is not execution. The selected route MUST be applied at the
+native-goal boundary and reconciled with the effective provider, model, and
+effort before completion can be reported.
+
+An enclosing host API MAY split activation into a read-only preflight turn and
+a native-goal execution turn. The preflight handoff names its route source as
+`policy` or `user`. A policy-sourced handoff MUST match the bundled mapping for
+its semantic profile; a user-sourced handoff MUST correspond to an explicit
+route in the engineering request. The enclosing launcher validates the route
+against both that source and the live host catalog before starting work.
 
 ### Launch record
 
@@ -115,10 +125,13 @@ Preflight produces these tab-separated records before activation and carries
 them into the native goal's final response:
 
 ```text
-format\tdarrow-native-goal-preflight-v1
+format\tdarrow-native-goal-preflight-v2
 template\t<template>
 profile\t<profile>
-route\t<harness>\t<provider>\t<model>\t<effort>
+selected_route\t<harness>\t<provider>\t<model>\t<effort>
+effective_route\t<harness>\t<provider>\t<model>\t<effort>
+route_applied_by\t<current-thread|host-api|nested-session|none>
+route_verified\t<true|false>
 launch_boundary\t<same_thread|host_api|nested_session|launch_required>
 evaluation_child_invocations\t<integer>
 evaluation_human_interruptions\t<integer>
@@ -171,22 +184,35 @@ the least launch machinery the host supports.
 1. **AGL-R1 — Proportionate profile.** `fast` requires a complete mechanical
    oracle; ordinary engineering work uses at least `standard`; approved
    high-risk or cross-boundary work uses `deep`.
-2. **AGL-R2 — Auditable route.** The selected harness, provider, model, effort,
-   and any fallback are visible before activation and in the final record.
+2. **AGL-R2 — Selected route.** The selected harness, provider, model, effort,
+   and any fallback are visible before activation and remain distinct from the
+   effective route.
 3. **AGL-R3 — User authority.** Explicit user routing wins. Unavailable pinned
    routes stop honestly.
 4. **AGL-R4 — Measured defaults.** Profile mappings change through comparative
    quality, cost, latency, and reliability evidence.
 5. **AGL-R5 — Host-native scope.** The goal runs on the current host. Darrow
    does not introduce a cross-vendor planner, verifier, or repair role.
+6. **AGL-R6 — Applied route.** Goal activation explicitly applies the selected
+   provider, model, and effort. A same-thread route must already match; a host
+   API turn or nested launcher must pass the selected values explicitly.
+7. **AGL-R7 — Authoritative reconciliation.** `route_verified` is true only when
+   host metadata, an accepted host-API turn request, or a successfully completed
+   launcher record proves that selected and effective routes are identical.
+   Prompt text and model self-report are not application evidence.
+8. **AGL-R8 — Profile-route integrity.** A policy-sourced host handoff matches
+   the bundled model and effort for its named semantic profile. Only an
+   explicit user route may bypass that mapping, and it remains subject to live
+   catalog validation.
 
 ### Launch invariants
 
 1. **AGL-L1 — Native ownership.** Exactly one native goal owns implementation,
    verification, recovery, and completion after activation.
-2. **AGL-L2 — Same thread first.** A current-thread native goal tool is used
-   whenever it can honor the selected route. A new process MUST NOT be created
-   merely for uniformity across hosts.
+2. **AGL-L2 — Same thread when exact.** A current-thread native goal tool is used
+   only when the active provider, model, and effort exactly match the selected
+   route. A new process MUST NOT be created merely for uniformity across hosts,
+   but an unmatched current turn MUST NOT masquerade as the selected route.
 3. **AGL-L3 — Honest boundary.** `same_thread`, `host_api`, `nested_session`, or
    `launch_required` is reported exactly. A nested process is never described
    as a native child or same-thread continuation.
@@ -253,11 +279,16 @@ without making a paid model call or changing setup.
    human-authored repository snapshots and task contracts.
 2. Treat Darrow's value as the increment from preflight over raw native goal;
    the retired child-controller benchmark remains historical evidence only.
-3. Hold harness, candidate model, effort, task, checks, and judge constant
-   within a comparison. Record any route change selected by preflight.
+3. Hold the classifier route, task, checks, and judge constant. Record the
+   selected and effective implementation routes separately. When profile
+   routing changes model or effort, compare against raw-native and vanilla
+   controls run on those same effective routes rather than attributing a model
+   change to preflight.
 4. Measure task pass, quality, wall time, tokens, actual cost when supplied,
-   nested sessions, and human interruptions. Internal native continuation turns
-   are not Darrow child invocations.
+   nested sessions, and human interruptions. Reconcile selected routes against
+   harness-observed application records and include reconciled nested usage in
+   token totals. Internal native continuation turns are not Darrow child
+   invocations.
 5. Use at least three trials per decision-bearing cell. A one-trial calibration
    may detect gross regressions but cannot promote a default.
 6. Include dissimilar task shapes and at least one case for each launch stop:

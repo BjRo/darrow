@@ -4,9 +4,9 @@ prompt: >-
   /pursue-goal Add an exported double(value) function to src/math.js. On Codex,
   invoke the $pursue-goal skill. Add focused tests for zero and a negative
   number. Acceptance is that double returns exactly two times its numeric input
-  and bash test.sh passes. Pin `codex|openai|gpt-5.5|medium`, which is the
-  current evaluation route, so the goal can launch in this thread. Keep the
-  result local.
+  and bash test.sh passes. The evaluation harness reports the active route in
+  its condition; select and apply the policy route rather than pinning it. Keep
+  the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -40,11 +40,13 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: preflight record is emitted
-    expect_regex: "format\\tdarrow-native-goal-preflight-v1"
+    expect_regex: "format\\tdarrow-native-goal-preflight-v2"
   - name: bounded standard route is selected
-    expect_regex: "template\\tbounded-change[\\s\\S]*profile\\tstandard[\\s\\S]*route\\tcodex\\topenai\\tgpt-5\\.5\\tmedium"
-  - name: same-thread native goal is used
-    expect_regex: "launch_boundary\\tsame_thread[\\s\\S]*evaluation_child_invocations\\t0"
+    expect_regex: "template\\tbounded-change[\\s\\S]*profile\\tstandard[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium"
+  - name: selected route is effective
+    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium[\\s\\S]*route_verified\\ttrue"
+  - name: differing policy route uses an applied host boundary
+    expect_regex: "launch_boundary\\t(?:host_api[\\s\\S]*evaluation_child_invocations\\t0|nested_session[\\s\\S]*evaluation_child_invocations\\t1)"
   - name: no custom role orchestration remains
     not_regex: "route\\t(planner|executor|verifier|repair)\\t"
   - name: no human stop was needed
