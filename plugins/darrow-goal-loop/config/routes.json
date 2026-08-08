@@ -55,7 +55,7 @@
       "profile": "routine",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-haiku-4-5",
+      "model": "claude-sonnet-5",
       "effort": "low",
       "fallbackModel": "none",
       "fallbackEffort": "none"

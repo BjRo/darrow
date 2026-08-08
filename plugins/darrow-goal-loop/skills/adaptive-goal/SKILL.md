@@ -6,7 +6,19 @@ disable-model-invocation: true
 
 # Adaptive Goal Loop
 
-Compile the request, activate one native goal, and let the host own the loop.
+Compile the request, activate one host-native goal owner, and let the host own
+the loop.
+
+### Claude activation is mandatory
+
+On Claude, this entire preflight and launch sequence is mandatory even for a
+small or obvious task. Before any product write, run `prepare --host claude`,
+select the dimensions, run `route --host claude`, read `claude-launch.md`, and
+activate the first boundary that can apply that exact helper-selected route.
+Do not implement directly in the classifier turn, replace the selected harness
+with a boundary label such as `current-thread`, or report same-thread activation
+without route-confirmation evidence. If any required step cannot run, stop as
+`launch_required`; skipping the sequence is a failed skill execution.
 
 ## 1. Prepare without writing
 
@@ -157,7 +169,8 @@ provenance.
 Write one goal contract of at most 4,000 bytes containing the outcome,
 acceptance criteria, scope and non-goals, preserved work, permissions, the
 selected workflow and its sequence, risk gate, profile and concrete route,
-applicable final-tree checks, and this exact final record:
+applicable final-tree checks, any user-specified stopping budget, and this exact
+final record:
 
 ```text
 format\tdarrow-native-goal-preflight-v4
@@ -175,9 +188,9 @@ evaluation_human_interruptions\t<integer>
 ```
 
 Reference repository facts by path rather than copying them. Leave detailed
-implementation choices to native goal mode.
+implementation choices to the host-native goal owner.
 
-## 3. Activate exactly one native goal
+## 3. Activate exactly one host-native goal owner
 
 When an enclosing host API requests a preflight handoff, do not edit product
 files, call `create_goal`, or launch a nested session in the classifier turn.
@@ -220,15 +233,16 @@ user authorization and an enclosing launcher; never select it automatically
 from an interactive skill. If no boundary can apply the route, report
 `launch_required` honestly and stop.
 
-Activate exactly one goal. Darrow adds no planner, verifier, repair agent,
-retry loop, or cross-vendor route. Native goal mode owns implementation,
-verification, recovery, persistence, and completion.
+Activate exactly one goal owner. Darrow adds no planner, verifier, repair agent,
+retry loop, or cross-vendor route. The native goal or allowed Claude Agent
+runner owns implementation, verification, recovery, and completion.
 
-## 4. Return native completion
+## 4. Return host-native completion
 
-Continue until the native goal reaches a terminal state. A native goal runner
-may use host-native subagents for bounded work; it remains the sole goal owner,
-and Darrow does not prescribe planner, executor, verifier, or repair roles.
+Continue until the selected goal owner reaches a terminal state. A native goal
+runner may use host-native subagents for bounded work; it remains the sole goal
+owner, and Darrow does not prescribe planner, executor, verifier, or repair
+roles.
 The final response must include the v4 launch record verbatim. Never copy the
 selected route into
 `effective_route` without host evidence. Count only sessions or subagents

@@ -72,7 +72,7 @@ case "$out" in
 esac
 
 out=$(bash "$goal_loop" prepare --repo "$repo" --host claude)
-contains "$out" $'route\troutine\tclaude\tanthropic\tclaude-haiku-4-5\tlow'
+contains "$out" $'route\troutine\tclaude\tanthropic\tclaude-sonnet-5\tlow'
 contains "$out" $'route\troutine-plus\tclaude\tanthropic\tclaude-sonnet-5\tmedium'
 contains "$out" $'route\tscaled\tclaude\tanthropic\tclaude-sonnet-5\tmedium'
 contains "$out" $'route\trepo-wide\tclaude\tanthropic\tclaude-opus-5\thigh'
@@ -284,7 +284,9 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"output_toke
 EOF
 cat >"$fake_bin/claude" <<'EOF'
 #!/usr/bin/env bash
+test -n "${FAKE_CLAUDE_ARGS:-}" && printf '%s\n' "$*" >"$FAKE_CLAUDE_ARGS"
 printf 'claude-call\t%s\n' "$*"
+exit "${FAKE_CLAUDE_EXIT:-0}"
 EOF
 chmod +x "$fake_bin/codex" "$fake_bin/claude"
 
@@ -323,12 +325,36 @@ out=$(DARROW_GOAL_LOOP_EXTERNAL_SANDBOX=1 FAKE_CODEX_ARGS="$codex_args" PATH="$f
 args=$(cat "$codex_args")
 contains "$args" '--dangerously-bypass-approvals-and-sandbox'
 
-out=$(PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host claude --repo "$repo" \
+claude_args="$tmp_root/claude-args.txt"
+if launch_error=$(FAKE_CLAUDE_ARGS="$claude_args" PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host claude --repo "$repo" \
+  --goal-file "$goal_file" --provider anthropic --model claude-test --effort high 2>&1); then
+  fail "nested Claude launch did not require explicit opt-in"
+fi
+contains "$launch_error" 'launch requires explicit --allow-nested'
+test ! -e "$claude_args" || fail "refused nested launch still invoked Claude"
+
+out=$(FAKE_CLAUDE_ARGS="$claude_args" PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host claude --repo "$repo" \
   --goal-file "$goal_file" --provider anthropic --model claude-test --effort high \
   --allow-nested)
 contains "$out" 'claude-call'
 contains "$out" '/goal Implement the bounded change'
 contains "$out" '--model claude-test --effort high'
+contains "$out" $'selected_route\tclaude\tanthropic\tclaude-test\thigh'
+contains "$out" $'effective_route\tclaude\tanthropic\tclaude-test\thigh'
+contains "$out" $'route_applied_by\tnested-session'
+contains "$out" $'route_verified\ttrue'
+
+if failed_launch=$(FAKE_CLAUDE_EXIT=7 PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host claude --repo "$repo" \
+  --goal-file "$goal_file" --provider anthropic --model claude-test --effort high \
+  --allow-nested 2>&1); then
+  fail "nested Claude failure was reported as successful"
+fi
+case "$failed_launch" in
+  *$'route_verified\ttrue'*) fail "failed nested Claude launch emitted verified route" ;;
+esac
 
 large_goal="$tmp_root/large.txt"
 dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' x >"$large_goal"

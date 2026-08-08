@@ -1,11 +1,12 @@
 # Darrow Goal Loop
 
-This plugin compiles a bounded engineering request into a host-native goal. It
+This plugin compiles a bounded engineering request into a host-native goal or
+single native-agent goal runner. It
 prepares deterministic repository evidence before writing, selects a goal
 workflow, risk gate, and proportionate model and effort, loads the selected
 workflow playbook, and activates the narrowest goal boundary the host supports.
-Native goal mode owns implementation, persistence, verification, recovery, and
-completion.
+The selected host-native owner handles implementation, verification, recovery,
+and completion.
 
 The plugin is explicitly invoked. It is not a second orchestration loop, child
 agent supervisor, workflow runtime, or publication capability.
@@ -17,7 +18,7 @@ agent supervisor, workflow runtime, or publication capability.
 Performs a read-only prepared preflight, compiles a concise completion contract,
 selects one of the `routine`, `routine-plus`, `scaled`, `repo-wide`, or
 `judgment` profiles plus one bundled task
-workflow and risk gate, and activates exactly one native goal. Selection,
+workflow and risk gate, and activates exactly one native goal owner. Selection,
 workflow loading, and route application are separate: completion succeeds only
 when host or launcher evidence proves the selected workflow was supplied and
 provider, model, and effort are identical.
@@ -28,9 +29,18 @@ Launch boundaries are ordered by cost and fidelity:
 2. supported same-thread host API;
 3. one first-class, host-visible Codex goal runner with the selected model and
    effort;
-4. one explicitly authorized nested host session from a supported enclosing
+4. one foreground, host-visible Claude Agent runner with the selected model and
+   effort;
+5. one explicitly authorized nested host session from a supported enclosing
    launcher;
-5. an honest `launch_required` stop.
+6. an honest `launch_required` stop.
+
+Claude's Agent tool does not expose the session-scoped `/goal` API or accept a
+full model ID per invocation. The Claude runner therefore owns the compiled
+contract as its one foreground delegated task; it does not claim `/goal`
+evaluator turns or persistence. Route-specific plugin agents pin both model and
+effort for every bundled Claude route. Other repository or user route tuples
+stop unless a supported same-thread or enclosing boundary can apply them.
 
 Example: _“Use adaptive-goal to diagnose and fix the intermittent cache test.”_
 
@@ -53,10 +63,17 @@ stops without falling back. Prepared route rows identify `repository` or
 `bundled` policy provenance separately from `policy` versus explicit-user route
 authority.
 
+### `bin/claude-agent-route`
+
+Resolves an exact Claude model/effort tuple to its bundled route-specific
+plugin agent. It refuses unsupported tuples and conflicting
+`CLAUDE_CODE_SUBAGENT_MODEL` or `CLAUDE_CODE_EFFORT_LEVEL` overrides before an
+Agent call can start.
+
 ## Design boundaries
 
 - Preflight does not edit product files or call a separate routing model.
-- One native goal owns the full adaptive run.
+- One host-native goal owner owns the full adaptive run.
 - The selected workflow is loaded from its own Markdown playbook; risk adds
   proportional verification without adding another template dimension.
 - A selected route is not effective until the current host, an accepted API
@@ -65,6 +82,9 @@ authority.
 - Darrow creates no planner, verifier, repair, or cross-vendor role.
 - A first-class Codex goal runner is visible in the host, owns the one native
   goal, and may use Codex's own visible subagents for bounded work.
+- A first-class Claude runner is visible in the host, runs in the foreground,
+  and receives the full contract and workflow; the selected plugin-agent
+  definition pins its concrete model and effort together.
 - A nested process is disclosed and used only when a user explicitly authorizes
   the compatibility boundary and an enclosing launcher can prove its
   authentication.

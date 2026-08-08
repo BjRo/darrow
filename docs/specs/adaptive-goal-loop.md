@@ -1,8 +1,9 @@
 # Capability: Native Goal Preflight
 
 Darrow should turn a bounded engineering request into a well-framed native
-goal, choose a proportionate model route, and activate the host's goal
-capability. The host owns execution, persistence, recovery, and completion.
+goal contract, choose a proportionate model route, and activate the host's
+narrowest goal-capable boundary. The host owns execution, recovery, and
+completion.
 Darrow owns only the preflight policy that improves what the native loop is
 asked to achieve.
 
@@ -21,7 +22,7 @@ measured substantial wall-time and child-invocation overhead.
 The retained opportunity is earlier and smaller:
 
 ```text
-request + repository -> preflight -> native goal -> native completion
+request + repository -> preflight -> host goal owner -> native completion
 ```
 
 Preflight can improve the native run by making completion explicit, discovering
@@ -33,8 +34,8 @@ get out of the runtime's way.
 
 `adaptive-goal` is a user-invoked **goal compiler and launcher**. It performs a
 read-only preflight in the current context, emits one compact goal contract,
-and activates one native goal. It does not supervise role agents or implement a
-second adaptive loop.
+and activates one host-native goal owner. It does not supervise role agents or
+implement a second adaptive loop.
 
 The launch boundary is selected in this order:
 
@@ -42,13 +43,20 @@ The launch boundary is selected in this order:
 2. use a supported same-thread host API that can also apply model and effort;
 3. on Codex, spawn exactly one first-class, host-visible goal runner when its
    native agent tool can apply the selected model and effort;
-4. let a supported enclosing launcher start one disclosed host session only
+4. on Claude, spawn exactly one first-class, host-visible foreground Agent
+   runner when a route-specific plugin agent pins the selected concrete model
+   and effort;
+5. let a supported enclosing launcher start one disclosed host session only
    when the user explicitly authorizes process nesting;
-5. stop as `launch_required` when none of those boundaries is available.
+6. stop as `launch_required` when none of those boundaries is available.
 
-This order is normative. A native goal runner is an observable Codex agent
-thread, not a shell process or Darrow role controller. Process nesting is an
-explicit compatibility boundary, never an automatic interactive fallback.
+This order is normative. A native goal runner is an observable host agent
+thread, not a shell process or Darrow role controller. A Codex runner activates
+the native goal tool. Claude does not expose its session-scoped `/goal` command
+to Agent-tool children, so a Claude runner owns the compiled contract as its
+single foreground delegated task and MUST NOT claim `/goal` evaluator turns or
+persistence. Process nesting is an explicit compatibility boundary, never an
+automatic interactive fallback.
 
 ## Normative language
 
@@ -82,8 +90,8 @@ native goal. It contains:
 - relevant scope and explicit non-goals;
 - applicable repository and task-specific verification;
 - preserved local-work and permission boundaries;
-- the selected workflow, risk, semantic profile, model, effort, and stopping
-  budget;
+- the selected workflow, risk, semantic profile, model, effort, and any
+  user-specified stopping budget;
 - the final evaluation records required by this capability.
 
 The contract MUST remain concise enough for the narrowest supported native
@@ -155,7 +163,7 @@ The bundled default policy maps these profiles to host-specific routes:
 
 | Profile        | Codex route                | Claude route                 |
 | -------------- | -------------------------- | ---------------------------- |
-| `routine`      | `gpt-5.6-terra` / `medium` | `claude-haiku-4-5` / `low`   |
+| `routine`      | `gpt-5.6-terra` / `medium` | `claude-sonnet-5` / `low`    |
 | `routine-plus` | `gpt-5.6-terra` / `high`   | `claude-sonnet-5` / `medium` |
 | `scaled`       | `gpt-5.6-terra` / `medium` | `claude-sonnet-5` / `medium` |
 | `repo-wide`    | `gpt-5.6-terra` / `high`   | `claude-opus-5` / `high`     |
@@ -168,9 +176,10 @@ later moved the two Luna profiles to Terra because the tested first-class
 spawn surface accepts Terra and Sol but not Luna. Neither observation proves a
 stable quality or performance ranking, and the earlier cost result does not
 validate the revised routine routes. Continued multi-trial evaluation remains
-required. The Claude mappings preserve the plugin's prior model tiers under the
-shared task-oriented vocabulary; they have not received equivalent comparative
-calibration.
+required. The Claude mappings have not received equivalent comparative
+calibration. The routine route uses Sonnet 5 rather than Haiku 4.5 because
+current Claude Code does not support explicit effort on Haiku 4.5; exact
+`Haiku 4.5 / low` application is unavailable.
 
 An active worktree root MAY provide `.darrow/config.json` using the same strict
 `{"routes":[...]}` route-object schema. Each valid repository entry replaces
@@ -290,13 +299,17 @@ the least launch machinery the host supports.
    does not introduce a cross-vendor planner, verifier, or repair role.
 6. **AGL-R6 — Applied route.** Goal activation explicitly applies the selected
    provider, model, and effort. A same-thread route must already match; a host
-   API turn, accepted native-agent spawn, or nested launcher must pass the
-   selected values explicitly.
+   API turn or nested launcher passes the selected values explicitly. A Codex
+   native-agent spawn passes model and effort on the spawn request. A Claude
+   native-agent spawn selects the immutable plugin-agent definition whose full
+   model ID and effort both match, after rejecting conflicting environment
+   overrides.
 7. **AGL-R7 — Authoritative reconciliation.** `route_verified` is true only when
    host metadata, an accepted host-API turn request, an accepted native-agent
-   spawn with concrete route values, or a successfully completed launcher
-   record proves that selected and effective routes are identical. Prompt text
-   and model self-report are not application evidence.
+   spawn with concrete route values or an immutable route-matched Claude agent
+   definition, or a successfully completed launcher record proves that selected
+   and effective routes are identical. Prompt text and model self-report are not
+   application evidence.
 8. **AGL-R8 — Profile-route integrity.** A policy-sourced host handoff matches
    the prepared active-worktree model and effort for its named semantic profile,
    with repository-or-bundled provenance disclosed. Only an
@@ -305,8 +318,10 @@ the least launch machinery the host supports.
 
 ### Launch invariants
 
-1. **AGL-L1 — Native ownership.** Exactly one native goal owns implementation,
-   verification, recovery, and completion after activation.
+1. **AGL-L1 — Native ownership.** Exactly one host-native goal owner owns
+   implementation, verification, recovery, and completion after activation.
+   This is a native goal on a surface that exposes goal control or the one
+   foreground Claude Agent runner allowed by AGL-L9.
 2. **AGL-L2 — Same thread when exact.** A current-thread native goal tool is used
    only when the active provider, model, and effort exactly match the selected
    route. A new process MUST NOT be created merely for uniformity across hosts,
@@ -319,11 +334,12 @@ the least launch machinery the host supports.
    enclosing launcher that has proven its authentication boundary and received
    explicit user authorization. It creates at most one host session and waits
    for it; an interactive skill MUST NOT select it automatically.
-5. **AGL-L5 — Goal persistence.** The native goal receives the full contract and
-   remains active until its own terminal state, user interruption, budget stop,
-   or a genuine human decision.
-6. **AGL-L6 — Final evidence.** The native goal runs the contract's applicable
-   checks against the final tree before claiming completion.
+5. **AGL-L5 — Goal persistence.** The native goal or allowed Claude Agent runner
+   receives the full contract and remains the sole owner until its own terminal
+   state, user interruption, budget stop, or a genuine human decision. A Claude
+   Agent runner MUST NOT claim session-scoped `/goal` persistence.
+6. **AGL-L6 — Final evidence.** The host-native goal owner runs the contract's
+   applicable checks against the final tree before claiming completion.
 7. **AGL-L7 — Proportional verification.** Native completion follows the
    selected workflow and satisfies the verification gates required by the
    selected risk level.
@@ -332,6 +348,16 @@ the least launch machinery the host supports.
    agent thread with explicit model and effort. That runner owns the one native
    goal. Host-native delegation beneath it remains visible and is not
    Darrow-defined planner, executor, verifier, or repair fan-out.
+9. **AGL-L9 — Observable Claude goal runner.** When in-place Claude activation
+   cannot apply the selected route, Darrow MAY invoke exactly one foreground
+   plugin subagent. Its route-specific definition MUST pin both the selected
+   full model ID and effort; family aliases are not exact route evidence. The
+   launch MUST fail before spawning when a process environment override would
+   replace either value. The task MUST contain the complete contract and exact
+   workflow document. The accepted Agent call is the terminal boundary and
+   counts as one Darrow child. Because the Agent tool exposes no child `/goal`
+   API, this boundary MUST be reported as a native Agent contract runner rather
+   than a `/goal` session.
 
 ### Safety invariants
 

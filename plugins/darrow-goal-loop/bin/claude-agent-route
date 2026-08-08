@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+usage: claude-agent-route --provider <id> --model <id> --effort <level>
+EOF
+}
+
+die() {
+  printf 'claude-agent-route: %s\n' "$*" >&2
+  exit 2
+}
+
+require_value() {
+  test "$#" -ge 2 && test -n "$2" || die "missing value for $1"
+}
+
+provider=
+model=
+effort=
+while test "$#" -gt 0; do
+  case "$1" in
+    --provider)
+      require_value "$@"
+      provider=$2
+      shift 2
+      ;;
+    --model)
+      require_value "$@"
+      model=$2
+      shift 2
+      ;;
+    --effort)
+      require_value "$@"
+      effort=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+
+test -n "$provider" && test -n "$model" && test -n "$effort" ||
+  die "--provider, --model, and --effort are required"
+test "$provider" = anthropic || die "unsupported provider: $provider"
+
+case "$model" in
+  claude-*) model_suffix=${model#claude-} ;;
+  *) die "model must be a concrete Claude model ID: $model" ;;
+esac
+case "$model_suffix" in
+  ''|*[!a-zA-Z0-9.-]*) die "unsafe model ID: $model" ;;
+esac
+case "$effort" in
+  low|medium|high|xhigh|max) ;;
+  *) die "unsupported effort: $effort" ;;
+esac
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+plugin_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
+agent_name="adaptive-goal-$model_suffix-$effort"
+agent_file="$plugin_dir/agents/$agent_name.md"
+test -r "$agent_file" || die "no bundled runner for $model/$effort"
+grep -F -x -- "name: $agent_name" "$agent_file" >/dev/null ||
+  die "runner name does not match route: $agent_file"
+grep -F -x -- "model: $model" "$agent_file" >/dev/null ||
+  die "runner model does not match route: $agent_file"
+grep -F -x -- "effort: $effort" "$agent_file" >/dev/null ||
+  die "runner effort does not match route: $agent_file"
+
+model_override=${CLAUDE_CODE_SUBAGENT_MODEL:-}
+case "$model_override" in
+  ''|"$model") ;;
+  *) die "CLAUDE_CODE_SUBAGENT_MODEL overrides selected model: $model_override" ;;
+esac
+effort_override=${CLAUDE_CODE_EFFORT_LEVEL:-}
+case "$effort_override" in
+  ''|"$effort") ;;
+  *) die "CLAUDE_CODE_EFFORT_LEVEL overrides selected effort: $effort_override" ;;
+esac
+
+printf 'format\tdarrow-claude-agent-route-v1\n'
+printf 'selected_route\tclaude\t%s\t%s\t%s\n' "$provider" "$model" "$effort"
+printf 'subagent_type\tdarrow-goal-loop:%s\n' "$agent_name"
+printf 'agent_file\t%s\n' "$agent_file"
