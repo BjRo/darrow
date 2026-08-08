@@ -22,6 +22,7 @@ import type {
   CheckResult,
   EvalCase,
   HarnessAdapter,
+  HarnessResult,
   TrialResult,
 } from "./types";
 
@@ -70,7 +71,7 @@ async function repositoryHead(repoDir: string): Promise<string> {
 /** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
  *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
 async function loadCases(
-  filter?: string,
+  filter?: string[],
   corpusManifest = DEFAULT_CORPUS_MANIFEST,
 ): Promise<EvalCase[]> {
   const cases: EvalCase[] = [];
@@ -91,7 +92,9 @@ async function loadCases(
     cases.push(evalCase);
   }
   cases.sort((a, b) => a.id.localeCompare(b.id));
-  const selected = filter ? cases.filter((c) => c.id.includes(filter)) : cases;
+  const selected = filter?.length
+    ? cases.filter((c) => filter.some((value) => c.id.includes(value)))
+    : cases;
   for (const evalCase of selected) {
     if (evalCase.fixture.source) {
       if (evalCase.fixture.repo || evalCase.fixture.commits?.length) {
@@ -120,6 +123,12 @@ async function runCase(
   requireEvaluationRecords = false,
   judge?: { adapter: HarnessAdapter; model: string; effort: string },
   expectedGoalRoute?: { model: string; effort: string },
+  assertedGoalRoute?: { model: string; effort: string },
+  assertedGoalDimensions?: {
+    profile: string;
+    workflow: string;
+    risk: "routine" | "elevated" | "high";
+  },
 ): Promise<CaseResult> {
   let promptTemplate = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
@@ -168,7 +177,18 @@ async function runCase(
         });
         continue;
       }
-      const harness = await adapter.run(repoDir, prompt, model, effort);
+      const previousGoalRoutePolicy = process.env.DARROW_EVAL_GOAL_ROUTE_POLICY;
+      if (evalCase.goal_route_policy)
+        process.env.DARROW_EVAL_GOAL_ROUTE_POLICY = evalCase.goal_route_policy;
+      let harness: HarnessResult;
+      try {
+        harness = await adapter.run(repoDir, prompt, model, effort);
+      } finally {
+        if (previousGoalRoutePolicy === undefined)
+          delete process.env.DARROW_EVAL_GOAL_ROUTE_POLICY;
+        else
+          process.env.DARROW_EVAL_GOAL_ROUTE_POLICY = previousGoalRoutePolicy;
+      }
       const observedGoalRouteApplication =
         adapter.name === "codex"
           ? observeCodexGoalRouteApplication(harness.resultText, harness.raw)
@@ -183,6 +203,33 @@ async function runCase(
               effort,
             )
           : undefined;
+      const assertedGoalRouteCheck = assertedGoalRoute
+        ? {
+            name: "hidden goal route selection matches expectation",
+            passed:
+              observedGoalRouteApplication?.selected.model ===
+                assertedGoalRoute.model &&
+              observedGoalRouteApplication.selected.effort ===
+                assertedGoalRoute.effort &&
+              observedGoalRouteApplication.effective.model ===
+                assertedGoalRoute.model &&
+              observedGoalRouteApplication.effective.effort ===
+                assertedGoalRoute.effort,
+            detail: `expected selected and effective ${assertedGoalRoute.model}/${assertedGoalRoute.effort}`,
+          }
+        : undefined;
+      const assertedGoalDimensionsCheck = assertedGoalDimensions
+        ? {
+            name: "hidden goal dimensions match expectation",
+            passed:
+              observedGoalRouteApplication?.profile ===
+                assertedGoalDimensions.profile &&
+              observedGoalRouteApplication.workflow ===
+                assertedGoalDimensions.workflow &&
+              observedGoalRouteApplication.risk === assertedGoalDimensions.risk,
+            detail: `expected ${assertedGoalDimensions.workflow}/${assertedGoalDimensions.risk}/${assertedGoalDimensions.profile}`,
+          }
+        : undefined;
       const observedTicketPipelineCheck = reconcileObservedTicketPipelineRoutes(
         harness.resultText,
         harness.raw,
@@ -209,6 +256,8 @@ async function runCase(
             )),
         ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
         ...(observedGoalRouteCheck ? [observedGoalRouteCheck] : []),
+        ...(assertedGoalRouteCheck ? [assertedGoalRouteCheck] : []),
+        ...(assertedGoalDimensionsCheck ? [assertedGoalDimensionsCheck] : []),
         ...(requireEvaluationRecords
           ? evaluationRecordChecks(
               harness.resultText,
@@ -481,7 +530,7 @@ const { values } = parseArgs({
     model: { type: "string" },
     effort: { type: "string", default: "medium" },
     trials: { type: "string", default: "5" },
-    case: { type: "string" },
+    case: { type: "string", multiple: true },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
     condition: { type: "string" },
@@ -495,6 +544,9 @@ const { values } = parseArgs({
     "apply-goal-route": { type: "boolean", default: false },
     "case-routes": { type: "string" },
     "expected-goal-routes": { type: "string" },
+    "assert-goal-routes": { type: "string" },
+    "assert-goal-dimensions": { type: "string" },
+    "goal-route-policy": { type: "string", default: "current" },
     output: { type: "string" },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
@@ -514,6 +566,11 @@ if (values["apply-goal-route"] && values.harness !== "codex") {
   process.exit(1);
 }
 const adapter = values["apply-goal-route"] ? codexGoalAdapter : baseAdapter;
+if (!["current", "candidate"].includes(values["goal-route-policy"]!)) {
+  console.error("--goal-route-policy must be current or candidate");
+  process.exit(2);
+}
+process.env.DARROW_EVAL_GOAL_ROUTE_POLICY = values["goal-route-policy"]!;
 const judgeAdapter = values["judge-harness"]
   ? ADAPTERS[values["judge-harness"]]
   : undefined;
@@ -581,6 +638,31 @@ if (values["expected-goal-routes"]) {
     string,
     { model: string; effort: string }
   >;
+}
+let assertedGoalRoutes: Record<string, { model: string; effort: string }> = {};
+if (values["assert-goal-routes"]) {
+  try {
+    assertedGoalRoutes = JSON.parse(values["assert-goal-routes"]);
+  } catch {
+    console.error("--assert-goal-routes must be one JSON object");
+    process.exit(2);
+  }
+}
+let assertedGoalDimensions: Record<
+  string,
+  {
+    profile: string;
+    workflow: string;
+    risk: "routine" | "elevated" | "high";
+  }
+> = {};
+if (values["assert-goal-dimensions"]) {
+  try {
+    assertedGoalDimensions = JSON.parse(values["assert-goal-dimensions"]);
+  } catch {
+    console.error("--assert-goal-dimensions must be one JSON object");
+    process.exit(2);
+  }
 }
 let condition: { label: string; text: string } | undefined;
 if (values.condition) {
@@ -665,6 +747,8 @@ for (const evalCase of cases) {
         }
       : undefined,
     expectedGoalRoutes[evalCase.id],
+    assertedGoalRoutes[evalCase.id],
+    assertedGoalDimensions[evalCase.id],
   );
   result.harnessVersion = harnessVersion || undefined;
   results.push(result);

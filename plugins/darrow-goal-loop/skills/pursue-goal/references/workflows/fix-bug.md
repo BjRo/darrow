@@ -1,7 +1,6 @@
 # Fix bug
 
-Use this workflow when existing observable behavior is incorrect or a check
-reproduces a defect.
+Execute the selected bug-fix contract through this sequence.
 
 ## Sequence
 
@@ -10,7 +9,3 @@ reproduces a defect.
 3. Add regression evidence that fails for the diagnosed reason.
 4. Make the smallest complete fix while preserving adjacent behavior.
 5. Rerun the reproducer, affected tests, and the repository's scoped gate.
-
-Do not turn an unreproduced symptom into an opportunistic refactor. If the
-desired behavior is itself new or intentionally changing, select the feature
-workflow that matches that contract instead.

@@ -1,7 +1,6 @@
 # Migration
 
-Use this workflow for a public contract, schema, dependency, format, or
-consumer transition that cannot be safely completed as one isolated change.
+Execute the selected sequenced transition through this sequence.
 
 ## Sequence
 
@@ -10,6 +9,3 @@ consumer transition that cannot be safely completed as one isolated change.
 3. Apply the change in dependency order.
 4. Update consumers, examples, and documentation.
 5. Run compatibility checks and broader final-tree gates.
-
-A migration is deep work unless the user explicitly pins another supported
-route with sufficient authority.

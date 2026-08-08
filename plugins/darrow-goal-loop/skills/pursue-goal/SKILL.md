@@ -48,21 +48,69 @@ Name the smallest missing decision and do not activate implementation work.
 
 ## 2. Compile workflow, risk, and route
 
-Select exactly one workflow, then read its Markdown document completely:
+<!-- intent-routing-begin -->
+### Select exactly one workflow and one risk
 
-- [`fix-bug`](references/workflows/fix-bug.md)
-- [`implement-feature`](references/workflows/implement-feature.md)
-- [`change-feature`](references/workflows/change-feature.md)
-- [`refactor`](references/workflows/refactor.md)
-- [`migration`](references/workflows/migration.md)
-- [`mechanical`](references/workflows/mechanical.md)
-- [`decision-gated`](references/workflows/decision-gated.md)
+- [`fix-bug`](references/workflows/fix-bug.md): existing promised behavior is
+  incorrect.
+- [`implement-feature`](references/workflows/implement-feature.md): new
+  observable behavior does not exist.
+- [`change-feature`](references/workflows/change-feature.md): approved existing
+  behavior intentionally changes.
+- [`refactor`](references/workflows/refactor.md): observable behavior must
+  remain unchanged.
+- [`migration`](references/workflows/migration.md): consumers or formats require
+  a sequenced transition.
+- [`mechanical`](references/workflows/mechanical.md): the request is an exact
+  deterministic transformation with a complete oracle.
+- [`decision-gated`](references/workflows/decision-gated.md): a required product
+  choice or authority is missing.
 
-The workflow document determines the execution sequence. Do not combine
-workflows or substitute a domain label for one. Small size alone is not
-mechanical.
+Apply these tie-breakers in order:
 
-Select one proportional risk gate:
+1. `decision-gated` wins whenever implementation requires a missing choice or
+   authority.
+2. Choose `migration` over `change-feature` only when consumers, formats,
+   coexistence, or rollout require a sequence; one approved behavior change is
+   `change-feature`.
+3. Choose `change-feature` over `fix-bug` when current behavior is intentional
+   and the approved contract changes; choose `fix-bug` when current behavior
+   violates an existing promise.
+4. Choose `implement-feature` only when no equivalent behavior exists; altering
+   or replacing an existing behavior is `change-feature`.
+5. Choose `mechanical` over `refactor` only for an exact transformation with a
+   complete oracle; restructuring that requires judgment is `refactor`.
+6. `refactor` is valid only when observable behavior remains unchanged.
+
+Select risk from consequences, taking the highest applicable level:
+
+- `routine`: localized, reversible, and limited blast radius;
+- `elevated`: compatibility concerns, multiple consumers, persisted formats,
+  or meaningful operational impact;
+- `high`: security or authorization boundaries, destructive or irreversible
+  state, privacy or safety, or broad blast radius.
+
+Reasoning difficulty never changes risk. A difficult diagnosis can be
+`routine`; a simple security change is `high`.
+
+Classify reasoning demand independently from workflow and risk:
+
+- `ordinary-localized`: the implementation is clear and localized;
+- `scaled-coding`: straightforward work spans several files or components;
+- `repo-wide-coding`: straightforward work requires repository-wide changes;
+- `judgment`: the cause is unknown across multiple plausible layers or state
+  transitions, or the task requires architecture, planning, or review
+  judgment.
+
+Implementation size, reversibility, and consequence risk do not reduce a
+`judgment` task to ordinary coding.
+<!-- intent-routing-end -->
+
+Read the selected workflow document completely. The workflow document
+determines the execution sequence. Do not combine workflows or substitute a
+domain label for one. Small size alone is not mechanical.
+
+Apply its proportional risk gate:
 
 | Risk | Required verification |
 | --- | --- |
@@ -70,12 +118,18 @@ Select one proportional risk gate:
 | `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample |
 | `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
 
-Choose the semantic profile from the combined evidence:
+Choose risk and profile independently. Risk reflects the cost of an incorrect
+result and changes verification; profile reflects the reasoning difficulty of
+reaching the result and changes the model route. Do not raise the profile only
+because risk is `high`, and do not lower risk because implementation is simple:
 
-- `fast` only for `mechanical` + `routine` with a complete oracle;
-- `standard` for ordinary bounded work;
-- `deep` for `high` risk, migrations, security-sensitive or cross-boundary
-  work, or material ambiguity that is nevertheless approved.
+- `fast` only for an exact `mechanical` transformation with a complete oracle
+  and no substantive diagnosis, design judgment, or ambiguity;
+- `standard` for clear, localized, bounded work, including high-risk work whose
+  required behavior and affected boundary are fully specified;
+- `deep` for work requiring architectural reasoning, discovery across multiple
+  boundaries, a complex migration, or resolution of material implementation
+  ambiguity that is nevertheless approved.
 
 An explicit user model or effort wins. Resolve the concrete route:
 

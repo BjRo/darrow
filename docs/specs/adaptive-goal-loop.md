@@ -92,6 +92,14 @@ from named files SHOULD be referenced rather than copied.
 Preflight selects one workflow and one risk level. These dimensions compose; a
 domain label is not a template.
 
+The marked intent-routing section in the parent `pursue-goal` `SKILL.md` is the
+canonical selection policy for workflow, risk, and reasoning demand. It contains
+the concise selection triggers and tie-breakers needed before any workflow
+playbook is visible. Interactive preflight follows that section directly; a
+prepared host classifier MUST load and inject the same section rather than
+maintaining a second classifier-specific copy. The selected workflow document
+contains execution detail only and MUST be read after selection.
+
 The workflow determines the execution sequence:
 
 Each workflow is maintained as its own bundled Markdown playbook under
@@ -122,10 +130,41 @@ Risk adds proportional verification without changing the workflow:
 Routing uses stable semantic profiles whose concrete mappings live in one
 bundled configuration:
 
-- `fast` — deterministic mechanical work with a complete oracle;
-- `standard` — clear, bounded implementation or diagnosis;
-- `deep` — architectural, cross-boundary, migration, security-sensitive, or
-  materially ambiguous work that is nevertheless approved to proceed.
+- `fast` — an exact mechanical transformation with a complete oracle and no
+  substantive diagnosis, design judgment, or ambiguity;
+- `standard` — clear, localized, bounded implementation or diagnosis,
+  including high-risk work whose required behavior and affected boundary are
+  fully specified;
+- `deep` — architectural reasoning, discovery across multiple boundaries, a
+  complex migration, or material implementation ambiguity that is nevertheless
+  approved to proceed.
+
+Risk and profile are independent selections. Risk represents the cost of an
+incorrect result and adds verification gates; routing represents the kind and
+scale of reasoning needed to reach the result and selects a model route. Risk
+alone MUST NOT raise or lower the profile, and reasoning difficulty MUST NOT
+weaken the risk gate. Thus a clear security-boundary change can use `high`
+verification with a routine coding route, while a difficult
+behavior-preserving refactor can use `routine` verification with a judgment
+route.
+
+The active `fast`, `standard`, and `deep` mappings remain the comparison
+baseline until a replacement has comparative evidence. The bundled
+`candidate` GPT-5.6 policy is an explicit calibration surface, not a promoted
+default:
+
+| Candidate profile | Intended work                                                        | Codex route                |
+| ----------------- | -------------------------------------------------------------------- | -------------------------- |
+| `routine`         | ordinary localized coding                                            | `gpt-5.6-luna` / `high`    |
+| `routine-plus`    | localized coding where additional quality is specifically worthwhile | `gpt-5.6-luna` / `xhigh`   |
+| `scaled`          | larger straightforward multi-file work                               | `gpt-5.6-terra` / `medium` |
+| `repo-wide`       | straightforward repository-wide work                                 | `gpt-5.6-terra` / `high`   |
+| `judgment`        | hard diagnosis, architecture, planning, or review                    | `gpt-5.6-sol` / `high`     |
+
+The model-specific chart motivates these operating points but does not prove
+their quality, latency, or cost on Darrow tasks. Evaluation MUST compare the
+candidate policy against the active routes and raw native goal mode before a
+default mapping changes.
 
 An explicit user model or effort overrides policy. An unavailable user-pinned
 route stops instead of silently substituting another route. A policy-selected
@@ -207,12 +246,19 @@ the least launch machinery the host supports.
 8. **AGL-P8 — Bounded classifier.** A prepared host-API preflight uses one
    structured classifier response and no repository tool calls; deterministic
    evidence assembly is not model work.
+9. **AGL-P9 — Canonical intent router.** Interactive and prepared preflight use
+   the same parent-skill workflow, risk, and reasoning-demand selection policy.
+   Prepared classification extracts that policy from the skill and MUST NOT
+   duplicate it in host adapter source.
 
 ### Routing invariants
 
-1. **AGL-R1 — Proportionate profile.** `fast` requires a complete mechanical
-   oracle; ordinary engineering work uses at least `standard`; approved
-   high-risk or cross-boundary work uses `deep`.
+1. **AGL-R1 — Reasoning-based route.** A route is selected from the kind and
+   scale of reasoning required, independently of verification risk. Under the
+   active baseline, `fast` requires an exact mechanical transformation with a
+   complete oracle, clear bounded work uses `standard`, and hard judgment uses
+   `deep`. An explicitly selected candidate policy uses its task-oriented
+   profiles instead. Risk alone does not determine either policy's profile.
 2. **AGL-R2 — Selected route.** The selected harness, provider, model, effort,
    and any fallback are visible before activation and remain distinct from the
    effective route.

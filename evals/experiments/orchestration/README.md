@@ -79,6 +79,11 @@ bun evals/runner/suite.ts --trials 1 --no-judge
 bun evals/runner/suite.ts \
   --suite evals/experiments/orchestration/profile-impact-suite.yaml \
   --harness codex --trials 3
+
+# Calibrate the GPT-5.6 candidate routes against active routes and raw native.
+bun evals/runner/suite.ts \
+  --suite evals/experiments/orchestration/routing-hypothesis-suite.yaml \
+  --harness codex --trials 1 --no-judge
 ```
 
 The suite writes one JSON result per cell, `suite-run.json`, and `report.md`
@@ -100,6 +105,12 @@ and whether its conclusions are exploratory or accepted elsewhere. The
 [native-goal preflight calibration](snapshots/2026-08-07-native-preflight-codex-n1.md),
 with its [machine-readable snapshot](snapshots/2026-08-07-native-preflight-codex-n1.json),
 compares the redesign against that historical record.
+The [GPT-5.6 routing calibration](snapshots/2026-08-08-gpt-5.6-routing-router-n1.md),
+with its [machine-readable snapshot](snapshots/2026-08-08-gpt-5.6-routing-router-n1.json),
+compares the active and candidate route policies after strengthening the parent
+skill as the canonical intent router. The candidate mappings remain isolated in
+`plugins/darrow-goal-loop/config/routes.gpt-5.6-candidate.tsv`; this N=1 record
+does not promote them.
 
 ## What is measured
 

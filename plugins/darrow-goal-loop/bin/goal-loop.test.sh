@@ -58,6 +58,22 @@ contains "$out" $'risk\troutine\t'
 contains "$out" $'risk\televated\t'
 contains "$out" $'risk\thigh\t'
 
+out=$(bash "$goal_loop" prepare --repo "$repo" --host codex --policy candidate)
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh'
+contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\txhigh'
+contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh'
+contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh'
+
+out=$(bash "$goal_loop" route --host codex --policy candidate --profile routine)
+contains "$out" $'profile\troutine'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\thigh'
+
+if bash "$goal_loop" prepare --repo "$repo" --host codex \
+  --policy future >/dev/null 2>&1; then
+  fail "invalid route policy was accepted"
+fi
+
 out=$(bash "$goal_loop" route --host codex --profile standard)
 contains "$out" $'format\tdarrow-native-goal-route-v2'
 contains "$out" $'profile\tstandard'

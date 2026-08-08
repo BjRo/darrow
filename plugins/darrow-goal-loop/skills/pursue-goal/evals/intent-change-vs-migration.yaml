@@ -1,0 +1,64 @@
+id: goal-preflight-intent-change-vs-migration
+invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
+goal_route_policy: candidate
+prompt: >-
+  /pursue-goal Migrate the persisted service configuration from v1 `{url}` to
+  v2 `{endpoint}`. On Codex, invoke the $pursue-goal skill. The writer must emit
+  only v2, the reader must accept v1 and v2 during rollout, migrateConfig must
+  convert stored v1 records, and both consumers must continue to work. This is
+  an approved behavior change, but consumers and persisted formats require a
+  sequenced coexistence transition. Add focused evidence and run bash test.sh.
+  Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for persisted configuration changes.
+        config.js: |
+          export const writeConfig = (url) => JSON.stringify({ url });
+          export const readConfig = (text) => JSON.parse(text).url;
+        migrate.js: |
+          export const migrateConfig = (record) => record;
+        consumer-a.js: |
+          import { readConfig } from "./config.js";
+          export const connectTarget = (text) => readConfig(text);
+        consumer-b.js: |
+          import { readConfig } from "./config.js";
+          export const healthTarget = (text) => readConfig(text);
+        config.test.js: |
+          import assert from "node:assert/strict";
+          import { readConfig, writeConfig } from "./config.js";
+
+          assert.deepEqual(JSON.parse(writeConfig("https://service.test")), {
+            url: "https://service.test",
+          });
+          assert.equal(readConfig('{"url":"https://old.test"}'), "https://old.test");
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          node config.test.js
+checks:
+  - name: sequenced persisted-format transition works
+    run: >-
+      node --input-type=module -e
+      "Promise.all([import('./config.js'), import('./migrate.js'),
+      import('./consumer-a.js'), import('./consumer-b.js')]).then(([config,
+      migration, a, b]) => { const endpoint = 'https://service.test';
+      const written = JSON.parse(config.writeConfig(endpoint));
+      if (written.endpoint !== endpoint || 'url' in written) process.exit(1);
+      if (config.readConfig(JSON.stringify({url:endpoint})) !== endpoint ||
+      config.readConfig(JSON.stringify({endpoint})) !== endpoint) process.exit(1);
+      const migrated = migration.migrateConfig({url:endpoint});
+      if (migrated.endpoint !== endpoint || 'url' in migrated) process.exit(1);
+      if (a.connectTarget(JSON.stringify({url:endpoint})) !== endpoint ||
+      b.healthTarget(JSON.stringify({endpoint})) !== endpoint) process.exit(1) })"
+  - name: focused tests pass
+    run: bash test.sh
+output_checks:
+  - name: sequenced transition wins over one behavior change
+    expect_regex: "workflow\\tmigration[\\s\\S]*risk\\televated[\\s\\S]*profile\\troutine"
+  - name: routine coding route is applied
+    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"

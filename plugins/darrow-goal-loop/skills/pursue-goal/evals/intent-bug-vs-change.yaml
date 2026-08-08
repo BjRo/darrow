@@ -1,0 +1,42 @@
+id: goal-preflight-intent-bug-vs-change
+invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
+goal_route_policy: candidate
+prompt: >-
+  /pursue-goal Apply the approved change to discount.js: discount cents must
+  now be rounded to the nearest integer instead of truncated. On Codex, invoke
+  the $pursue-goal skill. Truncation is the existing promised behavior and is
+  working as designed; product has intentionally changed that contract. Add
+  focused compatibility evidence around the rounding boundary and run bash
+  test.sh. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for discount behavior changes.
+        discount.js: |
+          export const discountCents = (rawCents) => Math.trunc(rawCents);
+        discount.test.js: |
+          import assert from "node:assert/strict";
+          import { discountCents } from "./discount.js";
+
+          assert.equal(discountCents(4.9), 4);
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          node discount.test.js
+checks:
+  - name: approved rounding contract is implemented
+    run: >-
+      node --input-type=module -e
+      "import('./discount.js').then(({discountCents}) => {
+      if (discountCents(4.4) !== 4 || discountCents(4.5) !== 5) process.exit(1) })"
+  - name: focused tests pass
+    run: bash test.sh
+output_checks:
+  - name: intentional change wins over bug fix
+    expect_regex: "workflow\\tchange-feature[\\s\\S]*risk\\televated[\\s\\S]*profile\\troutine"
+  - name: routine coding route is applied
+    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"

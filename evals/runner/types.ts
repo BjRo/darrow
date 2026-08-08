@@ -89,6 +89,8 @@ export interface EvalCase {
   fixture: Fixture;
   /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
   mount_plugin_skills?: boolean;
+  /** Optional bundled route policy for a policy-routing judgment case. */
+  goal_route_policy?: "current" | "candidate";
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];

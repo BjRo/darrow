@@ -2,7 +2,9 @@
 set -euo pipefail
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-routes_file="$script_dir/../config/routes.tsv"
+current_routes_file="$script_dir/../config/routes.tsv"
+candidate_routes_file="$script_dir/../config/routes.gpt-5.6-candidate.tsv"
+routes_file=$current_routes_file
 risks_file="$script_dir/../config/risks.tsv"
 workflows_dir="$script_dir/../skills/pursue-goal/references/workflows"
 tab=$(printf '\t')
@@ -11,10 +13,10 @@ usage() {
   cat <<'EOF'
 usage:
   goal-loop preflight --repo <path>
-  goal-loop prepare --repo <path> --host <codex|claude>
-  goal-loop route --host <codex|claude> --profile <fast|standard|deep> [--route <harness|provider|model|effort>]
+  goal-loop prepare --repo <path> --host <codex|claude> [--policy <current|candidate>]
+  goal-loop route --host <codex|claude> --profile <profile> [--policy <current|candidate>] [--route <harness|provider|model|effort>]
   goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|nested-session>
-  goal-loop readiness --host <codex|claude>
+  goal-loop readiness --host <codex|claude> [--policy <current|candidate>]
   goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level>
 EOF
 }
@@ -36,11 +38,32 @@ validate_host() {
   esac
 }
 
-validate_profile() {
+select_policy() {
   case "$1" in
-    fast|standard|deep) ;;
-    *) die "unsupported profile: $1" ;;
+    current) routes_file=$current_routes_file ;;
+    candidate) routes_file=$candidate_routes_file ;;
+    *) die "unsupported route policy: $1" ;;
   esac
+  test -r "$routes_file" || die "route configuration is unreadable: $routes_file"
+}
+
+validate_profile() {
+  profile_host=$1
+  profile_name=$2
+  case "$profile_name" in
+    ''|*[!a-z0-9-]*) die "unsupported profile: $profile_name" ;;
+  esac
+  found=0
+  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
+    case "$host" in
+      ''|'#'*) continue ;;
+    esac
+    if test "$host" = "$profile_host" && test "$profile" = "$profile_name"; then
+      found=1
+      break
+    fi
+  done <"$routes_file"
+  test "$found" -eq 1 || die "unsupported profile for host=$profile_host: $profile_name"
 }
 
 absolute_dir() {
@@ -108,6 +131,7 @@ preflight() {
 prepare() {
   repo=
   host=
+  policy=current
   while test "$#" -gt 0; do
     case "$1" in
       --repo)
@@ -120,12 +144,18 @@ prepare() {
         host=$2
         shift 2
         ;;
+      --policy)
+        require_value "$@"
+        policy=$2
+        shift 2
+        ;;
       *) die "unknown prepare option: $1" ;;
     esac
   done
   test -n "$repo" && test -n "$host" ||
     die "prepare requires --repo and --host"
   validate_host "$host"
+  select_policy "$policy"
   repo=$(absolute_dir "$repo")
   git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
     die "not a git working tree: $repo"
@@ -161,17 +191,21 @@ prepare() {
     fi
   done
 
-  for profile in fast standard deep; do
-    record=$(route_record "$host" "$profile")
-    old_ifs=$IFS
-    IFS="$tab"
-    read -r harness provider model effort fallback_model fallback_effort <<EOF
-$record
-EOF
-    IFS=$old_ifs
+  route_count=0
+  while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort extra; do
+    case "$route_host" in
+      ''|'#'*) continue ;;
+    esac
+    test -n "$profile" && test -n "$harness" && test -n "$provider" &&
+      test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
+      test -n "$fallback_effort" && test -z "${extra:-}" ||
+      die "invalid route configuration row for profile: $profile"
+    test "$route_host" = "$host" || continue
     printf 'route\t%s\t%s\t%s\t%s\t%s\n' \
       "$profile" "$harness" "$provider" "$model" "$effort"
-  done
+    route_count=$((route_count + 1))
+  done <"$routes_file"
+  test "$route_count" -gt 0 || die "no routes for host=$host policy=$policy"
 
   for workflow in fix-bug implement-feature change-feature refactor migration mechanical decision-gated; do
     workflow_file="$workflows_dir/$workflow.md"
@@ -200,6 +234,7 @@ route() {
   host=
   profile=
   explicit_route=
+  policy=current
   while test "$#" -gt 0; do
     case "$1" in
       --host)
@@ -210,6 +245,11 @@ route() {
       --profile)
         require_value "$@"
         profile=$2
+        shift 2
+        ;;
+      --policy)
+        require_value "$@"
+        policy=$2
         shift 2
         ;;
       --route)
@@ -223,7 +263,8 @@ route() {
   test -n "$host" || die "route requires --host"
   test -n "$profile" || die "route requires --profile"
   validate_host "$host"
-  validate_profile "$profile"
+  select_policy "$policy"
+  validate_profile "$host" "$profile"
 
   fallback_model=none
   fallback_effort=none
@@ -319,6 +360,7 @@ EOF
 
 readiness() {
   host=
+  policy=current
   while test "$#" -gt 0; do
     case "$1" in
       --host)
@@ -326,11 +368,17 @@ readiness() {
         host=$2
         shift 2
         ;;
+      --policy)
+        require_value "$@"
+        policy=$2
+        shift 2
+        ;;
       *) die "unknown readiness option: $1" ;;
     esac
   done
   test -n "$host" || die "readiness requires --host"
   validate_host "$host"
+  select_policy "$policy"
 
   printf 'format\tdarrow-native-goal-readiness-v1\n'
   printf 'host\t%s\n' "$host"
@@ -351,17 +399,21 @@ readiness() {
     printf 'capability\thost_api\tcontroller_must_confirm\n'
   fi
 
-  for profile in fast standard deep; do
-    record=$(route_record "$host" "$profile")
-    old_ifs=$IFS
-    IFS="$tab"
-    read -r harness provider model effort fallback_model fallback_effort <<EOF
-$record
-EOF
-    IFS=$old_ifs
+  route_count=0
+  while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort extra; do
+    case "$route_host" in
+      ''|'#'*) continue ;;
+    esac
+    test -n "$profile" && test -n "$harness" && test -n "$provider" &&
+      test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
+      test -n "$fallback_effort" && test -z "${extra:-}" ||
+      die "invalid route configuration row for profile: $profile"
+    test "$route_host" = "$host" || continue
     printf 'route\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$profile" "$harness" "$provider" "$model" "$effort" "$fallback_model/$fallback_effort"
-  done
+    route_count=$((route_count + 1))
+  done <"$routes_file"
+  test "$route_count" -gt 0 || die "no routes for host=$host policy=$policy"
 }
 
 launch() {

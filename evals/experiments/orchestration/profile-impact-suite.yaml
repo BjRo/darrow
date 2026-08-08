@@ -37,6 +37,7 @@ modes:
     mount_plugin_skills: true
     require_evaluation_records: true
     apply_goal_route: true
+    apply_expected_goal_routes: true
     effort: low
   darrow-workflow-risk:
     condition_by_harness:
@@ -45,4 +46,5 @@ modes:
     mount_plugin_skills: true
     require_evaluation_records: true
     apply_goal_route: true
+    apply_expected_goal_routes: true
     effort: low

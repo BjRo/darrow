@@ -1,0 +1,65 @@
+id: goal-preflight-routing-difficult-routine-diagnosis
+invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
+goal_route_policy: candidate
+prompt: >-
+  /pursue-goal Diagnose and fix summarizeSegments intermittently double-counting
+  the final segment when input ends with a delimiter. On Codex, invoke the
+  $pursue-goal skill. This is a hard diagnosis: the cause is unknown across
+  multiple plausible layers and state transitions in tokenization, iteration,
+  and aggregation; establish it before changing behavior. This is an internal
+  developer-only reporting utility with a localized, reversible,
+  limited-blast-radius fix. Preserve non-trailing and empty-input behavior, add
+  focused regression evidence, and run bash test.sh. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for segment reporting changes.
+        tokenize.js: |
+          export function* tokenizeSegments(input) {
+            for (const value of input.split("|")) yield value;
+          }
+        aggregate.js: |
+          export const countSegments = (tokens) => {
+            let count = 0;
+            for (const token of tokens) {
+              if (token.length > 0) count += 1;
+            }
+            return count;
+          };
+        report.js: |
+          import { tokenizeSegments } from "./tokenize.js";
+          import { countSegments } from "./aggregate.js";
+
+          export const summarizeSegments = (input) => {
+            const count = countSegments(tokenizeSegments(input));
+            return input.endsWith("|") ? count + 1 : count;
+          };
+        report.test.js: |
+          import assert from "node:assert/strict";
+          import { summarizeSegments } from "./report.js";
+
+          assert.equal(summarizeSegments("alpha|beta"), 2);
+          assert.equal(summarizeSegments(""), 0);
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          node report.test.js
+checks:
+  - name: trailing delimiter regression is fixed
+    run: >-
+      node --input-type=module -e
+      "import('./report.js').then(({summarizeSegments}) => {
+      if (summarizeSegments('alpha|beta|') !== 2 ||
+      summarizeSegments('alpha|beta') !== 2 ||
+      summarizeSegments('') !== 0) process.exit(1) })"
+  - name: focused tests pass
+    run: bash test.sh
+output_checks:
+  - name: difficult diagnosis retains routine risk
+    expect_regex: "workflow\\tfix-bug[\\s\\S]*risk\\troutine[\\s\\S]*profile\\tjudgment"
+  - name: judgment route is applied
+    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\thigh[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\thigh[\\s\\S]*route_verified\\ttrue"

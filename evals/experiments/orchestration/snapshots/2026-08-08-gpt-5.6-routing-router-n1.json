@@ -1,0 +1,233 @@
+{
+  "format": "darrow-routing-calibration-v1",
+  "date": "2026-08-08",
+  "status": "exploratory-n1-not-decision-bearing",
+  "hypothesis": "GPT-5.6 chart operating points may improve task-oriented routing while workflow and consequence risk remain independent",
+  "defaultsPromoted": false,
+  "activePolicy": "plugins/darrow-goal-loop/config/routes.tsv",
+  "candidatePolicy": "plugins/darrow-goal-loop/config/routes.gpt-5.6-candidate.tsv",
+  "pricingAssumption": {
+    "source": "user-provided GPT-5.6 price chart",
+    "unit": "USD per million tokens",
+    "models": {
+      "gpt-5.6-sol": { "input": 5, "output": 30 },
+      "gpt-5.6-terra": { "input": 2, "output": 12 },
+      "gpt-5.6-luna": { "input": 0.2, "output": 1.2 }
+    },
+    "method": "price classifier and execution phase input/output independently on their effective models",
+    "cachedInputTreatment": "recorded input includes cached input; all input is priced at the listed input rate because no cached-input rate was supplied",
+    "providerReported": false
+  },
+  "provenance": {
+    "mainSuite": "evals/results/orchestration-gpt-5.6-routing-hypothesis/2026-08-08T16-54-23-392Z",
+    "correctedCommanderControl": "evals/results/orchestration-gpt-5.6-routing-hypothesis/2026-08-08T17-42-05-230Z",
+    "excludedPreRouterSuite": "evals/results/orchestration-gpt-5.6-routing-hypothesis/2026-08-08T15-54-49-066Z",
+    "runnerRevision": "5244dc5e2b29619490897d4a953a1b8421fef2a0",
+    "runnerPatchSha256": "c109585f8cd46c2b6224f9b9812912c5ce3fecb3285dc7928114b3e82b9428e5",
+    "orderSeed": "2026-08-08-gpt56-routing-router-n1"
+  },
+  "aggregate": {
+    "native": {
+      "implementationPass": "3/3",
+      "meanDurationMs": 283338.057056,
+      "meanTokens": 1029849.666667,
+      "estimatedMeanCostUsd": 5.367407,
+      "estimatedTotalCostUsd": 16.10222
+    },
+    "active": {
+      "implementationPass": "3/3",
+      "reviewedRoutingPass": "2/3",
+      "meanDurationMs": 289912.934403,
+      "meanTokens": 949079.333333,
+      "estimatedMeanCostUsd": 4.929924,
+      "estimatedTotalCostUsd": 14.789771,
+      "estimatedCostDeltaVsNativePercent": -8.150733,
+      "durationDeltaVsNativePercent": 2.320506,
+      "tokenDeltaVsNativePercent": -7.842925
+    },
+    "candidate": {
+      "implementationPass": "3/3",
+      "reviewedRoutingPass": "3/3",
+      "meanDurationMs": 294886.35943,
+      "meanTokens": 1079792.666667,
+      "estimatedMeanCostUsd": 1.500432,
+      "estimatedTotalCostUsd": 4.501295,
+      "estimatedCostDeltaVsNativePercent": -72.045501,
+      "estimatedCostDeltaVsActivePercent": -69.564809,
+      "durationDeltaVsNativePercent": 4.075803,
+      "tokenDeltaVsNativePercent": 4.849543,
+      "durationDeltaVsActivePercent": 1.715489,
+      "tokenDeltaVsActivePercent": 13.772646
+    }
+  },
+  "cases": [
+    {
+      "id": "orchestration-oss-cobra-lifecycle",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 285427.922042,
+        "tokens": 877590,
+        "estimatedCostUsd": 4.60435
+      },
+      "active": {
+        "profile": "standard",
+        "workflow": "refactor",
+        "risk": "routine",
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 248576.683,
+        "tokens": 739590,
+        "estimatedCostUsd": 3.85058
+      },
+      "candidate": {
+        "profile": "scaled",
+        "workflow": "refactor",
+        "risk": "routine",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "durationMs": 301905.108791,
+        "tokens": 904864,
+        "estimatedCostUsd": 1.889998
+      },
+      "workflowSha256": "d63668edc6adb455e8f8671368f629004a55bfa7aa2d66041ae4994d41818046"
+    },
+    {
+      "id": "orchestration-oss-commander-env",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 358332.209542,
+        "tokens": 1710209,
+        "estimatedCostUsd": 8.848595
+      },
+      "active": {
+        "profile": "standard",
+        "workflow": "implement-feature",
+        "risk": "elevated",
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 376305.925333,
+        "tokens": 1410234,
+        "estimatedCostUsd": 7.306227
+      },
+      "candidate": {
+        "profile": "scaled",
+        "workflow": "implement-feature",
+        "risk": "elevated",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "durationMs": 289661.221,
+        "tokens": 1105882,
+        "estimatedCostUsd": 2.316594
+      },
+      "workflowSha256": "370bba8111c3ed9c98e98c8e4e79d79aaf72ad83da91d47915bc9a3db477f0a6"
+    },
+    {
+      "id": "orchestration-oss-express-links",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 206254.039583,
+        "tokens": 501750,
+        "estimatedCostUsd": 2.649275
+      },
+      "active": {
+        "profile": "standard",
+        "workflow": "fix-bug",
+        "risk": "elevated",
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 244856.194875,
+        "tokens": 697414,
+        "estimatedCostUsd": 3.632964,
+        "reviewedRoutingPass": false,
+        "reason": "security boundary requires high risk"
+      },
+      "candidate": {
+        "profile": "routine",
+        "workflow": "fix-bug",
+        "risk": "high",
+        "model": "gpt-5.6-luna",
+        "effort": "high",
+        "durationMs": 293092.7485,
+        "tokens": 1228632,
+        "estimatedCostUsd": 0.294703
+      },
+      "workflowSha256": "4bf5d529022983e55b8be9b13e2d61adb039fbc9c23a4a90ac9c8a673572aa26"
+    }
+  ],
+  "logAudit": {
+    "routeAppliedAccepted": true,
+    "selectedEqualsEffective": true,
+    "appliedBy": "host-api",
+    "dimensionsAppliedAccepted": true,
+    "workflowLoadedAccepted": true,
+    "sameExecutionTurn": true,
+    "childInvocations": 0,
+    "humanInterruptions": 0
+  },
+  "focusedCases": [
+    {
+      "id": "goal-preflight-high-risk-routine",
+      "workflow": "change-feature",
+      "risk": "high",
+      "profile": "routine",
+      "model": "gpt-5.6-luna",
+      "effort": "high",
+      "durationMs": 153917.097042,
+      "tokens": 345757,
+      "passed": true
+    },
+    {
+      "id": "goal-preflight-intent-bug-vs-change",
+      "workflow": "change-feature",
+      "risk": "elevated",
+      "profile": "routine",
+      "model": "gpt-5.6-luna",
+      "effort": "high",
+      "durationMs": 100247.3225,
+      "tokens": 362911,
+      "passed": true
+    },
+    {
+      "id": "goal-preflight-intent-change-vs-migration",
+      "workflow": "migration",
+      "risk": "elevated",
+      "profile": "routine",
+      "model": "gpt-5.6-luna",
+      "effort": "high",
+      "durationMs": 121314.595625,
+      "tokens": 316363,
+      "passed": true
+    },
+    {
+      "id": "goal-preflight-intent-refactor-vs-mechanical",
+      "workflow": "mechanical",
+      "risk": "routine",
+      "profile": "routine",
+      "model": "gpt-5.6-luna",
+      "effort": "high",
+      "durationMs": 74872.1185,
+      "tokens": 240137,
+      "passed": true
+    },
+    {
+      "id": "goal-preflight-routing-difficult-routine-diagnosis",
+      "workflow": "fix-bug",
+      "risk": "routine",
+      "profile": "judgment",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "durationMs": 121093.339833,
+      "tokens": 312773,
+      "passed": true
+    }
+  ],
+  "oracleCorrections": [
+    "Cobra refactor is routine risk and scaled coding under the canonical policy",
+    "Commander active route is standard Sol/medium, not deep Sol/high",
+    "The ambiguous-pair migration fixture is elevated risk but routine coding and does not imply scaled routing"
+  ],
+  "conclusion": "Do not promote candidate defaults from N=1; the candidate is estimated to reduce list-price cost by about 72% without an observed task-pass loss, so replicate Terra/medium at N>=3 and broaden Luna/high localized-task calibration"
+}

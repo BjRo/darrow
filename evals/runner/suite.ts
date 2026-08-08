@@ -10,19 +10,31 @@ interface ModeConfig {
   mount_plugin_skills?: boolean;
   require_evaluation_records?: boolean;
   apply_goal_route?: boolean;
+  apply_expected_goal_routes?: boolean;
   apply_case_routes?: boolean;
   effort?: string;
+  goal_route_policy?: "current" | "candidate";
+  goal_expectations?: string;
+}
+
+interface GoalExpectation {
+  model: string;
+  effort: string;
+  profile: string;
+  workflow: string;
+  risk: "routine" | "elevated" | "high";
 }
 
 interface SuiteConfig {
   version: number;
   experiment: string;
-  case_filter: string;
+  case_filter: string | string[];
   modes: Record<string, ModeConfig>;
   case_routes?: Record<
     string,
     Record<string, { model: string; effort: string }>
   >;
+  goal_expectations?: Record<string, Record<string, GoalExpectation>>;
 }
 
 async function git(args: string[]): Promise<string> {
@@ -61,7 +73,7 @@ const { values } = parseArgs({
     suite: { type: "string" },
     harness: { type: "string", multiple: true },
     mode: { type: "string", multiple: true },
-    case: { type: "string" },
+    case: { type: "string", multiple: true },
     trials: { type: "string", default: "5" },
     threshold: { type: "string", default: "0.8" },
     effort: { type: "string", default: "medium" },
@@ -178,8 +190,6 @@ for (const { harness, modeName } of cellPlan) {
     resolve(suiteDir, condition),
     "--condition-label",
     modeName,
-    "--case",
-    values.case ?? suite.case_filter,
     "--trials",
     values.trials!,
     "--threshold",
@@ -189,6 +199,12 @@ for (const { harness, modeName } of cellPlan) {
     "--output",
     resultPath,
   ];
+  const caseFilters =
+    values.case ??
+    (Array.isArray(suite.case_filter)
+      ? suite.case_filter
+      : [suite.case_filter]);
+  for (const caseFilter of caseFilters) args.push("--case", caseFilter);
   const model =
     harness === "claude" ? values["claude-model"] : values["codex-model"];
   if (model) args.push("--model", model);
@@ -199,13 +215,41 @@ for (const { harness, modeName } of cellPlan) {
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
   if (mode.apply_goal_route) args.push("--apply-goal-route");
-  if (mode.apply_goal_route) {
+  if (mode.goal_route_policy) {
+    args.push("--goal-route-policy", mode.goal_route_policy);
+  }
+  if (mode.apply_expected_goal_routes) {
     const routes = suite.case_routes?.[harness];
     if (!routes)
       throw new Error(
-        `${modeName} requests goal route reconciliation but no case routes exist for ${harness}`,
+        `${modeName} requests expected goal routes but no case routes exist for ${harness}`,
       );
     args.push("--expected-goal-routes", JSON.stringify(routes));
+  }
+  if (mode.goal_expectations) {
+    const expectations = suite.goal_expectations?.[mode.goal_expectations];
+    if (!expectations)
+      throw new Error(
+        `${modeName} names unknown goal expectations: ${mode.goal_expectations}`,
+      );
+    const routes = Object.fromEntries(
+      Object.entries(expectations).map(([caseId, value]) => [
+        caseId,
+        { model: value.model, effort: value.effort },
+      ]),
+    );
+    const dimensions = Object.fromEntries(
+      Object.entries(expectations).map(([caseId, value]) => [
+        caseId,
+        {
+          profile: value.profile,
+          workflow: value.workflow,
+          risk: value.risk,
+        },
+      ]),
+    );
+    args.push("--assert-goal-routes", JSON.stringify(routes));
+    args.push("--assert-goal-dimensions", JSON.stringify(dimensions));
   }
   if (mode.apply_case_routes) {
     const routes = suite.case_routes?.[harness];

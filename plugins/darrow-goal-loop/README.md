@@ -42,7 +42,8 @@ Example: _“Check native-goal readiness for Codex.”_
 ### `bin/goal-loop`
 
 A small portable Bash helper prepares repository state, instruction routes,
-semantic profiles from `config/routes.tsv`, workflow playbooks from
+active semantic profiles from `config/routes.tsv`, the explicitly experimental
+GPT-5.6 policy from `config/routes.gpt-5.6-candidate.tsv`, workflow playbooks from
 `skills/pursue-goal/references/workflows/`, plus risk gates from
 `config/risks.tsv`; rejects selected/effective route mismatches; diagnoses
 launch boundaries; and provides an injection-safe nested compatibility

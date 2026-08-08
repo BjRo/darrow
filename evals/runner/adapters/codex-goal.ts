@@ -24,7 +24,7 @@ interface GoalHandoff {
   format: "darrow-native-goal-handoff-v3";
   workflow: GoalWorkflow;
   risk: GoalRisk;
-  profile: "fast" | "standard" | "deep";
+  profile: string;
   routeSource: "policy" | "user";
   selectedRoute: GoalRoute;
   goalContract: string;
@@ -37,6 +37,7 @@ interface RiskEntry {
   verification: string;
 }
 export interface PreparedGoalDimensions {
+  routes: Map<string, GoalRoute>;
   workflows: Map<string, WorkflowEntry>;
   risks: Map<string, RiskEntry>;
 }
@@ -45,6 +46,7 @@ export function parsePreparedGoalDimensions(
   text: string,
 ): PreparedGoalDimensions {
   const dimensions: PreparedGoalDimensions = {
+    routes: new Map(),
     workflows: new Map(),
     risks: new Map(),
   };
@@ -52,7 +54,23 @@ export function parsePreparedGoalDimensions(
     const fields = rawLine.split("\t");
     const [kind, id] = fields;
     if (!id || !/^[a-z0-9-]+$/.test(id)) continue;
-    if (kind === "workflow") {
+    if (kind === "route") {
+      if (
+        fields.length !== 6 ||
+        !fields[2] ||
+        !fields[3] ||
+        !fields[4] ||
+        !fields[5]
+      )
+        throw new Error(`invalid route row: ${rawLine}`);
+      if (dimensions.routes.has(id)) throw new Error(`duplicate route: ${id}`);
+      dimensions.routes.set(id, {
+        harness: fields[2],
+        provider: fields[3],
+        model: fields[4],
+        effort: fields[5],
+      });
+    } else if (kind === "workflow") {
       const file = fields[2];
       if (
         fields.length !== 3 ||
@@ -71,16 +89,41 @@ export function parsePreparedGoalDimensions(
       dimensions.risks.set(id, { verification: fields[2] });
     }
   }
-  if (!dimensions.workflows.size || !dimensions.risks.size)
+  if (
+    !dimensions.routes.size ||
+    !dimensions.workflows.size ||
+    !dimensions.risks.size
+  )
     throw new Error("prepared goal dimensions are incomplete");
   return dimensions;
+}
+
+export function extractIntentRoutingGuidance(skill: string): string {
+  const startMarker = "<!-- intent-routing-begin -->";
+  const endMarker = "<!-- intent-routing-end -->";
+  const start = skill.indexOf(startMarker);
+  const end = skill.indexOf(endMarker);
+  if (
+    start < 0 ||
+    end < 0 ||
+    end <= start ||
+    skill.indexOf(startMarker, start + startMarker.length) >= 0 ||
+    skill.indexOf(endMarker, end + endMarker.length) >= 0
+  )
+    throw new Error("parent skill has invalid intent-routing guidance markers");
+  const guidance = skill.slice(start + startMarker.length, end).trim();
+  if (!guidance)
+    throw new Error("parent skill has empty intent-routing guidance");
+  return guidance;
 }
 
 export function buildPreparedGoalPrompt(
   engineeringRequest: string,
   preparedEvidence: string,
+  intentRoutingGuidance: string,
   stage: GoalDimensionStage = "workflow-risk",
 ): string {
+  const candidatePolicy = /^route\troutine\t/m.test(preparedEvidence);
   const stageInstruction =
     stage === "workflow"
       ? "Select the workflow. For this workflow-only ablation, set risk to routine."
@@ -92,8 +135,13 @@ export function buildPreparedGoalPrompt(
     "",
     stageInstruction,
     "Workflow controls execution sequence. Risk controls proportional verification.",
+    "Use this canonical parent-skill guidance for workflow and risk selection:",
+    intentRoutingGuidance,
     "An evaluation_expected_route record is enclosing-harness metadata, not a user override. Select the policy profile whose concrete route matches it; a mismatch must fail rather than be silently attributed to preflight.",
-    "Select fast only for mechanical work with a complete oracle, standard for ordinary bounded work, and deep for high-risk, public-contract, cross-boundary, security-sensitive, or materially ambiguous work. High risk and migrations require deep.",
+    "Select risk and profile independently: risk reflects the cost of an incorrect result, while routing reflects the kind and scale of reasoning required. Risk alone and a workflow label alone do not determine profile.",
+    candidatePolicy
+      ? "Map ordinary-localized to routine (Luna/high), scaled-coding to scaled (Terra/medium), repo-wide-coding to repo-wide (Terra/high), and judgment to judgment (Sol/high). Use routine-plus (Luna/xhigh) only when the request specifically makes its additional quality worthwhile."
+      : "Under the current baseline, map an exact mechanical transformation with a complete oracle and no substantive reasoning to fast; map ordinary-localized and scaled-coding to standard; and map repo-wide-coding and judgment to deep.",
     "",
     "The goalContract must stay within 4,000 bytes and preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, and route. Finish with this record:",
     "format\tdarrow-native-goal-preflight-v4",
@@ -149,7 +197,8 @@ export function parseCodexGoalHandoff(
     handoff.format !== "darrow-native-goal-handoff-v3" ||
     typeof handoff.workflow !== "string" ||
     typeof handoff.risk !== "string" ||
-    !["fast", "standard", "deep"].includes(handoff.profile ?? "") ||
+    typeof handoff.profile !== "string" ||
+    !dimensions.routes.has(handoff.profile) ||
     !["policy", "user"].includes(handoff.routeSource ?? "") ||
     !route ||
     route.harness !== "codex" ||
@@ -171,29 +220,18 @@ export function parseCodexGoalHandoff(
     throw new Error(
       `unsupported selected effort for ${route.model}: ${route.effort}`,
     );
-  if (handoff.risk === "high" && handoff.profile !== "deep")
-    throw new Error("selected profile does not match high risk");
-  if (handoff.workflow === "migration" && handoff.profile !== "deep")
-    throw new Error("selected profile does not match migration workflow");
-  if (
-    handoff.profile === "fast" &&
-    (handoff.workflow !== "mechanical" || handoff.risk !== "routine")
-  )
-    throw new Error("fast profile requires routine mechanical workflow");
+  if (handoff.profile === "fast" && handoff.workflow !== "mechanical")
+    throw new Error("fast profile requires a mechanical workflow");
   if (handoff.routeSource === "policy") {
-    const policy: Record<
-      GoalHandoff["profile"],
-      { model: string; effort: string }
-    > = {
-      fast: { model: "gpt-5.6-terra", effort: "low" },
-      standard: { model: "gpt-5.6-sol", effort: "medium" },
-      deep: { model: "gpt-5.6-sol", effort: "high" },
-    };
-    const profile = handoff.profile as GoalHandoff["profile"];
-    const expected = policy[profile];
-    if (route.model !== expected.model || route.effort !== expected.effort)
+    const expected = dimensions.routes.get(handoff.profile)!;
+    if (
+      route.harness !== expected.harness ||
+      route.provider !== expected.provider ||
+      route.model !== expected.model ||
+      route.effort !== expected.effort
+    )
       throw new Error(
-        `selected route does not match ${profile} policy: expected ${expected.model}/${expected.effort}`,
+        `selected route does not match ${handoff.profile} policy: expected ${expected.model}/${expected.effort}`,
       );
   }
   if (
@@ -234,49 +272,51 @@ export function parseCodexGoalHandoff(
   return handoff as GoalHandoff;
 }
 
-const HANDOFF_SCHEMA = {
-  type: "object",
-  properties: {
-    format: { type: "string", const: "darrow-native-goal-handoff-v3" },
-    workflow: {
-      type: "string",
-      enum: [
-        "fix-bug",
-        "implement-feature",
-        "change-feature",
-        "refactor",
-        "migration",
-        "mechanical",
-        "decision-gated",
-      ],
-    },
-    risk: { type: "string", enum: ["routine", "elevated", "high"] },
-    profile: { type: "string", enum: ["fast", "standard", "deep"] },
-    routeSource: { type: "string", enum: ["policy", "user"] },
-    selectedRoute: {
-      type: "object",
-      properties: {
-        harness: { type: "string", const: "codex" },
-        provider: { type: "string", const: "openai" },
-        model: { type: "string", minLength: 1 },
-        effort: { type: "string", minLength: 1 },
+function handoffSchema(profiles: string[]) {
+  return {
+    type: "object",
+    properties: {
+      format: { type: "string", const: "darrow-native-goal-handoff-v3" },
+      workflow: {
+        type: "string",
+        enum: [
+          "fix-bug",
+          "implement-feature",
+          "change-feature",
+          "refactor",
+          "migration",
+          "mechanical",
+          "decision-gated",
+        ],
       },
-      required: ["harness", "provider", "model", "effort"],
-      additionalProperties: false,
+      risk: { type: "string", enum: ["routine", "elevated", "high"] },
+      profile: { type: "string", enum: profiles },
+      routeSource: { type: "string", enum: ["policy", "user"] },
+      selectedRoute: {
+        type: "object",
+        properties: {
+          harness: { type: "string", const: "codex" },
+          provider: { type: "string", const: "openai" },
+          model: { type: "string", minLength: 1 },
+          effort: { type: "string", minLength: 1 },
+        },
+        required: ["harness", "provider", "model", "effort"],
+        additionalProperties: false,
+      },
+      goalContract: { type: "string", minLength: 1, maxLength: 4000 },
     },
-    goalContract: { type: "string", minLength: 1, maxLength: 4000 },
-  },
-  required: [
-    "format",
-    "workflow",
-    "risk",
-    "profile",
-    "routeSource",
-    "selectedRoute",
-    "goalContract",
-  ],
-  additionalProperties: false,
-};
+    required: [
+      "format",
+      "workflow",
+      "risk",
+      "profile",
+      "routeSource",
+      "selectedRoute",
+      "goalContract",
+    ],
+    additionalProperties: false,
+  };
+}
 
 class AppServerClient {
   private nextId = 1;
@@ -519,8 +559,21 @@ async function prepareGoalPreflight(
 }> {
   const started = performance.now();
   const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const policy = process.env.DARROW_EVAL_GOAL_ROUTE_POLICY ?? "current";
+  if (policy !== "current" && policy !== "candidate")
+    throw new Error(`unsupported evaluation goal route policy: ${policy}`);
   const proc = Bun.spawn(
-    ["bash", helper, "prepare", "--repo", repoDir, "--host", "codex"],
+    [
+      "bash",
+      helper,
+      "prepare",
+      "--repo",
+      repoDir,
+      "--host",
+      "codex",
+      "--policy",
+      policy,
+    ],
     { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
   );
   const [stdout, stderr, code] = await Promise.all([
@@ -534,6 +587,11 @@ async function prepareGoalPreflight(
     throw new Error("goal preflight preparation returned an unknown format");
   const stage = goalDimensionStage(engineeringRequest);
   const dimensions = parsePreparedGoalDimensions(stdout);
+  const skill = await readFile(
+    join(repoDir, ".agents", "skills", "pursue-goal", "SKILL.md"),
+    "utf8",
+  );
+  const intentRoutingGuidance = extractIntentRoutingGuidance(skill);
   const workflowDocuments = await Promise.all(
     [...dimensions.workflows].map(async ([id, workflow]) => {
       const content = await readFile(workflow.file, "utf8");
@@ -549,6 +607,7 @@ async function prepareGoalPreflight(
     prompt: buildPreparedGoalPrompt(
       engineeringRequest,
       preparedEvidence,
+      intentRoutingGuidance,
       stage,
     ),
     dimensions,
@@ -642,7 +701,7 @@ export const codexGoalAdapter: HarnessAdapter = {
         sandboxPolicy: { type: "readOnly", networkAccess: false },
         model,
         effort,
-        outputSchema: HANDOFF_SCHEMA,
+        outputSchema: handoffSchema([...prepared.dimensions.routes.keys()]),
       });
       const preflightTurnId = preflight.turn.id as string;
       const preflightResult = await runTurn(client, preflightTurnId);

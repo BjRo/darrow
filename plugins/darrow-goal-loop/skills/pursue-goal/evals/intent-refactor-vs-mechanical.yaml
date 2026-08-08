@@ -1,0 +1,42 @@
+id: goal-preflight-intent-refactor-vs-mechanical
+invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
+goal_route_policy: candidate
+prompt: >-
+  /pursue-goal Rename the private normalizeUser helper to normalizeAccount and
+  update its two exact references. On Codex, invoke the $pursue-goal skill.
+  This is an exact deterministic rename; observable behavior must remain
+  unchanged, and bash test.sh is the complete oracle. Do not make any other
+  restructuring. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for account helper changes.
+        account.js: |
+          const normalizeUser = (name) => name.trim().toLowerCase();
+
+          export const accountKey = (name) => `account:${normalizeUser(name)}`;
+          export const displayAccount = (name) => normalizeUser(name);
+        account.test.js: |
+          import assert from "node:assert/strict";
+          import { accountKey, displayAccount } from "./account.js";
+
+          assert.equal(accountKey(" Alice "), "account:alice");
+          assert.equal(displayAccount(" BOB "), "bob");
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          ! grep -R 'normalizeUser' account.js account.test.js &&
+          test "$(grep -o 'normalizeAccount' account.js | wc -l | tr -d ' ')" = 3 &&
+          node account.test.js
+checks:
+  - name: complete rename oracle passes
+    run: bash test.sh
+output_checks:
+  - name: exact rename wins over refactor
+    expect_regex: "workflow\\tmechanical[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine"
+  - name: routine coding route is applied
+    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"

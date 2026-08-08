@@ -1,7 +1,6 @@
 # Decision gated
 
-Use this workflow when product behavior, authority, destructive scope, safety
-policy, or publication permission is materially missing.
+Execute the selected decision gate through this sequence.
 
 ## Sequence
 
@@ -9,6 +8,3 @@ policy, or publication permission is materially missing.
 2. Preserve the repository unchanged.
 3. Do not activate implementation work.
 4. Report one human interruption and the honest stopped launch record.
-
-Do not use this workflow merely because the work is difficult or would benefit
-from optional clarification.
