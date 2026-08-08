@@ -3,7 +3,7 @@
   "kind": "capability",
   "provides": [
     {
-      "contract": "goal_loop.pursue",
+      "contract": "goal-loop.adaptive-goal",
       "version": "3.0.0"
     }
   ]

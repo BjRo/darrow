@@ -1,10 +1,10 @@
 ---
-name: pursue-goal
+name: adaptive-goal
 description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use only when explicitly invoked; activation can consume meaningful model budget and edit the working tree.
 disable-model-invocation: true
 ---
 
-# Pursue a native goal
+# Adaptive Goal Loop
 
 Compile the request, activate one native goal, and let the host own the loop.
 

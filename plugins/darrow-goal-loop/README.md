@@ -12,7 +12,7 @@ agent supervisor, workflow runtime, or publication capability.
 
 ## What it provides
 
-### `pursue-goal`
+### `adaptive-goal` — Adaptive Goal Loop
 
 Performs a read-only prepared preflight, compiles a concise completion contract,
 selects one of the `routine`, `routine-plus`, `scaled`, `repo-wide`, or
@@ -30,13 +30,13 @@ Launch boundaries are ordered by cost and fidelity:
    in-place activation cannot honor the selected route;
 4. an honest `launch_required` stop.
 
-Example: _“Use pursue-goal to diagnose and fix the intermittent cache test.”_
+Example: _“Use adaptive-goal to diagnose and fix the intermittent cache test.”_
 
 ### `bin/goal-loop`
 
 A small portable Bash helper prepares repository state, instruction routes,
 semantic profiles from the single `config/routes.json`, workflow playbooks from
-`skills/pursue-goal/references/workflows/`, plus canonical risk selection and
+`skills/adaptive-goal/references/workflows/`, plus canonical risk selection and
 verification guidance from the parent skill; rejects selected/effective route
 mismatches; and provides an injection-safe nested compatibility launcher. It
 does not implement or supervise the goal.

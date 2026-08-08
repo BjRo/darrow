@@ -255,7 +255,7 @@ async function runCase(
         ...(requireEvaluationRecords
           ? evaluationRecordChecks(
               harness.resultText,
-              evalCase.skillDir.endsWith("/pursue-goal"),
+              evalCase.skillDir.endsWith("/adaptive-goal"),
             )
           : []),
       ];

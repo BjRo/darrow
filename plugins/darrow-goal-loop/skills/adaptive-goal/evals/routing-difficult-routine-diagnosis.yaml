@@ -1,9 +1,9 @@
 id: goal-preflight-routing-difficult-routine-diagnosis
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
 prompt: >-
-  /pursue-goal Diagnose and fix summarizeSegments intermittently double-counting
+  /adaptive-goal Diagnose and fix summarizeSegments intermittently double-counting
   the final segment when input ends with a delimiter. On Codex, invoke the
-  $pursue-goal skill. This is a hard diagnosis: the cause is unknown across
+  $adaptive-goal skill. This is a hard diagnosis: the cause is unknown across
   multiple plausible layers and state transitions in tokenization, iteration,
   and aggregation; establish it before changing behavior. This is an internal
   developer-only reporting utility with a localized, reversible,

@@ -1,8 +1,8 @@
 id: goal-preflight-decision-gated
 invariant: AGL-P1,AGL-P3,AGL-P4,AGL-S2,AGL-S4
 prompt: >-
-  /pursue-goal Change auth.js from role checks to a new authorization policy. On
-  Codex, invoke the $pursue-goal skill. No policy rules, rollout behavior, or
+  /adaptive-goal Change auth.js from role checks to a new authorization policy. On
+  Codex, invoke the $adaptive-goal skill. No policy rules, rollout behavior, or
   migration plan have been approved. Make the change AFK if safe.
 fixture:
   commits:

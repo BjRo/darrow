@@ -1,9 +1,9 @@
 id: goal-preflight-intent-bug-vs-change
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
 prompt: >-
-  /pursue-goal Apply the approved change to discount.js: discount cents must
+  /adaptive-goal Apply the approved change to discount.js: discount cents must
   now be rounded to the nearest integer instead of truncated. On Codex, invoke
-  the $pursue-goal skill. Truncation is the existing promised behavior and is
+  the $adaptive-goal skill. Truncation is the existing promised behavior and is
   working as designed; product has intentionally changed that contract. Add
   focused compatibility evidence around the rounding boundary and run bash
   test.sh. Keep the result local.

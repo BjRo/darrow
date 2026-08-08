@@ -587,7 +587,7 @@ async function prepareGoalPreflight(
   const stage = goalDimensionStage(engineeringRequest);
   const dimensions = parsePreparedGoalDimensions(stdout);
   const skill = await readFile(
-    join(repoDir, ".agents", "skills", "pursue-goal", "SKILL.md"),
+    join(repoDir, ".agents", "skills", "adaptive-goal", "SKILL.md"),
     "utf8",
   );
   const intentRoutingGuidance = extractIntentRoutingGuidance(skill);

@@ -1,8 +1,8 @@
 id: goal-preflight-intent-change-vs-migration
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
 prompt: >-
-  /pursue-goal Migrate the persisted service configuration from v1 `{url}` to
-  v2 `{endpoint}`. On Codex, invoke the $pursue-goal skill. The writer must emit
+  /adaptive-goal Migrate the persisted service configuration from v1 `{url}` to
+  v2 `{endpoint}`. On Codex, invoke the $adaptive-goal skill. The writer must emit
   only v2, the reader must accept v1 and v2 during rollout, migrateConfig must
   convert stored v1 records, and both consumers must continue to work. This is
   an approved behavior change, but consumers and persisted formats require a

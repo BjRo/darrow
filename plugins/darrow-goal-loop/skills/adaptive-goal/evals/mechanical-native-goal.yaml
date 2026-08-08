@@ -1,8 +1,8 @@
 id: goal-preflight-mechanical-native-goal
 invariant: AGL-P1,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-S3
 prompt: >-
-  /pursue-goal Alphabetize the three entries in NOTES.md. On Codex, invoke the
-  $pursue-goal skill. Acceptance is exact alphabetical order under the existing
+  /adaptive-goal Alphabetize the three entries in NOTES.md. On Codex, invoke the
+  $adaptive-goal skill. Acceptance is exact alphabetical order under the existing
   heading, covered completely by bash check.sh. Select and apply the policy
   route. Keep the result local.
 fixture:

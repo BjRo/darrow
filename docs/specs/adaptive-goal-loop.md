@@ -7,7 +7,7 @@ Darrow owns only the preflight policy that improves what the native loop is
 asked to achieve.
 
 Plugin: `darrow-goal-loop`  
-Skill: `pursue-goal`
+Skill: `adaptive-goal` (Adaptive Goal Loop)
 
 ## Why
 
@@ -31,7 +31,7 @@ get out of the runtime's way.
 
 ## Selected design
 
-`pursue-goal` is a user-invoked **goal compiler and launcher**. It performs a
+`adaptive-goal` is a user-invoked **goal compiler and launcher**. It performs a
 read-only preflight in the current context, emits one compact goal contract,
 and activates one native goal. It does not supervise role agents or implement a
 second adaptive loop.
@@ -92,7 +92,7 @@ from named files SHOULD be referenced rather than copied.
 Preflight selects one workflow and one risk level. These dimensions compose; a
 domain label is not a template.
 
-The marked intent-routing section in the parent `pursue-goal` `SKILL.md` is the
+The marked intent-routing section in the parent `adaptive-goal` `SKILL.md` is the
 canonical policy for workflow, risk, verification depth, and reasoning demand.
 It contains the concise selection triggers, tie-breakers, and proportional risk
 gates needed before any workflow playbook is visible. Interactive preflight
@@ -104,7 +104,7 @@ selection.
 The workflow determines the execution sequence:
 
 Each workflow is maintained as its own bundled Markdown playbook under
-`skills/pursue-goal/references/workflows/`. The helper enumerates those files;
+`skills/adaptive-goal/references/workflows/`. The helper enumerates those files;
 it does not flatten their evolving instructions into a TSV catalog. The exact
 selected document MUST be loaded into the native execution turn.
 
@@ -206,7 +206,7 @@ not internal continuation turns owned by native goal mode. A same-thread launch
 therefore reports zero. A `decision-gated` stop reports one human interruption;
 ordinary native reasoning and automatic permission review do not.
 
-## `pursue-goal`
+## `adaptive-goal` — Adaptive Goal Loop
 
 ### Intent
 

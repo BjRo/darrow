@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 routes_file="$script_dir/../config/routes.json"
 routes_parser="$script_dir/routes-json.awk"
-workflows_dir="$script_dir/../skills/pursue-goal/references/workflows"
+workflows_dir="$script_dir/../skills/adaptive-goal/references/workflows"
 tab=$(printf '\t')
 
 usage() {
