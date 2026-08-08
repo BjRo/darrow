@@ -7,7 +7,7 @@ Darrow owns only the preflight policy that improves what the native loop is
 asked to achieve.
 
 Plugin: `darrow-goal-loop`  
-Skills: `pursue-goal`, `check-goal-readiness`
+Skill: `pursue-goal`
 
 ## Why
 
@@ -317,38 +317,17 @@ the least launch machinery the host supports.
 4. **AGL-S4 — Honest blockage.** An unavailable applicable check or launch
    surface is blocked or `launch_required`, never passed by assertion.
 
-## `check-goal-readiness`
-
-### Intent
-
-Report whether the current host can compile and activate each semantic profile
-without making a paid model call or changing setup.
-
-### Invariants
-
-1. **AGL-K1 — Static diagnosis.** Readiness inspects bundled mappings, installed
-   host tooling, and capabilities already exposed by the current surface.
-2. **AGL-K2 — Launch boundaries.** It reports same-thread goal control,
-   same-thread model/effort override, supported host API control, and nested
-   compatibility separately.
-3. **AGL-K3 — No equivalence guesses.** A CLI executable on `PATH` is evidence
-   only for a nested boundary, not for same-thread control.
-4. **AGL-K4 — Route-local degradation.** Missing optional launch machinery
-   disables only affected boundaries or profiles.
-5. **AGL-K5 — Read-only.** Readiness does not authenticate, install, edit
-   configuration, launch a model, or disclose credential values.
-
 ## Packaging and portability
 
 1. **AGL-X1 — Independent plugin.** `darrow-goal-loop` references no sibling
    plugin and requires none to complete a run.
 2. **AGL-X2 — Host branches.** Host-specific launch instructions are disclosed
    only after the host is known; the main skill carries the shared sequence.
-3. **AGL-X3 — User invocation.** Both skills remain explicitly invoked because
+3. **AGL-X3 — User invocation.** The skill remains explicitly invoked because
    goal activation can consume meaningful model budget and edit the worktree.
 4. **AGL-X4 — Self-contained mappings.** Route configuration, canonical risk
-   guidance, workflow playbooks, and deterministic readiness mechanics ship
-   inside the plugin.
+   guidance, workflow playbooks, and deterministic route mechanics ship inside
+   the plugin.
 5. **AGL-X5 — Portable shell.** Bundled shell mechanics support Bash 5 and
    `/bin/bash` 3.2 and refuse unreadable configuration.
 

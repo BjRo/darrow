@@ -14,7 +14,6 @@ usage:
   goal-loop prepare --repo <path> --host <codex|claude>
   goal-loop route --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
   goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|nested-session>
-  goal-loop readiness --host <codex|claude>
   goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level>
 EOF
 }
@@ -306,55 +305,6 @@ EOF
   printf 'route_verified\ttrue\n'
 }
 
-readiness() {
-  host=
-  while test "$#" -gt 0; do
-    case "$1" in
-      --host)
-        require_value "$@"
-        host=$2
-        shift 2
-        ;;
-      *) die "unknown readiness option: $1" ;;
-    esac
-  done
-  test -n "$host" || die "readiness requires --host"
-  validate_host "$host"
-
-  printf 'format\tdarrow-native-goal-readiness-v1\n'
-  printf 'host\t%s\n' "$host"
-  printf 'capability\tsame_thread_goal\tcontroller_must_confirm\n'
-  printf 'capability\tsame_thread_route_override\tcontroller_must_confirm\n'
-
-  if command -v "$host" >/dev/null 2>&1; then
-    executable=$(command -v "$host")
-    printf 'capability\tnested_session\tinstalled_unverified\t%s\n' "$executable"
-  else
-    printf 'capability\tnested_session\tblocked\tinstall %s CLI\n' "$host"
-  fi
-
-  if test "$host" = codex && command -v codex >/dev/null 2>&1 &&
-    codex app-server --help >/dev/null 2>&1; then
-    printf 'capability\thost_api\tinstalled_unbound\tcodex app-server\n'
-  else
-    printf 'capability\thost_api\tcontroller_must_confirm\n'
-  fi
-
-  records=$(route_records)
-  route_count=0
-  while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort extra; do
-    test -n "$profile" && test -n "$harness" && test -n "$provider" &&
-      test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
-      test -n "$fallback_effort" && test -z "${extra:-}" ||
-      die "invalid route configuration row for profile: $profile"
-    test "$route_host" = "$host" || continue
-    printf 'route\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$profile" "$harness" "$provider" "$model" "$effort" "$fallback_model/$fallback_effort"
-    route_count=$((route_count + 1))
-  done <<<"$records"
-  test "$route_count" -gt 0 || die "no routes for host=$host"
-}
-
 launch() {
   host=
   repo=
@@ -484,7 +434,6 @@ case "$command" in
   prepare) prepare "$@" ;;
   route) route "$@" ;;
   confirm-route) confirm_route "$@" ;;
-  readiness) readiness "$@" ;;
   launch) launch "$@" ;;
   -h|--help|help) usage ;;
   *) die "unknown command: $command" ;;

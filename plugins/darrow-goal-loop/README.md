@@ -32,23 +32,14 @@ Launch boundaries are ordered by cost and fidelity:
 
 Example: _“Use pursue-goal to diagnose and fix the intermittent cache test.”_
 
-### `check-goal-readiness`
-
-Reports configured routes and distinguishes same-thread goal control,
-same-thread model/effort override, host API availability, and nested-session
-compatibility without making a model call or changing setup.
-
-Example: _“Check native-goal readiness for Codex.”_
-
 ### `bin/goal-loop`
 
 A small portable Bash helper prepares repository state, instruction routes,
 semantic profiles from the single `config/routes.json`, workflow playbooks from
 `skills/pursue-goal/references/workflows/`, plus canonical risk selection and
 verification guidance from the parent skill; rejects selected/effective route
-mismatches; diagnoses
-launch boundaries; and provides an injection-safe nested compatibility
-launcher. It does not implement or supervise the goal.
+mismatches; and provides an injection-safe nested compatibility launcher. It
+does not implement or supervise the goal.
 
 ## Design boundaries
 

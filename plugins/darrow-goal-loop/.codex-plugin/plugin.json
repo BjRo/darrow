@@ -15,8 +15,7 @@
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Preflight this bounded engineering request and activate it as one host-native goal.",
-      "Check which native-goal profiles and launch boundaries are ready before spending model budget."
+      "Preflight this bounded engineering request and activate it as one host-native goal."
     ]
   }
 }

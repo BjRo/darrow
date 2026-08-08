@@ -197,12 +197,6 @@ printf 'claude-call\t%s\n' "$*"
 EOF
 chmod +x "$fake_bin/codex" "$fake_bin/claude"
 
-out=$(PATH="$fake_bin:$PATH" bash "$goal_loop" readiness --host codex)
-contains "$out" $'capability\tsame_thread_goal\tcontroller_must_confirm'
-contains "$out" $'capability\thost_api\tinstalled_unbound\tcodex app-server'
-contains "$out" $'capability\tnested_session\tinstalled_unverified'
-contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh'
-
 goal_file="$tmp_root/goal.txt"
 printf 'Implement the bounded change and run the focused test.\n' >"$goal_file"
 codex_args="$tmp_root/codex-args.txt"

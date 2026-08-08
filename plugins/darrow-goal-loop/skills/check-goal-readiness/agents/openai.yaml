@@ -1,6 +1,0 @@
-interface:
-  display_name: "Check Goal Readiness"
-  short_description: "Check native-goal launch paths"
-  default_prompt: "Use $check-goal-readiness to report which native-goal profiles and launch boundaries are ready without spending model budget."
-policy:
-  allow_implicit_invocation: false
