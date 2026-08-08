@@ -8,7 +8,7 @@
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Adaptive Goal Loop",
+    "displayName": "Darrow -> Adaptive Goal Loop",
     "shortDescription": "Adaptive Goal Loop for host-native goals",
     "longDescription": "Adaptive Goal Loop prepares a bounded engineering request, compiles an observable goal contract, loads the selected workflow playbook and risk gate, selects and applies a proportionate model and effort, and activates native goal mode with harness-verifiable workflow and route evidence.",
     "developerName": "Björn Rochel",
