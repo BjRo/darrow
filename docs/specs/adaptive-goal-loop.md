@@ -25,9 +25,9 @@ request + repository -> preflight -> native goal -> native completion
 ```
 
 Preflight can improve the native run by making completion explicit, discovering
-repository constraints and checks, selecting a suitable goal template, and
-choosing a model and effort proportionate to the work. It must then get out of
-the runtime's way.
+repository constraints and checks, selecting a suitable workflow and risk
+gate, and choosing a model and effort proportionate to the work. It must then
+get out of the runtime's way.
 
 ## Selected design
 
@@ -63,6 +63,12 @@ manifests, CI configuration, and focused test surfaces. It MUST NOT edit product
 files, invoke implementation agents, or consume a separate model call solely
 to classify or route the task.
 
+An enclosing host SHOULD assemble deterministic repository evidence before the
+classifier turn and request one structured handoff without repository tools.
+The classifier selects a goal shape; it does not perform a second exploratory
+repository session. Any host optimization MUST preserve the same instruction,
+local-work, route, and decision gates as an interactive preflight.
+
 ### Goal contract
 
 The goal contract is the compact, host-portable instruction passed to the
@@ -73,27 +79,43 @@ native goal. It contains:
 - relevant scope and explicit non-goals;
 - applicable repository and task-specific verification;
 - preserved local-work and permission boundaries;
-- the selected template, semantic profile, model, effort, and stopping budget;
+- the selected workflow, risk, semantic profile, model, effort, and stopping
+  budget;
 - the final evaluation records required by this capability.
 
 The contract MUST remain concise enough for the narrowest supported native
 goal surface. Repository detail already present in the thread or discoverable
 from named files SHOULD be referenced rather than copied.
 
-### Templates
+### Composable goal dimensions
 
-Templates shape the goal's definition of done, not its implementation plan.
+Preflight selects one workflow and one risk level. These dimensions compose; a
+domain label is not a template.
 
-| Template         | Use when                                                               | Required completion shape                                                                 |
-| ---------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `mechanical`     | An exact deterministic oracle covers the requested transformation      | Apply the transformation and make the named oracle pass                                   |
-| `bounded-change` | Behavior and scope are clear                                           | Implement the behavior, add or update durable tests, and run scoped gates                 |
-| `diagnose-fix`   | A reproducible defect or failing check is the entry point              | Reproduce, establish the cause, fix it, add regression evidence, and rerun the reproducer |
-| `migration`      | A public contract, schema, dependency, or cross-boundary shape changes | Preserve approved compatibility, update affected consumers, and run broader gates         |
-| `decision-gated` | Product behavior, authority, or safety policy is missing               | Name the smallest decision and do not launch writing work                                 |
+The workflow determines the execution sequence:
 
-One base template is selected per goal. Risk, compatibility, and publication
-constraints are contract fields, not additional orchestration phases.
+Each workflow is maintained as its own bundled Markdown playbook under
+`skills/pursue-goal/references/workflows/`. The helper enumerates those files;
+it does not flatten their evolving instructions into a TSV catalog. The exact
+selected document MUST be loaded into the native execution turn.
+
+| Workflow            | Required sequence                                                                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fix-bug`           | reproduce, establish cause, add regression evidence, fix, rerun the reproducer and affected gates                                            |
+| `implement-feature` | establish the new public behavior, add acceptance evidence, implement, update affected documentation and callers, verify                     |
+| `change-feature`    | characterize current behavior and compatibility, update acceptance evidence, implementation, callers and docs, verify old and new boundaries |
+| `refactor`          | characterize preserved behavior, restructure in bounded slices, prove behavior remains unchanged, run affected gates                         |
+| `migration`         | inventory consumers and compatibility, sequence the migration, update consumers and docs, run broader gates                                  |
+| `mechanical`        | apply the exact deterministic transformation and run its complete oracle                                                                     |
+| `decision-gated`    | name the smallest missing decision and do not launch writing work                                                                            |
+
+Risk adds proportional verification without changing the workflow:
+
+| Risk       | Required verification                                                                               |
+| ---------- | --------------------------------------------------------------------------------------------------- |
+| `routine`  | focused acceptance or characterization evidence plus the scoped repository gate                     |
+| `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample         |
+| `high`     | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
 
 ### Semantic profiles
 
@@ -125,14 +147,16 @@ Preflight produces these tab-separated records before activation and carries
 them into the native goal's final response:
 
 ```text
-format\tdarrow-native-goal-preflight-v2
-template\t<template>
+format\tdarrow-native-goal-preflight-v4
+workflow\t<workflow>
+risk\t<routine|elevated|high>
 profile\t<profile>
 selected_route\t<harness>\t<provider>\t<model>\t<effort>
 effective_route\t<harness>\t<provider>\t<model>\t<effort>
 route_applied_by\t<current-thread|host-api|nested-session|none>
 route_verified\t<true|false>
 launch_boundary\t<same_thread|host_api|nested_session|launch_required>
+verification_gate\t<routine|elevated|high|not-applicable>
 evaluation_child_invocations\t<integer>
 evaluation_human_interruptions\t<integer>
 ```
@@ -153,7 +177,7 @@ the least launch machinery the host supports.
 
 - a concrete engineering request;
 - enough repository access to inspect applicable constraints and checks;
-- optional template, route, budget, or permission overrides.
+- optional workflow, route, budget, or permission overrides.
 
 ### Output
 
@@ -170,14 +194,19 @@ the least launch machinery the host supports.
    before the contract is finalized.
 3. **AGL-P3 — No invented intent.** Preflight may make acceptance criteria
    observable but MUST NOT choose materially ambiguous product behavior.
-4. **AGL-P4 — One template.** Exactly one template is selected and its choice is
-   explained by task evidence.
-5. **AGL-P5 — No router call.** Template and route selection occur in the
+4. **AGL-P4 — One workflow.** Exactly one workflow is selected and its choice
+   is explained by task evidence.
+5. **AGL-P5 — No router call.** Dimension and route selection occur in the
    current reasoning turn plus deterministic local mechanics; no child model is
    called solely to choose another model.
 6. **AGL-P6 — Preserved work.** Pre-existing changes are recorded as user-owned
    and included in the native goal's constraints when overlap is safe. Unsafe
    overlap stops for direction.
+7. **AGL-P7 — Composable dimensions.** Exactly one risk level supplements the
+   workflow without changing its execution sequence.
+8. **AGL-P8 — Bounded classifier.** A prepared host-API preflight uses one
+   structured classifier response and no repository tool calls; deterministic
+   evidence assembly is not model work.
 
 ### Routing invariants
 
@@ -225,6 +254,9 @@ the least launch machinery the host supports.
    or a genuine human decision.
 6. **AGL-L6 — Final evidence.** The native goal runs the contract's applicable
    checks against the final tree before claiming completion.
+7. **AGL-L7 — Proportional verification.** Native completion follows the
+   selected workflow and satisfies the verification gates required by the
+   selected risk level.
 
 ### Safety invariants
 
@@ -268,15 +300,16 @@ without making a paid model call or changing setup.
    only after the host is known; the main skill carries the shared sequence.
 3. **AGL-X3 — User invocation.** Both skills remain explicitly invoked because
    goal activation can consume meaningful model budget and edit the worktree.
-4. **AGL-X4 — Self-contained mappings.** Route configuration and deterministic
-   readiness mechanics ship inside the plugin.
+4. **AGL-X4 — Self-contained mappings.** Route and risk configuration,
+   workflow playbooks, and deterministic readiness mechanics ship inside the
+   plugin.
 5. **AGL-X5 — Portable shell.** Bundled shell mechanics support Bash 5 and
    `/bin/bash` 3.2 and refuse unreadable configuration.
 
 ## Evaluation requirements
 
-1. Compare `vanilla`, raw `native-goal`, and `darrow-goal-loop` on the same
-   human-authored repository snapshots and task contracts.
+1. Compare raw `native-goal`, workflow-only preflight, and workflow-plus-risk
+   preflight on the same human-authored repository snapshots and task contracts.
 2. Treat Darrow's value as the increment from preflight over raw native goal;
    the retired child-controller benchmark remains historical evidence only.
 3. Hold the classifier route, task, checks, and judge constant. Record the
@@ -293,6 +326,21 @@ without making a paid model call or changing setup.
    may detect gross regressions but cannot promote a default.
 6. Include dissimilar task shapes and at least one case for each launch stop:
    missing product intent, unavailable pinned route, and unsafe publication.
+7. Repository information architecture MUST be identical across comparison
+   cells unless automatic IA setup is the isolated intervention. Benchmark
+   guidance routes only to authoritative upstream evidence and MUST NOT expose
+   hidden checks or case-specific expected solutions.
+8. Report classifier turns, classifier wall time, and classifier token usage
+   separately from native-goal execution so lower implementation cost cannot
+   hide preflight overhead.
+   The reference Codex evaluation runs the prepared classifier on
+   `gpt-5.6-terra` at `low` effort; implementation remains on the matched
+   per-case route.
+9. Evaluate the composable dimensions incrementally: raw native goal, workflow
+   only, then workflow plus risk. Hold the implementation route fixed while
+   attributing each increment.
+10. Include held-out human-authored OSS bug-fix, new-feature, and refactor tasks
+    before drawing a workflow-selection conclusion.
 
 ## Non-goals
 

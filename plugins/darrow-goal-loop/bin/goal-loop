@@ -3,12 +3,15 @@ set -euo pipefail
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 routes_file="$script_dir/../config/routes.tsv"
+risks_file="$script_dir/../config/risks.tsv"
+workflows_dir="$script_dir/../skills/pursue-goal/references/workflows"
 tab=$(printf '\t')
 
 usage() {
   cat <<'EOF'
 usage:
   goal-loop preflight --repo <path>
+  goal-loop prepare --repo <path> --host <codex|claude>
   goal-loop route --host <codex|claude> --profile <fast|standard|deep> [--route <harness|provider|model|effort>]
   goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|nested-session>
   goal-loop readiness --host <codex|claude>
@@ -100,6 +103,97 @@ preflight() {
       printf 'preexisting_change\t%s\n' "$line"
     done <<<"$status"
   fi
+}
+
+prepare() {
+  repo=
+  host=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --repo)
+        require_value "$@"
+        repo=$2
+        shift 2
+        ;;
+      --host)
+        require_value "$@"
+        host=$2
+        shift 2
+        ;;
+      *) die "unknown prepare option: $1" ;;
+    esac
+  done
+  test -n "$repo" && test -n "$host" ||
+    die "prepare requires --repo and --host"
+  validate_host "$host"
+  repo=$(absolute_dir "$repo")
+  git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    die "not a git working tree: $repo"
+  test -d "$workflows_dir" ||
+    die "workflow directory is missing: $workflows_dir"
+  test -r "$risks_file" ||
+    die "risk configuration is unreadable: $risks_file"
+
+  revision=$(git -C "$repo" rev-parse HEAD)
+  status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all)
+  if test -n "$status"; then
+    tree_state=dirty
+  else
+    tree_state=clean
+  fi
+
+  printf 'format\tdarrow-native-goal-prepared-v1\n'
+  printf 'repo\t%s\n' "$repo"
+  printf 'base_revision\t%s\n' "$revision"
+  printf 'working_tree\t%s\n' "$tree_state"
+  if test -n "$status"; then
+    while IFS= read -r line; do
+      test -n "$line" || continue
+      printf 'preexisting_change\t%s\n' "$line"
+    done <<<"$status"
+  fi
+  for instruction_name in AGENTS.md CLAUDE.md; do
+    instruction_path="$repo/$instruction_name"
+    if test -e "$instruction_path"; then
+      test -r "$instruction_path" ||
+        die "repository instruction is unreadable: $instruction_path"
+      printf 'instruction\t%s\n' "$instruction_path"
+    fi
+  done
+
+  for profile in fast standard deep; do
+    record=$(route_record "$host" "$profile")
+    old_ifs=$IFS
+    IFS="$tab"
+    read -r harness provider model effort fallback_model fallback_effort <<EOF
+$record
+EOF
+    IFS=$old_ifs
+    printf 'route\t%s\t%s\t%s\t%s\t%s\n' \
+      "$profile" "$harness" "$provider" "$model" "$effort"
+  done
+
+  for workflow in fix-bug implement-feature change-feature refactor migration mechanical decision-gated; do
+    workflow_file="$workflows_dir/$workflow.md"
+    test -r "$workflow_file" ||
+      die "workflow document is unreadable: $workflow_file"
+    workflow_path=$(CDPATH= cd -- "$workflows_dir" && pwd)/$workflow.md
+    printf 'workflow\t%s\t%s\n' "$workflow" "$workflow_path"
+  done
+
+  while IFS="$tab" read -r risk verification extra; do
+    case "$risk" in
+      ''|'#'*) continue ;;
+    esac
+    test -n "$verification" && test -z "${extra:-}" ||
+      die "invalid risk configuration row: $risk"
+    case "$risk" in
+      routine|elevated|high) ;;
+      *) die "invalid risk identifier: $risk" ;;
+    esac
+    printf 'risk\t%s\t%s\n' "$risk" "$verification"
+  done <"$risks_file"
+
 }
 
 route() {
@@ -396,6 +490,7 @@ command=$1
 shift
 case "$command" in
   preflight) preflight "$@" ;;
+  prepare) prepare "$@" ;;
   route) route "$@" ;;
   confirm-route) confirm_route "$@" ;;
   readiness) readiness "$@" ;;

@@ -40,9 +40,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: preflight record is emitted
-    expect_regex: "format\\tdarrow-native-goal-preflight-v2"
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
   - name: bounded standard route is selected
-    expect_regex: "template\\tbounded-change[\\s\\S]*profile\\tstandard[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium"
+    expect_regex: "workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\tstandard[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium"
   - name: selected route is effective
     expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium[\\s\\S]*route_verified\\ttrue"
   - name: differing policy route uses an applied host boundary
@@ -51,3 +51,5 @@ output_checks:
     not_regex: "route\\t(planner|executor|verifier|repair)\\t"
   - name: no human stop was needed
     expect_regex: "evaluation_human_interruptions\\t0"
+  - name: routine verification gate is reported
+    expect_regex: "verification_gate\\troutine"

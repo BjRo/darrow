@@ -98,10 +98,20 @@ function nestedGoalApplication(raw: string):
   return applications.length === 1 ? applications[0] : undefined;
 }
 
-function hostGoalApplication(
-  raw: string,
-): { selected: GoalRoute; effective: GoalRoute } | undefined {
-  const applications: Array<{ selected: GoalRoute; effective: GoalRoute }> = [];
+function hostGoalApplication(raw: string):
+  | {
+      selected: GoalRoute;
+      effective: GoalRoute;
+      threadId: string;
+      turnId: string;
+    }
+  | undefined {
+  const applications: Array<{
+    selected: GoalRoute;
+    effective: GoalRoute;
+    threadId: string;
+    turnId: string;
+  }> = [];
   for (const line of raw.split("\n")) {
     if (!line.trim().startsWith("{")) continue;
     try {
@@ -128,7 +138,12 @@ function hostGoalApplication(
         )
       )
         continue;
-      applications.push({ selected, effective });
+      applications.push({
+        selected,
+        effective,
+        threadId: event.threadId,
+        turnId: event.turnId,
+      });
     } catch {
       // Ignore non-JSON harness noise.
     }
@@ -136,13 +151,111 @@ function hostGoalApplication(
   return applications.length === 1 ? applications[0] : undefined;
 }
 
+function hostGoalDimensions(raw: string):
+  | {
+      stage: "workflow" | "workflow-risk";
+      workflow: string;
+      risk: "routine" | "elevated" | "high";
+      threadId: string;
+      turnId: string;
+    }
+  | undefined {
+  const dimensions: Array<{
+    stage: "workflow" | "workflow-risk";
+    workflow: string;
+    risk: "routine" | "elevated" | "high";
+    threadId: string;
+    turnId: string;
+  }> = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim().startsWith("{")) continue;
+    try {
+      const event = JSON.parse(line);
+      if (
+        event.type !== "darrow.dimensions_applied" ||
+        event.accepted !== true ||
+        typeof event.threadId !== "string" ||
+        typeof event.turnId !== "string" ||
+        !["workflow", "workflow-risk"].includes(event.stage) ||
+        typeof event.workflow !== "string" ||
+        !["routine", "elevated", "high"].includes(event.risk)
+      )
+        continue;
+      dimensions.push({
+        stage: event.stage,
+        workflow: event.workflow,
+        risk: event.risk,
+        threadId: event.threadId,
+        turnId: event.turnId,
+      });
+    } catch {
+      // Ignore non-JSON harness noise.
+    }
+  }
+  return dimensions.length === 1 ? dimensions[0] : undefined;
+}
+
+function hostGoalWorkflow(raw: string):
+  | {
+      workflow: string;
+      file: string;
+      sha256: string;
+      threadId: string;
+      turnId: string;
+    }
+  | undefined {
+  const workflows: Array<{
+    workflow: string;
+    file: string;
+    sha256: string;
+    threadId: string;
+    turnId: string;
+  }> = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim().startsWith("{")) continue;
+    try {
+      const event = JSON.parse(line);
+      if (
+        event.type !== "darrow.workflow_loaded" ||
+        event.accepted !== true ||
+        typeof event.threadId !== "string" ||
+        typeof event.turnId !== "string" ||
+        typeof event.workflow !== "string" ||
+        typeof event.file !== "string" ||
+        !event.file.endsWith(`/references/workflows/${event.workflow}.md`) ||
+        !/^[a-f0-9]{64}$/.test(event.sha256 ?? "")
+      )
+        continue;
+      workflows.push({
+        workflow: event.workflow,
+        file: event.file,
+        sha256: event.sha256,
+        threadId: event.threadId,
+        turnId: event.turnId,
+      });
+    } catch {
+      // Ignore non-JSON harness noise.
+    }
+  }
+  return workflows.length === 1 ? workflows[0] : undefined;
+}
+
 export function observeCodexGoalRouteApplication(
   resultText: string,
   raw: string,
 ): GoalRouteApplication | undefined {
-  if (!/^format\tdarrow-native-goal-preflight-v2$/m.test(resultText))
-    return undefined;
+  const format = resultText.match(
+    /^format\t(darrow-native-goal-preflight-v[24])$/m,
+  )?.[1];
+  if (!format) return undefined;
+  const isV4 = format.endsWith("v4");
   const profile = resultText.match(/^profile\t([^\t\n]+)$/m)?.[1];
+  const workflow = resultText.match(/^workflow\t([^\t\n]+)$/m)?.[1];
+  const risk = resultText.match(/^risk\t(routine|elevated|high)$/m)?.[1] as
+    GoalRouteApplication["risk"] | undefined;
+  const verificationGate = resultText.match(
+    /^verification_gate\t(routine|elevated|high)$/m,
+  )?.[1] as GoalRouteApplication["verificationGate"] | undefined;
   const selected = parseGoalRoute(resultText, "selected_route");
   const effective = parseGoalRoute(resultText, "effective_route");
   const appliedBy = resultText.match(
@@ -154,7 +267,14 @@ export function observeCodexGoalRouteApplication(
   const declaredChildren = Number(
     resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
   );
-  if (!profile || !selected || !effective || !appliedBy || !launchBoundary)
+  if (
+    !profile ||
+    !selected ||
+    !effective ||
+    !appliedBy ||
+    !launchBoundary ||
+    (isV4 && (!workflow || !risk || !verificationGate))
+  )
     return undefined;
 
   if (launchBoundary === "nested_session") {
@@ -174,14 +294,37 @@ export function observeCodexGoalRouteApplication(
 
   if (launchBoundary === "host_api") {
     const host = hostGoalApplication(raw);
+    const dimensions = isV4 ? hostGoalDimensions(raw) : undefined;
+    const loadedWorkflow = isV4 ? hostGoalWorkflow(raw) : undefined;
     if (
       !host ||
       !sameGoalRoute(selected, host.selected) ||
-      !sameGoalRoute(effective, host.effective)
+      !sameGoalRoute(effective, host.effective) ||
+      (isV4 &&
+        (!dimensions ||
+          !loadedWorkflow ||
+          dimensions.workflow !== workflow ||
+          dimensions.risk !== risk ||
+          (dimensions.stage === "workflow" && risk !== "routine") ||
+          loadedWorkflow.workflow !== workflow ||
+          dimensions.threadId !== host.threadId ||
+          dimensions.turnId !== host.turnId ||
+          loadedWorkflow.threadId !== host.threadId ||
+          loadedWorkflow.turnId !== host.turnId))
     )
       return undefined;
     return {
       profile,
+      ...(isV4
+        ? {
+            workflow,
+            risk,
+            workflowFile: loadedWorkflow!.file,
+            workflowSha256: loadedWorkflow!.sha256,
+            dimensionStage: dimensions!.stage,
+            verificationGate,
+          }
+        : {}),
       selected: host.selected,
       effective: host.effective,
       appliedBy,
@@ -211,7 +354,8 @@ export function reconcileObservedGoalRouteApplication(
   hostModel: string,
   hostEffort: string,
 ): CheckResult | undefined {
-  if (!/^format\tdarrow-native-goal-preflight-v2$/m.test(resultText))
+  const isV4 = /^format\tdarrow-native-goal-preflight-v4$/m.test(resultText);
+  if (!isV4 && !/^format\tdarrow-native-goal-preflight-v2$/m.test(resultText))
     return undefined;
   if (/^launch_boundary\tlaunch_required$/m.test(resultText)) {
     const stoppedWithoutRoute =
@@ -233,6 +377,15 @@ export function reconcileObservedGoalRouteApplication(
     resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
   );
   const verified = /^route_verified\ttrue$/m.test(resultText);
+  const workflowVerified =
+    !isV4 ||
+    observed?.launchBoundary !== "host_api" ||
+    (observed.workflow !== undefined &&
+      observed.risk !== undefined &&
+      observed.workflowFile !== undefined &&
+      observed.workflowSha256 !== undefined &&
+      observed.dimensionStage !== undefined &&
+      observed.verificationGate === observed.risk);
   const routesMatch =
     observed !== undefined &&
     sameGoalRoute(observed.selected, observed.effective);
@@ -252,7 +405,7 @@ export function reconcileObservedGoalRouteApplication(
         : observed?.launchBoundary === "host_api"
           ? observed.appliedBy === "host-api" && declaredChildren === 0
           : false;
-  const passed = verified && routesMatch && boundaryMatches;
+  const passed = verified && workflowVerified && routesMatch && boundaryMatches;
   return {
     name: "harness-observed goal route matches selected model and effort",
     passed,

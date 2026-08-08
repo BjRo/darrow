@@ -12,6 +12,7 @@ fixture:
     AGENTS.md: |-
       This is a pinned evaluation checkout. Do not commit or publish changes.
       Work only on the requested Express behavior. Dependencies are preinstalled. Use `npx mocha --reporter dot test/res.links.js` for the focused suite.
+      Before changing response header serialization, inspect `lib/response.js`, `test/res.links.js`, and the supported runtime style in `package.json`. Preserve the established callback-era JavaScript style.
   commit_files: true
   setup: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
   ticket:

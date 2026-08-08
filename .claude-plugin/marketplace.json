@@ -38,7 +38,7 @@
     {
       "name": "darrow-goal-loop",
       "source": "./plugins/darrow-goal-loop",
-      "description": "Pursue bounded engineering goals through adaptive execution and independent verification"
+      "description": "Compile bounded engineering work into task-informed host-native goals"
     },
     {
       "name": "darrow-ticket-pipeline",

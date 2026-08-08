@@ -1,10 +1,11 @@
 # Darrow Goal Loop
 
 This plugin compiles a bounded engineering request into a host-native goal. It
-inspects the task and repository before writing, selects a goal template plus a
-proportionate model and effort, and activates the narrowest goal boundary the
-host supports. Native goal mode owns implementation, persistence, verification,
-recovery, and completion.
+prepares deterministic repository evidence before writing, selects a goal
+workflow, risk gate, and proportionate model and effort, loads the selected
+workflow playbook, and activates the narrowest goal boundary the host supports.
+Native goal mode owns implementation, persistence, verification, recovery, and
+completion.
 
 The plugin is explicitly invoked. It is not a second orchestration loop, child
 agent supervisor, workflow runtime, or publication capability.
@@ -13,11 +14,12 @@ agent supervisor, workflow runtime, or publication capability.
 
 ### `pursue-goal`
 
-Performs a read-only preflight, compiles a concise completion contract, selects
-one of the `fast`, `standard`, or `deep` profiles, and activates exactly one
-native goal. Selection and application are separate: completion records both
-the selected and effective routes, and succeeds only when host or launcher
-evidence proves their provider, model, and effort are identical.
+Performs a read-only prepared preflight, compiles a concise completion contract,
+selects one of the `fast`, `standard`, or `deep` profiles plus one bundled task
+workflow and risk gate, and activates exactly one native goal. Selection,
+workflow loading, and route application are separate: completion succeeds only
+when host or launcher evidence proves the selected workflow was supplied and
+provider, model, and effort are identical.
 
 Launch boundaries are ordered by cost and fidelity:
 
@@ -39,16 +41,19 @@ Example: _“Check native-goal readiness for Codex.”_
 
 ### `bin/goal-loop`
 
-A small portable Bash helper records repository preflight evidence, resolves
-semantic profiles from `config/routes.tsv`, rejects selected/effective route
-mismatches, diagnoses launch boundaries, and provides an injection-safe nested
-compatibility launcher that applies provider, model, and effort explicitly. It
-does not implement or supervise the goal.
+A small portable Bash helper prepares repository state, instruction routes,
+semantic profiles from `config/routes.tsv`, workflow playbooks from
+`skills/pursue-goal/references/workflows/`, plus risk gates from
+`config/risks.tsv`; rejects selected/effective route mismatches; diagnoses
+launch boundaries; and provides an injection-safe nested compatibility
+launcher. It does not implement or supervise the goal.
 
 ## Design boundaries
 
 - Preflight does not edit product files or call a separate routing model.
 - One native goal owns the full adaptive run.
+- The selected workflow is loaded from its own Markdown playbook; risk adds
+  proportional verification without adding another template dimension.
 - A selected route is not effective until the current host, an accepted API
   turn, or a completed launcher record proves exact application.
 - Darrow creates no planner, verifier, repair, or cross-vendor role.

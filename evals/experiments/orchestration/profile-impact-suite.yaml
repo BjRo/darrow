@@ -1,0 +1,48 @@
+version: 1
+experiment: orchestration-workflow-risk-impact
+case_filter: orchestration-oss-
+case_routes:
+  codex:
+    orchestration-oss-ajv-instance-path:
+      model: gpt-5.6-sol
+      effort: high
+    orchestration-oss-click-streams:
+      model: gpt-5.6-sol
+      effort: high
+    orchestration-oss-express-links:
+      model: gpt-5.6-sol
+      effort: medium
+    orchestration-oss-go-git-insteadof:
+      model: gpt-5.6-sol
+      effort: high
+    orchestration-oss-requests-proxy:
+      model: gpt-5.6-sol
+      effort: medium
+    orchestration-oss-commander-env:
+      model: gpt-5.6-sol
+      effort: high
+    orchestration-oss-cobra-lifecycle:
+      model: gpt-5.6-sol
+      effort: medium
+modes:
+  native-goal:
+    condition_by_harness:
+      codex: conditions/native-goal-codex.md
+    require_evaluation_records: true
+    apply_case_routes: true
+  darrow-workflow:
+    condition_by_harness:
+      codex: conditions/darrow-goal-loop-workflow-codex.md
+    skill_dir: ../../../plugins/darrow-goal-loop/skills/pursue-goal
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    apply_goal_route: true
+    effort: low
+  darrow-workflow-risk:
+    condition_by_harness:
+      codex: conditions/darrow-goal-loop-codex.md
+    skill_dir: ../../../plugins/darrow-goal-loop/skills/pursue-goal
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    apply_goal_route: true
+    effort: low

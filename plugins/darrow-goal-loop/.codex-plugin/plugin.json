@@ -1,6 +1,6 @@
 {
   "name": "darrow-goal-loop",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Compile bounded engineering requests and activate host-native goals on verified routes",
   "author": {
     "name": "Björn Rochel",
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Darrow -> Goal Loop",
     "shortDescription": "Preflight and launch host-native goals",
-    "longDescription": "Inspect a bounded engineering request, compile an observable goal contract, select and apply a proportionate model and effort, and activate the host's native goal mode with harness-verifiable route evidence.",
+    "longDescription": "Prepare a bounded engineering request, compile an observable goal contract, load the selected workflow playbook and risk gate, select and apply a proportionate model and effort, and activate native goal mode with harness-verifiable workflow and route evidence.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

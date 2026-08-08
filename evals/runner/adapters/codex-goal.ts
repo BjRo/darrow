@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import type { GoalRoute, HarnessAdapter, HarnessResult } from "../types";
 import { isolatedHarnessEnvironment } from "../environment";
 import { sandboxedAgentCommand } from "../sandbox";
@@ -8,18 +9,130 @@ interface CatalogRoute {
   efforts: string[];
 }
 
+type GoalWorkflow =
+  | "fix-bug"
+  | "implement-feature"
+  | "change-feature"
+  | "refactor"
+  | "migration"
+  | "mechanical"
+  | "decision-gated";
+type GoalRisk = "routine" | "elevated" | "high";
+export type GoalDimensionStage = "workflow" | "workflow-risk";
+
 interface GoalHandoff {
-  format: "darrow-native-goal-handoff-v1";
-  template: string;
+  format: "darrow-native-goal-handoff-v3";
+  workflow: GoalWorkflow;
+  risk: GoalRisk;
   profile: "fast" | "standard" | "deep";
   routeSource: "policy" | "user";
   selectedRoute: GoalRoute;
   goalContract: string;
 }
 
+interface WorkflowEntry {
+  file: string;
+}
+interface RiskEntry {
+  verification: string;
+}
+export interface PreparedGoalDimensions {
+  workflows: Map<string, WorkflowEntry>;
+  risks: Map<string, RiskEntry>;
+}
+
+export function parsePreparedGoalDimensions(
+  text: string,
+): PreparedGoalDimensions {
+  const dimensions: PreparedGoalDimensions = {
+    workflows: new Map(),
+    risks: new Map(),
+  };
+  for (const rawLine of text.split("\n")) {
+    const fields = rawLine.split("\t");
+    const [kind, id] = fields;
+    if (!id || !/^[a-z0-9-]+$/.test(id)) continue;
+    if (kind === "workflow") {
+      const file = fields[2];
+      if (
+        fields.length !== 3 ||
+        !file ||
+        !isAbsolute(file) ||
+        !file.endsWith(`/references/workflows/${id}.md`)
+      )
+        throw new Error(`invalid workflow row: ${rawLine}`);
+      if (dimensions.workflows.has(id))
+        throw new Error(`duplicate workflow: ${id}`);
+      dimensions.workflows.set(id, { file });
+    } else if (kind === "risk") {
+      if (fields.length !== 3 || !fields[2])
+        throw new Error(`invalid risk row: ${rawLine}`);
+      if (dimensions.risks.has(id)) throw new Error(`duplicate risk: ${id}`);
+      dimensions.risks.set(id, { verification: fields[2] });
+    }
+  }
+  if (!dimensions.workflows.size || !dimensions.risks.size)
+    throw new Error("prepared goal dimensions are incomplete");
+  return dimensions;
+}
+
+export function buildPreparedGoalPrompt(
+  engineeringRequest: string,
+  preparedEvidence: string,
+  stage: GoalDimensionStage = "workflow-risk",
+): string {
+  const stageInstruction =
+    stage === "workflow"
+      ? "Select the workflow. For this workflow-only ablation, set risk to routine."
+      : "Select the workflow and proportional risk.";
+  return [
+    "Compile the engineering request below into one native-goal handoff.",
+    "The enclosing host already assembled authoritative repository state, instruction routes, policy routes, workflow playbooks, and risk gates.",
+    "Do not call repository or shell tools. Return one structured response only; the host owns workflow loading and native-goal activation.",
+    "",
+    stageInstruction,
+    "Workflow controls execution sequence. Risk controls proportional verification.",
+    "An evaluation_expected_route record is enclosing-harness metadata, not a user override. Select the policy profile whose concrete route matches it; a mismatch must fail rather than be silently attributed to preflight.",
+    "Select fast only for mechanical work with a complete oracle, standard for ordinary bounded work, and deep for high-risk, public-contract, cross-boundary, security-sensitive, or materially ambiguous work. High risk and migrations require deep.",
+    "",
+    "The goalContract must stay within 4,000 bytes and preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, and route. Finish with this record:",
+    "format\tdarrow-native-goal-preflight-v4",
+    "workflow\t<selected-workflow>",
+    "risk\t<selected-risk>",
+    "profile\t<selected-profile>",
+    "selected_route\t<harness>\t<provider>\t<model>\t<effort>",
+    "effective_route\t<harness>\t<provider>\t<model>\t<effort>",
+    "route_applied_by\thost-api",
+    "route_verified\ttrue",
+    "launch_boundary\thost_api",
+    "verification_gate\t<selected-risk>",
+    "evaluation_child_invocations\t0",
+    "evaluation_human_interruptions\t0",
+    "",
+    "Return only a darrow-native-goal-handoff-v3 object with workflow, risk, profile, routeSource, selectedRoute, and goalContract.",
+    "",
+    "Prepared evidence:",
+    preparedEvidence,
+    "",
+    "Engineering request:",
+    engineeringRequest,
+  ].join("\n");
+}
+
+export function goalDimensionStage(
+  engineeringRequest: string,
+): GoalDimensionStage {
+  return (
+    (engineeringRequest.match(
+      /^evaluation_dimension_stage\t(workflow|workflow-risk)$/m,
+    )?.[1] as GoalDimensionStage | undefined) ?? "workflow-risk"
+  );
+}
+
 export function parseCodexGoalHandoff(
   text: string,
   catalog: CatalogRoute[],
+  dimensions: PreparedGoalDimensions,
   explicitUserRoute?: GoalRoute,
 ): GoalHandoff {
   let value: unknown;
@@ -33,8 +146,9 @@ export function parseCodexGoalHandoff(
   const handoff = value as Partial<GoalHandoff>;
   const route = handoff.selectedRoute;
   if (
-    handoff.format !== "darrow-native-goal-handoff-v1" ||
-    typeof handoff.template !== "string" ||
+    handoff.format !== "darrow-native-goal-handoff-v3" ||
+    typeof handoff.workflow !== "string" ||
+    typeof handoff.risk !== "string" ||
     !["fast", "standard", "deep"].includes(handoff.profile ?? "") ||
     !["policy", "user"].includes(handoff.routeSource ?? "") ||
     !route ||
@@ -47,12 +161,25 @@ export function parseCodexGoalHandoff(
     Buffer.byteLength(handoff.goalContract) > 4000
   )
     throw new Error("preflight handoff has an invalid shape");
+  if (!dimensions.workflows.has(handoff.workflow))
+    throw new Error(`unknown workflow: ${handoff.workflow}`);
+  if (!dimensions.risks.has(handoff.risk))
+    throw new Error(`unknown risk: ${handoff.risk}`);
   const model = catalog.find((entry) => entry.model === route.model);
   if (!model) throw new Error(`unavailable selected model: ${route.model}`);
   if (!model.efforts.includes(route.effort))
     throw new Error(
       `unsupported selected effort for ${route.model}: ${route.effort}`,
     );
+  if (handoff.risk === "high" && handoff.profile !== "deep")
+    throw new Error("selected profile does not match high risk");
+  if (handoff.workflow === "migration" && handoff.profile !== "deep")
+    throw new Error("selected profile does not match migration workflow");
+  if (
+    handoff.profile === "fast" &&
+    (handoff.workflow !== "mechanical" || handoff.risk !== "routine")
+  )
+    throw new Error("fast profile requires routine mechanical workflow");
   if (handoff.routeSource === "policy") {
     const policy: Record<
       GoalHandoff["profile"],
@@ -78,14 +205,52 @@ export function parseCodexGoalHandoff(
       route.effort !== explicitUserRoute.effort)
   )
     throw new Error("user-sourced handoff has no matching explicit user route");
+  const routeRecord = [
+    route.harness,
+    route.provider,
+    route.model,
+    route.effort,
+  ].join("\t");
+  const requiredContractLines = [
+    "format\tdarrow-native-goal-preflight-v4",
+    `workflow\t${handoff.workflow}`,
+    `risk\t${handoff.risk}`,
+    `profile\t${handoff.profile}`,
+    `selected_route\t${routeRecord}`,
+    `effective_route\t${routeRecord}`,
+    "route_applied_by\thost-api",
+    "route_verified\ttrue",
+    "launch_boundary\thost_api",
+    `verification_gate\t${handoff.risk}`,
+    "evaluation_child_invocations\t0",
+    "evaluation_human_interruptions\t0",
+  ];
+  if (
+    !requiredContractLines.every((line) =>
+      handoff.goalContract!.split("\n").includes(line),
+    )
+  )
+    throw new Error("goal contract does not preserve handoff and final record");
   return handoff as GoalHandoff;
 }
 
 const HANDOFF_SCHEMA = {
   type: "object",
   properties: {
-    format: { type: "string", const: "darrow-native-goal-handoff-v1" },
-    template: { type: "string", minLength: 1 },
+    format: { type: "string", const: "darrow-native-goal-handoff-v3" },
+    workflow: {
+      type: "string",
+      enum: [
+        "fix-bug",
+        "implement-feature",
+        "change-feature",
+        "refactor",
+        "migration",
+        "mechanical",
+        "decision-gated",
+      ],
+    },
+    risk: { type: "string", enum: ["routine", "elevated", "high"] },
     profile: { type: "string", enum: ["fast", "standard", "deep"] },
     routeSource: { type: "string", enum: ["policy", "user"] },
     selectedRoute: {
@@ -103,7 +268,8 @@ const HANDOFF_SCHEMA = {
   },
   required: [
     "format",
-    "template",
+    "workflow",
+    "risk",
     "profile",
     "routeSource",
     "selectedRoute",
@@ -236,6 +402,10 @@ class AppServerClient {
     return this.messages.findLast(predicate);
   }
 
+  matching(predicate: (message: any) => boolean): any[] {
+    return this.messages.filter(predicate);
+  }
+
   record(message: unknown): void {
     this.rawLines.push(JSON.stringify(message));
   }
@@ -294,8 +464,8 @@ function turnUsage(client: AppServerClient, turnId: string): Promise<any> {
 async function runTurn(
   client: AppServerClient,
   turnId: string,
-): Promise<{ text: string; usage: any }> {
-  const [text] = await Promise.all([
+): Promise<{ text: string; usage: any; durationMs: number }> {
+  const [text, , completed] = await Promise.all([
     finalMessage(client, turnId),
     turnUsage(client, turnId),
     completedTurn(client, turnId),
@@ -306,13 +476,17 @@ async function runTurn(
       message.params?.turnId === turnId,
   );
   if (!usage) throw new Error(`Codex turn ${turnId} reported no token usage`);
-  return { text, usage };
+  return {
+    text,
+    usage,
+    durationMs: completed.params.turn.durationMs ?? 0,
+  };
 }
 
 async function runNativeGoal(
   client: AppServerClient,
   threadId: string,
-): Promise<{ text: string; usage: any }> {
+): Promise<{ text: string; usage: any; durationMs: number }> {
   const terminal = await client.waitFor(
     (message) =>
       (message.method === "thread/goal/updated" &&
@@ -332,6 +506,55 @@ async function runNativeGoal(
   if (typeof terminalTurnId !== "string")
     throw new Error("native goal completion did not name its terminal turn");
   return runTurn(client, terminalTurnId);
+}
+
+async function prepareGoalPreflight(
+  repoDir: string,
+  engineeringRequest: string,
+): Promise<{
+  prompt: string;
+  dimensions: PreparedGoalDimensions;
+  stage: GoalDimensionStage;
+  durationMs: number;
+}> {
+  const started = performance.now();
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const proc = Bun.spawn(
+    ["bash", helper, "prepare", "--repo", repoDir, "--host", "codex"],
+    { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
+  );
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0)
+    throw new Error(`goal preflight preparation failed: ${stderr.trim()}`);
+  if (!/^format\tdarrow-native-goal-prepared-v1$/m.test(stdout))
+    throw new Error("goal preflight preparation returned an unknown format");
+  const stage = goalDimensionStage(engineeringRequest);
+  const dimensions = parsePreparedGoalDimensions(stdout);
+  const workflowDocuments = await Promise.all(
+    [...dimensions.workflows].map(async ([id, workflow]) => {
+      const content = await readFile(workflow.file, "utf8");
+      return [
+        `workflow_document_begin\t${id}`,
+        content.trim(),
+        `workflow_document_end\t${id}`,
+      ].join("\n");
+    }),
+  );
+  const preparedEvidence = [stdout.trim(), ...workflowDocuments].join("\n");
+  return {
+    prompt: buildPreparedGoalPrompt(
+      engineeringRequest,
+      preparedEvidence,
+      stage,
+    ),
+    dimensions,
+    stage,
+    durationMs: performance.now() - started,
+  };
 }
 
 async function gitStatus(repoDir: string): Promise<string> {
@@ -410,9 +633,10 @@ export const codexGoalAdapter: HarnessAdapter = {
       });
       const threadId = thread.thread.id as string;
       const beforePreflight = await gitStatus(repoDir);
+      const prepared = await prepareGoalPreflight(repoDir, prompt);
       const preflight = await client.request("turn/start", {
         threadId,
-        input: [{ type: "text", text: prompt }],
+        input: [{ type: "text", text: prepared.prompt }],
         cwd: repoDir,
         approvalPolicy: "never",
         sandboxPolicy: { type: "readOnly", networkAccess: false },
@@ -422,11 +646,49 @@ export const codexGoalAdapter: HarnessAdapter = {
       });
       const preflightTurnId = preflight.turn.id as string;
       const preflightResult = await runTurn(client, preflightTurnId);
+      const classifierUpdates = client.matching(
+        (message) =>
+          message.method === "thread/tokenUsage/updated" &&
+          message.params?.turnId === preflightTurnId,
+      );
+      const classifierToolCalls = client.matching(
+        (message) =>
+          message.method === "item/completed" &&
+          message.params?.turnId === preflightTurnId &&
+          /tool|command/i.test(message.params?.item?.type ?? ""),
+      );
+      if (classifierUpdates.length !== 1 || classifierToolCalls.length !== 0)
+        throw new Error(
+          `prepared preflight used ${classifierUpdates.length} model calls and ${classifierToolCalls.length} tool calls`,
+        );
       if ((await gitStatus(repoDir)) !== beforePreflight)
         throw new Error(
           "goal preflight modified the fixture before activation",
         );
-      const handoff = parseCodexGoalHandoff(preflightResult.text, catalog);
+      const handoff = parseCodexGoalHandoff(
+        preflightResult.text,
+        catalog,
+        prepared.dimensions,
+      );
+      const expectedRoute = prompt.match(
+        /^evaluation_expected_route\t([^\t\n]+)\t([^\t\n]+)\t([^\t\n]+)\t([^\t\n]+)$/m,
+      );
+      if (
+        expectedRoute &&
+        (handoff.selectedRoute.harness !== expectedRoute[1] ||
+          handoff.selectedRoute.provider !== expectedRoute[2] ||
+          handoff.selectedRoute.model !== expectedRoute[3] ||
+          handoff.selectedRoute.effort !== expectedRoute[4])
+      )
+        throw new Error(
+          `selected route does not match evaluation control: expected ${expectedRoute.slice(1).join("/")}`,
+        );
+      const workflow = prepared.dimensions.workflows.get(handoff.workflow)!;
+      const risk = prepared.dimensions.risks.get(handoff.risk)!;
+      const workflowContent = await readFile(workflow.file, "utf8");
+      const workflowSha256 = new Bun.CryptoHasher("sha256")
+        .update(workflowContent)
+        .digest("hex");
 
       await client.request("thread/goal/set", {
         threadId,
@@ -438,16 +700,25 @@ export const codexGoalAdapter: HarnessAdapter = {
         "The enclosing app-server launcher set the compiled contract as this thread's active native goal.",
         "Do not call create_goal; this same thread already has the active goal.",
         `It is applying the selected route ${selected.harness}|${selected.provider}|${selected.model}|${selected.effort} to this turn.`,
+        `Follow the selected ${handoff.workflow} workflow playbook:`,
+        workflowContent.trim(),
+        `Apply the ${handoff.risk} verification gate: ${risk.verification}.`,
         "Pursue the active goal through implementation and final verification.",
-        "Before returning, complete the native goal and include this exact route evidence in the v2 launch record:",
+        "Before returning, complete the native goal and include this exact evidence in the v4 launch record:",
+        "format\tdarrow-native-goal-preflight-v4",
+        `workflow\t${handoff.workflow}`,
+        `risk\t${handoff.risk}`,
+        `profile\t${handoff.profile}`,
         `selected_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
         `effective_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
         "route_applied_by\thost-api",
         "route_verified\ttrue",
         "launch_boundary\thost_api",
+        `verification_gate\t${handoff.risk}`,
         "evaluation_child_invocations\t0",
         "evaluation_human_interruptions\t0",
       ].join("\n");
+      const executionStarted = performance.now();
       const execution = await client.request("turn/start", {
         threadId,
         input: [{ type: "text", text: executionPrompt }],
@@ -467,7 +738,26 @@ export const codexGoalAdapter: HarnessAdapter = {
         effective: selected,
         appliedBy: "host-api",
       });
+      client.record({
+        type: "darrow.dimensions_applied",
+        accepted: true,
+        threadId,
+        turnId: executionTurnId,
+        stage: prepared.stage,
+        workflow: handoff.workflow,
+        risk: handoff.risk,
+      });
+      client.record({
+        type: "darrow.workflow_loaded",
+        accepted: true,
+        threadId,
+        turnId: executionTurnId,
+        workflow: handoff.workflow,
+        file: workflow.file,
+        sha256: workflowSha256,
+      });
       const executionResult = await runNativeGoal(client, threadId);
+      const executionDurationMs = performance.now() - executionStarted;
       const goal = await client.request("thread/goal/get", { threadId });
       if (goal.goal?.status !== "complete")
         throw new Error(
@@ -477,6 +767,7 @@ export const codexGoalAdapter: HarnessAdapter = {
       // total therefore covers every model call in both turns without double
       // counting the preflight usage.
       const usage = executionResult.usage.params.tokenUsage.total;
+      const classifierUsage = preflightResult.usage.params.tokenUsage.total;
       return {
         ok: true,
         durationMs: performance.now() - start,
@@ -485,6 +776,20 @@ export const codexGoalAdapter: HarnessAdapter = {
         costUsd: null,
         resultText: executionResult.text,
         raw: client.raw(),
+        phaseMetrics: {
+          preparation: { durationMs: prepared.durationMs },
+          classifier: {
+            durationMs: preflightResult.durationMs,
+            inputTokens: classifierUsage.inputTokens,
+            outputTokens: classifierUsage.outputTokens,
+            modelCalls: classifierUpdates.length,
+          },
+          execution: {
+            durationMs: executionDurationMs,
+            inputTokens: usage.inputTokens - classifierUsage.inputTokens,
+            outputTokens: usage.outputTokens - classifierUsage.outputTokens,
+          },
+        },
       };
     } catch (error) {
       return {

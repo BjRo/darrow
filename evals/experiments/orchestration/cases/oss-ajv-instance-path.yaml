@@ -12,6 +12,7 @@ fixture:
     AGENTS.md: |-
       This is a pinned evaluation checkout. Do not commit or publish changes.
       Work only on the requested Ajv behavior. Production dependencies and a pinned TypeScript compiler are preinstalled.
+      Before changing compiler or generated-parser behavior, read `docs/codegen.md` and `docs/json-type-definition.md`. JTD compiler code is under `lib/compile/jtd`, public types are under `lib/types`, and existing JTD parser tests are in `spec/jtd-schema.spec.ts`.
       Compile with `rm -rf dist && node .git/eval-tools/node_modules/typescript/bin/tsc -p .git/eval-tsconfig.json && cp -R lib/refs dist`.
   commit_files: true
   setup: |-
@@ -59,4 +60,12 @@ checks:
       });
       assert.strictEqual(mapped('{"kind":"item","count":-1}'), undefined);
       assert.strictEqual(mapped.instancePath, '/count');
+
+      var malformedString = ajv.compileParser({ properties: { payload: { type: 'string' } } });
+      assert.strictEqual(malformedString('{"payload":"bad\\q"}'), undefined);
+      assert.strictEqual(malformedString.instancePath, '/payload');
+
+      var malformedNumber = ajv.compileParser({ properties: { payload: { type: 'float64' } } });
+      assert.strictEqual(malformedNumber('{"payload":1e}'), undefined);
+      assert.strictEqual(malformedNumber.instancePath, '/payload');
       JS

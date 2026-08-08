@@ -1,6 +1,6 @@
 ---
 name: pursue-goal
-description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate model and effort. Use only when explicitly invoked; activation can consume meaningful model budget and edit the working tree.
+description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use only when explicitly invoked; activation can consume meaningful model budget and edit the working tree.
 disable-model-invocation: true
 ---
 
@@ -8,105 +8,121 @@ disable-model-invocation: true
 
 Compile the request, activate one native goal, and let the host own the loop.
 
-## 1. Ground the request
+## 1. Prepare without writing
 
 Resolve the repository and bundled helper to absolute paths, then run:
 
 ```sh
 skill_dir=<absolute directory containing this SKILL.md>
 goal_loop="$skill_dir/../../bin/goal-loop"
-bash "$goal_loop" preflight --repo "$repo"
+bash "$goal_loop" prepare --repo "$repo" --host <codex|claude>
 ```
 
-Inspect only the evidence needed to launch safely: applicable instructions and
-accepted decisions, pre-existing work, relevant manifests or CI, the requested
-scope, and focused verification commands. Keep product files unchanged during
-preflight. Treat recorded local changes as user-owned.
+Use the prepared repository state, instruction routes, profile mappings,
+workflow paths, and risk gates as evidence. Inspect additional repository files
+only when a material decision, unsafe overlap, or verification command remains
+unknown. Keep product files unchanged and treat recorded local changes as
+user-owned.
 
 Turn the request into observable completion criteria without choosing missing
-product behavior. If behavior, authority, or a safety policy is materially
-missing, select `decision-gated`, report the smallest decision, emit the launch
-record with both routes set to `none|none|none|none`, `route_applied_by\tnone`,
-`route_verified\tfalse`, `launch_required`, zero children, and one human
-interruption, then stop.
+product behavior. If behavior, authority, destructive scope, or a safety policy
+is materially missing, select `decision-gated`, read its workflow document, and
+stop with this record:
 
-**Complete when:** the outcome, constraints, local work, and every applicable
-or explicitly inapplicable verification gate are known—or one precise human
-decision is known to be missing.
+```text
+format\tdarrow-native-goal-preflight-v4
+workflow\tdecision-gated
+risk\thigh
+profile\tnone
+selected_route\tnone\tnone\tnone\tnone
+effective_route\tnone\tnone\tnone\tnone
+route_applied_by\tnone
+route_verified\tfalse
+launch_boundary\tlaunch_required
+verification_gate\tnot-applicable
+evaluation_child_invocations\t0
+evaluation_human_interruptions\t1
+```
 
-## 2. Compile the goal
+Name the smallest missing decision and do not activate implementation work.
 
-Select exactly one template and profile:
+## 2. Compile workflow, risk, and route
 
-| Evidence | Template | Profile |
-| --- | --- | --- |
-| Exact deterministic transformation with a complete oracle | `mechanical` | `fast` |
-| Clear bounded behavior, code, configuration, test, or documentation change | `bounded-change` | `standard` |
-| Reproducible defect or failing check | `diagnose-fix` | `standard` |
-| Approved public-contract, schema, dependency, security-sensitive, or cross-boundary change | `migration` | `deep` |
-| Missing product behavior, authority, or safety policy | `decision-gated` | no launch |
+Select exactly one workflow, then read its Markdown document completely:
 
-An explicit user template, model, or effort wins. Ordinary implementation is
-`standard`; a small code diff is not mechanical. Resolve the concrete route:
+- [`fix-bug`](references/workflows/fix-bug.md)
+- [`implement-feature`](references/workflows/implement-feature.md)
+- [`change-feature`](references/workflows/change-feature.md)
+- [`refactor`](references/workflows/refactor.md)
+- [`migration`](references/workflows/migration.md)
+- [`mechanical`](references/workflows/mechanical.md)
+- [`decision-gated`](references/workflows/decision-gated.md)
+
+The workflow document determines the execution sequence. Do not combine
+workflows or substitute a domain label for one. Small size alone is not
+mechanical.
+
+Select one proportional risk gate:
+
+| Risk | Required verification |
+| --- | --- |
+| `routine` | focused acceptance or characterization evidence plus the scoped repository gate |
+| `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample |
+| `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
+
+Choose the semantic profile from the combined evidence:
+
+- `fast` only for `mechanical` + `routine` with a complete oracle;
+- `standard` for ordinary bounded work;
+- `deep` for `high` risk, migrations, security-sensitive or cross-boundary
+  work, or material ambiguity that is nevertheless approved.
+
+An explicit user model or effort wins. Resolve the concrete route:
 
 ```sh
 bash "$goal_loop" route --host <codex|claude> --profile <fast|standard|deep> \
   [--route 'harness|provider|model|effort']
 ```
 
-Pass `--route` only when the user's engineering request explicitly pins that
-route. The active classifier route, host defaults, enclosing-evaluator route,
-and inherited route are application metadata, not user overrides; never feed
-them back into route selection.
+Pass `--route` only when the engineering request explicitly pins it. The
+classifier route, host defaults, and enclosing evaluator are metadata, not user
+overrides. `inherit`, `current`, `default`, or an unresolved alias is not an
+auditable model identifier.
 
-The final route record names the effective model identifier and effort.
-`inherit`, `current`, `default`, or an alias for an unknown route is not an
-auditable model value; resolve inheritance from host metadata before launch.
-The helper's `selected_route` is a request, not evidence that the route is
-active.
-
-Write one goal contract of at most 4,000 bytes containing:
-
-1. the outcome and observable acceptance criteria;
-2. scope, non-goals, preserved local work, and permission boundaries;
-3. applicable verification commands and final-tree evidence required;
-4. template, profile, selected route, and any stopping budget;
-5. an instruction to activate this contract with `create_goal` before doing
-   product work when a nested session receives it; omit that instruction from
-   an enclosing host-API handoff because the launcher sets the goal itself;
-6. the exact final launch record below.
+Write one goal contract of at most 4,000 bytes containing the outcome,
+acceptance criteria, scope and non-goals, preserved work, permissions, the
+selected workflow and its sequence, risk gate, profile and concrete route,
+applicable final-tree checks, and this exact final record:
 
 ```text
-format\tdarrow-native-goal-preflight-v2
-template\t<template>
-profile\t<profile>
+format\tdarrow-native-goal-preflight-v4
+workflow\t<workflow>
+risk\t<routine|elevated|high>
+profile\t<fast|standard|deep>
 selected_route\t<harness>\t<provider>\t<model>\t<effort>
 effective_route\t<harness>\t<provider>\t<model>\t<effort>
 route_applied_by\t<current-thread|host-api|nested-session|none>
 route_verified\t<true|false>
 launch_boundary\t<same_thread|host_api|nested_session|launch_required>
+verification_gate\t<routine|elevated|high|not-applicable>
 evaluation_child_invocations\t<integer>
 evaluation_human_interruptions\t<integer>
 ```
 
-Reference repository facts already available in the thread or named files;
-do not cache their contents in the contract. Describe what done means, leaving
-the implementation sequence to native goal mode.
+Reference repository facts by path rather than copying them. Leave detailed
+implementation choices to native goal mode.
 
-**Complete when:** one concise contract accounts for every criterion, gate,
-boundary, selected route, and final record without inventing intent.
+## 3. Activate exactly one native goal
 
-## 3. Activate the native goal
-
-When an enclosing host API explicitly requests a preflight handoff, it owns
-this section. Do not edit product files, call `create_goal`, or launch a nested
-session in the preflight turn. Return exactly one object for the enclosing
-launcher and end that turn:
+When an enclosing host API requests a preflight handoff, do not edit product
+files, call `create_goal`, or launch a nested session in the classifier turn.
+Return exactly one object and stop that turn:
 
 ```json
 {
-  "format": "darrow-native-goal-handoff-v1",
-  "template": "<template>",
+  "format": "darrow-native-goal-handoff-v3",
+  "workflow": "<workflow>",
+  "risk": "<routine|elevated|high>",
   "profile": "<fast|standard|deep>",
   "routeSource": "<policy|user>",
   "selectedRoute": {
@@ -119,67 +135,34 @@ launcher and end that turn:
 }
 ```
 
-Use `routeSource: "user"` only for an explicit route pinned by the engineering
-request; otherwise use `policy`. The enclosing launcher must validate the
-concrete route against both the live host catalog and the named policy profile,
-set the native goal, and start the execution turn with that exact model and
-effort. Its accepted turn request is route-application evidence; the preflight
-handoff is not. This handoff is neither `launch_required` nor the final v2
-completion record.
+The enclosing launcher validates the selected route against the live host
+catalog and policy profile, loads the exact selected workflow document, sets
+the native goal, and starts the execution turn with that document plus the
+selected model and effort. Its accepted turn request is route-application
+evidence; a workflow identifier, path, and content hash on the same receiving
+turn is workflow-loading evidence. The handoff alone proves neither.
 
-Use the actual host, then read exactly one branch completely:
+For an interactive invocation, read exactly one host launch guide completely:
 
 - Codex: [`references/codex-launch.md`](references/codex-launch.md)
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
 
-Treat the active route as confirmation evidence only. Treat the selected route
-as unapplied until the host boundary proves the effective provider, model, and
-effort. Prefer a same-thread native goal only
-when host metadata names that exact effective route and `confirm-route`
-accepts it. Use a supported host API next; its accepted turn request must set
-the selected model and effort. Use one nested host session when the current
-thread cannot switch and the host proves recursion and authentication are
-supported. A successful nested helper emits the effective route only after the
-selected provider, model, and effort complete one session. If no boundary can
-apply the route, emit `launch_required`, `route_applied_by\tnone`, and
-`route_verified\tfalse`, then stop.
-
-Run a nested launcher as one foreground tool call. If the host yields while it
-is running, wait on that exact process or command session. Do not issue another
-tool call, inspect its partial edits, delete the contract, or compose the final
-response until the launch call itself completes with exit zero and emits its
-route-application record.
-
-Use literal absolute repository and goal-file paths in the launch call. Shell
-variables, working directories, and environment assignments from an earlier
-tool call are not persistent launch evidence.
+Prefer the current thread only when host metadata proves its effective route
+matches the selected route. Otherwise use a supported host API, then at most
+one supported nested compatibility session. If no boundary can apply the
+route, report `launch_required` honestly and stop.
 
 Activate exactly one goal. Darrow adds no planner, verifier, repair agent,
-retry loop, telemetry session, or cross-vendor route. Native goal mode owns
-implementation, verification, recovery, persistence, and completion.
-
-**Complete when:** the contract is active in one native goal and deterministic
-or harness evidence proves selected route equals effective route, or one exact
-launch capability is known to be missing.
+retry loop, or cross-vendor route. Native goal mode owns implementation,
+verification, recovery, persistence, and completion.
 
 ## 4. Return native completion
 
-For a same-thread goal, continue under the active goal until its native terminal
-state. For a nested compatibility session, wait for that one foreground launch
-call to finish and return its delimited result. Partial file changes, a child
-final-message file, or process inspection are not terminal evidence. Do not wrap
-completion in another review or repair phase.
+Continue until the native goal reaches a terminal state. The final response
+must include the v4 launch record verbatim. Never copy the selected route into
+`effective_route` without host evidence. Count only sessions or subagents
+created by Darrow: same-thread and host-API launches are zero; a nested session
+is one.
 
-The final response must include the v2 launch record verbatim. Never copy the
-selected route into `effective_route` without route-application evidence. Count
-only sessions
-or subagents created by Darrow: `same_thread` and `host_api` are zero;
-`nested_session` is one. Count a human interruption only for an actual stop
-requiring a person's decision or authority.
-
-State changed files, final verification evidence, remaining risks, and that
-completion authorizes no commit, push, pull request, merge, release, or deploy.
-
-**Complete when:** the native terminal result and launch record agree with the
-final tree, route, boundary, child count, human interruptions, and publication
-authority.
+State changed files, final verification, remaining risks, and that completion
+authorizes no commit, push, pull request, merge, release, or deploy.

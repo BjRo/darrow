@@ -1,0 +1,72 @@
+id: orchestration-oss-commander-env
+invariant: ORCH-OSS-HELDOUT-NEW-FEATURE
+prompt: &task |-
+  Work directly in this Commander.js repository and implement a new public option feature. Do not commit or publish changes.
+
+  Add chainable `Option#env(name)` support so an option can read its value from a named environment variable during parsing. Command-line values take precedence over environment values, which take precedence over defaults. Environment values must pass through the option's normal argument parser and choices validation. Presence of an environment variable enables a positive boolean option and disables a negated boolean option. An environment value must satisfy a mandatory option. Include the environment variable name in option help and add the public TypeScript declaration.
+
+  Preserve existing command/subcommand option behavior and supported Node style. Add focused tests for precedence, parsing, booleans, mandatory options, help, and typings; run the focused option tests before finishing.
+fixture:
+  source: commander-7.2.0
+  files:
+    AGENTS.md: |-
+      This is a pinned evaluation checkout. Do not commit or publish changes.
+      Work only on the requested environment-backed option API. Dependencies are preinstalled.
+      Before editing, inspect the `Option` and `Command` implementations in `index.js`, option tests under `tests/`, help formatting, exports, and `typings/index.d.ts`. Preserve Node 10 compatibility and the repository's CommonJS style.
+  commit_files: true
+  setup: npm install --ignore-scripts --no-audit --no-fund
+  ticket:
+    id: "1"
+    title: Add environment-backed command options
+    body: *task
+checks:
+  - name: hidden environment option contract
+    metric: escaped_defect
+    run: |-
+      node - <<'JS'
+      const assert = require('assert');
+      const commander = require('./');
+
+      function withEnv(values, fn) {
+        const saved = {};
+        Object.keys(values).forEach((key) => { saved[key] = process.env[key]; process.env[key] = values[key]; });
+        try { return fn(); } finally {
+          Object.keys(values).forEach((key) => saved[key] === undefined ? delete process.env[key] : process.env[key] = saved[key]);
+        }
+      }
+
+      withEnv({ APP_PORT: '41' }, () => {
+        const program = new commander.Command();
+        const option = new commander.Option('--port <number>', 'listen port')
+          .env('APP_PORT').default(7).argParser((value) => Number(value) + 1);
+        assert.strictEqual(option.env('APP_PORT'), option);
+        program.addOption(option).parse(['node', 'test']);
+        assert.strictEqual(program.opts().port, 42);
+      });
+
+      withEnv({ APP_PORT: '41' }, () => {
+        const program = new commander.Command();
+        program.addOption(new commander.Option('--port <number>').env('APP_PORT').argParser(Number));
+        program.parse(['node', 'test', '--port', '9']);
+        assert.strictEqual(program.opts().port, 9);
+      });
+
+      withEnv({ APP_COLOR: 'anything', APP_CACHE: 'anything', APP_MODE: 'prod' }, () => {
+        const program = new commander.Command();
+        program.addOption(new commander.Option('--color').env('APP_COLOR'));
+        program.addOption(new commander.Option('--no-cache').env('APP_CACHE'));
+        program.addOption(new commander.Option('--mode <mode>').env('APP_MODE').choices(['dev', 'prod']).makeOptionMandatory());
+        program.parse(['node', 'test']);
+        assert.strictEqual(program.opts().color, true);
+        assert.strictEqual(program.opts().cache, false);
+        assert.strictEqual(program.opts().mode, 'prod');
+        assert.match(program.helpInformation(), /env:\s*APP_MODE/);
+      });
+
+      assert.match(require('fs').readFileSync('typings/index.d.ts', 'utf8'), /env\(name:\s*string\):\s*this/);
+      JS
+  - name: focused Commander option tests
+    run: >-
+      npx jest --runInBand tests/options.bool.test.js
+      tests/options.mandatory.test.js tests/help.optionDescription.test.js
+      tests/option.chain.test.js

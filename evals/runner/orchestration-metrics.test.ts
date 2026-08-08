@@ -273,31 +273,63 @@ describe("orchestration outcome metrics", () => {
     ).toBe(false);
 
     const hostApi = result
+      .replace(
+        "darrow-native-goal-preflight-v2",
+        "darrow-native-goal-preflight-v4",
+      )
+      .replace(
+        "profile\tstandard",
+        [
+          "workflow\tchange-feature",
+          "risk\televated",
+          "profile\tstandard",
+        ].join("\n"),
+      )
       .replaceAll("nested-session", "host-api")
       .replace("nested_session", "host_api")
       .replace(
         "evaluation_child_invocations\t1",
-        "evaluation_child_invocations\t0",
+        "verification_gate\televated\nevaluation_child_invocations\t0",
       );
-    const hostRaw = JSON.stringify({
-      type: "darrow.route_applied",
-      accepted: true,
-      threadId: "thread-1",
-      turnId: "turn-2",
-      selected: {
-        harness: "codex",
-        provider: "openai",
-        model: "gpt-5.6-sol",
-        effort: "medium",
-      },
-      effective: {
-        harness: "codex",
-        provider: "openai",
-        model: "gpt-5.6-sol",
-        effort: "medium",
-      },
-      appliedBy: "host-api",
-    });
+    const hostRaw = [
+      JSON.stringify({
+        type: "darrow.route_applied",
+        accepted: true,
+        threadId: "thread-1",
+        turnId: "turn-2",
+        selected: {
+          harness: "codex",
+          provider: "openai",
+          model: "gpt-5.6-sol",
+          effort: "medium",
+        },
+        effective: {
+          harness: "codex",
+          provider: "openai",
+          model: "gpt-5.6-sol",
+          effort: "medium",
+        },
+        appliedBy: "host-api",
+      }),
+      JSON.stringify({
+        type: "darrow.dimensions_applied",
+        accepted: true,
+        threadId: "thread-1",
+        turnId: "turn-2",
+        stage: "workflow-risk",
+        workflow: "change-feature",
+        risk: "elevated",
+      }),
+      JSON.stringify({
+        type: "darrow.workflow_loaded",
+        accepted: true,
+        threadId: "thread-1",
+        turnId: "turn-2",
+        workflow: "change-feature",
+        file: "/plugin/references/workflows/change-feature.md",
+        sha256: "a".repeat(64),
+      }),
+    ].join("\n");
     expect(observeCodexGoalRouteApplication(hostApi, hostRaw)).toEqual({
       profile: "standard",
       selected: {
@@ -317,6 +349,12 @@ describe("orchestration outcome metrics", () => {
       childInvocationCount: 0,
       childInputTokens: 0,
       childOutputTokens: 0,
+      workflow: "change-feature",
+      risk: "elevated",
+      workflowFile: "/plugin/references/workflows/change-feature.md",
+      workflowSha256: "a".repeat(64),
+      dimensionStage: "workflow-risk",
+      verificationGate: "elevated",
     });
     expect(
       reconcileObservedGoalRouteApplication(
@@ -330,7 +368,28 @@ describe("orchestration outcome metrics", () => {
     expect(
       reconcileObservedGoalRouteApplication(
         hostApi,
-        hostRaw.replace('"accepted":true', '"accepted":false'),
+        hostRaw.replaceAll('"accepted":true', '"accepted":false'),
+        "codex",
+        "gpt-5.6-terra",
+        "low",
+      )?.passed,
+    ).toBe(false);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        hostApi,
+        hostRaw.replace(
+          '"turnId":"turn-2","workflow"',
+          '"turnId":"turn-3","workflow"',
+        ),
+        "codex",
+        "gpt-5.6-terra",
+        "low",
+      )?.passed,
+    ).toBe(false);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        hostApi,
+        hostRaw.split("\n")[0]!,
         "codex",
         "gpt-5.6-terra",
         "low",

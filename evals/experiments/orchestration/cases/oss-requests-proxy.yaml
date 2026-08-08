@@ -1,0 +1,77 @@
+id: orchestration-oss-requests-proxy
+invariant: ORCH-OSS-HELDOUT-BUG-FIX
+prompt: &task |-
+  Work directly in this Requests repository and fix the reported defect. Do not commit or publish changes.
+
+  `Session.send()` currently ignores proxy settings from the environment when callers send a prepared request directly. Make direct sends respect Requests' normal `trust_env`, `HTTP_PROXY`/`HTTPS_PROXY`, and `NO_PROXY` behavior when no explicit `proxies` argument is supplied. An explicit per-call proxy mapping must still take precedence, redirects must continue to recalculate proxy settings for their destination, and ordinary `Session.request()` behavior must not regress.
+
+  Add focused regression tests that do not require the public network. Run the focused session tests before finishing.
+fixture:
+  source: requests-2.25.1
+  files:
+    AGENTS.md: |-
+      This is a pinned evaluation checkout. Do not commit or publish changes.
+      Work only on the requested prepared-request proxy behavior. Before editing, inspect `requests/sessions.py`, the proxy helpers in `requests/utils.py`, and the session tests around redirects and environment settings in `tests/test_requests.py`.
+      Keep compatibility with the Python versions and style declared by `setup.py`, `setup.cfg`, and `tox.ini`. Use local fake adapters or monkeypatching for focused tests; do not depend on the public network.
+      Use `.git/fixture-python/bin/python -m pytest` for tests; its isolated environment contains the pinned test dependencies.
+  commit_files: true
+  setup: >-
+    python3 -m venv .git/fixture-python &&
+    .git/fixture-python/bin/pip install --disable-pip-version-check .
+    'pytest<9' pytest-httpbin==0.0.7 pytest-mock
+  ticket:
+    id: "1"
+    title: Respect environment proxies for direct prepared-request sends
+    body: *task
+checks:
+  - name: hidden direct-send proxy contract
+    metric: escaped_defect
+    run: |-
+      .git/fixture-python/bin/python - <<'PY'
+      import os
+      from requests import Request, Response, Session
+
+      class Adapter(object):
+          def __init__(self):
+              self.kwargs = None
+          def send(self, request, **kwargs):
+              self.kwargs = kwargs
+              response = Response()
+              response.status_code = 200
+              response.request = request
+              response.raw = object()
+              return response
+
+      def direct_send(env, explicit=None):
+          old = {key: os.environ.get(key) for key in ('HTTP_PROXY', 'http_proxy', 'NO_PROXY', 'no_proxy')}
+          try:
+              for key in old:
+                  os.environ.pop(key, None)
+              os.environ.update(env)
+              session = Session()
+              adapter = Adapter()
+              session.get_adapter = lambda url: adapter
+              prepared = Request('GET', 'http://example.test/resource').prepare()
+              kwargs = {'stream': True, 'allow_redirects': False}
+              if explicit is not None:
+                  kwargs['proxies'] = explicit
+              session.send(prepared, **kwargs)
+              return adapter.kwargs['proxies']
+          finally:
+              for key, value in old.items():
+                  if value is None:
+                      os.environ.pop(key, None)
+                  else:
+                      os.environ[key] = value
+
+      env_proxy = direct_send({'HTTP_PROXY': 'http://proxy.invalid:8080', 'NO_PROXY': ''})
+      assert env_proxy.get('http') == 'http://proxy.invalid:8080', env_proxy
+      bypassed = direct_send({'HTTP_PROXY': 'http://proxy.invalid:8080', 'NO_PROXY': 'example.test'})
+      assert not bypassed, bypassed
+      explicit = {'http': 'http://explicit.invalid:9090'}
+      assert direct_send({'HTTP_PROXY': 'http://proxy.invalid:8080'}, explicit) is explicit
+      PY
+  - name: focused Requests session tests
+    run: >-
+      .git/fixture-python/bin/python -m pytest -q tests/test_requests.py
+      -k 'proxy or send' --disable-warnings

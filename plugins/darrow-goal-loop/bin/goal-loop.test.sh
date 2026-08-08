@@ -40,6 +40,24 @@ out=$(bash "$goal_loop" preflight --repo "$repo")
 contains "$out" $'working_tree\tdirty'
 contains "$out" $'preexisting_change\t M value.txt'
 
+printf 'Root guidance.\n' >"$repo/AGENTS.md"
+out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
+contains "$out" $'format\tdarrow-native-goal-prepared-v1'
+repo_abs=$(CDPATH= cd -- "$repo" && pwd)
+contains "$out" $'instruction\t'"$repo_abs/AGENTS.md"
+contains "$out" $'route\tstandard\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'workflow\tfix-bug\t'
+contains "$out" $'workflow\timplement-feature\t'
+contains "$out" $'workflow\tchange-feature\t'
+contains "$out" $'workflow\trefactor\t'
+contains "$out" 'references/workflows/fix-bug.md'
+contains "$out" 'references/workflows/implement-feature.md'
+contains "$out" 'references/workflows/change-feature.md'
+contains "$out" 'references/workflows/refactor.md'
+contains "$out" $'risk\troutine\t'
+contains "$out" $'risk\televated\t'
+contains "$out" $'risk\thigh\t'
+
 out=$(bash "$goal_loop" route --host codex --profile standard)
 contains "$out" $'format\tdarrow-native-goal-route-v2'
 contains "$out" $'profile\tstandard'

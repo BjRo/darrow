@@ -10,6 +10,8 @@ interface ModeConfig {
   mount_plugin_skills?: boolean;
   require_evaluation_records?: boolean;
   apply_goal_route?: boolean;
+  apply_case_routes?: boolean;
+  effort?: string;
 }
 
 interface SuiteConfig {
@@ -17,6 +19,10 @@ interface SuiteConfig {
   experiment: string;
   case_filter: string;
   modes: Record<string, ModeConfig>;
+  case_routes?: Record<
+    string,
+    Record<string, { model: string; effort: string }>
+  >;
 }
 
 async function git(args: string[]): Promise<string> {
@@ -179,7 +185,7 @@ for (const { harness, modeName } of cellPlan) {
     "--threshold",
     values.threshold!,
     "--effort",
-    values.effort!,
+    mode.effort ?? values.effort!,
     "--output",
     resultPath,
   ];
@@ -193,6 +199,22 @@ for (const { harness, modeName } of cellPlan) {
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
   if (mode.apply_goal_route) args.push("--apply-goal-route");
+  if (mode.apply_goal_route) {
+    const routes = suite.case_routes?.[harness];
+    if (!routes)
+      throw new Error(
+        `${modeName} requests goal route reconciliation but no case routes exist for ${harness}`,
+      );
+    args.push("--expected-goal-routes", JSON.stringify(routes));
+  }
+  if (mode.apply_case_routes) {
+    const routes = suite.case_routes?.[harness];
+    if (!routes)
+      throw new Error(
+        `${modeName} requests case routes but none exist for ${harness}`,
+      );
+    args.push("--case-routes", JSON.stringify(routes));
+  }
   if (values.dry) args.push("--dry");
   if (!values.dry && !values["no-judge"]) {
     args.push(

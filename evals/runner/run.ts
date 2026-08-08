@@ -119,10 +119,17 @@ async function runCase(
   humanReviewMinutes?: number,
   requireEvaluationRecords = false,
   judge?: { adapter: HarnessAdapter; model: string; effort: string },
+  expectedGoalRoute?: { model: string; effort: string },
 ): Promise<CaseResult> {
-  const promptTemplate = condition?.text.trim()
+  let promptTemplate = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
+  if (expectedGoalRoute) {
+    promptTemplate = [
+      `evaluation_expected_route\tcodex\topenai\t${expectedGoalRoute.model}\t${expectedGoalRoute.effort}`,
+      promptTemplate,
+    ].join("\n\n");
+  }
   const trialResults: TrialResult[] = [];
 
   for (let trial = 1; trial <= trials; trial++) {
@@ -280,6 +287,20 @@ async function runCase(
       (assessment): assessment is NonNullable<typeof assessment> =>
         assessment !== undefined,
     );
+  const phaseMetrics = trialResults
+    .map((trial) => trial.harness.phaseMetrics)
+    .filter(
+      (metric): metric is NonNullable<typeof metric> => metric !== undefined,
+    );
+  const preparationPhases = phaseMetrics
+    .map((metric) => metric.preparation)
+    .filter((phase): phase is NonNullable<typeof phase> => phase !== undefined);
+  const classifierPhases = phaseMetrics
+    .map((metric) => metric.classifier)
+    .filter((phase): phase is NonNullable<typeof phase> => phase !== undefined);
+  const executionPhases = phaseMetrics
+    .map((metric) => metric.execution)
+    .filter((phase): phase is NonNullable<typeof phase> => phase !== undefined);
   return {
     caseId: evalCase.id,
     invariant: evalCase.invariant,
@@ -293,6 +314,32 @@ async function runCase(
       Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
     p95DurationMs: p95(durations),
+    meanPreparationDurationMs: preparationPhases.length
+      ? mean(preparationPhases.map((phase) => phase.durationMs))
+      : undefined,
+    meanClassifierDurationMs: classifierPhases.length
+      ? mean(classifierPhases.map((phase) => phase.durationMs))
+      : undefined,
+    meanClassifierTokens: classifierPhases.length
+      ? mean(
+          classifierPhases.map(
+            (phase) => phase.inputTokens + phase.outputTokens,
+          ),
+        )
+      : undefined,
+    meanClassifierModelCalls: classifierPhases.length
+      ? mean(classifierPhases.map((phase) => phase.modelCalls))
+      : undefined,
+    meanExecutionDurationMs: executionPhases.length
+      ? mean(executionPhases.map((phase) => phase.durationMs))
+      : undefined,
+    meanExecutionTokens: executionPhases.length
+      ? mean(
+          executionPhases.map(
+            (phase) => phase.inputTokens + phase.outputTokens,
+          ),
+        )
+      : undefined,
     meanTokens:
       !dry && tokenTotals.every((value) => value !== null)
         ? mean(tokenTotals as number[])
@@ -386,11 +433,23 @@ function evaluationRecordChecks(
     ...(requireGoalRouteApplication
       ? [
           {
-            name: "goal route application record uses v2",
-            passed: /^format\tdarrow-native-goal-preflight-v2$/m.test(
+            name: "goal route application record uses v4",
+            passed: /^format\tdarrow-native-goal-preflight-v4$/m.test(
               resultText,
             ),
-            detail: "expected darrow-native-goal-preflight-v2",
+            detail: "expected darrow-native-goal-preflight-v4",
+          },
+          {
+            name: "workflow and risk gate are reported",
+            passed:
+              /^workflow\t(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)$/m.test(
+                resultText,
+              ) &&
+              /^risk\t(?:routine|elevated|high)$/m.test(resultText) &&
+              /^verification_gate\t(?:routine|elevated|high|not-applicable)$/m.test(
+                resultText,
+              ),
+            detail: "expected workflow, risk, and verification_gate records",
           },
           {
             name: "selected and effective goal routes are reported",
@@ -434,6 +493,8 @@ const { values } = parseArgs({
     "condition-label": { type: "string" },
     "require-evaluation-records": { type: "boolean", default: false },
     "apply-goal-route": { type: "boolean", default: false },
+    "case-routes": { type: "string" },
+    "expected-goal-routes": { type: "string" },
     output: { type: "string" },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
@@ -464,6 +525,63 @@ if (values["judge-harness"] && !judgeAdapter) {
 }
 
 const model = values.model ?? adapter.defaultModel;
+let caseRoutes: Record<string, { model: string; effort: string }> = {};
+if (values["case-routes"]) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(values["case-routes"]);
+  } catch {
+    console.error("--case-routes must be one JSON object");
+    process.exit(1);
+  }
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Object.values(parsed).every(
+      (route: any) =>
+        route &&
+        typeof route.model === "string" &&
+        route.model.length > 0 &&
+        typeof route.effort === "string" &&
+        route.effort.length > 0,
+    )
+  ) {
+    console.error("--case-routes values must provide model and effort");
+    process.exit(1);
+  }
+  caseRoutes = parsed as Record<string, { model: string; effort: string }>;
+}
+let expectedGoalRoutes: Record<string, { model: string; effort: string }> = {};
+if (values["expected-goal-routes"]) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(values["expected-goal-routes"]);
+  } catch {
+    console.error("--expected-goal-routes must be one JSON object");
+    process.exit(2);
+  }
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    Array.isArray(parsed) ||
+    !Object.values(parsed).every(
+      (route) =>
+        route &&
+        typeof route === "object" &&
+        typeof (route as any).model === "string" &&
+        typeof (route as any).effort === "string",
+    )
+  ) {
+    console.error(
+      "--expected-goal-routes values must provide model and effort",
+    );
+    process.exit(2);
+  }
+  expectedGoalRoutes = parsed as Record<
+    string,
+    { model: string; effort: string }
+  >;
+}
 let condition: { label: string; text: string } | undefined;
 if (values.condition) {
   const condPath = resolve(process.cwd(), values.condition);
@@ -524,12 +642,15 @@ console.log(
 
 const results: CaseResult[] = [];
 for (const evalCase of cases) {
+  const caseRoute = caseRoutes[evalCase.id];
+  const caseModel = caseRoute?.model ?? model;
+  const caseEffort = caseRoute?.effort ?? values.effort!;
   console.log(`\n${evalCase.id} (${evalCase.invariant})`);
   const result = await runCase(
     evalCase,
     adapter,
-    model,
-    values.effort!,
+    caseModel,
+    caseEffort,
     trials,
     values.dry!,
     condition,
@@ -543,6 +664,7 @@ for (const evalCase of cases) {
           effort: values["judge-effort"]!,
         }
       : undefined,
+    expectedGoalRoutes[evalCase.id],
   );
   result.harnessVersion = harnessVersion || undefined;
   results.push(result);

@@ -1,0 +1,259 @@
+{
+  "format": "darrow-workflow-risk-calibration-v1",
+  "date": "2026-08-08",
+  "status": "exploratory",
+  "decisionBearing": false,
+  "trialsPerCell": 1,
+  "harness": {
+    "name": "codex",
+    "version": "codex-cli 0.145.0"
+  },
+  "runner": {
+    "baseRevision": "e8414d1005bbf1935b8e68bb3cfa28b4bc76c1f1",
+    "dirty": true,
+    "primaryPatchSha256": "55f654bc107708b9b0cb5a66b5e5d5959baff819de883fa27d3a3e7a399632e4",
+    "suite": "evals/experiments/orchestration/profile-impact-suite.yaml"
+  },
+  "cases": [
+    {
+      "id": "orchestration-oss-requests-proxy",
+      "source": "requests-2.25.1",
+      "revision": "c2b307dbefe21177af03f9feb37181a89a799fcc",
+      "shape": "held-out bug fix",
+      "implementationRoute": "codex|openai|gpt-5.6-sol|medium"
+    },
+    {
+      "id": "orchestration-oss-commander-env",
+      "source": "commander-7.2.0",
+      "revision": "327a3ddd552f90d1dbd37f55fa7a88b9553468ae",
+      "shape": "held-out new feature",
+      "implementationRoute": "codex|openai|gpt-5.6-sol|high"
+    },
+    {
+      "id": "orchestration-oss-cobra-lifecycle",
+      "source": "cobra-1.1.3",
+      "revision": "8380ddd3132bdf8fd77731725b550c181dda0aa8",
+      "shape": "held-out behavior-preserving refactor",
+      "implementationRoute": "codex|openai|gpt-5.6-sol|medium"
+    }
+  ],
+  "cells": [
+    {
+      "caseId": "orchestration-oss-requests-proxy",
+      "mode": "native-goal",
+      "passed": true,
+      "durationMs": 355760.085917,
+      "tokens": 1205421,
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|medium"
+    },
+    {
+      "caseId": "orchestration-oss-requests-proxy",
+      "mode": "workflow",
+      "passed": true,
+      "durationMs": 337871.68575,
+      "tokens": 1134096,
+      "classifierDurationMs": 23923,
+      "classifierTokens": 16857,
+      "classifierModelCalls": 1,
+      "classifierRoute": "codex|openai|gpt-5.6-terra|medium",
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "workflow": "fix-bug",
+      "risk": "routine",
+      "workflowSha256": "9591fa4bb4a51e49e67a027933c9f8a1fe705d8b0e5c5ed2ffe15bb66921f904",
+      "dimensionStage": "workflow"
+    },
+    {
+      "caseId": "orchestration-oss-requests-proxy",
+      "mode": "workflow-risk",
+      "passed": true,
+      "durationMs": 400240.920708,
+      "tokens": 1698989,
+      "classifierDurationMs": 23270,
+      "classifierTokens": 16874,
+      "classifierModelCalls": 1,
+      "classifierRoute": "codex|openai|gpt-5.6-terra|medium",
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "workflow": "fix-bug",
+      "risk": "elevated",
+      "workflowSha256": "9591fa4bb4a51e49e67a027933c9f8a1fe705d8b0e5c5ed2ffe15bb66921f904",
+      "dimensionStage": "workflow-risk"
+    },
+    {
+      "caseId": "orchestration-oss-commander-env",
+      "mode": "native-goal",
+      "passed": true,
+      "durationMs": 308736.413708,
+      "tokens": 1810197,
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|high",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|high"
+    },
+    {
+      "caseId": "orchestration-oss-commander-env",
+      "mode": "workflow",
+      "passed": true,
+      "durationMs": 418065.646209,
+      "tokens": 2078770,
+      "classifierDurationMs": 28084,
+      "classifierTokens": 16905,
+      "classifierModelCalls": 1,
+      "classifierRoute": "codex|openai|gpt-5.6-terra|medium",
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|high",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|high",
+      "workflow": "implement-feature",
+      "risk": "routine",
+      "workflowSha256": "ab9a917338ef9fcd56e552307e613952f960b880bf524958ec8c4967368b3b74",
+      "dimensionStage": "workflow"
+    },
+    {
+      "caseId": "orchestration-oss-commander-env",
+      "mode": "workflow-risk",
+      "passed": true,
+      "durationMs": 585433.591083,
+      "tokens": 2132721,
+      "classifierDurationMs": 18864,
+      "classifierTokens": 16816,
+      "classifierModelCalls": 1,
+      "classifierRoute": "codex|openai|gpt-5.6-terra|medium",
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|high",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|high",
+      "workflow": "implement-feature",
+      "risk": "high",
+      "workflowSha256": "ab9a917338ef9fcd56e552307e613952f960b880bf524958ec8c4967368b3b74",
+      "dimensionStage": "workflow-risk"
+    },
+    {
+      "caseId": "orchestration-oss-cobra-lifecycle",
+      "mode": "native-goal",
+      "passed": true,
+      "durationMs": 303226.978458,
+      "tokens": 1005154,
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|medium"
+    },
+    {
+      "caseId": "orchestration-oss-cobra-lifecycle",
+      "mode": "workflow",
+      "passed": true,
+      "durationMs": 227469.056708,
+      "tokens": 660800,
+      "classifierDurationMs": 21047,
+      "classifierTokens": 16956,
+      "classifierModelCalls": 1,
+      "classifierRoute": "codex|openai|gpt-5.6-terra|medium",
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "workflow": "refactor",
+      "risk": "routine",
+      "workflowSha256": "11e7dd31f537fd8a5e5b282c2e71bf71618a5b88c1d2845bbacd0faaf4bbd1fe",
+      "dimensionStage": "workflow"
+    },
+    {
+      "caseId": "orchestration-oss-cobra-lifecycle",
+      "mode": "workflow-risk",
+      "passed": true,
+      "durationMs": 301328.37175,
+      "tokens": 1039556,
+      "classifierDurationMs": 22962,
+      "classifierTokens": 16836,
+      "classifierModelCalls": 1,
+      "classifierRoute": "codex|openai|gpt-5.6-terra|medium",
+      "selectedImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "effectiveImplementationRoute": "codex|openai|gpt-5.6-sol|medium",
+      "workflow": "refactor",
+      "risk": "elevated",
+      "workflowSha256": "11e7dd31f537fd8a5e5b282c2e71bf71618a5b88c1d2845bbacd0faaf4bbd1fe",
+      "dimensionStage": "workflow-risk"
+    }
+  ],
+  "aggregates": {
+    "native-goal": {
+      "passRate": 1,
+      "meanDurationMs": 322574.492694,
+      "totalDurationMs": 967723.478083,
+      "meanTokens": 1340257.333333,
+      "totalTokens": 4020772
+    },
+    "workflow": {
+      "passRate": 1,
+      "meanDurationMs": 327802.129556,
+      "totalDurationMs": 983406.388667,
+      "meanTokens": 1291222,
+      "totalTokens": 3873666,
+      "meanClassifierDurationMs": 24351.333333,
+      "meanClassifierTokens": 16906
+    },
+    "workflow-risk": {
+      "passRate": 1,
+      "meanDurationMs": 429000.96118,
+      "totalDurationMs": 1287002.883541,
+      "meanTokens": 1623755.333333,
+      "totalTokens": 4871266,
+      "meanClassifierDurationMs": 21698.666667,
+      "meanClassifierTokens": 16842
+    }
+  },
+  "deltas": {
+    "workflowVsNative": {
+      "durationPercent": 1.620598,
+      "tokensPercent": -3.658651
+    },
+    "workflowRiskVsNative": {
+      "durationPercent": 32.992834,
+      "tokensPercent": 21.152505
+    },
+    "workflowRiskVsWorkflow": {
+      "durationPercent": 30.871926,
+      "tokensPercent": 25.753382
+    }
+  },
+  "postFixVerification": {
+    "purpose": "verify final classifier and implementation route application; excluded from aggregates",
+    "caseId": "orchestration-oss-requests-proxy",
+    "mode": "workflow",
+    "passed": true,
+    "durationMs": 535554.805,
+    "tokens": 2808720,
+    "classifierRoute": "codex|openai|gpt-5.6-terra|low",
+    "classifierDurationMs": 15324,
+    "classifierTokens": 16834,
+    "implementationRoute": "codex|openai|gpt-5.6-sol|medium",
+    "workflow": "fix-bug",
+    "risk": "routine",
+    "dimensionStage": "workflow",
+    "workflowSha256": "9591fa4bb4a51e49e67a027933c9f8a1fe705d8b0e5c5ed2ffe15bb66921f904"
+  },
+  "excludedRuns": [
+    {
+      "caseId": "orchestration-oss-requests-proxy",
+      "mode": "workflow",
+      "reason": "condition used a literal backslash-t marker, so the adapter recorded the default workflow-risk stage; replaced by a corrected rerun"
+    }
+  ],
+  "logAudit": {
+    "allTaskChecksPassed": true,
+    "allSelectedRoutesMatchedEffectiveRoutes": true,
+    "allWorkflowHashesMatchedBundledDocuments": true,
+    "allDarrowCellsUsedOneClassifierResponse": true,
+    "classifierToolCalls": 0,
+    "darrowChildInvocations": 0,
+    "humanInterruptions": 0,
+    "tokenSource": "harness cumulative usage, including cached input",
+    "modelSelfReportedTokenCountsTrusted": false
+  },
+  "limitations": [
+    "One trial per decision-bearing cell; no default may be promoted.",
+    "No blind quality judge was run; deterministic hidden checks passed in every cell.",
+    "The nine-cell aggregate used Terra at medium effort for classification; final configuration uses Terra at low effort and is verified separately.",
+    "Single-run latency and token variance is large, including the separate low-effort verification run.",
+    "Raw result bundles are gitignored; this snapshot preserves reviewed aggregates and audit evidence."
+  ],
+  "conclusions": [
+    "Workflow-only preflight showed no aggregate pass-rate improvement and was approximately neutral on time and tokens in this N=1 calibration.",
+    "Adding risk gates showed no observed quality benefit on these passing cells and increased aggregate wall time and tokens materially.",
+    "Do not make workflow+risk the default or fund N=3 replication until risk-sensitive cases can demonstrate a defect-detection benefit.",
+    "Keep the technical reference dimension removed; workflow playbooks remain independent Markdown documents, not a third selection dimension."
+  ]
+}

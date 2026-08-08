@@ -104,6 +104,22 @@ export interface HarnessResult {
   /** Normalized final agent message, excluding harness protocol events. */
   resultText: string;
   raw: string;
+  /** Optional phase-level evidence for adapters that split preparation,
+   * classification, and implementation across host-native turns. */
+  phaseMetrics?: {
+    preparation?: { durationMs: number };
+    classifier?: {
+      durationMs: number;
+      inputTokens: number;
+      outputTokens: number;
+      modelCalls: number;
+    };
+    execution?: {
+      durationMs: number;
+      inputTokens: number;
+      outputTokens: number;
+    };
+  };
 }
 
 export interface GoalRoute {
@@ -115,6 +131,12 @@ export interface GoalRoute {
 
 export interface GoalRouteApplication {
   profile: string;
+  workflow?: string;
+  risk?: "routine" | "elevated" | "high";
+  workflowFile?: string;
+  workflowSha256?: string;
+  dimensionStage?: "workflow" | "workflow-risk";
+  verificationGate?: "routine" | "elevated" | "high";
   selected: GoalRoute;
   effective: GoalRoute;
   appliedBy: "current-thread" | "host-api" | "nested-session";
@@ -197,6 +219,12 @@ export interface CaseResult {
   passRate: number;
   meanDurationMs: number;
   p95DurationMs: number;
+  meanPreparationDurationMs?: number;
+  meanClassifierDurationMs?: number;
+  meanClassifierTokens?: number;
+  meanClassifierModelCalls?: number;
+  meanExecutionDurationMs?: number;
+  meanExecutionTokens?: number;
   /** Total harness tokens when complete; null when nested or foreign usage is not reconciled. */
   meanTokens: number | null;
   /** Sum of actual provider cost, or null when any trial cost is unknown. */

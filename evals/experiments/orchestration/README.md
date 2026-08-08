@@ -26,12 +26,19 @@ repositories and task shapes are intentionally different:
 | `orchestration-oss-ajv-instance-path` | Ajv 8.5.0         | generated diagnostics across nested schemas        | TypeScript code generation |
 | `orchestration-oss-go-git-insteadof`  | go-git 5.4.2      | repeated config values and longest-match semantics | Go public config model     |
 | `orchestration-oss-express-links`     | Express 4.17.1    | header serialization and injection hardening       | Node HTTP response API     |
+| `orchestration-oss-requests-proxy`    | Requests 2.25.1   | held-out bug fix for direct-send proxy resolution  | Python session transport   |
+| `orchestration-oss-commander-env`     | Commander 7.2.0   | held-out environment-backed option feature         | Node CLI option API        |
+| `orchestration-oss-cobra-lifecycle`   | Cobra 1.1.3       | held-out behavior-preserving lifecycle refactor    | Go command execution       |
 
 The task prompts are custom evaluation contracts, not copied from a public
 benchmark or issue tracker. That reduces direct benchmark contamination, but no
 evaluation on famous open-source repositories can prove absence from model
 training data. The deterministic hidden checks therefore exercise combinations
 and edge cases not disclosed to the candidate.
+
+The workflow/risk ablation uses all seven cases. The last three were selected
+only after the workflow playbooks were written and cover the required held-out
+bug-fix, new-feature, and refactor shapes.
 
 Prepare or verify the reusable local checkouts:
 
@@ -67,6 +74,11 @@ bun evals/runner/suite.ts --harness claude --trials 3 \
 
 # Omit advisory judging during a cheap calibration pass.
 bun evals/runner/suite.ts --trials 1 --no-judge
+
+# Compare raw native goal, workflow only, and workflow plus risk on Codex.
+bun evals/runner/suite.ts \
+  --suite evals/experiments/orchestration/profile-impact-suite.yaml \
+  --harness codex --trials 3
 ```
 
 The suite writes one JSON result per cell, `suite-run.json`, and `report.md`

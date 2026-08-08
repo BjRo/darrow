@@ -162,6 +162,28 @@ export function renderSuiteReport(cells: ReportCell[]): string {
     }
   }
 
+  const phaseCells = cells.filter((cell) =>
+    cell.results.some(
+      (result) => result.meanClassifierDurationMs !== undefined,
+    ),
+  );
+  if (phaseCells.length) {
+    lines.push(
+      "",
+      "## Preflight and native execution phases",
+      "",
+      "Preparation is deterministic host work. Classifier metrics cover only the structured preflight turn; execution metrics exclude classifier usage.",
+      "",
+      "| Harness | Mode | Preparation mean | Classifier mean | Classifier tokens mean | Classifier calls mean | Execution mean | Execution tokens mean |",
+      "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    );
+    for (const cell of phaseCells) {
+      lines.push(
+        `| ${cell.harness} | ${cell.mode} | ${milliseconds(mean(cell.results.map((result) => result.meanPreparationDurationMs).filter((value): value is number => value !== undefined)))} | ${milliseconds(mean(cell.results.map((result) => result.meanClassifierDurationMs).filter((value): value is number => value !== undefined)))} | ${tokens(mean(cell.results.map((result) => result.meanClassifierTokens).filter((value): value is number => value !== undefined)))} | ${mean(cell.results.map((result) => result.meanClassifierModelCalls).filter((value): value is number => value !== undefined))?.toFixed(1) ?? "n/a"} | ${milliseconds(mean(cell.results.map((result) => result.meanExecutionDurationMs).filter((value): value is number => value !== undefined)))} | ${tokens(mean(cell.results.map((result) => result.meanExecutionTokens).filter((value): value is number => value !== undefined)))} |`,
+      );
+    }
+  }
+
   lines.push(
     "",
     "## Judge overhead",

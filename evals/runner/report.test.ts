@@ -101,4 +101,28 @@ describe("orchestration suite report", () => {
     ]);
     expect(markdown).toContain("| claude | native-goal | 100% | 0% |");
   });
+
+  test("reports prepared classifier and native execution phases separately", () => {
+    const markdown = renderSuiteReport([
+      {
+        harness: "codex",
+        mode: "darrow-goal-loop",
+        results: [
+          result({
+            condition: "darrow-goal-loop",
+            meanPreparationDurationMs: 100,
+            meanClassifierDurationMs: 200,
+            meanClassifierTokens: 300,
+            meanClassifierModelCalls: 1,
+            meanExecutionDurationMs: 900,
+            meanExecutionTokens: 120,
+          } as any),
+        ],
+      },
+    ]);
+    expect(markdown).toContain("Preflight and native execution phases");
+    expect(markdown).toContain(
+      "| codex | darrow-goal-loop | 0.1s | 0.2s | 300 | 1.0 | 0.9s | 120 |",
+    );
+  });
 });
