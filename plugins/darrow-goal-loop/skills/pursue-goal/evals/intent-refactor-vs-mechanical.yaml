@@ -1,6 +1,5 @@
 id: goal-preflight-intent-refactor-vs-mechanical
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
-goal_route_policy: candidate
 prompt: >-
   /pursue-goal Rename the private normalizeUser helper to normalizeAccount and
   update its two exact references. On Codex, invoke the $pursue-goal skill.

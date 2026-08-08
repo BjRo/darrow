@@ -123,7 +123,6 @@ export function buildPreparedGoalPrompt(
   intentRoutingGuidance: string,
   stage: GoalDimensionStage = "workflow-risk",
 ): string {
-  const candidatePolicy = /^route\troutine\t/m.test(preparedEvidence);
   const stageInstruction =
     stage === "workflow"
       ? "Select the workflow. For this workflow-only ablation, set risk to routine."
@@ -139,9 +138,7 @@ export function buildPreparedGoalPrompt(
     intentRoutingGuidance,
     "An evaluation_expected_route record is enclosing-harness metadata, not a user override. Select the policy profile whose concrete route matches it; a mismatch must fail rather than be silently attributed to preflight.",
     "Select risk and profile independently: risk reflects the cost of an incorrect result, while routing reflects the kind and scale of reasoning required. Risk alone and a workflow label alone do not determine profile.",
-    candidatePolicy
-      ? "Map ordinary-localized to routine (Luna/high), scaled-coding to scaled (Terra/medium), repo-wide-coding to repo-wide (Terra/high), and judgment to judgment (Sol/high). Use routine-plus (Luna/xhigh) only when the request specifically makes its additional quality worthwhile."
-      : "Under the current baseline, map an exact mechanical transformation with a complete oracle and no substantive reasoning to fast; map ordinary-localized and scaled-coding to standard; and map repo-wide-coding and judgment to deep.",
+    "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "",
     "The goalContract must stay within 4,000 bytes and preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, and route. Finish with this record:",
     "format\tdarrow-native-goal-preflight-v4",
@@ -220,8 +217,6 @@ export function parseCodexGoalHandoff(
     throw new Error(
       `unsupported selected effort for ${route.model}: ${route.effort}`,
     );
-  if (handoff.profile === "fast" && handoff.workflow !== "mechanical")
-    throw new Error("fast profile requires a mechanical workflow");
   if (handoff.routeSource === "policy") {
     const expected = dimensions.routes.get(handoff.profile)!;
     if (
@@ -559,21 +554,8 @@ async function prepareGoalPreflight(
 }> {
   const started = performance.now();
   const helper = join(repoDir, ".agents", "bin", "goal-loop");
-  const policy = process.env.DARROW_EVAL_GOAL_ROUTE_POLICY ?? "current";
-  if (policy !== "current" && policy !== "candidate")
-    throw new Error(`unsupported evaluation goal route policy: ${policy}`);
   const proc = Bun.spawn(
-    [
-      "bash",
-      helper,
-      "prepare",
-      "--repo",
-      repoDir,
-      "--host",
-      "codex",
-      "--policy",
-      policy,
-    ],
+    ["bash", helper, "prepare", "--repo", repoDir, "--host", "codex"],
     { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
   );
   const [stdout, stderr, code] = await Promise.all([

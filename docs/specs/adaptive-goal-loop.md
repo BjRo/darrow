@@ -130,14 +130,13 @@ Risk adds proportional verification without changing the workflow:
 Routing uses stable semantic profiles whose concrete mappings live in one
 bundled configuration:
 
-- `fast` — an exact mechanical transformation with a complete oracle and no
-  substantive diagnosis, design judgment, or ambiguity;
-- `standard` — clear, localized, bounded implementation or diagnosis,
-  including high-risk work whose required behavior and affected boundary are
-  fully specified;
-- `deep` — architectural reasoning, discovery across multiple boundaries, a
-  complex migration, or material implementation ambiguity that is nevertheless
-  approved to proceed.
+- `routine` — ordinary localized coding, including exact mechanical work and
+  clear high-risk changes;
+- `routine-plus` — ordinary localized coding where its additional quality is
+  specifically worthwhile;
+- `scaled` — larger straightforward work across several files or components;
+- `repo-wide` — straightforward repository-wide change;
+- `judgment` — hard diagnosis, architecture, planning, or review.
 
 Risk and profile are independent selections. Risk represents the cost of an
 incorrect result and adds verification gates; routing represents the kind and
@@ -148,23 +147,24 @@ verification with a routine coding route, while a difficult
 behavior-preserving refactor can use `routine` verification with a judgment
 route.
 
-The active `fast`, `standard`, and `deep` mappings remain the comparison
-baseline until a replacement has comparative evidence. The bundled
-`candidate` GPT-5.6 policy is an explicit calibration surface, not a promoted
-default:
+The single bundled policy maps these profiles to host-specific routes:
 
-| Candidate profile | Intended work                                                        | Codex route                |
-| ----------------- | -------------------------------------------------------------------- | -------------------------- |
-| `routine`         | ordinary localized coding                                            | `gpt-5.6-luna` / `high`    |
-| `routine-plus`    | localized coding where additional quality is specifically worthwhile | `gpt-5.6-luna` / `xhigh`   |
-| `scaled`          | larger straightforward multi-file work                               | `gpt-5.6-terra` / `medium` |
-| `repo-wide`       | straightforward repository-wide work                                 | `gpt-5.6-terra` / `high`   |
-| `judgment`        | hard diagnosis, architecture, planning, or review                    | `gpt-5.6-sol` / `high`     |
+| Profile        | Codex route                | Claude route                 |
+| -------------- | -------------------------- | ---------------------------- |
+| `routine`      | `gpt-5.6-luna` / `high`    | `claude-haiku-4-5` / `low`   |
+| `routine-plus` | `gpt-5.6-luna` / `xhigh`   | `claude-sonnet-5` / `medium` |
+| `scaled`       | `gpt-5.6-terra` / `medium` | `claude-sonnet-5` / `medium` |
+| `repo-wide`    | `gpt-5.6-terra` / `high`   | `claude-opus-5` / `high`     |
+| `judgment`     | `gpt-5.6-sol` / `high`     | `claude-opus-5` / `high`     |
 
-The model-specific chart motivates these operating points but does not prove
-their quality, latency, or cost on Darrow tasks. Evaluation MUST compare the
-candidate policy against the active routes and raw native goal mode before a
-default mapping changes.
+The GPT-5.6 mappings were promoted after an exploratory N=1 calibration in
+which every task contract passed and reconstructed list-price cost was about
+72% below raw Sol controls. That result is a product-routing decision under
+explicitly accepted uncertainty, not proof of a stable quality or performance
+ranking. Continued multi-trial evaluation remains required before claiming a
+general advantage. The Claude mappings preserve the plugin's prior model tiers
+under the shared task-oriented vocabulary; they have not received equivalent
+comparative calibration.
 
 An explicit user model or effort overrides policy. An unavailable user-pinned
 route stops instead of silently substituting another route. A policy-selected
@@ -254,11 +254,10 @@ the least launch machinery the host supports.
 ### Routing invariants
 
 1. **AGL-R1 — Reasoning-based route.** A route is selected from the kind and
-   scale of reasoning required, independently of verification risk. Under the
-   active baseline, `fast` requires an exact mechanical transformation with a
-   complete oracle, clear bounded work uses `standard`, and hard judgment uses
-   `deep`. An explicitly selected candidate policy uses its task-oriented
-   profiles instead. Risk alone does not determine either policy's profile.
+   scale of reasoning required, independently of verification risk. Ordinary
+   localized work uses `routine` or explicitly justified `routine-plus`, larger
+   straightforward work uses `scaled` or `repo-wide`, and hard diagnosis or
+   design judgment uses `judgment`. Risk alone does not determine profile.
 2. **AGL-R2 — Selected route.** The selected harness, provider, model, effort,
    and any fallback are visible before activation and remain distinct from the
    effective route.
@@ -368,8 +367,10 @@ without making a paid model call or changing setup.
    harness-observed application records and include reconciled nested usage in
    token totals. Internal native continuation turns are not Darrow child
    invocations.
-5. Use at least three trials per decision-bearing cell. A one-trial calibration
-   may detect gross regressions but cannot promote a default.
+5. Use at least three trials per evidence-bearing default decision. An explicit
+   product decision MAY accept N=1 uncertainty to simplify or change policy,
+   but its rationale, limitations, and follow-up calibration requirement MUST
+   be recorded without presenting the result as empirically established.
 6. Include dissimilar task shapes and at least one case for each launch stop:
    missing product intent, unavailable pinned route, and unsafe publication.
 7. Repository information architecture MUST be identical across comparison

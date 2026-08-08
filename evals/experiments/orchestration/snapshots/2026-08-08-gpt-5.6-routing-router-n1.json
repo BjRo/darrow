@@ -1,11 +1,21 @@
 {
   "format": "darrow-routing-calibration-v1",
   "date": "2026-08-08",
-  "status": "exploratory-n1-not-decision-bearing",
+  "status": "exploratory-n1-product-decision-recorded",
   "hypothesis": "GPT-5.6 chart operating points may improve task-oriented routing while workflow and consequence risk remain independent",
-  "defaultsPromoted": false,
+  "defaultsPromoted": true,
   "activePolicy": "plugins/darrow-goal-loop/config/routes.tsv",
-  "candidatePolicy": "plugins/darrow-goal-loop/config/routes.gpt-5.6-candidate.tsv",
+  "evaluatedCandidatePolicy": "historical task-oriented policy embedded in the recorded runner patch",
+  "promotion": {
+    "decision": "promote task-oriented profiles into the single canonical policy",
+    "basis": [
+      "all three task contracts passed",
+      "estimated list-price cost was about 72 percent below raw Sol controls",
+      "one policy vocabulary is preferred over active and candidate branches"
+    ],
+    "acceptedUncertainty": "N=1 does not establish a stable quality or performance ranking",
+    "followUp": "replicate task-oriented routes at N>=3 against matching raw-native controls"
+  },
   "pricingAssumption": {
     "source": "user-provided GPT-5.6 price chart",
     "unit": "USD per million tokens",
@@ -229,5 +239,5 @@
     "Commander active route is standard Sol/medium, not deep Sol/high",
     "The ambiguous-pair migration fixture is elevated risk but routine coding and does not imply scaled routing"
   ],
-  "conclusion": "Do not promote candidate defaults from N=1; the candidate is estimated to reduce list-price cost by about 72% without an observed task-pass loss, so replicate Terra/medium at N>=3 and broaden Luna/high localized-task calibration"
+  "conclusion": "Task-oriented profiles are promoted into one canonical policy by explicit product decision; preserve the N=1 limitations and continue N>=3 route calibration"
 }

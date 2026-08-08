@@ -16,18 +16,8 @@ const catalog = [
 
 const prepared = [
   "format\tdarrow-native-goal-prepared-v1",
-  "route\tstandard\tcodex\topenai\tgpt-5.6-sol\tmedium",
-  "route\tdeep\tcodex\topenai\tgpt-5.6-sol\thigh",
-  "workflow\tchange-feature\t/plugin/references/workflows/change-feature.md",
-  "workflow\tmechanical\t/plugin/references/workflows/mechanical.md",
-  "risk\troutine\tfocused acceptance and scoped gate",
-  "risk\thigh\tcounterexample and adversarial boundary",
-].join("\n");
-const dimensions = parsePreparedGoalDimensions(prepared);
-
-const candidatePrepared = [
-  "format\tdarrow-native-goal-prepared-v1",
   "route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh",
+  "route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\txhigh",
   "route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium",
   "route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh",
   "route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh",
@@ -37,14 +27,14 @@ const candidatePrepared = [
   "risk\televated\tcompatibility and counterexample",
   "risk\thigh\tcounterexample and adversarial boundary",
 ].join("\n");
-const candidateDimensions = parsePreparedGoalDimensions(candidatePrepared);
+const dimensions = parsePreparedGoalDimensions(prepared);
 
 function handoffValue() {
   return {
     format: "darrow-native-goal-handoff-v3",
     workflow: "change-feature",
     risk: "high",
-    profile: "deep",
+    profile: "judgment",
     routeSource: "policy",
     selectedRoute: {
       harness: "codex",
@@ -57,7 +47,7 @@ function handoffValue() {
       "format\tdarrow-native-goal-preflight-v4",
       "workflow\tchange-feature",
       "risk\thigh",
-      "profile\tdeep",
+      "profile\tjudgment",
       "selected_route\tcodex\topenai\tgpt-5.6-sol\thigh",
       "effective_route\tcodex\topenai\tgpt-5.6-sol\thigh",
       "route_applied_by\thost-api",
@@ -172,11 +162,11 @@ after`);
     value.selectedRoute.model = "gpt-5.6-luna";
     value.selectedRoute.effort = "high";
     value.goalContract = value.goalContract
-      .replace("profile\tdeep", "profile\troutine")
+      .replace("profile\tjudgment", "profile\troutine")
       .replaceAll("gpt-5.6-sol\thigh", "gpt-5.6-luna\thigh");
 
     expect(
-      parseCodexGoalHandoff(JSON.stringify(value), catalog, candidateDimensions)
+      parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions)
         .selectedRoute,
     ).toEqual({
       harness: "codex",
@@ -186,7 +176,7 @@ after`);
     });
   });
 
-  test("uses the prepared task-oriented route mapping as policy", () => {
+  test("uses the canonical task-oriented route mapping as policy", () => {
     const routes = [
       ["scaled", "gpt-5.6-terra", "medium"],
       ["repo-wide", "gpt-5.6-terra", "high"],
@@ -202,15 +192,12 @@ after`);
       value.goalContract = value.goalContract
         .replace("risk\thigh", "risk\troutine")
         .replace("verification_gate\thigh", "verification_gate\troutine")
-        .replace("profile\tdeep", `profile\t${profile}`)
+        .replace("profile\tjudgment", `profile\t${profile}`)
         .replaceAll("gpt-5.6-sol\thigh", `${model}\t${effort}`);
 
       expect(
-        parseCodexGoalHandoff(
-          JSON.stringify(value),
-          catalog,
-          candidateDimensions,
-        ).selectedRoute,
+        parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions)
+          .selectedRoute,
       ).toEqual({ harness: "codex", provider: "openai", model, effort });
     }
   });
@@ -219,16 +206,12 @@ after`);
     const value = handoffValue();
     value.profile = "routine";
     value.goalContract = value.goalContract.replace(
-      "profile\tdeep",
+      "profile\tjudgment",
       "profile\troutine",
     );
 
     expect(() =>
-      parseCodexGoalHandoff(
-        JSON.stringify(value),
-        catalog,
-        candidateDimensions,
-      ),
+      parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions),
     ).toThrow("does not match routine policy");
   });
 });

@@ -1,6 +1,5 @@
 id: goal-preflight-high-risk-routine
 invariant: AGL-P1,AGL-P4,AGL-P7,AGL-R1,AGL-L1,AGL-L2,AGL-S3
-goal_route_policy: candidate
 prompt: >-
   /pursue-goal Change the exported sessionCookieOptions in auth-config.js so
   sameSite is exactly "strict" instead of "lax". On Codex, invoke the

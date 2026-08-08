@@ -20,7 +20,7 @@ output_checks:
     expect_regex: "(same.thread|host.api|nested)"
     flags: i
   - name: semantic profiles are reported
-    expect_regex: "(fast|standard|deep)"
+    expect_regex: "(routine|routine-plus|scaled|repo-wide|judgment)"
     flags: i
   - name: remediation is actionable
     expect_regex: "(install|authenticate|configure|ready|no remediation)"

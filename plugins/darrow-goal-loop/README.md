@@ -15,7 +15,8 @@ agent supervisor, workflow runtime, or publication capability.
 ### `pursue-goal`
 
 Performs a read-only prepared preflight, compiles a concise completion contract,
-selects one of the `fast`, `standard`, or `deep` profiles plus one bundled task
+selects one of the `routine`, `routine-plus`, `scaled`, `repo-wide`, or
+`judgment` profiles plus one bundled task
 workflow and risk gate, and activates exactly one native goal. Selection,
 workflow loading, and route application are separate: completion succeeds only
 when host or launcher evidence proves the selected workflow was supplied and
@@ -42,8 +43,7 @@ Example: _“Check native-goal readiness for Codex.”_
 ### `bin/goal-loop`
 
 A small portable Bash helper prepares repository state, instruction routes,
-active semantic profiles from `config/routes.tsv`, the explicitly experimental
-GPT-5.6 policy from `config/routes.gpt-5.6-candidate.tsv`, workflow playbooks from
+semantic profiles from the single `config/routes.tsv`, workflow playbooks from
 `skills/pursue-goal/references/workflows/`, plus risk gates from
 `config/risks.tsv`; rejects selected/effective route mismatches; diagnoses
 launch boundaries; and provides an injection-safe nested compatibility

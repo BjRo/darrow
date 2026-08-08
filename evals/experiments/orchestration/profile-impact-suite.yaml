@@ -10,19 +10,19 @@ case_routes:
       model: gpt-5.6-sol
       effort: high
     orchestration-oss-express-links:
-      model: gpt-5.6-sol
-      effort: medium
+      model: gpt-5.6-luna
+      effort: high
     orchestration-oss-go-git-insteadof:
       model: gpt-5.6-sol
       effort: high
     orchestration-oss-requests-proxy:
       model: gpt-5.6-sol
-      effort: medium
-    orchestration-oss-commander-env:
-      model: gpt-5.6-sol
       effort: high
+    orchestration-oss-commander-env:
+      model: gpt-5.6-terra
+      effort: medium
     orchestration-oss-cobra-lifecycle:
-      model: gpt-5.6-sol
+      model: gpt-5.6-terra
       effort: medium
 modes:
   native-goal:

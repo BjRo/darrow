@@ -1,6 +1,5 @@
 id: goal-preflight-intent-change-vs-migration
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
-goal_route_policy: candidate
 prompt: >-
   /pursue-goal Migrate the persisted service configuration from v1 `{url}` to
   v2 `{endpoint}`. On Codex, invoke the $pursue-goal skill. The writer must emit

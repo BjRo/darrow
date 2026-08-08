@@ -1,6 +1,5 @@
 id: goal-preflight-intent-bug-vs-change
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
-goal_route_policy: candidate
 prompt: >-
   /pursue-goal Apply the approved change to discount.js: discount cents must
   now be rounded to the nearest integer instead of truncated. On Codex, invoke

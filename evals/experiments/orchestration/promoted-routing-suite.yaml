@@ -1,5 +1,5 @@
 version: 1
-experiment: orchestration-gpt-5.6-routing-hypothesis
+experiment: orchestration-promoted-routing
 case_filter:
   - orchestration-oss-express-links
   - orchestration-oss-commander-env
@@ -7,35 +7,16 @@ case_filter:
 case_routes:
   codex:
     orchestration-oss-express-links:
-      model: gpt-5.6-sol
-      effort: medium
+      model: gpt-5.6-luna
+      effort: high
     orchestration-oss-commander-env:
-      model: gpt-5.6-sol
+      model: gpt-5.6-terra
       effort: medium
     orchestration-oss-cobra-lifecycle:
-      model: gpt-5.6-sol
+      model: gpt-5.6-terra
       effort: medium
 goal_expectations:
-  current:
-    orchestration-oss-express-links:
-      model: gpt-5.6-sol
-      effort: medium
-      profile: standard
-      workflow: fix-bug
-      risk: high
-    orchestration-oss-commander-env:
-      model: gpt-5.6-sol
-      effort: medium
-      profile: standard
-      workflow: implement-feature
-      risk: elevated
-    orchestration-oss-cobra-lifecycle:
-      model: gpt-5.6-sol
-      effort: medium
-      profile: standard
-      workflow: refactor
-      risk: routine
-  candidate:
+  promoted:
     orchestration-oss-express-links:
       model: gpt-5.6-luna
       effort: high
@@ -55,28 +36,17 @@ goal_expectations:
       workflow: refactor
       risk: routine
 modes:
-  native-current-route:
+  native-promoted-route:
     condition_by_harness:
       codex: conditions/native-goal-codex.md
     require_evaluation_records: true
     apply_case_routes: true
-  darrow-current-route:
+  darrow-promoted-route:
     condition_by_harness:
       codex: conditions/darrow-goal-loop-codex.md
     skill_dir: ../../../plugins/darrow-goal-loop/skills/pursue-goal
     mount_plugin_skills: true
     require_evaluation_records: true
     apply_goal_route: true
-    goal_route_policy: current
-    goal_expectations: current
-    effort: low
-  darrow-candidate-route:
-    condition_by_harness:
-      codex: conditions/darrow-goal-loop-codex.md
-    skill_dir: ../../../plugins/darrow-goal-loop/skills/pursue-goal
-    mount_plugin_skills: true
-    require_evaluation_records: true
-    apply_goal_route: true
-    goal_route_policy: candidate
-    goal_expectations: candidate
+    goal_expectations: promoted
     effort: low

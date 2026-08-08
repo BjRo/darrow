@@ -1,7 +1,0 @@
-# Experimental GPT-5.6 routing hypothesis. Do not promote to routes.tsv without comparative evidence.
-# host<TAB>profile<TAB>harness<TAB>provider<TAB>model<TAB>effort<TAB>fallback-model<TAB>fallback-effort
-codex	routine	codex	openai	gpt-5.6-luna	high	none	none
-codex	routine-plus	codex	openai	gpt-5.6-luna	xhigh	none	none
-codex	scaled	codex	openai	gpt-5.6-terra	medium	none	none
-codex	repo-wide	codex	openai	gpt-5.6-terra	high	none	none
-codex	judgment	codex	openai	gpt-5.6-sol	high	none	none

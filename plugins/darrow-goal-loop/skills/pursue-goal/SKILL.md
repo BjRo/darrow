@@ -119,22 +119,23 @@ Apply its proportional risk gate:
 | `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
 
 Choose risk and profile independently. Risk reflects the cost of an incorrect
-result and changes verification; profile reflects the reasoning difficulty of
-reaching the result and changes the model route. Do not raise the profile only
+result and changes verification; profile reflects the kind and scale of
+reasoning needed and changes the model route. Do not raise the profile only
 because risk is `high`, and do not lower risk because implementation is simple:
 
-- `fast` only for an exact `mechanical` transformation with a complete oracle
-  and no substantive diagnosis, design judgment, or ambiguity;
-- `standard` for clear, localized, bounded work, including high-risk work whose
-  required behavior and affected boundary are fully specified;
-- `deep` for work requiring architectural reasoning, discovery across multiple
-  boundaries, a complex migration, or resolution of material implementation
-  ambiguity that is nevertheless approved.
+- `routine` for `ordinary-localized`, including exact mechanical work and clear
+  high-risk changes;
+- `routine-plus` only when ordinary localized work specifically warrants its
+  additional quality;
+- `scaled` for `scaled-coding`;
+- `repo-wide` for `repo-wide-coding`;
+- `judgment` for `judgment` work.
 
 An explicit user model or effort wins. Resolve the concrete route:
 
 ```sh
-bash "$goal_loop" route --host <codex|claude> --profile <fast|standard|deep> \
+bash "$goal_loop" route --host <codex|claude> \
+  --profile <routine|routine-plus|scaled|repo-wide|judgment> \
   [--route 'harness|provider|model|effort']
 ```
 
@@ -152,7 +153,7 @@ applicable final-tree checks, and this exact final record:
 format\tdarrow-native-goal-preflight-v4
 workflow\t<workflow>
 risk\t<routine|elevated|high>
-profile\t<fast|standard|deep>
+profile\t<routine|routine-plus|scaled|repo-wide|judgment>
 selected_route\t<harness>\t<provider>\t<model>\t<effort>
 effective_route\t<harness>\t<provider>\t<model>\t<effort>
 route_applied_by\t<current-thread|host-api|nested-session|none>
@@ -177,7 +178,7 @@ Return exactly one object and stop that turn:
   "format": "darrow-native-goal-handoff-v3",
   "workflow": "<workflow>",
   "risk": "<routine|elevated|high>",
-  "profile": "<fast|standard|deep>",
+  "profile": "<routine|routine-plus|scaled|repo-wide|judgment>",
   "routeSource": "<policy|user>",
   "selectedRoute": {
     "harness": "<harness>",

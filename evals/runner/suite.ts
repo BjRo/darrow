@@ -13,7 +13,6 @@ interface ModeConfig {
   apply_expected_goal_routes?: boolean;
   apply_case_routes?: boolean;
   effort?: string;
-  goal_route_policy?: "current" | "candidate";
   goal_expectations?: string;
 }
 
@@ -215,9 +214,6 @@ for (const { harness, modeName } of cellPlan) {
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
   if (mode.apply_goal_route) args.push("--apply-goal-route");
-  if (mode.goal_route_policy) {
-    args.push("--goal-route-policy", mode.goal_route_policy);
-  }
   if (mode.apply_expected_goal_routes) {
     const routes = suite.case_routes?.[harness];
     if (!routes)

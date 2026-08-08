@@ -3,8 +3,8 @@ invariant: AGL-P1,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-S3
 prompt: >-
   /pursue-goal Alphabetize the three entries in NOTES.md. On Codex, invoke the
   $pursue-goal skill. Acceptance is exact alphabetical order under the existing
-  heading, covered completely by bash check.sh. Select and apply the `fast`
-  policy profile. Keep the result local.
+  heading, covered completely by bash check.sh. Select and apply the policy
+  route. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -29,11 +29,11 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: mechanical fast route is selected
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\tmechanical[\\s\\S]*risk\\troutine[\\s\\S]*profile\\tfast[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tlow"
+  - name: mechanical routine route is selected
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\tmechanical[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh"
   - name: selected route is effective
-    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tlow[\\s\\S]*route_verified\\ttrue"
-  - name: matching fast route uses a zero-child host boundary
+    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"
+  - name: matching routine route uses a zero-child host boundary
     expect_regex: "launch_boundary\\t(?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations\\t0"
   - name: final record reports no human stop
     expect_regex: "evaluation_human_interruptions\\t0"

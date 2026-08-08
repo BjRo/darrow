@@ -80,9 +80,9 @@ bun evals/runner/suite.ts \
   --suite evals/experiments/orchestration/profile-impact-suite.yaml \
   --harness codex --trials 3
 
-# Calibrate the GPT-5.6 candidate routes against active routes and raw native.
+# Compare the promoted routes against raw native on matching models.
 bun evals/runner/suite.ts \
-  --suite evals/experiments/orchestration/routing-hypothesis-suite.yaml \
+  --suite evals/experiments/orchestration/promoted-routing-suite.yaml \
   --harness codex --trials 1 --no-judge
 ```
 
@@ -107,10 +107,10 @@ with its [machine-readable snapshot](snapshots/2026-08-07-native-preflight-codex
 compares the redesign against that historical record.
 The [GPT-5.6 routing calibration](snapshots/2026-08-08-gpt-5.6-routing-router-n1.md),
 with its [machine-readable snapshot](snapshots/2026-08-08-gpt-5.6-routing-router-n1.json),
-compares the active and candidate route policies after strengthening the parent
-skill as the canonical intent router. The candidate mappings remain isolated in
-`plugins/darrow-goal-loop/config/routes.gpt-5.6-candidate.tsv`; this N=1 record
-does not promote them.
+records the active-versus-candidate evidence that preceded promotion. The
+task-oriented mappings now live in the single canonical
+`plugins/darrow-goal-loop/config/routes.tsv` policy; the snapshot retains the
+historical comparison and subsequent promotion rationale.
 
 ## What is measured
 

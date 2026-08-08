@@ -177,18 +177,12 @@ async function runCase(
         });
         continue;
       }
-      const previousGoalRoutePolicy = process.env.DARROW_EVAL_GOAL_ROUTE_POLICY;
-      if (evalCase.goal_route_policy)
-        process.env.DARROW_EVAL_GOAL_ROUTE_POLICY = evalCase.goal_route_policy;
-      let harness: HarnessResult;
-      try {
-        harness = await adapter.run(repoDir, prompt, model, effort);
-      } finally {
-        if (previousGoalRoutePolicy === undefined)
-          delete process.env.DARROW_EVAL_GOAL_ROUTE_POLICY;
-        else
-          process.env.DARROW_EVAL_GOAL_ROUTE_POLICY = previousGoalRoutePolicy;
-      }
+      const harness: HarnessResult = await adapter.run(
+        repoDir,
+        prompt,
+        model,
+        effort,
+      );
       const observedGoalRouteApplication =
         adapter.name === "codex"
           ? observeCodexGoalRouteApplication(harness.resultText, harness.raw)
@@ -546,7 +540,6 @@ const { values } = parseArgs({
     "expected-goal-routes": { type: "string" },
     "assert-goal-routes": { type: "string" },
     "assert-goal-dimensions": { type: "string" },
-    "goal-route-policy": { type: "string", default: "current" },
     output: { type: "string" },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
@@ -566,11 +559,6 @@ if (values["apply-goal-route"] && values.harness !== "codex") {
   process.exit(1);
 }
 const adapter = values["apply-goal-route"] ? codexGoalAdapter : baseAdapter;
-if (!["current", "candidate"].includes(values["goal-route-policy"]!)) {
-  console.error("--goal-route-policy must be current or candidate");
-  process.exit(2);
-}
-process.env.DARROW_EVAL_GOAL_ROUTE_POLICY = values["goal-route-policy"]!;
 const judgeAdapter = values["judge-harness"]
   ? ADAPTERS[values["judge-harness"]]
   : undefined;

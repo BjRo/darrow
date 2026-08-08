@@ -23,6 +23,9 @@ contains() {
   esac
 }
 
+test ! -e "$script_dir/../config/routes.gpt-5.6-candidate.tsv" ||
+  fail "candidate route configuration still exists"
+
 repo="$tmp_root/repo"
 mkdir -p "$repo"
 git -C "$repo" init -q
@@ -45,7 +48,11 @@ out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
 contains "$out" $'format\tdarrow-native-goal-prepared-v1'
 repo_abs=$(CDPATH= cd -- "$repo" && pwd)
 contains "$out" $'instruction\t'"$repo_abs/AGENTS.md"
-contains "$out" $'route\tstandard\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh'
+contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\txhigh'
+contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh'
+contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh'
 contains "$out" $'workflow\tfix-bug\t'
 contains "$out" $'workflow\timplement-feature\t'
 contains "$out" $'workflow\tchange-feature\t'
@@ -58,26 +65,26 @@ contains "$out" $'risk\troutine\t'
 contains "$out" $'risk\televated\t'
 contains "$out" $'risk\thigh\t'
 
-out=$(bash "$goal_loop" prepare --repo "$repo" --host codex --policy candidate)
-contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh'
-contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\txhigh'
-contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium'
-contains "$out" $'route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh'
-contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh'
+out=$(bash "$goal_loop" prepare --repo "$repo" --host claude)
+contains "$out" $'route\troutine\tclaude\tanthropic\tclaude-haiku-4-5\tlow'
+contains "$out" $'route\troutine-plus\tclaude\tanthropic\tclaude-sonnet-5\tmedium'
+contains "$out" $'route\tscaled\tclaude\tanthropic\tclaude-sonnet-5\tmedium'
+contains "$out" $'route\trepo-wide\tclaude\tanthropic\tclaude-opus-5\thigh'
+contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 
-out=$(bash "$goal_loop" route --host codex --policy candidate --profile routine)
+out=$(bash "$goal_loop" route --host codex --profile routine)
 contains "$out" $'profile\troutine'
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\thigh'
 
 if bash "$goal_loop" prepare --repo "$repo" --host codex \
-  --policy future >/dev/null 2>&1; then
-  fail "invalid route policy was accepted"
+  --policy candidate >/dev/null 2>&1; then
+  fail "removed route policy switch was accepted"
 fi
 
-out=$(bash "$goal_loop" route --host codex --profile standard)
+out=$(bash "$goal_loop" route --host codex --profile scaled)
 contains "$out" $'format\tdarrow-native-goal-route-v2'
-contains "$out" $'profile\tstandard'
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'profile\tscaled'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route_source\tpolicy'
 
 out=$(bash "$goal_loop" confirm-route \
@@ -96,7 +103,7 @@ if bash "$goal_loop" confirm-route \
   fail "mismatched selected and effective routes were accepted"
 fi
 
-out=$(bash "$goal_loop" route --host claude --profile deep \
+out=$(bash "$goal_loop" route --host claude --profile judgment \
   --route 'claude|anthropic|claude-test|high')
 contains "$out" $'selected_route\tclaude\tanthropic\tclaude-test\thigh'
 contains "$out" $'route_source\tuser'
@@ -104,7 +111,7 @@ contains "$out" $'route_source\tuser'
 if bash "$goal_loop" route --host codex --profile tiny >/dev/null 2>&1; then
   fail "invalid profile was accepted"
 fi
-if bash "$goal_loop" route --host codex --profile fast \
+if bash "$goal_loop" route --host codex --profile routine \
   --route 'claude|anthropic|wrong|low' >/dev/null 2>&1; then
   fail "foreign explicit route was accepted"
 fi
@@ -139,7 +146,7 @@ out=$(PATH="$fake_bin:$PATH" bash "$goal_loop" readiness --host codex)
 contains "$out" $'capability\tsame_thread_goal\tcontroller_must_confirm'
 contains "$out" $'capability\thost_api\tinstalled_unbound\tcodex app-server'
 contains "$out" $'capability\tnested_session\tinstalled_unverified'
-contains "$out" $'route\tfast\tcodex\topenai\tgpt-5.6-terra\tlow'
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh'
 
 goal_file="$tmp_root/goal.txt"
 printf 'Implement the bounded change and run the focused test.\n' >"$goal_file"

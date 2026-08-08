@@ -22,9 +22,9 @@ bash "$goal_loop" readiness --host <codex|claude>
 Keep the diagnostic read-only. Do not install tools, authenticate, modify
 configuration, expose credential values, or launch a model.
 
-**Complete when:** all bundled `fast`, `standard`, and `deep` mappings plus the
-static host API and nested-session evidence have been collected—or the exact
-configuration failure is known.
+**Complete when:** all bundled `routine`, `routine-plus`, `scaled`, `repo-wide`,
+and `judgment` mappings plus the static host API and nested-session evidence
+have been collected—or the exact configuration failure is known.
 
 ## 2. Reconcile current-host capabilities
 

@@ -1,6 +1,5 @@
 id: goal-preflight-routing-difficult-routine-diagnosis
 invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
-goal_route_policy: candidate
 prompt: >-
   /pursue-goal Diagnose and fix summarizeSegments intermittently double-counting
   the final segment when input ends with a delimiter. On Codex, invoke the
