@@ -259,10 +259,10 @@ export function observeCodexGoalRouteApplication(
   const selected = parseGoalRoute(resultText, "selected_route");
   const effective = parseGoalRoute(resultText, "effective_route");
   const appliedBy = resultText.match(
-    /^route_applied_by\t(current-thread|host-api|nested-session)$/m,
+    /^route_applied_by\t(current-thread|host-api|native-subagent|nested-session)$/m,
   )?.[1] as GoalRouteApplication["appliedBy"] | undefined;
   const launchBoundary = resultText.match(
-    /^launch_boundary\t(same_thread|host_api|nested_session)$/m,
+    /^launch_boundary\t(same_thread|host_api|native_subagent|nested_session)$/m,
   )?.[1] as GoalRouteApplication["launchBoundary"] | undefined;
   const declaredChildren = Number(
     resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
@@ -404,7 +404,9 @@ export function reconcileObservedGoalRouteApplication(
           effectiveMatchesCurrentTurn
         : observed?.launchBoundary === "host_api"
           ? observed.appliedBy === "host-api" && declaredChildren === 0
-          : false;
+          : observed?.launchBoundary === "native_subagent"
+            ? observed.appliedBy === "native-subagent" && declaredChildren === 1
+            : false;
   const passed = verified && workflowVerified && routesMatch && boundaryMatches;
   return {
     name: "harness-observed goal route matches selected model and effort",

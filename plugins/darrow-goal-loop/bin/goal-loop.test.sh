@@ -54,8 +54,8 @@ out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
 contains "$out" $'format\tdarrow-native-goal-prepared-v1'
 repo_abs=$(CDPATH= cd -- "$repo" && pwd)
 contains "$out" $'instruction\t'"$repo_abs/AGENTS.md"
-contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\thigh'
-contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\txhigh'
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-terra\thigh'
 contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh'
 contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh'
@@ -80,7 +80,7 @@ contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 
 out=$(bash "$goal_loop" route --host codex --profile routine)
 contains "$out" $'profile\troutine'
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\thigh'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 
 parser="$script_dir/routes-json.awk"
 reordered_routes="$tmp_root/reordered-routes.json"
@@ -88,8 +88,8 @@ cat >"$reordered_routes" <<'EOF'
 {
   "routes": [
     {
-      "effort": "high",
-      "model": "gpt-5.6-luna",
+      "effort": "medium",
+      "model": "gpt-5.6-terra",
       "provider": "openai",
       "harness": "codex",
       "profile": "routine",
@@ -101,7 +101,7 @@ cat >"$reordered_routes" <<'EOF'
 }
 EOF
 out=$(awk -f "$parser" "$reordered_routes")
-contains "$out" $'codex\troutine\tcodex\topenai\tgpt-5.6-luna\thigh\tnone\tnone'
+contains "$out" $'codex\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium\tnone\tnone'
 
 invalid_routes="$tmp_root/invalid-routes.json"
 printf '{"routes":[{"host":"codex"}]}' >"$invalid_routes"
@@ -149,6 +149,13 @@ out=$(bash "$goal_loop" confirm-route \
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
 contains "$out" $'effective_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
 contains "$out" $'route_applied_by\tcurrent-thread'
+contains "$out" $'route_verified\ttrue'
+
+out=$(bash "$goal_loop" confirm-route \
+  --selected 'codex|openai|gpt-5.6-sol|high' \
+  --effective 'codex|openai|gpt-5.6-sol|high' \
+  --applied-by native-subagent)
+contains "$out" $'route_applied_by\tnative-subagent'
 contains "$out" $'route_verified\ttrue'
 
 if bash "$goal_loop" confirm-route \
@@ -200,9 +207,18 @@ chmod +x "$fake_bin/codex" "$fake_bin/claude"
 goal_file="$tmp_root/goal.txt"
 printf 'Implement the bounded change and run the focused test.\n' >"$goal_file"
 codex_args="$tmp_root/codex-args.txt"
+if launch_error=$(FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host codex --repo "$repo" \
+  --goal-file "$goal_file" --provider openai --model codex-test --effort medium 2>&1); then
+  fail "nested Codex launch did not require explicit opt-in"
+fi
+contains "$launch_error" 'launch requires explicit --allow-nested'
+test ! -e "$codex_args" || fail "refused nested launch still invoked Codex"
+
 out=$(FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
   bash "$goal_loop" launch --host codex --repo "$repo" \
-  --goal-file "$goal_file" --provider openai --model codex-test --effort medium)
+  --goal-file "$goal_file" --provider openai --model codex-test --effort medium \
+  --allow-nested)
 contains "$out" $'format\tdarrow-native-goal-route-application-v1'
 contains "$out" $'selected_route\tcodex\topenai\tcodex-test\tmedium'
 contains "$out" $'effective_route\tcodex\topenai\tcodex-test\tmedium'
@@ -218,12 +234,14 @@ contains "$args" '--sandbox workspace-write'
 
 out=$(DARROW_GOAL_LOOP_EXTERNAL_SANDBOX=1 FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
   bash "$goal_loop" launch --host codex --repo "$repo" \
-  --goal-file "$goal_file" --provider openai --model codex-test --effort medium)
+  --goal-file "$goal_file" --provider openai --model codex-test --effort medium \
+  --allow-nested)
 args=$(cat "$codex_args")
 contains "$args" '--dangerously-bypass-approvals-and-sandbox'
 
 out=$(PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host claude --repo "$repo" \
-  --goal-file "$goal_file" --provider anthropic --model claude-test --effort high)
+  --goal-file "$goal_file" --provider anthropic --model claude-test --effort high \
+  --allow-nested)
 contains "$out" 'claude-call'
 contains "$out" '/goal Implement the bounded change'
 contains "$out" '--model claude-test --effort high'
@@ -231,7 +249,8 @@ contains "$out" '--model claude-test --effort high'
 large_goal="$tmp_root/large.txt"
 dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' x >"$large_goal"
 if PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host codex --repo "$repo" \
-  --goal-file "$large_goal" --provider openai --model codex-test --effort medium >/dev/null 2>&1; then
+  --goal-file "$large_goal" --provider openai --model codex-test --effort medium \
+  --allow-nested >/dev/null 2>&1; then
   fail "oversized goal was accepted"
 fi
 

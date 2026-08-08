@@ -139,8 +139,10 @@ export interface GoalRouteApplication {
   verificationGate?: "routine" | "elevated" | "high";
   selected: GoalRoute;
   effective: GoalRoute;
-  appliedBy: "current-thread" | "host-api" | "nested-session";
-  launchBoundary: "same_thread" | "host_api" | "nested_session";
+  appliedBy:
+    "current-thread" | "host-api" | "native-subagent" | "nested-session";
+  launchBoundary:
+    "same_thread" | "host_api" | "native_subagent" | "nested_session";
   childInvocationCount: number;
   childInputTokens: number;
   childOutputTokens: number;

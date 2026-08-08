@@ -156,9 +156,9 @@ risk\t<routine|elevated|high>
 profile\t<routine|routine-plus|scaled|repo-wide|judgment>
 selected_route\t<harness>\t<provider>\t<model>\t<effort>
 effective_route\t<harness>\t<provider>\t<model>\t<effort>
-route_applied_by\t<current-thread|host-api|nested-session|none>
+route_applied_by\t<current-thread|host-api|native-subagent|nested-session|none>
 route_verified\t<true|false>
-launch_boundary\t<same_thread|host_api|nested_session|launch_required>
+launch_boundary\t<same_thread|host_api|native_subagent|nested_session|launch_required>
 verification_gate\t<routine|elevated|high|not-applicable>
 evaluation_child_invocations\t<integer>
 evaluation_human_interruptions\t<integer>
@@ -203,9 +203,12 @@ For an interactive invocation, read exactly one host launch guide completely:
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
 
 Prefer the current thread only when host metadata proves its effective route
-matches the selected route. Otherwise use a supported host API, then at most
-one supported nested compatibility session. If no boundary can apply the
-route, report `launch_required` honestly and stop.
+matches the selected route. Otherwise use a supported host API, then on Codex
+use exactly one first-class native goal runner when `spawn_agent` can apply the
+selected model and effort. A nested compatibility process requires explicit
+user authorization and an enclosing launcher; never select it automatically
+from an interactive skill. If no boundary can apply the route, report
+`launch_required` honestly and stop.
 
 Activate exactly one goal. Darrow adds no planner, verifier, repair agent,
 retry loop, or cross-vendor route. Native goal mode owns implementation,
@@ -213,11 +216,15 @@ verification, recovery, persistence, and completion.
 
 ## 4. Return native completion
 
-Continue until the native goal reaches a terminal state. The final response
-must include the v4 launch record verbatim. Never copy the selected route into
+Continue until the native goal reaches a terminal state. A native goal runner
+may use host-native subagents for bounded work; it remains the sole goal owner,
+and Darrow does not prescribe planner, executor, verifier, or repair roles.
+The final response must include the v4 launch record verbatim. Never copy the
+selected route into
 `effective_route` without host evidence. Count only sessions or subagents
-created by Darrow: same-thread and host-API launches are zero; a nested session
-is one.
+created directly by Darrow: same-thread and host-API launches are zero; a
+native goal runner or explicitly authorized nested session is one. Native
+descendants remain host-visible but are not Darrow child invocations.
 
 State changed files, final verification, remaining risks, and that completion
 authorizes no commit, push, pull request, merge, release, or deploy.

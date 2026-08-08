@@ -13,8 +13,8 @@ usage:
   goal-loop preflight --repo <path>
   goal-loop prepare --repo <path> --host <codex|claude>
   goal-loop route --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
-  goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|nested-session>
-  goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level>
+  goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|native-subagent|nested-session>
+  goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level> --allow-nested
 EOF
 }
 
@@ -272,7 +272,7 @@ confirm_route() {
   test -n "$selected" && test -n "$effective" && test -n "$applied_by" ||
     die "confirm-route requires --selected, --effective, and --applied-by"
   case "$applied_by" in
-    current-thread|host-api|nested-session) ;;
+    current-thread|host-api|native-subagent|nested-session) ;;
     *) die "unsupported route application boundary: $applied_by" ;;
   esac
 
@@ -312,6 +312,7 @@ launch() {
   provider=
   model=
   effort=
+  allow_nested=0
   while test "$#" -gt 0; do
     case "$1" in
       --host)
@@ -344,12 +345,18 @@ launch() {
         effort=$2
         shift 2
         ;;
+      --allow-nested)
+        allow_nested=1
+        shift
+        ;;
       *) die "unknown launch option: $1" ;;
     esac
   done
   test -n "$host" && test -n "$repo" && test -n "$goal_file" && test -n "$provider" &&
     test -n "$model" && test -n "$effort" ||
     die "launch requires --host, --repo, --goal-file, --provider, --model, and --effort"
+  test "$allow_nested" -eq 1 ||
+    die "launch requires explicit --allow-nested"
   validate_host "$host"
   repo=$(absolute_dir "$repo")
   test -r "$goal_file" || die "goal file is unreadable: $goal_file"

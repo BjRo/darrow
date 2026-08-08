@@ -396,4 +396,48 @@ describe("orchestration outcome metrics", () => {
       )?.passed,
     ).toBe(false);
   });
+
+  test("records one first-class native goal runner", () => {
+    const result = [
+      "format\tdarrow-native-goal-preflight-v2",
+      "profile\tjudgment",
+      "selected_route\tcodex\topenai\tgpt-5.6-sol\thigh",
+      "effective_route\tcodex\topenai\tgpt-5.6-sol\thigh",
+      "route_applied_by\tnative-subagent",
+      "route_verified\ttrue",
+      "launch_boundary\tnative_subagent",
+      "evaluation_child_invocations\t1",
+      "evaluation_human_interruptions\t0",
+    ].join("\n");
+
+    expect(observeCodexGoalRouteApplication(result, "")).toEqual({
+      profile: "judgment",
+      selected: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "high",
+      },
+      effective: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "high",
+      },
+      appliedBy: "native-subagent",
+      launchBoundary: "native_subagent",
+      childInvocationCount: 1,
+      childInputTokens: 0,
+      childOutputTokens: 0,
+    });
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        "",
+        "codex",
+        "gpt-5.6-terra",
+        "low",
+      )?.passed,
+    ).toBe(true);
+  });
 });

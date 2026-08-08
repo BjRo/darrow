@@ -26,9 +26,11 @@ Launch boundaries are ordered by cost and fidelity:
 
 1. current-thread native goal tool;
 2. supported same-thread host API;
-3. one disclosed nested host session from a supported enclosing launcher when
-   in-place activation cannot honor the selected route;
-4. an honest `launch_required` stop.
+3. one first-class, host-visible Codex goal runner with the selected model and
+   effort;
+4. one explicitly authorized nested host session from a supported enclosing
+   launcher;
+5. an honest `launch_required` stop.
 
 Example: _“Use adaptive-goal to diagnose and fix the intermittent cache test.”_
 
@@ -39,7 +41,8 @@ semantic profiles from the single `config/routes.json`, workflow playbooks from
 `skills/adaptive-goal/references/workflows/`, plus canonical risk selection and
 verification guidance from the parent skill; rejects selected/effective route
 mismatches; and provides an injection-safe nested compatibility launcher. It
-does not implement or supervise the goal.
+requires explicit `--allow-nested` authorization and does not implement or
+supervise the goal.
 
 ## Design boundaries
 
@@ -48,10 +51,13 @@ does not implement or supervise the goal.
 - The selected workflow is loaded from its own Markdown playbook; risk adds
   proportional verification without adding another template dimension.
 - A selected route is not effective until the current host, an accepted API
-  turn, or a completed launcher record proves exact application.
+  turn, an accepted native-agent spawn, or a completed launcher record proves
+  exact application.
 - Darrow creates no planner, verifier, repair, or cross-vendor role.
-- A nested session is disclosed and used only when same-thread activation
-  cannot honor an explicit route and an enclosing launcher can prove the
-  session's authentication and boundary.
+- A first-class Codex goal runner is visible in the host, owns the one native
+  goal, and may use Codex's own visible subagents for bounded work.
+- A nested process is disclosed and used only when a user explicitly authorizes
+  the compatibility boundary and an enclosing launcher can prove its
+  authentication.
 - Goal completion authorizes no branch, commit, push, pull request, merge,
   release, deployment, or unrelated external mutation.

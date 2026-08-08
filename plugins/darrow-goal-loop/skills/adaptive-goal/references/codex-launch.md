@@ -52,16 +52,61 @@ an enclosing app-server socket from a repository shell.
 **Complete when:** the existing thread owns the persisted goal and the work turn
 reports the selected model and effort.
 
-## Nested compatibility session
+## Observable native goal runner
 
-Use this only when same-thread goal control is unavailable or cannot honor the
-selected route. Put the complete contract in a private temporary file
-outside the repository, then run:
+When in-place activation cannot honor the selected route and the runtime
+exposes `spawn_agent`, prefer one first-class Codex agent thread over a shell
+process. Confirm that the spawn tool accepts the selected concrete model and
+reasoning effort and that the Codex provider already matches. An unavailable
+user-pinned route stops; a policy route may use only its declared fallback.
+
+Spawn exactly one agent with:
+
+- task name `adaptive_goal_runner`;
+- `fork_turns` set to `none`, so explicit model and effort overrides are valid;
+- `model` and `reasoning_effort` set to the selected concrete values; and
+- a self-contained message containing the complete goal contract plus the
+  exact selected workflow document, its absolute path, identifier, and content
+  hash.
+
+Tell the runner to call `create_goal` exactly once with the contract, own that
+goal through terminal completion, run the workflow and risk gates, and return
+the required final record. The runner may use native Codex subagents for
+bounded work when useful, but remains the sole goal owner. Do not prescribe
+planner, executor, verifier, or repair roles, and do not create another Darrow
+runner beneath it.
+
+An accepted spawn request with explicit route values is route-application
+evidence. Confirm the exact route with `--applied-by native-subagent`, record:
+
+```text
+launch_boundary\tnative_subagent
+route_applied_by\tnative-subagent
+route_verified\ttrue
+evaluation_child_invocations\t1
+```
+
+Wait for that same agent to finish. The host UI exposes its thread and any
+native descendants for inspection, steering, or interruption. Descendants are
+native goal delegation, not additional Darrow child invocations. Do not run a
+shell process around the agent or substitute its prompt self-report for the
+accepted spawn evidence.
+
+**Complete when:** the accepted spawn matches the selected route, the visible
+runner owns the one persisted goal, and its terminal result proves the contract
+and final-tree checks complete.
+
+## Explicit nested compatibility session
+
+This boundary is for a supported enclosing launcher only after the user
+explicitly authorizes process nesting. An interactive skill must not infer that
+authorization from route mismatch. Put the complete contract in a private
+temporary file outside the repository, then run:
 
 ```sh
 bash "$goal_loop" launch --host codex --repo "$repo" \
   --goal-file "$goal_file" --provider "$provider" \
-  --model "$model" --effort "$effort"
+  --model "$model" --effort "$effort" --allow-nested
 ```
 
 Replace every placeholder with its literal value. In particular,
@@ -76,8 +121,8 @@ effective-route record. Partial edits, a populated result file, or a running
 process are not completion evidence. Use the emitted record verbatim, record
 `nested_session`, and count one child invocation. Only after the launch call
 itself exits zero may you remove the temporary contract and return the delimited
-result. Never describe it as a same-thread continuation.
+result. Never describe it as a native subagent or same-thread continuation.
 
-**Complete when:** the launch tool call has completed with exit zero, its route
-record matches the selected route, the one nested session has reached a
-terminal result, and no temporary contract remains.
+**Complete when:** the explicitly authorized launch call exits zero, its route
+record matches the selected route, the one nested session reaches a terminal
+result, and no temporary contract remains.

@@ -60,4 +60,4 @@ output_checks:
   - name: sequenced transition wins over one behavior change
     expect_regex: "workflow\\tmigration[\\s\\S]*risk\\televated[\\s\\S]*profile\\troutine"
   - name: routine coding route is applied
-    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium[\\s\\S]*route_verified\\ttrue"

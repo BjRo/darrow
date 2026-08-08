@@ -508,7 +508,7 @@ function evaluationRecordChecks(
           {
             name: "route application and verification are reported",
             passed:
-              /^route_applied_by\t(?:current-thread|host-api|nested-session|none)$/m.test(
+              /^route_applied_by\t(?:current-thread|host-api|native-subagent|nested-session|none)$/m.test(
                 resultText,
               ) && /^route_verified\t(?:true|false)$/m.test(resultText),
             detail: "expected route_applied_by and route_verified records",

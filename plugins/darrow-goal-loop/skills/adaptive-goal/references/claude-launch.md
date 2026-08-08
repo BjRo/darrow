@@ -22,13 +22,15 @@ one native `/goal` session with:
 ```sh
 bash "$goal_loop" launch --host claude --repo "$repo" \
   --goal-file "$goal_file" --provider "$provider" \
-  --model "$model" --effort "$effort"
+  --model "$model" --effort "$effort" --allow-nested
 ```
 
 This boundary is not available to a skill already running inside Claude:
 recursive Claude processes may not inherit the active session's authentication
-or control state. An enclosing launcher records `nested_session` and one child,
-waits for the result, and removes the temporary contract.
+or control state. `--allow-nested` must reflect explicit user authorization; it
+is never inferred from route mismatch. An enclosing launcher records
+`nested_session` and one child, waits for the result, and removes the temporary
+contract.
 
 **Complete when:** the external launcher—not an active Claude agent—owns the one
 session and its authentication is proven before product work begins.

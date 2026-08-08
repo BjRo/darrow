@@ -40,12 +40,15 @@ The launch boundary is selected in this order:
 
 1. activate the goal in the current thread through a host-native goal tool;
 2. use a supported same-thread host API that can also apply model and effort;
-3. let a supported enclosing launcher start one disclosed host session only
-   when the current surface cannot activate the selected route in place;
-4. stop as `launch_required` when none of those boundaries is available.
+3. on Codex, spawn exactly one first-class, host-visible goal runner when its
+   native agent tool can apply the selected model and effort;
+4. let a supported enclosing launcher start one disclosed host session only
+   when the user explicitly authorizes process nesting;
+5. stop as `launch_required` when none of those boundaries is available.
 
-This order is normative. Process nesting is a compatibility boundary, not the
-default architecture.
+This order is normative. A native goal runner is an observable Codex agent
+thread, not a shell process or Darrow role controller. Process nesting is an
+explicit compatibility boundary, never an automatic interactive fallback.
 
 ## Normative language
 
@@ -152,20 +155,22 @@ The single bundled policy maps these profiles to host-specific routes:
 
 | Profile        | Codex route                | Claude route                 |
 | -------------- | -------------------------- | ---------------------------- |
-| `routine`      | `gpt-5.6-luna` / `high`    | `claude-haiku-4-5` / `low`   |
-| `routine-plus` | `gpt-5.6-luna` / `xhigh`   | `claude-sonnet-5` / `medium` |
+| `routine`      | `gpt-5.6-terra` / `medium` | `claude-haiku-4-5` / `low`   |
+| `routine-plus` | `gpt-5.6-terra` / `high`   | `claude-sonnet-5` / `medium` |
 | `scaled`       | `gpt-5.6-terra` / `medium` | `claude-sonnet-5` / `medium` |
 | `repo-wide`    | `gpt-5.6-terra` / `high`   | `claude-opus-5` / `high`     |
 | `judgment`     | `gpt-5.6-sol` / `high`     | `claude-opus-5` / `high`     |
 
-The GPT-5.6 mappings were promoted after an exploratory N=1 calibration in
-which every task contract passed and reconstructed list-price cost was about
-72% below raw Sol controls. That result is a product-routing decision under
-explicitly accepted uncertainty, not proof of a stable quality or performance
-ranking. Continued multi-trial evaluation remains required before claiming a
-general advantage. The Claude mappings preserve the plugin's prior model tiers
-under the shared task-oriented vocabulary; they have not received equivalent
-comparative calibration.
+The original GPT-5.6 mappings were promoted after an exploratory N=1
+calibration in which every task contract passed and reconstructed list-price
+cost was about 72% below raw Sol controls. The observable native-runner design
+later moved the two Luna profiles to Terra because the tested first-class
+spawn surface accepts Terra and Sol but not Luna. Neither observation proves a
+stable quality or performance ranking, and the earlier cost result does not
+validate the revised routine routes. Continued multi-trial evaluation remains
+required. The Claude mappings preserve the plugin's prior model tiers under the
+shared task-oriented vocabulary; they have not received equivalent comparative
+calibration.
 
 An explicit user model or effort overrides policy. An unavailable user-pinned
 route stops instead of silently substituting another route. A policy-selected
@@ -193,18 +198,20 @@ risk\t<routine|elevated|high>
 profile\t<profile>
 selected_route\t<harness>\t<provider>\t<model>\t<effort>
 effective_route\t<harness>\t<provider>\t<model>\t<effort>
-route_applied_by\t<current-thread|host-api|nested-session|none>
+route_applied_by\t<current-thread|host-api|native-subagent|nested-session|none>
 route_verified\t<true|false>
-launch_boundary\t<same_thread|host_api|nested_session|launch_required>
+launch_boundary\t<same_thread|host_api|native_subagent|nested_session|launch_required>
 verification_gate\t<routine|elevated|high|not-applicable>
 evaluation_child_invocations\t<integer>
 evaluation_human_interruptions\t<integer>
 ```
 
 `evaluation_child_invocations` counts sessions or subagents created by Darrow,
-not internal continuation turns owned by native goal mode. A same-thread launch
-therefore reports zero. A `decision-gated` stop reports one human interruption;
-ordinary native reasoning and automatic permission review do not.
+not internal continuation turns or helper subagents created by native goal
+mode. A same-thread launch therefore reports zero and a native goal runner
+reports one. Native descendants remain visible through host telemetry. A
+`decision-gated` stop reports one human interruption; ordinary native reasoning
+and automatic permission review do not.
 
 ## `adaptive-goal` — Adaptive Goal Loop
 
@@ -270,11 +277,13 @@ the least launch machinery the host supports.
    does not introduce a cross-vendor planner, verifier, or repair role.
 6. **AGL-R6 — Applied route.** Goal activation explicitly applies the selected
    provider, model, and effort. A same-thread route must already match; a host
-   API turn or nested launcher must pass the selected values explicitly.
+   API turn, accepted native-agent spawn, or nested launcher must pass the
+   selected values explicitly.
 7. **AGL-R7 — Authoritative reconciliation.** `route_verified` is true only when
-   host metadata, an accepted host-API turn request, or a successfully completed
-   launcher record proves that selected and effective routes are identical.
-   Prompt text and model self-report are not application evidence.
+   host metadata, an accepted host-API turn request, an accepted native-agent
+   spawn with concrete route values, or a successfully completed launcher
+   record proves that selected and effective routes are identical. Prompt text
+   and model self-report are not application evidence.
 8. **AGL-R8 — Profile-route integrity.** A policy-sourced host handoff matches
    the bundled model and effort for its named semantic profile. Only an
    explicit user route may bypass that mapping, and it remains subject to live
@@ -288,13 +297,14 @@ the least launch machinery the host supports.
    only when the active provider, model, and effort exactly match the selected
    route. A new process MUST NOT be created merely for uniformity across hosts,
    but an unmatched current turn MUST NOT masquerade as the selected route.
-3. **AGL-L3 — Honest boundary.** `same_thread`, `host_api`, `nested_session`, or
-   `launch_required` is reported exactly. A nested process is never described
-   as a native child or same-thread continuation.
-4. **AGL-L4 — One compatibility session.** A nested fallback is owned by an
-   enclosing launcher that has proven its authentication boundary. It creates
-   at most one host session and waits for it; Darrow does not supervise retries
-   or role fan-out around it.
+3. **AGL-L3 — Honest boundary.** `same_thread`, `host_api`,
+   `native_subagent`, `nested_session`, or `launch_required` is reported
+   exactly. A nested process is never described as a native child or
+   same-thread continuation.
+4. **AGL-L4 — Explicit compatibility session.** A nested process is owned by an
+   enclosing launcher that has proven its authentication boundary and received
+   explicit user authorization. It creates at most one host session and waits
+   for it; an interactive skill MUST NOT select it automatically.
 5. **AGL-L5 — Goal persistence.** The native goal receives the full contract and
    remains active until its own terminal state, user interruption, budget stop,
    or a genuine human decision.
@@ -303,6 +313,11 @@ the least launch machinery the host supports.
 7. **AGL-L7 — Proportional verification.** Native completion follows the
    selected workflow and satisfies the verification gates required by the
    selected risk level.
+8. **AGL-L8 — Observable goal runner.** When in-place Codex activation cannot
+   apply the selected route, Darrow MAY create exactly one first-class native
+   agent thread with explicit model and effort. That runner owns the one native
+   goal. Host-native delegation beneath it remains visible and is not
+   Darrow-defined planner, executor, verifier, or repair fan-out.
 
 ### Safety invariants
 
@@ -343,10 +358,11 @@ the least launch machinery the host supports.
    controls run on those same effective routes rather than attributing a model
    change to preflight.
 4. Measure task pass, quality, wall time, tokens, actual cost when supplied,
-   nested sessions, and human interruptions. Reconcile selected routes against
-   harness-observed application records and include reconciled nested usage in
-   token totals. Internal native continuation turns are not Darrow child
-   invocations.
+   native goal runners, native descendant agents, nested sessions, and human
+   interruptions. Reconcile selected routes against harness-observed
+   application records and include all host-reported agent usage in token
+   totals. Internal native continuation turns and native descendants are not
+   Darrow child invocations.
 5. Use at least three trials per evidence-bearing default decision. An explicit
    product decision MAY accept N=1 uncertainty to simplify or change policy,
    but its rationale, limitations, and follow-up calibration requirement MUST
@@ -371,7 +387,8 @@ the least launch machinery the host supports.
 
 ## Non-goals
 
-- Supervising planner, executor, verifier, or repair agents.
+- Supervising planner, executor, verifier, or repair agents. Native goal mode
+  may delegate bounded work through host-visible subagents.
 - Reimplementing native goal persistence, retry, recovery, or completion.
 - Building a daemon, queue, workflow database, phase ledger, or task manager.
 - Maintaining provider SDKs or cross-vendor role routing.

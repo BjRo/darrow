@@ -38,4 +38,4 @@ output_checks:
   - name: intentional change wins over bug fix
     expect_regex: "workflow\\tchange-feature[\\s\\S]*risk\\televated[\\s\\S]*profile\\troutine"
   - name: routine coding route is applied
-    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium[\\s\\S]*route_verified\\ttrue"
