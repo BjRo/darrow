@@ -12,7 +12,7 @@ usage() {
 usage:
   goal-loop preflight --repo <path>
   goal-loop prepare --repo <path> --host <codex|claude>
-  goal-loop route --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
+  goal-loop route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
   goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|native-subagent|nested-session>
   goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level> --allow-nested
 EOF
@@ -47,21 +47,99 @@ absolute_dir() {
   (CDPATH= cd -- "$1" && pwd)
 }
 
-route_records() {
+repository_root() {
+  repo_path=$(absolute_dir "$1")
+  git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    die "not a git working tree: $repo_path"
+  git -C "$repo_path" rev-parse --show-toplevel
+}
+
+bundled_route_records() {
   test -r "$routes_file" || die "route configuration is unreadable: $routes_file"
   test -r "$routes_parser" || die "route configuration parser is unreadable: $routes_parser"
   awk -f "$routes_parser" "$routes_file"
 }
 
-route_record() {
-  route_host=$1
-  route_profile=$2
-  records=$(route_records)
-  found=0
+route_records() {
+  route_repo=$1
+  bundled_records=$(bundled_route_records)
+  repository_config="$route_repo/.darrow/config.json"
+  if test ! -e "$repository_config" && test ! -L "$repository_config"; then
+    printf '%s\n' "$bundled_records" | while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort; do
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\tbundled\n' \
+        "$host" "$profile" "$harness" "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort"
+    done
+    return
+  fi
+  test ! -L "$repository_config" && test -f "$repository_config" && test -r "$repository_config" ||
+    die "repository route configuration is unreadable or unsafe: $repository_config"
+  repository_records=$(awk -f "$routes_parser" "$repository_config") ||
+    die "repository route configuration is invalid: $repository_config"
+
+  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
+    test -n "$host" && test -n "$profile" && test -n "$harness" && test -n "$provider" &&
+      test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
+      test -n "$fallback_effort" && test -z "${extra:-}" ||
+      die "invalid bundled route configuration row for host=$host profile=$profile"
+    test "$host" = "$harness" ||
+      die "bundled route host and harness disagree for host=$host profile=$profile"
+  done <<EOF
+$bundled_records
+EOF
+
+  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
+    test -n "$host" && test -n "$profile" && test -n "$harness" && test -n "$provider" &&
+      test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
+      test -n "$fallback_effort" && test -z "${extra:-}" ||
+      die "invalid repository route configuration row for host=$host profile=$profile"
+    test "$host" = "$harness" ||
+      die "repository route host and harness disagree for host=$host profile=$profile"
+    bundled_match=0
+    while IFS="$tab" read -r bundled_host bundled_profile _; do
+      if test "$host" = "$bundled_host" && test "$profile" = "$bundled_profile"; then
+        bundled_match=1
+        break
+      fi
+    done <<EOF
+$bundled_records
+EOF
+    test "$bundled_match" -eq 1 ||
+      die "repository route is not in bundled host/profile catalog: host=$host profile=$profile"
+  done <<EOF
+$repository_records
+EOF
+
   while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort; do
+    replacement=
+    while IFS="$tab" read -r override_host override_profile override_harness override_provider override_model override_effort override_fallback_model override_fallback_effort; do
+      if test "$host" = "$override_host" && test "$profile" = "$override_profile"; then
+        replacement="$override_harness$tab$override_provider$tab$override_model$tab$override_effort$tab$override_fallback_model$tab$override_fallback_effort"
+        break
+      fi
+    done <<EOF
+$repository_records
+EOF
+    if test -n "$replacement"; then
+      printf '%s\t%s\t%s\trepository\n' "$host" "$profile" "$replacement"
+    else
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\tbundled\n' \
+        "$host" "$profile" "$harness" "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort"
+    fi
+  done <<EOF
+$bundled_records
+EOF
+}
+
+route_record() {
+  route_repo=$1
+  route_host=$2
+  route_profile=$3
+  records=$(route_records "$route_repo")
+  found=0
+  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort policy_source; do
     if test "$host" = "$route_host" && test "$profile" = "$route_profile"; then
-      printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$harness" "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort"
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$harness" "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort" "$policy_source"
       found=1
       break
     fi
@@ -82,9 +160,7 @@ preflight() {
     esac
   done
   test -n "$repo" || die "preflight requires --repo"
-  repo=$(absolute_dir "$repo")
-  git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
-    die "not a git working tree: $repo"
+  repo=$(repository_root "$repo")
 
   revision=$(git -C "$repo" rev-parse HEAD)
   status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all)
@@ -127,9 +203,7 @@ prepare() {
   test -n "$repo" && test -n "$host" ||
     die "prepare requires --repo and --host"
   validate_host "$host"
-  repo=$(absolute_dir "$repo")
-  git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
-    die "not a git working tree: $repo"
+  repo=$(repository_root "$repo")
   test -d "$workflows_dir" ||
     die "workflow directory is missing: $workflows_dir"
 
@@ -140,6 +214,8 @@ prepare() {
   else
     tree_state=clean
   fi
+
+  records=$(route_records "$repo")
 
   printf 'format\tdarrow-native-goal-prepared-v1\n'
   printf 'repo\t%s\n' "$repo"
@@ -160,16 +236,16 @@ prepare() {
     fi
   done
 
-  records=$(route_records)
   route_count=0
-  while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort extra; do
+  while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort policy_source extra; do
     test -n "$profile" && test -n "$harness" && test -n "$provider" &&
       test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
-      test -n "$fallback_effort" && test -z "${extra:-}" ||
+      test -n "$fallback_effort" && test -n "$policy_source" && test -z "${extra:-}" ||
       die "invalid route configuration row for profile: $profile"
     test "$route_host" = "$host" || continue
     printf 'route\t%s\t%s\t%s\t%s\t%s\n' \
       "$profile" "$harness" "$provider" "$model" "$effort"
+    printf 'route_policy_source\t%s\t%s\n' "$profile" "$policy_source"
     route_count=$((route_count + 1))
   done <<<"$records"
   test "$route_count" -gt 0 || die "no routes for host=$host"
@@ -185,11 +261,17 @@ prepare() {
 }
 
 route() {
+  repo=
   host=
   profile=
   explicit_route=
   while test "$#" -gt 0; do
     case "$1" in
+      --repo)
+        require_value "$@"
+        repo=$2
+        shift 2
+        ;;
       --host)
         require_value "$@"
         host=$2
@@ -208,11 +290,12 @@ route() {
       *) die "unknown route option: $1" ;;
     esac
   done
-  test -n "$host" || die "route requires --host"
+  test -n "$repo" && test -n "$host" || die "route requires --repo and --host"
   test -n "$profile" || die "route requires --profile"
   validate_host "$host"
   validate_profile "$profile"
-  record=$(route_record "$host" "$profile")
+  repo=$(repository_root "$repo")
+  record=$(route_record "$repo" "$host" "$profile")
 
   fallback_model=none
   fallback_effort=none
@@ -231,7 +314,7 @@ EOF
   else
     old_ifs=$IFS
     IFS="$tab"
-    read -r harness provider model effort fallback_model fallback_effort <<EOF
+    read -r harness provider model effort fallback_model fallback_effort policy_source <<EOF
 $record
 EOF
     IFS=$old_ifs
@@ -242,6 +325,9 @@ EOF
   printf 'profile\t%s\n' "$profile"
   printf 'selected_route\t%s\t%s\t%s\t%s\n' "$harness" "$provider" "$model" "$effort"
   printf 'route_source\t%s\n' "$source"
+  if test "$source" = policy; then
+    printf 'policy_route_source\t%s\n' "$policy_source"
+  fi
   printf 'fallback\t%s\t%s\n' "$fallback_model" "$fallback_effort"
 }
 

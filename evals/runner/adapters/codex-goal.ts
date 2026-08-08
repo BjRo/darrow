@@ -35,6 +35,7 @@ interface WorkflowEntry {
 }
 export interface PreparedGoalDimensions {
   routes: Map<string, GoalRoute>;
+  policySources: Map<string, "bundled" | "repository">;
   workflows: Map<string, WorkflowEntry>;
 }
 
@@ -43,6 +44,7 @@ export function parsePreparedGoalDimensions(
 ): PreparedGoalDimensions {
   const dimensions: PreparedGoalDimensions = {
     routes: new Map(),
+    policySources: new Map(),
     workflows: new Map(),
   };
   for (const rawLine of text.split("\n")) {
@@ -65,6 +67,16 @@ export function parsePreparedGoalDimensions(
         model: fields[4],
         effort: fields[5],
       });
+    } else if (kind === "route_policy_source") {
+      const source = fields[2];
+      if (
+        fields.length !== 3 ||
+        !["bundled", "repository"].includes(source ?? "")
+      )
+        throw new Error(`invalid route policy source: ${rawLine}`);
+      if (dimensions.policySources.has(id))
+        throw new Error(`duplicate route policy source: ${id}`);
+      dimensions.policySources.set(id, source as "bundled" | "repository");
     } else if (kind === "workflow") {
       const file = fields[2];
       if (
@@ -81,7 +93,30 @@ export function parsePreparedGoalDimensions(
   }
   if (!dimensions.routes.size || !dimensions.workflows.size)
     throw new Error("prepared goal dimensions are incomplete");
+  for (const profile of dimensions.routes.keys())
+    if (!dimensions.policySources.has(profile))
+      throw new Error(`missing route policy source: ${profile}`);
   return dimensions;
+}
+
+export function parseExplicitUserRoute(text: string): GoalRoute | undefined {
+  const records = text.match(/^user_route\t[^\n]*$/gm) ?? [];
+  if (!records.length) return undefined;
+  if (records.length !== 1) throw new Error("multiple explicit user routes");
+  const fields = records[0].split("\t");
+  if (
+    fields.length !== 5 ||
+    !fields
+      .slice(1)
+      .every((field) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(field))
+  )
+    throw new Error("invalid explicit user route");
+  return {
+    harness: fields[1]!,
+    provider: fields[2]!,
+    model: fields[3]!,
+    effort: fields[4]!,
+  };
 }
 
 export function extractIntentRoutingGuidance(skill: string): string {
@@ -122,7 +157,7 @@ export function buildPreparedGoalPrompt(
     "Workflow controls execution sequence. Risk controls proportional verification.",
     "Use this canonical parent-skill guidance for workflow and risk selection:",
     intentRoutingGuidance,
-    "An evaluation_expected_route record is enclosing-harness metadata, not a user override. Select the policy profile whose concrete route matches it; a mismatch must fail rather than be silently attributed to preflight.",
+    "A `user_route` record in the engineering request is an explicit user pin in harness/provider/model/effort order; when present, select it with routeSource user. No other request text is evaluator control metadata.",
     "Select risk and profile independently: risk reflects the cost of an incorrect result, while routing reflects the kind and scale of reasoning required. Risk alone and a workflow label alone do not determine profile.",
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "",
@@ -646,7 +681,7 @@ export const codexGoalAdapter: HarnessAdapter = {
     return out.trim();
   },
 
-  async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
+  async run(repoDir, prompt, model, effort, control): Promise<HarnessResult> {
     const start = performance.now();
     const env = await isolatedHarnessEnvironment("codex", repoDir);
     const argv = await sandboxedAgentCommand(
@@ -728,19 +763,18 @@ export const codexGoalAdapter: HarnessAdapter = {
         preflightResult.text,
         catalog,
         prepared.dimensions,
+        parseExplicitUserRoute(prompt),
       );
-      const expectedRoute = prompt.match(
-        /^evaluation_expected_route\t([^\t\n]+)\t([^\t\n]+)\t([^\t\n]+)\t([^\t\n]+)$/m,
-      );
+      const expectedRoute = control?.expectedGoalRoute;
       if (
         expectedRoute &&
-        (handoff.selectedRoute.harness !== expectedRoute[1] ||
-          handoff.selectedRoute.provider !== expectedRoute[2] ||
-          handoff.selectedRoute.model !== expectedRoute[3] ||
-          handoff.selectedRoute.effort !== expectedRoute[4])
+        (handoff.selectedRoute.harness !== expectedRoute.harness ||
+          handoff.selectedRoute.provider !== expectedRoute.provider ||
+          handoff.selectedRoute.model !== expectedRoute.model ||
+          handoff.selectedRoute.effort !== expectedRoute.effort)
       )
         throw new Error(
-          `selected route does not match evaluation control: expected ${expectedRoute.slice(1).join("/")}`,
+          `selected route does not match evaluation control: expected ${expectedRoute.harness}/${expectedRoute.provider}/${expectedRoute.model}/${expectedRoute.effort}`,
         );
       const workflow = prepared.dimensions.workflows.get(handoff.workflow)!;
       const workflowContent = await readFile(workflow.file, "utf8");

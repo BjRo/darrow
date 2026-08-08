@@ -131,8 +131,8 @@ Risk adds proportional verification without changing the workflow:
 
 ### Semantic profiles
 
-Routing uses stable semantic profiles whose concrete mappings live in one
-bundled configuration:
+Routing uses stable semantic profiles whose concrete mappings live in bundled
+configuration by default:
 
 - `routine` — ordinary localized coding, including exact mechanical work and
   clear high-risk changes;
@@ -151,7 +151,7 @@ verification with a routine coding route, while a difficult
 behavior-preserving refactor can use `routine` verification with a judgment
 route.
 
-The single bundled policy maps these profiles to host-specific routes:
+The bundled default policy maps these profiles to host-specific routes:
 
 | Profile        | Codex route                | Claude route                 |
 | -------------- | -------------------------- | ---------------------------- |
@@ -172,6 +172,17 @@ required. The Claude mappings preserve the plugin's prior model tiers under the
 shared task-oriented vocabulary; they have not received equivalent comparative
 calibration.
 
+An active worktree root MAY provide `.darrow/config.json` using the same strict
+`{"routes":[...]}` route-object schema. Each valid repository entry replaces
+the bundled entry with the same `(host, profile)`; omitted entries retain the
+bundled policy. A present repository configuration MUST be readable, safe,
+well-formed, duplicate-free, catalog-known, and host/harness-consistent. Any
+validation failure MUST stop route preparation and selection without falling
+back to bundled policy. The helper resolves both `prepare --repo` and
+`route --repo` against that same active worktree root. Prepared evidence MUST
+identify each policy route as `repository` or `bundled` without changing its
+separate `policy` versus explicit `user` authority.
+
 An explicit user model or effort overrides policy. An unavailable user-pinned
 route stops instead of silently substituting another route. A policy-selected
 route MAY use its declared fallback and MUST disclose the substitution.
@@ -181,10 +192,12 @@ effort before completion can be reported.
 
 An enclosing host API MAY split activation into a read-only preflight turn and
 a native-goal execution turn. The preflight handoff names its route source as
-`policy` or `user`. A policy-sourced handoff MUST match the bundled mapping for
-its semantic profile; a user-sourced handoff MUST correspond to an explicit
-route in the engineering request. The enclosing launcher validates the route
-against both that source and the live host catalog before starting work.
+`policy` or `user`, and policy routes additionally name `repository` or
+`bundled` provenance. A policy-sourced handoff MUST match the prepared
+active-worktree mapping for its semantic profile; a user-sourced handoff MUST
+correspond to an explicit route in the engineering request. The enclosing
+launcher validates the route against both that source and the live host catalog
+before starting work.
 
 ### Launch record
 
@@ -285,7 +298,8 @@ the least launch machinery the host supports.
    record proves that selected and effective routes are identical. Prompt text
    and model self-report are not application evidence.
 8. **AGL-R8 — Profile-route integrity.** A policy-sourced host handoff matches
-   the bundled model and effort for its named semantic profile. Only an
+   the prepared active-worktree model and effort for its named semantic profile,
+   with repository-or-bundled provenance disclosed. Only an
    explicit user route may bypass that mapping, and it remains subject to live
    catalog validation.
 

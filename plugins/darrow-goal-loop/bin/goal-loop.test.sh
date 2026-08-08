@@ -52,7 +52,7 @@ contains "$out" $'preexisting_change\t M value.txt'
 printf 'Root guidance.\n' >"$repo/AGENTS.md"
 out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
 contains "$out" $'format\tdarrow-native-goal-prepared-v1'
-repo_abs=$(CDPATH= cd -- "$repo" && pwd)
+repo_abs=$(git -C "$repo" rev-parse --show-toplevel)
 contains "$out" $'instruction\t'"$repo_abs/AGENTS.md"
 contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-terra\thigh'
@@ -78,9 +78,92 @@ contains "$out" $'route\tscaled\tclaude\tanthropic\tclaude-sonnet-5\tmedium'
 contains "$out" $'route\trepo-wide\tclaude\tanthropic\tclaude-opus-5\thigh'
 contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 
-out=$(bash "$goal_loop" route --host codex --profile routine)
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
 contains "$out" $'profile\troutine'
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route_source\tpolicy'
+contains "$out" $'policy_route_source\tbundled'
+
+mkdir -p "$repo/.darrow"
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"scaled","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"high","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route_policy_source\troutine\tbundled'
+contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-sol\thigh'
+contains "$out" $'route_policy_source\tscaled\trepository'
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile scaled)
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\thigh'
+contains "$out" $'route_source\tpolicy'
+contains "$out" $'policy_route_source\trepository'
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  --route 'codex|openai|gpt-5.6-terra|low')
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tlow'
+contains "$out" $'route_source\tuser'
+case "$out" in
+  *$'policy_route_source\t'*) fail "user route disclosed a policy provenance" ;;
+esac
+
+printf '{malformed' >"$repo/.darrow/config.json"
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "malformed repository route configuration fell back to bundled policy"
+fi
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"unknown","profile":"routine","harness":"unknown","provider":"openai","model":"test","effort":"low","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+if bash "$goal_loop" prepare --repo "$repo" --host codex >/dev/null 2>&1; then
+  fail "unknown repository route configuration fell back to bundled policy"
+fi
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"unknown","harness":"codex","provider":"openai","model":"test","effort":"low","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "unknown repository profile fell back to bundled policy"
+fi
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"routine","harness":"claude","provider":"openai","model":"test","effort":"low","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "host-inconsistent repository route configuration was accepted"
+fi
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"one","effort":"low","fallbackModel":"none","fallbackEffort":"none"},{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"two","effort":"low","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+if bash "$goal_loop" prepare --repo "$repo" --host codex >/dev/null 2>&1; then
+  fail "duplicate repository route configuration fell back to bundled policy"
+fi
+rm -f "$repo/.darrow/config.json"
+mkdir "$repo/.darrow/config.json"
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "unreadable repository route configuration fell back to bundled policy"
+fi
+rm -rf "$repo/.darrow/config.json"
+ln -s "$script_dir/../config/routes.json" "$repo/.darrow/config.json"
+if bash "$goal_loop" prepare --repo "$repo" --host codex >/dev/null 2>&1; then
+  fail "unsafe repository route configuration fell back to bundled policy"
+fi
+rm -f "$repo/.darrow/config.json"
+
+linked_repo="$tmp_root/linked-repo"
+git -C "$repo" worktree add -q -b linked-route-test "$linked_repo"
+linked_repo_abs=$(git -C "$linked_repo" rev-parse --show-toplevel)
+mkdir -p "$linked_repo/.darrow" "$linked_repo/nested"
+cat >"$linked_repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+out=$(bash "$goal_loop" prepare --repo "$linked_repo/nested" --host codex)
+contains "$out" $'repo\t'"$linked_repo_abs"
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'route_policy_source\troutine\trepository'
+out=$(bash "$goal_loop" route --repo "$linked_repo/nested" --host codex --profile routine)
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'policy_route_source\trepository'
+git -C "$repo" worktree remove --force "$linked_repo"
 
 parser="$script_dir/routes-json.awk"
 reordered_routes="$tmp_root/reordered-routes.json"
@@ -126,7 +209,7 @@ broken_plugin="$tmp_root/broken-plugin"
 mkdir -p "$broken_plugin/bin" "$broken_plugin/config"
 cp "$goal_loop" "$parser" "$broken_plugin/bin/"
 cp "$invalid_routes" "$broken_plugin/config/routes.json"
-if bash "$broken_plugin/bin/goal-loop" route --host codex --profile routine \
+if bash "$broken_plugin/bin/goal-loop" route --repo "$repo" --host codex --profile routine \
   >/dev/null 2>&1; then
   fail "goal-loop accepted an invalid JSON route configuration"
 fi
@@ -136,11 +219,12 @@ if bash "$goal_loop" prepare --repo "$repo" --host codex \
   fail "removed route policy switch was accepted"
 fi
 
-out=$(bash "$goal_loop" route --host codex --profile scaled)
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile scaled)
 contains "$out" $'format\tdarrow-native-goal-route-v2'
 contains "$out" $'profile\tscaled'
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route_source\tpolicy'
+contains "$out" $'policy_route_source\tbundled'
 
 out=$(bash "$goal_loop" confirm-route \
   --selected 'codex|openai|gpt-5.6-sol|medium' \
@@ -165,15 +249,15 @@ if bash "$goal_loop" confirm-route \
   fail "mismatched selected and effective routes were accepted"
 fi
 
-out=$(bash "$goal_loop" route --host claude --profile judgment \
+out=$(bash "$goal_loop" route --repo "$repo" --host claude --profile judgment \
   --route 'claude|anthropic|claude-test|high')
 contains "$out" $'selected_route\tclaude\tanthropic\tclaude-test\thigh'
 contains "$out" $'route_source\tuser'
 
-if bash "$goal_loop" route --host codex --profile tiny >/dev/null 2>&1; then
+if bash "$goal_loop" route --repo "$repo" --host codex --profile tiny >/dev/null 2>&1; then
   fail "invalid profile was accepted"
 fi
-if bash "$goal_loop" route --host codex --profile routine \
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
   --route 'claude|anthropic|wrong|low' >/dev/null 2>&1; then
   fail "foreign explicit route was accepted"
 fi

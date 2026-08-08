@@ -133,12 +133,6 @@ async function runCase(
   let promptTemplate = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
-  if (expectedGoalRoute) {
-    promptTemplate = [
-      `evaluation_expected_route\tcodex\topenai\t${expectedGoalRoute.model}\t${expectedGoalRoute.effort}`,
-      promptTemplate,
-    ].join("\n\n");
-  }
   const trialResults: TrialResult[] = [];
 
   for (let trial = 1; trial <= trials; trial++) {
@@ -182,6 +176,16 @@ async function runCase(
         prompt,
         model,
         effort,
+        expectedGoalRoute
+          ? {
+              expectedGoalRoute: {
+                harness: "codex",
+                provider: "openai",
+                model: expectedGoalRoute.model,
+                effort: expectedGoalRoute.effort,
+              },
+            }
+          : undefined,
       );
       const observedGoalRouteApplication =
         adapter.name === "codex"

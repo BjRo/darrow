@@ -37,12 +37,21 @@ Example: _â€œUse adaptive-goal to diagnose and fix the intermittent cache test.â
 ### `bin/goal-loop`
 
 A small portable Bash helper prepares repository state, instruction routes,
-semantic profiles from the single `config/routes.json`, workflow playbooks from
+semantic profiles from bundled `config/routes.json` with optional active-worktree
+overrides in `.darrow/config.json`, workflow playbooks from
 `skills/adaptive-goal/references/workflows/`, plus canonical risk selection and
 verification guidance from the parent skill; rejects selected/effective route
 mismatches; and provides an injection-safe nested compatibility launcher. It
 requires explicit `--allow-nested` authorization and does not implement or
 supervise the goal.
+
+Repository overrides use the same strict `{"routes":[...]}` object schema as
+the bundled file. An override replaces only its matching `(host, profile)`
+route; omitted routes keep bundled policy. A present override must be readable,
+valid, unique, safe, catalog-known, and host/harness-consistent or the helper
+stops without falling back. Prepared route rows identify `repository` or
+`bundled` policy provenance separately from `policy` versus explicit-user route
+authority.
 
 ## Design boundaries
 

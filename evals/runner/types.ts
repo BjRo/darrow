@@ -160,6 +160,7 @@ export interface HarnessAdapter {
     prompt: string,
     model: string,
     effort: string,
+    control?: { expectedGoalRoute?: GoalRoute },
   ): Promise<HarnessResult>;
 }
 

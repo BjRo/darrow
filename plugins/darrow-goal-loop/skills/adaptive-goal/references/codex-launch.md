@@ -39,7 +39,8 @@ thread and its concrete route is the selected route.
 When the enclosing client exposes Codex app-server thread control, set the goal
 on the current thread with `thread/goal/set`, then start the work turn with the
 selected workflow document, `model`, and `effort`. Before activation, validate
-a policy-sourced handoff against the bundled profile mapping and a user-sourced
+a policy-sourced handoff against the prepared active-worktree profile mapping
+(with `repository` or `bundled` provenance) and a user-sourced
 handoff against the explicit request; validate either route against the live
 model catalog. Resolve the workflow document from the helper's prepared
 evidence, hash the exact content loaded into the execution turn, and record the

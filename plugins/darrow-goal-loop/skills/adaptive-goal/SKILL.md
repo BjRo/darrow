@@ -134,7 +134,7 @@ because risk is `high`, and do not lower risk because implementation is simple:
 An explicit user model or effort wins. Resolve the concrete route:
 
 ```sh
-bash "$goal_loop" route --host <codex|claude> \
+bash "$goal_loop" route --repo "$repo" --host <codex|claude> \
   --profile <routine|routine-plus|scaled|repo-wide|judgment> \
   [--route 'harness|provider|model|effort']
 ```
@@ -143,6 +143,16 @@ Pass `--route` only when the engineering request explicitly pins it. The
 classifier route, host defaults, and enclosing evaluator are metadata, not user
 overrides. `inherit`, `current`, `default`, or an unresolved alias is not an
 auditable model identifier.
+
+The helper resolves policy from the active worktree root: when
+`<repo>/.darrow/config.json` is absent, routes come from bundled policy;
+otherwise its strict `{"routes":[...]}` entries replace matching bundled
+`(host, profile)` entries and other profiles inherit bundled routes. A present
+repository configuration must validate completely against the bundled
+host/profile catalog and host/harness relation; any unreadable or invalid file
+is a stop, not a fallback. `route_source` remains `policy` or `user` authority;
+for policy routes, `policy_route_source` discloses `repository` or `bundled`
+provenance.
 
 Write one goal contract of at most 4,000 bytes containing the outcome,
 acceptance criteria, scope and non-goals, preserved work, permissions, the

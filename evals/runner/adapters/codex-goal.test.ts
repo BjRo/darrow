@@ -7,6 +7,7 @@ import {
   goalDimensionStage,
   isFinalAgentMessage,
   parseCodexGoalHandoff,
+  parseExplicitUserRoute,
   parsePreparedGoalDimensions,
 } from "./codex-goal";
 
@@ -19,10 +20,15 @@ const catalog = [
 const prepared = [
   "format\tdarrow-native-goal-prepared-v1",
   "route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium",
+  "route_policy_source\troutine\tbundled",
   "route\troutine-plus\tcodex\topenai\tgpt-5.6-terra\thigh",
+  "route_policy_source\troutine-plus\tbundled",
   "route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium",
+  "route_policy_source\tscaled\trepository",
   "route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh",
+  "route_policy_source\trepo-wide\tbundled",
   "route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh",
+  "route_policy_source\tjudgment\tbundled",
   "workflow\tchange-feature\t/plugin/references/workflows/change-feature.md",
   "workflow\tmechanical\t/plugin/references/workflows/mechanical.md",
 ].join("\n");
@@ -34,7 +40,7 @@ function handoffValue() {
     workflow: "change-feature" as const,
     risk: "high" as "routine" | "elevated" | "high",
     profile: "judgment",
-    routeSource: "policy" as const,
+    routeSource: "policy" as "policy" | "user",
     selectedRoute: {
       harness: "codex",
       provider: "openai",
@@ -60,6 +66,34 @@ function handoffValue() {
 }
 
 describe("Codex native-goal dimension handoff", () => {
+  test("requires policy provenance for every prepared route", () => {
+    expect(dimensions.policySources.get("scaled")).toBe("repository");
+    expect(() =>
+      parsePreparedGoalDimensions(
+        prepared.replace("route_policy_source\troutine\tbundled\n", ""),
+      ),
+    ).toThrow("missing route policy source: routine");
+  });
+
+  test("accepts one explicit user route and never treats evaluator text as one", () => {
+    expect(
+      parseExplicitUserRoute("user_route\tcodex\topenai\tgpt-5.6-sol\thigh"),
+    ).toEqual({
+      harness: "codex",
+      provider: "openai",
+      model: "gpt-5.6-sol",
+      effort: "high",
+    });
+    expect(
+      parseExplicitUserRoute(
+        "evaluation_expected_route\tcodex\topenai\tgpt-5.6-sol\thigh",
+      ),
+    ).toBeUndefined();
+    expect(() => parseExplicitUserRoute("user_route\tcodex")).toThrow(
+      "invalid explicit user route",
+    );
+  });
+
   test("uses one marked parent-skill section as intent-routing guidance", () => {
     const guidance = extractIntentRoutingGuidance(`before
 <!-- intent-routing-begin -->
@@ -210,6 +244,22 @@ after`);
       model: "gpt-5.6-terra",
       effort: "medium",
     });
+  });
+
+  test("accepts a user-pinned route only when it matches the explicit request", () => {
+    const value = handoffValue();
+    value.routeSource = "user";
+    expect(
+      parseCodexGoalHandoff(
+        JSON.stringify(value),
+        catalog,
+        dimensions,
+        parseExplicitUserRoute("user_route\tcodex\topenai\tgpt-5.6-sol\thigh"),
+      ).routeSource,
+    ).toBe("user");
+    expect(() =>
+      parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions),
+    ).toThrow("no matching explicit user route");
   });
 
   test("uses the canonical task-oriented route mapping as policy", () => {
