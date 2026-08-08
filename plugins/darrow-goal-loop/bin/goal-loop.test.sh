@@ -25,8 +25,12 @@ contains() {
 
 test ! -e "$script_dir/../config/routes.gpt-5.6-candidate.tsv" ||
   fail "candidate route configuration still exists"
+test ! -e "$script_dir/../config/routes.tsv" ||
+  fail "TSV route configuration still exists"
 test ! -e "$script_dir/../config/risks.tsv" ||
   fail "duplicate risk configuration still exists"
+test -r "$script_dir/../config/routes.json" ||
+  fail "JSON route configuration is missing"
 
 repo="$tmp_root/repo"
 mkdir -p "$repo"
@@ -77,6 +81,55 @@ contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 out=$(bash "$goal_loop" route --host codex --profile routine)
 contains "$out" $'profile\troutine'
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\thigh'
+
+parser="$script_dir/routes-json.awk"
+reordered_routes="$tmp_root/reordered-routes.json"
+cat >"$reordered_routes" <<'EOF'
+{
+  "routes": [
+    {
+      "effort": "high",
+      "model": "gpt-5.6-luna",
+      "provider": "openai",
+      "harness": "codex",
+      "profile": "routine",
+      "host": "codex",
+      "fallbackEffort": "none",
+      "fallbackModel": "none"
+    }
+  ]
+}
+EOF
+out=$(awk -f "$parser" "$reordered_routes")
+contains "$out" $'codex\troutine\tcodex\topenai\tgpt-5.6-luna\thigh\tnone\tnone'
+
+invalid_routes="$tmp_root/invalid-routes.json"
+printf '{"routes":[{"host":"codex"}]}' >"$invalid_routes"
+if awk -f "$parser" "$invalid_routes" >/dev/null 2>&1; then
+  fail "incomplete JSON route configuration was accepted"
+fi
+
+duplicate_routes="$tmp_root/duplicate-routes.json"
+cat >"$duplicate_routes" <<'EOF'
+{
+  "routes": [
+    {"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"one","effort":"high","fallbackModel":"none","fallbackEffort":"none"},
+    {"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"two","effort":"high","fallbackModel":"none","fallbackEffort":"none"}
+  ]
+}
+EOF
+if awk -f "$parser" "$duplicate_routes" >/dev/null 2>&1; then
+  fail "duplicate JSON routes were accepted"
+fi
+
+broken_plugin="$tmp_root/broken-plugin"
+mkdir -p "$broken_plugin/bin" "$broken_plugin/config"
+cp "$goal_loop" "$parser" "$broken_plugin/bin/"
+cp "$invalid_routes" "$broken_plugin/config/routes.json"
+if bash "$broken_plugin/bin/goal-loop" route --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "goal-loop accepted an invalid JSON route configuration"
+fi
 
 if bash "$goal_loop" prepare --repo "$repo" --host codex \
   --policy candidate >/dev/null 2>&1; then

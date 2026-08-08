@@ -2,7 +2,8 @@
 set -euo pipefail
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-routes_file="$script_dir/../config/routes.tsv"
+routes_file="$script_dir/../config/routes.json"
+routes_parser="$script_dir/routes-json.awk"
 workflows_dir="$script_dir/../skills/pursue-goal/references/workflows"
 tab=$(printf '\t')
 
@@ -36,22 +37,10 @@ validate_host() {
 }
 
 validate_profile() {
-  profile_host=$1
-  profile_name=$2
+  profile_name=$1
   case "$profile_name" in
     ''|*[!a-z0-9-]*) die "unsupported profile: $profile_name" ;;
   esac
-  found=0
-  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
-    case "$host" in
-      ''|'#'*) continue ;;
-    esac
-    if test "$host" = "$profile_host" && test "$profile" = "$profile_name"; then
-      found=1
-      break
-    fi
-  done <"$routes_file"
-  test "$found" -eq 1 || die "unsupported profile for host=$profile_host: $profile_name"
 }
 
 absolute_dir() {
@@ -59,23 +48,25 @@ absolute_dir() {
   (CDPATH= cd -- "$1" && pwd)
 }
 
+route_records() {
+  test -r "$routes_file" || die "route configuration is unreadable: $routes_file"
+  test -r "$routes_parser" || die "route configuration parser is unreadable: $routes_parser"
+  awk -f "$routes_parser" "$routes_file"
+}
+
 route_record() {
   route_host=$1
   route_profile=$2
-  test -r "$routes_file" || die "route configuration is unreadable: $routes_file"
-
+  records=$(route_records)
   found=0
   while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort; do
-    case "$host" in
-      ''|'#'*) continue ;;
-    esac
     if test "$host" = "$route_host" && test "$profile" = "$route_profile"; then
       printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$harness" "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort"
       found=1
       break
     fi
-  done <"$routes_file"
+  done <<<"$records"
   test "$found" -eq 1 || die "no route for host=$route_host profile=$route_profile"
 }
 
@@ -170,11 +161,9 @@ prepare() {
     fi
   done
 
+  records=$(route_records)
   route_count=0
   while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort extra; do
-    case "$route_host" in
-      ''|'#'*) continue ;;
-    esac
     test -n "$profile" && test -n "$harness" && test -n "$provider" &&
       test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
       test -n "$fallback_effort" && test -z "${extra:-}" ||
@@ -183,7 +172,7 @@ prepare() {
     printf 'route\t%s\t%s\t%s\t%s\t%s\n' \
       "$profile" "$harness" "$provider" "$model" "$effort"
     route_count=$((route_count + 1))
-  done <"$routes_file"
+  done <<<"$records"
   test "$route_count" -gt 0 || die "no routes for host=$host"
 
   for workflow in fix-bug implement-feature change-feature refactor migration mechanical decision-gated; do
@@ -223,7 +212,8 @@ route() {
   test -n "$host" || die "route requires --host"
   test -n "$profile" || die "route requires --profile"
   validate_host "$host"
-  validate_profile "$host" "$profile"
+  validate_profile "$profile"
+  record=$(route_record "$host" "$profile")
 
   fallback_model=none
   fallback_effort=none
@@ -240,7 +230,6 @@ EOF
     test "$harness" = "$host" || die "explicit route must use current host: $host"
     source=user
   else
-    record=$(route_record "$host" "$profile")
     old_ifs=$IFS
     IFS="$tab"
     read -r harness provider model effort fallback_model fallback_effort <<EOF
@@ -351,11 +340,9 @@ readiness() {
     printf 'capability\thost_api\tcontroller_must_confirm\n'
   fi
 
+  records=$(route_records)
   route_count=0
   while IFS="$tab" read -r route_host profile harness provider model effort fallback_model fallback_effort extra; do
-    case "$route_host" in
-      ''|'#'*) continue ;;
-    esac
     test -n "$profile" && test -n "$harness" && test -n "$provider" &&
       test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
       test -n "$fallback_effort" && test -z "${extra:-}" ||
@@ -364,7 +351,7 @@ readiness() {
     printf 'route\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$profile" "$harness" "$provider" "$model" "$effort" "$fallback_model/$fallback_effort"
     route_count=$((route_count + 1))
-  done <"$routes_file"
+  done <<<"$records"
   test "$route_count" -gt 0 || die "no routes for host=$host"
 }
 

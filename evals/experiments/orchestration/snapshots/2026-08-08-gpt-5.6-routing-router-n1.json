@@ -4,7 +4,7 @@
   "status": "exploratory-n1-product-decision-recorded",
   "hypothesis": "GPT-5.6 chart operating points may improve task-oriented routing while workflow and consequence risk remain independent",
   "defaultsPromoted": true,
-  "activePolicy": "plugins/darrow-goal-loop/config/routes.tsv",
+  "activePolicy": "plugins/darrow-goal-loop/config/routes.json",
   "evaluatedCandidatePolicy": "historical task-oriented policy embedded in the recorded runner patch",
   "promotion": {
     "decision": "promote task-oriented profiles into the single canonical policy",

@@ -43,7 +43,7 @@ Example: _“Check native-goal readiness for Codex.”_
 ### `bin/goal-loop`
 
 A small portable Bash helper prepares repository state, instruction routes,
-semantic profiles from the single `config/routes.tsv`, workflow playbooks from
+semantic profiles from the single `config/routes.json`, workflow playbooks from
 `skills/pursue-goal/references/workflows/`, plus canonical risk selection and
 verification guidance from the parent skill; rejects selected/effective route
 mismatches; diagnoses
