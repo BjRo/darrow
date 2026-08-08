@@ -10,7 +10,7 @@ import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import {
   extractOrchestrationMetrics,
-  hasForeignOrchestrationRoute,
+  hasUnreconciledOrchestrationUsage,
   observeCodexTicketPipelineRoutes,
   reconcileObservedTicketPipelineRoutes,
 } from "./orchestration-metrics";
@@ -226,7 +226,7 @@ async function runCase(
 
   const durations = trialResults.map((t) => t.harness.durationMs);
   const tokenTotals = trialResults.map((trial) =>
-    hasForeignOrchestrationRoute(trial.harness.resultText, adapter.name)
+    hasUnreconciledOrchestrationUsage(trial.harness.resultText, adapter.name)
       ? null
       : trial.harness.inputTokens + trial.harness.outputTokens,
   );
@@ -261,7 +261,10 @@ async function runCase(
     totalCostUsd: trialResults.every(
       (trial) =>
         trial.harness.costUsd !== null &&
-        !hasForeignOrchestrationRoute(trial.harness.resultText, adapter.name),
+        !hasUnreconciledOrchestrationUsage(
+          trial.harness.resultText,
+          adapter.name,
+        ),
     )
       ? trialResults.reduce(
           (total, trial) => total + (trial.harness.costUsd ?? 0),
@@ -277,7 +280,13 @@ async function runCase(
         )
       : undefined,
     childInvocationCountSource: measuredOrchestrationTrials.length
-      ? withoutSkill || !evalCase.skillDir
+      ? withoutSkill ||
+        !evalCase.skillDir ||
+        trialResults.some((trial) =>
+          /^format\tdarrow-native-goal-preflight-v1$/m.test(
+            trial.harness.resultText,
+          ),
+        )
         ? "condition_report"
         : trialResults.some(
               (trial) =>

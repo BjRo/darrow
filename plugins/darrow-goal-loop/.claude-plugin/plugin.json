@@ -1,7 +1,7 @@
 {
   "name": "darrow-goal-loop",
-  "description": "Pursue bounded engineering goals through adaptive execution and independent verification",
-  "version": "0.1.0",
+  "description": "Compile bounded engineering requests and activate host-native goals",
+  "version": "0.2.0",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"

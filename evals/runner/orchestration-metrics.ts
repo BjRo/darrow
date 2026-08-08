@@ -112,10 +112,11 @@ export function reconcileObservedTicketPipelineRoutes(
   };
 }
 
-export function hasForeignOrchestrationRoute(
+export function hasUnreconciledOrchestrationUsage(
   resultText: string,
   hostHarness: string,
 ): boolean {
+  if (/^launch_boundary\tnested_session$/m.test(resultText)) return true;
   for (const match of resultText.matchAll(
     /^route\t(?:(?:planner|executor|verifier|repair)\t([^\t\n]+)|(?:refine|challenge|implement|review|rework|qa|codify)\t[0-9]+\t([^\t\n]+))\t/gm,
   )) {

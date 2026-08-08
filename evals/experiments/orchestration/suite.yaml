@@ -11,7 +11,9 @@ modes:
       codex: conditions/native-goal-codex.md
     require_evaluation_records: true
   darrow-goal-loop:
-    condition: conditions/darrow-goal-loop.md
+    condition_by_harness:
+      claude: conditions/darrow-goal-loop-claude.md
+      codex: conditions/darrow-goal-loop-codex.md
     skill_dir: ../../../plugins/darrow-goal-loop/skills/pursue-goal
     mount_plugin_skills: true
     require_evaluation_records: true

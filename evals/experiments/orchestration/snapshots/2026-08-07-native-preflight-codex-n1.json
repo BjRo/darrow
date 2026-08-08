@@ -1,0 +1,150 @@
+{
+  "format": "darrow-native-goal-preflight-snapshot-v1",
+  "status": "exploratory",
+  "runDate": "2026-08-07",
+  "implementation": "native-goal-preflight-v2",
+  "harness": "codex",
+  "harnessVersion": "codex-cli 0.145.0",
+  "model": "gpt-5.5",
+  "effort": "medium",
+  "trialsPerTask": 1,
+  "taskCount": 4,
+  "judge": {
+    "harness": "codex",
+    "model": "adapter-default",
+    "effort": "low",
+    "conditionBlind": true
+  },
+  "provenance": {
+    "startedAt": "2026-08-07T21:36:13.947Z",
+    "orderSeed": "native-preflight-codex-n1-20260807",
+    "runnerRevision": "04a9ee73406dbfbed9e250b0b5e16fc80eb53a06",
+    "runnerPatchSha256": "8747ad8e9f615257c0eb19f09edda6d78e764fa726ebcb2d4d6d7d21866ddc8d",
+    "rawArtifacts": {
+      "manifest": "evals/results/orchestration-value/native-preflight-codex-n1-20260807/suite-run.json",
+      "manifestSha256": "054be4f3bdf92c58c3aaacdf4af9047b5038b16d052ae967d8b1dc32e1165ff7",
+      "result": "evals/results/orchestration-value/native-preflight-codex-n1-20260807/codex-darrow-goal-loop.json",
+      "resultSha256": "5149569d375435be9222198f3df86ea7c377eb4043a9d7aee67e4b6264df15fc",
+      "report": "evals/results/orchestration-value/native-preflight-codex-n1-20260807/report.md",
+      "reportSha256": "a0a7f01df708eef9ddb37fa19070b10b4e518f1cca54b6d7b1931999edb03ca7"
+    },
+    "executionLogAudit": {
+      "status": "pass",
+      "candidateStreamsVerified": 4,
+      "judgeStreamsVerified": 4,
+      "checks": [
+        "Each candidate stream has one thread start and one completed turn.",
+        "Each candidate and judge terminal agent message matches the runner result text.",
+        "Each terminal input/output usage record matches the runner token fields.",
+        "Each judge terminal JSON score matches the parsed assessment.",
+        "Each launch record pins Codex gpt-5.5 medium, same-thread activation, zero child invocations, and zero human interruptions.",
+        "Task values, aggregate values, historical values, runner provenance, and raw artifact hashes match their sources."
+      ]
+    }
+  },
+  "aggregate": {
+    "taskPassRate": 1.0,
+    "protocolPassRate": 1.0,
+    "judgeScore": 4.75,
+    "judgePassRate": 1.0,
+    "wallMeanSeconds": 266.148,
+    "wallP95Seconds": 403.638,
+    "candidateTokensMean": 939926,
+    "candidateCostUsd": null,
+    "childrenMean": 0.0,
+    "humanInterventions": 0
+  },
+  "tasks": [
+    {
+      "case": "orchestration-oss-ajv-instance-path",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 5,
+      "judgePass": true,
+      "wallSeconds": 403.638,
+      "candidateTokens": 1407967,
+      "launchBoundary": "same_thread",
+      "children": 0,
+      "humanInterventions": 0
+    },
+    {
+      "case": "orchestration-oss-click-streams",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 5,
+      "judgePass": true,
+      "wallSeconds": 217.236,
+      "candidateTokens": 885310,
+      "launchBoundary": "same_thread",
+      "children": 0,
+      "humanInterventions": 0
+    },
+    {
+      "case": "orchestration-oss-express-links",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 4,
+      "judgePass": true,
+      "wallSeconds": 178.714,
+      "candidateTokens": 379686,
+      "launchBoundary": "same_thread",
+      "children": 0,
+      "humanInterventions": 0
+    },
+    {
+      "case": "orchestration-oss-go-git-insteadof",
+      "taskPass": true,
+      "protocolPass": true,
+      "judgeScore": 5,
+      "judgePass": true,
+      "wallSeconds": 265.002,
+      "candidateTokens": 1086741,
+      "launchBoundary": "same_thread",
+      "children": 0,
+      "humanInterventions": 0
+    }
+  ],
+  "historicalComparison": [
+    {
+      "mode": "vanilla",
+      "taskPassRate": 1.0,
+      "judgeScore": 4.75,
+      "wallMeanSeconds": 216.452,
+      "candidateTokensMean": 649755.75,
+      "currentWallRatio": 1.23,
+      "currentTokenRatio": 1.447
+    },
+    {
+      "mode": "native-goal",
+      "taskPassRate": 1.0,
+      "judgeScore": 4.75,
+      "wallMeanSeconds": 223.049,
+      "candidateTokensMean": 759671.75,
+      "currentWallRatio": 1.193,
+      "currentTokenRatio": 1.237
+    },
+    {
+      "mode": "retired-darrow-goal-loop",
+      "taskPassRate": 0.75,
+      "judgeScore": 3.75,
+      "wallMeanSeconds": 702.469,
+      "candidateTokensMean": 924361,
+      "childrenMean": 2.0,
+      "currentWallRatio": 0.379,
+      "currentTokenRatio": 1.017
+    }
+  ],
+  "claudeCapabilityProbe": {
+    "includedInComparison": false,
+    "result": "launch_required",
+    "sameThreadGoalControl": false,
+    "recursiveCliAuthenticated": false,
+    "finding": "An active Claude session could not authenticate a recursively launched Claude CLI. Claude requires an enclosing launcher or a future same-thread goal-control surface."
+  },
+  "conclusions": {
+    "retiredController": "The redesign removes the retired controller's quality regression and cuts Codex wall time by 62% while using zero Darrow children.",
+    "incrementalValue": "This N=1 run demonstrates no incremental quality value over raw native goal or vanilla; it is 19% slower and uses 24% more tokens than raw native goal.",
+    "status": "Keep the redesign exploratory. Do not promote it over raw native goal without a three-trial comparison or a route-selection task where preflight can demonstrate a different quality-cost outcome.",
+    "claude": "Do not score Claude implementation quality until a programmatic same-thread goal surface or an authenticated enclosing launcher exists."
+  }
+}

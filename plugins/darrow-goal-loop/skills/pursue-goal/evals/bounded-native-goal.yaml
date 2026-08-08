@@ -1,11 +1,12 @@
-id: goal-loop-normal-code-change
-invariant: AGL-A1,AGL-A2,AGL-A4,AGL-P1,AGL-G3,AGL-V1,AGL-V3,AGL-E1
+id: goal-preflight-bounded-native-goal
+invariant: AGL-P1,AGL-P2,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-L6,AGL-S3
 prompt: >-
-  /pursue-goal Add an exported double(value) function to src/math.js. On Codex, invoke the $pursue-goal skill. Add
-  focused tests for zero and a negative number. Acceptance is
-  that double returns exactly two times its numeric input and bash test.sh
-  passes. Do not plan or publish; the objective, scope, and verification are
-  already clear.
+  /pursue-goal Add an exported double(value) function to src/math.js. On Codex,
+  invoke the $pursue-goal skill. Add focused tests for zero and a negative
+  number. Acceptance is that double returns exactly two times its numeric input
+  and bash test.sh passes. Pin `codex|openai|gpt-5.5|medium`, which is the
+  current evaluation route, so the goal can launch in this thread. Keep the
+  result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -21,7 +22,6 @@ fixture:
           import test from "node:test";
           import assert from "node:assert/strict";
           import { identity } from "../src/math.js";
-
           test("identity", () => assert.equal(identity(-2), -2));
         test.sh: |
           #!/usr/bin/env bash
@@ -39,14 +39,13 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: result is locally verified
-    expect_regex: "status\\tverified"
-  - name: executor and verifier are the normal path
-    expect_regex: "route\\texecutor\\t[\\s\\S]*route\\tverifier\\t"
-  - name: normal code roles use the standard profile mapping
-    expect_regex: "route\\texecutor\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium[\\s\\S]*route\\tverifier\\tcodex\\topenai\\tgpt-5\\.6-sol\\tmedium"
-  - name: no undeclared planner or repair was added
-    metric: false_positive
-    not_regex: "route\\t(planner|repair)\\t"
-  - name: independent verification passed
-    expect_regex: "verification\\trequired\\tpass"
+  - name: preflight record is emitted
+    expect_regex: "format\\tdarrow-native-goal-preflight-v1"
+  - name: bounded standard route is selected
+    expect_regex: "template\\tbounded-change[\\s\\S]*profile\\tstandard[\\s\\S]*route\\tcodex\\topenai\\tgpt-5\\.5\\tmedium"
+  - name: same-thread native goal is used
+    expect_regex: "launch_boundary\\tsame_thread[\\s\\S]*evaluation_child_invocations\\t0"
+  - name: no custom role orchestration remains
+    not_regex: "route\\t(planner|executor|verifier|repair)\\t"
+  - name: no human stop was needed
+    expect_regex: "evaluation_human_interruptions\\t0"

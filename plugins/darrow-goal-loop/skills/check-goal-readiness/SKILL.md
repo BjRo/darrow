@@ -1,96 +1,59 @@
 ---
 name: check-goal-readiness
-description: Report which adaptive goal-loop routes are ready, degraded, or blocked without model calls or setup changes. Use only when explicitly invoked by the user.
+description: Report which native-goal preflight routes and launch boundaries are available without model calls or setup changes. Use only when explicitly invoked by the user.
 disable-model-invocation: true
 ---
 
-# Check goal readiness
+# Check native-goal readiness
 
-Describe usable goal-loop paths before any model budget is spent.
+Report whether this host can compile and activate each goal profile before any
+paid goal begins.
 
-## Working model
+## 1. Collect static evidence
 
-- **Static evidence:** inspect executables, configuration presence, route
-  declarations, and host capabilities. Never invoke a model for readiness.
-- **Secret-safe status:** report whether credentials or exporter configuration
-  exist, never their values.
-- **Route-local degradation:** a missing optional adapter disables only the
-  paths that require it. Preserve usable same-harness paths.
-- **Host truth:** native child support and selection controls come from the
-  current host surface, not from a same-named CLI executable.
-
-## Workflow
-
-### 1. Select the diagnostic
-
-Resolve the bundled CLI relative to this file and use the actual host:
+Resolve the bundled helper relative to this file and run it for the actual host:
 
 ```sh
 skill_dir=<absolute directory containing this SKILL.md>
 goal_loop="$skill_dir/../../bin/goal-loop"
-bash "$goal_loop" readiness --host <codex|claude> --telemetry-mode best_effort
+bash "$goal_loop" readiness --host <codex|claude>
 ```
 
-Use `--telemetry-mode strict` only when diagnosing a user-requested strict run.
-Add `--network` only when the user explicitly requests exporter reachability;
-it performs a content-free authenticated OTLP request, not a model probe.
+Keep the diagnostic read-only. Do not install tools, authenticate, modify
+configuration, expose credential values, or launch a model.
 
-Keep the diagnostic read-only. Do not install a harness, authenticate a
-provider, or edit repository or user-global configuration. A separately
-requested live model probe is a different operation and is not part of this
-readiness command.
+**Complete when:** all bundled `fast`, `standard`, and `deep` mappings plus the
+static host API and nested-session evidence have been collected—or the exact
+configuration failure is known.
 
-**Complete when:** host, telemetry mode, and whether network reachability was
-explicitly requested are fixed before the command runs.
+## 2. Reconcile current-host capabilities
 
-### 2. Collect deterministic evidence
+Answer each `controller_must_confirm` item from capabilities exposed by the
+current surface:
 
-Run the selected command once. Treat its tab-separated records as facts about
-declared profiles, installed adapters, execution boundaries, telemetry, and
-supported or blocked paths. Preserve exact remediation text from degraded and
-blocked records.
+1. Can the current thread activate a native goal?
+2. Can the current thread apply the selected model and effort?
+3. Does an enclosing supported host API control the existing thread?
+4. Is one nested host session available as a compatibility boundary?
 
-Do not print raw environment variables, endpoint credentials, or header
-values. Do not mutate setup in response to a failed precondition.
+A host executable proves only that the compatibility command is installed; it
+does not prove credentials or recursion are available inside an active agent
+session. For Codex, an installed app-server proves the API implementation
+exists but not that this skill can control the enclosing thread. Preserve both
+distinctions.
 
-**Complete when:** the output identifies the host; every planner, executor,
-verifier, and repair profile; all adapters and boundaries; telemetry status;
-and every emitted path status—or the exact diagnostic failure is known.
+**Complete when:** every launch boundary has one evidence-backed state and no
+CLI presence has been promoted into a same-thread capability claim.
 
-### 3. Reconcile host capabilities
+## 3. Report route-local readiness
 
-Inspect capabilities exposed by the current host and answer separately:
+For each profile, report the mapped harness, provider, model, effort, declared
+fallback, and the narrowest usable launch boundary. Mark a user-pinned
+unavailable route as blocked; do not silently substitute it.
 
-- Can it create genuinely fresh native child agents?
-- For planner, executor, verifier, and repair, can provider, model, and effort
-  be pinned, or can each value be deliberately inherited?
+End with the smallest action that unlocks the requested route, or
+`No remediation required` when it is ready. State explicitly that readiness
+made no model call and changed no setup.
 
-Do not equate the presence of `codex` or `claude` on `PATH` with native child
-support. For every semantic profile (`fast`, `standard`, `deep`), preserve the
-CLI's role, harness, provider, model, effort, and declared fallback. Map an
-unavailable foreign adapter to the exact cross-harness routes it disables.
-
-**Complete when:** every `controller_must_confirm` item has an evidence-based
-host answer, and no optional failure has been promoted to plugin-wide failure.
-
-### 4. Report readiness
-
-Report:
-
-1. host harness and native fresh-child support;
-2. each role/profile mapping with actual harness, provider, model, effort, and
-   fallback;
-3. each foreign adapter and execution boundary as ready or as the specific
-   route it disables;
-4. telemetry mode, configuration presence, exporter availability, and—only
-   when requested—reachability, with credential values redacted;
-5. same-harness and cross-harness paths grouped as supported, degraded, or
-   blocked, with exact remediation for every failed precondition.
-
-State that a user-pinned unavailable route will stop instead of silently
-falling back. End with the smallest setup action that unlocks the requested
-path, or `No remediation required` when every requested path is ready.
-
-**Complete when:** each requested route has one unambiguous readiness state and
-action, optional degradation is scoped, and no model call, secret disclosure,
-or setup mutation occurred.
+**Complete when:** every requested profile has an unambiguous ready, degraded,
+or blocked state, an honest boundary, and exact remediation when needed.

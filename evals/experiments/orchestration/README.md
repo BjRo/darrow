@@ -4,7 +4,7 @@ This experiment compares four ways to complete the same engineering task:
 
 1. a vanilla single-agent run;
 2. the harness's native goal capability;
-3. `darrow-goal-loop`;
+3. native goal mode after `darrow-goal-loop` preflight and route selection;
 4. `darrow-ticket-pipeline`.
 
 Each mode runs independently on Claude Code and Codex. Comparisons should be
@@ -83,7 +83,11 @@ redacted snapshot under [`snapshots/`](snapshots/). The first such record is
 the [2026-08-07 one-trial benchmark](snapshots/2026-08-07-n1.md), with a
 [machine-readable aggregate](snapshots/2026-08-07-n1.json). A snapshot must
 state its trial count, runner provenance, reruns, missing metrics, limitations,
-and whether its conclusions are exploratory or accepted elsewhere.
+and whether its conclusions are exploratory or accepted elsewhere. The
+2026-08-07 snapshot evaluates the retired child-controller implementation. The
+[native-goal preflight calibration](snapshots/2026-08-07-native-preflight-codex-n1.md),
+with its [machine-readable snapshot](snapshots/2026-08-07-native-preflight-codex-n1.json),
+compares the redesign against that historical record.
 
 ## What is measured
 
@@ -120,8 +124,10 @@ candidate token totals are also reported as unknown.
 - Cell order is shuffled with a recorded seed to avoid always favoring the same
   condition through service-time or warm-cache order effects. Pass `--seed` to
   reproduce an exact order.
-- Native-goal conditions use the harness's own goal surface. Darrow conditions
-  explicitly invoke their plugin and mount all self-contained sibling skills.
+- Native-goal conditions use the harness's own goal surface. Darrow goal
+  conditions explicitly invoke the preflight skill, hold the prior candidate
+  route fixed, and then use the same native goal surface. Other Darrow
+  conditions mount all self-contained sibling skills they require.
 - The ticket pipeline receives one isolated open ticket whose body is the same
   task text. Its local `ticketctl` supports only fetch and description replace.
 - Results quantify this corpus and toolchain, not all engineering work. Use

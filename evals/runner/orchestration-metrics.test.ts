@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   extractOrchestrationMetrics,
-  hasForeignOrchestrationRoute,
+  hasUnreconciledOrchestrationUsage,
   observeCodexTicketPipelineRoutes,
   reconcileObservedTicketPipelineRoutes,
 } from "./orchestration-metrics";
@@ -62,23 +62,29 @@ describe("orchestration outcome metrics", () => {
 
   test("detects foreign harnesses in both orchestration route formats", () => {
     expect(
-      hasForeignOrchestrationRoute(
+      hasUnreconciledOrchestrationUsage(
         "route\tplanner\tclaude\tmodel\thigh\tnone",
         "codex",
       ),
     ).toBe(true);
     expect(
-      hasForeignOrchestrationRoute(
+      hasUnreconciledOrchestrationUsage(
         "route\tqa\t2\tclaude\tmodel\thigh\tqa-2",
         "codex",
       ),
     ).toBe(true);
     expect(
-      hasForeignOrchestrationRoute(
+      hasUnreconciledOrchestrationUsage(
         "route\tqa\t2\tcodex\tmodel\thigh\tqa-2",
         "codex",
       ),
     ).toBe(false);
+    expect(
+      hasUnreconciledOrchestrationUsage(
+        "launch_boundary\tnested_session",
+        "claude",
+      ),
+    ).toBe(true);
   });
 
   test("reconciles ticket-pipeline routes with completed Codex child spawns", () => {

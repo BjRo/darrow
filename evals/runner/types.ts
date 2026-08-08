@@ -177,7 +177,7 @@ export interface CaseResult {
   passRate: number;
   meanDurationMs: number;
   p95DurationMs: number;
-  /** Total harness tokens when complete; null when foreign child usage is not reconciled. */
+  /** Total harness tokens when complete; null when nested or foreign usage is not reconciled. */
   meanTokens: number | null;
   /** Sum of actual provider cost, or null when any trial cost is unknown. */
   totalCostUsd: number | null;

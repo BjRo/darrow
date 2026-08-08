@@ -1,0 +1,3 @@
+Explicitly invoke the installed `$pursue-goal` skill for the engineering task below. Use its read-only preflight to compile the task, then activate Codex native goal mode in the current thread. For comparability with the prior benchmark, pin the launch route to `codex|openai|gpt-5.5|medium`; do not substitute another model or create a nested session. Let native goal mode own implementation, verification, recovery, and completion. Do not commit or publish changes.
+
+The final response must include the skill's exact preflight launch record. A human intervention means a `launch_required` stop for a person's decision or authority. Internal native continuation turns are not child invocations.

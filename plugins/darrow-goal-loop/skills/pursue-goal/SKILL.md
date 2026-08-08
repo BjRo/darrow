@@ -1,171 +1,122 @@
 ---
 name: pursue-goal
-description: Pursue one bounded engineering goal through an adaptive, local-only executor and verification loop. Use only when explicitly invoked; this capability may call multiple models and edit the working tree.
+description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate model and effort. Use only when explicitly invoked; activation can consume meaningful model budget and edit the working tree.
 disable-model-invocation: true
 ---
 
-# Pursue a goal
+# Pursue a native goal
 
-Return a verified local working tree with the least orchestration the goal
-requires.
+Compile the request, activate one native goal, and let the host own the loop.
 
-## Working model
+## 1. Ground the request
 
-- **Thin controller:** inspect, route, invoke, snapshot, and aggregate. Delegate
-  every product-file edit to an executor or repair executor.
-- **One writer:** at most one write-capable child is active. Planner and
-  verifier roles are fresh and read-only with respect to product files.
-- **Local boundary:** verification authorizes no branch, worktree, commit, push,
-  PR, merge, release, deployment, or external mutation.
-- **Bounded recovery:** permit at most one repair followed by a fresh verifier.
-- **Transient state:** keep packets, snapshots, evidence, and results outside
-  the target repository.
-
-Use the shortest safe role sequence:
-
-| Goal shape | Roles | Profile |
-| --- | --- | --- |
-| Natural-language documentation, pure formatting, or generated output with a complete byte-level oracle | executor | `fast` |
-| Clear source, data, fixture, test, configuration, schema, dependency, or behavior change | executor → verifier | `standard` |
-| Architectural, cross-boundary, materially ambiguous, or non-obvious test strategy | planner → executor → verifier | `deep` planner; `standard` implementation; `deep` verification when risky |
-| One actionable failed verification | repair → fresh verifier | match the work's risk |
-
-## Workflow
-
-### 1. Bind the goal and repository
-
-Resolve the target repository and the bundled CLI to absolute paths:
+Resolve the repository and bundled helper to absolute paths, then run:
 
 ```sh
 skill_dir=<absolute directory containing this SKILL.md>
 goal_loop="$skill_dir/../../bin/goal-loop"
-bash "$goal_loop" preflight --repo "$repo" --telemetry best_effort
+bash "$goal_loop" preflight --repo "$repo"
 ```
 
-Use `--telemetry strict` only when the user selected strict telemetry. Strict
-preflight must establish authenticated export readiness before any paid child;
-otherwise stop as `blocked`. Best-effort export degradation remains separate
-from the code verdict.
+Inspect only the evidence needed to launch safely: applicable instructions and
+accepted decisions, pre-existing work, relevant manifests or CI, the requested
+scope, and focused verification commands. Keep product files unchanged during
+preflight. Treat recorded local changes as user-owned.
 
-Keep the returned run ID and preflight path. Treat every recorded pre-existing
-change and fingerprint as user-owned. If requested work overlaps a pre-existing
-path, stop for user direction. Preserve all recorded bytes, staging state, and
-paths through the final snapshot.
+Turn the request into observable completion criteria without choosing missing
+product behavior. If behavior, authority, or a safety policy is materially
+missing, select `decision-gated`, report the smallest decision, emit the launch
+record with `launch_required`, zero children, and one human interruption, then
+stop.
 
-Translate the request into observable acceptance criteria without changing its
-product intent. Record scope, non-goals, absolute applicable instruction and
-accepted-decision paths, and deterministic gates discovered from instructions,
-manifests, CI, and component practice. Refuse unreadable applicable
-configuration. When no lint, type, or test gate exists, record one
-`not_applicable` gate with the discovery evidence; absence is not a pass.
+**Complete when:** the outcome, constraints, local work, and every applicable
+or explicitly inapplicable verification gate are known—or one precise human
+decision is known to be missing.
 
-**Complete when:** the stable run, base revision, preserved local work,
-objective, criteria, scope, authority, and every applicable or explicitly
-inapplicable gate are bound before a child is invoked.
+## 2. Compile the goal
 
-### 2. Select roles, authority, and routes
+Select exactly one template and profile:
 
-Skip planning when objective, scope, behavior, and verification are clear. Use
-one fresh planner when the task crosses architectural boundaries, changes a
-public contract or schema, contains material product ambiguity, or needs a
-non-obvious test strategy. Never spend a model call on routing.
+| Evidence | Template | Profile |
+| --- | --- | --- |
+| Exact deterministic transformation with a complete oracle | `mechanical` | `fast` |
+| Clear bounded behavior, code, configuration, test, or documentation change | `bounded-change` | `standard` |
+| Reproducible defect or failing check | `diagnose-fix` | `standard` |
+| Approved public-contract, schema, dependency, security-sensitive, or cross-boundary change | `migration` | `deep` |
+| Missing product behavior, authority, or safety policy | `decision-gated` | no launch |
 
-Before any writer, stop as `needs_human` with the smallest missing decision
-when work requires an irreversible operation, destructive migration, security
-or privacy policy, external publication, materially ambiguous product behavior,
-or authority absent from the request. Destructive data, authentication or
-authorization, secrets, privacy, billing, broad migrations, and weakly
-verifiable external effects require an approved plan. An already approved
-specification or plan satisfies that gate.
-
-Resolve each chosen role mechanically:
+An explicit user template, model, or effort wins. Ordinary implementation is
+`standard`; a small code diff is not mechanical. Resolve the concrete route:
 
 ```sh
-bash "$goal_loop" route --host <codex|claude> --role <planner|executor|verifier|repair> \
-  --profile <fast|standard|deep> --native <yes|no|unknown>
+bash "$goal_loop" route --host <codex|claude> --profile <fast|standard|deep> \
+  [--route 'harness|provider|model|effort']
 ```
 
-Normal implementation and verification use `standard`; risky or ambiguous
-planning and verification use `deep`. Reserve `fast` for the mechanical oracle
-path in the table—a small code change is still `standard`. Pass an explicit
-user route as `--route 'harness|provider|model|effort'`; if unavailable, stop
-without substitution. A policy-selected route may use only the CLI's declared
-fallback, and the result must expose it.
+The final route record names the effective model identifier and effort.
+`inherit`, `current`, `default`, or an alias for an unknown route is not an
+auditable model value; resolve inheritance from host metadata before launch.
 
-**Complete when:** the minimal role sequence, profile, actual route or declared
-fallback, and all required pre-write authority are explicit—or the run has an
-evidence-backed `needs_human` or `blocked` outcome before a writer starts.
+Write one goal contract of at most 4,000 bytes containing:
 
-### 3. Invoke isolated roles
+1. the outcome and observable acceptance criteria;
+2. scope, non-goals, preserved local work, and permission boundaries;
+3. applicable verification commands and final-tree evidence required;
+4. template, profile, selected route, and any stopping budget;
+5. the exact final launch record below.
 
-Read [`references/child-protocol.md`](references/child-protocol.md) completely
-before creating the first packet.
-
-Invoke the selected roles in order:
-
-1. If selected, run one read-only planner. Normalize and validate its result,
-   but first take a unique snapshot and retain its fingerprint. After the
-   planner, take another snapshot with `--expect-fingerprint` set to that
-   pre-planner value. Reapply the human gate to its decisions before starting a
-   writer.
-2. Run one executor as the sole active writer. The controller must not
-   implement, repair, or start parallel implementation agents. Wait for it to
-   finish, then normalize and validate its result.
-3. Run any explicit controller-only diagnostic or fixture instruction at its
-   user-named boundary; keep it out of every child packet. Then capture a
-   unique post-execution snapshot and absolute final-diff path.
-4. For substantive work, run one fresh verifier against that final diff and
-   audit its read-only boundary with a post-verifier snapshot whose
-   `--expect-fingerprint` is the post-execution fingerprint. This post-verifier
-   artifact is the final snapshot. Omit the verifier only for the exact
-   mechanical-oracle path in the table, when the changed artifact cannot encode
-   product behavior and no repository or task instruction conflicts over scope,
-   authority, or verification. A `.txt` extension or exact assertion alone does
-   not make a data/value file prose-only. Record the exception and oracle
-   evidence. Uncertainty requires verification.
-
-Create snapshots at distinct absolute paths outside the repository:
-
-```sh
-bash "$goal_loop" snapshot --preflight "$preflight" \
-  [--expect-fingerprint "$prior_fingerprint"] --output "$unique_snapshot"
+```text
+format\tdarrow-native-goal-preflight-v1
+template\t<template>
+profile\t<profile>
+route\t<harness>\t<provider>\t<model>\t<effort>
+launch_boundary\t<same_thread|host_api|nested_session|launch_required>
+evaluation_child_invocations\t<integer>
+evaluation_human_interruptions\t<integer>
 ```
 
-Use the CLI when the controller obtains or confirms a deterministic result:
+Reference repository facts already available in the thread or named files;
+do not cache their contents in the contract. Describe what done means, leaving
+the implementation sequence to native goal mode.
 
-```sh
-bash "$goal_loop" gate --repo "$repo" --name "$gate_name" \
-  --command "$gate_command" --time-seconds "$gate_timeout" \
-  --evidence "$absolute_evidence"
-```
+**Complete when:** one concise contract accounts for every criterion, gate,
+boundary, selected route, and final record without inventing intent.
 
-Copy its `result_evidence` value into the gate record and classify the outcome
-with **Gate outcomes** in `child-protocol.md`. Distinguish a proven pre-existing
-failure from a regression, and accept changed tests as evidence only after they
-pass on the final tree.
+## 3. Activate the native goal
 
-If the verifier returns actionable findings, read
-[`references/repair-protocol.md`](references/repair-protocol.md) completely and
-follow it once. Do not improvise another recovery cycle.
+Use the actual host, then read exactly one branch completely:
 
-**Complete when:** every invoked role has a normalized, validated result; every
-reader's no-write boundary is snapshot-proven; the final tree and gates have
-current evidence; and verification is passed, explicitly not required, or
-honestly failed/blocked after the single allowed repair.
+- Codex: [`references/codex-launch.md`](references/codex-launch.md)
+- Claude: [`references/claude-launch.md`](references/claude-launch.md)
 
-### 4. Finalize and report
+Prefer a same-thread native goal whose effective model and effort exactly match
+the selected route. Use a
+supported same-thread host API next. Use one nested host session only when an
+enclosing launcher owns it or the host proves recursion and authentication are
+supported. If no boundary is available, emit `launch_required` with the exact
+missing capability and stop.
 
-Read [`references/result-protocol.md`](references/result-protocol.md)
-completely. Emit the required privacy-safe telemetry, assemble the transient
-result, and validate it against every packet/result pair in invocation order
-and the final post-reader snapshot.
+Activate exactly one goal. Darrow adds no planner, verifier, repair agent,
+retry loop, telemetry session, or cross-vendor route. Native goal mode owns
+implementation, verification, recovery, persistence, and completion.
 
-Lead the response with the evidence-derived outcome. Summarize changed files,
-gates, independent findings and repair, routes, telemetry, remaining risk, and
-the smallest next action. Provide the absolute validated result path and the
-validated record verbatim in one `tsv` fence. State that `verified` is local
-only and implies no publication.
+**Complete when:** the contract is active in one native goal with an honest
+launch boundary, or one exact launch capability is known to be missing.
 
-**Complete when:** the validated result reconciles the final working tree,
-roles, gates, verification, budgets, permissions, and telemetry, and the user
-can distinguish a verified local result from any unpublished or blocked work.
+## 4. Return native completion
+
+For a same-thread goal, continue under the active goal until its native terminal
+state. For a nested compatibility session, wait for that one session and return
+its result. Do not wrap completion in another review or repair phase.
+
+The final response must include the launch record verbatim. Count only sessions
+or subagents created by Darrow: `same_thread` and `host_api` are zero;
+`nested_session` is one. Count a human interruption only for an actual stop
+requiring a person's decision or authority.
+
+State changed files, final verification evidence, remaining risks, and that
+completion authorizes no commit, push, pull request, merge, release, or deploy.
+
+**Complete when:** the native terminal result and launch record agree with the
+final tree, route, boundary, child count, human interruptions, and publication
+authority.

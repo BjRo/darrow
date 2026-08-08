@@ -44,9 +44,9 @@ fulfillment through isolated reviewers before producing one validated verdict.
 
 ### [`darrow-goal-loop`](plugins/darrow-goal-loop/README.md)
 
-A bounded adaptive goal loop for local engineering work. It chooses the
-shortest safe planner/executor/verifier path, permits at most one repair, and
-keeps orchestration state transient.
+A native-goal preflight for local engineering work. It compiles an observable
+completion contract, selects a proportionate model and effort, and activates
+one host-native goal without supervising a second agent loop.
 
 ### [`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline/README.md)
 

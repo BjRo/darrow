@@ -1,9 +1,10 @@
 id: goal-loop-readiness-no-paid-probe
-invariant: AGL-D1,AGL-D2,AGL-D3,AGL-D4
+invariant: AGL-K1,AGL-K2,AGL-K3,AGL-K4,AGL-K5
 prompt: >-
-  /check-goal-readiness Check goal-loop readiness from this Codex host. On Codex, invoke the $check-goal-readiness skill.
-  Do not run a live model probe or mutate setup. Explain optional route
-  degradation and do not reveal credential values.
+  /check-goal-readiness Check native-goal readiness from this Codex host. On
+  Codex, invoke the $check-goal-readiness skill. Do not run a live model probe
+  or mutate setup. Distinguish same-thread goal control, host API control, and
+  nested compatibility without revealing credential values.
 fixture:
   commits:
     - message: "chore: init"
@@ -15,8 +16,8 @@ checks:
   - name: readiness changed no files
     run: test -z "$(git status --porcelain --untracked-files=all)"
 output_checks:
-  - name: native support is reported
-    expect_regex: "(native|child)"
+  - name: launch boundaries are distinguished
+    expect_regex: "(same.thread|host.api|nested)"
     flags: i
   - name: semantic profiles are reported
     expect_regex: "(fast|standard|deep)"
