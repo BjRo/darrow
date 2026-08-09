@@ -127,8 +127,5 @@ Not free:
   service whose principal value is Darrow's functionality. That needs a
   commercial license — contact bjoern@bjro.de.
 
-"Darrow" and the `darrow-*` plugin names are trademarks of Björn Rochel and are
-not licensed with the code. Forks must rename — see [TRADEMARK.md](TRADEMARK.md).
-
 Contributions are accepted under Apache-2.0 plus a relicensing grant; see
 [CONTRIBUTING.md](CONTRIBUTING.md).

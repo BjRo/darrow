@@ -29,11 +29,6 @@ so the project can be relicensed without tracking down past contributors.
 If you cannot agree to this — for example because your employer owns the
 copyright in your work — say so in the pull request before it is reviewed.
 
-## Trademarks
-
-Contributing does not grant you rights in the Darrow name or marks. See
-[TRADEMARK.md](TRADEMARK.md).
-
 ## Working agreements
 
 Read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) before changing

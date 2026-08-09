@@ -51,5 +51,5 @@ the target repository's own public seam and supported commands.
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
-two years after each release. "Darrow" is a trademark of Björn Rochel; forks
-must rename. Part of the [Darrow](https://github.com/BjRo/darrow) marketplace.
+two years after each release. Part of the
+[Darrow](https://github.com/BjRo/darrow) marketplace.
