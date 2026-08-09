@@ -1,12 +1,50 @@
 # Darrow
 
 Darrow is a marketplace of focused, independently adoptable plugins for coding
-agents. It does not ship a daemon or general workflow runtime; its goal loop
-and ticket pipeline are explicitly invoked, skill-driven compositions of
-native child agents. Claude Code and Codex can use the same plugin packages
-directly.
+agents. It separates intent-matched capabilities from explicit orchestration,
+and treats each plugin as an optionality boundary. Claude Code and Codex can use
+the same plugin packages directly.
 
-## Plugins
+## Design
+
+Capabilities teach an agent how to perform a focused kind of work. The model
+selects and invokes them when their advertised intent matches the user's
+request, though users can also name them explicitly. They remain useful without
+an orchestration layer and can be composed wherever their contract is
+available. Orchestration owns a different concern: framing and continuing
+longer-running work until an observable completion condition is reached. It
+starts only through explicit user invocation and must not be inferred merely
+because a task is complex or multi-step.
+
+The core orchestration helper is [`darrow-goal-loop`](plugins/darrow-goal-loop/README.md).
+It performs a read-only preflight, compiles the request and repository evidence
+into a bounded completion contract, selects a proportionate workflow, risk
+gate, model, and effort, and hands the result to one host-native goal owner. It
+improves the starting conditions for native adaptive execution without building
+a second agent runtime around it.
+
+[`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline/README.md) is retained
+only as a reference implementation of Darrow's earlier static phase-controller
+approach and as an executable benchmark baseline for the goal loop. It is not a
+second recommended orchestration path or the foundation for a general workflow
+runtime.
+
+Across both layers, narrow bundled scripts hide repeatable tool-call and
+protocol details from the invoking model. Skills retain contextual judgment,
+while scripts own deterministic command construction, validation, parsing, and
+compact result reporting. Plugin-shipped mechanics use portable Bash rather
+than adding a full language runtime; the shared TypeScript/Bun eval runner is
+repository development infrastructure, not a plugin runtime dependency.
+
+Every skill carries colocated evals for its public behavior and intent
+boundaries. Darrow also uses those evals for evidence-based development: a new
+variant is compared with the relevant control—such as an unmodified host or its
+native goal functionality—under matched fixtures, prompts, routes, and checks
+before an advantage is attributed to the variant.
+
+See [Design principles](docs/design.md) for the rationale and boundaries.
+
+## Capability plugins
 
 ### [`darrow-git`](plugins/darrow-git/README.md)
 
@@ -42,19 +80,6 @@ A read-only code-review capability that pins the exact committed and declared
 working-tree scope, then evaluates repository standards and originating-spec
 fulfillment through isolated reviewers before producing one validated verdict.
 
-### [`darrow-goal-loop`](plugins/darrow-goal-loop/README.md)
-
-A native-goal preflight for local engineering work. It compiles an observable
-completion contract, selects a proportionate model and effort, and activates
-one host-native goal without supervising a second agent loop.
-
-### [`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline/README.md)
-
-A deliberately static, ticket-backed pipeline modeled on Mynab's delivery
-approach. A user-invoked controller persists all phase artifacts in one ticket
-and delegates refine/challenge, implementation, review/rework, QA/fix, and
-codification to fresh phase-skill agents with bounded loops.
-
 ### [`darrow-skill-authoring`](plugins/darrow-skill-authoring/README.md)
 
 A focused workflow for creating or improving independently installable agent
@@ -63,13 +88,18 @@ evals, and fresh-context challenge across Claude Code and Codex.
 
 ## Package model
 
-- Plugins are independently adoptable and never reference sibling-plugin
-  files. `darrow-ticket-pipeline` detects a compatible host ticket capability at
+- Plugins are independently adoptable and never reference sibling-plugin files
+  or assume a sibling plugin is installed. Optional collaboration happens
+  through host-visible intent and capability contracts.
+- Capability skills are model-invoked from matching user intent or named
+  explicitly. Orchestration is user-invoked.
+- `darrow-ticket-pipeline` detects a compatible host ticket capability at
   runtime and blocks cleanly when none is installed.
-- Skills hold judgment; scripts enforce deterministic mechanics.
+- Skills hold judgment; narrow portable-Bash scripts hide and enforce
+  deterministic tool mechanics.
 - Capability invariants live in [`docs/specs`](docs/specs).
-- Judgment-focused evals are colocated with their skills and use the shared
-  runner in [`evals/runner`](evals/runner).
+- Per-skill evals verify behavior and compare variants through the shared runner
+  in [`evals/runner`](evals/runner).
 
 The marketplace manifest is
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Each plugin

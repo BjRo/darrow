@@ -1,12 +1,20 @@
 # darrow — Agent Instructions
 
 Darrow is a marketplace of independently adoptable plugins for Claude Code and
-Codex. It includes two explicit native-agent orchestration capabilities:
-`darrow-goal-loop` is a bounded adaptive goal loop and
-`darrow-ticket-pipeline` is a static ticket-backed phase pipeline. Neither is a
-daemon, queue, general workflow runtime, or license to restore the removed
-runtime experiments. Do not reconstruct other runtime machinery from Git
-history unless the user explicitly requests it.
+Codex. Its product architecture separates intent-matched capabilities from
+explicit orchestration, with each plugin serving as an optionality boundary.
+Capabilities are model-invoked in response to matching user intent, though a
+user may also name one explicitly. Orchestration starts only through explicit
+user invocation; never infer it from task complexity or duration.
+`darrow-goal-loop` is the core orchestration helper: it frames a bounded native
+goal and then leaves execution to the host. `darrow-ticket-pipeline` is retained
+only as a reference implementation of the former static phase approach and as a
+benchmark baseline. Neither is a daemon, queue, general workflow runtime, or
+license to restore the removed runtime experiments. Do not reconstruct other
+runtime machinery from Git history unless the user explicitly requests it.
+
+Before changing plugin boundaries, the orchestration model, or the relationship
+between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 
 ## Layout
 
@@ -22,11 +30,19 @@ history unless the user explicitly requests it.
 For skill creation, revision, or validation, follow
 [`author-agent-skill`](plugins/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
 Add or adjust the applicable invariant under `docs/specs/` before implementation.
+Keep contextual judgment in the skill. Put repeatable, error-prone command and
+tool-protocol mechanics behind narrow bundled scripts so the model supplies
+intent-level inputs instead of reproducing call details.
 
 Review agents must not run Git or GitHub commands against this repository.
 
 ## Shell portability
 
+- Write plugin-shipped executable mechanics in portable Bash, using baseline
+  Unix utilities and the host CLIs the capability wraps. Do not add Python,
+  JavaScript/TypeScript, Ruby, JVM, or compiled runtime dependencies. Shared
+  repository development and eval infrastructure such as `evals/runner/` is
+  outside this plugin-runtime boundary.
 - Avoid early-exit pipelines under `pipefail`; use here-strings for bounded
   matching.
 - Avoid `${var//pat/}` on unbounded input and `awk -v` for backslash-bearing
@@ -39,6 +55,11 @@ Review agents must not run Git or GitHub commands against this repository.
 
 ## Tests and evals
 
+- Give every skill colocated eval cases that verify its public behavior and
+  intent boundaries. Test deterministic scripts separately when present.
+- Develop behavior-changing variants from comparative evidence. Run the
+  candidate and relevant control against the same fixtures, prompts, checks,
+  harness, model, and effort; report trial count, metrics, and limitations.
 - Run relevant script tests with both `bash` and `/bin/bash`.
 - Run evals with `cd evals && bun runner/run.ts --case <substring> [--dry]`.
 - Keep eval prompts participant-visible and hide their pass criteria.
