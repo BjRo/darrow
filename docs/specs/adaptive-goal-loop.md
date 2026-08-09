@@ -99,6 +99,22 @@ The contract MUST remain concise enough for the narrowest supported native
 goal surface. Repository detail already present in the thread or discoverable
 from named files SHOULD be referenced rather than copied.
 
+The contract MUST distinguish **feedback checks** from **final-tree checks**.
+Feedback checks are the smallest repository-supported commands that exercise
+the changed seam during implementation, such as one test target, an
+affected-package typecheck, or a narrow build or lint command. When a workflow
+introduces acceptance or regression evidence at a stable seam with an
+independent oracle, the goal owner MUST run that evidence before the
+corresponding production change, confirm that it fails for the intended reason,
+and rerun it after each coherent slice. For a behavior-preserving workflow, the
+focused evidence begins green and stays green after each slice. Final-tree
+checks are the applicable scoped repository gate plus the selected risk gate.
+They MUST NOT serve as routine implementation feedback: run them once after
+implementation and affected callers or documentation appear complete, and rerun
+them only after later edits invalidate that result. Repository instructions that
+require a different cadence take precedence; the goal MUST NOT invent a seam,
+oracle, or command merely to imitate test-first work.
+
 ### Composable goal dimensions
 
 Preflight selects one workflow and one risk level. These dimensions compose; a
@@ -281,6 +297,11 @@ the least launch machinery the host supports.
    the same parent-skill workflow, risk, and reasoning-demand selection policy.
    Prepared classification extracts that policy from the skill and MUST NOT
    duplicate it in host adapter source.
+10. **AGL-P10 — Compiled verification cadence.** The goal contract names
+    feedback checks separately from final-tree checks. It preserves applicable
+    repository cadence, workflow-specific evidence ordering, and the honest
+    limitation when no stable seam, independent oracle, or focused command
+    exists.
 
 ### Routing invariants
 
@@ -340,10 +361,13 @@ the least launch machinery the host supports.
    state, user interruption, budget stop, or a genuine human decision. A Claude
    Agent runner MUST NOT claim session-scoped `/goal` persistence.
 6. **AGL-L6 — Final evidence.** The host-native goal owner runs the contract's
-   applicable checks against the final tree before claiming completion.
+   applicable final-tree checks after implementation, affected callers, and
+   documentation are complete and before claiming completion. A narrow
+   feedback pass does not substitute for those checks.
 7. **AGL-L7 — Proportional verification.** Native completion follows the
-   selected workflow and satisfies the verification gates required by the
-   selected risk level.
+   selected workflow, uses the compiled feedback cadence while implementing,
+   and satisfies the final verification gates required by the selected risk
+   level.
 8. **AGL-L8 — Observable goal runner.** When in-place Codex activation cannot
    apply the selected route, Darrow MAY create exactly one first-class native
    agent thread with explicit model and effort. That runner owns the one native

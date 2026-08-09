@@ -117,6 +117,21 @@ Classify reasoning demand independently from workflow and risk:
 Implementation size, reversibility, and consequence risk do not reduce a
 `judgment` task to ordinary coding.
 
+Compile feedback checks and final-tree checks separately in the goal contract.
+Feedback checks are the smallest repository-supported commands that exercise
+the changed seam, such as one test target, an affected-package typecheck, or a
+narrow build or lint command. When the selected workflow adds acceptance or
+regression evidence at a stable seam with an independent oracle, run that
+evidence before the corresponding production change, confirm it fails for the
+intended reason, and rerun it after each coherent slice. For
+behavior-preserving work, start with passing focused evidence and keep it green
+after each slice. Final-tree checks are the applicable scoped repository gate
+plus the risk gate below; run them once after implementation and affected
+callers or documentation appear complete, and rerun them only after later edits
+invalidate that result. Do not use broad final-tree gates as routine
+implementation feedback. Follow any different repository-mandated cadence, and
+do not invent a seam, oracle, or command merely to imitate test-first work.
+
 Apply the selected proportional risk gate:
 
 | Risk | Required verification |
@@ -169,8 +184,8 @@ provenance.
 Write one goal contract of at most 4,000 bytes containing the outcome,
 acceptance criteria, scope and non-goals, preserved work, permissions, the
 selected workflow and its sequence, risk gate, profile and concrete route,
-applicable final-tree checks, any user-specified stopping budget, and this exact
-final record:
+applicable feedback checks and final-tree checks, any user-specified stopping
+budget, and this exact final record:
 
 ```text
 format\tdarrow-native-goal-preflight-v4

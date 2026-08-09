@@ -55,6 +55,13 @@ mismatches; and provides an injection-safe nested compatibility launcher. It
 requires explicit `--allow-nested` authorization and does not implement or
 supervise the goal.
 
+The compiled contract separates narrow feedback checks used after coherent
+implementation slices from final-tree repository and risk gates. Workflows that
+add acceptance or regression evidence run it before the corresponding behavior
+change when a stable seam and independent oracle exist; repository-mandated
+cadence always wins. Broad final-tree gates run after the tree appears complete,
+not as routine implementation feedback.
+
 Repository overrides use the same strict `{"routes":[...]}` object schema as
 the bundled file. An override replaces only its matching `(host, profile)`
 route; omitted routes keep bundled policy. A present override must be readable,

@@ -126,6 +126,12 @@ after`);
       "| `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |",
     ])
       expect(canonicalGuidance).toContain(gate);
+    expect(canonicalGuidance).toContain(
+      "Compile feedback checks and final-tree checks",
+    );
+    expect(canonicalGuidance).toMatch(
+      /broad final-tree gates as routine\s+implementation feedback/,
+    );
   });
 
   test("recognizes only tab-separated ablation markers", () => {
@@ -157,6 +163,7 @@ after`);
     );
     expect(withRisk).toContain("Select the workflow and proportional risk");
     expect(withRisk).toContain("verification_gate");
+    expect(withRisk).toContain("feedback checks and final-tree checks");
     expect(withRisk).not.toContain("technical reference");
   });
 
@@ -174,6 +181,9 @@ after`);
     expect(prompt.match(/Canonical selection triggers\./g)).toHaveLength(1);
     expect(prompt).toContain(
       "Apply the selected high verification gate defined in the canonical guidance above.",
+    );
+    expect(prompt).toContain(
+      "After they pass, complete the native goal and return without rerunning a passing broad gate",
     );
     expect(prompt).toContain("# Change feature");
   });

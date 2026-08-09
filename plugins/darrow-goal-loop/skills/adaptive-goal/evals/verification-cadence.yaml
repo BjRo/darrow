@@ -1,0 +1,68 @@
+id: goal-preflight-verification-cadence
+invariant: AGL-P10,AGL-L6,AGL-L7,AGL-S3
+prompt: >-
+  /adaptive-goal Add an exported isEven(value) function to src/math.js. On
+  Codex, invoke the $adaptive-goal skill. Acceptance is that it returns true
+  exactly for even integer inputs, focused evidence covers zero, a negative
+  even integer, and an odd integer, and bash final.sh passes. Select and apply
+  the policy route rather than pinning it. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          For JavaScript behavior changes, use `bash focused.sh` for feedback
+          while iterating and run `bash final.sh` against the final tree.
+        package.json: '{"type":"module"}'
+        src/math.js: |
+          export const identity = (value) => value;
+        test/math.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identity } from "../src/math.js";
+
+          test("identity", () => assert.equal(identity(-2), -2));
+        focused.sh: |
+          #!/usr/bin/env bash
+          trace=.git/verification-trace
+          status=fail
+          if node --test test/math.test.js; then status=pass; fi
+          printf 'focused\t%s\n' "$status" >>"$trace"
+          [ "$status" = pass ]
+        final.sh: |
+          #!/usr/bin/env bash
+          trace=.git/verification-trace
+          status=fail
+          if node --test; then status=pass; fi
+          printf 'final\t%s\n' "$status" >>"$trace"
+          [ "$status" = pass ]
+checks:
+  - name: behavior is implemented
+    run: >-
+      node --input-type=module -e
+      "import('./src/math.js').then(({isEven}) => {
+      if (!isEven(0) || !isEven(-4) || isEven(3)) process.exit(1) })"
+  - name: focused evidence is durable
+    run: >-
+      grep -F 'isEven(0)' test/math.test.js >/dev/null &&
+      grep -F 'isEven(-' test/math.test.js >/dev/null &&
+      grep -F 'isEven(3)' test/math.test.js >/dev/null
+  - name: feedback precedes final-tree verification
+    run: >-
+      awk '
+      BEGIN { red = 0; green = 0; final = 0; final_count = 0; bad = 0 }
+      $1 == "focused" && $2 == "fail" && red == 0 { red = NR }
+      $1 == "focused" && $2 == "pass" && red > 0 && NR > red && green == 0 { green = NR }
+      $1 == "final" { final_count++; if (green == 0) bad = 1 }
+      $1 == "final" && $2 == "pass" && green > 0 && NR > green { final = NR }
+      END { exit !(red > 0 && green > red && final > green && final_count == 1 && bad == 0) }
+      ' .git/verification-trace
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: verification cadence retains a bounded routine route
+    expect_regex: "workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine"
+  - name: routine verification gate is reported
+    expect_regex: "verification_gate\\troutine"
