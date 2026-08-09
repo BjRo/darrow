@@ -430,7 +430,7 @@ case "$cmd" in
       args+=(--milestone "$milestone")
       filters="$filters, milestone=$milestone"
     fi
-    args+=(--json number,state,title,labels --jq '.[] | "#\(.number) \(.state|ascii_downcase)  \(.title)" + (if (.labels|length) > 0 then " (" + ([.labels[].name]|join(", ")) + ")" else "" end)')
+    args+=(--json 'number,state,title,labels' --jq '.[] | "#\(.number) \(.state|ascii_downcase)  \(.title)" + (if (.labels|length) > 0 then " (" + ([.labels[].name]|join(", ")) + ")" else "" end)')
     out=$(run_gh "${args[@]}")
     echo "backend: $BACKEND"
     if [[ -z "$out" ]]; then
@@ -762,15 +762,15 @@ case "$cmd" in
       case "$1" in
         --depends-on)
           [[ $# -ge 2 ]] || { echo "error: --depends-on needs a value" >&2; exit 2; }
-          op=add-dep; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
+          op='add-dep'; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
         --remove-depends-on)
           [[ $# -ge 2 ]] || { echo "error: --remove-depends-on needs a value" >&2; exit 2; }
-          op=rm-dep; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
+          op='rm-dep'; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
         --parent)
           [[ $# -ge 2 ]] || { echo "error: --parent needs a value" >&2; exit 2; }
-          op=add-parent; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
+          op='add-parent'; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
         --remove-parent)
-          op=rm-parent; target=""; ops=$((ops + 1)); shift ;;
+          op='rm-parent'; target=""; ops=$((ops + 1)); shift ;;
         *) echo "error: unknown relate argument: $1" >&2; exit 2 ;;
       esac
     done
@@ -794,8 +794,8 @@ case "$cmd" in
     case "$op" in
       add-dep)
         verify_ticket "$target" >/dev/null
-        deps=$(fetch_deps "$id")
-        if grep -qxF -- "$target" <<< "$deps"; then
+        current_deps=$(fetch_deps "$id")
+        if grep -qxF -- "$target" <<< "$current_deps"; then
           echo "error: #$id already depends on #$target" >&2
           exit 9
         fi
@@ -803,8 +803,8 @@ case "$cmd" in
         echo "recorded: #$id depends-on #$target"
         ;;
       rm-dep)
-        deps=$(fetch_deps "$id")
-        if ! grep -qxF -- "$target" <<< "$deps"; then
+        current_deps=$(fetch_deps "$id")
+        if ! grep -qxF -- "$target" <<< "$current_deps"; then
           echo "error: #$id does not depend on #$target" >&2
           exit 9
         fi

@@ -116,7 +116,7 @@ describe("orchestration suite report", () => {
             meanClassifierModelCalls: 1,
             meanExecutionDurationMs: 900,
             meanExecutionTokens: 120,
-          } as any),
+          }),
         ],
       },
     ]);

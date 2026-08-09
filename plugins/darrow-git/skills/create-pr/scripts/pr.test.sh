@@ -116,7 +116,7 @@ bash "$SCRIPT" create --title "fix: x" -b "   " > /dev/null 2>&1
 check "whitespace-only -b, exit 2" 2 $?
 
 echo "# P2: environment guards (exit 3)"
-cd "$(mktemp -d)"
+cd "$(mktemp -d)" || exit 1
 bash "$SCRIPT" inspect > /dev/null 2>&1
 check "outside work tree, inspect exit 3" 3 $?
 bash "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
@@ -356,8 +356,8 @@ check "not draft" "" "$(ls .git/fixture-gh/draft 2>/dev/null || true)"
 ready_repo
 out=$(bash "$SCRIPT" create --title "fix: retry request on timeout" -b why --draft)
 check "draft create ok" 0 $?
-[[ -f .git/fixture-gh/draft ]]
-check "draft flag passed through" 0 $?
+if [[ -f .git/fixture-gh/draft ]]; then draft_rc=0; else draft_rc=1; fi
+check "draft flag passed through" 0 "$draft_rc"
 echo "$out" | grep -q ", draft)"
 check "draft stated in report" 0 $?
 

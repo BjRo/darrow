@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 goal_loop="$script_dir/goal-loop"
 tmp_root=$(mktemp -d "${TMPDIR:-/tmp}/darrow-native-goal.XXXXXX")
 

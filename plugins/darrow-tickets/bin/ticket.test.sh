@@ -287,7 +287,7 @@ check_contains "names the missing remote" "no 'origin' remote" "$OUT"
 
 fresh_repo
 OUT=$(PATH="/usr/bin:/bin" bash "$SCRIPT" inspect 2>&1); RC=$?
-if command -v gh >/dev/null 2>&1 && [ -x /usr/bin/gh -o -x /bin/gh ]; then
+if command -v gh >/dev/null 2>&1 && { [ -x /usr/bin/gh ] || [ -x /bin/gh ]; }; then
   echo "  skip: real gh on the base PATH"
 else
   check "missing gh exits 3" 3 "$RC"
@@ -352,7 +352,8 @@ check "attribution in body exits 6" 6 "$RC"
 good_bug_body body.md
 OUT=$(bash "$SCRIPT" create --title "Fix generated with Copilot" --type bug --body-file body.md 2>&1); RC=$?
 check "attribution in title exits 6" 6 "$RC"
-[[ -f "$MOCK/created-body" ]]; check "nothing was created" 1 "$?"
+[[ -f "$MOCK/created-body" ]] && body_exists=0 || body_exists=1
+check "nothing was created" 1 "$body_exists"
 
 echo "create — labels (TM-C2/C6)"
 fresh_repo; mock_gh
@@ -402,7 +403,8 @@ rm -f "$MOCK/created-body"
 OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends-on 42 2>&1); RC=$?
 check "missing relation target exits 4" 4 "$RC"
 check_contains "names the missing target" "#42 not found" "$OUT"
-[[ -f "$MOCK/created-body" ]]; check "nothing created on missing target" 1 "$?"
+[[ -f "$MOCK/created-body" ]] && body_exists=0 || body_exists=1
+check "nothing created on missing target" 1 "$body_exists"
 : > "$MOCK/dep-post-fail"
 OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md --depends-on 3 2>&1); RC=$?
 check "relation failure after creation exits 4" 4 "$RC"
@@ -566,7 +568,8 @@ OUT=$(bash "$SCRIPT" relate 14 --remove-parent 2>&1); RC=$?
 check "remove parent exits 0" 0 "$RC"
 grep -qF -- "api -X DELETE repos/{owner}/{repo}/issues/7/sub_issue -F sub_issue_id=10014" "$MOCK/calls"
 check "parent removed on the parent side" 0 "$?"
-[[ -f "$MOCK/issue-14-parent" ]]; check "parent state removed" 1 "$?"
+[[ -f "$MOCK/issue-14-parent" ]] && parent_exists=0 || parent_exists=1
+check "parent state removed" 1 "$parent_exists"
 OUT=$(bash "$SCRIPT" relate 14 --remove-parent 2>&1); RC=$?
 check "removing absent parent exits 9" 9 "$RC"
 OUT=$(bash "$SCRIPT" relate 12 --depends-on 3 --parent 7 2>&1); RC=$?
@@ -595,6 +598,7 @@ grep -q -- "--assignee octocat" "$MOCK/calls"; check "assignee sent to gh" 0 "$?
 
 echo "create — fence-masked heading (TM-C3)"
 fresh_repo; mock_gh
+# shellcheck disable=SC2016 # the backticks are a literal Markdown code fence in the body, not command substitution
 printf '## Observed\n\nx\n\n## Expected\n\ny\n\n```\n## Reproduction\n\nz\n```\n' > body.md
 OUT=$(bash "$SCRIPT" create --title "t" --type bug --body-file body.md 2>&1); RC=$?
 check "heading inside a fence does not count" 7 "$RC"

@@ -465,7 +465,7 @@ launch_phase() {
     END {if (inside) {print ENVIRON["TP_LEDGER_ROW"]; inserted=1}; if (!inserted) exit 4}
   ' "$state_temp" >"$temp_output" || fail 4 "could not persist launch ledger row"
   mv "$temp_output" "$output"
-  state_temp= temp_output=; trap - EXIT
+  state_temp='' temp_output=''; trap - EXIT
   printf 'phase\t%s\t%s\nbody\t%s\n' "$phase" "$iteration" "$output"
 }
 
@@ -688,7 +688,7 @@ case "$command" in
     printf 'body\t%s\n' "$output"
     ;;
   launch)
-    body_file= phase= iteration= agent= harness= model= effort= output=
+    body_file='' phase='' iteration='' agent='' harness='' model='' effort='' output=''
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --body-file) [ "$#" -ge 2 ] || fail 2 "--body-file needs a value"; body_file=$2; shift 2 ;;

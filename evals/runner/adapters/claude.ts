@@ -25,6 +25,79 @@ export function claudeRunSucceeded(
   return code === 0 && result.subtype === "success" && result.is_error !== true;
 }
 
+interface ClaudeResultEnvelope {
+  subtype?: string;
+  is_error?: boolean;
+  usage?: ClaudeUsage & { output_tokens?: number };
+  total_cost_usd?: unknown;
+  result?: unknown;
+}
+
+interface ClaudeOutcome {
+  ok: boolean;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | null;
+  resultText: string;
+}
+
+function claudeArgv(prompt: string, model: string, effort: string): string[] {
+  return [
+    "claude",
+    "-p",
+    prompt,
+    "--output-format",
+    "json",
+    "--model",
+    model,
+    "--effort",
+    effort,
+    "--setting-sources",
+    "project,local",
+    "--strict-mcp-config",
+    "--mcp-config",
+    '{"mcpServers":{}}',
+    "--no-chrome",
+    "--no-session-persistence",
+    "--dangerously-skip-permissions",
+  ];
+}
+
+/**
+ * Reads the single JSON envelope `claude -p --output-format json` prints. A
+ * missing or malformed envelope is a failed run, not a partially usable one.
+ */
+async function claudeOutcome(
+  repoDir: string,
+  out: string,
+  code: number,
+): Promise<ClaudeOutcome> {
+  const outcome: ClaudeOutcome = {
+    ok: false,
+    inputTokens: 0,
+    outputTokens: 0,
+    costUsd: null,
+    resultText: "",
+  };
+  try {
+    const parsed = JSON.parse(out) as ClaudeResultEnvelope;
+    outcome.ok = claudeRunSucceeded(code, parsed);
+    outcome.inputTokens = claudeInputTokens(parsed.usage);
+    outcome.outputTokens = parsed.usage?.output_tokens ?? 0;
+    outcome.costUsd =
+      typeof parsed.total_cost_usd === "number" ? parsed.total_cost_usd : null;
+    // Mirror the codex adapter: final agent message under .git/ for checks.
+    if (typeof parsed.result === "string") {
+      outcome.resultText = parsed.result;
+      await writeFile(join(repoDir, ".git", "last-message.md"), parsed.result);
+    }
+  } catch {
+    // A malformed envelope, or an unwritable final message, is a failed run.
+    outcome.ok = false;
+  }
+  return outcome;
+}
+
 /**
  * Runs the skill via headless Claude Code (`claude -p`). The skill is already
  * mounted in the fixture repo at .claude/skills/ (project-level discovery).
@@ -49,25 +122,7 @@ export const claudeAdapter: HarnessAdapter = {
     const start = performance.now();
     const env = await isolatedHarnessEnvironment("claude", repoDir);
     const argv = await sandboxedAgentCommand(
-      [
-        "claude",
-        "-p",
-        prompt,
-        "--output-format",
-        "json",
-        "--model",
-        model,
-        "--effort",
-        effort,
-        "--setting-sources",
-        "project,local",
-        "--strict-mcp-config",
-        "--mcp-config",
-        '{"mcpServers":{}}',
-        "--no-chrome",
-        "--no-session-persistence",
-        "--dangerously-skip-permissions",
-      ],
+      claudeArgv(prompt, model, effort),
       repoDir,
     );
     const proc = Bun.spawn(argv, {
@@ -88,41 +143,16 @@ export const claudeAdapter: HarnessAdapter = {
       proc.exited,
     ]);
     const durationMs = performance.now() - start;
-
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let costUsd: number | null = null;
-    let resultText = "";
-    let ok = false;
-    try {
-      const parsed = JSON.parse(out);
-      ok = claudeRunSucceeded(code, parsed);
-      inputTokens = claudeInputTokens(parsed.usage);
-      outputTokens = parsed.usage?.output_tokens ?? 0;
-      costUsd =
-        typeof parsed.total_cost_usd === "number"
-          ? parsed.total_cost_usd
-          : null;
-      // Mirror the codex adapter: final agent message under .git/ for checks.
-      if (typeof parsed.result === "string") {
-        resultText = parsed.result;
-        await writeFile(
-          join(repoDir, ".git", "last-message.md"),
-          parsed.result,
-        );
-      }
-    } catch {
-      ok = false;
-    }
+    const outcome = await claudeOutcome(repoDir, out, code);
 
     return {
-      ok,
+      ok: outcome.ok,
       durationMs,
-      inputTokens,
-      outputTokens,
-      costUsd,
-      resultText,
-      raw: ok ? out : out + err,
+      inputTokens: outcome.inputTokens,
+      outputTokens: outcome.outputTokens,
+      costUsd: outcome.costUsd,
+      resultText: outcome.resultText,
+      raw: outcome.ok ? out : out + err,
     };
   },
 };

@@ -78,15 +78,11 @@ async function writeFiles(
   }
 }
 
-/** Builds a temp git repo per the fixture and mounts the skill into the given dirs. */
-export async function buildFixture(
+/** Clone or initialise the fixture's git repo with a deterministic identity. */
+async function initFixtureRepo(
+  repoDir: string,
   fixture: Fixture,
-  skillDir: string,
-  skillMounts: string[],
-  mountPluginSkills = false,
-  caseDir = "",
-): Promise<string> {
-  const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
+): Promise<void> {
   if (fixture.repo) {
     if (fixture.commits?.length)
       throw new Error("fixture: repo and commits are mutually exclusive");
@@ -98,7 +94,13 @@ export async function buildFixture(
   }
   await git(repoDir, "config", "user.name", "Eval Fixture");
   await git(repoDir, "config", "user.email", "fixture@darrow.local");
+}
 
+/** Lay down the fixture's history, working tree, index, hooks, and stub bin. */
+async function applyFixtureContent(
+  repoDir: string,
+  fixture: Fixture,
+): Promise<void> {
   for (const commit of fixture.commits ?? []) {
     await writeFiles(repoDir, commit.files);
     await git(repoDir, "add", ...Object.keys(commit.files));
@@ -115,74 +117,99 @@ export async function buildFixture(
     throw new Error("fixture: commit_files requires files");
   }
   if (fixture.staged?.length) await git(repoDir, "add", ...fixture.staged);
-  if (fixture.hooks) {
-    for (const [name, content] of Object.entries(fixture.hooks)) {
-      const hookPath = join(repoDir, ".git", "hooks", name);
-      await writeFile(hookPath, content, { mode: 0o755 });
-    }
-  }
-  if (fixture.bin) {
-    const binDir = join(repoDir, ".git", "fixture-bin");
-    await mkdir(binDir, { recursive: true });
-    for (const [name, content] of Object.entries(fixture.bin)) {
-      await writeFile(join(binDir, name), content, { mode: 0o755 });
-    }
-  }
-  if (fixture.ticket) {
-    if (!/^[A-Za-z0-9._-]+$/.test(fixture.ticket.id))
-      throw new Error("fixture: ticket id contains unsupported characters");
-    if (/[\r\n]/.test(fixture.ticket.title))
-      throw new Error("fixture: ticket title must be one line");
-    const gitDir = join(repoDir, ".git");
-    const binDir = join(gitDir, "fixture-bin");
-    await mkdir(binDir, { recursive: true });
-    await Promise.all([
-      writeFile(join(binDir, "ticketctl"), TICKETCTL, { mode: 0o755 }),
-      writeFile(join(gitDir, "fixture-ticket-id"), fixture.ticket.id + "\n"),
-      writeFile(
-        join(gitDir, "fixture-ticket-title"),
-        fixture.ticket.title + "\n",
-      ),
-      writeFile(join(gitDir, "fixture-ticket.md"), fixture.ticket.body),
-      writeFile(join(gitDir, "ticketctl.log"), ""),
-    ]);
-  }
-  if (fixture.setup) {
-    const setup = fixture.setup.replaceAll(
-      "{{case_dir}}",
-      "$DARROW_EVAL_CASE_DIR",
-    );
-    const proc = Bun.spawn(["bash", "-c", setup], {
-      cwd: repoDir,
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        GIT_CONFIG_GLOBAL: "/dev/null",
-        GIT_CONFIG_SYSTEM: "/dev/null",
-        DARROW_EVAL_CASE_DIR: caseDir,
-      },
-    });
-    const [err, code] = await Promise.all([
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    if (code !== 0) throw new Error(`fixture setup failed (${code}): ${err}`);
-  }
+  await writeFixtureExecutables(repoDir, fixture);
+}
 
-  // Skill-less cases (experiments) mount nothing.
-  if (!skillDir) return repoDir;
+/** Install the fixture's git hooks and stub binaries, both mode 0755. */
+async function writeFixtureExecutables(
+  repoDir: string,
+  fixture: Fixture,
+): Promise<void> {
+  for (const [name, content] of Object.entries(fixture.hooks ?? {})) {
+    const hookPath = join(repoDir, ".git", "hooks", name);
+    await writeFile(hookPath, content, { mode: 0o755 });
+  }
+  if (!fixture.bin) return;
+  const binDir = join(repoDir, ".git", "fixture-bin");
+  await mkdir(binDir, { recursive: true });
+  for (const [name, content] of Object.entries(fixture.bin)) {
+    await writeFile(join(binDir, name), content, { mode: 0o755 });
+  }
+}
 
+/** Provision the local `ticketctl` stub and its single fixture ticket. */
+async function provisionFixtureTicket(
+  repoDir: string,
+  ticket: NonNullable<Fixture["ticket"]>,
+): Promise<void> {
+  if (!/^[A-Za-z0-9._-]+$/.test(ticket.id))
+    throw new Error("fixture: ticket id contains unsupported characters");
+  if (/[\r\n]/.test(ticket.title))
+    throw new Error("fixture: ticket title must be one line");
+  const gitDir = join(repoDir, ".git");
+  const binDir = join(gitDir, "fixture-bin");
+  await mkdir(binDir, { recursive: true });
+  await Promise.all([
+    writeFile(join(binDir, "ticketctl"), TICKETCTL, { mode: 0o755 }),
+    writeFile(join(gitDir, "fixture-ticket-id"), ticket.id + "\n"),
+    writeFile(join(gitDir, "fixture-ticket-title"), ticket.title + "\n"),
+    writeFile(join(gitDir, "fixture-ticket.md"), ticket.body),
+    writeFile(join(gitDir, "ticketctl.log"), ""),
+  ]);
+}
+
+async function runFixtureSetup(
+  repoDir: string,
+  script: string,
+  caseDir: string,
+): Promise<void> {
+  const setup = script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR");
+  const proc = Bun.spawn(["bash", "-c", setup], {
+    cwd: repoDir,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_SYSTEM: "/dev/null",
+      DARROW_EVAL_CASE_DIR: caseDir,
+    },
+  });
+  const [err, code] = await Promise.all([
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) throw new Error(`fixture setup failed (${code}): ${err}`);
+}
+
+/** Resolve which skill directories a mount receives: just the case's skill, or
+ * every sibling skill in the same plugin. */
+async function resolveMountedSkillDirs(
+  skillDir: string,
+  mountPluginSkills: boolean,
+): Promise<string[]> {
+  if (!mountPluginSkills) return [skillDir];
+  const skillsRoot = dirname(skillDir);
+  const entries = await readdir(skillsRoot, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(skillsRoot, entry.name));
+}
+
+async function mountSkills(
+  repoDir: string,
+  options: Pick<
+    BuildFixtureOptions,
+    "skillDir" | "skillMounts" | "mountPluginSkills"
+  >,
+): Promise<void> {
+  const { skillDir, skillMounts, mountPluginSkills = false } = options;
   // Plugin-level mechanics and deterministic config mount two levels above
   // the skill so relative paths resolve exactly like the repo/plugin cache.
   const pluginRoot = dirname(dirname(skillDir));
   const pluginBin = join(pluginRoot, "bin");
   const pluginConfig = join(pluginRoot, "config");
-  const skillDirs = mountPluginSkills
-    ? (await readdir(dirname(skillDir), { withFileTypes: true }))
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => join(dirname(skillDir), entry.name))
-    : [skillDir];
+  const skillDirs = await resolveMountedSkillDirs(skillDir, mountPluginSkills);
   for (const mount of skillMounts) {
     for (const mountedSkillDir of skillDirs) {
       const mountedSkillName = mountedSkillDir
@@ -211,6 +238,33 @@ export async function buildFixture(
   // state (a model told "commit my changes" would otherwise commit them).
   const excludes = skillMounts.map((m) => `/${m.split("/")[0]}/`).join("\n");
   await writeFile(join(repoDir, ".git", "info", "exclude"), excludes + "\n");
+}
+
+export interface BuildFixtureOptions {
+  fixture: Fixture;
+  /** Skill under evaluation; empty for skill-less experiment cases. */
+  skillDir: string;
+  /** Repo-relative directories the skill is copied into. */
+  skillMounts: string[];
+  /** Mount every sibling skill of the plugin, not just `skillDir`. */
+  mountPluginSkills?: boolean;
+  /** Value of `{{case_dir}}` / `$DARROW_EVAL_CASE_DIR` in `fixture.setup`. */
+  caseDir?: string;
+}
+
+/** Builds a temp git repo per the fixture and mounts the skill into the given dirs. */
+export async function buildFixture(
+  options: BuildFixtureOptions,
+): Promise<string> {
+  const { fixture, skillDir, caseDir = "" } = options;
+  const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
+  await initFixtureRepo(repoDir, fixture);
+  await applyFixtureContent(repoDir, fixture);
+  if (fixture.ticket) await provisionFixtureTicket(repoDir, fixture.ticket);
+  if (fixture.setup) await runFixtureSetup(repoDir, fixture.setup, caseDir);
+
+  // Skill-less cases (experiments) mount nothing.
+  if (skillDir) await mountSkills(repoDir, options);
 
   return repoDir;
 }

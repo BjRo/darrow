@@ -15,6 +15,190 @@ interface ObservedTicketPipelineRoute {
   threadId: string;
 }
 
+/** Thread/turn identity every accepted host-API event carries. */
+interface HostTurn {
+  threadId: string;
+  turnId: string;
+}
+
+interface HostRouteApplied extends HostTurn {
+  selected: GoalRoute;
+  effective: GoalRoute;
+}
+
+interface HostDimensions extends HostTurn {
+  stage: "workflow" | "workflow-risk";
+  workflow: string;
+  risk: "routine" | "elevated" | "high";
+}
+
+interface HostWorkflowLoaded extends HostTurn {
+  workflow: string;
+  file: string;
+  sha256: string;
+}
+
+interface NestedGoalApplication {
+  selected: GoalRoute;
+  effective: GoalRoute;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Fields only a `darrow-native-goal-preflight-v4` record declares. */
+interface GoalPreflightV4 {
+  workflow: string;
+  risk: NonNullable<GoalRouteApplication["risk"]>;
+  verificationGate: NonNullable<GoalRouteApplication["verificationGate"]>;
+}
+
+interface GoalPreflight {
+  profile: string;
+  selected: GoalRoute;
+  effective: GoalRoute;
+  appliedBy: GoalRouteApplication["appliedBy"];
+  launchBoundary: GoalRouteApplication["launchBoundary"];
+  declaredChildren: number;
+  /** Present exactly when the preflight record is v4. */
+  v4?: GoalPreflightV4;
+}
+
+/** Host route the current turn actually ran on. */
+export interface HostRoute {
+  harness: string;
+  model: string;
+  effort: string;
+}
+
+const RISK_LEVELS = ["routine", "elevated", "high"] as const;
+const DIMENSION_STAGES = ["workflow", "workflow-risk"] as const;
+const APPLIED_BY_VALUES = [
+  "current-thread",
+  "host-api",
+  "native-subagent",
+  "nested-session",
+] as const;
+const LAUNCH_BOUNDARY_VALUES = [
+  "same_thread",
+  "host_api",
+  "native_subagent",
+  "nested_session",
+] as const;
+
+const DECLARED_CHILDREN = /^evaluation_child_invocations\t([0-9]+)$/m;
+const GOAL_PREFLIGHT_FORMAT = /^format\t(darrow-native-goal-preflight-v[24])$/m;
+const GOAL_PREFLIGHT_V4 = /^format\tdarrow-native-goal-preflight-v4$/m;
+const GOAL_PREFLIGHT_V2 = /^format\tdarrow-native-goal-preflight-v2$/m;
+const TICKET_PIPELINE_FORMAT = /^format\tdarrow-ticket-pipeline-result-v1$/m;
+const GOAL_LOOP_RESULT = /^format\tdarrow-goal-loop-result-v1$/m;
+const ROUTE_VERIFIED = /^route_verified\ttrue$/m;
+const LAUNCH_REQUIRED = /^launch_boundary\tlaunch_required$/m;
+const CODEX_STREAM_EVENT = /^(thread|turn|item)\./;
+const SHA256 = /^[a-f0-9]{64}$/;
+
+/** Markers a nested Codex session must print to claim it applied the route. */
+const NESTED_APPLICATION_MARKERS = [
+  /^format\tdarrow-native-goal-route-application-v1$/m,
+  /^route_applied_by\tnested-session$/m,
+  /^route_verified\ttrue$/m,
+];
+
+/** A `launch_required` stop must leave every route field unapplied. */
+const LAUNCH_REQUIRED_MARKERS = [
+  /^selected_route\tnone\tnone\tnone\tnone$/m,
+  /^effective_route\tnone\tnone\tnone\tnone$/m,
+  /^route_applied_by\tnone$/m,
+  /^route_verified\tfalse$/m,
+  /^evaluation_child_invocations\t0$/m,
+];
+
+/** Boundary-specific expectations the controller record must satisfy.
+ *  `sameTurn` is omitted where the boundary constrains neither answer. */
+const GOAL_BOUNDARY_EXPECTATIONS: Partial<
+  Record<
+    GoalRouteApplication["launchBoundary"],
+    {
+      appliedBy: GoalRouteApplication["appliedBy"];
+      children: number;
+      sameTurn?: boolean;
+    }
+  >
+> = {
+  nested_session: { appliedBy: "nested-session", children: 1, sameTurn: false },
+  same_thread: { appliedBy: "current-thread", children: 0, sameTurn: true },
+  host_api: { appliedBy: "host-api", children: 0 },
+  native_subagent: { appliedBy: "native-subagent", children: 1 },
+};
+
+const EXPECTED_PHASE_SKILLS: Record<string, string> = {
+  refine: "refine-ticket",
+  challenge: "challenge-ticket",
+  implement: "implement-ticket",
+  review: "review-ticket",
+  rework: "rework-ticket",
+  qa: "qa-ticket",
+  codify: "codify-ticket",
+};
+
+function matchField(text: string, pattern: RegExp): string | undefined {
+  return text.match(pattern)?.[1];
+}
+
+function recordOf(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringOr(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function memberOf<T extends string>(
+  values: readonly T[],
+  value: unknown,
+): T | undefined {
+  return values.includes(value as T) ? (value as T) : undefined;
+}
+
+function allUnique(values: string[]): boolean {
+  return new Set(values).size === values.length;
+}
+
+/** Yield every JSON object line of a harness stream, skipping the non-JSON
+ *  noise harnesses interleave with their JSONL events. */
+function* jsonlEvents(raw: string): Generator<Record<string, unknown>> {
+  for (const line of raw.split("\n")) {
+    if (!line.trim().startsWith("{")) continue;
+    let event: unknown;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      // Ignore non-JSON harness noise.
+      continue;
+    }
+    yield recordOf(event);
+  }
+}
+
+/** Extract from a stream, accepting the result only when exactly one event
+ *  matches — an ambiguous stream proves nothing about what was applied. */
+function singleEventMatch<T>(
+  raw: string,
+  extract: (event: Record<string, unknown>) => T | undefined,
+): T | undefined {
+  const matches: T[] = [];
+  for (const event of jsonlEvents(raw)) {
+    const match = extract(event);
+    if (match !== undefined) matches.push(match);
+  }
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function declaredChildCount(text: string): number {
+  return Number(matchField(text, DECLARED_CHILDREN) ?? -1);
+}
+
 function parseGoalRoute(text: string, field: string): GoalRoute | undefined {
   const match = text.match(
     new RegExp(
@@ -41,373 +225,374 @@ function sameGoalRoute(left: GoalRoute, right: GoalRoute): boolean {
   );
 }
 
-function nestedGoalApplication(raw: string):
-  | {
-      selected: GoalRoute;
-      effective: GoalRoute;
-      inputTokens: number;
-      outputTokens: number;
-    }
-  | undefined {
-  const applications = [];
-  for (const line of raw.split("\n")) {
-    if (!line.trim().startsWith("{")) continue;
-    try {
-      const event = JSON.parse(line);
-      const item = event.item;
-      if (
-        event.type !== "item.completed" ||
-        item?.type !== "command_execution" ||
-        item?.status !== "completed" ||
-        item?.exit_code !== 0 ||
-        typeof item?.aggregated_output !== "string" ||
-        !/^format\tdarrow-native-goal-route-application-v1$/m.test(
-          item.aggregated_output,
-        ) ||
-        !/^route_applied_by\tnested-session$/m.test(item.aggregated_output) ||
-        !/^route_verified\ttrue$/m.test(item.aggregated_output)
-      )
-        continue;
-      const selected = parseGoalRoute(item.aggregated_output, "selected_route");
-      const effective = parseGoalRoute(
-        item.aggregated_output,
-        "effective_route",
-      );
-      if (!selected || !effective) continue;
-      let inputTokens = 0;
-      let outputTokens = 0;
-      let completed = false;
-      for (const nestedLine of item.aggregated_output.split("\n")) {
-        if (!nestedLine.trim().startsWith("{")) continue;
-        try {
-          const nestedEvent = JSON.parse(nestedLine);
-          if (nestedEvent.type !== "turn.completed") continue;
-          completed = true;
-          inputTokens = nestedEvent.usage?.input_tokens ?? inputTokens;
-          outputTokens = nestedEvent.usage?.output_tokens ?? outputTokens;
-        } catch {
-          // Non-JSON nested output is permitted around the Codex JSONL stream.
-        }
-      }
-      if (completed)
-        applications.push({ selected, effective, inputTokens, outputTokens });
-    } catch {
-      // Ignore non-JSON harness noise.
-    }
-  }
-  return applications.length === 1 ? applications[0] : undefined;
+function goalRouteOf(value: unknown): GoalRoute | undefined {
+  const route = recordOf(value);
+  const { harness, provider, model, effort } = route;
+  return typeof harness === "string" &&
+    typeof provider === "string" &&
+    typeof model === "string" &&
+    typeof effort === "string"
+    ? { harness, provider, model, effort }
+    : undefined;
 }
 
-function hostGoalApplication(raw: string):
-  | {
-      selected: GoalRoute;
-      effective: GoalRoute;
-      threadId: string;
-      turnId: string;
-    }
-  | undefined {
-  const applications: Array<{
-    selected: GoalRoute;
-    effective: GoalRoute;
-    threadId: string;
-    turnId: string;
-  }> = [];
-  for (const line of raw.split("\n")) {
-    if (!line.trim().startsWith("{")) continue;
-    try {
-      const event = JSON.parse(line);
-      if (
-        event.type !== "darrow.route_applied" ||
-        event.accepted !== true ||
-        event.appliedBy !== "host-api" ||
-        typeof event.threadId !== "string" ||
-        typeof event.turnId !== "string"
-      )
-        continue;
-      const selected = event.selected as GoalRoute | undefined;
-      const effective = event.effective as GoalRoute | undefined;
-      if (
-        !selected ||
-        !effective ||
-        ![selected, effective].every(
-          (route) =>
-            typeof route.harness === "string" &&
-            typeof route.provider === "string" &&
-            typeof route.model === "string" &&
-            typeof route.effort === "string",
-        )
-      )
-        continue;
-      applications.push({
-        selected,
-        effective,
-        threadId: event.threadId,
-        turnId: event.turnId,
-      });
-    } catch {
-      // Ignore non-JSON harness noise.
-    }
-  }
-  return applications.length === 1 ? applications[0] : undefined;
+function sameHostTurn(left: HostTurn, right: HostTurn): boolean {
+  return left.threadId === right.threadId && left.turnId === right.turnId;
 }
 
-function hostGoalDimensions(raw: string):
-  | {
-      stage: "workflow" | "workflow-risk";
-      workflow: string;
-      risk: "routine" | "elevated" | "high";
-      threadId: string;
-      turnId: string;
-    }
-  | undefined {
-  const dimensions: Array<{
-    stage: "workflow" | "workflow-risk";
-    workflow: string;
-    risk: "routine" | "elevated" | "high";
-    threadId: string;
-    turnId: string;
-  }> = [];
-  for (const line of raw.split("\n")) {
-    if (!line.trim().startsWith("{")) continue;
-    try {
-      const event = JSON.parse(line);
-      if (
-        event.type !== "darrow.dimensions_applied" ||
-        event.accepted !== true ||
-        typeof event.threadId !== "string" ||
-        typeof event.turnId !== "string" ||
-        !["workflow", "workflow-risk"].includes(event.stage) ||
-        typeof event.workflow !== "string" ||
-        !["routine", "elevated", "high"].includes(event.risk)
-      )
-        continue;
-      dimensions.push({
-        stage: event.stage,
-        workflow: event.workflow,
-        risk: event.risk,
-        threadId: event.threadId,
-        turnId: event.turnId,
-      });
-    } catch {
-      // Ignore non-JSON harness noise.
-    }
-  }
-  return dimensions.length === 1 ? dimensions[0] : undefined;
+/** Thread/turn identity of an accepted host-API event of the given type. */
+function acceptedHostTurn(
+  event: Record<string, unknown>,
+  type: string,
+): HostTurn | undefined {
+  const { threadId, turnId } = event;
+  return event.type === type &&
+    event.accepted === true &&
+    typeof threadId === "string" &&
+    typeof turnId === "string"
+    ? { threadId, turnId }
+    : undefined;
 }
 
-function hostGoalWorkflow(raw: string):
-  | {
-      workflow: string;
-      file: string;
-      sha256: string;
-      threadId: string;
-      turnId: string;
-    }
-  | undefined {
-  const workflows: Array<{
-    workflow: string;
-    file: string;
-    sha256: string;
-    threadId: string;
-    turnId: string;
-  }> = [];
-  for (const line of raw.split("\n")) {
-    if (!line.trim().startsWith("{")) continue;
-    try {
-      const event = JSON.parse(line);
-      if (
-        event.type !== "darrow.workflow_loaded" ||
-        event.accepted !== true ||
-        typeof event.threadId !== "string" ||
-        typeof event.turnId !== "string" ||
-        typeof event.workflow !== "string" ||
-        typeof event.file !== "string" ||
-        !event.file.endsWith(`/references/workflows/${event.workflow}.md`) ||
-        !/^[a-f0-9]{64}$/.test(event.sha256 ?? "")
-      )
-        continue;
-      workflows.push({
-        workflow: event.workflow,
-        file: event.file,
-        sha256: event.sha256,
-        threadId: event.threadId,
-        turnId: event.turnId,
-      });
-    } catch {
-      // Ignore non-JSON harness noise.
-    }
-  }
-  return workflows.length === 1 ? workflows[0] : undefined;
-}
-
-export function observeCodexGoalRouteApplication(
-  resultText: string,
-  raw: string,
-): GoalRouteApplication | undefined {
-  const format = resultText.match(
-    /^format\t(darrow-native-goal-preflight-v[24])$/m,
-  )?.[1];
-  if (!format) return undefined;
-  const isV4 = format.endsWith("v4");
-  const profile = resultText.match(/^profile\t([^\t\n]+)$/m)?.[1];
-  const workflow = resultText.match(/^workflow\t([^\t\n]+)$/m)?.[1];
-  const risk = resultText.match(/^risk\t(routine|elevated|high)$/m)?.[1] as
-    GoalRouteApplication["risk"] | undefined;
-  const verificationGate = resultText.match(
-    /^verification_gate\t(routine|elevated|high)$/m,
-  )?.[1] as GoalRouteApplication["verificationGate"] | undefined;
-  const selected = parseGoalRoute(resultText, "selected_route");
-  const effective = parseGoalRoute(resultText, "effective_route");
-  const appliedBy = resultText.match(
-    /^route_applied_by\t(current-thread|host-api|native-subagent|nested-session)$/m,
-  )?.[1] as GoalRouteApplication["appliedBy"] | undefined;
-  const launchBoundary = resultText.match(
-    /^launch_boundary\t(same_thread|host_api|native_subagent|nested_session)$/m,
-  )?.[1] as GoalRouteApplication["launchBoundary"] | undefined;
-  const declaredChildren = Number(
-    resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
-  );
+/** Output of a completed nested Codex run that claims it applied the route. */
+function nestedApplicationOutput(
+  event: Record<string, unknown>,
+): string | undefined {
+  const item = recordOf(event.item);
+  const output = item.aggregated_output;
   if (
-    !profile ||
-    !selected ||
-    !effective ||
-    !appliedBy ||
-    !launchBoundary ||
-    (isV4 && (!workflow || !risk || !verificationGate))
+    event.type !== "item.completed" ||
+    item.type !== "command_execution" ||
+    item.status !== "completed" ||
+    item.exit_code !== 0 ||
+    typeof output !== "string" ||
+    !NESTED_APPLICATION_MARKERS.every((marker) => marker.test(output))
   )
     return undefined;
+  return output;
+}
 
-  if (launchBoundary === "nested_session") {
-    const nested = nestedGoalApplication(raw);
-    if (!nested) return undefined;
-    return {
-      profile,
-      selected,
-      effective,
-      appliedBy,
-      launchBoundary,
-      childInvocationCount: 1,
-      childInputTokens: nested.inputTokens,
-      childOutputTokens: nested.outputTokens,
-    };
+/** Usage reported by the nested session's last completed turn, or undefined
+ *  when the nested session never completed a turn. */
+function nestedTurnUsage(
+  output: string,
+): { inputTokens: number; outputTokens: number } | undefined {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let completed = false;
+  for (const event of jsonlEvents(output)) {
+    if (event.type !== "turn.completed") continue;
+    completed = true;
+    const usage = recordOf(event.usage);
+    if (typeof usage.input_tokens === "number")
+      inputTokens = usage.input_tokens;
+    if (typeof usage.output_tokens === "number")
+      outputTokens = usage.output_tokens;
   }
+  return completed ? { inputTokens, outputTokens } : undefined;
+}
 
-  if (launchBoundary === "host_api") {
-    const host = hostGoalApplication(raw);
-    const dimensions = isV4 ? hostGoalDimensions(raw) : undefined;
-    const loadedWorkflow = isV4 ? hostGoalWorkflow(raw) : undefined;
+function nestedGoalApplication(raw: string): NestedGoalApplication | undefined {
+  return singleEventMatch(raw, (event) => {
+    const output = nestedApplicationOutput(event);
+    if (!output) return undefined;
+    const selected = parseGoalRoute(output, "selected_route");
+    const effective = parseGoalRoute(output, "effective_route");
+    const usage = nestedTurnUsage(output);
+    if (!selected || !effective || !usage) return undefined;
+    return { selected, effective, ...usage };
+  });
+}
+
+function hostGoalApplication(raw: string): HostRouteApplied | undefined {
+  return singleEventMatch(raw, (event) => {
+    const turn = acceptedHostTurn(event, "darrow.route_applied");
+    const selected = goalRouteOf(event.selected);
+    const effective = goalRouteOf(event.effective);
+    if (!turn || event.appliedBy !== "host-api" || !selected || !effective)
+      return undefined;
+    return { selected, effective, ...turn };
+  });
+}
+
+function hostGoalDimensions(raw: string): HostDimensions | undefined {
+  return singleEventMatch(raw, (event) => {
+    const turn = acceptedHostTurn(event, "darrow.dimensions_applied");
+    const stage = memberOf(DIMENSION_STAGES, event.stage);
+    const risk = memberOf(RISK_LEVELS, event.risk);
+    const { workflow } = event;
+    if (!turn || !stage || !risk || typeof workflow !== "string")
+      return undefined;
+    return { stage, workflow, risk, ...turn };
+  });
+}
+
+function hostGoalWorkflow(raw: string): HostWorkflowLoaded | undefined {
+  return singleEventMatch(raw, (event) => {
+    const turn = acceptedHostTurn(event, "darrow.workflow_loaded");
+    const { workflow, file, sha256 } = event;
     if (
-      !host ||
-      !sameGoalRoute(selected, host.selected) ||
-      !sameGoalRoute(effective, host.effective) ||
-      (isV4 &&
-        (!dimensions ||
-          !loadedWorkflow ||
-          dimensions.workflow !== workflow ||
-          dimensions.risk !== risk ||
-          (dimensions.stage === "workflow" && risk !== "routine") ||
-          loadedWorkflow.workflow !== workflow ||
-          dimensions.threadId !== host.threadId ||
-          dimensions.turnId !== host.turnId ||
-          loadedWorkflow.threadId !== host.threadId ||
-          loadedWorkflow.turnId !== host.turnId))
+      !turn ||
+      typeof workflow !== "string" ||
+      typeof file !== "string" ||
+      !file.endsWith(`/references/workflows/${workflow}.md`) ||
+      typeof sha256 !== "string" ||
+      !SHA256.test(sha256)
     )
       return undefined;
-    return {
-      profile,
-      ...(isV4
-        ? {
-            workflow,
-            risk,
-            workflowFile: loadedWorkflow!.file,
-            workflowSha256: loadedWorkflow!.sha256,
-            dimensionStage: dimensions!.stage,
-            verificationGate,
-          }
-        : {}),
-      selected: host.selected,
-      effective: host.effective,
-      appliedBy,
-      launchBoundary,
-      childInvocationCount: 0,
-      childInputTokens: 0,
-      childOutputTokens: 0,
-    };
-  }
+    return { workflow, file, sha256, ...turn };
+  });
+}
 
+function goalPreflightV4Fields(
+  resultText: string,
+): GoalPreflightV4 | undefined {
+  const workflow = matchField(resultText, /^workflow\t([^\t\n]+)$/m);
+  const risk = memberOf(
+    RISK_LEVELS,
+    matchField(resultText, /^risk\t(routine|elevated|high)$/m),
+  );
+  const verificationGate = memberOf(
+    RISK_LEVELS,
+    matchField(resultText, /^verification_gate\t(routine|elevated|high)$/m),
+  );
+  return workflow && risk && verificationGate
+    ? { workflow, risk, verificationGate }
+    : undefined;
+}
+
+function goalPreflightBase(resultText: string): GoalPreflight | undefined {
+  const profile = matchField(resultText, /^profile\t([^\t\n]+)$/m);
+  const selected = parseGoalRoute(resultText, "selected_route");
+  const effective = parseGoalRoute(resultText, "effective_route");
+  const appliedBy = memberOf(
+    APPLIED_BY_VALUES,
+    matchField(
+      resultText,
+      /^route_applied_by\t(current-thread|host-api|native-subagent|nested-session)$/m,
+    ),
+  );
+  const launchBoundary = memberOf(
+    LAUNCH_BOUNDARY_VALUES,
+    matchField(
+      resultText,
+      /^launch_boundary\t(same_thread|host_api|native_subagent|nested_session)$/m,
+    ),
+  );
+  if (!profile || !selected || !effective || !appliedBy || !launchBoundary)
+    return undefined;
   return {
     profile,
     selected,
     effective,
     appliedBy,
     launchBoundary,
-    childInvocationCount: declaredChildren,
+    declaredChildren: declaredChildCount(resultText),
+  };
+}
+
+function parseGoalPreflight(resultText: string): GoalPreflight | undefined {
+  const format = matchField(resultText, GOAL_PREFLIGHT_FORMAT);
+  if (!format) return undefined;
+  const base = goalPreflightBase(resultText);
+  if (!base) return undefined;
+  if (!format.endsWith("v4")) return base;
+  const v4 = goalPreflightV4Fields(resultText);
+  return v4 ? { ...base, v4 } : undefined;
+}
+
+function nestedGoalRouteApplication(
+  preflight: GoalPreflight,
+  raw: string,
+): GoalRouteApplication | undefined {
+  const nested = nestedGoalApplication(raw);
+  if (!nested) return undefined;
+  return {
+    profile: preflight.profile,
+    selected: preflight.selected,
+    effective: preflight.effective,
+    appliedBy: preflight.appliedBy,
+    launchBoundary: preflight.launchBoundary,
+    childInvocationCount: 1,
+    childInputTokens: nested.inputTokens,
+    childOutputTokens: nested.outputTokens,
+  };
+}
+
+function hostDimensionsMatch(
+  dimensions: HostDimensions,
+  v4: GoalPreflightV4,
+): boolean {
+  return (
+    dimensions.workflow === v4.workflow &&
+    dimensions.risk === v4.risk &&
+    (dimensions.stage !== "workflow" || v4.risk === "routine")
+  );
+}
+
+type HostV4Evidence = Pick<
+  GoalRouteApplication,
+  | "workflow"
+  | "risk"
+  | "workflowFile"
+  | "workflowSha256"
+  | "dimensionStage"
+  | "verificationGate"
+>;
+
+/** v4 host runs must also show the dimensions and workflow the preflight
+ *  declared, applied on the very turn that applied the route. */
+function hostV4Evidence(
+  v4: GoalPreflightV4,
+  host: HostTurn,
+  raw: string,
+): HostV4Evidence | undefined {
+  const dimensions = hostGoalDimensions(raw);
+  const loadedWorkflow = hostGoalWorkflow(raw);
+  if (
+    !dimensions ||
+    !loadedWorkflow ||
+    !hostDimensionsMatch(dimensions, v4) ||
+    loadedWorkflow.workflow !== v4.workflow ||
+    !sameHostTurn(dimensions, host) ||
+    !sameHostTurn(loadedWorkflow, host)
+  )
+    return undefined;
+  return {
+    workflow: v4.workflow,
+    risk: v4.risk,
+    workflowFile: loadedWorkflow.file,
+    workflowSha256: loadedWorkflow.sha256,
+    dimensionStage: dimensions.stage,
+    verificationGate: v4.verificationGate,
+  };
+}
+
+function hostGoalRouteApplication(
+  preflight: GoalPreflight,
+  raw: string,
+): GoalRouteApplication | undefined {
+  const host = hostGoalApplication(raw);
+  if (
+    !host ||
+    !sameGoalRoute(preflight.selected, host.selected) ||
+    !sameGoalRoute(preflight.effective, host.effective)
+  )
+    return undefined;
+  const application: GoalRouteApplication = {
+    profile: preflight.profile,
+    selected: host.selected,
+    effective: host.effective,
+    appliedBy: preflight.appliedBy,
+    launchBoundary: preflight.launchBoundary,
+    childInvocationCount: 0,
+    childInputTokens: 0,
+    childOutputTokens: 0,
+  };
+  if (!preflight.v4) return application;
+  const evidence = hostV4Evidence(preflight.v4, host, raw);
+  return evidence ? { ...application, ...evidence } : undefined;
+}
+
+export function observeCodexGoalRouteApplication(
+  resultText: string,
+  raw: string,
+): GoalRouteApplication | undefined {
+  const preflight = parseGoalPreflight(resultText);
+  if (!preflight) return undefined;
+  if (preflight.launchBoundary === "nested_session")
+    return nestedGoalRouteApplication(preflight, raw);
+  if (preflight.launchBoundary === "host_api")
+    return hostGoalRouteApplication(preflight, raw);
+  return {
+    profile: preflight.profile,
+    selected: preflight.selected,
+    effective: preflight.effective,
+    appliedBy: preflight.appliedBy,
+    launchBoundary: preflight.launchBoundary,
+    childInvocationCount: preflight.declaredChildren,
     childInputTokens: 0,
     childOutputTokens: 0,
   };
 }
 
+/** The check produced when the goal stopped before launching anything. */
+function goalLaunchRequiredCheck(resultText: string): CheckResult | undefined {
+  if (!LAUNCH_REQUIRED.test(resultText)) return undefined;
+  const stoppedWithoutRoute = LAUNCH_REQUIRED_MARKERS.every((marker) =>
+    marker.test(resultText),
+  );
+  return {
+    name: "goal stopped without claiming an unapplied route",
+    passed: stoppedWithoutRoute,
+    detail: stoppedWithoutRoute
+      ? "launch_required with no effective route"
+      : "launch_required must report an unapplied, unverified route",
+  };
+}
+
+function hostWorkflowVerified(
+  isV4: boolean,
+  observed: GoalRouteApplication | undefined,
+): boolean {
+  if (!isV4 || observed?.launchBoundary !== "host_api") return true;
+  return (
+    observed.workflow !== undefined &&
+    observed.risk !== undefined &&
+    observed.workflowFile !== undefined &&
+    observed.workflowSha256 !== undefined &&
+    observed.dimensionStage !== undefined &&
+    observed.verificationGate === observed.risk
+  );
+}
+
+function effectiveRouteMatchesHost(
+  observed: GoalRouteApplication | undefined,
+  host: HostRoute,
+): boolean {
+  return (
+    observed?.effective.harness === host.harness &&
+    observed?.effective.model === host.model &&
+    observed?.effective.effort === host.effort
+  );
+}
+
+function goalBoundaryMatches(
+  observed: GoalRouteApplication,
+  declaredChildren: number,
+  effectiveMatchesCurrentTurn: boolean,
+): boolean {
+  const expected = GOAL_BOUNDARY_EXPECTATIONS[observed.launchBoundary];
+  return (
+    expected !== undefined &&
+    observed.appliedBy === expected.appliedBy &&
+    declaredChildren === expected.children &&
+    (expected.sameTurn === undefined ||
+      expected.sameTurn === effectiveMatchesCurrentTurn)
+  );
+}
+
 export function reconcileObservedGoalRouteApplication(
   resultText: string,
   raw: string,
-  hostHarness: string,
-  hostModel: string,
-  hostEffort: string,
+  hostRoute: HostRoute,
 ): CheckResult | undefined {
-  const isV4 = /^format\tdarrow-native-goal-preflight-v4$/m.test(resultText);
-  if (!isV4 && !/^format\tdarrow-native-goal-preflight-v2$/m.test(resultText))
-    return undefined;
-  if (/^launch_boundary\tlaunch_required$/m.test(resultText)) {
-    const stoppedWithoutRoute =
-      /^selected_route\tnone\tnone\tnone\tnone$/m.test(resultText) &&
-      /^effective_route\tnone\tnone\tnone\tnone$/m.test(resultText) &&
-      /^route_applied_by\tnone$/m.test(resultText) &&
-      /^route_verified\tfalse$/m.test(resultText) &&
-      /^evaluation_child_invocations\t0$/m.test(resultText);
-    return {
-      name: "goal stopped without claiming an unapplied route",
-      passed: stoppedWithoutRoute,
-      detail: stoppedWithoutRoute
-        ? "launch_required with no effective route"
-        : "launch_required must report an unapplied, unverified route",
-    };
-  }
+  const isV4 = GOAL_PREFLIGHT_V4.test(resultText);
+  if (!isV4 && !GOAL_PREFLIGHT_V2.test(resultText)) return undefined;
+  const launchRequired = goalLaunchRequiredCheck(resultText);
+  if (launchRequired) return launchRequired;
+  const { harness, model, effort } = hostRoute;
   const observed = observeCodexGoalRouteApplication(resultText, raw);
-  const declaredChildren = Number(
-    resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
-  );
-  const verified = /^route_verified\ttrue$/m.test(resultText);
-  const workflowVerified =
-    !isV4 ||
-    observed?.launchBoundary !== "host_api" ||
-    (observed.workflow !== undefined &&
-      observed.risk !== undefined &&
-      observed.workflowFile !== undefined &&
-      observed.workflowSha256 !== undefined &&
-      observed.dimensionStage !== undefined &&
-      observed.verificationGate === observed.risk);
-  const routesMatch =
+  const passed =
+    ROUTE_VERIFIED.test(resultText) &&
+    hostWorkflowVerified(isV4, observed) &&
     observed !== undefined &&
-    sameGoalRoute(observed.selected, observed.effective);
-  const effectiveMatchesCurrentTurn =
-    observed?.effective.harness === hostHarness &&
-    observed?.effective.model === hostModel &&
-    observed?.effective.effort === hostEffort;
-  const boundaryMatches =
-    observed?.launchBoundary === "nested_session"
-      ? observed.appliedBy === "nested-session" &&
-        declaredChildren === 1 &&
-        !effectiveMatchesCurrentTurn
-      : observed?.launchBoundary === "same_thread"
-        ? observed.appliedBy === "current-thread" &&
-          declaredChildren === 0 &&
-          effectiveMatchesCurrentTurn
-        : observed?.launchBoundary === "host_api"
-          ? observed.appliedBy === "host-api" && declaredChildren === 0
-          : observed?.launchBoundary === "native_subagent"
-            ? observed.appliedBy === "native-subagent" && declaredChildren === 1
-            : false;
-  const passed = verified && workflowVerified && routesMatch && boundaryMatches;
+    sameGoalRoute(observed.selected, observed.effective) &&
+    goalBoundaryMatches(
+      observed,
+      declaredChildCount(resultText),
+      effectiveRouteMatchesHost(observed, { harness, model, effort }),
+    );
   return {
     name: "harness-observed goal route matches selected model and effort",
     passed,
@@ -417,55 +602,87 @@ export function reconcileObservedGoalRouteApplication(
   };
 }
 
+/** Thread id of a completed `spawn_agent` call that spawned exactly one child. */
+function spawnedChildThreadId(
+  event: Record<string, unknown>,
+): string | undefined {
+  const item = recordOf(event.item);
+  const threadIds = item.receiver_thread_ids;
+  if (
+    event.type !== "item.completed" ||
+    item.type !== "collab_tool_call" ||
+    item.tool !== "spawn_agent" ||
+    item.status !== "completed" ||
+    !Array.isArray(threadIds) ||
+    threadIds.length !== 1
+  )
+    return undefined;
+  return String(threadIds[0]);
+}
+
+function ticketPipelineRoute(
+  event: Record<string, unknown>,
+): ObservedTicketPipelineRoute | undefined {
+  const threadId = spawnedChildThreadId(event);
+  const prompt = stringOr(recordOf(event.item).prompt, "");
+  const phase = matchField(prompt, /^- phase: ([a-z]+)$/m);
+  const iteration = matchField(prompt, /^- iteration: ([0-9]+)$/m);
+  const childId = matchField(prompt, /^- stable_child_id: (.+)$/m);
+  const skill = matchField(
+    prompt,
+    /^- (?:required skill|phase_skill): \$([a-z-]+)$/m,
+  );
+  if (!threadId || !phase || !iteration || !childId || !skill) return undefined;
+  return { phase, iteration: Number(iteration), childId, skill, threadId };
+}
+
 export function observeCodexTicketPipelineRoutes(
   raw: string,
 ): ObservedTicketPipelineRoute[] | undefined {
   const routes: ObservedTicketPipelineRoute[] = [];
   let sawCodexEvent = false;
-  for (const line of raw.split("\n")) {
-    if (!line.trim().startsWith("{")) continue;
-    try {
-      const event = JSON.parse(line);
-      if (/^(thread|turn|item)\./.test(event.type ?? "")) sawCodexEvent = true;
-      const item = event.item;
-      if (
-        event.type !== "item.completed" ||
-        item?.type !== "collab_tool_call" ||
-        item?.tool !== "spawn_agent" ||
-        item?.status !== "completed" ||
-        !Array.isArray(item.receiver_thread_ids) ||
-        item.receiver_thread_ids.length !== 1
-      )
-        continue;
-      const prompt = typeof item.prompt === "string" ? item.prompt : "";
-      const phase = prompt.match(/^- phase: ([a-z]+)$/m)?.[1];
-      const iteration = prompt.match(/^- iteration: ([0-9]+)$/m)?.[1];
-      const childId = prompt.match(/^- stable_child_id: (.+)$/m)?.[1];
-      const skill = prompt.match(
-        /^- (?:required skill|phase_skill): \$([a-z-]+)$/m,
-      )?.[1];
-      if (phase && iteration && childId && skill) {
-        routes.push({
-          phase,
-          iteration: Number(iteration),
-          childId,
-          skill,
-          threadId: item.receiver_thread_ids[0],
-        });
-      }
-    } catch {
-      // Ignore non-JSON harness noise.
-    }
+  for (const event of jsonlEvents(raw)) {
+    if (typeof event.type === "string" && CODEX_STREAM_EVENT.test(event.type))
+      sawCodexEvent = true;
+    const route = ticketPipelineRoute(event);
+    if (route) routes.push(route);
   }
   return sawCodexEvent ? routes : undefined;
+}
+
+/** Observed children and declared routes must be the same set of unique
+ *  phase attempts, each running the skill its phase requires. */
+function ticketPipelineIdentitiesMatch(
+  observed: ObservedTicketPipelineRoute[],
+  observedRoutes: string[],
+  declaredRoutes: string[],
+): boolean {
+  const observedAttempts = observed.map(
+    (route) => `${route.phase}:${route.iteration}`,
+  );
+  const declaredAttempts = declaredRoutes.map((route) =>
+    route.split(":").slice(0, 2).join(":"),
+  );
+  return (
+    allUnique(observedRoutes) &&
+    allUnique(declaredRoutes) &&
+    allUnique(observedAttempts) &&
+    allUnique(declaredAttempts) &&
+    allUnique(observed.map((route) => route.threadId)) &&
+    observed.every(
+      (route) => EXPECTED_PHASE_SKILLS[route.phase] === route.skill,
+    ) &&
+    declaredRoutes.length === observedRoutes.length &&
+    declaredRoutes.every((route) => observedRoutes.includes(route)) &&
+    observedRoutes.every((route) => declaredRoutes.includes(route))
+  );
 }
 
 export function reconcileObservedTicketPipelineRoutes(
   resultText: string,
   raw: string,
 ): CheckResult | undefined {
-  if (!/^format\tdarrow-ticket-pipeline-result-v1$/m.test(resultText))
-    return undefined;
+  if (!TICKET_PIPELINE_FORMAT.test(resultText)) return undefined;
   const observed = observeCodexTicketPipelineRoutes(raw);
   if (!observed) return undefined;
   const declaredRoutes = [
@@ -473,38 +690,13 @@ export function reconcileObservedTicketPipelineRoutes(
       /^route\t([a-z]+)\t([0-9]+)\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t([^\t\n]+)$/gm,
     ),
   ].map((match) => `${match[1]}:${match[2]}:${match[3]}`);
-  const declaredCount = Number(
-    resultText.match(/^evaluation_child_invocations\t([0-9]+)$/m)?.[1] ?? -1,
-  );
-  const expectedSkills: Record<string, string> = {
-    refine: "refine-ticket",
-    challenge: "challenge-ticket",
-    implement: "implement-ticket",
-    review: "review-ticket",
-    rework: "rework-ticket",
-    qa: "qa-ticket",
-    codify: "codify-ticket",
-  };
   const observedRoutes = observed.map(
     (route) => `${route.phase}:${route.iteration}:${route.childId}`,
   );
-  const observedAttempts = observed.map(
-    (route) => `${route.phase}:${route.iteration}`,
-  );
-  const declaredAttempts = declaredRoutes.map((route) =>
-    route.split(":").slice(0, 2).join(":"),
-  );
-  const identitiesMatch =
-    new Set(observedRoutes).size === observedRoutes.length &&
-    new Set(declaredRoutes).size === declaredRoutes.length &&
-    new Set(observedAttempts).size === observedAttempts.length &&
-    new Set(declaredAttempts).size === declaredAttempts.length &&
-    new Set(observed.map((route) => route.threadId)).size === observed.length &&
-    observed.every((route) => expectedSkills[route.phase] === route.skill) &&
-    declaredRoutes.length === observedRoutes.length &&
-    declaredRoutes.every((route) => observedRoutes.includes(route)) &&
-    observedRoutes.every((route) => declaredRoutes.includes(route));
-  const passed = identitiesMatch && declaredCount === observed.length;
+  const declaredCount = declaredChildCount(resultText);
+  const passed =
+    ticketPipelineIdentitiesMatch(observed, observedRoutes, declaredRoutes) &&
+    declaredCount === observed.length;
   return {
     name: "harness-observed ticket-pipeline children match controller routes",
     passed,
@@ -527,6 +719,22 @@ export function hasUnreconciledOrchestrationUsage(
   return false;
 }
 
+function humanInterruptionCount(
+  resultText: string,
+  declaredInterruptions: string | undefined,
+): number {
+  if (declaredInterruptions) return Number(declaredInterruptions);
+  return /^status\tneeds_human$/m.test(resultText) ? 1 : 0;
+}
+
+function failedMetricCount(
+  checks: CheckResult[],
+  metric: CheckResult["metric"],
+): number {
+  return checks.filter((check) => check.metric === metric && !check.passed)
+    .length;
+}
+
 export function extractOrchestrationMetrics(
   resultText: string,
   checks: CheckResult[],
@@ -535,13 +743,10 @@ export function extractOrchestrationMetrics(
   const routeRecords = resultText.match(
     /^route\t(?:planner|executor|verifier|repair)\t/gm,
   );
-  const hasGoalLoopResult = /^format\tdarrow-goal-loop-result-v1$/m.test(
+  const hasGoalLoopResult = GOAL_LOOP_RESULT.test(resultText);
+  const declaredChildren = matchField(resultText, DECLARED_CHILDREN);
+  const declaredInterruptions = matchField(
     resultText,
-  );
-  const declaredChildren = resultText.match(
-    /^evaluation_child_invocations\t([0-9]+)$/m,
-  );
-  const declaredInterruptions = resultText.match(
     /^evaluation_human_interruptions\t([0-9]+)$/m,
   );
   if (!hasGoalLoopResult && !routeRecords && !declaredChildren)
@@ -550,17 +755,12 @@ export function extractOrchestrationMetrics(
     childInvocationCount:
       observedChildInvocationCount ??
       routeRecords?.length ??
-      Number(declaredChildren?.[1] ?? 0),
-    humanInterruptions: declaredInterruptions
-      ? Number(declaredInterruptions[1])
-      : /^status\tneeds_human$/m.test(resultText)
-        ? 1
-        : 0,
-    escapedDefects: checks.filter(
-      (check) => check.metric === "escaped_defect" && !check.passed,
-    ).length,
-    falsePositiveVerifierFindings: checks.filter(
-      (check) => check.metric === "false_positive" && !check.passed,
-    ).length,
+      Number(declaredChildren ?? 0),
+    humanInterruptions: humanInterruptionCount(
+      resultText,
+      declaredInterruptions,
+    ),
+    escapedDefects: failedMetricCount(checks, "escaped_defect"),
+    falsePositiveVerifierFindings: failedMetricCount(checks, "false_positive"),
   };
 }

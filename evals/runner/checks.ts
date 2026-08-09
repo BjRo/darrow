@@ -43,75 +43,130 @@ function containsSubset(value: unknown, subset: unknown): boolean {
   return Object.is(value, subset);
 }
 
-async function textCheck(
-  text: string,
-  parsed: unknown,
-  parseFailed: boolean,
+/** "m" is always applied; a case may add flags such as "i". */
+function regexFlags(check: { flags?: string }): string {
+  return "m" + (check.flags ?? "");
+}
+
+interface OutputContext {
+  text: string;
+  parsed: unknown;
+  parseFailed: boolean;
+  schemaBaseDir: string;
+}
+
+/**
+ * One assertion kind. Returns the failure detail, or undefined when the check
+ * still holds — including when the case does not request this assertion.
+ */
+type OutputStage = (
+  context: OutputContext,
   check: OutputCheck,
-  schemaBaseDir: string,
-): Promise<CheckResult> {
-  let passed = true;
-  let detail = "ok";
-  const flags = "m" + (check.flags ?? "");
-  const needsJson =
-    check.valid_json ||
+) => string | undefined | Promise<string | undefined>;
+
+function needsJson(check: OutputCheck): boolean {
+  return (
+    !!check.valid_json ||
     check.schema !== undefined ||
-    check.json_path !== undefined;
-  if (needsJson && parseFailed) {
-    passed = false;
-    detail = "final message is not valid JSON";
+    check.json_path !== undefined
+  );
+}
+
+const validJsonStage: OutputStage = (context, check) =>
+  needsJson(check) && context.parseFailed
+    ? "final message is not valid JSON"
+    : undefined;
+
+const schemaStage: OutputStage = async (context, check) => {
+  if (check.schema === undefined) return undefined;
+  try {
+    await validateExternalSchema(
+      resolve(context.schemaBaseDir, check.schema),
+      context.parsed,
+      "final message",
+    );
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : "schema validation failed";
   }
-  if (passed && check.schema !== undefined) {
-    try {
-      await validateExternalSchema(
-        resolve(schemaBaseDir, check.schema),
-        parsed,
-        "final message",
-      );
-    } catch (error) {
-      passed = false;
-      detail =
-        error instanceof Error ? error.message : "schema validation failed";
+};
+
+function jsonValueFailure(
+  check: OutputCheck,
+  selected: unknown,
+): string | undefined {
+  if (
+    check.expect_json !== undefined &&
+    !isDeepStrictEqual(selected, check.expect_json)
+  ) {
+    return `JSON value at ${check.json_path} did not equal the expectation`;
+  }
+  if (
+    check.contains_json !== undefined &&
+    (!Array.isArray(selected) ||
+      !selected.some((item) => containsSubset(item, check.contains_json)))
+  ) {
+    return `JSON array at ${check.json_path} did not contain the expected item`;
+  }
+  return undefined;
+}
+
+const jsonPathStage: OutputStage = (context, check) => {
+  if (check.json_path === undefined) return undefined;
+  try {
+    return jsonValueFailure(
+      check,
+      jsonPointer(context.parsed, check.json_path),
+    );
+  } catch (error) {
+    return error instanceof Error ? error.message : "JSON assertion failed";
+  }
+};
+
+const expectExactStage: OutputStage = (context, check) =>
+  check.expect_exact === undefined || context.text === check.expect_exact
+    ? undefined
+    : `expect_exact ${JSON.stringify(check.expect_exact)} missed`;
+
+const expectRegexStage: OutputStage = (context, check) =>
+  check.expect_regex === undefined ||
+  new RegExp(check.expect_regex, regexFlags(check)).test(context.text)
+    ? undefined
+    : `expect_regex /${check.expect_regex}/ missed`;
+
+const notRegexStage: OutputStage = (context, check) =>
+  check.not_regex === undefined ||
+  !new RegExp(check.not_regex, regexFlags(check)).test(context.text)
+    ? undefined
+    : `not_regex /${check.not_regex}/ matched`;
+
+/** Order is significant: a JSON parse or schema failure must be reported
+ *  instead of the downstream text assertions it would also break. */
+const outputStages: OutputStage[] = [
+  validJsonStage,
+  schemaStage,
+  jsonPathStage,
+  expectExactStage,
+  expectRegexStage,
+  notRegexStage,
+];
+
+async function textCheck(
+  context: OutputContext,
+  check: OutputCheck,
+): Promise<CheckResult> {
+  for (const stage of outputStages) {
+    const failure = await stage(context, check);
+    if (failure !== undefined) {
+      return {
+        name: check.name,
+        passed: false,
+        detail: failure,
+        metric: check.metric,
+      };
     }
   }
-  if (passed && check.json_path !== undefined) {
-    try {
-      const selected = jsonPointer(parsed, check.json_path);
-      if (
-        check.expect_json !== undefined &&
-        !isDeepStrictEqual(selected, check.expect_json)
-      ) {
-        passed = false;
-        detail = `JSON value at ${check.json_path} did not equal the expectation`;
-      }
-      if (
-        passed &&
-        check.contains_json !== undefined &&
-        (!Array.isArray(selected) ||
-          !selected.some((item) => containsSubset(item, check.contains_json)))
-      ) {
-        passed = false;
-        detail = `JSON array at ${check.json_path} did not contain the expected item`;
-      }
-    } catch (error) {
-      passed = false;
-      detail = error instanceof Error ? error.message : "JSON assertion failed";
-    }
-  }
-  if (passed && check.expect_exact !== undefined) {
-    passed = text === check.expect_exact;
-    if (!passed)
-      detail = `expect_exact ${JSON.stringify(check.expect_exact)} missed`;
-  }
-  if (passed && check.expect_regex !== undefined) {
-    passed = new RegExp(check.expect_regex, flags).test(text);
-    if (!passed) detail = `expect_regex /${check.expect_regex}/ missed`;
-  }
-  if (passed && check.not_regex !== undefined) {
-    passed = !new RegExp(check.not_regex, flags).test(text);
-    if (!passed) detail = `not_regex /${check.not_regex}/ matched`;
-  }
-  return { name: check.name, passed, detail, metric: check.metric };
+  return { name: check.name, passed: true, detail: "ok", metric: check.metric };
 }
 
 export function runOutputChecks(
@@ -121,25 +176,90 @@ export function runOutputChecks(
 ): Promise<CheckResult[]> {
   let parsed: unknown;
   let parseFailed = false;
-  if (
-    checks.some(
-      (check) =>
-        check.valid_json ||
-        check.schema !== undefined ||
-        check.json_path !== undefined,
-    )
-  ) {
+  if (checks.some(needsJson)) {
     try {
       parsed = JSON.parse(resultText);
     } catch {
       parseFailed = true;
     }
   }
-  return Promise.all(
-    checks.map((check) =>
-      textCheck(resultText, parsed, parseFailed, check, schemaBaseDir),
-    ),
-  );
+  const context: OutputContext = {
+    text: resultText,
+    parsed,
+    parseFailed,
+    schemaBaseDir,
+  };
+  return Promise.all(checks.map((check) => textCheck(context, check)));
+}
+
+interface CommandOutcome {
+  out: string;
+  err: string;
+  code: number;
+}
+
+async function runCommand(
+  repoDir: string,
+  command: string,
+): Promise<CommandOutcome> {
+  const proc = Bun.spawn(["sh", "-e", "-c", command], {
+    cwd: repoDir,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { out, err, code };
+}
+
+/** First failing stdout assertion, or undefined when stdout satisfies them all. */
+function commandOutputFailure(check: Check, out: string): string | undefined {
+  if (check.expect_exact !== undefined) {
+    const actual = out.endsWith("\n") ? out.slice(0, -1) : out;
+    if (actual !== check.expect_exact) {
+      return `expect_exact ${JSON.stringify(check.expect_exact)} missed:\n${JSON.stringify(actual)}`;
+    }
+  }
+  if (
+    check.expect_regex !== undefined &&
+    !new RegExp(check.expect_regex, regexFlags(check)).test(out)
+  ) {
+    return `expect_regex /${check.expect_regex}/ missed:\n${out.trim()}`;
+  }
+  if (
+    check.not_regex !== undefined &&
+    new RegExp(check.not_regex, regexFlags(check)).test(out)
+  ) {
+    return `not_regex /${check.not_regex}/ matched:\n${out.trim()}`;
+  }
+  return undefined;
+}
+
+async function runOneCheck(
+  repoDir: string,
+  check: Check,
+): Promise<CheckResult> {
+  const { out, err, code } = await runCommand(repoDir, check.run);
+  const expectedCode = check.exit_code ?? 0;
+  if (code !== expectedCode) {
+    const processOutput = [out.trim(), err.trim()].filter(Boolean).join("\n");
+    return {
+      name: check.name,
+      passed: false,
+      detail: `exit=${code} (expected ${expectedCode}): ${processOutput}`,
+      metric: check.metric,
+    };
+  }
+  const failure = commandOutputFailure(check, out);
+  return {
+    name: check.name,
+    passed: failure === undefined,
+    detail: failure ?? "ok",
+    metric: check.metric,
+  };
 }
 
 export async function runChecks(
@@ -148,49 +268,7 @@ export async function runChecks(
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   for (const check of checks) {
-    const proc = Bun.spawn(["sh", "-e", "-c", check.run], {
-      cwd: repoDir,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-
-    const expectedCode = check.exit_code ?? 0;
-    let passed = code === expectedCode;
-    let detail = `exit=${code}`;
-
-    const flags = "m" + (check.flags ?? "");
-    if (passed && check.expect_exact !== undefined) {
-      const actual = out.endsWith("\n") ? out.slice(0, -1) : out;
-      passed = actual === check.expect_exact;
-      if (!passed)
-        detail = `expect_exact ${JSON.stringify(check.expect_exact)} missed:\n${JSON.stringify(actual)}`;
-    }
-    if (passed && check.expect_regex !== undefined) {
-      passed = new RegExp(check.expect_regex, flags).test(out);
-      if (!passed)
-        detail = `expect_regex /${check.expect_regex}/ missed:\n${out.trim()}`;
-    }
-    if (passed && check.not_regex !== undefined) {
-      passed = !new RegExp(check.not_regex, flags).test(out);
-      if (!passed)
-        detail = `not_regex /${check.not_regex}/ matched:\n${out.trim()}`;
-    }
-    if (code !== expectedCode) {
-      const processOutput = [out.trim(), err.trim()].filter(Boolean).join("\n");
-      detail = `exit=${code} (expected ${expectedCode}): ${processOutput}`;
-    }
-
-    results.push({
-      name: check.name,
-      passed,
-      detail: passed ? "ok" : detail,
-      metric: check.metric,
-    });
+    results.push(await runOneCheck(repoDir, check));
   }
   return results;
 }

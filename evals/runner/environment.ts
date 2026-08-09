@@ -34,20 +34,9 @@ async function copyCodexCredentials(configRoot: string): Promise<void> {
   await cp(source, target);
 }
 
-async function copyClaudeCredentials(configRoot: string): Promise<void> {
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY)
-    return;
-  const source = resolve(
-    process.env.CLAUDE_CONFIG_DIR ?? resolve(process.env.HOME ?? "", ".claude"),
-    ".credentials.json",
-  );
-  const target = resolve(configRoot, ".credentials.json");
-  if (await Bun.file(source).exists()) {
-    await cp(source, target);
-    return;
-  }
-  if (process.platform !== "darwin") return;
-
+/** Read the Claude Code credential out of the macOS keychain, or null when the
+ * keychain has no usable entry. */
+async function keychainClaudeCredential(): Promise<string | null> {
   const account = process.env.USER ?? process.env.LOGNAME;
   const argv = [
     "/usr/bin/security",
@@ -62,7 +51,26 @@ async function copyClaudeCredentials(configRoot: string): Promise<void> {
     new Response(proc.stdout).text(),
     proc.exited,
   ]);
-  if (code === 0 && credential.trim()) {
+  if (code !== 0 || !credential.trim()) return null;
+  return credential;
+}
+
+async function copyClaudeCredentials(configRoot: string): Promise<void> {
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY)
+    return;
+  const source = resolve(
+    process.env.CLAUDE_CONFIG_DIR ?? resolve(process.env.HOME ?? "", ".claude"),
+    ".credentials.json",
+  );
+  const target = resolve(configRoot, ".credentials.json");
+  if (await Bun.file(source).exists()) {
+    await cp(source, target);
+    return;
+  }
+  if (process.platform !== "darwin") return;
+
+  const credential = await keychainClaudeCredential();
+  if (credential) {
     await writeFile(target, credential, { mode: 0o600 });
   }
 }

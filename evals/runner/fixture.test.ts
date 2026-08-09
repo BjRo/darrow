@@ -39,7 +39,12 @@ describe("eval fixture skill mounts", () => {
     );
     await writeFile(join(secondary, "evals", "secret.yaml"), "hidden: true\n");
 
-    const fixture = await buildFixture({}, primary, [".agents/skills"], true);
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: primary,
+      skillMounts: [".agents/skills"],
+      mountPluginSkills: true,
+    });
     cleanup.push(fixture);
     expect(
       existsSync(join(fixture, ".agents", "skills", "primary", "SKILL.md")),
@@ -64,8 +69,8 @@ describe("eval fixture skill mounts", () => {
     await mkdir(caseDir);
     await writeFile(join(caseDir, "marker.txt"), "prepared\n");
 
-    const fixture = await buildFixture(
-      {
+    const fixture = await buildFixture({
+      fixture: {
         commits: [
           {
             message: "Initial commit",
@@ -81,11 +86,10 @@ describe("eval fixture skill mounts", () => {
         },
         setup: 'cp "{{case_dir}}/marker.txt" .git/setup-marker.txt',
       },
-      "",
-      [],
-      false,
+      skillDir: "",
+      skillMounts: [],
       caseDir,
-    );
+    });
     cleanup.push(fixture);
 
     const status = Bun.spawnSync(["git", "status", "--porcelain"], {
@@ -125,7 +129,11 @@ describe("eval fixture skill mounts", () => {
   });
 
   test("destroys a fixture containing a permission-locked directory", async () => {
-    const fixture = await buildFixture({}, "", []);
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: "",
+      skillMounts: [],
+    });
     cleanup.push(fixture);
     const locked = join(fixture, "locked");
     await mkdir(locked);

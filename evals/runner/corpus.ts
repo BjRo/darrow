@@ -56,10 +56,9 @@ function nonEmpty(value: unknown, label: string): string {
   return value;
 }
 
-export async function resolveCorpusSource(
-  id: string,
+async function readCorpusManifest(
   manifestPath: string,
-): Promise<ResolvedCorpusSource> {
+): Promise<CorpusManifest> {
   const parsed = parseYaml(
     await readFile(manifestPath, "utf8"),
   ) as CorpusManifest;
@@ -70,16 +69,17 @@ export async function resolveCorpusSource(
   ) {
     throw new Error("corpus manifest must use version 1 and define sources");
   }
-  const source = parsed.sources[id];
-  if (!source) throw new Error(`unknown corpus source: ${id}`);
-  const repository = nonEmpty(source.repository, `${id}.repository`);
-  const commit = nonEmpty(source.commit, `${id}.commit`);
-  const commitDate = nonEmpty(source.commit_date, `${id}.commit_date`);
-  const license = nonEmpty(source.license, `${id}.license`);
-  const licenseFile = nonEmpty(source.license_file, `${id}.license_file`);
-  const provenance = nonEmpty(source.provenance, `${id}.provenance`);
-  const cacheRoot = resolve(dirname(manifestPath), parsed.cache_dir ?? "cache");
-  const path = join(cacheRoot, id);
+  return parsed;
+}
+
+/** Refuse a checkout that is missing, on the wrong revision, missing its
+ * license, or locally modified — an eval must never read a mutated corpus. */
+async function verifyPreparedCheckout(
+  id: string,
+  path: string,
+  commit: string,
+  licenseFile: string,
+): Promise<void> {
   if (!existsSync(join(path, ".git"))) {
     throw new Error(
       `corpus source '${id}' is not prepared at ${path}; run the corpus prepare command`,
@@ -101,5 +101,23 @@ export async function resolveCorpusSource(
     "--untracked-files=all",
   );
   if (dirty) throw new Error(`prepared corpus source '${id}' is not clean`);
+}
+
+export async function resolveCorpusSource(
+  id: string,
+  manifestPath: string,
+): Promise<ResolvedCorpusSource> {
+  const parsed = await readCorpusManifest(manifestPath);
+  const source = parsed.sources[id];
+  if (!source) throw new Error(`unknown corpus source: ${id}`);
+  const repository = nonEmpty(source.repository, `${id}.repository`);
+  const commit = nonEmpty(source.commit, `${id}.commit`);
+  const commitDate = nonEmpty(source.commit_date, `${id}.commit_date`);
+  const license = nonEmpty(source.license, `${id}.license`);
+  const licenseFile = nonEmpty(source.license_file, `${id}.license_file`);
+  const provenance = nonEmpty(source.provenance, `${id}.provenance`);
+  const cacheRoot = resolve(dirname(manifestPath), parsed.cache_dir ?? "cache");
+  const path = join(cacheRoot, id);
+  await verifyPreparedCheckout(id, path, commit, licenseFile);
   return { id, path, commit, repository, license, commitDate, provenance };
 }

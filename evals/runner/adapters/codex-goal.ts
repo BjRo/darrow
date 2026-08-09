@@ -39,6 +39,69 @@ export interface PreparedGoalDimensions {
   workflows: Map<string, WorkflowEntry>;
 }
 
+function parseRouteRow(fields: string[], rawLine: string): GoalRoute {
+  if (
+    fields.length !== 6 ||
+    !fields[2] ||
+    !fields[3] ||
+    !fields[4] ||
+    !fields[5]
+  )
+    throw new Error(`invalid route row: ${rawLine}`);
+  return {
+    harness: fields[2],
+    provider: fields[3],
+    model: fields[4],
+    effort: fields[5],
+  };
+}
+
+function parseRoutePolicySourceRow(
+  fields: string[],
+  rawLine: string,
+): "bundled" | "repository" {
+  const source = fields[2];
+  if (fields.length !== 3 || !["bundled", "repository"].includes(source ?? ""))
+    throw new Error(`invalid route policy source: ${rawLine}`);
+  return source as "bundled" | "repository";
+}
+
+function parseWorkflowRow(
+  fields: string[],
+  id: string,
+  rawLine: string,
+): WorkflowEntry {
+  const file = fields[2];
+  if (
+    fields.length !== 3 ||
+    !file ||
+    !isAbsolute(file) ||
+    !file.endsWith(`/references/workflows/${id}.md`)
+  )
+    throw new Error(`invalid workflow row: ${rawLine}`);
+  return { file };
+}
+
+function setUniqueDimension<T>(
+  entries: Map<string, T>,
+  id: string,
+  value: T,
+  label: string,
+): void {
+  if (entries.has(id)) throw new Error(`duplicate ${label}: ${id}`);
+  entries.set(id, value);
+}
+
+function assertCompleteGoalDimensions(
+  dimensions: PreparedGoalDimensions,
+): void {
+  if (!dimensions.routes.size || !dimensions.workflows.size)
+    throw new Error("prepared goal dimensions are incomplete");
+  for (const profile of dimensions.routes.keys())
+    if (!dimensions.policySources.has(profile))
+      throw new Error(`missing route policy source: ${profile}`);
+}
+
 export function parsePreparedGoalDimensions(
   text: string,
 ): PreparedGoalDimensions {
@@ -51,51 +114,29 @@ export function parsePreparedGoalDimensions(
     const fields = rawLine.split("\t");
     const [kind, id] = fields;
     if (!id || !/^[a-z0-9-]+$/.test(id)) continue;
-    if (kind === "route") {
-      if (
-        fields.length !== 6 ||
-        !fields[2] ||
-        !fields[3] ||
-        !fields[4] ||
-        !fields[5]
-      )
-        throw new Error(`invalid route row: ${rawLine}`);
-      if (dimensions.routes.has(id)) throw new Error(`duplicate route: ${id}`);
-      dimensions.routes.set(id, {
-        harness: fields[2],
-        provider: fields[3],
-        model: fields[4],
-        effort: fields[5],
-      });
-    } else if (kind === "route_policy_source") {
-      const source = fields[2];
-      if (
-        fields.length !== 3 ||
-        !["bundled", "repository"].includes(source ?? "")
-      )
-        throw new Error(`invalid route policy source: ${rawLine}`);
-      if (dimensions.policySources.has(id))
-        throw new Error(`duplicate route policy source: ${id}`);
-      dimensions.policySources.set(id, source as "bundled" | "repository");
-    } else if (kind === "workflow") {
-      const file = fields[2];
-      if (
-        fields.length !== 3 ||
-        !file ||
-        !isAbsolute(file) ||
-        !file.endsWith(`/references/workflows/${id}.md`)
-      )
-        throw new Error(`invalid workflow row: ${rawLine}`);
-      if (dimensions.workflows.has(id))
-        throw new Error(`duplicate workflow: ${id}`);
-      dimensions.workflows.set(id, { file });
-    }
+    if (kind === "route")
+      setUniqueDimension(
+        dimensions.routes,
+        id,
+        parseRouteRow(fields, rawLine),
+        "route",
+      );
+    else if (kind === "route_policy_source")
+      setUniqueDimension(
+        dimensions.policySources,
+        id,
+        parseRoutePolicySourceRow(fields, rawLine),
+        "route policy source",
+      );
+    else if (kind === "workflow")
+      setUniqueDimension(
+        dimensions.workflows,
+        id,
+        parseWorkflowRow(fields, id, rawLine),
+        "workflow",
+      );
   }
-  if (!dimensions.routes.size || !dimensions.workflows.size)
-    throw new Error("prepared goal dimensions are incomplete");
-  for (const profile of dimensions.routes.keys())
-    if (!dimensions.policySources.has(profile))
-      throw new Error(`missing route policy source: ${profile}`);
+  assertCompleteGoalDimensions(dimensions);
   return dimensions;
 }
 
@@ -227,68 +268,107 @@ export function goalDimensionStage(
   );
 }
 
-export function parseCodexGoalHandoff(
-  text: string,
-  catalog: CatalogRoute[],
-  dimensions: PreparedGoalDimensions,
-  explicitUserRoute?: GoalRoute,
-): GoalHandoff {
+function parseHandoffObject(text: string): Partial<GoalHandoff> {
   let value: unknown;
   try {
     value = JSON.parse(text);
   } catch {
     throw new Error("preflight did not return one JSON handoff");
   }
-  if (!value || typeof value !== "object")
+  if (value === null || typeof value !== "object")
     throw new Error("preflight handoff is not an object");
-  const handoff = value as Partial<GoalHandoff>;
-  const route = handoff.selectedRoute;
-  if (
-    handoff.format !== "darrow-native-goal-handoff-v3" ||
-    typeof handoff.workflow !== "string" ||
-    !["routine", "elevated", "high"].includes(handoff.risk ?? "") ||
-    typeof handoff.profile !== "string" ||
-    !dimensions.routes.has(handoff.profile) ||
-    !["policy", "user"].includes(handoff.routeSource ?? "") ||
-    !route ||
-    route.harness !== "codex" ||
-    route.provider !== "openai" ||
-    typeof route.model !== "string" ||
-    typeof route.effort !== "string" ||
-    typeof handoff.goalContract !== "string" ||
-    handoff.goalContract.length === 0 ||
-    Buffer.byteLength(handoff.goalContract) > 4000
-  )
-    throw new Error("preflight handoff has an invalid shape");
-  if (!dimensions.workflows.has(handoff.workflow))
-    throw new Error(`unknown workflow: ${handoff.workflow}`);
+  return value as Partial<GoalHandoff>;
+}
+
+function isValidGoalRoute(route: GoalRoute | undefined): route is GoalRoute {
+  return (
+    !!route &&
+    route.harness === "codex" &&
+    route.provider === "openai" &&
+    typeof route.model === "string" &&
+    typeof route.effort === "string"
+  );
+}
+
+function isValidGoalContract(contract: unknown): contract is string {
+  return (
+    typeof contract === "string" &&
+    contract.length > 0 &&
+    Buffer.byteLength(contract) <= 4000
+  );
+}
+
+function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
+  return (
+    typeof handoff.workflow === "string" &&
+    ["routine", "elevated", "high"].includes(handoff.risk ?? "") &&
+    ["policy", "user"].includes(handoff.routeSource ?? "")
+  );
+}
+
+function hasPreparedProfile(
+  handoff: Partial<GoalHandoff>,
+  dimensions: PreparedGoalDimensions,
+): boolean {
+  return (
+    typeof handoff.profile === "string" &&
+    dimensions.routes.has(handoff.profile)
+  );
+}
+
+function assertHandoffShape(
+  handoff: Partial<GoalHandoff>,
+  dimensions: PreparedGoalDimensions,
+): asserts handoff is GoalHandoff {
+  const valid =
+    handoff.format === "darrow-native-goal-handoff-v3" &&
+    hasSelectableDimensions(handoff) &&
+    hasPreparedProfile(handoff, dimensions) &&
+    isValidGoalRoute(handoff.selectedRoute) &&
+    isValidGoalContract(handoff.goalContract);
+  if (!valid) throw new Error("preflight handoff has an invalid shape");
+}
+
+function sameGoalRoute(left: GoalRoute, right: GoalRoute): boolean {
+  return (
+    left.harness === right.harness &&
+    left.provider === right.provider &&
+    left.model === right.model &&
+    left.effort === right.effort
+  );
+}
+
+function assertCatalogRoute(catalog: CatalogRoute[], route: GoalRoute): void {
   const model = catalog.find((entry) => entry.model === route.model);
   if (!model) throw new Error(`unavailable selected model: ${route.model}`);
   if (!model.efforts.includes(route.effort))
     throw new Error(
       `unsupported selected effort for ${route.model}: ${route.effort}`,
     );
+}
+
+function assertRouteProvenance(
+  handoff: GoalHandoff,
+  dimensions: PreparedGoalDimensions,
+  explicitUserRoute?: GoalRoute,
+): void {
+  const route = handoff.selectedRoute;
   if (handoff.routeSource === "policy") {
     const expected = dimensions.routes.get(handoff.profile)!;
-    if (
-      route.harness !== expected.harness ||
-      route.provider !== expected.provider ||
-      route.model !== expected.model ||
-      route.effort !== expected.effort
-    )
+    if (!sameGoalRoute(route, expected))
       throw new Error(
         `selected route does not match ${handoff.profile} policy: expected ${expected.model}/${expected.effort}`,
       );
   }
   if (
     handoff.routeSource === "user" &&
-    (!explicitUserRoute ||
-      route.harness !== explicitUserRoute.harness ||
-      route.provider !== explicitUserRoute.provider ||
-      route.model !== explicitUserRoute.model ||
-      route.effort !== explicitUserRoute.effort)
+    (!explicitUserRoute || !sameGoalRoute(route, explicitUserRoute))
   )
     throw new Error("user-sourced handoff has no matching explicit user route");
+}
+
+function assertGoalContractRecord(handoff: GoalHandoff): void {
+  const route = handoff.selectedRoute;
   const routeRecord = [
     route.harness,
     route.provider,
@@ -309,13 +389,25 @@ export function parseCodexGoalHandoff(
     "evaluation_child_invocations\t0",
     "evaluation_human_interruptions\t0",
   ];
-  if (
-    !requiredContractLines.every((line) =>
-      handoff.goalContract!.split("\n").includes(line),
-    )
-  )
+  const contractLines = handoff.goalContract.split("\n");
+  if (!requiredContractLines.every((line) => contractLines.includes(line)))
     throw new Error("goal contract does not preserve handoff and final record");
-  return handoff as GoalHandoff;
+}
+
+export function parseCodexGoalHandoff(
+  text: string,
+  catalog: CatalogRoute[],
+  dimensions: PreparedGoalDimensions,
+  explicitUserRoute?: GoalRoute,
+): GoalHandoff {
+  const handoff = parseHandoffObject(text);
+  assertHandoffShape(handoff, dimensions);
+  if (!dimensions.workflows.has(handoff.workflow))
+    throw new Error(`unknown workflow: ${handoff.workflow}`);
+  assertCatalogRoute(catalog, handoff.selectedRoute);
+  assertRouteProvenance(handoff, dimensions, explicitUserRoute);
+  assertGoalContractRecord(handoff);
+  return handoff;
 }
 
 function handoffSchema(profiles: string[]) {
@@ -364,16 +456,73 @@ function handoffSchema(profiles: string[]) {
   };
 }
 
+interface TokenUsageTotals {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+interface AppServerItem {
+  type?: string;
+  phase?: string;
+  text?: string;
+}
+
+interface AppServerTurn {
+  id?: string;
+  status?: string;
+  durationMs?: number;
+  error?: unknown;
+}
+
+interface AppServerParams {
+  threadId?: string;
+  turnId?: string;
+  item?: AppServerItem;
+  turn?: AppServerTurn;
+  goal?: { status?: string };
+  tokenUsage?: { total: TokenUsageTotals };
+}
+
+/** One decoded JSON-RPC line from the Codex app-server stdio stream. */
+interface AppServerMessage {
+  id?: number;
+  method?: string;
+  error?: unknown;
+  result?: unknown;
+  params?: AppServerParams;
+}
+
+type AppServerPredicate = (message: AppServerMessage) => boolean;
+
+interface ModelListResult {
+  data: Array<{
+    model: string;
+    supportedReasoningEfforts: Array<{ reasoningEffort: string }>;
+  }>;
+}
+
+interface ThreadStartResult {
+  thread: { id: string };
+}
+
+interface TurnStartResult {
+  turn: { id: string };
+}
+
+interface GoalGetResult {
+  goal?: { status?: string };
+}
+
 class AppServerClient {
   private nextId = 1;
-  private messages: any[] = [];
+  private messages: AppServerMessage[] = [];
   private pending = new Map<
     number,
-    { resolve: (value: any) => void; reject: (reason: Error) => void }
+    { resolve: (value: unknown) => void; reject: (reason: Error) => void }
   >();
   private waiters: Array<{
-    predicate: (message: any) => boolean;
-    resolve: (message: any) => void;
+    predicate: AppServerPredicate;
+    resolve: (message: AppServerMessage) => void;
     reject: (reason: Error) => void;
     timer: ReturnType<typeof setTimeout>;
   }> = [];
@@ -421,27 +570,30 @@ class AppServerClient {
     this.stderr = await new Response(this.proc.stderr).text();
   }
 
+  private settle(message: AppServerMessage): void {
+    if (typeof message.id !== "number" || !this.pending.has(message.id)) return;
+    const pending = this.pending.get(message.id)!;
+    this.pending.delete(message.id);
+    if (message.error)
+      pending.reject(
+        new Error(
+          `app-server request failed: ${JSON.stringify(message.error)}`,
+        ),
+      );
+    else pending.resolve(message.result);
+  }
+
   private receive(line: string): void {
     if (!line.trim()) return;
     this.rawLines.push(line);
-    let message: any;
+    let message: AppServerMessage;
     try {
-      message = JSON.parse(line);
+      message = JSON.parse(line) as AppServerMessage;
     } catch {
       return;
     }
     this.messages.push(message);
-    if (typeof message.id === "number" && this.pending.has(message.id)) {
-      const pending = this.pending.get(message.id)!;
-      this.pending.delete(message.id);
-      if (message.error)
-        pending.reject(
-          new Error(
-            `app-server request failed: ${JSON.stringify(message.error)}`,
-          ),
-        );
-      else pending.resolve(message.result);
-    }
+    this.settle(message);
     for (const waiter of [...this.waiters]) {
       if (!waiter.predicate(message)) continue;
       clearTimeout(waiter.timer);
@@ -455,19 +607,22 @@ class AppServerClient {
     this.proc.stdin.flush();
   }
 
-  request(method: string, params: unknown): Promise<any> {
+  request<T = unknown>(method: string, params: unknown): Promise<T> {
     const id = this.nextId++;
     this.proc.stdin.write(`${JSON.stringify({ method, id, params })}\n`);
     this.proc.stdin.flush();
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+    return new Promise<T>((resolve, reject) => {
+      this.pending.set(id, {
+        resolve: (value) => resolve(value as T),
+        reject,
+      });
     });
   }
 
   waitFor(
-    predicate: (message: any) => boolean,
+    predicate: AppServerPredicate,
     timeoutMs = 30 * 60 * 1000,
-  ): Promise<any> {
+  ): Promise<AppServerMessage> {
     const existing = this.messages.find(predicate);
     if (existing) return Promise.resolve(existing);
     return new Promise((resolve, reject) => {
@@ -484,11 +639,11 @@ class AppServerClient {
     });
   }
 
-  latest(predicate: (message: any) => boolean): any | undefined {
+  latest(predicate: AppServerPredicate): AppServerMessage | undefined {
     return this.messages.findLast(predicate);
   }
 
-  matching(predicate: (message: any) => boolean): any[] {
+  matching(predicate: AppServerPredicate): AppServerMessage[] {
     return this.messages.filter(predicate);
   }
 
@@ -507,7 +662,10 @@ class AppServerClient {
   }
 }
 
-export function isFinalAgentMessage(message: any, turnId: string): boolean {
+export function isFinalAgentMessage(
+  message: AppServerMessage,
+  turnId: string,
+): boolean {
   return (
     message.method === "item/completed" &&
     message.params?.turnId === turnId &&
@@ -516,117 +674,154 @@ export function isFinalAgentMessage(message: any, turnId: string): boolean {
   );
 }
 
+function isTokenUsageUpdate(
+  message: AppServerMessage,
+  turnId: string,
+): boolean {
+  return (
+    message.method === "thread/tokenUsage/updated" &&
+    message.params?.turnId === turnId
+  );
+}
+
+/** Turn evidence: the final answer, its cumulative usage event, and duration. */
+interface TurnOutcome {
+  text: string;
+  usage: AppServerMessage;
+  durationMs: number;
+}
+
+function turnTokenTotals(outcome: TurnOutcome): TokenUsageTotals {
+  return outcome.usage.params!.tokenUsage!.total;
+}
+
 function finalMessage(
   client: AppServerClient,
   turnId: string,
 ): Promise<string> {
   return client
     .waitFor((message) => isFinalAgentMessage(message, turnId))
-    .then((message) => message.params.item.text as string);
+    .then((message) => message.params!.item!.text as string);
 }
 
 async function completedTurn(
   client: AppServerClient,
   turnId: string,
-): Promise<any> {
+): Promise<AppServerMessage> {
   const message = await client.waitFor(
     (candidate) =>
       candidate.method === "turn/completed" &&
       candidate.params?.turn?.id === turnId,
   );
-  if (message.params.turn.status !== "completed")
-    throw new Error(`Codex turn ended as ${message.params.turn.status}`);
+  if (message.params!.turn!.status !== "completed")
+    throw new Error(`Codex turn ended as ${message.params!.turn!.status}`);
   return message;
 }
 
-function turnUsage(client: AppServerClient, turnId: string): Promise<any> {
-  return client.waitFor(
-    (message) =>
-      message.method === "thread/tokenUsage/updated" &&
-      message.params?.turnId === turnId,
-  );
+function turnUsage(
+  client: AppServerClient,
+  turnId: string,
+): Promise<AppServerMessage> {
+  return client.waitFor((message) => isTokenUsageUpdate(message, turnId));
 }
 
 async function runTurn(
   client: AppServerClient,
   turnId: string,
-): Promise<{ text: string; usage: any; durationMs: number }> {
+): Promise<TurnOutcome> {
   const [text, , completed] = await Promise.all([
     finalMessage(client, turnId),
     turnUsage(client, turnId),
     completedTurn(client, turnId),
   ]);
-  const usage = client.latest(
-    (message) =>
-      message.method === "thread/tokenUsage/updated" &&
-      message.params?.turnId === turnId,
-  );
+  const usage = client.latest((message) => isTokenUsageUpdate(message, turnId));
   if (!usage) throw new Error(`Codex turn ${turnId} reported no token usage`);
   return {
     text,
     usage,
-    durationMs: completed.params.turn.durationMs ?? 0,
+    durationMs: completed.params!.turn!.durationMs ?? 0,
   };
+}
+
+function isSettledGoalUpdate(
+  message: AppServerMessage,
+  threadId: string,
+): boolean {
+  return (
+    message.method === "thread/goal/updated" &&
+    message.params?.threadId === threadId &&
+    message.params?.goal?.status !== "active"
+  );
+}
+
+function isFailedGoalTurn(
+  message: AppServerMessage,
+  threadId: string,
+): boolean {
+  return (
+    message.method === "turn/completed" &&
+    message.params?.threadId === threadId &&
+    message.params?.turn?.status === "failed"
+  );
 }
 
 async function runNativeGoal(
   client: AppServerClient,
   threadId: string,
-): Promise<{ text: string; usage: any; durationMs: number }> {
+): Promise<TurnOutcome> {
   const terminal = await client.waitFor(
     (message) =>
-      (message.method === "thread/goal/updated" &&
-        message.params?.threadId === threadId &&
-        message.params?.goal?.status !== "active") ||
-      (message.method === "turn/completed" &&
-        message.params?.threadId === threadId &&
-        message.params?.turn?.status === "failed"),
+      isSettledGoalUpdate(message, threadId) ||
+      isFailedGoalTurn(message, threadId),
   );
   if (terminal.method === "turn/completed")
     throw new Error(
-      `Codex goal turn failed: ${JSON.stringify(terminal.params.turn.error)}`,
+      `Codex goal turn failed: ${JSON.stringify(terminal.params!.turn!.error)}`,
     );
-  if (terminal.params.goal.status !== "complete")
-    throw new Error(`native goal ended as ${terminal.params.goal.status}`);
-  const terminalTurnId = terminal.params.turnId;
+  if (terminal.params!.goal!.status !== "complete")
+    throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
+  const terminalTurnId = terminal.params!.turnId;
   if (typeof terminalTurnId !== "string")
     throw new Error("native goal completion did not name its terminal turn");
   return runTurn(client, terminalTurnId);
 }
 
-async function prepareGoalPreflight(
-  repoDir: string,
-  engineeringRequest: string,
-): Promise<{
-  prompt: string;
-  dimensions: PreparedGoalDimensions;
-  intentRoutingGuidance: string;
-  stage: GoalDimensionStage;
-  durationMs: number;
-}> {
-  const started = performance.now();
-  const helper = join(repoDir, ".agents", "bin", "goal-loop");
-  const proc = Bun.spawn(
-    ["bash", helper, "prepare", "--repo", repoDir, "--host", "codex"],
-    { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
-  );
+interface CapturedProcess {
+  stdout: string;
+  stderr: string;
+  code: number;
+}
+
+async function captureProcess(
+  argv: string[],
+  cwd: string,
+): Promise<CapturedProcess> {
+  const proc = Bun.spawn(argv, { cwd, stdout: "pipe", stderr: "pipe" });
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
+  return { stdout, stderr, code };
+}
+
+async function runGoalPreparation(repoDir: string): Promise<string> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const { stdout, stderr, code } = await captureProcess(
+    ["bash", helper, "prepare", "--repo", repoDir, "--host", "codex"],
+    repoDir,
+  );
   if (code !== 0)
     throw new Error(`goal preflight preparation failed: ${stderr.trim()}`);
   if (!/^format\tdarrow-native-goal-prepared-v1$/m.test(stdout))
     throw new Error("goal preflight preparation returned an unknown format");
-  const stage = goalDimensionStage(engineeringRequest);
-  const dimensions = parsePreparedGoalDimensions(stdout);
-  const skill = await readFile(
-    join(repoDir, ".agents", "skills", "adaptive-goal", "SKILL.md"),
-    "utf8",
-  );
-  const intentRoutingGuidance = extractIntentRoutingGuidance(skill);
-  const workflowDocuments = await Promise.all(
+  return stdout;
+}
+
+function readWorkflowDocuments(
+  dimensions: PreparedGoalDimensions,
+): Promise<string[]> {
+  return Promise.all(
     [...dimensions.workflows].map(async ([id, workflow]) => {
       const content = await readFile(workflow.file, "utf8");
       return [
@@ -636,6 +831,30 @@ async function prepareGoalPreflight(
       ].join("\n");
     }),
   );
+}
+
+interface PreparedGoalPreflight {
+  prompt: string;
+  dimensions: PreparedGoalDimensions;
+  intentRoutingGuidance: string;
+  stage: GoalDimensionStage;
+  durationMs: number;
+}
+
+async function prepareGoalPreflight(
+  repoDir: string,
+  engineeringRequest: string,
+): Promise<PreparedGoalPreflight> {
+  const started = performance.now();
+  const stdout = await runGoalPreparation(repoDir);
+  const stage = goalDimensionStage(engineeringRequest);
+  const dimensions = parsePreparedGoalDimensions(stdout);
+  const skill = await readFile(
+    join(repoDir, ".agents", "skills", "adaptive-goal", "SKILL.md"),
+    "utf8",
+  );
+  const intentRoutingGuidance = extractIntentRoutingGuidance(skill);
+  const workflowDocuments = await readWorkflowDocuments(dimensions);
   const preparedEvidence = [stdout.trim(), ...workflowDocuments].join("\n");
   return {
     prompt: buildPreparedGoalPrompt(
@@ -652,18 +871,355 @@ async function prepareGoalPreflight(
 }
 
 async function gitStatus(repoDir: string): Promise<string> {
-  const proc = Bun.spawn(
+  const { stdout, stderr, code } = await captureProcess(
     ["git", "status", "--porcelain=v1", "--untracked-files=all"],
-    { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
+    repoDir,
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
   if (code !== 0)
     throw new Error(`cannot inspect preflight changes: ${stderr.trim()}`);
   return stdout;
+}
+
+/** Positional `HarnessAdapter.run` arguments, bundled for this adapter. */
+interface CodexGoalRunOptions {
+  repoDir: string;
+  prompt: string;
+  model: string;
+  effort: string;
+  control?: { expectedGoalRoute?: GoalRoute };
+}
+
+async function startAppServerClient(repoDir: string): Promise<AppServerClient> {
+  const env = await isolatedHarnessEnvironment("codex", repoDir);
+  const argv = await sandboxedAgentCommand(
+    ["codex", "app-server", "--stdio"],
+    repoDir,
+  );
+  const proc = Bun.spawn(argv, {
+    cwd: repoDir,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      ...env,
+      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+    },
+  });
+  return new AppServerClient(proc);
+}
+
+async function initializeAppServer(client: AppServerClient): Promise<void> {
+  await client.request("initialize", {
+    clientInfo: {
+      name: "darrow_eval",
+      title: "Darrow Eval",
+      version: "1.0.0",
+    },
+  });
+  client.notify("initialized", {});
+}
+
+async function fetchModelCatalog(
+  client: AppServerClient,
+): Promise<CatalogRoute[]> {
+  const models = await client.request<ModelListResult>("model/list", {
+    limit: 100,
+    includeHidden: true,
+  });
+  return models.data.map((entry) => ({
+    model: entry.model,
+    efforts: entry.supportedReasoningEfforts.map(
+      (option) => option.reasoningEffort,
+    ),
+  }));
+}
+
+async function startGoalThread(
+  client: AppServerClient,
+  repoDir: string,
+  model: string,
+): Promise<string> {
+  const thread = await client.request<ThreadStartResult>("thread/start", {
+    model,
+    modelProvider: "openai",
+    cwd: repoDir,
+    approvalPolicy: "never",
+    ephemeral: false,
+  });
+  return thread.thread.id;
+}
+
+/**
+ * A prepared preflight may spend exactly one model call and no tool call;
+ * anything else means the classifier turn escaped its read-only budget.
+ */
+function assertPreflightDiscipline(
+  client: AppServerClient,
+  turnId: string,
+): number {
+  const modelCalls = client.matching((message) =>
+    isTokenUsageUpdate(message, turnId),
+  );
+  const toolCalls = client.matching(
+    (message) =>
+      message.method === "item/completed" &&
+      message.params?.turnId === turnId &&
+      /tool|command/i.test(message.params?.item?.type ?? ""),
+  );
+  if (modelCalls.length !== 1 || toolCalls.length !== 0)
+    throw new Error(
+      `prepared preflight used ${modelCalls.length} model calls and ${toolCalls.length} tool calls`,
+    );
+  return modelCalls.length;
+}
+
+interface PreflightTurnOptions {
+  client: AppServerClient;
+  threadId: string;
+  prepared: PreparedGoalPreflight;
+  run: CodexGoalRunOptions;
+}
+
+async function runPreflightTurn(
+  options: PreflightTurnOptions,
+): Promise<{ result: TurnOutcome; modelCalls: number }> {
+  const { client, threadId, prepared, run } = options;
+  const preflight = await client.request<TurnStartResult>("turn/start", {
+    threadId,
+    input: [{ type: "text", text: prepared.prompt }],
+    cwd: run.repoDir,
+    approvalPolicy: "never",
+    sandboxPolicy: { type: "readOnly", networkAccess: false },
+    model: run.model,
+    effort: run.effort,
+    outputSchema: handoffSchema([...prepared.dimensions.routes.keys()]),
+  });
+  const turnId = preflight.turn.id;
+  const result = await runTurn(client, turnId);
+  return { result, modelCalls: assertPreflightDiscipline(client, turnId) };
+}
+
+function assertControlRoute(selected: GoalRoute, expected?: GoalRoute): void {
+  if (expected && !sameGoalRoute(selected, expected))
+    throw new Error(
+      `selected route does not match evaluation control: expected ${expected.harness}/${expected.provider}/${expected.model}/${expected.effort}`,
+    );
+}
+
+interface PreflightPhase {
+  threadId: string;
+  prepared: PreparedGoalPreflight;
+  handoff: GoalHandoff;
+  result: TurnOutcome;
+  modelCalls: number;
+}
+
+async function runGoalPreflightPhase(
+  client: AppServerClient,
+  run: CodexGoalRunOptions,
+): Promise<PreflightPhase> {
+  await initializeAppServer(client);
+  const catalog = await fetchModelCatalog(client);
+  const threadId = await startGoalThread(client, run.repoDir, run.model);
+  const beforePreflight = await gitStatus(run.repoDir);
+  const prepared = await prepareGoalPreflight(run.repoDir, run.prompt);
+  const preflight = await runPreflightTurn({
+    client,
+    threadId,
+    prepared,
+    run,
+  });
+  if ((await gitStatus(run.repoDir)) !== beforePreflight)
+    throw new Error("goal preflight modified the fixture before activation");
+  const handoff = parseCodexGoalHandoff(
+    preflight.result.text,
+    catalog,
+    prepared.dimensions,
+    parseExplicitUserRoute(run.prompt),
+  );
+  assertControlRoute(handoff.selectedRoute, run.control?.expectedGoalRoute);
+  return { threadId, prepared, handoff, ...preflight };
+}
+
+interface ExecutionTurnOptions {
+  client: AppServerClient;
+  threadId: string;
+  repoDir: string;
+  prompt: string;
+  route: GoalRoute;
+}
+
+async function startExecutionTurn(
+  options: ExecutionTurnOptions,
+): Promise<string> {
+  const execution = await options.client.request<TurnStartResult>(
+    "turn/start",
+    {
+      threadId: options.threadId,
+      input: [{ type: "text", text: options.prompt }],
+      cwd: options.repoDir,
+      approvalPolicy: "never",
+      sandboxPolicy: { type: "dangerFullAccess" },
+      model: options.route.model,
+      effort: options.route.effort,
+    },
+  );
+  return execution.turn.id;
+}
+
+interface GoalEvidenceOptions {
+  client: AppServerClient;
+  threadId: string;
+  turnId: string;
+  phase: PreflightPhase;
+  workflow: WorkflowEntry;
+  workflowSha256: string;
+}
+
+function recordGoalEvidence(options: GoalEvidenceOptions): void {
+  const { client, threadId, turnId, phase } = options;
+  const handoff = phase.handoff;
+  client.record({
+    type: "darrow.route_applied",
+    accepted: true,
+    threadId,
+    turnId,
+    selected: handoff.selectedRoute,
+    effective: handoff.selectedRoute,
+    appliedBy: "host-api",
+  });
+  client.record({
+    type: "darrow.dimensions_applied",
+    accepted: true,
+    threadId,
+    turnId,
+    stage: phase.prepared.stage,
+    workflow: handoff.workflow,
+    risk: handoff.risk,
+  });
+  client.record({
+    type: "darrow.workflow_loaded",
+    accepted: true,
+    threadId,
+    turnId,
+    workflow: handoff.workflow,
+    file: options.workflow.file,
+    sha256: options.workflowSha256,
+  });
+}
+
+async function assertGoalComplete(
+  client: AppServerClient,
+  threadId: string,
+): Promise<void> {
+  const goal = await client.request<GoalGetResult>("thread/goal/get", {
+    threadId,
+  });
+  if (goal.goal?.status !== "complete")
+    throw new Error(`native goal ended as ${goal.goal?.status ?? "missing"}`);
+}
+
+async function runGoalExecutionPhase(
+  client: AppServerClient,
+  repoDir: string,
+  phase: PreflightPhase,
+): Promise<{ result: TurnOutcome; durationMs: number }> {
+  const { threadId, handoff, prepared } = phase;
+  const workflow = prepared.dimensions.workflows.get(handoff.workflow)!;
+  const workflowContent = await readFile(workflow.file, "utf8");
+  const workflowSha256 = new Bun.CryptoHasher("sha256")
+    .update(workflowContent)
+    .digest("hex");
+
+  await client.request("thread/goal/set", {
+    threadId,
+    objective: handoff.goalContract,
+    status: "active",
+  });
+  const prompt = buildGoalExecutionPrompt(
+    handoff,
+    workflowContent,
+    prepared.intentRoutingGuidance,
+  );
+  const started = performance.now();
+  const turnId = await startExecutionTurn({
+    client,
+    threadId,
+    repoDir,
+    prompt,
+    route: handoff.selectedRoute,
+  });
+  recordGoalEvidence({
+    client,
+    threadId,
+    turnId,
+    phase,
+    workflow,
+    workflowSha256,
+  });
+  const result = await runNativeGoal(client, threadId);
+  const durationMs = performance.now() - started;
+  await assertGoalComplete(client, threadId);
+  return { result, durationMs };
+}
+
+type CodexGoalOutcome = Omit<HarnessResult, "ok" | "durationMs">;
+
+async function executeCodexGoal(
+  client: AppServerClient,
+  run: CodexGoalRunOptions,
+): Promise<CodexGoalOutcome> {
+  const preflight = await runGoalPreflightPhase(client, run);
+  const execution = await runGoalExecutionPhase(client, run.repoDir, preflight);
+  // This adapter creates a fresh thread per trial. The final cumulative
+  // total therefore covers every model call in both turns without double
+  // counting the preflight usage.
+  const usage = turnTokenTotals(execution.result);
+  const classifierUsage = turnTokenTotals(preflight.result);
+  return {
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    costUsd: null,
+    resultText: execution.result.text,
+    raw: client.raw(),
+    phaseMetrics: {
+      preparation: { durationMs: preflight.prepared.durationMs },
+      classifier: {
+        durationMs: preflight.result.durationMs,
+        inputTokens: classifierUsage.inputTokens,
+        outputTokens: classifierUsage.outputTokens,
+        modelCalls: preflight.modelCalls,
+      },
+      execution: {
+        durationMs: execution.durationMs,
+        inputTokens: usage.inputTokens - classifierUsage.inputTokens,
+        outputTokens: usage.outputTokens - classifierUsage.outputTokens,
+      },
+    },
+  };
+}
+
+async function runCodexGoalTrial(
+  run: CodexGoalRunOptions,
+): Promise<HarnessResult> {
+  const start = performance.now();
+  const client = await startAppServerClient(run.repoDir);
+  try {
+    const outcome = await executeCodexGoal(client, run);
+    return { ok: true, durationMs: performance.now() - start, ...outcome };
+  } catch (error) {
+    return {
+      ok: false,
+      durationMs: performance.now() - start,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: null,
+      resultText: "",
+      raw: `${client.raw()}\n${error instanceof Error ? error.stack : String(error)}`,
+    };
+  } finally {
+    await client.close();
+  }
 }
 
 export const codexGoalAdapter: HarnessAdapter = {
@@ -681,203 +1237,13 @@ export const codexGoalAdapter: HarnessAdapter = {
     return out.trim();
   },
 
-  async run(repoDir, prompt, model, effort, control): Promise<HarnessResult> {
-    const start = performance.now();
-    const env = await isolatedHarnessEnvironment("codex", repoDir);
-    const argv = await sandboxedAgentCommand(
-      ["codex", "app-server", "--stdio"],
-      repoDir,
-    );
-    const proc = Bun.spawn(argv, {
-      cwd: repoDir,
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...env,
-        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-      },
-    });
-    const client = new AppServerClient(proc);
-    try {
-      await client.request("initialize", {
-        clientInfo: {
-          name: "darrow_eval",
-          title: "Darrow Eval",
-          version: "1.0.0",
-        },
-      });
-      client.notify("initialized", {});
-      const models = await client.request("model/list", {
-        limit: 100,
-        includeHidden: true,
-      });
-      const catalog: CatalogRoute[] = models.data.map((entry: any) => ({
-        model: entry.model,
-        efforts: entry.supportedReasoningEfforts.map(
-          (option: any) => option.reasoningEffort,
-        ),
-      }));
-      const thread = await client.request("thread/start", {
-        model,
-        modelProvider: "openai",
-        cwd: repoDir,
-        approvalPolicy: "never",
-        ephemeral: false,
-      });
-      const threadId = thread.thread.id as string;
-      const beforePreflight = await gitStatus(repoDir);
-      const prepared = await prepareGoalPreflight(repoDir, prompt);
-      const preflight = await client.request("turn/start", {
-        threadId,
-        input: [{ type: "text", text: prepared.prompt }],
-        cwd: repoDir,
-        approvalPolicy: "never",
-        sandboxPolicy: { type: "readOnly", networkAccess: false },
-        model,
-        effort,
-        outputSchema: handoffSchema([...prepared.dimensions.routes.keys()]),
-      });
-      const preflightTurnId = preflight.turn.id as string;
-      const preflightResult = await runTurn(client, preflightTurnId);
-      const classifierUpdates = client.matching(
-        (message) =>
-          message.method === "thread/tokenUsage/updated" &&
-          message.params?.turnId === preflightTurnId,
-      );
-      const classifierToolCalls = client.matching(
-        (message) =>
-          message.method === "item/completed" &&
-          message.params?.turnId === preflightTurnId &&
-          /tool|command/i.test(message.params?.item?.type ?? ""),
-      );
-      if (classifierUpdates.length !== 1 || classifierToolCalls.length !== 0)
-        throw new Error(
-          `prepared preflight used ${classifierUpdates.length} model calls and ${classifierToolCalls.length} tool calls`,
-        );
-      if ((await gitStatus(repoDir)) !== beforePreflight)
-        throw new Error(
-          "goal preflight modified the fixture before activation",
-        );
-      const handoff = parseCodexGoalHandoff(
-        preflightResult.text,
-        catalog,
-        prepared.dimensions,
-        parseExplicitUserRoute(prompt),
-      );
-      const expectedRoute = control?.expectedGoalRoute;
-      if (
-        expectedRoute &&
-        (handoff.selectedRoute.harness !== expectedRoute.harness ||
-          handoff.selectedRoute.provider !== expectedRoute.provider ||
-          handoff.selectedRoute.model !== expectedRoute.model ||
-          handoff.selectedRoute.effort !== expectedRoute.effort)
-      )
-        throw new Error(
-          `selected route does not match evaluation control: expected ${expectedRoute.harness}/${expectedRoute.provider}/${expectedRoute.model}/${expectedRoute.effort}`,
-        );
-      const workflow = prepared.dimensions.workflows.get(handoff.workflow)!;
-      const workflowContent = await readFile(workflow.file, "utf8");
-      const workflowSha256 = new Bun.CryptoHasher("sha256")
-        .update(workflowContent)
-        .digest("hex");
-
-      await client.request("thread/goal/set", {
-        threadId,
-        objective: handoff.goalContract,
-        status: "active",
-      });
-      const selected = handoff.selectedRoute;
-      const executionPrompt = buildGoalExecutionPrompt(
-        handoff,
-        workflowContent,
-        prepared.intentRoutingGuidance,
-      );
-      const executionStarted = performance.now();
-      const execution = await client.request("turn/start", {
-        threadId,
-        input: [{ type: "text", text: executionPrompt }],
-        cwd: repoDir,
-        approvalPolicy: "never",
-        sandboxPolicy: { type: "dangerFullAccess" },
-        model: selected.model,
-        effort: selected.effort,
-      });
-      const executionTurnId = execution.turn.id as string;
-      client.record({
-        type: "darrow.route_applied",
-        accepted: true,
-        threadId,
-        turnId: executionTurnId,
-        selected,
-        effective: selected,
-        appliedBy: "host-api",
-      });
-      client.record({
-        type: "darrow.dimensions_applied",
-        accepted: true,
-        threadId,
-        turnId: executionTurnId,
-        stage: prepared.stage,
-        workflow: handoff.workflow,
-        risk: handoff.risk,
-      });
-      client.record({
-        type: "darrow.workflow_loaded",
-        accepted: true,
-        threadId,
-        turnId: executionTurnId,
-        workflow: handoff.workflow,
-        file: workflow.file,
-        sha256: workflowSha256,
-      });
-      const executionResult = await runNativeGoal(client, threadId);
-      const executionDurationMs = performance.now() - executionStarted;
-      const goal = await client.request("thread/goal/get", { threadId });
-      if (goal.goal?.status !== "complete")
-        throw new Error(
-          `native goal ended as ${goal.goal?.status ?? "missing"}`,
-        );
-      // This adapter creates a fresh thread per trial. The final cumulative
-      // total therefore covers every model call in both turns without double
-      // counting the preflight usage.
-      const usage = executionResult.usage.params.tokenUsage.total;
-      const classifierUsage = preflightResult.usage.params.tokenUsage.total;
-      return {
-        ok: true,
-        durationMs: performance.now() - start,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        costUsd: null,
-        resultText: executionResult.text,
-        raw: client.raw(),
-        phaseMetrics: {
-          preparation: { durationMs: prepared.durationMs },
-          classifier: {
-            durationMs: preflightResult.durationMs,
-            inputTokens: classifierUsage.inputTokens,
-            outputTokens: classifierUsage.outputTokens,
-            modelCalls: classifierUpdates.length,
-          },
-          execution: {
-            durationMs: executionDurationMs,
-            inputTokens: usage.inputTokens - classifierUsage.inputTokens,
-            outputTokens: usage.outputTokens - classifierUsage.outputTokens,
-          },
-        },
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        durationMs: performance.now() - start,
-        inputTokens: 0,
-        outputTokens: 0,
-        costUsd: null,
-        resultText: "",
-        raw: `${client.raw()}\n${error instanceof Error ? error.stack : String(error)}`,
-      };
-    } finally {
-      await client.close();
-    }
+  // `HarnessAdapter.run` fixes the positional arity for every adapter, so this
+  // adapter accepts the shared tuple and forwards it as one named options
+  // object instead of threading five positional parameters through the run.
+  run(
+    ...positional: Parameters<HarnessAdapter["run"]>
+  ): Promise<HarnessResult> {
+    const [repoDir, prompt, model, effort, control] = positional;
+    return runCodexGoalTrial({ repoDir, prompt, model, effort, control });
   },
 };

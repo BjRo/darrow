@@ -227,22 +227,18 @@ describe("orchestration outcome metrics", () => {
       childOutputTokens: 20,
     });
     expect(
-      reconcileObservedGoalRouteApplication(
-        result,
-        raw,
-        "codex",
-        "gpt-5.6-terra",
-        "low",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(result, raw, {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
     ).toBe(true);
     expect(
-      reconcileObservedGoalRouteApplication(
-        result,
-        raw,
-        "codex",
-        "gpt-5.6-sol",
-        "medium",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(result, raw, {
+        harness: "codex",
+        model: "gpt-5.6-sol",
+        effort: "medium",
+      })?.passed,
     ).toBe(false);
 
     const sameThread = result
@@ -254,22 +250,18 @@ describe("orchestration outcome metrics", () => {
         "evaluation_child_invocations\t0",
       );
     expect(
-      reconcileObservedGoalRouteApplication(
-        sameThread,
-        "",
-        "codex",
-        "gpt-5.6-terra",
-        "low",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(sameThread, "", {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
     ).toBe(true);
     expect(
-      reconcileObservedGoalRouteApplication(
-        sameThread,
-        "",
-        "codex",
-        "gpt-5.6-terra",
-        "medium",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(sameThread, "", {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "medium",
+      })?.passed,
     ).toBe(false);
 
     const hostApi = result
@@ -357,21 +349,17 @@ describe("orchestration outcome metrics", () => {
       verificationGate: "elevated",
     });
     expect(
-      reconcileObservedGoalRouteApplication(
-        hostApi,
-        hostRaw,
-        "codex",
-        "gpt-5.6-terra",
-        "low",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(hostApi, hostRaw, {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
     ).toBe(true);
     expect(
       reconcileObservedGoalRouteApplication(
         hostApi,
         hostRaw.replaceAll('"accepted":true', '"accepted":false'),
-        "codex",
-        "gpt-5.6-terra",
-        "low",
+        { harness: "codex", model: "gpt-5.6-terra", effort: "low" },
       )?.passed,
     ).toBe(false);
     expect(
@@ -381,19 +369,15 @@ describe("orchestration outcome metrics", () => {
           '"turnId":"turn-2","workflow"',
           '"turnId":"turn-3","workflow"',
         ),
-        "codex",
-        "gpt-5.6-terra",
-        "low",
+        { harness: "codex", model: "gpt-5.6-terra", effort: "low" },
       )?.passed,
     ).toBe(false);
     expect(
-      reconcileObservedGoalRouteApplication(
-        hostApi,
-        hostRaw.split("\n")[0]!,
-        "codex",
-        "gpt-5.6-terra",
-        "low",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(hostApi, hostRaw.split("\n")[0]!, {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
     ).toBe(false);
   });
 
@@ -431,13 +415,11 @@ describe("orchestration outcome metrics", () => {
       childOutputTokens: 0,
     });
     expect(
-      reconcileObservedGoalRouteApplication(
-        result,
-        "",
-        "codex",
-        "gpt-5.6-terra",
-        "low",
-      )?.passed,
+      reconcileObservedGoalRouteApplication(result, "", {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
     ).toBe(true);
   });
 });

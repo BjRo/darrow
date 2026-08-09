@@ -186,7 +186,9 @@ case "$cmd" in
             fi
           elif [[ -d "$top/.github/PULL_REQUEST_TEMPLATE" ]]; then
             echo "## note: multiple PR templates in .github/PULL_REQUEST_TEMPLATE/ — ask the user which one to follow"
-            ls "$top/.github/PULL_REQUEST_TEMPLATE" | truncate_lines
+            find "$top/.github/PULL_REQUEST_TEMPLATE" -mindepth 1 -maxdepth 1 \
+              ! -name '.*' -exec basename -- {} \; |
+              LC_ALL=C sort | truncate_lines
           fi
           echo "## working tree (uncommitted changes will NOT be in the PR)"
           status=$(git status --porcelain)

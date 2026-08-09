@@ -181,7 +181,7 @@ bash "$SCRIPT" inspect > /dev/null 2>&1
 check "inspect still works" 0 $?
 
 echo "# N12: outside a work tree refused (exit 3)"
-cd "$(mktemp -d)"
+cd "$(mktemp -d)" || exit 1
 bash "$SCRIPT" inspect > /dev/null 2>&1
 check "inspect exit 3" 3 $?
 bash "$SCRIPT" create feat/x > /dev/null 2>&1

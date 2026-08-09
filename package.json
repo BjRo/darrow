@@ -9,7 +9,9 @@
     "format": "prettier --write .",
     "hooks:install": "git config core.hooksPath .githooks",
     "lint": "prettier --check .",
+    "lint:shell": "scripts/lint-shell",
     "lint:staged": "lint-staged",
+    "lint:ts": "eslint --max-warnings 0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,10 +19,13 @@
     "ajv-formats": "3.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bun": "^1.2.0",
+    "eslint": "^10.8.1",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.5",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.66.0",
     "yaml": "^2.6.0"
   }
 }

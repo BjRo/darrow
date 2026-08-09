@@ -60,8 +60,8 @@ case "$effort" in
   *) die "unsupported effort: $effort" ;;
 esac
 
-script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-plugin_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
 agent_name="adaptive-goal-$model_suffix-$effort"
 agent_file="$plugin_dir/agents/$agent_name.md"
 test -r "$agent_file" || die "no bundled runner for $model/$effort"

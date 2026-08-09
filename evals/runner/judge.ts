@@ -147,14 +147,19 @@ export async function buildBlindJudgeFixture(repoDir: string): Promise<string> {
   }
 }
 
+export interface QualityJudgeRequest {
+  adapter: HarnessAdapter;
+  repoDir: string;
+  task: string;
+  checks: CheckResult[];
+  model: string;
+  effort: string;
+}
+
 export async function runQualityJudge(
-  adapter: HarnessAdapter,
-  repoDir: string,
-  task: string,
-  checks: CheckResult[],
-  model: string,
-  effort: string,
+  request: QualityJudgeRequest,
 ): Promise<JudgeResult> {
+  const { adapter, repoDir, task, checks, model, effort } = request;
   const checkSummary = checks
     .map(
       (check) =>

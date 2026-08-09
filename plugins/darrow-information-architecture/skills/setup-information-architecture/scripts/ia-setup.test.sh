@@ -68,6 +68,7 @@ echo "setup handles large worktree output"
 fresh_repo
 REAL_GIT=$(command -v git)
 mkdir -p "$REPO/bin"
+# shellcheck disable=SC2016 # $i/$* must stay literal: this emits a git stub script
 printf '%s\n' '#!/usr/bin/env bash' 'if [[ "$*" == *"worktree list --porcelain"* ]]; then' "  printf 'worktree %s\\n' '$REPO'" '  i=0; while [[ $i -lt 9000 ]]; do printf "HEAD %040d\\n" "$i"; i=$((i + 1)); done' '  exit 0' 'fi' "exec '$REAL_GIT' \"\$@\"" > "$REPO/bin/git"
 chmod +x "$REPO/bin/git"
 out=$(PATH="$REPO/bin:$PATH" bash "$SCRIPT" inspect "$REPO")

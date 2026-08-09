@@ -1,0 +1,81 @@
+#!/bin/sh
+# Run shellcheck over this repository's shell scripts.
+#
+#   scripts/lint-shell            lint every non-vendored shell script
+#   scripts/lint-shell PATH...    lint only the given paths
+#
+# The second form is what lint-staged calls: it appends staged paths, which
+# may include non-shell files and extensionless files that only reveal
+# themselves through a `sh`/`bash` shebang. Both forms therefore run the same
+# selection filter, so the pre-commit gate and the repo-wide gate agree.
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if ! command -v shellcheck >/dev/null 2>&1; then
+  echo "error: shellcheck is required to lint shell scripts" >&2
+  echo "hint: brew install shellcheck" >&2
+  exit 1
+fi
+
+# Paths eslint already ignores, plus vendored/generated trees. Kept in sync
+# with the `ignores` list in eslint.config.js.
+is_excluded() {
+  case "$1" in
+    node_modules/* | .git/* | .worktrees/* | .tmp/* | evals/results/* | \
+      evals/corpus/*/cache/*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+# A path is shell if its extension says so, or if it has no extension and its
+# first line is a `sh`/`bash`/`dash` shebang.
+is_shell() {
+  [ -f "$1" ] || return 1
+  case "$1" in
+    *.sh | *.bash) return 0 ;;
+    *.*) return 1 ;;
+  esac
+  read -r first_line <"$1" || return 1
+  case "$first_line" in
+    '#!'*[!a-zA-Z0-9]sh | '#!'*[!a-zA-Z0-9]sh\ * | \
+      '#!'*[!a-zA-Z0-9]bash | '#!'*[!a-zA-Z0-9]bash\ * | \
+      '#!'*[!a-zA-Z0-9]dash | '#!'*[!a-zA-Z0-9]dash\ *)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+candidates_file=$(mktemp)
+selected_file=$(mktemp)
+trap 'rm -f "$candidates_file" "$selected_file"' EXIT INT TERM
+
+if [ "$#" -gt 0 ]; then
+  for path in "$@"; do
+    # lint-staged hands back absolute paths; make them repo-relative.
+    case "$path" in
+      "$repo_root"/*) path=${path#"$repo_root"/} ;;
+    esac
+    printf '%s\n' "$path"
+  done >"$candidates_file"
+else
+  { git ls-files; git ls-files --others --exclude-standard; } |
+    sort -u >"$candidates_file"
+fi
+
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  is_excluded "$path" && continue
+  is_shell "$path" || continue
+  printf '%s\n' "$path"
+done <"$candidates_file" >"$selected_file"
+
+if [ ! -s "$selected_file" ]; then
+  exit 0
+fi
+
+xargs shellcheck -- <"$selected_file"

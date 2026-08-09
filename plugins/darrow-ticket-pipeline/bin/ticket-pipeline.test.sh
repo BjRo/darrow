@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SHELL_UNDER_TEST=${SHELL_UNDER_TEST:-bash}
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 PIPELINE=$SCRIPT_DIR/ticket-pipeline
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/darrow-ticket-pipeline-test.XXXXXX")
 if [ "${KEEP_TMP:-0}" = 1 ]; then
@@ -151,6 +151,7 @@ check_contains 'reports the recorded phase' "phase${TAB}refine${TAB}complete" <(
 check_contains 'updates the phase state' '| refine | complete | 1 |' "$recorded"
 check_contains 'adds one execution ledger row' '| refine | 1 | refiner-1 | codex | test-model | medium | complete | Plan and acceptance criteria are decision-complete |' "$recorded"
 check_contains 'adds a namespaced artifact section' '## Ticket Pipeline Artifact — refine — Iteration 1' "$recorded"
+# shellcheck disable=SC2016 # the backticks are a literal Markdown code span in the expected evidence text
 check_contains 'persists the phase evidence' '- `bash test.sh`' "$recorded"
 check_contains 'still preserves user-owned ticket content' 'Keep this user-owned tail exactly.' "$recorded"
 
@@ -223,6 +224,7 @@ summary=$(run_pipeline summary --body-file "$challenged_two")
 check_contains 'resume identifies implementation as next' "next_phase${TAB}implement" <(printf '%s\n' "$summary")
 
 implement=$TMP_ROOT/implement.tsv
+# shellcheck disable=SC2016 # the backticks are a literal Markdown code span in the artifact body
 write_artifact "$implement" implement 1 implementer-1 complete \
   'Implementation and focused gates pass' '### Changed files
 
@@ -243,6 +245,7 @@ reviewed=$TMP_ROOT/reviewed.md
 run_pipeline record --body-file "$implemented" --artifact-file "$review" --output "$reviewed" >/dev/null
 
 qa=$TMP_ROOT/qa.tsv
+# shellcheck disable=SC2016 # the backticks are a literal Markdown code span in the artifact body
 write_artifact "$qa" qa 1 qa-1 passed \
   'Every acceptance criterion passes' '### Acceptance evidence
 
@@ -355,10 +358,10 @@ for entry in \
   'qa 1 qa-1 failed First-QA-failed' \
   'rework 1 repairer complete QA-defect-repaired' \
   'qa 2 qa-2 failed Second-QA-failed'; do
-  set -- $entry
-  artifact=$TMP_ROOT/qa-loop-$1-$2.tsv
-  next=$TMP_ROOT/qa-loop-$1-$2.md
-  write_qa_artifact "$artifact" "$1" "$2" "$3" "$4" "$5"
+  IFS=' ' read -r e_phase e_iteration e_agent e_status e_summary <<<"$entry"
+  artifact=$TMP_ROOT/qa-loop-$e_phase-$e_iteration.tsv
+  next=$TMP_ROOT/qa-loop-$e_phase-$e_iteration.md
+  write_qa_artifact "$artifact" "$e_phase" "$e_iteration" "$e_agent" "$e_status" "$e_summary"
   run_pipeline record --body-file "$prior" --artifact-file "$artifact" --output "$next" >/dev/null
   prior=$next
 done

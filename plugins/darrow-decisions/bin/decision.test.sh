@@ -201,6 +201,7 @@ fresh_repo
 {
   printf '\357\273\277# ADR-0001: Fence-safe parsing\n\n'
   printf 'Status: Accepted\nDate: 2026-07-19\n\n'
+  # shellcheck disable=SC2016 # literal Markdown fence backticks, not command substitution
   printf '## Context\n\n```md\n## Decision\nStatus: Rejected\n```\n\n'
   printf '## Decision\n\nIgnore headings inside fences.\n\n'
   printf '## Consequences\n\nPortable parsing remains deterministic.\n'
@@ -211,6 +212,7 @@ check_contains "ignores fenced fake headings and strips BOM" "valid: 1 ADR(s)" "
 fresh_repo
 {
   printf '# ADR-0001: Empty fenced context\n\nStatus: Accepted\nDate: 2026-07-19\n\n'
+  # shellcheck disable=SC2016 # literal Markdown fence backticks, not command substitution
   printf '## Context\n\n```text\n```\n\n## Decision\n\nUse it.\n\n## Consequences\n\nIt applies.\n'
 } > "$REPO/docs/decisions/ADR-0001-empty-fence.md"
 set +e
@@ -223,6 +225,7 @@ check_contains "reports empty fenced Context" "Context section must occur once a
 fresh_repo
 {
   printf '# ADR-0001: Invalid fence close\n\nStatus: Accepted\nDate: 2026-07-19\n\n'
+  # shellcheck disable=SC2016 # literal Markdown fence backticks, not command substitution
   printf '## Context\n\n```text\ncontent\n``` trailing\n## Decision\n\nhidden\n'
 } > "$REPO/docs/decisions/ADR-0001-invalid-fence.md"
 set +e
@@ -275,6 +278,7 @@ fresh_repo
 write_adr ADR-0001 Accepted "First"
 mkdir "$REPO/mock-bin"
 real_sed=$(command -v sed)
+# shellcheck disable=SC2016 # $@/$?/$rc/$OCCUPY_PATH must stay literal for the generated stub
 printf '#!/bin/sh\n%s "$@"\nrc=$?\n: > "$OCCUPY_PATH"\nexit "$rc"\n' "$real_sed" > "$REPO/mock-bin/sed"
 chmod +x "$REPO/mock-bin/sed"
 occupied="$REPO/docs/decisions/ADR-0002-checkpointed-local-state.md"
@@ -412,7 +416,6 @@ check_contains "reports revisit cap" "Revisit when exceeds 500 bytes" "$out"
 echo "deterministic tool failure handling"
 fresh_repo
 mkdir "$REPO/mock-bin"
-real_find=$(command -v find)
 printf '#!/bin/sh\nexit 7\n' > "$REPO/mock-bin/find"
 chmod +x "$REPO/mock-bin/find"
 set +e

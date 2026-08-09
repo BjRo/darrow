@@ -60,22 +60,35 @@ function comparisonErrors(base: CaseResult, cand: CaseResult): string[] {
   return errors;
 }
 
+type DeltaOptions = {
+  /** Whether a smaller candidate value is the improvement. Defaults to true. */
+  lowerBetter?: boolean;
+  /** Decimal places for the absolute delta. Defaults to 1 for seconds, else 0. */
+  precision?: number;
+};
+
+const signed = (value: number, precision: number): string =>
+  `${value > 0 ? "+" : ""}${value.toFixed(precision)}`;
+
+const deltaPercent = (base: number, delta: number): string =>
+  base === 0 ? "" : ` (${signed((delta / base) * 100, 0)}%)`;
+
+const deltaMarker = (delta: number, lowerBetter: boolean): string => {
+  if (delta === 0) return "=";
+  return delta < 0 === lowerBetter ? "▲" : "▼";
+};
+
 const fmtDelta = (
   base: number,
   cand: number,
   unit: string,
-  lowerBetter = true,
-  precision = unit === "s" ? 1 : 0,
+  options: DeltaOptions = {},
 ): string => {
+  const { lowerBetter = true, precision = unit === "s" ? 1 : 0 } = options;
   const delta = cand - base;
   if (base === 0 && cand === 0) return "±0";
-  const pct =
-    base !== 0
-      ? ` (${delta > 0 ? "+" : ""}${((delta / base) * 100).toFixed(0)}%)`
-      : "";
-  const better = lowerBetter ? delta < 0 : delta > 0;
-  const marker = delta === 0 ? "=" : better ? "▲" : "▼";
-  return `${marker} ${delta > 0 ? "+" : ""}${delta.toFixed(precision)}${unit}${pct}`;
+  const marker = deltaMarker(delta, lowerBetter);
+  return `${marker} ${signed(delta, precision)}${unit}${deltaPercent(base, delta)}`;
 };
 
 console.log(`baseline:  ${baselinePath}`);
@@ -101,7 +114,9 @@ for (const base of baseline) {
   );
   console.log(
     `  pass    ${(base.passRate * 100).toFixed(0)}% → ${(cand.passRate * 100).toFixed(0)}%  ` +
-      fmtDelta(base.passRate * 100, cand.passRate * 100, "pp", false),
+      fmtDelta(base.passRate * 100, cand.passRate * 100, "pp", {
+        lowerBetter: false,
+      }),
   );
   console.log(
     `  wall    ${(base.meanDurationMs / 1000).toFixed(1)}s → ${(cand.meanDurationMs / 1000).toFixed(1)}s  ` +
@@ -127,7 +142,7 @@ for (const base of baseline) {
   ) {
     console.log(
       `  cost    $${base.totalCostUsd.toFixed(4)} → $${cand.totalCostUsd.toFixed(4)}  ` +
-        fmtDelta(base.totalCostUsd, cand.totalCostUsd, "", true, 4),
+        fmtDelta(base.totalCostUsd, cand.totalCostUsd, "", { precision: 4 }),
     );
   } else if (base.totalCostUsd == null && cand.totalCostUsd == null) {
     console.log("  cost    unknown → unknown");
@@ -155,7 +170,7 @@ for (const base of baseline) {
     const candPct = candDetection * 100;
     console.log(
       `  detect  ${basePct.toFixed(0)}% → ${candPct.toFixed(0)}%  ` +
-        fmtDelta(basePct, candPct, "pp", false),
+        fmtDelta(basePct, candPct, "pp", { lowerBetter: false }),
     );
   } else if (baseDetection !== candDetection) {
     invalidComparison = true;
@@ -176,13 +191,9 @@ for (const base of baseline) {
   ) {
     console.log(
       `  human   ${base.humanReviewMinutes.toFixed(1)}m → ${cand.humanReviewMinutes.toFixed(1)}m  ` +
-        fmtDelta(
-          base.humanReviewMinutes,
-          cand.humanReviewMinutes,
-          "m",
-          true,
-          1,
-        ),
+        fmtDelta(base.humanReviewMinutes, cand.humanReviewMinutes, "m", {
+          precision: 1,
+        }),
     );
   } else if (
     base.humanReviewMinutes == null &&

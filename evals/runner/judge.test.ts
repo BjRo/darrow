@@ -121,14 +121,14 @@ describe("orchestration quality judge", () => {
         },
       };
 
-      const result = await runQualityJudge(
+      const result = await runQualityJudge({
         adapter,
-        repo,
-        "Keep the behavior correct.",
-        [],
-        "test-model",
-        "medium",
-      );
+        repoDir: repo,
+        task: "Keep the behavior correct.",
+        checks: [],
+        model: "test-model",
+        effort: "medium",
+      });
       expect(result.assessment?.verdict).toBe("pass");
       expect(existsSync(judgeDir)).toBe(false);
     } finally {

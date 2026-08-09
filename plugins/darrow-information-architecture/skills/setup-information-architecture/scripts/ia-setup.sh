@@ -22,7 +22,7 @@ resolve_root() {
 }
 
 print_group() {
-  local label=$1 count=0 path rel
+  local label=$1 count=0 path
   shift
   echo "$label:"
   find "$ROOT" "$@" -print 2>/dev/null |

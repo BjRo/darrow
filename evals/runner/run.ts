@@ -21,10 +21,69 @@ import type {
   CaseResult,
   CheckResult,
   EvalCase,
+  GoalRouteApplication,
   HarnessAdapter,
   HarnessResult,
   TrialResult,
 } from "./types";
+
+interface GoalRouteExpectation {
+  model: string;
+  effort: string;
+}
+
+interface GoalDimensionsExpectation {
+  profile: string;
+  workflow: string;
+  risk: "routine" | "elevated" | "high";
+}
+
+interface JudgeConfig {
+  adapter: HarnessAdapter;
+  model: string;
+  effort: string;
+}
+
+interface RunCaseOptions {
+  evalCase: EvalCase;
+  adapter: HarnessAdapter;
+  model: string;
+  effort: string;
+  trials: number;
+  dry: boolean;
+  condition?: { label: string; text: string };
+  withoutSkill?: boolean;
+  humanReviewMinutes?: number;
+  requireEvaluationRecords?: boolean;
+  judge?: JudgeConfig;
+  /** Route the harness is told to apply. */
+  expectedGoalRoute?: GoalRouteExpectation;
+  /** Route the case asserts the harness actually applied. */
+  assertedGoalRoute?: GoalRouteExpectation;
+  assertedGoalDimensions?: GoalDimensionsExpectation;
+}
+
+/** One trial's inputs, shared by the check builder and the trial evaluator. */
+interface TrialContext {
+  trial: number;
+  repoDir: string;
+  baseRevision: string;
+  harness: HarnessResult;
+}
+
+function defined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
+function isRouteRecord(value: unknown): value is GoalRouteExpectation {
+  if (!value || typeof value !== "object") return false;
+  const route = value as Record<string, unknown>;
+  return typeof route.model === "string" && typeof route.effort === "string";
+}
+
+function isNonEmptyRouteRecord(value: unknown): boolean {
+  return isRouteRecord(value) && !!value.model && !!value.effort;
+}
 
 const ADAPTERS: Record<string, HarnessAdapter> = {
   claude: claudeAdapter,
@@ -70,284 +129,479 @@ async function repositoryHead(repoDir: string): Promise<string> {
 
 /** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
  *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
+async function scanCases(
+  pattern: string,
+  skillDirOf: (casePath: string) => string,
+): Promise<EvalCase[]> {
+  const cases: EvalCase[] = [];
+  for await (const rel of new Bun.Glob(pattern).scan(ROOT)) {
+    const path = join(ROOT, rel);
+    const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
+    evalCase.skillDir = skillDirOf(path);
+    evalCase.caseDir = dirname(path);
+    cases.push(evalCase);
+  }
+  return cases;
+}
+
+/** Point every `fixture.source` case at its prepared corpus checkout. */
+async function resolveCorpusFixtures(
+  cases: EvalCase[],
+  corpusManifest: string,
+): Promise<void> {
+  for (const evalCase of cases) {
+    if (!evalCase.fixture.source) continue;
+    if (evalCase.fixture.repo || evalCase.fixture.commits?.length) {
+      throw new Error(
+        `${evalCase.id}: fixture.source, repo, and commits are mutually exclusive`,
+      );
+    }
+    evalCase.fixture.repo = (
+      await resolveCorpusSource(evalCase.fixture.source, corpusManifest)
+    ).path;
+  }
+}
+
 async function loadCases(
   filter?: string[],
   corpusManifest = DEFAULT_CORPUS_MANIFEST,
 ): Promise<EvalCase[]> {
-  const cases: EvalCase[] = [];
-  const glob = new Bun.Glob("plugins/*/skills/*/evals/*.yaml");
-  for await (const rel of glob.scan(ROOT)) {
-    const path = join(ROOT, rel);
-    const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
-    evalCase.skillDir = dirname(dirname(path));
-    evalCase.caseDir = dirname(path);
-    cases.push(evalCase);
-  }
-  const expGlob = new Bun.Glob("evals/experiments/*/cases/*.yaml");
-  for await (const rel of expGlob.scan(ROOT)) {
-    const path = join(ROOT, rel);
-    const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
-    evalCase.skillDir = ""; // no skill under test — nothing gets mounted
-    evalCase.caseDir = dirname(path);
-    cases.push(evalCase);
-  }
+  const cases = [
+    ...(await scanCases("plugins/*/skills/*/evals/*.yaml", (path) =>
+      dirname(dirname(path)),
+    )),
+    // Skill-less experiments mount nothing.
+    ...(await scanCases("evals/experiments/*/cases/*.yaml", () => "")),
+  ];
   cases.sort((a, b) => a.id.localeCompare(b.id));
   const selected = filter?.length
     ? cases.filter((c) => filter.some((value) => c.id.includes(value)))
     : cases;
-  for (const evalCase of selected) {
-    if (evalCase.fixture.source) {
-      if (evalCase.fixture.repo || evalCase.fixture.commits?.length) {
-        throw new Error(
-          `${evalCase.id}: fixture.source, repo, and commits are mutually exclusive`,
-        );
-      }
-      evalCase.fixture.repo = (
-        await resolveCorpusSource(evalCase.fixture.source, corpusManifest)
-      ).path;
-    }
-  }
+  await resolveCorpusFixtures(selected, corpusManifest);
   return selected;
 }
 
-async function runCase(
-  evalCase: EvalCase,
-  adapter: HarnessAdapter,
-  model: string,
-  effort: string,
-  trials: number,
-  dry: boolean,
-  condition?: { label: string; text: string },
-  withoutSkill = false,
-  humanReviewMinutes?: number,
-  requireEvaluationRecords = false,
-  judge?: { adapter: HarnessAdapter; model: string; effort: string },
-  expectedGoalRoute?: { model: string; effort: string },
-  assertedGoalRoute?: { model: string; effort: string },
-  assertedGoalDimensions?: {
-    profile: string;
-    workflow: string;
-    risk: "routine" | "elevated" | "high";
-  },
-): Promise<CaseResult> {
-  let promptTemplate = condition?.text.trim()
+function trialPrompt(options: RunCaseOptions, repoDir: string): string {
+  const { evalCase, adapter, model, effort, condition } = options;
+  const template = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
-  const trialResults: TrialResult[] = [];
+  return template
+    .replaceAll("{{repo_dir}}", repoDir)
+    .replaceAll("{{harness}}", adapter.name)
+    .replaceAll("{{model}}", model)
+    .replaceAll("{{effort}}", effort);
+}
 
-  for (let trial = 1; trial <= trials; trial++) {
-    const repoDir = await buildFixture(
-      evalCase.fixture,
-      withoutSkill ? "" : evalCase.skillDir,
-      adapter.skillMounts,
-      evalCase.mount_plugin_skills ?? false,
-      evalCase.caseDir,
-    );
-    try {
-      const baseRevision = await repositoryHead(repoDir);
-      const prompt = promptTemplate
-        .replaceAll("{{repo_dir}}", repoDir)
-        .replaceAll("{{harness}}", adapter.name)
-        .replaceAll("{{model}}", model)
-        .replaceAll("{{effort}}", effort);
-      if (dry) {
-        console.log(
-          `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
-        );
-        const checks = await runChecks(repoDir, evalCase.checks);
-        trialResults.push({
-          trial,
-          passed: false,
-          checks,
-          harness: {
-            ok: true,
-            durationMs: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            costUsd: null,
-            resultText: "",
-            raw: "",
-          },
-        });
-        continue;
-      }
-      const harness: HarnessResult = await adapter.run(
-        repoDir,
-        prompt,
-        model,
-        effort,
-        expectedGoalRoute
-          ? {
-              expectedGoalRoute: {
-                harness: "codex",
-                provider: "openai",
-                model: expectedGoalRoute.model,
-                effort: expectedGoalRoute.effort,
-              },
-            }
-          : undefined,
-      );
-      const observedGoalRouteApplication =
-        adapter.name === "codex"
-          ? observeCodexGoalRouteApplication(harness.resultText, harness.raw)
-          : undefined;
-      const observedGoalRouteCheck =
-        adapter.name === "codex"
-          ? reconcileObservedGoalRouteApplication(
-              harness.resultText,
-              harness.raw,
-              adapter.name,
-              model,
-              effort,
-            )
-          : undefined;
-      const assertedGoalRouteCheck = assertedGoalRoute
-        ? {
-            name: "hidden goal route selection matches expectation",
-            passed:
-              observedGoalRouteApplication?.selected.model ===
-                assertedGoalRoute.model &&
-              observedGoalRouteApplication.selected.effort ===
-                assertedGoalRoute.effort &&
-              observedGoalRouteApplication.effective.model ===
-                assertedGoalRoute.model &&
-              observedGoalRouteApplication.effective.effort ===
-                assertedGoalRoute.effort,
-            detail: `expected selected and effective ${assertedGoalRoute.model}/${assertedGoalRoute.effort}`,
-          }
-        : undefined;
-      const assertedGoalDimensionsCheck = assertedGoalDimensions
-        ? {
-            name: "hidden goal dimensions match expectation",
-            passed:
-              observedGoalRouteApplication?.profile ===
-                assertedGoalDimensions.profile &&
-              observedGoalRouteApplication.workflow ===
-                assertedGoalDimensions.workflow &&
-              observedGoalRouteApplication.risk === assertedGoalDimensions.risk,
-            detail: `expected ${assertedGoalDimensions.workflow}/${assertedGoalDimensions.risk}/${assertedGoalDimensions.profile}`,
-          }
-        : undefined;
-      const observedTicketPipelineCheck = reconcileObservedTicketPipelineRoutes(
-        harness.resultText,
-        harness.raw,
-      );
-      const observedTicketPipelineRoutes =
-        /^format\tdarrow-ticket-pipeline-result-v1$/m.test(harness.resultText)
-          ? observeCodexTicketPipelineRoutes(harness.raw)
-          : undefined;
-      const checks = [
-        ...(await runChecks(repoDir, evalCase.checks)),
-        {
-          name: "base revision remains unchanged",
-          passed: (await repositoryHead(repoDir)) === baseRevision,
-          detail: "candidate created or switched to a different commit",
-        },
-        // A no-skill baseline is judged on the same repository outcomes, not
-        // on the orchestration-specific reporting contract it cannot know about.
-        ...(withoutSkill
-          ? []
-          : await runOutputChecks(
-              harness.resultText,
-              evalCase.output_checks ?? [],
-              evalCase.skillDir,
-            )),
-        ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
-        ...(observedGoalRouteCheck ? [observedGoalRouteCheck] : []),
-        ...(assertedGoalRouteCheck ? [assertedGoalRouteCheck] : []),
-        ...(assertedGoalDimensionsCheck ? [assertedGoalDimensionsCheck] : []),
-        ...(requireEvaluationRecords
-          ? evaluationRecordChecks(
-              harness.resultText,
-              evalCase.skillDir.endsWith("/adaptive-goal"),
-            )
-          : []),
-      ];
-      const passed = harness.ok && checks.every((c) => c.passed);
-      const judgeResult = judge
-        ? await runQualityJudge(
-            judge.adapter,
-            repoDir,
-            evalCase.prompt,
-            checks,
-            judge.model,
-            judge.effort,
-          )
-        : undefined;
-      trialResults.push({
-        trial,
-        passed,
-        checks,
-        harness,
-        routeApplication: observedGoalRouteApplication,
-        orchestrationMetrics: extractOrchestrationMetrics(
+function goalRouteControl(
+  expectedGoalRoute: GoalRouteExpectation | undefined,
+): Parameters<HarnessAdapter["run"]>[4] {
+  if (!expectedGoalRoute) return undefined;
+  return {
+    expectedGoalRoute: {
+      harness: "codex",
+      provider: "openai",
+      model: expectedGoalRoute.model,
+      effort: expectedGoalRoute.effort,
+    },
+  };
+}
+
+function dryTrialResult(trial: number, checks: CheckResult[]): TrialResult {
+  return {
+    trial,
+    passed: false,
+    checks,
+    harness: {
+      ok: true,
+      durationMs: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: null,
+      resultText: "",
+      raw: "",
+    },
+  };
+}
+
+function goalRouteAssertionCheck(
+  observed: GoalRouteApplication | undefined,
+  asserted: GoalRouteExpectation,
+): CheckResult {
+  return {
+    name: "hidden goal route selection matches expectation",
+    passed:
+      observed?.selected.model === asserted.model &&
+      observed.selected.effort === asserted.effort &&
+      observed.effective.model === asserted.model &&
+      observed.effective.effort === asserted.effort,
+    detail: `expected selected and effective ${asserted.model}/${asserted.effort}`,
+  };
+}
+
+function goalDimensionsAssertionCheck(
+  observed: GoalRouteApplication | undefined,
+  asserted: GoalDimensionsExpectation,
+): CheckResult {
+  return {
+    name: "hidden goal dimensions match expectation",
+    passed:
+      observed?.profile === asserted.profile &&
+      observed.workflow === asserted.workflow &&
+      observed.risk === asserted.risk,
+    detail: `expected ${asserted.workflow}/${asserted.risk}/${asserted.profile}`,
+  };
+}
+
+/** Checks derived purely from the transcript: what the harness reported about
+ * its own routing, versus what this run asked for and the case asserts. */
+function routeChecks(
+  options: RunCaseOptions,
+  harness: HarnessResult,
+  observed: GoalRouteApplication | undefined,
+): CheckResult[] {
+  const {
+    evalCase,
+    adapter,
+    model,
+    effort,
+    requireEvaluationRecords = false,
+    assertedGoalRoute,
+    assertedGoalDimensions,
+  } = options;
+  const observedGoalRouteCheck =
+    adapter.name === "codex"
+      ? reconcileObservedGoalRouteApplication(harness.resultText, harness.raw, {
+          harness: adapter.name,
+          model,
+          effort,
+        })
+      : undefined;
+  const observedTicketPipelineCheck = reconcileObservedTicketPipelineRoutes(
+    harness.resultText,
+    harness.raw,
+  );
+  return [
+    ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
+    ...(observedGoalRouteCheck ? [observedGoalRouteCheck] : []),
+    ...(assertedGoalRoute
+      ? [goalRouteAssertionCheck(observed, assertedGoalRoute)]
+      : []),
+    ...(assertedGoalDimensions
+      ? [goalDimensionsAssertionCheck(observed, assertedGoalDimensions)]
+      : []),
+    ...(requireEvaluationRecords
+      ? evaluationRecordChecks(
           harness.resultText,
-          checks,
-          observedGoalRouteApplication?.childInvocationCount ??
-            observedTicketPipelineRoutes?.length,
-        ),
-        judge: judgeResult,
-      });
-      const failed = checks.filter((c) => !c.passed);
-      console.log(
-        `  ${passed ? "PASS" : "FAIL"} ${evalCase.id} trial ${trial}/${trials} ` +
-          `(${(harness.durationMs / 1000).toFixed(1)}s, ${harness.inputTokens + harness.outputTokens} tok)` +
-          (failed.length ? ` — ${failed.map((c) => c.name).join(", ")}` : ""),
-      );
-      for (const c of failed) console.log(`      ${c.name}: ${c.detail}`);
-      if (judgeResult) {
-        console.log(
-          `      judge: ${judgeResult.assessment ? `${judgeResult.assessment.verdict} ${judgeResult.assessment.overallScore}/5` : `invalid (${judgeResult.parseError})`}`,
-        );
-      }
-    } finally {
-      await destroyFixture(repoDir);
-    }
-  }
+          evalCase.skillDir.endsWith("/adaptive-goal"),
+        )
+      : []),
+  ];
+}
 
-  const durations = trialResults.map((t) => t.harness.durationMs);
-  const tokenTotals = trialResults.map((trial) => {
-    const routeApplication = trial.routeApplication;
-    if (
-      hasUnreconciledOrchestrationUsage(
-        trial.harness.resultText,
-        adapter.name,
-      ) &&
-      routeApplication?.launchBoundary !== "nested_session"
-    )
-      return null;
-    return (
-      trial.harness.inputTokens +
-      trial.harness.outputTokens +
-      (routeApplication?.childInputTokens ?? 0) +
-      (routeApplication?.childOutputTokens ?? 0)
+async function trialChecks(
+  options: RunCaseOptions,
+  context: TrialContext,
+  observedGoalRouteApplication: GoalRouteApplication | undefined,
+): Promise<CheckResult[]> {
+  const { evalCase, withoutSkill = false } = options;
+  const { repoDir, baseRevision, harness } = context;
+  return [
+    ...(await runChecks(repoDir, evalCase.checks)),
+    {
+      name: "base revision remains unchanged",
+      passed: (await repositoryHead(repoDir)) === baseRevision,
+      detail: "candidate created or switched to a different commit",
+    },
+    // A no-skill baseline is judged on the same repository outcomes, not
+    // on the orchestration-specific reporting contract it cannot know about.
+    ...(withoutSkill
+      ? []
+      : await runOutputChecks(
+          harness.resultText,
+          evalCase.output_checks ?? [],
+          evalCase.skillDir,
+        )),
+    ...routeChecks(options, harness, observedGoalRouteApplication),
+  ];
+}
+
+async function evaluateTrial(
+  options: RunCaseOptions,
+  context: TrialContext,
+): Promise<TrialResult> {
+  const { evalCase, adapter, judge } = options;
+  const { harness, repoDir } = context;
+  const observedGoalRouteApplication =
+    adapter.name === "codex"
+      ? observeCodexGoalRouteApplication(harness.resultText, harness.raw)
+      : undefined;
+  const observedTicketPipelineRoutes =
+    /^format\tdarrow-ticket-pipeline-result-v1$/m.test(harness.resultText)
+      ? observeCodexTicketPipelineRoutes(harness.raw)
+      : undefined;
+  const checks = await trialChecks(
+    options,
+    context,
+    observedGoalRouteApplication,
+  );
+  return {
+    trial: context.trial,
+    passed: harness.ok && checks.every((c) => c.passed),
+    checks,
+    harness,
+    routeApplication: observedGoalRouteApplication,
+    orchestrationMetrics: extractOrchestrationMetrics(
+      harness.resultText,
+      checks,
+      observedGoalRouteApplication?.childInvocationCount ??
+        observedTicketPipelineRoutes?.length,
+    ),
+    judge: judge
+      ? await runQualityJudge({
+          adapter: judge.adapter,
+          repoDir,
+          task: evalCase.prompt,
+          checks,
+          model: judge.model,
+          effort: judge.effort,
+        })
+      : undefined,
+  };
+}
+
+function reportTrial(options: RunCaseOptions, result: TrialResult): void {
+  const { evalCase, trials } = options;
+  const { harness } = result;
+  const failed = result.checks.filter((c) => !c.passed);
+  console.log(
+    `  ${result.passed ? "PASS" : "FAIL"} ${evalCase.id} trial ${result.trial}/${trials} ` +
+      `(${(harness.durationMs / 1000).toFixed(1)}s, ${harness.inputTokens + harness.outputTokens} tok)` +
+      (failed.length ? ` — ${failed.map((c) => c.name).join(", ")}` : ""),
+  );
+  for (const c of failed) console.log(`      ${c.name}: ${c.detail}`);
+  const judgeResult = result.judge;
+  if (judgeResult) {
+    console.log(
+      `      judge: ${judgeResult.assessment ? `${judgeResult.assessment.verdict} ${judgeResult.assessment.overallScore}/5` : `invalid (${judgeResult.parseError})`}`,
     );
+  }
+}
+
+async function runTrial(
+  options: RunCaseOptions,
+  trial: number,
+): Promise<TrialResult> {
+  const {
+    evalCase,
+    adapter,
+    model,
+    effort,
+    dry,
+    withoutSkill = false,
+  } = options;
+  const repoDir = await buildFixture({
+    fixture: evalCase.fixture,
+    skillDir: withoutSkill ? "" : evalCase.skillDir,
+    skillMounts: adapter.skillMounts,
+    mountPluginSkills: evalCase.mount_plugin_skills ?? false,
+    caseDir: evalCase.caseDir,
   });
-  const measuredOrchestrationTrials = trialResults
-    .map((trial) => trial.orchestrationMetrics)
-    .filter(
-      (metric): metric is NonNullable<typeof metric> => metric !== undefined,
+  try {
+    const baseRevision = await repositoryHead(repoDir);
+    const prompt = trialPrompt(options, repoDir);
+    if (dry) {
+      console.log(
+        `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
+      );
+      return dryTrialResult(trial, await runChecks(repoDir, evalCase.checks));
+    }
+    const harness: HarnessResult = await adapter.run(
+      repoDir,
+      prompt,
+      model,
+      effort,
+      goalRouteControl(options.expectedGoalRoute),
     );
-  const judgeAssessments = trialResults
-    .map((trial) => (trial.judge?.ok ? trial.judge.assessment : undefined))
-    .filter(
-      (assessment): assessment is NonNullable<typeof assessment> =>
-        assessment !== undefined,
-    );
+    const result = await evaluateTrial(options, {
+      trial,
+      repoDir,
+      baseRevision,
+      harness,
+    });
+    reportTrial(options, result);
+    return result;
+  } finally {
+    await destroyFixture(repoDir);
+  }
+}
+
+/** Total tokens for one trial, or null when orchestration usage is unaccounted. */
+function trialTokenTotal(
+  trial: TrialResult,
+  harnessName: string,
+): number | null {
+  const routeApplication = trial.routeApplication;
+  if (
+    hasUnreconciledOrchestrationUsage(trial.harness.resultText, harnessName) &&
+    routeApplication?.launchBoundary !== "nested_session"
+  )
+    return null;
+  return (
+    trial.harness.inputTokens +
+    trial.harness.outputTokens +
+    (routeApplication?.childInputTokens ?? 0) +
+    (routeApplication?.childOutputTokens ?? 0)
+  );
+}
+
+function totalCostUsd(
+  trialResults: TrialResult[],
+  harnessName: string,
+): number | null {
+  const accounted = trialResults.every(
+    (trial) =>
+      trial.harness.costUsd !== null &&
+      !hasUnreconciledOrchestrationUsage(trial.harness.resultText, harnessName),
+  );
+  if (!accounted) return null;
+  return trialResults.reduce(
+    (total, trial) => total + (trial.harness.costUsd ?? 0),
+    0,
+  );
+}
+
+function phaseAverages(
+  trialResults: TrialResult[],
+): Pick<
+  CaseResult,
+  | "meanPreparationDurationMs"
+  | "meanClassifierDurationMs"
+  | "meanClassifierTokens"
+  | "meanClassifierModelCalls"
+  | "meanExecutionDurationMs"
+  | "meanExecutionTokens"
+> {
   const phaseMetrics = trialResults
     .map((trial) => trial.harness.phaseMetrics)
-    .filter(
-      (metric): metric is NonNullable<typeof metric> => metric !== undefined,
+    .filter(defined);
+  const preparation = phaseMetrics.map((m) => m.preparation).filter(defined);
+  const classifier = phaseMetrics.map((m) => m.classifier).filter(defined);
+  const execution = phaseMetrics.map((m) => m.execution).filter(defined);
+  const meanOf = <T>(
+    phases: T[],
+    pick: (phase: T) => number,
+  ): number | undefined => (phases.length ? mean(phases.map(pick)) : undefined);
+  return {
+    meanPreparationDurationMs: meanOf(preparation, (p) => p.durationMs),
+    meanClassifierDurationMs: meanOf(classifier, (p) => p.durationMs),
+    meanClassifierTokens: meanOf(
+      classifier,
+      (p) => p.inputTokens + p.outputTokens,
+    ),
+    meanClassifierModelCalls: meanOf(classifier, (p) => p.modelCalls),
+    meanExecutionDurationMs: meanOf(execution, (p) => p.durationMs),
+    meanExecutionTokens: meanOf(
+      execution,
+      (p) => p.inputTokens + p.outputTokens,
+    ),
+  };
+}
+
+/** Where the reported child-invocation count came from: the condition's own
+ * report, the harness transcript, or the controller's result record. */
+function childInvocationCountSource(
+  options: RunCaseOptions,
+  trialResults: TrialResult[],
+): CaseResult["childInvocationCountSource"] {
+  const { withoutSkill = false, evalCase } = options;
+  const reportedByCondition =
+    withoutSkill ||
+    !evalCase.skillDir ||
+    trialResults.some((trial) =>
+      /^format\tdarrow-native-goal-preflight-v1$/m.test(
+        trial.harness.resultText,
+      ),
     );
-  const preparationPhases = phaseMetrics
-    .map((metric) => metric.preparation)
-    .filter((phase): phase is NonNullable<typeof phase> => phase !== undefined);
-  const classifierPhases = phaseMetrics
-    .map((metric) => metric.classifier)
-    .filter((phase): phase is NonNullable<typeof phase> => phase !== undefined);
-  const executionPhases = phaseMetrics
-    .map((metric) => metric.execution)
-    .filter((phase): phase is NonNullable<typeof phase> => phase !== undefined);
+  if (reportedByCondition) return "condition_report";
+  if (trialResults.some((trial) => trial.routeApplication !== undefined))
+    return "harness_observed";
+  const observedPipeline = trialResults.some(
+    (trial) =>
+      /^format\tdarrow-ticket-pipeline-result-v1$/m.test(
+        trial.harness.resultText,
+      ) && observeCodexTicketPipelineRoutes(trial.harness.raw) !== undefined,
+  );
+  return observedPipeline ? "harness_observed" : "controller_result";
+}
+
+function orchestrationSummary(
+  options: RunCaseOptions,
+  trialResults: TrialResult[],
+): Pick<
+  CaseResult,
+  | "meanChildInvocationCount"
+  | "childInvocationCountSource"
+  | "totalHumanInterruptions"
+  | "escapedDefects"
+  | "falsePositiveVerifierFindings"
+> {
+  const measured = trialResults
+    .map((trial) => trial.orchestrationMetrics)
+    .filter(defined);
+  if (!measured.length) return {};
+  const total = (pick: (metric: (typeof measured)[number]) => number): number =>
+    measured.reduce((sum, metric) => sum + pick(metric), 0);
+  return {
+    meanChildInvocationCount: mean(
+      measured.map((metric) => metric.childInvocationCount),
+    ),
+    childInvocationCountSource: childInvocationCountSource(
+      options,
+      trialResults,
+    ),
+    totalHumanInterruptions: total((metric) => metric.humanInterruptions),
+    escapedDefects: total((metric) => metric.escapedDefects),
+    falsePositiveVerifierFindings: total(
+      (metric) => metric.falsePositiveVerifierFindings,
+    ),
+  };
+}
+
+function judgeSummary(
+  trialResults: TrialResult[],
+): Pick<CaseResult, "meanJudgeScore" | "judgePassRate"> {
+  const assessments = trialResults
+    .map((trial) => (trial.judge?.ok ? trial.judge.assessment : undefined))
+    .filter(defined);
+  if (!assessments.length) return {};
+  return {
+    meanJudgeScore: mean(
+      assessments.map((assessment) => assessment.overallScore),
+    ),
+    judgePassRate:
+      assessments.filter((assessment) => assessment.verdict === "pass").length /
+      assessments.length,
+  };
+}
+
+function summarizeCase(
+  options: RunCaseOptions,
+  trialResults: TrialResult[],
+): CaseResult {
+  const {
+    evalCase,
+    adapter,
+    model,
+    effort,
+    condition,
+    dry,
+    humanReviewMinutes,
+  } = options;
+  const durations = trialResults.map((t) => t.harness.durationMs);
+  const tokenTotals = trialResults.map((trial) =>
+    trialTokenTotal(trial, adapter.name),
+  );
   return {
     caseId: evalCase.id,
     invariant: evalCase.invariant,
@@ -361,105 +615,66 @@ async function runCase(
       Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
     p95DurationMs: p95(durations),
-    meanPreparationDurationMs: preparationPhases.length
-      ? mean(preparationPhases.map((phase) => phase.durationMs))
-      : undefined,
-    meanClassifierDurationMs: classifierPhases.length
-      ? mean(classifierPhases.map((phase) => phase.durationMs))
-      : undefined,
-    meanClassifierTokens: classifierPhases.length
-      ? mean(
-          classifierPhases.map(
-            (phase) => phase.inputTokens + phase.outputTokens,
-          ),
-        )
-      : undefined,
-    meanClassifierModelCalls: classifierPhases.length
-      ? mean(classifierPhases.map((phase) => phase.modelCalls))
-      : undefined,
-    meanExecutionDurationMs: executionPhases.length
-      ? mean(executionPhases.map((phase) => phase.durationMs))
-      : undefined,
-    meanExecutionTokens: executionPhases.length
-      ? mean(
-          executionPhases.map(
-            (phase) => phase.inputTokens + phase.outputTokens,
-          ),
-        )
-      : undefined,
+    ...phaseAverages(trialResults),
     meanTokens:
       !dry && tokenTotals.every((value) => value !== null)
         ? mean(tokenTotals as number[])
         : null,
-    totalCostUsd: trialResults.every(
-      (trial) =>
-        trial.harness.costUsd !== null &&
-        !hasUnreconciledOrchestrationUsage(
-          trial.harness.resultText,
-          adapter.name,
-        ),
-    )
-      ? trialResults.reduce(
-          (total, trial) => total + (trial.harness.costUsd ?? 0),
-          0,
-        )
-      : null,
+    totalCostUsd: totalCostUsd(trialResults, adapter.name),
     humanReviewMinutes: humanReviewMinutes ?? null,
-    meanChildInvocationCount: measuredOrchestrationTrials.length
-      ? mean(
-          measuredOrchestrationTrials.map(
-            (metric) => metric.childInvocationCount,
-          ),
-        )
-      : undefined,
-    childInvocationCountSource: measuredOrchestrationTrials.length
-      ? withoutSkill ||
-        !evalCase.skillDir ||
-        trialResults.some((trial) =>
-          /^format\tdarrow-native-goal-preflight-v1$/m.test(
-            trial.harness.resultText,
-          ),
-        )
-        ? "condition_report"
-        : trialResults.some((trial) => trial.routeApplication !== undefined)
-          ? "harness_observed"
-          : trialResults.some(
-                (trial) =>
-                  /^format\tdarrow-ticket-pipeline-result-v1$/m.test(
-                    trial.harness.resultText,
-                  ) &&
-                  observeCodexTicketPipelineRoutes(trial.harness.raw) !==
-                    undefined,
-              )
-            ? "harness_observed"
-            : "controller_result"
-      : undefined,
-    totalHumanInterruptions: measuredOrchestrationTrials.length
-      ? measuredOrchestrationTrials.reduce(
-          (total, metric) => total + metric.humanInterruptions,
-          0,
-        )
-      : undefined,
-    escapedDefects: measuredOrchestrationTrials.length
-      ? measuredOrchestrationTrials.reduce(
-          (total, metric) => total + metric.escapedDefects,
-          0,
-        )
-      : undefined,
-    falsePositiveVerifierFindings: measuredOrchestrationTrials.length
-      ? measuredOrchestrationTrials.reduce(
-          (total, metric) => total + metric.falsePositiveVerifierFindings,
-          0,
-        )
-      : undefined,
-    meanJudgeScore: judgeAssessments.length
-      ? mean(judgeAssessments.map((assessment) => assessment.overallScore))
-      : undefined,
-    judgePassRate: judgeAssessments.length
-      ? judgeAssessments.filter((assessment) => assessment.verdict === "pass")
-          .length / judgeAssessments.length
-      : undefined,
+    ...orchestrationSummary(options, trialResults),
+    ...judgeSummary(trialResults),
   };
+}
+
+async function runCase(options: RunCaseOptions): Promise<CaseResult> {
+  const trialResults: TrialResult[] = [];
+  for (let trial = 1; trial <= options.trials; trial++) {
+    trialResults.push(await runTrial(options, trial));
+  }
+  return summarizeCase(options, trialResults);
+}
+
+/** The `darrow-native-goal-preflight-v4` records an adaptive-goal run must report. */
+function goalRouteRecordChecks(resultText: string): CheckResult[] {
+  return [
+    {
+      name: "goal route application record uses v4",
+      passed: /^format\tdarrow-native-goal-preflight-v4$/m.test(resultText),
+      detail: "expected darrow-native-goal-preflight-v4",
+    },
+    {
+      name: "workflow and risk gate are reported",
+      passed:
+        /^workflow\t(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)$/m.test(
+          resultText,
+        ) &&
+        /^risk\t(?:routine|elevated|high)$/m.test(resultText) &&
+        /^verification_gate\t(?:routine|elevated|high|not-applicable)$/m.test(
+          resultText,
+        ),
+      detail: "expected workflow, risk, and verification_gate records",
+    },
+    {
+      name: "selected and effective goal routes are reported",
+      passed:
+        /^selected_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
+          resultText,
+        ) &&
+        /^effective_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
+          resultText,
+        ),
+      detail: "expected selected_route and effective_route records",
+    },
+    {
+      name: "route application and verification are reported",
+      passed:
+        /^route_applied_by\t(?:current-thread|host-api|native-subagent|nested-session|none)$/m.test(
+          resultText,
+        ) && /^route_verified\t(?:true|false)$/m.test(resultText),
+      detail: "expected route_applied_by and route_verified records",
+    },
+  ];
 }
 
 function evaluationRecordChecks(
@@ -477,48 +692,7 @@ function evaluationRecordChecks(
       passed: /^evaluation_human_interruptions\t\d+$/m.test(resultText),
       detail: "expected evaluation_human_interruptions<TAB><integer>",
     },
-    ...(requireGoalRouteApplication
-      ? [
-          {
-            name: "goal route application record uses v4",
-            passed: /^format\tdarrow-native-goal-preflight-v4$/m.test(
-              resultText,
-            ),
-            detail: "expected darrow-native-goal-preflight-v4",
-          },
-          {
-            name: "workflow and risk gate are reported",
-            passed:
-              /^workflow\t(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)$/m.test(
-                resultText,
-              ) &&
-              /^risk\t(?:routine|elevated|high)$/m.test(resultText) &&
-              /^verification_gate\t(?:routine|elevated|high|not-applicable)$/m.test(
-                resultText,
-              ),
-            detail: "expected workflow, risk, and verification_gate records",
-          },
-          {
-            name: "selected and effective goal routes are reported",
-            passed:
-              /^selected_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
-                resultText,
-              ) &&
-              /^effective_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
-                resultText,
-              ),
-            detail: "expected selected_route and effective_route records",
-          },
-          {
-            name: "route application and verification are reported",
-            passed:
-              /^route_applied_by\t(?:current-thread|host-api|native-subagent|nested-session|none)$/m.test(
-                resultText,
-              ) && /^route_verified\t(?:true|false)$/m.test(resultText),
-            detail: "expected route_applied_by and route_verified records",
-          },
-        ]
-      : []),
+    ...(requireGoalRouteApplication ? goalRouteRecordChecks(resultText) : []),
   ];
 }
 
@@ -586,14 +760,7 @@ if (values["case-routes"]) {
   if (
     !parsed ||
     typeof parsed !== "object" ||
-    !Object.values(parsed).every(
-      (route: any) =>
-        route &&
-        typeof route.model === "string" &&
-        route.model.length > 0 &&
-        typeof route.effort === "string" &&
-        route.effort.length > 0,
-    )
+    !Object.values(parsed).every(isNonEmptyRouteRecord)
   ) {
     console.error("--case-routes values must provide model and effort");
     process.exit(1);
@@ -613,13 +780,7 @@ if (values["expected-goal-routes"]) {
     !parsed ||
     typeof parsed !== "object" ||
     Array.isArray(parsed) ||
-    !Object.values(parsed).every(
-      (route) =>
-        route &&
-        typeof route === "object" &&
-        typeof (route as any).model === "string" &&
-        typeof (route as any).effort === "string",
-    )
+    !Object.values(parsed).every(isRouteRecord)
   ) {
     console.error(
       "--expected-goal-routes values must provide model and effort",
@@ -720,28 +881,28 @@ for (const evalCase of cases) {
   const caseModel = caseRoute?.model ?? model;
   const caseEffort = caseRoute?.effort ?? values.effort!;
   console.log(`\n${evalCase.id} (${evalCase.invariant})`);
-  const result = await runCase(
+  const result = await runCase({
     evalCase,
     adapter,
-    caseModel,
-    caseEffort,
+    model: caseModel,
+    effort: caseEffort,
     trials,
-    values.dry!,
+    dry: values.dry!,
     condition,
-    values["without-skill"],
+    withoutSkill: values["without-skill"],
     humanReviewMinutes,
-    values["require-evaluation-records"],
-    judgeAdapter
+    requireEvaluationRecords: values["require-evaluation-records"],
+    judge: judgeAdapter
       ? {
           adapter: judgeAdapter,
           model: values["judge-model"] ?? judgeAdapter.defaultModel,
           effort: values["judge-effort"]!,
         }
       : undefined,
-    expectedGoalRoutes[evalCase.id],
-    assertedGoalRoutes[evalCase.id],
-    assertedGoalDimensions[evalCase.id],
-  );
+    expectedGoalRoute: expectedGoalRoutes[evalCase.id],
+    assertedGoalRoute: assertedGoalRoutes[evalCase.id],
+    assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
+  });
   result.harnessVersion = harnessVersion || undefined;
   results.push(result);
 }
