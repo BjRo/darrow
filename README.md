@@ -106,3 +106,29 @@ bun test
 
 `bun run lint` checks all Prettier-supported tracked project content. The
 pre-commit hook applies the same formatting gate to staged files.
+
+## License
+
+Darrow is source-available under the
+[Business Source License 1.1](LICENSE), with the Mozilla Public License 2.0 as
+the Change License. **Each released version becomes MPL-2.0 two years after it
+is published.**
+
+Free, without asking:
+
+- Use it yourself, inside your company, and on client work — commercial or not.
+- Run paid or unpaid training, workshops, and talks built on it.
+- Read, fork, modify, and redistribute it under this same license.
+- Contribute back.
+
+Not free:
+
+- Offering Darrow, or a derivative of it, to third parties as a product or
+  service whose principal value is Darrow's functionality. That needs a
+  commercial license — contact bjoern@bjro.de.
+
+"Darrow" and the `darrow-*` plugin names are trademarks of Björn Rochel and are
+not licensed with the code. Forks must rename — see [TRADEMARK.md](TRADEMARK.md).
+
+Contributions are accepted under Apache-2.0 plus a relicensing grant; see
+[CONTRIBUTING.md](CONTRIBUTING.md).

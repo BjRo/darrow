@@ -49,3 +49,9 @@ explicit without relying on another installed plugin.
   tests; reviewer opinion does not override their result.
 - An empty or invalid scope is reported honestly rather than treated as a
   successful review.
+
+## License
+
+Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
+two years after each release. "Darrow" is a trademark of Björn Rochel; forks
+must rename. Part of the [Darrow](https://github.com/BjRo/darrow) marketplace.

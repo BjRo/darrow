@@ -1,6 +1,12 @@
 {
   "name": "darrow",
   "private": true,
+  "license": "BUSL-1.1",
+  "author": "Björn Rochel <bjoern@bjro.de>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BjRo/darrow.git"
+  },
   "type": "module",
   "scripts": {
     "eval": "bun evals/runner/run.ts",

@@ -92,3 +92,9 @@ Agent call can start.
   authentication.
 - Goal completion authorizes no branch, commit, push, pull request, merge,
   release, deployment, or unrelated external mutation.
+
+## License
+
+Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
+two years after each release. "Darrow" is a trademark of Björn Rochel; forks
+must rename. Part of the [Darrow](https://github.com/BjRo/darrow) marketplace.

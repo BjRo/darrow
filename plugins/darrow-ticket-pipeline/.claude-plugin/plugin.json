@@ -2,6 +2,7 @@
   "name": "darrow-ticket-pipeline",
   "description": "Deliver engineering tickets through a durable static pipeline with bounded revision branches",
   "version": "0.1.0",
+  "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"

@@ -78,3 +78,9 @@ defines them, and every new verdict comes from a fresh read-only phase agent.
   section. It never branches, commits, pushes, edits pull requests, merges,
   releases, deploys, or changes ticket fields or status.
 - It is not an adaptive planner, daemon, queue, or general workflow runtime.
+
+## License
+
+Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
+two years after each release. "Darrow" is a trademark of Björn Rochel; forks
+must rename. Part of the [Darrow](https://github.com/BjRo/darrow) marketplace.

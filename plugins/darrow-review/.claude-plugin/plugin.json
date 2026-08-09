@@ -2,6 +2,7 @@
   "name": "darrow-review",
   "description": "Read-only code review across repository standards and originating specifications",
   "version": "0.1.0",
+  "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
