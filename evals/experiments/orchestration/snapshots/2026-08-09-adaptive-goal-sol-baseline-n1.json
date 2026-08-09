@@ -1,0 +1,264 @@
+{
+  "format": "darrow-adaptive-goal-sol-baseline-retrospective-v1",
+  "date": "2026-08-09",
+  "status": "exploratory-n1-directional-product-evidence",
+  "comparison": {
+    "primaryQuestion": "Does the complete adaptive workflow, risk, verification, and model-selection policy preserve task success at lower metered API cost than raw Sol native goal?",
+    "nativeBaseline": "raw native goal on GPT-5.6 Sol at medium effort",
+    "adaptiveCandidate": "latest adaptive-goal verification-cadence run using current policy routes",
+    "design": "retrospective composite of non-contemporaneous accepted trials",
+    "harness": "codex",
+    "cases": [
+      "orchestration-oss-cobra-lifecycle",
+      "orchestration-oss-commander-env",
+      "orchestration-oss-express-links"
+    ],
+    "trialsPerCase": 1,
+    "caseContractsUnchanged": true
+  },
+  "pricing": {
+    "asOf": "2026-08-09",
+    "currency": "USD",
+    "unit": "per million text tokens",
+    "providerReported": false,
+    "models": {
+      "gpt-5.6-sol": {
+        "input": 5.0,
+        "cachedInput": 0.5,
+        "output": 30.0,
+        "source": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+      },
+      "gpt-5.6-terra": {
+        "input": 2.0,
+        "cachedInput": 0.2,
+        "output": 12.0,
+        "source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "gpt-5.6-luna": {
+        "input": 0.2,
+        "cachedInput": 0.02,
+        "output": 1.2,
+        "source": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+      }
+    },
+    "formula": "((inputTokens - cachedInputTokens) * inputRate + cachedInputTokens * cachedInputRate + outputTokens * outputRate) / 1000000",
+    "excluded": [
+      "enterprise contract discounts",
+      "subscription accounting",
+      "Batch discounts",
+      "tool-call fees",
+      "long-context multipliers"
+    ],
+    "historicalCorrection": "The 2026-08-08 routing snapshot charged cached input at the full input rate; this snapshot applies the current cached-input rates."
+  },
+  "aggregate": {
+    "behaviorPass": {
+      "native": "3/3",
+      "adaptive": "3/3"
+    },
+    "native": {
+      "inputTokens": 3063370,
+      "cachedInputTokens": 2882816,
+      "outputTokens": 26179,
+      "totalTokens": 3089549,
+      "totalDurationMs": 850014.171167,
+      "meanDurationMs": 283338.057056,
+      "estimatedTotalCostUsd": 3.129548,
+      "estimatedMeanCostUsd": 1.043183
+    },
+    "adaptive": {
+      "inputTokens": 2499611,
+      "cachedInputTokens": 2275584,
+      "outputTokens": 26566,
+      "totalTokens": 2526177,
+      "totalDurationMs": 880659.468667,
+      "meanDurationMs": 293553.156222,
+      "estimatedTotalCostUsd": 1.221963,
+      "estimatedMeanCostUsd": 0.407321,
+      "childInvocations": 0,
+      "humanInterruptions": 0
+    },
+    "deltaAdaptiveVsNativePercent": {
+      "estimatedCost": -60.95401,
+      "totalTokens": -18.234765,
+      "meanDuration": 3.605269
+    }
+  },
+  "cases": [
+    {
+      "id": "orchestration-oss-cobra-lifecycle",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 285427.922042,
+        "inputTokens": 868934,
+        "cachedInputTokens": 812032,
+        "outputTokens": 8656,
+        "totalTokens": 877590,
+        "estimatedCostUsd": 0.950206,
+        "suitePass": true,
+        "behaviorPass": true
+      },
+      "adaptive": {
+        "classifierModel": "gpt-5.6-terra",
+        "classifierEffort": "low",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "workflow": "refactor",
+        "risk": "elevated",
+        "profile": "scaled",
+        "durationMs": 322328.181,
+        "inputTokens": 580268,
+        "cachedInputTokens": 516608,
+        "outputTokens": 7270,
+        "totalTokens": 587538,
+        "estimatedCostUsd": 0.317882,
+        "suitePass": false,
+        "behaviorPass": true,
+        "suiteFailure": "hidden goal dimensions expected refactor/routine/scaled"
+      },
+      "estimatedCostDeltaPercent": -66.5
+    },
+    {
+      "id": "orchestration-oss-commander-env",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 358332.209542,
+        "inputTokens": 1698307,
+        "cachedInputTokens": 1612544,
+        "outputTokens": 11902,
+        "totalTokens": 1710209,
+        "estimatedCostUsd": 1.592147,
+        "suitePass": true,
+        "behaviorPass": true,
+        "acceptedRerun": true,
+        "replaces": "excluded Sol/high cell from the main routing-hypothesis suite"
+      },
+      "adaptive": {
+        "classifierModel": "gpt-5.6-terra",
+        "classifierEffort": "low",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "workflow": "implement-feature",
+        "risk": "elevated",
+        "profile": "scaled",
+        "durationMs": 338800.233334,
+        "inputTokens": 1370812,
+        "cachedInputTokens": 1273088,
+        "outputTokens": 11288,
+        "totalTokens": 1382100,
+        "estimatedCostUsd": 0.585522,
+        "suitePass": true,
+        "behaviorPass": true
+      },
+      "estimatedCostDeltaPercent": -63.2
+    },
+    {
+      "id": "orchestration-oss-express-links",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 206254.039583,
+        "inputTokens": 496129,
+        "cachedInputTokens": 458240,
+        "outputTokens": 5621,
+        "totalTokens": 501750,
+        "estimatedCostUsd": 0.587195,
+        "suitePass": true,
+        "behaviorPass": true
+      },
+      "adaptive": {
+        "classifierModel": "gpt-5.6-terra",
+        "classifierEffort": "low",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "workflow": "fix-bug",
+        "risk": "high",
+        "profile": "routine",
+        "durationMs": 219531.054333,
+        "inputTokens": 548531,
+        "cachedInputTokens": 485888,
+        "outputTokens": 8008,
+        "totalTokens": 556539,
+        "estimatedCostUsd": 0.31856,
+        "suitePass": false,
+        "behaviorPass": true,
+        "suiteFailure": "hidden goal route expected Luna/high rather than the current Terra/medium policy"
+      },
+      "estimatedCostDeltaPercent": -45.7
+    }
+  ],
+  "staticPipelineContext": {
+    "source": "evals/experiments/orchestration/snapshots/2026-08-07-n1.json",
+    "historicalCodexMeanDurationMs": 1110362,
+    "latestAdaptiveMeanDurationMs": 293553.156222,
+    "wallTimeRatio": 3.78262,
+    "historicalPipelineTaskPass": "3/4",
+    "latestAdaptiveBehaviorPass": "3/3",
+    "comparisonType": "directional cross-experiment context, not a controlled same-corpus comparison"
+  },
+  "ergonomics": {
+    "adaptive": "one explicit invocation compiles workflow, risk, verification cadence, and route into one native goal",
+    "adaptiveChildInvocations": 0,
+    "adaptiveHumanInterruptions": 0,
+    "historicalPipelineChildrenMean": 6.25,
+    "evidenceType": "architecture and interaction-count observation, not a user-experience study"
+  },
+  "provenance": {
+    "nativeMain": {
+      "acceptedCases": [
+        "orchestration-oss-cobra-lifecycle",
+        "orchestration-oss-express-links"
+      ],
+      "result": "evals/results/orchestration-gpt-5.6-routing-hypothesis/2026-08-08T16-54-23-392Z/codex-native-current-route.json",
+      "sha256": "21eba4ef27ab65e9fb198e19ba39c85b488f28449b74e59bb6447b8a953b88c2",
+      "startedAt": "2026-08-08T16:54:23.433Z",
+      "orderSeed": "2026-08-08-gpt56-routing-router-n1",
+      "runnerRevision": "5244dc5e2b29619490897d4a953a1b8421fef2a0",
+      "runnerDirty": true,
+      "runnerPatchSha256": "c109585f8cd46c2b6224f9b9812912c5ce3fecb3285dc7928114b3e82b9428e5",
+      "harnessVersion": "codex-cli 0.145.0"
+    },
+    "nativeCommanderReplacement": {
+      "acceptedCases": ["orchestration-oss-commander-env"],
+      "result": "evals/results/orchestration-gpt-5.6-routing-hypothesis/2026-08-08T17-42-05-230Z/codex-native-current-route.json",
+      "sha256": "6147eedb81cf7095c634f8b1bad0512d9d7d29f9d3c2ea97eec8a14833898878",
+      "startedAt": "2026-08-08T17:42:05.291Z",
+      "orderSeed": "2026-08-08-gpt56-routing-native-commander-medium",
+      "runnerRevision": "5244dc5e2b29619490897d4a953a1b8421fef2a0",
+      "runnerDirty": true,
+      "runnerPatchSha256": "c109585f8cd46c2b6224f9b9812912c5ce3fecb3285dc7928114b3e82b9428e5",
+      "harnessVersion": "codex-cli 0.145.0",
+      "rerunReason": "replace the main suite's Sol/high Commander cell with Sol/medium"
+    },
+    "adaptiveLatest": {
+      "acceptedCases": [
+        "orchestration-oss-cobra-lifecycle",
+        "orchestration-oss-commander-env",
+        "orchestration-oss-express-links"
+      ],
+      "result": "evals/results/orchestration-promoted-routing/2026-08-09T14-06-25-589Z/codex-darrow-promoted-route.json",
+      "sha256": "d39aba661e2bb9461c215618e9088d20a6818ccf2fc053e3c1965876131780a3",
+      "startedAt": "2026-08-09T14:06:25.619Z",
+      "orderSeed": "2026-08-09-verification-cadence-rerun-n1",
+      "runnerRevision": "41c899aa0adcbc8501d363670de5013a9b37b83f",
+      "runnerDirty": false,
+      "harnessVersion": "codex-cli 0.147.0",
+      "dryValidation": "2026-08-09T14:05:11.245Z",
+      "acceptedTrialReplacements": 0
+    }
+  },
+  "limitations": [
+    "N=1 per task",
+    "native and adaptive trials are non-contemporaneous",
+    "Codex CLI changed from 0.145.0 to 0.147.0",
+    "runner and adaptive skill changed between accepted trials",
+    "no condition-blind quality judge",
+    "cost is reconstructed rather than provider-reported",
+    "static pipeline comparison uses a different corpus and model",
+    "ergonomics are not measured by a user study",
+    "the evaluation does not demonstrate that proportional risk gates prevent escaped defects"
+  ],
+  "conclusion": "In exploratory N=1 evaluations, adaptive-goal preserved task success while costing about 61 percent less than raw Sol/medium native execution, finishing within 4 percent of native wall time, and running roughly 4 times faster than the historical static ticket pipeline, while compiling workflow, risk, verification, and model selection into one native goal."
+}
