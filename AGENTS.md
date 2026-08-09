@@ -17,14 +17,11 @@ history unless the user explicitly requests it.
 - `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
 - `evals/runner/` — shared skill-evaluation runner. Results are gitignored.
 
-## Skill development loop
+## Skill development
 
-1. Add or adjust the capability invariant.
-2. Put checkable mechanics in the bundled script; keep judgment in `SKILL.md`.
-3. Test scripts with Bash 5 and `/bin/bash` 3.2.
-4. Add an eval case for judgment behavior.
-5. Run a fresh-context adversarial review.
-6. Re-run tests and scoped evals before committing.
+For skill creation, revision, or validation, follow
+[`author-agent-skill`](plugins/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
+Add or adjust the applicable invariant under `docs/specs/` before implementation.
 
 Review agents must not run Git or GitHub commands against this repository.
 

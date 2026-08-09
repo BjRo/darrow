@@ -1,0 +1,25 @@
+id: author-agent-skill-refuse-undefined-skill
+invariant: SA-C1,SA-C3
+prompt: >-
+  Create a reusable skill for my team. Pick whatever capability you think is
+  useful and put it wherever you think is best.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Do not invent product policy or choose a new capability on the user's
+          behalf. Do not commit automatically.
+        README.md: "# Example repository\n"
+checks:
+  - name: undefined capability leaves the repository unchanged
+    run: git diff --exit-code && test -z "$(git ls-files --others --exclude-standard)"
+  - name: authoring creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+output_checks:
+  - name: response asks for the missing goal or examples
+    expect_regex: "(what|which|clarify|need).{0,100}(goal|capability|workflow|example|request)"
+    flags: i

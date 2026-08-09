@@ -55,6 +55,12 @@ approach. A user-invoked controller persists all phase artifacts in one ticket
 and delegates refine/challenge, implementation, review/rework, QA/fix, and
 codification to fresh phase-skill agents with bounded loops.
 
+### [`darrow-skill-authoring`](plugins/darrow-skill-authoring/README.md)
+
+A focused workflow for creating or improving independently installable agent
+skills with deliberate discovery metadata, deterministic validation, judgment
+evals, and fresh-context challenge across Claude Code and Codex.
+
 ## Package model
 
 - Plugins are independently adoptable and never reference sibling-plugin
@@ -68,6 +74,15 @@ codification to fresh phase-skill agents with bounded loops.
 The marketplace manifest is
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Each plugin
 also contains native Claude Code and Codex manifests.
+
+## Standing on the shoulders of giants
+
+Darrow stands on the shoulders of excellent open-source work. I took
+inspiration from [obra's Superpowers](https://github.com/obra/superpowers) and
+especially [Matt Pocock's skills](https://github.com/mattpocock/skills). I also
+learned a great deal from studying [Ouroboros](https://github.com/Q00/ouroboros)
+and [oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex). They are wonderful
+projects—go check them out.
 
 ## Research and opportunities
 

@@ -1,0 +1,64 @@
+id: author-agent-skill-create-focused-skill
+invariant: SA-C1,SA-C2,SA-C3,SA-C5,SA-C7,SA-C8
+prompt: >-
+  Create one cross-runtime agent skill named validate-release-note in the
+  existing plugins/release-helper plugin. It should help when someone asks to
+  validate a Markdown release note before review. A valid note has non-empty
+  `# Summary` and `# Testing` sections. Put that mechanical check in
+  scripts/validate-release-note, keep editorial judgment in SKILL.md, and add
+  scripts/validate-release-note.test.sh. Support Claude Code and Codex. Do not
+  commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Skills must be self-contained within their plugin. Bundled shell
+          scripts support Bash 5 and /bin/bash 3.2. Run each script test with
+          both shells. Never commit automatically.
+        plugins/release-helper/.claude-plugin/plugin.json: |
+          {"name":"release-helper","version":"0.1.0","description":"Release review helpers","author":{"name":"Example"}}
+        plugins/release-helper/.codex-plugin/plugin.json: |
+          {"name":"release-helper","version":"0.1.0","description":"Release review helpers","author":{"name":"Example"},"skills":"./skills/"}
+        valid-note.md: |
+          # Summary
+
+          Add retry reporting.
+
+          # Testing
+
+          Ran the focused integration suite.
+checks:
+  - name: focused skill has valid discovery metadata
+    run: >-
+      skill=plugins/release-helper/skills/validate-release-note/SKILL.md;
+      test -r "$skill";
+      grep -E '^name:[[:space:]]*validate-release-note[[:space:]]*$' "$skill" >/dev/null;
+      grep -Ei '^description:.*(release note|changelog).*(validat|review)|^description:.*(validat|review).*(release note|changelog)' "$skill" >/dev/null
+  - name: deterministic validator accepts a valid note
+    run: >-
+      bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note valid-note.md
+  - name: deterministic validator rejects a missing section
+    run: >-
+      printf '# Summary\n\nOnly summary.\n' >.git/invalid-note.md;
+      ! bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note .git/invalid-note.md
+  - name: bundled tests pass with both shells
+    run: >-
+      bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note.test.sh >/dev/null &&
+      /bin/bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note.test.sh >/dev/null
+  - name: workflow keeps judgment and completion criteria in the skill
+    run: >-
+      cat plugins/release-helper/skills/validate-release-note/SKILL.md
+    expect_regex: "(tone|clarity|audience|editorial)[\\s\\S]*(complete when|completion|done when|report)"
+    flags: i
+  - name: result is self-contained
+    run: >-
+      inspector=$(find . -path '*/author-agent-skill/scripts/inspect-skill' -type f | sed -n '1p');
+      test -n "$inspector";
+      bash "$inspector" inspect plugins/release-helper/skills/validate-release-note plugins/release-helper >/dev/null;
+      ! grep -R -E '(plugins/[^/]+/skills|~/|/Users/|/home/)' plugins/release-helper/skills/validate-release-note
+  - name: authoring creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

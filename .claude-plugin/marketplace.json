@@ -44,6 +44,11 @@
       "name": "darrow-ticket-pipeline",
       "source": "./plugins/darrow-ticket-pipeline",
       "description": "Deliver tickets through a durable static pipeline with bounded revision branches"
+    },
+    {
+      "name": "darrow-skill-authoring",
+      "source": "./plugins/darrow-skill-authoring",
+      "description": "Create and improve focused, evaluated agent skills for Claude Code and Codex"
     }
   ]
 }

@@ -1,0 +1,65 @@
+id: author-agent-skill-repair-skill-boundaries
+invariant: SA-C2,SA-C3,SA-C4,SA-C5,SA-C7
+prompt: >-
+  Improve the existing deploy-checklist skill so it is focused, independently
+  installable, and reliable in both Claude Code and Codex. Preserve its actual
+  preflight behavior, but remove reliance on another plugin and separate
+  checkable configuration mechanics from deployment judgment. Add appropriate
+  local tests. Do not deploy or commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Plugin skills may not reference sibling plugins. Shell helpers must
+          work with Bash 5 and /bin/bash 3.2.
+        plugins/ops/.claude-plugin/plugin.json: |
+          {"name":"ops","version":"0.1.0","description":"Operations workflows","author":{"name":"Example"}}
+        plugins/ops/.codex-plugin/plugin.json: |
+          {"name":"ops","version":"0.1.0","description":"Operations workflows","author":{"name":"Example"},"skills":"./skills/"}
+        plugins/ops/skills/deploy-checklist/SKILL.md: |
+          ---
+          name: deploy-checklist
+          description: Helps with deployments.
+          ---
+
+          # Deploy checklist
+
+          Read `plugins/shared-operations/skills/safety/SKILL.md`.
+          Open deploy.env and manually confirm that REGION and SERVICE are set.
+          Decide whether the deployment evidence is sufficient, then report.
+        deploy.env: |
+          REGION=eu-west-1
+          SERVICE=api
+checks:
+  - name: discovery metadata names concrete deployment triggers
+    run: cat plugins/ops/skills/deploy-checklist/SKILL.md
+    expect_regex: "description:[^\\n]*(deploy|deployment)[^\\n]*(preflight|checklist|readiness)|description:[^\\n]*(preflight|checklist|readiness)[^\\n]*(deploy|deployment)"
+    flags: i
+  - name: sibling-plugin dependency is removed
+    run: >-
+      inspector=$(find . -path '*/author-agent-skill/scripts/inspect-skill' -type f | sed -n '1p');
+      test -n "$inspector";
+      bash "$inspector" inspect plugins/ops/skills/deploy-checklist plugins/ops >/dev/null;
+      ! grep -R -E '(plugins/[^/]+/skills|~/|/Users/|/home/)' plugins/ops/skills/deploy-checklist
+  - name: configuration mechanics move to a local script
+    run: >-
+      script=$(find plugins/ops/skills/deploy-checklist/scripts -type f ! -name '*.test.sh' | sed -n '1p');
+      test -n "$script";
+      bash "$script" deploy.env >/dev/null;
+      printf 'REGION=eu-west-1\n' >.git/incomplete.env;
+      ! bash "$script" .git/incomplete.env
+  - name: local script tests pass with both shells
+    run: >-
+      test_script=$(find plugins/ops/skills/deploy-checklist/scripts -type f -name '*.test.sh' | sed -n '1p');
+      test -n "$test_script";
+      bash "$test_script" >/dev/null && /bin/bash "$test_script" >/dev/null
+  - name: workflow retains deployment judgment and a completion bound
+    run: cat plugins/ops/skills/deploy-checklist/SKILL.md
+    expect_regex: "(evidence|risk|judg|decision)[\\s\\S]*(complete when|completion|done when|report)"
+    flags: i
+  - name: authoring neither deploys nor commits
+    run: >-
+      test ! -e .git/deployed && test "$(git rev-list --all --reflog --count)" -eq 1

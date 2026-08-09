@@ -1,0 +1,25 @@
+id: author-agent-skill-non-skill-guidance
+invariant: SA-C2
+prompt: >-
+  Tighten the wording of the existing package-manager convention in AGENTS.md.
+  Keep it as an always-on repository convention; this is not a reusable
+  workflow and should not become a skill. Do not commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          You should probably use pnpm most of the time because npm can rewrite the lockfile.
+checks:
+  - name: ordinary resident guidance remains in AGENTS.md
+    run: cat AGENTS.md
+    expect_regex: "pnpm[\\s\\S]*(npm|lockfile)|(npm|lockfile)[\\s\\S]*pnpm"
+    flags: i
+  - name: negative-trigger request creates no repository skill
+    run: >-
+      test -z "$(find . -path './.codex/skills/author-agent-skill' -prune -o -type f -name SKILL.md -print)"
+  - name: guidance edit creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

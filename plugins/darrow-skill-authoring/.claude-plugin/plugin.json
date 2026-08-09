@@ -1,0 +1,9 @@
+{
+  "name": "darrow-skill-authoring",
+  "description": "Create and improve reliable cross-runtime agent skills",
+  "version": "0.1.0",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  }
+}
