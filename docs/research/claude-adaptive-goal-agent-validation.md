@@ -96,3 +96,28 @@ human interruption. The disposable fixture was then removed.
 - The live Agent check consumes provider budget and remains a manual release
   gate; deterministic shell tests cover static route/agent consistency and
   fail-closed override behavior in ordinary CI.
+
+## Update: opus-5 route silently substituted, self-report is not evidence
+
+Date: 2026-08-09
+
+The live evidence above validated only `claude-sonnet-5 / low`. A later live
+run of `darrow-goal-loop:adaptive-goal-opus-5-high` on this same host showed
+the Agent call accepted, run to completion, and the runner self-report the
+selected `claude-opus-5` — while its own transcript (`message.model` on its
+assistant turns) recorded `claude-sonnet-5` throughout. Frontmatter,
+`claude-agent-route`'s static checks, and self-report all agreed and were all
+wrong; only the transcript disagreed.
+
+This means the original conclusion — "the accepted foreground Agent call
+identifies the exact immutable plugin-agent definition that applies both model
+and effort" — does not hold in general. Acceptance proves the runner
+definition was _selected_; it does not prove the host _applied_ the model that
+definition names.
+
+`claude-launch.md` and `bin/claude-verify-route` were updated so the Claude
+launch boundary derives the effective route from the child's transcript and
+feeds it into `goal-loop confirm-route` before ever recording
+`route_verified: true`. A repository or account without live `claude-opus-5`
+subagent access will now surface as `launch_required` with the observed
+substitute route disclosed, instead of a false `route_verified: true`.
