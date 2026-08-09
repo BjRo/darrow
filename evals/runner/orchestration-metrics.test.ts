@@ -414,12 +414,76 @@ describe("orchestration outcome metrics", () => {
       childInputTokens: 0,
       childOutputTokens: 0,
     });
+    const spawn = JSON.stringify({
+      type: "item.completed",
+      item: {
+        type: "collab_tool_call",
+        tool: "spawn_agent",
+        status: "completed",
+        receiver_thread_ids: ["adaptive-goal-runner-thread"],
+      },
+    });
+    const close = JSON.stringify({
+      type: "item.completed",
+      item: {
+        type: "collab_tool_call",
+        tool: "close_agent",
+        status: "completed",
+        receiver_thread_ids: ["adaptive-goal-runner-thread"],
+      },
+    });
+
     expect(
-      reconcileObservedGoalRouteApplication(result, "", {
+      reconcileObservedGoalRouteApplication(result, spawn, {
         harness: "codex",
         model: "gpt-5.6-terra",
         effort: "low",
       })?.passed,
+    ).toBe(false);
+    expect(
+      reconcileObservedGoalRouteApplication(result, [close, spawn].join("\n"), {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
+    ).toBe(false);
+    expect(
+      reconcileObservedGoalRouteApplication(result, [spawn, close].join("\n"), {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
+    ).toBe(true);
+
+    const descendantSpawn = spawn.replace(
+      "adaptive-goal-runner-thread",
+      "native-descendant-thread",
+    );
+    const descendantClose = close.replace(
+      "adaptive-goal-runner-thread",
+      "native-descendant-thread",
+    );
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        [spawn, descendantSpawn, close].join("\n"),
+        {
+          harness: "codex",
+          model: "gpt-5.6-terra",
+          effort: "low",
+        },
+      )?.passed,
+    ).toBe(false);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        [spawn, descendantSpawn, descendantClose, close].join("\n"),
+        {
+          harness: "codex",
+          model: "gpt-5.6-terra",
+          effort: "low",
+        },
+      )?.passed,
     ).toBe(true);
   });
 });

@@ -572,6 +572,28 @@ function goalBoundaryMatches(
   );
 }
 
+function goalRouteApplicationVerified(
+  resultText: string,
+  raw: string,
+  observed: GoalRouteApplication | undefined,
+  hostRoute: HostRoute,
+): boolean {
+  if (!observed) return false;
+  const checks = [
+    ROUTE_VERIFIED.test(resultText),
+    hostWorkflowVerified(GOAL_PREFLIGHT_V4.test(resultText), observed),
+    observed.launchBoundary !== "native_subagent" ||
+      nativeGoalAgentsClosed(raw),
+    sameGoalRoute(observed.selected, observed.effective),
+    goalBoundaryMatches(
+      observed,
+      declaredChildCount(resultText),
+      effectiveRouteMatchesHost(observed, hostRoute),
+    ),
+  ];
+  return checks.every(Boolean);
+}
+
 export function reconcileObservedGoalRouteApplication(
   resultText: string,
   raw: string,
@@ -581,43 +603,71 @@ export function reconcileObservedGoalRouteApplication(
   if (!isV4 && !GOAL_PREFLIGHT_V2.test(resultText)) return undefined;
   const launchRequired = goalLaunchRequiredCheck(resultText);
   if (launchRequired) return launchRequired;
-  const { harness, model, effort } = hostRoute;
   const observed = observeCodexGoalRouteApplication(resultText, raw);
-  const passed =
-    ROUTE_VERIFIED.test(resultText) &&
-    hostWorkflowVerified(isV4, observed) &&
-    observed !== undefined &&
-    sameGoalRoute(observed.selected, observed.effective) &&
-    goalBoundaryMatches(
-      observed,
-      declaredChildCount(resultText),
-      effectiveRouteMatchesHost(observed, { harness, model, effort }),
-    );
+  const passed = goalRouteApplicationVerified(
+    resultText,
+    raw,
+    observed,
+    hostRoute,
+  );
   return {
     name: "harness-observed goal route matches selected model and effort",
     passed,
     detail: passed
       ? `${observed!.effective.model}/${observed!.effective.effort} via ${observed!.appliedBy}`
-      : "selected/effective route or application boundary was not observed",
+      : "selected/effective route, application boundary, or native-runner cleanup was not observed",
   };
 }
 
-/** Thread id of a completed `spawn_agent` call that spawned exactly one child. */
-function spawnedChildThreadId(
+/** Thread id of a completed collaboration call targeting exactly one child. */
+function completedCollabThreadId(
   event: Record<string, unknown>,
+  tools: readonly string[],
 ): string | undefined {
   const item = recordOf(event.item);
-  const threadIds = item.receiver_thread_ids;
+  const threadIds = item.receiver_thread_ids ?? item.receiverThreadIds;
   if (
     event.type !== "item.completed" ||
-    item.type !== "collab_tool_call" ||
-    item.tool !== "spawn_agent" ||
+    (item.type !== "collab_tool_call" && item.type !== "collabAgentToolCall") ||
+    typeof item.tool !== "string" ||
+    !tools.includes(item.tool) ||
     item.status !== "completed" ||
     !Array.isArray(threadIds) ||
     threadIds.length !== 1
   )
     return undefined;
   return String(threadIds[0]);
+}
+
+/** Thread id of a completed `spawn_agent` call that spawned exactly one child. */
+function spawnedChildThreadId(
+  event: Record<string, unknown>,
+): string | undefined {
+  return completedCollabThreadId(event, ["spawn_agent", "spawnAgent"]);
+}
+
+/** Thread id of a completed Codex close call targeting exactly one child. */
+function closedChildThreadId(
+  event: Record<string, unknown>,
+): string | undefined {
+  return completedCollabThreadId(event, ["close_agent", "closeAgent"]);
+}
+
+/** Every observed native child must be closed once, after its matching spawn. */
+function nativeGoalAgentsClosed(raw: string): boolean {
+  const spawned = new Set<string>();
+  const open = new Set<string>();
+  for (const event of jsonlEvents(raw)) {
+    const spawnedId = spawnedChildThreadId(event);
+    if (spawnedId) {
+      if (spawned.has(spawnedId)) return false;
+      spawned.add(spawnedId);
+      open.add(spawnedId);
+    }
+    const closedId = closedChildThreadId(event);
+    if (closedId && !open.delete(closedId)) return false;
+  }
+  return spawned.size > 0 && open.size === 0;
 }
 
 function ticketPipelineRoute(

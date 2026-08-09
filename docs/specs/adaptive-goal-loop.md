@@ -42,7 +42,8 @@ The launch boundary is selected in this order:
 1. activate the goal in the current thread through a host-native goal tool;
 2. use a supported same-thread host API that can also apply model and effort;
 3. on Codex, spawn exactly one first-class, host-visible goal runner when its
-   native agent tool can apply the selected model and effort;
+   native agent tools can apply the selected model and effort and explicitly
+   close the runner after its result is collected;
 4. on Claude, spawn exactly one first-class, host-visible foreground Agent
    runner when a route-specific plugin agent pins the selected concrete model
    and effort;
@@ -358,6 +359,15 @@ the least launch machinery the host supports.
    counts as one Darrow child. Because the Agent tool exposes no child `/goal`
    API, this boundary MUST be reported as a native Agent contract runner rather
    than a `/goal` session.
+10. **AGL-L10 — Codex agent cleanup.** A Codex native-runner boundary is
+    available only when the host exposes both spawn and close controls. The
+    runner MUST collect and explicitly close every descendant it creates as
+    soon as no follow-up is needed. After collecting the runner's terminal
+    result, its parent MUST explicitly close that same runner before returning.
+    If a child becomes unnecessary while active, its creator MUST stop or
+    interrupt it, wait for a terminal state, and close it. A completed close
+    call targeting the spawned thread is cleanup evidence; prompt text and
+    self-report are not.
 
 ### Safety invariants
 
@@ -398,9 +408,10 @@ the least launch machinery the host supports.
    controls run on those same effective routes rather than attributing a model
    change to preflight.
 4. Measure task pass, quality, wall time, tokens, actual cost when supplied,
-   native goal runners, native descendant agents, nested sessions, and human
-   interruptions. Reconcile selected routes against harness-observed
-   application records and include all host-reported agent usage in token
+   native goal runners, native descendant agents, nested sessions, human
+   interruptions, and unclosed Codex agent threads. Reconcile selected routes
+   and Codex native-runner cleanup against harness-observed application and
+   collaboration records, and include all host-reported agent usage in token
    totals. Internal native continuation turns and native descendants are not
    Darrow child invocations.
 5. Use at least three trials per evidence-bearing default decision. An explicit

@@ -1,5 +1,5 @@
 id: goal-preflight-bounded-native-goal
-invariant: AGL-P1,AGL-P2,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-L6,AGL-S3
+invariant: AGL-P1,AGL-P2,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-L6,AGL-L10,AGL-S3
 prompt: >-
   /adaptive-goal Add an exported double(value) function to src/math.js. On Codex,
   invoke the $adaptive-goal skill. Add focused tests for zero and a negative

@@ -81,7 +81,9 @@ Agent call can start.
   exact application.
 - Darrow creates no planner, verifier, repair, or cross-vendor role.
 - A first-class Codex goal runner is visible in the host, owns the one native
-  goal, and may use Codex's own visible subagents for bounded work.
+  goal, and may use Codex's own visible subagents for bounded work. Each Codex
+  agent creator closes its children after collecting their results, and the
+  parent closes the goal runner before returning.
 - A first-class Claude runner is visible in the host, runs in the foreground,
   and receives the full contract and workflow; the selected plugin-agent
   definition pins its concrete model and effort together.

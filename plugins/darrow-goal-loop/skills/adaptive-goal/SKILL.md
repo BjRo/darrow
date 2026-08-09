@@ -227,11 +227,13 @@ For an interactive invocation, read exactly one host launch guide completely:
 
 Prefer the current thread only when host metadata proves its effective route
 matches the selected route. Otherwise use a supported host API, then on Codex
-use exactly one first-class native goal runner when `spawn_agent` can apply the
-selected model and effort. A nested compatibility process requires explicit
-user authorization and an enclosing launcher; never select it automatically
-from an interactive skill. If no boundary can apply the route, report
-`launch_required` honestly and stop.
+use exactly one first-class native goal runner only when `spawn_agent` can apply
+the selected model and effort and `close_agent` can close that runner after its
+result is collected. A spawn-only surface is unavailable. A nested
+compatibility process requires explicit user authorization and an enclosing
+launcher; never select it automatically from an interactive skill. If no
+boundary can apply the route and clean up its runner, report `launch_required`
+honestly and stop.
 
 Activate exactly one goal owner. Darrow adds no planner, verifier, repair agent,
 retry loop, or cross-vendor route. The native goal or allowed Claude Agent
@@ -243,6 +245,12 @@ Continue until the selected goal owner reaches a terminal state. A native goal
 runner may use host-native subagents for bounded work; it remains the sole goal
 owner, and Darrow does not prescribe planner, executor, verifier, or repair
 roles.
+On Codex, every agent creator must collect the child's terminal result and
+explicitly close that child as soon as no follow-up is needed. The goal runner
+closes its descendants; the parent that launched `adaptive_goal_runner` closes
+that runner before returning. If an active child becomes unnecessary, stop or
+interrupt it, wait for a terminal state, then close it. A missing or failed
+close is incomplete cleanup, not successful completion.
 The final response must include the v4 launch record verbatim. Never copy the
 selected route into
 `effective_route` without host evidence. Count only sessions or subagents
