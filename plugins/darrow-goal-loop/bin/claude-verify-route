@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+usage() {
+ cat <<'EOF'
+usage: claude-verify-route --repo <path> --agent-id <id> [--projects-dir <dir>]
+
+Derives the effective model/effort a foreground Claude Agent-tool call
+actually ran on, from that agent's own transcript on disk. Agent-tool
+acceptance and subagent self-report are not evidence of the applied model;
+this reads the recorded `message.model` and `effort` fields directly.
+
+Prints, on success:
+  format\tdarrow-claude-verify-route-v1
+  agent_id\t<id>
+  transcript\t<path>
+  observed_route\tclaude\tanthropic\t<model>\t<effort>
+
+Exits non-zero with no observed_route line when no transcript evidence is
+found, or when the evidence is inconsistent across turns. Fail closed: a
+missing or ambiguous transcript is a verification failure, not a pass.
+EOF
+}
+die() {
+ printf 'claude-verify-route: %s\n' "$*" >&2
+ exit 2
+}
+require_value() {
+ test "$#" -ge 2 && test -n "$2" || die "missing value for $1"
+}
+
+repo=
+agent_id=
+projects_dir=
+while test "$#" -gt 0; do
+ case "$1" in
+  --repo)
+   require_value "$@"
+   repo=$2
+   shift 2
+   ;;
+  --agent-id)
+   require_value "$@"
+   agent_id=$2
+   shift 2
+   ;;
+  --projects-dir)
+   require_value "$@"
+   projects_dir=$2
+   shift 2
+   ;;
+  -h|--help)
+   usage
+   exit 0
+   ;;
+  *) die "unknown option: $1" ;;
+ esac
+done
+test -n "$repo" && test -n "$agent_id" || die "--repo and --agent-id are required"
+
+case "$agent_id" in
+ *[!a-zA-Z0-9]*) die "unsafe agent id: $agent_id" ;;
+esac
+
+repo=$(CDPATH='' cd -- "$repo" && pwd) || die "unreadable repo: $repo"
+
+config_dir=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
+test -n "$projects_dir" || projects_dir="$config_dir/projects"
+test -d "$projects_dir" || die "no Claude projects directory: $projects_dir"
+
+# Best-effort slug: Claude Code stores per-repo transcripts under a directory
+# name derived from the absolute repo path with '/' replaced by '-'. If this
+# derivation is ever wrong for a given install, the directory lookup below
+# fails closed rather than silently verifying against the wrong session.
+slug=$(printf '%s' "$repo" | sed 's#^/##; s#/#-#g')
+slug="-$slug"
+session_dir="$projects_dir/$slug"
+test -d "$session_dir" || die "no session transcripts for repo: $session_dir"
+
+transcript=
+for candidate in "$session_dir"/*/subagents/*.jsonl "$session_dir"/*.jsonl; do
+ test -r "$candidate" || continue
+ if grep -q -F -- "$agent_id" "$candidate" 2>/dev/null; then
+  transcript=$candidate
+  break
+ fi
+done
+test -n "$transcript" || die "no transcript evidence found for agent $agent_id under $session_dir"
+
+matches=$(grep -F -- "$agent_id" "$transcript" | grep -F -- '"type":"assistant"') || true
+test -n "$matches" || die "no assistant turns recorded for agent $agent_id in $transcript"
+
+models=$(printf '%s\n' "$matches" | grep -E -o '"message":\{"model":"[^"]*"' | sed -E 's/.*"model":"([^"]*)"/\1/' | sort -u) || true
+efforts=$(printf '%s\n' "$matches" | grep -E -o '"effort":"[^"]*"' | sed -E 's/.*"effort":"([^"]*)"/\1/' | sort -u) || true
+
+model_count=$(printf '%s\n' "$models" | grep -c . || true)
+effort_count=$(printf '%s\n' "$efforts" | grep -c . || true)
+
+test "$model_count" -eq 1 || die "expected exactly one distinct model across $model_count observed value(s) for agent $agent_id"
+test "$effort_count" -le 1 || die "inconsistent effort evidence across $effort_count observed value(s) for agent $agent_id"
+
+observed_model=$models
+observed_effort=${efforts:-unknown}
+
+printf 'format\tdarrow-claude-verify-route-v1\n'
+printf 'agent_id\t%s\n' "$agent_id"
+printf 'transcript\t%s\n' "$transcript"
+printf 'observed_route\tclaude\tanthropic\t%s\t%s\n' "$observed_model" "$observed_effort"
