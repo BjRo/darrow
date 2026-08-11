@@ -112,10 +112,18 @@ inspiration from [obra's Superpowers](https://github.com/obra/superpowers) and
 especially [Matt Pocock's skills](https://github.com/mattpocock/skills). I also
 learned a great deal from studying [Ouroboros](https://github.com/Q00/ouroboros)
 and [oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex). They are wonderful
-projects—go check them out.
+projects—go check them out. Matt Shumer's
+[Gauntlet Loop](https://somethingbig.ai/gauntlet-loop) directly prompted the
+native goal-loop research: give an agent the outcome and an inspectable quality
+bar, let it choose the route, use fresh critics, and keep improving against the
+bar.
 
 ## Research and opportunities
 
+- [Adaptive ticket-to-PR opportunity](docs/research/adaptive-ticket-to-pr-opportunity.md)
+  compares the former SDLC controller with a reusable native-goal recipe and
+  cross-checks the design against the Gauntlet Loop. It is exploratory and
+  non-normative.
 - [Workflow opportunities from Matt Pocock's skills](docs/research/matt-pocock-workflow-opportunities.md)
   records possible discovery, diagnosis, work-planning, and workflow-design
   additions. It is exploratory and non-normative.
