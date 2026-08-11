@@ -74,6 +74,134 @@ PR URL plus the native goal result
 This keeps the host-native goal owner responsible for continuation. There is no
 post-goal Darrow controller that must wake up to publish the result.
 
+## Layered composition and the Artificer hypothesis
+
+A follow-up design discussion placed `ticket-to-pr` in a broader provisional
+composition model. The layers describe increasing outcome scope, not a stack
+of plugin dependencies:
+
+| Layer                       | Role                                                                   | Examples and boundary                                                                                                                                                |
+| --------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Information architecture | Supply ambient context, navigation, authority, and conflict resolution | `AGENTS.md`, scoped instructions, specifications, decisions, and supporting documentation; not an invoked skill                                                      |
+| 2. Capabilities             | Provide focused, intent-matched behavior                               | Git, review, decisions, tickets, readiness, TDD, and evidence; independently adoptable and usable from any higher layer                                              |
+| 3. Adaptive execution       | Compile and activate one bounded engineering goal                      | `adaptive-goal` selects the workflow, risk gate, route, model, and effort; the host-native goal remains the actual runner                                            |
+| 4. Task recipes             | Give users a low-overhead, repeatable outcome                          | `ticket-to-pr` adds specialized intake, preflight, quality-bar, authority, and terminal-outcome semantics around adaptive execution                                  |
+| 5. Artificer                | Pull admitted work into task recipes                                   | An explicitly scheduled, capacity-aware hypothesis that observes tickets and pull requests, claims at most one eligible ticket, and invokes a compatible task recipe |
+
+Information architecture and capabilities are better understood as
+cross-cutting planes than as private implementation details of the layers
+above them:
+
+```text
+                     information architecture
+                              |
+                              v
+Artificer -> task recipe -> adaptive-goal -> host-native goal owner
+    \            |              /
+     `------ intent-matched capabilities ------'
+```
+
+Intent, scope, authority, and the quality bar flow toward the native goal.
+Observed evidence, durable repository and forge state, and terminal outcomes
+flow back. No layer derives additional authority merely because a lower layer
+succeeded.
+
+### Task recipes are not adaptive workflows
+
+A task recipe defines **what complete outcome should exist**. An adaptive
+workflow defines **how the implementation should establish and preserve
+evidence while reaching that outcome**. They are orthogonal dimensions:
+
+- `ticket-to-pr` owns ticket resolution, readiness, the supplied quality bar,
+  publication authority, task-specific stop conditions, and the terminal PR;
+- an adaptive workflow owns implementation discipline, feedback cadence,
+  acceptance or regression evidence, and applicable final-tree checks; and
+- adaptive risk independently selects the proportional scrutiny required.
+
+Two invocations of `ticket-to-pr` may therefore select different workflows: a
+cache race may select `fix-bug`, a new API behavior `change-feature`, a
+restructuring `refactor`, and a README correction `mechanical`. Conversely,
+different task recipes may reuse the same adaptive workflow.
+
+Artificer should not select the adaptive workflow. A task recipe should
+normally supply authoritative facts, outcome constraints, and permissions
+rather than prescribe implementation mechanics. `adaptive-goal` makes the
+workflow and risk selection after inspecting the bounded request and active
+repository.
+
+Commit-time verification illustrates the boundary. `ticket-to-pr` can state:
+
+> Commit the validated change. If commit-time verification requires additional
+> work, make the smallest authorized correction, rerun any invalidated
+> verification, and converge until the commit succeeds or the goal is genuinely
+> blocked. Never bypass hooks.
+
+The task recipe supplies that completion requirement. The adaptive goal owner
+persists and performs the authorized correction and revalidation. The canonical
+commit capability performs each safe attempt and returns its failure evidence;
+it does not need a private formatting, lint, test, or retry loop. The same
+pattern applies to other recoverable task-outcome failures.
+
+### Provisional Artificer behavior
+
+`Artificer` is a provisional distinctive name for the explicitly authorized
+pull-based layer above task recipes. It is not a proposed rename of
+`ticket-to-pr`, and neither `ticket-to-pr` nor `adaptive-goal` should require it.
+A direct user invocation remains:
+
+```text
+user -> ticket-to-pr -> adaptive-goal
+```
+
+An Artificer activation is deliberately simple:
+
+```text
+scheduled activation
+  |-- active delivery still owns this capacity -> finish without starting work
+  |-- applicable pull-request back-pressure is full -> finish without starting work
+  |-- no eligible, unblocked ticket exists -> finish without starting work
+  `-- atomically claim one eligible ticket
+        `-- invoke ticket-to-pr
+              `-- adaptive-goal
+                    `-- host-native goal owner
+```
+
+Multiple equivalently configured Artificer instances can provide more
+capacity while preserving the same model. Each instance is a stable logical
+capacity slot; one scheduled occurrence is an activation, and one invoked task
+recipe is a delivery run. Scheduler-native non-overlap should prevent two live
+activations of the same instance. Claims must also be atomic across different
+instances so they cannot select the same ticket.
+
+Capacity should account for both implementation and review flow. An active
+delivery run occupies its instance, and an applicable open pull request may
+continue to occupy capacity after the native ticket-to-PR goal has completed.
+Later activations observe that pull request and finish without supervising it.
+Merging or closing the pull request releases the capacity according to the
+configured policy. This makes back-pressure an admission decision based on
+forge state, not a post-goal controller.
+
+A short claim lease closes the gap between ticket selection and successful
+delivery launch. After interruption, a later activation should reconcile its
+claim against durable facts such as the worktree, branch, commits, remote
+branch, and pull request before admitting new work. The claim and correlation
+identifier are admission evidence, not a ticket-to-PR phase ledger.
+
+The environment supplies the recurrence and execution boundary. A host
+scheduled task, cron-triggered native session, CI job, or another explicitly
+configured scheduler may wake an Artificer activation, enforce non-overlap,
+allocate an isolated checkout when authorized, and expose the resulting run.
+The ticket tracker remains the candidate queue, the forge remains the WIP
+ledger, and the host remains the session runtime. Artificer should not add a
+daemon, private job queue, workflow database, or background process manager.
+
+Creating the recurring schedule is the explicit orchestration invocation. Its
+saved contract must authorize the recurring reads, ticket claim or release,
+worktree allocation, and invocation of the named task recipe. It must also
+preserve the task recipe's exact effects: for `ticket-to-pr`, branch, commit,
+push, and one pull request require explicit prior authorization; merge,
+deployment, release, and unrelated tracker updates remain outside that grant.
+
 ## Cross-check against the Gauntlet Loop
 
 Matt Shumer's Gauntlet Loop directly prompted the investigation that led to
@@ -146,6 +274,8 @@ effort policy for ordinary ticket delivery.
 | Review evidence                             | Conditional evidence-capture capability                     | Optional by acceptance, risk, or policy                   |
 | Repository-local meta artifacts             | `.darrow` convention                                        | Useful with explicit schemas and retention policy         |
 | Cross-ticket learning                       | Periodic synthesis capability                               | Separate from delivery execution                          |
+| Cross-ticket admission and back-pressure    | Provisional Artificer plus host scheduler                   | Separate, explicitly invoked layer above task recipes     |
+| Ticket claim and launch correlation         | Provisional Artificer through environment capabilities      | Admission lease, not delivery phase state                 |
 | Phase state, attempt logs, custom dashboard | Nobody                                                      | Excluded                                                  |
 
 ## Ticket and repository intake
@@ -506,6 +636,12 @@ apply through normal scoped routing. Discovery, review, evidence, and Git
 capabilities own their focused behavior. Adaptive workflow, risk, semantic
 profile, model, and effort replace stage-specific routing.
 
+The provisional Artificer layer does not weaken these exclusions. Its host
+scheduler wakes an activation, the ticket tracker supplies candidate and claim
+state, and the forge supplies pull-request occupancy. Its admission lease does
+not describe ticket-to-PR stages, and it does not supervise the native goal
+after launch.
+
 ## Open design questions
 
 1. How reliably does the versioned implementation-readiness result compose in
@@ -527,6 +663,19 @@ profile, model, and effort replace stage-specific routing.
    native goal, especially for fresh-context review and publication?
 10. How should readiness represent quality bars that combine deterministic
     thresholds, reference artifacts, and contextual judgment?
+11. What portable task-recipe contract lets Artificer discover and invoke
+    outcomes such as `ticket-to-pr` without assuming a sibling plugin?
+12. Which tracker or environment primitive can provide an atomic, expiring
+    claim across concurrent Artificer instances?
+13. How should an Artificer instance correlate its activation, claim,
+    worktree, native goal, branch, and pull request without creating a workflow
+    ledger?
+14. Which pull requests occupy Artificer capacity, when is that capacity
+    released, and how should blocked or abandoned pull requests avoid permanent
+    starvation?
+15. Which host scheduling boundaries reliably provide non-overlap, isolation,
+    explicit authority, observable launch, and recovery across Claude and
+    Codex?
 
 ## Suggested evaluation
 
@@ -571,6 +720,16 @@ The current exploratory orchestration evidence remains relevant context:
 Those snapshots support further investigation of native-goal orchestration but
 do not establish ticket-to-PR parity or the 90% claim.
 
+Artificer should be evaluated separately from ticket-to-PR outcome quality so
+admission failures do not obscure delivery behavior. Initial Artificer cases
+should include no eligible work, an active delivery run, pull-request
+back-pressure at capacity, two instances competing for one ticket, two
+instances competing for the final capacity slot, claim success followed by
+launch failure, interruption with observable branch state, a stale claim, and
+a merged or closed pull request releasing capacity. Measure duplicate claims,
+WIP-limit violations, unnecessary model runs, recovery success, admission
+latency, and unintended external mutations.
+
 ## Suggested next steps
 
 1. Run multi-trial, cross-harness comparisons for implementation-readiness
@@ -581,3 +740,6 @@ do not establish ticket-to-PR parity or the 90% claim.
    from the ticket-to-PR recipe.
 4. Evaluate the full ticket-to-PR outcome against the static pipeline baseline,
    including resume, failure, risk, and publication cases.
+5. Define and test the task-recipe invocation contract before evaluating a
+   scheduled Artificer prototype against host-native scheduling and a simple
+   cron-triggered control.
