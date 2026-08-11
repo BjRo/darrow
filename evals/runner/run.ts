@@ -127,6 +127,27 @@ async function repositoryHead(repoDir: string): Promise<string> {
   return stdout.trim();
 }
 
+async function repositoryHasAncestor(
+  repoDir: string,
+  ancestor: string,
+  descendant: string,
+): Promise<boolean> {
+  const proc = Bun.spawn(
+    ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+    { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
+  );
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code === 0) return true;
+  if (code === 1) return false;
+  throw new Error(
+    `cannot compare fixture revisions: ${(stderr || stdout).trim()}`,
+  );
+}
+
 /** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
  *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
 async function scanCases(
@@ -177,6 +198,14 @@ async function loadCases(
   const selected = filter?.length
     ? cases.filter((c) => filter.some((value) => c.id.includes(value)))
     : cases;
+  for (const evalCase of selected) {
+    if (
+      evalCase.expect_head_change !== undefined &&
+      typeof evalCase.expect_head_change !== "boolean"
+    ) {
+      throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
+    }
+  }
   await resolveCorpusFixtures(selected, corpusManifest);
   return selected;
 }
@@ -306,13 +335,34 @@ async function trialChecks(
 ): Promise<CheckResult[]> {
   const { evalCase, withoutSkill = false } = options;
   const { repoDir, baseRevision, harness } = context;
+  const currentRevision = await repositoryHead(repoDir);
+  const headChecks: CheckResult[] = evalCase.expect_head_change
+    ? [
+        {
+          name: "head advanced from the base revision",
+          passed: currentRevision !== baseRevision,
+          detail: "candidate did not create the expected commit",
+        },
+        {
+          name: "base revision remains in the published lineage",
+          passed: await repositoryHasAncestor(
+            repoDir,
+            baseRevision,
+            currentRevision,
+          ),
+          detail: "candidate replaced or diverged from the fixture history",
+        },
+      ]
+    : [
+        {
+          name: "base revision remains unchanged",
+          passed: currentRevision === baseRevision,
+          detail: "candidate created or switched to a different commit",
+        },
+      ];
   return [
     ...(await runChecks(repoDir, evalCase.checks)),
-    {
-      name: "base revision remains unchanged",
-      passed: (await repositoryHead(repoDir)) === baseRevision,
-      detail: "candidate created or switched to a different commit",
-    },
+    ...headChecks,
     // A no-skill baseline is judged on the same repository outcomes, not
     // on the orchestration-specific reporting contract it cannot know about.
     ...(withoutSkill

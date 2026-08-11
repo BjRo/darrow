@@ -1,0 +1,44 @@
+id: readiness-quality-bar-gap
+invariant: IRG-E3
+prompt: >-
+  Assess whether docs/request.md is ready for implementation. Return only the
+  implementation-readiness result and do not select missing product behavior.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/request.md: |
+          # Smart retry experience
+
+          Add a reusable RetryCoordinator, wire it into the API client and
+          status UI, emit retry telemetry, and update the operator docs. Product
+          has not defined which failures should retry, the maximum attempts,
+          the delay policy, or the user-visible terminal behavior. Complete
+          when all tests pass.
+        src/api.js: "export async function request() {}\n"
+checks:
+  - name: quality-bar assessment is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: quality-bar assessment preserves repository refs
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: result satisfies the public schema
+    schema: ./evals/result.schema.json
+  - name: missing product behavior requires a decision
+    json_path: /verdict
+    expect_json: needs-decision
+  - name: generic tests do not supply the quality bar
+    json_path: /findings
+    contains_json:
+      type: quality-bar-gap
+  - name: missing retry policy remains an unresolved decision
+    json_path: /findings
+    contains_json:
+      type: unresolved-decision
+  - name: next action requests an authorized decision
+    json_path: /required_next_action/type
+    expect_json: decision

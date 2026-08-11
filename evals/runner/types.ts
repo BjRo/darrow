@@ -55,7 +55,7 @@ export interface OutputCheck {
   name: string;
   /** Optional product-value metric represented by this output assertion. */
   metric?: "escaped_defect" | "defect_detection" | "false_positive";
-  /** Check passes only if the final agent message is one JSON value. */
+  /** Check passes only if the final agent message is one raw or JSON-fenced value. */
   valid_json?: boolean;
   /** JSON Schema path, relative to the case's skill directory. */
   schema?: string;
@@ -89,6 +89,8 @@ export interface EvalCase {
   fixture: Fixture;
   /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
   mount_plugin_skills?: boolean;
+  /** Require HEAD to advance linearly when the public behavior explicitly commits. */
+  expect_head_change?: boolean;
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];

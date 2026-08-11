@@ -115,6 +115,12 @@ them only after later edits invalidate that result. Repository instructions that
 require a different cadence take precedence; the goal MUST NOT invent a seam,
 oracle, or command merely to imitate test-first work.
 
+The goal contract MAY include branch, commit, push, pull-request, or other
+publication effects only when each effect was explicitly authorized by the
+originating request and current host policy. Preflight preserves and enumerates
+that authority; it never derives publication authority from successful
+implementation or goal completion.
+
 ### Composable goal dimensions
 
 Preflight selects one workflow and one risk level. These dimensions compose; a
@@ -400,9 +406,12 @@ the least launch machinery the host supports.
 2. **AGL-S2 — Meaningful human gates.** Missing product decisions, destructive
    operations, security or privacy policy, external publication, and new
    authority stop before launch unless already approved.
-3. **AGL-S3 — Local publication boundary.** Completion does not authorize a
-   branch, commit, push, pull request, merge, release, deployment, or unrelated
-   external mutation.
+3. **AGL-S3 — No derived publication authority.** A native goal MAY perform a
+   branch, commit, push, pull request, or other publication effect only when
+   that exact effect was explicitly pre-authorized in the originating request
+   and remains permitted by host policy. Goal activation and completion grant
+   no additional or subsequent authority. Merge, release, deployment, and
+   unrelated external mutation remain unauthorized unless separately explicit.
 4. **AGL-S4 — Honest blockage.** An unavailable applicable check or launch
    surface is blocked or `launch_required`, never passed by assertion.
 
@@ -470,4 +479,6 @@ the least launch machinery the host supports.
 - Running parallel writers or several candidate implementations.
 - Treating preflight as a separate planning model call.
 - Guaranteeing that every host exposes same-thread goal and route controls.
-- Publishing or deploying the completed local change.
+- Deriving publication authority or implementing Git and forge operations
+  itself. An explicitly authorized native goal may use compatible environment
+  capabilities for those effects.

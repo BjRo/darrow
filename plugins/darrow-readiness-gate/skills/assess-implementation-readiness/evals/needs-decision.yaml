@@ -1,0 +1,44 @@
+id: readiness-needs-decision
+invariant: IRG-C4
+prompt: >-
+  Assess whether docs/request.md is ready for implementation. Return only the
+  readiness result and do not choose a product policy on my behalf.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/request.md: |
+          # Session renewal
+
+          Keep signed-in users active while they use the application. Product
+          has proposed two acceptable policies: sliding sessions renew on
+          every authenticated request, or fixed sessions expire eight hours
+          after login. No policy has been selected. The chosen policy must be
+          covered at its expiry boundary by `bash test.sh`.
+        auth/session.js: |
+          export function expiresAt(loginTime) {
+            return loginTime + 60 * 60 * 1000;
+          }
+checks:
+  - name: unresolved decision causes no repository mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: public verdict needs a decision
+    run: grep -Eq '"verdict"[[:space:]]*:[[:space:]]*"needs-decision"' .git/last-message.md
+  - name: decision verdict preserves repository refs
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: result satisfies the public schema
+    schema: ./evals/result.schema.json
+  - name: material policy choice needs a decision
+    json_path: /verdict
+    expect_json: needs-decision
+  - name: next action requests a decision
+    json_path: /required_next_action/type
+    expect_json: decision
+  - name: both authoritative alternatives remain visible
+    expect_regex: "sliding[\\s\\S]*fixed|fixed[\\s\\S]*sliding"
+    flags: i

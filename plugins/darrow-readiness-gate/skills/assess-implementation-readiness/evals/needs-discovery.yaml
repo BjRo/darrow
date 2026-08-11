@@ -1,0 +1,78 @@
+id: readiness-needs-discovery
+invariant: IRG-C4
+prompt: >-
+  Can engineering start this work without inventing important details? Assess
+  implementation readiness from docs/request.md and the repository. Do not
+  plan or implement the change.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/request.md: |
+          # Import performance
+
+          Make customer imports at least 50% faster without changing results.
+          Follow the repository performance policy. The improvement must be
+          demonstrated before release.
+        docs/performance-policy.md: |
+          # Performance discovery policy
+
+          Before implementation, use the sanitized production row counts in
+          samples/import-row-counts.txt to select the median-size workload and
+          capture the current median of 20 runs with the available
+          `bash benchmark.sh` harness. A separate performance-discovery run
+          must record that baseline before the implementation goal begins.
+          This establishes the representative workload and baseline; it is an
+          evidence-gathering task and requires no product choice. Preserve
+          output by comparing result hashes.
+        samples/import-row-counts.txt: |
+          100
+          500
+          1000
+        benchmark.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          node --input-type=module -e '
+            import { createHash } from "node:crypto";
+            import { performance } from "node:perf_hooks";
+            import { importCustomers } from "./src/import.js";
+            const rows = Array.from({length: 500}, (_, id) => ({id}));
+            const samples = [];
+            let result = [];
+            for (let run = 0; run < 20; run += 1) {
+              const start = performance.now();
+              result = importCustomers(rows);
+              samples.push(performance.now() - start);
+            }
+            samples.sort((a, b) => a - b);
+            const hash = createHash("sha256")
+              .update(JSON.stringify(result)).digest("hex");
+            console.log(`median_ms=${samples[10]} output_hash=${hash}`);'
+        package.json: '{"type":"module"}\n'
+        src/import.js: |
+          export function importCustomers(rows) {
+            return rows.map((row) => ({ ...row, imported: true }));
+          }
+checks:
+  - name: discovery verdict causes no repository mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: public verdict needs discovery
+    run: grep -Eq '"verdict"[[:space:]]*:[[:space:]]*"needs-discovery"' .git/last-message.md
+  - name: discovery verdict preserves repository refs
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: result satisfies the public schema
+    schema: ./evals/result.schema.json
+  - name: missing benchmark facts need discovery
+    json_path: /verdict
+    expect_json: needs-discovery
+  - name: next action is bounded discovery
+    json_path: /required_next_action/type
+    expect_json: discovery
+  - name: result identifies workload or baseline evidence
+    expect_regex: "baseline|representative (dataset|workload)|benchmark"
+    flags: i

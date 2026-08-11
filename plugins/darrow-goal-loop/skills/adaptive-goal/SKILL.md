@@ -205,6 +205,11 @@ evaluation_human_interruptions\t<integer>
 Reference repository facts by path rather than copying them. Leave detailed
 implementation choices to the host-native goal owner.
 
+Include branch, commit, push, pull-request, or other publication effects only
+when the originating request explicitly authorized each effect and host policy
+still permits it. Preserve that authority in the contract; never derive it
+from successful implementation or eventual goal completion.
+
 ## 3. Activate exactly one host-native goal owner
 
 When an enclosing host API requests a preflight handoff, do not edit product
@@ -272,6 +277,11 @@ selected route into
 created directly by Darrow: same-thread and host-API launches are zero; a
 native goal runner or explicitly authorized nested session is one. Native
 descendants remain host-visible but are not Darrow child invocations.
+When an invoked capability terminates the goal with its own structured result,
+preserve that result alongside the mandatory v4 record rather than replacing
+either contract.
 
-State changed files, final verification, remaining risks, and that completion
-authorizes no commit, push, pull request, merge, release, or deploy.
+State changed files, final verification, remaining risks, and every authorized
+publication effect actually performed. Include this exact sentence: `Goal
+completion grants no new or subsequent authority.` It does not itself
+authorize a commit, push, pull request, merge, release, or deploy.

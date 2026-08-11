@@ -1,0 +1,40 @@
+id: readiness-ready-without-plan
+invariant: IRG-C6
+prompt: >-
+  Is this ready for implementation? Replace the user-facing phrase "Master
+  account" with "Primary account" in README.md only. It is complete when the
+  old phrase no longer appears in that file, the new phrase appears once, and
+  `bash check.sh` passes. There is no ticket or implementation plan. Assess
+  readiness only; do not make the edit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Accounts
+
+          Configure the Master account before inviting members.
+        check.sh: |
+          #!/usr/bin/env bash
+          ! grep -F 'Master account' README.md >/dev/null &&
+            test "$(grep -Fc 'Primary account' README.md)" -eq 1
+checks:
+  - name: proportional assessment remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: public verdict is ready without planning ceremony
+    run: grep -Eq '"verdict"[[:space:]]*:[[:space:]]*"ready"' .git/last-message.md
+  - name: proportional assessment preserves repository refs
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: result satisfies the public schema
+    schema: ./evals/result.schema.json
+  - name: exact mechanical request is ready without formal planning
+    json_path: /verdict
+    expect_json: ready
+  - name: result does not demand planning ceremony
+    not_regex: "needs (a |an )?(formal )?(ticket|implementation plan|file list)"
+    flags: i

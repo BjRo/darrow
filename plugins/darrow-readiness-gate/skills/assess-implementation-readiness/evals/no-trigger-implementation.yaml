@@ -1,0 +1,16 @@
+id: readiness-no-trigger-implementation
+invariant: IRG-C1
+prompt: >-
+  Change DEFAULT_TIMEOUT_MS from 1000 to 2500 in src/config.js. Preserve the
+  existing export and make no other changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+checks:
+  - name: ordinary implementation intent is fulfilled
+    run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
+output_checks:
+  - name: readiness skill does not claim a result
+    not_regex: "darrow-implementation-readiness-v1|needs-discovery|needs-decision"

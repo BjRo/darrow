@@ -52,7 +52,28 @@ interface OutputContext {
   text: string;
   parsed: unknown;
   parseFailed: boolean;
+  exactJsonDocument: boolean;
   schemaBaseDir: string;
+}
+
+interface ParsedJsonDocument {
+  value: unknown;
+  exact: boolean;
+}
+
+/** Parse raw JSON or one JSON fence a host may add around the semantic payload. */
+function parseJsonDocument(text: string): ParsedJsonDocument {
+  try {
+    return { value: JSON.parse(text), exact: true };
+  } catch {
+    const fences = [...text.matchAll(/```json[ \t]*\r?\n([\s\S]*?)\r?\n```/gi)];
+    if (fences.length !== 1) throw new Error("not one JSON document");
+    const fenced = fences[0]!;
+    return {
+      value: JSON.parse(fenced[1]!),
+      exact: text.trim() === fenced[0],
+    };
+  }
 }
 
 /**
@@ -75,7 +96,9 @@ function needsJson(check: OutputCheck): boolean {
 const validJsonStage: OutputStage = (context, check) =>
   needsJson(check) && context.parseFailed
     ? "final message is not valid JSON"
-    : undefined;
+    : check.valid_json && !context.exactJsonDocument
+      ? "final message is not valid JSON"
+      : undefined;
 
 const schemaStage: OutputStage = async (context, check) => {
   if (check.schema === undefined) return undefined;
@@ -176,9 +199,12 @@ export function runOutputChecks(
 ): Promise<CheckResult[]> {
   let parsed: unknown;
   let parseFailed = false;
+  let exactJsonDocument = false;
   if (checks.some(needsJson)) {
     try {
-      parsed = JSON.parse(resultText);
+      const document = parseJsonDocument(resultText);
+      parsed = document.value;
+      exactJsonDocument = document.exact;
     } catch {
       parseFailed = true;
     }
@@ -187,6 +213,7 @@ export function runOutputChecks(
     text: resultText,
     parsed,
     parseFailed,
+    exactJsonDocument,
     schemaBaseDir,
   };
   return Promise.all(checks.map((check) => textCheck(context, check)));

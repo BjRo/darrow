@@ -1,0 +1,22 @@
+{
+  "name": "darrow-readiness-gate",
+  "version": "0.1.0",
+  "description": "Read-only implementation-readiness assessment with composable gate verdicts",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Readiness Gate",
+    "shortDescription": "Gate work before implementation begins",
+    "longDescription": "Assess tickets, specifications, plans, and other authoritative requests for implementation readiness, with a concrete quality bar and a composable read-only verdict.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": [
+      "Assess whether this ticket is ready for implementation.",
+      "Gate this goal for implementation readiness before any changes."
+    ]
+  }
+}

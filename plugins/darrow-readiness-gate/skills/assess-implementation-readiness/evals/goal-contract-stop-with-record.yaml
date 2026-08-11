@@ -1,0 +1,51 @@
+id: readiness-goal-contract-stop-with-record
+invariant: IRG-C8
+prompt: >-
+  Execute this bounded goal contract. Before any mutation, use an available
+  implementation-readiness capability on docs/request.md. Continue only on
+  ready; otherwise stop and preserve the complete readiness object. The outer
+  goal contract also requires the final record
+  `outer_goal_status<TAB>stopped|complete` on every terminal path. Authorized
+  after ready: edit policy.js. Not authorized: invent policy, commit, push, or
+  omit either result contract.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/request.md: |
+          # Retry policy
+
+          Use either fixed-delay or exponential retries. Both are acceptable,
+          but no policy has been selected.
+        policy.js: "export const retry = 'none';\n"
+checks:
+  - name: non-ready outer goal causes no mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: complete readiness object is preserved
+    run: >-
+      awk '/^outer_goal_status/{exit} {print}' .git/last-message.md >.git/readiness-document.txt &&
+      bun -e '
+      let document = (await Bun.file(".git/readiness-document.txt").text()).trim();
+      const fenced = /```json[ \t]*\r?\n([\s\S]*?)\r?\n```/i.exec(document);
+      if (fenced) document = fenced[1];
+      const r = JSON.parse(document);
+      const exact = (value, keys) => JSON.stringify(Object.keys(value).sort()) === JSON.stringify(keys.sort());
+      const strings = (value, keys) => exact(value, keys) && keys.every((key) => typeof value[key] === "string" && /\S/.test(value[key]));
+      const oneOf = (value, allowed) => allowed.includes(value);
+      if (!exact(r, ["format", "verdict", "basis", "quality_bar", "findings", "required_next_action"])) process.exit(1);
+      if (r.format !== "darrow-implementation-readiness-v1" || r.verdict !== "needs-decision") process.exit(1);
+      if (!Array.isArray(r.basis) || r.basis.length === 0 || !r.basis.every((item) => strings(item, ["source", "authority", "status", "summary"]) && oneOf(item.authority, ["authoritative", "repository", "supporting"]) && oneOf(item.status, ["available", "missing", "contradictory"]))) process.exit(1);
+      if (!Array.isArray(r.quality_bar) || !r.quality_bar.every((item) => strings(item, ["criterion", "oracle", "verification"]))) process.exit(1);
+      if (!Array.isArray(r.findings) || r.findings.length === 0 || !r.findings.every((item) => exact(item, ["type", "summary", "evidence"]) && oneOf(item.type, ["missing-information", "unresolved-decision", "contradiction", "dependency", "permission", "quality-bar-gap"]) && typeof item.summary === "string" && /\S/.test(item.summary) && Array.isArray(item.evidence) && item.evidence.length > 0 && item.evidence.every((entry) => typeof entry === "string" && /\S/.test(entry)))) process.exit(1);
+      if (!strings(r.required_next_action, ["type", "description"]) || r.required_next_action.type !== "decision") process.exit(1);'
+  - name: outer completion record is also preserved
+    run: grep -F "outer_goal_status$(printf '\t')stopped" .git/last-message.md
+  - name: non-ready outer goal preserves repository refs
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: result contains the decision verdict and outer record
+    expect_regex: '"verdict"\s*:\s*"needs-decision"[\s\S]*outer_goal_status\tstopped|outer_goal_status\tstopped[\s\S]*"verdict"\s*:\s*"needs-decision"'

@@ -57,6 +57,13 @@ skills retain judgment about scope and descriptions.
 Backend-neutral ticket workflows for creating, listing, and updating work
 items. The plugin validates targets and transitions before changing a tracker.
 
+### [`darrow-readiness-gate`](plugins/darrow-readiness-gate/README.md)
+
+A read-only implementation-readiness capability for tickets, specifications,
+plans, and conversational requests. It returns a concrete quality bar and one
+composable `ready`, `needs-discovery`, `needs-decision`, or `blocked` verdict
+without requiring a tracker or adaptive-goal.
+
 ### [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md)
 
 Tools for setting up and auditing lean, routed repository guidance across Codex

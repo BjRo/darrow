@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implementation Readiness"
+  short_description: "Gate work before implementation begins"
+  default_prompt: "Assess whether this request is ready for implementation."

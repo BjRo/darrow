@@ -112,6 +112,30 @@ describe("eval checks", () => {
     expect(result?.detail).toBe("final message is not valid JSON");
   });
 
+  test("output checks accept one isolated JSON fence as host presentation", async () => {
+    const [result] = await runOutputChecks('```json\n{"verified":true}\n```', [
+      { name: "verdict", json_path: "/verified", expect_json: true },
+    ]);
+    expect(result?.passed).toBe(true);
+  });
+
+  test("output checks reject prose around a fenced JSON object", async () => {
+    const [result] = await runOutputChecks(
+      'Readiness result:\n```json\n{"verified":true}\n```',
+      [{ name: "json only", valid_json: true }],
+    );
+    expect(result?.passed).toBe(false);
+    expect(result?.detail).toBe("final message is not valid JSON");
+  });
+
+  test("semantic JSON checks extract one fenced object from host prose", async () => {
+    const [result] = await runOutputChecks(
+      'Assessment complete.\n```json\n{"verified":true}\n```',
+      [{ name: "verdict", json_path: "/verified", expect_json: true }],
+    );
+    expect(result?.passed).toBe(true);
+  });
+
   test("output checks make order-independent semantic JSON assertions", async () => {
     const [verdict, nested, missing, exact] = await runOutputChecks(
       JSON.stringify({

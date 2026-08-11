@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "format",
+    "verdict",
+    "basis",
+    "quality_bar",
+    "findings",
+    "required_next_action"
+  ],
+  "properties": {
+    "format": { "const": "darrow-implementation-readiness-v1" },
+    "verdict": {
+      "enum": ["ready", "needs-discovery", "needs-decision", "blocked"]
+    },
+    "basis": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["source", "authority", "status", "summary"],
+        "properties": {
+          "source": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "authority": {
+            "enum": ["authoritative", "repository", "supporting"]
+          },
+          "status": {
+            "enum": ["available", "missing", "contradictory"]
+          },
+          "summary": { "type": "string", "minLength": 1, "pattern": "\\S" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "quality_bar": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion", "oracle", "verification"],
+        "properties": {
+          "criterion": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "oracle": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "verification": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "summary", "evidence"],
+        "properties": {
+          "type": {
+            "enum": [
+              "missing-information",
+              "unresolved-decision",
+              "contradiction",
+              "dependency",
+              "permission",
+              "quality-bar-gap"
+            ]
+          },
+          "summary": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1, "pattern": "\\S" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "required_next_action": {
+      "type": "object",
+      "required": ["type", "description"],
+      "properties": {
+        "type": { "enum": ["none", "discovery", "decision", "unblock"] },
+        "description": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "ready" } } },
+      "then": {
+        "properties": {
+          "quality_bar": { "type": "array", "minItems": 1 },
+          "findings": { "type": "array", "maxItems": 0 },
+          "required_next_action": {
+            "type": "object",
+            "properties": { "type": { "const": "none" } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "verdict": { "const": "needs-discovery" } }
+      },
+      "then": {
+        "properties": {
+          "findings": { "type": "array", "minItems": 1 },
+          "required_next_action": {
+            "type": "object",
+            "properties": { "type": { "const": "discovery" } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "verdict": { "const": "needs-decision" } }
+      },
+      "then": {
+        "properties": {
+          "findings": { "type": "array", "minItems": 1 },
+          "required_next_action": {
+            "type": "object",
+            "properties": { "type": { "const": "decision" } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "blocked" } } },
+      "then": {
+        "properties": {
+          "findings": { "type": "array", "minItems": 1 },
+          "required_next_action": {
+            "type": "object",
+            "properties": { "type": { "const": "unblock" } }
+          }
+        }
+      }
+    }
+  ]
+}

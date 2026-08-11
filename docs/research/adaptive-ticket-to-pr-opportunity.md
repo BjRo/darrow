@@ -46,8 +46,6 @@ $ticket-to-pr <ticket>
 read-only preflight
   |-- resolve the ticket through an environment capability
   |-- use the current or explicitly supplied repository
-  |-- assess implementation readiness
-  |-- use discovery or planning capabilities when needed
   |-- validate required capabilities and authority
   `-- compile one bounded ticket-to-PR goal
 
@@ -55,7 +53,9 @@ read-only preflight
         v
 
 one adaptive native goal
-  |-- create or reuse the task branch
+  |-- assess implementation readiness before mutation
+  |-- stop for discovery, decision, or blockage when not ready
+  |-- create or reuse the task branch when ready
   |-- implement the ready outcome
   |-- verify through the selected workflow and risk gate
   |-- invoke canonical fresh-context review when required
@@ -191,9 +191,10 @@ Planning and product discovery should remain outside adaptive-goal. A native
 implementation goal should not discover what product behavior was intended
 while simultaneously building it.
 
-A provisional `assess-implementation-readiness` capability would provide a
-shared seam for tickets, discovery results, plans, and specifications. Its
-working definition is:
+The independently installable
+[`darrow-readiness-gate`](../../plugins/darrow-readiness-gate/README.md)
+provides the shared seam for tickets, discovery results, plans, specifications,
+and explicit goal contracts. Its definition is:
 
 > Ready means an implementation agent can proceed without inventing product
 > intent, making an unauthorized architectural choice, or guessing how success
@@ -232,10 +233,14 @@ steps, or the same detail for a mechanical change and a migration.
 
 Discovery and planning capabilities may use the findings to close gaps. They
 own their artifacts and user interaction. Material choices remain unresolved
-until an authorized user or repository authority selects them. Adaptive-goal
-may consume a compatible readiness result, but it still performs a cheap
-freshness and consistency check before launch. It does not repeat the full
-assessment merely to recreate a planning phase.
+until an authorized user or repository authority selects them.
+
+The ticket-to-PR goal contract can require the environment to invoke a
+compatible readiness capability before any mutation. A non-ready verdict stops
+that implementation goal; it does not turn adaptive-goal into a discovery or
+planning workflow. A ready verdict returns control to the native goal owner
+without granting additional authority. Adaptive-goal therefore needs no
+built-in awareness of the readiness plugin or its implementation.
 
 ## One goal owns the pull-request outcome
 
@@ -263,8 +268,17 @@ Not authorized:
   - mutate unrelated external state.
 ```
 
-This requires a clarification to the current adaptive-goal publication
-language. The intended distinction is:
+An N=1 live feasibility experiment on 2026-08-11 validated the publication
+slice: one explicitly authorized native goal created an experiment branch,
+formatted and validated its artifact, committed, pushed, and opened Darrow
+[draft PR #17](https://github.com/BjRo/darrow/pull/17). The PR was then closed
+without merging and its local and remote branches were deleted. This proves
+that the host can compose the existing Git capabilities to reach a real PR; it
+does not validate the full ticket, readiness, implementation, review, or
+recovery path.
+
+The experiment prompted a clarification now reflected in adaptive-goal's
+normative publication language:
 
 > Adaptive-goal never derives publication authority. A goal may perform
 > explicitly pre-authorized publication through installed capabilities. Goal
@@ -275,9 +289,8 @@ mechanism. The native goal asks the environment for branch, commit, push, and
 PR capabilities by intent. Explicit invocation of `ticket-to-pr`, rather than
 successful implementation alone, supplies the narrow publication authority.
 
-This is a proposed clarification, not a current normative change. It must be
-reconciled with the local publication wording in
-[`adaptive-goal-loop.md`](../specs/adaptive-goal-loop.md) before implementation.
+The authoritative wording is maintained in
+[`adaptive-goal-loop.md`](../specs/adaptive-goal-loop.md).
 
 ## Workflows, risk, and canonical review
 
@@ -495,26 +508,24 @@ profile, model, and effort replace stage-specific routing.
 
 ## Open design questions
 
-1. What is the final name and portable result contract for implementation
-   readiness?
+1. How reliably does the versioned implementation-readiness result compose in
+   larger native goals across Claude and Codex?
 2. Which capability identifiers are needed for ticket reading, review,
    evidence capture, branch, commit, and PR operations?
 3. Should high-risk adaptive goals require a compatible independent review
    capability, and what is the honest stop behavior when none is available?
-4. How should the adaptive-goal publication invariants be clarified without
-   turning the helper into a publication mechanism?
-5. Which worktree actions must happen before goal launch on each host?
-6. Is early existing-PR detection valuable enough to add a read-only Git/forge
+4. Which worktree actions must happen before goal launch on each host?
+5. Is early existing-PR detection valuable enough to add a read-only Git/forge
    capability, or is duplicate protection at publication sufficient?
-7. Where should host telemetry adapters live, and what common correlation
+6. Where should host telemetry adapters live, and what common correlation
    schema should OpenTelemetry and Langfuse receive?
-8. What artifact schema, retention, redaction, binary-size, and external-store
+7. What artifact schema, retention, redaction, binary-size, and external-store
    policies govern `.darrow/evidence`?
-9. Which inputs and output authority should a periodic cross-ticket learning
+8. Which inputs and output authority should a periodic cross-ticket learning
    capability have?
-10. How reliably do Claude and Codex match capability intent from inside a
-    native goal, especially for fresh-context review and publication?
-11. How should readiness represent quality bars that combine deterministic
+9. How reliably do Claude and Codex match capability intent from inside a
+   native goal, especially for fresh-context review and publication?
+10. How should readiness represent quality bars that combine deterministic
     thresholds, reference artifacts, and contextual judgment?
 
 ## Suggested evaluation
@@ -562,15 +573,11 @@ do not establish ticket-to-PR parity or the 90% claim.
 
 ## Suggested next steps
 
-1. Review this research note and separate accepted architecture from remaining
-   hypotheses.
-2. Clarify the adaptive-goal publication authority invariant in its governing
-   specification if the full PR outcome is accepted.
-3. Specify and evaluate implementation readiness, including its inspectable
-   quality-bar contract, independently.
-4. Define the portable review-capability contract and adaptive selection
+1. Run multi-trial, cross-harness comparisons for implementation-readiness
+   composition and the reusable ticket-to-PR goal template.
+2. Define the portable review-capability contract and adaptive selection
    policy without introducing a sibling-plugin dependency.
-5. Design telemetry correlation and `.darrow` evidence conventions separately
+3. Design telemetry correlation and `.darrow` evidence conventions separately
    from the ticket-to-PR recipe.
-6. Write matched eval cases for the reusable ticket-to-PR goal template before
-   implementing it.
+4. Evaluate the full ticket-to-PR outcome against the static pipeline baseline,
+   including resume, failure, risk, and publication cases.
