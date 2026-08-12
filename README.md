@@ -33,6 +33,7 @@ explicitly invoke it.
 | [`darrow-tickets`](plugins/darrow-tickets/README.md)                                   | Create, list, and update tracker work items through a backend-neutral interface.                  |
 | [`darrow-readiness-gate`](plugins/darrow-readiness-gate/README.md)                     | Check whether a request, ticket, specification, or plan is ready to implement.                    |
 | [`darrow-discovery`](plugins/darrow-discovery/README.md)                               | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
+| [`darrow-explanation`](plugins/darrow-explanation/README.md)                           | Explain technical structure through compact, source-grounded visual forms.                        |
 | [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md) | Set up or audit lean repository guidance for Claude Code and Codex.                               |
 | [`darrow-decisions`](plugins/darrow-decisions/README.md)                               | Capture decisions at their canonical scope and find existing decision records.                    |
 | [`darrow-tdd`](plugins/darrow-tdd/README.md)                                           | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |
@@ -106,6 +107,13 @@ projects—go check them out. Matt Shumer's
 native goal-loop research: give an agent the outcome and an inspectable quality
 bar, let it choose the route, use fresh critics, and keep improving against the
 bar.
+
+Dexter Horthy's
+[“show-me: a coding agent skill for compact visual representations”](https://www.linkedin.com/pulse/show-me-coding-agent-skill-compact-visual-dexter-horthy-w5yac/)
+and HumanLayer's open-source
+[`show-me` skill](https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md)
+directly inspired the compact, smallest-fitting-view approach in
+`darrow-explanation`.
 
 ## Development
 

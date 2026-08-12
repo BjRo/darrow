@@ -1,0 +1,33 @@
+id: explain-visually-indirect-state-transitions
+invariant: VE-C1,VE-C2,VE-C3,VE-C5,VE-C6,VE-C7
+mount_plugin_skills: true
+prompt: >-
+  This worker lifecycle is too much prose. Show me the state transitions
+  compactly. Preserve the retry condition, do not add undocumented states, and
+  do not modify or create files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/worker-lifecycle.md: |
+          A new job starts queued. Claiming a queued job makes it running.
+          Completing a running job makes it succeeded. A terminal error makes
+          it failed. A retryable error returns a running job to queued only
+          while attempts remain; otherwise the job becomes failed.
+checks:
+  - name: explanation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: documented states and transition condition remain visible
+    run: >-
+      grep -Ei 'queued' .git/last-message.md >/dev/null;
+      grep -Ei 'running' .git/last-message.md >/dev/null;
+      grep -Ei 'succeeded' .git/last-message.md >/dev/null;
+      grep -Ei 'failed' .git/last-message.md >/dev/null;
+      grep -Ei 'attempts? remain|remaining attempts?' .git/last-message.md >/dev/null
+  - name: response uses a state-oriented visual shape
+    run: >-
+      grep -Eq -- '->|-->|stateDiagram|\|[[:space:]]*(From|State|Event)' .git/last-message.md;
+      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 28
+  - name: undocumented states are absent
+    run: '! grep -Ei "cancelled|canceled|dead[- ]letter|paused" .git/last-message.md'

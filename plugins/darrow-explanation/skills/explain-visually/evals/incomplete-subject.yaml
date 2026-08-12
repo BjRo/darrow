@@ -1,0 +1,19 @@
+id: explain-visually-incomplete-subject
+invariant: VE-C1,VE-C3,VE-C7
+mount_plugin_skills: true
+prompt: "Use explain-visually. Show me."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated inventory service\n"
+checks:
+  - name: incomplete request is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: response asks for the missing subject
+    run: >-
+      grep -Ei 'what|which|subject|topic' .git/last-message.md >/dev/null;
+      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 8
+  - name: unrelated repository topic is not selected
+    run: '! grep -Ei "inventory service" .git/last-message.md'

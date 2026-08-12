@@ -59,6 +59,11 @@
       "name": "darrow-discovery",
       "source": "./plugins/darrow-discovery",
       "description": "Grill ideas, discover feature behavior, and plan implementation through evidence-backed decision rounds"
+    },
+    {
+      "name": "darrow-explanation",
+      "source": "./plugins/darrow-explanation",
+      "description": "Explain technical structure through compact, source-grounded visual forms"
     }
   ]
 }

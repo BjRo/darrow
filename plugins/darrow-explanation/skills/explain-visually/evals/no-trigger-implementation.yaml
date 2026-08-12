@@ -1,0 +1,20 @@
+id: explain-visually-no-trigger-implementation
+invariant: VE-C1,VE-E1
+mount_plugin_skills: true
+prompt: >-
+  Implement the documented double(value) behavior in src/math.js. Keep the
+  response concise. This is an implementation request, not an explanation or
+  diagram request.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/request.md: "double(value) returns value multiplied by two.\n"
+        src/math.js: "export const double = (value) => value;\n"
+checks:
+  - name: implementation request changes the requested code
+    run: >-
+      grep -Eq 'value *\* *2|2 *\* *value' src/math.js;
+      test -n "$(git status --porcelain --untracked-files=all)"
+  - name: implementation is not replaced by a visual explanation
+    run: '! grep -Ei "stateDiagram|sequenceDiagram|call tree|structural diff|Observed view|Conceptual view" .git/last-message.md'

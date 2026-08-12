@@ -1,0 +1,58 @@
+id: explain-visually-direct-call-flow
+invariant: VE-C1,VE-C2,VE-C3,VE-C4,VE-C5,VE-C7
+mount_plugin_skills: true
+prompt: >-
+  Use explain-visually to show the observed runtime call flow when submitJob is
+  called. Inspect the repository, keep only calls that matter to this path,
+  include useful source anchors, and do not modify or create files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/jobs.ts: |
+          export function submitJob(job: Job): string {
+            const checked = validateJob(job)
+            const id = storeJob(checked)
+            enqueueJob(id)
+            return id
+          }
+
+          function validateJob(job: Job): Job {
+            if (!job.kind) throw new Error("kind is required")
+            return job
+          }
+
+          function storeJob(job: Job): string {
+            return database.jobs.insert(job)
+          }
+
+          function enqueueJob(id: string): void {
+            queue.publish({ type: "job.ready", id })
+          }
+        src/admin.ts: |
+          export function authorizeAdmin(user: User): void {
+            if (!user.admin) throw new Error("forbidden")
+          }
+checks:
+  - name: explanation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: call flow contains the observed path in order
+    run: >-
+      awk '
+      /submitJob/ && !a { a=NR }
+      /validateJob/ && !b { b=NR }
+      /storeJob/ && !c { c=NR }
+      /enqueueJob/ && !d { d=NR }
+      END { exit !(a && b>a && c>b && d>c) }' .git/last-message.md
+  - name: response uses a compact visual shape
+    run: >-
+      grep -Eq -- '->|-->|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
+      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
+  - name: observed source is anchored
+    run: grep -Ei 'observed|current|src/jobs\.ts' .git/last-message.md
+  - name: unrelated callable is not invented into the path
+    run: >-
+      if grep -F 'authorizeAdmin' .git/last-message.md >/dev/null; then
+        grep -Ei 'exclude|not|nothing|unrelated' .git/last-message.md >/dev/null;
+      fi
