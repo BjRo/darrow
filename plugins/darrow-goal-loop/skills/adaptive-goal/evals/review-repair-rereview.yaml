@@ -1,0 +1,80 @@
+id: goal-review-repair-rereview
+invariant: AGL-P6,AGL-P11,AGL-L11,AGL-S5,AGL-X6
+prompt: >-
+  /adaptive-goal Continue the existing candidate in src/config.js. On Codex,
+  invoke the $adaptive-goal skill. Treat the existing candidate as ready for its
+  first final review: run `bash check.sh`, then independently review its exact
+  current content before changing or completing it. The approved outcome is
+  TIMEOUT_MS equal to 2500. On a blocking finding, repair it under the existing
+  authorization to edit src/config.js, rerun `bash check.sh`, and independently
+  review the changed target fingerprint again. If review is unavailable or
+  inconclusive, stop. Complete only after review of the final content reports
+  no blocking findings. Select and apply the policy route. Keep the result
+  local; commits, pushes, pull requests, and other publication are not
+  authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash check.sh` for configuration changes.
+        src/config.js: |
+          export const TIMEOUT_MS = 1000;
+          export const RETRY_COUNT = 3;
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
+          git_dir=$(git rev-parse --git-dir)
+          subject_oid=$(git hash-object src/config.js)
+          printf 'check\t%s\n' "$subject_oid" >>"$git_dir/review-events"
+  files:
+    src/config.js: |
+      export const TIMEOUT_MS = 2500;
+      export const RETRY_COUNT = 0;
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex && printf '%s\n' 'RETRY_COUNT = 0' >
+    .git/fixture-review-reject-pattern && printf '%s\n' 'src/config.js' >
+    .git/fixture-review-event-path
+checks:
+  - name: authorized repair reaches the approved outcome
+    run: bash check.sh
+  - name: blocking target is repaired and independently rereviewed
+    run: >-
+      test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 2 &&
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '1p')" = blocking &&
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '2p')" = clear
+  - name: invalidated checks run before each review
+    run: >-
+      awk -F '\t' '
+      $1 == "check" {
+        last_check = $2
+        if (stage == 1 && $2 != initial) { final = $2; stage = 2 }
+        next
+      }
+      $1 == "review" && $2 == "blocking" && stage == 0 && last_check == $3 {
+        initial = $3; stage = 1; next
+      }
+      $1 == "review" && $2 == "clear" && stage == 2 && final == $3 {
+        stage = 3
+      }
+      END { exit stage == 3 && initial != final ? 0 : 1 }
+      ' .git/review-events
+  - name: repair changes the reviewed target fingerprint
+    run: >-
+      cut -f1 .git/independent-review-invocations | sort -u >.git/review-targets &&
+      test "$(wc -l <.git/review-targets | tr -d ' ')" -eq 2
+  - name: repair and rereview stay local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: completion reports the semantic rereview outcome
+    expect_regex: "(independent[ -]review|rereview)[\\s\\S]{0,160}(no blocking|clear|pass)"
+    flags: i
+  - name: completion reports the prior failed target and finding
+    expect_regex: "(initial|prior|first)[\\s\\S]{0,160}(fail|reject|block)[\\s\\S]{0,160}RETRY_COUNT"
+    flags: i
+  - name: completion preserves the outer launch record
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4"

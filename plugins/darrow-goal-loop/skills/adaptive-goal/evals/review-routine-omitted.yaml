@@ -1,0 +1,36 @@
+id: goal-review-routine-omitted
+invariant: AGL-P7,AGL-P11,AGL-L7,AGL-X6
+prompt: >-
+  /adaptive-goal Add the exact line "Retries are bounded." beneath the heading
+  in NOTES.md. On Codex, invoke the $adaptive-goal skill. This is a localized,
+  reversible documentation edit with a complete oracle and limited blast
+  radius. Acceptance is that `bash check.sh` passes. Select and apply the policy
+  route. Keep the result local; commits, pushes, pull requests, and other
+  publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Retries are bounded.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: routine change reaches its exact outcome
+    run: bash check.sh
+  - name: routine work does not automatically invoke independent review
+    run: test ! -e .git/independent-review-invocations
+  - name: routine work stays local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: routine verification is reported
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\troutine[\\s\\S]*verification_gate\\troutine"
+  - name: completion does not claim independent review
+    not_regex: "independent review (passed|completed|clear|found no blocking)"
+    flags: i

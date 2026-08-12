@@ -86,6 +86,9 @@ seams.
 A read-only code-review capability that pins the exact committed and declared
 working-tree scope, then evaluates repository standards and originating-spec
 fulfillment through isolated reviewers before producing one validated verdict.
+The same intent-matched capability supports direct review and proportional
+selection inside an explicitly invoked adaptive goal without coupling the goal
+to its output serialization.
 
 ### [`darrow-skill-authoring`](plugins/darrow-skill-authoring/README.md)
 

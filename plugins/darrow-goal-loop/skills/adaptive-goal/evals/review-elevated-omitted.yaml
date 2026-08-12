@@ -1,0 +1,38 @@
+id: goal-review-elevated-omitted
+invariant: AGL-P7,AGL-P11,AGL-L7,AGL-X6
+prompt: >-
+  /adaptive-goal Replace schemaVersion 3 with schemaVersion 4 in both persisted
+  deployment fixtures. On Codex, invoke the $adaptive-goal skill. These files
+  are operational inputs, so a mistake has elevated consequences, but this is
+  an exact mechanical transformation with a complete oracle covering every
+  consumer; no compatibility, caller, counterexample, or other contextual
+  judgment remains. Acceptance is that `bash check.sh` passes. Select and apply
+  the policy route. Keep the result local; commits, pushes, pull requests, and
+  other publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        fixtures/eu.json: '{"schemaVersion":3,"region":"eu"}\n'
+        fixtures/us.json: '{"schemaVersion":3,"region":"us"}\n'
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test "$(rg -l '"schemaVersion":4' fixtures | wc -l | tr -d ' ')" -eq 2
+          test -z "$(rg -n '"schemaVersion":3' fixtures || true)"
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: exact persisted-format transformation is complete
+    run: bash check.sh
+  - name: elevated work with a complete oracle omits independent review
+    run: test ! -e .git/independent-review-invocations
+  - name: exact transformation stays local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: elevated verification remains selected
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\televated[\\s\\S]*verification_gate\\televated"
+  - name: completion does not claim independent review
+    not_regex: "independent review (passed|completed|clear|found no blocking)"
+    flags: i

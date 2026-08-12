@@ -1,0 +1,65 @@
+id: goal-review-elevated-selected
+invariant: AGL-P7,AGL-P11,AGL-L7,AGL-L11,AGL-X6
+prompt: >-
+  /adaptive-goal Change the public profile payload field from userId to user_id
+  and update both current consumers in this repository. On Codex, invoke the
+  $adaptive-goal skill. This is one approved behavior change with no coexistence
+  or rollout sequence, but it has compatibility and caller impact that needs
+  independent judgment. Acceptance is that `bash test.sh` passes and no userId
+  field remains. Select and apply the policy route. Keep the result local;
+  commits, pushes, pull requests, and other publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash test.sh` for public payload changes.
+        src/profile.js: |
+          export function profile(id) {
+            return { userId: id };
+          }
+        src/web-client.js: |
+          export function display(payload) {
+            return String(payload.userId);
+          }
+        src/audit-client.js: |
+          export function audit(payload) {
+            return `user=${payload.userId}`;
+          }
+        test.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          node --input-type=module <<'EOF'
+          import { profile } from './src/profile.js';
+          import { display } from './src/web-client.js';
+          import { audit } from './src/audit-client.js';
+          const value = profile(42);
+          if (value.user_id !== 42 || 'userId' in value) process.exit(1);
+          if (display(value) !== '42') process.exit(1);
+          if (audit(value) !== 'user=42') process.exit(1);
+          EOF
+        package.json: '{"type":"module"}'
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: compatibility change updates producer and consumers
+    run: bash test.sh
+  - name: old field is removed
+    run: test -z "$(rg -n 'userId' src || true)"
+  - name: elevated caller impact invokes one independent review
+    run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
+  - name: selected review clears the final changed target
+    run: >-
+      awk -F '\t' 'NF == 2 && $2 == "clear" { ok=1 } END { exit ok ? 0 : 1 }'
+      .git/independent-review-invocations
+  - name: elevated work stays local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: completion reports the semantic review outcome
+    expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
+    flags: i
+  - name: elevated verification is reported
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\televated[\\s\\S]*verification_gate\\televated"

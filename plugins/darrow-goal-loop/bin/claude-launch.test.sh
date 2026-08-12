@@ -35,6 +35,8 @@ check_runner() {
   require_line "$agent" 'background: false'
   grep -F -- 'Adaptive Goal Loop runner' "$agent" >/dev/null ||
     fail "$agent lacks visible Adaptive Goal Loop metadata"
+  grep -F -- 'Read its ordinary response semantically' "$agent" >/dev/null ||
+    fail "$agent does not interpret selected independent-review evidence"
   grep -F -- "darrow-goal-loop:adaptive-goal-$suffix" "$guide" >/dev/null ||
     fail "Claude launch guide does not route $model/$effort to its runner"
   resolved=$(bash "$claude_agent_route" --provider anthropic --model "$model" --effort "$effort")
@@ -72,6 +74,8 @@ grep -F -- '`run_in_background` set to `false`' "$guide" >/dev/null ||
   fail 'Claude launch guide does not require foreground execution'
 grep -F -- 'Do not launch a second' "$guide" >/dev/null ||
   fail 'Claude launch guide does not preserve the single-runner boundary'
+grep -F -- 'do not parse or reproduce its output' "$guide" >/dev/null ||
+  fail 'Claude launch guide couples selected review to an output format'
 # shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
 grep -F -- 'does not expose its session-scoped `/goal` command' "$guide" >/dev/null ||
   fail 'Claude launch guide does not disclose the native goal limitation'

@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { HarnessAdapter, HarnessResult } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
@@ -41,8 +42,13 @@ interface ClaudeOutcome {
   resultText: string;
 }
 
-function claudeArgv(prompt: string, model: string, effort: string): string[] {
-  return [
+export function claudeArgv(
+  prompt: string,
+  model: string,
+  effort: string,
+  pluginDir?: string,
+): string[] {
+  const argv = [
     "claude",
     "-p",
     prompt,
@@ -61,6 +67,8 @@ function claudeArgv(prompt: string, model: string, effort: string): string[] {
     "--no-session-persistence",
     "--dangerously-skip-permissions",
   ];
+  if (pluginDir) argv.push("--plugin-dir", pluginDir);
+  return argv;
 }
 
 /**
@@ -121,8 +129,14 @@ export const claudeAdapter: HarnessAdapter = {
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
     const env = await isolatedHarnessEnvironment("claude", repoDir);
+    const evalPlugin = join(repoDir, ".git", "eval-plugin");
     const argv = await sandboxedAgentCommand(
-      claudeArgv(prompt, model, effort),
+      claudeArgv(
+        prompt,
+        model,
+        effort,
+        existsSync(evalPlugin) ? evalPlugin : undefined,
+      ),
       repoDir,
     );
     const proc = Bun.spawn(argv, {

@@ -6,8 +6,9 @@ change follows repository standards, and whether it fulfills the specification
 or request that caused the work. Fresh reviewers evaluate those axes in
 isolation, then deterministic tooling validates and aggregates their evidence.
 
-Review is explicitly requested. The plugin does not trigger merely because an
-agent edited code.
+Review is explicitly requested, either directly or as a selected clause in a
+larger goal contract. The plugin does not trigger merely because an agent edited
+code.
 
 ## What it provides
 
@@ -20,6 +21,13 @@ analysis independently; and returns one validated `darrow-review-result-v1`
 record with only evidence-backed findings.
 
 Example: _“Review all uncommitted changes.”_
+
+The same canonical skill supports both invocation modes. A composed review is
+requested by host-visible intent—independently review this pinned code
+change—without naming or assuming this plugin. It returns its normal review
+report to the goal owner, which interprets the findings and outcome under its
+own continuation contract. Any content-changing repair invalidates the reviewed
+target and requires a fresh review of the new fingerprint.
 
 ### `bin/review-scope`
 
@@ -43,6 +51,8 @@ explicit without relying on another installed plugin.
 
 - Reviewers report defects; they never edit, repair, commit, push, approve,
   merge, release, or deploy.
+- Selecting review and acting on its verdict belong to the caller; the review
+  capability grants no implementation or publication authority.
 - A finding needs concrete changed evidence and an authoritative repository or
   specification source. Preferences and speculative improvements are omitted.
 - Deterministic checks settle facts such as formatting, types, builds, and

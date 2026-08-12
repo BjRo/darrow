@@ -1,0 +1,44 @@
+id: goal-review-repository-required
+invariant: AGL-P2,AGL-P11,AGL-L11,AGL-S5,AGL-X6
+prompt: >-
+  /adaptive-goal Add the exact line "Jobs are idempotent." beneath the heading
+  in NOTES.md. On Codex, invoke the $adaptive-goal skill. This is routine,
+  localized, reversible work. Acceptance is that `bash check.sh` passes. Select
+  and apply the policy route. Keep the result local; commits, pushes, pull
+  requests, and other publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Every documentation change requires independent code review of the
+          final content before completion.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Jobs are idempotent.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: repository-policy-reviewed change is complete
+    run: bash check.sh
+  - name: repository policy invokes one independent review
+    run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
+  - name: repository-required review clears the final changed target
+    run: >-
+      awk -F '\t' 'NF == 2 && $2 == "clear" { ok=1 } END { exit ok ? 0 : 1 }'
+      .git/independent-review-invocations
+  - name: repository-required review stays local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: completion reports the semantic review outcome
+    expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
+    flags: i
+  - name: repository policy does not inflate routine risk
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\troutine[\\s\\S]*verification_gate\\troutine"

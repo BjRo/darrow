@@ -9,7 +9,7 @@ import {
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { buildFixture, destroyFixture } from "./fixture";
 
 const cleanup: string[] = [];
@@ -21,6 +21,66 @@ afterEach(async () => {
 });
 
 describe("eval fixture skill mounts", () => {
+  test("mounts plugin agents beside Claude skills", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-agents-"));
+    cleanup.push(root);
+    const skill = join(root, "plugins", "sample", "skills", "primary");
+    const agents = join(root, "plugins", "sample", "agents");
+    const manifest = join(
+      root,
+      "plugins",
+      "sample",
+      ".claude-plugin",
+      "plugin.json",
+    );
+    await mkdir(skill, { recursive: true });
+    await mkdir(agents, { recursive: true });
+    await mkdir(dirname(manifest), { recursive: true });
+    await writeFile(
+      join(skill, "SKILL.md"),
+      "---\nname: primary\ndescription: Primary\n---\n",
+    );
+    await writeFile(
+      join(agents, "runner.md"),
+      "---\nname: runner\ndescription: Runner\n---\n",
+    );
+    await writeFile(
+      manifest,
+      '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
+    );
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: skill,
+      skillMounts: [".claude/skills"],
+    });
+    cleanup.push(fixture);
+    expect(
+      existsSync(join(fixture, ".claude", "skills", "primary", "SKILL.md")),
+    ).toBe(true);
+    expect(existsSync(join(fixture, ".claude", "agents", "runner.md"))).toBe(
+      true,
+    );
+    expect(
+      existsSync(
+        join(fixture, ".git", "eval-plugin", ".claude-plugin", "plugin.json"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(fixture, ".git", "eval-plugin", "skills", "primary", "SKILL.md"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(join(fixture, ".git", "eval-plugin", "agents", "runner.md")),
+    ).toBe(true);
+    expect(existsSync(join(fixture, ".agents", "agents", "runner.md"))).toBe(
+      false,
+    );
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
   test("optionally mounts every plugin skill without exposing colocated evals", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-plugin-"));
     cleanup.push(root);

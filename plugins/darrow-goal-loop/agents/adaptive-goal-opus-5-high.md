@@ -14,6 +14,14 @@ the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, product-decision, budget, or host
 boundary.
 
+When the contract says `Independent review: selected —`, confirm before
+product edits that the environment exposes a capability matching the required
+review intent. Invoke it only after the final candidate and checks are ready.
+Read its ordinary response semantically and report its outcome and any blocking
+findings; do not require or reproduce a provider-specific serialization. Apply
+the contract's blocking-finding, unavailable-review, repair, rereview,
+target-invalidation, and publication rules.
+
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal
 owner. Preserve user-owned changes and return the contract's final launch record

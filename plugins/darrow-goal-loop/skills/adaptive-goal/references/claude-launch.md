@@ -72,9 +72,13 @@ Invoke the `Agent` tool exactly once with:
   selected workflow document, its absolute path, identifier, and content hash.
 
 Tell the runner to own the contract through terminal completion, run the
-workflow and risk gates, and return the required final record. The runner may
-use host-native subagents for bounded work, but it remains the sole goal owner
-and must not create another Darrow runner.
+workflow and risk gates, and return the required final record. Preserve the
+contract's exact `Independent review: selected|omitted — reason` clause in the
+task. When selected, tell the runner explicitly to confirm the compatible
+capability before product edits, invoke it after final-tree checks, and report
+its outcome and any blocking findings. Do not require a provider-specific
+serialization. The runner may use host-native subagents for bounded work, but
+it remains the sole goal owner and must not create another Darrow runner.
 
 Wait for that same foreground Agent call to return, then verify what actually
 ran before recording anything. Selecting a namespaced `subagent_type` whose
@@ -84,6 +88,15 @@ different model than its own frontmatter names, and a misrouted runner will
 still confidently self-report the selected model. Prompt text and runner
 self-report prove neither model nor effort. Derive the effective route from
 the child's own transcript instead:
+
+Before interpreting the child as terminally successful, also reconcile its
+result against the compiled independent-review clause. A selected gate requires
+evidence that the matching capability reviewed the final content and reported
+no blocking findings. Preserve edits but report the run incomplete or blocked
+when review was unavailable, inconclusive, or left blocking findings, even if
+deterministic checks passed or route verification separately failed. Interpret
+the capability's ordinary response; do not parse or reproduce its output
+format.
 
 ```sh
 claude_verify_route="$skill_dir/../../bin/claude-verify-route"
@@ -108,6 +121,11 @@ case:
 
 - do not record `route_verified: true`, and do not report the child's work as
   having run on the selected route;
+- when no transcript route is observable, record
+  `effective_route<TAB>claude<TAB>anthropic<TAB>unknown<TAB>unknown`; when a
+  mismatched route is observable, record that exact observed tuple. Never copy
+  the selected model or effort into `effective_route` after failed
+  verification;
 - preserve whatever the child already wrote to the working tree without
   discarding it silently, and tell the user plainly which model actually ran
   instead of the selected one, citing the observed route;

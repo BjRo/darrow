@@ -105,6 +105,31 @@ Select risk from consequences, taking the highest applicable level:
 Reasoning difficulty never changes risk. A difficult diagnosis can be
 `routine`; a simple security change is `high`.
 
+Select independent code review separately from implementation discipline:
+
+| Situation | Independent review selection |
+| --- | --- |
+| `routine` risk | do not select automatically |
+| `elevated` risk | select when compatibility, caller impact, or counterexample analysis needs independent judgment |
+| `high` risk | select by default |
+| any risk | select when repository policy or the user requires it |
+
+When review is selected, the goal contract requests an available environment
+capability matching this intent: independently review the exact current code
+change. Do not name or assume a plugin implementation, command, or output
+format. Before repository mutation, confirm that the environment exposes a
+capability matching that intent. An ad hoc prompt, generic subagent,
+same-context judgment, or capability created during the run is not availability
+evidence. Stop honestly when no matching capability exists. A matching
+capability may use fresh readers internally; native delegation alone cannot
+satisfy this gate. An availability stop returns the evidence gap together with
+the mandatory v4 launch record.
+Represent the decision in the compiled contract with one unambiguous line
+beginning `Independent review: selected —` or
+`Independent review: omitted —`, followed by the reason. High risk MUST use
+`selected` unless an explicit stronger user or repository rule makes
+implementation stop before activation.
+
 Classify reasoning demand independently from workflow and risk:
 
 - `ordinary-localized`: the implementation is clear and localized;
@@ -138,7 +163,20 @@ Apply the selected proportional risk gate:
 | --- | --- |
 | `routine` | focused acceptance or characterization evidence plus the scoped repository gate |
 | `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample |
-| `high` | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
+| `high` | elevated gates plus an adversarial boundary or state-transition check and independent final-tree review |
+
+For selected independent review, compile this continuation behavior into the
+goal contract: invoke the matching capability after implementation and
+applicable final-tree checks, supplying the exact final change, originating
+objective or specification, repository standards, and current check evidence.
+Interpret the capability's ordinary response semantically. No blocking
+findings returns control without adding authority. Blocking findings prevent
+completion and every not-yet-performed publication effect; repair only under
+existing authority, rerun invalidated checks, and independently review the
+changed target again, or stop and report the findings. An unavailable or
+inconclusive review stops and reports the evidence gap. Any content-changing
+edit invalidates the earlier review. Completion or publication requires review
+of the exact final content with no blocking findings.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely. The workflow document
@@ -184,8 +222,9 @@ provenance.
 Write one goal contract of at most 4,000 bytes containing the outcome,
 acceptance criteria, scope and non-goals, preserved work, permissions, the
 selected workflow and its sequence, risk gate, profile and concrete route,
-applicable feedback checks and final-tree checks, any user-specified stopping
-budget, and this exact final record:
+applicable feedback checks and final-tree checks, whether independent review is
+selected and why, its portable continuation clause when selected, any
+user-specified stopping budget, and this exact final record:
 
 ```text
 format\tdarrow-native-goal-preflight-v4
@@ -209,6 +248,10 @@ Include branch, commit, push, pull-request, or other publication effects only
 when the originating request explicitly authorized each effect and host policy
 still permits it. Preserve that authority in the contract; never derive it
 from successful implementation or eventual goal completion.
+When independent review is selected, perform no not-yet-completed publication
+effect after blocking findings or an unavailable or inconclusive review, or
+against content changed after review. A clear review grants no publication
+authority.
 
 ## 3. Activate exactly one host-native goal owner
 
@@ -223,6 +266,10 @@ Return exactly one object and stop that turn:
   "risk": "<routine|elevated|high>",
   "profile": "<routine|routine-plus|scaled|repo-wide|judgment>",
   "routeSource": "<policy|user>",
+  "independentReview": {
+    "selection": "<selected|omitted>",
+    "reason": "<concise non-empty reason>"
+  },
   "selectedRoute": {
     "harness": "<harness>",
     "provider": "<provider>",
@@ -232,6 +279,11 @@ Return exactly one object and stop that turn:
   "goalContract": "<compiled contract, at most 4,000 bytes>"
 }
 ```
+
+Leave the `Independent review:` line out of `goalContract` in this host-API
+handoff. The enclosing launcher validates the structured decision and compiles
+the canonical portable clause, replacing any redundant line if one is present;
+high-risk handoffs that omit review are invalid.
 
 The enclosing launcher validates the selected route against the live host
 catalog and policy profile, loads the exact selected workflow document, sets
@@ -277,9 +329,22 @@ selected route into
 created directly by Darrow: same-thread and host-API launches are zero; a
 native goal runner or explicitly authorized nested session is one. Native
 descendants remain host-visible but are not Darrow child invocations.
+For a Claude native-subagent whose transcript route cannot be observed, record
+`effective_route<TAB>claude<TAB>anthropic<TAB>unknown<TAB>unknown`,
+`route_verified<TAB>false`, and `launch_boundary<TAB>launch_required`. If
+transcript evidence instead proves a mismatched route, record that observed
+tuple. Failed verification never permits copying the selected tuple into the
+effective row.
 When an invoked capability terminates the goal with its own structured result,
 preserve that result alongside the mandatory v4 record rather than replacing
 either contract.
+Preserve the substance of the terminal independent review as goal evidence by
+reporting its outcome and any blocking findings in the enclosing
+response; do not require or reproduce the provider's serialization. After a
+repaired failure, report the prior blocking findings and that rereview occurred
+against the changed content. Only review of the exact final content with no
+blocking findings satisfies the gate; a prose claim by the author, stale
+review, or same-context self-review does not.
 
 State changed files, final verification, remaining risks, and every authorized
 publication effect actually performed. Include this exact sentence: `Goal

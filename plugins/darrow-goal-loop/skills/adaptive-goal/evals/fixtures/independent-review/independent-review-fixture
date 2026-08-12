@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Deterministic intent-matched review capability used only by adaptive-goal evals.
+set -u
+
+repo=${1:-}
+[ -n "$repo" ] || { printf '%s\n' 'repository path is required' >&2; exit 2; }
+root=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null) || exit 2
+root=$(cd "$root" && pwd -P) || exit 2
+git_dir=$(git -C "$root" rev-parse --absolute-git-dir 2>/dev/null) || exit 2
+base=$(git -C "$root" rev-parse HEAD 2>/dev/null) || exit 2
+packet_file=$(mktemp "$git_dir/independent-review-fixture.XXXXXX") || exit 2
+changed_file=$(mktemp "$git_dir/independent-review-changed.XXXXXX") || exit 2
+untracked_file=$(mktemp "$git_dir/independent-review-untracked.XXXXXX") || exit 2
+trap 'rm -f "$packet_file" "$changed_file" "$untracked_file"' EXIT
+git -C "$root" diff --binary --full-index HEAD -- >"$packet_file" || exit 2
+git -C "$root" diff --name-only -z HEAD -- >"$changed_file" || exit 2
+git -C "$root" ls-files --others --exclude-standard -z >"$untracked_file" ||
+  exit 2
+while IFS= read -r -d '' path; do
+  oid=$(git -C "$root" hash-object -- "$path" 2>/dev/null) || exit 2
+  printf 'untracked_path\0%s\0untracked_oid\0%s\0' "$path" "$oid" >>"$packet_file"
+  cat "$root/$path" >>"$packet_file" || exit 2
+  printf '\0' >>"$packet_file"
+  printf '%s\0' "$path" >>"$changed_file"
+done <"$untracked_file"
+checksum=$(git -C "$root" hash-object "$packet_file" 2>/dev/null) || exit 2
+target=WORKTREE@$base+$checksum
+review_subject_oid=
+if [ -f "$git_dir/fixture-review-event-path" ]; then
+  IFS= read -r review_subject <"$git_dir/fixture-review-event-path" || exit 2
+  [ -n "$review_subject" ] && [ -f "$root/$review_subject" ] || exit 2
+  review_subject_oid=$(git -C "$root" hash-object -- "$review_subject") || exit 2
+fi
+
+outcome=clear
+failure_evidence='Fixture policy rejects this candidate'
+if [ -f "$git_dir/fixture-review-inconclusive" ]; then
+  outcome=inconclusive
+elif [ -f "$git_dir/fixture-review-blocked" ]; then
+  outcome=unavailable
+elif [ -f "$git_dir/fixture-review-fail" ]; then
+  outcome=blocking
+elif [ -f "$git_dir/fixture-review-reject-pattern" ]; then
+  reject_pattern=$(sed -n '1p' "$git_dir/fixture-review-reject-pattern")
+  if [ -n "$reject_pattern" ] && grep -F "$reject_pattern" "$packet_file" >/dev/null 2>&1; then
+    outcome=blocking
+    failure_evidence="Fixture policy rejects changed content containing: $reject_pattern"
+  fi
+fi
+
+printf '%s\t%s\n' "$target" "$outcome" >>"$git_dir/independent-review-invocations"
+if [ -n "$review_subject_oid" ]; then
+  printf 'review\t%s\t%s\n' "$outcome" "$review_subject_oid" >>"$git_dir/review-events"
+fi
+if [ "$outcome" = clear ]; then
+  printf '%s\n' 'Independent review outcome: no blocking findings'
+elif [ "$outcome" = blocking ]; then
+  printf '%s\n' 'Independent review outcome: blocking findings'
+elif [ "$outcome" = inconclusive ]; then
+  printf '%s\n' 'Independent review outcome: inconclusive'
+else
+  printf '%s\n' 'Independent review outcome: unavailable'
+fi
+printf 'Reviewed target: %s\n' "$target"
+while IFS= read -r -d '' path; do
+  [ -n "$path" ] && printf 'Changed file: %s/%s\n' "$root" "$path"
+done <"$changed_file"
+if [ "$outcome" = clear ]; then
+  printf '%s\n' 'Summary: The current change has no blocking findings against the supplied goal and repository instructions.'
+elif [ "$outcome" = blocking ]; then
+  printf 'Blocking finding: %s\n' "$failure_evidence"
+elif [ "$outcome" = inconclusive ]; then
+  printf '%s\n' 'Evidence gap: The review could not reach a reliable conclusion from the available evidence.'
+else
+  printf '%s\n' 'Evidence gap: Required independent review evidence is unavailable.'
+fi

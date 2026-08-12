@@ -93,6 +93,8 @@ native goal. It contains:
 - preserved local-work and permission boundaries;
 - the selected workflow, risk, semantic profile, model, effort, and any
   user-specified stopping budget;
+- the selected independent-review gate, when risk, repository policy, or the
+  user requires one;
 - the final evaluation records required by this capability.
 
 The contract MUST remain concise enough for the narrowest supported native
@@ -120,6 +122,58 @@ publication effects only when each effect was explicitly authorized by the
 originating request and current host policy. Preflight preserves and enumerates
 that authority; it never derives publication authority from successful
 implementation or goal completion.
+
+### Independent review composition
+
+Independent review is a conditional capability gate, not an implementation
+phase owned by adaptive-goal. Preflight selects it by this policy:
+
+| Situation     | Independent review selection                                                                    |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| Routine risk  | Do not select automatically                                                                     |
+| Elevated risk | Select when compatibility, caller impact, or counterexample analysis needs independent judgment |
+| High risk     | Select by default                                                                               |
+| Any risk      | Select when repository policy or the user requires it                                           |
+
+The compiled contract MUST state `selected` or `omitted` with its reason in
+one unambiguous independent-review clause. A selected clause carries the
+portable intent, timing, semantic continuation, target invalidation, and
+publication block into the native goal owner.
+For a structured host-API handoff, selection and reason MUST be separate
+validated fields and the host launcher MUST generate that canonical clause;
+the launcher treats those fields as authoritative and replaces any redundant
+classifier-written `Independent review:` line.
+
+When selected, the goal contract explicitly requests an available environment
+capability matching the intent **independently review this pinned code change**
+without prescribing its plugin, command, result schema, or serialization. It
+MUST NOT name, locate, or read files from a sibling plugin. Before any
+repository mutation, the goal owner confirms that the environment exposes a
+capability matching that intent. An ad hoc review prompt, generic subagent,
+same-context judgment, or capability written during the run is not availability
+evidence. When no matching capability is available, the goal stops honestly
+instead of synthesizing or downgrading the requirement. A matching capability
+may itself use fresh readers; that is its execution machinery, not a substitute
+for capability discovery. An availability stop preserves the mandatory
+native-goal launch record alongside the evidence gap.
+
+After implementation and applicable final-tree checks, the goal owner supplies
+the exact final change, originating objective or specification, repository
+standards, and deterministic-check evidence to that capability. The goal owner
+reads the capability's ordinary response semantically; it does not require a
+machine-readable envelope. A review reporting no blocking findings returns
+control. Blocking findings prevent completion and every not-yet-performed
+publication effect; the goal owner may repair only under existing authority,
+reruns invalidated checks, and invokes independent review against the changed
+target again. Otherwise it stops and reports the findings. An unavailable or
+inconclusive review stops and reports the evidence gap. Content-changing edits
+invalidate an earlier review; only a review of the exact content that will be
+completed or published satisfies the gate.
+
+The canonical review capability remains read-only and owns no repair or
+publication action. Adaptive-goal owns only selection and the outer continuation
+contract. Same-context inspection remains useful verification but never
+satisfies a selected independent-review gate.
 
 ### Composable goal dimensions
 
@@ -154,11 +208,11 @@ selected document MUST be loaded into the native execution turn.
 
 Risk adds proportional verification without changing the workflow:
 
-| Risk       | Required verification                                                                               |
-| ---------- | --------------------------------------------------------------------------------------------------- |
-| `routine`  | focused acceptance or characterization evidence plus the scoped repository gate                     |
-| `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample         |
-| `high`     | elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
+| Risk       | Required verification                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------- |
+| `routine`  | focused acceptance or characterization evidence plus the scoped repository gate                         |
+| `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample             |
+| `high`     | elevated gates plus an adversarial boundary or state-transition check and independent final-tree review |
 
 ### Semantic profiles
 
@@ -308,6 +362,11 @@ the least launch machinery the host supports.
     repository cadence, workflow-specific evidence ordering, and the honest
     limitation when no stable seam, independent oracle, or focused command
     exists.
+11. **AGL-P11 — Canonical review selection.** Preflight applies the normative
+    risk, policy, and user-intent selection policy and, when selected, compiles
+    the portable independent-review intent, target binding, and semantic
+    continuation into the goal without naming an implementation or output
+    format.
 
 ### Routing invariants
 
@@ -333,11 +392,15 @@ the least launch machinery the host supports.
    model ID and effort both match, after rejecting conflicting environment
    overrides.
 7. **AGL-R7 — Authoritative reconciliation.** `route_verified` is true only when
-   host metadata, an accepted host-API turn request, an accepted native-agent
-   spawn with concrete route values or an immutable route-matched Claude agent
-   definition, or a successfully completed launcher record proves that selected
-   and effective routes are identical. Prompt text and model self-report are not
-   application evidence.
+   host metadata, an accepted host-API turn request, a Codex native-agent spawn
+   with concrete route values, transcript-derived Claude child-route evidence
+   confirmed against its immutable runner definition, or a successfully
+   completed launcher record proves that selected and effective routes are
+   identical. Prompt text and model self-report are not application evidence.
+   When a Claude child route cannot be observed, the effective model and effort
+   are `unknown`; when the observed route mismatches, the effective row records
+   that observed tuple. Failed verification never copies the selected tuple into
+   the effective row.
 8. **AGL-R8 — Profile-route integrity.** A policy-sourced host handoff matches
    the prepared active-worktree model and effort for its named semantic profile,
    with repository-or-bundled provenance disclosed. Only an
@@ -388,7 +451,10 @@ the least launch machinery the host supports.
    workflow document. The accepted Agent call is the terminal boundary and
    counts as one Darrow child. Because the Agent tool exposes no child `/goal`
    API, this boundary MUST be reported as a native Agent contract runner rather
-   than a `/goal` session.
+   than a `/goal` session. After it returns, the parent MUST reconcile the
+   child's transcript-derived model and effort with the selected route. Missing
+   or mismatched transcript evidence records `route_verified=false` and
+   `launch_required` instead of successful route application.
 10. **AGL-L10 — Codex agent cleanup.** A Codex native-runner boundary is
     available only when the host exposes both spawn and close controls. The
     runner MUST collect and explicitly close every descendant it creates as
@@ -398,6 +464,11 @@ the least launch machinery the host supports.
     interrupt it, wait for a terminal state, and close it. A completed close
     call targeting the spawned thread is cleanup evidence; prompt text and
     self-report are not.
+11. **AGL-L11 — Review-gated continuation.** A selected independent-review gate
+    completes only when the matching capability reviews the exact final content
+    and reports no blocking findings. Repairs rerun invalidated checks and
+    independent review; blocking findings, stale review, unavailability, or an
+    inconclusive response stop completion.
 
 ### Safety invariants
 
@@ -414,11 +485,18 @@ the least launch machinery the host supports.
    unrelated external mutation remain unauthorized unless separately explicit.
 4. **AGL-S4 — Honest blockage.** An unavailable applicable check or launch
    surface is blocked or `launch_required`, never passed by assertion.
+5. **AGL-S5 — Review before publication.** When independent review is selected,
+   no not-yet-performed commit, push, pull request, or other publication effect
+   may occur after blocking findings or an unavailable or inconclusive review,
+   or against content changed after review. A clear review grants no new
+   publication authority.
 
 ## Packaging and portability
 
 1. **AGL-X1 — Independent plugin.** `darrow-goal-loop` references no sibling
-   plugin and requires none to complete a run.
+   plugin files or named implementation. Conditional capabilities are requested
+   through host-visible intent; a required but unavailable capability stops
+   honestly.
 2. **AGL-X2 — Host branches.** Host-specific launch instructions are disclosed
    only after the host is known; the main skill carries the shared sequence.
 3. **AGL-X3 — User invocation.** The skill remains explicitly invoked because
@@ -428,6 +506,10 @@ the least launch machinery the host supports.
    the plugin.
 5. **AGL-X5 — Portable shell.** Bundled shell mechanics support Bash 5 and
    `/bin/bash` 3.2 and refuse unreadable configuration.
+6. **AGL-X6 — Environment capability mapping.** Review composition depends only
+   on the independent-review intent and semantic outcome, allowing the
+   environment to provide implementations with ordinary prose, native command,
+   or structured responses.
 
 ## Evaluation requirements
 
@@ -468,6 +550,13 @@ the least launch machinery the host supports.
    attributing each increment.
 10. Include held-out human-authored OSS bug-fix, new-feature, and refactor tasks
     before drawing a workflow-selection conclusion.
+11. Evaluate review selection with routine work where review is omitted,
+    elevated work where independent judgment is and is not material, high-risk
+    work where review is required, an unavailable required capability, a
+    blocking-finding repair/rereview path with a new target fingerprint, and
+    publication pressure after blocking findings. Run composition cases on
+    Claude Code and Codex, including ordinary prose review responses so the
+    orchestration cannot couple itself to one provider's result format.
 
 ## Non-goals
 
@@ -482,3 +571,5 @@ the least launch machinery the host supports.
 - Deriving publication authority or implementing Git and forge operations
   itself. An explicitly authorized native goal may use compatible environment
   capabilities for those effects.
+- Implementing code-review judgment, fresh reviewer fan-out, or review result
+  validation inside adaptive-goal.

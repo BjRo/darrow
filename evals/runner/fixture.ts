@@ -196,6 +196,64 @@ async function resolveMountedSkillDirs(
     .map((entry) => join(skillsRoot, entry.name));
 }
 
+async function copySkillWithoutEvals(
+  mountedSkillDir: string,
+  destination: string,
+): Promise<void> {
+  const evalsDir = join(mountedSkillDir, "evals");
+  await cp(mountedSkillDir, destination, {
+    recursive: true,
+    // Never expose any skill's colocated pass criteria to the model.
+    filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
+  });
+}
+
+interface PluginMountPaths {
+  manifest: string;
+  agents: string;
+  bin: string;
+  config: string;
+}
+
+async function mountPluginMechanics(
+  repoDir: string,
+  mount: string,
+  paths: PluginMountPaths,
+): Promise<void> {
+  if (existsSync(paths.bin))
+    await cp(paths.bin, join(repoDir, mount, "..", "bin"), { recursive: true });
+  if (existsSync(paths.config))
+    await cp(paths.config, join(repoDir, mount, "..", "config"), {
+      recursive: true,
+    });
+  if (mount.startsWith(".claude/") && existsSync(paths.agents))
+    await cp(paths.agents, join(repoDir, ".claude", "agents"), {
+      recursive: true,
+    });
+}
+
+async function mountSourceClaudePlugin(
+  repoDir: string,
+  skillDirs: string[],
+  paths: PluginMountPaths,
+): Promise<void> {
+  const evalPlugin = join(repoDir, ".git", "eval-plugin");
+  await mkdir(join(evalPlugin, ".claude-plugin"), { recursive: true });
+  await cp(paths.manifest, join(evalPlugin, ".claude-plugin", "plugin.json"));
+  for (const mountedSkillDir of skillDirs) {
+    const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
+    await copySkillWithoutEvals(
+      mountedSkillDir,
+      join(evalPlugin, "skills", name),
+    );
+  }
+  await cp(paths.agents, join(evalPlugin, "agents"), { recursive: true });
+  if (existsSync(paths.bin))
+    await cp(paths.bin, join(evalPlugin, "bin"), { recursive: true });
+  if (existsSync(paths.config))
+    await cp(paths.config, join(evalPlugin, "config"), { recursive: true });
+}
+
 async function mountSkills(
   repoDir: string,
   options: Pick<
@@ -207,8 +265,12 @@ async function mountSkills(
   // Plugin-level mechanics and deterministic config mount two levels above
   // the skill so relative paths resolve exactly like the repo/plugin cache.
   const pluginRoot = dirname(dirname(skillDir));
-  const pluginBin = join(pluginRoot, "bin");
-  const pluginConfig = join(pluginRoot, "config");
+  const paths: PluginMountPaths = {
+    bin: join(pluginRoot, "bin"),
+    config: join(pluginRoot, "config"),
+    agents: join(pluginRoot, "agents"),
+    manifest: join(pluginRoot, ".claude-plugin", "plugin.json"),
+  };
   const skillDirs = await resolveMountedSkillDirs(skillDir, mountPluginSkills);
   for (const mount of skillMounts) {
     for (const mountedSkillDir of skillDirs) {
@@ -216,23 +278,20 @@ async function mountSkills(
         .split("/")
         .filter(Boolean)
         .pop()!;
-      const evalsDir = join(mountedSkillDir, "evals");
-      await cp(mountedSkillDir, join(repoDir, mount, mountedSkillName), {
-        recursive: true,
-        // Never expose any skill's colocated pass criteria to the model.
-        filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
-      });
+      await copySkillWithoutEvals(
+        mountedSkillDir,
+        join(repoDir, mount, mountedSkillName),
+      );
     }
-    if (existsSync(pluginBin)) {
-      await cp(pluginBin, join(repoDir, mount, "..", "bin"), {
-        recursive: true,
-      });
-    }
-    if (existsSync(pluginConfig)) {
-      await cp(pluginConfig, join(repoDir, mount, "..", "config"), {
-        recursive: true,
-      });
-    }
+    await mountPluginMechanics(repoDir, mount, paths);
+  }
+  if (
+    skillMounts.some((mount) => mount.startsWith(".claude/")) &&
+    existsSync(paths.agents) &&
+    existsSync(paths.manifest)
+  ) {
+    // Use source runner definitions instead of a possibly stale global cache.
+    await mountSourceClaudePlugin(repoDir, skillDirs, paths);
   }
   // Keep mounts invisible to git: they are eval infrastructure, not repo
   // state (a model told "commit my changes" would otherwise commit them).

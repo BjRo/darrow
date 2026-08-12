@@ -1,0 +1,46 @@
+id: code-review-goal-contract-pass
+invariant: CR-C13,CR-C14,CR-E9,CR-E11
+prompt: >-
+  Execute this bounded goal contract. The candidate change is already present
+  in the working tree. Before declaring the goal complete, use the available
+  capability matching this intent: independently review the exact current code
+  change against the originating requirement and repository standards. Require
+  its normal review report. A response with no blocking findings returns
+  control to this goal; blocking findings or unavailable review stop it. After
+  and only after a clear review, run `bash mark-complete.sh`. Originating
+  requirement: exported RATE_LIMIT must equal 2.
+  Acceptance: `bash check.sh` passes. Not authorized: product edits, commits,
+  pushes, pull requests, or any publication action.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash check.sh` for JavaScript changes.
+        src/rate.js: "export const RATE_LIMIT = 1;\n"
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'export const RATE_LIMIT = 2;' src/rate.js >/dev/null
+        mark-complete.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          git_dir=$(git rev-parse --git-dir)
+          printf '%s\n' complete >"$git_dir/goal-complete"
+  files:
+    src/rate.js: "export const RATE_LIMIT = 2;\n"
+checks:
+  - name: passing review returns control to the enclosing goal
+    run: test "$(cat .git/goal-complete)" = complete
+  - name: candidate content remains unchanged
+    run: bash check.sh
+  - name: composed review pins one target
+    run: test "$(find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
+  - name: composed review creates no commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: enclosing completion reports the review outcome
+    expect_regex: "(verdict\\tpass|review[\\s\\S]{0,120}(pass|no blocking|clear))"
+    flags: i

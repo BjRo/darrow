@@ -435,11 +435,11 @@ Adaptive workflows own implementation discipline and feedback cadence:
 
 Risk owns proportional scrutiny:
 
-| Risk       | Required scrutiny                                                                                   |
-| ---------- | --------------------------------------------------------------------------------------------------- |
-| `routine`  | Focused acceptance or characterization evidence plus the scoped repository gate                     |
-| `elevated` | Routine gates plus caller or compatibility checks and a plausible counterexample                    |
-| `high`     | Elevated gates plus an adversarial boundary or state-transition check and broader final-tree review |
+| Risk       | Required scrutiny                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------- |
+| `routine`  | Focused acceptance or characterization evidence plus the scoped repository gate                         |
+| `elevated` | Routine gates plus caller or compatibility checks and a plausible counterexample                        |
+| `high`     | Elevated gates plus an adversarial boundary or state-transition check and independent final-tree review |
 
 Independent review should have one canonical capability definition reused by
 manual review and adaptive execution. The capability remains read-only and
@@ -452,7 +452,7 @@ The provisional selection policy is:
 | ------------- | ----------------------------------------------------------------------------------------------- |
 | Routine risk  | Do not invoke automatically                                                                     |
 | Elevated risk | Invoke when compatibility, caller impact, or counterexample analysis needs independent judgment |
-| High risk     | Invoke by default for broader final-tree review                                                 |
+| High risk     | Invoke by default for independent final-tree review                                             |
 | Any risk      | Invoke when repository policy or the user requires it                                           |
 
 When independent review is selected, fresh context is part of the contract:
@@ -473,10 +473,14 @@ self-preference supports treating author self-evaluation cautiously:
 - [When Can LLMs Actually Correct Their Own Mistakes?](https://aclanthology.org/2024.tacl-1.78/)
 - [LLM Evaluators Recognize and Favor Their Own Generations](https://papers.neurips.cc/paper_files/paper/2024/file/7f1f0218e45f5414c79c0679633e47bc-Paper-Conference.pdf)
 
-The current [`code-review.md`](../specs/code-review.md) already implements the
-fresh, isolated review shape. A later design change would need to define its
-portable capability contract and how adaptive-goal requests it without
-referencing or assuming a sibling plugin.
+The current [`code-review.md`](../specs/code-review.md) implements the fresh,
+isolated review shape. Adaptive-goal requests the capability through host-visible
+intent rather than a sibling plugin name, path, command, or result schema, and
+interprets its ordinary response semantically. No blocking findings returns
+control; blocking findings prevent completion and publication while permitting
+only already authorized outer repair followed by invalidated checks and fresh
+rereview; and unavailable or inconclusive review stops with the evidence gap. A
+required reviewer must be available before product mutation.
 
 ## Resume and recovery without a state machine
 
@@ -646,10 +650,10 @@ after launch.
 
 1. How reliably does the versioned implementation-readiness result compose in
    larger native goals across Claude and Codex?
-2. Which capability identifiers are needed for ticket reading, review,
-   evidence capture, branch, commit, and PR operations?
-3. Should high-risk adaptive goals require a compatible independent review
-   capability, and what is the honest stop behavior when none is available?
+2. Which capability identifiers, if any, are needed for ticket reading,
+   evidence capture, branch, commit, and PR operations beyond intent mapping?
+3. How reliable is the default independent-review requirement for high-risk
+   adaptive goals across varied repositories, models, and hosts?
 4. Which worktree actions must happen before goal launch on each host?
 5. Is early existing-PR detection valuable enough to add a read-only Git/forge
    capability, or is duplicate protection at publication sufficient?
@@ -717,6 +721,21 @@ The current exploratory orchestration evidence remains relevant context:
 - [`2026-08-09-adaptive-goal-sol-baseline-n1.md`](../../evals/experiments/orchestration/snapshots/2026-08-09-adaptive-goal-sol-baseline-n1.md)
 - [`2026-08-08-workflow-risk-heldout-n1.md`](../../evals/experiments/orchestration/snapshots/2026-08-08-workflow-risk-heldout-n1.md)
 
+Initial review-composition trials are also encouraging but remain `N=1`.
+Matched Codex cases selected review for elevated caller impact, high risk, and
+explicit user or repository policy; omitted it for routine work and elevated
+mechanical work with a complete oracle; stopped honestly when a required
+capability was unavailable; blocked publication on `fail`; and repaired then
+rereviewed a changed fingerprint. Direct composed review passed on both Codex
+and Claude, including the repair/rereview path. These trials validate the
+composition shape, not a default-quality claim; the adaptive fixtures now use
+ordinary prose review responses specifically to guard against result-format
+coupling. An adaptive Claude case also selected and invoked the review once,
+then stopped as
+`launch_required` because the isolated eval surface did not retain the child
+transcript needed to prove the effective route; that confirms honest boundary
+handling rather than a successful routed completion.
+
 Those snapshots support further investigation of native-goal orchestration but
 do not establish ticket-to-PR parity or the 90% claim.
 
@@ -734,8 +753,8 @@ latency, and unintended external mutations.
 
 1. Run multi-trial, cross-harness comparisons for implementation-readiness
    composition and the reusable ticket-to-PR goal template.
-2. Define the portable review-capability contract and adaptive selection
-   policy without introducing a sibling-plugin dependency.
+2. Run multi-trial, cross-harness reliability comparisons for intent-mapped
+   review composition and the adaptive selection policy.
 3. Design telemetry correlation and `.darrow` evidence conventions separately
    from the ticket-to-PR recipe.
 4. Evaluate the full ticket-to-PR outcome against the static pipeline baseline,

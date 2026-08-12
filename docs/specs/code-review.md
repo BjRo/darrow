@@ -22,7 +22,8 @@ Darrow plugin.
 
 Use code review when the user asks to review a branch, pull request,
 work-in-progress diff, uncommitted changes, or changes since a named fixed
-point.
+point, or when an explicit larger goal contract requires independent review of
+its final change.
 
 The skill reviews and reports. It does not edit, repair, commit, publish, or
 merge the change unless the user separately requests a capability authorized to
@@ -50,6 +51,41 @@ If several reasonable fixed points would produce materially different review
 scopes, ask for the base rather than guessing. A request such as “review my
 uncommitted changes” is already a sufficient scope when the working tree can be
 identified unambiguously.
+
+## Composition in a larger goal
+
+A larger goal composes review through the host-visible intent **independently
+review this pinned code change**, not through a plugin name or path. It supplies
+the final change scope, originating objective or specification, applicable
+repository standards, and current deterministic-check evidence. The current
+goal owner reads the capability's normal response semantically; it does not
+require a particular serialization or machine-readable envelope.
+
+Selection belongs to the consumer's goal contract. This capability neither
+decides that every implementation needs review nor makes itself a mandatory
+phase. When a goal contract does select independent review:
+
+- it confirms that a matching capability is available before repository
+  mutation; unavailability stops the goal rather than silently substituting
+  author self-review;
+- it invokes review only after the candidate change and applicable final-tree
+  checks are complete;
+- a response with no blocking findings returns control to the goal owner
+  without granting repair, publication, or other authority;
+- blocking findings leave the selected review gate unsatisfied. The goal owner
+  may repair them only under authority it already has, must rerun invalidated
+  checks, and must review the changed target again. Otherwise it stops and
+  reports the findings;
+- an unavailable or inconclusive review stops the goal and reports the evidence
+  gap; and
+- completion or publication requires review of the exact current content. Any
+  content-changing repair or later edit requires another independent review.
+
+The review coordinator remains read-only in every mode. A composed invocation
+returns its normal report to the enclosing goal instead of treating that report
+as the enclosing goal's completion. The enclosing goal owns any later repair,
+stop, or already-authorized publication action and may summarize the review in
+its own completion response.
 
 ## Review axes
 
@@ -113,6 +149,16 @@ axis and report `not_available`. Do not invent requirements.
     and build artifacts produced by checks are permitted.
 12. **CR-C12 — Permission preservation.** Review does not authorize repair,
     commit, push, pull-request mutation, approval, merge, release, or deploy.
+13. **CR-C13 — Composable return.** A standalone invocation returns the
+    review report to its requester. A composed invocation returns the same
+    findings and outcome to the current goal owner, which interprets them and
+    applies its own pass, repair, stop, and publication contract without
+    transferring those actions into the review capability.
+14. **CR-C14 — Target-bound gate.** A passing result satisfies a selected
+    review gate only for the exact reviewed target content. A later
+    content-changing edit invalidates it; author self-review, a stale result,
+    or a result for another fingerprint cannot substitute for a fresh
+    independent review.
 
 ## Result shape
 
@@ -152,6 +198,10 @@ next_action
 6. **CR-P6 — Portable scripts.** Bundled shell mechanics follow Darrow's Bash
    3.2 and Bash 5 requirements, preserve pre-existing changes, and emit
    absolute model-facing paths where paths are needed.
+7. **CR-P7 — Portable composition.** Consumers request independent code review
+   by intent and interpret its reported findings and outcome; neither side needs
+   a sibling plugin path, implementation name, output schema, tracker, or
+   orchestrator-specific API.
 
 ## Evaluation requirements
 
@@ -175,11 +225,21 @@ next_action
 8. **CR-E8 — Value measurement.** Comparative evals record seeded-defect
    detection, false-positive rate, tokens, wall-clock time, and human review
    minutes against a single unstructured review agent.
+9. **CR-E9 — Goal composition.** Evals prove that `pass` returns control to an
+   enclosing goal, while `fail` and `blocked` stop completion and publication
+   unless the enclosing goal has repair authority and reruns review.
+10. **CR-E10 — Repair invalidation.** A composed goal that repairs a failed
+    target reruns invalidated checks and independent review against a different
+    target fingerprint before completion.
+11. **CR-E11 — Same canonical capability.** Direct manual review and review
+    requested from a larger goal exercise the same skill and finding semantics
+    on Claude Code and Codex, without requiring the enclosing goal to reproduce
+    the review's serialization.
 
 ## Non-goals
 
 - Implementing, repairing, refactoring, or formatting the reviewed change.
-- Acting as a required stage of another plugin's workflow.
+- Choosing whether another goal or workflow requires review.
 - Requiring an issue tracker or a particular spec-storage convention.
 - Treating a bundled smell baseline as repository law.
 - Reviewing the entire repository when the user requested a bounded diff.

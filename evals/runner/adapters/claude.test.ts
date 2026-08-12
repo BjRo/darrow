@@ -1,8 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import { claudeAdapter, claudeInputTokens, claudeRunSucceeded } from "./claude";
+import {
+  claudeAdapter,
+  claudeArgv,
+  claudeInputTokens,
+  claudeRunSucceeded,
+} from "./claude";
 
 test("uses Sonnet 5 as the default Claude eval model", () => {
   expect(claudeAdapter.defaultModel).toBe("claude-sonnet-5");
+});
+
+test("loads the eval-only source plugin when one is mounted", () => {
+  const argv = claudeArgv(
+    "Run the case.",
+    "claude-sonnet-5",
+    "medium",
+    "/tmp/eval-plugin",
+  );
+  expect(argv).toContain("--plugin-dir");
+  expect(argv[argv.indexOf("--plugin-dir") + 1]).toBe("/tmp/eval-plugin");
 });
 
 describe("Claude token accounting", () => {

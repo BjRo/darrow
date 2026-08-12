@@ -1,13 +1,16 @@
 ---
 name: code-review
-description: Review one bounded code change—pull request, branch, fixed-point diff, or staged, unstaged, untracked, and work-in-progress changes—against repository standards and any originating specification. Use only for explicit review intent. Report findings without editing, repairing, committing, publishing, approving, merging, releasing, or deploying; do not trigger merely because code was changed or the user asked for implementation.
+description: Review one bounded code change—pull request, branch, fixed-point diff, or staged, unstaged, untracked, and work-in-progress changes—against repository standards and any originating specification. Use for explicit review intent, including an explicit independent-review clause in a larger goal contract. Report findings without editing, repairing, committing, publishing, approving, merging, releasing, or deploying; do not trigger merely because code was changed or the user asked for implementation.
 ---
 
 # Review code
 
-Return an independent, read-only review of one pinned change. The final response
-is only a validated `darrow-review-result-v1` record—no heading, Markdown fence,
-preface, or trailing explanation.
+Return an independent, read-only review of one pinned change. For a standalone
+review request, the final response is only a validated
+`darrow-review-result-v1` record—no heading, Markdown fence, preface, or
+trailing explanation. For an explicit review clause inside a larger goal,
+return the same review report to the current goal owner, then exit this
+capability so the enclosing contract can apply its continuation rule.
 
 ## Working model
 
@@ -23,6 +26,9 @@ preface, or trailing explanation.
   the repository Git directory may be written.
 - **Mechanical aggregation:** the coordinator may validate, deduplicate, and
   serialize reader evidence, but never invent or repair review judgment.
+- **Two invocation modes:** direct review intent is standalone; an explicit
+  independent-review clause with an enclosing outcome is composed. Ordinary
+  implementation intent is neither.
 
 ## Workflow
 
@@ -140,12 +146,38 @@ source, and evidence; preserve their reporting axis. Suppress a model finding
 that merely restates deterministic tool output while keeping the check record.
 Do not introduce a new finding.
 
-Assemble and validate the result beneath the scope artifact directory, then
-copy its bytes verbatim as the entire final response.
+Assemble and validate the result beneath the scope artifact directory. For a
+standalone invocation, copy its bytes verbatim as the entire final response.
+
+For a composed invocation with `verdict=pass`, set `next_action` to return
+control to the enclosing goal, return the review report, and exit this
+capability. The goal owner interprets the report and may perform only actions
+already authorized by the enclosing contract. A pass grants no repair, commit,
+publication, or other authority.
+
+For a composed invocation with `verdict=fail`, set `next_action` to return the
+findings to the enclosing goal, return the review report, and exit this
+capability without repairing. The goal remains incomplete and no
+not-yet-performed publication action may proceed. Its owner may repair only
+under authority already present in the enclosing contract, rerun every check
+invalidated by that edit, and invoke this capability again against the changed
+target. Without repair authority it stops and reports the findings.
+
+For a composed invocation with `verdict=blocked`, set `next_action` to return
+the evidence gap, return the review report, and exit this capability. The
+enclosing goal stops and reports the gap; neither author self-review nor a fresh
+generic reader may replace the unavailable evidence.
+
+The `target` record binds the judgment to exact content. Any later
+content-changing edit invalidates the result. A ref-only action may rely on the
+result only when it still identifies the content to complete or publish;
+otherwise invoke review again.
 
 **Complete when:** the record reconciles the pinned scope, available axes,
 sources, findings, checks, verdict, risks, and next action; validation passes;
-and the final response contains exactly those bytes.
+and either the standalone final response contains exactly those bytes or the
+composed goal owner has received the findings and outcome and applied its
+enclosing contract.
 
 ## Boundaries
 

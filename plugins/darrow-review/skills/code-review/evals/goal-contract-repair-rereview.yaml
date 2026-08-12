@@ -1,0 +1,64 @@
+id: code-review-goal-contract-repair-rereview
+invariant: CR-C13,CR-C14,CR-E9,CR-E10,CR-E11
+prompt: >-
+  Execute this bounded goal contract. The candidate change is already present
+  and must receive independent review before any repair or completion. Use the
+  available capability matching this intent: independently review the exact
+  current code change against the originating requirement and repository
+  standards. Use its normal review report. With no blocking findings, return
+  control to this goal. With blocking findings, repair only those findings
+  under the existing authorization below, rerun invalidated checks, and
+  independently review the changed target fingerprint again. If review is
+  unavailable or inconclusive, stop. After and only after a clear review of the
+  final content, run `bash mark-complete.sh`. Originating
+  requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain
+  3.
+  Acceptance: `bash check.sh` passes. Authorized repair: edit src/config.js
+  only. Not authorized: commits, pushes, pull requests, or other publication.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash check.sh` for JavaScript changes.
+        src/config.js: |
+          export const TIMEOUT_MS = 1000;
+          export const RETRY_COUNT = 3;
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
+          grep -Fx 'export const RETRY_COUNT = 3;' src/config.js >/dev/null
+        mark-complete.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          git_dir=$(git rev-parse --git-dir)
+          printf '%s\n' complete >"$git_dir/goal-complete"
+  files:
+    src/config.js: |
+      export const TIMEOUT_MS = 2500;
+      export const RETRY_COUNT = 0;
+checks:
+  - name: authorized repair reaches the originating requirement
+    run: bash check.sh
+  - name: passing rereview returns control to the enclosing goal
+    run: test "$(cat .git/goal-complete)" = complete
+  - name: repair causes at least two independent review scopes
+    run: test "$(find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
+  - name: rereview uses a new target fingerprint
+    run: >-
+      find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' -exec
+      awk -F '\t' '$1 == "target" { print $2 }' {} + | sort -u >.git/review-targets &&
+      test "$(wc -l <.git/review-targets | tr -d ' ')" -ge 2
+  - name: final reviewed diff contains the repaired content
+    run: >-
+      find .git -maxdepth 2 -name diff.patch -path '*/darrow-review.*/*' -exec
+      grep -l 'RETRY_COUNT = 3' {} + | grep . >/dev/null
+  - name: composed repair creates no commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: enclosing completion reports the rereview outcome
+    expect_regex: "(verdict\\tpass|review[\\s\\S]{0,120}(pass|no blocking|clear))"
+    flags: i

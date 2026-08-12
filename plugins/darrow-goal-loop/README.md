@@ -62,6 +62,17 @@ change when a stable seam and independent oracle exist; repository-mandated
 cadence always wins. Broad final-tree gates run after the tree appears complete,
 not as routine implementation feedback.
 
+The contract also selects independent code review proportionally: routine work
+omits it by default, elevated work selects it when compatibility, caller, or
+counterexample analysis needs independent judgment, high-risk work selects it
+by default, and user or repository policy can require it at any risk. Selection
+uses host-visible intent rather than a sibling plugin name, command, path, or
+output format. A required but unavailable reviewer stops before product
+mutation. A response with no blocking findings returns control; blocking
+findings prevent completion and publication until any authorized repair is
+rechecked and freshly rereviewed; an unavailable or inconclusive review stops
+with the evidence gap.
+
 Repository overrides use the same strict `{"routes":[...]}` object schema as
 the bundled file. An override replaces only its matching `(host, profile)`
 route; omitted routes keep bundled policy. A present override must be readable,
@@ -87,6 +98,9 @@ Agent call can start.
   turn, an accepted native-agent spawn, or a completed launcher record proves
   exact application.
 - Darrow creates no planner, verifier, repair, or cross-vendor role.
+- Darrow does not implement review judgment or fresh-context fan-out inside the
+  goal loop; it interprets the selected environment capability's ordinary
+  response semantically.
 - A first-class Codex goal runner is visible in the host, owns the one native
   goal, and may use Codex's own visible subagents for bounded work. Each Codex
   agent creator closes its children after collecting their results, and the

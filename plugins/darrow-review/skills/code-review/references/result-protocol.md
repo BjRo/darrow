@@ -4,10 +4,22 @@ Use this protocol for both completed reviews and terminal scope failures.
 
 ## Output envelope
 
-The final response begins with `format<TAB>darrow-review-result-v1`, ends with
-the `next_action` record, and contains nothing else. This applies to `pass`,
-`fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff outcomes.
-Every field is one line without tabs.
+A standalone final response begins with
+`format<TAB>darrow-review-result-v1`, ends with the `next_action` record, and
+contains nothing else. This applies to `pass`, `fail`, `blocked`, invalid-base,
+ambiguous-base, and empty-diff outcomes. Every field is one line without tabs.
+
+For an explicit review clause inside a larger goal, the same exact validated
+record is the capability return value rather than the enclosing goal's response
+envelope. The goal owner interprets its findings and outcome, applies the
+enclosing continuation contract, and may summarize the review in its own final
+response. Consumers do not need to parse or reproduce this serialization.
+
+Use `next_action=return control to enclosing goal` for a composed pass,
+`next_action=return findings to enclosing goal` for a composed fail, and
+`next_action=return evidence gap to enclosing goal` for a composed blocked
+result. These records transfer evidence, not authority. Repair, completion, and
+publication remain outside this capability.
 
 ## Terminal scope failure
 
@@ -59,6 +71,7 @@ Write the draft only beneath the scope artifact directory and run:
 bash "$result_tool" validate "$result_record"
 ```
 
-Correct serialization errors only. Copy the validated file bytes verbatim as
-the full response. Add no Markdown fence, prose summary, remediation, commit,
-publication, approval, merge, release, or deploy action.
+Correct serialization errors only. In standalone mode, copy the validated file
+bytes verbatim as the full response. In composed mode, return the review report
+to the goal owner and exit the capability. Add no remediation, commit,
+publication, approval, merge, release, or deploy action inside review.

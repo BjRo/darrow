@@ -26,6 +26,10 @@ interface GoalHandoff {
   risk: GoalRisk;
   profile: string;
   routeSource: "policy" | "user";
+  independentReview: {
+    selection: "selected" | "omitted";
+    reason: string;
+  };
   selectedRoute: GoalRoute;
   goalContract: string;
 }
@@ -203,7 +207,9 @@ export function buildPreparedGoalPrompt(
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
     "",
-    "The goalContract must stay within 4,000 bytes and preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks. Finish with this record:",
+    "The goalContract must stay within 4,000 bytes and preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks.",
+    "Return independentReview with selection selected or omitted and a concise non-empty reason. High risk must select independent review. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
+    "Finish with this record:",
     "format\tdarrow-native-goal-preflight-v4",
     "workflow\t<selected-workflow>",
     "risk\t<selected-risk>",
@@ -217,7 +223,7 @@ export function buildPreparedGoalPrompt(
     "evaluation_child_invocations\t0",
     "evaluation_human_interruptions\t0",
     "",
-    "Return only a darrow-native-goal-handoff-v3 object with workflow, risk, profile, routeSource, selectedRoute, and goalContract.",
+    "Return only a darrow-native-goal-handoff-v3 object with workflow, risk, profile, routeSource, independentReview, selectedRoute, and goalContract.",
     "",
     "Prepared evidence:",
     preparedEvidence,
@@ -243,6 +249,7 @@ export function buildGoalExecutionPrompt(
     intentRoutingGuidance,
     `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. After they pass, complete the native goal and return without rerunning a passing broad gate unless an intervening edit invalidated it.",
+    "Preserve the exact v4 launch record below in the final response, including every stopped turn and a terminal blocked turn; an automatic continuation must not replace it with a summary.",
     "Before returning, complete the native goal and include this exact evidence in the v4 launch record:",
     "format\tdarrow-native-goal-preflight-v4",
     `workflow\t${handoff.workflow}`,
@@ -303,7 +310,12 @@ function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
   return (
     typeof handoff.workflow === "string" &&
     ["routine", "elevated", "high"].includes(handoff.risk ?? "") &&
-    ["policy", "user"].includes(handoff.routeSource ?? "")
+    ["policy", "user"].includes(handoff.routeSource ?? "") &&
+    !!handoff.independentReview &&
+    ["selected", "omitted"].includes(
+      handoff.independentReview.selection ?? "",
+    ) &&
+    typeof handoff.independentReview.reason === "string"
   );
 }
 
@@ -391,8 +403,52 @@ function assertGoalContractRecord(handoff: GoalHandoff): void {
     "evaluation_human_interruptions\t0",
   ];
   const contractLines = handoff.goalContract.split("\n");
+  const reviewReason = handoff.independentReview.reason;
+  if (!reviewReason.trim())
+    throw new Error("independent-review clause must include a reason");
+  if (Buffer.byteLength(reviewReason) > 240 || hasTextControl(reviewReason))
+    throw new Error("independent-review reason must be one bounded text line");
+  if (
+    handoff.risk === "high" &&
+    handoff.independentReview.selection !== "selected"
+  )
+    throw new Error("high-risk goal contract must select independent review");
   if (!requiredContractLines.every((line) => contractLines.includes(line)))
     throw new Error("goal contract does not preserve handoff and final record");
+}
+
+function hasTextControl(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0)!;
+    return (
+      codePoint <= 0x1f ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      codePoint === 0x2028 ||
+      codePoint === 0x2029
+    );
+  });
+}
+
+function canonicalIndependentReviewClause(handoff: GoalHandoff): string {
+  const reason = handoff.independentReview.reason.trim();
+  if (handoff.independentReview.selection === "omitted")
+    return `Independent review: omitted — ${reason}.`;
+  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the current code change; interpret its ordinary response without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; repair only under existing authority, rerun invalidated checks, and review the changed content again.`;
+}
+
+function compileIndependentReviewClause(handoff: GoalHandoff): void {
+  const marker = "format\tdarrow-native-goal-preflight-v4";
+  const normalizedContract = handoff.goalContract
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("Independent review:"))
+    .join("\n");
+  const contract = normalizedContract.replace(
+    marker,
+    `${canonicalIndependentReviewClause(handoff)}\n${marker}`,
+  );
+  if (Buffer.byteLength(contract) > 4000)
+    throw new Error("compiled goal contract exceeds 4,000 bytes");
+  handoff.goalContract = contract;
 }
 
 export function parseCodexGoalHandoff(
@@ -408,7 +464,34 @@ export function parseCodexGoalHandoff(
   assertCatalogRoute(catalog, handoff.selectedRoute);
   assertRouteProvenance(handoff, dimensions, explicitUserRoute);
   assertGoalContractRecord(handoff);
+  compileIndependentReviewClause(handoff);
   return handoff;
+}
+
+function independentReviewSchema() {
+  return {
+    type: "object",
+    properties: {
+      selection: { type: "string", enum: ["selected", "omitted"] },
+      reason: { type: "string", minLength: 1, maxLength: 240 },
+    },
+    required: ["selection", "reason"],
+    additionalProperties: false,
+  };
+}
+
+function selectedRouteSchema() {
+  return {
+    type: "object",
+    properties: {
+      harness: { type: "string", const: "codex" },
+      provider: { type: "string", const: "openai" },
+      model: { type: "string", minLength: 1 },
+      effort: { type: "string", minLength: 1 },
+    },
+    required: ["harness", "provider", "model", "effort"],
+    additionalProperties: false,
+  };
 }
 
 function handoffSchema(profiles: string[]) {
@@ -431,17 +514,8 @@ function handoffSchema(profiles: string[]) {
       risk: { type: "string", enum: ["routine", "elevated", "high"] },
       profile: { type: "string", enum: profiles },
       routeSource: { type: "string", enum: ["policy", "user"] },
-      selectedRoute: {
-        type: "object",
-        properties: {
-          harness: { type: "string", const: "codex" },
-          provider: { type: "string", const: "openai" },
-          model: { type: "string", minLength: 1 },
-          effort: { type: "string", minLength: 1 },
-        },
-        required: ["harness", "provider", "model", "effort"],
-        additionalProperties: false,
-      },
+      independentReview: independentReviewSchema(),
+      selectedRoute: selectedRouteSchema(),
       goalContract: { type: "string", minLength: 1, maxLength: 4000 },
     },
     required: [
@@ -450,6 +524,7 @@ function handoffSchema(profiles: string[]) {
       "risk",
       "profile",
       "routeSource",
+      "independentReview",
       "selectedRoute",
       "goalContract",
     ],
@@ -766,6 +841,14 @@ function isFailedGoalTurn(
   );
 }
 
+/** Complete and blocked are both observable native-goal outcomes. The eval's
+ * repository and output checks decide whether either is correct for the case. */
+export function isReportableGoalStatus(
+  status: string | undefined,
+): status is "complete" | "blocked" {
+  return status === "complete" || status === "blocked";
+}
+
 async function runNativeGoal(
   client: AppServerClient,
   threadId: string,
@@ -779,7 +862,7 @@ async function runNativeGoal(
     throw new Error(
       `Codex goal turn failed: ${JSON.stringify(terminal.params!.turn!.error)}`,
     );
-  if (terminal.params!.goal!.status !== "complete")
+  if (!isReportableGoalStatus(terminal.params!.goal!.status))
     throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
   const terminalTurnId = terminal.params!.turnId;
   if (typeof terminalTurnId !== "string")
@@ -1109,14 +1192,14 @@ function recordGoalEvidence(options: GoalEvidenceOptions): void {
   });
 }
 
-async function assertGoalComplete(
+async function assertGoalSettled(
   client: AppServerClient,
   threadId: string,
 ): Promise<void> {
   const goal = await client.request<GoalGetResult>("thread/goal/get", {
     threadId,
   });
-  if (goal.goal?.status !== "complete")
+  if (!isReportableGoalStatus(goal.goal?.status))
     throw new Error(`native goal ended as ${goal.goal?.status ?? "missing"}`);
 }
 
@@ -1160,7 +1243,7 @@ async function runGoalExecutionPhase(
   });
   const result = await runNativeGoal(client, threadId);
   const durationMs = performance.now() - started;
-  await assertGoalComplete(client, threadId);
+  await assertGoalSettled(client, threadId);
   return { result, durationMs };
 }
 
