@@ -1,10 +1,11 @@
 # Adaptive Ticket-to-PR Opportunity
 
-Status: exploratory research, not an accepted decision or implementation plan  
-Reviewed: 2026-08-11  
+Status: exploratory research, not an accepted decision or implementation plan\
+Reviewed: 2026-08-12\
 Sources: comparison with the AutoScout24 SDLC `ticket-to-pr` skill and
 orchestrator; Matt Shumer's
-[How to Run a Gauntlet Loop](https://somethingbig.ai/gauntlet-loop)
+[How to Run a Gauntlet Loop](https://somethingbig.ai/gauntlet-loop); and the
+layered-composition sketch and follow-up design discussion reproduced below.
 
 ## Purpose
 
@@ -74,19 +75,25 @@ PR URL plus the native goal result
 This keeps the host-native goal owner responsible for continuation. There is no
 post-goal Darrow controller that must wake up to publish the result.
 
-## Layered composition and the Artificer hypothesis
+## Layered composition, automation, and the Artificer hypothesis
 
 A follow-up design discussion placed `ticket-to-pr` in a broader provisional
 composition model. The layers describe increasing outcome scope, not a stack
 of plugin dependencies:
 
-| Layer                       | Role                                                                   | Examples and boundary                                                                                                                                                |
-| --------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Information architecture | Supply ambient context, navigation, authority, and conflict resolution | `AGENTS.md`, scoped instructions, specifications, decisions, and supporting documentation; not an invoked skill                                                      |
-| 2. Capabilities             | Provide focused, intent-matched behavior                               | Git, review, decisions, tickets, readiness, TDD, and evidence; independently adoptable and usable from any higher layer                                              |
-| 3. Adaptive execution       | Compile and activate one bounded engineering goal                      | `adaptive-goal` selects the workflow, risk gate, route, model, and effort; the host-native goal remains the actual runner                                            |
-| 4. Task recipes             | Give users a low-overhead, repeatable outcome                          | `ticket-to-pr` adds specialized intake, preflight, quality-bar, authority, and terminal-outcome semantics around adaptive execution                                  |
-| 5. Artificer                | Pull admitted work into task recipes                                   | An explicitly scheduled, capacity-aware hypothesis that observes tickets and pull requests, claims at most one eligible ticket, and invokes a compatible task recipe |
+![Working sketch of Darrow's layered composition](assets/darrow-layered-composition.png)
+
+The sketch records the working mental model. The table below normalizes its
+layer names and numbering and makes the distinction between the Automation
+layer and Artificer explicit.
+
+| Layer                       | Role                                                                        | Examples and boundary                                                                                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Information architecture | Supply ambient context, navigation, authority, and conflict resolution      | `AGENTS.md`, scoped instructions, specifications, decisions, and supporting documentation; not an invoked skill                                                                     |
+| 2. Capabilities             | Provide focused, intent-matched behavior                                    | Git, review, decisions, tickets, readiness, TDD, and evidence; independently adoptable and usable from any higher layer                                                             |
+| 3. Adaptive execution       | Compile and activate one bounded engineering goal                           | `adaptive-goal` selects the workflow, risk gate, route, model, and effort; the host-native goal remains the actual runner                                                           |
+| 4. Task recipes             | Give users a low-overhead, repeatable outcome                               | `ticket-to-pr` adds specialized intake, preflight, quality-bar, authority, and terminal-outcome semantics around adaptive execution                                                 |
+| 5. Automation               | Invoke task recipes from explicitly configured triggers and admission rules | Artificer is one scheduled, pull-based, capacity-aware automation that observes tickets and pull requests, claims at most one eligible ticket, and invokes a compatible task recipe |
 
 Information architecture and capabilities are better understood as
 cross-cutting planes than as private implementation details of the layers
@@ -96,7 +103,7 @@ above them:
                      information architecture
                               |
                               v
-Artificer -> task recipe -> adaptive-goal -> host-native goal owner
+automation -> task recipe -> adaptive-goal -> host-native goal owner
     \            |              /
      `------ intent-matched capabilities ------'
 ```
@@ -105,6 +112,21 @@ Intent, scope, authority, and the quality bar flow toward the native goal.
 Observed evidence, durable repository and forge state, and terminal outcomes
 flow back. No layer derives additional authority merely because a lower layer
 succeeded.
+
+### Automation is a category
+
+Automation is the general fifth-layer category, not a synonym for Artificer or
+a single required plugin. One automation defines **when and whether** an
+explicitly authorized task recipe should run. The task recipe defines **what
+complete outcome should exist**, adaptive execution decides **how** to reach
+and verify it, and the host-native goal owner performs the work.
+
+Artificer is one provisional automation: it is scheduled, pull-based, and
+capacity-aware. Other automations may follow with different explicitly
+configured triggers, admission policies, and compatible task recipes. They do
+not need to share an Artificer implementation or a common Darrow runtime. As
+with every orchestration layer, configuring an automation is explicit and does
+not grant effects beyond the authority preserved by the invoked task recipe.
 
 ### Task recipes are not adaptive workflows
 
@@ -123,11 +145,11 @@ cache race may select `fix-bug`, a new API behavior `change-feature`, a
 restructuring `refactor`, and a README correction `mechanical`. Conversely,
 different task recipes may reuse the same adaptive workflow.
 
-Artificer should not select the adaptive workflow. A task recipe should
-normally supply authoritative facts, outcome constraints, and permissions
-rather than prescribe implementation mechanics. `adaptive-goal` makes the
-workflow and risk selection after inspecting the bounded request and active
-repository.
+An automation, including Artificer, should not select the adaptive workflow. A
+task recipe should normally supply authoritative facts, outcome constraints,
+and permissions rather than prescribe implementation mechanics.
+`adaptive-goal` makes the workflow and risk selection after inspecting the
+bounded request and active repository.
 
 Commit-time verification illustrates the boundary. `ticket-to-pr` can state:
 
@@ -144,10 +166,11 @@ pattern applies to other recoverable task-outcome failures.
 
 ### Provisional Artificer behavior
 
-`Artificer` is a provisional distinctive name for the explicitly authorized
-pull-based layer above task recipes. It is not a proposed rename of
-`ticket-to-pr`, and neither `ticket-to-pr` nor `adaptive-goal` should require it.
-A direct user invocation remains:
+`Artificer` is a provisional distinctive name for one explicitly authorized,
+scheduled, pull-based automation above task recipes. It is not the name of the
+Automation layer or a proposed rename of `ticket-to-pr`, and neither
+`ticket-to-pr` nor `adaptive-goal` should require it. A direct user invocation
+remains:
 
 ```text
 user -> ticket-to-pr -> adaptive-goal
@@ -640,7 +663,7 @@ apply through normal scoped routing. Discovery, review, evidence, and Git
 capabilities own their focused behavior. Adaptive workflow, risk, semantic
 profile, model, and effort replace stage-specific routing.
 
-The provisional Artificer layer does not weaken these exclusions. Its host
+The provisional Artificer automation does not weaken these exclusions. Its host
 scheduler wakes an activation, the ticket tracker supplies candidate and claim
 state, and the forge supplies pull-request occupancy. Its admission lease does
 not describe ticket-to-PR stages, and it does not supervise the native goal
@@ -667,8 +690,9 @@ after launch.
    native goal, especially for fresh-context review and publication?
 10. How should readiness represent quality bars that combine deterministic
     thresholds, reference artifacts, and contextual judgment?
-11. What portable task-recipe contract lets Artificer discover and invoke
-    outcomes such as `ticket-to-pr` without assuming a sibling plugin?
+11. What portable task-recipe contract lets automations such as Artificer
+    discover and invoke outcomes such as `ticket-to-pr` without assuming a
+    sibling plugin?
 12. Which tracker or environment primitive can provide an atomic, expiring
     claim across concurrent Artificer instances?
 13. How should an Artificer instance correlate its activation, claim,
