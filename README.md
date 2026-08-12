@@ -126,18 +126,34 @@ Darrow is source-available under the
 the Change License. **Each released version becomes MPL-2.0 two years after it
 is published.**
 
-Free, without asking:
+The standard BSL terms permit copying, modification, redistribution, and all
+non-production use.
 
-- Use it yourself, inside your company, and on client work — commercial or not.
-- Run paid or unpaid training, workshops, and talks built on it.
-- Read, fork, modify, and redistribute it under this same license.
-- Contribute back.
+Additional production use that is free, without asking:
 
-Not free:
+- Use Darrow within your own organization for purposes other than commercial
+  education.
+- Use it in client work that is not commercial education.
+- Use it to teach third parties, run workshops or courses, give talks or
+  presentations, and publish blog posts or articles when the activity has no
+  commercial interest.
+- Use it in research, evaluation, and personal projects.
 
-- Offering Darrow, or a derivative of it, to third parties as a product or
-  service whose principal value is Darrow's functionality. That needs a
-  commercial license — contact bjoern@bjro.de.
+Not included in the free production-use grant:
+
+- Use Darrow in education with a commercial interest, whether the audience is
+  inside or outside your organization. That includes compensation or
+  sponsorship, bundling with or promoting paid offerings, lead generation, and
+  other direct or indirect commercial benefits.
+- Offer Darrow, or a derivative of it, to third parties as a product or service
+  whose principal value is Darrow's functionality.
+
+Under the BSL terms, production use outside the Additional Use Grant requires
+you to purchase a commercial license or refrain from that use. For commercial
+licensing, contact bjoern@bjro.de.
+
+Production-use grants are version-specific. Earlier versions remain available
+under the Additional Use Grant distributed with those versions.
 
 Contributions are accepted under Apache-2.0 plus a relicensing grant; see
 [CONTRIBUTING.md](CONTRIBUTING.md).
