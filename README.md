@@ -2,8 +2,6 @@
   <img src="docs/assets/darrow-logo.png" alt="Darrow logo" width="420">
 </p>
 
-# Darrow
-
 Darrow is a marketplace of focused, independently adoptable plugins for coding
 agents. It separates intent-matched capabilities from explicit orchestration,
 and treats each plugin as an optionality boundary. Claude Code and Codex can use
