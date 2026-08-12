@@ -3,146 +3,108 @@
 </p>
 
 Darrow is a marketplace of focused, independently adoptable plugins for coding
-agents. It separates intent-matched capabilities from explicit orchestration,
-and treats each plugin as an optionality boundary. Claude Code and Codex can use
-the same plugin packages directly.
+agents. Each plugin adds one bounded capability or one explicitly invoked
+orchestration helper. Claude Code and Codex can use the same plugin packages
+directly.
 
-## Design
+Install only the plugins you want. Installing a capability does not start work
+automatically, and no plugin assumes that another Darrow plugin is present.
 
-Capabilities teach an agent how to perform a focused kind of work. The model
-selects and invokes them when their advertised intent matches the user's
-request, though users can also name them explicitly. They remain useful without
-an orchestration layer and can be composed wherever their contract is
-available. Orchestration owns a different concern: framing and continuing
-longer-running work until an observable completion condition is reached. It
-starts only through explicit user invocation and must not be inferred merely
-because a task is complex or multi-step.
+## Get started
 
-The core orchestration helper is [`darrow-goal-loop`](plugins/darrow-goal-loop/README.md).
-It performs a read-only preflight, compiles the request and repository evidence
-into a bounded completion contract, selects a proportionate workflow, risk
-gate, model, and effort, and hands the result to one host-native goal owner. It
-improves the starting conditions for native adaptive execution without building
-a second agent runtime around it.
+1. [Install one Darrow plugin](docs/installing-plugins.md) for Claude Code or
+   Codex.
+2. Follow the [first-workflow tutorial](docs/getting-started.md) to run a safe,
+   read-only readiness assessment.
+3. Choose other plugins from the catalog below as you need them.
+
+Most Darrow capabilities are intent-matched: ask for the outcome in ordinary
+language and the agent can select the installed skill. You can also name a
+skill explicitly. Orchestration is different and starts only when you
+explicitly invoke it.
+
+## Plugin catalog
+
+### Capabilities
+
+| Plugin                                                                                 | Use it to                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [`darrow-git`](plugins/darrow-git/README.md)                                           | Create branches, commits, and pull requests through bounded Git workflows.                        |
+| [`darrow-tickets`](plugins/darrow-tickets/README.md)                                   | Create, list, and update tracker work items through a backend-neutral interface.                  |
+| [`darrow-readiness-gate`](plugins/darrow-readiness-gate/README.md)                     | Check whether a request, ticket, specification, or plan is ready to implement.                    |
+| [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md) | Set up or audit lean repository guidance for Claude Code and Codex.                               |
+| [`darrow-decisions`](plugins/darrow-decisions/README.md)                               | Capture decisions at their canonical scope and find existing decision records.                    |
+| [`darrow-tdd`](plugins/darrow-tdd/README.md)                                           | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |
+| [`darrow-review`](plugins/darrow-review/README.md)                                     | Review a pinned change for repository standards and specification fulfillment without editing it. |
+| [`darrow-skill-authoring`](plugins/darrow-skill-authoring/README.md)                   | Create, revise, and validate focused agent skills for Claude Code and Codex.                      |
+
+Each plugin README describes its skills, example requests, and safety
+boundaries.
+
+### Orchestration
+
+[`darrow-goal-loop`](plugins/darrow-goal-loop/README.md) is Darrow's core
+orchestration helper. When explicitly invoked, it prepares repository evidence,
+compiles a bounded completion contract, selects a proportionate workflow and
+risk gate, and hands the work to one host-native goal owner. It does not build a
+second agent runtime around that owner.
 
 [`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline/README.md) is retained
-only as a reference implementation of Darrow's earlier static phase-controller
-approach and as an executable benchmark baseline for the goal loop. It is not a
-second recommended orchestration path or the foundation for a general workflow
-runtime.
+as a reference implementation of Darrow's earlier static phase-controller
+approach and as an executable benchmark baseline. It is not a second
+recommended orchestration path.
 
-Across both layers, narrow bundled scripts hide repeatable tool-call and
-protocol details from the invoking model. Skills retain contextual judgment,
-while scripts own deterministic command construction, validation, parsing, and
-compact result reporting. Plugin-shipped mechanics use portable Bash rather
-than adding a full language runtime; the shared TypeScript/Bun eval runner is
-repository development infrastructure, not a plugin runtime dependency.
+## How Darrow works
+
+Capabilities teach an agent how to perform a focused kind of work. The model
+can select them from a matching request, and users can invoke them explicitly.
+They remain useful without orchestration and compose through host-visible
+intent and capability contracts.
+
+Orchestration owns a different concern: framing and continuing longer-running
+work until an observable completion condition is reached. It starts only
+through explicit user invocation, never merely because a task is complex or
+multi-step.
+
+Across both layers, skills retain contextual judgment while narrow bundled
+scripts own repeatable command construction, validation, parsing, and compact
+result reporting. Plugin-shipped mechanics use portable Bash. The shared
+TypeScript/Bun eval runner is repository development infrastructure, not a
+plugin runtime dependency.
 
 Every skill carries colocated evals for its public behavior and intent
-boundaries. Darrow also uses those evals for evidence-based development: a new
-variant is compared with the relevant control—such as an unmodified host or its
-native goal functionality—under matched fixtures, prompts, routes, and checks
-before an advantage is attributed to the variant.
+boundaries. Behavior-changing variants are compared with relevant controls
+under matched fixtures, prompts, routes, and checks before Darrow attributes an
+advantage to the variant.
 
-See [Design principles](docs/design.md) for the rationale and boundaries.
+See [Design principles](docs/design.md) for the rationale and architectural
+boundaries.
 
-## Capability plugins
+## Repository reference
 
-### [`darrow-git`](plugins/darrow-git/README.md)
+- [Capability specifications](docs/specs) define normative behavior.
+- [Accepted decisions](docs/decisions) record settled repository choices.
+- [Research](docs/research) preserves exploratory, non-normative analysis.
+- [Contributing](CONTRIBUTING.md) explains repository working agreements and
+  verification.
 
-Safe Git workflows for creating branches, commits, and pull requests. Bundled
-scripts enforce naming, staging, message, and duplicate-PR boundaries while the
-skills retain judgment about scope and descriptions.
-
-### [`darrow-tickets`](plugins/darrow-tickets/README.md)
-
-Backend-neutral ticket workflows for creating, listing, and updating work
-items. The plugin validates targets and transitions before changing a tracker.
-
-### [`darrow-readiness-gate`](plugins/darrow-readiness-gate/README.md)
-
-A read-only implementation-readiness capability for tickets, specifications,
-plans, and conversational requests. It returns a concrete quality bar and one
-composable `ready`, `needs-discovery`, `needs-decision`, or `blocked` verdict
-without requiring a tracker or adaptive-goal.
-
-### [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md)
-
-Tools for setting up and auditing lean, routed repository guidance across Codex
-and Claude Code.
-
-### [`darrow-decisions`](plugins/darrow-decisions/README.md)
-
-Skills and deterministic helpers for capturing decisions at their canonical
-scope and querying ADR/specification relationships without creating a competing
-decision store.
-
-### [`darrow-tdd`](plugins/darrow-tdd/README.md)
-
-A compact, model-invoked test-driven-development discipline for implementing
-behavior changes and bug fixes as durable red-to-green slices through public
-seams.
-
-### [`darrow-review`](plugins/darrow-review/README.md)
-
-A read-only code-review capability that pins the exact committed and declared
-working-tree scope, then evaluates repository standards and originating-spec
-fulfillment through isolated reviewers before producing one validated verdict.
-The same intent-matched capability supports direct review and proportional
-selection inside an explicitly invoked adaptive goal without coupling the goal
-to its output serialization.
-
-### [`darrow-skill-authoring`](plugins/darrow-skill-authoring/README.md)
-
-A focused workflow for creating or improving independently installable agent
-skills with deliberate discovery metadata, deterministic validation, judgment
-evals, and fresh-context challenge across Claude Code and Codex.
-
-## Package model
-
-- Plugins are independently adoptable and never reference sibling-plugin files
-  or assume a sibling plugin is installed. Optional collaboration happens
-  through host-visible intent and capability contracts.
-- Capability skills are model-invoked from matching user intent or named
-  explicitly. Orchestration is user-invoked.
-- `darrow-ticket-pipeline` detects a compatible host ticket capability at
-  runtime and blocks cleanly when none is installed.
-- Skills hold judgment; narrow portable-Bash scripts hide and enforce
-  deterministic tool mechanics.
-- Capability invariants live in [`docs/specs`](docs/specs).
-- Per-skill evals verify behavior and compare variants through the shared runner
-  in [`evals/runner`](evals/runner).
-
-The marketplace manifest is
-[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Each plugin
-also contains native Claude Code and Codex manifests.
+The shared repository marketplace manifest is
+[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Every
+plugin also includes native Claude Code and Codex manifests.
 
 ## Standing on the shoulders of giants
 
 Darrow stands on the shoulders of excellent open-source work. I took
 inspiration from [obra's Superpowers](https://github.com/obra/superpowers) and
 especially [Matt Pocock's skills](https://github.com/mattpocock/skills). I also
-learned a great deal from studying [Ouroboros](https://github.com/Q00/ouroboros)
-and [oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex). They are wonderful
+learned a great deal from studying
+[Ouroboros](https://github.com/Q00/ouroboros) and
+[oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex). They are wonderful
 projects—go check them out. Matt Shumer's
 [Gauntlet Loop](https://somethingbig.ai/gauntlet-loop) directly prompted the
 native goal-loop research: give an agent the outcome and an inspectable quality
 bar, let it choose the route, use fresh critics, and keep improving against the
 bar.
-
-## Research and opportunities
-
-- [Adaptive ticket-to-PR opportunity](docs/research/adaptive-ticket-to-pr-opportunity.md)
-  compares the former SDLC controller with a reusable native-goal recipe and
-  cross-checks the design against the Gauntlet Loop. It is exploratory and
-  non-normative.
-- [Workflow opportunities from Matt Pocock's skills](docs/research/matt-pocock-workflow-opportunities.md)
-  records possible discovery, diagnosis, work-planning, and workflow-design
-  additions. It is exploratory and non-normative.
-- [Workflow opportunities from oh-my-codex and Ouroboros](docs/research/oh-my-codex-ouroboros-opportunities.md)
-  contrasts their integrated runtimes with Darrow and records complementary
-  discovery, research, verification, maintenance, and ecosystem ideas. It is
-  exploratory and non-normative.
 
 ## Development
 
