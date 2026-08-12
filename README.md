@@ -129,15 +129,20 @@ is published.**
 Free, without asking:
 
 - Use it yourself, inside your company, and on client work — commercial or not.
-- Run paid or unpaid training, workshops, and talks built on it.
+- Run internal training, or uncompensated community workshops and talks built
+  on it.
 - Read, fork, modify, and redistribute it under this same license.
 - Contribute back.
 
-Not free:
+Not free without a commercial license:
 
+- Use Darrow in compensated training, workshops, courses, talks, or other
+  educational offerings for third parties, including offerings supplied as
+  part of a paid consulting or contract engagement.
 - Offering Darrow, or a derivative of it, to third parties as a product or
-  service whose principal value is Darrow's functionality. That needs a
-  commercial license — contact bjoern@bjro.de.
+  service whose principal value is Darrow's functionality.
+
+For commercial licensing, contact bjoern@bjro.de.
 
 Contributions are accepted under Apache-2.0 plus a relicensing grant; see
 [CONTRIBUTING.md](CONTRIBUTING.md).
