@@ -1,6 +1,6 @@
 ---
 name: assess-implementation-readiness
-description: Assess whether a ticket, specification, plan, or other authoritative request is ready for implementation and return a structured gate verdict. Use when the user asks whether work is ready to implement, asks for an implementation-readiness check, or an explicit goal contract requires a readiness gate before mutation. Do not use merely because the user asks to implement, plan, discover, or review work without readiness-assessment intent.
+description: Assess whether a ticket, specification, plan, or other authoritative request is ready for implementation and return a human-readable gate result or explicitly requested v1 JSON. Use when the user asks whether work is ready to implement, asks for an implementation-readiness check, or an explicit goal contract requires a readiness gate before mutation. Do not use merely because the user asks to implement, plan, discover, or review work without readiness-assessment intent.
 ---
 
 # Assess implementation readiness
@@ -19,20 +19,38 @@ write repository or external state, do not run it as part of this capability.
 
 ## Output mode is part of the contract
 
-Before assessing the input, select exactly one output mode:
+Before assessing the input, select exactly one invocation mode:
 
 - **standalone assessment** — readiness assessment is the user's requested
   outcome; or
 - **composed gate** — an explicit enclosing goal contract requires this
   readiness result before it may continue.
 
-In standalone mode, the semantic payload is exactly one JSON object. Prefer
-raw JSON with no prose. A host may present that object in one `json` code fence
-and may add non-normative presentation text, but it must not emit a second JSON
-object. Consumers ignore all presentation text—including any summary of the
-result—and use the single object as the only authoritative verdict and action.
+Independently select exactly one presentation:
+
+- **human-readable** — the default; or
+- **v1 JSON** — only when the caller explicitly requests JSON or the enclosing
+  contract explicitly requires `darrow-implementation-readiness-v1`.
+
+Do not infer JSON from words such as “result” or “structured,” from an
+autonomous or composed goal, or from the possibility that another model will
+read the response. Composition alone uses the human-readable presentation.
+
+Read [`references/result-contract.md`](references/result-contract.md)
+completely after selecting the presentation and before assessing the input. It
+owns the exact semantic fields, enum values, presentation templates, and
+cross-field validity rules for the result.
+
+In standalone human-readable mode, return one complete report using the
+reference's section structure. Do not append a second summary that competes
+with the report. In standalone JSON mode, the semantic payload is exactly one
+JSON object. Prefer raw JSON with no prose. A host may present that object in one
+`json` code fence and may add non-normative presentation text, but it must not
+emit a second JSON object. Consumers ignore presentation text and use the
+single object as the authoritative serialized result.
+
 Represent every material observation inside `basis`, `quality_bar`, or
-`findings`.
+`findings` in either presentation.
 
 In composed mode, follow the outer-goal rules in section 5. Never append the
 composed ready-gate summary to a standalone assessment.
@@ -153,51 +171,24 @@ assumption merely to keep an enclosing goal moving.
 
 ## 5. Produce the result
 
-Construct one JSON object with exactly these top-level fields:
-
-- `format`: the literal string `darrow-implementation-readiness-v1`;
-- `verdict`: one of `ready`, `needs-discovery`, `needs-decision`, or `blocked`;
-- `basis`: an array of objects containing exactly `source`, `authority`,
-  `status`, and `summary`. `authority` is exactly `authoritative`, `repository`,
-  or `supporting`; `status` is exactly `available`, `missing`, or
-  `contradictory`;
-- `quality_bar`: an array of objects containing exactly `criterion`, `oracle`,
-  and `verification`;
-- `findings`: an array of objects containing exactly `type`, `summary`, and
-  `evidence`, where `evidence` is a non-empty string array; and
-- `required_next_action`: an object containing exactly `type` and
-  `description`.
-
-Use only the enum values defined in the preceding sections. Finding `type` is
-one of `missing-information`, `unresolved-decision`, `contradiction`,
-`dependency`, `permission`, or `quality-bar-gap`. Next-action `type` is one of
-`none`, `discovery`, `decision`, or `unblock`.
-
-Use `darrow-implementation-readiness-v1` literally. Every string must contain
-concrete content rather than a placeholder. `basis` is never empty. A `ready`
-result has at least one quality-bar item, no findings, and next-action type
-`none`. Every other verdict has at least one finding and uses its corresponding
-next-action type: `discovery`, `decision`, or `unblock`.
-
-For a standalone assessment, return only the JSON object under the output mode
-contract above.
+Construct and validate the complete result against
+[`references/result-contract.md`](references/result-contract.md). For a
+standalone assessment, return only the selected human-readable report or v1
+JSON representation under the output-mode contract above.
 
 For a readiness clause inside a larger goal contract, complete this entire
 assessment before the first repository or external mutation:
 
 - if the verdict is not `ready`, terminate the enclosing goal and return the
-  exact JSON result to its goal owner. When the outer contract requires its own
-  completion records, emit the readiness object first and then every required
-  outer record in its exact syntax. The object and outer records are the only
-  authoritative payloads; consumers ignore host presentation text. Do not omit
-  either contract. When no outer reporting contract exists, return the JSON
-  object as the only authoritative payload;
-- if the verdict is `ready`, retain the result as gate evidence, exit this
-  capability, and return control to the current goal owner. That goal may
-  continue only with effects already authorized by its contract. Only after
-  the enclosing goal reaches its own terminal response, that goal reports
-  `implementation readiness: ready` and the quality bar it used. This sentence
-  is not part of a standalone readiness result.
+  complete readiness result to its goal owner in the selected presentation.
+  When the outer contract requires its own completion records, emit the
+  readiness result first and then every required outer record in its exact
+  syntax. Do not omit or replace either contract;
+- if the verdict is `ready`, return the `ready` verdict and concrete
+  `quality_bar` to the current goal owner as gate evidence, exit this
+  capability, and return control. That goal may continue only with effects
+  already authorized by its contract. Any later terminal reporting belongs to
+  the enclosing goal and is not part of this capability's contract.
 
 The ready verdict grants no authority to edit, branch, commit, update a ticket,
 push, open a pull request, release, deploy, or perform another mutation. Do not
@@ -209,6 +200,10 @@ The capability is complete only when every material conclusion is traceable to
 the stated basis, the quality bar supports the verdict, the smallest next
 action matches the verdict, and the assessment itself caused no mutation.
 Before finalizing a composed gate, re-read the enclosing contract's terminal
-reporting clause. If it requires an outer status or other record, append every
-such record after the readiness object even when the verdict stopped all
-mutation. Never treat “stop” as permission to abandon mandatory reporting.
+reporting clause. If a non-ready result stops the goal and that contract
+requires an outer status or other record, append every such record after the
+readiness result. For a composed `ready` gate, completion means returning the
+`ready` verdict and concrete `quality_bar` to the goal owner before
+continuation; the readiness capability does not prescribe the enclosing goal's
+eventual terminal response.
+Never treat “stop” as permission to abandon mandatory outer records.

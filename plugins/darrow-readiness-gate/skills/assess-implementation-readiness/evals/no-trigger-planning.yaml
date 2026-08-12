@@ -24,4 +24,5 @@ checks:
       grep -Ei 'verify|test|check' .git/last-message.md >/dev/null
 output_checks:
   - name: planning intent does not become a readiness verdict
-    not_regex: "darrow-implementation-readiness-v1|needs-discovery|needs-decision"
+    not_regex: "(^|\\n)#{1,3}\\s+Implementation readiness|darrow-implementation-readiness-v1|needs-discovery|needs-decision"
+    flags: i

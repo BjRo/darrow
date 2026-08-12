@@ -106,8 +106,26 @@ independent material alternatives.
 
 ## Result contract
 
-Produce one JSON object conforming to
-`darrow-implementation-readiness-v1` with these fields:
+Produce one semantic readiness result with these fields:
+
+- `verdict`;
+- `basis`;
+- `quality_bar`;
+- `findings`; and
+- `required_next_action`.
+
+The result contract is serialization-neutral. Every presentation identifies
+the same field meanings and enum values. The default standalone presentation
+is concise human-readable Markdown with an explicit verdict, basis, quality
+bar, findings, and required next action. Every material observation belongs in
+one of those sections. A consumer applies the field semantics rather than
+depending on punctuation, heading depth, or another provider-specific
+serialization detail.
+
+When the caller explicitly requests JSON for an automated consumer, or an
+enclosing contract explicitly requires the versioned JSON representation,
+serialize the result as one object conforming to
+`darrow-implementation-readiness-v1`:
 
 ```json
 {
@@ -146,12 +164,21 @@ Produce one JSON object conforming to
 and `required_next_action.type` equal to `none`. Every other verdict requires
 at least one finding and the corresponding non-`none` next-action type.
 
-The semantic payload is exactly one result object. A standalone host response
-may present it as raw JSON or within one `json` code fence and may add
-non-normative presentation text. It must not emit another JSON object.
-Consumers ignore all presentation text, including any summary of the result,
-and extract the single object as the only authoritative verdict and action
-before applying the contract.
+The v1 JSON representation uses exactly the fields shown above, including the
+literal `format` value. In standalone JSON mode, the semantic payload is
+exactly one object. A host may present it as raw JSON or within one `json` code
+fence and may add non-normative presentation text, but it must not emit another
+JSON object. Consumers ignore presentation text and extract the single object
+as the authoritative serialized result. An automated caller that requires a
+raw typed value rather than extractable JSON must enforce the schema at its
+host launcher or API boundary; skill instructions alone do not create that
+typed channel.
+
+Composition alone does not select JSON mode. Do not infer a machine consumer
+from an explicit readiness clause, an autonomous goal, or the possibility that
+another model will read the result. Without an explicit JSON requirement, use
+the default human-readable presentation and preserve its complete semantic
+content.
 
 ## Goal-contract composition
 
@@ -162,14 +189,17 @@ external mutation:
 ```text
 Before mutation, assess implementation readiness through an available
 capability matching that intent. Continue only on `ready`. Otherwise stop and
-report the readiness result and smallest next action.
+preserve the complete readiness result and smallest next action in the final
+response.
 ```
 
 A non-ready verdict terminates the enclosing implementation goal before
-mutation. The goal owner preserves the exact readiness object and may wrap it
-with records its own contract requires; when no outer reporting contract
-exists, the object is the complete final response. A ready verdict returns
-control to that goal, whose separately authorized effects may then continue.
+mutation. The goal owner preserves the complete readiness result in the
+selected presentation and may append records its own contract requires. A
+ready verdict returns the `ready` verdict and concrete `quality_bar` to that
+goal owner as gate evidence before returning control, after which the goal's
+separately authorized effects may continue. The enclosing goal, not the
+readiness capability, owns any terminal reporting after continuation.
 Readiness grants no implementation, publication, ticket-update, or other
 mutation authority.
 
@@ -203,6 +233,10 @@ unavailable.
 8. **IRG-C8 — Composable stop.** Inside an enclosing goal, a non-ready verdict
    stops before mutation; a ready verdict returns control without adding
    authority.
+9. **IRG-C9 — Explicit output negotiation.** The default result is
+   human-readable and preserves every semantic field. The v1 JSON
+   representation is used only when the caller or enclosing contract
+   explicitly requires JSON; composition alone never selects it.
 
 ## Packaging and portability
 
@@ -212,7 +246,9 @@ unavailable.
    assessment from implementation, planning, discovery, ticket maintenance,
    and code review.
 3. **IRG-P3 — Host-portable result.** Claude Code and Codex receive the same
-   verdict meanings and versioned JSON result contract.
+   field meanings and verdict semantics in the default human-readable result;
+   both may produce the same versioned JSON representation when it is
+   explicitly requested.
 4. **IRG-P4 — Judgment stays contextual.** The capability uses model judgment
    for authority, ambiguity, scope, and quality bars; it does not reduce the
    assessment to keyword or field-presence checks.
@@ -240,6 +276,13 @@ unavailable.
 8. **IRG-E8 — Comparative value.** Matched no-skill and candidate trials record
    verdict accuracy, false-ready rate, false-not-ready rate, tokens, and wall
    time without claiming advantage from an unmatched run.
+9. **IRG-E9 — Output negotiation.** Default standalone results and non-ready
+   composed terminal results return the complete human-readable semantic
+   result without a v1 JSON object. A ready composed gate returns its `ready`
+   verdict and concrete `quality_bar` to its goal owner before continuation;
+   later terminal reporting belongs to the enclosing goal's contract. Distinct
+   explicit-machine requests exercise ready and non-ready schema-valid v1
+   objects without changing verdict semantics.
 
 ## Non-goals
 

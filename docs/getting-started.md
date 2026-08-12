@@ -41,9 +41,11 @@ The readiness gate should return exactly one of these verdicts:
 - `blocked`
 
 It should also identify a concrete quality bar and the evidence needed to
-verify the change. The exact verdict can differ between repositories. For
-example, a repository with no identifiable CLI entry point may need discovery;
-that is a successful assessment, not a failed tutorial.
+verify the change in a human-readable report. JSON is available only when a
+caller explicitly requests the versioned machine representation. The exact
+verdict can differ between repositories. For example, a repository with no
+identifiable CLI entry point may need discovery; that is a successful
+assessment, not a failed tutorial.
 
 The workflow is read-only. Confirm that it assessed the request without editing
 files, creating tracker items, or starting implementation.
