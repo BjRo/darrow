@@ -1,0 +1,40 @@
+id: readiness-json-explicit-ready
+invariant: IRG-C9
+prompt: >-
+  Is this ready for implementation? Replace the user-facing phrase "Master
+  account" with "Primary account" in README.md only. It is complete when the
+  old phrase no longer appears in that file, the new phrase appears once, and
+  `bash check.sh` passes. There is no ticket or implementation plan. This
+  result will be consumed by CI automation, so return the
+  darrow-implementation-readiness-v1 JSON representation. Assess readiness
+  only; do not make the edit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Accounts
+
+          Configure the Master account before inviting members.
+        check.sh: |
+          #!/usr/bin/env bash
+          ! grep -F 'Master account' README.md >/dev/null &&
+            test "$(grep -Fc 'Primary account' README.md)" -eq 1
+checks:
+  - name: explicit JSON assessment is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: explicit JSON assessment preserves repository refs
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: explicit machine result is one extractable schema-valid object
+    schema: ./evals/result.schema.json
+  - name: explicit machine request retains the ready verdict
+    json_path: /verdict
+    expect_json: ready
+  - name: explicit machine request has no next action
+    json_path: /required_next_action/type
+    expect_json: none

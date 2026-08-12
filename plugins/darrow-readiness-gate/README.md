@@ -11,10 +11,13 @@ completeness.
 ### `assess-implementation-readiness`
 
 Assesses a ticket, specification, accepted plan, or conversational request and
-returns one versioned result with a `ready`, `needs-discovery`,
+returns one human-readable result with a `ready`, `needs-discovery`,
 `needs-decision`, or `blocked` verdict. The result identifies its authoritative
 basis, a concrete quality bar, readiness findings, and the smallest next
-action.
+action. Automated callers may explicitly request the versioned
+`darrow-implementation-readiness-v1` JSON representation. A caller that
+requires a raw typed value must enforce the schema at its host launcher or API
+boundary.
 
 Example: _“Is this ticket ready for implementation?”_
 
@@ -32,6 +35,8 @@ depends on a particular Darrow sibling.
   changes, review code, or publish work.
 - A formal ticket, plan, or predetermined file list is not required when the
   outcome and quality bar are already concrete.
+- JSON is an explicit machine-output mode, not the default presentation and
+  not an automatic consequence of composition.
 - The plugin does not require adaptive-goal, a tracker, or another Darrow
   plugin.
 

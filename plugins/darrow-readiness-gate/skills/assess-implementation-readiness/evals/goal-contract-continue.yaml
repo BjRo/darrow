@@ -7,7 +7,8 @@ prompt: >-
   otherwise stop and report its result. Acceptance: `timeoutMs` equals 2500
   and `bash check.sh` passes. Authorized effects after a ready verdict: edit
   config.json. Not authorized: commits, pushes, pull requests, or unrelated
-  edits.
+  edits. On completion, report the exact phrase `implementation readiness:
+  ready` and the quality bar used.
 fixture:
   commits:
     - message: "chore: init"
@@ -27,5 +28,5 @@ checks:
     run: grep -Ei 'readiness.{0,160}ready|ready.{0,160}readiness' .git/last-message.md
 output_checks:
   - name: completion reports a ready gate
-    expect_regex: "readiness[\\s\\S]{0,160}ready|ready[\\s\\S]{0,160}readiness"
+    expect_regex: "implementation readiness: ready[\\s\\S]+quality bar"
     flags: i

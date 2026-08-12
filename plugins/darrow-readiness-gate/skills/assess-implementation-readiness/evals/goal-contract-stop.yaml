@@ -1,12 +1,13 @@
-id: readiness-goal-contract-stop
+id: readiness-goal-contract-nonready
 invariant: IRG-C8
 prompt: >-
   Execute this bounded goal contract. Outcome: session renewal follows the
   approved policy in docs/request.md. Before any repository mutation, use an
   available implementation-readiness capability. Continue only if its verdict
-  is ready; otherwise stop and report its result. Authorized effects after a
-  ready verdict: edit auth/session.js and its tests. Not authorized: inventing
-  product policy, committing, pushing, or opening a pull request.
+  is ready; otherwise stop and preserve the complete readiness result and
+  smallest next action in the final response. Authorized effects after a ready
+  verdict: edit auth/session.js and its tests. Not authorized: inventing product
+  policy, committing, pushing, or opening a pull request.
 fixture:
   commits:
     - message: "chore: init"
@@ -26,14 +27,26 @@ checks:
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
   - name: composed goal exposes its non-ready verdict
-    run: grep -Eq '"verdict"[[:space:]]*:[[:space:]]*"needs-decision"' .git/last-message.md
+    run: grep -Ei 'verdict.{0,80}needs-decision' .git/last-message.md
   - name: non-ready composed goal preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&
       test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
       test -z "$(git remote)"
 output_checks:
+  - name: composed result uses the human-readable report
+    expect_regex: "^## Implementation readiness$"
   - name: composed result reports the decision gate
-    expect_regex: '"verdict"\s*:\s*"needs-decision"'
+    expect_regex: "^\\*\\*Verdict:\\*\\* `needs-decision`$"
+  - name: composed result preserves typed basis fields
+    expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$"
+  - name: composed quality bar is explicitly empty or contains typed items
+    expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
+  - name: composed result preserves typed finding fields
+    expect_regex: "^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `unresolved-decision`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
+  - name: composed result preserves the typed next action
+    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `decision`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
+  - name: composition alone does not select JSON
+    not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
   - name: no implementation completion is claimed
     not_regex: "(^|\\n)(Implemented|Completed the change|Updated auth/session)"
