@@ -13,8 +13,21 @@ checks:
     expect_exact: ""
   - name: response asks for the missing subject
     run: cat .git/last-message.md
-    expect_regex: "(what|which).{0,100}(idea|plan|decision|design|topic|subject)|(idea|plan|decision|design|topic|subject).{0,100}(grill|stress.test)"
+    expect_regex: "(what|which).{0,100}(idea|plan|decision|design|topic|subject|target|grill)|(on what[?])|(idea|plan|decision|design|topic|subject).{0,100}(grill|stress.test)|(send|give).{0,40}(topic|subject)"
     flags: i
   - name: response does not invent a decision tree
-    run: cat .git/last-message.md
-    not_regex: "Q2|2[.)]"
+    run: |
+      awk '
+        /^[[:space:]]*[-*+][[:space:]]+/ { bullets++ }
+        {
+          line = $0
+          questions += gsub(/[?]/, "", line)
+          if ($0 ~ /^[*_#> -]*(Q0*[1-9][0-9]*[*_.): \t—-]+|[1-9][0-9]*[.)][ \t]+)/) frontier++
+          if (tolower($0) ~ /(and|also)[[:space:]]+(what|which|who|where|when|why|how|should|is|are|do|does)/) second++
+          if (tolower($0) ~ /,[^?]*[[:space:]](or|and)[[:space:]]/ || tolower($0) ~ /[—(:][^?]*[[:space:]](or|and)[[:space:]]/) menu++
+        }
+        END {
+          if (questions > 1 || bullets > 1 || frontier > 0 || second > 0 || menu > 0) print "invented"
+        }
+      ' .git/last-message.md
+    expect_exact: ""

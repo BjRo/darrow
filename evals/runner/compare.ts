@@ -45,6 +45,8 @@ function comparisonErrors(base: CaseResult, cand: CaseResult): string[] {
   const errors: string[] = [];
   for (const key of [
     "invariant",
+    "evaluationDigest",
+    "passThreshold",
     "harness",
     "harnessVersion",
     "model",

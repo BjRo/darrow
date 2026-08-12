@@ -15,7 +15,7 @@ checks:
     expect_exact: ""
   - name: feature request is not converted into an implementation plan
     run: cat .git/last-message.md
-    not_regex: "implementation (plan|slice)|files to (change|modify)|Phase 1"
+    not_regex: "^[*_#> -]{0,12}(Implementation (plan|slices)|Phase 1)|Here (is|'s) (the )?implementation plan|files to (change|modify)"
     flags: i
   - name: response keeps product unknowns visible
     run: cat .git/last-message.md

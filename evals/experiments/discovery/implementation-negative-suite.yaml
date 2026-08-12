@@ -1,0 +1,11 @@
+version: 1
+experiment: discovery-implementation-negative
+case_filter: discover-feature-no-trigger-implementation
+modes:
+  without-skill:
+    without_skill: true
+  darrow-discovery: {}
+ablations:
+  - name: discovery-implementation-negative
+    baseline: without-skill
+    candidate: darrow-discovery

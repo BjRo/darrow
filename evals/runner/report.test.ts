@@ -6,6 +6,10 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
   return {
     caseId: "oss-sample",
     invariant: "ORCH-OSS-SAMPLE",
+    evaluationDigest: "sha256:shared-evaluation",
+    passThreshold: 0.8,
+    skillDirectory: "/fixture/skills/sample",
+    mountPluginSkills: false,
     harness: "codex",
     model: "candidate-model",
     effort: "medium",
@@ -124,5 +128,128 @@ describe("orchestration suite report", () => {
     expect(markdown).toContain(
       "| codex | darrow-goal-loop | 0.1s | 0.2s | 300 | 1.0 | 0.9s | 120 |",
     );
+  });
+
+  test("uses a generic title when the suite has no orchestration evidence", () => {
+    const markdown = renderSuiteReport([
+      {
+        harness: "codex",
+        mode: "candidate",
+        results: [
+          result({
+            meanChildInvocationCount: undefined,
+            totalHumanInterruptions: undefined,
+          }),
+        ],
+      },
+    ]);
+    expect(markdown).toStartWith("# Evaluation suite report");
+  });
+
+  test("counts a failed harness as a failed task even when checks pass", () => {
+    const value = result({
+      passRate: 0,
+      trials: [
+        {
+          trial: 1,
+          passed: false,
+          checks: [{ name: "outcome", passed: true, detail: "" }],
+          harness: {
+            ok: false,
+            durationMs: 10,
+            inputTokens: 0,
+            outputTokens: 0,
+            costUsd: null,
+            resultText: "",
+            raw: "",
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [value] },
+    ]);
+    expect(markdown).toContain("| codex | candidate | 0% | 0% |");
+  });
+
+  test("marks partial judge and child metrics unknown", () => {
+    const judged = result({
+      trials: [],
+      meanJudgeScore: 5,
+      judgePassRate: 1,
+      meanChildInvocationCount: 2,
+    });
+    const missing = result({
+      caseId: "second",
+      trials: [],
+      meanJudgeScore: undefined,
+      judgePassRate: undefined,
+      meanChildInvocationCount: undefined,
+    });
+    const markdown = renderSuiteReport([
+      {
+        harness: "codex",
+        mode: "candidate",
+        results: [judged, missing],
+      },
+    ]);
+    expect(markdown).toContain(
+      "| codex | candidate | 100% | 100% | n/a | n/a |",
+    );
+    expect(markdown).toContain("unknown | unknown |");
+  });
+
+  test("does not average one measured orchestration trial with one missing trial", () => {
+    const value = result({
+      meanChildInvocationCount: undefined,
+      totalHumanInterruptions: undefined,
+      escapedDefects: undefined,
+      falsePositiveVerifierFindings: undefined,
+      meanJudgeScore: undefined,
+      judgePassRate: undefined,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 0,
+            outputTokens: 0,
+            costUsd: null,
+            resultText: "",
+            raw: "",
+          },
+          orchestrationMetrics: {
+            childInvocationCount: 2,
+            humanInterruptions: 0,
+            escapedDefects: 0,
+            falsePositiveVerifierFindings: 0,
+          },
+        },
+        {
+          trial: 2,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 0,
+            outputTokens: 0,
+            costUsd: null,
+            resultText: "",
+            raw: "",
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [value] },
+    ]);
+    expect(markdown).toContain(
+      "| codex | candidate | 100% | 100% | n/a | n/a |",
+    );
+    expect(markdown).toContain("| unknown | n/a | n/a |");
   });
 });

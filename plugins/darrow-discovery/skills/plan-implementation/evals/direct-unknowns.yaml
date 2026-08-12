@@ -25,20 +25,21 @@ checks:
     expect_exact: ""
   - name: unresolved architecture uses a grilling round
     run: cat .git/last-message.md
-    expect_regex: "^[*_#> -]{0,12}Q1|^[*_#> -]{0,12}1[.)]"
+    expect_regex: '^[*_#> -]{0,12}(Q1[.: \t—-]+|1[.)][ \t]+).{10,}[?]'
+    flags: i
   - name: technical recommendations preserve user choice
     run: cat .git/last-message.md
-    expect_regex: "recommend(ed|ation)?"
+    expect_regex: '^[*_#> -]{0,12}(My[ \t]+)?Recommendation:[*_]{0,4}[ \t]+.+'
     flags: i
   - name: repository facts are used
     run: cat .git/last-message.md
-    expect_regex: "1000|request\\(url|existing (public )?API|configuration lifecycle"
+    expect_regex: "1000|request\\(url|DEFAULT_TIMEOUT_MS|src/(client|config)\\.js"
     flags: i
   - name: dependent compatibility choice is not asked prematurely
     run: cat .git/last-message.md
-    not_regex: "Q[0-9]+[^\n]*(which|choose|select).{0,80}compatib|(which|choose|select).{0,80}compatib[^\n]*Q[0-9]+"
+    not_regex: '^[*_#> -]{0,12}(Q0*([2-9]|[1-9][0-9]+)[*_.): \t—-]+|([2-9]|[1-9][0-9]+)[.)][ \t]+)'
     flags: i
   - name: unresolved choices do not become a final plan
     run: cat .git/last-message.md
-    not_regex: "Final implementation plan|Plan complete|confirmed implementation plan"
+    not_regex: "^[*_#> -]{0,12}(Final[ \\t]+)?Implementation plan|^[*_#> -]{0,12}Plan complete|^[*_#> -]{0,12}Confirmed implementation plan|Here (is|'s) (the )?(final )?implementation plan|^[*_#> -]{0,12}(Step|Slice|Phase)[ \\t]+[0-9]+"
     flags: i

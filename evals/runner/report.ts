@@ -48,15 +48,20 @@ function taskPassRate(result: CaseResult): number {
   if (!result.trials.length) return result.passRate;
   return (
     result.trials.filter((trial) =>
-      trial.checks
-        .filter((check) => !isBookkeepingCheck(check.name))
-        .every((check) => check.passed),
+      [
+        trial.harness.ok,
+        ...trial.checks
+          .filter((check) => !isBookkeepingCheck(check.name))
+          .map((check) => check.passed),
+      ].every(Boolean),
     ).length / result.trials.length
   );
 }
 
-function definedNumbers(values: (number | undefined)[]): number[] {
-  return values.filter((value): value is number => value !== undefined);
+function meanWhenDefined(values: (number | undefined)[]): number | undefined {
+  return values.length && values.every((value) => value !== undefined)
+    ? mean(values as number[])
+    : undefined;
 }
 
 /** Mean over a reported series, or undefined when any entry is unreported. */
@@ -73,22 +78,54 @@ function totalWhenComplete(values: (number | null)[]): number | undefined {
     : undefined;
 }
 
-function cellAssessments(cell: ReportCell): JudgeAssessment[] {
-  return cell.results.flatMap((result) =>
-    result.trials
-      .map((trial) => (trial.judge?.ok ? trial.judge.assessment : undefined))
-      .filter(
-        (assessment): assessment is JudgeAssessment => assessment !== undefined,
-      ),
+function cellAssessments(cell: ReportCell): JudgeAssessment[] | undefined {
+  const trials = cell.results.flatMap((result) => result.trials);
+  const assessments = trials.map((trial) =>
+    trial.judge?.ok ? trial.judge.assessment : undefined,
   );
+  return assessments.length &&
+    assessments.every((assessment) => assessment !== undefined)
+    ? (assessments as JudgeAssessment[])
+    : undefined;
 }
 
 function cellJudgeRuns(cell: ReportCell) {
-  return cell.results.flatMap((result) =>
-    result.trials
-      .map((trial) => trial.judge?.harness)
-      .filter((run): run is NonNullable<typeof run> => run !== undefined),
+  const trials = cell.results.flatMap((result) => result.trials);
+  const runs = trials.map((trial) => trial.judge?.harness);
+  return runs.length && runs.every((run) => run !== undefined)
+    ? (runs as NonNullable<(typeof runs)[number]>[])
+    : undefined;
+}
+
+function rollupJudgeQuality(cell: ReportCell) {
+  return {
+    judgeScore: meanWhenDefined(
+      cell.results.map((result) => result.meanJudgeScore),
+    ),
+    judgePass: meanWhenDefined(
+      cell.results.map((result) => result.judgePassRate),
+    ),
+  };
+}
+
+function judgeQuality(
+  cell: ReportCell,
+  assessments: JudgeAssessment[] | undefined,
+) {
+  const trialCount = cell.results.reduce(
+    (total, result) => total + result.trials.length,
+    0,
   );
+  if (!trialCount) return rollupJudgeQuality(cell);
+  return {
+    judgeScore: assessments
+      ? mean(assessments.map((assessment) => assessment.overallScore))
+      : undefined,
+    judgePass: assessments
+      ? assessments.filter((assessment) => assessment.verdict === "pass")
+          .length / assessments.length
+      : undefined,
+  };
 }
 
 function candidateDurations(cell: ReportCell): number[] {
@@ -97,23 +134,6 @@ function candidateDurations(cell: ReportCell): number[] {
       ? result.trials.map((trial) => trial.harness.durationMs)
       : [result.meanDurationMs],
   );
-}
-
-/** Per-trial judge assessments when present; otherwise the per-case rollups. */
-function judgeQuality(cell: ReportCell, assessments: JudgeAssessment[]) {
-  return {
-    judgeScore: assessments.length
-      ? mean(assessments.map((assessment) => assessment.overallScore))
-      : mean(
-          definedNumbers(cell.results.map((result) => result.meanJudgeScore)),
-        ),
-    judgePass: assessments.length
-      ? assessments.filter((assessment) => assessment.verdict === "pass")
-          .length / assessments.length
-      : mean(
-          definedNumbers(cell.results.map((result) => result.judgePassRate)),
-        ),
-  };
 }
 
 /** Interventions are a total, so an unreported case must not read as zero. */
@@ -140,17 +160,17 @@ function cellMetrics(cell: ReportCell) {
     candidateCost: totalWhenComplete(
       cell.results.map((result) => result.totalCostUsd),
     ),
-    childInvocations: mean(
-      definedNumbers(
-        cell.results.map((result) => result.meanChildInvocationCount),
-      ),
+    childInvocations: meanWhenDefined(
+      cell.results.map((result) => result.meanChildInvocationCount),
     ),
     humanInterventions: humanInterventions(cell),
-    judgeTokens: mean(
-      judgeRuns.map((run) => run.inputTokens + run.outputTokens),
-    ),
-    judgeCost: totalWhenComplete(judgeRuns.map((run) => run.costUsd)),
-    assessments,
+    judgeTokens: judgeRuns
+      ? mean(judgeRuns.map((run) => run.inputTokens + run.outputTokens))
+      : undefined,
+    judgeCost: judgeRuns
+      ? totalWhenComplete(judgeRuns.map((run) => run.costUsd))
+      : undefined,
+    assessments: assessments ?? [],
   };
 }
 
@@ -159,9 +179,14 @@ interface CellMetricRow {
   metric: ReturnType<typeof cellMetrics>;
 }
 
-function outcomesSection(rows: CellMetricRow[]): string[] {
+function outcomesSection(
+  rows: CellMetricRow[],
+  orchestrationEvidence: boolean,
+): string[] {
   return [
-    "# Orchestration value benchmark",
+    orchestrationEvidence
+      ? "# Orchestration value benchmark"
+      : "# Evaluation suite report",
     "",
     "Task pass is the primary outcome and excludes evaluator bookkeeping records. Protocol pass additionally requires the candidate to report child-invocation and human-intervention counts. The condition-blind LLM judge is advisory and scores final-tree correctness, maintainability, test quality, and scope discipline on a 1–5 scale.",
     "",
@@ -198,7 +223,7 @@ function phaseMean(
   cell: ReportCell,
   select: (result: CaseResult) => number | undefined,
 ): number | undefined {
-  return mean(definedNumbers(cell.results.map(select)));
+  return meanWhenDefined(cell.results.map(select));
 }
 
 function phaseSection(cells: ReportCell[]): string[] {
@@ -291,8 +316,13 @@ export function renderSuiteReport(cells: ReportCell[]): string {
     cell,
     metric: cellMetrics(cell),
   }));
+  const orchestrationEvidence = cells.some((cell) =>
+    cell.results.some(
+      (result) => result.meanChildInvocationCount !== undefined,
+    ),
+  );
   return [
-    ...outcomesSection(rows),
+    ...outcomesSection(rows, orchestrationEvidence),
     ...perTaskSection(cells),
     ...phaseSection(cells),
     ...judgeOverheadSection(rows),

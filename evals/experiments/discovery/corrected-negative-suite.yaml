@@ -1,0 +1,13 @@
+version: 1
+experiment: discovery-corrected-negatives
+case_filter:
+  - plan-implementation-direct-unknowns
+  - plan-implementation-no-trigger-discovery
+modes:
+  without-skill:
+    without_skill: true
+  darrow-discovery: {}
+ablations:
+  - name: discovery-corrected-negatives
+    baseline: without-skill
+    candidate: darrow-discovery

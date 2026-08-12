@@ -1,0 +1,14 @@
+version: 1
+experiment: discovery-value-repeated
+case_filter:
+  - grilling-direct-frontier
+  - grilling-incomplete-subject
+  - discover-feature-pressure-premature-brief
+modes:
+  without-skill:
+    without_skill: true
+  darrow-discovery: {}
+ablations:
+  - name: discovery-skill-value-repeated
+    baseline: without-skill
+    candidate: darrow-discovery

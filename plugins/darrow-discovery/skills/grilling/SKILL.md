@@ -9,6 +9,11 @@ Reach shared understanding without silently filling gaps. Treat the subject as
 a dependency-aware decision tree, investigate available facts yourself, and
 leave product decisions and consequential choices with the user.
 
+Before any other workflow step, check whether the user's message names a
+subject to grill. If it does not, ask concisely for that subject and stop. Do
+not ask another question, propose a menu of guessed topics, or begin a numbered
+frontier.
+
 This capability is conversational and read-only. Do not write or edit files,
 record decisions, create or update tickets, start another workflow, implement,
 commit, or publish. An enclosing capability retains its own output and

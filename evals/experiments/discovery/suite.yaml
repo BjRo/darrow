@@ -1,0 +1,17 @@
+version: 1
+experiment: discovery-value
+case_filter:
+  - grilling-direct-frontier
+  - grilling-incomplete-subject
+  - grilling-no-trigger-ordinary-plan
+  - discover-feature-pressure-premature-brief
+  - plan-implementation-direct-unknowns
+  - plan-implementation-no-trigger-discovery
+modes:
+  without-skill:
+    without_skill: true
+  darrow-discovery: {}
+ablations:
+  - name: discovery-skill-value
+    baseline: without-skill
+    candidate: darrow-discovery

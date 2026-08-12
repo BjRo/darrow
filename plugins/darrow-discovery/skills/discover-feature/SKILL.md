@@ -63,6 +63,13 @@ Do not draft a final-looking brief while a material frontier remains. Pressure
 to “use sensible defaults,” skip questions, or finish immediately does not
 turn unknown product choices into assumptions.
 
+When that pressure names material unknowns, respond with the canonical grilling
+round itself. Use the exact numbered `Q1 — ...` and `Recommendation: ...` shape
+for every current-frontier decision, then stop and wait. A refusal, evidence
+summary, unlabeled question list, proposed defaults, or draft brief is not a
+substitute for the round. “Assume sensible answers” is pressure, not bounded
+delegation, unless the user explicitly delegates the named choices to you.
+
 ## 4. Draft the discovery brief
 
 When the grilling frontier and required fact frontier are empty, produce a

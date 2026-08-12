@@ -1,7 +1,15 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
+import {
+  validateAblationDefinitions,
+  type AblationDefinition,
+} from "./ablation";
+import { claudeAdapter } from "./adapters/claude";
+import { codexAdapter } from "./adapters/codex";
+import { codexGoalAdapter } from "./adapters/codex-goal";
 
 interface ModeConfig {
   condition?: string;
@@ -14,6 +22,7 @@ interface ModeConfig {
   apply_case_routes?: boolean;
   effort?: string;
   goal_expectations?: string;
+  without_skill?: boolean;
 }
 
 interface GoalExpectation {
@@ -34,11 +43,14 @@ interface SuiteConfig {
     Record<string, { model: string; effort: string }>
   >;
   goal_expectations?: Record<string, Record<string, GoalExpectation>>;
+  ablations?: AblationDefinition[];
 }
 
-async function git(args: string[]): Promise<string> {
+const REPOSITORY_ROOT = resolve(import.meta.dir, "..", "..");
+
+async function git(args: string[], acceptedExitCodes = [0]): Promise<string> {
   const proc = Bun.spawn(["git", ...args], {
-    cwd: resolve(import.meta.dir, "..", ".."),
+    cwd: REPOSITORY_ROOT,
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -47,8 +59,39 @@ async function git(args: string[]): Promise<string> {
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
-  if (code !== 0) throw new Error(`git ${args.join(" ")} failed: ${stderr}`);
+  if (!acceptedExitCodes.includes(code))
+    throw new Error(`git ${args.join(" ")} failed: ${stderr}`);
   return stdout;
+}
+
+async function repositoryPatch(): Promise<string> {
+  let patch = await git(["diff", "--binary", "HEAD"]);
+  const untracked = (
+    await git(["ls-files", "--others", "--exclude-standard", "-z"])
+  )
+    .split("\0")
+    .filter(Boolean)
+    .sort();
+  for (const path of untracked) {
+    patch += await git(
+      ["diff", "--binary", "--no-index", "--", "/dev/null", path],
+      [0, 1],
+    );
+  }
+  return patch;
+}
+
+function parseEvidenceLimits(
+  rawTrials: string,
+  rawThreshold: string,
+): { trials: number; threshold: number } {
+  const trials = Number(rawTrials);
+  const threshold = Number(rawThreshold);
+  if (!Number.isInteger(trials) || trials < 1)
+    throw new Error("suite trials must be a positive integer");
+  if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1)
+    throw new Error("suite threshold must be greater than 0 and at most 1");
+  return { trials, threshold };
 }
 
 function seededShuffle<T>(items: T[], seed: string): T[] {
@@ -100,6 +143,7 @@ const suitePath = values.suite
   : defaultSuite;
 const suiteDir = dirname(suitePath);
 const suite = parseYaml(await readFile(suitePath, "utf8")) as SuiteConfig;
+const evidenceLimits = parseEvidenceLimits(values.trials!, values.threshold!);
 if (
   suite.version !== 1 ||
   !suite.experiment ||
@@ -121,6 +165,12 @@ const modes = values.mode ?? Object.keys(suite.modes);
 for (const mode of modes) {
   if (!suite.modes[mode]) throw new Error(`unknown suite mode: ${mode}`);
 }
+const ablationErrors = validateAblationDefinitions(
+  suite.modes,
+  suite.ablations ?? [],
+);
+if (ablationErrors.length)
+  throw new Error(`invalid ablation definitions: ${ablationErrors.join("; ")}`);
 
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const orderSeed = values.seed ?? stamp;
@@ -130,7 +180,7 @@ const outputDir = values.output
 await mkdir(outputDir, { recursive: true });
 const runnerRevision = (await git(["rev-parse", "HEAD"])).trim();
 const runnerStatus = await git(["status", "--porcelain"]);
-const runnerPatch = await git(["diff", "--binary", "HEAD"]);
+const runnerPatch = await repositoryPatch();
 const runnerPatchSha256 = runnerPatch
   ? new Bun.CryptoHasher("sha256").update(runnerPatch).digest("hex")
   : null;
@@ -140,9 +190,16 @@ const manifest = {
   format: "darrow-orchestration-suite-v1",
   suite: suitePath,
   startedAt: new Date().toISOString(),
-  trials: Number(values.trials),
-  threshold: Number(values.threshold),
+  trials: evidenceLimits.trials,
+  threshold: evidenceLimits.threshold,
   effort: values.effort,
+  harnesses,
+  modes,
+  models: {
+    claude: values["claude-model"] ?? claudeAdapter.defaultModel,
+    codex: values["codex-model"] ?? codexAdapter.defaultModel,
+  },
+  ablations: suite.ablations ?? [],
   dry: values.dry,
   orderSeed,
   runner: {
@@ -156,12 +213,19 @@ const manifest = {
       ? null
       : {
           harness: values["judge-harness"],
-          model: values["judge-model"] ?? null,
+          model:
+            values["judge-model"] ??
+            (values["judge-harness"] === "claude"
+              ? claudeAdapter.defaultModel
+              : codexAdapter.defaultModel),
           effort: values["judge-effort"],
         },
   cells: [] as Array<{
     harness: string;
     mode: string;
+    fallbackModel: string;
+    fallbackEffort: string;
+    caseRoutes: Record<string, { model: string; effort: string }> | null;
     result: string;
     exitCode: number;
   }>,
@@ -176,41 +240,50 @@ const cellPlan = seededShuffle(
 for (const { harness, modeName } of cellPlan) {
   const mode = suite.modes[modeName]!;
   const condition = mode.condition_by_harness?.[harness] ?? mode.condition;
-  if (!condition) {
-    throw new Error(`${modeName} has no condition for harness ${harness}`);
-  }
   const resultPath = join(outputDir, `${harness}-${modeName}.json`);
+  const model =
+    harness === "claude"
+      ? (values["claude-model"] ?? claudeAdapter.defaultModel)
+      : (values["codex-model"] ??
+        (mode.apply_goal_route
+          ? codexGoalAdapter.defaultModel
+          : codexAdapter.defaultModel));
+  const effort = mode.effort ?? values.effort!;
   const args = [
     "bun",
     resolve(import.meta.dir, "run.ts"),
     "--harness",
     harness,
-    "--condition",
-    resolve(suiteDir, condition),
-    "--condition-label",
-    modeName,
     "--trials",
-    values.trials!,
+    String(evidenceLimits.trials),
     "--threshold",
-    values.threshold!,
+    String(evidenceLimits.threshold),
     "--effort",
-    mode.effort ?? values.effort!,
+    effort,
+    "--model",
+    model,
     "--output",
     resultPath,
   ];
+  if (condition) {
+    args.push(
+      "--condition",
+      resolve(suiteDir, condition),
+      "--condition-label",
+      modeName,
+    );
+  }
   const caseFilters =
     values.case ??
     (Array.isArray(suite.case_filter)
       ? suite.case_filter
       : [suite.case_filter]);
   for (const caseFilter of caseFilters) args.push("--case", caseFilter);
-  const model =
-    harness === "claude" ? values["claude-model"] : values["codex-model"];
-  if (model) args.push("--model", model);
   if (mode.skill_dir) {
     args.push("--skill-dir", resolve(suiteDir, mode.skill_dir));
   }
   if (mode.mount_plugin_skills) args.push("--mount-plugin-skills");
+  if (mode.without_skill) args.push("--without-skill");
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
   if (mode.apply_goal_route) args.push("--apply-goal-route");
@@ -278,6 +351,11 @@ for (const { harness, modeName } of cellPlan) {
   manifest.cells.push({
     harness,
     mode: modeName,
+    fallbackModel: model,
+    fallbackEffort: effort,
+    caseRoutes: mode.apply_case_routes
+      ? (suite.case_routes?.[harness] ?? null)
+      : null,
     result: resultPath,
     exitCode,
   });
@@ -292,6 +370,15 @@ for (const { harness, modeName } of cellPlan) {
 
 console.log(`\nSuite results: ${outputDir}`);
 console.log(`Manifest: ${join(outputDir, basename("suite-run.json"))}`);
+const missingResults = manifest.cells.filter(
+  (cell) => !existsSync(cell.result),
+);
+if (missingResults.length) {
+  console.error(
+    `Reports skipped: ${missingResults.length} cell result file(s) are missing`,
+  );
+  process.exit(1);
+}
 const report = Bun.spawn(
   [
     "bun",
@@ -305,8 +392,26 @@ const report = Bun.spawn(
   },
 );
 const reportExit = await report.exited;
+let ablationExit = 0;
+if (suite.ablations?.length) {
+  const ablation = Bun.spawn(
+    [
+      "bun",
+      resolve(import.meta.dir, "ablation.ts"),
+      join(outputDir, "suite-run.json"),
+    ],
+    {
+      cwd: resolve(import.meta.dir, "..", ".."),
+      stdout: "inherit",
+      stderr: "inherit",
+    },
+  );
+  ablationExit = await ablation.exited;
+}
 process.exit(
-  reportExit !== 0 || manifest.cells.some((cell) => cell.exitCode !== 0)
+  reportExit !== 0 ||
+    ablationExit !== 0 ||
+    manifest.cells.some((cell) => cell.exitCode !== 0)
     ? 1
     : 0,
 );

@@ -213,6 +213,14 @@ export interface JudgeResult {
 export interface CaseResult {
   caseId: string;
   invariant: string;
+  /** Digest of skill-independent participant inputs and hidden evaluation checks. */
+  evaluationDigest: string;
+  /** Aggregate pass threshold supplied for this run. */
+  passThreshold: number;
+  /** Absolute mounted primary skill directory, or null for an explicit no-skill run. */
+  skillDirectory: string | null;
+  /** Whether sibling skills from the same plugin were included in the mounted surface. */
+  mountPluginSkills: boolean;
   harness: string;
   model: string;
   effort: string;

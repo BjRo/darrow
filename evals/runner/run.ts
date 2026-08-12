@@ -50,6 +50,7 @@ interface RunCaseOptions {
   model: string;
   effort: string;
   trials: number;
+  threshold: number;
   dry: boolean;
   condition?: { label: string; text: string };
   withoutSkill?: boolean;
@@ -220,6 +221,44 @@ function trialPrompt(options: RunCaseOptions, repoDir: string): string {
     .replaceAll("{{harness}}", adapter.name)
     .replaceAll("{{model}}", model)
     .replaceAll("{{effort}}", effort);
+}
+
+function stableEvidence(value: unknown): string {
+  if (Array.isArray(value))
+    return `[${value.map((child) => stableEvidence(child)).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${stableEvidence(child)}`)
+      .join(",")}}`;
+  }
+  return value === undefined ? "undefined" : JSON.stringify(value);
+}
+
+function evaluationDigest(options: RunCaseOptions): string {
+  const { evalCase, condition, judge } = options;
+  const participantPrompt = condition?.text.trim()
+    ? `${condition.text.trim()}\n\n${evalCase.prompt}`
+    : evalCase.prompt;
+  const evidence = stableEvidence({
+    participantPrompt,
+    fixture: evalCase.fixture,
+    checks: evalCase.checks,
+    outputChecks: evalCase.output_checks ?? [],
+    expectHeadChange: evalCase.expect_head_change ?? null,
+    requireEvaluationRecords: options.requireEvaluationRecords ?? false,
+    expectedGoalRoute: options.expectedGoalRoute ?? null,
+    assertedGoalRoute: options.assertedGoalRoute ?? null,
+    assertedGoalDimensions: options.assertedGoalDimensions ?? null,
+    judge: judge
+      ? {
+          harness: judge.adapter.name,
+          model: judge.model,
+          effort: judge.effort,
+        }
+      : null,
+  });
+  return new Bun.CryptoHasher("sha256").update(evidence).digest("hex");
 }
 
 function goalRouteControl(
@@ -596,9 +635,9 @@ function orchestrationSummary(
   | "escapedDefects"
   | "falsePositiveVerifierFindings"
 > {
-  const measured = trialResults
-    .map((trial) => trial.orchestrationMetrics)
-    .filter(defined);
+  const observed = trialResults.map((trial) => trial.orchestrationMetrics);
+  if (observed.some(defined) && !observed.every(defined)) return {};
+  const measured = observed.filter(defined);
   if (!measured.length) return {};
   const total = (pick: (metric: (typeof measured)[number]) => number): number =>
     measured.reduce((sum, metric) => sum + pick(metric), 0);
@@ -621,9 +660,11 @@ function orchestrationSummary(
 function judgeSummary(
   trialResults: TrialResult[],
 ): Pick<CaseResult, "meanJudgeScore" | "judgePassRate"> {
-  const assessments = trialResults
-    .map((trial) => (trial.judge?.ok ? trial.judge.assessment : undefined))
-    .filter(defined);
+  const observed = trialResults.map((trial) =>
+    trial.judge?.ok ? trial.judge.assessment : undefined,
+  );
+  if (observed.some(defined) && !observed.every(defined)) return {};
+  const assessments = observed.filter(defined);
   if (!assessments.length) return {};
   return {
     meanJudgeScore: mean(
@@ -655,6 +696,14 @@ function summarizeCase(
   return {
     caseId: evalCase.id,
     invariant: evalCase.invariant,
+    evaluationDigest: evaluationDigest(options),
+    passThreshold: options.threshold,
+    skillDirectory:
+      options.withoutSkill || !evalCase.skillDir ? null : evalCase.skillDir,
+    mountPluginSkills:
+      !options.withoutSkill &&
+      !!evalCase.skillDir &&
+      (evalCase.mount_plugin_skills ?? false),
     harness: adapter.name,
     model,
     effort,
@@ -774,6 +823,17 @@ const { values } = parseArgs({
     "judge-effort": { type: "string", default: "low" },
   },
 });
+
+const trials = Number(values.trials);
+const threshold = Number(values.threshold);
+if (!Number.isInteger(trials) || trials < 1) {
+  console.error("--trials must be a positive integer");
+  process.exit(1);
+}
+if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
+  console.error("--threshold must be greater than 0 and at most 1");
+  process.exit(1);
+}
 
 const baseAdapter = ADAPTERS[values.harness!];
 if (!baseAdapter) {
@@ -904,8 +964,6 @@ if (!cases.length) {
   process.exit(1);
 }
 
-const trials = Number(values.trials);
-const threshold = Number(values.threshold);
 const humanReviewMinutes =
   values["human-review-minutes"] === undefined
     ? undefined
@@ -937,6 +995,7 @@ for (const evalCase of cases) {
     model: caseModel,
     effort: caseEffort,
     trials,
+    threshold,
     dry: values.dry!,
     condition,
     withoutSkill: values["without-skill"],
