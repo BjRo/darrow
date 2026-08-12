@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/darrow-logo.png" alt="Darrow logo" width="420">
+</p>
+
 # Darrow
 
 Darrow is a marketplace of focused, independently adoptable plugins for coding
