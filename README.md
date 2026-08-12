@@ -129,16 +129,17 @@ is published.**
 Free, without asking:
 
 - Use it yourself, inside your company, and on client work — commercial or not.
-- Run internal training, or uncompensated community workshops and talks built
-  on it.
+- Teach third parties, run workshops or courses, give talks or presentations,
+  and publish blog posts or articles about or built on it, provided the
+  activity has no commercial interest.
 - Read, fork, modify, and redistribute it under this same license.
 - Contribute back.
 
-Not free without a commercial license:
+Not free without a separate commercial agreement:
 
-- Use Darrow in compensated training, workshops, courses, talks, or other
-  educational offerings for third parties, including offerings supplied as
-  part of a paid consulting or contract engagement.
+- Use Darrow in third-party education with a commercial interest. That includes
+  compensation or sponsorship, bundling with or promoting paid offerings, lead
+  generation, and other direct or indirect commercial benefits.
 - Offering Darrow, or a derivative of it, to third parties as a product or
   service whose principal value is Darrow's functionality.
 
