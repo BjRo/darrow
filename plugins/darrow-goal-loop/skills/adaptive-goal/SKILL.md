@@ -169,6 +169,9 @@ For selected independent review, compile this continuation behavior into the
 goal contract: invoke the matching capability after implementation and
 applicable final-tree checks, supplying the exact final change, originating
 objective or specification, repository standards, and current check evidence.
+Target preparation starts the review boundary. Finish only that capability
+invocation and await its ordinary response before any other repository work;
+do no repository work outside the capability invocation while it is pending.
 Interpret the capability's ordinary response semantically. No blocking
 findings returns control without adding authority. Blocking findings prevent
 completion and every not-yet-performed publication effect; repair only under

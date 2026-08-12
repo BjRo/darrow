@@ -160,15 +160,20 @@ native-goal launch record alongside the evidence gap.
 After implementation and applicable final-tree checks, the goal owner supplies
 the exact final change, originating objective or specification, repository
 standards, and deterministic-check evidence to that capability. The goal owner
-reads the capability's ordinary response semantically; it does not require a
-machine-readable envelope. A review reporting no blocking findings returns
-control. Blocking findings prevent completion and every not-yet-performed
-publication effect; the goal owner may repair only under existing authority,
-reruns invalidated checks, and invokes independent review against the changed
-target again. Otherwise it stops and reports the findings. An unavailable or
-inconclusive review stops and reports the evidence gap. Content-changing edits
-invalidate an earlier review; only a review of the exact content that will be
-completed or published satisfies the gate.
+starts the review boundary when it begins that capability procedure, including
+any exact-target preparation performed as part of the procedure. Until the
+capability returns its ordinary response, the goal owner MUST finish only that
+capability invocation and MUST NOT perform repository work outside it. A
+background launch is not a completed invocation. The goal owner reads the
+returned response semantically; it does not require a machine-readable
+envelope. A review reporting no blocking findings returns control. Blocking
+findings prevent completion and every not-yet-performed publication effect;
+the goal owner may repair only under existing authority, reruns invalidated
+checks, and invokes independent review against the changed target again.
+Otherwise it stops and reports the findings. An unavailable or inconclusive
+review stops and reports the evidence gap. Content-changing edits invalidate an
+earlier review; only a review of the exact content that will be completed or
+published satisfies the gate.
 
 The canonical review capability remains read-only and owns no repair or
 publication action. Adaptive-goal owns only selection and the outer continuation
@@ -465,8 +470,11 @@ the least launch machinery the host supports.
     call targeting the spawned thread is cleanup evidence; prompt text and
     self-report are not.
 11. **AGL-L11 — Review-gated continuation.** A selected independent-review gate
-    completes only when the matching capability reviews the exact final content
-    and reports no blocking findings. Repairs rerun invalidated checks and
+    starts when the goal owner begins the matching capability procedure,
+    including exact-target preparation. The owner finishes only that invocation
+    and awaits its ordinary response before other repository work. The gate
+    completes only when the capability reviews the exact final content and
+    reports no blocking findings. Repairs rerun invalidated checks and
     independent review; blocking findings, stale review, unavailability, or an
     inconclusive response stop completion.
 
@@ -554,9 +562,11 @@ the least launch machinery the host supports.
     elevated work where independent judgment is and is not material, high-risk
     work where review is required, an unavailable required capability, a
     blocking-finding repair/rereview path with a new target fingerprint, and
-    publication pressure after blocking findings. Run composition cases on
-    Claude Code and Codex, including ordinary prose review responses so the
-    orchestration cannot couple itself to one provider's result format.
+    pending-review case that detects repository work between exact-target
+    preparation and the ordinary response, and publication pressure after
+    blocking findings. Run composition cases on Claude Code and Codex,
+    including ordinary prose review responses so the orchestration cannot
+    couple itself to one provider's result format.
 
 ## Non-goals
 

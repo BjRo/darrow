@@ -30,13 +30,37 @@ test ! -e "$repo/.claude"
 
 printf '%s\n' 'after' >"$repo/candidate.txt"
 printf '%s\n' 'candidate.txt' >"$repo/.git/fixture-review-event-path"
+printf '%s\n' '0' >"$repo/.git/fixture-review-delay-seconds"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo")
 printf '%s\n' "$result" |
   grep -Fx 'Independent review outcome: no blocking findings' >/dev/null
 test "$(wc -l <"$repo/.git/independent-review-invocations" | tr -d ' ')" -eq 1
 test "$(awk -F '\t' 'NF == 2 && $2 == "clear" { print "yes" }' "$repo/.git/independent-review-invocations")" = yes
 test "$(awk -F '\t' '$1 == "review" && $2 == "clear" && $3 != "" { print "yes" }' "$repo/.git/review-events")" = yes
+test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 == start { print "yes"; exit }' "$repo/.git/review-events")" = yes
 first_target=$(printf '%s\n' "$result" | sed -n 's/^Reviewed target: //p')
+test "$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" fingerprint)" = "$first_target"
+
+review_starts=$(grep -c '^review_start' "$repo/.git/review-events")
+printf '%s\n' '2' >"$repo/.git/fixture-review-delay-seconds"
+concurrent_result=$temporary_root/concurrent-result
+bash "$repo/.agents/bin/independent-review-fixture" "$repo" >"$concurrent_result" &
+review_pid=$!
+attempts=0
+while [ "$(grep -c '^review_start' "$repo/.git/review-events")" -le "$review_starts" ]; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -gt 3 ]; then
+    printf '%s\n' 'review fixture did not enter its wait boundary' >&2
+    exit 1
+  fi
+  sleep 1
+done
+printf '%s\n' '# Changed instructions while review was pending' >"$repo/AGENTS.md"
+wait "$review_pid"
+grep -Fx 'Independent review outcome: inconclusive' "$concurrent_result" >/dev/null
+test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 != start { print "yes" }' "$repo/.git/review-events")" = yes
+printf '%s\n' '0' >"$repo/.git/fixture-review-delay-seconds"
+printf '%s\n' '# Instructions' >"$repo/AGENTS.md"
 
 printf '%s\n' 'untracked one' >"$repo/new-file.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo")

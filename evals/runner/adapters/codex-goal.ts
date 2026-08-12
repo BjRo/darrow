@@ -433,7 +433,7 @@ function canonicalIndependentReviewClause(handoff: GoalHandoff): string {
   const reason = handoff.independentReview.reason.trim();
   if (handoff.independentReview.selection === "omitted")
     return `Independent review: omitted — ${reason}.`;
-  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the current code change; interpret its ordinary response without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; repair only under existing authority, rerun invalidated checks, and review the changed content again.`;
+  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; repair only under existing authority, rerun invalidated checks, and review the changed content again.`;
 }
 
 function compileIndependentReviewClause(handoff: GoalHandoff): void {

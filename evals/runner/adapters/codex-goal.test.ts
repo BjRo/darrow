@@ -143,6 +143,12 @@ after`);
     expect(canonicalGuidance).toContain(
       "Interpret the capability's ordinary response semantically",
     );
+    expect(canonicalGuidance).toMatch(
+      /target preparation[\s\S]{0,240}await[\s\S]{0,240}ordinary response/i,
+    );
+    expect(canonicalGuidance).toMatch(
+      /no repository work outside[\s\S]{0,160}capability invocation/i,
+    );
     expect(canonicalGuidance).not.toContain("darrow-review-result-v1");
     expect(canonicalGuidance).toContain("Independent review: selected —");
   });
@@ -239,7 +245,7 @@ after`);
     expect(
       parseCodexGoalHandoff(handoff, catalog, dimensions).goalContract,
     ).toContain(
-      "Independent review: selected — high-risk work requires independent final-tree review; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the current code change; interpret its ordinary response without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; repair only under existing authority, rerun invalidated checks, and review the changed content again.",
+      "Independent review: selected — high-risk work requires independent final-tree review; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; repair only under existing authority, rerun invalidated checks, and review the changed content again.",
     );
     const classifierClause = {
       ...value,

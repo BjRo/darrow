@@ -68,10 +68,12 @@ counterexample analysis needs independent judgment, high-risk work selects it
 by default, and user or repository policy can require it at any risk. Selection
 uses host-visible intent rather than a sibling plugin name, command, path, or
 output format. A required but unavailable reviewer stops before product
-mutation. A response with no blocking findings returns control; blocking
-findings prevent completion and publication until any authorized repair is
-rechecked and freshly rereviewed; an unavailable or inconclusive review stops
-with the evidence gap.
+mutation. Exact-target preparation starts an exclusive review boundary: the
+goal owner finishes that capability invocation and awaits its ordinary response
+before other repository work. A response with no blocking findings returns
+control; blocking findings prevent completion and publication until any
+authorized repair is rechecked and freshly rereviewed; an unavailable or
+inconclusive review stops with the evidence gap.
 
 Repository overrides use the same strict `{"routes":[...]}` object schema as
 the bundled file. An override replaces only its matching `(host, profile)`

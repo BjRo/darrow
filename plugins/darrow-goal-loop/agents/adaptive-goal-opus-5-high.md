@@ -17,9 +17,12 @@ boundary.
 When the contract says `Independent review: selected —`, confirm before
 product edits that the environment exposes a capability matching the required
 review intent. Invoke it only after the final candidate and checks are ready.
-Read its ordinary response semantically and report its outcome and any blocking
-findings; do not require or reproduce a provider-specific serialization. Apply
-the contract's blocking-finding, unavailable-review, repair, rereview,
+Once its exact-target preparation starts, finish only that capability
+invocation and await it before other repository work.
+Read its ordinary response semantically and report its outcome and any
+blocking findings; do not require or reproduce a provider-specific
+serialization. Apply the contract's blocking-finding, unavailable-review,
+repair, rereview,
 target-invalidation, and publication rules.
 
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
