@@ -293,6 +293,14 @@ with its [machine-readable snapshot](snapshots/2026-08-09-adaptive-goal-sol-base
 records the current verification-cadence result, cached-input cost reconstruction,
 benchmark-role correction, and historical static-pipeline context.
 
+The [review-composition snapshot](snapshots/2026-08-12-review-composition-n1.md),
+with its [machine-readable companion](snapshots/2026-08-12-review-composition-n1.json),
+adds `code-review` as an environment-mapped capability and compares the current
+adaptive surface with clean raw Sol/medium controls. It records proportional
+review selection, one independently corroborated blocking finding followed by
+a different-target rereview, reconciled native review-reader usage, and an
+adaptive Cobra completion stop despite passing repository behavior checks.
+
 ## What is measured
 
 - **Task pass rate:** the primary binary outcome, from hidden behavior checks

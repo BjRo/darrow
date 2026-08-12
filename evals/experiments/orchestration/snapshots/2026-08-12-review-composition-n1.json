@@ -1,0 +1,291 @@
+{
+  "format": "darrow-review-composition-snapshot-v1",
+  "date": "2026-08-12",
+  "status": "exploratory-n1",
+  "comparison": {
+    "primaryQuestion": "Where do behavior, completion, latency, token, cost, and review-selection results land after adaptive-goal gained environment-mapped independent review?",
+    "nativeBaseline": "raw Codex native goal on GPT-5.6 Sol at medium effort with no Darrow skills mounted",
+    "adaptiveCandidate": "adaptive-goal with a Terra/low classifier, policy-selected Terra/medium execution, and code-review exposed as an independently mounted environment capability",
+    "harness": "codex",
+    "harnessVersion": "codex-cli 0.147.0",
+    "cases": [
+      "orchestration-oss-cobra-lifecycle",
+      "orchestration-oss-commander-env",
+      "orchestration-oss-express-links"
+    ],
+    "trialsPerCase": 1,
+    "judge": null,
+    "caseContractsUnchanged": true,
+    "relevantPluginAndRunnerSurfaceUnchangedBetweenAcceptedCells": true
+  },
+  "pricing": {
+    "basis": "same 2026-08-09 API list-price basis as the prior Sol-baseline snapshot",
+    "currency": "USD",
+    "unit": "per million text tokens",
+    "providerReported": false,
+    "models": {
+      "gpt-5.6-sol": {
+        "input": 5.0,
+        "cachedInput": 0.5,
+        "output": 30.0
+      },
+      "gpt-5.6-terra": {
+        "input": 2.0,
+        "cachedInput": 0.2,
+        "output": 12.0
+      }
+    },
+    "formula": "((inputTokens - cachedInputTokens) * inputRate + cachedInputTokens * cachedInputRate + outputTokens * outputRate) / 1000000",
+    "reviewReaderPricing": "fresh review readers were priced as inherited Terra/medium descendants; their raw events report usage but not an explicit model field",
+    "excluded": [
+      "enterprise contract discounts",
+      "subscription accounting",
+      "Batch discounts",
+      "tool-call fees",
+      "long-context multipliers"
+    ]
+  },
+  "aggregate": {
+    "behaviorPass": {
+      "native": "3/3",
+      "adaptive": "3/3"
+    },
+    "terminalGoalState": {
+      "nativeReportedComplete": "3/3",
+      "adaptiveComplete": "2/3",
+      "adaptiveBlocked": "1/3"
+    },
+    "native": {
+      "inputTokens": 9913247,
+      "cachedInputTokens": 9444864,
+      "outputTokens": 43536,
+      "totalTokens": 9956783,
+      "totalDurationMs": 1372266.1135,
+      "meanDurationMs": 457422.037833,
+      "estimatedTotalCostUsd": 8.370427,
+      "estimatedMeanCostUsd": 2.790142
+    },
+    "adaptive": {
+      "inputTokens": 6780091,
+      "cachedInputTokens": 6300672,
+      "outputTokens": 52751,
+      "totalTokens": 6832842,
+      "parentReportedTokens": 6149466,
+      "freshReviewReaderTokens": 683376,
+      "totalDurationMs": 1143921.186624,
+      "meanDurationMs": 381307.062208,
+      "estimatedTotalCostUsd": 2.851984,
+      "estimatedMeanCostUsd": 0.950661,
+      "classifierTokens": 56269,
+      "classifierMeanDurationMs": 19115,
+      "darrowChildInvocations": 0,
+      "nativeFreshReviewReaders": 6,
+      "humanInterruptions": 0
+    },
+    "deltaAdaptiveVsNativePercent": {
+      "estimatedCost": -65.927851,
+      "totalTokens": -31.375003,
+      "meanDuration": -16.639989
+    }
+  },
+  "cases": [
+    {
+      "id": "orchestration-oss-cobra-lifecycle",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 276885.235,
+        "inputTokens": 1828202,
+        "cachedInputTokens": 1725696,
+        "outputTokens": 9711,
+        "totalTokens": 1837913,
+        "estimatedCostUsd": 1.666708,
+        "behaviorPass": true,
+        "reportedGoalComplete": true
+      },
+      "adaptive": {
+        "classifierModel": "gpt-5.6-terra",
+        "classifierEffort": "low",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "workflow": "refactor",
+        "risk": "routine",
+        "profile": "routine",
+        "reviewSelection": "omitted",
+        "reviewReason": "routine localized behavior-preserving restructuring with focused characterization and full-suite verification",
+        "durationMs": 263817.969208,
+        "inputTokens": 1190270,
+        "cachedInputTokens": 1094144,
+        "outputTokens": 10657,
+        "totalTokens": 1200927,
+        "estimatedCostUsd": 0.538965,
+        "behaviorPass": true,
+        "goalStatus": "blocked",
+        "goalBlocker": "focused lifecycle checks passed, but go test ./... failed on pre-existing ShellCheck and stale-year golden-fixture behavior"
+      },
+      "deltaAdaptiveVsNativePercent": {
+        "duration": -4.71938,
+        "totalTokens": -34.658115,
+        "estimatedCost": -67.662914
+      }
+    },
+    {
+      "id": "orchestration-oss-commander-env",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 632684.760375,
+        "inputTokens": 5132547,
+        "cachedInputTokens": 4876288,
+        "outputTokens": 21695,
+        "totalTokens": 5154242,
+        "estimatedCostUsd": 4.370289,
+        "behaviorPass": true,
+        "reportedGoalComplete": true
+      },
+      "adaptive": {
+        "classifierModel": "gpt-5.6-terra",
+        "classifierEffort": "low",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "workflow": "implement-feature",
+        "risk": "elevated",
+        "profile": "scaled",
+        "reviewSelection": "selected",
+        "reviewReason": "public parsing semantics, help output, and TypeScript declarations have compatibility and caller-impact implications",
+        "reviewRounds": 2,
+        "freshReviewReaders": 4,
+        "reviewReaderTokens": 544008,
+        "initialReviewTarget": "WORKTREE@769abff2fa9fc2a8ec203c332cbfad17820e35fb+8a7a27284e9f3ef80a206960cf43547dc10e1cba",
+        "initialReviewVerdict": "fail",
+        "initialBlockingFinding": "environment parsing ran before CLI parsing, so an accumulating argParser could receive the environment-derived value as previous and merge rather than override it",
+        "repairPerformed": true,
+        "repairCause": "before the first review readers were spawned, the parent independently inspected later upstream implementation commit 8571a75 and aligned the implementation with it",
+        "reviewCausallyTriggeredRepair": false,
+        "firstReviewScopeStaleWhenReadersSpawned": true,
+        "upstreamSolutionLeakage": true,
+        "finalReviewTarget": "WORKTREE@769abff2fa9fc2a8ec203c332cbfad17820e35fb+296a00f3684ca6c4f056cfc94067851799e0795c",
+        "finalReviewVerdict": "pass",
+        "finalReviewAdvisories": 1,
+        "durationMs": 626977.434041,
+        "inputTokens": 4676994,
+        "cachedInputTokens": 4393728,
+        "outputTokens": 29859,
+        "totalTokens": 4706853,
+        "estimatedCostUsd": 1.803586,
+        "behaviorPass": true,
+        "goalStatus": "complete"
+      },
+      "deltaAdaptiveVsNativePercent": {
+        "duration": -0.902081,
+        "totalTokens": -8.680015,
+        "estimatedCost": -58.730748
+      }
+    },
+    {
+      "id": "orchestration-oss-express-links",
+      "native": {
+        "model": "gpt-5.6-sol",
+        "effort": "medium",
+        "durationMs": 462696.118125,
+        "inputTokens": 2952498,
+        "cachedInputTokens": 2842880,
+        "outputTokens": 12130,
+        "totalTokens": 2964628,
+        "estimatedCostUsd": 2.33343,
+        "behaviorPass": true,
+        "reportedGoalComplete": true
+      },
+      "adaptive": {
+        "classifierModel": "gpt-5.6-terra",
+        "classifierEffort": "low",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "workflow": "fix-bug",
+        "risk": "high",
+        "profile": "routine",
+        "reviewSelection": "selected",
+        "reviewReason": "high-risk HTTP header serialization change requires independent review of the exact final content",
+        "reviewRounds": 1,
+        "freshReviewReaders": 2,
+        "reviewReaderTokens": 139368,
+        "finalReviewTarget": "WORKTREE@45854760ff9bbc007b0e40a60439b22dcb32febc+f7289598b1e74c63b74e8889697c9102da27ad2e",
+        "finalReviewVerdict": "pass",
+        "durationMs": 253125.783375,
+        "inputTokens": 912827,
+        "cachedInputTokens": 812800,
+        "outputTokens": 12235,
+        "totalTokens": 925062,
+        "estimatedCostUsd": 0.509434,
+        "behaviorPass": true,
+        "goalStatus": "complete"
+      },
+      "deltaAdaptiveVsNativePercent": {
+        "duration": -45.293299,
+        "totalTokens": -68.796692,
+        "estimatedCost": -78.168019
+      }
+    }
+  ],
+  "reviewInterpretation": {
+    "selectionObserved": {
+      "routineOmitted": 1,
+      "elevatedSelected": 1,
+      "highSelected": 1
+    },
+    "blockingFindingObserved": true,
+    "repairObserved": true,
+    "reviewCausallyTriggeredRepair": false,
+    "differentTargetRereviewObserved": true,
+    "upstreamSolutionLeakageObserved": true,
+    "semanticCompositionObserved": true,
+    "providerSerializationRequiredByAdaptiveGoal": false,
+    "boundedConclusion": "The composed review capability was selected proportionately, a fresh Spec reader independently corroborated a material defect in the pinned initial scope, and a different final target was rereviewed. The parent had already repaired the defect after inspecting later upstream implementation commit 8571a75 before the readers were spawned, so this run does not show review causing repair. The clean Sol control independently produced a final design that also avoided the defect, so N=1 does not establish a final-quality advantage over raw native goal."
+  },
+  "provenance": {
+    "adaptive": {
+      "result": "evals/results/orchestration-review-composition-n1/live/codex-adaptive-review-capable.json",
+      "sha256": "ddbd07027a4178b3bf7ea29c168c87d4896183296c1dc58c61da12c7df555af7",
+      "startedAt": "2026-08-12T10:04:43.840Z",
+      "orderSeed": "2026-08-12-review-composition-n1-live",
+      "runnerRevision": "b1e4b3414e69128eb31b010efe5f5fdca87fa677",
+      "runnerDirty": true,
+      "runnerPatchSha256": "64562944b3c0a63a95c9b2998896b4bce228d8cdd3d42576d47980314aecab91",
+      "dirtyPatchScope": "README logo addition only; no plugin, runner, task, or check change",
+      "compositeMount": "run-local unchanged copies of adaptive-goal and code-review exposed as sibling environment skills",
+      "executionAnomaly": "all three adaptive cases first hit a read-only sandbox failure, reported blocked, and were then resumed by the host with writable execution; failed-attempt usage and time are retained"
+    },
+    "nativeAcceptedReplacement": {
+      "result": "evals/results/orchestration-review-composition-native-replacement-n1/live/codex-native-sol-clean.json",
+      "sha256": "4bec26654c28451ea87fad17910fc9a91413dd856df67873d2b161e00cf22a55",
+      "startedAt": "2026-08-12T10:50:52.197Z",
+      "orderSeed": "2026-08-12-review-composition-native-replacement-live",
+      "runnerRevision": "1672e083991020a959362656f5ba27e020d61c90",
+      "runnerDirty": false,
+      "skillsMounted": false,
+      "rerunReason": "replace the original control cell after audit found that mounting code-review for symmetry contaminated raw-native behavior"
+    },
+    "nativeExcluded": {
+      "result": "evals/results/orchestration-review-composition-n1/live/codex-native-sol.json",
+      "sha256": "e7fef771c0924959229b9477f0aaf29d43e82ad49084da2ab4cd81d8abb248eb",
+      "accepted": false,
+      "exclusionReason": "code-review was mounted and raw-native agents read or partially entered its workflow despite the control condition"
+    },
+    "rawBundles": "gitignored and retained locally"
+  },
+  "limitations": [
+    "N=1 per task; latency, tokens, and review behavior are not stable population estimates",
+    "no condition-blind quality judge ran",
+    "native and adaptive cells were sequential rather than interleaved",
+    "the accepted cells record different repository revisions because unrelated documentation and license commits landed between runs; relevant plugin, runner, task, and check content did not change",
+    "raw native goal activation happened inside a headless Codex turn, while adaptive goal activation was applied directly by the host adapter; raw-native discovery overhead is therefore part of the measured surface and this is not a pure review-only ablation",
+    "all three adaptive cases first hit a read-only sandbox failure and reported blocked before host resume with writable execution; the failed attempts remain in adaptive time and token totals, making the efficiency comparison conservative but the execution path less clean",
+    "the runner headline excludes native review-reader usage and reports zero Darrow child invocations; this snapshot manually reconciles six native reader threads from raw token events",
+    "fresh reader events do not include an explicit model field; reader cost assumes normal inheritance of the Terra/medium execution route",
+    "Cobra passed product behavior checks but adaptive-goal stopped blocked on unrelated broad-suite failures, so equal behavior pass does not mean equal terminal completion",
+    "the deterministic Commander contract did not directly assert the accumulating-parser counterexample found during adaptive review",
+    "the Commander goal inspected and used later upstream implementation commit 8571a75 before the first review readers were spawned; this solution leakage prevents attributing the repair to review",
+    "cost is reconstructed rather than provider-reported"
+  ],
+  "conclusion": "In this exploratory N=1 snapshot, adaptive-goal with environment-mapped independent review passed the same three deterministic behavior contracts as clean raw Sol/medium native goal and selected review proportionately. A fresh Spec reader independently corroborated a real defect in an initial pinned scope, and a changed final target was rereviewed, but the parent had already repaired the defect after inspecting a later upstream solution before those readers ran; review-triggered repair is therefore unproven. After manually reconciling fresh-reader usage, adaptive used 31.4 percent fewer tokens, cost an estimated 65.9 percent less, and finished 16.6 percent faster on average. One adaptive goal stopped blocked on unrelated broad-suite failures, so terminal completion was 2/3 rather than the native control's reported 3/3."
+}
