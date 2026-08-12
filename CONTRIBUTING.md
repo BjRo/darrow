@@ -43,6 +43,26 @@ plugin content. In particular:
 - Use imperative Conventional Commits without trailing periods, and no AI
   attribution or `Co-authored-by` trailers.
 
+## Documentation
+
+Use [Diátaxis](https://diataxis.fr/) as an editorial guide for reader-facing
+documentation. Give each page one primary user need:
+
+- a **tutorial** helps a learner gain confidence through a guided experience;
+- a **how-to guide** helps a competent user accomplish a specific goal;
+- **reference** supplies accurate facts needed while working; and
+- **explanation** provides context and answers why the system is designed as it
+  is.
+
+Apply the distinctions incrementally. Do not create empty four-part directory
+scaffolding or reorganize documents solely to make their paths match the four
+labels. Landing pages may route to multiple documentation types, but a content
+page should link to a different mode instead of interrupting its primary job.
+
+The existing repository directories express authority and lifecycle rather
+than reader need. Keep normative contracts in `docs/specs/`, accepted choices
+in `docs/decisions/`, and exploratory material in `docs/research/`.
+
 ## Before opening a pull request
 
 ```sh
