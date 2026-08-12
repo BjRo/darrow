@@ -1,0 +1,38 @@
+id: explain-visually-file-responsibility
+invariant: VE-C2,VE-C3,VE-C5,VE-C7
+mount_plugin_skills: true
+prompt: >-
+  Map where command parsing, session state, and API transport live in this
+  repository. Use a shallow responsibility view with source anchors, not a
+  prose tour, and leave the repository unchanged.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/commands/parse.ts: |
+          export const parseCommand = (input: string) => input.trim().split(/\s+/)
+        src/sessions/store.ts: |
+          export class SessionStore { private sessions = new Map() }
+        src/transport/client.ts: |
+          export const sendRequest = (request: Request) => fetch(request)
+        src/index.ts: |
+          export { parseCommand } from "./commands/parse"
+          export { SessionStore } from "./sessions/store"
+          export { sendRequest } from "./transport/client"
+checks:
+  - name: explanation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: responsibility tree includes each owning area
+    run: >-
+      grep -F 'commands/' .git/last-message.md >/dev/null;
+      grep -F 'sessions/' .git/last-message.md >/dev/null;
+      grep -F 'transport/' .git/last-message.md >/dev/null;
+      grep -Ei 'pars(e|ing)|session state|API|request' .git/last-message.md >/dev/null
+  - name: response is a shallow visual rather than a prose tour
+    run: >-
+      grep -Eq '^src/$' .git/last-message.md;
+      grep -Eq '^[[:space:]]*(\|--|`--|├|└).*commands/' .git/last-message.md;
+      grep -Eq '^[[:space:]]*(\|--|`--|├|└).*sessions/' .git/last-message.md;
+      grep -Eq '^[[:space:]]*(\|--|`--|├|└).*transport/' .git/last-message.md;
+      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 22

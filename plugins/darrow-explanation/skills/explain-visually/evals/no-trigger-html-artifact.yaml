@@ -1,0 +1,20 @@
+id: explain-visually-no-trigger-html-artifact
+invariant: VE-C1,VE-C7,VE-E1
+mount_plugin_skills: true
+prompt: >-
+  Create a polished standalone HTML explainer named architecture.html for the
+  two-layer architecture described in README.md. This is an artifact-creation
+  request, not an inline conversational explanation.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          The UI sends commands to the API. The API returns results to the UI.
+checks:
+  - name: artifact request is performed outside visual explanation behavior
+    run: >-
+      test -f architecture.html;
+      grep -Ei '<!doctype html|<html' architecture.html >/dev/null
+  - name: response does not refuse because the inline skill is read-only
+    run: '! grep -Ei "cannot create|will not create|only inline|read-only capability" .git/last-message.md'

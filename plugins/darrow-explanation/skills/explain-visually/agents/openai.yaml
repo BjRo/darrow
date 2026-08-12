@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explain Visually"
+  short_description: "Show technical structure compactly"
+  default_prompt: "Explain this technical subject with the smallest accurate visual."

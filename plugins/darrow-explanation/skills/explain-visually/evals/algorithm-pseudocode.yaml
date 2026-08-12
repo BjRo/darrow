@@ -1,0 +1,37 @@
+id: explain-visually-algorithm-pseudocode
+invariant: VE-C2,VE-C3,VE-C5,VE-C7
+mount_plugin_skills: true
+prompt: >-
+  Explain nextDelay as compact pseudocode. Preserve invalid-attempt handling,
+  the exponential cap, and the jitter range. Do not modify files and do not
+  restate the TypeScript line by line.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/retry.ts: |
+          const BASE_MS = 100
+          const MAX_MS = 30_000
+
+          // random returns a uniformly distributed number in [0, 1).
+          export function nextDelay(attempt: number, random: () => number): number {
+            if (attempt < 1) throw new Error("attempt must be positive")
+            const capped = Math.min(BASE_MS * 2 ** (attempt - 1), MAX_MS)
+            return Math.floor(capped / 2 + random() * capped / 2)
+          }
+checks:
+  - name: explanation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: pseudocode preserves all material branches
+    run: >-
+      grep -Ei 'attempt.*< *1|attempt.*positive' .git/last-message.md >/dev/null;
+      grep -Ei 'error|throw|reject|fail' .git/last-message.md >/dev/null;
+      grep -Ei 'cap|maximum|30.?000' .git/last-message.md >/dev/null;
+      grep -Ei 'jitter|random|half|50%' .git/last-message.md >/dev/null
+  - name: response is compact pseudocode
+    run: >-
+      grep -Ei 'if|return' .git/last-message.md >/dev/null;
+      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
+  - name: unrelated collaborators are not invented
+    run: '! grep -Ei "database|queue|network|cache|normal distribution" .git/last-message.md'

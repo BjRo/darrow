@@ -1,0 +1,22 @@
+{
+  "name": "darrow-explanation",
+  "version": "0.1.0",
+  "description": "Compact, grounded visual explanations for technical subjects",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Explanation",
+    "shortDescription": "See technical structure without prose walls",
+    "longDescription": "Explain code, runtime flow, state, ownership, algorithms, and proposed changes through compact source-grounded visual forms.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": [
+      "Explain this code path visually.",
+      "This is too much prose. Show me the structure."
+    ]
+  }
+}
