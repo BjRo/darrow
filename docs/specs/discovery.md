@@ -61,8 +61,9 @@ whose unknowns must be resolved. Existing conversation decisions, named
 authoritative sources, repository evidence, and available external sources may
 establish prerequisites.
 
-If no subject can be identified, ask for the subject in one compact question.
-Do not manufacture a design tree around a guessed topic.
+If no subject can be identified, make the user-facing final answer exactly
+`What subject would you like me to grill?` and stop. Do not add an explanation,
+topic menu, second question, or numbered frontier to that answer.
 
 ### Method
 
@@ -221,7 +222,9 @@ skill.
 1. **DG-C1 — Direct and composed intent.** Grilling is available directly for
    explicit interview, challenge, or stress-test intent and as the canonical
    unknown-resolution method inside outcome-oriented discovery skills. It does
-   not take over ordinary incomplete requests.
+   not take over ordinary incomplete requests. When direct grilling intent has
+   no identifiable subject, its user-facing final answer is exactly `What
+subject would you like me to grill?`, and it stops.
 2. **DG-C2 — Dependency-aware frontier.** Each round asks all material
    independent questions whose prerequisites are settled and defers dependent
    questions until a later round.
@@ -284,8 +287,10 @@ skill.
 3. **DC-E3 — Fact ownership.** Repository fixtures contain facts tempting to
    ask the user; the skills inspect and use them without making the user look
    them up.
-4. **DC-E4 — Incomplete input.** A subjectless grilling request asks for the
-   missing subject without inventing one.
+4. **DC-E4 — Incomplete input.** A subjectless grilling request produces the
+   user-facing final answer `What subject would you like me to grill?`, with no
+   explanation, topic menu, second question, or numbered frontier in that
+   answer.
 5. **DC-E5 — Pressure and delegation.** Direct grilling retains its canonical
    recommendations and dependency ordering under pressure. Outcome skills do
    not convert time pressure or undelegated gaps into assumptions; when the

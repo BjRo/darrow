@@ -34,11 +34,12 @@ async function messageChecks(
 }
 
 describe("discovery eval loopholes", () => {
-  test("subjectless grilling rejects numbered and bulleted questionnaires", async () => {
+  test("subjectless grilling accepts only the canonical question", async () => {
     const path =
       "plugins/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml";
-    const name = "response does not invent a decision tree";
+    const name = "response is exactly the canonical subject question";
     for (const message of [
+      "What subject would you like me to grill?\n\nHappy to help.",
       "What topic would you like grilled?\n\nQ3 — What scale?",
       "What plan should I grill?\n\n- Who uses it?\n- What scale is expected?",
       "What topic should I grill?\nWhat outcome matters?",
@@ -55,11 +56,6 @@ describe("discovery eval loopholes", () => {
       "Which topic should I grill (payments or authentication)?",
       "What would you like me to grill — a plan, decision, design, or idea?",
       "What would you like me to grill — a plan or decision you're weighing? I need a concrete target.",
-    ]) {
-      const [check] = await messageChecks(path, message, [name]);
-      expect(check?.passed).toBe(false);
-    }
-    for (const message of [
       "What subject do you want me to grill?",
       "What idea or plan would you like me to grill?",
       "- What topic should I grill?",
@@ -71,9 +67,16 @@ describe("discovery eval loopholes", () => {
       "What should we grill?",
       "What do you want grilled? Give me one concrete target.",
     ]) {
-      const [natural] = await messageChecks(path, message, [name]);
-      expect(natural?.passed).toBe(true);
+      const [check] = await messageChecks(path, message, [name]);
+      expect(check?.passed).toBe(false);
     }
+
+    const [canonical] = await messageChecks(
+      path,
+      "What subject would you like me to grill?",
+      [name],
+    );
+    expect(canonical?.passed).toBe(true);
   });
 
   test("unresolved planning rejects a premature compatibility question", async () => {

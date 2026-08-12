@@ -5,14 +5,26 @@ description: Grill, interview, challenge, or relentlessly stress-test a plan, de
 
 # Grilling
 
-Reach shared understanding without silently filling gaps. Treat the subject as
-a dependency-aware decision tree, investigate available facts yourself, and
-leave product decisions and consequential choices with the user.
+## Missing-subject gate
 
-Before any other workflow step, check whether the user's message names a
-subject to grill. If it does not, ask concisely for that subject and stop. Do
-not ask another question, propose a menu of guessed topics, or begin a numbered
-frontier.
+Apply this gate as the first behavior after loading this skill, before following
+any other section or inspecting the repository for subject facts. If the user
+explicitly requests grilling but their message does not identify a plan,
+decision, design, idea, or other subject to grill, make the user-facing final
+answer exactly this line:
+
+```text
+What subject would you like me to grill?
+```
+
+Stop the skill immediately after that answer. Any other content in the final
+answer violates this capability, including a greeting, explanation, topic menu,
+example, second question, numbered frontier, Markdown wrapper, or paraphrase.
+Do not infer a subject from unrelated repository content.
+
+Reach shared understanding without silently filling gaps. Treat an identified
+subject as a dependency-aware decision tree, investigate available facts
+yourself, and leave product decisions and consequential choices with the user.
 
 This capability is conversational and read-only. Do not write or edit files,
 record decisions, create or update tickets, start another workflow, implement,
@@ -50,9 +62,9 @@ Identify the plan, decision, design, idea, or enclosing outcome to examine.
 Carry forward choices the user has already made and sources they identified as
 authoritative.
 
-If the subject is missing, ask one compact question for it and stop the round.
-Do not guess a topic or manufacture a questionnaire from unrelated repository
-content.
+If the subject is missing, respond only with `What subject would you like me to
+grill?` and stop the round. Do not guess a topic, add any other text, or
+manufacture a questionnaire from unrelated repository content.
 
 State the working subject briefly when its boundary could otherwise be
 misunderstood. Do not ask the user to repeat context that is already available.
