@@ -1,0 +1,23 @@
+{
+  "name": "darrow-discovery",
+  "version": "0.1.0",
+  "description": "Structured grilling, feature discovery, and implementation planning",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Discovery",
+    "shortDescription": "Resolve unknowns before implementation",
+    "longDescription": "Grill plans and ideas directly, discover feature behavior, and produce evidence-backed implementation plans without inventing unresolved choices.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": [
+      "Grill me on this idea before I act on it.",
+      "Help me discover this feature before planning it.",
+      "Plan the implementation and resolve material unknowns with me."
+    ]
+  }
+}

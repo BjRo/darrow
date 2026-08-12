@@ -1,0 +1,23 @@
+id: plan-implementation-no-trigger-discovery
+invariant: PI-C1,DC-E1,DC-C1
+prompt: >-
+  Help me discover what a customer-facing audit-export feature should do. Its
+  users, included events, privacy boundary, and success criteria are all
+  unsettled. Do not produce an implementation plan and do not modify files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Audit service\nAudit events are internal today.\n"
+checks:
+  - name: feature discovery remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: feature request is not converted into an implementation plan
+    run: cat .git/last-message.md
+    not_regex: "implementation (plan|slice)|files to (change|modify)|Phase 1"
+    flags: i
+  - name: response keeps product unknowns visible
+    run: cat .git/last-message.md
+    expect_regex: "(users?|who)[\\s\\S]*(events?|include)[\\s\\S]*(privacy|personal data|sensitive)[\\s\\S]*(success|acceptance)"
+    flags: i

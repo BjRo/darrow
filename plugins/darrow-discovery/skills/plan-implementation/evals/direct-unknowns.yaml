@@ -1,0 +1,44 @@
+id: plan-implementation-direct-unknowns
+invariant: PI-C1,PI-C2,DG-C2,DG-C3,DG-C4,DC-C1
+mount_plugin_skills: true
+prompt: >-
+  Help me plan the implementation of configurable request timeouts. Inspect the
+  repository instead of asking me for technical facts. Discuss material
+  unknowns with recommendations before producing the plan. We have not decided
+  whether configuration is process-wide or per request; the compatibility
+  strategy depends on that choice. Do not modify files or create tickets.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# HTTP client library\n"
+        src/client.js: |
+          import { DEFAULT_TIMEOUT_MS } from "./config.js";
+          export async function request(url) {
+            return fetch(url, { signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS) });
+          }
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+        test/client.test.js: "// Public request behavior tests live here.\n"
+checks:
+  - name: planning conversation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: unresolved architecture uses a grilling round
+    run: cat .git/last-message.md
+    expect_regex: "^[*_#> -]{0,12}Q1|^[*_#> -]{0,12}1[.)]"
+  - name: technical recommendations preserve user choice
+    run: cat .git/last-message.md
+    expect_regex: "recommend(ed|ation)?"
+    flags: i
+  - name: repository facts are used
+    run: cat .git/last-message.md
+    expect_regex: "1000|request\\(url|existing (public )?API|configuration lifecycle"
+    flags: i
+  - name: dependent compatibility choice is not asked prematurely
+    run: cat .git/last-message.md
+    not_regex: "Q[0-9]+[^\n]*(which|choose|select).{0,80}compatib|(which|choose|select).{0,80}compatib[^\n]*Q[0-9]+"
+    flags: i
+  - name: unresolved choices do not become a final plan
+    run: cat .git/last-message.md
+    not_regex: "Final implementation plan|Plan complete|confirmed implementation plan"
+    flags: i

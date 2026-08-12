@@ -54,6 +54,11 @@
       "name": "darrow-readiness-gate",
       "source": "./plugins/darrow-readiness-gate",
       "description": "Assess implementation readiness through a concrete quality bar and composable gate verdict"
+    },
+    {
+      "name": "darrow-discovery",
+      "source": "./plugins/darrow-discovery",
+      "description": "Grill ideas, discover feature behavior, and plan implementation through evidence-backed decision rounds"
     }
   ]
 }

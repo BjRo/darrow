@@ -1,0 +1,49 @@
+id: grilling-direct-frontier
+invariant: DG-C1,DG-C2,DG-C3,DG-C4,DC-C1
+mount_plugin_skills: true
+prompt: >-
+  Grill me on adding customer-managed offsite backups. Be relentless and work
+  toward shared understanding, but do not implement or write anything. Use the
+  repository for facts instead of asking me to look them up. One known
+  dependency: the transfer-provider decision depends on whether backups may
+  leave the EU, which we have not decided.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Ledger Service
+
+          The service stores customer ledgers in PostgreSQL 16 and runs only in
+          AWS eu-central-1. It has database snapshots but no offsite backup.
+        docs/policy.md: |
+          # Data policy
+
+          Customer data may leave the EU only after an explicit product
+          decision and legal approval.
+checks:
+  - name: grilling is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: response asks a numbered decision frontier
+    run: cat .git/last-message.md
+    expect_regex: "^[*_#> -]{0,12}Q1|^[*_#> -]{0,12}1[.)]"
+  - name: each round includes advisory recommendations
+    run: cat .git/last-message.md
+    expect_regex: "recommend(ed|ation)?"
+    flags: i
+  - name: every numbered item is a decision with a real recommendation
+    run: cat .git/last-message.md
+    not_regex: "Recommendation:\\s*(none|not applicable|I can.t infer|unknown)"
+    flags: i
+  - name: repository facts are used rather than delegated
+    run: cat .git/last-message.md
+    expect_regex: "PostgreSQL|eu-central-1|EU"
+  - name: dependent provider selection is deferred
+    run: cat .git/last-message.md
+    not_regex: "^[*_#> -]{0,12}Q[0-9]+[^\n]*(which +(storage )?(provider|vendor)|choose +(a |the )?(storage )?(provider|vendor)|select +(a |the )?(storage )?(provider|vendor))"
+    flags: i
+  - name: response does not claim agreement or completion
+    run: cat .git/last-message.md
+    not_regex: "shared understanding (is|has been) (complete|reached|confirmed)|we (have|now have) agreed|final (design|decision)"
+    flags: i

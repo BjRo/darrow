@@ -1,0 +1,42 @@
+id: discover-feature-direct-unknowns
+invariant: DF-C1,DF-C2,DG-C2,DG-C3,DG-C4,DC-C1
+mount_plugin_skills: true
+prompt: >-
+  Help me discover a scheduled-reporting feature for this product. I want to
+  work through the behavior and scope with you before anybody plans or builds
+  it. Use repository facts yourself, give recommendations with your questions,
+  and do not write files. Whether users may choose delivery channels depends
+  on which user role owns a schedule; that ownership is still undecided.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Analytics
+
+          Analysts can save reports. Administrators manage users. The product
+          currently sends transactional email through Postmark and has no job
+          scheduler.
+checks:
+  - name: feature discovery is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: unresolved feature uses the grilling frontier
+    run: cat .git/last-message.md
+    expect_regex: "^[*_#> -]{0,12}Q1|^[*_#> -]{0,12}1[.)]"
+  - name: feature questions include recommendations
+    run: cat .git/last-message.md
+    expect_regex: "recommend(ed|ation)?"
+    flags: i
+  - name: repository facts inform the discussion
+    run: cat .git/last-message.md
+    expect_regex: "Postmark|transactional email|job scheduler|Analyst|Administrator"
+    flags: i
+  - name: dependent delivery-channel choice is deferred
+    run: cat .git/last-message.md
+    not_regex: "Q[0-9]+[^\n]*(which|choose|select).{0,80}(delivery )?channel|(which|choose|select).{0,80}(delivery )?channel[^\n]*Q[0-9]+"
+    flags: i
+  - name: unresolved discovery does not emit a final brief
+    run: cat .git/last-message.md
+    not_regex: "Final discovery brief|Discovery complete|confirmed discovery brief"
+    flags: i

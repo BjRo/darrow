@@ -1,0 +1,24 @@
+id: grilling-no-trigger-ordinary-plan
+invariant: DG-C1,DC-E1,DC-C1
+mount_plugin_skills: true
+prompt: >-
+  Draft a concise implementation plan for adding configurable request timeouts
+  to this service. Identify the public seam, likely work areas, and verification
+  strategy. Do not modify the repository and do not interview me.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\nRequests use a fixed timeout.\n"
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+checks:
+  - name: ordinary planning remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: response addresses the requested plan
+    run: cat .git/last-message.md
+    expect_regex: "(public|interface|seam)[\\s\\S]*(config|timeout)[\\s\\S]*(verify|test|check)"
+    flags: i
+  - name: ordinary plan is not converted into a grilling round
+    run: cat .git/last-message.md
+    not_regex: "Q1|❓|Recommendation:"

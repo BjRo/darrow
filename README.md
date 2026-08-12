@@ -32,6 +32,7 @@ explicitly invoke it.
 | [`darrow-git`](plugins/darrow-git/README.md)                                           | Create branches, commits, and pull requests through bounded Git workflows.                        |
 | [`darrow-tickets`](plugins/darrow-tickets/README.md)                                   | Create, list, and update tracker work items through a backend-neutral interface.                  |
 | [`darrow-readiness-gate`](plugins/darrow-readiness-gate/README.md)                     | Check whether a request, ticket, specification, or plan is ready to implement.                    |
+| [`darrow-discovery`](plugins/darrow-discovery/README.md)                               | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
 | [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md) | Set up or audit lean repository guidance for Claude Code and Codex.                               |
 | [`darrow-decisions`](plugins/darrow-decisions/README.md)                               | Capture decisions at their canonical scope and find existing decision records.                    |
 | [`darrow-tdd`](plugins/darrow-tdd/README.md)                                           | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |

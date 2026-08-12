@@ -1,0 +1,52 @@
+id: discover-feature-complete-brief
+invariant: DF-C1,DF-C2,DG-C5,DC-C1
+mount_plugin_skills: true
+prompt: >-
+  Produce the draft discovery brief from these settled feature decisions. The
+  feature lets workspace administrators schedule an existing saved report for
+  weekly Monday 09:00 delivery in the workspace timezone to verified workspace
+  members by email. A schedule can be paused or deleted. Generation failures
+  retry once and then email the owning administrator. CSV is the only format.
+  Historical backfill, external recipients, custom cron schedules, and new
+  report authoring are out of scope. Acceptance will be observed through the
+  public scheduling API and a fake-clock integration test covering delivery,
+  pause, one retry plus notification, and deletion. These are my final choices;
+  include the one-sentence restatement for confirmation. Do not write files or
+  produce an implementation plan.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Analytics\nSaved reports already exist.\n"
+checks:
+  - name: discovery brief remains conversational
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: brief preserves outcome users and behavior
+    run: >-
+      grep -Ei 'workspace administrators?' .git/last-message.md >/dev/null &&
+      grep -Ei 'Monday' .git/last-message.md >/dev/null &&
+      grep -F '09:00' .git/last-message.md >/dev/null &&
+      grep -Ei "workspace.?s? timezone|workspace-local|workspace time" .git/last-message.md >/dev/null &&
+      grep -Ei 'verified workspace members?' .git/last-message.md >/dev/null &&
+      echo present
+    expect_exact: "present"
+  - name: brief preserves scope and non-goals
+    run: cat .git/last-message.md
+    expect_regex: "(non-goals|out of scope)[\\s\\S]*(backfill|external recipients)[\\s\\S]*(cron|report authoring)"
+    flags: i
+  - name: brief contains observable acceptance and verification
+    run: >-
+      grep -Ei 'acceptance|success criteria' .git/last-message.md >/dev/null &&
+      grep -Ei 'public scheduling API|scheduling API' .git/last-message.md >/dev/null &&
+      grep -Ei 'fake.clock|integration test' .git/last-message.md >/dev/null &&
+      echo present
+    expect_exact: "present"
+  - name: brief asks for restatement confirmation
+    run: cat .git/last-message.md
+    expect_regex: "(one.sentence|restatement|in short)[\\s\\S]*(confirm|correct|accurate|agree)"
+    flags: i
+  - name: brief does not become implementation planning
+    run: cat .git/last-message.md
+    not_regex: "Phase 1|Step 1|files to (change|modify)|implementation slices"
+    flags: i

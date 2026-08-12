@@ -1,0 +1,24 @@
+id: discover-feature-no-trigger-implementation
+invariant: DF-C1,DC-E1
+prompt: >-
+  Implement the documented `normalizeEmail(value)` behavior in src/email.js and
+  add its two specified tests. Do not ask product-discovery questions; the
+  behavior is already settled.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        docs/request.md: |
+          Trim ASCII whitespace around the input, lowercase it, and verify
+          `" Alice@EXAMPLE.com " -> "alice@example.com"` plus
+          `"A@B.C" -> "a@b.c"`.
+        src/email.js: "export const identity = (value) => value;\n"
+checks:
+  - name: settled implementation is performed rather than interviewed
+    run: >-
+      grep -Eq 'normalizeEmail' src/email.js &&
+      test -n "$(git status --porcelain --untracked-files=all)"
+  - name: implementation request is not converted into discovery
+    run: cat .git/last-message.md
+    not_regex: "discovery brief|Q1|Recommendation:"
+    flags: i

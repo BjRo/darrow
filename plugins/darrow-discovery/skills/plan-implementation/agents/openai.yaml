@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Implementation"
+  short_description: "Plan verifiable implementation slices"
+  default_prompt: "Plan this implementation and resolve material unknowns with me."

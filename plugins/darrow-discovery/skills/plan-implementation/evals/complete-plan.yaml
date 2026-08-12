@@ -1,0 +1,98 @@
+id: plan-implementation-complete-plan
+invariant: PI-C1,PI-C2,DG-C5,DC-C1
+mount_plugin_skills: true
+prompt: >-
+  Draft the implementation plan for this settled change. `request(url,
+  options)` will accept an optional per-request `timeoutMs`; omission preserves
+  the existing exported `DEFAULT_TIMEOUT_MS` behavior. A supplied value must be
+  a positive integer; zero, negative, fractional, or non-finite values throw
+  `RangeError` before fetch. Existing callers require no migration. Add public
+  tests for omission, override, and invalid values; use the existing fake fetch
+  seam and run `bash test.sh`. Keep this as one backwards-compatible release
+  with no feature flag. These choices are final. Inspect the repository,
+  include independently verifiable vertical slices and a one-sentence
+  restatement for confirmation, but do not modify files or create tickets.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# HTTP client library\n"
+        src/client.js: |
+          import { DEFAULT_TIMEOUT_MS } from "./config.js";
+          export async function request(url) {
+            return fetch(url, { signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS) });
+          }
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+        package.json: '{"type":"module"}'
+        test/client.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { request } from "../src/client.js";
+
+          test("request reaches the fake-fetch seam", async () => {
+            const originalFetch = globalThis.fetch;
+            const calls = [];
+            globalThis.fetch = async (...args) => {
+              calls.push(args);
+              return { ok: true };
+            };
+            try {
+              await request("/health");
+              assert.equal(calls.length, 1);
+              assert.equal(calls[0][0], "/health");
+              assert.ok(calls[0][1].signal instanceof AbortSignal);
+            } finally {
+              globalThis.fetch = originalFetch;
+            }
+          });
+        test.sh: "#!/usr/bin/env bash\nnode --test test/client.test.js\n"
+checks:
+  - name: complete plan remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: plan identifies current public seam and approach
+    run: >-
+      grep -F 'request(url, options)' .git/last-message.md >/dev/null &&
+      grep -F 'timeoutMs' .git/last-message.md >/dev/null &&
+      grep -F 'DEFAULT_TIMEOUT_MS' .git/last-message.md >/dev/null &&
+      echo present
+    expect_exact: "present"
+  - name: plan provides ordered independently verifiable slices
+    run: cat .git/last-message.md
+    expect_regex: "^1\\.[\\s\\S]*^2\\.[\\s\\S]*(verify|test|check)"
+    flags: i
+  - name: plan preserves invalid-input error behavior
+    run: cat .git/last-message.md
+    expect_regex: "RangeError"
+  - name: plan requires a positive integer
+    run: cat .git/last-message.md
+    expect_regex: "positive[^\n]{0,40}integer|integer[^\n]{0,40}positive|Number\\.isInteger\\([^)]*\\)[^\n]{0,80}>\\s*0"
+    flags: i
+  - name: plan covers zero
+    run: cat .git/last-message.md
+    expect_regex: "zero|(^|[^0-9])0([^0-9]|$)"
+    flags: i
+  - name: plan covers negative values
+    run: cat .git/last-message.md
+    expect_regex: "negative"
+    flags: i
+  - name: plan covers fractional values
+    run: cat .git/last-message.md
+    expect_regex: "fraction"
+    flags: i
+  - name: plan covers non-finite values
+    run: cat .git/last-message.md
+    expect_regex: "non-finite|NaN|Infinity"
+    flags: i
+  - name: plan preserves compatibility and omission behavior
+    run: cat .git/last-message.md
+    expect_regex: "(backward|existing callers|no caller migration|omission)[\\s\\S]*(DEFAULT_TIMEOUT_MS|default|optional second argument)"
+    flags: i
+  - name: plan asks for restatement confirmation
+    run: cat .git/last-message.md
+    expect_regex: "(one.sentence|restatement|in short)[\\s\\S]*(confirm|correct|accurate|agree)"
+    flags: i
+  - name: plan does not create ticket-publication claims
+    run: cat .git/last-message.md
+    not_regex: "created (the )?(tickets?|issues?)|opened (the )?(tickets?|issues?)|published (the )?plan"
+    flags: i
