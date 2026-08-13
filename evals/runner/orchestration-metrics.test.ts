@@ -439,14 +439,21 @@ describe("orchestration outcome metrics", () => {
         model: "gpt-5.6-terra",
         effort: "low",
       })?.passed,
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(result, spawn, {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.detail,
+    ).toContain("cleanup=not-closed");
     expect(
       reconcileObservedGoalRouteApplication(result, [close, spawn].join("\n"), {
         harness: "codex",
         model: "gpt-5.6-terra",
         effort: "low",
       })?.passed,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       reconcileObservedGoalRouteApplication(result, [spawn, close].join("\n"), {
         harness: "codex",
@@ -454,6 +461,13 @@ describe("orchestration outcome metrics", () => {
         effort: "low",
       })?.passed,
     ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(result, [spawn, close].join("\n"), {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.detail,
+    ).toContain("cleanup=closed");
 
     const descendantSpawn = spawn.replace(
       "adaptive-goal-runner-thread",
@@ -473,7 +487,7 @@ describe("orchestration outcome metrics", () => {
           effort: "low",
         },
       )?.passed,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       reconcileObservedGoalRouteApplication(
         result,
