@@ -91,9 +91,9 @@ and `Superseded`.
   replacement; it is terminal.
 - `Superseded` was replaced by one or more named ADRs and is terminal.
 
-An ADR retains the repository's compact structure: title, `Status`, `Date`,
-`Context`, `Decision`, and `Consequences`. `Supersedes`, `Superseded by`, and
-`Revisit when` are optional metadata lines when applicable.
+An ADR retains the repository's compact structure: title, `Status`, `Date`, one
+canonical `Summary`, `Context`, `Decision`, and `Consequences`. `Supersedes`,
+`Superseded by`, and `Revisit when` are optional metadata lines when applicable.
 
 - **DM-9 — Valid lifecycle only.** Reject unsupported statuses and transitions.
   `Accepted` requires the authority rule in DM-1. A lifecycle transition does
@@ -130,11 +130,13 @@ choice is authoritative, material, or ADR-worthy.
   are explicit errors. Duplicate identifiers, filename/heading disagreement,
   and an already occupied proposed path are errors.
 - **DM-15 — Structural validation.** Every ADR file must be readable and have a
-  supported identifier, non-empty title, supported status, ISO date, and
-  non-empty `Context`, `Decision`, and `Consequences` sections. Required input
+  supported identifier, non-empty title, supported status, ISO date, exactly
+  one non-empty canonical `Summary` metadata field, and non-empty `Context`,
+  `Decision`, and `Consequences` sections. Required input
   that exists but is unreadable causes a clear refusal rather than being
   skipped. Under the facade's `LC_ALL=C` byte semantics, ADR titles are capped
-  at 240 bytes, status and date fields at 32 bytes each, `Supersedes` and
+  at 240 bytes, status and date fields at 32 bytes each, `Summary` at 500 bytes,
+  `Supersedes` and
   `Superseded by` at 1,000 bytes each and 50 targets per field, and `Revisit
 when` at 500 bytes.
 - **DM-16 — Relationship validation.** Validation checks target existence,
@@ -156,6 +158,33 @@ when` at 500 bytes.
   line. `canonical-path --path` input is capped at 1,000 bytes. Paths and
   free-form filters containing any C-locale control byte are refused without
   echoing the unsafe value.
+- **DM-19 — Non-authoritative ADR catalog.** An ADR directory may contain a
+  checked-in `README.md` catalog derived only from the ADRs in that directory.
+  It groups every ADR exactly once under the five supported lifecycle states;
+  every row visibly links the canonical ADR and shows its identifier, title,
+  status, date, canonical Summary, and lifecycle relationships. A fresh catalog
+  answers complete inventory and status or relationship filters without parsing
+  ADR bodies. Subject and full-text search deliberately scans every ADR body and
+  confirms the requested case-insensitive literal; Summary text never narrows
+  or substitutes for body search. The catalog is derived, never authoritative.
+- **DM-20 — Fail-open discovery, fail-closed validation.** A missing,
+  unreadable, unsupported, malformed, or stale catalog produces a warning
+  and makes read-only discovery rebuild its in-memory inventory by scanning every
+  ADR, so repositories without a catalog remain compatible and stale data cannot
+  hide a record. Catalog failures never make malformed or unreadable ADRs skippable.
+  `validate` and explicit freshness checks instead reject catalog drift when a
+  catalog exists. Rebuild and freshness operations refuse unsafe or unreadable
+  input and emit absolute model-facing paths. Rebuild refuses to replace an
+  existing `README.md` that lacks the derived-catalog marker.
+- **DM-21 — Deterministic catalog lifecycle.** `catalog rebuild` writes the
+  complete Markdown catalog atomically in byte-stable order, and `catalog check`
+  verifies its format, directory membership, fingerprints, visible metadata,
+  and source ADR validity.
+  Rebuilding an unchanged ADR set produces identical bytes under Bash 3.2 and
+  Bash 5. Repository validation includes the same freshness check, so CI and
+  manual validation reject drift. The catalog remains local to its ADR owner and
+  never catalogs specifications, policies, work items, review state, or another
+  owner surface.
 
 ## `capture-decision`
 
@@ -191,6 +220,11 @@ that is unavailable, report the owner and stop without creating a substitute.
 - **DM-C6 — Portable capability.** The skill advertises
   `decision.capture@1.0.0` so workflows can request decision capture by
   contract without naming this provider.
+- **DM-C7 — Refresh the derived ADR catalog.** After creating or changing an ADR,
+  rebuild `README.md` in the selected ADR directory before validation.
+  Capture and a manual `catalog rebuild` use the same facade operation and must
+  produce identical bytes. Specification, policy, and work-item captures do not
+  create or update an ADR catalog.
 
 ### Non-goals
 
@@ -227,6 +261,13 @@ canonical repository surfaces when the query is not ADR-only.
 - **DM-L5 — Portable capability.** The skill advertises
   `decision.list@1.0.0` so workflows can request read-only decision discovery
   by contract without naming this provider.
+- **DM-L6 — Use catalog metadata; scan bodies for subjects.** Listing may use a
+  fresh ADR catalog for complete inventory and metadata, status, or relationship
+  filters without reading ADR bodies. Literal subject or full-text search always
+  scans every ADR body and preserves its exact result set, including terms absent
+  from Summary metadata. When catalog freshness cannot be proved, listing warns
+  and scans all ADRs so stale data cannot hide a record. A catalog row is never
+  itself the canonical decision.
 
 ### Non-goals
 

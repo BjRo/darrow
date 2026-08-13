@@ -14,6 +14,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-06-01
+          Summary: Use SQLite for local state.
 
           ## Context
 
@@ -27,11 +28,13 @@ fixture:
 
           The application owns one repository-local database.
 checks:
-  - name: changes exactly the existing ADR
+  - name: changes the existing ADR and refreshes its catalog
     run: >-
       { git diff --name-only; git ls-files --others --exclude-standard; } |
       LC_ALL=C sort -u
-    expect_exact: "docs/decisions/ADR-0001-sqlite.md"
+    expect_exact: |-
+      docs/decisions/ADR-0001-sqlite.md
+      docs/decisions/README.md
   - name: corrects only metadata and preserves accepted meaning
     run: >-
       grep -Fx 'Status: Accepted' docs/decisions/ADR-0001-sqlite.md >/dev/null;
@@ -46,6 +49,12 @@ checks:
       else facade=.claude/bin/decision; fi;
       bash "$facade" validate --repo .
     expect_regex: "^valid: 1 ADR\\(s\\) in /"
+  - name: refreshed catalog is deterministic and fresh
+    run: >-
+      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
+      else facade=.claude/bin/decision; fi;
+      bash "$facade" catalog check --repo .
+    expect_regex: "^fresh: /"
   - name: response identifies correction and absolute canonical path
     run: >-
       root=$(pwd -P); message=.git/last-message.md;

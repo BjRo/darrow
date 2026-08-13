@@ -70,7 +70,12 @@ bun run lint
 bun run lint:ts
 bun run lint:shell
 bun run typecheck
+bun run check:decisions
 ```
+
+`check:decisions` rejects missing or stale checked-in ADR catalog data. When
+ADRs change, refresh it first with
+`bash plugins/foundation/darrow-decisions/bin/decision catalog rebuild --repo .`.
 
 Run script tests with both `bash` and `/bin/bash`. Run relevant evals with:
 

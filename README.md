@@ -146,6 +146,7 @@ bun run hooks:install
 bun run lint
 bun run typecheck
 bun test
+bun run check:decisions
 ```
 
 `bun run lint` checks all Prettier-supported tracked project content. The

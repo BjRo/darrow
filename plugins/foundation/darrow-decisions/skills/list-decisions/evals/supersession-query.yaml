@@ -11,6 +11,7 @@ fixture:
 
           Status: Superseded
           Date: 2026-06-01
+          Summary: Use REST as the service boundary.
           Superseded by: ADR-0002
 
           ## Context
@@ -29,6 +30,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-07-01
+          Summary: Use GraphQL for flexible client queries.
           Supersedes: ADR-0001
 
           ## Context

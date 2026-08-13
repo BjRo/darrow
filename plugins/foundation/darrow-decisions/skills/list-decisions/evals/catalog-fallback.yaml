@@ -1,0 +1,96 @@
+id: list-decisions-catalog-fallback
+invariant: "DM-20,DM-L6"
+prompt: >-
+  List the accepted ADR decision about zephyr routing. Use the repository's
+  decision tooling, report the canonical absolute record and actual effect, and
+  do not change anything.
+fixture:
+  bin:
+    bash: |
+      #!/bin/sh
+      case "$1" in
+        */bin/decision)
+          git_dir=$(git rev-parse --git-dir) || exit 1
+          stderr_file="$git_dir/decision-stderr.$$"
+          status=0
+          /bin/bash "$@" 2>"$stderr_file" || status=$?
+          cat "$stderr_file" >&2
+          {
+            printf 'command'
+            for argument in "$@"; do printf ' %s' "$argument"; done
+            printf '\n'
+            cat "$stderr_file"
+          } >>"$git_dir/decision-facade.log"
+          rm -f "$stderr_file"
+          exit "$status"
+          ;;
+      esac
+      exec /bin/bash "$@"
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/README.md: |
+          # malformed catalog
+        docs/decisions/ADR-0001-zephyr.md: |
+          # ADR-0001: Use zephyr routing
+
+          Status: Accepted
+          Date: 2026-08-13
+          Summary: Use zephyr routing for edge traffic.
+
+          ## Context
+
+          Edge traffic needs deterministic routing.
+
+          ## Decision
+
+          Use zephyr routing for edge traffic.
+
+          ## Consequences
+
+          Edge requests follow the zephyr route table.
+        docs/decisions/ADR-0002-storage.md: |
+          # ADR-0002: Use object storage
+
+          Status: Accepted
+          Date: 2026-08-13
+          Summary: Use object storage for exports.
+
+          ## Context
+
+          Exports need durable storage.
+
+          ## Decision
+
+          Use object storage for exports.
+
+          ## Consequences
+
+          Export workers upload objects.
+checks:
+  - name: decision facade performs the warned malformed-catalog fallback
+    run: >-
+      root=$(pwd -P); log=.git/decision-facade.log;
+      grep -E '^command .*[/]bin/decision list( |$)' "$log" >/dev/null;
+      grep -F "warning: ADR catalog is malformed; using full scan: $root/docs/decisions/README.md" "$log" >/dev/null;
+      printf 'warned fallback\n'
+    expect_exact: "warned fallback"
+  - name: malformed catalog cannot hide the exact ADR match
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/docs/decisions/ADR-0001-zephyr.md" "$message" >/dev/null;
+      grep -Ei 'Accepted' "$message" >/dev/null;
+      grep -Ei 'zephyr routing' "$message" >/dev/null;
+      echo matched
+    expect_exact: "matched"
+  - name: unrelated ADR remains silently filtered
+    run: cat .git/last-message.md
+    not_regex: "ADR-0002|object storage|exports"
+    flags: i
+  - name: fallback listing is read-only
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: fallback creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

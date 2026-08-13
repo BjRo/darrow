@@ -32,9 +32,26 @@ Example: _“What have we decided about authentication?”_
 
 A portable Bash facade shared by both skills. It discovers ADRs, validates
 their structure and relationships, allocates collision-safe identifiers, and
-supports deterministic inspection and filtering. The facade is deliberately
-narrow: agents retain judgment about whether something is a decision and where
-it belongs.
+supports deterministic inspection and filtering. A checked-in Markdown
+`README.md` beside the ADRs catalogs every record's canonical Summary, status,
+and lifecycle relationships for human-readable inventory and metadata filters.
+Literal subject and full-text searches deliberately scan every canonical ADR
+body. The facade is deliberately narrow: agents retain judgment about whether
+something is a decision and where it belongs.
+
+Build and verify the derived ADR-only catalog with:
+
+```sh
+bash bin/decision catalog rebuild --repo /absolute/path/to/repository
+bash bin/decision catalog check --repo /absolute/path/to/repository
+bash bin/decision validate --repo /absolute/path/to/repository
+```
+
+Rebuilds are byte-deterministic and atomic. `validate` rejects a stale checked-in
+catalog. Read-only listing instead warns and full-scans when the catalog is
+missing, unreadable, malformed, or stale, preserving compatibility with
+repositories that have not adopted the catalog and ensuring stale catalog data
+cannot hide a decision.
 
 ## Design boundaries
 
@@ -43,6 +60,8 @@ it belongs.
 - One decision has one canonical effect. Other documents may point to it but
   should not restate it as a second source of truth.
 - Listing is read-only, and capture changes only the one decision requested.
+- The ADR catalog is derived, non-authoritative, and limited to its owning ADR
+  directory; it never catalogs specifications, policies, or external owners.
 - Work-item and review decisions remain owned by their respective systems.
 
 ## License

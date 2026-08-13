@@ -9,6 +9,7 @@
   },
   "type": "module",
   "scripts": {
+    "check:decisions": "bash plugins/foundation/darrow-decisions/bin/decision validate --repo .",
     "eval": "bun evals/runner/run.ts",
     "eval:coverage": "bun evals/runner/coverage.ts",
     "eval:orchestration:prepare": "bun evals/corpus/orchestration/prepare.ts",

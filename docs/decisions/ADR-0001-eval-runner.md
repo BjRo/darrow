@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-07-05
+Summary: Use a thin TypeScript-on-Bun eval runner with declarative YAML cases, real harness adapters, pinned model matrices, repeated trials, and outcome-based checks.
 
 ## Context
 

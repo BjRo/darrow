@@ -1,5 +1,13 @@
-import { readFile } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import type { GoalRoute, HarnessAdapter, HarnessResult } from "../types";
 import { isolatedHarnessEnvironment } from "../environment";
 import { sandboxedAgentCommand } from "../sandbox";
@@ -8,6 +16,8 @@ interface CatalogRoute {
   model: string;
   efforts: string[];
 }
+
+const INLINE_GOAL_OBJECTIVE_BYTES = 4000;
 
 type GoalWorkflow =
   | "fix-bug"
@@ -207,7 +217,7 @@ export function buildPreparedGoalPrompt(
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
     "",
-    "The goalContract must stay within 4,000 bytes and preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks.",
+    "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
     "Return independentReview with selection selected or omitted and a concise non-empty reason. High risk must select independent review. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
     "Finish with this record:",
     "format\tdarrow-native-goal-preflight-v4",
@@ -299,11 +309,7 @@ function isValidGoalRoute(route: GoalRoute | undefined): route is GoalRoute {
 }
 
 function isValidGoalContract(contract: unknown): contract is string {
-  return (
-    typeof contract === "string" &&
-    contract.length > 0 &&
-    Buffer.byteLength(contract) <= 4000
-  );
+  return typeof contract === "string" && contract.length > 0;
 }
 
 function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
@@ -446,8 +452,6 @@ function compileIndependentReviewClause(handoff: GoalHandoff): void {
     marker,
     `${canonicalIndependentReviewClause(handoff)}\n${marker}`,
   );
-  if (Buffer.byteLength(contract) > 4000)
-    throw new Error("compiled goal contract exceeds 4,000 bytes");
   handoff.goalContract = contract;
 }
 
@@ -516,7 +520,7 @@ function handoffSchema(profiles: string[]) {
       routeSource: { type: "string", enum: ["policy", "user"] },
       independentReview: independentReviewSchema(),
       selectedRoute: selectedRouteSchema(),
-      goalContract: { type: "string", minLength: 1, maxLength: 4000 },
+      goalContract: { type: "string", minLength: 1 },
     },
     required: [
       "format",
@@ -826,7 +830,7 @@ function isSettledGoalUpdate(
   return (
     message.method === "thread/goal/updated" &&
     message.params?.threadId === threadId &&
-    message.params?.goal?.status !== "active"
+    isGoalTerminalStatus(message.params?.goal?.status)
   );
 }
 
@@ -846,12 +850,19 @@ function isFailedGoalTurn(
 export function isReportableGoalStatus(
   status: string | undefined,
 ): status is "complete" | "blocked" {
+  return isGoalTerminalStatus(status);
+}
+
+export function isGoalTerminalStatus(
+  status: string | undefined,
+): status is "complete" | "blocked" {
   return status === "complete" || status === "blocked";
 }
 
 async function runNativeGoal(
   client: AppServerClient,
   threadId: string,
+  confirmTerminal: () => void,
 ): Promise<TurnOutcome> {
   const terminal = await client.waitFor(
     (message) =>
@@ -864,6 +875,7 @@ async function runNativeGoal(
     );
   if (!isReportableGoalStatus(terminal.params!.goal!.status))
     throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
+  confirmTerminal();
   const terminalTurnId = terminal.params!.turnId;
   if (typeof terminalTurnId !== "string")
     throw new Error("native goal completion did not name its terminal turn");
@@ -887,6 +899,305 @@ async function captureProcess(
     proc.exited,
   ]);
   return { stdout, stderr, code };
+}
+
+export interface MaterializedGoalObjective {
+  objective: string;
+  mode: GoalObjectiveMode;
+  attachment?: GoalAttachmentRelease;
+  cleanup(): Promise<void>;
+}
+
+export interface GoalAttachmentRelease {
+  attachmentDir: string;
+  contractSha256: string;
+}
+
+type GoalObjectiveMode = "inline" | "file-backed";
+
+function parseObjectiveRecords(stdout: string): Map<string, string> {
+  const records = new Map<string, string>();
+  for (const line of stdout.trimEnd().split("\n")) {
+    const fields = line.split("\t");
+    if (fields.length !== 2 || !fields[0] || !fields[1])
+      throw new Error(`invalid goal objective record: ${line}`);
+    if (records.has(fields[0]))
+      throw new Error(`duplicate goal objective record: ${fields[0]}`);
+    records.set(fields[0], fields[1]);
+  }
+  return records;
+}
+
+function requiredObjectiveRecord(
+  records: Map<string, string>,
+  key: string,
+): string {
+  const value = records.get(key);
+  if (!value) throw new Error(`missing goal objective record: ${key}`);
+  return value;
+}
+
+function isPathWithin(parent: string, child: string): boolean {
+  const path = relative(parent, child);
+  return (
+    path.length > 0 &&
+    path !== ".." &&
+    !path.startsWith("../") &&
+    !path.startsWith("..\\") &&
+    !isAbsolute(path)
+  );
+}
+
+async function validateGoalAttachment(
+  records: Map<string, string>,
+  objectiveFile: string,
+  goalContract: string,
+): Promise<string> {
+  const emittedAttachment = requiredObjectiveRecord(records, "attachment_dir");
+  const [temporaryRoot, attachmentDir, contractFile, resolvedObjective] =
+    await Promise.all([
+      realpath(tmpdir()),
+      realpath(emittedAttachment),
+      realpath(requiredObjectiveRecord(records, "contract_file")),
+      realpath(objectiveFile),
+    ]);
+  if (
+    !isPathWithin(temporaryRoot, attachmentDir) ||
+    !basename(attachmentDir).startsWith("darrow-goal-contract.")
+  )
+    throw new Error("goal attachment directory is outside the temporary root");
+  if (
+    dirname(contractFile) !== attachmentDir ||
+    dirname(resolvedObjective) !== attachmentDir
+  )
+    throw new Error("goal attachment files escaped their private directory");
+  const attachedContract = await readFile(contractFile);
+  if (!attachedContract.equals(Buffer.from(goalContract, "utf8")))
+    throw new Error("file-backed goal contract changed after materialization");
+  return attachmentDir;
+}
+
+function goalObjectiveMode(records: Map<string, string>): GoalObjectiveMode {
+  if (
+    requiredObjectiveRecord(records, "format") !==
+    "darrow-native-goal-objective-v1"
+  )
+    throw new Error(
+      "goal objective materialization returned an unknown format",
+    );
+  const mode = requiredObjectiveRecord(records, "mode");
+  if (mode !== "inline" && mode !== "file-backed")
+    throw new Error(`unknown goal objective mode: ${mode}`);
+  return mode;
+}
+
+function assertContractByteCount(
+  records: Map<string, string>,
+  goalContract: string,
+): void {
+  if (
+    Number(requiredObjectiveRecord(records, "contract_bytes")) !==
+    Buffer.byteLength(goalContract)
+  )
+    throw new Error("materialized goal contract byte count changed");
+  const expectedDigest = goalContractSha256(goalContract);
+  if (requiredObjectiveRecord(records, "contract_sha256") !== expectedDigest)
+    throw new Error("materialized goal contract digest changed");
+}
+
+function assertInlineObjectiveRecords(
+  records: Map<string, string>,
+  objectiveFile: string,
+): void {
+  if (
+    requiredObjectiveRecord(records, "attachment_dir") !== "none" ||
+    requiredObjectiveRecord(records, "contract_file") !== objectiveFile
+  )
+    throw new Error("inline goal objective returned attachment state");
+}
+
+function assertObjectiveByteCount(
+  records: Map<string, string>,
+  objective: string,
+): void {
+  const objectiveBytes = Number(
+    requiredObjectiveRecord(records, "objective_bytes"),
+  );
+  if (
+    objectiveBytes !== Buffer.byteLength(objective) ||
+    objectiveBytes <= 0 ||
+    objectiveBytes > INLINE_GOAL_OBJECTIVE_BYTES
+  )
+    throw new Error("materialized native objective has an invalid byte count");
+}
+
+async function readGoalObjective(
+  records: Map<string, string>,
+  goalContract: string,
+): Promise<
+  Omit<MaterializedGoalObjective, "cleanup"> & { attachmentDir?: string }
+> {
+  const mode = goalObjectiveMode(records);
+  assertContractByteCount(records, goalContract);
+  const objectiveFile = requiredObjectiveRecord(records, "objective_file");
+  if (!isAbsolute(objectiveFile))
+    throw new Error("goal objective materialization returned a relative path");
+  const attachmentDir =
+    mode === "file-backed"
+      ? await validateGoalAttachment(records, objectiveFile, goalContract)
+      : undefined;
+  if (mode === "inline") assertInlineObjectiveRecords(records, objectiveFile);
+  const objective = await readFile(objectiveFile, "utf8");
+  assertObjectiveByteCount(records, objective);
+  if (mode === "inline" && objective !== goalContract)
+    throw new Error("inline native objective changed the goal contract");
+  return { objective, mode, attachmentDir };
+}
+
+async function runObjectiveMaterializer(
+  repoDir: string,
+  stagingFile: string,
+): Promise<Map<string, string>> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const { stdout, stderr, code } = await captureProcess(
+    [
+      "bash",
+      helper,
+      "materialize-objective",
+      "--repo",
+      repoDir,
+      "--goal-file",
+      stagingFile,
+    ],
+    repoDir,
+  );
+  if (code !== 0)
+    throw new Error(`goal objective materialization failed: ${stderr.trim()}`);
+  return parseObjectiveRecords(stdout);
+}
+
+async function releaseGoalAttachment(
+  repoDir: string,
+  attachmentDir: string,
+  expectedDigest: string,
+): Promise<void> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const { stderr, code } = await captureProcess(
+    [
+      "bash",
+      helper,
+      "release-objective",
+      "--attachment-dir",
+      attachmentDir,
+      "--expected-sha256",
+      expectedDigest,
+    ],
+    repoDir,
+  );
+  if (code !== 0)
+    throw new Error(`goal attachment release failed: ${stderr.trim()}`);
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function goalContractSha256(goalContract: string): string {
+  return new Bun.CryptoHasher("sha256").update(goalContract).digest("hex");
+}
+
+type PrivateGoalStagingWriter = (
+  stagingFile: string,
+  goalContract: string,
+) => Promise<void>;
+
+async function writePrivateGoalStaging(
+  stagingFile: string,
+  goalContract: string,
+): Promise<void> {
+  await writeFile(stagingFile, goalContract, { encoding: "utf8", mode: 0o600 });
+}
+
+export async function withPrivateGoalStaging<T>(
+  goalContract: string,
+  consume: (stagingFile: string) => Promise<T>,
+  writeStaging: PrivateGoalStagingWriter = writePrivateGoalStaging,
+): Promise<T> {
+  const stagingDir = await mkdtemp(join(tmpdir(), "darrow-goal-staging."));
+  try {
+    await chmod(stagingDir, 0o700);
+    const stagingFile = join(stagingDir, "goal-contract.md");
+    await writeStaging(stagingFile, goalContract);
+    return await consume(stagingFile);
+  } finally {
+    await rm(stagingDir, { recursive: true, force: true });
+  }
+}
+
+async function materializeGoalObjective(
+  repoDir: string,
+  goalContract: string,
+): Promise<MaterializedGoalObjective> {
+  const expectedDigest = goalContractSha256(goalContract);
+  let attachmentDir: string | undefined;
+  try {
+    return await withPrivateGoalStaging(goalContract, async (stagingFile) => {
+      const records = await runObjectiveMaterializer(repoDir, stagingFile);
+      const emittedAttachment = records.get("attachment_dir");
+      if (emittedAttachment && emittedAttachment !== "none")
+        attachmentDir = emittedAttachment;
+      const materialized = await readGoalObjective(records, goalContract);
+      attachmentDir = materialized.attachmentDir;
+      let released = false;
+      return {
+        objective: materialized.objective,
+        mode: materialized.mode,
+        attachment: attachmentDir
+          ? { attachmentDir, contractSha256: expectedDigest }
+          : undefined,
+        async cleanup() {
+          if (!attachmentDir || released) return;
+          await releaseGoalAttachment(repoDir, attachmentDir, expectedDigest);
+          released = true;
+        },
+      };
+    });
+  } catch (error) {
+    if (attachmentDir) {
+      try {
+        await releaseGoalAttachment(repoDir, attachmentDir, expectedDigest);
+      } catch (cleanupError) {
+        throw new Error(`${errorText(error)}; ${errorText(cleanupError)}`, {
+          cause: cleanupError,
+        });
+      }
+    }
+    throw error;
+  }
+}
+
+interface NativeGoalSetter {
+  request<T = unknown>(method: string, params: unknown): Promise<T>;
+}
+
+export async function activateMaterializedGoal(
+  client: NativeGoalSetter,
+  repoDir: string,
+  threadId: string,
+  goalContract: string,
+): Promise<MaterializedGoalObjective> {
+  const materialized = await materializeGoalObjective(repoDir, goalContract);
+  try {
+    await client.request("thread/goal/set", {
+      threadId,
+      objective: materialized.objective,
+      status: "active",
+    });
+    return materialized;
+  } catch (error) {
+    await materialized.cleanup();
+    throw error;
+  }
 }
 
 async function runGoalPreparation(repoDir: string): Promise<string> {
@@ -1203,6 +1514,55 @@ async function assertGoalSettled(
     throw new Error(`native goal ended as ${goal.goal?.status ?? "missing"}`);
 }
 
+function recordObjectiveEvidence(
+  client: AppServerClient,
+  handoff: GoalHandoff,
+  materialized: MaterializedGoalObjective,
+): void {
+  client.record({
+    type: "darrow.goal_objective_materialized",
+    mode: materialized.mode,
+    contractBytes: Buffer.byteLength(handoff.goalContract),
+    objectiveBytes: Buffer.byteLength(materialized.objective),
+  });
+}
+
+function recordRetainedObjective(
+  client: AppServerClient,
+  threadId: string,
+  attachment: GoalAttachmentRelease | undefined,
+): void {
+  if (!attachment) return;
+  client.record({
+    type: "darrow.goal_objective_retained",
+    threadId,
+    mode: "file-backed",
+    reason: "goal_terminal_status_unconfirmed",
+    attachmentDir: attachment.attachmentDir,
+    contractSha256: attachment.contractSha256,
+  });
+}
+
+export async function withMaterializedGoalLifecycle<T>(
+  materialized: MaterializedGoalObjective,
+  execute: (confirmTerminal: () => void) => Promise<T>,
+  recordRetention: (attachment: GoalAttachmentRelease | undefined) => void,
+): Promise<T> {
+  let terminalConfirmed = false;
+  let result: T;
+  try {
+    result = await execute(() => {
+      terminalConfirmed = true;
+    });
+  } catch (error) {
+    if (terminalConfirmed) await materialized.cleanup();
+    else recordRetention(materialized.attachment);
+    throw error;
+  }
+  await materialized.cleanup();
+  return result;
+}
+
 async function runGoalExecutionPhase(
   client: AppServerClient,
   repoDir: string,
@@ -1214,37 +1574,44 @@ async function runGoalExecutionPhase(
   const workflowSha256 = new Bun.CryptoHasher("sha256")
     .update(workflowContent)
     .digest("hex");
-
-  await client.request("thread/goal/set", {
-    threadId,
-    objective: handoff.goalContract,
-    status: "active",
-  });
-  const prompt = buildGoalExecutionPrompt(
-    handoff,
-    workflowContent,
-    prepared.intentRoutingGuidance,
-  );
-  const started = performance.now();
-  const turnId = await startExecutionTurn({
+  const materialized = await activateMaterializedGoal(
     client,
-    threadId,
     repoDir,
-    prompt,
-    route: handoff.selectedRoute,
-  });
-  recordGoalEvidence({
-    client,
     threadId,
-    turnId,
-    phase,
-    workflow,
-    workflowSha256,
-  });
-  const result = await runNativeGoal(client, threadId);
-  const durationMs = performance.now() - started;
-  await assertGoalSettled(client, threadId);
-  return { result, durationMs };
+    handoff.goalContract,
+  );
+  recordObjectiveEvidence(client, handoff, materialized);
+  return withMaterializedGoalLifecycle(
+    materialized,
+    async (confirmTerminal) => {
+      const prompt = buildGoalExecutionPrompt(
+        handoff,
+        workflowContent,
+        prepared.intentRoutingGuidance,
+      );
+      const started = performance.now();
+      const turnId = await startExecutionTurn({
+        client,
+        threadId,
+        repoDir,
+        prompt,
+        route: handoff.selectedRoute,
+      });
+      recordGoalEvidence({
+        client,
+        threadId,
+        turnId,
+        phase,
+        workflow,
+        workflowSha256,
+      });
+      const result = await runNativeGoal(client, threadId, confirmTerminal);
+      const durationMs = performance.now() - started;
+      await assertGoalSettled(client, threadId);
+      return { result, durationMs };
+    },
+    (attachment) => recordRetainedObjective(client, threadId, attachment),
+  );
 }
 
 type CodexGoalOutcome = Omit<HarnessResult, "ok" | "durationMs">;

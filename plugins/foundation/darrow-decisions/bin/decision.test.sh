@@ -46,6 +46,16 @@ check_equal() {
   fi
 }
 
+check_file_exists() {
+  local name=$1 path=$2
+  if [[ -f "$path" ]]; then
+    echo "  ok: $name"
+  else
+    echo "  FAIL: $name (missing file: $path)"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
 check_order() {
   local name=$1 first=$2 second=$3 output=$4
   case "$output" in
@@ -77,6 +87,7 @@ write_adr() {
     printf '# %s: %s\n\n' "$id" "$title"
     printf 'Status: %s\n' "$status"
     printf 'Date: 2026-07-19\n'
+    printf 'Summary: Use %s.\n' "$title"
     [[ -z "$supersedes" ]] || printf 'Supersedes: %s\n' "$supersedes"
     [[ -z "$superseded_by" ]] || printf 'Superseded by: %s\n' "$superseded_by"
     [[ -z "$revisit" ]] || printf 'Revisit when: %s\n' "$revisit"
@@ -111,6 +122,260 @@ after_hash=$(git -C "$REPO" hash-object "$REPO/docs/decisions/ADR-0001-test.md")
 check_equal "inspection commands are read-only" "$before" "$after"
 check_equal "inspection preserves tracked ADR content" "$before_hash" "$after_hash"
 
+echo "deterministic non-authoritative Markdown ADR catalog"
+fresh_repo
+write_adr ADR-0001 Accepted "SQLite for local state"
+write_adr ADR-0002 Proposed "PostgreSQL for hosted state"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "rebuilds a Markdown ADR catalog" 0 "$rc"
+check_contains "rebuild reports the absolute catalog path" "catalog: $REPO/docs/decisions/README.md" "$out"
+catalog="$REPO/docs/decisions/README.md"
+check_file_exists "rebuild creates the checked-in catalog surface" "$catalog"
+if [[ -f "$catalog" ]]; then
+  first_hash=$(git hash-object "$catalog")
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO")
+  second_hash=$(git hash-object "$catalog")
+  check_equal "repeated rebuilds produce identical bytes" "$first_hash" "$second_hash"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO")
+  check_contains "freshness check accepts the rebuilt catalog" "fresh: $catalog" "$out"
+  check_contains "catalog identifies itself as derived" "derived, non-authoritative" "$(cat "$catalog")"
+  check_contains "catalog visibly links the accepted ADR" "[ADR-0001: SQLite for local state](ADR-0001-test.md)" "$(cat "$catalog")"
+  check_contains "catalog visibly lists its Summary" "Use SQLite for local state." "$(cat "$catalog")"
+  check_contains "catalog includes every supported state" "## Superseded" "$(cat "$catalog")"
+fi
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: add generated catalog"
+cp "$REPO/docs/decisions/README.md" "$REPO/catalog.saved"
+git -C "$REPO" update-index --assume-unchanged docs/decisions/README.md
+printf '\n' >> "$REPO/docs/decisions/README.md"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+check_contains "assume-unchanged catalog warns as stale" "warning: ADR catalog is stale" "$out"
+check_contains "assume-unchanged catalog falls back to full scan" "ADR-0001 Accepted" "$out"
+git -C "$REPO" update-index --no-assume-unchanged docs/decisions/README.md
+mv "$REPO/catalog.saved" "$REPO/docs/decisions/README.md"
+git -C "$REPO" update-index --refresh >/dev/null
+
+echo "fresh catalog inventory routing and deliberate full-text body scan"
+if [[ -f "$catalog" ]]; then
+  mkdir "$REPO/read-bin"
+  real_awk=$(command -v awk)
+  real_grep=$(command -v grep)
+  real_git=$(command -v git)
+  # shellcheck disable=SC2016 # generated wrappers intentionally expand at runtime
+  printf '#!/bin/sh\nfor arg in "$@"; do case "$arg" in */docs/decisions/ADR-*.md) printf "awk\\t%%s\\n" "$arg" >> "$ADR_READ_LOG";; esac; done\nexec %s "$@"\n' "$real_awk" > "$REPO/read-bin/awk"
+  # shellcheck disable=SC2016 # generated wrappers intentionally expand at runtime
+  printf '#!/bin/sh\nfor arg in "$@"; do case "$arg" in */docs/decisions/ADR-*.md) printf "grep\\t%%s\\n" "$arg" >> "$ADR_READ_LOG";; esac; done\nexec %s "$@"\n' "$real_grep" > "$REPO/read-bin/grep"
+  # shellcheck disable=SC2016 # generated wrapper intentionally expands at runtime
+  printf '#!/bin/sh\nseen_hash=0\nfor arg in "$@"; do [ "$arg" != hash-object ] || seen_hash=1; if [ "$seen_hash" -eq 1 ]; then case "$arg" in */docs/decisions/ADR-*.md) printf "git-hash-object\\t%%s\\n" "$arg" >> "$ADR_READ_LOG";; esac; fi; done\nexec %s "$@"\n' "$real_git" > "$REPO/read-bin/git"
+  chmod +x "$REPO/read-bin/awk" "$REPO/read-bin/grep" "$REPO/read-bin/git"
+  : > "$REPO/adr-reads"
+  out=$(ADR_READ_LOG="$REPO/adr-reads" PATH="$REPO/read-bin:$PATH" "$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted)
+  check_contains "catalog listing preserves the metadata match" "ADR-0001 Accepted" "$out"
+  check_not_contains "catalog listing omits the filtered status" "ADR-0002 Proposed" "$out"
+  reads=$(awk 'END {print NR + 0}' "$REPO/adr-reads")
+  check_equal "fresh catalog answers metadata filters without ADR body reads" 0 "$reads"
+  cp "$REPO/docs/decisions/ADR-0001-test.md" "$REPO/ADR-0001.saved"
+  git -C "$REPO" update-index --assume-unchanged docs/decisions/ADR-0001-test.md
+  printf '\nHidden worktree mutation.\n' >> "$REPO/docs/decisions/ADR-0001-test.md"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+  check_contains "assume-unchanged ADR warns as stale" "warning: ADR catalog is stale" "$out"
+  check_contains "assume-unchanged ADR falls back to full scan" "ADR-0001 Accepted" "$out"
+  "$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+  expected_fingerprint=$(git -C "$REPO" hash-object --path=docs/decisions/ADR-0001-test.md "$REPO/docs/decisions/ADR-0001-test.md")
+  actual_fingerprint=$(sed -n '/ADR-0001-test\.md -->$/s/^<!-- darrow-source: \([0-9a-f]*\) .*/\1/p' "$REPO/docs/decisions/README.md")
+  check_equal "hidden ADR rebuild records the worktree blob fingerprint" "$expected_fingerprint" "$actual_fingerprint"
+  set +e
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO" 2>&1)
+  rc=$?
+  set -e
+  check_equal "rebuild fingerprints hidden ADR worktree content" 0 "$rc"
+  check_contains "hidden ADR rebuild becomes fresh" "records: 2" "$out"
+  git -C "$REPO" update-index --no-assume-unchanged docs/decisions/ADR-0001-test.md
+  mv "$REPO/ADR-0001.saved" "$REPO/docs/decisions/ADR-0001-test.md"
+  : > "$REPO/adr-reads"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search "SQLite for local")
+  check_contains "full-body scan preserves literal phrases" "ADR-0001 Accepted" "$out"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search "SQLite hosted")
+  check_contains "separate body terms do not become false exact matches" "total: 0" "$out"
+  printf '\nA body-only quasar marker.\n' >> "$REPO/docs/decisions/ADR-0002-test.md"
+  "$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+  : > "$REPO/adr-reads"
+  out=$(ADR_READ_LOG="$REPO/adr-reads" PATH="$REPO/read-bin:$PATH" "$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search quasar)
+  check_contains "term absent from summaries remains an exact match" "ADR-0002 Proposed" "$out"
+  reads=$(awk 'END {print NR + 0}' "$REPO/adr-reads")
+  check_equal "full-text search deliberately scans every ADR body" 4 "$reads"
+fi
+
+echo "catalog fallback and stale-catalog counterexample"
+fresh_repo
+write_adr ADR-0001 Accepted "Alpha storage"
+write_adr ADR-0002 Accepted "Beta transport"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+rc=$?
+set -e
+check_equal "missing catalog remains compatible" 0 "$rc"
+check_contains "missing catalog warns before full scan" "warning: ADR catalog is missing" "$out"
+check_contains "missing catalog full scan preserves matches" "ADR-0001 Accepted" "$out"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "validation rejects a missing catalog" 4 "$rc"
+check_contains "missing catalog validation is explicit" "ADR catalog is missing" "$out"
+
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null 2>&1
+write_adr ADR-0003 Accepted "Gamma queue"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+rc=$?
+set -e
+check_equal "stale catalog membership falls back successfully" 0 "$rc"
+check_contains "stale membership warns" "warning: ADR catalog is stale" "$out"
+check_contains "stale catalog cannot hide a new ADR" "ADR-0003 Accepted" "$out"
+printf '\nA newly recorded zephyr constraint.\n' >> "$REPO/docs/decisions/ADR-0002-test.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search zephyr 2>&1)
+rc=$?
+set -e
+check_equal "stale catalog falls back successfully" 0 "$rc"
+check_contains "stale catalog warns" "warning: ADR catalog is stale" "$out"
+check_contains "stale data cannot hide a new body match" "ADR-0002 Accepted" "$out"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "explicit freshness check rejects stale data" 4 "$rc"
+
+printf '# Broken catalog\n\n<!-- darrow-adr-catalog-v1 -->\n' > "$REPO/docs/decisions/README.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search Alpha 2>&1)
+rc=$?
+set -e
+check_equal "malformed catalog falls back successfully" 0 "$rc"
+check_contains "modified malformed catalog warns" "warning: ADR catalog is stale" "$out"
+check_contains "malformed catalog cannot hide matches" "ADR-0001 Accepted" "$out"
+
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null 2>&1
+chmod 000 "$REPO/docs/decisions/README.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search Alpha 2>&1)
+rc=$?
+set -e
+chmod 600 "$REPO/docs/decisions/README.md"
+if [[ $(id -u) -eq 0 ]]; then
+  echo "  ok: unreadable catalog fallback skipped for root test user"
+else
+  check_equal "unreadable catalog falls back successfully" 0 "$rc"
+  check_contains "unreadable catalog warns" "warning: ADR catalog is unreadable" "$out"
+  check_contains "unreadable catalog cannot hide matches" "ADR-0001 Accepted" "$out"
+fi
+
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null 2>&1
+printf '\nAnother stale change.\n' >> "$REPO/docs/decisions/ADR-0001-test.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "validation rejects checked-in catalog drift" 4 "$rc"
+check_contains "validation names stale catalog" "ADR catalog is stale" "$out"
+
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null 2>&1
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: add catalog fixture"
+sed 's/| Accepted |/| Proposed |/' "$REPO/docs/decisions/README.md" > "$REPO/docs/decisions/README.md.new"
+mv "$REPO/docs/decisions/README.md.new" "$REPO/docs/decisions/README.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+rc=$?
+set -e
+check_equal "modified catalog falls back successfully" 0 "$rc"
+check_contains "modified catalog warns as stale" "warning: ADR catalog is stale" "$out"
+check_contains "modified catalog cannot forge status metadata" "ADR-0001 Accepted" "$out"
+
+fresh_repo
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+sed '/darrow-adr-catalog-v1/d' "$REPO/docs/decisions/README.md" > "$REPO/docs/decisions/README.md.new"
+mv "$REPO/docs/decisions/README.md.new" "$REPO/docs/decisions/README.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "validation rejects malformed empty catalog" 4 "$rc"
+check_contains "empty catalog validation names malformed data" "ADR catalog is malformed" "$out"
+
+fresh_repo
+write_adr ADR-0001 Accepted "Rendered table"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+sed -e '/^| Decision | Status | Date | Summary | Relationships |$/d' -e '/^| --- | --- | --- | --- | --- |$/d' \
+  "$REPO/docs/decisions/README.md" > "$REPO/docs/decisions/README.md.new"
+mv "$REPO/docs/decisions/README.md.new" "$REPO/docs/decisions/README.md"
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: commit headerless catalog fixture"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+rc=$?
+set -e
+check_equal "headerless catalog falls back successfully" 0 "$rc"
+check_contains "headerless catalog warns as malformed" "warning: ADR catalog is malformed" "$out"
+check_contains "headerless catalog cannot hide a record" "ADR-0001 Accepted" "$out"
+
+fresh_repo
+write_adr ADR-0001 Accepted "Closed grammar"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+sed '1a\
+Injected catalog prose.' "$REPO/docs/decisions/README.md" > "$REPO/docs/decisions/README.md.new"
+mv "$REPO/docs/decisions/README.md.new" "$REPO/docs/decisions/README.md"
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: commit injected catalog fixture"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+rc=$?
+set -e
+check_equal "injected catalog prose falls back successfully" 0 "$rc"
+check_contains "injected catalog prose warns as malformed" "warning: ADR catalog is malformed" "$out"
+check_contains "injected catalog prose cannot hide a record" "ADR-0001 Accepted" "$out"
+
+echo "catalog replacement safety and Markdown escaping"
+fresh_repo
+printf '# Team decision guide\n' > "$REPO/docs/decisions/README.md"
+write_adr ADR-0001 Accepted "First"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "human-authored README replacement is refused" 4 "$rc"
+check_contains "README refusal names the missing derived marker" "refusing to replace a README without the derived ADR catalog marker" "$out"
+check_equal "human-authored README remains intact" "# Team decision guide" "$(cat "$REPO/docs/decisions/README.md")"
+
+fresh_repo
+write_adr ADR-0001 Accepted "Pipe | title <visible>"
+mv "$REPO/docs/decisions/ADR-0001-test.md" "$REPO/docs/decisions/ADR-0001-special#query?-->.md"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO")
+check_contains "catalog rebuild accepts escapable Markdown names" "records: 1" "$out"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO")
+check_contains "escaped catalog validates" "records: 1" "$out"
+catalog_text=$(cat "$REPO/docs/decisions/README.md")
+check_contains "pipe in title stays in one table cell" 'ADR-0001: Pipe \| title &#60;visible&#62;' "$catalog_text"
+check_contains "HTML delimiters remain visible metadata" 'Use Pipe \| title &#60;visible&#62;.' "$catalog_text"
+check_contains "special link target is canonical" 'ADR-0001-special%23query%3F--%3E.md' "$catalog_text"
+check_not_contains "source filename cannot terminate its comment" 'query?-->.md -->' "$catalog_text"
+mv "$REPO/docs/decisions/ADR-0001-special#query?-->.md" "$REPO/docs/decisions/ADR-0001-special|pipe.md"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO")
+check_contains "pipe filename catalog validates" "records: 1" "$out"
+check_contains "pipe filename link is canonical" 'ADR-0001-special%7Cpipe.md' "$(cat "$REPO/docs/decisions/README.md")"
+mv "$REPO/docs/decisions/ADR-0001-special|pipe.md" "$REPO/docs/decisions/ADR-0001-back\\slash-é.md"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: commit byte-safe catalog fixture"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+check_contains "fresh catalog accepts backslash and non-ASCII filename" "ADR-0001 Accepted" "$out"
+check_not_contains "byte-safe filename remains on catalog fast path" "using full scan" "$out"
+
 echo "lifecycle transitions"
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" check-transition --from Proposed --to Accepted)
 check_contains "allows proposal acceptance" "Proposed -> Accepted: allowed" "$out"
@@ -131,6 +396,7 @@ echo "valid reciprocal supersession"
 fresh_repo
 write_adr ADR-0001 Superseded "Files for local state" "" "ADR-0002"
 write_adr ADR-0002 Accepted "SQLite for local state" "ADR-0001"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO")
 check_contains "accepts reciprocal relations" "valid: 2 ADR(s)" "$out"
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --related-to ADR-0001)
@@ -150,6 +416,29 @@ check_contains "reports wrong target status" "must have status Superseded" "$out
 check_contains "reports cycles" "supersession relationship cycle" "$out"
 
 echo "structure, identifiers, dates, and readability"
+fresh_repo
+write_adr ADR-0001 Accepted "Missing summary"
+sed '/^Summary:/d' "$REPO/docs/decisions/ADR-0001-test.md" > "$REPO/docs/decisions/ADR-0001-test.md.new"
+mv "$REPO/docs/decisions/ADR-0001-test.md.new" "$REPO/docs/decisions/ADR-0001-test.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "missing canonical Summary fails" 4 "$rc"
+check_contains "reports the required Summary field" "expected exactly one Summary field; found 0" "$out"
+
+fresh_repo
+write_adr ADR-0001 Accepted "Duplicate summary"
+sed '/^Summary:/a\
+Summary: A conflicting second summary.' "$REPO/docs/decisions/ADR-0001-test.md" > "$REPO/docs/decisions/ADR-0001-test.md.new"
+mv "$REPO/docs/decisions/ADR-0001-test.md.new" "$REPO/docs/decisions/ADR-0001-test.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "duplicate canonical Summary fails" 4 "$rc"
+check_contains "reports exactly one Summary field" "expected exactly one Summary field; found 2" "$out"
+
 fresh_repo
 write_adr ADR-0001 Accepted "First"
 cp "$REPO/docs/decisions/ADR-0001-test.md" "$REPO/docs/decisions/ADR-0001-copy.md"
@@ -200,18 +489,19 @@ echo "Markdown fences and UTF-8 BOM"
 fresh_repo
 {
   printf '\357\273\277# ADR-0001: Fence-safe parsing\n\n'
-  printf 'Status: Accepted\nDate: 2026-07-19\n\n'
+  printf 'Status: Accepted\nDate: 2026-07-19\nSummary: Ignore fenced metadata.\n\n'
   # shellcheck disable=SC2016 # literal Markdown fence backticks, not command substitution
   printf '## Context\n\n```md\n## Decision\nStatus: Rejected\n```\n\n'
   printf '## Decision\n\nIgnore headings inside fences.\n\n'
   printf '## Consequences\n\nPortable parsing remains deterministic.\n'
 } > "$REPO/docs/decisions/ADR-0001-fences.md"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO")
 check_contains "ignores fenced fake headings and strips BOM" "valid: 1 ADR(s)" "$out"
 
 fresh_repo
 {
-  printf '# ADR-0001: Empty fenced context\n\nStatus: Accepted\nDate: 2026-07-19\n\n'
+  printf '# ADR-0001: Empty fenced context\n\nStatus: Accepted\nDate: 2026-07-19\nSummary: Detect empty fenced context.\n\n'
   # shellcheck disable=SC2016 # literal Markdown fence backticks, not command substitution
   printf '## Context\n\n```text\n```\n\n## Decision\n\nUse it.\n\n## Consequences\n\nIt applies.\n'
 } > "$REPO/docs/decisions/ADR-0001-empty-fence.md"
@@ -224,7 +514,7 @@ check_contains "reports empty fenced Context" "Context section must occur once a
 
 fresh_repo
 {
-  printf '# ADR-0001: Invalid fence close\n\nStatus: Accepted\nDate: 2026-07-19\n\n'
+  printf '# ADR-0001: Invalid fence close\n\nStatus: Accepted\nDate: 2026-07-19\nSummary: Detect unclosed fences.\n\n'
   # shellcheck disable=SC2016 # literal Markdown fence backticks, not command substitution
   printf '## Context\n\n```text\ncontent\n``` trailing\n## Decision\n\nhidden\n'
 } > "$REPO/docs/decisions/ADR-0001-invalid-fence.md"
@@ -401,15 +691,19 @@ done
 
 fresh_repo
 long_title=$(printf '%0241d' 0)
+long_summary=$(printf 'S%0500d' 0)
 long_relation=$(printf 'A%01000d' 0)
 long_revisit=$(printf 'R%0500d' 0)
 write_adr ADR-0001 Accepted "$long_title" "$long_relation" "" "$long_revisit"
+sed "s/^Summary:.*/Summary: $long_summary/" "$REPO/docs/decisions/ADR-0001-test.md" > "$REPO/docs/decisions/ADR-0001-test.md.new"
+mv "$REPO/docs/decisions/ADR-0001-test.md.new" "$REPO/docs/decisions/ADR-0001-test.md"
 set +e
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
 rc=$?
 set -e
 check_equal "oversized metadata fails" 4 "$rc"
 check_contains "reports title cap" "title exceeds 240 bytes" "$out"
+check_contains "reports Summary cap" "Summary exceeds 500 bytes" "$out"
 check_contains "reports relation cap" "Supersedes exceeds 1000 bytes" "$out"
 check_contains "reports revisit cap" "Revisit when exceeds 500 bytes" "$out"
 
@@ -524,6 +818,7 @@ while [[ $i -le 40 ]]; do
   i=$((i + 1))
 done
 write_adr ADR-0041 Accepted "Consolidated" "$relations"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO")
 check_contains "validates large reciprocal fan-out" "valid: 41 ADR(s)" "$out"
 
@@ -547,6 +842,7 @@ check_contains "states output cap" "note: showing first 2 of 3 matching ADRs" "$
 check_not_contains "does not print third capped record" "ADR-0003 Accepted" "$out"
 i=0
 while [[ $i -lt 6000 ]]; do printf 'Large context line %s with \\ paths.\n' "$i" >> "$REPO/docs/decisions/ADR-0003-test.md"; i=$((i + 1)); done
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO")
 check_contains "handles large ADR content" "valid: 3 ADR(s)" "$out"
 

@@ -64,6 +64,19 @@ change when a stable seam and independent oracle exist; repository-mandated
 cadence always wins. Broad final-tree gates run after the tree appears complete,
 not as routine implementation feedback.
 
+The contract and the native goal objective are distinct at the host limit. A
+complete contract at or below 4,000 bytes is submitted inline. A larger
+contract is copied byte-for-byte to a private temporary attachment outside the
+repository, hashed with SHA-256, and represented by a bounded objective that
+requires the goal owner to read and verify it before work. Materialization
+happens before the first goal-set call, so a size rejection never triggers
+lossy recompaction or a second activation attempt. The attachment remains
+available through active and paused states. Complete or blocked goals release
+it through the helper's validated cleanup operation; pre-activation rejection
+and materialization failures release it without retrying activation. A failure
+after activation retains it unless the launcher confirms a terminal goal, and
+records the thread, attachment path, and digest needed for later release.
+
 The contract also selects independent code review proportionally: routine work
 omits it by default, elevated work selects it when compatibility, caller, or
 counterexample analysis needs independent judgment, high-risk work selects it

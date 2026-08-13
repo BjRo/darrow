@@ -14,6 +14,8 @@ usage:
   goal-loop prepare --repo <path> --host <codex|claude>
   goal-loop route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
   goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|native-subagent|nested-session>
+  goal-loop materialize-objective --repo <path> --goal-file <path>
+  goal-loop release-objective --attachment-dir <path> --expected-sha256 <digest>
   goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level> --allow-nested
 EOF
 }
@@ -44,7 +46,59 @@ validate_profile() {
 
 absolute_dir() {
   test -d "$1" || die "directory does not exist: $1"
-  (CDPATH='' cd -- "$1" && pwd)
+  (CDPATH='' cd -- "$1" && pwd -P)
+}
+
+absolute_regular_file() {
+  file_path=$1
+  test ! -L "$file_path" && test -f "$file_path" && test -r "$file_path" ||
+    die "file is unreadable or unsafe: $file_path"
+  file_dir=$(absolute_dir "$(dirname -- "$file_path")")
+  file_name=$(basename -- "$file_path")
+  printf '%s/%s\n' "$file_dir" "$file_name"
+}
+
+sha256_file() {
+  sha_file=$1
+  if command -v shasum >/dev/null 2>&1; then
+    sha_output=$(shasum -a 256 "$sha_file") ||
+      die "could not hash file: $sha_file"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha_output=$(sha256sum "$sha_file") ||
+      die "could not hash file: $sha_file"
+  else
+    die "SHA-256 utility is unavailable"
+  fi
+  sha_digest=${sha_output%% *}
+  test "${#sha_digest}" -eq 64 || die "invalid SHA-256 digest for: $sha_file"
+  case "$sha_digest" in
+    *[!0-9a-f]*) die "invalid SHA-256 digest for: $sha_file" ;;
+  esac
+  printf '%s\n' "$sha_digest"
+}
+
+validate_sha256_digest() {
+  digest=$1
+  test "${#digest}" -eq 64 || die "invalid expected SHA-256 digest"
+  case "$digest" in
+    *[!0-9a-f]*) die "invalid expected SHA-256 digest" ;;
+  esac
+}
+
+discard_goal_attachment() {
+  discard_dir=$1
+  test -n "$discard_dir" || return 0
+  case "$(basename -- "$discard_dir")" in
+    darrow-goal-contract.*) ;;
+    *) return 0 ;;
+  esac
+  test ! -L "$discard_dir" && test -d "$discard_dir" || return 0
+  rm -f "$discard_dir/goal-objective.txt" "$discard_dir/goal-contract.md"
+  rmdir "$discard_dir" 2>/dev/null || true
+}
+
+discard_pending_goal_attachment() {
+  discard_goal_attachment "${pending_goal_attachment:-}"
 }
 
 repository_root() {
@@ -391,6 +445,203 @@ EOF
   printf 'route_verified\ttrue\n'
 }
 
+materialize_objective() {
+  repo=
+  goal_file=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --repo)
+        require_value "$@"
+        repo=$2
+        shift 2
+        ;;
+      --goal-file)
+        require_value "$@"
+        goal_file=$2
+        shift 2
+        ;;
+      *) die "unknown materialize-objective option: $1" ;;
+    esac
+  done
+  test -n "$repo" && test -n "$goal_file" ||
+    die "materialize-objective requires --repo and --goal-file"
+  repo=$(repository_root "$repo")
+  goal_file=$(absolute_regular_file "$goal_file")
+  case "$goal_file" in
+    *"$tab"*) die "goal file path contains a tab: $goal_file" ;;
+  esac
+  goal_size=$(wc -c <"$goal_file" | tr -d ' ')
+  test "$goal_size" -gt 0 || die "goal file is empty: $goal_file"
+
+  if test "$goal_size" -le 4000; then
+    contract_digest=$(sha256_file "$goal_file")
+    printf 'format\tdarrow-native-goal-objective-v1\n'
+    printf 'mode\tinline\n'
+    printf 'contract_bytes\t%s\n' "$goal_size"
+    printf 'contract_sha256\t%s\n' "$contract_digest"
+    printf 'contract_file\t%s\n' "$goal_file"
+    printf 'objective_bytes\t%s\n' "$goal_size"
+    printf 'objective_file\t%s\n' "$goal_file"
+    printf 'attachment_dir\tnone\n'
+    return
+  fi
+
+  tmp_base=$(absolute_dir "${TMPDIR:-/tmp}")
+  case "$tmp_base/" in
+    "$repo/"*) die "temporary attachment directory must be outside the repository: $tmp_base" ;;
+  esac
+  umask 077
+  attachment_dir=$(mktemp -d "$tmp_base/darrow-goal-contract.XXXXXX") ||
+    die "could not create goal attachment directory under: $tmp_base"
+  pending_goal_attachment=$attachment_dir
+  trap discard_pending_goal_attachment EXIT
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  chmod 700 "$attachment_dir" || {
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "could not secure goal attachment directory: $attachment_dir"
+  }
+  contract_file="$attachment_dir/goal-contract.md"
+  if ! cp "$goal_file" "$contract_file"; then
+    rm -f "$contract_file"
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "could not copy goal contract to attachment directory"
+  fi
+  chmod 600 "$contract_file" || {
+    rm -f "$contract_file"
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "could not secure goal contract: $contract_file"
+  }
+  if ! cmp -s "$goal_file" "$contract_file"; then
+    rm -f "$contract_file"
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "goal contract copy did not match its source"
+  fi
+  contract_digest=$(sha256_file "$contract_file")
+  objective_file="$attachment_dir/goal-objective.txt"
+  if ! printf '%s\n' \
+    'Before doing any work, read the complete goal contract at:' \
+    "$contract_file" \
+    "Expected SHA-256: $contract_digest" \
+    'Verify the file digest before following the contract.' \
+    'If the file is missing, unreadable, or does not match, stop and report the evidence gap.' \
+    'Follow that complete contract through terminal completion.' >"$objective_file"; then
+    rm -f "$objective_file" "$contract_file"
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "could not write file-backed native objective"
+  fi
+  chmod 600 "$objective_file" || {
+    rm -f "$objective_file" "$contract_file"
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "could not secure native objective: $objective_file"
+  }
+  objective_size=$(wc -c <"$objective_file" | tr -d ' ')
+  if test "$objective_size" -gt 4000; then
+    rm -f "$objective_file" "$contract_file"
+    rmdir "$attachment_dir" 2>/dev/null || true
+    die "file-backed native objective exceeds 4000 bytes: $objective_size"
+  fi
+
+  printf 'format\tdarrow-native-goal-objective-v1\n'
+  printf 'mode\tfile-backed\n'
+  printf 'contract_bytes\t%s\n' "$goal_size"
+  printf 'contract_sha256\t%s\n' "$contract_digest"
+  printf 'contract_file\t%s\n' "$contract_file"
+  printf 'objective_bytes\t%s\n' "$objective_size"
+  printf 'objective_file\t%s\n' "$objective_file"
+  printf 'attachment_dir\t%s\n' "$attachment_dir"
+  pending_goal_attachment=
+  trap - EXIT HUP INT TERM
+}
+
+objective_record_value() {
+  objective_records=$1
+  objective_key=$2
+  objective_value=
+  while IFS="$tab" read -r record_key record_value record_extra; do
+    if test "$record_key" = "$objective_key"; then
+      test -n "$record_value" && test -z "${record_extra:-}" ||
+        die "invalid materialized objective record: $objective_key"
+      objective_value=$record_value
+      break
+    fi
+  done <<<"$objective_records"
+  test -n "$objective_value" ||
+    die "missing materialized objective record: $objective_key"
+  printf '%s\n' "$objective_value"
+}
+
+release_goal_attachment_dir() {
+  release_dir=$1
+  expected_digest=$2
+  validate_sha256_digest "$expected_digest"
+  case "$release_dir" in
+    /*) ;;
+    *) die "goal attachment path must be absolute: $release_dir" ;;
+  esac
+  case "$(basename -- "$release_dir")" in
+    darrow-goal-contract.*) ;;
+    *) die "refusing unsafe goal attachment cleanup: $release_dir" ;;
+  esac
+  test ! -L "$release_dir" && test -d "$release_dir" ||
+    die "goal attachment directory is unreadable or unsafe: $release_dir"
+  release_parent=$(absolute_dir "$(dirname -- "$release_dir")")
+  release_tmp_root=$(absolute_dir "${TMPDIR:-/tmp}")
+  test "$release_parent" = "$release_tmp_root" ||
+    die "goal attachment is outside the temporary root: $release_dir"
+  release_dir="$release_parent/$(basename -- "$release_dir")"
+  for release_entry in "$release_dir"/* "$release_dir"/.[!.]* "$release_dir"/..?*; do
+    test -e "$release_entry" || test -L "$release_entry" || continue
+    case "$(basename -- "$release_entry")" in
+      goal-contract.md|goal-objective.txt)
+        test ! -L "$release_entry" && test -f "$release_entry" ||
+          die "goal attachment contains an unsafe file: $release_entry"
+        ;;
+      *) die "goal attachment contains an unexpected file: $release_entry" ;;
+    esac
+  done
+  test -f "$release_dir/goal-contract.md" && test -f "$release_dir/goal-objective.txt" ||
+    die "goal attachment is incomplete: $release_dir"
+  release_digest=$(sha256_file "$release_dir/goal-contract.md")
+  test "$release_digest" = "$expected_digest" ||
+    die "goal attachment digest does not match: $release_dir"
+  rm -f "$release_dir/goal-objective.txt" "$release_dir/goal-contract.md"
+  rmdir "$release_dir" 2>/dev/null ||
+    die "could not remove goal attachment directory: $release_dir"
+}
+
+release_objective() {
+  attachment_dir=
+  expected_sha256=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --attachment-dir)
+        require_value "$@"
+        attachment_dir=$2
+        shift 2
+        ;;
+      --expected-sha256)
+        require_value "$@"
+        expected_sha256=$2
+        shift 2
+        ;;
+      *) die "unknown release-objective option: $1" ;;
+    esac
+  done
+  test -n "$attachment_dir" && test -n "$expected_sha256" ||
+    die "release-objective requires --attachment-dir and --expected-sha256"
+  release_goal_attachment_dir "$attachment_dir" "$expected_sha256"
+  printf 'format\tdarrow-native-goal-objective-release-v1\n'
+  printf 'status\treleased\n'
+  printf 'attachment_dir\t%s\n' "$attachment_dir"
+}
+
+cleanup_launch_goal_attachment() {
+  test "${launch_goal_attachment:-none}" != none || return 0
+  discard_goal_attachment "$launch_goal_attachment"
+}
+
 launch() {
   host=
   repo=
@@ -445,13 +696,21 @@ launch() {
     die "launch requires explicit --allow-nested"
   validate_host "$host"
   repo=$(absolute_dir "$repo")
-  test -r "$goal_file" || die "goal file is unreadable: $goal_file"
-  goal_size=$(wc -c <"$goal_file" | tr -d ' ')
-  test "$goal_size" -gt 0 || die "goal file is empty: $goal_file"
-  test "$goal_size" -le 4000 || die "goal exceeds 4000-byte native limit: $goal_size"
   command -v "$host" >/dev/null 2>&1 || die "$host CLI is unavailable"
 
-  goal=$(cat "$goal_file")
+  materialized_records=$(materialize_objective --repo "$repo" --goal-file "$goal_file")
+  objective_format=$(objective_record_value "$materialized_records" format)
+  test "$objective_format" = darrow-native-goal-objective-v1 ||
+    die "unknown materialized objective format: $objective_format"
+  attachment_dir=$(objective_record_value "$materialized_records" attachment_dir)
+  contract_sha256=$(objective_record_value "$materialized_records" contract_sha256)
+  launch_goal_attachment=$attachment_dir
+  trap cleanup_launch_goal_attachment EXIT
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  objective_file=$(objective_record_value "$materialized_records" objective_file)
+  goal=$(cat "$objective_file")
   export DARROW_GOAL_LOOP_NESTED=1
   if test "$host" = codex; then
     nested_tmp=$(mktemp -d "${TMPDIR:-/tmp}/darrow-goal-route.XXXXXX")
@@ -498,6 +757,7 @@ launch() {
     rm -f "$nested_events" "$nested_result"
     rmdir "$nested_tmp" 2>/dev/null || true
   else
+    nested_status=0
     (
       cd "$repo"
       if test "${DARROW_GOAL_LOOP_EXTERNAL_SANDBOX:-0}" = 1; then
@@ -506,8 +766,16 @@ launch() {
       else
         claude -p "/goal $goal" --model "$model" --effort "$effort"
       fi
-    )
+    ) || nested_status=$?
+    if test "$nested_status" -ne 0; then
+      return "$nested_status"
+    fi
   fi
+  if test "$attachment_dir" != none; then
+    release_goal_attachment_dir "$attachment_dir" "$contract_sha256"
+  fi
+  launch_goal_attachment=none
+  trap - EXIT HUP INT TERM
 
   printf 'format\tdarrow-native-goal-route-application-v1\n'
   printf 'selected_route\t%s\t%s\t%s\t%s\n' "$host" "$provider" "$model" "$effort"
@@ -527,6 +795,8 @@ case "$command" in
   prepare) prepare "$@" ;;
   route) route "$@" ;;
   confirm-route) confirm_route "$@" ;;
+  materialize-objective) materialize_objective "$@" ;;
+  release-objective) release_objective "$@" ;;
   launch) launch "$@" ;;
   -h|--help|help) usage ;;
   *) die "unknown command: $command" ;;

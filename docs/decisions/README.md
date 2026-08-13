@@ -1,0 +1,51 @@
+# ADR Catalog
+
+This checked-in catalog is derived, non-authoritative metadata. ADR files remain canonical.
+Rebuild it with `decision catalog rebuild` and verify it with `decision catalog check`.
+
+<!-- darrow-adr-catalog-v1 -->
+
+## Proposed
+
+<!-- prettier-ignore -->
+| Decision | Status | Date | Summary | Relationships |
+| --- | --- | --- | --- | --- |
+
+## Accepted
+
+<!-- prettier-ignore -->
+| Decision | Status | Date | Summary | Relationships |
+| --- | --- | --- | --- | --- |
+| [ADR-0001: Custom eval runner (TS/Bun) with harness adapters](ADR-0001-eval-runner.md) | Accepted | 2026-07-05 | Use a thin TypeScript-on-Bun eval runner with declarative YAML cases, real harness adapters, pinned model matrices, repeated trials, and outcome-based checks. | None |
+| [ADR-0002: Separate capabilities from orchestration](ADR-0002-separate-capabilities-from-orchestration.md) | Accepted | 2026-08-13 | Keep capabilities intent-matched and independently selectable while starting continuation-owning orchestration only through explicit user invocation. | None |
+| [ADR-0003: Treat plugins as optionality boundaries](ADR-0003-treat-plugins-as-optionality-boundaries.md) | Accepted | 2026-08-13 | Treat each plugin as a self-contained unit of adoption, compatibility, and ownership that composes through host-visible contracts rather than sibling dependencies. | None |
+| [ADR-0004: Use native goal ownership for core orchestration](ADR-0004-use-native-goal-ownership-for-core-orchestration.md) | Accepted | 2026-08-13 | Use Darrow to compile and launch one host-native goal owner instead of operating a second execution controller or general workflow runtime. | Revisit when: Matched multi-trial evidence on supported hosts shows that a Darrow-owned execution controller materially improves task outcomes over native goal ownership after accounting for wall time, model usage, child invocations, and human interruptions. |
+| [ADR-0005: Use portable Bash facades for plugin mechanics](ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md) | Accepted | 2026-08-13 | Put deterministic plugin mechanics behind narrow portable Bash facades while keeping authority and contextual judgment in skills. | Revisit when: Every supported Claude Code and Codex host provides a common, independently installable runtime that is more portable than Bash 3.2 plus baseline Unix utilities, or the supported macOS boundary no longer includes Bash 3.2. |
+| [ADR-0006: Keep decisions with their authoritative owners](ADR-0006-keep-decisions-with-their-authoritative-owners.md) | Accepted | 2026-08-13 | Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners. | None |
+| [ADR-0007: Separate skill evaluation evidence dimensions](ADR-0007-separate-skill-evaluation-evidence-dimensions.md) | Accepted | 2026-08-13 | Represent invariant coverage, task outcomes, matched skill ablation, and skill activation as separate evaluation evidence dimensions. | None |
+
+<!-- darrow-source: 1a57cf608fb4cfa4b770abebf34ca450e79c0160 2711262332 330 ADR-0001-eval-runner.md -->
+<!-- darrow-source: b8346bf6dea217b83281a3b89c28450cfa541b2d 1110521106 370 ADR-0002-separate-capabilities-from-orchestration.md -->
+<!-- darrow-source: 1c02ab29c8e15ad25065f0101c93d3993f9d8d25 4172682685 381 ADR-0003-treat-plugins-as-optionality-boundaries.md -->
+<!-- darrow-source: 411231edf4382e54bd667397c0440094f2fac0e0 3587772795 628 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
+<!-- darrow-source: 1547f5ee3b6edabb688fcaa834900ad001ca56c4 718689032 590 ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md -->
+<!-- darrow-source: 739b2fa46ad8b0ed220c4d341317bf670d3d7a41 243106577 398 ADR-0006-keep-decisions-with-their-authoritative-owners.md -->
+<!-- darrow-source: ae5948d48fa4b0b0ce2c80ea76e23a71d582aa71 4074249863 369 ADR-0007-separate-skill-evaluation-evidence-dimensions.md -->
+
+## Rejected
+
+<!-- prettier-ignore -->
+| Decision | Status | Date | Summary | Relationships |
+| --- | --- | --- | --- | --- |
+
+## Deprecated
+
+<!-- prettier-ignore -->
+| Decision | Status | Date | Summary | Relationships |
+| --- | --- | --- | --- | --- |
+
+## Superseded
+
+<!-- prettier-ignore -->
+| Decision | Status | Date | Summary | Relationships |
+| --- | --- | --- | --- | --- |
