@@ -25,6 +25,10 @@ function percent(value: number | undefined): string {
   return value === undefined ? "n/a" : `${(value * 100).toFixed(0)}%`;
 }
 
+function activationPercent(value: number | null | undefined): string {
+  return value === null ? "unknown" : percent(value);
+}
+
 function milliseconds(value: number | undefined): string {
   return value === undefined ? "n/a" : `${(value / 1000).toFixed(1)}s`;
 }
@@ -219,6 +223,171 @@ function perTaskSection(cells: ReportCell[]): string[] {
   ];
 }
 
+const activationSourceLabel = (
+  source: "harness_event" | "skill_file_read_probe" | null,
+): string =>
+  source === "harness_event"
+    ? "harness event"
+    : source === "skill_file_read_probe"
+      ? "skill-file read probe"
+      : "unknown";
+
+function caseActivationRate(result: CaseResult): number | null | undefined {
+  if (result.activationClass === undefined) return undefined;
+  if (!result.trials.length) {
+    return typeof result.activationPassRate === "number"
+      ? result.activationPassRate
+      : result.activationPassRate === null
+        ? null
+        : undefined;
+  }
+  const grades = result.trials.map((trial) => trial.activation);
+  if (grades.some((grade) => grade === undefined || grade.passed === null))
+    return null;
+  return (
+    grades.filter((grade) => grade?.passed === true).length / grades.length
+  );
+}
+
+function caseActivationPrimary(result: CaseResult): string {
+  if (!result.trials.length) return "unknown";
+  const grades = result.trials.map((trial) => trial.activation);
+  if (grades.some((grade) => grade === undefined || grade.passed === null))
+    return "unknown";
+  return [
+    ...new Set(grades.map((grade) => grade?.primarySkill ?? "none")),
+  ].join(", ");
+}
+
+function caseActivationSources(result: CaseResult): string {
+  if (!result.trials.length) return "unknown";
+  const sources = result.trials.map(
+    (trial) => trial.activation?.source ?? null,
+  );
+  return [
+    ...new Set(sources.map((source) => activationSourceLabel(source))),
+  ].join(", ");
+}
+
+type ActivationGrade = NonNullable<CaseResult["trials"][number]["activation"]>;
+
+function completeActivationGrades(declared: CaseResult[]): {
+  grades: ActivationGrade[];
+  complete: boolean;
+} {
+  const expected = declared.reduce(
+    (total, result) => total + result.trials.length,
+    0,
+  );
+  const possible = declared.flatMap((result) =>
+    result.trials.map((trial) => trial.activation),
+  );
+  const complete =
+    expected > 0 &&
+    possible.length === expected &&
+    possible.every(
+      (grade) =>
+        grade !== undefined && grade.passed !== null && grade.source !== null,
+    );
+  return {
+    grades: complete
+      ? possible.filter((grade): grade is ActivationGrade => !!grade)
+      : [],
+    complete,
+  };
+}
+
+function activationClassRate(
+  grades: ActivationGrade[],
+  complete: boolean,
+  activationClass: ActivationGrade["class"],
+): number | null | undefined {
+  if (!complete) return null;
+  const matching = grades.filter((grade) => grade.class === activationClass);
+  return matching.length
+    ? matching.filter((grade) => grade.passed).length / matching.length
+    : undefined;
+}
+
+function cellActivationMetrics(cell: ReportCell) {
+  const declared = cell.results.filter(
+    (result) => result.activationClass !== undefined,
+  );
+  if (!declared.length) return undefined;
+  const { grades, complete } = completeActivationGrades(declared);
+  const intended = grades.filter((grade) => grade.class !== "negative");
+  const trueSelections = intended.filter((grade) => grade.passed).length;
+  const falseSelections = grades.filter((grade) => {
+    if (grade.class === "negative") return !grade.passed;
+    return !grade.passed && grade.primarySkill !== null;
+  }).length;
+  const sources = [
+    ...new Set(
+      declared.flatMap((result) =>
+        result.trials.map((trial) =>
+          activationSourceLabel(trial.activation?.source ?? null),
+        ),
+      ),
+    ),
+  ].join(", ");
+  return {
+    recall: !complete
+      ? null
+      : intended.length
+        ? trueSelections / intended.length
+        : undefined,
+    precision: !complete
+      ? null
+      : trueSelections + falseSelections > 0
+        ? trueSelections / (trueSelections + falseSelections)
+        : null,
+    positive: activationClassRate(grades, complete, "positive"),
+    negative: activationClassRate(grades, complete, "negative"),
+    competition: activationClassRate(grades, complete, "competition"),
+    sources,
+  };
+}
+
+function activationSection(cells: ReportCell[]): string[] {
+  const rows = cells
+    .map((cell) => ({ cell, metric: cellActivationMetrics(cell) }))
+    .filter(
+      (
+        row,
+      ): row is {
+        cell: ReportCell;
+        metric: NonNullable<ReturnType<typeof cellActivationMetrics>>;
+      } => row.metric !== undefined,
+    );
+  if (!rows.length) return [];
+  return [
+    "",
+    "## Skill activation",
+    "",
+    "Activation is graded independently from task outcomes. Recall covers intended positive and competition selections; precision penalizes wrong primary selections on intended routes and owning skills selected on negative cases. `unknown` means at least one declared trial lacked complete harness-visible evidence or precision had no measured selection denominator.",
+    "",
+    "| Harness | Mode | Recall | Precision | Positive | Negative | Competition | Evidence |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+    ...rows.map(
+      ({ cell, metric }) =>
+        `| ${cell.harness} | ${cell.mode} | ${activationPercent(metric.recall)} | ${activationPercent(metric.precision)} | ${activationPercent(metric.positive)} | ${activationPercent(metric.negative)} | ${activationPercent(metric.competition)} | ${metric.sources} |`,
+    ),
+    "",
+    "### Per-case activation",
+    "",
+    "| Harness | Mode | Case | Class | Target | Primary observed | Activation pass | Task pass | Evidence |",
+    "| --- | --- | --- | --- | --- | --- | ---: | ---: | --- |",
+    ...cells.flatMap((cell) =>
+      cell.results
+        .filter((result) => result.activationClass !== undefined)
+        .map(
+          (result) =>
+            `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${result.activationClass} | ${result.activationTargetSkill} | ${caseActivationPrimary(result)} | ${activationPercent(caseActivationRate(result))} | ${percent(taskPassRate(result))} | ${caseActivationSources(result)} |`,
+        ),
+    ),
+  ];
+}
+
 function phaseMean(
   cell: ReportCell,
   select: (result: CaseResult) => number | undefined,
@@ -324,6 +493,7 @@ export function renderSuiteReport(cells: ReportCell[]): string {
   return [
     ...outcomesSection(rows, orchestrationEvidence),
     ...perTaskSection(cells),
+    ...activationSection(cells),
     ...phaseSection(cells),
     ...judgeOverheadSection(rows),
     ...qualitativeSection(rows),

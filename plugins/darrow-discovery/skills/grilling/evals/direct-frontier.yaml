@@ -1,5 +1,6 @@
 id: grilling-direct-frontier
-invariant: DG-C1,DG-C2,DG-C3,DG-C4,DC-C1
+invariant: DG-C1,DG-C2,DG-C3,DG-C4,DC-C1,SE-C9,SE-C10,SE-C11
+activation: positive
 mount_plugin_skills: true
 prompt: >-
   Grill me on adding customer-managed offsite backups. Be relentless and work

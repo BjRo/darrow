@@ -1,6 +1,10 @@
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
-import type { HarnessAdapter, HarnessResult } from "../types";
+import type {
+  HarnessAdapter,
+  HarnessResult,
+  SkillActivationObservation,
+} from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 
@@ -14,6 +18,18 @@ interface CodexEvent {
   usage?: CodexUsage;
   msg?: { type?: unknown; info?: { total_token_usage?: CodexUsage } };
   info?: { total_token_usage?: CodexUsage };
+  item?: {
+    type?: unknown;
+    command?: unknown;
+    exit_code?: unknown;
+    status?: unknown;
+    aggregated_output?: unknown;
+    tool?: unknown;
+    prompt?: unknown;
+    receiver_thread_ids?: unknown;
+    receiverThreadIds?: unknown;
+  };
+  [key: string]: unknown;
 }
 
 /** JSONL events from the `codex exec --json` stream; non-JSON noise is fine. */
@@ -29,6 +45,19 @@ function codexEvents(stream: string): CodexEvent[] {
     }
   }
   return events;
+}
+
+function codexStreamMalformed(stream: string): boolean {
+  return stream.split("\n").some((line) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) return false;
+    try {
+      JSON.parse(trimmed);
+      return false;
+    } catch {
+      return true;
+    }
+  });
 }
 
 function codexEventTypes(event: CodexEvent): string[] {
@@ -48,25 +77,311 @@ export function codexRunSucceeded(code: number, stream: string): boolean {
   return code === 0 && completed && !failed;
 }
 
+function completedCommand(event: CodexEvent): string | undefined {
+  if (
+    event.type !== "item.completed" ||
+    event.item?.type !== "command_execution" ||
+    typeof event.item.command !== "string" ||
+    event.item.exit_code !== 0 ||
+    event.item.status !== "completed"
+  )
+    return undefined;
+  return event.item.command;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function shellPayload(command: string): string | undefined {
+  const wrapper = command.match(
+    /^\/bin\/(?:ba|z)?sh\s+-lc\s+(["'])([\s\S]*)\1$/,
+  );
+  return wrapper?.[2] ?? command;
+}
+
+function skillRead(command: string, repoDir: string): string | undefined {
+  const mountedRoot = join(repoDir, ".agents", "skills");
+  const path = `${escapeRegExp(mountedRoot)}/([A-Za-z0-9._-]+)/SKILL\\.md`;
+  const payload = shellPayload(command);
+  if (!payload) return undefined;
+  const reader = new RegExp(
+    `^(?:cat|sed(?:\\s+-n)?(?:\\s+['"]?[0-9,$pn;-]+['"]?)?|awk(?:\\s+['"][^'"]+['"])?|head(?:\\s+-n?\\s*[1-9][0-9]*)?|tail(?:\\s+-n?\\s*[1-9][0-9]*)?|less|more)\\s+${path}$`,
+  );
+  for (const segment of payload.split(/\s*(?:&&|;|\n)\s*/)) {
+    const match = segment.match(reader);
+    if (match) return match[1];
+  }
+  return undefined;
+}
+
+function malformedCompletedCommand(event: CodexEvent): boolean {
+  if (
+    event.type !== "item.completed" ||
+    event.item?.type !== "command_execution"
+  )
+    return false;
+  return (
+    typeof event.item.command !== "string" ||
+    typeof event.item.exit_code !== "number" ||
+    (event.item.status !== "completed" && event.item.status !== "failed")
+  );
+}
+
+function observedSkillReads(events: CodexEvent[], repoDir: string): string[] {
+  const observedSkills: string[] = [];
+  for (const event of events) {
+    const command = completedCommand(event);
+    const output = event.item?.aggregated_output;
+    const skill = command ? skillRead(command, repoDir) : undefined;
+    if (
+      skill &&
+      typeof output === "string" &&
+      new RegExp(
+        `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
+      ).test(output) &&
+      !observedSkills.includes(skill)
+    )
+      observedSkills.push(skill);
+  }
+  return observedSkills;
+}
+
+/**
+ * Codex exposes command events but no native skill-invocation event. Its skill
+ * protocol requires the selected skill body to be read, so the first completed
+ * mounted SKILL.md read is retained as an explicitly labeled behavior probe.
+ */
+export function codexSkillActivation(
+  stream: string,
+  repoDir: string,
+): SkillActivationObservation {
+  const events = codexEvents(stream);
+  const observedSkills = observedSkillReads(events, repoDir);
+  let completed = false;
+  let failed = false;
+  for (const event of events) {
+    const types = codexEventTypes(event);
+    if (types.includes("turn.completed")) completed = true;
+    if (types.includes("turn.failed")) failed = true;
+  }
+  return {
+    source: "skill_file_read_probe",
+    complete:
+      completed &&
+      !failed &&
+      !codexStreamMalformed(stream) &&
+      !events.some(malformedCompletedCommand),
+    primarySkill: observedSkills[0] ?? null,
+    observedSkills,
+  };
+}
+
+function retainedTerminalEvent(event: CodexEvent): unknown | undefined {
+  const types = codexEventTypes(event);
+  const terminal = types.find(
+    (type) => type === "turn.completed" || type === "turn.failed",
+  );
+  if (!terminal) return undefined;
+  const usage = normalizedCodexUsage(codexUsageCandidate(event).value);
+  return usage ? { type: terminal, usage } : { type: terminal };
+}
+
+function retainedCollaborationEvent(event: CodexEvent): unknown | undefined {
+  const item = event.item;
+  if (
+    event.type !== "item.completed" ||
+    item?.type !== "collab_tool_call" ||
+    typeof item.tool !== "string" ||
+    item.status !== "completed"
+  )
+    return undefined;
+  const prompt =
+    typeof item.prompt === "string"
+      ? item.prompt
+          .split("\n")
+          .filter((line) =>
+            /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
+              line,
+            ),
+          )
+          .join("\n")
+      : undefined;
+  return {
+    type: "item.completed",
+    item: {
+      type: item.type,
+      tool: item.tool,
+      status: "completed",
+      receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
+      ...(prompt ? { prompt } : {}),
+    },
+  };
+}
+
+function retainedHostProtocolEvent(event: CodexEvent): unknown | undefined {
+  if (
+    event.type !== "darrow.route_applied" &&
+    event.type !== "darrow.dimensions_applied" &&
+    event.type !== "darrow.workflow_loaded"
+  )
+    return undefined;
+  const allowed = [
+    "type",
+    "accepted",
+    "threadId",
+    "turnId",
+    "selected",
+    "effective",
+    "appliedBy",
+    "stage",
+    "workflow",
+    "risk",
+    "file",
+    "sha256",
+  ];
+  return Object.fromEntries(
+    allowed.flatMap((key) =>
+      event[key] === undefined ? [] : [[key, event[key]]],
+    ),
+  );
+}
+
+function retainedNestedApplication(event: CodexEvent): unknown | undefined {
+  const item = event.item;
+  if (
+    event.type !== "item.completed" ||
+    item?.type !== "command_execution" ||
+    item.status !== "completed" ||
+    item.exit_code !== 0 ||
+    typeof item.aggregated_output !== "string" ||
+    !/^format\tdarrow-native-goal-route-application-v1$/m.test(
+      item.aggregated_output,
+    ) ||
+    !/^route_applied_by\tnested-session$/m.test(item.aggregated_output) ||
+    !/^route_verified\ttrue$/m.test(item.aggregated_output)
+  )
+    return undefined;
+  const protocol = item.aggregated_output
+    .split("\n")
+    .filter((line) =>
+      /^(?:format|route_applied_by|route_verified|selected_route|effective_route)\t/.test(
+        line,
+      ),
+    );
+  const completed = codexEvents(item.aggregated_output)
+    .filter((nested) => codexEventTypes(nested).includes("turn.completed"))
+    .map(retainedTerminalEvent)
+    .filter((nested): nested is object => nested !== undefined);
+  return {
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      status: "completed",
+      exit_code: 0,
+      aggregated_output: [
+        ...completed.map((value) => JSON.stringify(value)),
+        ...protocol,
+      ].join("\n"),
+    },
+  };
+}
+
+/** Retain only bounded activation, orchestration, and terminal accounting evidence. */
+export function retainedCodexEvidence(
+  stream: string,
+  repoDir: string,
+  status?: { exitCode: number; stderrPresent: boolean },
+): string {
+  const events = codexEvents(stream);
+  const retained = events.flatMap((event) => {
+    const values = [
+      retainedTerminalEvent(event),
+      retainedHostProtocolEvent(event),
+      retainedCollaborationEvent(event),
+      retainedNestedApplication(event),
+    ].filter((value): value is object => value !== undefined);
+    return values;
+  });
+  for (const skill of observedSkillReads(events, repoDir)) {
+    retained.push({
+      type: "darrow.skill_read_probe",
+      source: "skill_file_read_probe",
+      skill,
+      status: "completed",
+    });
+  }
+  if (codexStreamMalformed(stream)) retained.push({ type: "malformed_stream" });
+  if (status && status.exitCode !== 0)
+    retained.push({
+      type: "harness_failure",
+      exit_code: status.exitCode,
+      stderr_present: status.stderrPresent,
+    });
+  return retained.map((event) => JSON.stringify(event)).join("\n");
+}
+
 interface CodexTokenUsage {
+  complete: boolean;
   inputTokens: number;
   outputTokens: number;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function codexUsageCandidate(event: CodexEvent): {
+  present: boolean;
+  value?: unknown;
+} {
+  if ("usage" in event) return { present: true, value: event.usage };
+  const message = isRecord(event.msg) ? event.msg : undefined;
+  const messageInfo = isRecord(message?.info) ? message.info : undefined;
+  if (messageInfo && "total_token_usage" in messageInfo)
+    return { present: true, value: messageInfo.total_token_usage };
+  const info = isRecord(event.info) ? event.info : undefined;
+  if (info && "total_token_usage" in info)
+    return { present: true, value: info.total_token_usage };
+  return { present: false };
+}
+
+function normalizedCodexUsage(
+  value: unknown,
+): { input_tokens: number; output_tokens: number } | null {
+  if (!isRecord(value)) return null;
+  const input = value.input_tokens;
+  const output = value.output_tokens;
+  if (
+    typeof input !== "number" ||
+    !Number.isFinite(input) ||
+    input < 0 ||
+    typeof output !== "number" ||
+    !Number.isFinite(output) ||
+    output < 0
+  )
+    return null;
+  return { input_tokens: input, output_tokens: output };
+}
+
 /** Codex reports cumulative usage repeatedly; the last report on the stream wins. */
-function codexTokenUsage(stream: string): CodexTokenUsage {
-  const totals: CodexTokenUsage = { inputTokens: 0, outputTokens: 0 };
+export function codexTokenUsage(stream: string): CodexTokenUsage {
+  let lastUsage: unknown;
+  let found = false;
   for (const event of codexEvents(stream)) {
-    const usage =
-      event.usage ??
-      event.msg?.info?.total_token_usage ??
-      event.info?.total_token_usage;
-    if (usage) {
-      totals.inputTokens = usage.input_tokens ?? totals.inputTokens;
-      totals.outputTokens = usage.output_tokens ?? totals.outputTokens;
-    }
+    const candidate = codexUsageCandidate(event);
+    if (!candidate.present) continue;
+    found = true;
+    lastUsage = candidate.value;
   }
-  return totals;
+  const usage = normalizedCodexUsage(lastUsage);
+  if (!found || !usage || codexStreamMalformed(stream))
+    return { complete: false, inputTokens: 0, outputTokens: 0 };
+  return {
+    complete: true,
+    inputTokens: usage.input_tokens,
+    outputTokens: usage.output_tokens,
+  };
 }
 
 function codexArgv(
@@ -129,6 +444,7 @@ export const codexAdapter: HarnessAdapter = {
 
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
+    const canonicalRepoDir = await realpath(repoDir);
     const env = await isolatedHarnessEnvironment("codex", repoDir);
     const argv = await sandboxedAgentCommand(
       codexArgv(repoDir, prompt, model, effort),
@@ -153,18 +469,31 @@ export const codexAdapter: HarnessAdapter = {
     ]);
     const durationMs = performance.now() - start;
 
-    const { inputTokens, outputTokens } = codexTokenUsage(out);
+    const {
+      complete: tokenUsageComplete,
+      inputTokens,
+      outputTokens,
+    } = codexTokenUsage(out);
     const ok = codexRunSucceeded(code, out);
     const resultText = await codexFinalMessage(repoDir);
+    const skillActivation = codexSkillActivation(out, canonicalRepoDir);
 
     return {
       ok,
       durationMs,
+      tokenUsageComplete,
       inputTokens,
       outputTokens,
       costUsd: null,
       resultText,
-      raw: ok ? out : out + err,
+      raw: retainedCodexEvidence(out, canonicalRepoDir, {
+        exitCode: code,
+        stderrPresent: err.trim().length > 0,
+      }),
+      skillActivation: {
+        ...skillActivation,
+        complete: ok && skillActivation.complete,
+      },
     };
   },
 };

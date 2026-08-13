@@ -1,5 +1,6 @@
 id: plan-implementation-direct-unknowns
-invariant: PI-C1,PI-C2,DG-C2,DG-C3,DG-C4,DC-C1
+invariant: PI-C1,PI-C2,DG-C2,DG-C3,DG-C4,DC-C1,SE-C9,SE-C10,SE-C11
+activation: competition
 mount_plugin_skills: true
 prompt: >-
   Help me plan the implementation of configurable request timeouts. Inspect the

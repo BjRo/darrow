@@ -1,5 +1,5 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -9,6 +9,14 @@ import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
+import {
+  activationPassRate,
+  activationPassesThreshold,
+  activationTargetSkill,
+  gradeActivation,
+  validateActivationCase,
+  validateMountedActivationTarget,
+} from "./activation";
 import {
   extractOrchestrationMetrics,
   hasUnreconciledOrchestrationUsage,
@@ -160,6 +168,9 @@ async function scanCases(
     const path = join(ROOT, rel);
     const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
     evalCase.skillDir = skillDirOf(path);
+    evalCase.owningSkillName = evalCase.skillDir
+      ? basename(evalCase.skillDir)
+      : undefined;
     evalCase.caseDir = dirname(path);
     cases.push(evalCase);
   }
@@ -206,6 +217,8 @@ async function loadCases(
     ) {
       throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
     }
+    const activationErrors = validateActivationCase(evalCase);
+    if (activationErrors.length) throw new Error(activationErrors.join("; "));
   }
   await resolveCorpusFixtures(selected, corpusManifest);
   return selected;
@@ -235,6 +248,25 @@ function stableEvidence(value: unknown): string {
   return value === undefined ? "undefined" : JSON.stringify(value);
 }
 
+function judgeEvidence(judge: JudgeConfig | undefined) {
+  return judge
+    ? {
+        harness: judge.adapter.name,
+        model: judge.model,
+        effort: judge.effort,
+      }
+    : null;
+}
+
+function activationEvidence(evalCase: EvalCase) {
+  return evalCase.activation
+    ? {
+        class: evalCase.activation,
+        target: activationTargetSkill(evalCase),
+      }
+    : null;
+}
+
 function evaluationDigest(options: RunCaseOptions): string {
   const { evalCase, condition, judge } = options;
   const participantPrompt = condition?.text.trim()
@@ -245,18 +277,13 @@ function evaluationDigest(options: RunCaseOptions): string {
     fixture: evalCase.fixture,
     checks: evalCase.checks,
     outputChecks: evalCase.output_checks ?? [],
+    activation: activationEvidence(evalCase),
     expectHeadChange: evalCase.expect_head_change ?? null,
     requireEvaluationRecords: options.requireEvaluationRecords ?? false,
     expectedGoalRoute: options.expectedGoalRoute ?? null,
     assertedGoalRoute: options.assertedGoalRoute ?? null,
     assertedGoalDimensions: options.assertedGoalDimensions ?? null,
-    judge: judge
-      ? {
-          harness: judge.adapter.name,
-          model: judge.model,
-          effort: judge.effort,
-        }
-      : null,
+    judge: judgeEvidence(judge),
   });
   return new Bun.CryptoHasher("sha256").update(evidence).digest("hex");
 }
@@ -415,6 +442,17 @@ async function trialChecks(
   ];
 }
 
+function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
+  const { evalCase } = options;
+  return evalCase.activation && !options.withoutSkill
+    ? gradeActivation(
+        evalCase.activation,
+        activationTargetSkill(evalCase),
+        harness.skillActivation,
+      )
+    : undefined;
+}
+
 async function evaluateTrial(
   options: RunCaseOptions,
   context: TrialContext,
@@ -434,11 +472,22 @@ async function evaluateTrial(
     context,
     observedGoalRouteApplication,
   );
+  const judged = judge
+    ? await runQualityJudge({
+        adapter: judge.adapter,
+        repoDir,
+        task: evalCase.prompt,
+        checks,
+        model: judge.model,
+        effort: judge.effort,
+      })
+    : undefined;
   return {
     trial: context.trial,
     passed: harness.ok && checks.every((c) => c.passed),
     checks,
     harness,
+    activation: trialActivation(options, harness),
     routeApplication: observedGoalRouteApplication,
     orchestrationMetrics: extractOrchestrationMetrics(
       harness.resultText,
@@ -446,17 +495,20 @@ async function evaluateTrial(
       observedGoalRouteApplication?.childInvocationCount ??
         observedTicketPipelineRoutes?.length,
     ),
-    judge: judge
-      ? await runQualityJudge({
-          adapter: judge.adapter,
-          repoDir,
-          task: evalCase.prompt,
-          checks,
-          model: judge.model,
-          effort: judge.effort,
-        })
-      : undefined,
+    judge: judged,
   };
+}
+
+function activationGradeLabel(result: TrialResult): string {
+  if (result.activation?.passed === null) return "unknown";
+  return result.activation?.passed ? "pass" : "fail";
+}
+
+function reportTrialActivation(result: TrialResult): void {
+  if (!result.activation) return;
+  console.log(
+    `      activation: ${activationGradeLabel(result)} (${result.activation.class}, target ${result.activation.targetSkill}, primary ${result.activation.primarySkill ?? "none"}, source ${result.activation.source ?? "unavailable"})`,
+  );
 }
 
 function reportTrial(options: RunCaseOptions, result: TrialResult): void {
@@ -469,6 +521,7 @@ function reportTrial(options: RunCaseOptions, result: TrialResult): void {
       (failed.length ? ` — ${failed.map((c) => c.name).join(", ")}` : ""),
   );
   for (const c of failed) console.log(`      ${c.name}: ${c.detail}`);
+  reportTrialActivation(result);
   const judgeResult = result.judge;
   if (judgeResult) {
     console.log(
@@ -530,6 +583,7 @@ function trialTokenTotal(
   trial: TrialResult,
   harnessName: string,
 ): number | null {
+  if (trial.harness.tokenUsageComplete === false) return null;
   const routeApplication = trial.routeApplication;
   if (
     hasUnreconciledOrchestrationUsage(trial.harness.resultText, harnessName) &&
@@ -676,6 +730,34 @@ function judgeSummary(
   };
 }
 
+function activationSummary(
+  options: RunCaseOptions,
+  trialResults: TrialResult[],
+): Pick<
+  CaseResult,
+  "activationClass" | "activationTargetSkill" | "activationPassRate"
+> {
+  if (!options.evalCase.activation || options.withoutSkill) return {};
+  const grades = trialResults.map((trial) => trial.activation).filter(defined);
+  return {
+    activationClass: options.evalCase.activation,
+    activationTargetSkill: activationTargetSkill(options.evalCase),
+    activationPassRate:
+      grades.length === trialResults.length ? activationPassRate(grades) : null,
+  };
+}
+
+function meanTrialTokens(
+  trialResults: TrialResult[],
+  harness: string,
+  dry: boolean,
+): number | null {
+  const totals = trialResults.map((trial) => trialTokenTotal(trial, harness));
+  return !dry && totals.every((value) => value !== null)
+    ? mean(totals as number[])
+    : null;
+}
+
 function summarizeCase(
   options: RunCaseOptions,
   trialResults: TrialResult[],
@@ -690,9 +772,6 @@ function summarizeCase(
     humanReviewMinutes,
   } = options;
   const durations = trialResults.map((t) => t.harness.durationMs);
-  const tokenTotals = trialResults.map((trial) =>
-    trialTokenTotal(trial, adapter.name),
-  );
   return {
     caseId: evalCase.id,
     invariant: evalCase.invariant,
@@ -704,6 +783,7 @@ function summarizeCase(
       !options.withoutSkill &&
       !!evalCase.skillDir &&
       (evalCase.mount_plugin_skills ?? false),
+    ...activationSummary(options, trialResults),
     harness: adapter.name,
     model,
     effort,
@@ -715,10 +795,7 @@ function summarizeCase(
     meanDurationMs: mean(durations),
     p95DurationMs: p95(durations),
     ...phaseAverages(trialResults),
-    meanTokens:
-      !dry && tokenTotals.every((value) => value !== null)
-        ? mean(tokenTotals as number[])
-        : null,
+    meanTokens: meanTrialTokens(trialResults, adapter.name, dry),
     totalCostUsd: totalCostUsd(trialResults, adapter.name),
     humanReviewMinutes: humanReviewMinutes ?? null,
     ...orchestrationSummary(options, trialResults),
@@ -956,8 +1033,16 @@ if (values["skill-dir"]) {
   const skillDir = resolve(process.cwd(), values["skill-dir"]);
   for (const evalCase of cases) {
     evalCase.skillDir = skillDir;
-    evalCase.mount_plugin_skills = values["mount-plugin-skills"];
+    evalCase.mount_plugin_skills =
+      evalCase.mount_plugin_skills === true || values["mount-plugin-skills"];
   }
+}
+for (const evalCase of cases) {
+  const activationErrors = [
+    ...validateActivationCase(evalCase),
+    ...(await validateMountedActivationTarget(evalCase)),
+  ];
+  if (activationErrors.length) throw new Error(activationErrors.join("; "));
 }
 if (!cases.length) {
   console.error("No cases matched.");
@@ -1019,13 +1104,23 @@ for (const evalCase of cases) {
 console.log("\n── Summary ──");
 let failed = 0;
 for (const r of results) {
-  const ok = r.passRate >= threshold;
+  const taskOk = r.passRate >= threshold;
+  const activationOk = activationPassesThreshold(
+    r.activationPassRate,
+    threshold,
+  );
+  const ok = taskOk && activationOk;
   if (!ok) failed++;
   console.log(
     `${ok ? "✓" : "✗"} ${r.caseId} [${r.invariant}] pass ${(r.passRate * 100).toFixed(0)}% ` +
       `| ${(r.meanDurationMs / 1000).toFixed(1)}s mean, ${(r.p95DurationMs / 1000).toFixed(1)}s p95 ` +
       `| ${r.meanTokens === null ? "tokens unknown" : `${Math.round(r.meanTokens)} tok mean`} | ${r.totalCostUsd === null ? "cost unknown" : `$${r.totalCostUsd.toFixed(4)}`}`,
   );
+  if (r.activationClass) {
+    console.log(
+      `  activation: ${r.activationClass} target ${r.activationTargetSkill} | ${r.activationPassRate === null ? "unknown" : `${(r.activationPassRate! * 100).toFixed(0)}%`}`,
+    );
+  }
   if (r.meanChildInvocationCount !== undefined) {
     console.log(
       `  orchestration: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +

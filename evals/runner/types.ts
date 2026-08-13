@@ -75,6 +75,32 @@ export interface OutputCheck {
   flags?: string;
 }
 
+export type ActivationClass = "positive" | "negative" | "competition";
+
+export type ActivationEvidenceSource =
+  "harness_event" | "skill_file_read_probe";
+
+/** Normalized harness-visible evidence about skill selection. */
+export interface SkillActivationObservation {
+  source: ActivationEvidenceSource;
+  /** False when the observer channel was absent or malformed. */
+  complete: boolean;
+  /** First selected/loaded skill, or null when a complete channel saw none. */
+  primarySkill: string | null;
+  /** Unique skill names in observation order. */
+  observedSkills: string[];
+}
+
+export interface TrialActivationResult {
+  class: ActivationClass;
+  targetSkill: string;
+  /** Null means the observation was unavailable or incomplete. */
+  passed: boolean | null;
+  source: ActivationEvidenceSource | null;
+  primarySkill: string | null;
+  observedSkills: string[];
+}
+
 export interface EvalCase {
   id: string;
   /** Invariant ID from the capability spec, e.g. GW-C1. */
@@ -83,6 +109,9 @@ export interface EvalCase {
    *  case file's location (two levels up from evals/<case>.yaml), never set
    *  in the yaml itself. */
   skillDir: string;
+  /** Owning skill name derived from the colocated case path before any
+   *  candidate skill-directory override; never supplied by case YAML. */
+  owningSkillName?: string;
   /** Absolute directory containing the case YAML, derived by the loader. */
   caseDir: string;
   prompt: string;
@@ -94,11 +123,15 @@ export interface EvalCase {
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];
+  /** Optional primary skill-selection expectation, graded apart from outcomes. */
+  activation?: ActivationClass;
 }
 
 export interface HarnessResult {
   ok: boolean;
   durationMs: number;
+  /** False when reported token buckets are missing or structurally invalid. */
+  tokenUsageComplete?: boolean;
   inputTokens: number;
   outputTokens: number;
   /** Actual provider cost when supplied by the harness; null means unknown. */
@@ -106,6 +139,8 @@ export interface HarnessResult {
   /** Normalized final agent message, excluding harness protocol events. */
   resultText: string;
   raw: string;
+  /** Harness-visible skill-selection observation when the channel is available. */
+  skillActivation?: SkillActivationObservation;
   /** Optional phase-level evidence for adapters that split preparation,
    * classification, and implementation across host-native turns. */
   phaseMetrics?: {
@@ -178,6 +213,8 @@ export interface TrialResult {
   passed: boolean;
   checks: CheckResult[];
   harness: HarnessResult;
+  /** Activation grade kept separate from outcome checks and `passed`. */
+  activation?: TrialActivationResult;
   /** Harness-observed application of a goal-loop profile route. */
   routeApplication?: GoalRouteApplication;
   orchestrationMetrics?: {
@@ -221,6 +258,11 @@ export interface CaseResult {
   skillDirectory: string | null;
   /** Whether sibling skills from the same plugin were included in the mounted surface. */
   mountPluginSkills: boolean;
+  /** Activation expectation and target, absent when this run did not grade selection. */
+  activationClass?: ActivationClass;
+  activationTargetSkill?: string;
+  /** Null means at least one declared activation trial was unobservable. */
+  activationPassRate?: number | null;
   harness: string;
   model: string;
   effort: string;

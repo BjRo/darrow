@@ -252,4 +252,183 @@ describe("orchestration suite report", () => {
     );
     expect(markdown).toContain("| unknown | n/a | n/a |");
   });
+
+  test("reports activation recall and precision separately from task outcomes", () => {
+    const positive = result({
+      caseId: "grilling-positive",
+      activationClass: "positive",
+      activationTargetSkill: "grilling",
+      activationPassRate: 1,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "positive",
+            targetSkill: "grilling",
+            passed: true,
+            source: "harness_event",
+            primarySkill: "grilling",
+            observedSkills: ["grilling"],
+          },
+        },
+      ],
+    });
+    const negative = result({
+      caseId: "grilling-negative",
+      activationClass: "negative",
+      activationTargetSkill: "grilling",
+      activationPassRate: 0,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "negative",
+            targetSkill: "grilling",
+            passed: false,
+            source: "harness_event",
+            primarySkill: "grilling",
+            observedSkills: ["grilling"],
+          },
+        },
+      ],
+    });
+
+    const markdown = renderSuiteReport([
+      {
+        harness: "claude",
+        mode: "candidate",
+        results: [positive, negative],
+      },
+    ]);
+    expect(markdown).toContain("## Skill activation");
+    expect(markdown).toContain(
+      "| claude | candidate | 100% | 50% | 100% | 0% | n/a | harness event |",
+    );
+    expect(markdown).toContain(
+      "| claude | candidate | grilling-negative | negative | grilling | grilling | 0% | 100% | harness event |",
+    );
+  });
+
+  test("marks the whole activation rollup unknown when one trial is unobservable", () => {
+    const value = result({
+      activationClass: "positive",
+      activationTargetSkill: "grilling",
+      activationPassRate: null,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "positive",
+            targetSkill: "grilling",
+            passed: true,
+            source: "harness_event",
+            primarySkill: "grilling",
+            observedSkills: ["grilling"],
+          },
+        },
+        {
+          trial: 2,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "positive",
+            targetSkill: "grilling",
+            passed: null,
+            source: null,
+            primarySkill: null,
+            observedSkills: [],
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "claude", mode: "candidate", results: [value] },
+    ]);
+    expect(markdown).toContain(
+      "| claude | candidate | unknown | unknown | unknown | unknown | unknown | harness event, unknown |",
+    );
+    expect(markdown).toContain(
+      "| claude | candidate | oss-sample | positive | grilling | unknown | unknown | 100% | harness event, unknown |",
+    );
+  });
+
+  test("counts a wrong competition primary as a false selection", () => {
+    const value = result({
+      activationClass: "competition",
+      activationTargetSkill: "discover-feature",
+      activationPassRate: 0,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "competition",
+            targetSkill: "discover-feature",
+            passed: false,
+            source: "harness_event",
+            primarySkill: "plan-implementation",
+            observedSkills: ["plan-implementation"],
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "claude", mode: "candidate", results: [value] },
+    ]);
+    expect(markdown).toContain(
+      "| claude | candidate | 0% | 0% | n/a | n/a | 0% | harness event |",
+    );
+  });
 });

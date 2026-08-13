@@ -1,0 +1,9 @@
+version: 1
+experiment: discovery-activation
+case_filter:
+  - grilling-direct-frontier
+  - grilling-no-trigger-ordinary-plan
+  - discover-feature-direct-unknowns
+  - plan-implementation-direct-unknowns
+modes:
+  darrow-discovery: {}

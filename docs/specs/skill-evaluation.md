@@ -23,6 +23,11 @@ Neither form replaces live outcome checks. Coverage says a claim is exercised,
 not that it passed, and ablation says what changed under the observed sample,
 not that the skill is universally better.
 
+Skill selection is a third, separate question. A skill may work after loading
+yet fail to activate for intended wording, activate for adjacent intent, or
+lose to a neighboring capability. Activation evidence must therefore remain
+distinct from task outcomes and skill-value ablation.
+
 ## Public contract
 
 ### Invariant coverage
@@ -71,6 +76,43 @@ never become zero. Missing cases, duplicate cells, or mismatched comparison
 dimensions make the ablation report invalid instead of being omitted or
 aggregated away.
 
+### Skill activation
+
+A colocated eval case may declare one activation class:
+
+- `positive` — the owning skill should be the primary selected capability;
+- `negative` — the owning skill must not be the primary selected capability;
+  or
+- `competition` — with every sibling skill in the plugin mounted, the owning
+  skill should win as the primary selected capability.
+
+The owning skill is derived from the case's colocated skill directory rather
+than repeated as user-maintained metadata. A competition case without the
+plugin skill set mounted is invalid. Skill-less experiment cases and no-skill
+suite modes do not receive an activation grade because their target capability
+is absent.
+
+Activation is graded only from a normalized, harness-visible observation. A
+direct host skill-invocation event is preferred. On a host that exposes no such
+event, the runner may use a controlled behavior probe required by that host's
+skill-loading protocol, such as the first completed read of a mounted
+`SKILL.md`. The retained trial identifies the evidence source, primary skill,
+and ordered observed skills. Final-answer resemblance, hidden reasoning, and
+unbounded transcript capture are not activation evidence.
+
+An unavailable, malformed, or incomplete observation is `unknown`, never a
+pass or failure. Activation grades do not change task checks or task pass rate.
+The runner gates a declared activation case independently at the suite
+threshold and the report presents per-class results plus activation recall and
+precision separately from execution outcomes. Recall is the share of measured
+positive and competition trials where the owning skill was primary. Precision
+is true selections divided by true plus false selections. A false selection is
+a different non-null primary on a positive or competition trial, or the owning
+skill becoming primary on a measured negative trial; correctly choosing an
+adjacent capability on a negative trial is not a false positive. An incomplete
+observation set or a zero precision denominator is reported as `unknown` rather
+than averaged over the available subset.
+
 ### Evidence lifecycle
 
 Raw result bundles remain gitignored. A reviewed tracked snapshot may preserve
@@ -107,6 +149,18 @@ trials for their risk and must not rely on one convenient green run.
   modes and ablations, runner revision and patch state, harnesses, models,
   effort, trial count, threshold, result paths, and cell exit states needed to
   inspect the comparison later.
+- **SE-C9 — Explicit activation classes.** Activation cases declare positive,
+  negative, or sibling-competition intent; the runner derives the target from
+  the owning skill, rejects structurally invalid competition cases, and does
+  not grade a target that was not mounted.
+- **SE-C10 — Observable activation evidence.** Activation grades retain the
+  direct host event or explicitly labeled controlled-probe source, primary and
+  ordered observed skills, and preserve unavailable or incomplete observation
+  as unknown without changing task outcomes.
+- **SE-C11 — Separate activation reporting.** Reports preserve per-case and
+  per-class activation results and compute recall and precision only from a
+  complete measured set, so task success cannot hide routing failure and one
+  observable trial cannot hide another unknown trial.
 
 ## Evaluation requirements
 
@@ -122,6 +176,13 @@ trials for their risk and must not rely on one convenient green run.
 5. One real plugin suite runs the same representative positive, negative,
    incomplete, competition, and pressure cases on Claude Code and Codex with
    pinned models, matched effort, and a declared trial count.
+6. Activation fixtures cover all three classes, invalid metadata and
+   competition mounting, correct and incorrect primary selection, no-skill
+   modes, incomplete observations, direct-event evidence, and controlled-probe
+   evidence.
+7. Activation reports cover recall, precision, per-class results, routing
+   failure alongside task success, unknown evidence, and mixed known/unknown
+   trials without silently dropping the unknown trial.
 
 ## Non-goals
 
