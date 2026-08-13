@@ -190,6 +190,10 @@ export interface HarnessAdapter {
   defaultModel: string;
   /** Repo-relative directories where the skill folder gets mounted. */
   skillMounts: string[];
+  /** Deliver the evaluated skills through a source-built Claude plugin. */
+  sourceClaudePlugin?: boolean;
+  /** Deliver the evaluated skills through an isolated installed Codex plugin. */
+  sourceCodexPlugin?: boolean;
   /** CLI version string, recorded per run (versions have drifted mid-experiment before). */
   version(): Promise<string>;
   run(

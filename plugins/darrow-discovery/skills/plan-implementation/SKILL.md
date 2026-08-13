@@ -1,12 +1,30 @@
 ---
 name: plan-implementation
-description: Plan the technical implementation of an understood outcome as ordered, independently verifiable work slices while resolving material unknowns with the user. Use when the user asks for an implementation plan, technical delivery plan, work decomposition, implementation slices, or demands a final plan before every undelegated choice is resolved. Do not use for feature discovery alone, implementation itself, ticket publication, or a request only to assess readiness.
+description: Plan the technical implementation of an understood outcome as ordered, independently verifiable work slices while resolving material unknowns with the user. Use immediately when the user asks for an implementation plan, technical delivery plan, work decomposition, or implementation slices, including when they ask to discuss unresolved choices before the plan or demand a final plan despite them. Do not defer selecting this skill until the choices are answered. Do not use for feature discovery alone, implementation itself, ticket publication, or a request only to assess readiness.
 ---
 
 # Plan an implementation
 
 Produce a technically grounded, confirmed implementation plan without
 inventing unresolved behavior or executing the work.
+
+## Load the canonical method first
+
+Before inspecting the repository, classifying decisions, or drafting any
+response, load the sibling `grilling` capability completely from this selected
+installed plugin. This is a mandatory first step, not an optional reference:
+
+- Claude Code: invoke the sibling `grilling` capability through the host skill
+  loader for the same installed plugin.
+- Codex: use the absolute path of this selected `SKILL.md` catalog entry and
+  read `../grilling/SKILL.md` completely.
+
+Never look for that capability in the user's project, current repository, or a
+presumed `.agents/skills` checkout. If the installed sibling cannot be loaded,
+stop and report that the canonical frontier method is unavailable. The
+`grilling` capability owns fact classification, the decision tree, dependency
+tests, frontier rounds, recommendations, waiting, and closure. Apply that
+method rather than reconstructing it here.
 
 Planning has two exclusive response phases:
 
@@ -15,6 +33,109 @@ Planning has two exclusive response phases:
   implementation slices, migration steps, or a provisional plan.
 - **Plan phase:** draft ordered implementation slices only after the material
   frontier is empty.
+
+Before sending a planning frontier round, perform this planning-specific
+response lint:
+
+1. **Prove the roots.** For each proposed question, name the exact decision it
+   resolves. Remove it if another open answer can change its subject, options,
+   applicability, or recommendation.
+2. **Keep levels separate.** Recommend only an answer to that root. Its
+   rationale may use trade-offs that remain true across every still-possible
+   child answer; it may not propose a child mechanism, value, interface,
+   policy, migration, or verification step. Make the rationale an affirmative
+   root-level trade-off; never select a root because the repository lacks a
+   policy, requirement, constraint, or implementation.
+   For a root the user explicitly says is undecided, treat any rationale based
+   on the current or existing shape, a shared constant, the smallest change,
+   absent configuration, or absent requirements as invalid. Those are
+   compatibility and migration observations, not authority. Use a prospective
+   trade-off inherent to the root instead.
+3. **Lint the whole response.** Search evidence, option explanations,
+   recommendations, parentheses, bullets, and closing prose for extra
+   questions or concrete answers to deferred nodes. Remove them wherever they
+   appear, not only from the numbered frontier.
+4. **Preserve the next boundary.** End with `Deferred:` followed by the known
+   child decisions, then state that the next step is to recompute the frontier
+   after the user's answer. Do not promise the plan yet or include an outline.
+
+When this lint leaves exactly one root, do not hand-write the round. You must
+run the bundled [frontier renderer](scripts/render-frontier) with Bash and
+use its stdout as the validated core of the user-facing response. Harmless
+Markdown and a concise inspected-fact preface are permitted, but do not alter
+the question, recommendation, deferred decisions, or recomputation boundary,
+and do not add semantic content after validation. Invoke it from the loaded
+skill using the applicable host path:
+
+- Claude Code: run `darrow-render-plan-frontier ...`; plugin executables are
+  added to `PATH` by the host.
+- Codex: take the absolute `SKILL.md` path supplied in the selected skill's
+  catalog entry, resolve `scripts/render-frontier` relative to that file's
+  directory, and run it with Bash.
+
+Never resolve the renderer from the user's current project, repository root,
+or a presumed `.agents/skills` checkout. It is a resource of the installed
+plugin skill.
+
+Pass:
+
+- `--evidence` with one sentence of inspected fact, not a selected policy;
+- `--question` with a titled root question containing its short option labels;
+- one `--option` for each root label, preserving labels supplied by the user;
+- `--choice` with exactly one label copied from that question;
+- `--rationale` with root-level reasoning only; and
+- `--deferred` with the known child decisions.
+
+Pass child category names only in `--deferred`. Do not add parenthesized
+examples, `A vs B` menus, concrete mechanisms, or possible child answers.
+
+The renderer refuses multiple questions, undeclared or missing root options, a
+choice that is not exactly one declared label, a rationale that mentions an
+unselected option, a rationale that names a deferred node, and child-option
+examples in the deferred list. If it refuses the draft, correct the decision
+tree or fields and run it again; do not bypass it with a manually composed
+response. Never add another question, a child answer, a plan, or closing text
+that advances past frontier recomputation. For multiple independent roots,
+use the canonical grilling format directly and apply the whole-response lint
+to each question.
+
+Describe current implementation facts before the frontier when they make the
+root concrete, but distinguish them from authority: an existing value,
+signature, or behavior proves a compatibility surface exists; it does not
+decide whether to preserve it.
+
+Present root choices as short labels. Do not expand the choices into examples
+or mechanics when those details are child nodes. In the recommendation, choose
+exactly one root label. If the rationale repeats a second root label, combines
+labels, or uses a term from the `Deferred:` list, it has crossed levels; remove
+that content and keep only root-level trade-offs. This applies even when the
+extra child answer sounds backward-compatible, conventional, or obviously
+implied by the recommended root.
+
+Configuration scope is one common root. It can govern later interface,
+default, validation, compatibility, and migration decisions because changing
+scope changes which seam and callers those children apply to. When scope is
+open, keep its choices at the location level only; do not define them using
+setters, parameters, environment variables, defaults, or precedence. If a
+multi-location choice cannot be recommended without choosing how the
+locations interact, recommend an atomic scope using only root-level trade-offs
+or leave the interaction for a later frontier.
+
+Preserve option labels supplied by the user. Do not invent a combined or third
+option merely because separate options might later interact. Derive the
+deferred category names from the actual decision tree; do not copy a fixed
+inventory or omit a child merely to make the renderer accept a rationale that
+already crossed levels. Prefer recommendations justified by trade-offs at the
+current node. Existing interfaces, defaults, caller behavior, and migration
+convenience are evidence of downstream constraints, not root-level reasons to
+select a parent answer unless authoritative evidence has already resolved
+those children.
+
+For example, if allowed data regions govern storage-vendor eligibility, ask
+and recommend regions using residency and user-need trade-offs. State
+`Deferred: storage vendor and migration path. After your answer, I will
+recompute the next frontier.` Do not name a vendor, migration sequence, or
+vendor-selection question in that round.
 
 The user's demand for a “final plan now” does not bypass this phase boundary.
 Neither does an empty or skeletal repository. Missing implementation evidence
@@ -25,12 +146,6 @@ For example, a request to replace synchronous work with asynchronous work
 while delegating queue technology, availability, delivery, and retries still
 leaves the caller-visible completion and failure contract open. Disclose the
 delegated selections, ask that current frontier, and stop without a plan.
-
-Before beginning, read the canonical [grilling
-capability](../grilling/SKILL.md) completely. Use its fact classification,
-decision tree, frontier rounds, recommendations, waiting boundary, and closure
-confirmation whenever material unknowns remain. Do not define a second
-planning-specific interview method.
 
 This capability is conversational and read-only. Do not edit or create files,
 record decisions, create or update tickets, assess readiness, invoke

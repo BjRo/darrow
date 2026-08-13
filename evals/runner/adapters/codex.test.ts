@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  codexEvalSkillsRoot,
   codexRunSucceeded,
   codexSkillActivation,
   codexTokenUsage,
@@ -8,6 +9,12 @@ import {
 import { observeCodexTicketPipelineRoutes } from "../orchestration-metrics";
 
 const REPO = "/tmp/eval";
+
+test("Codex no-skill control does not require a plugin package", async () => {
+  expect(await codexEvalSkillsRoot(REPO, {})).toBe(
+    `${REPO}/.git/eval-no-skills`,
+  );
+});
 
 describe("Codex terminal stream state", () => {
   test("accepts a recovered reconnect error followed by completion", () => {
@@ -92,6 +99,18 @@ describe("Codex token accounting", () => {
 });
 
 describe("Codex skill activation observation", () => {
+  test("keeps a no-plugin control complete without inventing a project skill", () => {
+    const stream = JSON.stringify({ type: "turn.completed" });
+    expect(
+      codexSkillActivation(stream, REPO, `${REPO}/.git/eval-no-skills`),
+    ).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: null,
+      observedSkills: [],
+    });
+  });
+
   test("uses completed mounted SKILL.md reads as an ordered controlled probe", () => {
     const stream = [
       JSON.stringify({ type: "turn.started" }),
@@ -130,6 +149,70 @@ describe("Codex skill activation observation", () => {
     ].join("\n");
 
     expect(codexSkillActivation(stream, REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "plan-implementation",
+      observedSkills: ["plan-implementation", "grilling"],
+    });
+  });
+
+  test("observes canonical skill reads from an installed plugin cache", () => {
+    const skillsRoot =
+      "/tmp/eval-home/plugins/cache/darrow/darrow-discovery/0.1.0/skills";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${skillsRoot}/plan-implementation/SKILL.md`,
+          aggregated_output:
+            "---\nname: plan-implementation\ndescription: Plan\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${skillsRoot}/grilling/SKILL.md`,
+          aggregated_output: "---\nname: grilling\ndescription: Grill\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "plan-implementation",
+      observedSkills: ["plan-implementation", "grilling"],
+    });
+  });
+
+  test("observes every installed skill read in one compound command", () => {
+    const skillsRoot =
+      "/tmp/eval-home/plugins/cache/darrow/darrow-discovery/0.1.0/skills";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${skillsRoot}/plan-implementation/SKILL.md && cat ${skillsRoot}/grilling/SKILL.md`,
+          aggregated_output: [
+            "---\nname: plan-implementation\ndescription: Plan\n",
+            "---\nname: grilling\ndescription: Grill\n",
+          ].join(""),
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
       source: "skill_file_read_probe",
       complete: true,
       primarySkill: "plan-implementation",

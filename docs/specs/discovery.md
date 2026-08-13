@@ -95,9 +95,18 @@ settled. Work in rounds:
 5. wait for the user's answers before advancing dependent branches.
 
 Do not ask a downstream question in the same round when its choices or useful
-wording depend on an answer still open in that round. Do not ask speculative
-questions merely to make the interview exhaustive. Recompute the tree after
-each user response; answers may add, remove, or reorder branches.
+wording depend on an answer still open in that round. Before asking, compare
+every candidate question with the other open nodes: if another answer can
+change whether the question matters, who or what it applies to, its concrete
+options, or the recommendation, make it a child of that prerequisite. When all
+other material nodes depend on one open root, ask only that root and describe
+deferred branches as statements rather than additional questions. The root's
+recommendation may explain those dependencies but must not select answers for
+the deferred branches. When known child nodes remain, do not promise the final
+artifact immediately after the root answer; the next step is to recompute and
+ask the newly unblocked frontier. Do not ask speculative questions merely to
+make the interview exhaustive. Recompute the tree after each user response;
+answers may add, remove, or reorder branches.
 
 Use this presentation shape unless the host surface makes it inaccessible:
 
@@ -189,7 +198,10 @@ publication, or a request that merely asks whether existing work is ready.
    while its caller-visible completion and failure contract remains open.
    Missing implementation evidence does not authorize the planner to label a
    change greenfield or select those adjacent contracts; it leaves an evidence
-   gap and decision frontier.
+   gap and decision frontier. Existing defaults and signatures identify the
+   compatibility surface but do not authorize preserving or changing a
+   specific value or call shape when that policy depends on an open parent
+   decision.
 4. If a newly exposed product ambiguity changes the desired behavior, resolve
    it through grilling before selecting implementation structure.
 5. When the material frontier is empty, produce a concise draft implementation
@@ -227,7 +239,11 @@ skill.
 subject would you like me to grill?`, and it stops.
 2. **DG-C2 — Dependency-aware frontier.** Each round asks all material
    independent questions whose prerequisites are settled and defers dependent
-   questions until a later round.
+   questions until a later round. A node is dependent when another open answer
+   can change its relevance, subject, concrete options, or recommendation;
+   deferred nodes are neither phrased as additional questions nor selected
+   inside the current root's recommendation. A root answer does not authorize
+   the final artifact while known child nodes remain.
 3. **DG-C3 — Facts are investigated.** The agent discovers available
    repository and external facts instead of delegating lookup to the user;
    evidence does not silently decide product intent.

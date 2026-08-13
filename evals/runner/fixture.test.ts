@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe("eval fixture skill mounts", () => {
-  test("mounts plugin agents beside Claude skills", async () => {
+  test("mounts a source Claude plugin without a project skill copy", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-agents-"));
     cleanup.push(root);
     const skill = join(root, "plugins", "sample", "skills", "primary");
@@ -52,14 +52,15 @@ describe("eval fixture skill mounts", () => {
     const fixture = await buildFixture({
       fixture: {},
       skillDir: skill,
-      skillMounts: [".claude/skills"],
+      skillMounts: [],
+      sourceClaudePlugin: true,
     });
     cleanup.push(fixture);
     expect(
       existsSync(join(fixture, ".claude", "skills", "primary", "SKILL.md")),
-    ).toBe(true);
+    ).toBe(false);
     expect(existsSync(join(fixture, ".claude", "agents", "runner.md"))).toBe(
-      true,
+      false,
     );
     expect(
       existsSync(
@@ -77,6 +78,55 @@ describe("eval fixture skill mounts", () => {
     expect(existsSync(join(fixture, ".agents", "agents", "runner.md"))).toBe(
       false,
     );
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
+  test("builds a filtered local marketplace for an installed Codex plugin", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-codex-plugin-"));
+    cleanup.push(root);
+    const plugin = join(root, "plugins", "sample");
+    const skill = join(plugin, "skills", "primary");
+    await mkdir(join(skill, "evals"), { recursive: true });
+    await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+    await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+    await writeFile(
+      join(skill, "SKILL.md"),
+      "---\nname: primary\ndescription: Primary\n---\n",
+    );
+    await writeFile(join(skill, "evals", "secret.yaml"), "hidden: true\n");
+    await writeFile(
+      join(plugin, ".claude-plugin", "plugin.json"),
+      '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
+    );
+    await writeFile(
+      join(plugin, ".codex-plugin", "plugin.json"),
+      '{"name":"sample","version":"0.1.0","description":"Sample","skills":"./skills/"}\n',
+    );
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: skill,
+      skillMounts: [],
+      sourceCodexPlugin: true,
+    });
+    cleanup.push(fixture);
+    const marketplace = join(fixture, ".git", "eval-marketplace");
+    expect(
+      existsSync(join(fixture, ".agents", "skills", "primary", "SKILL.md")),
+    ).toBe(false);
+    expect(
+      existsSync(join(marketplace, ".claude-plugin", "marketplace.json")),
+    ).toBe(true);
+    expect(
+      existsSync(join(marketplace, "plugin", ".codex-plugin", "plugin.json")),
+    ).toBe(true);
+    expect(
+      existsSync(join(marketplace, "plugin", "skills", "primary", "SKILL.md")),
+    ).toBe(true);
+    expect(
+      existsSync(join(marketplace, "plugin", "skills", "primary", "evals")),
+    ).toBe(false);
     await destroyFixture(fixture);
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });

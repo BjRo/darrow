@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bin_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+exec "$bin_dir/../skills/plan-implementation/scripts/render-frontier" "$@"

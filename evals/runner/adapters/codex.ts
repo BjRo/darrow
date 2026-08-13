@@ -1,4 +1,5 @@
 import { readFile, realpath } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
   HarnessAdapter,
@@ -100,19 +101,19 @@ function shellPayload(command: string): string | undefined {
   return wrapper?.[2] ?? command;
 }
 
-function skillRead(command: string, repoDir: string): string | undefined {
-  const mountedRoot = join(repoDir, ".agents", "skills");
-  const path = `${escapeRegExp(mountedRoot)}/([A-Za-z0-9._-]+)/SKILL\\.md`;
+function skillReads(command: string, skillsRoot: string): string[] {
+  const path = `${escapeRegExp(skillsRoot)}/([A-Za-z0-9._-]+)/SKILL\\.md`;
   const payload = shellPayload(command);
-  if (!payload) return undefined;
+  if (!payload) return [];
   const reader = new RegExp(
     `^(?:cat|sed(?:\\s+-n)?(?:\\s+['"]?[0-9,$pn;-]+['"]?)?|awk(?:\\s+['"][^'"]+['"])?|head(?:\\s+-n?\\s*[1-9][0-9]*)?|tail(?:\\s+-n?\\s*[1-9][0-9]*)?|less|more)\\s+${path}$`,
   );
+  const reads: string[] = [];
   for (const segment of payload.split(/\s*(?:&&|;|\n)\s*/)) {
     const match = segment.match(reader);
-    if (match) return match[1];
+    if (match?.[1]) reads.push(match[1]);
   }
-  return undefined;
+  return reads;
 }
 
 function malformedCompletedCommand(event: CodexEvent): boolean {
@@ -128,21 +129,25 @@ function malformedCompletedCommand(event: CodexEvent): boolean {
   );
 }
 
-function observedSkillReads(events: CodexEvent[], repoDir: string): string[] {
+function observedSkillReads(
+  events: CodexEvent[],
+  skillsRoot: string,
+): string[] {
   const observedSkills: string[] = [];
   for (const event of events) {
     const command = completedCommand(event);
     const output = event.item?.aggregated_output;
-    const skill = command ? skillRead(command, repoDir) : undefined;
-    if (
-      skill &&
-      typeof output === "string" &&
-      new RegExp(
-        `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
-      ).test(output) &&
-      !observedSkills.includes(skill)
-    )
-      observedSkills.push(skill);
+    const skills = command ? skillReads(command, skillsRoot) : [];
+    for (const skill of skills) {
+      if (
+        typeof output === "string" &&
+        new RegExp(
+          `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
+        ).test(output) &&
+        !observedSkills.includes(skill)
+      )
+        observedSkills.push(skill);
+    }
   }
   return observedSkills;
 }
@@ -155,9 +160,10 @@ function observedSkillReads(events: CodexEvent[], repoDir: string): string[] {
 export function codexSkillActivation(
   stream: string,
   repoDir: string,
+  installedSkillsRoot = join(repoDir, ".agents", "skills"),
 ): SkillActivationObservation {
   const events = codexEvents(stream);
-  const observedSkills = observedSkillReads(events, repoDir);
+  const observedSkills = observedSkillReads(events, installedSkillsRoot);
   let completed = false;
   let failed = false;
   for (const event of events) {
@@ -292,6 +298,7 @@ export function retainedCodexEvidence(
   stream: string,
   repoDir: string,
   status?: { exitCode: number; stderrPresent: boolean },
+  installedSkillsRoot = join(repoDir, ".agents", "skills"),
 ): string {
   const events = codexEvents(stream);
   const retained = events.flatMap((event) => {
@@ -303,7 +310,7 @@ export function retainedCodexEvidence(
     ].filter((value): value is object => value !== undefined);
     return values;
   });
-  for (const skill of observedSkillReads(events, repoDir)) {
+  for (const skill of observedSkillReads(events, installedSkillsRoot)) {
     retained.push({
       type: "darrow.skill_read_probe",
       source: "skill_file_read_probe",
@@ -401,7 +408,6 @@ function codexArgv(
     `model_reasoning_effort="${effort}"`,
     "--skip-git-repo-check",
     "--ephemeral",
-    "--ignore-user-config",
     "--ignore-rules",
     "--dangerously-bypass-approvals-and-sandbox",
     // Final agent message lands under .git/ so checks can read it without
@@ -409,6 +415,66 @@ function codexArgv(
     "-o",
     join(repoDir, ".git", "last-message.md"),
   ];
+}
+
+async function runCodexPluginCommand(
+  argv: string[],
+  env: Record<string, string>,
+): Promise<string> {
+  const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env });
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0)
+    throw new Error(`Codex eval plugin setup failed (${code}): ${err.trim()}`);
+  return out;
+}
+
+async function installCodexEvalPlugin(
+  repoDir: string,
+  env: Record<string, string>,
+): Promise<string> {
+  const marketplace = join(repoDir, ".git", "eval-marketplace");
+  const manifest = JSON.parse(
+    await readFile(
+      join(marketplace, "plugin", ".codex-plugin", "plugin.json"),
+      "utf8",
+    ),
+  ) as { name?: unknown };
+  if (typeof manifest.name !== "string" || !manifest.name)
+    throw new Error("Codex eval plugin manifest has no name");
+  await runCodexPluginCommand(
+    ["codex", "plugin", "marketplace", "add", marketplace, "--json"],
+    env,
+  );
+  const installed = JSON.parse(
+    await runCodexPluginCommand(
+      ["codex", "plugin", "add", `${manifest.name}@darrow-eval`, "--json"],
+      env,
+    ),
+  ) as { installedPath?: unknown };
+  if (typeof installed.installedPath !== "string" || !installed.installedPath)
+    throw new Error("Codex eval plugin install returned no installed path");
+  return realpath(join(installed.installedPath, "skills"));
+}
+
+export async function codexEvalSkillsRoot(
+  repoDir: string,
+  env: Record<string, string>,
+): Promise<string> {
+  const manifest = join(
+    repoDir,
+    ".git",
+    "eval-marketplace",
+    "plugin",
+    ".codex-plugin",
+    "plugin.json",
+  );
+  return existsSync(manifest)
+    ? installCodexEvalPlugin(repoDir, env)
+    : join(repoDir, ".git", "eval-no-skills");
 }
 
 async function codexFinalMessage(repoDir: string): Promise<string> {
@@ -420,9 +486,60 @@ async function codexFinalMessage(repoDir: string): Promise<string> {
   }
 }
 
+interface CodexExecution {
+  canonicalRepoDir: string;
+  installedSkillsRoot: string;
+  out: string;
+  err: string;
+  code: number;
+  durationMs: number;
+}
+
+async function executeCodex(
+  repoDir: string,
+  prompt: string,
+  model: string,
+  effort: string,
+): Promise<CodexExecution> {
+  const start = performance.now();
+  const canonicalRepoDir = await realpath(repoDir);
+  const env = await isolatedHarnessEnvironment("codex", repoDir);
+  const installedSkillsRoot = await codexEvalSkillsRoot(repoDir, env);
+  const argv = await sandboxedAgentCommand(
+    codexArgv(repoDir, prompt, model, effort),
+    repoDir,
+  );
+  const proc = Bun.spawn(argv, {
+    cwd: repoDir,
+    stdout: "pipe",
+    stderr: "pipe",
+    // Fixture mocks (e.g. gh) shadow real network tools for the harness
+    // and every subprocess it spawns.
+    env: {
+      ...env,
+      DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+    },
+  });
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return {
+    canonicalRepoDir,
+    installedSkillsRoot,
+    out,
+    err,
+    code,
+    durationMs: performance.now() - start,
+  };
+}
+
 /**
- * Runs the skill via headless Codex (`codex exec`). The skill is mounted in
- * the fixture repo at .agents/skills/ (Codex agent-skills discovery).
+ * Runs the skill via headless Codex (`codex exec`). The fixture source is
+ * installed into the isolated Codex plugin cache through a local marketplace,
+ * matching installed-plugin discovery without a shadowing project skill.
  * Native approvals are bypassed inside the runner's outer OS sandbox.
  * Codex reports token usage in its JSONL event stream but no cost — costUsd
  * stays null for this adapter.
@@ -430,7 +547,8 @@ async function codexFinalMessage(repoDir: string): Promise<string> {
 export const codexAdapter: HarnessAdapter = {
   name: "codex",
   defaultModel: "gpt-5.5",
-  skillMounts: [".agents/skills"],
+  skillMounts: [],
+  sourceCodexPlugin: true,
 
   async version(): Promise<string> {
     const proc = Bun.spawn(["codex", "--version"], {
@@ -443,31 +561,15 @@ export const codexAdapter: HarnessAdapter = {
   },
 
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
-    const start = performance.now();
-    const canonicalRepoDir = await realpath(repoDir);
-    const env = await isolatedHarnessEnvironment("codex", repoDir);
-    const argv = await sandboxedAgentCommand(
-      codexArgv(repoDir, prompt, model, effort),
-      repoDir,
-    );
-    const proc = Bun.spawn(argv, {
-      cwd: repoDir,
-      stdout: "pipe",
-      stderr: "pipe",
-      // Fixture mocks (e.g. gh) shadow real network tools for the harness
-      // and every subprocess it spawns.
-      env: {
-        ...env,
-        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
-        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-      },
-    });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    const durationMs = performance.now() - start;
+    const execution = await executeCodex(repoDir, prompt, model, effort);
+    const {
+      canonicalRepoDir,
+      installedSkillsRoot,
+      out,
+      err,
+      code,
+      durationMs,
+    } = execution;
 
     const {
       complete: tokenUsageComplete,
@@ -476,7 +578,11 @@ export const codexAdapter: HarnessAdapter = {
     } = codexTokenUsage(out);
     const ok = codexRunSucceeded(code, out);
     const resultText = await codexFinalMessage(repoDir);
-    const skillActivation = codexSkillActivation(out, canonicalRepoDir);
+    const skillActivation = codexSkillActivation(
+      out,
+      canonicalRepoDir,
+      installedSkillsRoot,
+    );
 
     return {
       ok,
@@ -486,10 +592,15 @@ export const codexAdapter: HarnessAdapter = {
       outputTokens,
       costUsd: null,
       resultText,
-      raw: retainedCodexEvidence(out, canonicalRepoDir, {
-        exitCode: code,
-        stderrPresent: err.trim().length > 0,
-      }),
+      raw: retainedCodexEvidence(
+        out,
+        canonicalRepoDir,
+        {
+          exitCode: code,
+          stderrPresent: err.trim().length > 0,
+        },
+        installedSkillsRoot,
+      ),
       skillActivation: {
         ...skillActivation,
         complete: ok && skillActivation.complete,

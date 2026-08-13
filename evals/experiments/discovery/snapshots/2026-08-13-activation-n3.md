@@ -24,6 +24,13 @@ case's existing dependency-sequencing checks in 0/3 and Codex passed them in
 1/3. The routing results remain 3/3; the report does not convert those outcome
 failures into activation failures or hide them inside activation success.
 
+This is a historical snapshot of the activation harness at that run. Its
+Codex cells used the then-current project-mounted `.agents/skills` probe; they
+do not evidence installed-plugin resource resolution. The later
+`2026-08-13-plan-frontier-n3.md` experiment supersedes that delivery seam for
+the planning case by installing the source plugin into an isolated Codex cache
+and loading both planning skills from that installed plugin.
+
 ## Setup
 
 | Dimension      | Value                                                                 |

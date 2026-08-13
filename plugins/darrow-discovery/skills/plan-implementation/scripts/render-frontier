@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  printf 'usage: %s --evidence TEXT --question TEXT --option LABEL --option LABEL [--option LABEL ...] --choice LABEL --rationale TEXT --deferred TEXT\n' "$0" >&2
+}
+
+die() {
+  printf '%s\n' "$1" >&2
+  exit 2
+}
+
+evidence=
+question=
+choice=
+rationale=
+deferred=
+options=()
+
+while test "$#" -gt 0; do
+  test "$#" -ge 2 || {
+    usage
+    exit 2
+  }
+  case "$1" in
+    --evidence) evidence=$2 ;;
+    --question) question=$2 ;;
+    --option) options[${#options[@]}]=$2 ;;
+    --choice) choice=$2 ;;
+    --rationale) rationale=$2 ;;
+    --deferred) deferred=$2 ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+  shift 2
+done
+
+for value in "$evidence" "$question" "$choice" "$rationale" "$deferred"; do
+  test -n "$value" || die 'every frontier field must be non-empty'
+  case "$value" in
+    *'
+'*) die 'frontier fields must each be one line' ;;
+  esac
+done
+
+test "${#options[@]}" -ge 2 || die 'the root question must declare at least two option labels'
+for option in "${options[@]}"; do
+  test -n "$option" || die 'root option labels must be non-empty'
+  case "$option" in
+    *'
+'*) die 'root option labels must each be one line' ;;
+  esac
+done
+
+question_marks=$(tr -cd '?' <<<"$question" | wc -c | tr -d '[:space:]')
+test "$question_marks" = 1 || die 'the root question must contain exactly one question mark'
+case "$question" in
+  *'('*|*')'*) die 'the root question must use short option labels without parenthesized mechanics' ;;
+esac
+
+case "$rationale$deferred" in
+  *'?'*) die 'only the root question may ask a question' ;;
+esac
+
+case " $(tr '[:upper:]' '[:lower:]' <<<"$deferred") " in
+  *'('*|*')'*|*' vs '*|*' versus '*)
+    die 'deferred decisions must be category names without child-option examples'
+    ;;
+esac
+question_lower=$(tr '[:upper:]' '[:lower:]' <<<"$question")
+choice_lower=$(tr '[:upper:]' '[:lower:]' <<<"$choice")
+rationale_lower=$(tr '[:upper:]' '[:lower:]' <<<"$rationale")
+evidence_lower=$(tr '[:upper:]' '[:lower:]' <<<"$evidence")
+case "$evidence_lower" in
+  *greenfield*|*'no architecture to preserve'*|*'nothing to preserve'*)
+    die 'repository absence is evidence, not authority to declare a greenfield decision'
+    ;;
+esac
+case "$rationale_lower" in
+  *signature*|*'existing caller'*|*'current caller'*|*'backward compat'*|*default*|*fallback*|*precedence*|*override*|*parameter*|*'options object'*|*setter*|*'environment variable'*|*'env var'*|*migrat*)
+    die 'recommendation rationale selects a deferred API, default, compatibility, or migration answer'
+    ;;
+esac
+case "$rationale_lower" in
+  *'no repository evidence'*requirement*|*'no repository evidence'*constraint*|*absent*requirement*|*absent*constraint*)
+    die 'missing repository policy cannot justify selecting a root answer'
+    ;;
+esac
+case "$rationale_lower" in
+  *'smallest change'*|*'minimal change'*|*'least disruptive'*|*'current implementation'*|*'existing implementation'*|*'current shared constant'*|*'codebase already models'*|*'matches the current shape'*|*'matches current shape'*|*'library today has'*)
+    die 'current implementation shape and migration convenience cannot justify selecting a root answer'
+    ;;
+esac
+choice_found=0
+for option in "${options[@]}"; do
+  option_lower=$(tr '[:upper:]' '[:lower:]' <<<"$option")
+  case "$question_lower" in
+    *"$option_lower"*) ;;
+    *) die "root option '$option' is absent from the question" ;;
+  esac
+  if test "$option_lower" = "$choice_lower"; then
+    choice_found=1
+  else
+    case "$rationale_lower" in
+      *"$option_lower"*) die "recommendation rationale mentions unselected root option '$option'" ;;
+    esac
+  fi
+done
+test "$choice_found" = 1 || die 'the recommended choice must equal one declared root option'
+
+rationale_words=" $(tr '[:upper:]' '[:lower:]' <<<"$rationale" | tr -cs '[:alnum:]' ' ') "
+deferred_tokens=$(tr '[:upper:]' '[:lower:]' <<<"$deferred" | tr -cs '[:alnum:]' '\n' | awk 'length($0) >= 5')
+for token in $deferred_tokens; do
+  case "$token" in
+    about|after|before|could|should|their|these|those|using|where|which|while|would) continue ;;
+  esac
+  case "$rationale_words" in
+    *" $token "*) die "recommendation rationale selects deferred node '$token'" ;;
+  esac
+done
+
+evidence=${evidence%.}
+rationale=${rationale%.}
+deferred=${deferred%.}
+
+printf 'Evidence: %s.\n\n' "$evidence"
+printf 'Q1 — %s\n\n' "$question"
+printf 'Recommendation: Choose %s because %s.\n\n' "$choice" "$rationale"
+printf 'Deferred: %s. After your answer, I will recompute the next frontier.\n' "$deferred"

@@ -105,11 +105,24 @@ settled. Ask all material, independent frontier questions in the current
 round. Defer a question when its choices or useful wording depend on an answer
 still open in this round.
 
+Before writing the round, compare every candidate question with the other open
+nodes. If another answer can change whether a question matters, who or what it
+applies to, its concrete options, or its recommendation, make that question a
+child of the prerequisite. Ask every remaining root and no child nodes. If one
+root remains, the response contains one question.
+
 Deferred means absent from the numbered round, not included with an “after Q1”
 or “once this is settled” preface. You may state the dependency compactly
 outside the questions. For example, if selecting a storage vendor depends on
 the allowed regions, ask only for the allowed regions now; do not ask for the
 vendor or vendor-selection criteria until that answer is settled.
+
+A root recommendation stays at the root's level. It may explain why child
+branches depend on the root answer, but it must not select or propose answers
+for those branches. Name deferred branches in statements without turning them
+into questions or options. When known child nodes remain, the next step after
+the user's answer is to recompute the frontier, not to produce the enclosing
+final artifact.
 
 For each question:
 

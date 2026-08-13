@@ -547,6 +547,8 @@ async function runTrial(
     skillDir: withoutSkill ? "" : evalCase.skillDir,
     skillMounts: adapter.skillMounts,
     mountPluginSkills: evalCase.mount_plugin_skills ?? false,
+    sourceClaudePlugin: adapter.sourceClaudePlugin,
+    sourceCodexPlugin: adapter.sourceCodexPlugin,
     caseDir: evalCase.caseDir,
   });
   try {

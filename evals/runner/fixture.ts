@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile, mkdir, cp, rm, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { Fixture } from "./types";
 
 const TICKETCTL = `#!/bin/bash
@@ -210,6 +210,7 @@ async function copySkillWithoutEvals(
 
 interface PluginMountPaths {
   manifest: string;
+  codexManifest: string;
   agents: string;
   bin: string;
   config: string;
@@ -247,30 +248,103 @@ async function mountSourceClaudePlugin(
       join(evalPlugin, "skills", name),
     );
   }
-  await cp(paths.agents, join(evalPlugin, "agents"), { recursive: true });
+  if (existsSync(paths.agents))
+    await cp(paths.agents, join(evalPlugin, "agents"), { recursive: true });
   if (existsSync(paths.bin))
     await cp(paths.bin, join(evalPlugin, "bin"), { recursive: true });
   if (existsSync(paths.config))
     await cp(paths.config, join(evalPlugin, "config"), { recursive: true });
 }
 
-async function mountSkills(
+async function mountSourceCodexPlugin(
   repoDir: string,
-  options: Pick<
-    BuildFixtureOptions,
-    "skillDir" | "skillMounts" | "mountPluginSkills"
-  >,
+  skillDirs: string[],
+  paths: PluginMountPaths,
 ): Promise<void> {
-  const { skillDir, skillMounts, mountPluginSkills = false } = options;
-  // Plugin-level mechanics and deterministic config mount two levels above
-  // the skill so relative paths resolve exactly like the repo/plugin cache.
+  const marketplace = join(repoDir, ".git", "eval-marketplace");
+  const plugin = join(marketplace, "plugin");
+  const pluginName = basename(dirname(dirname(paths.codexManifest)));
+  await mkdir(join(marketplace, ".claude-plugin"), { recursive: true });
+  await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+  await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+  await writeFile(
+    join(marketplace, ".claude-plugin", "marketplace.json"),
+    JSON.stringify(
+      {
+        name: "darrow-eval",
+        owner: { name: "Darrow eval" },
+        plugins: [
+          {
+            name: pluginName,
+            source: "./plugin",
+            description: "Filtered source plugin for evaluation",
+          },
+        ],
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  await cp(paths.manifest, join(plugin, ".claude-plugin", "plugin.json"));
+  await cp(paths.codexManifest, join(plugin, ".codex-plugin", "plugin.json"));
+  for (const mountedSkillDir of skillDirs) {
+    const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
+    await copySkillWithoutEvals(mountedSkillDir, join(plugin, "skills", name));
+  }
+  if (existsSync(paths.agents))
+    await cp(paths.agents, join(plugin, "agents"), { recursive: true });
+  if (existsSync(paths.bin))
+    await cp(paths.bin, join(plugin, "bin"), { recursive: true });
+  if (existsSync(paths.config))
+    await cp(paths.config, join(plugin, "config"), { recursive: true });
+}
+
+function pluginMountPaths(skillDir: string): PluginMountPaths {
   const pluginRoot = dirname(dirname(skillDir));
-  const paths: PluginMountPaths = {
+  return {
     bin: join(pluginRoot, "bin"),
     config: join(pluginRoot, "config"),
     agents: join(pluginRoot, "agents"),
     manifest: join(pluginRoot, ".claude-plugin", "plugin.json"),
+    codexManifest: join(pluginRoot, ".codex-plugin", "plugin.json"),
   };
+}
+
+async function mountSourcePlugins(
+  repoDir: string,
+  skillDirs: string[],
+  paths: PluginMountPaths,
+  options: { sourceClaudePlugin: boolean; sourceCodexPlugin: boolean },
+): Promise<void> {
+  if (options.sourceClaudePlugin && existsSync(paths.manifest))
+    await mountSourceClaudePlugin(repoDir, skillDirs, paths);
+  if (
+    options.sourceCodexPlugin &&
+    existsSync(paths.manifest) &&
+    existsSync(paths.codexManifest)
+  )
+    await mountSourceCodexPlugin(repoDir, skillDirs, paths);
+}
+
+async function mountSkills(
+  repoDir: string,
+  options: Pick<
+    BuildFixtureOptions,
+    | "skillDir"
+    | "skillMounts"
+    | "mountPluginSkills"
+    | "sourceClaudePlugin"
+    | "sourceCodexPlugin"
+  >,
+): Promise<void> {
+  const {
+    skillDir,
+    skillMounts,
+    mountPluginSkills = false,
+    sourceClaudePlugin = false,
+    sourceCodexPlugin = false,
+  } = options;
+  const paths = pluginMountPaths(skillDir);
   const skillDirs = await resolveMountedSkillDirs(skillDir, mountPluginSkills);
   for (const mount of skillMounts) {
     for (const mountedSkillDir of skillDirs) {
@@ -285,14 +359,10 @@ async function mountSkills(
     }
     await mountPluginMechanics(repoDir, mount, paths);
   }
-  if (
-    skillMounts.some((mount) => mount.startsWith(".claude/")) &&
-    existsSync(paths.agents) &&
-    existsSync(paths.manifest)
-  ) {
-    // Use source runner definitions instead of a possibly stale global cache.
-    await mountSourceClaudePlugin(repoDir, skillDirs, paths);
-  }
+  await mountSourcePlugins(repoDir, skillDirs, paths, {
+    sourceClaudePlugin,
+    sourceCodexPlugin,
+  });
   // Keep mounts invisible to git: they are eval infrastructure, not repo
   // state (a model told "commit my changes" would otherwise commit them).
   const excludes = skillMounts.map((m) => `/${m.split("/")[0]}/`).join("\n");
@@ -307,6 +377,10 @@ export interface BuildFixtureOptions {
   skillMounts: string[];
   /** Mount every sibling skill of the plugin, not just `skillDir`. */
   mountPluginSkills?: boolean;
+  /** Build a Claude plugin from the source plugin instead of project discovery. */
+  sourceClaudePlugin?: boolean;
+  /** Build a local marketplace for an isolated installed Codex plugin. */
+  sourceCodexPlugin?: boolean;
   /** Value of `{{case_dir}}` / `$DARROW_EVAL_CASE_DIR` in `fixture.setup`. */
   caseDir?: string;
 }

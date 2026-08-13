@@ -333,14 +333,16 @@ async function claudeOutcome(
 }
 
 /**
- * Runs the skill via headless Claude Code (`claude -p`). The skill is already
- * mounted in the fixture repo at .claude/skills/ (project-level discovery).
- * Native permissions are skipped inside the runner's outer OS sandbox.
+ * Runs the skill via headless Claude Code (`claude -p`). The fixture exposes
+ * the source plugin through `--plugin-dir`, matching installed-plugin resource
+ * resolution without a shadowing project skill. Native permissions are skipped
+ * inside the runner's outer OS sandbox.
  */
 export const claudeAdapter: HarnessAdapter = {
   name: "claude",
   defaultModel: "claude-sonnet-5",
-  skillMounts: [".claude/skills"],
+  skillMounts: [],
+  sourceClaudePlugin: true,
 
   async version(): Promise<string> {
     const proc = Bun.spawn(["claude", "--version"], {
