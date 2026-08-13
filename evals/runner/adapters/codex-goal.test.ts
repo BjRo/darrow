@@ -21,6 +21,7 @@ import {
   isReportableGoalStatus,
   isFinalAgentMessage,
   parseCodexGoalHandoff,
+  parseExplicitReviewRoundBudget,
   parseExplicitUserRoute,
   parsePreparedGoalDimensions,
   withMaterializedGoalLifecycle,
@@ -96,6 +97,7 @@ function handoffValue() {
     independentReview: {
       selection: "selected" as "selected" | "omitted",
       reason: "high-risk work requires independent final-tree review",
+      roundBudget: 3,
     },
     selectedRoute: {
       harness: "codex",
@@ -175,6 +177,8 @@ after`);
       "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
       "utf8",
     );
+    expect(parentSkill).toContain('"roundBudget"');
+    expect(parentSkill).toContain("file-backed objective");
     const canonicalGuidance = extractIntentRoutingGuidance(parentSkill);
     for (const gate of [
       "| `routine` | focused acceptance or characterization evidence plus the scoped repository gate |",
@@ -202,6 +206,9 @@ after`);
     );
     expect(canonicalGuidance).not.toContain("darrow-review-result-v1");
     expect(canonicalGuidance).toContain("Independent review: selected —");
+    expect(canonicalGuidance).toMatch(/at most three independent-review/);
+    expect(canonicalGuidance).toMatch(/fresh comprehensive review/i);
+    expect(canonicalGuidance).toMatch(/third review is terminal/i);
   });
 
   test("recognizes only tab-separated ablation markers", () => {
@@ -211,6 +218,68 @@ after`);
     expect(goalDimensionStage("evaluation_dimension_stage\\tworkflow\n")).toBe(
       "workflow-risk",
     );
+  });
+
+  test("extracts one explicit review-round budget", () => {
+    expect(
+      parseExplicitReviewRoundBudget(
+        "Explicitly set the independent-review budget to four review rounds.",
+      ),
+    ).toBe(4);
+    expect(parseExplicitReviewRoundBudget("review_round_budget\t7")).toBe(7);
+    expect(
+      parseExplicitReviewRoundBudget("Use the default independent review."),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "Do not use a review-round budget of four.",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "I won't use a review-round budget of four.",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "I won’t use a review-round budget of four.",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "I am not going to use a review-round budget of four.",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        'The phrase "review-round budget: four" is only an example.',
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "The phrase 'review-round budget: four' is only an example.",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "Review-round budget: four is not authorized; use the default.",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseExplicitReviewRoundBudget(
+        "Do not publish, but explicitly set the review budget to four.",
+      ),
+    ).toBe(4);
+    expect(
+      parseExplicitReviewRoundBudget(
+        "Set the review budget to four; owner's note agrees.",
+      ),
+    ).toBe(4);
+    expect(() =>
+      parseExplicitReviewRoundBudget(
+        "Set the review-round budget to 4. Choose a review budget of 5.",
+      ),
+    ).toThrow("conflicting explicit review-round budgets");
   });
 
   test("builds incremental one-response classifier prompts", () => {
@@ -234,6 +303,7 @@ after`);
     expect(withRisk).toContain("Select the workflow and proportional risk");
     expect(withRisk).toContain("verification_gate");
     expect(withRisk).toContain("feedback checks and final-tree checks");
+    expect(withRisk).toContain("independentReview.roundBudget");
     expect(withRisk).not.toContain("technical reference");
   });
 
@@ -487,9 +557,46 @@ fi
     });
     expect(
       parseCodexGoalHandoff(handoff, catalog, dimensions).goalContract,
-    ).toContain(
-      "Independent review: selected — high-risk work requires independent final-tree review; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; repair only under existing authority, rerun invalidated checks, and review the changed content again.",
+    ).toMatch(
+      /Independent review: selected —[\s\S]*at most three review rounds[\s\S]*fresh comprehensive review[\s\S]*first rework[\s\S]*later rework[\s\S]*review round 3 is terminal/,
     );
+
+    const explicitBudget = handoffValue();
+    explicitBudget.independentReview.roundBudget = 4;
+    expect(
+      parseCodexGoalHandoff(
+        JSON.stringify(explicitBudget),
+        catalog,
+        dimensions,
+        { reviewRoundBudget: 4 },
+      ).goalContract,
+    ).toMatch(
+      /originating explicit budget of at most 4 review rounds[\s\S]*review round 4 is terminal/,
+    );
+    expect(() =>
+      parseCodexGoalHandoff(
+        JSON.stringify(explicitBudget),
+        catalog,
+        dimensions,
+      ),
+    ).toThrow("independent-review round budget must be 3");
+    expect(() =>
+      parseCodexGoalHandoff(handoff, catalog, dimensions, {
+        reviewRoundBudget: 4,
+      }),
+    ).toThrow("independent-review round budget must be 4");
+    expect(
+      Buffer.byteLength(
+        parseCodexGoalHandoff(
+          JSON.stringify({
+            ...value,
+            goalContract: `${"x".repeat(4500)}\n${value.goalContract}`,
+          }),
+          catalog,
+          dimensions,
+        ).goalContract,
+      ),
+    ).toBeGreaterThan(4000);
     const classifierClause = {
       ...value,
       goalContract: value.goalContract.replace(
@@ -536,6 +643,7 @@ fi
           independentReview: {
             selection: "omitted",
             reason: "complete deterministic oracle",
+            roundBudget: 0,
           },
         }),
         catalog,
@@ -546,7 +654,11 @@ fi
       parseCodexGoalHandoff(
         JSON.stringify({
           ...value,
-          independentReview: { selection: "selected", reason: "   " },
+          independentReview: {
+            selection: "selected",
+            reason: "   ",
+            roundBudget: 3,
+          },
         }),
         catalog,
         dimensions,
@@ -563,7 +675,11 @@ fi
         parseCodexGoalHandoff(
           JSON.stringify({
             ...value,
-            independentReview: { selection: "selected", reason },
+            independentReview: {
+              selection: "selected",
+              reason,
+              roundBudget: 3,
+            },
           }),
           catalog,
           dimensions,
@@ -577,6 +693,7 @@ fi
           independentReview: {
             selection: "selected",
             reason: "x".repeat(241),
+            roundBudget: 3,
           },
         }),
         catalog,
@@ -646,12 +763,11 @@ fi
     const value = handoffValue();
     value.routeSource = "user";
     expect(
-      parseCodexGoalHandoff(
-        JSON.stringify(value),
-        catalog,
-        dimensions,
-        parseExplicitUserRoute("user_route\tcodex\topenai\tgpt-5.6-sol\thigh"),
-      ).routeSource,
+      parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions, {
+        route: parseExplicitUserRoute(
+          "user_route\tcodex\topenai\tgpt-5.6-sol\thigh",
+        ),
+      }).routeSource,
     ).toBe("user");
     expect(() =>
       parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions),
