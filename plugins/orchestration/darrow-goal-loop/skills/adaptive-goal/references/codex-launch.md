@@ -2,6 +2,49 @@
 
 Use the first boundary that can honor the compiled route.
 
+## Materialize the native objective
+
+Before a same-thread, host-API, native-runner, or shared-filesystem nested goal
+activation, put the complete compiled contract in a private temporary staging
+file outside the repository. Preserve it byte-for-byte; this is the contract,
+not a lossy summary or a separate plan. Run:
+
+```sh
+bash "$goal_loop" materialize-objective --repo "$repo" \
+  --goal-file <absolute-contract-file>
+```
+
+Use the returned absolute `objective_file` as the exact native goal objective.
+The helper reports `inline` when the complete contract is at most 4,000 bytes.
+Above that limit it copies the complete contract to a private attachment,
+hashes it with SHA-256, and writes a bounded objective that requires the goal
+owner to read and verify the attachment before work. Stop before activation if
+the helper fails, any returned file is unreadable, or the objective exceeds
+4,000 bytes.
+
+Perform this materialization before the first `create_goal` call. Call the goal
+surface exactly once with the materialized objective. Do not retry `create_goal`
+after a size rejection, recompact the contract after rejection, or truncate it.
+Keep a returned attachment directory readable until the goal reaches a
+terminal state, including paused and native continuation turns; then run:
+
+```sh
+bash "$goal_loop" release-objective \
+  --attachment-dir <exact-helper-returned-attachment-dir> \
+  --expected-sha256 <exact-helper-returned-contract-sha256>
+```
+
+Do not reconstruct deletion commands. The receiving goal owner must share this
+filesystem. If it does not, use a complete inline contract or stop honestly.
+If the launcher fails after activation without confirming `complete` or
+`blocked`, retain the attachment and report the thread identifier, exact
+attachment path, and expected digest as resumable lifecycle evidence; do not
+remove the contract from a still-active or paused goal. Once terminal status is
+confirmed, release the attachment even if later result collection fails.
+Remove the caller-created staging file after activation accepts an inline
+objective; in file-backed mode it may be removed as soon as materialization
+succeeds because the helper has already made and verified its private copy.
+
 ## Same thread
 
 When the current runtime exposes `create_goal`, obtain the concrete active
@@ -13,8 +56,9 @@ bash "$goal_loop" confirm-route --selected "$selected_route" \
   --effective "$active_route" --applied-by current-thread
 ```
 
-Only after that succeeds, call
-`create_goal` exactly once with the complete goal contract as `objective`.
+Only after that succeeds and objective materialization has completed, call
+`create_goal` exactly once with the exact contents of `objective_file` as
+`objective`.
 Supply a token budget only when the user specified one. Continue in the same
 thread and record:
 
@@ -31,14 +75,16 @@ The prompt, route table, and model defaults are not active-route metadata.
 `inherit` is a launch choice, not a model identifier. If the selected and active
 routes differ, do not use this boundary.
 
-**Complete when:** `get_goal` shows the compiled objective active on the current
-thread and its concrete route is the selected route.
+**Complete when:** `get_goal` shows the materialized objective active on the
+current thread and its concrete route is the selected route. A later paused
+state retains the attachment; complete or blocked releases it.
 
 ## Supported host API
 
-When the enclosing client exposes Codex app-server thread control, set the goal
-on the current thread with `thread/goal/set`, then start the work turn with the
-selected workflow document, `model`, and `effort`. Before activation, validate
+When the enclosing client exposes Codex app-server thread control, materialize
+the objective, set it on the current thread with `thread/goal/set` exactly once,
+then start the work turn with the selected workflow document, `model`, and
+`effort`. Before activation, validate
 a policy-sourced handoff against the prepared active-worktree profile mapping
 (with `repository` or `bundled` provenance) and a user-sourced
 handoff against the explicit request; validate either route against the live
@@ -62,18 +108,20 @@ reasoning effort and that the Codex provider already matches. A close control
 is optional lifecycle support, not a launch prerequisite. An unavailable
 user-pinned route stops; a policy route may use only its declared fallback.
 
-Spawn exactly one agent with:
+Materialize the objective before spawning, then spawn exactly one agent with:
 
 - task name `adaptive_goal_runner`;
 - `fork_turns` set to `none`, so explicit model and effort overrides are valid;
 - `model` and `reasoning_effort` set to the selected concrete values; and
-- a self-contained message containing the complete goal contract plus the
+- a self-contained message containing the exact materialized objective and,
+  for a file-backed contract, its absolute path and expected SHA-256, plus the
   exact selected workflow document, its absolute path, identifier, and content
   hash.
 
-Tell the runner to call `create_goal` exactly once with the contract, own that
-goal through terminal completion, run the workflow and risk gates, and return
-the required final record. The runner may use native Codex subagents for
+Tell the runner to call `create_goal` exactly once with the materialized
+objective, read and verify a file-backed complete contract before work, own
+that goal through terminal completion, run the workflow and risk gates, and
+return the required final record. The runner may use native Codex subagents for
 bounded work when useful, but remains the sole goal owner. Tell it to collect
 each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe
@@ -112,7 +160,8 @@ and final-tree checks complete.
 This boundary is for a supported enclosing launcher only after the user
 explicitly authorizes process nesting. An interactive skill must not infer that
 authorization from route mismatch. Put the complete contract in a private
-temporary file outside the repository, then run:
+temporary staging file outside the repository; the launcher materializes its
+bounded native objective, then run:
 
 ```sh
 bash "$goal_loop" launch --host codex --repo "$repo" \
