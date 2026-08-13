@@ -1,8 +1,7 @@
 id: ticket-to-pr-e13-cross-host
 invariant: TPR-E13,TPR-C14
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr. TKT-1301
+  {{entrypoint}}. TKT-1301
   cannot resolve a required readiness capability in
   this host. Return the host-neutral task-recipe result; do not expose a
   provider-specific schema or invent success.

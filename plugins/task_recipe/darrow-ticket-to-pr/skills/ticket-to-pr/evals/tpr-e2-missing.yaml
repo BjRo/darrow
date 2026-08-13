@@ -1,7 +1,6 @@
 id: ticket-to-pr-e2-missing
 invariant: TPR-E2,TPR-C2
-activation: positive
-prompt: "/ticket-to-pr On Codex, invoke $ticket-to-pr, but no ticket was supplied."
+prompt: "{{entrypoint}}, but no ticket was supplied."
 fixture:
   commits:
     - message: "chore: init"

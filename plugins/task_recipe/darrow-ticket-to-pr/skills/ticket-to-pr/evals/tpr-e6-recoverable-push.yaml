@@ -1,8 +1,7 @@
 id: ticket-to-pr-e6-recoverable-push
 invariant: TPR-E6,TPR-C10
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-605. The first
+  {{entrypoint}} for ready TKT-605. The first
   non-force push fails transiently, the next is accepted. Persist safely,
   publish the verified exact head once, and never force-push or use a fixed
   retry count.

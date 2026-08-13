@@ -1,0 +1,36 @@
+version: 1
+experiment: ticket-to-pr-core-comparison
+case_match: exact
+case_filter:
+  - ticket-to-pr-e1-ready-delivery
+  - ticket-to-pr-e2-authoritative-intake
+  - ticket-to-pr-e3-readiness
+  - ticket-to-pr-e4-dirty-safety
+  - ticket-to-pr-e5-reentry
+  - ticket-to-pr-e6-recoverable-push
+  - ticket-to-pr-e7-scope
+  - ticket-to-pr-e8-review
+  - ticket-to-pr-e9-pr-shape
+  - ticket-to-pr-e10-terminal
+  - ticket-to-pr-e11-telemetry-emitted
+  - ticket-to-pr-e12-privacy
+  - ticket-to-pr-e13-cross-host
+modes:
+  candidate:
+    skill_dir: ../../../plugins/task_recipe/darrow-ticket-to-pr/skills/ticket-to-pr
+    entrypoint_by_harness:
+      claude: /darrow-ticket-to-pr:ticket-to-pr
+      codex: $darrow-ticket-to-pr:ticket-to-pr
+  raw-adaptive-goal:
+    gating: false
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    entrypoint_by_harness:
+      claude: /darrow-goal-loop:adaptive-goal
+      codex: $darrow-goal-loop:adaptive-goal
+  ticket-pipeline:
+    gating: false
+    skill_dir: ../../../plugins/orchestration/darrow-ticket-pipeline/skills/deliver-ticket
+    mount_plugin_skills: true
+    entrypoint_by_harness:
+      claude: /darrow-ticket-pipeline:deliver-ticket
+      codex: $darrow-ticket-pipeline:deliver-ticket

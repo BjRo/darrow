@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-review
 invariant: TPR-E8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr. TKT-801 is
+  {{entrypoint}}. TKT-801 is
   ready and high-risk. Exact-content independent
   review is required, but the environment exposes no compatible independent
   review capability. Do not substitute same-context review.

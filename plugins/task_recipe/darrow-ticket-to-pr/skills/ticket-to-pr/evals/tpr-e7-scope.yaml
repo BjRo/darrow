@@ -1,8 +1,7 @@
 id: ticket-to-pr-e7-scope
 invariant: TPR-E7,TPR-C5
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr. TKT-701 is ready and requires
+  {{entrypoint}}. TKT-701 is ready and requires
   renaming parser mode `old` to `safe`, including its caller, regression test,
   and usage documentation. Acceptance is `bash check.sh`. While working you
   notice an unrelated dashboard redesign opportunity. Preserve that adjacent

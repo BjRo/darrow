@@ -6,6 +6,7 @@ import type { CaseResult, JudgeAssessment } from "./types";
 export interface ReportCell {
   harness: string;
   mode: string;
+  gating?: boolean;
   results: CaseResult[];
 }
 
@@ -212,25 +213,28 @@ function perTaskSection(cells: ReportCell[]): string[] {
     "",
     "The aggregate is intentionally paired with task-level results so one task shape cannot hide another.",
     "",
-    "| Harness | Mode | Case | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Harness | Mode | Case | Workload digest | Entrypoint adapter | Transport | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean |",
+    "| --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
     ...cells.flatMap((cell) =>
       cell.results.map(
         (result) =>
-          `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(taskPassRate(result))} | ${percent(result.passRate)} | ${result.meanJudgeScore?.toFixed(2) ?? "n/a"} | ${milliseconds(result.meanDurationMs)} | ${result.meanTokens === null ? "unknown" : Math.round(result.meanTokens)} |`,
+          `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${result.evaluationDigest} | ${result.entrypointAdapter ?? "none"} | ${result.entrypointTransport ?? "none"} | ${percent(taskPassRate(result))} | ${percent(result.passRate)} | ${result.meanJudgeScore?.toFixed(2) ?? "n/a"} | ${milliseconds(result.meanDurationMs)} | ${result.meanTokens === null ? "unknown" : Math.round(result.meanTokens)} |`,
       ),
     ),
   ];
 }
 
 const activationSourceLabel = (
-  source: "harness_event" | "skill_file_read_probe" | null,
+  source:
+    "harness_event" | "skill_file_read_probe" | "skill_activation_probe" | null,
 ): string =>
   source === "harness_event"
     ? "harness event"
     : source === "skill_file_read_probe"
       ? "skill-file read probe"
-      : "unknown";
+      : source === "skill_activation_probe"
+        ? "private activation probe"
+        : "unknown";
 
 function caseActivationRate(result: CaseResult): number | null | undefined {
   if (result.activationClass === undefined) return undefined;
@@ -480,6 +484,23 @@ const interpretationLimits = [
   "",
 ];
 
+function gateScopeSection(cells: ReportCell[]): string[] {
+  const gating = cells
+    .filter((cell) => cell.gating !== false)
+    .map((cell) => `${cell.harness}/${cell.mode}`);
+  const comparative = cells
+    .filter((cell) => cell.gating === false)
+    .map((cell) => `${cell.harness}/${cell.mode}`);
+  if (!comparative.length) return [];
+  return [
+    "",
+    "## Gate scope",
+    "",
+    `- Gating cells: ${gating.join(", ") || "none"}.`,
+    `- Comparative-only cells: ${comparative.join(", ")}. Their failures remain evidence and do not fail the candidate gate.`,
+  ];
+}
+
 export function renderSuiteReport(cells: ReportCell[]): string {
   const rows: CellMetricRow[] = cells.map((cell) => ({
     cell,
@@ -496,6 +517,7 @@ export function renderSuiteReport(cells: ReportCell[]): string {
     ...activationSection(cells),
     ...phaseSection(cells),
     ...judgeOverheadSection(rows),
+    ...gateScopeSection(cells),
     ...qualitativeSection(rows),
     ...interpretationLimits,
   ].join("\n");
@@ -514,13 +536,19 @@ if (import.meta.main) {
   }
   const manifestPath = resolve(process.cwd(), positionals[0]!);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
-    cells: Array<{ harness: string; mode: string; result: string }>;
+    cells: Array<{
+      harness: string;
+      mode: string;
+      gating?: boolean;
+      result: string;
+    }>;
   };
   const cells: ReportCell[] = [];
   for (const cell of manifest.cells) {
     cells.push({
       harness: cell.harness,
       mode: cell.mode,
+      gating: cell.gating,
       results: JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[],
     });
   }

@@ -1,0 +1,11 @@
+version: 1
+experiment: ticket-to-pr-activation-calibration
+case_filter:
+  - ticket-to-pr-activation-direct
+  - ticket-to-pr-activation-incomplete
+  - ticket-to-pr-activation-natural
+  - ticket-to-pr-activation-negative
+  - ticket-to-pr-activation-pressure
+modes:
+  candidate:
+    skill_dir: ../../../plugins/task_recipe/darrow-ticket-to-pr/skills/ticket-to-pr

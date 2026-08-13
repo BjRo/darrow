@@ -10,10 +10,14 @@ import {
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
+import { hasGatingCellFailure } from "./suite-policy";
 
 interface ModeConfig {
+  /** Defaults to true. False keeps the mode as comparative evidence only. */
+  gating?: boolean;
   condition?: string;
   condition_by_harness?: Record<string, string>;
+  entrypoint_by_harness?: Record<string, string>;
   skill_dir?: string;
   mount_plugin_skills?: boolean;
   require_evaluation_records?: boolean;
@@ -37,6 +41,7 @@ interface SuiteConfig {
   version: number;
   experiment: string;
   case_filter: string | string[];
+  case_match?: "substring" | "exact";
   modes: Record<string, ModeConfig>;
   case_routes?: Record<
     string,
@@ -154,6 +159,13 @@ if (
     "suite must use version 1 and define experiment, case_filter, and modes",
   );
 }
+if (
+  suite.case_match &&
+  suite.case_match !== "substring" &&
+  suite.case_match !== "exact"
+) {
+  throw new Error("suite case_match must be substring or exact");
+}
 
 const harnesses = values.harness ?? ["claude", "codex"];
 for (const harness of harnesses) {
@@ -226,6 +238,8 @@ const manifest = {
     fallbackModel: string;
     fallbackEffort: string;
     caseRoutes: Record<string, { model: string; effort: string }> | null;
+    entrypoint: string | null;
+    gating: boolean;
     result: string;
     exitCode: number;
   }>,
@@ -240,6 +254,12 @@ const cellPlan = seededShuffle(
 for (const { harness, modeName } of cellPlan) {
   const mode = suite.modes[modeName]!;
   const condition = mode.condition_by_harness?.[harness] ?? mode.condition;
+  const entrypoint = mode.entrypoint_by_harness?.[harness];
+  if (mode.entrypoint_by_harness && !entrypoint?.trim()) {
+    throw new Error(
+      `${modeName} has no entrypoint adapter for harness ${harness}`,
+    );
+  }
   const resultPath = join(outputDir, `${harness}-${modeName}.json`);
   const model =
     harness === "claude"
@@ -273,12 +293,14 @@ for (const { harness, modeName } of cellPlan) {
       modeName,
     );
   }
+  if (entrypoint) args.push("--entrypoint", entrypoint);
   const caseFilters =
     values.case ??
     (Array.isArray(suite.case_filter)
       ? suite.case_filter
       : [suite.case_filter]);
   for (const caseFilter of caseFilters) args.push("--case", caseFilter);
+  if (!values.case && suite.case_match === "exact") args.push("--case-exact");
   if (mode.skill_dir) {
     args.push("--skill-dir", resolve(suiteDir, mode.skill_dir));
   }
@@ -356,6 +378,8 @@ for (const { harness, modeName } of cellPlan) {
     caseRoutes: mode.apply_case_routes
       ? (suite.case_routes?.[harness] ?? null)
       : null,
+    entrypoint: entrypoint ?? null,
+    gating: mode.gating !== false,
     result: resultPath,
     exitCode,
   });
@@ -409,9 +433,7 @@ if (suite.ablations?.length) {
   ablationExit = await ablation.exited;
 }
 process.exit(
-  reportExit !== 0 ||
-    ablationExit !== 0 ||
-    manifest.cells.some((cell) => cell.exitCode !== 0)
+  reportExit !== 0 || ablationExit !== 0 || hasGatingCellFailure(manifest.cells)
     ? 1
     : 0,
 );

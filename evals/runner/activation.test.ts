@@ -3,6 +3,7 @@ import {
   activationPassRate,
   activationPassesThreshold,
   gradeActivation,
+  selectActivationObservation,
   validateActivationCase,
 } from "./activation";
 import type { EvalCase, TrialActivationResult } from "./types";
@@ -62,6 +63,37 @@ describe("skill activation grading", () => {
       gradeActivation("competition", "plan-implementation", otherPrimary)
         .passed,
     ).toBe(false);
+  });
+
+  test("prefers direct events, then observed reads, then the private probe", () => {
+    const probe = {
+      source: "skill_activation_probe" as const,
+      complete: true,
+      primarySkill: "ticket-to-pr",
+      observedSkills: ["ticket-to-pr"],
+    };
+    expect(
+      selectActivationObservation(
+        {
+          source: "harness_event",
+          complete: true,
+          primarySkill: "ticket-to-pr",
+          observedSkills: ["ticket-to-pr"],
+        },
+        probe,
+      ).source,
+    ).toBe("harness_event");
+    expect(
+      selectActivationObservation(
+        {
+          source: "skill_file_read_probe",
+          complete: false,
+          primarySkill: null,
+          observedSkills: [],
+        },
+        probe,
+      ),
+    ).toEqual(probe);
   });
 
   test("rejects unknown activation classes and competition without sibling skills", () => {

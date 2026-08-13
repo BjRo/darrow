@@ -1,8 +1,7 @@
 id: ticket-to-pr-e2-resolved-reference
 invariant: TPR-E2,TPR-C2
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-202. Resolve the one
+  {{entrypoint}} for TKT-202. Resolve the one
   stable reference through the repository's compatible read-only ticket
   capability. Continue through intake, but stop honestly if the later readiness
   capability is unavailable.

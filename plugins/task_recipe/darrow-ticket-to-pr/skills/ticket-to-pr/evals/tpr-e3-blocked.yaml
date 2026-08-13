@@ -1,8 +1,7 @@
 id: ticket-to-pr-e3-blocked
 invariant: TPR-E3,TPR-C3
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-303. The composed
+  {{entrypoint}} for TKT-303. The composed
   readiness result is blocked; basis: required schema is unreadable; smallest
   next action: restore schema access. Preserve it.
 fixture:

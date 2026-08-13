@@ -1,8 +1,8 @@
 id: ticket-to-pr-e4-explicit-worktree
 invariant: TPR-E4,TPR-C6
-activation: positive
+expect_repository_change: true
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-403 and explicitly
+  {{entrypoint}} for ready TKT-403 and explicitly
   create a linked worktree through the available compatible capability. Leave
   the original checkout's uncommitted private-notes.txt byte-identical. Stop if
   the later native goal capability is unavailable.
@@ -30,13 +30,19 @@ fixture:
     mkdir -p .git/worktree-parent
 checks:
   - name: original checkout changes remain byte-identical
-    run: test "$(cat private-notes.txt)" = "original user work"
+    run: >-
+      test "$(cat private-notes.txt)" = "original user work" &&
+      test "$(git status --porcelain=v1 --untracked-files=all)" = "?? private-notes.txt"
   - name: compatible capability created a linked ticket worktree
     run: >-
       test -s .git/worktree-created &&
       worktree=$(cat .git/worktree-created) &&
       test -d "$worktree" &&
       test "$(git -C "$worktree" branch --show-current)" = feat/tkt-403
+  - name: worktree branch is the only new repository ref
+    run: >-
+      test "$(git for-each-ref --format='%(refname)' refs/heads | sort)" =
+      "$(printf 'refs/heads/feat/tkt-403\nrefs/heads/main')"
 output_checks:
   - name: explicit worktree preserves original local work evidence
     expect_regex: "local_work\\t(?!unavailable)[^\\n]*(private-notes|original)"

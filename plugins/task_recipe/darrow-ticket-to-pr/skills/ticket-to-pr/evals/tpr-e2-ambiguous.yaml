@@ -1,8 +1,7 @@
 id: ticket-to-pr-e2-ambiguous
 invariant: TPR-E2,TPR-C2
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for either TKT-204 or TKT-205;
+  {{entrypoint}} for either TKT-204 or TKT-205;
   choose whichever seems easier.
 fixture:
   commits:

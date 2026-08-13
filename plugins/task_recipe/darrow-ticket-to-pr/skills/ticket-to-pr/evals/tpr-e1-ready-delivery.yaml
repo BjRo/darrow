@@ -1,9 +1,8 @@
 id: ticket-to-pr-e1-ready-delivery
 invariant: TPR-E1,TPR-C3,TPR-C4
-activation: positive
 expect_head_change: true
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr. Use the
+  {{entrypoint}}. Use the
   supplied authoritative ticket: TKT-101, “Document the
   widget”, outcome: add `Widget ready.` below the README heading, acceptance:
   `grep -Fx 'Widget ready.' README.md`; readiness capability verdict: ready

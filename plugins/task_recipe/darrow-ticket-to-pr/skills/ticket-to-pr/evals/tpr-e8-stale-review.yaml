@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-stale-review
 invariant: TPR-E8,TPR-C8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-808. The existing
+  {{entrypoint}} for TKT-808. The existing
   independent review passed commit A, but the correlated branch now points to
   different commit B. No compatible reviewer is currently available. Do not
   reuse stale review or publish.

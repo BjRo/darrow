@@ -1,8 +1,7 @@
 id: ticket-to-pr-e5-reentry
 invariant: TPR-E5,TPR-C7,TPR-C8
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-501.
+  {{entrypoint}} for TKT-501.
   Re-enter delivery: an open correlated PR already
   exists, but its recorded verification predates the current head. Reconstruct
   durable state, do not duplicate the proposal, and require current evidence.

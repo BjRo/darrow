@@ -7,6 +7,8 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
     caseId: "oss-sample",
     invariant: "ORCH-OSS-SAMPLE",
     evaluationDigest: "sha256:shared-evaluation",
+    entrypointAdapter: null,
+    entrypointTransport: null,
     passThreshold: 0.8,
     skillDirectory: "/fixture/skills/sample",
     mountPluginSkills: false,

@@ -1,0 +1,9 @@
+version: 1
+experiment: ticket-to-pr-candidate-edge-behavior
+case_filter: ticket-to-pr-e
+modes:
+  candidate:
+    skill_dir: ../../../plugins/task_recipe/darrow-ticket-to-pr/skills/ticket-to-pr
+    entrypoint_by_harness:
+      claude: /darrow-ticket-to-pr:ticket-to-pr
+      codex: $darrow-ticket-to-pr:ticket-to-pr

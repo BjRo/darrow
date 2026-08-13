@@ -50,6 +50,13 @@ An optional strict coverage gate may also fail when any invariant is uncovered.
 Unreadable inputs, invalid YAML, missing required case fields, or an empty scan
 must fail explicitly rather than appear as successful empty coverage.
 
+For a case that does not declare an expected HEAD change, the runner compares
+the complete pre/post repository mutation state: branch, index, tracked
+worktree, and all untracked paths. A stable commit alone is not sufficient.
+No-skill and candidate cells receive the same repository and final-output
+checks; a baseline's inability to satisfy a skill-specific record is measured
+evidence, not a reason to omit the check.
+
 ### Matched skill ablation
 
 An evaluation suite may declare a named ablation with exactly one baseline mode
@@ -96,9 +103,13 @@ Activation is graded only from a normalized, harness-visible observation. A
 direct host skill-invocation event is preferred. On a host that exposes no such
 event, the runner may use a controlled behavior probe required by that host's
 skill-loading protocol, such as the first completed read of a mounted
-`SKILL.md`. The retained trial identifies the evidence source, primary skill,
-and ordered observed skills. Final-answer resemblance, hidden reasoning, and
-unbounded transcript capture are not activation evidence.
+`SKILL.md`. When installed-skill loading is internal and emits neither event nor
+read, the runner may inject a bounded private activation sentinel into the
+mounted evaluation copy. The sentinel writes only under the fixture's Git
+directory, carries no pass criteria, and is identified explicitly as probe
+evidence. The retained trial identifies the evidence source, primary skill, and
+ordered observed skills. Final-answer resemblance, hidden reasoning, production
+skill edits, and unbounded transcript capture are not activation evidence.
 
 An unavailable, malformed, or incomplete observation is `unknown`, never a
 pass or failure. Activation grades do not change task checks or task pass rate.
@@ -112,6 +123,15 @@ skill becoming primary on a measured negative trial; correctly choosing an
 adjacent capability on a negative trial is not a false positive. An incomplete
 observation set or a zero precision denominator is reported as `unknown` rather
 than averaged over the available subset.
+
+If a headless harness accepts slash-command text but delegates loading back to
+the model, it may bridge an explicit participant entrypoint in the mounted
+evaluation copy. Such a bridge is valid only for a declared explicit
+entrypoint, must not alter the source skill or non-explicit cases, and is
+recorded as a transport limitation rather than direct activation evidence.
+An unguarded skill loaded through the same model-mediated path records a
+distinct headless-model-invocation transport; it does not claim that the host
+preprocessed the command natively.
 
 ### Evidence lifecycle
 
@@ -149,6 +169,14 @@ trials for their risk and must not rely on one convenient green run.
   modes and ablations, runner revision and patch state, harnesses, models,
   effort, trial count, threshold, result paths, and cell exit states needed to
   inspect the comparison later.
+
+Effectful fixtures isolate the harness from forge tokens, host forge config,
+SSH credentials, interactive Git credential helpers, and real forge CLI
+executables. Fixture-local mocks and local bare Git remotes are the only
+publication surfaces. This protects trusted behavior evaluation; arbitrary
+provider-credential exfiltration by adversarial skill content still requires an
+external egress boundary and is not claimed by the local harness.
+
 - **SE-C9 — Explicit activation classes.** Activation cases declare positive,
   negative, or sibling-competition intent; the runner derives the target from
   the owning skill, rejects structurally invalid competition cases, and does

@@ -86,6 +86,28 @@ export function gradeActivation(
   };
 }
 
+/** Prefer the least indirect complete observation with an actual selection. */
+function observationRank(
+  observation: SkillActivationObservation | undefined,
+): number {
+  if (!observation?.complete) return 0;
+  const sourceRank = {
+    harness_event: 3,
+    skill_file_read_probe: 2,
+    skill_activation_probe: 1,
+  }[observation.source];
+  return (observation.observedSkills.length ? 10 : 0) + sourceRank;
+}
+
+export function selectActivationObservation(
+  harness: SkillActivationObservation | undefined,
+  probe: SkillActivationObservation,
+): SkillActivationObservation {
+  return harness && observationRank(harness) >= observationRank(probe)
+    ? harness
+    : probe;
+}
+
 export function activationPassRate(
   trials: TrialActivationResult[],
 ): number | null {

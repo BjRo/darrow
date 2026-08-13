@@ -157,6 +157,29 @@ const expectRegexStage: OutputStage = (context, check) =>
     ? undefined
     : `expect_regex /${check.expect_regex}/ missed`;
 
+function globalRegexFlags(check: OutputCheck): string {
+  return [...new Set((regexFlags(check) + "g").split(""))].join("");
+}
+
+const countRegexStage: OutputStage = (context, check) => {
+  if (check.count_regex === undefined && check.expect_count === undefined)
+    return undefined;
+  if (
+    check.count_regex === undefined ||
+    !Number.isInteger(check.expect_count) ||
+    check.expect_count! < 0
+  )
+    return "count_regex requires one non-negative integer expect_count";
+  const actual = [
+    ...context.text.matchAll(
+      new RegExp(check.count_regex, globalRegexFlags(check)),
+    ),
+  ].length;
+  return actual === check.expect_count
+    ? undefined
+    : `count_regex /${check.count_regex}/ matched ${actual}, expected ${check.expect_count}`;
+};
+
 const notRegexStage: OutputStage = (context, check) =>
   check.not_regex === undefined ||
   !new RegExp(check.not_regex, regexFlags(check)).test(context.text)
@@ -171,6 +194,7 @@ const outputStages: OutputStage[] = [
   jsonPathStage,
   expectExactStage,
   expectRegexStage,
+  countRegexStage,
   notRegexStage,
 ];
 

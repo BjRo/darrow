@@ -17,6 +17,9 @@ const original = {
   CODEX_HOME: process.env.CODEX_HOME,
   CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
   CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN,
+  GH_TOKEN: process.env.GH_TOKEN,
+  GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+  SSH_AUTH_SOCK: process.env.SSH_AUTH_SOCK,
   UNRELATED_EVAL_SECRET: process.env.UNRELATED_EVAL_SECRET,
 };
 
@@ -40,6 +43,9 @@ describe("isolated harness environment", () => {
     await writeFile(join(source, "config.toml"), "model = 'contaminated'");
     process.env.CODEX_HOME = source;
     process.env.CLAUDE_CODE_OAUTH_TOKEN = "claude-test-token";
+    process.env.GH_TOKEN = "must-not-inherit";
+    process.env.GITHUB_TOKEN = "must-not-inherit";
+    process.env.SSH_AUTH_SOCK = "/tmp/must-not-inherit.sock";
     process.env.UNRELATED_EVAL_SECRET = "must-not-inherit";
 
     const env = await isolatedHarnessEnvironment("codex", repo);
@@ -51,13 +57,23 @@ describe("isolated harness environment", () => {
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("claude-test-token");
     expect(env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX).toBe("1");
     expect(env.UNRELATED_EVAL_SECRET).toBeUndefined();
+    expect(env.GH_TOKEN).toBeUndefined();
+    expect(env.GITHUB_TOKEN).toBeUndefined();
+    expect(env.SSH_AUTH_SOCK).toBeUndefined();
+    expect(env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+    expect(env.GIT_CONFIG_SYSTEM).toBe("/dev/null");
+    expect(env.GIT_TERMINAL_PROMPT).toBe("0");
+    expect(env.GCM_INTERACTIVE).toBe("never");
+    expect(env.GIT_SSH_COMMAND).toBe("/usr/bin/false");
+    expect(env.GH_CONFIG_DIR).toStartWith(home);
+    expect(env.GLAB_CONFIG_DIR).toStartWith(home);
     expect(await readFile(join(codexHome, "auth.json"), "utf8")).toBe(
       '{"token":"test"}',
     );
     expect(await Bun.file(join(codexHome, "config.toml")).exists()).toBe(false);
   });
 
-  test("copies Claude and Codex credential files into a private config root", async () => {
+  test("extracts only Claude model auth and copies Codex auth", async () => {
     const source = await mkdtemp(join(tmpdir(), "darrow-claude-source-"));
     const repo = await mkdtemp(join(tmpdir(), "darrow-claude-fixture-"));
     cleanup.push(source, repo);
@@ -68,7 +84,10 @@ describe("isolated harness environment", () => {
     await mkdir(join(repo, ".git"));
     await writeFile(
       join(configSource, ".credentials.json"),
-      '{"oauth":"test"}',
+      JSON.stringify({
+        claudeAiOauth: { accessToken: "claude-file-token" },
+        mcpOAuth: { forge: { accessToken: "must-not-copy" } },
+      }),
     );
     await writeFile(
       join(configSource, "CLAUDE.md"),
@@ -89,12 +108,28 @@ describe("isolated harness environment", () => {
     expect(claudeConfigDir).toStartWith(home);
     expect(codexHome).toStartWith(home);
     expect(env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX).toBe("1");
-    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("claude-file-token");
     expect(env.UNRELATED_EVAL_SECRET).toBeUndefined();
     expect(env.TMPDIR).toStartWith(join(repo, ".git", "darrow-eval"));
     expect(
-      await readFile(join(claudeConfigDir, ".credentials.json"), "utf8"),
-    ).toBe('{"oauth":"test"}');
+      await Bun.file(join(claudeConfigDir, ".credentials.json")).exists(),
+    ).toBe(false);
+    const security = Bun.spawn(
+      [
+        join(repo, ".git", "fixture-bin", "security"),
+        "find-generic-password",
+        "-s",
+        "Claude Code-credentials",
+        "-w",
+      ],
+      { stdout: "pipe" },
+    );
+    const isolatedCredential = await new Response(security.stdout).json();
+    expect(await security.exited).toBe(0);
+    expect(isolatedCredential).toEqual({
+      claudeAiOauth: { accessToken: "claude-file-token" },
+    });
+    expect(JSON.stringify(isolatedCredential)).not.toContain("must-not-copy");
     expect(await readFile(join(codexHome, "auth.json"), "utf8")).toBe(
       '{"token":"codex"}',
     );

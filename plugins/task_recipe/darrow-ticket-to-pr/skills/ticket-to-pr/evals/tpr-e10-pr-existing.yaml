@@ -1,16 +1,44 @@
 id: ticket-to-pr-e10-pr-existing
 invariant: TPR-E10,TPR-C11
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-1011. Reconstruct the
-  terminal result: an existing correlated verified proposal is durable. Report exactly one complete host-neutral record
-  and use unavailable for facts not established.
+  {{entrypoint}} for TKT-1011. Reconstruct the
+  terminal result: the existing correlated verified proposal at
+  https://example.invalid/pr/1011 is durable. Report exactly one complete
+  host-neutral record and use unavailable for facts not established.
 fixture:
   commits:
     - message: "chore: init"
       files:
         app.txt: "unchanged\\n"
-checks: []
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      printf '%s\n' "$*" >>.git/gh-calls
+      if [ "${1-}" = pr ] && { [ "${2-}" = list ] || [ "${2-}" = view ]; }; then
+        printf '%s\n' '[{"url":"https://example.invalid/pr/1011","headRefName":"feat/tkt-1011","baseRefName":"main","isDraft":false,"title":"fix: satisfy TKT-1011","body":"TKT-1011"}]'
+        exit 0
+      fi
+      exit 2
+  setup: |
+    git checkout -b feat/tkt-1011 >/dev/null
+    printf '%s\n' complete >app.txt
+    git add app.txt
+    git commit -m 'fix: satisfy TKT-1011' >/dev/null
+    git init --bare .git/remote.git >/dev/null
+    git remote add origin "$PWD/.git/remote.git"
+    git push -u origin feat/tkt-1011 >/dev/null
+checks:
+  - name: existing proposal state is durable and inspection only
+    run: >-
+      test "$(git branch --show-current)" = feat/tkt-1011 &&
+      test "$(git --git-dir=.git/remote.git rev-parse refs/heads/feat/tkt-1011)" = "$(git rev-parse HEAD)" &&
+      grep -E '^pr (list|view)( |$)' .git/gh-calls >/dev/null &&
+      ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
+  - name: exactly one complete versioned terminal record is emitted
+    expect_regex: "^format\\tdarrow-ticket-to-pr-result-v1$"
+    count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
+    expect_count: 17
   - name: pr_existing carries every terminal field
-    expect_regex: "ticket\\t[^\\n]+[\\s\\S]*repository\\t[^\\n]+[\\s\\S]*outcome\\tpr_existing[\\s\\S]*reason\\t[^\\n]+[\\s\\S]*readiness\\t[^\\n]+[\\s\\S]*branch\\t[^\\n]+[\\s\\S]*base\\t[^\\n]+[\\s\\S]*commits\\t[^\\n]+[\\s\\S]*remote_branch\\t[^\\n]+[\\s\\S]*pull_request_url\\t[^\\n]+[\\s\\S]*verification\\t[^\\n]+[\\s\\S]*independent_review\\t[^\\n]+[\\s\\S]*local_work\\t[^\\n]+[\\s\\S]*adaptive_goal\\t[^\\n]+[\\s\\S]*telemetry_status\\t(emitted|degraded|failed)[\\s\\S]*telemetry_evidence\\t[^\\n]+"
+    expect_regex: "ticket\\tTKT-1011[\\s\\S]*repository\\t[^\\n]+[\\s\\S]*outcome\\tpr_existing[\\s\\S]*reason\\t[^\\n]+[\\s\\S]*readiness\\t[^\\n]+[\\s\\S]*branch\\tfeat/tkt-1011[\\s\\S]*base\\t[^\\n]+[\\s\\S]*commits\\t(?!unavailable)[^\\n]+[\\s\\S]*remote_branch\\tfeat/tkt-1011[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/1011[\\s\\S]*verification\\t(?!unavailable)[^\\n]+[\\s\\S]*independent_review\\t[^\\n]+[\\s\\S]*local_work\\t[^\\n]+[\\s\\S]*adaptive_goal\\t[^\\n]+[\\s\\S]*telemetry_status\\t(emitted|degraded|failed)[\\s\\S]*telemetry_evidence\\t[^\\n]+"

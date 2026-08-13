@@ -99,13 +99,13 @@ describe("Codex token accounting", () => {
 });
 
 describe("Codex skill activation observation", () => {
-  test("keeps a no-plugin control complete without inventing a project skill", () => {
+  test("keeps a no-plugin control unobserved without inventing a selection", () => {
     const stream = JSON.stringify({ type: "turn.completed" });
     expect(
       codexSkillActivation(stream, REPO, `${REPO}/.git/eval-no-skills`),
     ).toEqual({
       source: "skill_file_read_probe",
-      complete: true,
+      complete: false,
       primarySkill: null,
       observedSkills: [],
     });
@@ -235,7 +235,7 @@ describe("Codex skill activation observation", () => {
     ].join("\n");
     expect(codexSkillActivation(stream, REPO)).toEqual({
       source: "skill_file_read_probe",
-      complete: true,
+      complete: false,
       primarySkill: null,
       observedSkills: [],
     });
@@ -255,7 +255,7 @@ describe("Codex skill activation observation", () => {
     });
   });
 
-  test("keeps the observation channel complete after an ordinary failed command", () => {
+  test("keeps an ordinary failed command from masquerading as activation evidence", () => {
     const stream = [
       JSON.stringify({
         type: "item.completed",
@@ -269,7 +269,7 @@ describe("Codex skill activation observation", () => {
       }),
       JSON.stringify({ type: "turn.completed" }),
     ].join("\n");
-    expect(codexSkillActivation(stream, REPO).complete).toBe(true);
+    expect(codexSkillActivation(stream, REPO).complete).toBe(false);
   });
 
   test("requires structurally complete successful command evidence", () => {
@@ -311,7 +311,7 @@ describe("Codex skill activation observation", () => {
 
     expect(codexSkillActivation(stream, REPO)).toEqual({
       source: "skill_file_read_probe",
-      complete: true,
+      complete: false,
       primarySkill: null,
       observedSkills: [],
     });

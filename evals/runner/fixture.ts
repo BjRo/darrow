@@ -1,8 +1,27 @@
-import { mkdtemp, writeFile, mkdir, cp, rm, readdir } from "node:fs/promises";
+import {
+  appendFile,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import type { Fixture } from "./types";
+import type { Fixture, SkillActivationObservation } from "./types";
+
+export const BLOCKED_EXTERNAL_COMMANDS = ["gh", "glab", "hub", "tea"] as const;
+const ACTIVATION_LOG = join(".git", "darrow-eval", "skill-activation.tsv");
+
+function blockedExternalCommand(name: string): string {
+  return `#!/bin/sh
+printf '%s\n' 'darrow eval: ${name} is disabled unless fixture.bin provides a mock' >&2
+exit 86
+`;
+}
 
 const TICKETCTL = `#!/bin/bash
 set -euo pipefail
@@ -129,10 +148,15 @@ async function writeFixtureExecutables(
     const hookPath = join(repoDir, ".git", "hooks", name);
     await writeFile(hookPath, content, { mode: 0o755 });
   }
-  if (!fixture.bin) return;
   const binDir = join(repoDir, ".git", "fixture-bin");
   await mkdir(binDir, { recursive: true });
-  for (const [name, content] of Object.entries(fixture.bin)) {
+  for (const name of BLOCKED_EXTERNAL_COMMANDS) {
+    if (fixture.bin?.[name] !== undefined) continue;
+    await writeFile(join(binDir, name), blockedExternalCommand(name), {
+      mode: 0o755,
+    });
+  }
+  for (const [name, content] of Object.entries(fixture.bin ?? {})) {
     await writeFile(join(binDir, name), content, { mode: 0o755 });
   }
 }
@@ -196,9 +220,42 @@ async function resolveMountedSkillDirs(
     .map((entry) => join(skillsRoot, entry.name));
 }
 
+function shellSingleQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+function activationProbeAppendix(
+  repoDir: string,
+  skillName: string,
+  token: string,
+): string {
+  const log = join(repoDir, ACTIVATION_LOG);
+  const logDir = dirname(log);
+  const line = `${skillName}\t${token}`;
+  return `
+
+## Evaluation activation observation
+
+This mounted evaluation copy has one private activation probe. Before any other
+workflow step, run this command exactly once. It writes under the fixture's Git
+directory, does not alter the worktree, and is not product or workflow state.
+
+\`\`\`sh
+probe_line=${shellSingleQuote(line)}
+probe_log=${shellSingleQuote(log)}
+mkdir -p ${shellSingleQuote(logDir)}
+if ! grep -Fqx "$probe_line" "$probe_log" 2>/dev/null; then
+  printf '%s\\n' "$probe_line" >>"$probe_log"
+fi
+\`\`\`
+`;
+}
+
 async function copySkillWithoutEvals(
   mountedSkillDir: string,
   destination: string,
+  activationProbe?: { repoDir: string; token: string },
+  allowHeadlessModelInvocation = false,
 ): Promise<void> {
   const evalsDir = join(mountedSkillDir, "evals");
   await cp(mountedSkillDir, destination, {
@@ -206,6 +263,24 @@ async function copySkillWithoutEvals(
     // Never expose any skill's colocated pass criteria to the model.
     filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
   });
+  if (allowHeadlessModelInvocation) {
+    const skillFile = join(destination, "SKILL.md");
+    const content = await readFile(skillFile, "utf8");
+    await writeFile(
+      skillFile,
+      content.replace(/^disable-model-invocation:\s*true\s*\n/m, ""),
+    );
+  }
+  if (activationProbe) {
+    await appendFile(
+      join(destination, "SKILL.md"),
+      activationProbeAppendix(
+        activationProbe.repoDir,
+        basename(mountedSkillDir),
+        activationProbe.token,
+      ),
+    );
+  }
 }
 
 interface PluginMountPaths {
@@ -237,6 +312,10 @@ async function mountSourceClaudePlugin(
   repoDir: string,
   skillDirs: string[],
   paths: PluginMountPaths,
+  options: {
+    activationProbe?: { repoDir: string; token: string };
+    explicitEntrypointBridgeSkillDir?: string;
+  },
 ): Promise<void> {
   const evalPlugin = join(repoDir, ".git", "eval-plugin");
   await mkdir(join(evalPlugin, ".claude-plugin"), { recursive: true });
@@ -246,6 +325,8 @@ async function mountSourceClaudePlugin(
     await copySkillWithoutEvals(
       mountedSkillDir,
       join(evalPlugin, "skills", name),
+      options.activationProbe,
+      mountedSkillDir === options.explicitEntrypointBridgeSkillDir,
     );
   }
   if (existsSync(paths.agents))
@@ -260,6 +341,7 @@ async function mountSourceCodexPlugin(
   repoDir: string,
   skillDirs: string[],
   paths: PluginMountPaths,
+  activationProbe?: { repoDir: string; token: string },
 ): Promise<void> {
   const marketplace = join(repoDir, ".git", "eval-marketplace");
   const plugin = join(marketplace, "plugin");
@@ -289,7 +371,11 @@ async function mountSourceCodexPlugin(
   await cp(paths.codexManifest, join(plugin, ".codex-plugin", "plugin.json"));
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
-    await copySkillWithoutEvals(mountedSkillDir, join(plugin, "skills", name));
+    await copySkillWithoutEvals(
+      mountedSkillDir,
+      join(plugin, "skills", name),
+      activationProbe,
+    );
   }
   if (existsSync(paths.agents))
     await cp(paths.agents, join(plugin, "agents"), { recursive: true });
@@ -314,28 +400,46 @@ async function mountSourcePlugins(
   repoDir: string,
   skillDirs: string[],
   paths: PluginMountPaths,
-  options: { sourceClaudePlugin: boolean; sourceCodexPlugin: boolean },
+  options: {
+    sourceClaudePlugin: boolean;
+    sourceCodexPlugin: boolean;
+    activationProbe?: { repoDir: string; token: string };
+    claudeExplicitEntrypointBridgeSkillDir?: string;
+  },
 ): Promise<void> {
   if (options.sourceClaudePlugin && existsSync(paths.manifest))
-    await mountSourceClaudePlugin(repoDir, skillDirs, paths);
+    await mountSourceClaudePlugin(repoDir, skillDirs, paths, {
+      activationProbe: options.activationProbe,
+      explicitEntrypointBridgeSkillDir:
+        options.claudeExplicitEntrypointBridgeSkillDir,
+    });
   if (
     options.sourceCodexPlugin &&
     existsSync(paths.manifest) &&
     existsSync(paths.codexManifest)
   )
-    await mountSourceCodexPlugin(repoDir, skillDirs, paths);
+    await mountSourceCodexPlugin(
+      repoDir,
+      skillDirs,
+      paths,
+      options.activationProbe,
+    );
 }
+
+type SkillMountOptions = Pick<
+  BuildFixtureOptions,
+  | "skillDir"
+  | "skillMounts"
+  | "mountPluginSkills"
+  | "sourceClaudePlugin"
+  | "sourceCodexPlugin"
+  | "activationProbe"
+  | "claudeExplicitEntrypointBridge"
+>;
 
 async function mountSkills(
   repoDir: string,
-  options: Pick<
-    BuildFixtureOptions,
-    | "skillDir"
-    | "skillMounts"
-    | "mountPluginSkills"
-    | "sourceClaudePlugin"
-    | "sourceCodexPlugin"
-  >,
+  options: SkillMountOptions,
 ): Promise<void> {
   const {
     skillDir,
@@ -343,6 +447,8 @@ async function mountSkills(
     mountPluginSkills = false,
     sourceClaudePlugin = false,
     sourceCodexPlugin = false,
+    activationProbe,
+    claudeExplicitEntrypointBridge = false,
   } = options;
   const paths = pluginMountPaths(skillDir);
   const skillDirs = await resolveMountedSkillDirs(skillDir, mountPluginSkills);
@@ -355,6 +461,7 @@ async function mountSkills(
       await copySkillWithoutEvals(
         mountedSkillDir,
         join(repoDir, mount, mountedSkillName),
+        activationProbe ? { repoDir, token: activationProbe.token } : undefined,
       );
     }
     await mountPluginMechanics(repoDir, mount, paths);
@@ -362,9 +469,14 @@ async function mountSkills(
   await mountSourcePlugins(repoDir, skillDirs, paths, {
     sourceClaudePlugin,
     sourceCodexPlugin,
+    activationProbe: activationProbe
+      ? { repoDir, token: activationProbe.token }
+      : undefined,
+    claudeExplicitEntrypointBridgeSkillDir: claudeExplicitEntrypointBridge
+      ? skillDir
+      : undefined,
   });
-  // Keep mounts invisible to git: they are eval infrastructure, not repo
-  // state (a model told "commit my changes" would otherwise commit them).
+  // Keep eval infrastructure invisible so a model cannot commit the mounts.
   const excludes = skillMounts.map((m) => `/${m.split("/")[0]}/`).join("\n");
   await writeFile(join(repoDir, ".git", "info", "exclude"), excludes + "\n");
 }
@@ -381,6 +493,10 @@ export interface BuildFixtureOptions {
   sourceClaudePlugin?: boolean;
   /** Build a local marketplace for an isolated installed Codex plugin. */
   sourceCodexPlugin?: boolean;
+  /** Inject a private skill-load sentinel into mounted eval copies only. */
+  activationProbe?: { token: string };
+  /** Let claude -p model an already-explicit slash invocation in its mounted copy. */
+  claudeExplicitEntrypointBridge?: boolean;
   /** Value of `{{case_dir}}` / `$DARROW_EVAL_CASE_DIR` in `fixture.setup`. */
   caseDir?: string;
 }
@@ -400,6 +516,49 @@ export async function buildFixture(
   if (skillDir) await mountSkills(repoDir, options);
 
   return repoDir;
+}
+
+/** Read the bounded private sentinel emitted by mounted activation cases. */
+export async function readActivationProbe(
+  repoDir: string,
+  token: string,
+): Promise<SkillActivationObservation> {
+  const observedSkills: string[] = [];
+  let content: string;
+  try {
+    content = await readFile(join(repoDir, ACTIVATION_LOG), "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return {
+      source: "skill_activation_probe",
+      complete: code === "ENOENT",
+      primarySkill: null,
+      observedSkills,
+    };
+  }
+  for (const line of content.split("\n").filter(Boolean)) {
+    const fields = line.split("\t");
+    if (
+      fields.length !== 2 ||
+      fields[1] !== token ||
+      !/^[A-Za-z0-9._-]+$/.test(fields[0] ?? "")
+    ) {
+      return {
+        source: "skill_activation_probe",
+        complete: false,
+        primarySkill: null,
+        observedSkills: [],
+      };
+    }
+    const skill = fields[0]!;
+    if (!observedSkills.includes(skill)) observedSkills.push(skill);
+  }
+  return {
+    source: "skill_activation_probe",
+    complete: true,
+    primarySkill: observedSkills[0] ?? null,
+    observedSkills,
+  };
 }
 
 export async function destroyFixture(repoDir: string): Promise<void> {

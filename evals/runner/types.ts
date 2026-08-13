@@ -67,6 +67,10 @@ export interface OutputCheck {
   contains_json?: unknown;
   /** Check passes only if the final agent message matches. */
   expect_regex?: string;
+  /** Count non-overlapping matches of this pattern in the final message. */
+  count_regex?: string;
+  /** Exact match count required when `count_regex` is set. */
+  expect_count?: number;
   /** Check passes only if the final agent message exactly equals this value. */
   expect_exact?: string;
   /** Check fails if the final agent message matches. */
@@ -78,7 +82,7 @@ export interface OutputCheck {
 export type ActivationClass = "positive" | "negative" | "competition";
 
 export type ActivationEvidenceSource =
-  "harness_event" | "skill_file_read_probe";
+  "harness_event" | "skill_file_read_probe" | "skill_activation_probe";
 
 /** Normalized harness-visible evidence about skill selection. */
 export interface SkillActivationObservation {
@@ -120,6 +124,8 @@ export interface EvalCase {
   mount_plugin_skills?: boolean;
   /** Require HEAD to advance linearly when the public behavior explicitly commits. */
   expect_head_change?: boolean;
+  /** Require repository state other than HEAD to change for an explicit setup action. */
+  expect_repository_change?: boolean;
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];
@@ -256,6 +262,14 @@ export interface CaseResult {
   invariant: string;
   /** Digest of skill-independent participant inputs and hidden evaluation checks. */
   evaluationDigest: string;
+  /** Exact host/mode invocation substituted into the common workload template. */
+  entrypointAdapter: string | null;
+  /** How the headless harness transported that explicit invocation. */
+  entrypointTransport:
+    | "native"
+    | "claude_headless_model_invocation"
+    | "claude_headless_explicit_bridge"
+    | null;
   /** Aggregate pass threshold supplied for this run. */
   passThreshold: number;
   /** Absolute mounted primary skill directory, or null for an explicit no-skill run. */

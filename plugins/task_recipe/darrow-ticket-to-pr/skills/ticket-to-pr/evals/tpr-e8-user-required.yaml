@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-user-required
 invariant: TPR-E8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for routine TKT-805. I explicitly
+  {{entrypoint}} for routine TKT-805. I explicitly
   require independent exact-content review, but no compatible reviewer is
   available. Do not substitute same-context judgment.
 fixture:

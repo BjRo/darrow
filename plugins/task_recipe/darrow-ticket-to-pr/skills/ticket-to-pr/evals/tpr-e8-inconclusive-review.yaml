@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-inconclusive-review
 invariant: TPR-E8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready high-risk TKT-806.
+  {{entrypoint}} for ready high-risk TKT-806.
   Exact-content independent review was selected and returned inconclusive
   because its target could not be pinned. Do not publish or substitute self-
   review.

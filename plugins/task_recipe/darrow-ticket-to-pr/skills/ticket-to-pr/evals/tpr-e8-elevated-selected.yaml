@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-elevated-selected
 invariant: TPR-E8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-803. Risk is
+  {{entrypoint}} for ready TKT-803. Risk is
   elevated because three callers require compatibility judgment and a plausible
   counterexample. Select exact-content independent review. The compatible
   reviewer is unavailable, so publication must block.

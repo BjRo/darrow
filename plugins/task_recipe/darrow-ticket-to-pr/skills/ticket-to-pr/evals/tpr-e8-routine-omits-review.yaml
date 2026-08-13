@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-routine-omits-review
 invariant: TPR-E8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for a ready routine documentation
+  {{entrypoint}} for a ready routine documentation
   ticket. Neither the user nor repository requires review. The compatible
   native goal launch is unavailable after review selection; report that
   boundary without inventing a review requirement.

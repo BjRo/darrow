@@ -1,8 +1,7 @@
 id: ticket-to-pr-e10-blocked
 invariant: TPR-E10,TPR-C11
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-1013. Reconstruct the
+  {{entrypoint}} for TKT-1013. Reconstruct the
   terminal result: the required native goal capability is unavailable. Report exactly one complete host-neutral record
   and use unavailable for facts not established.
 fixture:
@@ -12,5 +11,11 @@ fixture:
         app.txt: "unchanged\\n"
 checks: []
 output_checks:
+  - name: exactly one complete versioned terminal record is emitted
+    expect_regex: "^format\\tdarrow-ticket-to-pr-result-v1$"
+    count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
+    expect_count: 17
   - name: blocked carries every terminal field
     expect_regex: "ticket\\t[^\\n]+[\\s\\S]*repository\\t[^\\n]+[\\s\\S]*outcome\\tblocked[\\s\\S]*reason\\t[^\\n]+[\\s\\S]*readiness\\t[^\\n]+[\\s\\S]*branch\\t[^\\n]+[\\s\\S]*base\\t[^\\n]+[\\s\\S]*commits\\t[^\\n]+[\\s\\S]*remote_branch\\t[^\\n]+[\\s\\S]*pull_request_url\\t[^\\n]+[\\s\\S]*verification\\t[^\\n]+[\\s\\S]*independent_review\\t[^\\n]+[\\s\\S]*local_work\\t[^\\n]+[\\s\\S]*adaptive_goal\\t[^\\n]+[\\s\\S]*telemetry_status\\t(emitted|degraded|failed)[\\s\\S]*telemetry_evidence\\t[^\\n]+"
+  - name: blocked delivery does not invent publication state
+    expect_regex: "commits\\tunavailable[\\s\\S]*remote_branch\\tunavailable[\\s\\S]*pull_request_url\\tunavailable"

@@ -104,6 +104,32 @@ describe("eval checks", () => {
     expect(forbidden?.passed).toBe(false);
   });
 
+  test("output checks enforce exact regex cardinality", async () => {
+    const checks = await runOutputChecks("outcome\tstopped\noutcome\tblocked", [
+      {
+        name: "one outcome",
+        count_regex: "^outcome\\t",
+        expect_count: 1,
+      },
+    ]);
+    expect(checks).toEqual([
+      expect.objectContaining({
+        name: "one outcome",
+        passed: false,
+        detail: expect.stringContaining("matched 2, expected 1"),
+      }),
+    ]);
+    expect(
+      await runOutputChecks("outcome\tstopped", [
+        {
+          name: "one outcome",
+          count_regex: "^outcome\\t",
+          expect_count: 1,
+        },
+      ]),
+    ).toEqual([expect.objectContaining({ passed: true })]);
+  });
+
   test("output checks reject prose around a JSON object", async () => {
     const [result] = await runOutputChecks('Result: {"verified":true}', [
       { name: "json only", valid_json: true },

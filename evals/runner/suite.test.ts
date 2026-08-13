@@ -12,6 +12,116 @@ afterEach(async () => {
 });
 
 describe("evaluation suite ablation", () => {
+  test("records mode-specific entrypoints while preserving one workload digest", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-suite-entrypoint-"));
+    roots.push(root);
+    const suite = join(root, "suite.yaml");
+    const output = join(root, "output");
+    const candidate = resolve(
+      import.meta.dir,
+      "../../plugins/task_recipe/darrow-ticket-to-pr/skills/ticket-to-pr",
+    );
+    const control = resolve(
+      import.meta.dir,
+      "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal",
+    );
+    await writeFile(
+      suite,
+      [
+        "version: 1",
+        "experiment: entrypoint-adapter-test",
+        "case_match: exact",
+        "case_filter: ticket-to-pr-e2-authoritative-intake",
+        "modes:",
+        "  candidate:",
+        `    skill_dir: ${candidate}`,
+        "    entrypoint_by_harness:",
+        "      claude: /darrow-ticket-to-pr:ticket-to-pr",
+        "      codex: $darrow-ticket-to-pr:ticket-to-pr",
+        "  control:",
+        "    gating: false",
+        `    skill_dir: ${control}`,
+        "    entrypoint_by_harness:",
+        "      claude: /darrow-goal-loop:adaptive-goal",
+        "      codex: $darrow-goal-loop:adaptive-goal",
+      ].join("\n"),
+    );
+    const proc = Bun.spawn(
+      [
+        "bun",
+        resolve(import.meta.dir, "suite.ts"),
+        "--suite",
+        suite,
+        "--harness",
+        "claude",
+        "--harness",
+        "codex",
+        "--trials",
+        "1",
+        "--dry",
+        "--no-judge",
+        "--output",
+        output,
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const [stderr, code] = await Promise.all([
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    expect(code, stderr).toBe(0);
+    const manifest = JSON.parse(
+      await readFile(join(output, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          mode: "candidate",
+          entrypoint: "$darrow-ticket-to-pr:ticket-to-pr",
+          gating: true,
+        }),
+        expect.objectContaining({
+          mode: "control",
+          entrypoint: "$darrow-goal-loop:adaptive-goal",
+          gating: false,
+        }),
+      ]),
+    );
+    const results = await Promise.all(
+      manifest.cells.map(async (cell: { result: string }) =>
+        JSON.parse(await readFile(cell.result, "utf8")),
+      ),
+    );
+    expect(results.map(([value]) => value.entrypointAdapter).sort()).toEqual([
+      "$darrow-goal-loop:adaptive-goal",
+      "$darrow-ticket-to-pr:ticket-to-pr",
+      "/darrow-goal-loop:adaptive-goal",
+      "/darrow-ticket-to-pr:ticket-to-pr",
+    ]);
+    expect(
+      Object.fromEntries(
+        results.map(([value]) => [
+          value.entrypointAdapter,
+          value.entrypointTransport,
+        ]),
+      ),
+    ).toEqual({
+      "/darrow-goal-loop:adaptive-goal": "claude_headless_model_invocation",
+      "/darrow-ticket-to-pr:ticket-to-pr": "claude_headless_explicit_bridge",
+      "$darrow-goal-loop:adaptive-goal": "native",
+      "$darrow-ticket-to-pr:ticket-to-pr": "native",
+    });
+    expect(new Set(results.map(([value]) => value.evaluationDigest)).size).toBe(
+      1,
+    );
+    const report = await readFile(join(output, "report.md"), "utf8");
+    expect(report).toContain("## Gate scope");
+    expect(report).toContain("claude/candidate");
+    expect(report).toContain("codex/candidate");
+    expect(report).toContain("claude/control");
+    expect(report).toContain("codex/control");
+  });
+
   test("records activation only for modes where the target skill is mounted", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-suite-"));
     roots.push(root);
@@ -134,6 +244,21 @@ describe("evaluation suite ablation", () => {
         candidate: "candidate",
       },
     ]);
+    const [baseline, candidate] = await Promise.all(
+      manifest.cells.map(async (cell: { mode: string; result: string }) => ({
+        mode: cell.mode,
+        result: JSON.parse(await readFile(cell.result, "utf8")),
+      })),
+    );
+    expect(
+      baseline.result[0].trials[0].checks.map(
+        (check: { name: string }) => check.name,
+      ),
+    ).toEqual(
+      candidate.result[0].trials[0].checks.map(
+        (check: { name: string }) => check.name,
+      ),
+    );
     expect(manifest.models).toEqual({
       claude: "claude-sonnet-5",
       codex: "gpt-5.5",

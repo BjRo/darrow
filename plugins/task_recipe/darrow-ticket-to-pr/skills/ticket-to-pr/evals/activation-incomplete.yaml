@@ -1,7 +1,7 @@
 id: ticket-to-pr-activation-incomplete
 invariant: TPR-C1,TPR-C2
 activation: positive
-prompt: "/ticket-to-pr On Codex, invoke $ticket-to-pr."
+prompt: "{{entrypoint}}."
 fixture:
   commits:
     - message: "chore: init"

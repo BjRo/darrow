@@ -342,13 +342,51 @@ specification.
 
 ## Evaluation requirements
 
-Every core judgment case runs at least three matched trials on both Claude Code
-and Codex. Candidate, raw `adaptive-goal`, and ticket-pipeline controls use the
-same fixtures, prompts, hidden acceptance checks, harness, model, and effort.
-Reports include trial count, outcome correctness, escaped defects, false-
-positive review findings, human interventions, duplicate or unintended
-mutations, resume success, selected and effective routes, tokens, cost, wall
-time, and limitations. Three trials do not support a superiority claim.
+The tracked comparative suite names one representative core case for each of
+TPR-E1 through TPR-E13. Each representative runs at least three trials on both
+Claude Code and Codex under the candidate, raw `adaptive-goal`, and ticket-
+pipeline controls. Additional edge variants run candidate-only with the same
+three-trial, cross-host minimum.
+
+Comparative cells use the same workload template, fixture, hidden acceptance
+checks, harness, model, effort, and trial count. The only prompt difference is
+one recorded, minimal entrypoint substitution required to invoke the candidate
+or control on the selected host. Because the mounted workflow and entrypoint
+both differ, this is a matched comparative benchmark rather than a strict
+single-skill ablation. Reports retain the common workload digest and exact
+entrypoint adapter together with trial count, outcome correctness, escaped
+defects, false-positive review findings, human interventions, duplicate or
+unintended mutations, resume success, selected and effective routes, tokens,
+cost, wall time, and limitations. Three trials do not support a superiority
+claim.
+
+When a headless host exposes explicit slash commands only through its
+interactive parser, the runner may bridge an already-explicit workload
+entrypoint by removing the model-invocation guard from the mounted evaluation
+copy only. The source skill remains unchanged, natural-language and negative
+cases never receive the bridge, and every bridged result records the transport
+separately from the entrypoint. This calibrates workflow behavior without
+misrepresenting the bridge as native host activation.
+Unguarded controls using model-mediated headless loading record that distinct
+transport without claiming the explicit-only bridge was applied.
+
+Activation is calibrated separately from behavior. Activation cases cover
+direct, incomplete, ordinary-negative, natural-language, and pressure inputs;
+TPR-E1 through TPR-E13 behavior cases pass or fail only from repository, forge,
+telemetry, and terminal-output evidence. A direct host skill event is preferred.
+When a host exposes no such event, the harness may inject a bounded private
+activation sentinel into the mounted evaluation copy of each skill and report
+that explicitly as controlled-probe evidence. It never infers activation from
+the final answer.
+
+No-mutation cases compare the selected branch, every repository ref, index,
+tracked worktree, and untracked-file state. Cases whose contract explicitly
+creates repository state declare that expectation and pair it with a specific
+state assertion. Telemetry fixtures append every adapter invocation and require
+exactly one lifecycle so a later safe payload cannot overwrite an earlier
+secret or hide a duplicate emission. Terminal-result cases require one
+versioned record with each required field exactly once and ground publication
+facts in fixture-visible branch, remote, and forge state.
 
 Required cases include:
 
@@ -391,9 +429,17 @@ Required cases include:
 13. **TPR-E13 — Cross-host behavior.** Fresh Claude Code and Codex contexts
     satisfy the same public assertions despite host-specific adapters.
 
-All core cases require three passing trials per host, zero unintended or
-duplicate external mutations, and zero seeded PII or secret leakage. Relevant
-deterministic script tests pass under both `bash` and `/bin/bash`.
+Before the full matrix, one fresh trial per host calibrates activation and a
+non-mutating intake case, followed by one effectful ready-delivery trial and one
+representative trial across all three comparative modes. The full matrix starts
+only after those probes show that skill mounting, entrypoint adaptation, hidden
+checks, and fail-closed external-effect fixtures work as intended.
+
+All designated candidate core cases and candidate edge variants require three
+passing trials per host, zero unintended or duplicate external mutations, and
+zero seeded PII or secret leakage. Control failures remain comparative evidence
+instead of invalidating the candidate gate. Relevant deterministic script tests
+pass under both `bash` and `/bin/bash`.
 
 ## Non-goals
 

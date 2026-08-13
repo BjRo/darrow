@@ -1,8 +1,7 @@
 id: ticket-to-pr-e2-supplied-content
 invariant: TPR-E2,TPR-C2
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr. The authoritative supplied
+  {{entrypoint}}. The authoritative supplied
   specification is SPEC-203: outcome “Document widget”; acceptance “README
   contains Widget ready”. It is the only source. Continue through intake, but
   stop honestly if the later readiness capability is unavailable.

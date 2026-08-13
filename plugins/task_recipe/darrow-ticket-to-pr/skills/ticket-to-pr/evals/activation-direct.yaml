@@ -2,7 +2,7 @@ id: ticket-to-pr-activation-direct
 invariant: TPR-C1
 activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr. Use TKT-41
+  {{entrypoint}}. Use TKT-41
   and deliver this one ticket from the current repository to
   one verified pull request.
 fixture:

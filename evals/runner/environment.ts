@@ -1,4 +1,4 @@
-import { cp, mkdir, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 type Harness = "claude" | "codex";
@@ -55,24 +55,80 @@ async function keychainClaudeCredential(): Promise<string | null> {
   return credential;
 }
 
-async function copyClaudeCredentials(configRoot: string): Promise<void> {
+interface ClaudeOAuthCredential {
+  token: string;
+  serialized: string;
+}
+
+function claudeOAuthCredential(
+  credential: string,
+  source: string,
+): ClaudeOAuthCredential {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(credential);
+  } catch {
+    throw new Error(`cannot parse Claude credentials from ${source}`);
+  }
+  const oauth = (parsed as { claudeAiOauth?: Record<string, unknown> })
+    .claudeAiOauth;
+  const token = oauth?.accessToken;
+  if (typeof token !== "string" || !token.trim()) {
+    throw new Error(`Claude credentials from ${source} have no access token`);
+  }
+  return {
+    token,
+    // Discard unrelated MCP OAuth entries from the user's credential record.
+    serialized: JSON.stringify({ claudeAiOauth: oauth }),
+  };
+}
+
+async function isolatedClaudeOAuthCredential(): Promise<ClaudeOAuthCredential | null> {
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY)
-    return;
+    return null;
   const source = resolve(
     process.env.CLAUDE_CONFIG_DIR ?? resolve(process.env.HOME ?? "", ".claude"),
     ".credentials.json",
   );
-  const target = resolve(configRoot, ".credentials.json");
   if (await Bun.file(source).exists()) {
-    await cp(source, target);
-    return;
+    return claudeOAuthCredential(await readFile(source, "utf8"), source);
   }
-  if (process.platform !== "darwin") return;
+  if (process.platform !== "darwin") return null;
 
   const credential = await keychainClaudeCredential();
+  return credential
+    ? claudeOAuthCredential(credential, "the macOS Claude Code keychain entry")
+    : null;
+}
+
+async function installIsolatedSecurityShim(
+  fixtureBin: string,
+  credential: ClaudeOAuthCredential | null,
+  stateRoot: string,
+): Promise<void> {
+  const credentialPath = join(stateRoot, "claude-credentials.json");
   if (credential) {
-    await writeFile(target, credential, { mode: 0o600 });
+    await writeFile(credentialPath, credential.serialized, { mode: 0o600 });
   }
+  const shim = join(fixtureBin, "security");
+  await writeFile(
+    shim,
+    [
+      "#!/bin/sh",
+      'case " $* " in',
+      '  *" find-generic-password "*" Claude Code-credentials "*)',
+      credential
+        ? `    exec /bin/cat ${shellQuote(credentialPath)}`
+        : "    exit 44",
+      "    ;;",
+      '  *" add-generic-password "*" Claude Code-credentials "*) exit 0 ;;',
+      "  *) exit 44 ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    { mode: 0o700 },
+  );
+  await chmod(shim, 0o700);
 }
 
 /** Build an auth-only, private home so user rules, plugins, hooks, and caches
@@ -101,10 +157,12 @@ export async function isolatedHarnessEnvironment(
 
   // Goal-loop evals may pin a child to the other harness. Provision both
   // auth channels while keeping settings, hooks, plugins, and caches isolated.
-  await Promise.all([
+  const [, claudeCredential] = await Promise.all([
     copyCodexCredentials(configRoot),
-    copyClaudeCredentials(configRoot),
+    isolatedClaudeOAuthCredential(),
   ]);
+  await mkdir(fixtureBin, { recursive: true });
+  await installIsolatedSecurityShim(fixtureBin, claudeCredential, stateRoot);
 
   const env = Object.fromEntries(
     ALLOWED_ENVIRONMENT.flatMap((name) =>
@@ -120,5 +178,16 @@ export async function isolatedHarnessEnvironment(
   env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX = "1";
   env.CODEX_HOME = configRoot;
   env.CLAUDE_CONFIG_DIR = configRoot;
+  if (claudeCredential) env.CLAUDE_CODE_OAUTH_TOKEN = claudeCredential.token;
+  // Real forge credentials and interactive Git helpers never enter a fixture.
+  env.GH_CONFIG_DIR = join(configRoot, "gh");
+  env.GLAB_CONFIG_DIR = join(configRoot, "glab");
+  env.GIT_CONFIG_GLOBAL = "/dev/null";
+  env.GIT_CONFIG_SYSTEM = "/dev/null";
+  env.GIT_TERMINAL_PROMPT = "0";
+  env.GCM_INTERACTIVE = "never";
+  env.GIT_ASKPASS = "/usr/bin/false";
+  env.SSH_ASKPASS = "/usr/bin/false";
+  env.GIT_SSH_COMMAND = "/usr/bin/false";
   return env;
 }

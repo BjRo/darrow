@@ -153,9 +153,11 @@ function observedSkillReads(
 }
 
 /**
- * Codex exposes command events but no native skill-invocation event. Its skill
- * protocol requires the selected skill body to be read, so the first completed
- * mounted SKILL.md read is retained as an explicitly labeled behavior probe.
+ * Codex exposes command events but no native skill-invocation event. A visible
+ * completed mounted SKILL.md read is useful controlled-probe evidence, but an
+ * otherwise successful turn with no visible read is unobservable rather than a
+ * measured non-selection. Activation evals provide a separate private sentinel
+ * for that case.
  */
 export function codexSkillActivation(
   stream: string,
@@ -177,7 +179,8 @@ export function codexSkillActivation(
       completed &&
       !failed &&
       !codexStreamMalformed(stream) &&
-      !events.some(malformedCompletedCommand),
+      !events.some(malformedCompletedCommand) &&
+      observedSkills.length > 0,
     primarySkill: observedSkills[0] ?? null,
     observedSkills,
   };

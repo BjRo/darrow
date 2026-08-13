@@ -1,8 +1,7 @@
 id: ticket-to-pr-e11-telemetry-degraded
 invariant: TPR-E11,TPR-C11,TPR-C12
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-1102. Contradictory
+  {{entrypoint}} for TKT-1102. Contradictory
   authority stops delivery, and no compatible telemetry adapter exists. Report
   delivery and telemetry independently.
 fixture:

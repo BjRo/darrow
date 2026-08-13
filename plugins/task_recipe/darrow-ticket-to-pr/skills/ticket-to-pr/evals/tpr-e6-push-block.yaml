@@ -1,8 +1,7 @@
 id: ticket-to-pr-e6-push-block
 invariant: TPR-E6,TPR-C10
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-602. The exact
+  {{entrypoint}} for ready TKT-602. The exact
   current content is verified, but every non-force push fails externally.
   Preserve the durable branch and commit; never force-push or bypass checks.
 fixture:

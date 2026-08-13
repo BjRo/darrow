@@ -1,8 +1,7 @@
-id: ticket-to-pr-e11-telemetry
+id: ticket-to-pr-e11-telemetry-emitted
 invariant: TPR-E11,TPR-C12
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-1101.
+  {{entrypoint}} for TKT-1101.
   Tracker and supplied specification contradict with no precedence, so
   delivery must stop. A compatible telemetry adapter is configured by the
   repository. Emit one safe versioned lifecycle and keep its status independent
@@ -22,12 +21,16 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       [ "${1-}" = emit ]
-      cat >.git/telemetry-lifecycle
+      {
+        printf '%s\n' '--- darrow-eval-telemetry-emission ---'
+        cat
+      } >>.git/telemetry-lifecycle
       printf '%s\n' accepted
 checks:
   - name: one versioned correlated lifecycle is accepted
     run: >-
       test -s .git/telemetry-lifecycle &&
+      test "$(grep -Fc -- '--- darrow-eval-telemetry-emission ---' .git/telemetry-lifecycle)" -eq 1 &&
       grep -F TKT-1101 .git/telemetry-lifecycle >/dev/null &&
       grep -Ei 'version|schema' .git/telemetry-lifecycle >/dev/null &&
       grep -Ei 'stopped|contradict' .git/telemetry-lifecycle >/dev/null

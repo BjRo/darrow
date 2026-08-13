@@ -1,8 +1,7 @@
 id: ticket-to-pr-e9-pr-shape
 invariant: TPR-E9,TPR-C5,TPR-C7
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-901.
+  {{entrypoint}} for TKT-901.
   The ready, verified branch already has one correlated
   open review-ready PR. Confirm its deliberate base, Conventional Commit title,
   template body and ticket reference. Do not create, draft, label, assign,

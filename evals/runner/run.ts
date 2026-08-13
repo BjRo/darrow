@@ -1,8 +1,10 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { buildFixture, destroyFixture } from "./fixture";
+import { selectCaseIds } from "./case-selection";
+import { buildFixture, destroyFixture, readActivationProbe } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
 import { runChecks, runOutputChecks } from "./checks";
@@ -10,13 +12,22 @@ import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
 import {
+  repositoryMutationMatches,
+  repositoryMutationState,
+} from "./repository-state";
+import {
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
   gradeActivation,
+  selectActivationObservation,
   validateActivationCase,
   validateMountedActivationTarget,
 } from "./activation";
+import {
+  qualifiedSkillEntrypoint,
+  renderEntrypointTemplate,
+} from "./entrypoint";
 import {
   extractOrchestrationMetrics,
   hasUnreconciledOrchestrationUsage,
@@ -61,6 +72,10 @@ interface RunCaseOptions {
   threshold: number;
   dry: boolean;
   condition?: { label: string; text: string };
+  /** Exact host/mode invocation substituted at the workload entrypoint seam. */
+  entrypoint?: string;
+  /** Resolved once from the exact source skill and harness transport. */
+  entrypointTransport?: CaseResult["entrypointTransport"];
   withoutSkill?: boolean;
   humanReviewMinutes?: number;
   requireEvaluationRecords?: boolean;
@@ -77,6 +92,7 @@ interface TrialContext {
   trial: number;
   repoDir: string;
   baseRevision: string;
+  baseMutationState: string;
   harness: HarnessResult;
 }
 
@@ -195,9 +211,28 @@ async function resolveCorpusFixtures(
   }
 }
 
+function validateCaseConfiguration(evalCase: EvalCase): void {
+  for (const field of [
+    "expect_head_change",
+    "expect_repository_change",
+  ] as const) {
+    if (evalCase[field] !== undefined && typeof evalCase[field] !== "boolean") {
+      throw new Error(`${evalCase.id}: ${field} must be a boolean`);
+    }
+  }
+  if (evalCase.expect_head_change && evalCase.expect_repository_change) {
+    throw new Error(
+      `${evalCase.id}: expect_head_change and expect_repository_change are mutually exclusive`,
+    );
+  }
+  const activationErrors = validateActivationCase(evalCase);
+  if (activationErrors.length) throw new Error(activationErrors.join("; "));
+}
+
 async function loadCases(
   filter?: string[],
   corpusManifest = DEFAULT_CORPUS_MANIFEST,
+  caseMatch: "substring" | "exact" = "substring",
 ): Promise<EvalCase[]> {
   const cases = [
     ...(await scanCases("plugins/*/*/skills/*/evals/*.yaml", (path) =>
@@ -207,29 +242,50 @@ async function loadCases(
     ...(await scanCases("evals/experiments/*/cases/*.yaml", () => "")),
   ];
   cases.sort((a, b) => a.id.localeCompare(b.id));
-  const selected = filter?.length
-    ? cases.filter((c) => filter.some((value) => c.id.includes(value)))
-    : cases;
-  for (const evalCase of selected) {
-    if (
-      evalCase.expect_head_change !== undefined &&
-      typeof evalCase.expect_head_change !== "boolean"
-    ) {
-      throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
-    }
-    const activationErrors = validateActivationCase(evalCase);
-    if (activationErrors.length) throw new Error(activationErrors.join("; "));
-  }
+  const selectedIds = new Set(
+    selectCaseIds(
+      cases.map((evalCase) => evalCase.id),
+      filter,
+      caseMatch,
+    ),
+  );
+  const selected = cases.filter((evalCase) => selectedIds.has(evalCase.id));
+  selected.forEach(validateCaseConfiguration);
   await resolveCorpusFixtures(selected, corpusManifest);
   return selected;
 }
 
-function trialPrompt(options: RunCaseOptions, repoDir: string): string {
-  const { evalCase, adapter, model, effort, condition } = options;
-  const template = condition?.text.trim()
+function participantTemplate(options: RunCaseOptions): string {
+  const { evalCase, condition } = options;
+  return condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
-  return template
+}
+
+function resolvedEntrypoint(options: RunCaseOptions): string | undefined {
+  const template = participantTemplate(options);
+  if (!template.includes("{{entrypoint}}")) {
+    renderEntrypointTemplate(template, options.entrypoint, true);
+    return undefined;
+  }
+  return (
+    options.entrypoint ??
+    (options.evalCase.skillDir
+      ? qualifiedSkillEntrypoint(
+          options.adapter.name as "claude" | "codex",
+          options.evalCase.skillDir,
+        )
+      : undefined)
+  );
+}
+
+function trialPrompt(options: RunCaseOptions, repoDir: string): string {
+  const { adapter, model, effort } = options;
+  return renderEntrypointTemplate(
+    participantTemplate(options),
+    resolvedEntrypoint(options),
+    options.entrypoint !== undefined,
+  )
     .replaceAll("{{repo_dir}}", repoDir)
     .replaceAll("{{harness}}", adapter.name)
     .replaceAll("{{model}}", model)
@@ -268,10 +324,8 @@ function activationEvidence(evalCase: EvalCase) {
 }
 
 function evaluationDigest(options: RunCaseOptions): string {
-  const { evalCase, condition, judge } = options;
-  const participantPrompt = condition?.text.trim()
-    ? `${condition.text.trim()}\n\n${evalCase.prompt}`
-    : evalCase.prompt;
+  const { evalCase, judge } = options;
+  const participantPrompt = participantTemplate(options);
   const evidence = stableEvidence({
     participantPrompt,
     fixture: evalCase.fixture,
@@ -279,6 +333,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     outputChecks: evalCase.output_checks ?? [],
     activation: activationEvidence(evalCase),
     expectHeadChange: evalCase.expect_head_change ?? null,
+    expectRepositoryChange: evalCase.expect_repository_change ?? null,
     requireEvaluationRecords: options.requireEvaluationRecords ?? false,
     expectedGoalRoute: options.expectedGoalRoute ?? null,
     assertedGoalRoute: options.assertedGoalRoute ?? null,
@@ -394,15 +449,15 @@ function routeChecks(
   ];
 }
 
-async function trialChecks(
-  options: RunCaseOptions,
-  context: TrialContext,
-  observedGoalRouteApplication: GoalRouteApplication | undefined,
+async function repositoryChecks(
+  evalCase: EvalCase,
+  repoDir: string,
+  baseRevision: string,
+  baseMutationState: string,
 ): Promise<CheckResult[]> {
-  const { evalCase, withoutSkill = false } = options;
-  const { repoDir, baseRevision, harness } = context;
   const currentRevision = await repositoryHead(repoDir);
-  const headChecks: CheckResult[] = evalCase.expect_head_change
+  const currentMutationState = await repositoryMutationState(repoDir);
+  return evalCase.expect_head_change
     ? [
         {
           name: "head advanced from the base revision",
@@ -425,20 +480,57 @@ async function trialChecks(
           passed: currentRevision === baseRevision,
           detail: "candidate created or switched to a different commit",
         },
+        {
+          name: evalCase.expect_repository_change
+            ? "expected repository mutation occurred"
+            : "repository mutation state remains unchanged",
+          passed: repositoryMutationMatches(
+            baseMutationState,
+            currentMutationState,
+            evalCase.expect_repository_change ?? false,
+          ),
+          detail: evalCase.expect_repository_change
+            ? "candidate did not create the expected repository state"
+            : "candidate changed the branch, refs, index, worktree, or untracked files",
+        },
       ];
+}
+
+async function trialChecks(
+  options: RunCaseOptions,
+  context: TrialContext,
+  observedGoalRouteApplication: GoalRouteApplication | undefined,
+): Promise<CheckResult[]> {
+  const { evalCase } = options;
+  const { repoDir, baseRevision, baseMutationState, harness } = context;
   return [
     ...(await runChecks(repoDir, evalCase.checks)),
-    ...headChecks,
-    // A no-skill baseline is judged on the same repository outcomes, not
-    // on the orchestration-specific reporting contract it cannot know about.
-    ...(withoutSkill
-      ? []
-      : await runOutputChecks(
-          harness.resultText,
-          evalCase.output_checks ?? [],
-          evalCase.skillDir,
-        )),
+    ...(await repositoryChecks(
+      evalCase,
+      repoDir,
+      baseRevision,
+      baseMutationState,
+    )),
+    ...(await runOutputChecks(
+      harness.resultText,
+      evalCase.output_checks ?? [],
+      evalCase.skillDir,
+    )),
     ...routeChecks(options, harness, observedGoalRouteApplication),
+  ];
+}
+
+async function dryChecks(
+  evalCase: EvalCase,
+  repoDir: string,
+): Promise<CheckResult[]> {
+  return [
+    ...(await runChecks(repoDir, evalCase.checks)),
+    ...(await runOutputChecks(
+      "",
+      evalCase.output_checks ?? [],
+      evalCase.skillDir,
+    )),
   ];
 }
 
@@ -530,6 +622,38 @@ function reportTrial(options: RunCaseOptions, result: TrialResult): void {
   }
 }
 
+async function applyActivationProbe(
+  harness: HarnessResult,
+  repoDir: string,
+  activationProbe: { token: string } | undefined,
+): Promise<void> {
+  if (!activationProbe) return;
+  const probe = await readActivationProbe(repoDir, activationProbe.token);
+  harness.skillActivation = selectActivationObservation(
+    harness.skillActivation,
+    { ...probe, complete: harness.ok && probe.complete },
+  );
+}
+
+async function buildTrialFixture(
+  options: RunCaseOptions,
+  activationProbe: { token: string } | undefined,
+): Promise<string> {
+  const { evalCase, adapter, withoutSkill = false } = options;
+  return buildFixture({
+    fixture: evalCase.fixture,
+    skillDir: withoutSkill ? "" : evalCase.skillDir,
+    skillMounts: adapter.skillMounts,
+    mountPluginSkills: evalCase.mount_plugin_skills ?? false,
+    sourceClaudePlugin: adapter.sourceClaudePlugin,
+    sourceCodexPlugin: adapter.sourceCodexPlugin,
+    activationProbe,
+    claudeExplicitEntrypointBridge:
+      options.entrypointTransport === "claude_headless_explicit_bridge",
+    caseDir: evalCase.caseDir,
+  });
+}
+
 async function runTrial(
   options: RunCaseOptions,
   trial: number,
@@ -542,23 +666,20 @@ async function runTrial(
     dry,
     withoutSkill = false,
   } = options;
-  const repoDir = await buildFixture({
-    fixture: evalCase.fixture,
-    skillDir: withoutSkill ? "" : evalCase.skillDir,
-    skillMounts: adapter.skillMounts,
-    mountPluginSkills: evalCase.mount_plugin_skills ?? false,
-    sourceClaudePlugin: adapter.sourceClaudePlugin,
-    sourceCodexPlugin: adapter.sourceCodexPlugin,
-    caseDir: evalCase.caseDir,
-  });
+  const activationProbe =
+    evalCase.activation && !withoutSkill && adapter.name === "codex"
+      ? { token: randomUUID() }
+      : undefined;
+  const repoDir = await buildTrialFixture(options, activationProbe);
   try {
     const baseRevision = await repositoryHead(repoDir);
+    const baseMutationState = await repositoryMutationState(repoDir);
     const prompt = trialPrompt(options, repoDir);
     if (dry) {
       console.log(
         `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
       );
-      return dryTrialResult(trial, await runChecks(repoDir, evalCase.checks));
+      return dryTrialResult(trial, await dryChecks(evalCase, repoDir));
     }
     const harness: HarnessResult = await adapter.run(
       repoDir,
@@ -567,10 +688,12 @@ async function runTrial(
       effort,
       goalRouteControl(options.expectedGoalRoute),
     );
+    await applyActivationProbe(harness, repoDir, activationProbe);
     const result = await evaluateTrial(options, {
       trial,
       repoDir,
       baseRevision,
+      baseMutationState,
       harness,
     });
     reportTrial(options, result);
@@ -760,6 +883,28 @@ function meanTrialTokens(
     : null;
 }
 
+async function resolveEntrypointTransport(
+  options: RunCaseOptions,
+): Promise<CaseResult["entrypointTransport"]> {
+  const entrypointAdapter = resolvedEntrypoint(options) ?? null;
+  if (!entrypointAdapter) return null;
+  if (options.adapter.name !== "claude") return "native";
+  const skillFile = join(options.evalCase.skillDir, "SKILL.md");
+  const source = await readFile(skillFile, "utf8");
+  return /^disable-model-invocation:\s*true\s*$/m.test(source)
+    ? "claude_headless_explicit_bridge"
+    : "claude_headless_model_invocation";
+}
+
+function entrypointSummary(
+  options: RunCaseOptions,
+): Pick<CaseResult, "entrypointAdapter" | "entrypointTransport"> {
+  return {
+    entrypointAdapter: resolvedEntrypoint(options) ?? null,
+    entrypointTransport: options.entrypointTransport ?? null,
+  };
+}
+
 function summarizeCase(
   options: RunCaseOptions,
   trialResults: TrialResult[],
@@ -778,6 +923,7 @@ function summarizeCase(
     caseId: evalCase.id,
     invariant: evalCase.invariant,
     evaluationDigest: evaluationDigest(options),
+    ...entrypointSummary(options),
     passThreshold: options.threshold,
     skillDirectory:
       options.withoutSkill || !evalCase.skillDir ? null : evalCase.skillDir,
@@ -806,6 +952,7 @@ function summarizeCase(
 }
 
 async function runCase(options: RunCaseOptions): Promise<CaseResult> {
+  options.entrypointTransport = await resolveEntrypointTransport(options);
   const trialResults: TrialResult[] = [];
   for (let trial = 1; trial <= options.trials; trial++) {
     trialResults.push(await runTrial(options, trial));
@@ -881,9 +1028,11 @@ const { values } = parseArgs({
     effort: { type: "string", default: "medium" },
     trials: { type: "string", default: "5" },
     case: { type: "string", multiple: true },
+    "case-exact": { type: "boolean", default: false },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
     condition: { type: "string" },
+    entrypoint: { type: "string" },
     "without-skill": { type: "boolean", default: false },
     "human-review-minutes": { type: "string" },
     "corpus-manifest": { type: "string" },
@@ -1030,6 +1179,7 @@ const cases = await loadCases(
   values["corpus-manifest"]
     ? resolve(process.cwd(), values["corpus-manifest"])
     : DEFAULT_CORPUS_MANIFEST,
+  values["case-exact"] ? "exact" : "substring",
 );
 if (values["skill-dir"]) {
   const skillDir = resolve(process.cwd(), values["skill-dir"]);
@@ -1085,6 +1235,7 @@ for (const evalCase of cases) {
     threshold,
     dry: values.dry!,
     condition,
+    entrypoint: values.entrypoint,
     withoutSkill: values["without-skill"],
     humanReviewMinutes,
     requireEvaluationRecords: values["require-evaluation-records"],

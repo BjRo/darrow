@@ -1,8 +1,7 @@
 id: ticket-to-pr-e8-blocking-review
 invariant: TPR-E8,TPR-C9
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready high-risk TKT-807.
+  {{entrypoint}} for ready high-risk TKT-807.
   Exact-content independent review found a blocking authorization defect. No
   repair authority exists. Do not publish and preserve the finding.
 fixture:

@@ -1,8 +1,7 @@
 id: ticket-to-pr-e4-dirty-safety
 invariant: TPR-E4,TPR-C6
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-401.
+  {{entrypoint}} for TKT-401.
   There is an unrelated uncommitted change of unknown
   ownership. Deliver the ticket without losing or absorbing anyone's work.
 fixture:

@@ -1,8 +1,7 @@
 id: ticket-to-pr-e3-needs-decision
 invariant: TPR-E3,TPR-C3
-activation: positive
 prompt: >-
-  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-302. The composed
+  {{entrypoint}} for TKT-302. The composed
   readiness result is needs-decision; basis: two incompatible retry policies;
   smallest next action: select bounded or unbounded retries. Preserve it.
 fixture:

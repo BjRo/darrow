@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
+import { BLOCKED_EXTERNAL_COMMANDS } from "./fixture";
 
 const SOURCE_ROOT = resolve(import.meta.dir, "..", "..");
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
@@ -10,17 +11,42 @@ function quote(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
-export function sandboxProfile(deniedPaths: string[]): string {
+export function sandboxProfile(
+  deniedPaths: string[],
+  deniedExecutables: string[] = [],
+): string {
   const unique = [...new Set(deniedPaths)].sort();
+  const executables = [...new Set(deniedExecutables)].sort();
   return [
     "(version 1)",
     "(allow default)",
+    ...executables.map(
+      (path) => `(deny process-exec (literal "${quote(path)}"))`,
+    ),
     ...unique.flatMap((path) => [
       `(deny file-read* (subpath "${quote(path)}"))`,
       `(deny file-write* (subpath "${quote(path)}"))`,
     ]),
     "",
   ].join("\n");
+}
+
+async function externalClientExecutables(): Promise<string[]> {
+  const paths = (process.env.PATH ?? "").split(":").filter(Boolean);
+  const found: string[] = [];
+  for (const command of BLOCKED_EXTERNAL_COMMANDS) {
+    for (const path of paths) {
+      const candidate = join(path, command);
+      if (!existsSync(candidate)) continue;
+      try {
+        found.push(await realpath(candidate));
+      } catch {
+        // A concurrently removed executable is already unavailable.
+      }
+    }
+  }
+  if (existsSync("/usr/bin/security")) found.push("/usr/bin/security");
+  return found;
 }
 
 async function siblingFixtures(repoDir: string): Promise<string[]> {
@@ -41,11 +67,17 @@ async function siblingFixtures(repoDir: string): Promise<string[]> {
   return paths;
 }
 
-async function globalHarnessConfigs(): Promise<string[]> {
+async function globalSensitivePaths(): Promise<string[]> {
   const home = process.env.HOME ?? "";
   const candidates = [
     process.env.CODEX_HOME ?? resolve(home, ".codex"),
     process.env.CLAUDE_CONFIG_DIR ?? resolve(home, ".claude"),
+    resolve(home, ".ssh"),
+    resolve(home, ".gitconfig"),
+    resolve(home, ".git-credentials"),
+    resolve(home, ".config", "gh"),
+    resolve(home, ".config", "glab-cli"),
+    resolve(home, "Library", "Keychains"),
   ];
   const roots: string[] = [];
   for (const candidate of candidates) {
@@ -102,11 +134,15 @@ export async function sandboxedAgentCommand(
   const denied = [
     ...(await repositoryWorktrees()),
     ...(await siblingFixtures(repoDir)),
-    ...(await globalHarnessConfigs()),
+    ...(await globalSensitivePaths()),
   ];
   const profileDir = join(repoDir, ".git", "darrow-eval");
   await mkdir(profileDir, { recursive: true });
   const profilePath = join(profileDir, `${basename(argv[0]!)}.sb`);
-  await writeFile(profilePath, sandboxProfile(denied), { mode: 0o600 });
+  await writeFile(
+    profilePath,
+    sandboxProfile(denied, await externalClientExecutables()),
+    { mode: 0o600 },
+  );
   return [SANDBOX_EXEC, "-f", profilePath, ...argv];
 }

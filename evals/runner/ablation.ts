@@ -8,6 +8,7 @@ export interface AblationMode {
   without_skill?: boolean;
   condition?: string;
   condition_by_harness?: Record<string, string>;
+  entrypoint_by_harness?: Record<string, string>;
   effort?: string;
   require_evaluation_records?: boolean;
   apply_goal_route?: boolean;
@@ -70,6 +71,7 @@ function conditionConfiguration(mode: AblationMode): unknown {
   return {
     condition: mode.condition ?? null,
     condition_by_harness: mode.condition_by_harness ?? null,
+    entrypoint_by_harness: mode.entrypoint_by_harness ?? null,
   };
 }
 
@@ -153,6 +155,8 @@ function comparisonErrors(base: CaseResult, candidate: CaseResult): string[] {
   for (const key of [
     "invariant",
     "evaluationDigest",
+    "entrypointAdapter",
+    "entrypointTransport",
     "passThreshold",
     "harness",
     "harnessVersion",

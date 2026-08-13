@@ -12,6 +12,8 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
     caseId: "discovery-sample",
     invariant: "DF-C1",
     evaluationDigest: "sha256:shared-evaluation",
+    entrypointAdapter: null,
+    entrypointTransport: null,
     passThreshold: 0.8,
     skillDirectory: "/fixture/skills/discover-feature",
     mountPluginSkills: false,

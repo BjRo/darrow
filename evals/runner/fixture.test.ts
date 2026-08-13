@@ -10,7 +10,7 @@ import {
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { buildFixture, destroyFixture } from "./fixture";
+import { buildFixture, destroyFixture, readActivationProbe } from "./fixture";
 
 const cleanup: string[] = [];
 
@@ -21,6 +21,89 @@ afterEach(async () => {
 });
 
 describe("eval fixture skill mounts", () => {
+  test("blocks forge CLIs unless a fixture explicitly supplies a mock", async () => {
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: "",
+      skillMounts: [],
+    });
+    cleanup.push(fixture);
+
+    const gh = join(fixture, ".git", "fixture-bin", "gh");
+    const blocked = Bun.spawnSync([gh, "pr", "create"], { cwd: fixture });
+    expect(blocked.exitCode).not.toBe(0);
+    expect(blocked.stderr.toString()).toContain("disabled unless fixture.bin");
+
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+
+    const optedIn = await buildFixture({
+      fixture: {
+        bin: {
+          gh: "#!/bin/sh\nprintf '%s\\n' mocked\n",
+        },
+      },
+      skillDir: "",
+      skillMounts: [],
+    });
+    cleanup.push(optedIn);
+    const mock = Bun.spawnSync(
+      [join(optedIn, ".git", "fixture-bin", "gh"), "pr", "create"],
+      { cwd: optedIn },
+    );
+    expect(mock.exitCode).toBe(0);
+    expect(mock.stdout.toString()).toBe("mocked\n");
+
+    await destroyFixture(optedIn);
+    cleanup.splice(cleanup.indexOf(optedIn), 1);
+  });
+
+  test("injects and reads a private activation sentinel", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-probe-"));
+    cleanup.push(root);
+    const skill = join(root, "plugins", "sample", "skills", "primary");
+    await mkdir(skill, { recursive: true });
+    await writeFile(
+      join(skill, "SKILL.md"),
+      "---\nname: primary\ndescription: Primary\n---\n\nFollow the workflow.\n",
+    );
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: skill,
+      skillMounts: [".agents/skills"],
+      activationProbe: { token: "probe-token" },
+    });
+    cleanup.push(fixture);
+    const mounted = await readFile(
+      join(fixture, ".agents", "skills", "primary", "SKILL.md"),
+      "utf8",
+    );
+    expect(mounted).toContain("Evaluation activation observation");
+    expect(mounted).toContain("probe-token");
+
+    expect(await readActivationProbe(fixture, "probe-token")).toEqual({
+      source: "skill_activation_probe",
+      complete: true,
+      primarySkill: null,
+      observedSkills: [],
+    });
+    await mkdir(join(fixture, ".git", "darrow-eval"), { recursive: true });
+    await writeFile(
+      join(fixture, ".git", "darrow-eval", "skill-activation.tsv"),
+      "primary\tprobe-token\n",
+    );
+    expect(await readActivationProbe(fixture, "probe-token")).toEqual({
+      source: "skill_activation_probe",
+      complete: true,
+      primarySkill: "primary",
+      observedSkills: ["primary"],
+    });
+
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
   test("mounts a source Claude plugin without a project skill copy", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-agents-"));
     cleanup.push(root);
@@ -78,6 +161,53 @@ describe("eval fixture skill mounts", () => {
     expect(existsSync(join(fixture, ".agents", "agents", "runner.md"))).toBe(
       false,
     );
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
+  test("bridges an explicit headless Claude entrypoint only in the mounted copy", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-claude-bridge-"));
+    cleanup.push(root);
+    const plugin = join(root, "plugins", "sample");
+    const skill = join(plugin, "skills", "primary");
+    const sibling = join(plugin, "skills", "secondary");
+    await mkdir(skill, { recursive: true });
+    await mkdir(sibling, { recursive: true });
+    await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+    const source =
+      "---\nname: primary\ndescription: Primary\ndisable-model-invocation: true\n---\n\nFollow it.\n";
+    await writeFile(join(skill, "SKILL.md"), source);
+    await writeFile(
+      join(sibling, "SKILL.md"),
+      source.replaceAll("primary", "secondary"),
+    );
+    await writeFile(
+      join(plugin, ".claude-plugin", "plugin.json"),
+      '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
+    );
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: skill,
+      skillMounts: [],
+      sourceClaudePlugin: true,
+      mountPluginSkills: true,
+      claudeExplicitEntrypointBridge: true,
+    });
+    cleanup.push(fixture);
+    const mounted = await readFile(
+      join(fixture, ".git", "eval-plugin", "skills", "primary", "SKILL.md"),
+      "utf8",
+    );
+    expect(mounted).not.toContain("disable-model-invocation");
+    expect(
+      await readFile(
+        join(fixture, ".git", "eval-plugin", "skills", "secondary", "SKILL.md"),
+        "utf8",
+      ),
+    ).toContain("disable-model-invocation: true");
+    expect(await readFile(join(skill, "SKILL.md"), "utf8")).toBe(source);
+
     await destroyFixture(fixture);
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });
