@@ -1,0 +1,6 @@
+interface:
+  display_name: "Composition Parent"
+  short_description: "Probe explicit parent-to-child skill invocation"
+  default_prompt: "Use $open-plugin:composition-parent with one composition_payload line."
+policy:
+  allow_implicit_invocation: false

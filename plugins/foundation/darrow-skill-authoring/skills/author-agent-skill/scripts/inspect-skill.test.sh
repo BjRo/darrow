@@ -78,6 +78,41 @@ else
   fail "inspection is read-only"
 fi
 
+cp "$SKILL/SKILL.md" "$SKILL/SKILL.portable"
+sed '/^description:/a\
+disable-model-invocation: true' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
+if bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+  pass "disable-model-invocation true is accepted"
+else
+  fail "disable-model-invocation true is accepted"
+fi
+cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
+
+sed '/^description:/a\
+disable-model-invocation: false' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
+if bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+  pass "disable-model-invocation false is accepted"
+else
+  fail "disable-model-invocation false is accepted"
+fi
+cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
+
+sed '/^description:/a\
+disable-model-invocation: sometimes' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
+expect_failure "disable-model-invocation requires a boolean" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
+
+sed '/^description:/a\
+disable-model-invocation: true\
+disable-model-invocation: false' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
+expect_failure "disable-model-invocation cannot be duplicated" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
+
+sed '/^description:/a\
+unknown-host-field: true' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
+expect_failure "unknown frontmatter remains fail-closed" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
+
 printf '%s\n' 'fail-closed inputs'
 missing="$PLUGIN/skills/missing/SKILL.md"
 set +e

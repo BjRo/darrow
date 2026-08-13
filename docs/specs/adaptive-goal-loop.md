@@ -32,10 +32,12 @@ get out of the runtime's way.
 
 ## Selected design
 
-`adaptive-goal` is a user-invoked **goal compiler and launcher**. It performs a
-read-only preflight in the current context, emits one compact goal contract,
-and activates one host-native goal owner. It does not supervise role agents or
-implement a second adaptive loop.
+`adaptive-goal` is a user-authorized **goal compiler and launcher**. It starts
+after either direct user invocation or delegation from an orchestration
+entrypoint the user explicitly invoked. It performs a read-only preflight in
+the current context, emits one compact goal contract, and activates one
+host-native goal owner. It does not supervise role agents, infer orchestration
+from ordinary engineering intent, or implement a second adaptive loop.
 
 The launch boundary is selected in this order:
 
@@ -507,8 +509,22 @@ the least launch machinery the host supports.
    honestly.
 2. **AGL-X2 — Host branches.** Host-specific launch instructions are disclosed
    only after the host is known; the main skill carries the shared sequence.
-3. **AGL-X3 — User invocation.** The skill remains explicitly invoked because
-   goal activation can consume meaningful model budget and edit the worktree.
+3. **AGL-X3 — Authorized invocation.** The skill accepts direct explicit user
+   invocation or one delegated call from an orchestration entrypoint the user
+   explicitly invoked. Host metadata permits model invocation so that delegated
+   composition can load the skill. An ordinary engineering request, task
+   complexity, duration, or number of steps is not invocation authority. A
+   delegated call preserves the originating request and authority without
+   expanding either; absent direct or delegated authority, the skill stops
+   before preflight helper calls, native-goal activation, or worktree mutation
+   and returns exactly:
+
+   ```text
+   format\tdarrow-adaptive-goal-authority-stop-v1
+   status\tinvocation_required
+   reason\texplicit-orchestration-entrypoint-required
+   ```
+
 4. **AGL-X4 — Self-contained mappings.** Route configuration, canonical risk
    guidance, workflow playbooks, and deterministic route mechanics ship inside
    the plugin.
@@ -543,22 +559,30 @@ the least launch machinery the host supports.
    be recorded without presenting the result as empirically established.
 6. Include dissimilar task shapes and at least one case for each launch stop:
    missing product intent, unavailable pinned route, and unsafe publication.
-7. Repository information architecture MUST be identical across comparison
+7. Include activation evidence for direct invocation and an ordinary
+   engineering request that must not select the skill. Verify delegated
+   invocation with a cross-host parent-to-child composition probe that
+   distinguishes an attempted invocation from a loaded child body. Include a
+   hostile delegation from an explicitly invoked non-orchestration skill. The
+   host MAY reject that chain before loading adaptive-goal; when it loads the
+   child, require the exact adaptive-goal authority-stop record. Either boundary
+   must stop before preflight or mutation.
+8. Repository information architecture MUST be identical across comparison
    cells unless automatic IA setup is the isolated intervention. Benchmark
    guidance routes only to authoritative upstream evidence and MUST NOT expose
    hidden checks or case-specific expected solutions.
-8. Report classifier turns, classifier wall time, and classifier token usage
+9. Report classifier turns, classifier wall time, and classifier token usage
    separately from native-goal execution so lower implementation cost cannot
    hide preflight overhead.
    The reference Codex evaluation runs the prepared classifier on
    `gpt-5.6-terra` at `low` effort; implementation remains on the matched
    per-case route.
-9. Evaluate the composable dimensions incrementally: raw native goal, workflow
-   only, then workflow plus risk. Hold the implementation route fixed while
-   attributing each increment.
-10. Include held-out human-authored OSS bug-fix, new-feature, and refactor tasks
+10. Evaluate the composable dimensions incrementally: raw native goal, workflow
+    only, then workflow plus risk. Hold the implementation route fixed while
+    attributing each increment.
+11. Include held-out human-authored OSS bug-fix, new-feature, and refactor tasks
     before drawing a workflow-selection conclusion.
-11. Evaluate review selection with routine work where review is omitted,
+12. Evaluate review selection with routine work where review is omitted,
     elevated work where independent judgment is and is not material, high-risk
     work where review is required, an unavailable required capability, a
     blocking-finding repair/rereview path with a new target fingerprint, and

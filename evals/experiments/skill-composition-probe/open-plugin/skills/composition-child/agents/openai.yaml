@@ -1,0 +1,4 @@
+interface:
+  display_name: "Composition Child"
+  short_description: "Record a forwarded probe payload"
+  default_prompt: "Record one forwarded composition_payload through this child."

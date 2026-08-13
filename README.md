@@ -20,8 +20,9 @@ automatically, and no plugin assumes that another Darrow plugin is present.
 
 Most Darrow capabilities are intent-matched: ask for the outcome in ordinary
 language and the agent can select the installed skill. You can also name a
-skill explicitly. Orchestration is different and starts only when you
-explicitly invoke it.
+skill explicitly. Orchestration is different and starts only through an
+entrypoint you explicitly invoke. That entrypoint may delegate a bounded phase
+to another orchestration helper while preserving your original authority.
 
 ## Plugin catalog
 
@@ -74,8 +75,9 @@ intent and capability contracts.
 
 Orchestration owns a different concern: framing and continuing longer-running
 work until an observable completion condition is reached. It starts only
-through explicit user invocation, never merely because a task is complex or
-multi-step.
+through an explicitly invoked entrypoint, which may delegate a bounded phase to
+another orchestration helper. It never starts merely because a task is complex
+or multi-step.
 
 Across both layers, skills retain contextual judgment while narrow bundled
 scripts own repeatable command construction, validation, parsing, and compact

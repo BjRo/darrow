@@ -8,8 +8,10 @@ workflow playbook, and activates the narrowest goal boundary the host supports.
 The selected host-native owner handles implementation, verification, recovery,
 and completion.
 
-The plugin is explicitly invoked. It is not a second orchestration loop, child
-agent supervisor, workflow runtime, or publication capability.
+The plugin is directly invoked by the user or delegated one bounded request by
+an orchestration entrypoint the user explicitly invoked. Ordinary engineering
+intent never starts it. It is not a second orchestration loop, child-agent
+supervisor, workflow runtime, or publication capability.
 
 ## What it provides
 

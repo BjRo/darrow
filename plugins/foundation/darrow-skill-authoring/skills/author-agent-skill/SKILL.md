@@ -117,6 +117,11 @@ Put optional Codex UI metadata in `agents/openai.yaml`. Add host-specific
 frontmatter only when the target explicitly needs it, and verify the other
 host's behavior rather than assuming compatibility.
 
+The bundled inspector accepts Claude's optional boolean
+`disable-model-invocation` field while remaining fail-closed on other unknown
+frontmatter. Keep the corresponding Codex invocation policy in
+`agents/openai.yaml`; do not treat either host's control as portable metadata.
+
 **Complete when:** every instruction has one owner, every resource has a stated
 load condition, and discovery metadata distinguishes this goal from adjacent
 work without summarizing the procedure.

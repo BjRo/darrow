@@ -1,0 +1,20 @@
+id: goal-preflight-activation-negative-ordinary
+invariant: AGL-X3
+activation: negative
+prompt: >-
+  In this repository, change the first README heading from Old Name to New Name
+  and report the edited file. Make only that ordinary localized edit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Old Name
+
+          Existing documentation.
+checks:
+  - name: ordinary edit is completed without orchestration
+    run: test "$(sed -n '1p' README.md)" = "# New Name"
+output_checks:
+  - name: ordinary work does not claim goal preflight
+    not_regex: "darrow-native-goal-preflight|launch_boundary|selected_route"

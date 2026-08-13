@@ -1,13 +1,33 @@
 ---
 name: adaptive-goal
-description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use only when explicitly invoked; activation can consume meaningful model budget and edit the working tree.
-disable-model-invocation: true
+description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use when the user explicitly requests adaptive goal orchestration or an already explicitly invoked orchestration delegates one bounded request; do not select merely because ordinary work is complex or long-running.
 ---
 
 # Adaptive Goal Loop
 
 Compile the request, activate one host-native goal owner, and let the host own
 the loop.
+
+## Confirm invocation authority
+
+Start only when the current context establishes one of these entry conditions:
+
+- the user explicitly invoked adaptive goal orchestration; or
+- an orchestration entrypoint the user explicitly invoked delegates one bounded
+  request and preserves the originating request and permissions.
+
+A delegated call adds no authority. Treat its originating request as the
+authority source and preserve every scope, permission, publication, and safety
+boundary. Ordinary engineering intent, task complexity, duration, or number of
+steps never authorizes orchestration. If neither entry condition is present,
+stop before running the helper, consuming further orchestration budget, or
+editing the worktree. Return exactly:
+
+```text
+format\tdarrow-adaptive-goal-authority-stop-v1
+status\tinvocation_required
+reason\texplicit-orchestration-entrypoint-required
+```
 
 ### Claude activation is mandatory
 

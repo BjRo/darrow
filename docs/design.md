@@ -23,8 +23,11 @@ adapts, and what counts as complete. Because that changes the shape and extent
 of a session, orchestration starts only through explicit user invocation. The
 model must not infer orchestration merely because a task is complex,
 long-running, or multi-step. Once invoked, orchestration may use installed
-capabilities by their public intent or contract, but it must not turn every
-capability into a mandatory phase.
+capabilities by their public intent or contract. It may also delegate a bounded
+phase to another orchestration helper without requiring a second user
+invocation, provided the originating request and authority are preserved. That
+delegation is continuation of already-authorized orchestration, not inferred
+activation, and it must not turn every capability into a mandatory phase.
 
 This split keeps focused procedures reusable while allowing orchestration to
 evolve independently. Installing a review or Git capability does not opt a user

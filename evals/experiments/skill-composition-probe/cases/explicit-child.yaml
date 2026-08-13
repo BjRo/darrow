@@ -1,0 +1,32 @@
+id: skill-composition-explicit-child-codex
+invariant: PROBE-SKILL-COMPOSITION
+prompt: |-
+  Explicitly invoke the installed $plugin:composition-parent skill with exactly
+  this payload:
+
+  composition_payload=TPR-PROBE-7F3C1A
+
+  Follow the parent workflow. Use Codex's normal selected-skill loading
+  protocol, but do not search plugin storage or bypass skill visibility. Do not
+  substitute your own implementation for a requested skill invocation.
+fixture:
+  commits:
+    - message: "chore: initialize composition probe"
+      files:
+        README.md: "# Skill composition probe fixture\n"
+checks:
+  - name: child body created its private observation
+    run: >-
+      test "$(cat .composition-probe/child-observation.txt)" =
+      "child_skill_loaded	composition_payload=TPR-PROBE-7F3C1A"
+  - name: probe payload caused no tracked mutation
+    run: git diff --quiet && git diff --cached --quiet
+  - name: child observation is the only untracked product
+    run: >-
+      test "$(git status --porcelain --untracked-files=all)" =
+      "?? .composition-probe/child-observation.txt"
+output_checks:
+  - name: child reports successful invocation
+    expect_regex: "^composition_probe_status\\tchild_invoked$"
+  - name: child reports the exact forwarded payload
+    expect_regex: "^composition_probe_payload\\tcomposition_payload=TPR-PROBE-7F3C1A$"

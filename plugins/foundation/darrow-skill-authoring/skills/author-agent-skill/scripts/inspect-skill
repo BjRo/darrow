@@ -69,7 +69,7 @@ skill_file=$skill_directory/SKILL.md
 [ ! -L "$skill_file" ] || fail 2 "skill file must not be a symbolic link: $skill_file"
 
 metadata=$(awk '
-  BEGIN { state = 0; bad = 0; name = ""; description = "" }
+  BEGIN { state = 0; bad = 0; name = ""; description = ""; disable_seen = 0 }
   NR == 1 {
     if ($0 != "---") bad = 1
     else state = 1
@@ -89,6 +89,14 @@ metadata=$(awk '
     sub(/^description[[:space:]]*:[[:space:]]*/, "", description)
     next
   }
+  state == 1 && /^disable-model-invocation[[:space:]]*:/ {
+    if (disable_seen) bad = 1
+    disable_seen = 1
+    value = $0
+    sub(/^disable-model-invocation[[:space:]]*:[[:space:]]*/, "", value)
+    if (value != "true" && value != "false") bad = 1
+    next
+  }
   state == 1 { bad = 1 }
   END {
     if (state != 2 || bad || name == "" || description == "") exit 3
@@ -96,7 +104,7 @@ metadata=$(awk '
     print description
   }
 ' "$skill_file") ||
-  fail 2 "frontmatter must contain exactly one single-line name and description: $skill_file"
+  fail 2 "frontmatter must contain one single-line name and description plus an optional boolean disable-model-invocation: $skill_file"
 
 name=$(printf '%s\n' "$metadata" | sed -n '1p')
 description=$(printf '%s\n' "$metadata" | sed -n '2p')

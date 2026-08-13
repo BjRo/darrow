@@ -1,0 +1,5 @@
+{
+  "name": "plugin",
+  "description": "Isolated fixture for explicit-only skill composition",
+  "version": "0.0.0"
+}
