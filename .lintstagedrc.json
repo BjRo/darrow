@@ -4,6 +4,6 @@
   "*.{sh,bash}": "scripts/lint-shell",
   ".githooks/!(*.*)": "scripts/lint-shell",
   "scripts/!(*.*)": "scripts/lint-shell",
-  "plugins/*/bin/!(*.*)": "scripts/lint-shell",
-  "plugins/*/skills/*/scripts/!(*.*)": "scripts/lint-shell"
+  "plugins/*/*/bin/!(*.*)": "scripts/lint-shell",
+  "plugins/*/*/skills/*/scripts/!(*.*)": "scripts/lint-shell"
 }

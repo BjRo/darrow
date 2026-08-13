@@ -36,7 +36,7 @@ async function messageChecks(
 describe("discovery eval loopholes", () => {
   test("subjectless grilling accepts only the canonical question", async () => {
     const path =
-      "plugins/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml";
+      "plugins/capability/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml";
     const name = "response is exactly the canonical subject question";
     for (const message of [
       "What subject would you like me to grill?\n\nHappy to help.",
@@ -94,7 +94,7 @@ describe("discovery eval loopholes", () => {
       "Q02 — What compatibility strategy should apply?",
     ]) {
       const [check] = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           "Q1 — Should the timeout be process-wide or per request?",
           "Recommendation: Prefer per-request configuration.",
@@ -108,7 +108,7 @@ describe("discovery eval loopholes", () => {
 
   test("unresolved planning rejects an unnumbered dependent question", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Q1 — Should the timeout be process-wide or per request?",
         "Recommendation: Prefer per-request configuration.",
@@ -131,7 +131,7 @@ describe("discovery eval loopholes", () => {
       "Choose process-wide because the library today has one homogeneous request surface with a single call site, so one shared setting matches the current shape of the library.",
     ]) {
       const [check] = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           "Q1 — Should the timeout be process-wide or per request?",
           `Recommendation: ${recommendation}`,
@@ -152,7 +152,7 @@ describe("discovery eval loopholes", () => {
       "dependent choices are neither asked nor selected prematurely",
     ];
     const wrongRoot = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Q1 — Rollout: Should existing callers migrate in one release?",
         "Recommendation: Prefer per-request configuration.",
@@ -163,7 +163,7 @@ describe("discovery eval loopholes", () => {
     expect(wrongRoot.map((check) => check.passed)).toEqual([false, false]);
 
     const delayedChild = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Q1 — Configuration scope: Should configuration be process-wide or per-request?",
         "Recommendation: Prefer per-request scope because it avoids shared state.",
@@ -176,7 +176,7 @@ describe("discovery eval loopholes", () => {
     expect(delayedChild[0]?.passed).toBe(false);
 
     const disguisedRoot = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Q1 — Rollout: Should migration differ between process-wide and per-request configuration?",
         "Recommendation: Prefer per-request scope because it avoids shared state.",
@@ -189,7 +189,7 @@ describe("discovery eval loopholes", () => {
 
   test("planning frontier ignores question punctuation inside an evidence URL", async () => {
     const results = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Evidence: https://example.test/client?version=current documents DEFAULT_TIMEOUT_MS.",
         "",
@@ -222,7 +222,7 @@ describe("discovery eval loopholes", () => {
       "Evidence: request(url) has no options parameter; there is no per-call override or environment configuration anywhere in the repository.",
     ]) {
       const results = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           evidence,
           "",
@@ -261,7 +261,7 @@ describe("discovery eval loopholes", () => {
       ],
     ]) {
       const [check] = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           "Evidence: DEFAULT_TIMEOUT_MS = 1000.",
           "",
@@ -284,7 +284,7 @@ describe("discovery eval loopholes", () => {
       "Recommendation: per-request because process-wide is harder to test.",
     ]) {
       const results = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           "Q1 — Configuration scope: should timeout configuration be process-wide or per-request?",
           recommendation,
@@ -306,7 +306,7 @@ describe("discovery eval loopholes", () => {
 
   test("an absence fact cannot hide a child selection later in the same paragraph", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Evidence: There is no current policy; use request(url, options) and let per-request override the shared setting.",
         "",
@@ -320,7 +320,7 @@ describe("discovery eval loopholes", () => {
 
   test("planning frontier accepts compact factual context and Markdown labels", async () => {
     const results = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "I inspected the repository before framing the root decision.",
         "",
@@ -352,7 +352,7 @@ describe("discovery eval loopholes", () => {
 
   test("root rationale may describe present evidence and locality without preserving a default", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Evidence: `request(url)` uses `DEFAULT_TIMEOUT_MS = 1000` today.",
         "",
@@ -369,7 +369,7 @@ describe("discovery eval loopholes", () => {
 
   test("root rationale may contrast locality with introducing shared mutable state", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Evidence: `request(url)` uses `DEFAULT_TIMEOUT_MS = 1000`; there is no options object or runtime config surface today.",
         "",
@@ -386,7 +386,7 @@ describe("discovery eval loopholes", () => {
 
   test("unresolved planning rejects a promise to draft after only the root answer", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Q1 — Should the timeout be process-wide or per request?",
         "Recommendation: Prefer per-request configuration.",
@@ -400,7 +400,7 @@ describe("discovery eval loopholes", () => {
 
   test("unresolved planning requires explicit deferred children and frontier recomputation", async () => {
     const results = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Evidence: request(url) uses DEFAULT_TIMEOUT_MS = 1000.",
         "Q1 — Configuration scope: Should configuration be process-wide or per-request?",
@@ -418,7 +418,7 @@ describe("discovery eval loopholes", () => {
       "interface shape, default and fallback behavior, precedence rules, compatibility, migration and rollout",
     ]) {
       const [check] = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           "Evidence: request(url) uses DEFAULT_TIMEOUT_MS = 1000.",
           "Q1 — Configuration scope: Should configuration be process-wide or per-request?",
@@ -436,7 +436,7 @@ describe("discovery eval loopholes", () => {
 
   test("unresolved planning rejects a disguised action outline", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Evidence: request(url) uses DEFAULT_TIMEOUT_MS = 1000.",
         "Q1 — Configuration scope: Should configuration be process-wide or per-request?",
@@ -463,7 +463,7 @@ describe("discovery eval loopholes", () => {
       "Q1 — Scope: process-wide or per request?",
     ]) {
       const results = await messageChecks(
-        "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+        "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
         [
           question,
           "**My recommendation:** Prefer per-request configuration.",
@@ -485,7 +485,7 @@ describe("discovery eval loopholes", () => {
       "unresolved choices do not become or promise a final plan",
     ];
     const results = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
       [
         "Q1 — Should the timeout be process-wide or per request?",
         "Recommendation: Prefer per-request configuration while preserving the current default.",
@@ -506,7 +506,7 @@ describe("discovery eval loopholes", () => {
 
   test("planning transfer does not turn missing repository policy into authority", async () => {
     const [check] = await messageChecks(
-      "plugins/darrow-discovery/skills/plan-implementation/evals/dependency-frontier-transfer.yaml",
+      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/dependency-frontier-transfer.yaml",
       [
         "Evidence: No encryption or partitioning code exists. This is effectively a greenfield build.",
         "Q1 — Storage topology: shared archive or tenant-isolated stores?",

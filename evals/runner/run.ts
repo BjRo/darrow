@@ -157,7 +157,7 @@ async function repositoryHasAncestor(
   );
 }
 
-/** Cases live next to the skill they test (plugins/<name>/skills/<skill>/evals/*.yaml)
+/** Cases live next to the skill they test (plugins/<kind>/<name>/skills/<skill>/evals/*.yaml)
  *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
 async function scanCases(
   pattern: string,
@@ -200,7 +200,7 @@ async function loadCases(
   corpusManifest = DEFAULT_CORPUS_MANIFEST,
 ): Promise<EvalCase[]> {
   const cases = [
-    ...(await scanCases("plugins/*/skills/*/evals/*.yaml", (path) =>
+    ...(await scanCases("plugins/*/*/skills/*/evals/*.yaml", (path) =>
       dirname(dirname(path)),
     )),
     // Skill-less experiments mount nothing.

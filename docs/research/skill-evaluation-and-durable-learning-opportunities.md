@@ -47,7 +47,7 @@ The opportunity is to make those practices consistent and inspectable across
 the marketplace, not to replace the runner.
 
 The ticket pipeline already ends with
-[`codify-ticket`](../../plugins/darrow-ticket-pipeline/skills/codify-ticket/SKILL.md).
+[`codify-ticket`](../../plugins/orchestration/darrow-ticket-pipeline/skills/codify-ticket/SKILL.md).
 It derives candidate
 learnings only from converged delivery evidence, applies a high durability
 threshold, chooses one authoritative owner, rejects routine or duplicated

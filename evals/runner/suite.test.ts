@@ -409,7 +409,7 @@ describe("evaluation suite ablation", () => {
         "--skill-dir",
         resolve(
           import.meta.dir,
-          "../../plugins/darrow-discovery/skills/grilling",
+          "../../plugins/capability/darrow-discovery/skills/grilling",
         ),
         "--trials",
         "1",
@@ -444,7 +444,7 @@ describe("evaluation suite ablation", () => {
         "--skill-dir",
         resolve(
           import.meta.dir,
-          "../../plugins/darrow-decisions/skills/capture-decision",
+          "../../plugins/foundation/darrow-decisions/skills/capture-decision",
         ),
         "--trials",
         "1",

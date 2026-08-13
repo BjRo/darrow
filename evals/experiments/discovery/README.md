@@ -100,5 +100,5 @@ invariants. A discovery-scoped coverage check must therefore load both specs:
 bun evals/runner/coverage.ts \
   --spec docs/specs/discovery.md \
   --spec docs/specs/skill-evaluation.md \
-  --eval-root plugins/darrow-discovery
+  --eval-root plugins/capability/darrow-discovery
 ```

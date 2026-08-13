@@ -6,64 +6,64 @@
   },
   "plugins": [
     {
-      "name": "darrow-git",
-      "source": "./plugins/darrow-git",
-      "description": "Intent-triggered git workflow skills: create-branch, create-commit, create-pr"
-    },
-    {
-      "name": "darrow-tickets",
-      "source": "./plugins/darrow-tickets",
-      "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, update-ticket, list-tickets"
-    },
-    {
       "name": "darrow-information-architecture",
-      "source": "./plugins/darrow-information-architecture",
+      "source": "./plugins/foundation/darrow-information-architecture",
       "description": "Set up and doctor lean, routed repository information architecture"
     },
     {
       "name": "darrow-decisions",
-      "source": "./plugins/darrow-decisions",
+      "source": "./plugins/foundation/darrow-decisions",
       "description": "Capture and query durable repository decisions at their canonical scope"
     },
     {
-      "name": "darrow-tdd",
-      "source": "./plugins/darrow-tdd",
-      "description": "Drive behavior changes and bug fixes through durable red-to-green test slices"
-    },
-    {
-      "name": "darrow-review",
-      "source": "./plugins/darrow-review",
-      "description": "Review pinned changes independently for repository standards and specification fulfillment"
-    },
-    {
-      "name": "darrow-goal-loop",
-      "source": "./plugins/darrow-goal-loop",
-      "description": "Compile bounded engineering work into task-informed host-native goals"
-    },
-    {
-      "name": "darrow-ticket-pipeline",
-      "source": "./plugins/darrow-ticket-pipeline",
-      "description": "Deliver tickets through a durable static pipeline with bounded revision branches"
-    },
-    {
       "name": "darrow-skill-authoring",
-      "source": "./plugins/darrow-skill-authoring",
+      "source": "./plugins/foundation/darrow-skill-authoring",
       "description": "Create and improve focused, evaluated agent skills for Claude Code and Codex"
     },
     {
+      "name": "darrow-git",
+      "source": "./plugins/capability/darrow-git",
+      "description": "Intent-triggered git workflow skills: create-branch, create-commit, create-pr"
+    },
+    {
+      "name": "darrow-tickets",
+      "source": "./plugins/capability/darrow-tickets",
+      "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, update-ticket, list-tickets"
+    },
+    {
       "name": "darrow-readiness-gate",
-      "source": "./plugins/darrow-readiness-gate",
+      "source": "./plugins/capability/darrow-readiness-gate",
       "description": "Assess implementation readiness through a concrete quality bar and composable gate verdict"
     },
     {
       "name": "darrow-discovery",
-      "source": "./plugins/darrow-discovery",
+      "source": "./plugins/capability/darrow-discovery",
       "description": "Grill ideas, discover feature behavior, and plan implementation through evidence-backed decision rounds"
     },
     {
       "name": "darrow-explanation",
-      "source": "./plugins/darrow-explanation",
+      "source": "./plugins/capability/darrow-explanation",
       "description": "Explain technical structure through compact, source-grounded visual forms"
+    },
+    {
+      "name": "darrow-tdd",
+      "source": "./plugins/capability/darrow-tdd",
+      "description": "Drive behavior changes and bug fixes through durable red-to-green test slices"
+    },
+    {
+      "name": "darrow-review",
+      "source": "./plugins/capability/darrow-review",
+      "description": "Review pinned changes independently for repository standards and specification fulfillment"
+    },
+    {
+      "name": "darrow-goal-loop",
+      "source": "./plugins/orchestration/darrow-goal-loop",
+      "description": "Compile bounded engineering work into task-informed host-native goals"
+    },
+    {
+      "name": "darrow-ticket-pipeline",
+      "source": "./plugins/orchestration/darrow-ticket-pipeline",
+      "description": "Deliver tickets through a durable static pipeline with bounded revision branches"
     }
   ]
 }

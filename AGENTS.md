@@ -18,9 +18,10 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 
 ## Layout
 
-- `plugins/<name>/` — self-contained plugins. Skills live in
-  `skills/<skill>/SKILL.md` with colocated scripts and evals. Never reference
-  files outside a plugin or assume a sibling plugin is installed.
+- `plugins/<kind>/<name>/` — self-contained plugins grouped as `foundation`,
+  `capability`, or `orchestration`. Skills live in `skills/<skill>/SKILL.md`
+  with colocated scripts and evals. Never reference files outside a plugin or
+  assume a sibling plugin is installed.
 - `docs/specs/` — normative capability invariants.
 - `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
 - `evals/runner/` — shared skill-evaluation runner. Results are gitignored.
@@ -28,7 +29,7 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 ## Skill development
 
 For skill creation, revision, or validation, follow
-[`author-agent-skill`](plugins/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
+[`author-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
 Add or adjust the applicable invariant under `docs/specs/` before implementation.
 Keep contextual judgment in the skill. Put repeatable, error-prone command and
 tool-protocol mechanics behind narrow bundled scripts so the model supplies

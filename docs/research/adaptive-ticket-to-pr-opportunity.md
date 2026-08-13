@@ -345,7 +345,7 @@ implementation goal should not discover what product behavior was intended
 while simultaneously building it.
 
 The independently installable
-[`darrow-readiness-gate`](../../plugins/darrow-readiness-gate/README.md)
+[`darrow-readiness-gate`](../../plugins/capability/darrow-readiness-gate/README.md)
 provides the shared seam for tickets, discovery results, plans, specifications,
 and explicit goal contracts. Its definition is:
 

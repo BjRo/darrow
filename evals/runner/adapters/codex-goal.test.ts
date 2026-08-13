@@ -121,7 +121,7 @@ after`);
     );
 
     const parentSkill = readFileSync(
-      "plugins/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
+      "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
       "utf8",
     );
     const canonicalGuidance = extractIntentRoutingGuidance(parentSkill);

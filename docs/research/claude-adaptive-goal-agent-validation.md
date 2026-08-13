@@ -77,11 +77,11 @@ human interruption. The disposable fixture was then removed.
 
 ## Repeatable local gates
 
-- `bash plugins/darrow-goal-loop/bin/claude-launch.test.sh`
-- `/bin/bash plugins/darrow-goal-loop/bin/claude-launch.test.sh`
-- `bash plugins/darrow-goal-loop/bin/goal-loop.test.sh`
-- `/bin/bash plugins/darrow-goal-loop/bin/goal-loop.test.sh`
-- `claude plugin validate plugins/darrow-goal-loop`
+- `bash plugins/orchestration/darrow-goal-loop/bin/claude-launch.test.sh`
+- `/bin/bash plugins/orchestration/darrow-goal-loop/bin/claude-launch.test.sh`
+- `bash plugins/orchestration/darrow-goal-loop/bin/goal-loop.test.sh`
+- `/bin/bash plugins/orchestration/darrow-goal-loop/bin/goal-loop.test.sh`
+- `claude plugin validate plugins/orchestration/darrow-goal-loop`
 - `bun test evals/runner`
 - `bun run typecheck`
 - `bun run lint`

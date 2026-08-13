@@ -285,8 +285,8 @@ The [GPT-5.6 routing calibration](snapshots/2026-08-08-gpt-5.6-routing-router-n1
 with its [machine-readable snapshot](snapshots/2026-08-08-gpt-5.6-routing-router-n1.json),
 records the active-versus-candidate evidence that preceded promotion. The
 task-oriented mappings now live in the single canonical
-`plugins/darrow-goal-loop/config/routes.json` policy; the snapshot retains the
-historical comparison and subsequent promotion rationale.
+`plugins/orchestration/darrow-goal-loop/config/routes.json` policy; the snapshot
+retains the historical comparison and subsequent promotion rationale.
 
 The [latest Sol-baseline retrospective](snapshots/2026-08-09-adaptive-goal-sol-baseline-n1.md),
 with its [machine-readable snapshot](snapshots/2026-08-09-adaptive-goal-sol-baseline-n1.json),

@@ -25,36 +25,45 @@ explicitly invoke it.
 
 ## Plugin catalog
 
+### Foundations
+
+Foundation plugins maintain the durable context and reusable agent surfaces
+that other work builds on. They remain intent-matched capabilities and do not
+start orchestration.
+
+| Plugin                                                                                            | Use it to                                                                    |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [`darrow-information-architecture`](plugins/foundation/darrow-information-architecture/README.md) | Set up or audit lean repository guidance for Claude Code and Codex.          |
+| [`darrow-decisions`](plugins/foundation/darrow-decisions/README.md)                               | Capture decisions at their canonical scope and find existing records.        |
+| [`darrow-skill-authoring`](plugins/foundation/darrow-skill-authoring/README.md)                   | Create, revise, and validate focused agent skills for Claude Code and Codex. |
+
 ### Capabilities
 
-| Plugin                                                                                 | Use it to                                                                                         |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [`darrow-git`](plugins/darrow-git/README.md)                                           | Create branches, commits, and pull requests through bounded Git workflows.                        |
-| [`darrow-tickets`](plugins/darrow-tickets/README.md)                                   | Create, list, and update tracker work items through a backend-neutral interface.                  |
-| [`darrow-readiness-gate`](plugins/darrow-readiness-gate/README.md)                     | Check whether a request, ticket, specification, or plan is ready to implement.                    |
-| [`darrow-discovery`](plugins/darrow-discovery/README.md)                               | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
-| [`darrow-explanation`](plugins/darrow-explanation/README.md)                           | Explain technical structure through compact, source-grounded visual forms.                        |
-| [`darrow-information-architecture`](plugins/darrow-information-architecture/README.md) | Set up or audit lean repository guidance for Claude Code and Codex.                               |
-| [`darrow-decisions`](plugins/darrow-decisions/README.md)                               | Capture decisions at their canonical scope and find existing decision records.                    |
-| [`darrow-tdd`](plugins/darrow-tdd/README.md)                                           | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |
-| [`darrow-review`](plugins/darrow-review/README.md)                                     | Review a pinned change for repository standards and specification fulfillment without editing it. |
-| [`darrow-skill-authoring`](plugins/darrow-skill-authoring/README.md)                   | Create, revise, and validate focused agent skills for Claude Code and Codex.                      |
+| Plugin                                                                        | Use it to                                                                                         |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [`darrow-git`](plugins/capability/darrow-git/README.md)                       | Create branches, commits, and pull requests through bounded Git workflows.                        |
+| [`darrow-tickets`](plugins/capability/darrow-tickets/README.md)               | Create, list, and update tracker work items through a backend-neutral interface.                  |
+| [`darrow-readiness-gate`](plugins/capability/darrow-readiness-gate/README.md) | Check whether a request, ticket, specification, or plan is ready to implement.                    |
+| [`darrow-discovery`](plugins/capability/darrow-discovery/README.md)           | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
+| [`darrow-explanation`](plugins/capability/darrow-explanation/README.md)       | Explain technical structure through compact, source-grounded visual forms.                        |
+| [`darrow-tdd`](plugins/capability/darrow-tdd/README.md)                       | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |
+| [`darrow-review`](plugins/capability/darrow-review/README.md)                 | Review a pinned change for repository standards and specification fulfillment without editing it. |
 
 Each plugin README describes its skills, example requests, and safety
 boundaries.
 
 ### Orchestration
 
-[`darrow-goal-loop`](plugins/darrow-goal-loop/README.md) is Darrow's core
-orchestration helper. When explicitly invoked, it prepares repository evidence,
-compiles a bounded completion contract, selects a proportionate workflow and
-risk gate, and hands the work to one host-native goal owner. It does not build a
-second agent runtime around that owner.
+[`darrow-goal-loop`](plugins/orchestration/darrow-goal-loop/README.md) is
+Darrow's core orchestration helper. When explicitly invoked, it prepares
+repository evidence, compiles a bounded completion contract, selects a
+proportionate workflow and risk gate, and hands the work to one host-native goal
+owner. It does not build a second agent runtime around that owner.
 
-[`darrow-ticket-pipeline`](plugins/darrow-ticket-pipeline/README.md) is retained
-as a reference implementation of Darrow's earlier static phase-controller
-approach and as an executable benchmark baseline. It is not a second
-recommended orchestration path.
+[`darrow-ticket-pipeline`](plugins/orchestration/darrow-ticket-pipeline/README.md)
+is retained as a reference implementation of Darrow's earlier static
+phase-controller approach and as an executable benchmark baseline. It is not a
+second recommended orchestration path.
 
 ## How Darrow works
 

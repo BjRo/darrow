@@ -31,6 +31,15 @@ evolve independently. Installing a review or Git capability does not opt a user
 into a control plane, and improving orchestration does not require folding
 those capabilities into one monolithic workflow.
 
+## Foundations are capability infrastructure
+
+Foundation plugins maintain durable context and reusable agent surfaces that
+support other work: repository information architecture, authoritative
+decisions, and skill authoring. `foundation` is a marketplace and repository
+layout category, not a third activation model. Its skills remain
+intent-matched capabilities, stay independently installable, and never start
+orchestration implicitly.
+
 ## Plugins are optionality boundaries
 
 A plugin is Darrow's unit of adoption, compatibility, and ownership. Each
@@ -110,7 +119,7 @@ claims carry their evidence, uncertainty, and limitations.
 ## The adaptive goal loop is the core orchestration helper
 
 The core path for bounded engineering work is the `adaptive-goal` skill in
-[`darrow-goal-loop`](../plugins/darrow-goal-loop/README.md).
+[`darrow-goal-loop`](../plugins/orchestration/darrow-goal-loop/README.md).
 
 Long-running native agent work often begins with a request that leaves
 completion criteria, repository constraints, verification depth, or reasoning
@@ -139,8 +148,8 @@ in [Capability: Native Goal Preflight](specs/adaptive-goal-loop.md).
 
 ## The ticket pipeline is a reference and benchmark baseline
 
-[`darrow-ticket-pipeline`](../plugins/darrow-ticket-pipeline/README.md) preserves
-Darrow's earlier orchestration approach as an executable reference
+[`darrow-ticket-pipeline`](../plugins/orchestration/darrow-ticket-pipeline/README.md)
+preserves Darrow's earlier orchestration approach as an executable reference
 implementation. It uses a predefined phase graph, fresh phase agents, bounded
 repair loops, and durable state and artifacts in one tracker ticket.
 
