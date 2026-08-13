@@ -1,16 +1,67 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
+  chmod,
+  cp,
+  mkdir,
+  mkdtemp,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import {
+  activateMaterializedGoal,
   buildGoalExecutionPrompt,
   buildPreparedGoalPrompt,
   extractIntentRoutingGuidance,
   goalDimensionStage,
+  isGoalTerminalStatus,
   isReportableGoalStatus,
   isFinalAgentMessage,
   parseCodexGoalHandoff,
   parseExplicitUserRoute,
   parsePreparedGoalDimensions,
+  withMaterializedGoalLifecycle,
+  withPrivateGoalStaging,
 } from "./codex-goal";
+
+async function adapterFixtureRepo(): Promise<string> {
+  const repo = await mkdtemp(join(tmpdir(), "darrow-goal-adapter-test."));
+  const bin = join(repo, ".agents", "bin");
+  await mkdir(bin, { recursive: true });
+  await cp(
+    "plugins/orchestration/darrow-goal-loop/bin/goal-loop",
+    join(bin, "goal-loop"),
+  );
+  await chmod(join(bin, "goal-loop"), 0o755);
+  const init = Bun.spawn(["git", "init", "-q"], {
+    cwd: repo,
+    stdout: "ignore",
+    stderr: "pipe",
+  });
+  const initError = await new Response(init.stderr).text();
+  if ((await init.exited) !== 0)
+    throw new Error(`could not initialize adapter fixture: ${initError}`);
+  return repo;
+}
+
+function goalSetter(action: (params: unknown) => void | Promise<void>) {
+  return {
+    async request<T = unknown>(method: string, params: unknown): Promise<T> {
+      expect(method).toBe("thread/goal/set");
+      await action(params);
+      return {} as T;
+    },
+  };
+}
+
+function contractPathFromObjective(objective: string): string {
+  const line = objective.split("\n")[1];
+  if (!line) throw new Error("file-backed objective omitted its contract path");
+  return line;
+}
 
 const catalog = [
   { model: "gpt-5.6-luna", efforts: ["high", "xhigh"] },
@@ -231,6 +282,198 @@ after`);
     expect(isReportableGoalStatus(undefined)).toBe(false);
   });
 
+  test("keeps resumable goal statuses nonterminal", () => {
+    expect(isGoalTerminalStatus("complete")).toBe(true);
+    expect(isGoalTerminalStatus("blocked")).toBe(true);
+    expect(isGoalTerminalStatus("paused")).toBe(false);
+    expect(isGoalTerminalStatus("active")).toBe(false);
+  });
+
+  test("materializes an oversized objective before exactly one goal-set call", async () => {
+    const repo = await adapterFixtureRepo();
+    let calls = 0;
+    let objective = "";
+    try {
+      const materialized = await activateMaterializedGoal(
+        goalSetter((params) => {
+          calls += 1;
+          objective = (params as { objective: string }).objective;
+        }),
+        repo,
+        "thread-1",
+        "x".repeat(4001),
+      );
+      expect(calls).toBe(1);
+      expect(Buffer.byteLength(objective)).toBeLessThanOrEqual(4000);
+      const contractFile = contractPathFromObjective(objective);
+      expect(await Bun.file(contractFile).exists()).toBe(true);
+      await materialized.cleanup();
+      expect(await Bun.file(contractFile).exists()).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("releases an oversized attachment after a rejected goal-set call", async () => {
+    const repo = await adapterFixtureRepo();
+    let calls = 0;
+    let contractFile = "";
+    try {
+      await expect(
+        activateMaterializedGoal(
+          goalSetter((params) => {
+            calls += 1;
+            contractFile = contractPathFromObjective(
+              (params as { objective: string }).objective,
+            );
+            throw new Error("goal service rejected objective");
+          }),
+          repo,
+          "thread-1",
+          "y".repeat(4001),
+        ),
+      ).rejects.toThrow("goal service rejected objective");
+      expect(calls).toBe(1);
+      expect(await Bun.file(contractFile).exists()).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("releases an attachment when adapter validation fails", async () => {
+    const repo = await adapterFixtureRepo();
+    const helper = join(repo, ".agents", "bin", "goal-loop");
+    const realHelper = `${helper}-real`;
+    await rename(helper, realHelper);
+    await writeFile(
+      helper,
+      `#!/usr/bin/env bash
+set -euo pipefail
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+if test "\${1:-}" = materialize-objective; then
+  output=$(bash "$script_dir/goal-loop-real" "$@")
+  printf '%s\n' "$output" | sed -n 's/^attachment_dir\t//p' >"$script_dir/last-attachment"
+  printf '%s\n' "$output" | sed 's/^objective_bytes.*/objective_bytes\t9999/'
+else
+  exec bash "$script_dir/goal-loop-real" "$@"
+fi
+`,
+      { mode: 0o755 },
+    );
+    try {
+      await expect(
+        activateMaterializedGoal(
+          goalSetter(() => {
+            throw new Error(
+              "goal-set must not run after invalid materialization",
+            );
+          }),
+          repo,
+          "thread-1",
+          "z".repeat(4001),
+        ),
+      ).rejects.toThrow("invalid byte count");
+      const attachment = (
+        await Bun.file(join(repo, ".agents", "bin", "last-attachment")).text()
+      ).trim();
+      expect(attachment).toContain("darrow-goal-contract.");
+      expect(await Bun.file(attachment).exists()).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("removes private staging after a partial write failure", async () => {
+    let stagingDir = "";
+    await expect(
+      withPrivateGoalStaging(
+        "sensitive contract",
+        async () => {
+          throw new Error("staging consumer must not run");
+        },
+        async (file, contract) => {
+          stagingDir = dirname(file);
+          await writeFile(file, contract.slice(0, 5));
+          throw new Error("simulated staging write failure");
+        },
+      ),
+    ).rejects.toThrow("simulated staging write failure");
+    expect(await Bun.file(stagingDir).exists()).toBe(false);
+  });
+
+  test("retains an oversized attachment after a post-activation turn/start failure", async () => {
+    const repo = await adapterFixtureRepo();
+    let contractFile = "";
+    let retained:
+      | Awaited<ReturnType<typeof activateMaterializedGoal>>["attachment"]
+      | undefined;
+    let materialized:
+      Awaited<ReturnType<typeof activateMaterializedGoal>> | undefined;
+    try {
+      materialized = await activateMaterializedGoal(
+        goalSetter((params) => {
+          contractFile = contractPathFromObjective(
+            (params as { objective: string }).objective,
+          );
+        }),
+        repo,
+        "thread-1",
+        "retained".repeat(501),
+      );
+      await expect(
+        withMaterializedGoalLifecycle(
+          materialized,
+          async () => {
+            throw new Error("turn/start failed after goal activation");
+          },
+          (attachment) => {
+            retained = attachment;
+          },
+        ),
+      ).rejects.toThrow("turn/start failed after goal activation");
+      expect(retained?.attachmentDir).toBe(dirname(contractFile));
+      expect(retained?.contractSha256).toHaveLength(64);
+      expect(await Bun.file(contractFile).exists()).toBe(true);
+    } finally {
+      await materialized?.cleanup();
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("releases an attachment after terminal status when result collection fails", async () => {
+    const repo = await adapterFixtureRepo();
+    let contractFile = "";
+    let retained = false;
+    try {
+      const materialized = await activateMaterializedGoal(
+        goalSetter((params) => {
+          contractFile = contractPathFromObjective(
+            (params as { objective: string }).objective,
+          );
+        }),
+        repo,
+        "thread-1",
+        "terminal".repeat(501),
+      );
+      await expect(
+        withMaterializedGoalLifecycle(
+          materialized,
+          async (confirmTerminal) => {
+            confirmTerminal();
+            throw new Error("terminal turn reported no final text");
+          },
+          () => {
+            retained = true;
+          },
+        ),
+      ).rejects.toThrow("terminal turn reported no final text");
+      expect(retained).toBe(false);
+      expect(await Bun.file(contractFile).exists()).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   test("accepts workflow, risk, and their concrete policy route", () => {
     const value = handoffValue();
     const handoff = JSON.stringify(value);
@@ -361,6 +604,22 @@ after`);
         dimensions,
       ),
     ).toThrow("invalid shape");
+  });
+
+  test("preserves a complete contract that exceeds the inline objective limit", () => {
+    const value = handoffValue();
+    value.goalContract = `${"Extended acceptance context. ".repeat(180)}\n${value.goalContract}`;
+    expect(Buffer.byteLength(value.goalContract)).toBeGreaterThan(4000);
+
+    const parsed = parseCodexGoalHandoff(
+      JSON.stringify(value),
+      catalog,
+      dimensions,
+    );
+    expect(parsed.goalContract).toContain(
+      "Extended acceptance context. Extended acceptance context.",
+    );
+    expect(Buffer.byteLength(parsed.goalContract)).toBeGreaterThan(4000);
   });
 
   test("accepts a routine coding route for clear high-risk work", () => {

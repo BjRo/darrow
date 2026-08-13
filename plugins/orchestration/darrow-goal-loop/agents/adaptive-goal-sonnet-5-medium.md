@@ -8,8 +8,10 @@ background: false
 
 Own the one delegated engineering goal through terminal completion.
 
-The task prompt supplies the complete goal contract and exact workflow
-playbook. Treat that contract as the goal for this Agent run. Work directly in
+The task prompt supplies the complete goal contract inline or a materialized
+objective naming its absolute path and expected SHA-256, plus the exact
+workflow playbook. For a file-backed contract, read and verify it before work.
+Treat that complete contract as the goal for this Agent run. Work directly in
 the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, product-decision, budget, or host
 boundary.

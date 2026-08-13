@@ -2,17 +2,53 @@
 
 Use the first boundary that can honor the compiled route.
 
+## Materialize the native objective
+
+For a boundary whose goal owner shares this filesystem, put the complete
+contract in a private temporary staging file outside the repository and run:
+
+```sh
+bash "$goal_loop" materialize-objective --repo "$repo" \
+  --goal-file <absolute-contract-file>
+```
+
+Use the exact returned `objective_file`: it contains the complete contract
+inline through 4,000 bytes or a bounded path-and-SHA-256 objective above that
+limit. A file-backed owner reads and verifies the complete contract before
+work. Stop before activation if materialization fails. Never truncate or
+recompact after a size rejection, and never retry the goal or Agent call after
+one begins. Keep any returned attachment readable through paused states and the
+terminal result, then release it only with:
+
+```sh
+bash "$goal_loop" release-objective \
+  --attachment-dir <exact-helper-returned-attachment-dir> \
+  --expected-sha256 <exact-helper-returned-contract-sha256>
+```
+
+Do not reconstruct deletion commands.
+If the launcher fails after activation without confirming a terminal result,
+retain the attachment and report the goal identifier, exact attachment path,
+and expected digest as resumable lifecycle evidence; do not remove the contract
+from a still-active or paused goal. Once terminal status is confirmed, release
+the attachment even if later result collection fails.
+Remove the caller-created staging file after activation accepts an inline
+objective; in file-backed mode it may be removed as soon as materialization
+succeeds because the helper has already made and verified its private copy.
+
 ## Same thread
 
 When the current Claude surface exposes native goal control to the agent, read
 its concrete active route and require `confirm-route` to accept the selected and
 effective routes before setting the compiled contract as the current thread's
-goal. Record `same_thread`, `current-thread`, verified true, and zero children.
+goal. Set the exact materialized objective rather than an oversized inline
+contract. Record `same_thread`, `current-thread`, verified true, and zero
+children.
 
 Do not treat a `claude` executable on `PATH` as evidence of same-thread control.
 
-**Complete when:** the current thread reports the contract as its active native
-goal and the selected route is effective.
+**Complete when:** the current thread reports the materialized objective as its
+active native goal and the selected route is effective.
 
 ## Observable native Agent runner
 
@@ -61,18 +97,20 @@ explicit user route with another tuple requires a supported same-thread/API
 boundary or stops as `launch_required`; do not reduce a full model ID to a
 family alias.
 
-Invoke the `Agent` tool exactly once with:
+Materialize the objective before invoking the `Agent` tool exactly once with:
 
 - `subagent_type` set to that exact namespaced runner;
 - `run_in_background` set to `false`;
 - no per-invocation `model` override, because the selected full model ID and
   effort are pinned together in the runner definition;
 - no `resume` or worktree isolation; and
-- a self-contained task containing the complete goal contract plus the exact
+- a self-contained task containing the exact materialized objective and, when
+  file-backed, its absolute contract path and expected SHA-256, plus the exact
   selected workflow document, its absolute path, identifier, and content hash.
 
-Tell the runner to own the contract through terminal completion, run the
-workflow and risk gates, and return the required final record. Preserve the
+Tell the runner to read and verify a file-backed complete contract before work,
+own the contract through terminal completion, run the workflow and risk gates,
+and return the required final record. Preserve the
 contract's exact `Independent review: selected|omitted — reason` clause in the
 task. When selected, tell the runner explicitly to confirm the compatible
 capability before product edits, invoke it after final-tree checks, and report
@@ -162,7 +200,8 @@ and the result proves the contract and final-tree checks complete.
 ## Enclosing launcher
 
 An external client that performed preflight before starting Claude may invoke
-one native `/goal` session with:
+one native `/goal` session with the complete staging file; the launcher
+materializes the bounded objective before starting the process:
 
 ```sh
 bash "$goal_loop" launch --host claude --repo "$repo" \

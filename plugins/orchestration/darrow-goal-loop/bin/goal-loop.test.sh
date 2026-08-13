@@ -358,10 +358,36 @@ esac
 
 large_goal="$tmp_root/large.txt"
 dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' x >"$large_goal"
-if PATH="$fake_bin:$PATH" bash "$goal_loop" launch --host codex --repo "$repo" \
+attachment_tmp="$tmp_root/attachment-tmp"
+mkdir -p "$attachment_tmp"
+out=$(TMPDIR="$attachment_tmp" FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host codex --repo "$repo" \
   --goal-file "$large_goal" --provider openai --model codex-test --effort medium \
+  --allow-nested)
+contains "$out" $'route_verified\ttrue'
+args=$(cat "$codex_args")
+contains "$args" 'Before doing any work, read the complete goal contract at:'
+contains "$args" 'Expected SHA-256:'
+case "$args" in
+  *xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*)
+    fail "oversized contract was passed inline" ;;
+esac
+for remaining_attachment in "$attachment_tmp"/*; do
+  test ! -e "$remaining_attachment" ||
+    fail "nested launch left a goal attachment behind"
+done
+
+failed_attachment_tmp="$tmp_root/failed-attachment-tmp"
+mkdir -p "$failed_attachment_tmp"
+if TMPDIR="$failed_attachment_tmp" FAKE_CLAUDE_EXIT=7 PATH="$fake_bin:$PATH" \
+  bash "$goal_loop" launch --host claude --repo "$repo" \
+  --goal-file "$large_goal" --provider anthropic --model claude-test --effort high \
   --allow-nested >/dev/null 2>&1; then
-  fail "oversized goal was accepted"
+  fail "oversized failed nested launch was reported as successful"
 fi
+for failed_attachment in "$failed_attachment_tmp"/*; do
+  test ! -e "$failed_attachment" ||
+    fail "failed nested launch left a goal attachment behind"
+done
 
 printf 'ok - native goal preflight mechanics\n'

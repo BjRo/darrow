@@ -30,7 +30,13 @@ reject_text() {
 require_text "$guide" 'Close the subagent when the goal has been fulfilled'
 require_text "$guide" 'Absence or failure of a close'
 require_text "$guide" 'control does not invalidate'
+require_text "$guide" 'materialize-objective'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'before the first `create_goal` call'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'Do not retry `create_goal`'
 require_text "$skill" 'without requiring a close control'
+require_text "$skill" 'file-backed objective'
 require_text "$readme" 'exposes a close control, closes each child'
 
 reject_text "$skill" 'A spawn-only surface is unavailable.'

@@ -242,12 +242,15 @@ is a stop, not a fallback. `route_source` remains `policy` or `user` authority;
 for policy routes, `policy_route_source` discloses `repository` or `bundled`
 provenance.
 
-Write one goal contract of at most 4,000 bytes containing the outcome,
-acceptance criteria, scope and non-goals, preserved work, permissions, the
-selected workflow and its sequence, risk gate, profile and concrete route,
-applicable feedback checks and final-tree checks, whether independent review is
-selected and why, its portable continuation clause when selected, any
-user-specified stopping budget, and this exact final record:
+Write one complete goal contract containing the outcome, acceptance criteria,
+scope and non-goals, preserved work, permissions, the selected workflow and its
+sequence, risk gate, profile and concrete route, applicable feedback checks and
+final-tree checks, whether independent review is selected and why, its portable
+continuation clause when selected, any user-specified stopping budget, and this
+exact final record. Target at most 4,000 bytes by referencing repository facts,
+but never truncate, omit, or rewrite a material requirement merely to fit the
+inline objective limit. A filesystem-sharing launch boundary uses a verified
+file-backed objective when the complete contract is larger:
 
 ```text
 format\tdarrow-native-goal-preflight-v4
@@ -299,7 +302,7 @@ Return exactly one object and stop that turn:
     "model": "<concrete-model>",
     "effort": "<concrete-effort>"
   },
-  "goalContract": "<compiled contract, at most 4,000 bytes>"
+  "goalContract": "<complete compiled contract; target 4,000 bytes without dropping requirements>"
 }
 ```
 
@@ -309,11 +312,14 @@ the canonical portable clause, replacing any redundant line if one is present;
 high-risk handoffs that omit review are invalid.
 
 The enclosing launcher validates the selected route against the live host
-catalog and policy profile, loads the exact selected workflow document, sets
-the native goal, and starts the execution turn with that document plus the
-selected model and effort. Its accepted turn request is route-application
-evidence; a workflow identifier, path, and content hash on the same receiving
-turn is workflow-loading evidence. The handoff alone proves neither.
+catalog and policy profile, loads the exact selected workflow document,
+materializes a bounded inline or file-backed native objective before its first
+goal-set call, sets the native goal exactly once, and starts the execution turn
+with that document plus the selected model and effort. It keeps any file-backed
+contract readable until the goal terminates. Its accepted turn request is
+route-application evidence; a workflow identifier, path, and content hash on
+the same receiving turn is workflow-loading evidence. The handoff alone proves
+neither.
 
 For an interactive invocation, read exactly one host launch guide completely:
 

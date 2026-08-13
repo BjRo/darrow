@@ -98,9 +98,42 @@ native goal. It contains:
   user requires one;
 - the final evaluation records required by this capability.
 
-The contract MUST remain concise enough for the narrowest supported native
-goal surface. Repository detail already present in the thread or discoverable
-from named files SHOULD be referenced rather than copied.
+The contract MUST remain concise. Repository detail already present in the
+thread or discoverable from named files SHOULD be referenced rather than
+copied. Preflight SHOULD keep the complete contract within 4,000 bytes, but it
+MUST NOT omit, truncate, or rewrite a material requirement merely to satisfy an
+inline native-objective limit.
+
+The **native goal objective** is the bounded value submitted to the host goal
+surface. When the complete contract is at most 4,000 bytes, the objective is
+that contract inline. When it is larger and the receiving goal owner shares the
+launcher's filesystem, the launcher MUST materialize a file-backed objective
+before its first goal-set call:
+
+1. copy the complete contract byte-for-byte to a private regular file outside
+   the repository, with an absolute path and restrictive permissions;
+2. calculate its SHA-256 digest and produce an inline objective of at most
+   4,000 bytes that tells the goal owner to read and verify that exact file
+   before doing any work;
+3. stop before goal activation if the file cannot be materialized or the
+   bounded objective cannot be produced; and
+4. keep the attachment readable across active and paused states until the goal
+   reaches a terminal state, then release it through a validated helper rather
+   than reconstructing a destructive command.
+
+If a launcher fails after activation without confirming a terminal goal state,
+it MUST retain the attachment and expose the thread identifier, validated
+attachment path, and expected digest as resumable lifecycle evidence; it MUST
+NOT make a still-active or paused goal's contract unreadable. Once terminal
+status is confirmed, the attachment MUST be released even if later terminal
+result collection fails.
+
+The goal owner MUST stop with the evidence gap if the attachment is missing,
+unreadable, or does not match the expected digest. Oversize handling happens
+before activation: a rejected goal-set call MUST NOT trigger lossy
+recompaction, truncation, or a second activation attempt. A launch boundary
+that does not share a filesystem with its goal owner MUST keep the complete
+contract inline or stop honestly; it cannot substitute a local-only pointer.
 
 The contract MUST distinguish **feedback checks** from **final-tree checks**.
 Feedback checks are the smallest repository-supported commands that exercise
@@ -432,9 +465,12 @@ the least launch machinery the host supports.
    explicit user authorization. It creates at most one host session and waits
    for it; an interactive skill MUST NOT select it automatically.
 5. **AGL-L5 — Goal persistence.** The native goal or allowed Claude Agent runner
-   receives the full contract and remains the sole owner until its own terminal
-   state, user interruption, budget stop, or a genuine human decision. A Claude
-   Agent runner MUST NOT claim session-scoped `/goal` persistence.
+   receives the full contract inline or reads and verifies the exact
+   file-backed contract before doing work, then remains the sole owner until
+   its own terminal state, user interruption, budget stop, or a genuine human
+   decision. The launcher keeps a file-backed contract readable for that
+   lifetime. A Claude Agent runner MUST NOT claim session-scoped `/goal`
+   persistence.
 6. **AGL-L6 — Final evidence.** The host-native goal owner runs the contract's
    applicable final-tree checks after implementation, affected callers, and
    documentation are complete and before claiming completion. A narrow
@@ -453,12 +489,14 @@ the least launch machinery the host supports.
    plugin subagent. Its route-specific definition MUST pin both the selected
    full model ID and effort; family aliases are not exact route evidence. The
    launch MUST fail before spawning when a process environment override would
-   replace either value. The task MUST contain the complete contract and exact
-   workflow document. The accepted Agent call is the terminal boundary and
-   counts as one Darrow child. Because the Agent tool exposes no child `/goal`
-   API, this boundary MUST be reported as a native Agent contract runner rather
-   than a `/goal` session. After it returns, the parent MUST reconcile the
-   child's transcript-derived model and effort with the selected route. Missing
+   replace either value. The task MUST contain the exact workflow document and
+   supply the complete contract either inline or through a verified file-backed
+   objective on a shared filesystem. The accepted Agent call is the terminal
+   boundary and counts as one Darrow child. Because the Agent tool exposes no
+   child `/goal` API, this boundary MUST be reported as a native Agent contract
+   runner rather than a `/goal` session. After it returns, the parent MUST
+   reconcile the child's transcript-derived model and effort with the selected
+   route. Missing
    or mismatched transcript evidence records `route_verified=false` and
    `launch_required` instead of successful route application.
 10. **AGL-L10 — Codex agent cleanup.** Codex launch instructions SHOULD tell
@@ -591,6 +629,13 @@ the least launch machinery the host supports.
     blocking findings. Run composition cases on Claude Code and Codex,
     including ordinary prose review responses so the orchestration cannot
     couple itself to one provider's result format.
+13. Exercise native-objective materialization at the 4,000-byte boundary and
+    above it. Prove that the oversized contract is preserved byte-for-byte in a
+    private file, its submitted pointer remains within the native limit, a
+    missing or unreadable input stops before activation, and no rejection-driven
+    activation retry is introduced. Cover complete, blocked, paused,
+    materialization-validation failure, goal-set rejection, and launcher failure
+    lifecycles, including exact-once goal activation and attachment release.
 
 ## Non-goals
 
