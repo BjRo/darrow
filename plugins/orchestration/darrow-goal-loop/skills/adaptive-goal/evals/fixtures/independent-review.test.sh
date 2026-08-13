@@ -92,6 +92,33 @@ result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo")
 printf '%s\n' "$result" |
   grep -Fx 'Independent review outcome: unavailable' >/dev/null
 printf '%s\n' "$result" | grep -F 'Evidence gap: ' >/dev/null
+rm "$repo/.git/fixture-review-blocked"
+
+rm -f "$repo/.git/independent-review-invocations"
+printf '%s\t%s\t%s\n' \
+  blocking 'sequence blocker' 'sequence advisory' \
+  clear '' '' >"$repo/.git/fixture-review-sequence"
+result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo")
+printf '%s\n' "$result" |
+  grep -Fx 'Independent review outcome: blocking findings' >/dev/null
+printf '%s\n' "$result" |
+  grep -Fx 'Blocking finding: sequence blocker' >/dev/null
+printf '%s\n' "$result" |
+  grep -Fx 'Advisory finding: sequence advisory' >/dev/null
+result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo")
+printf '%s\n' "$result" |
+  grep -Fx 'Independent review outcome: no blocking findings' >/dev/null
+test "$(wc -l <"$repo/.git/independent-review-invocations" | tr -d ' ')" -eq 2
+if bash "$repo/.agents/bin/independent-review-fixture" "$repo" >/dev/null 2>&1; then
+  printf '%s\n' 'exhausted review sequence was accepted' >&2
+  exit 1
+fi
+rm -f "$repo/.git/independent-review-invocations"
+printf '%s\t%s\t%s\n' invalid 'bad outcome' '' >"$repo/.git/fixture-review-sequence"
+if bash "$repo/.agents/bin/independent-review-fixture" "$repo" >/dev/null 2>&1; then
+  printf '%s\n' 'invalid review sequence outcome was accepted' >&2
+  exit 1
+fi
 
 claude_repo=$temporary_root/claude-repo
 mkdir -p "$claude_repo"

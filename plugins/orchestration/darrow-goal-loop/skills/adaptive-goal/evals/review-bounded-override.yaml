@@ -1,0 +1,77 @@
+id: goal-review-bounded-override
+invariant: AGL-L11,AGL-L12,AGL-S5,AGL-X6
+prompt: >-
+  /adaptive-goal Continue the existing candidate in settings.env. On Codex,
+  invoke the $adaptive-goal skill. Treat it as ready for final review. I
+  explicitly set the independent-review budget to four review rounds. Repair
+  findings only under the existing authorization to edit settings.env, rerun
+  `bash check.sh` after every edit, and never publish. Complete only after
+  review clears the exact final content. Select and apply the policy route.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash check.sh` after changes to settings.env.
+        settings.env: |
+          PRIMARY=bad
+          SECONDARY=bad
+          TERTIARY=bad
+          LEGACY_ADVISORY=remove
+          LATER_ADVISORY=keep
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test -s settings.env
+          git_dir=$(git rev-parse --git-dir)
+          subject_oid=$(git hash-object settings.env)
+          printf 'check\t%s\n' "$subject_oid" >>"$git_dir/review-events"
+  setup: |
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD" \
+      "{{case_dir}}/fixtures" codex
+    git_dir=$(git rev-parse --git-dir)
+    printf '%s\n' 'settings.env' >"$git_dir/fixture-review-event-path"
+    printf '%s\n' '0' >"$git_dir/fixture-review-delay-seconds"
+    printf '%s\t%s\t%s\n' \
+      blocking 'Replace PRIMARY=bad with PRIMARY=good.' \
+        'Remove the clearly in-scope, low-risk LEGACY_ADVISORY=remove line.' \
+      blocking 'Replace SECONDARY=bad with SECONDARY=good.' \
+        'Remove the non-blocking LATER_ADVISORY=keep line.' \
+      blocking 'Replace TERTIARY=bad with TERTIARY=good.' '' \
+      clear '' '' >"$git_dir/fixture-review-sequence"
+checks:
+  - name: enlarged budget permits three repairs and a fourth review
+    run: >-
+      grep -Fx 'PRIMARY=good' settings.env >/dev/null &&
+      grep -Fx 'SECONDARY=good' settings.env >/dev/null &&
+      grep -Fx 'TERTIARY=good' settings.env >/dev/null &&
+      test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 4
+  - name: only first rework addresses its eligible advisory
+    run: >-
+      ! grep -F 'LEGACY_ADVISORY=remove' settings.env >/dev/null &&
+      grep -Fx 'LATER_ADVISORY=keep' settings.env >/dev/null
+  - name: enlarged budget ends with exact-content clear review
+    run: >-
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '1p')" = blocking &&
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '2p')" = blocking &&
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '3p')" = blocking &&
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '4p')" = clear &&
+      test "$(tail -n 1 .git/independent-review-invocations | cut -f1)" = "$(bash .agents/bin/independent-review-fixture "$PWD" fingerprint)"
+  - name: invalidated checks precede all four reviews
+    run: >-
+      awk -F '\t' '
+      $1 == "check" { last_check = $2; next }
+      $1 == "review_start" && last_check == $3 { starts++; last_check = ""; next }
+      $1 == "review_start" { bad = 1 }
+      END { exit !bad && starts == 4 ? 0 : 1 }
+      ' .git/review-events
+  - name: enlarged budget remains local
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: completion reports the clear final review
+    expect_regex: "(independent[ -]review|rereview)[\\s\\S]{0,220}(no blocking|clear|pass)"
+    flags: i
+  - name: completion preserves the outer launch record
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
