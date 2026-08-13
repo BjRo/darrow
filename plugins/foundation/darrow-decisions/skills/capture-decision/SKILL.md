@@ -115,14 +115,28 @@ Keep the mutation to the requested decision. Leave implementation drift,
 unrelated documentation, commits, pushes, and plugin installation outside this
 capture.
 
+After any ADR creation or edit, refresh its directory's derived routing data
+with the same operation used for a manual rebuild:
+
+```sh
+bash <skill-dir>/../../bin/decision index rebuild --dir <adr-dir>
+```
+
+This creates or replaces only `.darrow-adr-index` beside the ADRs. Do not build
+an index for specifications, policies, work items, review state, or another
+owner surface. Treat an unreadable index or ADR input as a refusal rather than
+silently leaving stale routing data.
+
 **Complete when:** one canonical effect is persisted without changing unrelated
-state, or a truthful unresolved/refusal result is ready.
+state, every ADR mutation has refreshed its local routing index, or a truthful
+unresolved/refusal result is ready.
 
 ### 4. Prove persistence
 
-For ADR changes, require:
+For ADR changes, require both:
 
 ```sh
+bash <skill-dir>/../../bin/decision index check --dir <adr-dir>
 bash <skill-dir>/../../bin/decision validate --dir <adr-dir>
 ```
 

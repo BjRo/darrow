@@ -1,0 +1,66 @@
+id: list-decisions-index-fallback
+invariant: "DM-20,DM-L6"
+prompt: >-
+  List the accepted ADR decision about zephyr routing. Use the repository's
+  decision tooling, report the canonical absolute record and actual effect, and
+  do not change anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        docs/decisions/.darrow-adr-index: |
+          format	unsupported-index-v0
+        docs/decisions/ADR-0001-zephyr.md: |
+          # ADR-0001: Use zephyr routing
+
+          Status: Accepted
+          Date: 2026-08-13
+
+          ## Context
+
+          Edge traffic needs deterministic routing.
+
+          ## Decision
+
+          Use zephyr routing for edge traffic.
+
+          ## Consequences
+
+          Edge requests follow the zephyr route table.
+        docs/decisions/ADR-0002-storage.md: |
+          # ADR-0002: Use object storage
+
+          Status: Accepted
+          Date: 2026-08-13
+
+          ## Context
+
+          Exports need durable storage.
+
+          ## Decision
+
+          Use object storage for exports.
+
+          ## Consequences
+
+          Export workers upload objects.
+checks:
+  - name: malformed index cannot hide the exact ADR match
+    run: >-
+      root=$(pwd -P); message=.git/last-message.md;
+      grep -F "$root/docs/decisions/ADR-0001-zephyr.md" "$message" >/dev/null;
+      grep -Ei 'Accepted' "$message" >/dev/null;
+      grep -Ei 'zephyr routing' "$message" >/dev/null;
+      echo matched
+    expect_exact: "matched"
+  - name: unrelated ADR remains silently filtered
+    run: cat .git/last-message.md
+    not_regex: "ADR-0002|object storage|exports"
+    flags: i
+  - name: fallback listing is read-only
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: fallback creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

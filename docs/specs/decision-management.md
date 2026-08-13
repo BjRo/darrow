@@ -156,6 +156,31 @@ when` at 500 bytes.
   line. `canonical-path --path` input is capped at 1,000 bytes. Paths and
   free-form filters containing any C-locale control byte are refused without
   echoing the unsafe value.
+- **DM-19 — Non-authoritative ADR routing index.** An ADR directory may contain
+  a checked-in `.darrow-adr-index` derived only from the ADRs in that directory.
+  Its deterministic, versioned rows contain record membership, content
+  fingerprints, and case-folded ASCII terms to route literal searches to
+  candidate ADRs without making the index a decision authority. A fresh index
+  avoids parsing every ADR body. Before reporting an indexed match, `list` reads
+  the matched ADR and confirms the requested case-insensitive literal against
+  its body. Searches that cannot be narrowed safely use the full inventory.
+- **DM-20 — Fail-open discovery, fail-closed validation.** A missing,
+  unreadable, unsupported, malformed, or stale routing index produces a warning
+  and makes read-only discovery rebuild its in-memory inventory by scanning every
+  ADR, so repositories without an index remain compatible and stale data cannot
+  hide a match. Index failures never make malformed or unreadable ADRs skippable.
+  `validate` and explicit freshness checks instead reject index drift when an
+  index exists. Rebuild and freshness operations refuse unsafe or unreadable
+  input and emit absolute model-facing paths.
+- **DM-21 — Deterministic index lifecycle.** `index rebuild` writes the complete
+  routing index atomically in byte-stable order, and `index check` verifies its
+  format, directory membership, fingerprints, source ADR validity, and routing
+  terms.
+  Rebuilding an unchanged ADR set produces identical bytes under Bash 3.2 and
+  Bash 5. Repository validation includes the same freshness check, so CI and
+  manual validation reject drift. The index remains local to its ADR owner and
+  never indexes specifications, policies, work items, review state, or another
+  owner surface.
 
 ## `capture-decision`
 
@@ -191,6 +216,11 @@ that is unavailable, report the owner and stop without creating a substitute.
 - **DM-C6 — Portable capability.** The skill advertises
   `decision.capture@1.0.0` so workflows can request decision capture by
   contract without naming this provider.
+- **DM-C7 — Refresh derived ADR routing.** After creating or changing an ADR,
+  rebuild `.darrow-adr-index` in the selected ADR directory before validation.
+  Capture and a manual `index rebuild` use the same facade operation and must
+  produce identical bytes. Specification, policy, and work-item captures do not
+  create or update an ADR index.
 
 ### Non-goals
 
@@ -227,6 +257,11 @@ canonical repository surfaces when the query is not ADR-only.
 - **DM-L5 — Portable capability.** The skill advertises
   `decision.list@1.0.0` so workflows can request read-only decision discovery
   by contract without naming this provider.
+- **DM-L6 — Verify routed candidates.** Listing may use only a fresh ADR index
+  to narrow literal ADR searches. It reads each routed ADR before reporting its
+  effect and falls back to a warning plus full ADR scan when freshness cannot be
+  proved. An index row, token, title, or status is never itself reported as the
+  canonical decision.
 
 ### Non-goals
 

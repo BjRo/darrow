@@ -70,7 +70,12 @@ bun run lint
 bun run lint:ts
 bun run lint:shell
 bun run typecheck
+bun run check:decisions
 ```
+
+`check:decisions` rejects drift in the checked-in ADR routing index. When ADRs
+change, refresh it first with
+`bash plugins/foundation/darrow-decisions/bin/decision index rebuild --repo .`.
 
 Run script tests with both `bash` and `/bin/bash`. Run relevant evals with:
 

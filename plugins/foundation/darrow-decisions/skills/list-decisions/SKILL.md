@@ -10,9 +10,10 @@ repository or external state.
 
 Use the `decision` facade at `<skill-dir>/../../bin/decision`, where
 `<skill-dir>` contains this file. Run it with Bash. The facade owns ADR
-discovery, validation, filtering, relationships, and output caps. Treat an
-unreadable or malformed required record as a refusal rather than a skippable
-result.
+discovery, routing-index freshness, validation, filtering, relationships, and
+output caps. Treat an unreadable or malformed required record as a refusal
+rather than a skippable result. The index is derived routing data, never a
+canonical decision surface.
 
 ## Working model
 
@@ -48,6 +49,12 @@ bash <skill-dir>/../../bin/decision list [--dir <adr-dir>] \
   [--search <subject>] [--related-to <ADR-NNNN>] [--limit <n>]
 ```
 
+For a literal subject filter, the facade uses a fresh `.darrow-adr-index` to
+route candidate ADRs, then reads and confirms every matched ADR body before
+returning it. A missing, unreadable, malformed, or stale index warns and safely
+falls back to the full ADR scan. Do not suppress that warning, treat index rows
+as decision evidence, or report a result from index content alone.
+
 Follow repository routers, referenced guidance, aliases, and scoped
 instructions relevant to the query. Reported root policy files are discovery
 candidates, not an exhaustive map. For a broad concept, follow semantic aliases
@@ -62,7 +69,8 @@ the inventory incomplete; repository search cannot substitute for foreign-owned
 state.
 
 **Complete when:** every requested canonical surface is inspected or named as
-inaccessible, and every plausible semantic ADR match is resolved.
+inaccessible, every reported indexed ADR has been body-confirmed by the facade,
+and every plausible semantic ADR match is resolved.
 
 ### 3. Build a deduplicated result set
 

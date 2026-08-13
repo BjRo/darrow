@@ -46,6 +46,16 @@ check_equal() {
   fi
 }
 
+check_file_exists() {
+  local name=$1 path=$2
+  if [[ -f "$path" ]]; then
+    echo "  ok: $name"
+  else
+    echo "  FAIL: $name (missing file: $path)"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
 check_order() {
   local name=$1 first=$2 second=$3 output=$4
   case "$output" in
@@ -110,6 +120,109 @@ after=$(git -C "$REPO" status --porcelain --untracked-files=all)
 after_hash=$(git -C "$REPO" hash-object "$REPO/docs/decisions/ADR-0001-test.md")
 check_equal "inspection commands are read-only" "$before" "$after"
 check_equal "inspection preserves tracked ADR content" "$before_hash" "$after_hash"
+
+echo "deterministic non-authoritative ADR routing index"
+fresh_repo
+write_adr ADR-0001 Accepted "SQLite for local state"
+write_adr ADR-0002 Proposed "PostgreSQL for hosted state"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" index rebuild --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "rebuilds an ADR routing index" 0 "$rc"
+check_contains "rebuild reports the absolute index path" "index: $REPO/docs/decisions/.darrow-adr-index" "$out"
+index="$REPO/docs/decisions/.darrow-adr-index"
+check_file_exists "rebuild creates the checked-in index surface" "$index"
+if [[ -f "$index" ]]; then
+  first_hash=$(git hash-object "$index")
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" index rebuild --repo "$REPO")
+  second_hash=$(git hash-object "$index")
+  check_equal "repeated rebuilds produce identical bytes" "$first_hash" "$second_hash"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" index check --repo "$REPO")
+  check_contains "freshness check accepts the rebuilt index" "fresh: $index" "$out"
+fi
+
+echo "fresh index candidate routing and literal confirmation"
+if [[ -f "$index" ]]; then
+  mkdir "$REPO/read-bin"
+  real_awk=$(command -v awk)
+  real_grep=$(command -v grep)
+  # shellcheck disable=SC2016 # generated wrappers intentionally expand at runtime
+  printf '#!/bin/sh\nfor arg in "$@"; do case "$arg" in */docs/decisions/ADR-*.md) printf "awk\\t%%s\\n" "$arg" >> "$ADR_READ_LOG";; esac; done\nexec %s "$@"\n' "$real_awk" > "$REPO/read-bin/awk"
+  # shellcheck disable=SC2016 # generated wrappers intentionally expand at runtime
+  printf '#!/bin/sh\nfor arg in "$@"; do case "$arg" in */docs/decisions/ADR-*.md) printf "grep\\t%%s\\n" "$arg" >> "$ADR_READ_LOG";; esac; done\nexec %s "$@"\n' "$real_grep" > "$REPO/read-bin/grep"
+  chmod +x "$REPO/read-bin/awk" "$REPO/read-bin/grep"
+  : > "$REPO/adr-reads"
+  out=$(ADR_READ_LOG="$REPO/adr-reads" PATH="$REPO/read-bin:$PATH" "$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search SQLite)
+  check_contains "indexed listing preserves the exact match" "ADR-0001 Accepted" "$out"
+  check_not_contains "indexed listing omits the non-candidate" "ADR-0002 Proposed" "$out"
+  reads=$(awk 'END {print NR + 0}' "$REPO/adr-reads")
+  check_equal "fresh routing parses and confirms only the matched ADR body" 2 "$reads"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search "SQLite for local")
+  check_contains "indexed routing preserves full-body literal phrases" "ADR-0001 Accepted" "$out"
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search "SQLite hosted")
+  check_contains "candidate terms do not become false exact matches" "total: 0" "$out"
+fi
+
+echo "index fallback and stale-index counterexample"
+fresh_repo
+write_adr ADR-0001 Accepted "Alpha storage"
+write_adr ADR-0002 Accepted "Beta transport"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search Alpha 2>&1)
+rc=$?
+set -e
+check_equal "missing index remains compatible" 0 "$rc"
+check_contains "missing index warns before full scan" "warning: ADR routing index is missing" "$out"
+check_contains "missing index full scan preserves matches" "ADR-0001 Accepted" "$out"
+
+"$SHELL_UNDER_TEST" "$SCRIPT" index rebuild --repo "$REPO" >/dev/null 2>&1
+printf '\nA newly recorded zephyr constraint.\n' >> "$REPO/docs/decisions/ADR-0002-test.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search zephyr 2>&1)
+rc=$?
+set -e
+check_equal "stale index falls back successfully" 0 "$rc"
+check_contains "stale index warns" "warning: ADR routing index is stale" "$out"
+check_contains "stale data cannot hide a new body match" "ADR-0002 Accepted" "$out"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" index check --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "explicit freshness check rejects stale data" 4 "$rc"
+
+printf 'not-an-index\n' > "$REPO/docs/decisions/.darrow-adr-index"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search Alpha 2>&1)
+rc=$?
+set -e
+check_equal "malformed index falls back successfully" 0 "$rc"
+check_contains "malformed index warns" "warning: ADR routing index is malformed" "$out"
+check_contains "malformed index cannot hide matches" "ADR-0001 Accepted" "$out"
+
+"$SHELL_UNDER_TEST" "$SCRIPT" index rebuild --repo "$REPO" >/dev/null 2>&1
+chmod 000 "$REPO/docs/decisions/.darrow-adr-index"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search Alpha 2>&1)
+rc=$?
+set -e
+chmod 600 "$REPO/docs/decisions/.darrow-adr-index"
+if [[ $(id -u) -eq 0 ]]; then
+  echo "  ok: unreadable index fallback skipped for root test user"
+else
+  check_equal "unreadable index falls back successfully" 0 "$rc"
+  check_contains "unreadable index warns" "warning: ADR routing index is unreadable" "$out"
+  check_contains "unreadable index cannot hide matches" "ADR-0001 Accepted" "$out"
+fi
+
+"$SHELL_UNDER_TEST" "$SCRIPT" index rebuild --repo "$REPO" >/dev/null 2>&1
+printf '\nAnother stale change.\n' >> "$REPO/docs/decisions/ADR-0001-test.md"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "validation rejects checked-in index drift" 4 "$rc"
+check_contains "validation names stale index" "ADR routing index is stale" "$out"
 
 echo "lifecycle transitions"
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" check-transition --from Proposed --to Accepted)

@@ -10,11 +10,15 @@ usage: decision inspect [--dir <path>] [--repo <path>]
                      [--search <text>] [--related-to <ADR-NNNN>] [--limit <n>]
        decision next-id [--dir <path>] [--repo <path>] [--title <title>]
        decision validate [--dir <path>] [--repo <path>]
+       decision index rebuild|check [--dir <path>] [--repo <path>]
        decision canonical-path --path <path> [--repo <path>]
        decision check-transition --from <status> --to <status>
 USAGE
   exit 2
 }
+
+INDEX_NAME=.darrow-adr-index
+INDEX_FORMAT=darrow-adr-index-v1
 
 die() {
   printf 'error: %s\n' "$1" >&2
@@ -321,6 +325,73 @@ parse_adr() {
   ' "$file"
 }
 
+relative_to_root() {
+  case "$1" in
+    "$ROOT"/*) printf '%s' "${1#"$ROOT"/}" ;;
+    *) die "path is outside the repository root: $1" ;;
+  esac
+}
+
+current_fingerprint() {
+  local file=$1 relative staged diff_status fingerprint
+  relative=$(relative_to_root "$file")
+  staged=$(git -C "$ROOT" ls-files --stage -- "$relative" 2>/dev/null || true)
+  if [[ -n "$staged" && "$staged" != *$'\n'* ]]; then
+    diff_status=0
+    git -C "$ROOT" diff-files --quiet -- "$relative" >/dev/null 2>&1 || diff_status=$?
+    if [[ $diff_status -eq 0 ]]; then
+      fingerprint=${staged#* }
+      fingerprint=${fingerprint%% *}
+      [[ $fingerprint =~ ^[0-9a-f]+$ ]] || die "cannot parse Git fingerprint for ADR: $file"
+      printf '%s' "$fingerprint"
+      return
+    fi
+    [[ $diff_status -eq 1 ]] || die "cannot compare ADR with the Git index: $file"
+  fi
+  fingerprint=$(git -C "$ROOT" hash-object --path="$relative" "$file" 2>/dev/null) || die "cannot fingerprint ADR file: $file"
+  [[ $fingerprint =~ ^[0-9a-f]+$ ]] || die "cannot fingerprint ADR file: $file"
+  printf '%s' "$fingerprint"
+}
+
+body_terms() {
+  local file=$1 lower tokens sorted
+  lower="$DECISION_TMP/terms-lower"
+  tokens="$DECISION_TMP/terms-tokens"
+  sorted="$DECISION_TMP/terms-sorted"
+  if ! LC_ALL=C tr '[:upper:]' '[:lower:]' < "$file" > "$lower"; then
+    die "cannot case-fold ADR routing terms: $file"
+  fi
+  if ! LC_ALL=C tr -cs '[:alnum:]' '\n' < "$lower" > "$tokens"; then
+    die "cannot tokenize ADR routing terms: $file"
+  fi
+  if ! LC_ALL=C awk 'length($0) >= 2 && length($0) <= 64' "$tokens" | LC_ALL=C sort -u > "$sorted"; then
+    die "cannot sort ADR routing terms: $file"
+  fi
+  if ! LC_ALL=C awk 'NF {if (seen++) printf ","; printf "%s", $0} END {printf "\n"}' "$sorted"; then
+    die "cannot render ADR routing terms: $file"
+  fi
+}
+
+write_index_file() {
+  local target=$1 identifier title status date supersedes superseded_by revisit file
+  local fingerprint basename terms signature crc bytes
+  : > "$target"
+  printf 'format\t%s\n' "$INDEX_FORMAT" >> "$target"
+  while IFS=$'\034' read -r identifier title status date supersedes superseded_by revisit file; do
+    [[ -n "$identifier" ]] || continue
+    fingerprint=$(current_fingerprint "$file")
+    basename=${file##*/}
+    terms=$(body_terms "$file")
+    printf '%s\t%s\t%s\n' "$fingerprint" "$basename" "$terms" > "$DECISION_TMP/index-signature"
+    signature=$(cksum < "$DECISION_TMP/index-signature") || die "cannot checksum ADR routing row: $file"
+    crc=${signature%% *}
+    signature=${signature#* }
+    bytes=${signature%% *}
+    [[ $crc =~ ^[0-9]+$ && $bytes =~ ^[0-9]+$ ]] || die "cannot parse ADR routing row checksum: $file"
+    printf 'record\t%s\t%s\t%s\t%s\t%s\n' "$fingerprint" "$basename" "$terms" "$crc" "$bytes" >> "$target"
+  done < "$INVENTORY"
+}
+
 filename_identifier() {
   local base
   base=${1##*/}
@@ -570,6 +641,182 @@ build_inventory() {
   [[ $ERROR_COUNT -eq 0 ]]
 }
 
+parse_index_rows() {
+  local index=$1
+  INDEX_ROWS="$DECISION_TMP/index-rows"
+  INDEX_NAMES="$DECISION_TMP/index-names"
+  : > "$INDEX_ROWS"
+  if ! DECISION_SEP=$SEP LC_ALL=C awk -F '\t' '
+    function fail() {bad = 1}
+    NR == 1 {
+      if (NF != 2 || $1 != "format" || $2 != "darrow-adr-index-v1") fail()
+      next
+    }
+    {
+      if (NF != 6 || $1 != "record") {fail(); next}
+      fingerprint = $2
+      name = $3
+      terms = $4
+      crc = $5
+      bytes = $6
+      if ((length(fingerprint) != 40 && length(fingerprint) != 64) || fingerprint ~ /[^0-9a-f]/) fail()
+      if (name == "" || name ~ /\// || name !~ /^ADR-[0-9]+.*\.md$/ || seen[name]++) fail()
+      if (terms != "" && terms !~ /^[a-z0-9]+(,[a-z0-9]+)*$/) fail()
+      term_count = split(terms, term, ",")
+      for (i = 1; i <= term_count; i++) {
+        if (terms != "" && (length(term[i]) < 2 || length(term[i]) > 64)) fail()
+      }
+      if (crc == "" || crc ~ /[^0-9]/ || bytes == "" || bytes ~ /[^0-9]/) fail()
+      print fingerprint ENVIRON["DECISION_SEP"] name ENVIRON["DECISION_SEP"] terms ENVIRON["DECISION_SEP"] crc ENVIRON["DECISION_SEP"] bytes
+    }
+    END {if (NR == 0 || bad) exit 1}
+  ' "$index" > "$INDEX_ROWS"; then
+    return 1
+  fi
+  if ! DECISION_SEP=$SEP LC_ALL=C awk 'BEGIN {FS = ENVIRON["DECISION_SEP"]} {print $2}' "$INDEX_ROWS" | LC_ALL=C sort > "$INDEX_NAMES"; then
+    return 1
+  fi
+}
+
+collect_index_files() {
+  local file unsafe_count
+  INDEX_FILES="$DECISION_TMP/index-files"
+  INDEX_ACTUAL_NAMES="$DECISION_TMP/index-actual-names"
+  if ! find "$ADR_DIR" -maxdepth 1 -mindepth 1 -name '*.md' -print0 > "$DECISION_TMP/index-files0"; then
+    return 1
+  fi
+  : > "$INDEX_FILES"
+  unsafe_count=0
+  while IFS= read -r -d '' file; do
+    if has_control_char "$file"; then
+      unsafe_count=$((unsafe_count + 1))
+      continue
+    fi
+    if [[ -L "$file" || ! -f "$file" || ! -r "$file" ]]; then
+      return 1
+    fi
+    printf '%s\n' "$file" >> "$INDEX_FILES"
+  done < "$DECISION_TMP/index-files0"
+  [[ $unsafe_count -eq 0 ]] || return 1
+  LC_ALL=C sort "$INDEX_FILES" -o "$INDEX_FILES" || return 1
+  if ! awk '{name=$0; sub(/^.*\//, "", name); print name}' "$INDEX_FILES" > "$INDEX_ACTUAL_NAMES"; then
+    return 1
+  fi
+}
+
+index_is_fresh() {
+  local index=$1 fingerprint basename terms crc bytes signature actual_crc actual_bytes file actual staged
+  local relative_dir
+  [[ -e "$index" || -L "$index" ]] || return 10
+  [[ ! -L "$index" && -f "$index" ]] || return 12
+  [[ -r "$index" ]] || return 11
+  parse_index_rows "$index" || return 12
+  collect_index_files || return 13
+  cmp -s "$INDEX_NAMES" "$INDEX_ACTUAL_NAMES" || return 13
+  relative_dir=$(relative_to_root "$ADR_DIR")
+  if ! git -C "$ROOT" ls-files --stage -- "$relative_dir" > "$DECISION_TMP/index-staged" 2>/dev/null; then
+    return 13
+  fi
+  if ! git -C "$ROOT" diff-files --name-only -- "$relative_dir" > "$DECISION_TMP/index-modified" 2>/dev/null; then
+    return 13
+  fi
+  if ! DECISION_SEP=$SEP STAGED_FILE="$DECISION_TMP/index-staged" MODIFIED_FILE="$DECISION_TMP/index-modified" LC_ALL=C awk '
+    FILENAME == ENVIRON["STAGED_FILE"] {
+      tab = index($0, "\t")
+      if (tab == 0) next
+      prefix = substr($0, 1, tab - 1)
+      path = substr($0, tab + 1)
+      name = path
+      sub(/^.*\//, "", name)
+      split(prefix, fields, " ")
+      if (fields[3] == "0") staged[name] = fields[2]
+      next
+    }
+    FILENAME == ENVIRON["MODIFIED_FILE"] {
+      name = $0
+      sub(/^.*\//, "", name)
+      modified[name] = 1
+      next
+    }
+    {
+      split($0, fields, ENVIRON["DECISION_SEP"])
+      name = fields[2]
+      current = ""
+      if (!modified[name] && name in staged) current = staged[name]
+      print $0 ENVIRON["DECISION_SEP"] current
+    }
+  ' "$DECISION_TMP/index-staged" "$DECISION_TMP/index-modified" "$INDEX_ROWS" > "$DECISION_TMP/index-current"; then
+    return 13
+  fi
+  while IFS=$'\034' read -r fingerprint basename terms crc bytes staged; do
+    printf '%s\t%s\t%s\n' "$fingerprint" "$basename" "$terms" > "$DECISION_TMP/index-signature"
+    signature=$(cksum < "$DECISION_TMP/index-signature") || return 12
+    actual_crc=${signature%% *}
+    signature=${signature#* }
+    actual_bytes=${signature%% *}
+    [[ "$actual_crc" == "$crc" && "$actual_bytes" == "$bytes" ]] || return 12
+    file="$ADR_DIR/$basename"
+    if [[ -n "$staged" ]]; then actual=$staged; else actual=$(current_fingerprint "$file"); fi
+    [[ "$actual" == "$fingerprint" ]] || return 13
+  done < "$DECISION_TMP/index-current"
+  return 0
+}
+
+warn_index_fallback() {
+  case "$1" in
+    10) printf 'warning: ADR routing index is missing; using full scan: %s\n' "$INDEX_PATH" >&2 ;;
+    11) printf 'warning: ADR routing index is unreadable; using full scan: %s\n' "$INDEX_PATH" >&2 ;;
+    12) printf 'warning: ADR routing index is malformed; using full scan: %s\n' "$INDEX_PATH" >&2 ;;
+    *) printf 'warning: ADR routing index is stale; using full scan: %s\n' "$INDEX_PATH" >&2 ;;
+  esac
+}
+
+select_routed_files() {
+  local fingerprint basename terms crc bytes token
+  : > "$DECISION_TMP/search-tokens"
+  printf '%s' "$SEARCH_FILTER" | LC_ALL=C tr '[:upper:]' '[:lower:]' > "$DECISION_TMP/search-lower"
+  LC_ALL=C tr -cs '[:alnum:]' '\n' < "$DECISION_TMP/search-lower" > "$DECISION_TMP/search-token-lines"
+  LC_ALL=C awk 'length($0) >= 2 && length($0) <= 64 {print length($0) "\t" $0}' "$DECISION_TMP/search-token-lines" > "$DECISION_TMP/search-token-lengths"
+  LC_ALL=C sort -rn "$DECISION_TMP/search-token-lengths" > "$DECISION_TMP/search-tokens"
+  token=$(LC_ALL=C awk 'NR == 1 {print $2}' "$DECISION_TMP/search-tokens")
+  [[ -n "$token" ]] || return 1
+  ROUTED_FILES="$DECISION_TMP/routed-files"
+  : > "$ROUTED_FILES"
+  while IFS=$'\034' read -r fingerprint basename terms crc bytes; do
+    if relation_contains "$terms" "$token"; then
+      printf '%s\n' "$ADR_DIR/$basename" >> "$ROUTED_FILES"
+    fi
+  done < "$INDEX_ROWS"
+  return 0
+}
+
+build_routed_inventory() {
+  local file parsed identifier title status date supersedes superseded_by revisit
+  local heading_count status_count date_count supersedes_count superseded_by_count revisit_count
+  local context_count decision_count consequences_count context_nonempty decision_nonempty consequences_nonempty unclosed_fence
+  : > "$INVENTORY"
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    parsed=$(parse_adr "$file") || die "cannot parse indexed ADR candidate: $file" 4
+    IFS=$'\034' read -r identifier title status date supersedes superseded_by revisit \
+      heading_count status_count date_count supersedes_count superseded_by_count revisit_count \
+      context_count decision_count consequences_count context_nonempty decision_nonempty consequences_nonempty unclosed_fence <<< "$parsed"
+    if [[ $heading_count -ne 1 || $status_count -ne 1 || $date_count -ne 1 || \
+      $context_count -ne 1 || $decision_count -ne 1 || $consequences_count -ne 1 || \
+      $context_nonempty -ne 1 || $decision_nonempty -ne 1 || $consequences_nonempty -ne 1 || $unclosed_fence -ne 0 ]]; then
+      die "indexed ADR candidate is malformed: $file" 4
+    fi
+    printf '%s\034%s\034%s\034%s\034%s\034%s\034%s\034%s\n' \
+      "$identifier" "$title" "$status" "$date" "$supersedes" "$superseded_by" "$revisit" "$file" >> "$INVENTORY"
+  done < "$ROUTED_FILES"
+}
+
+index_matches_inventory() {
+  local expected="$DECISION_TMP/expected-index"
+  write_index_file "$expected"
+  cmp -s "$expected" "$INDEX_PATH"
+}
+
 inventory_count() {
   DECISION_SEP=$SEP awk 'BEGIN {FS = ENVIRON["DECISION_SEP"]} $1 != "" {count++} END {print count + 0}' "$INVENTORY"
 }
@@ -626,6 +873,12 @@ run_inspect() {
 run_validate() {
   local count
   if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  if [[ -e "$INDEX_PATH" || -L "$INDEX_PATH" ]]; then
+    [[ ! -L "$INDEX_PATH" && -f "$INDEX_PATH" ]] || die "ADR routing index is malformed: $INDEX_PATH" 4
+    [[ -r "$INDEX_PATH" ]] || die "ADR routing index is unreadable: $INDEX_PATH" 4
+    parse_index_rows "$INDEX_PATH" || die "ADR routing index is malformed: $INDEX_PATH" 4
+    index_matches_inventory || die "ADR routing index is stale: $INDEX_PATH" 4
+  fi
   if ! count=$(inventory_count); then die "cannot count ADR inventory"; fi
   if [[ -n "$ADR_DIR" ]]; then
     printf 'valid: %s ADR(s) in %s\n' "$count" "$ADR_DIR"
@@ -635,7 +888,7 @@ run_validate() {
 }
 
 run_list() {
-  local identifier title status date supersedes superseded_by revisit file matched shown relation_suffix grep_status
+  local identifier title status date supersedes superseded_by revisit file matched shown relation_suffix grep_status index_status
   if [[ -n "$STATUS_FILTER" ]] && ! status_is_valid "$STATUS_FILTER"; then
     die "unsupported decision status: $STATUS_FILTER"
   fi
@@ -646,7 +899,18 @@ run_list() {
   [[ ${#SEARCH_FILTER} -le 200 ]] || die "--search must be at most 200 bytes"
   has_control_char "$SEARCH_FILTER" && die "--search contains unsupported control bytes"
   [[ $LIMIT =~ ^[0-9]+$ && $LIMIT -gt 0 && $LIMIT -le 200 ]] || die "--limit must be an integer from 1 to 200"
-  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  if [[ -n "$SEARCH_FILTER" && -n "$ADR_DIR" ]]; then
+    index_status=0
+    index_is_fresh "$INDEX_PATH" || index_status=$?
+    if [[ $index_status -eq 0 ]] && select_routed_files; then
+      build_routed_inventory
+    else
+      if [[ $index_status -ne 0 ]]; then warn_index_fallback "$index_status"; fi
+      if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+    fi
+  else
+    if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  fi
 
   matched=0
   shown=0
@@ -676,6 +940,40 @@ run_list() {
   if [[ $matched -gt $LIMIT ]]; then
     printf 'note: showing first %s of %s matching ADRs\n' "$LIMIT" "$matched"
   fi
+}
+
+run_index_rebuild() {
+  local count
+  [[ -n "$ADR_DIR" ]] || die "no ADR directory detected; create or select one with --dir"
+  if [[ -e "$INDEX_PATH" || -L "$INDEX_PATH" ]]; then
+    [[ ! -L "$INDEX_PATH" && -f "$INDEX_PATH" ]] || die "ADR routing index is not a regular file: $INDEX_PATH"
+    [[ -r "$INDEX_PATH" ]] || die "ADR routing index is not readable: $INDEX_PATH"
+  fi
+  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  INDEX_WRITE_TMP=$(mktemp "$ADR_DIR/$INDEX_NAME.tmp.XXXXXX") || die "cannot create an atomic ADR routing index in: $ADR_DIR"
+  write_index_file "$INDEX_WRITE_TMP"
+  mv "$INDEX_WRITE_TMP" "$INDEX_PATH" || die "cannot replace ADR routing index: $INDEX_PATH"
+  INDEX_WRITE_TMP=""
+  count=$(inventory_count) || die "cannot count ADR inventory"
+  printf 'index: %s\nrecords: %s\n' "$INDEX_PATH" "$count"
+}
+
+run_index_check() {
+  local index_status count
+  [[ -n "$ADR_DIR" ]] || die "no ADR directory detected; create or select one with --dir"
+  index_status=0
+  index_is_fresh "$INDEX_PATH" || index_status=$?
+  case "$index_status" in
+    0) ;;
+    10) die "ADR routing index is missing: $INDEX_PATH" 4 ;;
+    11) die "ADR routing index is unreadable: $INDEX_PATH" 4 ;;
+    12) die "ADR routing index is malformed: $INDEX_PATH" 4 ;;
+    *) die "ADR routing index is stale: $INDEX_PATH" 4 ;;
+  esac
+  if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi
+  index_matches_inventory || die "ADR routing index is stale: $INDEX_PATH" 4
+  count=$(inventory_count) || die "cannot count ADR inventory"
+  printf 'fresh: %s\nrecords: %s\n' "$INDEX_PATH" "$count"
 }
 
 slugify_title() {
@@ -715,6 +1013,13 @@ COMMAND=${1:-}
 [[ -n "$COMMAND" ]] || usage
 shift
 
+INDEX_ACTION=""
+if [[ "$COMMAND" == "index" ]]; then
+  INDEX_ACTION=${1:-}
+  [[ "$INDEX_ACTION" == "rebuild" || "$INDEX_ACTION" == "check" ]] || usage
+  shift
+fi
+
 if [[ "$COMMAND" == "check-transition" ]]; then
   FROM_STATUS=""
   TO_STATUS=""
@@ -732,7 +1037,7 @@ if [[ "$COMMAND" == "check-transition" ]]; then
   exit 0
 fi
 
-case "$COMMAND" in inspect|list|next-id|validate|canonical-path) ;; *) usage ;; esac
+case "$COMMAND" in inspect|list|next-id|validate|index|canonical-path) ;; *) usage ;; esac
 
 REPO_ARG=.
 DIR_ARG=""
@@ -764,7 +1069,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$COMMAND" in
-  inspect|validate)
+  inspect|validate|index)
     [[ $STATUS_SET -eq 0 && $SEARCH_SET -eq 0 && $RELATED_SET -eq 0 && $LIMIT_SET -eq 0 && $TITLE_SET -eq 0 && $PATH_SET -eq 0 ]] || usage
     ;;
   list)
@@ -794,14 +1099,23 @@ if [[ "$COMMAND" == "canonical-path" ]]; then
 fi
 select_adr_directory
 DECISION_TMP=$(mktemp -d "${TMPDIR:-/tmp}/darrow-decisions.XXXXXX")
-trap 'rm -rf "$DECISION_TMP"' EXIT
+INDEX_WRITE_TMP=""
+trap '[[ -z "$INDEX_WRITE_TMP" ]] || rm -f "$INDEX_WRITE_TMP"; rm -rf "$DECISION_TMP"' EXIT
 SEP=$'\034'
 INVENTORY="$DECISION_TMP/inventory"
 ERRORS="$DECISION_TMP/errors"
+INDEX_PATH=""
+[[ -z "$ADR_DIR" ]] || INDEX_PATH="$ADR_DIR/$INDEX_NAME"
 
 case "$COMMAND" in
   inspect) run_inspect ;;
   list) run_list ;;
   next-id) run_next_id ;;
   validate) run_validate ;;
+  index)
+    case "$INDEX_ACTION" in
+      rebuild) run_index_rebuild ;;
+      check) run_index_check ;;
+    esac
+    ;;
 esac

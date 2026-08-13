@@ -1,5 +1,5 @@
 id: capture-decision-accepted-architecture
-invariant: "DM-1,DM-C4"
+invariant: "DM-1,DM-C4,DM-C7"
 prompt: >-
   We have decided that production persistence will use PostgreSQL. I am the
   repository maintainer and this is the accepted architecture choice. Capture
@@ -26,12 +26,16 @@ fixture:
           ## Consequences
 
           Runtime tooling follows Node.js conventions.
+  setup: >-
+    cp "{{case_dir}}/../../../bin/decision" .git/decision-facade &&
+    chmod +x .git/decision-facade
 checks:
-  - name: changes exactly one next-id ADR path
+  - name: changes one next-id ADR and its derived routing index
     run: >-
       paths=$({ git diff --name-only; git ls-files --others --exclude-standard; } | LC_ALL=C sort -u);
-      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 1;
+      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 2;
       printf '%s\n' "$paths" | grep -E '^docs/decisions/ADR-0002-[a-z0-9-]+\.md$' >/dev/null;
+      printf '%s\n' "$paths" | grep -Fx 'docs/decisions/.darrow-adr-index' >/dev/null;
       printf 'exact\n'
     expect_exact: "exact"
   - name: accepted PostgreSQL decision has compact structure
@@ -50,10 +54,16 @@ checks:
     expect_regex: "PostgreSQL"
   - name: deterministic ADR validation passes
     run: >-
-      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
-      else facade=.claude/bin/decision; fi;
-      bash "$facade" validate --repo .
+      bash .git/decision-facade validate --repo .
     expect_regex: "^valid: 2 ADR\\(s\\) in /"
+  - name: capture refresh matches a manual deterministic rebuild
+    run: >-
+      bash .git/decision-facade index check --repo . >/dev/null;
+      before=$(git hash-object docs/decisions/.darrow-adr-index);
+      bash .git/decision-facade index rebuild --repo . >/dev/null;
+      after=$(git hash-object docs/decisions/.darrow-adr-index);
+      test "$before" = "$after" && printf 'identical\n'
+    expect_exact: "identical"
   - name: no generic decision store is created
     run: test ! -e .darrow/decisions && echo absent
     expect_regex: "^absent$"
