@@ -45,8 +45,8 @@ LLM-judge only for qualitative checks, added when needed.
 - MVP mounts skills via the fixture repo's `.claude/skills/` (project-level
   discovery) rather than plugin installation — simpler and stable headless;
   plugin-level mounting can replace it later without touching cases.
-- The runner and global orchestration CLI both use TypeScript/Bun, but remain
-  independently versioned product surfaces; see
-  [ADR-0003](ADR-0003-global-cli.md).
+- The runner is repository development infrastructure, not a plugin-shipped
+  runtime dependency. Plugin mechanics follow the separate boundary in
+  [ADR-0005](ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md).
 - Eval runs cost real tokens; CI gating uses a pinned model list and the
   budget guard once implemented.
