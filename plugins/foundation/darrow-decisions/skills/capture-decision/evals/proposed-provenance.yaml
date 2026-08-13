@@ -12,18 +12,19 @@ fixture:
         README.md: "# Service\n"
         docs/decisions/.gitkeep: ""
 checks:
-  - name: creates exactly one proposed ADR
+  - name: creates one proposed ADR and its derived catalog
     run: >-
       paths=$({ git diff --name-only; git ls-files --others --exclude-standard; } | LC_ALL=C sort -u);
-      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 1;
+      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 2;
       printf '%s\n' "$paths" | grep -E '^docs/decisions/ADR-0001-[a-z0-9-]+\.md$' >/dev/null;
+      printf '%s\n' "$paths" | grep -Fx 'docs/decisions/README.md' >/dev/null;
       printf 'exact\n'
     expect_exact: "exact"
   - name: proposal remains unaccepted
     run: >-
       file=$(find docs/decisions -type f -name 'ADR-0001-*.md' -print);
       cat "$file"
-    expect_regex: "Status: Proposed[\\s\\S]*## Context"
+    expect_regex: "Status: Proposed[\\s\\S]*Summary: [^\\n]+[\\s\\S]*## Context"
     flags: i
   - name: observation and assumption keep independent provenance
     run: >-

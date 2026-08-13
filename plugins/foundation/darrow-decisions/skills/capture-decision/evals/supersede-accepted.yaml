@@ -14,6 +14,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-06-01
+          Summary: Use a REST API as the service boundary.
 
           ## Context
 
@@ -27,12 +28,13 @@ fixture:
 
           Clients integrate through resource endpoints.
 checks:
-  - name: changes exactly the old and one new ADR
+  - name: changes the old ADR, adds one new ADR, and refreshes the catalog
     run: >-
       paths=$({ git diff --name-only; git ls-files --others --exclude-standard; } | LC_ALL=C sort -u);
-      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 2;
+      test "$(printf '%s\n' "$paths" | awk 'NF {count++} END {print count + 0}')" -eq 3;
       printf '%s\n' "$paths" | grep -Fx 'docs/decisions/ADR-0001-rest-api.md' >/dev/null;
       printf '%s\n' "$paths" | grep -E '^docs/decisions/ADR-0002-[a-z0-9-]+\.md$' >/dev/null;
+      printf '%s\n' "$paths" | grep -Fx 'docs/decisions/README.md' >/dev/null;
       printf 'exact\n'
     expect_exact: "exact"
   - name: old record changes only lifecycle metadata
@@ -50,7 +52,7 @@ checks:
       test -n "$file";
       sed -n '1p' "$file" | grep -Ei '^# ADR-0002: .*GraphQL' >/dev/null;
       cat "$file"
-    expect_regex: "Status: Accepted[\\s\\S]*Supersedes: ADR-0001[\\s\\S]*## Decision[\\s\\S]*GraphQL"
+    expect_regex: "Status: Accepted[\\s\\S]*Summary: [^\\n]+[\\s\\S]*Supersedes: ADR-0001[\\s\\S]*## Decision[\\s\\S]*GraphQL"
   - name: reciprocal supersession validates
     run: >-
       if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;

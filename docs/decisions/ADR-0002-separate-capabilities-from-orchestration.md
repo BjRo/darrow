@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-13
+Summary: Keep capabilities intent-matched and independently selectable while starting continuation-owning orchestration only through explicit user invocation.
 
 ## Context
 

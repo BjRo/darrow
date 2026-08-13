@@ -25,6 +25,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-06-01
+          Summary: Use OIDC for external identity.
 
           ## Context
 
@@ -42,6 +43,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-06-02
+          Summary: Use object storage for exports.
 
           ## Context
 

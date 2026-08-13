@@ -21,6 +21,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-06-01
+          Summary: Use OIDC for external identity.
 
           ## Context
 
@@ -38,6 +39,7 @@ fixture:
 
           Status: Proposed
           Date: 2026-07-10
+          Summary: Evaluate passkeys before selecting a passwordless replacement.
 
           ## Context
 
@@ -55,6 +57,7 @@ fixture:
 
           Status: Accepted
           Date: 2026-07-11
+          Summary: Use object storage for exports.
 
           ## Context
 
