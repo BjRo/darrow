@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-13
+Summary: Use Darrow to compile and launch one host-native goal owner instead of operating a second execution controller or general workflow runtime.
 Revisit when: Matched multi-trial evidence on supported hosts shows that a Darrow-owned execution controller materially improves task outcomes over native goal ownership after accounting for wall time, model usage, child invocations, and human interruptions.
 
 ## Context

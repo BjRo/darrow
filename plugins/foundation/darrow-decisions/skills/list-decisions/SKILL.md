@@ -10,10 +10,10 @@ repository or external state.
 
 Use the `decision` facade at `<skill-dir>/../../bin/decision`, where
 `<skill-dir>` contains this file. Run it with Bash. The facade owns ADR
-discovery, routing-index freshness, validation, filtering, relationships, and
-output caps. Treat an unreadable or malformed required record as a refusal
-rather than a skippable result. The index is derived routing data, never a
-canonical decision surface.
+discovery, catalog freshness, validation, filtering, relationships, and output
+caps. Treat an unreadable or malformed required record as a refusal rather than
+a skippable result. The catalog is derived metadata, never a canonical decision
+surface.
 
 ## Working model
 
@@ -49,11 +49,13 @@ bash <skill-dir>/../../bin/decision list [--dir <adr-dir>] \
   [--search <subject>] [--related-to <ADR-NNNN>] [--limit <n>]
 ```
 
-For a literal subject filter, the facade uses a fresh `.darrow-adr-index` to
-route candidate ADRs, then reads and confirms every matched ADR body before
-returning it. A missing, unreadable, malformed, or stale index warns and safely
-falls back to the full ADR scan. Do not suppress that warning, treat index rows
-as decision evidence, or report a result from index content alone.
+For an inventory, status filter, or relationship filter, the facade may answer
+from a fresh `README.md` ADR catalog without reading ADR bodies. A literal
+subject or full-text filter always scans every ADR body, including when the term
+is absent from every Summary. A missing, unreadable, malformed, or stale catalog
+warns and safely falls back to a full ADR scan. Do not suppress that warning,
+treat catalog rows as decision authority, or report the catalog as the canonical
+record.
 
 Follow repository routers, referenced guidance, aliases, and scoped
 instructions relevant to the query. Reported root policy files are discovery
@@ -69,8 +71,8 @@ the inventory incomplete; repository search cannot substitute for foreign-owned
 state.
 
 **Complete when:** every requested canonical surface is inspected or named as
-inaccessible, every reported indexed ADR has been body-confirmed by the facade,
-and every plausible semantic ADR match is resolved.
+inaccessible, every literal subject result comes from the facade's full-body
+scan, and every plausible semantic ADR match is resolved.
 
 ### 3. Build a deduplicated result set
 

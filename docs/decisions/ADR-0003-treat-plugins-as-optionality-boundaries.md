@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-13
+Summary: Treat each plugin as a self-contained unit of adoption, compatibility, and ownership that composes through host-visible contracts rather than sibling dependencies.
 
 ## Context
 

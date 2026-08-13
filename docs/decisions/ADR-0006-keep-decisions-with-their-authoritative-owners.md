@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-13
+Summary: Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners.
 
 ## Context
 

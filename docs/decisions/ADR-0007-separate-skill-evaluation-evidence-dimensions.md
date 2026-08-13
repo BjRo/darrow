@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-13
+Summary: Represent invariant coverage, task outcomes, matched skill ablation, and skill activation as separate evaluation evidence dimensions.
 
 ## Context
 

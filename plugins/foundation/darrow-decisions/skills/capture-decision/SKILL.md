@@ -98,7 +98,8 @@ field that could change the recorded effect has explicit evidence.
   bash <skill-dir>/../../bin/decision next-id --dir <adr-dir> --title <title>
   ```
 
-  Keep the returned `ADR-` filename. Write `Status`, `Date`, `Context`,
+  Keep the returned `ADR-` filename. Write `Status`, `Date`, one non-empty
+  `Summary` that faithfully condenses the record's accepted text, `Context`,
   `Decision`, and `Consequences`; add `Supersedes`, `Superseded by`, or `Revisit
   when` only when applicable. `Revisit when` is an observable review trigger,
   never an automatic transition.
@@ -115,20 +116,22 @@ Keep the mutation to the requested decision. Leave implementation drift,
 unrelated documentation, commits, pushes, and plugin installation outside this
 capture.
 
-After any ADR creation or edit, refresh its directory's derived routing data
+After any ADR creation or edit, refresh its directory's derived catalog
 with the same operation used for a manual rebuild:
 
 ```sh
-bash <skill-dir>/../../bin/decision index rebuild --dir <adr-dir>
+bash <skill-dir>/../../bin/decision catalog rebuild --dir <adr-dir>
 ```
 
-This creates or replaces only `.darrow-adr-index` beside the ADRs. Do not build
-an index for specifications, policies, work items, review state, or another
-owner surface. Treat an unreadable index or ADR input as a refusal rather than
-silently leaving stale routing data.
+This creates or replaces only the derived `README.md` beside the ADRs. Do not
+build a catalog for specifications, policies, work items, review state, or
+another owner surface. Treat an unreadable catalog or ADR input as a refusal
+rather than silently leaving stale catalog data. If an existing `README.md`
+lacks the derived-catalog marker, preserve it and report the facade refusal;
+never overwrite a human-authored guide.
 
 **Complete when:** one canonical effect is persisted without changing unrelated
-state, every ADR mutation has refreshed its local routing index, or a truthful
+state, every ADR mutation has refreshed its local catalog, or a truthful
 unresolved/refusal result is ready.
 
 ### 4. Prove persistence
@@ -136,7 +139,7 @@ unresolved/refusal result is ready.
 For ADR changes, require both:
 
 ```sh
-bash <skill-dir>/../../bin/decision index check --dir <adr-dir>
+bash <skill-dir>/../../bin/decision catalog check --dir <adr-dir>
 bash <skill-dir>/../../bin/decision validate --dir <adr-dir>
 ```
 
