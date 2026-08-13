@@ -67,7 +67,32 @@ fi
 
 outcome=clear
 failure_evidence='Fixture policy rejects this candidate'
-if [ -f "$git_dir/fixture-review-inconclusive" ]; then
+advisory_evidence=
+if [ -f "$git_dir/fixture-review-sequence" ]; then
+  invocation=1
+  if [ -f "$git_dir/independent-review-invocations" ]; then
+    invocation_count=$(wc -l <"$git_dir/independent-review-invocations" | tr -d ' ')
+    case $invocation_count in
+      '' | *[!0-9]*) exit 2 ;;
+    esac
+    invocation=$((invocation_count + 1))
+  fi
+  sequence_line=$(sed -n "${invocation}p" "$git_dir/fixture-review-sequence")
+  [ -n "$sequence_line" ] || exit 2
+  tab=$(printf '\t')
+  old_ifs=$IFS
+  IFS=$tab
+  read -r outcome failure_evidence advisory_evidence <<EOF
+$sequence_line
+EOF
+  IFS=$old_ifs
+  case $outcome in
+    clear) ;;
+    blocking) [ -n "$failure_evidence" ] || exit 2 ;;
+    inconclusive | unavailable) ;;
+    *) exit 2 ;;
+  esac
+elif [ -f "$git_dir/fixture-review-inconclusive" ]; then
   outcome=inconclusive
 elif [ -f "$git_dir/fixture-review-blocked" ]; then
   outcome=unavailable
@@ -118,4 +143,7 @@ elif [ "$outcome" = inconclusive ]; then
   printf '%s\n' 'Evidence gap: The review could not reach a reliable conclusion from the available evidence.'
 else
   printf '%s\n' 'Evidence gap: Required independent review evidence is unavailable.'
+fi
+if [ -n "$advisory_evidence" ]; then
+  printf 'Advisory finding: %s\n' "$advisory_evidence"
 fi

@@ -200,6 +200,29 @@ changed target again, or stop and report the findings. An unavailable or
 inconclusive review stops and reports the evidence gap. Any content-changing
 edit invalidates the earlier review. Completion or publication requires review
 of the exact final content with no blocking findings.
+
+Every review invocation is a fresh comprehensive review of the exact current
+change. In particular, the first and second reviews never narrow their scope to
+findings from an earlier round. Rework scope may taper below; review scope does
+not.
+
+Use at most three independent-review invocations and two rework phases unless
+the originating goal explicitly supplies a larger review-round budget. After
+the first failed review, the first rework resolves every blocking finding it
+can address under existing authority. It also resolves an advisory only when
+that change is clearly in scope, low risk, does not expand observable behavior,
+and does not materially increase verification. Rerun invalidated checks, then
+review the changed target.
+
+After the second failed review, every later permitted rework fixes blocking
+findings only; preserve advisories as residual risks without letting them
+trigger more work. Under the default budget, the third review is terminal. If
+it reports no blocking findings, the exact-content gate is satisfied. If it
+reports blocking findings or is unavailable or inconclusive, stop with the
+unsatisfied gate and findings reported; perform no further repair or
+publication. An explicitly larger review-round budget permits additional
+blocker-only rework and rereview, but grants no new authority and never permits
+completion against content that lacks a clear final review.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely. The workflow document
@@ -246,11 +269,12 @@ Write one complete goal contract containing the outcome, acceptance criteria,
 scope and non-goals, preserved work, permissions, the selected workflow and its
 sequence, risk gate, profile and concrete route, applicable feedback checks and
 final-tree checks, whether independent review is selected and why, its portable
-continuation clause when selected, any user-specified stopping budget, and this
-exact final record. Target at most 4,000 bytes by referencing repository facts,
-but never truncate, omit, or rewrite a material requirement merely to fit the
-inline objective limit. A filesystem-sharing launch boundary uses a verified
-file-backed objective when the complete contract is larger:
+continuation clause when selected, any user-specified stopping budget including
+an explicitly enlarged review-round budget, and this exact final record. Target
+at most 4,000 bytes by referencing repository facts, but never truncate, omit,
+or rewrite a material requirement merely to fit the inline objective limit. A
+filesystem-sharing launch boundary uses a verified file-backed objective when
+the complete contract is larger:
 
 ```text
 format\tdarrow-native-goal-preflight-v4
@@ -294,7 +318,8 @@ Return exactly one object and stop that turn:
   "routeSource": "<policy|user>",
   "independentReview": {
     "selection": "<selected|omitted>",
-    "reason": "<concise non-empty reason>"
+    "reason": "<concise non-empty reason>",
+    "roundBudget": 3
   },
   "selectedRoute": {
     "harness": "<harness>",
@@ -302,14 +327,20 @@ Return exactly one object and stop that turn:
     "model": "<concrete-model>",
     "effort": "<concrete-effort>"
   },
-  "goalContract": "<complete compiled contract; target 4,000 bytes without dropping requirements>"
+  "goalContract": "<complete contract without the review clause; target 4,000 bytes without dropping requirements>"
 }
 ```
 
 Leave the `Independent review:` line out of `goalContract` in this host-API
 handoff. The enclosing launcher validates the structured decision and compiles
 the canonical portable clause, replacing any redundant line if one is present;
-high-risk handoffs that omit review are invalid.
+high-risk handoffs that omit review are invalid. Set `roundBudget` to zero when
+review is omitted, three for selected default review, or the exact explicit
+larger originating budget. The launcher validates it against the originating
+request and fails closed on a missing, mismatched, ambiguous, or unauthorized
+enlargement. It compiles the review clause without dropping requirements and
+uses the verified file-backed objective path when the complete contract exceeds
+the native inline limit.
 
 The enclosing launcher validates the selected route against the live host
 catalog and policy profile, loads the exact selected workflow document,

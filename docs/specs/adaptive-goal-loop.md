@@ -95,7 +95,8 @@ native goal. It contains:
 - the selected workflow, risk, semantic profile, model, effort, and any
   user-specified stopping budget;
 - the selected independent-review gate, when risk, repository policy, or the
-  user requires one;
+  user requires one, including its default or explicitly enlarged review-round
+  budget;
 - the final evaluation records required by this capability.
 
 The contract MUST remain concise. Repository detail already present in the
@@ -173,10 +174,16 @@ The compiled contract MUST state `selected` or `omitted` with its reason in
 one unambiguous independent-review clause. A selected clause carries the
 portable intent, timing, semantic continuation, target invalidation, and
 publication block into the native goal owner.
-For a structured host-API handoff, selection and reason MUST be separate
-validated fields and the host launcher MUST generate that canonical clause;
-the launcher treats those fields as authoritative and replaces any redundant
-classifier-written `Independent review:` line.
+For a structured host-API handoff, selection, reason, and numeric round budget
+MUST be separate validated fields and the host launcher MUST generate that
+canonical clause. The round budget is zero when review is omitted, three for a
+selected default budget, or the exact explicitly enlarged originating budget.
+The launcher treats those fields as authoritative, validates the budget against
+the originating request, replaces any redundant classifier-written
+`Independent review:` line, and compiles the canonical clause without dropping
+material requirements. A missing, mismatched, ambiguous, or unauthorized
+enlargement fails closed. When that complete contract exceeds the native inline
+limit, the launcher uses the verified file-backed objective path.
 
 When selected, the goal contract explicitly requests an available environment
 capability matching the intent **independently review this pinned code change**
@@ -208,6 +215,31 @@ Otherwise it stops and reports the findings. An unavailable or inconclusive
 review stops and reports the evidence gap. Content-changing edits invalidate an
 earlier review; only a review of the exact content that will be completed or
 published satisfies the gate.
+
+Every review invocation MUST be a fresh comprehensive review of the exact
+current change. In particular, the first and second reviews MUST NOT narrow
+their scope to findings from an earlier round. Rework scope may taper as
+described below, but review scope does not.
+
+Unless the originating goal explicitly supplies a larger review-round budget,
+the selected gate permits at most three independent-review invocations and two
+rework phases. After the first failed review, the first rework MUST resolve
+every blocking finding it can address under existing authority and MUST also
+resolve each advisory when the change is clearly in scope, low risk, does
+not expand observable behavior, and does not materially increase verification.
+After the second failed review, every later permitted rework MUST address
+blocking findings only; advisory findings remain visible as residual risks and
+MUST NOT trigger more work. The goal owner reruns checks invalidated by each
+rework before rereviewing the changed target.
+
+Under the default budget, the third review is terminal. A third review with no
+blocking findings satisfies the gate. A third review with blocking findings,
+or an unavailable or inconclusive third review, stops the goal with the
+unsatisfied gate and findings reported; it authorizes no further repair or
+publication. An explicit larger budget permits additional blocker-only
+rework/rereview rounds, but does not weaken exact-final-content review or grant
+new repair or publication authority. This is continuation policy compiled into
+one native goal, not a Darrow-owned retry controller.
 
 The canonical review capability remains read-only and owns no repair or
 publication action. Adaptive-goal owns only selection and the outer continuation
@@ -517,6 +549,16 @@ the least launch machinery the host supports.
     reports no blocking findings. Repairs rerun invalidated checks and
     independent review; blocking findings, stale review, unavailability, or an
     inconclusive response stop completion.
+12. **AGL-L12 — Bounded review rework.** Unless the originating goal explicitly
+    supplies a larger review-round budget, review is limited to three
+    invocations and two rework phases. Every invocation is a fresh comprehensive
+    review of the exact current change and never narrows to earlier findings.
+    The first rework resolves all authorized blockers and includes clearly
+    in-scope, low-risk advisories only when they do not expand behavior or
+    materially increase verification. The second and any explicitly budgeted
+    later rework address blockers only. The default third review is terminal:
+    it either clears the exact final content or stops with the unsatisfied gate
+    and no further repair or publication.
 
 ### Safety invariants
 
@@ -626,9 +668,14 @@ the least launch machinery the host supports.
     blocking-finding repair/rereview path with a new target fingerprint, and
     pending-review case that detects repository work between exact-target
     preparation and the ordinary response, and publication pressure after
-    blocking findings. Run composition cases on Claude Code and Codex,
-    including ordinary prose review responses so the orchestration cannot
-    couple itself to one provider's result format.
+    blocking findings. Include a default-budget sequence that proves every
+    review is fresh and comprehensive, the first rework may address eligible
+    advisories, later rework addresses blockers only, and a failing third review
+    causes no fourth invocation, post-review edit, or publication.
+    Include an explicitly enlarged review budget that permits a later
+    blocker-only repair and exact-content passing review. Run composition cases
+    on Claude Code and Codex, including ordinary prose review responses so the
+    orchestration cannot couple itself to one provider's result format.
 13. Exercise native-objective materialization at the 4,000-byte boundary and
     above it. Prove that the oversized contract is preserved byte-for-byte in a
     private file, its submitted pointer remains within the native limit, a
