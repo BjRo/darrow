@@ -105,8 +105,9 @@ Agent call can start.
   response semantically.
 - A first-class Codex goal runner is visible in the host, owns the one native
   goal, and may use Codex's own visible subagents for bounded work. Each Codex
-  agent creator closes its children after collecting their results, and the
-  parent closes the goal runner before returning.
+  agent creator collects its children's terminal results and, when the host
+  exposes a close control, closes each child after its goal has been fulfilled.
+  Missing close support does not disable this launch boundary.
 - A first-class Claude runner is visible in the host, runs in the foreground,
   and receives the full contract and workflow; the selected plugin-agent
   definition pins its concrete model and effort together.

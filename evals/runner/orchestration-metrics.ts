@@ -583,7 +583,7 @@ function goalRouteApplicationVerified(
     ROUTE_VERIFIED.test(resultText),
     hostWorkflowVerified(GOAL_PREFLIGHT_V4.test(resultText), observed),
     observed.launchBoundary !== "native_subagent" ||
-      nativeGoalAgentsClosed(raw),
+      nativeGoalAgentSpawned(raw),
     sameGoalRoute(observed.selected, observed.effective),
     goalBoundaryMatches(
       observed,
@@ -614,8 +614,12 @@ export function reconcileObservedGoalRouteApplication(
     name: "harness-observed goal route matches selected model and effort",
     passed,
     detail: passed
-      ? `${observed!.effective.model}/${observed!.effective.effort} via ${observed!.appliedBy}`
-      : "selected/effective route, application boundary, or native-runner cleanup was not observed",
+      ? `${observed!.effective.model}/${observed!.effective.effort} via ${observed!.appliedBy}${
+          observed!.launchBoundary === "native_subagent"
+            ? `; cleanup=${nativeGoalAgentsClosed(raw) ? "closed" : "not-closed"}`
+            : ""
+        }`
+      : "selected/effective route or application boundary was not observed",
   };
 }
 
@@ -651,6 +655,11 @@ function closedChildThreadId(
   event: Record<string, unknown>,
 ): string | undefined {
   return completedCollabThreadId(event, ["close_agent", "closeAgent"]);
+}
+
+/** At least one completed native child spawn proves the runner boundary ran. */
+function nativeGoalAgentSpawned(raw: string): boolean {
+  return jsonlEvents(raw).some((event) => spawnedChildThreadId(event));
 }
 
 /** Every observed native child must be closed once, after its matching spawn. */

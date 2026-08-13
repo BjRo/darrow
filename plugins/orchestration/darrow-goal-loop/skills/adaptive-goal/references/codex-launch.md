@@ -56,13 +56,11 @@ reports the selected model and effort.
 ## Observable native goal runner
 
 When in-place activation cannot honor the selected route and the runtime
-exposes both `spawn_agent` and `close_agent`, prefer one first-class Codex agent
-thread over a shell process. Confirm that the spawn tool accepts the selected
-concrete model and reasoning effort, that the close tool can close the spawned
-thread, and that the Codex provider already matches. A spawn-only surface is
-not this boundary: stop as `launch_required` instead of creating a thread that
-cannot be cleaned up. An unavailable user-pinned route stops; a policy route
-may use only its declared fallback.
+exposes `spawn_agent`, prefer one first-class Codex agent thread over a shell
+process. Confirm that the spawn tool accepts the selected concrete model and
+reasoning effort and that the Codex provider already matches. A close control
+is optional lifecycle support, not a launch prerequisite. An unavailable
+user-pinned route stops; a policy route may use only its declared fallback.
 
 Spawn exactly one agent with:
 
@@ -77,10 +75,10 @@ Tell the runner to call `create_goal` exactly once with the contract, own that
 goal through terminal completion, run the workflow and risk gates, and return
 the required final record. The runner may use native Codex subagents for
 bounded work when useful, but remains the sole goal owner. Tell it to collect
-each descendant's result and call `close_agent` on that descendant as soon as
-no follow-up is needed. It must not leave completed descendant threads open.
-Do not prescribe planner, executor, verifier, or repair roles, and do not
-create another Darrow runner beneath it.
+each descendant's terminal result and, when the host exposes a close control,
+close that descendant after its goal has been fulfilled. Do not prescribe
+planner, executor, verifier, or repair roles, and do not create another Darrow
+runner beneath it.
 
 An accepted spawn request with explicit route values is route-application
 evidence. Confirm the exact route with `--applied-by native-subagent`, record:
@@ -92,24 +90,22 @@ route_verified\ttrue
 evaluation_child_invocations\t1
 ```
 
-Wait for that same agent to finish and collect its terminal result. Then call
-`close_agent` on the runner's exact thread before returning to the user. The
-completed close call must target the same thread created by the accepted spawn;
-self-report is not cleanup evidence. Use host collaboration events or status to
-confirm that every observed descendant spawn also has one later completed close
-for that same thread. If descendant cleanup cannot be observed, it is not
-verified. If the runner becomes unnecessary while still active, use the host's
-stop or interrupt control, wait for a terminal state, and close it. If closing
-fails, report the cleanup failure and do not claim complete. The host UI exposes
-the runner and any native descendants for inspection while they are needed.
-Descendants are native goal delegation, not additional Darrow child
+Wait for that same agent to finish and collect its terminal result. **Cleanup:**
+Close the subagent when the goal has been fulfilled and its terminal result has
+been collected, if the runtime exposes a close control. A completed close call
+must target the same thread created by the accepted spawn; self-report is not
+cleanup evidence. If the runner becomes unnecessary while still active, use a
+host stop or interrupt control when available. Absence or failure of a close
+control does not invalidate the accepted launch or an otherwise fulfilled goal;
+report any residual cleanup state and preserve the terminal result. The host UI
+exposes the runner and any native descendants for inspection while they are
+needed. Descendants are native goal delegation, not additional Darrow child
 invocations. Do not run a shell process around the agent or substitute its
-prompt self-report for accepted spawn or close evidence.
+prompt self-report for accepted spawn evidence.
 
 **Complete when:** the accepted spawn matches the selected route, the visible
 runner owns the one persisted goal, and its terminal result proves the contract
-and final-tree checks complete, every descendant it created has been closed,
-and the parent has successfully closed the runner thread.
+and final-tree checks complete.
 
 ## Explicit nested compatibility session
 
