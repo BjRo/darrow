@@ -56,6 +56,11 @@
       "description": "Review pinned changes independently for repository standards and specification fulfillment"
     },
     {
+      "name": "darrow-ticket-to-pr",
+      "source": "./plugins/task_recipe/darrow-ticket-to-pr",
+      "description": "Deliver one ready authoritative ticket as exactly one verified pull request"
+    },
+    {
       "name": "darrow-goal-loop",
       "source": "./plugins/orchestration/darrow-goal-loop",
       "description": "Compile bounded engineering work into task-informed host-native goals"

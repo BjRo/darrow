@@ -1,0 +1,41 @@
+id: ticket-to-pr-e5-reentry
+invariant: TPR-E5,TPR-C7,TPR-C8
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-501.
+  Re-enter delivery: an open correlated PR already
+  exists, but its recorded verification predates the current head. Reconstruct
+  durable state, do not duplicate the proposal, and require current evidence.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      printf '%s\n' "$*" >>.git/gh-calls
+      if [ "${1-}" = pr ] && { [ "${2-}" = list ] || [ "${2-}" = view ]; }; then
+        printf '%s\n' '[{"url":"https://example.invalid/pr/501","headRefName":"feat/tkt-501","baseRefName":"main","isDraft":false,"title":"fix: partial TKT-501","body":"TKT-501"}]'
+        exit 0
+      fi
+      exit 2
+  setup: |
+    git checkout -b feat/tkt-501 >/dev/null
+    printf '%s\n' partial >app.txt
+    git add app.txt
+    git commit -m 'fix: partial TKT-501' >/dev/null
+checks:
+  - name: correlated durable branch remains intact
+    run: test "$(git branch --show-current)" = feat/tkt-501 && git diff --exit-code
+  - name: existing proposal is inspected and never duplicated
+    run: >-
+      grep -E '^pr (list|view)( |$)' .git/gh-calls >/dev/null &&
+      ! grep -E '^pr create( |$)' .git/gh-calls
+output_checks:
+  - name: stale evidence is not success
+    expect_regex: "outcome\\t(blocked|stopped)[\\s\\S]*(stale|current|rerun|verification)"
+    flags: i
+  - name: duplicate creation is not claimed
+    not_regex: "outcome\\tpr_created"

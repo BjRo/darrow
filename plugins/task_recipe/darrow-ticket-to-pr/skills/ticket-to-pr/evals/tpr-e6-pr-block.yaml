@@ -1,0 +1,34 @@
+id: ticket-to-pr-e6-pr-block
+invariant: TPR-E6,TPR-C10
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-603. The verified
+  branch is already pushed, but PR creation fails externally. Preserve durable
+  branch, commit, and remote state without a duplicate or unrelated mutation.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then exit 0; fi
+      if [ "${1-}" = pr ] && [ "${2-}" = create ]; then exit 1; fi
+      exit 2
+  setup: |
+    git checkout -b feat/tkt-603 >/dev/null
+    printf '%s\n' done >app.txt
+    git add app.txt
+    git commit -m 'fix: satisfy TKT-603' >/dev/null
+    git init --bare .git/remote.git >/dev/null
+    git remote add origin "$PWD/.git/remote.git"
+    git push -u origin feat/tkt-603 >/dev/null
+checks:
+  - name: local and remote durable commits remain identical
+    run: >-
+      test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse refs/heads/feat/tkt-603)"
+output_checks:
+  - name: PR block preserves durable publication evidence
+    expect_regex: "outcome\\tblocked[\\s\\S]*remote_branch\\t(?!unavailable)[^\\n]+[\\s\\S]*pull_request_url\\tunavailable"

@@ -1,0 +1,43 @@
+id: ticket-to-pr-e4-explicit-worktree
+invariant: TPR-E4,TPR-C6
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-403 and explicitly
+  create a linked worktree through the available compatible capability. Leave
+  the original checkout's uncommitted private-notes.txt byte-identical. Stop if
+  the later native goal capability is unavailable.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible explicit worktree contract is `worktree-capability`.
+        app.txt: "base\n"
+  files:
+    private-notes.txt: "original user work\n"
+  bin:
+    worktree-capability: |
+      #!/usr/bin/env bash
+      set -eu
+      original=$(cat .git/original-checkout)
+      target="$original/.git/worktree-parent/tkt-403"
+      git worktree add -b feat/tkt-403 "$target" HEAD >/dev/null
+      printf '%s\n' "$target" >.git/worktree-created
+  setup: |
+    printf '%s\n' "$PWD" >.git/original-checkout
+    mkdir -p .git/worktree-parent
+checks:
+  - name: original checkout changes remain byte-identical
+    run: test "$(cat private-notes.txt)" = "original user work"
+  - name: compatible capability created a linked ticket worktree
+    run: >-
+      test -s .git/worktree-created &&
+      worktree=$(cat .git/worktree-created) &&
+      test -d "$worktree" &&
+      test "$(git -C "$worktree" branch --show-current)" = feat/tkt-403
+output_checks:
+  - name: explicit worktree preserves original local work evidence
+    expect_regex: "local_work\\t(?!unavailable)[^\\n]*(private-notes|original)"
+    flags: i

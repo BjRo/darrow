@@ -1,0 +1,25 @@
+id: ticket-to-pr-e8-stale-review
+invariant: TPR-E8,TPR-C8,TPR-C9
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-808. The existing
+  independent review passed commit A, but the correlated branch now points to
+  different commit B. No compatible reviewer is currently available. Do not
+  reuse stale review or publish.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+  setup: |
+    git checkout -b feat/tkt-808 >/dev/null
+    printf '%s\n' current >app.txt
+    git add app.txt
+    git commit -m 'fix: current TKT-808' >/dev/null
+checks:
+  - name: stale review does not alter current branch content
+    run: test "$(cat app.txt)" = current && git diff --exit-code
+output_checks:
+  - name: stale review cannot satisfy current-content gate
+    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(?!passed)[^\\n]*(stale|unavailable|current)"
+    flags: i

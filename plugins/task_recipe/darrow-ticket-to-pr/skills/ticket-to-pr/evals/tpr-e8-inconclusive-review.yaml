@@ -1,0 +1,20 @@
+id: ticket-to-pr-e8-inconclusive-review
+invariant: TPR-E8,TPR-C9
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready high-risk TKT-806.
+  Exact-content independent review was selected and returned inconclusive
+  because its target could not be pinned. Do not publish or substitute self-
+  review.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        security.txt: "base\n"
+checks:
+  - name: inconclusive review blocks every delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: inconclusive review is a blocked outcome
+    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(?!passed)[^\\n]*(inconclusive|blocked)"
+    flags: i

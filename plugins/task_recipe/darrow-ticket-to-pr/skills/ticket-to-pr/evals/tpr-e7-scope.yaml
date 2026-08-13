@@ -1,0 +1,34 @@
+id: ticket-to-pr-e7-scope
+invariant: TPR-E7,TPR-C5
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. TKT-701 is ready and requires
+  renaming parser mode `old` to `safe`, including its caller, regression test,
+  and usage documentation. Acceptance is `bash check.sh`. While working you
+  notice an unrelated dashboard redesign opportunity. Preserve that adjacent
+  boundary and deliver only the ticket-required coherent scope.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        parser.txt: "mode=old\n"
+        caller.txt: "parser-mode=old\n"
+        parser.test: "expect mode old\n"
+        USAGE.md: "Use parser mode old.\n"
+        dashboard.txt: "do not edit\n"
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'mode=safe' parser.txt >/dev/null
+          grep -Fx 'parser-mode=safe' caller.txt >/dev/null
+          grep -Fx 'expect mode safe' parser.test >/dev/null
+          grep -Fx 'Use parser mode safe.' USAGE.md >/dev/null
+checks:
+  - name: necessary callers tests and docs are included
+    run: bash check.sh
+  - name: adjacent product is not expanded
+    run: test "$(cat dashboard.txt)" = "do not edit"
+output_checks:
+  - name: adjacent expansion requires authority
+    expect_regex: "(decision|not authorized|out of scope|adjacent)"
+    flags: i

@@ -1,0 +1,18 @@
+id: ticket-to-pr-e11-telemetry-degraded
+invariant: TPR-E11,TPR-C11,TPR-C12
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-1102. Contradictory
+  authority stops delivery, and no compatible telemetry adapter exists. Report
+  delivery and telemetry independently.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: degraded telemetry causes no mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: unavailable adapter degrades independently
+    expect_regex: "outcome\\tstopped[\\s\\S]*telemetry_status\\tdegraded"

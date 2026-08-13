@@ -3,9 +3,9 @@
 </p>
 
 Darrow is a marketplace of focused, independently adoptable plugins for coding
-agents. Each plugin adds one bounded capability or one explicitly invoked
-orchestration helper. Claude Code and Codex can use the same plugin packages
-directly.
+agents. Each plugin adds one bounded capability, one explicitly invoked task
+recipe, or one explicitly invoked orchestration helper. Claude Code and Codex
+can use the same plugin packages directly.
 
 Install only the plugins you want. Installing a capability does not start work
 automatically, and no plugin assumes that another Darrow plugin is present.
@@ -20,9 +20,10 @@ automatically, and no plugin assumes that another Darrow plugin is present.
 
 Most Darrow capabilities are intent-matched: ask for the outcome in ordinary
 language and the agent can select the installed skill. You can also name a
-skill explicitly. Orchestration is different and starts only through an
-entrypoint you explicitly invoke. That entrypoint may delegate a bounded phase
-to another orchestration helper while preserving your original authority.
+skill explicitly. Task recipes and orchestration are different and start only
+through an entrypoint you explicitly invoke. That entrypoint may delegate a
+bounded request to another orchestration helper while preserving your original
+authority.
 
 ## Plugin catalog
 
@@ -53,6 +54,15 @@ start orchestration.
 Each plugin README describes its skills, example requests, and safety
 boundaries.
 
+### Task recipes
+
+[`darrow-ticket-to-pr`](plugins/task_recipe/darrow-ticket-to-pr/README.md)
+delivers one ready authoritative ticket as exactly one verified pull request.
+It composes host-visible ticket, readiness, native-goal, review, Git, and
+telemetry contracts without assuming which providers are installed. It starts
+only when explicitly invoked and grants no merge, deployment, release, or
+ticket-mutation authority.
+
 ### Orchestration
 
 [`darrow-goal-loop`](plugins/orchestration/darrow-goal-loop/README.md) is
@@ -71,7 +81,9 @@ second recommended orchestration path.
 Capabilities teach an agent how to perform a focused kind of work. The model
 can select them from a matching request, and users can invoke them explicitly.
 They remain useful without orchestration and compose through host-visible
-intent and capability contracts.
+intent and capability contracts. Task recipes package a complete user outcome
+across compatible capabilities while preserving one explicit authority
+boundary; they do not become controllers or assume their dependencies.
 
 Orchestration owns a different concern: framing and continuing longer-running
 work until an observable completion condition is reached. It starts only

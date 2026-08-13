@@ -1,8 +1,9 @@
 # darrow — Agent Instructions
 
 Darrow is a marketplace of independently adoptable plugins for Claude Code and
-Codex. Its product architecture separates intent-matched capabilities from
-explicit orchestration, with each plugin serving as an optionality boundary.
+Codex. Its product architecture separates intent-matched capabilities,
+explicitly invoked task recipes, and explicit orchestration, with each plugin
+serving as an optionality boundary.
 Capabilities are model-invoked in response to matching user intent, though a
 user may also name one explicitly. Orchestration starts only through explicit
 user invocation; never infer it from task complexity or duration.
@@ -19,9 +20,9 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 ## Layout
 
 - `plugins/<kind>/<name>/` — self-contained plugins grouped as `foundation`,
-  `capability`, or `orchestration`. Skills live in `skills/<skill>/SKILL.md`
-  with colocated scripts and evals. Never reference files outside a plugin or
-  assume a sibling plugin is installed.
+  `capability`, `task_recipe`, or `orchestration`. Skills live in
+  `skills/<skill>/SKILL.md` with colocated scripts and evals. Never reference
+  files outside a plugin or assume a sibling plugin is installed.
 - `docs/specs/` — normative capability invariants.
 - `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
 - `evals/runner/` — shared skill-evaluation runner. Results are gitignored.

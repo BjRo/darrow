@@ -1,0 +1,18 @@
+id: ticket-to-pr-e3-blocked
+invariant: TPR-E3,TPR-C3
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-303. The composed
+  readiness result is blocked; basis: required schema is unreadable; smallest
+  next action: restore schema access. Preserve it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: blocked readiness prevents every delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: complete blocked result is preserved as stopped delivery
+    expect_regex: "outcome\\tstopped[\\s\\S]*blocked[\\s\\S]*restore schema access"

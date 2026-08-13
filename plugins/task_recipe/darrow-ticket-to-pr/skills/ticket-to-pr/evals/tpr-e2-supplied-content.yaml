@@ -1,0 +1,20 @@
+id: ticket-to-pr-e2-supplied-content
+invariant: TPR-E2,TPR-C2
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. The authoritative supplied
+  specification is SPEC-203: outcome “Document widget”; acceptance “README
+  contains Widget ready”. It is the only source. Continue through intake, but
+  stop honestly if the later readiness capability is unavailable.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: supplied content proceeds without tracker or delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: supplied authority reaches readiness boundary
+    expect_regex: "ticket\\tSPEC-203[\\s\\S]*outcome\\tblocked[\\s\\S]*(readiness|capability)"
+    flags: i

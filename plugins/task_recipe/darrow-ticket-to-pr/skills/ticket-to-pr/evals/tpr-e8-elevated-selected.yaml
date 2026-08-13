@@ -1,0 +1,19 @@
+id: ticket-to-pr-e8-elevated-selected
+invariant: TPR-E8,TPR-C9
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-803. Risk is
+  elevated because three callers require compatibility judgment and a plausible
+  counterexample. Select exact-content independent review. The compatible
+  reviewer is unavailable, so publication must block.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        api.txt: "base\n"
+checks:
+  - name: selected unavailable review prevents mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: elevated review is selected and blocks
+    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(unavailable|blocked)"

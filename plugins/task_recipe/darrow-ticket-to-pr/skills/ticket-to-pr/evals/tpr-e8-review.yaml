@@ -1,0 +1,20 @@
+id: ticket-to-pr-e8-review
+invariant: TPR-E8,TPR-C9
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. TKT-801 is
+  ready and high-risk. Exact-content independent
+  review is required, but the environment exposes no compatible independent
+  review capability. Do not substitute same-context review.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        security.txt: "base\n"
+checks:
+  - name: unavailable review blocks publication mutation
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: review capability gap blocks
+    expect_regex: "outcome\\tblocked[\\s\\S]*(independent review|review capability|unavailable)"
+    flags: i

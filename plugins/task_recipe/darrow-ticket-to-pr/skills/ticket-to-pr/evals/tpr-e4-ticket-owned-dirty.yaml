@@ -1,0 +1,24 @@
+id: ticket-to-pr-e4-ticket-owned-dirty
+invariant: TPR-E4,TPR-C6
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. Supplied SPEC-402 says the
+  existing uncommitted app.txt change is the intended ticket work. Continue
+  through dirty-work intake without discarding or recommitting it, but stop if
+  the later readiness capability is unavailable.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+  files:
+    app.txt: "ticket-owned change\n"
+checks:
+  - name: ticket-owned dirty bytes remain preserved
+    run: >-
+      test "$(cat app.txt)" = "ticket-owned change" &&
+      test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: owned work passes intake before later capability block
+    expect_regex: "outcome\\tblocked[\\s\\S]*(readiness|capability)[\\s\\S]*local_work\\t(?!unavailable)[^\\n]+"
+    flags: i

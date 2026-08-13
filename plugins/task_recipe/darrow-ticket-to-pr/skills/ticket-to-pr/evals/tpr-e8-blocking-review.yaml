@@ -1,0 +1,19 @@
+id: ticket-to-pr-e8-blocking-review
+invariant: TPR-E8,TPR-C9
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready high-risk TKT-807.
+  Exact-content independent review found a blocking authorization defect. No
+  repair authority exists. Do not publish and preserve the finding.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        security.txt: "base\n"
+checks:
+  - name: blocking review prevents every delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: blocking review prevents completion
+    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(?!passed)[^\\n]*(authorization|blocking)"
+    flags: i

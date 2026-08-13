@@ -1,0 +1,33 @@
+id: ticket-to-pr-e2-resolved-reference
+invariant: TPR-E2,TPR-C2
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-202. Resolve the one
+  stable reference through the repository's compatible read-only ticket
+  capability. Continue through intake, but stop honestly if the later readiness
+  capability is unavailable.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible read-only ticket contract is `ticket-reader get ID`.
+        app.txt: "unchanged\n"
+  bin:
+    ticket-reader: |
+      #!/usr/bin/env bash
+      set -eu
+      [ "${1-}" = get ] && [ "${2-}" = TKT-202 ]
+      printf '%s\n' "$*" >>.git/ticket-read-calls
+      printf '%s\n' '{"id":"TKT-202","outcome":"Document widget","acceptance":["README contains Widget ready"]}'
+checks:
+  - name: stable reference is resolved exactly once without mutation
+    run: >-
+      test "$(wc -l <.git/ticket-read-calls | tr -d ' ')" -eq 1 &&
+      git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: resolved intake reaches the later capability boundary
+    expect_regex: "ticket\\tTKT-202[\\s\\S]*outcome\\tblocked[\\s\\S]*(readiness|capability)"
+    flags: i

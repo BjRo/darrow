@@ -1,0 +1,18 @@
+id: ticket-to-pr-e3-needs-decision
+invariant: TPR-E3,TPR-C3
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-302. The composed
+  readiness result is needs-decision; basis: two incompatible retry policies;
+  smallest next action: select bounded or unbounded retries. Preserve it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: needs-decision prevents every delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: complete decision result is preserved
+    expect_regex: "outcome\\tstopped[\\s\\S]*needs-decision[\\s\\S]*bounded or unbounded retries"

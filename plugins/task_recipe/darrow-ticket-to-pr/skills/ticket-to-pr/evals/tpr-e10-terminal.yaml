@@ -1,0 +1,19 @@
+id: ticket-to-pr-e10-terminal
+invariant: TPR-E10,TPR-C11
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-1001.
+  The user interrupted the active native goal after one
+  local commit but before push. Report the one terminal delivery outcome and
+  all durable or unavailable values without guessing.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+checks: []
+output_checks:
+  - name: interrupted is the sole outcome
+    expect_regex: "outcome\\tinterrupted"
+  - name: record includes required evidence fields
+    expect_regex: "ticket\\t[\\s\\S]*repository\\t[\\s\\S]*reason\\t[\\s\\S]*readiness\\t[\\s\\S]*branch\\t[\\s\\S]*base\\t[\\s\\S]*commits\\t[\\s\\S]*remote_branch\\t[\\s\\S]*pull_request_url\\t[\\s\\S]*verification\\t[\\s\\S]*independent_review\\t[\\s\\S]*local_work\\t[\\s\\S]*adaptive_goal\\t[\\s\\S]*telemetry_status\\t[\\s\\S]*telemetry_evidence\\t"

@@ -1,0 +1,16 @@
+id: ticket-to-pr-activation-incomplete
+invariant: TPR-C1,TPR-C2
+activation: positive
+prompt: "/ticket-to-pr On Codex, invoke $ticket-to-pr."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+checks:
+  - name: incomplete invocation does not mutate
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: requests one authoritative ticket
+    expect_regex: "(one|single).*(ticket|authoritative)"
+    flags: i

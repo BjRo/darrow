@@ -1,0 +1,41 @@
+id: ticket-to-pr-e9-pr-shape
+invariant: TPR-E9,TPR-C5,TPR-C7
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for TKT-901.
+  The ready, verified branch already has one correlated
+  open review-ready PR. Confirm its deliberate base, Conventional Commit title,
+  template body and ticket reference. Do not create, draft, label, assign,
+  merge, or update anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      printf '%s\n' "$*" >>.git/gh-calls
+      if [ "${1-}" = pr ] && { [ "${2-}" = list ] || [ "${2-}" = view ]; }; then
+        printf '%s\n' '[{"url":"https://example.invalid/pr/901","headRefName":"feat/tkt-901","baseRefName":"main","isDraft":false,"title":"fix: satisfy TKT-901","body":"Why this exists. Implements TKT-901 using the repository template."}]'
+        exit 0
+      fi
+      exit 2
+  setup: |
+    git checkout -b feat/tkt-901 >/dev/null
+    printf '%s\n' complete >app.txt
+    git add app.txt
+    git commit -m 'fix: satisfy TKT-901' >/dev/null
+checks:
+  - name: inspection-only reentry does not mutate
+    run: git diff --exit-code && test "$(git branch --show-current)" = feat/tkt-901
+  - name: correlated proposal was inspected but never duplicated
+    run: >-
+      grep -E '^pr (list|view)( |$)' .git/gh-calls >/dev/null &&
+      ! grep -E '^pr create( |$)' .git/gh-calls
+output_checks:
+  - name: existing proposal is the only successful shape
+    expect_regex: "outcome\\tpr_existing[\\s\\S]*base\\tmain[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/901"
+  - name: current verification and PR shape are reported
+    expect_regex: "verification\\t(?!unavailable)[^\\n]+[\\s\\S]*(fix: satisfy TKT-901|review-ready|not draft)"

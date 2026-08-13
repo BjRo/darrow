@@ -34,6 +34,28 @@ evolve independently. Installing a review or Git capability does not opt a user
 into a control plane, and improving orchestration does not require folding
 those capabilities into one monolithic workflow.
 
+## Task recipes compose complete outcomes
+
+A task recipe packages a recognizable end-to-end user outcome whose authorized
+effects span multiple compatible capabilities. Like orchestration, it starts
+only through explicit user invocation because selection grants its complete
+stated effect boundary. Unlike a general workflow runtime, a task recipe does
+not own a reusable phase engine, queue, private ledger, or background
+controller.
+
+Task recipes perform only the intake and boundary work required by their public
+contract, then compose installed capabilities through host-visible intents and
+public contracts. When continued adaptive execution is needed, a recipe may
+delegate one bounded request to one orchestration owner without a second user
+invocation. The originating request and authority remain unchanged, and the
+host-native goal remains the sole continuation owner.
+
+`task_recipe` is a repository and marketplace category for these explicitly
+invoked outcome contracts. It does not weaken plugin optionality: a recipe must
+remain independently installable, may not reference sibling-plugin files or
+assume named providers, and must stop or degrade according to its own public
+contract when compatible capabilities are unavailable.
+
 ## Foundations are capability infrastructure
 
 Foundation plugins maintain durable context and reusable agent surfaces that
@@ -56,8 +78,8 @@ contract is unavailable, the consumer follows its own documented stop or
 fallback behavior instead of reaching into another plugin.
 
 This boundary preserves genuine choice: users can adopt one focused capability,
-several complementary capabilities, or an orchestration helper without
-accepting the rest of the marketplace.
+several complementary capabilities, a task recipe, or an orchestration helper
+without accepting the rest of the marketplace.
 
 ## Scripts hide tool mechanics from the model
 
@@ -149,6 +171,21 @@ not a second adaptive loop, a child-agent supervisor, a daemon, a queue, a
 publication mechanism, or a general workflow runtime. The normative contract is
 in [Capability: Native Goal Preflight](specs/adaptive-goal-loop.md).
 
+## Ticket to PR is the first task recipe
+
+[`darrow-ticket-to-pr`](../plugins/task_recipe/darrow-ticket-to-pr/README.md)
+packages the complete explicitly authorized outcome of delivering one ready,
+authoritative ticket as exactly one verified pull request. Its read-only intake
+establishes ticket authority, readiness, local-work safety, and durable re-entry
+state. It then delegates implementation, recovery, exact-content verification,
+proportional review, and bounded publication to one adaptive host-native goal.
+
+The recipe composes ticket, readiness, review, Git, and telemetry behavior
+through compatible environment contracts. It does not make those capabilities
+mandatory Darrow dependencies, introduce a phase runtime, or grant merge,
+deployment, release, or ticket-mutation authority. Its normative contract is in
+[Task Recipe: Ticket to Pull Request](specs/ticket-to-pr.md).
+
 ## The ticket pipeline is a reference and benchmark baseline
 
 [`darrow-ticket-pipeline`](../plugins/orchestration/darrow-ticket-pipeline/README.md)
@@ -171,6 +208,8 @@ are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
 ## Consequences
 
 - Add focused, reusable behavior as an intent-matched capability.
+- Package an explicitly authorized end-to-end outcome as a self-contained task
+  recipe that composes host-visible contracts.
 - Introduce orchestration only when work needs an explicit continuation and
   completion contract and the user invokes it explicitly.
 - Use the adaptive goal loop as the default orchestration helper for bounded

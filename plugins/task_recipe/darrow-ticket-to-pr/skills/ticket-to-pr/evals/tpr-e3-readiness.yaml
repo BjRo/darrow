@@ -1,0 +1,19 @@
+id: ticket-to-pr-e3-readiness
+invariant: TPR-E3,TPR-C3
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. TKT-301's
+  available readiness capability returned
+  needs-discovery with the complete result: missing acceptance behavior;
+  smallest next action: define the expected error response. Preserve it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: non-ready result prevents delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: readiness result is preserved
+    expect_regex: "outcome\\tstopped[\\s\\S]*needs-discovery[\\s\\S]*expected error response"

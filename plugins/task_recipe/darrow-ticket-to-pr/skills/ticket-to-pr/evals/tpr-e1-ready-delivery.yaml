@@ -1,0 +1,56 @@
+id: ticket-to-pr-e1-ready-delivery
+invariant: TPR-E1,TPR-C3,TPR-C4
+activation: positive
+expect_head_change: true
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. Use the
+  supplied authoritative ticket: TKT-101, “Document the
+  widget”, outcome: add `Widget ready.` below the README heading, acceptance:
+  `grep -Fx 'Widget ready.' README.md`; readiness capability verdict: ready
+  with that quality bar. Use the available native goal and mocked forge.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then exit 0; fi
+      if [ "${1-}" = pr ] && [ "${2-}" = create ]; then
+        printf '%s\n' "$*" >>.git/pr-calls
+        printf '%s\n' 'https://example.invalid/pr/101'
+        exit 0
+      fi
+      exit 2
+  setup: |
+    git init --bare .git/remote.git >/dev/null
+    git remote add origin "$PWD/.git/remote.git"
+checks:
+  - name: intended content exists
+    run: grep -Fx 'Widget ready.' README.md
+  - name: intended commit is ahead on a task branch
+    run: >-
+      test "$(git rev-list --count HEAD)" -eq 2 &&
+      test "$(git branch --show-current)" != main &&
+      test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = README.md
+  - name: non-force push publishes exact head
+    run: >-
+      branch=$(git branch --show-current) &&
+      remote=$(git --git-dir=.git/remote.git rev-parse "refs/heads/$branch") &&
+      test "$remote" = "$(git rev-parse HEAD)"
+  - name: exactly one proposal is created
+    run: >-
+      test "$(wc -l <.git/pr-calls | tr -d ' ')" -eq 1 &&
+      grep -E '(^| )--title(=| )[^ ]*(feat|fix|docs|refactor|test|build|ci|chore)' .git/pr-calls >/dev/null &&
+      grep -F 'TKT-101' .git/pr-calls >/dev/null &&
+      ! grep -E '(^| )--draft( |$)' .git/pr-calls
+  - name: published checkout is clean
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: created outcome identifies verified PR
+    expect_regex: "outcome\\tpr_created[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/101"
+  - name: native goal and current verification are evidenced
+    expect_regex: "verification\\t(?!unavailable)[^\\n]+[\\s\\S]*adaptive_goal\\t(?!unavailable)[^\\n]+"

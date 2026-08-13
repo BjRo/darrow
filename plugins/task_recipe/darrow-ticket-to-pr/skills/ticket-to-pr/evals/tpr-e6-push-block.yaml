@@ -1,0 +1,31 @@
+id: ticket-to-pr-e6-push-block
+invariant: TPR-E6,TPR-C10
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for ready TKT-602. The exact
+  current content is verified, but every non-force push fails externally.
+  Preserve the durable branch and commit; never force-push or bypass checks.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "base\n"
+  setup: |
+    git checkout -b feat/tkt-602 >/dev/null
+    printf '%s\n' done >app.txt
+    git add app.txt
+    git commit -m 'fix: satisfy TKT-602' >/dev/null
+    git init --bare .git/remote.git >/dev/null
+    git remote add origin "$PWD/.git/remote.git"
+    mkdir -p .git/remote.git/hooks
+    printf '%s\n' '#!/bin/sh' 'exit 1' >.git/remote.git/hooks/pre-receive
+    chmod +x .git/remote.git/hooks/pre-receive
+checks:
+  - name: durable commit remains on task branch without remote rewrite
+    run: >-
+      test "$(git branch --show-current)" = feat/tkt-602 &&
+      test "$(git log -1 --format=%s)" = 'fix: satisfy TKT-602' &&
+      test -z "$(git --git-dir=.git/remote.git for-each-ref --format='%(refname)' refs/heads)"
+output_checks:
+  - name: genuine push block preserves durable state
+    expect_regex: "outcome\\tblocked[\\s\\S]*branch\\tfeat/tkt-602[\\s\\S]*commits\\t(?!unavailable)[^\\n]+"

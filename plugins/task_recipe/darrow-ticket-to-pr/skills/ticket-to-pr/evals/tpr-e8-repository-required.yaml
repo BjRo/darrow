@@ -1,0 +1,19 @@
+id: ticket-to-pr-e8-repository-required
+invariant: TPR-E8,TPR-C9
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr for routine TKT-804. Repository
+  policy requires independent exact-content review for every pull request, but
+  no compatible reviewer is available.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "Every pull request requires independent exact-content review.\n"
+        app.txt: "base\n"
+checks:
+  - name: repository review policy prevents mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: required unavailable review blocks
+    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(unavailable|blocked)"

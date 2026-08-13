@@ -1,0 +1,19 @@
+id: ticket-to-pr-e2-authoritative-intake
+invariant: TPR-E2,TPR-C2
+activation: positive
+prompt: >-
+  /ticket-to-pr On Codex, invoke $ticket-to-pr. Deliver
+  TKT-201, but the supplied specification says the
+  opposite of the tracker summary. Neither source declares precedence.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: contradictory authority causes no mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: contradiction stops honestly
+    expect_regex: "outcome\\tstopped[\\s\\S]*(contradict|authority|precedence)"
+    flags: i
