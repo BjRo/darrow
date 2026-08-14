@@ -11,6 +11,7 @@ import { runChecks, runOutputChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
+import { captureProcess } from "./process";
 import {
   repositoryMutationMatches,
   repositoryMutationState,
@@ -143,11 +144,7 @@ async function repositoryHead(repoDir: string): Promise<string> {
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out: stdout, err: stderr, code } = await captureProcess(proc);
   if (code !== 0) throw new Error(`cannot read fixture HEAD: ${stderr.trim()}`);
   return stdout.trim();
 }
@@ -161,11 +158,7 @@ async function repositoryHasAncestor(
     ["git", "merge-base", "--is-ancestor", ancestor, descendant],
     { cwd: repoDir, stdout: "pipe", stderr: "pipe" },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out: stdout, err: stderr, code } = await captureProcess(proc);
   if (code === 0) return true;
   if (code === 1) return false;
   throw new Error(

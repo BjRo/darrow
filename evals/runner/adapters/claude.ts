@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
+import { captureProcess } from "../process";
 
 export interface ClaudeUsage {
   input_tokens?: number;
@@ -349,8 +350,7 @@ export const claudeAdapter: HarnessAdapter = {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const out = await new Response(proc.stdout).text();
-    await proc.exited;
+    const { out } = await captureProcess(proc);
     return out.trim();
   },
 
@@ -379,11 +379,7 @@ export const claudeAdapter: HarnessAdapter = {
         PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
       },
     });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const { out, err, code } = await captureProcess(proc);
     const durationMs = performance.now() - start;
     const outcome = await claudeOutcome(repoDir, out, code);
     const skillActivation = claudeSkillActivation(out);

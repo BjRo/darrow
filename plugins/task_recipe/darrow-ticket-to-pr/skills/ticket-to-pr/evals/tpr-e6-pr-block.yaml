@@ -4,10 +4,16 @@ prompt: >-
   {{entrypoint}} for ready TKT-603. The verified
   branch is already pushed, but PR creation fails externally. Preserve durable
   branch, commit, and remote state without a duplicate or unrelated mutation.
+  Use the repository-declared compatible forge contract.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible forge contract is the executable command `gh`,
+          available on PATH. Invoke it through the host shell facility.
         app.txt: "base\n"
   bin:
     gh: |

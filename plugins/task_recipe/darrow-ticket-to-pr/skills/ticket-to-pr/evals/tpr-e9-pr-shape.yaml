@@ -5,11 +5,17 @@ prompt: >-
   The ready, verified branch already has one correlated
   open review-ready PR. Confirm its deliberate base, Conventional Commit title,
   template body and ticket reference. Do not create, draft, label, assign,
-  merge, or update anything.
+  merge, or update anything. Inspect it through the repository-declared
+  compatible forge contract.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible forge inspection contract is the executable command
+          `gh`, available on PATH. Invoke it through the host shell facility.
         app.txt: "base\n"
   bin:
     gh: |

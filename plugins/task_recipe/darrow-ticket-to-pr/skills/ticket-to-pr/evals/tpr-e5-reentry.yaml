@@ -4,11 +4,17 @@ prompt: >-
   {{entrypoint}} for TKT-501.
   Re-enter delivery: an open correlated PR already
   exists, but its recorded verification predates the current head. Reconstruct
-  durable state, do not duplicate the proposal, and require current evidence.
+  durable state through the repository-declared compatible forge contract, do
+  not duplicate the proposal, and require current evidence.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible forge inspection contract is the executable command
+          `gh`, available on PATH. Invoke it through the host shell facility.
         app.txt: "base\n"
   bin:
     gh: |

@@ -11,6 +11,7 @@ import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import type { GoalRoute, HarnessAdapter, HarnessResult } from "../types";
 import { isolatedHarnessEnvironment } from "../environment";
 import { sandboxedAgentCommand } from "../sandbox";
+import { captureProcess as capturePipedProcess } from "../process";
 
 interface CatalogRoute {
   model: string;
@@ -1050,12 +1051,8 @@ async function captureProcess(
   cwd: string,
 ): Promise<CapturedProcess> {
   const proc = Bun.spawn(argv, { cwd, stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-  return { stdout, stderr, code };
+  const { out, err, code } = await capturePipedProcess(proc);
+  return { stdout: out, stderr: err, code };
 }
 
 export interface MaterializedGoalObjective {
@@ -1843,8 +1840,7 @@ export const codexGoalAdapter: HarnessAdapter = {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const out = await new Response(proc.stdout).text();
-    await proc.exited;
+    const { out } = await capturePipedProcess(proc);
     return out.trim();
   },
 

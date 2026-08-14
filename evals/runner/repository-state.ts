@@ -1,3 +1,5 @@
+import { captureProcess } from "./process";
+
 async function gitOutput(
   repoDir: string,
   args: string[],
@@ -8,11 +10,7 @@ async function gitOutput(
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [output, error, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out: output, err: error, code } = await captureProcess(proc);
   if (!acceptedCodes.includes(code)) {
     throw new Error(`cannot inspect fixture repository: ${error.trim()}`);
   }

@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { captureProcess } from "./process";
 
 interface CorpusSourceRecord {
   repository: string;
@@ -39,11 +40,7 @@ async function git(cwd: string, ...args: string[]): Promise<string> {
       GIT_CONFIG_SYSTEM: "/dev/null",
     },
   });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out: stdout, err: stderr, code } = await captureProcess(proc);
   if (code !== 0)
     throw new Error(`git ${args.join(" ")} failed: ${stderr.trim()}`);
   return stdout.trim();

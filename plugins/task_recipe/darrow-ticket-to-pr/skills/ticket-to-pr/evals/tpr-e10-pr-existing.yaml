@@ -1,14 +1,26 @@
 id: ticket-to-pr-e10-pr-existing
 invariant: TPR-E10,TPR-C11
 prompt: >-
-  {{entrypoint}} for TKT-1011. Reconstruct the
-  terminal result: the existing correlated verified proposal at
-  https://example.invalid/pr/1011 is durable. Report exactly one complete
-  host-neutral record and use unavailable for facts not established.
+  {{entrypoint}}. Reconstruct this durable terminal result for the supplied
+  authoritative ticket TKT-1011: outcome, change app.txt from unchanged to
+  complete; acceptance, `grep -Fx complete app.txt`; readiness verdict, ready
+  with that quality bar; current-content verification passed; the adaptive
+  native goal completed; and the existing correlated verified proposal is
+  https://example.invalid/pr/1011. The preserved historical terminal outcome
+  is `pr_existing`. Preserve the supplied durable goal completion evidence even
+  though this turn did not witness the earlier goal. Report exactly one
+  complete host-neutral record in the recipe's tab-separated shape, not
+  Markdown fields, and use unavailable for facts not established. Inspect the
+  proposal through the repository-declared compatible forge contract.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible forge inspection contract is the executable command
+          `gh`, available on PATH. Invoke it through the host shell facility.
         app.txt: "unchanged\\n"
   bin:
     gh: |
@@ -41,4 +53,4 @@ output_checks:
     count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
     expect_count: 17
   - name: pr_existing carries every terminal field
-    expect_regex: "ticket\\tTKT-1011[\\s\\S]*repository\\t[^\\n]+[\\s\\S]*outcome\\tpr_existing[\\s\\S]*reason\\t[^\\n]+[\\s\\S]*readiness\\t[^\\n]+[\\s\\S]*branch\\tfeat/tkt-1011[\\s\\S]*base\\t[^\\n]+[\\s\\S]*commits\\t(?!unavailable)[^\\n]+[\\s\\S]*remote_branch\\tfeat/tkt-1011[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/1011[\\s\\S]*verification\\t(?!unavailable)[^\\n]+[\\s\\S]*independent_review\\t[^\\n]+[\\s\\S]*local_work\\t[^\\n]+[\\s\\S]*adaptive_goal\\t[^\\n]+[\\s\\S]*telemetry_status\\t(emitted|degraded|failed)[\\s\\S]*telemetry_evidence\\t[^\\n]+"
+    expect_regex: "^ticket\\tTKT-1011\\nrepository\\t[^\\n]+\\noutcome\\tpr_existing\\nreason\\t[^\\n]+\\nreadiness\\t[^\\n]+\\nbranch\\tfeat/tkt-1011\\nbase\\t[^\\n]+\\ncommits\\t(?!unavailable)[^\\n]+\\nremote_branch\\t[^\\n]*feat/tkt-1011[^\\n]*\\npull_request_url\\thttps://example.invalid/pr/1011\\nverification\\t(?!unavailable)[^\\n]+\\nindependent_review\\t[^\\n]+\\nlocal_work\\t[^\\n]+\\nadaptive_goal\\t[^\\n]+\\ntelemetry_status\\t(emitted|degraded|failed)\\ntelemetry_evidence\\t[^\\n]+$"

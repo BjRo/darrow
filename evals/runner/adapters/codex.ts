@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
+import { captureProcess } from "../process";
 
 interface CodexUsage {
   input_tokens?: number;
@@ -425,11 +426,7 @@ async function runCodexPluginCommand(
   env: Record<string, string>,
 ): Promise<string> {
   const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", env });
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out, err, code } = await captureProcess(proc);
   if (code !== 0)
     throw new Error(`Codex eval plugin setup failed (${code}): ${err.trim()}`);
   return out;
@@ -524,11 +521,7 @@ async function executeCodex(
       PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
     },
   });
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out, err, code } = await captureProcess(proc);
   return {
     canonicalRepoDir,
     installedSkillsRoot,
@@ -558,8 +551,7 @@ export const codexAdapter: HarnessAdapter = {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const out = await new Response(proc.stdout).text();
-    await proc.exited;
+    const { out } = await captureProcess(proc);
     return out.trim();
   },
 

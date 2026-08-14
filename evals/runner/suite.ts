@@ -11,6 +11,7 @@ import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
 import { hasGatingCellFailure } from "./suite-policy";
+import { captureProcess } from "./process";
 
 interface ModeConfig {
   /** Defaults to true. False keeps the mode as comparative evidence only. */
@@ -59,11 +60,7 @@ async function git(args: string[], acceptedExitCodes = [0]): Promise<string> {
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out: stdout, err: stderr, code } = await captureProcess(proc);
   if (!acceptedExitCodes.includes(code))
     throw new Error(`git ${args.join(" ")} failed: ${stderr}`);
   return stdout;

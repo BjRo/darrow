@@ -4,11 +4,17 @@ prompt: >-
   {{entrypoint}} for ready TKT-605. The first
   non-force push fails transiently, the next is accepted. Persist safely,
   publish the verified exact head once, and never force-push or use a fixed
-  retry count.
+  retry count. Use the repository-declared compatible Git and forge contracts.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible Git and forge contracts are the executable commands
+          `git` and `gh`, available on PATH. Invoke them through the host shell
+          facility so the fixture can model transient recovery.
         app.txt: "base\n"
   bin:
     git: |

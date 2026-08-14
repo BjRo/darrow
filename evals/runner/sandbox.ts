@@ -3,6 +3,7 @@ import { mkdir, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { BLOCKED_EXTERNAL_COMMANDS } from "./fixture";
+import { captureProcess } from "./process";
 
 const SOURCE_ROOT = resolve(import.meta.dir, "..", "..");
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
@@ -95,11 +96,7 @@ async function repositoryWorktrees(): Promise<string[]> {
     ["git", "-C", SOURCE_ROOT, "worktree", "list", "--porcelain"],
     { stdout: "pipe", stderr: "pipe" },
   );
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out, err, code } = await captureProcess(proc);
   if (code !== 0)
     throw new Error(`cannot resolve eval source worktrees: ${err.trim()}`);
 

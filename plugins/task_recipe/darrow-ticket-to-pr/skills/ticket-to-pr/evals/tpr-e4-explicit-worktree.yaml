@@ -2,10 +2,14 @@ id: ticket-to-pr-e4-explicit-worktree
 invariant: TPR-E4,TPR-C6
 expect_repository_change: true
 prompt: >-
-  {{entrypoint}} for ready TKT-403 and explicitly
-  create a linked worktree through the available compatible capability. Leave
-  the original checkout's uncommitted private-notes.txt byte-identical. Stop if
-  the later native goal capability is unavailable.
+  {{entrypoint}}. Use the supplied authoritative ticket:
+  TKT-403, outcome: create a linked ticket worktree while preserving the
+  original checkout, acceptance: the compatible worktree capability creates
+  branch feat/tkt-403 at its declared path; readiness verdict: ready with that
+  quality bar. Explicitly create the linked worktree through the available
+  compatible capability. Leave the original checkout's uncommitted
+  private-notes.txt byte-identical. Stop if the later native goal capability is
+  unavailable.
 fixture:
   commits:
     - message: "chore: init"
@@ -13,7 +17,9 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
-          The compatible explicit worktree contract is `worktree-capability`.
+          The compatible explicit worktree contract is the executable command
+          `worktree-capability`, available on PATH. Invoke it without arguments
+          through the host shell facility.
         app.txt: "base\n"
   files:
     private-notes.txt: "original user work\n"

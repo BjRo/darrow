@@ -35,6 +35,37 @@ afterEach(async () => {
 });
 
 describe("ticket-to-PR evaluation fixtures", () => {
+  test("counts one PR creation independently of multiline arguments", async () => {
+    const evalCase = await loadCase("tpr-e1-ready-delivery.yaml");
+    const repoDir = await buildFixture({
+      fixture: evalCase.fixture,
+      skillDir: "",
+      skillMounts: [],
+    });
+    fixtures.push(repoDir);
+    const proc = Bun.spawn(
+      [
+        join(repoDir, ".git", "fixture-bin", "gh"),
+        "pr",
+        "create",
+        "--title",
+        "docs: document widget readiness",
+        "--body",
+        "TKT-101\n\nWhy this exists.\nWhat changed.",
+      ],
+      { cwd: repoDir, stdout: "ignore", stderr: "pipe" },
+    );
+    const error = await new Response(proc.stderr).text();
+    expect(await proc.exited, error).toBe(0);
+    const proposalCheck = evalCase.checks.find(
+      (check) => check.name === "exactly one proposal is created",
+    );
+    expect(proposalCheck).toBeDefined();
+    expect(await runChecks(repoDir, [proposalCheck!])).toEqual([
+      expect.objectContaining({ passed: true }),
+    ]);
+  });
+
   test("retains every telemetry emission so duplicates and earlier secrets fail", async () => {
     for (const name of ["tpr-e11-telemetry.yaml", "tpr-e12-privacy.yaml"]) {
       const evalCase = await loadCase(name);
@@ -80,5 +111,52 @@ describe("ticket-to-PR evaluation fixtures", () => {
     expect(
       await runOutputChecks(fields, [cardinality], evalCase.skillDir),
     ).toEqual([expect.objectContaining({ passed: false })]);
+  });
+
+  test("rejects a malformed terminal record without regex backtracking", async () => {
+    const evalCase = await loadCase("tpr-e10-stopped.yaml");
+    const fields = [
+      "format\tdarrow-ticket-to-pr-result-v1",
+      "ticket\tTKT-1012",
+      "repository\tunavailable",
+      "outcome\tstopped",
+      "reason\treadiness needs a decision",
+      "readiness\tneeds-decision",
+      "branch\tunavailable",
+      "base\tunavailable",
+      "commits\tunavailable",
+      "remote_branch\tunavailable",
+      "pull_request_url\tunavailable",
+      "verification\tunavailable",
+      "independent_review\tunavailable",
+      "local_work\tunavailable",
+      "adaptive_goal\tunavailable",
+      "telemetry_status\tunavailable",
+      "telemetry_evidence\tunavailable",
+    ].join("\n");
+    const started = performance.now();
+    const rejected = await runOutputChecks(
+      fields,
+      evalCase.output_checks!,
+      evalCase.skillDir,
+    );
+    const durationMs = performance.now() - started;
+    const accepted = await runOutputChecks(
+      fields.replace(
+        "telemetry_status\tunavailable",
+        "telemetry_status\tdegraded",
+      ),
+      evalCase.output_checks!,
+      evalCase.skillDir,
+    );
+
+    expect(durationMs).toBeLessThan(250);
+    expect(rejected).toContainEqual(
+      expect.objectContaining({
+        name: "stopped carries every terminal field",
+        passed: false,
+      }),
+    );
+    expect(accepted.every((result) => result.passed)).toBe(true);
   });
 });

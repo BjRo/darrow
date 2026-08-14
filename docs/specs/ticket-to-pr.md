@@ -85,6 +85,20 @@ Before product, repository, or publication mutation, the recipe:
 5. confirms the invocation's exact authority; and
 6. invokes an available implementation-readiness capability.
 
+Applicable repository instructions may identify an exact compatible
+environment capability and its invocation contract. Such a declaration is
+capability-availability evidence: the recipe uses that declared contract for
+the matching effect rather than substituting a generic host facility, a
+similarly named tool, or a direct Git or shell implementation. If the declared
+contract is unreadable, incomplete, or cannot be invoked as specified, the
+recipe reports that exact capability or input gap and stops at the applicable
+boundary. Cross-host discovery reads present `AGENTS.md` and `CLAUDE.md`
+entrypoints rather than relying only on whichever instruction format the
+current host loads automatically. A declared command contract is invoked as a
+command through the host's shell facility and does not also need to appear in
+the host's tool or plugin catalog; running that declared command is capability
+invocation, not an unauthorized direct implementation of its effect.
+
 Only a `ready` readiness verdict permits delivery mutation. Every other verdict
 terminates the recipe before delivery mutation and preserves the complete
 readiness result and smallest next action. The recipe does not turn a non-ready
@@ -329,8 +343,10 @@ specification.
    provider is installed.
 2. **TPR-P2 — Intent composition.** Ticket access, readiness, adaptive native-
    goal execution, review, Git, and telemetry are requested through host-visible
-   compatible intent or public contracts. Missing required delivery capability
-   stops honestly; missing telemetry degrades honestly.
+   compatible intent or public contracts. Exact compatible contracts declared
+   by applicable repository instructions are used without substitution.
+   Missing required delivery capability stops honestly; missing telemetry
+   degrades honestly.
 3. **TPR-P3 — Dual-host packaging.** Claude Code and Codex manifests expose the
    same skill semantics, and the Codex manifest points at `./skills/`.
 4. **TPR-P4 — Portable mechanics.** Any plugin-shipped executable mechanics use

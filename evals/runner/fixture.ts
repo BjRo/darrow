@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { Fixture, SkillActivationObservation } from "./types";
+import { captureProcess } from "./process";
 
 export const BLOCKED_EXTERNAL_COMMANDS = ["gh", "glab", "hub", "tea"] as const;
 const ACTIVATION_LOG = join(".git", "darrow-eval", "skill-activation.tsv");
@@ -76,11 +77,7 @@ async function git(repoDir: string, ...args: string[]): Promise<string> {
       GIT_CONFIG_SYSTEM: "/dev/null",
     },
   });
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out, err, code } = await captureProcess(proc);
   if (code !== 0)
     throw new Error(`git ${args.join(" ")} failed (${code}): ${err}`);
   return out;
@@ -199,10 +196,7 @@ async function runFixtureSetup(
       DARROW_EVAL_CASE_DIR: caseDir,
     },
   });
-  const [err, code] = await Promise.all([
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { err, code } = await captureProcess(proc);
   if (code !== 0) throw new Error(`fixture setup failed (${code}): ${err}`);
 }
 
@@ -566,13 +560,10 @@ export async function destroyFixture(repoDir: string): Promise<void> {
   let removalError: unknown;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const writable = Bun.spawn(["chmod", "-R", "u+rwX", repoDir], {
-      stdout: "ignore",
+      stdout: "pipe",
       stderr: "pipe",
     });
-    const [stderr, code] = await Promise.all([
-      new Response(writable.stderr).text(),
-      writable.exited,
-    ]);
+    const { err: stderr, code } = await captureProcess(writable);
     if (code !== 0 && existsSync(repoDir)) {
       throw new Error(`cannot make eval fixture removable: ${stderr.trim()}`);
     }

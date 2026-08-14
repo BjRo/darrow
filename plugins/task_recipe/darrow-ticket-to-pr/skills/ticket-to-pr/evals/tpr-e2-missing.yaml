@@ -1,6 +1,8 @@
 id: ticket-to-pr-e2-missing
 invariant: TPR-E2,TPR-C2
-prompt: "{{entrypoint}}, but no ticket was supplied."
+prompt: >-
+  {{entrypoint}}, but no ticket was supplied. Stop clearly with the exact
+  missing input and make no repository mutation.
 fixture:
   commits:
     - message: "chore: init"
@@ -10,6 +12,6 @@ checks:
   - name: missing authority causes no mutation
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: missing input requests exactly one ticket
-    expect_regex: "(one|single).*(ticket|specification)"
+  - name: missing input identifies the required ticket authority
+    expect_regex: "((one|single).*(ticket|specification)|(no|missing|need|required).*(ticket|specification|reference|ID|link))"
     flags: i

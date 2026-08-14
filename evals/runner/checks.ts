@@ -2,6 +2,7 @@ import type { Check, CheckResult, OutputCheck } from "./types";
 import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { validateExternalSchema } from "./schema";
+import { captureProcess } from "./process";
 
 function jsonPointer(value: unknown, pointer: string): unknown {
   if (pointer === "") return value;
@@ -258,11 +259,7 @@ async function runCommand(
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out, err, code } = await captureProcess(proc);
   return { out, err, code };
 }
 

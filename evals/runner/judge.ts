@@ -15,6 +15,7 @@ import type {
   JudgeResult,
 } from "./types";
 import { destroyFixture } from "./fixture";
+import { captureProcess } from "./process";
 
 function score(value: unknown, label: string): number {
   if (
@@ -100,11 +101,7 @@ async function git(
     proc.stdin.write(stdin);
     proc.stdin.end();
   }
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const { out: stdout, err: stderr, code } = await captureProcess(proc);
   if (code !== 0)
     throw new Error(`judge fixture git ${args.join(" ")} failed: ${stderr}`);
   return stdout;

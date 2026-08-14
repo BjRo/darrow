@@ -11,6 +11,16 @@ fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          The compatible adaptive native-goal contract is the host's native
+          goal-owner boundary. When the host exposes a native Agent capability,
+          delegate to one such owner; when this invocation is already the native
+          goal owner, continue in the current boundary.
+
+          The compatible forge contract is the executable command `gh`,
+          available on PATH. Invoke it through the host shell facility.
         README.md: "# Fixture\n"
   bin:
     gh: |
@@ -18,6 +28,7 @@ fixture:
       set -eu
       if [ "${1-}" = pr ] && [ "${2-}" = list ]; then exit 0; fi
       if [ "${1-}" = pr ] && [ "${2-}" = create ]; then
+        printf '%s\n' create >>.git/pr-call-count
         printf '%s\n' "$*" >>.git/pr-calls
         printf '%s\n' 'https://example.invalid/pr/101'
         exit 0
@@ -41,10 +52,11 @@ checks:
       test "$remote" = "$(git rev-parse HEAD)"
   - name: exactly one proposal is created
     run: >-
-      test "$(wc -l <.git/pr-calls | tr -d ' ')" -eq 1 &&
+      { test "$(wc -l <.git/pr-call-count | tr -d ' ')" -eq 1 &&
       grep -E '(^| )--title(=| )[^ ]*(feat|fix|docs|refactor|test|build|ci|chore)' .git/pr-calls >/dev/null &&
       grep -F 'TKT-101' .git/pr-calls >/dev/null &&
-      ! grep -E '(^| )--draft( |$)' .git/pr-calls
+      ! grep -E '(^| )--draft( |$)' .git/pr-calls; } ||
+      { printf '%s\n' 'mocked gh invocation:' >&2; cat .git/pr-calls >&2; exit 1; }
   - name: published checkout is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""

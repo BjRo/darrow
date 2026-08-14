@@ -34,8 +34,29 @@ discovery or cloning, or an implicit worktree. Do not expand authority during
 recovery. Create a linked worktree only when the invocation explicitly requests
 one and a compatible environment capability supports it.
 
+When applicable repository instructions identify an exact compatible
+capability and invocation contract, treat that declaration as capability-
+availability evidence and use it exactly for the matching effect. Do not ignore
+it because a similarly purposed host facility also exists, and do not substitute
+a generic tool, direct shell command, or raw Git operation. If the declaration
+is unreadable, incomplete, or cannot be invoked as specified, report the exact
+missing capability or input and stop at the applicable boundary.
+
+Before capability discovery, inspect both `AGENTS.md` and `CLAUDE.md` when
+present; do not rely only on the instruction format the current host loads
+automatically. An exact worktree contract declared there is the compatible
+worktree capability for that request. Invoke it before considering a generic
+host worktree facility. When the declared contract is a command, invoke that
+command through the host's shell facility; it need not also appear in tool or
+plugin discovery, and running it is use of the declared capability rather than
+directly implementing the effect with raw Git or shell steps of your own.
+
 Require exactly one ticket input. If it is absent, ask for one stable reference
-or one authoritative supplied specification and do nothing else. Stop before
+or one authoritative supplied specification, identify that exact missing input,
+say explicitly that exactly one ticket or specification is required, and do
+nothing else. Begin the response with this stable statement:
+`Missing input: exactly one ticket reference or one authoritative supplied
+specification is required.` Stop before
 delivery mutation if activation is not explicit, more than one request is in
 scope, or required authority is missing.
 
@@ -46,10 +67,12 @@ mutation. OpenTelemetry observation may start here, but it is operational
 evidence and grants no delivery authority.
 
 1. Resolve the current repository; never search for or clone another one.
-2. Resolve the ticket through an available host-visible ticket-read intent, or
-   use authoritative content supplied directly in the conversation or an
-   identified specification. Do not assume a provider, command, sibling
-   plugin, or file outside this plugin.
+2. Resolve the ticket through an available host-visible ticket-read intent or
+   an exact compatible read contract declared by applicable repository
+   instructions, or use authoritative content supplied directly in the
+   conversation or an identified specification. Invoke a declared contract as
+   specified; do not assume an undeclared provider, command, sibling plugin, or
+   file outside this plugin.
 3. Establish exactly one non-contradictory authoritative request: stable
    identifier when available, outcome, description, observable acceptance
    criteria, and canonical link when available. Do not invent precedence or
@@ -173,6 +196,12 @@ repository template. Explain why the change exists and what the committed
 branch does, reference the ticket when known, and default to ready-for-review.
 Do not merge or perform any unrequested forge mutation.
 
+Before invoking proposal creation, validate the exact outgoing arguments: the
+title begins with an allowed Conventional Commit type followed by `:`, the
+title or body contains the stable ticket identifier verbatim when one exists,
+and no draft argument is present unless the invocation requested a draft. Fix
+the proposed title or body before the single creation call when any check fails.
+
 For a recoverable hook, push, or PR-creation failure, make the smallest
 ticket-authorized correction, rerun invalidated evidence, and continue while
 the goal can make meaningful progress. Never bypass hooks, force-push, broaden
@@ -235,4 +264,11 @@ telemetry_evidence\t<safe correlation evidence or unavailable>
 
 Use exactly one delivery outcome: `pr_created`, `pr_existing`, `stopped`,
 `blocked`, or `interrupted`. Successful outcomes require exact-current-content
-evidence. The terminal record itself must not leak telemetry-forbidden content.
+evidence. Before returning any outcome, validate that all 17 named fields above
+appear exactly once and in the shown order, using `unavailable` only where the
+run did not establish a value. For `pr_created` or `pr_existing`, additionally
+validate that `verification` names the current-content checks and is not
+`unavailable`, and `adaptive_goal` identifies the one goal owner plus its
+completion and is not `unavailable`. Do not return the record until this
+record-level gate passes. The terminal record itself must not leak telemetry-
+forbidden content.

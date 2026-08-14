@@ -1,5 +1,6 @@
 import { chmod, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { captureProcess } from "./process";
 
 type Harness = "claude" | "codex";
 
@@ -47,10 +48,7 @@ async function keychainClaudeCredential(): Promise<string | null> {
     "-w",
   ];
   const proc = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe" });
-  const [credential, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    proc.exited,
-  ]);
+  const { out: credential, code } = await captureProcess(proc);
   if (code !== 0 || !credential.trim()) return null;
   return credential;
 }
