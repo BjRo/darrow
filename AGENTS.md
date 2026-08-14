@@ -78,4 +78,6 @@ Review agents must not run Git or GitHub commands against this repository.
 - Marketplace: `.claude-plugin/marketplace.json`.
 - Every plugin has `.claude-plugin/plugin.json` and
   `.codex-plugin/plugin.json`; the Codex manifest points at `./skills/`.
+- Whenever a plugin changes, increment its semantic version in both manifests
+  and keep the versions identical.
 - Keep each plugin independently installable and self-contained.
