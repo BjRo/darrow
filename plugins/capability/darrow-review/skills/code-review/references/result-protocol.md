@@ -4,9 +4,10 @@ Use this protocol for both completed reviews and terminal scope failures.
 
 ## Canonical artifact and output envelope
 
-Write and validate every result as `darrow-review-result-v1` TSV beneath the
-scope artifact directory. It is the canonical mechanical artifact and every
-field is one line without tabs. Do not place it elsewhere.
+Write and validate every result as `darrow-review-result-v1` TSV at the fixed
+`result.tsv` path directly beneath the scope artifact directory. It is the
+canonical mechanical artifact and every field is one line without tabs. Do not
+select an arbitrary TSV: `scope.tsv` and axis records are not aggregate results.
 
 Default standalone and composed responses are a Markdown rendering of that
 validated artifact. Use `bash "$report_tool" render "$result_record"`; it

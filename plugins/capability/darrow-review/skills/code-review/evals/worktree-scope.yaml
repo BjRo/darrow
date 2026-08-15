@@ -27,7 +27,7 @@ checks:
     run: test "$(git rev-list --all --reflog --count)" -eq 2
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name '*.tsv' -type f | sed -n '1p');
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" && if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
       else tool=.claude/bin/review-result; fi; && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
