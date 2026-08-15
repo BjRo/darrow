@@ -1,5 +1,5 @@
 id: ticket-to-pr-activation-natural
-invariant: TPR-C1,TPR-C14
+invariant: TPR-C1,TPR-C12
 activation: negative
 prompt: >-
   Use the installed ticket-to-PR task recipe for issue TKT-42 in this
@@ -14,4 +14,4 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: natural language alone does not claim activation
-    not_regex: "format\\tdarrow-ticket-to-pr-result-v1"
+    not_regex: "\\b(pr_created|pr_existing|stopped|blocked|interrupted)\\b"

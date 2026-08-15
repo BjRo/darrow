@@ -3,9 +3,9 @@
 The suites keep three evidence questions separate:
 
 - `activation-suite.yaml` measures explicit selection boundaries only;
-- `candidate-suite.yaml` runs every TPR-E1–TPR-E13 behavior variant with the
+- `candidate-suite.yaml` runs every TPR-E1–TPR-E11 behavior variant with the
   candidate recipe; and
-- `suite.yaml` compares one designated representative for each TPR-E1–TPR-E13
+- `suite.yaml` compares one designated representative for each TPR-E1–TPR-E11
   group across the candidate, raw adaptive-goal, and ticket-pipeline modes.
   Only the candidate cells are gating in the comparative suite. The two baselines
   are marked `gating: false`, so a baseline contract failure stays visible in the

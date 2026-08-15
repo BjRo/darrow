@@ -1,14 +1,26 @@
 id: ticket-to-pr-e6-recovery
 invariant: TPR-E6,TPR-C10
+expect_repository_change: true
 prompt: >-
-  {{entrypoint}} for TKT-601.
-  A commit hook fails for an intended-file formatting
-  error that is within ticket scope. Recover safely; never bypass the hook or
-  use a fixed retry count. If recovery cannot converge, report durable state.
+  {{entrypoint}}. Use the supplied authoritative ticket TKT-601:
+  outcome: replace app.txt with the exact line `formatted`; acceptance:
+  `grep -Fx 'formatted' app.txt`. A commit hook fails for this intended-file
+  formatting change. Recover
+  safely; never bypass the hook or use a fixed retry count. If recovery cannot
+  converge, report durable state.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          For this headless fixture, the current invocation is the compatible
+          native goal-owner boundary. Continue in this boundary and do not
+          delegate to another checkout.
+
+          The compatible branch contract is the executable command
+          `git switch -c BRANCH main`; preserve the `main` ref.
         app.txt: "base\n"
   hooks:
     pre-commit: |
@@ -17,7 +29,15 @@ fixture:
 checks:
   - name: failing hook is not bypassed
     run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: only the ticket branch and intended staged file are preserved
+    run: >-
+      test "$(git branch --show-current)" != main &&
+      test "$(git rev-parse HEAD)" = "$(git rev-parse main)" &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 2 &&
+      test "$(git diff --cached --name-only)" = app.txt &&
+      test -z "$(git diff --name-only)" &&
+      test -z "$(git ls-files --others --exclude-standard)"
 output_checks:
   - name: terminal evidence preserves durable state
-    expect_regex: "outcome\\t(blocked|interrupted)[\\s\\S]*commit"
+    expect_regex: "\\b(blocked|interrupted)\\b[\\s\\S]*commit"
     flags: i

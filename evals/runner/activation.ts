@@ -103,9 +103,17 @@ export function selectActivationObservation(
   harness: SkillActivationObservation | undefined,
   probe: SkillActivationObservation,
 ): SkillActivationObservation {
-  return harness && observationRank(harness) >= observationRank(probe)
-    ? harness
-    : probe;
+  const selected =
+    harness && observationRank(harness) >= observationRank(probe)
+      ? harness
+      : probe;
+  if (!harness?.complete || !probe.complete) return selected;
+  return {
+    ...selected,
+    observedSkills: [
+      ...new Set([...harness.observedSkills, ...probe.observedSkills]),
+    ],
+  };
 }
 
 export function activationPassRate(

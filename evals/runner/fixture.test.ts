@@ -302,6 +302,78 @@ describe("eval fixture skill mounts", () => {
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });
 
+  test("mounts an independently packaged capability with its plugin mechanics", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-composition-"));
+    cleanup.push(root);
+    const primaryPlugin = join(root, "plugins", "recipe");
+    const capabilityPlugin = join(root, "plugins", "goal-loop");
+    const primary = join(primaryPlugin, "skills", "ticket-to-pr");
+    const capability = join(capabilityPlugin, "skills", "adaptive-goal");
+    await mkdir(primary, { recursive: true });
+    await mkdir(capability, { recursive: true });
+    await mkdir(join(primaryPlugin, ".claude-plugin"), { recursive: true });
+    await mkdir(join(primaryPlugin, ".codex-plugin"), { recursive: true });
+    await mkdir(join(capabilityPlugin, "bin"), { recursive: true });
+    await mkdir(join(capabilityPlugin, "agents"), { recursive: true });
+    await writeFile(
+      join(primary, "SKILL.md"),
+      "---\nname: ticket-to-pr\ndescription: Recipe\n---\n",
+    );
+    await writeFile(
+      join(capability, "SKILL.md"),
+      "---\nname: adaptive-goal\ndescription: Goal\n---\n",
+    );
+    await writeFile(
+      join(primaryPlugin, ".claude-plugin", "plugin.json"),
+      '{"name":"recipe","version":"0.1.0","description":"Recipe"}\n',
+    );
+    await writeFile(
+      join(primaryPlugin, ".codex-plugin", "plugin.json"),
+      '{"name":"recipe","version":"0.1.0","description":"Recipe","skills":"./skills/"}\n',
+    );
+    await writeFile(join(capabilityPlugin, "bin", "goal-loop"), "#!/bin/sh\n");
+    await writeFile(join(capabilityPlugin, "agents", "worker.md"), "worker\n");
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: primary,
+      additionalSkillDirs: [capability],
+      skillMounts: [".agents/skills"],
+      sourceClaudePlugin: true,
+      sourceCodexPlugin: true,
+    });
+    cleanup.push(fixture);
+    for (const skillRoot of [
+      ".agents/skills",
+      ".git/eval-plugin/skills",
+      ".git/eval-marketplace/plugin/skills",
+    ]) {
+      expect(
+        existsSync(join(fixture, skillRoot, "adaptive-goal", "SKILL.md")),
+      ).toBe(true);
+      expect(
+        existsSync(join(fixture, skillRoot, "..", "bin", "goal-loop")),
+      ).toBe(true);
+    }
+    expect(
+      existsSync(join(fixture, ".git", "eval-plugin", "agents", "worker.md")),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-marketplace",
+          "plugin",
+          "agents",
+          "worker.md",
+        ),
+      ),
+    ).toBe(true);
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
   test("commits case scaffolding and provisions a local ticket", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-case-"));
     cleanup.push(root);

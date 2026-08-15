@@ -1,17 +1,25 @@
 id: ticket-to-pr-e6-recoverable-pr
 invariant: TPR-E6,TPR-C10
 prompt: >-
-  {{entrypoint}} for ready TKT-606. The verified
-  exact head is already pushed. The first PR-create call fails transiently and
-  the next succeeds. Persist without duplicating the proposal, bypassing
-  checks, broadening scope, or using a fixed retry count. Use the repository-
-  declared compatible forge contract.
+  {{entrypoint}}. Continue this durable re-entry for the supplied authoritative
+  ticket TKT-606: outcome, change app.txt from `base` to `done`; acceptance,
+  `grep -Fx done app.txt`; current-content verification passed on the exact
+  already-pushed correlated
+  head. The first PR-create call fails transiently without creating a proposal.
+  Prove correlated proposal absence through the declared read-only forge
+  inspection before the next call succeeds. Persist without duplicating the
+  proposal, bypassing checks, broadening scope, or using a fixed retry count.
+  Use the repository-declared compatible native-goal and forge contracts.
 fixture:
   commits:
     - message: "chore: init"
       files:
         AGENTS.md: |
           # Fixture instructions
+
+          For this headless fixture, the current invocation is the compatible
+          native goal-owner boundary. Continue in this boundary and do not
+          delegate publication to another checkout.
 
           The compatible forge contract is the executable command `gh`,
           available on PATH. Invoke it through the host shell facility.
@@ -20,8 +28,13 @@ fixture:
     gh: |
       #!/usr/bin/env bash
       set -eu
-      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then exit 0; fi
+      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then
+        printf '%s\n' list >>.git/pr-events
+        exit 0
+      fi
       if [ "${1-}" = pr ] && [ "${2-}" = create ]; then
+        printf '%s\n' create >>.git/pr-events
+        printf '%s\n' attempt >>.git/pr-attempt-count
         printf '%s\n' "$*" >>.git/pr-attempts
         if [ ! -e .git/first-pr-failed ]; then
           : >.git/first-pr-failed
@@ -41,10 +54,16 @@ fixture:
     git push -u origin feat/tkt-606 >/dev/null
 checks:
   - name: transient PR failure converges to one durable proposal
-    run: test "$(wc -l <.git/pr-attempts | tr -d ' ')" -eq 2
+    run: >-
+      test "$(wc -l <.git/pr-attempt-count | tr -d ' ')" -eq 2 &&
+      awk '
+        $0 == "create" { creates += 1; next }
+        $0 == "list" && creates == 1 { inspected = 1 }
+        END { exit !(creates == 2 && inspected == 1) }
+      ' .git/pr-events
   - name: local and remote exact heads remain identical
     run: >-
       test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse refs/heads/feat/tkt-606)"
 output_checks:
   - name: recovered PR publication reports exact URL
-    expect_regex: "outcome\\tpr_created[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/606"
+    expect_regex: "\\bpr_created\\b[\\s\\S]*https://example.invalid/pr/606"

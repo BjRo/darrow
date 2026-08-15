@@ -1,9 +1,9 @@
 id: ticket-to-pr-e10-stopped
 invariant: TPR-E10,TPR-C11
 prompt: >-
-  {{entrypoint}} for TKT-1012. Reconstruct the
-  terminal result: readiness needs-decision stopped delivery. Report exactly one complete host-neutral record
-  and use unavailable for facts not established.
+  {{entrypoint}} for TKT-1012. Reconstruct the terminal result: adaptive-goal
+  preflight selected decision-gated because retry behavior is unspecified.
+  Report the stopped outcome, reason, and smallest useful next action concisely.
 fixture:
   commits:
     - message: "chore: init"
@@ -11,12 +11,7 @@ fixture:
         app.txt: "unchanged\\n"
 checks: []
 output_checks:
-  - name: exactly one complete versioned terminal record is emitted
-    expect_regex: "^format\\tdarrow-ticket-to-pr-result-v1$"
-    count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
-    expect_count: 17
-  - name: stopped carries every terminal field
-    expect_regex: "^ticket\\t[^\\n]+\\nrepository\\t[^\\n]+\\noutcome\\tstopped\\nreason\\t[^\\n]+\\nreadiness\\t[^\\n]+\\nbranch\\t[^\\n]+\\nbase\\t[^\\n]+\\ncommits\\t[^\\n]+\\nremote_branch\\t[^\\n]+\\npull_request_url\\t[^\\n]+\\nverification\\t[^\\n]+\\nindependent_review\\t[^\\n]+\\nlocal_work\\t[^\\n]+\\nadaptive_goal\\t[^\\n]+\\ntelemetry_status\\t(emitted|degraded|failed)\\ntelemetry_evidence\\t[^\\n]+$"
+  - name: decision-gated preflight is reported as stopped
+    expect_regex: "TKT-1012[\\s\\S]*\\bstopped\\b[\\s\\S]*decision-gated|\\bstopped\\b[\\s\\S]*decision-gated[\\s\\S]*TKT-1012"
   - name: stopped delivery does not invent publication state
-    count_regex: "^(?:commits|remote_branch|pull_request_url)\\tunavailable$"
-    expect_count: 3
+    not_regex: "https?://"

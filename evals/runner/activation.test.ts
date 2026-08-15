@@ -96,6 +96,30 @@ describe("skill activation grading", () => {
     ).toEqual(probe);
   });
 
+  test("preserves secondary selections observed by a lower-ranked complete channel", () => {
+    expect(
+      selectActivationObservation(
+        {
+          source: "harness_event",
+          complete: true,
+          primarySkill: "ticket-to-pr",
+          observedSkills: ["ticket-to-pr"],
+        },
+        {
+          source: "skill_activation_probe",
+          complete: true,
+          primarySkill: "ticket-to-pr",
+          observedSkills: ["ticket-to-pr", "adaptive-goal"],
+        },
+      ),
+    ).toEqual({
+      source: "harness_event",
+      complete: true,
+      primarySkill: "ticket-to-pr",
+      observedSkills: ["ticket-to-pr", "adaptive-goal"],
+    });
+  });
+
   test("rejects unknown activation classes and competition without sibling skills", () => {
     expect(
       validateActivationCase(

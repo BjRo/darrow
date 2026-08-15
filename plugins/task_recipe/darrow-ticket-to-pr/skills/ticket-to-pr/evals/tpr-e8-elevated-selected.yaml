@@ -1,10 +1,14 @@
 id: ticket-to-pr-e8-elevated-selected
 invariant: TPR-E8,TPR-C9
 prompt: >-
-  {{entrypoint}} for ready TKT-803. Risk is
-  elevated because three callers require compatibility judgment and a plausible
-  counterexample. Select exact-content independent review. The compatible
-  reviewer is unavailable, so publication must block.
+  {{entrypoint}}. Reconstruct this durable review boundary for the supplied
+  authoritative ticket TKT-803: outcome, preserve api.txt at the exact line
+  `base`; acceptance, `grep -Fx base api.txt`; and the adaptive native goal
+  completed the exact
+  current content. Risk is elevated because three callers require compatibility
+  judgment and a plausible counterexample. Exact-content independent review
+  was selected. The compatible reviewer is unavailable, so publication must
+  block.
 fixture:
   commits:
     - message: "chore: init"
@@ -15,4 +19,4 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: elevated review is selected and blocks
-    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(unavailable|blocked)"
+    expect_regex: "\\bblocked\\b[\\s\\S]*review[\\s\\S]*(unavailable|blocked)"

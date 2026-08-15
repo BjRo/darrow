@@ -1,6 +1,6 @@
 # Task Recipe: Ticket to Pull Request
 
-Darrow should provide one explicitly invoked task recipe that turns one ready,
+Darrow should provide one explicitly invoked task recipe that turns one
 authoritative ticket in the current repository into exactly one verified pull
 request. The recipe composes focused environment capabilities and one adaptive
 host-native goal without introducing a workflow runtime.
@@ -11,16 +11,16 @@ Skill: `ticket-to-pr`
 ## Why
 
 Ticket delivery requires more than implementation. The complete outcome spans
-authoritative ticket intake, readiness, local-work safety, adaptive execution,
-verification, conditional independent review, Git publication, recovery, and
-an inspectable terminal result. Requiring users to restate those boundaries for
-every ticket is error-prone, while rebuilding them as a controller would
-duplicate the host's execution and recovery machinery.
+authoritative ticket intake, local-work safety, adaptive decision-gating and
+execution, verification, conditional independent review, Git publication,
+recovery, and an inspectable terminal result. Requiring users to restate those
+boundaries for every ticket is error-prone, while rebuilding them as a
+controller would duplicate the host's execution and recovery machinery.
 
 `ticket-to-pr` provides the reusable outcome contract. It performs specialized
-read-only intake and preflight, then delegates execution and continuation to
-one adaptive native goal. Installed capabilities continue to own ticket access,
-readiness, review, Git operations, and telemetry mechanics.
+read-only intake, then delegates the implementation decision, execution, and
+continuation to adaptive-goal. Installed capabilities continue to own ticket
+access, review, and Git operations.
 
 ## Intent
 
@@ -41,7 +41,7 @@ activate the recipe implicitly.
 ## Outcome
 
 The successful outcome is exactly one open pull request whose current committed
-content fulfills the ready ticket and its quality bar. The pull request may be
+content fulfills the ticket and its acceptance criteria. The pull request may be
 newly created or an existing unambiguously correlated proposal reconstructed
 during re-entry.
 
@@ -50,7 +50,7 @@ repository. A linked worktree is created only when the user explicitly requests
 one through an available matching capability.
 
 Codex and Claude Code expose the same public recipe behavior. Host-specific
-launch, capability, and telemetry adapters may differ underneath that contract.
+launch and capability adapters may differ underneath that contract.
 
 ## Authoritative input
 
@@ -72,18 +72,35 @@ ticket cannot be resolved, authority is ambiguous, or authoritative sources
 contradict each other. It never invents tracker precedence or silently merges
 conflicting intent.
 
+When the invocation itself presents multiple alternative ticket references and
+delegates the choice without authoritative selection criteria, ambiguity is
+already established. The recipe MUST classify that boundary as `stopped`, MUST
+NOT attempt to resolve each alternative or recast the boundary as a missing
+ticket-read capability, and MUST still report a concise terminal result.
+
+A stable reference is not authoritative content by itself. When resolution
+depends on a declared compatible read contract, the recipe MUST invoke that
+contract successfully and use its returned content before treating the ticket
+as resolved or invoking adaptive-goal. A list-only ticket capability does not
+satisfy the intent to retrieve one ticket's authoritative content.
+
 ## Read-only preflight
 
 Before product, repository, or publication mutation, the recipe:
 
 1. resolves the authoritative ticket input;
 2. confirms the current repository and records pre-existing work;
-3. discovers required capability availability and applicable repository
-   constraints;
+3. reads applicable repository constraints;
 4. reconstructs any unambiguously correlated branch, commits, remote branch,
    and open pull request;
 5. confirms the invocation's exact authority; and
-6. invokes an available implementation-readiness capability.
+6. invokes adaptive-goal with the authoritative ticket, acceptance criteria,
+   repository evidence, constraints, and authorized effects.
+
+This order is a hard gate. The recipe does not mutate delivery state before
+authoritative intake, repository safety, durable re-entry reconstruction, and
+authority confirmation are complete. It does not make a separate readiness
+call or decide implementation readiness itself.
 
 Applicable repository instructions may identify an exact compatible
 environment capability and its invocation contract. Such a declaration is
@@ -99,20 +116,23 @@ command through the host's shell facility and does not also need to appear in
 the host's tool or plugin catalog; running that declared command is capability
 invocation, not an unauthorized direct implementation of its effect.
 
-Only a `ready` readiness verdict permits delivery mutation. Every other verdict
-terminates the recipe before delivery mutation and preserves the complete
-readiness result and smallest next action. The recipe does not turn a non-ready
-ticket into an implicit discovery or planning workflow.
-
-OpenTelemetry observation authorized by this recipe may begin during preflight.
-Telemetry emission is operational evidence, not delivery mutation, and grants
-no authority to continue past a non-ready result.
-
 ## Adaptive execution
 
-For a ready ticket, the recipe compiles and activates exactly one adaptive
-host-native goal through a compatible environment capability. The goal owns
-implementation, adaptation, recovery, verification, and completion.
+For an authoritative ticket in a safe repository, the recipe invokes and
+awaits exactly one available skill named `adaptive-goal`. Its public intent is
+to compile one bounded engineering request and activate it as a host-native
+goal with a proportionate workflow, risk gate, model, and effort. A description
+of a handoff, direct implementation in the recipe parent, a generic goal tool,
+or a generic subagent does not satisfy this invocation.
+Adaptive-goal owns the implementation decision, adaptation, recovery,
+verification, and completion.
+
+Adaptive-goal performs its normal read-only preflight. When required product
+behavior, authority, or another implementation decision is missing, it selects
+`decision-gated` and stops before product, repository, or publication mutation.
+The recipe reports that as `stopped` and names the smallest missing decision.
+An unavailable or failed adaptive-goal boundary is `blocked`. When preflight
+proceeds, exactly one native goal owns all delivery mutation.
 
 The delegation identifies the recipe as an orchestration entrypoint the user
 explicitly invoked and carries the originating ticket request and authority
@@ -121,22 +141,55 @@ grant the adaptive goal any additional authority.
 
 The goal contract preserves:
 
-- the authoritative ticket and concrete readiness quality bar;
+- the authoritative ticket and observable acceptance criteria;
 - the current repository and pre-existing work;
+- a first-mutation repository gate naming the exact delivery path and existing
+  base ref, requiring a distinct descendant task branch while forbidding base
+  rename/deletion and any unrequested copied checkout or worktree;
 - observable acceptance criteria, scope, and explicit non-goals;
 - the authorized branch, commit, push, and one-PR effects;
 - applicable repository verification;
 - adaptive workflow, risk, route, and independent-review selection; and
-- required terminal delivery and telemetry evidence.
+- required terminal delivery evidence.
+
+The contract expresses downstream operations through their public capability
+intents. It reuses the reconstructed ticket branch or requests creation of one
+new conventional Git branch; requests one new commit for each intended coherent
+commit that remains necessary; requests independent review of the exact current
+change when adaptive-goal selects review; and requests publication by pushing
+the current feature branch and opening exactly one review-ready pull request or
+reporting the existing correlated proposal. Exact compatible contracts declared
+by repository instructions implement those intents without changing their
+authority or outcome.
+
+The goal operates in the exact current repository established during preflight
+and on the authorized task branch. An unrequested copied checkout or linked
+worktree is not the delivery repository, and a goal-owner report is not
+repository evidence.
 
 The goal may make changes necessary to fulfill the ticket coherently, including
 affected tests, callers, documentation, and compatibility corrections. It MUST
 stop for an authorized decision before expanding into adjacent product behavior
-that the ticket does not require.
+that the ticket does not require. When a concrete adjacent opportunity is
+identified and intentionally excluded, the goal contract and terminal result
+MUST name that excluded boundary even when it was a clean tracked path rather
+than pre-existing uncommitted work. The recipe MUST NOT report that no paths
+were excluded while omitting a known adjacent boundary.
 
 The recipe and goal MUST NOT add a phase graph, planner/executor controller,
 private retry loop, durable phase state, or background supervisor. The
 host-native goal remains the sole continuation owner.
+
+That ownership is also a single-writer boundary. After launch, the recipe
+parent does not independently replay branch, commit, push, or pull-request
+effects performed by the goal. It may validate returned durable facts and
+report the terminal result, but any further authorized mutation remains with
+the same goal owner.
+
+Goal completion is not the recipe's user-visible terminal response. After the
+goal returns, the recipe parent always resumes, validates the durable facts,
+and reports the required terminal result; it never forwards an unverified goal
+summary as the final response.
 
 ## Local work and repository safety
 
@@ -158,6 +211,14 @@ Branching and publication preserve the current Git capability invariants:
 - pushes never rewrite remote history; and
 - uncommitted work is never silently included in the pull request.
 
+Before push or pull-request creation, the recipe verifies from the delivery
+repository—not from a delegated report—that the deliberate base ref still
+exists, the task branch is distinct from and descends from that base, its HEAD
+is ahead, the ticket-required committed diff is present, and the ticket's
+acceptance check passes in that exact checkout. It never renames or deletes the
+base branch to manufacture a task branch, and it does not publish or report
+success when this gate fails.
+
 ## Re-entry and recovery
 
 The recipe reconstructs progress from durable repository and forge facts rather
@@ -171,6 +232,12 @@ current content satisfies the ticket's verification and review gates. When it
 is incomplete, the goal continues on the correlated proposal rather than
 creating a duplicate.
 
+For `pr_existing` and `pr_created`, current verification also preserves the
+proposal shape observed from the forge: deliberate base and correlated head,
+Conventional Commit-compatible title, ticket-referencing template body, and
+ready-versus-draft state. A confirmation-only re-entry still reports the same
+concise terminal outcome as a newly completed delivery.
+
 Unknown, stale, or content-invalidated checks and reviews are rerun. Claims that
 work probably passed are not durable evidence.
 
@@ -180,13 +247,26 @@ verification, and continues until publication succeeds or a genuine external
 block, user interruption, or explicit budget stops it. It never bypasses hooks,
 force-pushes, broadens scope, or uses an arbitrary retry count.
 
+A failed pull-request creation call is retried only after read-only forge
+reconstruction proves that the exact attempt created no correlated proposal.
+An ambiguous result, an unavailable inspection contract, or any correlated
+proposal blocks a retry. This is recovery from a proven absent proposal, not a
+probe or a fixed retry loop.
+
+A pull-request creation attempt with an ambiguous result is not a confirmed
+failure. The goal first reconstructs whether that exact attempt created a
+correlated proposal. If the available forge contract cannot disambiguate the
+result, it reports the durable attempt and stops `blocked`; neither the goal nor
+the recipe parent issues a blind second creation call.
+
 On interruption or blockage, the result reports the exact durable branch,
 commit, remote, and pull-request state available for a later invocation.
 
 ## Verification and independent review
 
-The readiness quality bar supplies the observable product oracle. Adaptive
-execution selects the implementation workflow and proportional risk gate:
+The ticket's acceptance criteria supply the observable product oracle.
+Adaptive execution selects the implementation workflow and proportional risk
+gate:
 
 - routine work uses focused acceptance or characterization evidence and the
   scoped repository gate;
@@ -224,6 +304,15 @@ Publication produces exactly one proposal for the ticket:
 The recipe does not merge, enable auto-merge, assign reviewers, apply labels or
 milestones, or update or close the ticket.
 
+Pull-request creation arguments are validated locally without invoking the
+forge creation operation. Capability probes, test bodies, and dry-run variants
+of a create command still count as creation attempts and are prohibited. Help,
+version, or syntax discovery MUST NOT invoke the creation subcommand. An
+incomplete forge contract stops before creation instead of being probed. The
+forge's pull-request creation operation is invoked once initially and only
+again when the preceding proven-failure recovery rule authorizes it. At most
+one correlated proposal may result.
+
 ## Terminal result
 
 Every invocation reports exactly one delivery outcome:
@@ -231,72 +320,41 @@ Every invocation reports exactly one delivery outcome:
 - `pr_created` — a new verified pull request was opened;
 - `pr_existing` — an existing correlated pull request was verified as the
   complete outcome;
-- `stopped` — readiness or an authorized decision stopped delivery;
+- `stopped` — authoritative intake or adaptive preflight identified a missing
+  decision or authority;
 - `blocked` — a required capability, permission, route, repository condition,
   or external operation prevented completion; or
 - `interrupted` — the user, an explicit budget, or the host ended execution.
 
-The terminal result is serialization-neutral and identifies:
+When an invocation explicitly reconstructs a prior terminal state and its
+authoritative input establishes that invocation's historical outcome, current
+inspection verifies the durable evidence without reopening unfinished phases
+or rewriting the event classification. This applies to every terminal outcome:
+an interrupted invocation remains `interrupted` even when required delivery
+capabilities are absent now, and a proposal opened by a reconstructed delivery
+remains `pr_created` even though it is now an existing proposal. `pr_existing`
+means the proposal already existed when the reconstructed delivery began.
+When the historical classification is not established, the recipe reports
+only what the current invocation can prove and does not guess it.
 
-- the ticket and repository;
-- the delivery outcome and its reason;
-- the readiness verdict and quality bar;
-- the applicable branch, base, commits, remote branch, and pull-request URL;
-- verification and independent-review evidence;
-- preserved or excluded local work;
-- the adaptive-goal launch record; and
-- telemetry status.
+Adaptive-goal's `decision-gated` preflight maps to delivery outcome `stopped`.
+Delivery outcome `blocked` is used when the recipe could not reach or complete
+a required capability, route, permission, repository condition, or external
+operation.
 
-Unavailable values are reported honestly rather than inferred. A successful
-outcome requires current-content verification; the presence of a branch,
+The terminal result is concise and human-readable. It always identifies the
+ticket and delivery outcome. A successful result includes the verified pull-
+request URL, current verification, and review result. A stopped, blocked, or
+interrupted result includes the reason and smallest useful next action. Any
+durable branch, commit, remote, or pull-request state is preserved when it
+exists; unavailable details are omitted rather than inferred.
+
+The terminal response is a report, not the evidence boundary. Current
+repository and forge inspection prove delivery. The presence of a branch,
 commit, or pull-request URL alone is not proof of ticket fulfillment.
-
-## OpenTelemetry contract
-
-OpenTelemetry is part of the v1 product contract. The recipe emits one
-versioned, correlated lifecycle through an available environment adapter while
-leaving SDK, exporter, collector, storage, and dashboard ownership outside the
-plugin.
-
-The lifecycle correlates:
-
-- recipe invocation and terminal outcome;
-- ticket and repository identity;
-- ticket resolution and readiness outcome;
-- adaptive workflow, risk, selected and effective route, launch boundary, and
-  goal completion;
-- invoked capability outcomes and durations;
-- branch, base, commit, remote, and pull-request identity when available;
-- verification and independent-review outcomes; and
-- interruption, blockage, retry, and degraded-evidence conditions.
-
-The telemetry contract reuses or correlates the adaptive goal's canonical
-launch record. It does not reconstruct host turns, descendant agents, or timing
-that the environment can observe more accurately, and it never becomes a
-workflow state store.
-
-Telemetry reports one status independently of delivery outcome:
-
-- `emitted` — the configured adapter accepted the lifecycle evidence;
-- `degraded` — no compatible adapter was available; or
-- `failed` — an available adapter failed to accept or complete emission.
-
-`degraded` and `failed` are visible but do not convert a successful direct
-delivery into failure. A future environment or automation policy may require
-working telemetry as an admission condition without changing this recipe's
-direct-invocation semantics.
-
-PII, credentials, authentication tokens, private keys, and other secrets MUST
-NOT be emitted. Non-PII, non-secret ticket text, prompts, diffs, and logs MAY be
-emitted. Content-bearing attributes remain distinguishable so an environment
-policy can redact or disable them without removing the core identifier,
-outcome, duration, and correlation evidence. Unsafe content is omitted rather
-than weakening the privacy boundary.
-
-Exact OpenTelemetry span names, attribute names, schema-version mechanics, and
-trace-context propagation are technical design inputs. Their implementation
-MUST preserve the semantic lifecycle and privacy invariants in this
-specification.
+Successful verification also covers the proposal base and head, title, ticket-
+referencing body, ready-versus-draft state, required checks, and selected
+review.
 
 ## Invariants
 
@@ -304,9 +362,9 @@ specification.
    activates the task recipe and its publication authority.
 2. **TPR-C2 — One authoritative request.** Delivery uses exactly one resolved,
    non-contradictory authoritative ticket or supplied specification.
-3. **TPR-C3 — Readiness before delivery mutation.** Only `ready` permits
-   product, repository, or publication mutation; every other verdict stops and
-   is preserved completely.
+3. **TPR-C3 — Adaptive preflight before delivery mutation.** Adaptive-goal
+   owns the implementation decision; `decision-gated` stops without delivery
+   mutation and preserves the smallest missing decision.
 4. **TPR-C4 — One native goal owner.** One adaptive host-native goal owns
    implementation, recovery, verification, and completion without a Darrow
    workflow runtime.
@@ -327,39 +385,33 @@ specification.
     smallest authorized correction and invalidated checks without fixed retry
     counts, bypasses, force pushes, or scope expansion.
 11. **TPR-C11 — Stable terminal semantics.** Every invocation reports exactly
-    one defined delivery outcome, durable progress, and an independent
-    telemetry status.
-12. **TPR-C12 — OpenTelemetry from v1.** The versioned semantic lifecycle is
-    emitted when a compatible adapter exists and degrades visibly without one.
-13. **TPR-C13 — Telemetry privacy.** PII and secrets never enter telemetry;
-    non-sensitive content remains separately controllable from core metadata.
-14. **TPR-C14 — Cross-host contract.** Claude Code and Codex expose the same
-    authoritative inputs, effects, stops, outcomes, and telemetry semantics.
+    one defined delivery outcome and its durable progress.
+12. **TPR-C12 — Cross-host contract.** Claude Code and Codex expose the same
+    authoritative inputs, effects, stops, and outcomes.
 
 ## Packaging and portability
 
 1. **TPR-P1 — Independent plugin.** `darrow-ticket-to-pr` is independently
    installable and does not reference sibling-plugin files or assume a named
    provider is installed.
-2. **TPR-P2 — Intent composition.** Ticket access, readiness, adaptive native-
-   goal execution, review, Git, and telemetry are requested through host-visible
+2. **TPR-P2 — Intent composition.** Ticket access, adaptive native-goal
+   execution, review, and Git are requested through host-visible
    compatible intent or public contracts. Exact compatible contracts declared
    by applicable repository instructions are used without substitution.
-   Missing required delivery capability stops honestly; missing telemetry
-   degrades honestly.
+   Missing required delivery capability stops honestly.
 3. **TPR-P3 — Dual-host packaging.** Claude Code and Codex manifests expose the
    same skill semantics, and the Codex manifest points at `./skills/`.
 4. **TPR-P4 — Portable mechanics.** Any plugin-shipped executable mechanics use
    portable Bash, baseline Unix utilities, and wrapped host CLIs, supporting
    Bash 5 and macOS `/bin/bash` 3.2.
 5. **TPR-P5 — Contextual judgment.** Authority, dirty-work ownership, scope,
-   readiness evidence, and recoverability remain contextual model judgments;
+   decision-gating, and recoverability remain contextual model judgments;
    deterministic scripts own only repeatable protocol and validation mechanics.
 
 ## Evaluation requirements
 
 The tracked comparative suite names one representative core case for each of
-TPR-E1 through TPR-E13. Each representative runs at least three trials on both
+TPR-E1 through TPR-E11. Each representative runs at least three trials on both
 Claude Code and Codex under the candidate, raw `adaptive-goal`, and ticket-
 pipeline controls. Additional edge variants run candidate-only with the same
 three-trial, cross-host minimum.
@@ -388,8 +440,8 @@ transport without claiming the explicit-only bridge was applied.
 
 Activation is calibrated separately from behavior. Activation cases cover
 direct, incomplete, ordinary-negative, natural-language, and pressure inputs;
-TPR-E1 through TPR-E13 behavior cases pass or fail only from repository, forge,
-telemetry, and terminal-output evidence. A direct host skill event is preferred.
+TPR-E1 through TPR-E11 behavior cases pass or fail only from repository, forge,
+and terminal-output evidence. A direct host skill event is preferred.
 When a host exposes no such event, the harness may inject a bounded private
 activation sentinel into the mounted evaluation copy of each skill and report
 that explicitly as controlled-probe evidence. It never infers activation from
@@ -398,11 +450,9 @@ the final answer.
 No-mutation cases compare the selected branch, every repository ref, index,
 tracked worktree, and untracked-file state. Cases whose contract explicitly
 creates repository state declare that expectation and pair it with a specific
-state assertion. Telemetry fixtures append every adapter invocation and require
-exactly one lifecycle so a later safe payload cannot overwrite an earlier
-secret or hide a duplicate emission. Terminal-result cases require one
-versioned record with each required field exactly once and ground publication
-facts in fixture-visible branch, remote, and forge state.
+state assertion. Terminal-result cases check the reported outcome and the
+minimum evidence appropriate to that outcome, while publication facts remain
+grounded in fixture-visible branch, remote, and forge state.
 
 Required cases include:
 
@@ -411,8 +461,9 @@ Required cases include:
 2. **TPR-E2 — Authoritative intake.** Resolvable references and supplied
    authoritative content proceed; missing, ambiguous, and contradictory inputs
    stop without delivery mutation.
-3. **TPR-E3 — Readiness composition.** Every non-ready verdict is preserved
-   completely and leaves product, repository, and forge state unchanged.
+3. **TPR-E3 — Adaptive preflight.** A missing implementation decision selects
+   `decision-gated`, reports the smallest missing decision, and leaves product,
+   repository, and forge state unchanged.
 4. **TPR-E4 — Dirty and worktree safety.** Ticket-owned dirty work can proceed;
    unrelated or ambiguous work stops; an explicitly requested worktree leaves
    original changes untouched.
@@ -434,15 +485,7 @@ Required cases include:
 10. **TPR-E10 — Terminal outcomes.** `pr_created`, `pr_existing`, `stopped`,
     `blocked`, and `interrupted` each carry the required semantic evidence
     without inferred values.
-11. **TPR-E11 — OpenTelemetry lifecycle.** Configured adapters receive one
-    coherent versioned lifecycle correlated with delivery evidence; unavailable
-    and failing adapters produce `degraded` and `failed` without corrupting the
-    delivery outcome.
-12. **TPR-E12 — Telemetry privacy.** Seeded PII, credentials, tokens, keys, and
-    other secrets never appear in exported attributes, events, errors, or
-    content fields; permitted non-sensitive content remains independently
-    controllable.
-13. **TPR-E13 — Cross-host behavior.** Fresh Claude Code and Codex contexts
+11. **TPR-E11 — Cross-host behavior.** Fresh Claude Code and Codex contexts
     satisfy the same public assertions despite host-specific adapters.
 
 Before the full matrix, one fresh trial per host calibrates activation and a
@@ -452,21 +495,20 @@ only after those probes show that skill mounting, entrypoint adaptation, hidden
 checks, and fail-closed external-effect fixtures work as intended.
 
 All designated candidate core cases and candidate edge variants require three
-passing trials per host, zero unintended or duplicate external mutations, and
-zero seeded PII or secret leakage. Control failures remain comparative evidence
-instead of invalidating the candidate gate. Relevant deterministic script tests
-pass under both `bash` and `/bin/bash`.
+passing trials per host and zero unintended or duplicate external mutations.
+Control failures remain comparative evidence instead of invalidating the
+candidate gate. Relevant deterministic script tests pass under both `bash` and
+`/bin/bash`.
 
 ## Non-goals
 
 - Scheduled activation, Artificer, capacity management, claims, or cross-ticket
   admission.
 - Repository discovery, automatic cloning, or implicit worktree creation.
-- Product discovery, implementation planning, or decision-making inside a
-  non-ready delivery run.
+- Product discovery or guessing a missing product decision during adaptive
+  preflight.
 - A Darrow daemon, queue, phase controller, retry ledger, dashboard, or hidden
   workflow state.
-- A bundled OpenTelemetry SDK, exporter, collector, backend, or visualization.
 - `.darrow` evidence storage, artifact retention, or cross-ticket learning.
 - Merge, auto-merge, deployment, release, tracker mutation, reviewer assignment,
   labels, or milestones.

@@ -27,4 +27,4 @@ checks:
       test -z "$(git --git-dir=.git/remote.git for-each-ref --format='%(refname)' refs/heads)"
 output_checks:
   - name: genuine push block preserves durable state
-    expect_regex: "outcome\\tblocked[\\s\\S]*branch\\tfeat/tkt-602[\\s\\S]*commits\\t(?!unavailable)[^\\n]+"
+    expect_regex: "\\bblocked\\b[\\s\\S]*feat/tkt-602[\\s\\S]*commit"

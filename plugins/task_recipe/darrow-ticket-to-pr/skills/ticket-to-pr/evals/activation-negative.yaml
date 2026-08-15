@@ -13,5 +13,5 @@ checks:
   - name: ordinary ticket discussion remains read only
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: recipe terminal record is absent
-    not_regex: "darrow-ticket-to-pr-result-v1"
+  - name: recipe terminal outcome is absent
+    not_regex: "\\b(pr_created|pr_existing|stopped|blocked|interrupted)\\b"

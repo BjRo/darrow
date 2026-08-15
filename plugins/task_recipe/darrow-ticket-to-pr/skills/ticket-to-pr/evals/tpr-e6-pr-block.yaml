@@ -36,4 +36,4 @@ checks:
       test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse refs/heads/feat/tkt-603)"
 output_checks:
   - name: PR block preserves durable publication evidence
-    expect_regex: "outcome\\tblocked[\\s\\S]*remote_branch\\t(?!unavailable)[^\\n]+[\\s\\S]*pull_request_url\\tunavailable"
+    expect_regex: "\\bblocked\\b[\\s\\S]*(remote|pushed)[ -]?branch[\\s\\S]*(pull request|proposal)[\\s\\S]*(not created|unavailable|failed)"

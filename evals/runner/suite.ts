@@ -20,6 +20,8 @@ interface ModeConfig {
   condition_by_harness?: Record<string, string>;
   entrypoint_by_harness?: Record<string, string>;
   skill_dir?: string;
+  additional_skill_dirs?: string[];
+  required_skill_activations?: Record<string, string[]>;
   mount_plugin_skills?: boolean;
   require_evaluation_records?: boolean;
   apply_goal_route?: boolean;
@@ -300,6 +302,15 @@ for (const { harness, modeName } of cellPlan) {
   if (!values.case && suite.case_match === "exact") args.push("--case-exact");
   if (mode.skill_dir) {
     args.push("--skill-dir", resolve(suiteDir, mode.skill_dir));
+  }
+  for (const skillDir of mode.additional_skill_dirs ?? []) {
+    args.push("--additional-skill-dir", resolve(suiteDir, skillDir));
+  }
+  if (mode.required_skill_activations) {
+    args.push(
+      "--required-skill-activations",
+      JSON.stringify(mode.required_skill_activations),
+    );
   }
   if (mode.mount_plugin_skills) args.push("--mount-plugin-skills");
   if (mode.without_skill) args.push("--without-skill");

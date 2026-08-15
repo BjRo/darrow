@@ -14,4 +14,4 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: recipe does not claim activation
-    not_regex: "darrow-ticket-to-pr-result-v1|telemetry_status"
+    not_regex: "\\b(pr_created|pr_existing|stopped|blocked|interrupted)\\b"

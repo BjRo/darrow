@@ -1,0 +1,19 @@
+id: ticket-to-pr-e3-adaptive-preflight
+invariant: TPR-E3,TPR-C3
+prompt: >-
+  {{entrypoint}}. Use the supplied authoritative ticket TKT-301: outcome,
+  implement retry behavior; description, the retry policy may be bounded or
+  unbounded but the ticket does not choose between them; acceptance cannot be
+  finalized until that product decision is made. Continue through the recipe.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        app.txt: "unchanged\n"
+checks:
+  - name: decision-gated preflight prevents delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: adaptive preflight stops for the smallest missing decision
+    expect_regex: "\\bstopped\\b[\\s\\S]*(bounded or unbounded|retry policy)"
+    flags: i

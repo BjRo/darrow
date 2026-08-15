@@ -4,7 +4,7 @@ case_match: exact
 case_filter:
   - ticket-to-pr-e1-ready-delivery
   - ticket-to-pr-e2-authoritative-intake
-  - ticket-to-pr-e3-readiness
+  - ticket-to-pr-e3-adaptive-preflight
   - ticket-to-pr-e4-dirty-safety
   - ticket-to-pr-e5-reentry
   - ticket-to-pr-e6-recoverable-push
@@ -12,12 +12,15 @@ case_filter:
   - ticket-to-pr-e8-review
   - ticket-to-pr-e9-pr-shape
   - ticket-to-pr-e10-terminal
-  - ticket-to-pr-e11-telemetry-emitted
-  - ticket-to-pr-e12-privacy
-  - ticket-to-pr-e13-cross-host
+  - ticket-to-pr-e11-cross-host
 modes:
   candidate:
     skill_dir: ../../../plugins/task_recipe/darrow-ticket-to-pr/skills/ticket-to-pr
+    additional_skill_dirs:
+      - ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    required_skill_activations:
+      ticket-to-pr-e3-adaptive-preflight:
+        - adaptive-goal
     entrypoint_by_harness:
       claude: /darrow-ticket-to-pr:ticket-to-pr
       codex: $darrow-ticket-to-pr:ticket-to-pr

@@ -16,5 +16,5 @@ checks:
     run: test "$(cat private-notes.txt)" = "user work" && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: ambiguity stops before mutation
-    expect_regex: "outcome\\tstopped[\\s\\S]*(dirty|local work|ownership|ambiguous)"
+    expect_regex: "\\bstopped\\b[\\s\\S]*(dirty|local work|ownership|ambiguous)"
     flags: i

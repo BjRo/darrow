@@ -1,10 +1,14 @@
 id: ticket-to-pr-e10-terminal
 invariant: TPR-E10,TPR-C11
 prompt: >-
-  {{entrypoint}} for TKT-1001.
-  The user interrupted the active native goal after one
-  local commit but before push. Report the one terminal delivery outcome and
-  all durable or unavailable values without guessing.
+  {{entrypoint}}. Reconstruct this durable terminal state for the supplied
+  authoritative ticket TKT-1001: outcome, change app.txt from `base` toward
+  `complete`; acceptance, `grep -Fx complete app.txt`; and the adaptive native
+  goal launched on the
+  correlated task branch. The user interrupted that active goal after its one
+  local partial commit but before any push. No remote branch or pull request
+  exists. Report the terminal delivery outcome concisely, preserving the
+  durable local state without guessing.
 fixture:
   commits:
     - message: "chore: init"
@@ -23,15 +27,9 @@ checks:
       git status --porcelain --untracked-files=all
     expect_exact: ""
 output_checks:
-  - name: exactly one complete versioned terminal record is emitted
-    expect_regex: "^format\\tdarrow-ticket-to-pr-result-v1$"
-    count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
-    expect_count: 17
-  - name: interrupted is the sole outcome
-    expect_regex: "outcome\\tinterrupted"
-  - name: record includes required evidence fields
-    expect_regex: "^ticket\\t[^\\n]*\\nrepository\\t[^\\n]*\\noutcome\\tinterrupted\\nreason\\t[^\\n]*\\nreadiness\\t[^\\n]*\\nbranch\\t[^\\n]*\\nbase\\t[^\\n]*\\ncommits\\t[^\\n]*\\nremote_branch\\t[^\\n]*\\npull_request_url\\t[^\\n]*\\nverification\\t[^\\n]*\\nindependent_review\\t[^\\n]*\\nlocal_work\\t[^\\n]*\\nadaptive_goal\\t[^\\n]*\\ntelemetry_status\\t[^\\n]*\\ntelemetry_evidence\\t[^\\n]*$"
-  - name: interrupted facts match durable local state
-    expect_regex: "^branch\\tfeat/tkt-1001$|^commits\\t(?!unavailable)[^\\n]+$|^remote_branch\\tunavailable$|^pull_request_url\\tunavailable$"
-    count_regex: "^(?:branch\\tfeat/tkt-1001|commits\\t(?!unavailable)[^\\n]+|remote_branch\\tunavailable|pull_request_url\\tunavailable)$"
-    expect_count: 4
+  - name: interruption is reported for the ticket
+    expect_regex: "TKT-1001[\\s\\S]*\\binterrupted\\b|\\binterrupted\\b[\\s\\S]*TKT-1001"
+  - name: durable local branch and commit are preserved
+    expect_regex: "feat/tkt-1001[\\s\\S]*(partial|commit)|(partial|commit)[\\s\\S]*feat/tkt-1001"
+  - name: unpublished state is not misreported as a pull request
+    not_regex: "https?://"

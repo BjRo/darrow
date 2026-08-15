@@ -13,5 +13,5 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: ambiguity stops before choosing
-    expect_regex: "outcome\\tstopped[\\s\\S]*(ambiguous|exactly one|choose)"
+    expect_regex: "\\bstopped\\b[\\s\\S]*(ambiguous|exactly one|choose|TKT-204 or TKT-205|one non-contradictory authoritative request|alternative ticket references)"
     flags: i

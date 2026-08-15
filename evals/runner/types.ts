@@ -105,6 +105,14 @@ export interface TrialActivationResult {
   observedSkills: string[];
 }
 
+export interface RequiredSkillActivationResult {
+  targetSkill: string;
+  /** Null means the observation was unavailable or incomplete. */
+  passed: boolean | null;
+  source: ActivationEvidenceSource | null;
+  observedSkills: string[];
+}
+
 export interface EvalCase {
   id: string;
   /** Invariant ID from the capability spec, e.g. GW-C1. */
@@ -225,6 +233,8 @@ export interface TrialResult {
   harness: HarnessResult;
   /** Activation grade kept separate from outcome checks and `passed`. */
   activation?: TrialActivationResult;
+  /** Required secondary capability selections, graded apart from task outcomes. */
+  requiredSkillActivations?: RequiredSkillActivationResult[];
   /** Harness-observed application of a goal-loop profile route. */
   routeApplication?: GoalRouteApplication;
   orchestrationMetrics?: {
@@ -276,6 +286,12 @@ export interface CaseResult {
   skillDirectory: string | null;
   /** Whether sibling skills from the same plugin were included in the mounted surface. */
   mountPluginSkills: boolean;
+  /** Additional capability skills exposed to the participant for composition evals. */
+  additionalSkillDirectories?: string[];
+  /** Secondary capability selections required by this composition mode. */
+  requiredSkillActivationTargets?: string[];
+  /** Null means at least one required selection was unobservable. */
+  requiredSkillActivationPassRate?: number | null;
   /** Activation expectation and target, absent when this run did not grade selection. */
   activationClass?: ActivationClass;
   activationTargetSkill?: string;

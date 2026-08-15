@@ -4,7 +4,7 @@ prompt: >-
   {{entrypoint}}. Supplied SPEC-402 says the
   existing uncommitted app.txt change is the intended ticket work. Continue
   through dirty-work intake without discarding or recommitting it, but stop if
-  the later readiness capability is unavailable.
+  adaptive-goal is unavailable.
 fixture:
   commits:
     - message: "chore: init"
@@ -18,6 +18,6 @@ checks:
       test "$(cat app.txt)" = "ticket-owned change" &&
       test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: owned work passes intake before later capability block
-    expect_regex: "outcome\\tblocked[\\s\\S]*(readiness|capability)[\\s\\S]*local_work\\t(?!unavailable)[^\\n]+"
+  - name: owned work passes intake before adaptive-goal block
+    expect_regex: "\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal[\\s\\S]*(dirty|local work|ticket-owned)"
     flags: i

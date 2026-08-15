@@ -1,22 +1,26 @@
 id: ticket-to-pr-e10-blocked
 invariant: TPR-E10,TPR-C11
 prompt: >-
-  {{entrypoint}} for TKT-1013. Reconstruct the
-  terminal result: the required native goal capability is unavailable. Report exactly one complete host-neutral record
-  and use unavailable for facts not established.
+  {{entrypoint}}. Use the supplied authoritative ticket TKT-1013: outcome,
+  change app.txt from `unchanged` to `complete`; description, complete the
+  fixture application state; acceptance, `grep -Fx complete app.txt`. The
+  required adaptive-goal capability is unavailable. Report the blocked outcome,
+  reason, and smallest useful next action concisely.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          No compatible adaptive native-goal capability is available in this
+          fixture.
         app.txt: "unchanged\\n"
-checks: []
+checks:
+  - name: unavailable goal boundary causes no delivery mutation
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: exactly one complete versioned terminal record is emitted
-    expect_regex: "^format\\tdarrow-ticket-to-pr-result-v1$"
-    count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
-    expect_count: 17
-  - name: blocked carries every terminal field
-    expect_regex: "^ticket\\t[^\\n]+\\nrepository\\t[^\\n]+\\noutcome\\tblocked\\nreason\\t[^\\n]+\\nreadiness\\t[^\\n]+\\nbranch\\t[^\\n]+\\nbase\\t[^\\n]+\\ncommits\\t[^\\n]+\\nremote_branch\\t[^\\n]+\\npull_request_url\\t[^\\n]+\\nverification\\t[^\\n]+\\nindependent_review\\t[^\\n]+\\nlocal_work\\t[^\\n]+\\nadaptive_goal\\t[^\\n]+\\ntelemetry_status\\t(emitted|degraded|failed)\\ntelemetry_evidence\\t[^\\n]+$"
+  - name: unavailable native goal is reported as blocked
+    expect_regex: "TKT-1013[\\s\\S]*\\bblocked\\b[\\s\\S]*(native|adaptive)[ -]?goal|\\bblocked\\b[\\s\\S]*(native|adaptive)[ -]?goal[\\s\\S]*TKT-1013"
   - name: blocked delivery does not invent publication state
-    count_regex: "^(?:commits|remote_branch|pull_request_url)\\tunavailable$"
-    expect_count: 3
+    not_regex: "https?://"

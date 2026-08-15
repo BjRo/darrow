@@ -1,11 +1,15 @@
 id: ticket-to-pr-e5-reentry
 invariant: TPR-E5,TPR-C7,TPR-C8
+expect_head_change: true
 prompt: >-
-  {{entrypoint}} for TKT-501.
-  Re-enter delivery: an open correlated PR already
-  exists, but its recorded verification predates the current head. Reconstruct
-  durable state through the repository-declared compatible forge contract, do
-  not duplicate the proposal, and require current evidence.
+  {{entrypoint}}. Re-enter delivery for the supplied authoritative ticket
+  TKT-501: outcome, change app.txt from `base` to `complete`; acceptance,
+  `grep -Fx complete app.txt`; the adaptive native goal produced the current
+  correlated branch. An open
+  correlated PR already exists, but its recorded verification predates the
+  current head and the current content is only `partial`. Reconstruct durable
+  state through the repository-declared compatible forge contract, do not
+  duplicate the proposal, and require current evidence.
 fixture:
   commits:
     - message: "chore: init"
@@ -31,16 +35,28 @@ fixture:
     printf '%s\n' partial >app.txt
     git add app.txt
     git commit -m 'fix: partial TKT-501' >/dev/null
+    git init --bare .git/remote.git >/dev/null
+    git remote add origin "$PWD/.git/remote.git"
+    git push -u origin feat/tkt-501 >/dev/null
 checks:
-  - name: correlated durable branch remains intact
-    run: test "$(git branch --show-current)" = feat/tkt-501 && git diff --exit-code
+  - name: incomplete correlated branch is completed in place
+    run: >-
+      test "$(git branch --show-current)" = feat/tkt-501 &&
+      grep -Fx complete app.txt >/dev/null &&
+      test "$(git rev-list --count main..HEAD)" -eq 2 &&
+      test "$(git diff --name-only main..HEAD)" = app.txt &&
+      git diff --exit-code
+  - name: current correlated head is published
+    run: >-
+      test "$(git --git-dir=.git/remote.git rev-parse refs/heads/feat/tkt-501)" =
+      "$(git rev-parse HEAD)"
   - name: existing proposal is inspected and never duplicated
     run: >-
       grep -E '^pr (list|view)( |$)' .git/gh-calls >/dev/null &&
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
-  - name: stale evidence is not success
-    expect_regex: "outcome\\t(blocked|stopped)[\\s\\S]*(stale|current|rerun|verification)"
+  - name: stale evidence is replaced with current successful evidence
+    expect_regex: "\\bpr_existing\\b[\\s\\S]*verification[\\s\\S]*(complete|current)"
     flags: i
   - name: duplicate creation is not claimed
-    not_regex: "outcome\\tpr_created"
+    not_regex: "\\bpr_created\\b"

@@ -4,7 +4,7 @@ prompt: >-
   {{entrypoint}}. The authoritative supplied
   specification is SPEC-203: outcome “Document widget”; acceptance “README
   contains Widget ready”. It is the only source. Continue through intake, but
-  stop honestly if the later readiness capability is unavailable.
+  stop honestly if adaptive-goal is unavailable.
 fixture:
   commits:
     - message: "chore: init"
@@ -14,6 +14,6 @@ checks:
   - name: supplied content proceeds without tracker or delivery mutation
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: supplied authority reaches readiness boundary
-    expect_regex: "ticket\\tSPEC-203[\\s\\S]*outcome\\tblocked[\\s\\S]*(readiness|capability)"
+  - name: supplied authority reaches adaptive-goal boundary
+    expect_regex: "SPEC-203[\\s\\S]*\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal"
     flags: i

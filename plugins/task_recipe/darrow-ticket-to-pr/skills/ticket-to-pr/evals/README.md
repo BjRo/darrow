@@ -1,12 +1,12 @@
 # Ticket-to-PR eval matrix
 
-These cases cover the explicit activation matrix and TPR-E1–TPR-E13 public
+These cases cover the explicit activation matrix and TPR-E1–TPR-E11 public
 behavior. Prompts are participant-visible; repository and output checks are the
 hidden assertions. Behavior cases use `{{entrypoint}}` as the only mode- and
 host-specific prompt seam.
 
 The tracked comparative suite selects one representative case for each of
-TPR-E1–TPR-E13 and runs the candidate, raw adaptive-goal control, and ticket-
+TPR-E1–TPR-E11 and runs the candidate, raw adaptive-goal control, and ticket-
 pipeline control against the same workload template, fixture, checks, model,
 effort, and trial count. The suite records the exact qualified entrypoint
 substituted for each host and mode. This is a matched comparative benchmark,
@@ -40,17 +40,13 @@ After those probes pass structurally, run the tracked comparative suite with
 `--trials 3` and the candidate edge suite with `--trials 3`. Smaller samples do
 not satisfy or weaken that release gate.
 
-The telemetry fixtures describe their compatible adapter contract through
-fixture-local repository instructions. The recipe remains provider-neutral and
-does not bundle that fixture adapter. Forge CLIs are fail-closed unless a case
-explicitly supplies a fixture-local mock; Git publication cases use local bare
-remotes.
+Forge CLIs are fail-closed unless a case explicitly supplies a fixture-local
+mock; Git publication cases use local bare remotes.
 
 The runner also compares the selected branch, every repository ref, index,
 tracked files, and untracked files for no-mutation cases. Cases that explicitly
 create repository state declare that expectation and assert the exact intended
-state separately. Telemetry mocks append all calls and check exact lifecycle
-cardinality. Terminal cases count the complete field set and tie successful
+state separately. Terminal cases check concise outcomes and tie successful
 publication facts to fixture-visible state.
 
 Harness environments inherit model-provider authentication only. They omit

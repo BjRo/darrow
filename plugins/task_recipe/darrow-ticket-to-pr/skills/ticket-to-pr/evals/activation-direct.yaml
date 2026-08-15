@@ -11,8 +11,8 @@ fixture:
       files:
         README.md: "# Fixture\n"
 checks:
-  - name: no delivery mutation without resolvable ticket and readiness capability
+  - name: no delivery mutation without a resolvable ticket
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: explicit recipe reports one terminal outcome
-    expect_regex: "outcome\\t(blocked|stopped)"
+    expect_regex: "\\b(blocked|stopped)\\b"

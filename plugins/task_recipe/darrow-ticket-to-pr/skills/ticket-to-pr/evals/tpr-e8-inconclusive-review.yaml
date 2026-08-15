@@ -1,10 +1,13 @@
 id: ticket-to-pr-e8-inconclusive-review
 invariant: TPR-E8,TPR-C9
 prompt: >-
-  {{entrypoint}} for ready high-risk TKT-806.
-  Exact-content independent review was selected and returned inconclusive
-  because its target could not be pinned. Do not publish or substitute self-
-  review.
+  {{entrypoint}}. Use the supplied authoritative ticket TKT-806: outcome,
+  preserve the reviewed security baseline; description, keep security.txt at
+  the exact line `base`; acceptance, `grep -Fx base security.txt`; risk, high.
+  Exact-content independent
+  review was selected and returned inconclusive because its target could not
+  be pinned. Reconstruct that durable review boundary. Do not publish,
+  substitute self-review, or make a new delivery mutation.
 fixture:
   commits:
     - message: "chore: init"
@@ -15,5 +18,5 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: inconclusive review is a blocked outcome
-    expect_regex: "outcome\\tblocked[\\s\\S]*independent_review\\t(?!passed)[^\\n]*(inconclusive|blocked)"
+    expect_regex: "\\bblocked\\b[\\s\\S]*review[\\s\\S]*(inconclusive|blocked)"
     flags: i

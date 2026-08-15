@@ -5,8 +5,8 @@ prompt: >-
   {{entrypoint}}. Use the
   supplied authoritative ticket: TKT-101, “Document the
   widget”, outcome: add `Widget ready.` below the README heading, acceptance:
-  `grep -Fx 'Widget ready.' README.md`; readiness capability verdict: ready
-  with that quality bar. Use the available native goal and mocked forge.
+  `grep -Fx 'Widget ready.' README.md`. Use adaptive-goal and the mocked forge
+  to deliver the ticket.
 fixture:
   commits:
     - message: "chore: init"
@@ -14,13 +14,21 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
-          The compatible adaptive native-goal contract is the host's native
-          goal-owner boundary. When the host exposes a native Agent capability,
-          delegate to one such owner; when this invocation is already the native
-          goal owner, continue in the current boundary.
+          For this headless fixture, the current invocation is the compatible
+          adaptive native goal-owner boundary. Continue in this current boundary
+          as the one goal owner; do not delegate to a descendant Agent or create
+          another checkout.
 
-          The compatible forge contract is the executable command `gh`,
-          available on PATH. Invoke it through the host shell facility.
+          The compatible branch contract is the executable command
+          `git switch -c BRANCH main`, invoked once with the chosen task branch;
+          it preserves `main`. Do not rename the current branch.
+
+          The compatible forge inspection contract is the executable command
+          `gh pr list`, available on PATH. The complete proposal-creation
+          contract is `gh pr create --base main --head BRANCH --title TITLE
+          --body BODY`, invoked exactly once with the final values. Invoke these
+          commands through the host shell facility. Do not invoke `gh pr create`
+          for help, probing, validation, test arguments, or a dry run.
         README.md: "# Fixture\n"
   bin:
     gh: |
@@ -62,6 +70,6 @@ checks:
     expect_exact: ""
 output_checks:
   - name: created outcome identifies verified PR
-    expect_regex: "outcome\\tpr_created[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/101"
+    expect_regex: "\\bpr_created\\b[\\s\\S]*https://example.invalid/pr/101"
   - name: native goal and current verification are evidenced
-    expect_regex: "verification\\t(?!unavailable)[^\\n]+[\\s\\S]*adaptive_goal\\t(?!unavailable)[^\\n]+"
+    expect_regex: "verification[\\s\\S]*review|review[\\s\\S]*verification"

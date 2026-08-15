@@ -4,6 +4,11 @@ case_filter: ticket-to-pr-e
 modes:
   candidate:
     skill_dir: ../../../plugins/task_recipe/darrow-ticket-to-pr/skills/ticket-to-pr
+    additional_skill_dirs:
+      - ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    required_skill_activations:
+      ticket-to-pr-e3-adaptive-preflight:
+        - adaptive-goal
     entrypoint_by_harness:
       claude: /darrow-ticket-to-pr:ticket-to-pr
       codex: $darrow-ticket-to-pr:ticket-to-pr

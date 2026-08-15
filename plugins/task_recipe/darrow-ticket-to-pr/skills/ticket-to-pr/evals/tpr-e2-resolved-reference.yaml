@@ -3,8 +3,8 @@ invariant: TPR-E2,TPR-C2
 prompt: >-
   {{entrypoint}} for TKT-202. Resolve the one
   stable reference through the repository's compatible read-only ticket
-  capability. Continue through intake, but stop honestly if the later readiness
-  capability is unavailable.
+  capability. Continue through intake, but stop honestly if adaptive-goal is
+  unavailable.
 fixture:
   commits:
     - message: "chore: init"
@@ -27,6 +27,6 @@ checks:
       test "$(wc -l <.git/ticket-read-calls | tr -d ' ')" -eq 1 &&
       git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: resolved intake reaches the later capability boundary
-    expect_regex: "ticket\\tTKT-202[\\s\\S]*outcome\\tblocked[\\s\\S]*(readiness|capability)"
+  - name: resolved intake reaches the adaptive-goal boundary
+    expect_regex: "TKT-202[\\s\\S]*\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal"
     flags: i

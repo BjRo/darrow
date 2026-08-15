@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.1.1",
-  "description": "Deliver one ready authoritative ticket as exactly one verified pull request",
+  "version": "0.2.0",
+  "description": "Deliver one authoritative ticket as exactly one verified pull request",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Ticket to PR",
-    "shortDescription": "Deliver one ready ticket as one verified PR",
-    "longDescription": "Resolve and assess one authoritative ticket, preserve local work, delegate delivery to one adaptive host-native goal, publish at most one verified pull request, and report durable delivery and telemetry evidence.",
+    "shortDescription": "Deliver one ticket as one verified PR",
+    "longDescription": "Resolve one authoritative ticket, preserve local work, delegate preflight and delivery to adaptive-goal, and publish at most one verified pull request.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use $ticket-to-pr to deliver one ready ticket as exactly one verified pull request."
+      "Use $ticket-to-pr to deliver one authoritative ticket as exactly one verified pull request."
     ]
   }
 }

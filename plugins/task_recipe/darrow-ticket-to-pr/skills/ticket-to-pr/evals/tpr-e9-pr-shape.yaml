@@ -1,12 +1,16 @@
 id: ticket-to-pr-e9-pr-shape
 invariant: TPR-E9,TPR-C5,TPR-C7
 prompt: >-
-  {{entrypoint}} for TKT-901.
-  The ready, verified branch already has one correlated
-  open review-ready PR. Confirm its deliberate base, Conventional Commit title,
-  template body and ticket reference. Do not create, draft, label, assign,
-  merge, or update anything. Inspect it through the repository-declared
-  compatible forge contract.
+  {{entrypoint}}. Reconstruct this durable re-entry for the supplied
+  authoritative ticket TKT-901: outcome, change app.txt from `base` to
+  `complete`; acceptance, `grep -Fx complete app.txt`; current-content
+  verification passed; and the
+  adaptive native goal completed the exact correlated branch. That branch
+  already has one correlated open review-ready PR. Confirm its deliberate
+  base, Conventional Commit title, template body, ticket reference, and exact
+  current content. Do not create, draft, label, assign, merge, or update
+  anything. Inspect it through the repository-declared compatible forge
+  contract.
 fixture:
   commits:
     - message: "chore: init"
@@ -41,6 +45,14 @@ checks:
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
   - name: existing proposal is the only successful shape
-    expect_regex: "outcome\\tpr_existing[\\s\\S]*base\\tmain[\\s\\S]*pull_request_url\\thttps://example.invalid/pr/901"
-  - name: current verification and PR shape are reported
-    expect_regex: "verification\\t(?!unavailable)[^\\n]+[\\s\\S]*(fix: satisfy TKT-901|review-ready|not draft)"
+    expect_regex: "\\bpr_existing\\b[\\s\\S]*main[\\s\\S]*https://example.invalid/pr/901"
+  - name: current verification is reported
+    expect_regex: "verification"
+  - name: conventional title is reported
+    expect_regex: "fix: satisfy TKT-901"
+  - name: template body and ticket reference are reported
+    expect_regex: "Why this exists\\. Implements TKT-901|body[^\\n]*TKT-901|template[^\\n]*TKT-901"
+    flags: i
+  - name: proposal is reported as review ready
+    expect_regex: "review-ready|isDraft false|not draft|non[- ]draft"
+    flags: i

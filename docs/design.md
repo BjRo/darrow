@@ -174,13 +174,13 @@ in [Capability: Native Goal Preflight](specs/adaptive-goal-loop.md).
 ## Ticket to PR is the first task recipe
 
 [`darrow-ticket-to-pr`](../plugins/task_recipe/darrow-ticket-to-pr/README.md)
-packages the complete explicitly authorized outcome of delivering one ready,
+packages the complete explicitly authorized outcome of delivering one
 authoritative ticket as exactly one verified pull request. Its read-only intake
-establishes ticket authority, readiness, local-work safety, and durable re-entry
-state. It then delegates implementation, recovery, exact-content verification,
-proportional review, and bounded publication to one adaptive host-native goal.
+establishes ticket authority, local-work safety, and durable re-entry state. It
+then delegates decision-gating, implementation, recovery, exact-content
+verification, proportional review, and bounded publication to adaptive-goal.
 
-The recipe composes ticket, readiness, review, Git, and telemetry behavior
+The recipe composes ticket, adaptive-goal, review, and Git behavior
 through compatible environment contracts. It does not make those capabilities
 mandatory Darrow dependencies, introduce a phase runtime, or grant merge,
 deployment, release, or ticket-mutation authority. Its normative contract is in

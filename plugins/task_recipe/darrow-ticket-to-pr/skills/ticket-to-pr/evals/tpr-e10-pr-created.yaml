@@ -3,17 +3,16 @@ invariant: TPR-E10,TPR-C11
 prompt: >-
   {{entrypoint}}. Reconstruct this durable terminal result for the supplied
   authoritative ticket TKT-1010: outcome, change app.txt from unchanged to
-  complete; acceptance, `grep -Fx complete app.txt`; readiness verdict, ready
-  with that quality bar; current-content verification passed; the adaptive
+  complete; acceptance, `grep -Fx complete app.txt`; current-content
+  verification passed; the adaptive
   native goal completed; and the newly opened verified proposal is
   https://example.invalid/pr/1010. The preserved historical terminal outcome
   is `pr_created`; reconstruction verifies it and does not reclassify it merely
   because the created proposal now exists. Preserve the supplied durable goal
   completion evidence even though this turn did not witness the earlier goal.
-  Report exactly one complete host-neutral record in the recipe's tab-separated
-  shape, not Markdown fields, and use unavailable for facts not established.
-  Inspect the proposal through the repository-declared compatible forge
-  contract.
+  Report the successful outcome, verified pull request, verification, and
+  review result concisely. Inspect the proposal through the repository-declared
+  compatible forge contract.
 fixture:
   commits:
     - message: "chore: init"
@@ -50,9 +49,7 @@ checks:
       grep -E '^pr (list|view)( |$)' .git/gh-calls >/dev/null &&
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
-  - name: exactly one complete versioned terminal record is emitted
-    expect_regex: "^format\\tdarrow-ticket-to-pr-result-v1$"
-    count_regex: "^(?:format|ticket|repository|outcome|reason|readiness|branch|base|commits|remote_branch|pull_request_url|verification|independent_review|local_work|adaptive_goal|telemetry_status|telemetry_evidence)\\t"
-    expect_count: 17
-  - name: pr_created carries every terminal field
-    expect_regex: "^ticket\\tTKT-1010\\nrepository\\t[^\\n]+\\noutcome\\tpr_created\\nreason\\t[^\\n]+\\nreadiness\\t[^\\n]+\\nbranch\\tfeat/tkt-1010\\nbase\\t[^\\n]+\\ncommits\\t(?!unavailable)[^\\n]+\\nremote_branch\\t[^\\n]*feat/tkt-1010[^\\n]*\\npull_request_url\\thttps://example.invalid/pr/1010\\nverification\\t(?!unavailable)[^\\n]+\\nindependent_review\\t[^\\n]+\\nlocal_work\\t[^\\n]+\\nadaptive_goal\\t[^\\n]+\\ntelemetry_status\\t(emitted|degraded|failed)\\ntelemetry_evidence\\t[^\\n]+$"
+  - name: historical created outcome and proposal are reported
+    expect_regex: "TKT-1010[\\s\\S]*\\bpr_created\\b[\\s\\S]*https://example.invalid/pr/1010|\\bpr_created\\b[\\s\\S]*TKT-1010[\\s\\S]*https://example.invalid/pr/1010"
+  - name: successful result includes verification and review
+    expect_regex: "verification[\\s\\S]*review|review[\\s\\S]*verification"

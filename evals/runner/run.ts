@@ -44,6 +44,7 @@ import type {
   GoalRouteApplication,
   HarnessAdapter,
   HarnessResult,
+  RequiredSkillActivationResult,
   TrialResult,
 } from "./types";
 
@@ -80,6 +81,10 @@ interface RunCaseOptions {
   withoutSkill?: boolean;
   humanReviewMinutes?: number;
   requireEvaluationRecords?: boolean;
+  /** Independently packaged capability skills exposed for this composition run. */
+  additionalSkillDirs?: string[];
+  /** Secondary capability selections that are required outcome evidence. */
+  requiredSkillActivations?: string[];
   judge?: JudgeConfig;
   /** Route the harness is told to apply. */
   expectedGoalRoute?: GoalRouteExpectation;
@@ -538,6 +543,24 @@ function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
     : undefined;
 }
 
+function requiredSkillActivationResults(
+  options: RunCaseOptions,
+  harness: HarnessResult,
+): RequiredSkillActivationResult[] | undefined {
+  if (!options.requiredSkillActivations?.length || options.withoutSkill)
+    return undefined;
+  return options.requiredSkillActivations.map((targetSkill) => ({
+    targetSkill,
+    passed: harness.skillActivation?.complete
+      ? harness.skillActivation.observedSkills.includes(targetSkill)
+      : null,
+    source: harness.skillActivation?.complete
+      ? harness.skillActivation.source
+      : null,
+    observedSkills: harness.skillActivation?.observedSkills ?? [],
+  }));
+}
+
 async function evaluateTrial(
   options: RunCaseOptions,
   context: TrialContext,
@@ -573,6 +596,7 @@ async function evaluateTrial(
     checks,
     harness,
     activation: trialActivation(options, harness),
+    requiredSkillActivations: requiredSkillActivationResults(options, harness),
     routeApplication: observedGoalRouteApplication,
     orchestrationMetrics: extractOrchestrationMetrics(
       harness.resultText,
@@ -590,10 +614,15 @@ function activationGradeLabel(result: TrialResult): string {
 }
 
 function reportTrialActivation(result: TrialResult): void {
-  if (!result.activation) return;
-  console.log(
-    `      activation: ${activationGradeLabel(result)} (${result.activation.class}, target ${result.activation.targetSkill}, primary ${result.activation.primarySkill ?? "none"}, source ${result.activation.source ?? "unavailable"})`,
-  );
+  if (result.activation)
+    console.log(
+      `      activation: ${activationGradeLabel(result)} (${result.activation.class}, target ${result.activation.targetSkill}, primary ${result.activation.primarySkill ?? "none"}, source ${result.activation.source ?? "unavailable"})`,
+    );
+  for (const required of result.requiredSkillActivations ?? []) {
+    console.log(
+      `      required activation: ${required.passed === null ? "unknown" : required.passed ? "pass" : "fail"} (target ${required.targetSkill}, source ${required.source ?? "unavailable"})`,
+    );
+  }
 }
 
 function reportTrial(options: RunCaseOptions, result: TrialResult): void {
@@ -636,6 +665,7 @@ async function buildTrialFixture(
   return buildFixture({
     fixture: evalCase.fixture,
     skillDir: withoutSkill ? "" : evalCase.skillDir,
+    additionalSkillDirs: withoutSkill ? [] : options.additionalSkillDirs,
     skillMounts: adapter.skillMounts,
     mountPluginSkills: evalCase.mount_plugin_skills ?? false,
     sourceClaudePlugin: adapter.sourceClaudePlugin,
@@ -660,7 +690,9 @@ async function runTrial(
     withoutSkill = false,
   } = options;
   const activationProbe =
-    evalCase.activation && !withoutSkill && adapter.name === "codex"
+    (evalCase.activation || options.requiredSkillActivations?.length) &&
+    !withoutSkill &&
+    adapter.name === "codex"
       ? { token: randomUUID() }
       : undefined;
   const repoDir = await buildTrialFixture(options, activationProbe);
@@ -865,6 +897,30 @@ function activationSummary(
   };
 }
 
+function requiredSkillActivationSummary(
+  options: RunCaseOptions,
+  trialResults: TrialResult[],
+): Pick<
+  CaseResult,
+  "requiredSkillActivationTargets" | "requiredSkillActivationPassRate"
+> {
+  if (!options.requiredSkillActivations?.length || options.withoutSkill)
+    return {};
+  const grades = trialResults.flatMap(
+    (trial) => trial.requiredSkillActivations ?? [],
+  );
+  const complete =
+    grades.length ===
+      trialResults.length * options.requiredSkillActivations.length &&
+    grades.every((grade) => grade.passed !== null);
+  return {
+    requiredSkillActivationTargets: options.requiredSkillActivations,
+    requiredSkillActivationPassRate: complete
+      ? grades.filter((grade) => grade.passed).length / grades.length
+      : null,
+  };
+}
+
 function meanTrialTokens(
   trialResults: TrialResult[],
   harness: string,
@@ -924,7 +980,11 @@ function summarizeCase(
       !options.withoutSkill &&
       !!evalCase.skillDir &&
       (evalCase.mount_plugin_skills ?? false),
+    additionalSkillDirectories: options.withoutSkill
+      ? []
+      : (options.additionalSkillDirs ?? []),
     ...activationSummary(options, trialResults),
+    ...requiredSkillActivationSummary(options, trialResults),
     harness: adapter.name,
     model,
     effort,
@@ -1030,9 +1090,11 @@ const { values } = parseArgs({
     "human-review-minutes": { type: "string" },
     "corpus-manifest": { type: "string" },
     "skill-dir": { type: "string" },
+    "additional-skill-dir": { type: "string", multiple: true },
     "mount-plugin-skills": { type: "boolean", default: false },
     "condition-label": { type: "string" },
     "require-evaluation-records": { type: "boolean", default: false },
+    "required-skill-activations": { type: "string" },
     "apply-goal-route": { type: "boolean", default: false },
     "case-routes": { type: "string" },
     "expected-goal-routes": { type: "string" },
@@ -1079,6 +1141,47 @@ if (values["judge-harness"] && !judgeAdapter) {
 }
 
 const model = values.model ?? adapter.defaultModel;
+const additionalSkillDirs = (values["additional-skill-dir"] ?? []).map((path) =>
+  resolve(process.cwd(), path),
+);
+if (
+  new Set(additionalSkillDirs.map((path) => basename(path))).size !==
+  additionalSkillDirs.length
+) {
+  console.error("--additional-skill-dir values must have unique skill names");
+  process.exit(1);
+}
+let requiredSkillActivations: Record<string, string[]> = {};
+if (values["required-skill-activations"]) {
+  try {
+    requiredSkillActivations = JSON.parse(
+      values["required-skill-activations"],
+    ) as Record<string, string[]>;
+  } catch {
+    console.error("--required-skill-activations must be one JSON object");
+    process.exit(1);
+  }
+  if (
+    !requiredSkillActivations ||
+    typeof requiredSkillActivations !== "object" ||
+    Array.isArray(requiredSkillActivations) ||
+    !Object.values(requiredSkillActivations).every(
+      (skills) =>
+        Array.isArray(skills) &&
+        skills.length > 0 &&
+        new Set(skills).size === skills.length &&
+        skills.every(
+          (skill) =>
+            typeof skill === "string" && /^[A-Za-z0-9._-]+$/.test(skill),
+        ),
+    )
+  ) {
+    console.error(
+      "--required-skill-activations values must be non-empty unique skill-name arrays",
+    );
+    process.exit(1);
+  }
+}
 let caseRoutes: Record<string, { model: string; effort: string }> = {};
 if (values["case-routes"]) {
   let parsed: unknown;
@@ -1232,6 +1335,8 @@ for (const evalCase of cases) {
     withoutSkill: values["without-skill"],
     humanReviewMinutes,
     requireEvaluationRecords: values["require-evaluation-records"],
+    additionalSkillDirs,
+    requiredSkillActivations: requiredSkillActivations[evalCase.id],
     judge: judgeAdapter
       ? {
           adapter: judgeAdapter,
@@ -1255,7 +1360,11 @@ for (const r of results) {
     r.activationPassRate,
     threshold,
   );
-  const ok = taskOk && activationOk;
+  const requiredActivationOk = activationPassesThreshold(
+    r.requiredSkillActivationPassRate,
+    threshold,
+  );
+  const ok = taskOk && activationOk && requiredActivationOk;
   if (!ok) failed++;
   console.log(
     `${ok ? "✓" : "✗"} ${r.caseId} [${r.invariant}] pass ${(r.passRate * 100).toFixed(0)}% ` +
@@ -1265,6 +1374,11 @@ for (const r of results) {
   if (r.activationClass) {
     console.log(
       `  activation: ${r.activationClass} target ${r.activationTargetSkill} | ${r.activationPassRate === null ? "unknown" : `${(r.activationPassRate! * 100).toFixed(0)}%`}`,
+    );
+  }
+  if (r.requiredSkillActivationTargets?.length) {
+    console.log(
+      `  required activation: ${r.requiredSkillActivationTargets.join(", ")} | ${r.requiredSkillActivationPassRate === null ? "unknown" : `${(r.requiredSkillActivationPassRate! * 100).toFixed(0)}%`}`,
     );
   }
   if (r.meanChildInvocationCount !== undefined) {

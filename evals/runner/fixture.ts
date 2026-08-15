@@ -423,6 +423,7 @@ async function mountSourcePlugins(
 type SkillMountOptions = Pick<
   BuildFixtureOptions,
   | "skillDir"
+  | "additionalSkillDirs"
   | "skillMounts"
   | "mountPluginSkills"
   | "sourceClaudePlugin"
@@ -431,12 +432,78 @@ type SkillMountOptions = Pick<
   | "claudeExplicitEntrypointBridge"
 >;
 
+function assertUniqueMountedSkillNames(skillDirs: string[]): void {
+  const names = skillDirs.map((skillDir) => basename(skillDir));
+  if (new Set(names).size !== names.length)
+    throw new Error("fixture: mounted skill names must be unique");
+}
+
+interface SkillGroupMount {
+  skillDirs: string[];
+  pluginPaths: PluginMountPaths[];
+  activationProbe?: { token: string };
+}
+
+async function mountSkillGroup(
+  repoDir: string,
+  mount: string,
+  group: SkillGroupMount,
+): Promise<void> {
+  for (const skillDir of group.skillDirs) {
+    await copySkillWithoutEvals(
+      skillDir,
+      join(repoDir, mount, basename(skillDir)),
+      group.activationProbe
+        ? { repoDir, token: group.activationProbe.token }
+        : undefined,
+    );
+  }
+  for (const paths of group.pluginPaths)
+    await mountPluginMechanics(repoDir, mount, paths);
+}
+
+async function mountAdditionalSourceSkills(
+  repoDir: string,
+  mounts: string[],
+  group: SkillGroupMount,
+): Promise<void> {
+  for (const mount of mounts) {
+    await mountSkillGroup(repoDir, mount, group);
+    for (const paths of group.pluginPaths) {
+      if (existsSync(paths.agents))
+        await cp(paths.agents, join(repoDir, mount, "..", "agents"), {
+          recursive: true,
+        });
+    }
+  }
+}
+
+function sourceSkillMounts(options: SkillMountOptions): string[] {
+  return [
+    ...(options.sourceClaudePlugin ? [".git/eval-plugin/skills"] : []),
+    ...(options.sourceCodexPlugin
+      ? [".git/eval-marketplace/plugin/skills"]
+      : []),
+  ];
+}
+
+async function excludeSkillMounts(
+  repoDir: string,
+  skillMounts: string[],
+): Promise<void> {
+  const excludes = skillMounts
+    .map((mount) => `/${mount.split("/")[0]}/`)
+    .join("\n");
+  await writeFile(join(repoDir, ".git", "info", "exclude"), excludes + "\n");
+}
+
 async function mountSkills(
   repoDir: string,
   options: SkillMountOptions,
 ): Promise<void> {
   const {
     skillDir,
+    additionalSkillDirs = [],
     skillMounts,
     mountPluginSkills = false,
     sourceClaudePlugin = false,
@@ -445,22 +512,21 @@ async function mountSkills(
     claudeExplicitEntrypointBridge = false,
   } = options;
   const paths = pluginMountPaths(skillDir);
-  const skillDirs = await resolveMountedSkillDirs(skillDir, mountPluginSkills);
-  for (const mount of skillMounts) {
-    for (const mountedSkillDir of skillDirs) {
-      const mountedSkillName = mountedSkillDir
-        .split("/")
-        .filter(Boolean)
-        .pop()!;
-      await copySkillWithoutEvals(
-        mountedSkillDir,
-        join(repoDir, mount, mountedSkillName),
-        activationProbe ? { repoDir, token: activationProbe.token } : undefined,
-      );
-    }
-    await mountPluginMechanics(repoDir, mount, paths);
-  }
-  await mountSourcePlugins(repoDir, skillDirs, paths, {
+  const primarySkillDirs = await resolveMountedSkillDirs(
+    skillDir,
+    mountPluginSkills,
+  );
+  const skillDirs = [...primarySkillDirs, ...additionalSkillDirs];
+  assertUniqueMountedSkillNames(skillDirs);
+  const additionalPaths = additionalSkillDirs.map(pluginMountPaths);
+  const allSkills = {
+    skillDirs,
+    pluginPaths: [paths, ...additionalPaths],
+    activationProbe,
+  };
+  for (const mount of skillMounts)
+    await mountSkillGroup(repoDir, mount, allSkills);
+  await mountSourcePlugins(repoDir, primarySkillDirs, paths, {
     sourceClaudePlugin,
     sourceCodexPlugin,
     activationProbe: activationProbe
@@ -470,15 +536,20 @@ async function mountSkills(
       ? skillDir
       : undefined,
   });
-  // Keep eval infrastructure invisible so a model cannot commit the mounts.
-  const excludes = skillMounts.map((m) => `/${m.split("/")[0]}/`).join("\n");
-  await writeFile(join(repoDir, ".git", "info", "exclude"), excludes + "\n");
+  await mountAdditionalSourceSkills(repoDir, sourceSkillMounts(options), {
+    skillDirs: additionalSkillDirs,
+    pluginPaths: additionalPaths,
+    activationProbe,
+  });
+  await excludeSkillMounts(repoDir, skillMounts);
 }
 
 export interface BuildFixtureOptions {
   fixture: Fixture;
   /** Skill under evaluation; empty for skill-less experiment cases. */
   skillDir: string;
+  /** Additional independently packaged capability skills exposed for composition. */
+  additionalSkillDirs?: string[];
   /** Repo-relative directories the skill is copied into. */
   skillMounts: string[];
   /** Mount every sibling skill of the plugin, not just `skillDir`. */
