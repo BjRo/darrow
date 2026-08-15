@@ -1,0 +1,32 @@
+id: read-ticket-no-trigger-list
+invariant: TM-R1,TM-L1
+activation: negative
+mount_plugin_skills: true
+prompt: "List every open ticket about login; I am not asking for one ticket's body."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      case "$1 $2" in
+        "issue list") printf '#3 open  Login fails after refresh (bug)\n' ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: listing uses the list operation
+    run: cat .git/fixture-gh/calls
+    expect_regex: "issue list.*login"
+  - name: no exact-ticket body is fetched
+    run: cat .git/fixture-gh/calls
+    not_regex: "issue view"
+  - name: listing remains read-only
+    run: cat .git/fixture-gh/calls
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

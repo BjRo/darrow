@@ -1,0 +1,35 @@
+id: read-ticket-missing-ticket
+invariant: TM-R2,TM-R4
+activation: positive
+mount_plugin_skills: true
+prompt: "Read ticket #404 and return the authoritative tracker response without changing anything."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      case "$1 $2" in
+        "issue view")
+          echo "GraphQL: Could not resolve to an Issue with the number of 404." >&2
+          exit 1
+          ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: missing-ticket refusal is relayed byte-for-byte
+    run: cat .git/last-message.md
+    expect_exact: "GraphQL: Could not resolve to an Issue with the number of 404."
+  - name: exact missing ticket is requested once
+    run: cat .git/fixture-gh/calls
+    expect_regex: "^issue view 404"
+  - name: missing-ticket refusal remains read-only
+    run: cat .git/fixture-gh/calls
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

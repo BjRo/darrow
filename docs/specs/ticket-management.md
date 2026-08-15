@@ -4,8 +4,8 @@ Consolidates ticket operations into intent-triggered skills so that
 creating and updating tickets is consistent, traceable, and backend-neutral
 regardless of which agent runtime executes them and which tracker backs them.
 
-Plugin: `darrow-tickets`. Skills: `create-ticket`, `update-ticket`,
-`list-tickets`.
+Plugin: `darrow-tickets`. Skills: `create-ticket`, `read-ticket`,
+`update-ticket`, `list-tickets`.
 
 Scope: mechanics only. These skills record and mutate tickets; they do not
 refine requirements, plan or break down work, or review solutions. Those
@@ -162,6 +162,48 @@ deleting tickets, bulk updates, editing tracker configuration or
 workflows, transferring tickets between repos/projects, creating tickets
 (see create-ticket), merging or closing PRs (git capability).
 
+## read-ticket
+
+### Intent triggers
+
+"read ticket #42", "show me issue #42", "what does this ticket ask for?",
+"fetch <canonical-ticket-url>", or an explicit skill invocation.
+
+### Contract
+
+Return one exact current-project ticket, read-only. Resolve only a stable ID,
+canonical URL, or an exact ticket reference already bound in the conversation,
+then relay its authoritative metadata, relations, and body.
+
+### Invariants
+
+- **TM-R1 — Exact current-project reference.** Read only an explicit ticket ID,
+  a canonical URL belonging to the current project's resolved backend, or an
+  exact reference already bound unambiguously in the conversation. A missing
+  reference asks for an ID or canonical URL. A topic, title fragment, foreign-
+  project URL, ambiguous conversational reference, or numeric suffix extracted
+  from a rejected URL never becomes a guessed ticket.
+- **TM-R2 — Read-only.** Reading never mutates tracker state and never becomes
+  permission to comment, edit, label, relate, close, reopen, assign, or start
+  the tracked work.
+- **TM-R3 — Authoritative complete output.** Return the backend, ID, state,
+  title, canonical URL, labels, parent and dependency relations, and full
+  description exactly as normalized by the bundled CLI. Do not summarize,
+  rerank, enrich, interpret, assess readiness, or omit inconvenient content.
+- **TM-R4 — Honest retrieval failure.** A missing ticket, unusable backend,
+  unreadable relation, or tracker error stops with the CLI's complete diagnostic.
+  Backend-provided evidence remains verbatim but may be capped with an explicit
+  truncation note; a silent backend failure gets an honest synthetic diagnostic.
+  Never substitute repository files, a web search, raw tracker commands, or
+  another plugin as an unverified fallback.
+
+### Non-goals
+
+Finding tickets by topic or returning a set (see list-tickets), reading comments
+or event history, cross-repository/project retrieval, mutating tickets (see
+update-ticket), assessing readiness, planning, implementing, or otherwise
+starting the tracked work.
+
 ## list-tickets
 
 ### Intent triggers
@@ -191,6 +233,6 @@ act on.
 
 ### Non-goals
 
-Mutating tickets (see create-ticket / update-ticket), cross-repo or
-cross-project queries, analytics or reporting (velocity, aging stats),
-board/sprint views.
+Reading one exact ticket and its body (see read-ticket), mutating tickets (see
+create-ticket / update-ticket), cross-repo or cross-project queries, analytics
+or reporting (velocity, aging stats), board/sprint views.

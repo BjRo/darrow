@@ -63,7 +63,7 @@ fresh_repo() {
   echo base > base.txt
   git add base.txt
   git commit -qm "chore: init"
-  git remote add origin "$REPO/.git/remote.git" 2>/dev/null || true
+  git remote add origin "https://github.test/o/r.git" 2>/dev/null || true
   MOCK="$REPO/.git/mock-gh"
   mkdir -p "$MOCK"
   printf 'bug\nenhancement\ndocumentation\n' > "$MOCK/labels"
@@ -80,6 +80,7 @@ mock_gh() {
 #!/bin/sh
 d="$(git rev-parse --git-dir)/mock-gh"
 echo "$*" >> "$d/calls"
+echo "${GH_REPO-}" >> "$d/repo-env"
 find_flag() { # $1=flag; echoes the value following it from remaining args
   want=$1; shift
   prev=""
@@ -120,6 +121,8 @@ if [ "$1" = "api" ]; then
         echo "gh: connect: network is down" >&2
         exit 1
       fi
+      if [ -f "$d/parent-silent-fail" ]; then exit 1; fi
+      if [ -f "$d/parent-malformed" ]; then cat "$d/parent-malformed"; exit 0; fi
       if [ -f "$d/issue-$n-parent" ]; then
         cat "$d/issue-$n-parent"
       else
@@ -132,6 +135,7 @@ if [ "$1" = "api" ]; then
         echo "gh: connect: network is down" >&2
         exit 1
       fi
+      if [ -f "$d/dep-malformed" ]; then cat "$d/dep-malformed"; exit 0; fi
       cat "$d/issue-$n-blockedby" 2>/dev/null || :
       ;;
     "POST /dependencies/blocked_by")
@@ -165,7 +169,14 @@ case "$1 $2" in
       echo "GraphQL: Could not resolve to a Repository" >&2
       exit 1
     fi
-    if [ -f "$d/issues-disabled" ]; then echo false; else echo true; fi
+    json=$(find_flag --json "$@")
+    if [ "$json" = "url" ]; then
+      echo "https://github.test/o/r"
+    elif [ -f "$d/issues-disabled" ]; then
+      echo false
+    else
+      echo true
+    fi
     ;;
   "label list")
     cat "$d/labels"
@@ -418,6 +429,9 @@ echo 7 > "$MOCK/issue-12-parent"
 echo 3 > "$MOCK/issue-12-blockedby"
 OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
 check "get exits 0" 0 "$RC"
+check "numeric get is bound to origin despite ambient GH_REPO" "github.test/o/r" "$(tail -n 1 "$MOCK/repo-env")"
+EXPECTED=$'backend: github\n#12 open — List dies\nhttps://github.test/o/r/issues/12\nlabels: (none)\nparent: #7\ndepends-on: #3\n## body\nSome body.'
+check "get emits the complete authoritative record exactly" "$EXPECTED" "$OUT"
 check_contains "meta line" "#12 open — List dies" "$OUT"
 check_contains "native dependency reported" "depends-on: #3" "$OUT"
 check_contains "native parent reported" "parent: #7" "$OUT"
@@ -431,11 +445,47 @@ check_contains "absent deps reported" "depends-on: (none)" "$OUT"
 OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
 check "parent read failure exits 4" 4 "$RC"
 check_contains "relays the backend error" "network is down" "$OUT"
+check_not_contains "relation failure emits no partial backend" "backend: github" "$OUT"
+check_not_contains "relation failure emits no partial ticket" "#12 open — List dies" "$OUT"
 rm "$MOCK/parent-fail"
 OUT=$(bash "$SCRIPT" get "#12" 2>&1); RC=$?
 check "accepts #-prefixed ids" 0 "$RC"
+OUT=$(GH_REPO=github.test/other/repo bash "$SCRIPT" get 12 2>&1); RC=$?
+check "ambient GH_REPO cannot redirect a numeric get" 0 "$RC"
+check_contains "ambient override still reads origin ticket" "#12 open — List dies" "$OUT"
+check "gh receives the origin repository binding" "github.test/o/r" "$(tail -n 1 "$MOCK/repo-env")"
+OUT=$(bash "$SCRIPT" get "https://github.test/o/r/issues/12" 2>&1); RC=$?
+check "accepts a canonical current-project URL" 0 "$RC"
+check_contains "URL resolves to the exact ticket" "#12 open — List dies" "$OUT"
+OUT=$(bash "$SCRIPT" get "https://github.test/other/repo/issues/12" 2>&1); RC=$?
+check "foreign-project URL exits 2" 2 "$RC"
+check_contains "foreign-project refusal is explicit" "does not belong to the current project" "$OUT"
+OUT=$(bash "$SCRIPT" get "https://github.test/o/r/issues/12?view=1" 2>&1); RC=$?
+check "non-canonical current-project URL exits 2" 2 "$RC"
+check_contains "non-canonical URL refusal is explicit" "is not canonical" "$OUT"
+printf 'not-a-number\n' > "$MOCK/parent-malformed"
+OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
+check "malformed parent response exits 4" 4 "$RC"
+check_contains "malformed parent response is named" "malformed parent relation response" "$OUT"
+check_not_contains "malformed parent emits no partial ticket" "backend: github" "$OUT"
+rm "$MOCK/parent-malformed"
+printf '3\nnot-a-number\n' > "$MOCK/dep-malformed"
+OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
+check "malformed dependency response exits 4" 4 "$RC"
+check_contains "malformed dependency response is named" "malformed dependency relation response" "$OUT"
+check_not_contains "malformed dependency emits no partial ticket" "backend: github" "$OUT"
+rm "$MOCK/dep-malformed"
+: > "$MOCK/parent-silent-fail"
+OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
+check "silent relation backend failure exits 4" 4 "$RC"
+check_contains "silent backend failure gets an honest diagnostic" "failed with exit 1 and no diagnostic" "$OUT"
+rm "$MOCK/parent-silent-fail"
 OUT=$(bash "$SCRIPT" get abc 2>&1); RC=$?
 check "non-numeric id exits 2" 2 "$RC"
+mock_issue 1 open "Must not be reached"
+OUT=$(bash "$SCRIPT" get 18446744073709551617 2>&1); RC=$?
+check "oversized id does not wrap to an existing ticket" 4 "$RC"
+check_not_contains "oversized id never resolves as #1" "#1 open — Must not be reached" "$OUT"
 OUT=$(bash "$SCRIPT" get 404 2>&1); RC=$?
 check "missing ticket exits 4" 4 "$RC"
 
@@ -664,6 +714,8 @@ OUT=$(bash "$SCRIPT" frobnicate 2>&1); RC=$?
 check "unknown command exits 64" 64 "$RC"
 OUT=$(bash "$SCRIPT" get 2>&1); RC=$?
 check "missing id is an input error" 2 "$RC"
+OUT=$(bash "$SCRIPT" get 12 13 2>&1); RC=$?
+check "multiple get references are rejected" 2 "$RC"
 
 echo
 if [[ $FAILURES -gt 0 ]]; then
