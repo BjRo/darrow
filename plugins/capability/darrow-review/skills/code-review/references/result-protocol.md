@@ -2,18 +2,25 @@
 
 Use this protocol for both completed reviews and terminal scope failures.
 
-## Output envelope
+## Canonical artifact and output envelope
 
-A standalone final response begins with
-`format<TAB>darrow-review-result-v1`, ends with the `next_action` record, and
-contains nothing else. This applies to `pass`, `fail`, `blocked`, invalid-base,
-ambiguous-base, and empty-diff outcomes. Every field is one line without tabs.
+Write and validate every result as `darrow-review-result-v1` TSV beneath the
+scope artifact directory. It is the canonical mechanical artifact and every
+field is one line without tabs. Do not place it elsewhere.
 
-For an explicit review clause inside a larger goal, the same exact validated
-record is the capability return value rather than the enclosing goal's response
-envelope. The goal owner interprets its findings and outcome, applies the
-enclosing continuation contract, and may summarize the review in its own final
-response. Consumers do not need to parse or reproduce this serialization.
+Default standalone and composed responses are a Markdown rendering of that
+validated artifact. Use `bash "$report_tool" render "$result_record"`; it
+preserves all fields, escapes hostile content, and does not include raw TSV.
+Only an explicit request for raw TSV, v1, or machine format returns the TSV
+bytes, beginning with `format<TAB>darrow-review-result-v1`, ending with the
+`next_action` record, and containing nothing else. This applies to `pass`,
+`fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff outcomes.
+
+For an explicit review clause inside a larger goal, return the selected normal
+presentation rather than the enclosing goal's response envelope. The goal owner
+interprets its findings and outcome, applies the enclosing continuation contract,
+and may summarize the review in its own final response. Consumers do not need
+to parse or reproduce the TSV serialization.
 
 Use `next_action=return control to enclosing goal` for a composed pass,
 `next_action=return findings to enclosing goal` for a composed fail, and
@@ -71,7 +78,8 @@ Write the draft only beneath the scope artifact directory and run:
 bash "$result_tool" validate "$result_record"
 ```
 
-Correct serialization errors only. In standalone mode, copy the validated file
-bytes verbatim as the full response. In composed mode, return the review report
-to the goal owner and exit the capability. Add no remediation, commit,
+Correct serialization errors only. In default mode, render the validated file
+and return only that Markdown. In explicit machine mode, copy the validated
+file bytes verbatim. In composed mode, return the selected review report to the
+goal owner and exit the capability. Add no remediation, commit,
 publication, approval, merge, release, or deploy action inside review.

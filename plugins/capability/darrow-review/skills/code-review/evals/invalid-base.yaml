@@ -14,17 +14,25 @@ fixture:
 checks:
   - name: invalid preflight preserves the working tree
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: final blocked record validates
+  - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi;
-      bash "$tool" validate .git/last-message.md
+      record=$(find .git -path '*/darrow-review.*/*' -name '*.tsv' -type f | sed -n '1p');
+      test -n "$record" && if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi; && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
 output_checks:
-  - name: invalid base blocks before findings
-    expect_regex: "^base\\trelease/does-not-exist$[\\s\\S]*^standards\\tblocked$[\\s\\S]*^verdict\\tblocked$"
-  - name: failure evidence identifies the invalid base
-    expect_regex: "^check\\t[^\\n]+review-scope[^\\n]+\\tapplicable\\tblocked\\t[^\\n]+invalid base"
+  - name: default Markdown carries the verdict, axis statuses, and complete findings
+    expect_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n\*\*Verdict:\*\* (pass|fail|blocked) · \*\*Findings:\*\* [0-9]+ \(.*\)[\s\S]*## Findings[\s\S]*(### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards|Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*|No findings\.)'
     flags: i
-  - name: no reviewer finding is produced
-    not_regex: "^finding\\t"
+  - name: default Markdown carries compact check applicability status and evidence
+    expect_regex: '## Checks[\s\S]*\*\*(PASS|FAIL|BLOCKED|NOT_APPLICABLE)\*\* \((applicable|not_applicable)\) — <code>[^<]+</code>: .+'
+    flags: i
+  - name: default Markdown carries risks next action scope and axis sources
+    expect_regex: '## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*\*\*Base:\*\*[\s\S]*\*\*Target:\*\*[\s\S]*\*\*Changed files:\*\*[\s\S]*## Sources[\s\S]*\*\*Standards \((pass|fail|blocked)\):\*\*[\s\S]*\*\*Spec \((pass|fail|blocked|not_available)\):\*\*'
+    flags: i
+  - name: generic heading-only summaries cannot satisfy the default contract
+    not_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n[^#]{0,240}$'
+  - name: default review does not expose raw TSV
+    not_regex: '^format\tdarrow-review-result-v1$'
