@@ -17,10 +17,44 @@ code.
 Reviews a pull request, branch, fixed-point diff, or selected working-tree
 layer. It pins the base, target, and complete changed-file set before review;
 runs applicable deterministic checks; delegates standards and specification
-analysis independently; and returns one validated `darrow-review-result-v1`
-record with only evidence-backed findings.
+analysis independently; then returns one complete Markdown report with only
+evidence-backed findings. The validated `darrow-review-result-v1` remains the
+canonical artifact beneath the review scope and is returned only when explicitly
+requested as raw machine format.
 
 Example: _“Review all uncommitted changes.”_
+
+The default response starts with the decision a human needs, then keeps the
+full traceability later in the same report:
+
+```md
+# Code review — FAIL
+
+**Verdict:** fail · **Findings:** 1 (1 blocking, 0 advisory)
+
+## Findings
+
+### 1. HIGH — BLOCKING (Spec)
+
+- **Location:** <code>src/rate.js:1</code>
+- **Source:** <code>Originating requirement: RATE_LIMIT must equal 2</code>
+- **Evidence:** The changed export remains `1`.
+
+## Checks
+
+- **PASS** — <code>bash check.sh</code>: rate check passed
+
+## Risks
+
+- The requested rate limit remains unavailable.
+
+## Next action
+
+Return findings to the requester.
+```
+
+Ask for “raw v1 TSV” or “machine format” only when an integration needs the
+canonical record rather than this Markdown report.
 
 The same canonical skill supports both invocation modes. A composed review is
 requested by host-visible intent—independently review this pinned code

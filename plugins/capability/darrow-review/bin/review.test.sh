@@ -5,6 +5,7 @@ set -u
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
 SCOPE=$SCRIPT_DIR/review-scope
 RESULT=$SCRIPT_DIR/review-result
+REPORT=$SCRIPT_DIR/review-report
 SHELL_UNDER_TEST=${BASH:-bash}
 TAB=$(printf '\t')
 FAILURES=0
@@ -197,6 +198,98 @@ result=$REPO/.git/result.tsv
 } >"$result"
 out=$("$SHELL_UNDER_TEST" "$RESULT" validate "$result")
 check_contains "accepts a complete passing result" "valid: darrow-review-result-v1" "$out"
+
+# shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
+printf 'finding\tstandards\thigh\tblocking\t%s/src/feature.txt:1\t%s/AGENTS.md#Heading\tUse <safe> & `literal` | evidence\n' "$REPO" "$REPO" >>"$result"
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "standards" { $2="fail" } $1 == "verdict" { $2="fail" } { print }' "$result" >"$result.render"
+out=$("$SHELL_UNDER_TEST" "$REPORT" render "$result.render")
+check_contains "renders a Markdown verdict heading" "# Code review — FAIL" "$out"
+check_contains "leads with semantic finding counts" "**Findings:** 1 (1 blocking, 0 advisory)" "$out"
+check_contains "preserves finding axis and severity" "HIGH — BLOCKING (Standards)" "$out"
+# shellcheck disable=SC2016 # Expected literal intentionally contains Markdown backticks.
+check_contains "escapes Markdown-hostile evidence" '&lt;safe&gt;' "$out"
+check_contains "escapes Markdown backticks" '&#96;literal&#96;' "$out"
+check_contains "escapes Markdown pipes" '&#124; evidence' "$out"
+check_contains "renders compact checks" "## Checks" "$out"
+check_contains "renders scope after findings" "## Scope" "$out"
+check_contains "renders sources after scope" "## Sources" "$out"
+check_not_contains "does not duplicate the raw TSV" "format${TAB}darrow-review-result-v1" "$out"
+
+golden=$REPO/.git/golden.tsv
+{
+  printf 'format\tdarrow-review-result-v1\n'
+  printf 'base\tbase-oid\n'
+  printf 'target\ttarget-fingerprint\n'
+  printf 'changed_file\t%s/src/one.js\n' "$REPO"
+  printf 'changed_file\t%s/src/two.js\n' "$REPO"
+  printf 'standards\tfail\nstandards_source\t%s/AGENTS.md\n' "$REPO"
+  printf 'spec\tpass\nspec_source\tobjective <v1> & details\n'
+  # shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
+  printf 'finding\tstandards\thigh\tblocking\tsrc/one.js:1\t%s/AGENTS.md\tAvoid `debug` output\n' "$REPO"
+  printf 'finding\tspec\tmedium\tadvisory\tsrc/two.js:2\tobjective <v1> & details\tKeep [evidence] intact\n'
+  printf 'check\tbash test.sh\tapplicable\tpass\tAll tests passed\n'
+  printf 'check\tnone\tnot_applicable\tnot_applicable\tNo typecheck applies\n'
+  printf 'verdict\tfail\n'
+  printf 'risk\tRisk <one> & two\nrisk\tSecond risk\n'
+  # shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
+  printf 'next_action\tReturn `findings` to owner\n'
+} >"$golden"
+out=$("$SHELL_UNDER_TEST" "$REPORT" render "$golden")
+expected=$REPO/.git/golden.md
+cat >"$expected" <<EOF
+# Code review — FAIL
+
+**Verdict:** fail · **Findings:** 2 (1 blocking, 1 advisory)
+
+## Findings
+
+### 1. HIGH — BLOCKING (Standards)
+- **Location:** <code>src/one.js:1</code>
+- **Source:** <code>$REPO/AGENTS.md</code>
+- **Evidence:** Avoid &#96;debug&#96; output
+
+### 2. MEDIUM — ADVISORY (Spec)
+- **Location:** <code>src/two.js:2</code>
+- **Source:** <code>objective &lt;v1&gt; &amp; details</code>
+- **Evidence:** Keep &#91;evidence&#93; intact
+
+## Checks
+- **PASS** (applicable) — <code>bash test.sh</code>: All tests passed
+- **NOT_APPLICABLE** (not_applicable) — <code>none</code>: No typecheck applies
+
+## Risks
+- Risk &lt;one&gt; &amp; two
+- Second risk
+
+## Next action
+Return &#96;findings&#96; to owner
+
+## Scope
+- **Base:** <code>base-oid</code>
+- **Target:** <code>target-fingerprint</code>
+- **Changed files:**
+  - <code>$REPO/src/one.js</code>
+  - <code>$REPO/src/two.js</code>
+
+## Sources
+- **Standards (fail):**
+  - <code>$REPO/AGENTS.md</code>
+- **Spec (pass):** <code>objective &lt;v1&gt; &amp; details</code>
+EOF
+actual=$REPO/.git/golden.actual.md
+printf '%s\n' "$out" >"$actual"
+if cmp -s "$expected" "$actual"; then
+  printf '  ok: golden rendering preserves every byte\n'
+else
+  printf '  FAIL: golden rendering preserves every byte\n'
+  diff -u "$expected" "$actual" || true
+  FAILURES=$((FAILURES + 1))
+fi
+check_contains "golden preserves both changed files" "src/two.js" "$out"
+check_contains "golden preserves check applicability" "**NOT_APPLICABLE** (not_applicable)" "$out"
+check_contains "golden preserves multiple risks" "Second risk" "$out"
+check_contains "golden escapes all hostile semantic fields" "&lt;v1&gt; &amp; details" "$out"
+check_contains "golden preserves next action" "Return &#96;findings&#96; to owner" "$out"
 
 awk -F '\t' 'BEGIN { OFS="\t" } $1 == "verdict" { $2="blocked" } { print }' "$result" >"$result.bad"
 set +e

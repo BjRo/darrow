@@ -21,16 +21,25 @@ fixture:
 checks:
   - name: branch review remains read-only
     run: test -z "$(git status --porcelain --untracked-files=all)"
-  - name: final review record validates
+  - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi;
-      bash "$tool" validate .git/last-message.md
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" && if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi; && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
 output_checks:
-  - name: feature-side file is reviewed
-    expect_regex: "^changed_file\\t/.+/feature\\.txt$"
-  - name: main-only file is excluded
-    not_regex: "^changed_file\\t.+/main-only\\.txt$"
-  - name: clean branch target is a commit
-    expect_regex: "^target\\t[0-9a-f]{40,64}$"
+  - name: default Markdown carries the verdict, axis statuses, and complete findings
+    expect_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n\*\*Verdict:\*\* (pass|fail|blocked) · \*\*Findings:\*\* [0-9]+ \(.*\)[\s\S]*## Findings[\s\S]*(### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards|Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*|No findings\.)'
+    flags: i
+  - name: default Markdown carries compact check applicability status and evidence
+    expect_regex: '## Checks[\s\S]*\*\*(PASS|FAIL|BLOCKED|NOT_APPLICABLE)\*\* \((applicable|not_applicable)\) — <code>[^<]+</code>: .+'
+    flags: i
+  - name: default Markdown carries risks next action scope and axis sources
+    expect_regex: '## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*\*\*Base:\*\*[\s\S]*\*\*Target:\*\*[\s\S]*\*\*Changed files:\*\*[\s\S]*## Sources[\s\S]*\*\*Standards \((pass|fail|blocked)\):\*\*[\s\S]*\*\*Spec \((pass|fail|blocked|not_available)\):\*\*'
+    flags: i
+  - name: generic heading-only summaries cannot satisfy the default contract
+    not_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n[^#]{0,240}$'
+  - name: default review does not expose raw TSV
+    not_regex: '^format\tdarrow-review-result-v1$'

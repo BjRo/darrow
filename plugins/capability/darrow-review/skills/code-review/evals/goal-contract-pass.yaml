@@ -41,6 +41,16 @@ checks:
   - name: composed review creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: enclosing completion reports the review outcome
-    expect_regex: "(verdict\\tpass|review[\\s\\S]{0,120}(pass|no blocking|clear))"
+  - name: composed Markdown carries the verdict, axis statuses, and complete findings
+    expect_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n\*\*Verdict:\*\* (pass|fail|blocked) · \*\*Findings:\*\* [0-9]+ \(.*\)[\s\S]*## Findings[\s\S]*(### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards|Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*|No findings\.)'
     flags: i
+  - name: composed Markdown carries compact check applicability status and evidence
+    expect_regex: '## Checks[\s\S]*\*\*(PASS|FAIL|BLOCKED|NOT_APPLICABLE)\*\* \((applicable|not_applicable)\) — <code>[^<]+</code>: .+'
+    flags: i
+  - name: composed Markdown carries risks next action scope and axis sources
+    expect_regex: '## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*\*\*Base:\*\*[\s\S]*\*\*Target:\*\*[\s\S]*\*\*Changed files:\*\*[\s\S]*## Sources[\s\S]*\*\*Standards \((pass|fail|blocked)\):\*\*[\s\S]*\*\*Spec \((pass|fail|blocked|not_available)\):\*\*'
+    flags: i
+  - name: generic heading-only summaries cannot satisfy the default contract
+    not_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n[^#]{0,240}$'
+  - name: default review does not expose raw TSV
+    not_regex: '^format\tdarrow-review-result-v1$'

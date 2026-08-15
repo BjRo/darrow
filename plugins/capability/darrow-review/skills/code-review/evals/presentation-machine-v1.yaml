@@ -1,0 +1,24 @@
+id: code-review-presentation-machine-v1
+invariant: CR-C15,CR-E12
+prompt: >-
+  Review my uncommitted changes and return only the raw darrow-review-result-v1
+  machine format. Do not repair the change.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/value.js: "export const VALUE = 1;\n"
+  files:
+    src/value.js: "export const VALUE = 2;\n"
+checks:
+  - name: requested raw record validates
+    run: >-
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate .git/last-message.md
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: explicit machine request returns only TSV
+    expect_regex: "^format\\tdarrow-review-result-v1[\\s\\S]*^next_action\\t"
+  - name: machine response has no Markdown heading
+    not_regex: "^# Code review"
