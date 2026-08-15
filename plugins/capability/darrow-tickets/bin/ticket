@@ -32,7 +32,7 @@ usage: ticket <command> [args]
   inspect
   list [--state open|closed|all] [--type <t>] [--label <l>]... [--search <q>]
        [--milestone <m>] [--limit <n>]
-  get <id>
+  get <id|canonical-url>
   create --title <t> --type bug|feature|task|chore --body-file <f>
          [--label <l>]... [--milestone <m>] [--assignee <a>]
          [--depends-on <id>]... [--parent <id>]
@@ -54,9 +54,36 @@ EOF
   exit 64
 }
 
-# TM-1: exactly one backend, resolved deterministically; unusable -> refuse
-# with the missing piece, never guess.
+# Relay bounded backend diagnostics without silently discarding failure. The
+# bytes we retain stay verbatim; an explicit note identifies truncation, and a
+# silent backend failure gets one honest synthetic diagnostic.
+relay_gh_failure() {
+  local rc=$1 out=$2 emitted=0 lines
+  if [[ -s "$TMPERR" ]]; then
+    truncate_lines < "$TMPERR" >&2
+    lines=$(awk 'END {print NR+0}' "$TMPERR")
+    if [[ "$lines" -gt 50 ]]; then
+      echo "note: backend stderr truncated at 50 lines ($lines total)" >&2
+    fi
+    emitted=1
+  fi
+  if [[ -n "$out" ]]; then
+    truncate_lines <<< "$out" >&2
+    lines=$(awk 'END {print NR+0}' <<< "$out")
+    if [[ "$lines" -gt 50 ]]; then
+      echo "note: backend stdout truncated at 50 lines ($lines total)" >&2
+    fi
+    emitted=1
+  fi
+  if [[ "$emitted" -eq 0 ]]; then
+    echo "error: GitHub backend command failed with exit $rc and no diagnostic" >&2
+  fi
+}
+
+# TM-1: exactly one backend, resolved deterministically from origin; unusable
+# -> refuse with the missing piece, never guess or honor ambient GH_REPO.
 resolve_backend() {
+  local remote rest authority host path owner name
   if [[ "$(git rev-parse --is-inside-work-tree 2>/dev/null || true)" != "true" ]]; then
     echo "error: not inside a git work tree" >&2
     exit 3
@@ -65,26 +92,53 @@ resolve_backend() {
     echo "error: gh CLI not found — the GitHub Issues backend is unusable" >&2
     exit 3
   fi
-  if ! git remote get-url origin >/dev/null 2>&1; then
+  if ! remote=$(git remote get-url origin 2>/dev/null); then
     echo "error: no 'origin' remote — cannot resolve a ticket backend" >&2
     exit 3
   fi
+  case "$remote" in
+    *://*)
+      rest=${remote#*://}
+      authority=${rest%%/*}
+      if [[ "$rest" == "$authority" ]]; then
+        echo "error: unsupported 'origin' URL for the GitHub backend: $remote" >&2
+        exit 3
+      fi
+      host=${authority##*@}
+      path=${rest#*/}
+      ;;
+    *@*:*)
+      authority=${remote%%:*}
+      host=${authority##*@}
+      path=${remote#*:}
+      ;;
+    *)
+      echo "error: unsupported 'origin' URL for the GitHub backend: $remote" >&2
+      exit 3
+      ;;
+  esac
+  path=${path%/}
+  path=${path%.git}
+  owner=${path%%/*}
+  name=${path#*/}
+  if [[ -z "$host" || "$host" == *[[:space:]/]* || -z "$owner" || \
+        "$owner" == *[[:space:]]* || -z "$name" || "$name" == */* || \
+        "$name" == *[[:space:]]* ]]; then
+    echo "error: unsupported 'origin' URL for the GitHub backend: $remote" >&2
+    exit 3
+  fi
+  REPO="$host/$owner/$name"
   BACKEND=github
 }
 
-# Backend failures are relayed verbatim (truncated) — the caller reports
-# them, never works around them. stderr is kept out of captured data: on
-# success it must never leak into values (a body with stderr chatter would
-# be written back into the ticket).
+# Backend failure evidence is bounded and explicit — the caller reports it,
+# never works around it. stderr stays out of captured success data.
 run_gh() {
   local out rc=0
   TMPERR=$(mktemp)
-  out=$(gh "$@" 2>"$TMPERR") || rc=$?
+  out=$(GH_REPO="$REPO" gh "$@" 2>"$TMPERR") || rc=$?
   if [[ $rc -ne 0 ]]; then
-    truncate_lines < "$TMPERR" >&2
-    if [[ -n "$out" ]]; then
-      truncate_lines <<< "$out" >&2
-    fi
+    relay_gh_failure "$rc" "$out"
     # The EXIT trap does not fire when this runs inside $(...): the
     # subshell resets traps, so clean up before exiting.
     rm -f "$TMPERR"
@@ -102,7 +156,39 @@ norm_id() {
     exit 2
   fi
   # Leading zeros would defeat exact-match state comparisons ("012" != "12").
-  printf '%s' "$((10#$id))"
+  # Strip them as text: Bash arithmetic silently wraps oversized references and
+  # could otherwise redirect a read or mutation to a different ticket.
+  # shellcheck disable=SC2001 # ${var//pat/} is prohibited on unbounded input.
+  id=$(sed 's/^0*//' <<< "$id")
+  if [[ -z "$id" ]]; then id=0; fi
+  printf '%s' "$id"
+}
+
+# Read accepts a stable numeric id or a canonical URL for this repository.
+# Backend-specific URL verification stays in the facade: the model must never
+# strip a foreign URL down to a coincidentally matching local issue number.
+read_ticket_id() {
+  local ref=$1 repo_url suffix
+  if [[ "$ref" != *://* ]]; then
+    norm_id "$ref"
+    return
+  fi
+  repo_url=$(run_gh repo view --json url --jq '.url')
+  repo_url=${repo_url%/}
+  case "$ref" in
+    "$repo_url"/issues/*)
+      suffix=${ref#"$repo_url"/issues/}
+      if ! [[ "$suffix" =~ ^[0-9]+$ ]]; then
+        echo "error: ticket URL is not canonical for the current project: $ref" >&2
+        exit 2
+      fi
+      norm_id "$suffix"
+      ;;
+    *)
+      echo "error: ticket URL does not belong to the current project: $ref" >&2
+      exit 2
+      ;;
+  esac
 }
 
 # TM-2: a relation target must exist before anything is created or mutated.
@@ -112,13 +198,10 @@ norm_id() {
 verify_ticket() {
   local out rc=0
   TMPERR=$(mktemp)
-  out=$(gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>"$TMPERR") || rc=$?
+  out=$(GH_REPO="$REPO" gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>"$TMPERR") || rc=$?
   if [[ $rc -ne 0 ]]; then
     echo "error: ticket #$1 not found:" >&2
-    truncate_lines < "$TMPERR" >&2
-    if [[ -n "$out" ]]; then
-      truncate_lines <<< "$out" >&2
-    fi
+    relay_gh_failure "$rc" "$out"
     rm -f "$TMPERR"
     exit 4
   fi
@@ -247,10 +330,14 @@ issue_db_id() {
 fetch_parent() {
   local out rc=0
   TMPERR=$(mktemp)
-  out=$(gh api "repos/{owner}/{repo}/issues/$1/parent" --jq '.number' 2>"$TMPERR") || rc=$?
+  out=$(GH_REPO="$REPO" gh api "repos/{owner}/{repo}/issues/$1/parent" --jq '.number' 2>"$TMPERR") || rc=$?
   if [[ $rc -eq 0 ]]; then
     rm -f "$TMPERR"
     TMPERR=""
+    if ! [[ "$out" =~ ^[0-9]+$ ]]; then
+      echo "error: malformed parent relation response for ticket #$1" >&2
+      exit 4
+    fi
     printf '%s' "$out"
     return 0
   fi
@@ -259,16 +346,22 @@ fetch_parent() {
     TMPERR=""
     return 0
   fi
-  truncate_lines < "$TMPERR" >&2
-  if [[ -n "$out" ]]; then
-    truncate_lines <<< "$out" >&2
-  fi
+  relay_gh_failure "$rc" "$out"
   rm -f "$TMPERR"
   exit 4
 }
 
 fetch_deps() {
-  run_gh api "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" --jq '.[].number'
+  local out d
+  out=$(run_gh api "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" --jq '.[].number') || return $?
+  if [[ -z "$out" ]]; then return 0; fi
+  while IFS= read -r d; do
+    if ! [[ "$d" =~ ^[0-9]+$ ]]; then
+      echo "error: malformed dependency relation response for ticket #$1" >&2
+      exit 4
+    fi
+  done <<< "$out"
+  printf '%s' "$out"
 }
 
 add_dep() {
@@ -298,8 +391,8 @@ remove_parent() {
 
 report_relations() {
   local parent deps list d
-  parent=$(fetch_parent "$1")
-  deps=$(fetch_deps "$1")
+  parent=$(fetch_parent "$1") || return $?
+  deps=$(fetch_deps "$1") || return $?
   if [[ -n "$parent" ]]; then
     echo "parent: #$parent"
   else
@@ -339,7 +432,7 @@ case "$cmd" in
     # that need a network round-trip (issues enabled, origin actually a
     # GitHub repo). Mutating commands rely on gh's own errors instead of
     # paying this probe on every call.
-    if ! probe=$(gh repo view --json hasIssuesEnabled --jq '.hasIssuesEnabled' 2>&1); then
+    if ! probe=$(GH_REPO="$REPO" gh repo view --json hasIssuesEnabled --jq '.hasIssuesEnabled' 2>&1); then
       echo "error: cannot resolve a GitHub repository for 'origin':" >&2
       truncate_lines <<< "$probe" >&2
       exit 3
@@ -449,14 +542,16 @@ case "$cmd" in
     ;;
 
   get)
-    [[ $# -ge 1 ]] || { echo "error: get needs a ticket id" >&2; exit 2; }
-    id=$(norm_id "$1")
+    [[ $# -ge 1 ]] || { echo "error: get needs a ticket id or canonical URL" >&2; exit 2; }
+    [[ $# -eq 1 ]] || { echo "error: get accepts exactly one ticket reference" >&2; exit 2; }
     resolve_backend
+    id=$(read_ticket_id "$1")
     meta=$(run_gh issue view "$id" --json number,state,title,url,labels --jq '"#\(.number) \(.state|ascii_downcase) — \(.title)\n\(.url)\nlabels: " + (if (.labels|length) > 0 then ([.labels[].name]|join(", ")) else "(none)" end)')
     body=$(fetch_body "$id")
+    relations=$(report_relations "$id") || { rc=$?; exit "$rc"; }
     echo "backend: $BACKEND"
     printf '%s\n' "$meta"
-    report_relations "$id"
+    printf '%s\n' "$relations"
     echo "## body"
     printf '%s\n' "$body"
     ;;

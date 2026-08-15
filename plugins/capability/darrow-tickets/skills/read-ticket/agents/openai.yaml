@@ -1,0 +1,4 @@
+interface:
+  display_name: "Read Ticket"
+  short_description: "Read one exact project ticket"
+  default_prompt: "Use $read-ticket to retrieve the exact ticket I reference without changing it."

@@ -1,0 +1,31 @@
+id: read-ticket-incomplete-reference
+invariant: TM-R1,TM-R2
+activation: positive
+mount_plugin_skills: true
+prompt: "Use read-ticket to show me the ticket."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated project\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      echo "mock gh: tracker must not be contacted" >&2
+      exit 1
+checks:
+  - name: missing exact reference is requested
+    run: cat .git/last-message.md
+    expect_regex: "(ticket|issue).*(ID|number|URL|reference)|(?:ID|number|URL|reference).*(ticket|issue)"
+    flags: i
+  - name: incomplete request remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: incomplete request does not contact the tracker
+    run: test ! -f .git/fixture-gh/calls
+  - name: repository topic is not guessed as the ticket
+    run: cat .git/last-message.md
+    not_regex: "Unrelated project"

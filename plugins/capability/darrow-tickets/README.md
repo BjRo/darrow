@@ -29,6 +29,14 @@ totals and truncation information.
 
 Example: _“Which open bugs are in the next milestone?”_
 
+### `read-ticket`
+
+Retrieves one exact current-project ticket by ID or canonical URL. It returns
+the authoritative metadata, tracker-native relations, and full description
+without summarizing, interpreting, or changing tracker state.
+
+Example: _“What does ticket #42 say?”_
+
 ### `update-ticket`
 
 Applies exactly one requested mutation to exactly one verified ticket. It can
@@ -40,7 +48,7 @@ Example: _“Comment on #42 with the failing command.”_
 
 ### `bin/ticket`
 
-A portable Bash facade used by all three skills. It discovers the configured
+A portable Bash facade used by all four skills. It discovers the configured
 tracker backend, inspects its taxonomy, searches and fetches tickets, validates
 structured bodies and transition targets, owns backend-specific relation
 syntax, and rejects ambiguous or unsupported mutations. It exposes the
@@ -55,8 +63,8 @@ client.
   milestone, or assignee.
 - Ticket content contains repository or user evidence, never invented versions,
   reproduction steps, acceptance criteria, or AI attribution.
-- `list-tickets` is strictly read-only, and `update-ticket` applies only the
-  single mutation requested.
+- `read-ticket` and `list-tickets` are strictly read-only, and `update-ticket`
+  applies only the single mutation requested.
 
 ## License
 
