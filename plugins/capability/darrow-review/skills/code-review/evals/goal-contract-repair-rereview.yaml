@@ -1,5 +1,5 @@
-id: code-review-goal-contract-repair-rereview
-invariant: CR-C13,CR-C14,CR-E9,CR-E10,CR-E11
+id: code-review-goal-contract-repair-verification
+invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13
 prompt: >-
   Execute this bounded goal contract. The candidate change is already present
   and must receive independent review before any repair or completion. Use the
@@ -8,9 +8,10 @@ prompt: >-
   standards. Use its normal review report. With no blocking findings, return
   control to this goal. With blocking findings, repair only those findings
   under the existing authorization below, rerun invalidated checks, and
-  independently review the changed target fingerprint again. If review is
-  unavailable or inconclusive, stop. After and only after a clear review of the
-  final content, run `bash mark-complete.sh`. Originating
+  fix-verify only the attempted findings and their direct repair consequences
+  against the changed target fingerprint. If verification is unavailable or
+  inconclusive, stop. After and only after clear exact-target verification, run
+  `bash mark-complete.sh`. Originating
   requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain
   3.
   Acceptance: `bash check.sh` passes. Authorized repair: edit src/config.js
@@ -40,35 +41,37 @@ fixture:
     src/config.js: |
       export const TIMEOUT_MS = 2500;
       export const RETRY_COUNT = 0;
+  setup: |
+    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
 checks:
   - name: authorized repair reaches the originating requirement
     run: bash check.sh
-  - name: passing rereview returns control to the enclosing goal
+  - name: clear fix verification returns control to the enclosing goal
     run: test "$(cat .git/goal-complete)" = complete
-  - name: repair causes at least two independent review scopes
+  - name: repair causes an initial scope and a fix-verification scope
     run: test "$(find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
-  - name: rereview uses a new target fingerprint
+  - name: fix verification uses a new target fingerprint
     run: >-
       find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' -exec
       awk -F '\t' '$1 == "target" { print $2 }' {} + | sort -u >.git/review-targets &&
       test "$(wc -l <.git/review-targets | tr -d ' ')" -ge 2
-  - name: final reviewed diff contains the repaired content
+  - name: additive verification artifact validates beside the repaired scope
     run: >-
-      find .git -maxdepth 2 -name diff.patch -path '*/darrow-review.*/*' -exec
-      grep -l 'RETRY_COUNT = 3' {} + | grep . >/dev/null
+      record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
+      tool=$(sed -n '1p' .git/review-result-tool) &&
+      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      grep -F 'outcome	clear' "$record" >/dev/null &&
+      grep -F 'RETRY_COUNT = 3' "$(dirname "$record")/diff.patch" >/dev/null
   - name: composed repair creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: composed response is the complete rendered verification report
+    run: >-
+      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
+      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
 output_checks:
-  - name: composed Markdown carries the verdict, axis statuses, and complete findings
-    expect_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n\*\*Verdict:\*\* (pass|fail|blocked) · \*\*Findings:\*\* [0-9]+ \(.*\)[\s\S]*## Findings[\s\S]*(### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards|Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*|No findings\.)'
+  - name: composed Markdown carries fix-verification lifecycle and target binding
+    expect_regex: '^# Repair verification — CLEAR[\s\S]*## Attempted findings[\s\S]*## Repair-caused regressions[\s\S]*## Checks[\s\S]*## Target binding[\s\S]*## Closed original finding set[\s\S]*## Next action'
     flags: i
-  - name: composed Markdown carries compact check applicability status and evidence
-    expect_regex: '## Checks[\s\S]*\*\*(PASS|FAIL|BLOCKED|NOT_APPLICABLE)\*\* \((applicable|not_applicable)\) — <code>[^<]+</code>: .+'
-    flags: i
-  - name: composed Markdown carries risks next action scope and axis sources
-    expect_regex: '## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*\*\*Base:\*\*[\s\S]*\*\*Target:\*\*[\s\S]*\*\*Changed files:\*\*[\s\S]*## Sources[\s\S]*\*\*Standards \((pass|fail|blocked)\):\*\*[\s\S]*\*\*Spec \((pass|fail|blocked|not_available)\):\*\*'
-    flags: i
-  - name: generic heading-only summaries cannot satisfy the default contract
-    not_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n[^#]{0,240}$'
-  - name: default review does not expose raw TSV
-    not_regex: '^format\tdarrow-review-result-v1$'
+  - name: default verification does not expose raw TSV
+    not_regex: '^format\tdarrow-review-verification-v1$'

@@ -1,0 +1,73 @@
+id: code-review-fix-verification-progress-advisory
+invariant: CR-C17,CR-C18,CR-C19,CR-E13
+prompt: >-
+  Fix-verify my uncommitted repair against only the caller-owned evidence in
+  `.git/verification-input`. Validate and use its pinned prior scope, closed
+  original finding set, attempted keys, and first-verification marker. The
+  repair advances the blocking value finding but leaves it unresolved; the
+  advisory residue is non-gating. Use `bash check.sh`, return the normal
+  verification report, and do not edit anything.
+fixture:
+  commits:
+    - message: "chore: base"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Legacy comments should be removed when safely in scope.
+        src/value.js: |
+          export const value = 2;
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Eq 'value = [12];' src/value.js
+    - message: "feat: introduce invalid value"
+      files:
+        src/value.js: |
+          export const value = 0;
+          // legacy
+  files:
+    src/value.js: |
+      export const value = 1;
+      // legacy
+  setup: |
+    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
+    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
+    {
+      printf 'original_target\t%s\n' "$original_target"
+      printf 'prior_target\t%s\n' "$original_target"
+      printf 'prior_manifest\t%s\n' "$prior_manifest"
+      printf 'previous_verification\tnone\tnone\n'
+      printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/value.js:1\trequirement: value must be at least 2\tvalue was 0\n' "$original_target"
+      printf 'original_finding\tstandards:2:%s\tstandards\t2\tlow\tadvisory\tsrc/value.js:2\t%s/AGENTS.md\tthe legacy comment remained\n' "$original_target" "$PWD"
+      printf 'attempted\tspec:1:%s\n' "$original_target"
+      printf 'attempted\tstandards:2:%s\n' "$original_target"
+    } >.git/verification-input
+    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+checks:
+  - name: progressing blocker keeps convergence open
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      tool=$(sed -n '1p' .git/review-result-tool) &&
+      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      grep -F 'outcome	continue' "$record" >/dev/null &&
+      original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
+      awk -F '\t' -v key="spec:1:$original_target" '$1 == "attempt" && $2 == key && $3 == "unresolved" && $4 == "progressing" { found=1 } END { exit found ? 0 : 1 }' "$record"
+  - name: unresolved advisory does not become a blocker
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
+      awk -F '\t' -v key="standards:2:$original_target" '$1 == "attempt" && $2 == key && $3 == "unresolved" && $4 == "unchanged" { found=1 } END { exit found ? 0 : 1 }' "$record"
+  - name: final response is the complete rendered verification report
+    run: >-
+      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
+      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+output_checks:
+  - name: report preserves the complete verification structure
+    expect_regex: '^# Repair verification — CONTINUE[\s\S]*## Attempted findings[\s\S]*## Repair-caused regressions[\s\S]*## Checks[\s\S]*## Target binding'
+  - name: report identifies material progress
+    expect_regex: "PROGRESSING"
+  - name: report preserves advisory disposition
+    expect_regex: "advisory"

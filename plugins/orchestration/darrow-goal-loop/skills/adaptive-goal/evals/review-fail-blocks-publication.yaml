@@ -37,7 +37,7 @@ checks:
   - name: failing review is invoked exactly once
     run: >-
       test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1 &&
-      awk -F '\t' 'NF == 2 && $2 == "blocking" { ok=1 } END { exit ok ? 0 : 1 }'
+      awk -F '\t' 'NF == 3 && $2 == "blocking" && $3 == "comprehensive" { ok=1 } END { exit ok ? 0 : 1 }'
       .git/independent-review-invocations
   - name: failing review prevents commits and branch creation
     run: >-

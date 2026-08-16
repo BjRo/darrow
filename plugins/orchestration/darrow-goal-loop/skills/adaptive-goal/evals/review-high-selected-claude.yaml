@@ -53,7 +53,7 @@ checks:
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
   - name: independent review clears the final changed target
     run: >-
-      awk -F '\t' 'NF == 2 && $1 ~ /^WORKTREE@/ && $2 == "clear" { ok=1 }
+      awk -F '\t' 'NF == 3 && $1 ~ /^WORKTREE@/ && $2 == "clear" && $3 == "comprehensive" { ok=1 }
       END { exit ok ? 0 : 1 }' .git/independent-review-invocations
 output_checks:
   - name: high risk uses the Claude routine route

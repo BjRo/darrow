@@ -1,0 +1,54 @@
+id: goal-review-oscillation
+invariant: AGL-L11,AGL-L12,AGL-S5
+prompt: >-
+  /adaptive-goal Continue the existing candidate in state.env. On Codex, invoke
+  the $adaptive-goal skill. Run one comprehensive review. Existing authority
+  permits edits to state.env and requires `bash check.sh` after each edit.
+  Follow fix-scoped verification, but stop if the target oscillates to an
+  earlier fingerprint. Never publish. Select and apply the policy route.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Repository instructions\nRun `bash check.sh` after state.env edits.\n"
+        state.env: "STATE=A\n"
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -E '^STATE=[AB]$' state.env >/dev/null
+          git_dir=$(git rev-parse --git-dir)
+          printf 'check\t%s\n' "$(git hash-object state.env)" >>"$git_dir/review-events"
+  setup: |
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD" "{{case_dir}}/fixtures" codex
+    git_dir=$(git rev-parse --git-dir)
+    printf '%s\n' state.env >"$git_dir/fixture-review-event-path"
+    printf '%s\n' 0 >"$git_dir/fixture-review-delay-seconds"
+    printf '%s\t%s\t%s\t%s\n' \
+      blocking 'Replace STATE=A with STATE=B.' '' '' \
+      continue 'The repair caused a direct regression; restore STATE=A.' '' '' \
+      clear '' '' '' >"$git_dir/fixture-review-sequence"
+checks:
+  - name: convergence rejects the known oscillating repair
+    run: >-
+      grep -Fx 'STATE=B' state.env >/dev/null &&
+      test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 2
+  - name: oscillation sequence avoids a redundant verification
+    run: test "$(cut -f3 .git/independent-review-invocations | tr '\n' ' ')" = 'comprehensive verify '
+  - name: oscillation stop performs no third invocation
+    run: test "$(tail -n 1 .git/review-events | cut -f1)" = review
+output_checks:
+  - name: output identifies the repeated target
+    expect_regex: "oscillat|earlier target|repeated target"
+    flags: i
+  - name: output reports the terminal stop
+    expect_regex: "no[ _-]?progress|stop|blocked"
+    flags: i
+transcript_checks:
+  - name: oscillation settles the native goal as blocked
+    after_regex: "Repair verification outcome: continue"
+    expect_regex: '"method":"thread/goal/updated"[^\n]*"status":"blocked"'
+    not_regex: '"method":"thread/goal/updated"[^\n]*"status":"complete"'
+  - name: oscillation performs no hidden repository work
+    after_regex: "Repair verification outcome: continue"
+    not_regex: '"method":"item/(started|completed)"[^\n]*"type":"[^"]*(command|fileChange|mcpToolCall|dynamicToolCall)[^"]*"'
+    flags: i

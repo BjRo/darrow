@@ -1,8 +1,9 @@
 # Capability: Code Review
 
-Darrow should provide an independent, model-invoked capability that reviews a
-pinned change along two isolated axes: repository standards and fulfillment of
-the originating specification.
+Darrow should provide an independent, model-invoked capability that first
+reviews a pinned change comprehensively along two isolated axes, then can
+verify authorized repairs against that review's closed finding set without
+opening an unrelated review scope.
 
 Plugin: `darrow-review`  
 Skills: `code-review`
@@ -20,10 +21,16 @@ Darrow plugin.
 
 ## Intent
 
-Use code review when the user asks to review a branch, pull request,
+Use comprehensive code review when the user asks to review a branch, pull request,
 work-in-progress diff, uncommitted changes, or changes since a named fixed
 point, or when an explicit larger goal contract requires independent review of
 its final change.
+
+Use fix verification when a caller explicitly asks to verify attempted repairs
+and supplies the original findings, original target fingerprint, prior repair
+target, and current deterministic-check evidence. Fix verification is not a
+second comprehensive review: it examines only the attempted findings and
+direct regressions caused by those repairs.
 
 The skill reviews and reports. It does not edit, repair, commit, publish, or
 merge the change unless the user separately requests a capability authorized to
@@ -39,6 +46,11 @@ Input:
 - the applicable repository instruction and coding-standard sources;
 - applicable deterministic checks already known to the repository.
 
+Fix-verification input additionally includes the original comprehensive
+review's target and canonical finding order, the immediately prior repair
+target, all attempted findings, and earlier repair target history. Missing or
+inconsistent binding evidence blocks verification rather than widening scope.
+
 Output:
 
 - one human-readable Markdown report by default, leading with the aggregate
@@ -50,6 +62,11 @@ Output:
 - the validated `darrow-review-result-v1` TSV only when the requester
   explicitly asks for the machine format. The TSV remains the canonical
   mechanical artifact beneath the review scope artifact directory.
+
+Fix verification returns a human-readable Markdown report by default, or the
+validated additive `darrow-review-verification-v1` TSV only when explicitly
+requested as machine output. Initial `darrow-review-result-v1` validation and
+rendering remain compatible.
 
 If several reasonable fixed points would produce materially different review
 scopes, ask for the base rather than guessing. A request such as “review my
@@ -76,14 +93,20 @@ phase. When a goal contract does select independent review:
   checks are complete;
 - a response with no blocking findings returns control to the goal owner
   without granting repair, publication, or other authority;
-- blocking findings leave the selected review gate unsatisfied. The goal owner
-  may repair them only under authority it already has, must rerun invalidated
-  checks, and must review the changed target again. Otherwise it stops and
-  reports the findings;
+- the comprehensive review establishes a closed finding set. The goal owner may
+  repair eligible findings only under authority it already has and must rerun
+  invalidated checks;
+- after repair, the goal owner invokes fix verification with the original
+  findings, prior and current fingerprints, attempted-finding evidence, target
+  history, and current checks. Verification may add only a regression directly
+  caused by one attempted repair, tied to that finding's stable key;
+- unresolved blocking findings and repair-caused regressions leave the gate
+  unsatisfied. Advisories remain visible but never keep the gate open;
 - an unavailable or inconclusive review stops the goal and reports the evidence
   gap; and
-- completion or publication requires review of the exact current content. Any
-  content-changing repair or later edit requires another independent review.
+- completion or publication requires a comprehensive review plus a `clear`
+  verification chain bound to the exact current content. Any later
+  content-changing edit invalidates that chain.
 
 The review coordinator remains read-only in every mode. A composed invocation
 returns its normal report to the enclosing goal instead of treating that report
@@ -171,6 +194,40 @@ axis and report `not_available`. Do not invent requirements.
     from the validated TSV, prioritizes verdict and findings, renders checks
     compactly, and presents detailed scope and sources later. Renderer
     mechanics escape hostile field content without changing the canonical TSV.
+17. **CR-C17 — Explicit review modes.** Comprehensive initial review retains
+    the complete-diff, isolated-axis behavior above. Fix verification requires
+    the original finding set and target binding and MUST NOT silently fall back
+    to comprehensive review when that evidence is missing or inconsistent.
+18. **CR-C18 — Closed fix scope and repair evidence.** Fix verification
+    inspects only attempted original findings, carried repair-caused
+    regressions, the mechanically pinned prior-to-current repair delta between
+    manifests with the same effective base, current checks, and their direct
+    consequences. Caller prose alone cannot establish
+    repair causality. A new unrelated observation MUST NOT enter its finding
+    set. Every direct regression identifies the attempted original finding
+    whose repair caused it.
+19. **CR-C19 — Stable lifecycle and progress.** Original finding keys derive
+    from the original target, axis, and canonical finding order. Every attempted
+    finding is `resolved`, `unresolved`, or `blocked`; unresolved blocking
+    evidence is `progressing` or `unchanged`. Duplicate or unknown keys are
+    invalid. A newly detected direct regression is progressing for its first
+    verification so the enclosing owner can attempt it; unchanged evidence on a
+    later verification is no progress. Every later verification binds the
+    checksum and path of the prior verification artifact, preserves each prior
+    regression's stable key and immutable causal fields, and records the
+    current state of every carried regression. The first verification has no
+    target history and binds its prior target to the original review target;
+    each later artifact preserves exactly the prior history plus the prior
+    artifact's prior target. Advisories never determine the gate outcome.
+20. **CR-C20 — Mechanical verification outcome.** Verification derives
+    `clear`, `continue`, `no_progress`, or `blocked` from exact target history,
+    blocking finding and regression states, deterministic checks, and evidence
+    gaps. Repeated targets, unchanged blocking evidence, and oscillation produce
+    `no_progress`; unavailable evidence produces `blocked`. Fix-axis reader
+    records and final verification artifacts are independently validated before
+    aggregation or rendering. A failed applicable check requires a scoped
+    unresolved or blocked repair-caused regression rather than an original
+    blocker alone.
 
 ## Result shape and presentation
 
@@ -191,6 +248,33 @@ next_action
 The default user-facing result is a complete Markdown rendering of that
 artifact. The raw `darrow-review-result-v1` is user-facing only when explicitly
 requested as a machine format; the two forms are never concatenated.
+
+The additive fix-verification artifact includes:
+
+```text
+original_target
+prior_target
+current_target
+history_target[]
+previous_verification   # none, or checksum plus absolute prior artifact path
+original_finding[]     # stable key, axis, order, severity, disposition, evidence
+attempt[]              # stable key, resolved|unresolved|blocked, progress, evidence
+regression[]           # stable key, caused_by finding, status, progress, evidence
+check[]
+evidence_gap[]
+outcome                # clear|continue|no_progress|blocked
+next_action
+```
+
+Stable original keys use `<axis>:<canonical-order>:<original-target>` and
+repair-regression keys use
+`regression:<canonical-order>:<causing-original-key>`.
+
+The repair scope also binds a prior scope manifest and current scope manifest
+with the same effective base and exposes a fixed renderer for their pinned
+packet delta. Fix verification
+may allow an empty base-to-current diff when the repair restored the base, but
+the prior-to-current repair delta remains nonempty and exact-target-bound.
 
 ## Packaging and portability
 
@@ -255,6 +339,15 @@ requested as a machine format; the two forms are never concatenated.
     explicit raw-v1 negotiation; composed returns; semantic preservation;
     hostile field escaping; absence of duplicated TSV in human output; and a
     superficial summary that omits evidence.
+13. **CR-E13 — Fix verification convergence.** Evals cover several blockers
+    resolved together, a first-rework advisory, an unresolved non-gating
+    advisory, progressing and unchanged blockers, repeated and oscillating
+    targets, a repair-caused regression, an unrelated observation excluded from
+    scope, unavailable evidence, and exact-target read-only operation.
+
+Representative issue-32 control/candidate evidence and its N=1 limitations are
+recorded in
+[`review-convergence-issue-32.md`](../research/review-convergence-issue-32.md).
 
 ## Non-goals
 
@@ -266,3 +359,5 @@ requested as a machine format; the two forms are never concatenated.
 - Publishing comments, approvals, or review status to a remote forge.
 - Depending on a TDD plugin, orchestration plugin, Git workflow, or sibling
   capability.
+- Discovering defects in fix verification that were neither reported by the
+  original comprehensive review nor directly caused by an attempted repair.

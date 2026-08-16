@@ -1,17 +1,28 @@
 ---
 name: code-review
-description: Review one bounded code change—pull request, branch, fixed-point diff, or staged, unstaged, untracked, and work-in-progress changes—against repository standards and any originating specification. Use for explicit review intent, including an explicit independent-review clause in a larger goal contract. Report findings without editing, repairing, committing, publishing, approving, merging, releasing, or deploying; do not trigger merely because code was changed or the user asked for implementation.
+description: Comprehensively review one bounded code change or fix-verify attempted findings from its closed review set. Use for explicit review intent, including an independent-review or repair-verification clause in a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
 ---
 
 # Review code
 
-Return an independent, read-only review of one pinned change. By default, the
-final response is one complete, pleasant Markdown report. Return only a
-validated `darrow-review-result-v1` TSV when the requester explicitly asks for
-raw TSV, v1, or machine format. Never emit both forms. For an explicit review
-clause inside a larger goal, return the same normal report to the current goal
-owner, then exit this capability so the enclosing contract can apply its
-continuation rule.
+Return one independent, read-only comprehensive review or fix verification of
+a pinned change. Comprehensive mode preserves the existing
+`darrow-review-result-v1`; fix-verification mode uses the additive
+`darrow-review-verification-v1`. By default return one complete Markdown report.
+Return only the applicable validated TSV when the requester explicitly asks for
+raw TSV, the named protocol, or machine format. Never emit both forms. For an
+explicit clause inside a larger goal, return the same normal report to the
+current goal owner, then exit this capability so the enclosing contract can
+apply its continuation rule.
+
+## Presentation gate
+
+The final response is a protocol output, not a conversational summary. In
+human mode, the entire final response must be the bundled renderer's stdout.
+After the last renderer invocation, issue no more tool calls and add no
+preface, recap, interpretation, or follow-up. This applies equally to
+standalone and composed review. In machine mode, apply the same rule to the
+validated TSV bytes.
 
 ## Working model
 
@@ -27,13 +38,35 @@ continuation rule.
   the repository Git directory may be written.
 - **Mechanical aggregation:** the coordinator may validate, deduplicate, and
   serialize reader evidence, but never invent or repair review judgment.
-- **Two invocation modes:** direct review intent is standalone; an explicit
+- **Two review modes:** initial review is comprehensive; fix verification is
+  limited to a caller-supplied closed finding set and direct repair-caused
+  regressions. Missing fix evidence blocks instead of widening scope.
+- **Two invocation contexts:** direct review intent is standalone; an explicit
   independent-review clause with an enclosing outcome is composed. Ordinary
   implementation intent is neither.
 
 ## Workflow
 
-### 1. Pin the scope
+Choose the review mode before pinning scope:
+
+- **Comprehensive initial review** for an ordinary review request or the first
+  independent-review invocation in a larger goal.
+- **Fix verification** only when the requester explicitly asks to verify
+  attempted repairs and supplies the original comprehensive findings and
+  target, prior repair target, attempted set, target history, repair evidence,
+  and current checks.
+
+Never silently substitute one mode for the other. The four steps below are the
+comprehensive workflow. Fix verification follows its separate workflow after
+them.
+
+In either mode, the final presentation comes from the bundled renderer, not
+coordinator prose. For fix verification, materialize the renderer output as
+`verification.md` beside `verification.tsv` and return that file byte-for-byte.
+A shortened response that preserves the heading or outcome but omits a rendered
+section is incomplete.
+
+### 1. Pin the comprehensive scope
 
 Resolve the bundled tools from this file:
 
@@ -82,7 +115,7 @@ with a hand-written list or author summary.
 files, and show command—or a validated terminal scope record has been emitted
 before reviewer budget is spent.
 
-### 2. Bind axis sources and checks
+### 2. Bind comprehensive axis sources and checks
 
 For Standards, read every applicable root and changed-path instruction source,
 explicitly routed rule, coding standard, accepted decision, and enough
@@ -109,7 +142,7 @@ deployment, release, or network-writing commands.
 originating source or honestly unavailable, and every applicable or
 inapplicable deterministic check has current evidence.
 
-### 3. Invoke isolated readers
+### 3. Invoke isolated comprehensive readers
 
 Read [`references/axis-prompts.md`](references/axis-prompts.md) completely. Use
 the runtime's native fresh-reader facility. When both axes apply, issue both
@@ -141,7 +174,7 @@ reassign its finding, or manufacture replacement evidence.
 record—or its evidence-backed blocked state is preserved without coordinator
 substitution.
 
-### 4. Aggregate and return
+### 4. Aggregate and return the comprehensive review
 
 Read [`references/result-protocol.md`](references/result-protocol.md)
 completely. Deduplicate only findings with the same changed location, violated
@@ -184,13 +217,178 @@ generic reader may replace the unavailable evidence.
 The `target` record binds the judgment to exact content. Any later
 content-changing edit invalidates the result. A ref-only action may rely on the
 result only when it still identifies the content to complete or publish;
-otherwise invoke review again.
+otherwise the enclosing owner must repair under its own authority and request
+fix verification against the changed target.
 
 **Complete when:** the record reconciles the pinned scope, available axes,
 sources, findings, checks, verdict, risks, and next action; validation passes;
 and either the standalone final response contains exactly those bytes or the
 composed goal owner has received the findings and outcome and applied its
 enclosing contract.
+
+## Fix-verification workflow
+
+### 1. Bind the closed finding set
+
+Require all of these caller-owned inputs before reader calls:
+
+- the exact original comprehensive-review target fingerprint;
+- the validated original or immediately prior scope manifest for that target;
+- every original finding with its original axis, severity, disposition,
+  location, source, evidence, and one canonical cross-axis order;
+- the immediately prior repair target plus every earlier repair target;
+- every finding attempted by the current repair;
+- the immediately prior validated verification artifact when an earlier fix
+  verification exists, including all carried regression records; and
+- current deterministic-check commands and evidence.
+
+Derive each original key as
+`<axis>:<canonical-order>:<original-target>`. Reject duplicate orders or keys,
+attempts outside the original set, a changed original record, or inconsistent
+target history. Every original blocker must have one attempted state; if repair
+was unavailable or unauthorized, that state is `blocked`. An ineligible
+advisory may be omitted because advisories never gate.
+
+Missing or inconsistent evidence does not authorize a comprehensive rereview.
+Preserve the evidence gap, pin the current scope if possible, and produce a
+validated `blocked` verification artifact as described in
+[`references/result-protocol.md`](references/result-protocol.md).
+
+**Complete when:** the immutable original set, stable keys, attempted subset,
+prior/history targets, repair evidence, and current checks are mutually
+consistent—or their exact evidence gaps are bound for a blocked result.
+
+### 2. Pin the current repair target
+
+Resolve the same bundled `review-scope`, `review-result`, and `review-report`
+tools as comprehensive mode. Validate the prior scope manifest and require its
+target to equal the supplied prior target and its effective base to equal the
+current scope's effective base. For the first verification, use the
+scope manifest retained by the comprehensive run; a fresh invocation may
+locate it only when exactly one validated artifact beneath the repository Git
+directory has that target. For a later verification, validate the immediately
+prior verification artifact and use its sibling scope manifest. Missing or
+ambiguous prior artifacts block.
+
+Prepare the exact current base/target scope with the ordinary scope table plus:
+
+```sh
+bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
+  [working-tree flags] --allow-empty --prior-manifest "$prior_scope_manifest"
+```
+
+Treat its target fingerprint, absolute manifest, changed paths, fixed show
+command, and `repair_show_command` as authoritative. The current target must
+not be copied from caller prose. `--allow-empty` is fix-verification-only: it
+permits an exact repair that restored the base while the pinned
+prior-to-current repair delta still exposes what changed. Run the
+`repair_show_command` and use only that mechanical delta—not caller-described
+changes—to establish repair causality.
+
+Run only applicable deterministic checks invalidated by the repair, recording
+their literal command, applicability, status, and concise evidence. A check
+failure belongs in the convergence set only as evidence for a direct
+repair-caused regression tied to an attempted original finding. An unavailable
+required check is an evidence gap and blocks verification.
+
+**Complete when:** current content and checks are exact-target-bound and no
+reader has been asked to inspect an unpinned or stale target.
+
+### 3. Invoke isolated fix verifiers
+
+Read [`references/axis-prompts.md`](references/axis-prompts.md) completely.
+Group attempted findings by their original axis. Invoke the applicable
+Standards and Spec fix verifiers as fresh readers, issuing both invocations
+before waiting when both groups exist. Do not invoke an axis with no attempted
+finding and no regression evidence to verify.
+
+Each verifier receives only:
+
+- its original-axis finding records and stable keys;
+- active prior regression records for its axis, preserving stable keys and
+  immutable causal fields;
+- the original, prior, history, and current target fingerprints;
+- the validated prior verification artifact or explicit first-verification
+  marker;
+- the authoritative prior/current manifests, fixed repair-delta show command,
+  and changed paths relevant to those findings;
+- current deterministic-check evidence; and
+- its isolated fix-verifier schema.
+
+Permit inspection only of the current target, cited original finding context,
+the repair changes, and direct consequences. A reader must ignore an unrelated
+potential defect rather than serialize it. It may mark an attempted finding
+`resolved`, `unresolved`, or `blocked`; unresolved evidence is `progressing`
+only when it materially narrows the remaining failure and otherwise is
+`unchanged`. A newly detected direct repair-caused regression is `progressing`
+for its first verification so the enclosing owner can attempt it; if the same
+regression evidence remains after that attempt it is `unchanged`. A direct
+regression must name the causing original key. An invalid or missing reader
+record becomes an evidence gap; never repair its judgment or replace it with a
+generic review.
+
+Save each raw fix-axis record beneath the current scope artifact directory and
+run the applicable commands:
+
+```sh
+bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
+bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
+```
+
+An invalid record is an evidence gap.
+
+**Complete when:** each attempted axis has one isolated fix-verifier record and
+no observation outside the closed repair scope has entered aggregation.
+
+### 4. Derive and return verification
+
+Read [`references/result-protocol.md`](references/result-protocol.md)
+completely. Assemble `verification.tsv` beneath the current scope artifact
+directory. Preserve every original record and verifier state. Order direct
+regressions by causing original finding order, then by their reader order, and
+derive their stable regression keys mechanically. For a first verification
+write `previous_verification none none`. For a later verification write the
+prior artifact's Git blob checksum and absolute path, carry every prior
+regression under the same key and immutable causal fields, and replace only its
+status, progress, and evidence from `regression_attempt`. New regression orders
+follow all carried orders.
+
+Run:
+
+```sh
+bash "$result_tool" validate-verification "$verification_record"
+```
+
+The validator derives the outcome: `clear` when all blockers and regressions
+are resolved; `continue` only for materially progressing blockers or
+regressions; `no_progress` for repetition, oscillation, or unchanged failure
+evidence; and `blocked` for evidence gaps or unavailable states. Advisory state
+never keeps the gate open.
+
+In default mode run:
+
+```sh
+verification_report="$(dirname "$verification_record")/verification.md"
+bash "$report_tool" render-verification "$verification_record" >"$verification_report"
+bash "$report_tool" render-verification "$verification_record"
+```
+
+Confirm that the report is a readable, nonempty regular file before the second
+renderer invocation. Make that second invocation the last tool command and copy
+its stdout verbatim as the entire final response. For an explicit
+verification-v1, raw TSV, or machine request, return the validated TSV bytes
+only. In composed use, return the selected presentation and exit this read-only
+capability. The enclosing goal interprets the semantic outcome and owns every
+repair, stop, goal-status, completion, and publication decision.
+
+The `verification.md` bytes are the final response contract. Do not replace
+them with a handwritten summary, even when the outcome and counts look
+equivalent.
+
+**Complete when:** the validated artifact binds original, prior, history, and
+current targets; contains only original attempts and directly caused
+regressions; preserves current checks; derives the honest mechanical outcome;
+and is returned without changing the reviewed product content.
 
 ## Boundaries
 

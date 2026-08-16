@@ -22,6 +22,18 @@ evidence-backed findings. The validated `darrow-review-result-v1` remains the
 canonical artifact beneath the review scope and is returned only when explicitly
 requested as raw machine format.
 
+After that comprehensive review, the same skill can fix-verify authorized
+repairs against its closed original finding set. The additive
+`darrow-review-verification-v1` binds original, prior, history, and current
+target fingerprints and a checksum-linked prior verification chain; records
+resolved, unresolved, or blocked attempts; ties direct repair-caused
+regressions to attempted findings in a mechanically pinned prior-to-current
+repair delta; and derives `clear`, `continue`, `no_progress`, or `blocked`.
+Fix-axis records and the aggregate are validated independently, prior
+regressions cannot disappear between rounds, and a failed check must be scoped
+as a repair-caused regression. Unrelated findings cannot enter the closed set,
+and unresolved advisories never gate convergence.
+
 Example: _“Review all uncommitted changes.”_
 
 The default response starts with the decision a human needs, then keeps the
@@ -60,8 +72,10 @@ The same canonical skill supports both invocation modes. A composed review is
 requested by host-visible intent—independently review this pinned code
 change—without naming or assuming this plugin. It returns its normal review
 report to the goal owner, which interprets the findings and outcome under its
-own continuation contract. Any content-changing repair invalidates the reviewed
-target and requires a fresh review of the new fingerprint.
+own continuation contract. Any content-changing repair invalidates the initial
+target and requires exact-target fix verification. This intentionally gives up
+comprehensive rereview after repair: a defect missed initially will not be
+discovered later unless the repair directly caused it.
 
 ### `bin/review-scope`
 
@@ -71,9 +85,11 @@ reviewer examines the same immutable change packet.
 
 ### `bin/review-result`
 
-Validates the structured findings produced by each review axis and the final
-aggregated result. This keeps status, severity, evidence, and scope mechanically
-consistent while leaving code judgment to the reviewers.
+Validates the structured findings produced by each comprehensive axis, the final
+aggregate, each fix-verification axis, and additive repair-verification records.
+This keeps status, severity, lifecycle identity, progress, prior-artifact
+continuity, evidence, and target binding mechanically consistent while leaving
+code judgment to the reviewers.
 
 ### Review references
 

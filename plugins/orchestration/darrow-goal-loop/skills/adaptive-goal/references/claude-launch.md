@@ -129,12 +129,13 @@ the child's own transcript instead:
 
 Before interpreting the child as terminally successful, also reconcile its
 result against the compiled independent-review clause. A selected gate requires
-evidence that the matching capability reviewed the final content and reported
-no blocking findings. Preserve edits but report the run incomplete or blocked
-when review was unavailable, inconclusive, or left blocking findings, even if
-deterministic checks passed or route verification separately failed. Interpret
-the capability's ordinary response; do not parse or reproduce its output
-format.
+evidence of one comprehensive initial review and, after any repair, a closed-set
+fix-verification chain whose prior artifacts and pinned repair deltas remain
+continuous and that is clear for the exact final content. Preserve edits
+but report the run incomplete or blocked when verification was unavailable,
+inconclusive, no-progress, explicitly capped, or left blockers or regressions,
+even if deterministic checks passed or route verification separately failed.
+Interpret the capability's ordinary response; do not parse or reproduce its output format.
 
 ```sh
 claude_verify_route="$skill_dir/../../bin/claude-verify-route"

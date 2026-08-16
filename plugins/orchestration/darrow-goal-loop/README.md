@@ -85,10 +85,16 @@ uses host-visible intent rather than a sibling plugin name, command, path, or
 output format. A required but unavailable reviewer stops before product
 mutation. Exact-target preparation starts an exclusive review boundary: the
 goal owner finishes that capability invocation and awaits its ordinary response
-before other repository work. A response with no blocking findings returns
-control; blocking findings prevent completion and publication until any
-authorized repair is rechecked and freshly rereviewed; an unavailable or
-inconclusive review stops with the evidence gap.
+before other repository work. One comprehensive review establishes the closed
+finding set. Authorized first rework attempts all eligible findings together;
+later invocations fix-verify only those attempts and direct repair-caused
+regressions. Every verification receives the prior pinned scope, a mechanically
+rendered repair delta, and the checksum-linked previous verification with its
+carried regressions; descriptive caller prose cannot establish causality.
+Convergence has no default numeric cap and continues only while blockers
+materially progress. Advisories never gate. Clear exact-target verification
+returns control; repetition, oscillation, no progress, unavailable evidence, or
+an explicit user limit stops completion and publication.
 
 Repository overrides use the same strict `{"routes":[...]}` object schema as
 the bundled file. An override replaces only its matching `(host, profile)`

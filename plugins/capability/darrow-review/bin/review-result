@@ -6,7 +6,9 @@ PROGRAM=${0##*/}
 
 usage() {
   printf 'Usage: %s validate FILE|-\n' "$PROGRAM"
+  printf '       %s validate-verification FILE|-\n' "$PROGRAM"
   printf '       %s validate-axis standards|spec FILE|-\n' "$PROGRAM"
+  printf '       %s validate-fix-axis standards|spec FILE|-\n' "$PROGRAM"
 }
 
 fail() {
@@ -86,6 +88,433 @@ if [ "$command" = "validate-axis" ]; then
   }
   ' "$input" || exit $?
   printf 'valid: darrow-review-axis-v1 (%s)\n' "$expected_axis"
+  exit 0
+fi
+
+if [ "$command" = "validate-fix-axis" ]; then
+  [ "$#" -eq 3 ] || { usage >&2; exit 2; }
+  expected_axis=$2
+  input=$3
+  case "$expected_axis" in
+    standards|spec) ;;
+    *) fail 2 "axis must be standards or spec" ;;
+  esac
+  if [ "$input" != "-" ]; then
+    [ -f "$input" ] && [ -r "$input" ] ||
+      fail 2 "fix-axis result is not a readable regular file: $input"
+  fi
+  awk -F '\t' -v expected_axis="$expected_axis" '
+  function bad(message) {
+    print "review-result: " message > "/dev/stderr"
+    invalid = 1
+  }
+  function required(value, label) {
+    if (value == "") bad(label " must not be empty")
+  }
+  function valid_state(status, progress, label) {
+    if (status == "resolved") {
+      if (progress != "resolved") bad(label " resolved status requires resolved progress")
+    } else if (status == "unresolved") {
+      if (progress !~ /^(progressing|unchanged)$/)
+        bad(label " unresolved status requires progressing or unchanged progress")
+    } else if (status == "blocked") {
+      if (progress != "unavailable") bad(label " blocked status requires unavailable progress")
+    } else bad(label " status is invalid")
+  }
+  NR == 1 {
+    if (NF != 2 || $1 != "format" || $2 != "darrow-review-fix-axis-v1")
+      bad("first record must be format<TAB>darrow-review-fix-axis-v1")
+  }
+  {
+    kind = $1
+    if (kind == "format") {
+      format_count++
+      if (NF != 2) bad("format record must have 2 fields")
+    } else if (kind == "axis") {
+      axis_count++
+      axis = $2
+      if (NF != 2 || $2 !~ /^(standards|spec)$/) bad("axis is invalid")
+    } else if (kind == "original") {
+      if (NF != 2) bad("original record must have 2 fields")
+      required($2, "original key")
+      if (original_seen[$2]++) bad("duplicate original key: " $2)
+    } else if (kind == "prior_regression") {
+      if (NF != 3) bad("prior_regression record must have 3 fields")
+      required($2, "prior regression key")
+      required($3, "prior regression cause")
+      if (prior_regression_seen[$2]++) bad("duplicate prior regression key: " $2)
+      prior_regression_cause[$2] = $3
+    } else if (kind == "attempt") {
+      action_count++
+      if (NF != 5) bad("attempt record must have 5 fields")
+      required($2, "attempt key")
+      if (attempt_seen[$2]++) bad("duplicate attempt key: " $2)
+      valid_state($3, $4, "attempt")
+      required($5, "attempt evidence")
+    } else if (kind == "regression_attempt") {
+      action_count++
+      if (NF != 5) bad("regression_attempt record must have 5 fields")
+      required($2, "regression_attempt key")
+      if (regression_attempt_seen[$2]++) bad("duplicate regression_attempt key: " $2)
+      valid_state($3, $4, "regression_attempt")
+      required($5, "regression_attempt evidence")
+    } else if (kind == "regression") {
+      action_count++
+      if (NF != 6) bad("new regression record must have 6 fields")
+      required($2, "new regression cause")
+      if ($3 !~ /^(critical|high|medium|low)$/) bad("new regression severity is invalid")
+      required($4, "new regression location")
+      required($5, "new regression source")
+      required($6, "new regression evidence")
+      new_cause[++new_count] = $2
+    } else if (kind == "evidence_gap") {
+      gap_count++
+      if (NF != 2) bad("evidence_gap record must have 2 fields")
+      required($2, "evidence_gap")
+    } else bad("unknown fix-axis record on line " NR ": " kind)
+  }
+  END {
+    if (format_count != 1) bad("exactly one format record is required")
+    if (axis_count != 1 || axis != expected_axis) bad("axis does not match " expected_axis)
+    if (action_count == 0 && gap_count == 0) bad("at least one action or evidence gap is required")
+    for (key in attempt_seen)
+      if (!original_seen[key]) bad("attempt references an unknown original finding: " key)
+    for (key in original_seen)
+      if (!attempt_seen[key] && gap_count == 0)
+        bad("original finding is missing its fix-axis attempt: " key)
+    for (key in regression_attempt_seen)
+      if (!prior_regression_seen[key])
+        bad("regression_attempt references an unknown prior regression: " key)
+    for (key in prior_regression_seen)
+      if (!regression_attempt_seen[key] && gap_count == 0)
+        bad("prior regression is missing its fix-axis attempt: " key)
+    for (i = 1; i <= new_count; i++)
+      if (!attempt_seen[new_cause[i]])
+        bad("new regression cause is not an attempted original finding: " new_cause[i])
+    exit invalid ? 4 : 0
+  }
+  ' "$input" || exit $?
+  printf 'valid: darrow-review-fix-axis-v1 (%s)\n' "$expected_axis"
+  exit 0
+fi
+
+if [ "$command" = "validate-verification" ]; then
+  [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+  input=$2
+  verification_temp=
+  if [ "$input" = "-" ]; then
+    verification_temp=$(mktemp) || fail 2 "cannot create a temporary verification input"
+    trap 'rm -f "$verification_temp"' EXIT
+    cat >"$verification_temp" || fail 2 "cannot read verification input"
+    input=$verification_temp
+  else
+    [ -f "$input" ] && [ -r "$input" ] ||
+      fail 2 "verification result is not a readable regular file: $input"
+  fi
+  awk -F '\t' '
+  function bad(message) {
+    print "review-result: " message > "/dev/stderr"
+    invalid = 1
+  }
+  function required(value, label) {
+    if (value == "") bad(label " must not be empty")
+  }
+  function positive_integer(value) {
+    return value ~ /^[1-9][0-9]*$/
+  }
+  function valid_state(status, progress, label) {
+    if (status == "resolved") {
+      if (progress != "resolved") bad(label " resolved status requires resolved progress")
+    } else if (status == "unresolved") {
+      if (progress !~ /^(progressing|unchanged)$/)
+        bad(label " unresolved status requires progressing or unchanged progress")
+    } else if (status == "blocked") {
+      if (progress != "unavailable") bad(label " blocked status requires unavailable progress")
+    } else {
+      bad(label " status is invalid")
+    }
+  }
+  NR == 1 {
+    if (NF != 2 || $1 != "format" || $2 != "darrow-review-verification-v1")
+      bad("first record must be format<TAB>darrow-review-verification-v1")
+  }
+  {
+    kind = $1
+    if (kind == "format") {
+      format_count++
+      if (NF != 2) bad("format record must have 2 fields")
+    } else if (kind == "original_target") {
+      original_target_count++
+      original_target = $2
+      if (NF != 2) bad("original_target record must have 2 fields")
+      required($2, "original_target")
+    } else if (kind == "prior_target") {
+      prior_target_count++
+      prior_target = $2
+      if (NF != 2) bad("prior_target record must have 2 fields")
+      required($2, "prior_target")
+    } else if (kind == "current_target") {
+      current_target_count++
+      current_target = $2
+      if (NF != 2) bad("current_target record must have 2 fields")
+      required($2, "current_target")
+    } else if (kind == "history_target") {
+      history_count++
+      if (NF != 2) bad("history_target record must have 2 fields")
+      required($2, "history_target")
+      if (history_seen[$2]++) bad("duplicate history target: " $2)
+      history[$2] = 1
+    } else if (kind == "previous_verification") {
+      previous_count++
+      previous_hash = $2
+      previous_path = $3
+      if (NF != 3) bad("previous_verification record must have 3 fields")
+      required($2, "previous verification checksum")
+      required($3, "previous verification path")
+    } else if (kind == "original_finding") {
+      original_count++
+      key = $2
+      axis = $3
+      order = $4
+      disposition = $6
+      if (NF != 9) bad("original_finding record must have 9 fields")
+      required(key, "original finding key")
+      if (original_seen[key]++) bad("duplicate original finding key: " key)
+      if (axis !~ /^(standards|spec)$/) bad("original finding axis is invalid")
+      if (!positive_integer(order)) bad("original finding order must be a positive integer")
+      if (order_seen[order]++) bad("duplicate original finding order: " order)
+      if ($5 !~ /^(critical|high|medium|low)$/) bad("original finding severity is invalid")
+      if (disposition !~ /^(blocking|advisory)$/) bad("original finding disposition is invalid")
+      required($7, "original finding location")
+      required($8, "original finding source")
+      required($9, "original finding evidence")
+      original_axis[key] = axis
+      original_order[key] = order
+      original_disposition[key] = disposition
+    } else if (kind == "attempt") {
+      attempt_count++
+      key = $2
+      if (NF != 5) bad("attempt record must have 5 fields")
+      required(key, "attempt finding key")
+      if (attempt_seen[key]++) bad("duplicate attempt finding key: " key)
+      valid_state($3, $4, "attempt")
+      required($5, "attempt evidence")
+      attempt_status[key] = $3
+      attempt_progress[key] = $4
+    } else if (kind == "regression") {
+      regression_count++
+      key = $2
+      cause = $3
+      order = $4
+      if (NF != 11) bad("regression record must have 11 fields")
+      required(key, "regression key")
+      required(cause, "regression caused_by")
+      if (regression_seen[key]++) bad("duplicate regression key: " key)
+      if (!positive_integer(order)) bad("regression order must be a positive integer")
+      if (regression_order_seen[order]++) bad("duplicate regression order: " order)
+      if ($5 !~ /^(standards|spec)$/) bad("regression axis is invalid")
+      if ($6 !~ /^(critical|high|medium|low)$/) bad("regression severity is invalid")
+      valid_state($7, $8, "regression")
+      required($9, "regression location")
+      required($10, "regression source")
+      required($11, "regression evidence")
+      regression_cause[key] = cause
+      regression_order[key] = order
+      regression_axis[key] = $5
+      regression_severity[key] = $6
+      regression_status[key] = $7
+      regression_progress[key] = $8
+      regression_location[key] = $9
+      regression_source[key] = $10
+    } else if (kind == "check") {
+      check_count++
+      if (NF != 5) bad("check record must have 5 fields")
+      required($2, "check command")
+      required($5, "check evidence")
+      if ($3 == "applicable") {
+        if ($4 !~ /^(pass|fail|blocked)$/) bad("applicable check status is invalid")
+        if ($4 == "fail") check_fail++
+        if ($4 == "blocked") check_blocked++
+      } else if ($3 == "not_applicable") {
+        if ($4 != "not_applicable") bad("not_applicable check must have not_applicable status")
+      } else {
+        bad("check applicability is invalid")
+      }
+    } else if (kind == "evidence_gap") {
+      evidence_gap_count++
+      if (NF != 2) bad("evidence_gap record must have 2 fields")
+      required($2, "evidence_gap")
+    } else if (kind == "outcome") {
+      outcome_count++
+      outcome = $2
+      if (NF != 2 || $2 !~ /^(clear|continue|no_progress|blocked)$/)
+        bad("outcome must be clear, continue, no_progress, or blocked")
+    } else if (kind == "next_action") {
+      next_count++
+      if (NF != 2) bad("next_action record must have 2 fields")
+      required($2, "next_action")
+    } else {
+      bad("unknown verification record on line " NR ": " kind)
+    }
+  }
+  END {
+    if (format_count != 1) bad("exactly one format record is required")
+    if (original_target_count != 1) bad("exactly one original_target record is required")
+    if (prior_target_count != 1) bad("exactly one prior_target record is required")
+    if (current_target_count != 1) bad("exactly one current_target record is required")
+    if (previous_count != 1) bad("exactly one previous_verification record is required")
+    if (check_count < 1) bad("at least one check or explicit not_applicable check is required")
+    if (outcome_count != 1) bad("exactly one outcome record is required")
+    if (next_count != 1) bad("exactly one next_action record is required")
+    if (original_count == 0 && evidence_gap_count == 0)
+      bad("at least one original_finding or evidence_gap is required")
+
+    for (key in original_seen) {
+      expected_key = original_axis[key] ":" original_order[key] ":" original_target
+      if (key != expected_key)
+        bad("original finding key must be derived as axis:order:original_target: " expected_key)
+      if (original_disposition[key] == "blocking" && !attempt_seen[key] && evidence_gap_count == 0)
+        bad("every blocking original finding requires one attempt: " key)
+    }
+    for (key in attempt_seen) {
+      if (!original_seen[key]) bad("attempt references an unknown original finding: " key)
+      if (original_disposition[key] == "blocking") {
+        if (attempt_status[key] == "blocked") blocking_state++
+        else if (attempt_status[key] == "unresolved") {
+          active_state++
+          if (attempt_progress[key] == "unchanged") unchanged_state++
+        }
+      }
+    }
+    for (key in regression_seen) {
+      cause = regression_cause[key]
+      if (!original_seen[cause])
+        bad("regression caused_by references an unknown original finding: " cause)
+      else if (!attempt_seen[cause])
+        bad("regression caused_by references an unattempted original finding: " cause)
+      if (regression_axis[key] != original_axis[cause])
+        bad("regression axis must match its causing original finding: " key)
+      expected_key = "regression:" regression_order[key] ":" cause
+      if (key != expected_key)
+        bad("regression key must be derived as regression:order:caused_by: " expected_key)
+      if (regression_status[key] == "blocked") {
+        blocking_state++
+        regression_blocking_state++
+      }
+      else if (regression_status[key] == "unresolved") {
+        active_state++
+        regression_active_state++
+        if (regression_progress[key] == "unchanged") unchanged_state++
+      }
+    }
+    if (check_fail && regression_active_state == 0 && regression_blocking_state == 0)
+      bad("a failing deterministic check requires an unresolved or blocked repair-caused regression")
+
+    repeated_target = current_target == prior_target ||
+      current_target == original_target || history[current_target]
+    if (evidence_gap_count || check_blocked || blocking_state)
+      expected = "blocked"
+    else if (repeated_target || unchanged_state)
+      expected = "no_progress"
+    else if (active_state)
+      expected = "continue"
+    else
+      expected = "clear"
+    if (outcome != expected) bad("outcome must be " expected " from target, finding, regression, and check states")
+    exit invalid ? 4 : 0
+  }
+  ' "$input" || exit $?
+
+  previous_hash=$(awk -F '\t' '$1 == "previous_verification" { print $2 }' "$input")
+  previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' "$input")
+  if [ "$previous_hash" = "none" ] || [ "$previous_path" = "none" ]; then
+    [ "$previous_hash" = "none" ] && [ "$previous_path" = "none" ] ||
+      fail 4 "previous_verification must use none for both checksum and path"
+    first_original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' "$input")
+    first_prior_target=$(awk -F '\t' '$1 == "prior_target" { print $2 }' "$input")
+    [ "$first_prior_target" = "$first_original_target" ] ||
+      fail 4 "first verification prior_target must equal original_target"
+    first_history_count=$(awk -F '\t' '$1 == "history_target" { count++ } END { print count + 0 }' "$input")
+    [ "$first_history_count" -eq 0 ] ||
+      fail 4 "first verification must not contain repair target history"
+  else
+    case "$previous_path" in
+      /*) ;;
+      *) fail 4 "previous verification path must be absolute" ;;
+    esac
+    [ -f "$previous_path" ] && [ -r "$previous_path" ] ||
+      fail 4 "previous verification is not a readable regular file: $previous_path"
+    [ "$input" = "-" ] || [ "$previous_path" != "$input" ] ||
+      fail 4 "previous verification must not reference the current artifact"
+    actual_previous_hash=$(git hash-object --no-filters "$previous_path" 2>/dev/null) ||
+      fail 4 "cannot hash the previous verification artifact"
+    [ "$actual_previous_hash" = "$previous_hash" ] ||
+      fail 4 "previous verification checksum does not match its artifact"
+    validation_depth=${DARROW_REVIEW_VALIDATION_DEPTH:-0}
+    case "$validation_depth" in
+      ''|*[!0-9]*) fail 4 "verification validation depth is invalid" ;;
+    esac
+    [ "$validation_depth" -lt 50 ] || fail 4 "previous verification chain is cyclic or too deep"
+    DARROW_REVIEW_VALIDATION_DEPTH=$((validation_depth + 1)) \
+      "$0" validate-verification "$previous_path" >/dev/null ||
+      fail 4 "previous verification artifact is invalid"
+    prior_link_target=$(awk -F '\t' '$1 == "current_target" { print $2 }' "$previous_path")
+    current_prior_target=$(awk -F '\t' '$1 == "prior_target" { print $2 }' "$input")
+    [ "$prior_link_target" = "$current_prior_target" ] ||
+      fail 4 "previous verification target does not match prior_target"
+    awk -F '\t' '
+    function bad(message) {
+      print "review-result: " message > "/dev/stderr"
+      invalid = 1
+    }
+    FNR == NR {
+      if ($1 == "format" && $2 != "darrow-review-verification-v1")
+        bad("previous verification format is invalid")
+      if ($1 == "original_target") prior_original_target = $2
+      if ($1 == "prior_target") prior_prior_target = $2
+      if ($1 == "history_target") expected_history[$2] = 1
+      if ($1 == "original_finding") prior_original[$2] = $0
+      if ($1 == "regression") {
+        prior_regression[$2] = $3 FS $4 FS $5 FS $6 FS $9 FS $10
+        prior_regression_seen[$2] = 1
+      }
+      next
+    }
+    $1 == "original_finding" {
+      current_original[$2] = $0
+      if (!($2 in prior_original))
+        bad("new original finding appeared in later verification: " $2)
+      else if (prior_original[$2] != $0)
+        bad("original finding changed across verification artifacts: " $2)
+    }
+    $1 == "original_target" {
+      if ($2 != prior_original_target)
+        bad("original_target changed across verification artifacts")
+    }
+    $1 == "history_target" {
+      current_history[$2] = 1
+    }
+    $1 == "regression" {
+      current_regression_seen[$2] = 1
+      immutable = $3 FS $4 FS $5 FS $6 FS $9 FS $10
+      if (prior_regression_seen[$2] && prior_regression[$2] != immutable)
+        bad("prior regression immutable fields changed: " $2)
+    }
+    END {
+      expected_history[prior_prior_target] = 1
+      for (key in prior_original)
+        if (!(key in current_original)) bad("original finding is missing from current verification: " key)
+      for (key in prior_regression_seen)
+        if (!current_regression_seen[key]) bad("prior regression is missing from current verification: " key)
+      for (target in expected_history)
+        if (!(target in current_history)) bad("prior repair target is missing from target history: " target)
+      for (target in current_history)
+        if (!(target in expected_history)) bad("unbound target appeared in target history: " target)
+      exit invalid ? 4 : 0
+    }
+    ' "$previous_path" "$input" || exit $?
+  fi
+  printf 'valid: darrow-review-verification-v1\n'
   exit 0
 fi
 

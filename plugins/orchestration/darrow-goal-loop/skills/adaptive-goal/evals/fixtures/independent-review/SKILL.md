@@ -5,13 +5,23 @@ description: Independently review one exact current code change and report its f
 
 # Independently review the current change
 
-Resolve this file's directory and the repository root, then run exactly:
+Resolve this file's directory and the repository root. For the first
+comprehensive review run exactly:
 
 ```sh
-bash "$skill_dir/../../bin/independent-review-fixture" "$repo"
+bash "$skill_dir/../../bin/independent-review-fixture" "$repo" comprehensive
+```
+
+After an enclosing goal repairs that comprehensive review's closed finding set,
+fix-verify only those attempts and direct repair-caused regressions by running:
+
+```sh
+bash "$skill_dir/../../bin/independent-review-fixture" "$repo" verify
 ```
 
 Treat the ordinary prose response as this capability's complete, read-only
 review. Return it to an enclosing goal when the goal contract requested the
 review. Do not repair the change or perform the enclosing goal's next action
-inside this capability.
+inside this capability. Never run a second comprehensive review, never verify
+before the comprehensive invocation, and never convert an unrelated observation
+into the closed convergence set.

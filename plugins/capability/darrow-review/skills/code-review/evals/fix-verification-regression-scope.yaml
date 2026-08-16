@@ -1,0 +1,69 @@
+id: code-review-fix-verification-regression-scope
+invariant: CR-C17,CR-C18,CR-C20,CR-E13
+prompt: >-
+  Fix-verify my uncommitted repair, limited to the caller-owned evidence in
+  `.git/verification-input` and direct repair consequences. Validate and use
+  its pinned prior scope, closed original finding set, attempted key, and
+  first-verification marker. `bash check.sh` proves the repair directly caused
+  negative inputs to return the wrong sign; record that regression against the
+  attempted finding. The new TODO is unrelated and must not enter the closed
+  set. Return the normal human verification report and remain read-only.
+fixture:
+  commits:
+    - message: "chore: base"
+      files:
+        AGENTS.md: "# Repository instructions\n"
+        src/math.js: |
+          export const multiplier = 2;
+          export const scale = (value) => value * multiplier;
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'export const multiplier = 2;' src/math.js >/dev/null
+          grep -Fx 'export const scale = (value) => Math.abs(value * multiplier);' src/math.js >/dev/null
+          exit 1
+    - message: "feat: introduce wrong multiplier"
+      files:
+        src/math.js: |
+          export const multiplier = 1;
+          export const scale = (value) => value * multiplier;
+  files:
+    src/math.js: |
+      export const multiplier = 2;
+      export const scale = (value) => Math.abs(value * multiplier);
+      // TODO: consider renaming scale someday
+  setup: |
+    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
+    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
+    {
+      printf 'original_target\t%s\n' "$original_target"
+      printf 'prior_target\t%s\n' "$original_target"
+      printf 'prior_manifest\t%s\n' "$prior_manifest"
+      printf 'previous_verification\tnone\tnone\n'
+      printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/math.js:1\trequirement: multiplier must be 2\tmultiplier was 1\n' "$original_target"
+      printf 'attempted\tspec:1:%s\n' "$original_target"
+    } >.git/verification-input
+    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+checks:
+  - name: direct regression enters the closed convergence set
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      tool=$(sed -n '1p' .git/review-result-tool) &&
+      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
+      awk -F '\t' -v cause="spec:1:$original_target" '$1 == "regression" && $2 == "regression:1:" cause && $3 == cause && $4 == 1 { found=1 } END { exit found ? 0 : 1 }' "$record" &&
+      grep -F 'outcome	continue' "$record" >/dev/null
+  - name: unrelated observation is excluded
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      ! grep -F 'renaming scale' "$record" >/dev/null
+  - name: final response is the complete rendered verification report
+    run: >-
+      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
+      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+output_checks:
+  - name: report attributes the regression without unrelated findings
+    expect_regex: '^# Repair verification — CONTINUE[\s\S]*## Repair-caused regressions[\s\S]*spec:1:[0-9a-f]{40}'
+    not_regex: "renaming scale"
