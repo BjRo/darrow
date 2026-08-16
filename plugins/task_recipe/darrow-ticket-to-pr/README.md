@@ -30,6 +30,15 @@ host-visible compatible intents or public contracts. It does not reference
 sibling plugin files or assume a named provider is installed. A missing
 required delivery capability blocks honestly.
 
+Its bundled portable Bash helper owns only repeatable read-only mechanics:
+repository/worktree inspection, v4 launch-record validation, local delivery
+verification, and canonical terminal-result rendering. Authority, local-work
+ownership, ticket fulfillment, review, outcome, and publication decisions stay
+in the skill; branch, commit, push, and pull-request mutations stay with their
+compatible capabilities. If a returned launch record is malformed, the helper
+can preserve it unchanged as explicitly unvalidated evidence in a blocked or
+interrupted result instead of making a terminal report impossible.
+
 Progress is reconstructed from repository and forge facts. The plugin stores
 no private ledger, introduces no phase runtime or background controller, and
 ships no SDK or exporter.

@@ -1,6 +1,6 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Deliver one authoritative ticket as exactly one verified pull request",
   "author": {
     "name": "Björn Rochel",

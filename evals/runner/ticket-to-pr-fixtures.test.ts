@@ -74,37 +74,34 @@ describe("ticket-to-PR evaluation fixtures", () => {
 
   test("documents historical reconstruction and literal terminal outcomes", async () => {
     const skill = await readFile(resolve(CASES, "../SKILL.md"), "utf8");
-    expect(skill).toContain("reconstruct that durable boundary read-only");
-    expect(skill).toContain("Do not reopen");
-    expect(skill).toContain("This historical check is an early return");
-    expect(skill).toContain("do not finish interrupted work");
+    expect(skill).toContain("reconstruct that boundary read-only");
+    expect(skill).toContain("Do not finish interrupted\nwork");
     expect(skill).toContain("recast historical `pr_created` as\n`pr_existing`");
-    expect(skill).toContain("`decision-gated` preflight are\n  `stopped`");
     expect(skill).toContain(
-      "reviews, pushes, or proposal creation are `blocked`",
+      "Map adaptive-goal's `decision-gated` preflight to `stopped`",
     );
     expect(skill).toContain(
-      "a user, budget, or host interruption is `interrupted`",
-    );
-    expect(skill).toContain("Never accept `same_thread` / `current-thread`");
-    expect(skill).toContain("concrete host-reported route metadata");
-    expect(skill).toContain("Omit the v4 record entirely");
-    expect(skill).toContain("Never issue a placeholder, test, probe");
-    expect(skill).toContain(
-      "authoritative safe request always invokes and awaits `adaptive-goal`",
+      "An unavailable or blocking required review is `blocked`",
     );
     expect(skill).toContain(
-      "take the historical return before loading or\n  invoking `adaptive-goal`",
+      "the user, explicit budget, or host ended execution",
     );
     expect(skill).toContain(
-      "An explicitly requested linked worktree is the narrow exception",
+      "a safe,\nauthoritative request always reaches step 4",
     );
-    expect(skill).toContain("Do not stop after the first transient failure");
-    expect(skill).toContain("Use one explicit terminal evidence line");
-    expect(skill).toContain("immediately state\n`Outcome: stopped`");
     expect(skill).toContain(
-      "Refusal prose without the literal `stopped` outcome",
+      "reconstruct that boundary read-only before loading\nadaptive-goal",
     );
+    expect(skill).toContain(
+      "An explicitly requested linked worktree is the sole exception",
+    );
+    expect(skill).toContain(
+      "This rendering step is mandatory\n   on every path",
+    );
+    expect(skill).toContain(
+      "Return the renderer's stdout without rewriting it",
+    );
+    expect(skill).toContain("`--unvalidated-launch-record`");
   });
 
   test("forbids adaptive relaunch for reconstructed terminal outcomes", async () => {

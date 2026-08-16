@@ -43,6 +43,15 @@ not satisfy or weaken that release gate.
 Forge CLIs are fail-closed unless a case explicitly supplies a fixture-local
 mock; Git publication cases use local bare remotes.
 
+The behavior matrix complements the deterministic helper contract. Run its
+success and refusal suite under both supported Bash boundaries before live
+trials:
+
+```sh
+bash plugins/task_recipe/darrow-ticket-to-pr/bin/ticket-to-pr.test.sh
+/bin/bash plugins/task_recipe/darrow-ticket-to-pr/bin/ticket-to-pr.test.sh
+```
+
 The runner also compares the selected branch, every repository ref, index,
 tracked files, and untracked files for no-mutation cases. Cases that explicitly
 create repository state declare that expectation and assert the exact intended

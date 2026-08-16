@@ -370,6 +370,50 @@ Successful verification also covers the proposal base and head, title, ticket-
 referencing body, ready-versus-draft state, required checks, and selected
 review.
 
+## Deterministic mechanics boundary
+
+The recipe ships one narrow, read-only portable Bash helper for mechanics that
+must be repeatable across Claude Code and Codex. The helper owns exactly these
+operations:
+
+- repository and worktree inspection, including absolute checkout paths, the
+  primary worktree, current base, branch and HEAD state, remotes, staged,
+  unstaged, untracked and conflicted paths, stable state fingerprints, and
+  ticket-correlated local and remote candidates;
+- validation of an already-produced adaptive-goal v4 launch record against
+  host-observed route and child-count facts, including proof that the recipe
+  invoked exactly one adaptive-goal child, without changing or recreating the
+  record;
+- local delivery verification for the supplied base, branch, expected HEAD,
+  remote branch, clean-worktree requirement, and any supplied preservation
+  snapshot; and
+- canonical rendering of an already-classified terminal outcome, its supplied
+  verification and review evidence, durable branch, commit, remote and pull-
+  request facts, smallest next action, preservation statement, and the
+  preserved launch record when one exists. A structurally valid record is
+  rendered as the canonical v4 block. When launch validation itself refused a
+  malformed record, a `blocked` or `interrupted` result may instead preserve
+  the unchanged opaque record between explicit refusal markers so the recipe
+  can still return one honest terminal result. In either form, the helper adds
+  a line boundary after a record that lacks a final newline; it does not change
+  the record file.
+
+These operations report facts or reject mechanically invalid input. They do
+not decide which ticket source is authoritative, reconcile contradictory
+requests, classify dirty-work ownership, decide whether historical state is
+terminal, choose an outcome or next action, judge ticket fulfillment or review
+findings, select publication authority or review policy, or invoke
+adaptive-goal. Those decisions remain visible in `SKILL.md` and belong to the
+model.
+
+The helper is not a delivery engine. It never fetches a ticket through a
+hard-coded backend, creates or switches a branch, stages or commits work,
+pushes, creates or recovers a pull request, mutates forge state, rewrites a
+launch record, or persists phase state. Branch and commit effects remain with
+their compatible Git capabilities. Push, pull-request creation and recovery,
+duplicate-proposal handling, title validation, and template mechanics remain
+with the compatible create-PR capability.
+
 ## Invariants
 
 1. **TPR-C1 — Explicit activation.** Only explicit ticket-to-PR invocation
@@ -419,8 +463,12 @@ review.
    portable Bash, baseline Unix utilities, and wrapped host CLIs, supporting
    Bash 5 and macOS `/bin/bash` 3.2.
 5. **TPR-P5 — Contextual judgment.** Authority, dirty-work ownership, scope,
-   decision-gating, and recoverability remain contextual model judgments;
-   deterministic scripts own only repeatable protocol and validation mechanics.
+   contradictory-input handling, historical-terminal classification,
+   publication authority, adaptive-goal invocation, acceptance and review
+   judgment, semantic outcome, next-action selection, decision-gating, and
+   recoverability remain contextual model judgments; deterministic scripts own
+   only the four repeatable, read-only operations in the deterministic
+   mechanics boundary.
 
 ## Evaluation requirements
 

@@ -29,5 +29,4 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: inconclusive review is a blocked outcome
-    expect_regex: "(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*review)(?=[\\s\\S]*inconclusive)"
-    flags: i
+    expect_regex: "Outcome: blocked\\. Review: inconclusive because the target could not be pinned\\."

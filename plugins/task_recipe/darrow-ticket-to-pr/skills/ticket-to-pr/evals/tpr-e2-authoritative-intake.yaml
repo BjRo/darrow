@@ -67,3 +67,5 @@ output_checks:
   - name: resolved intake names the smallest missing decision
     expect_regex: "Markdown or HTML|widget format"
     flags: i
+  - name: decision record precedes exact recipe terminal lines
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*evaluation_human_interruptions\\t1\\r?\\nTicket: TKT-201\\r?\\nOutcome: stopped"

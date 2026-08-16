@@ -1,0 +1,938 @@
+#!/usr/bin/env bash
+# Read-only deterministic mechanics for the ticket-to-PR task recipe.
+set -eu
+
+PROGRAM='ticket-to-pr'
+TAB=$(printf '\t')
+CR=$(printf '\r')
+NL='
+'
+TMP_ROOT=
+GIT_OPTIONAL_LOCKS=0
+export GIT_OPTIONAL_LOCKS
+
+cleanup() {
+  if test -n "$TMP_ROOT" && test -d "$TMP_ROOT"; then
+    rm -rf "$TMP_ROOT"
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+usage() {
+  cat <<'EOF'
+usage:
+  ticket-to-pr inspect-repository --repo <path> --base <ref> [--ticket-key <text>]
+  ticket-to-pr validate-launch --record <path> --adaptive-goal-children <count> --observed-children <count> --observed-route <harness|provider|model|effort> --observed-applied-by <value> --observed-boundary <value>
+  ticket-to-pr verify-delivery --repo <path> --base <ref> --base-oid <oid> --branch <name> --head <oid> --remote <name> --remote-branch <name> [--preservation-record <path>]...
+  ticket-to-pr render-result --ticket <id> --outcome <token> [evidence and durable-state options] [--launch-record <path> | --unvalidated-launch-record <path>]
+EOF
+}
+
+die() {
+  printf '%s: %s\n' "$PROGRAM" "$*" >&2
+  exit 2
+}
+
+require_value() {
+  test "$#" -ge 2 || die "missing value for $1"
+  test -n "$2" || die "empty value for $1"
+}
+
+validate_record_value() {
+  local label=$1 value=$2
+  test -n "$value" || die "$label must not be empty"
+  case "$value" in
+    *"$TAB"*|*"$CR"*|*"$NL"*) die "$label contains a record delimiter" ;;
+  esac
+}
+
+validate_nonnegative_integer() {
+  local label=$1 value=$2
+  case "$value" in
+    ''|*[!0-9]*) die "$label must be a non-negative integer" ;;
+  esac
+}
+
+validate_oid() {
+  local label=$1 value=$2 length
+  case "$value" in
+    ''|*[!0-9a-fA-F]*) die "$label must be a hexadecimal object id" ;;
+  esac
+  length=${#value}
+  test "$length" -eq 40 || test "$length" -eq 64 ||
+    die "$label must be a full 40- or 64-character object id"
+}
+
+validate_base_ref() {
+  local value=$1
+  git check-ref-format --branch "$value" >/dev/null 2>&1 ||
+    die "invalid base ref: $value"
+}
+
+validate_route_component() {
+  local label=$1 value=$2
+  validate_record_value "$label" "$value"
+  case "$value" in
+    *'|'*) die "$label contains the route delimiter" ;;
+  esac
+}
+
+ensure_temp_root() {
+  if test -z "$TMP_ROOT"; then
+    TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/darrow-ticket-to-pr.XXXXXX") ||
+      die 'could not create a temporary directory'
+  fi
+}
+
+absolute_directory() {
+  local requested=$1 absolute
+  test -d "$requested" || die "directory does not exist: $requested"
+  absolute=$(CDPATH='' cd -- "$requested" 2>/dev/null && pwd -P) ||
+    die "directory is unreadable: $requested"
+  validate_record_value 'absolute directory' "$absolute"
+  printf '%s\n' "$absolute"
+}
+
+absolute_regular_file() {
+  local requested=$1 directory name
+  test ! -L "$requested" && test -f "$requested" && test -r "$requested" ||
+    die "file is unreadable or unsafe: $requested"
+  directory=$(absolute_directory "$(dirname -- "$requested")")
+  name=$(basename -- "$requested")
+  validate_record_value 'file name' "$name"
+  case "$directory" in
+    /) printf '/%s\n' "$name" ;;
+    *) printf '%s/%s\n' "$directory" "$name" ;;
+  esac
+}
+
+repository_root() {
+  local requested=$1 candidate root
+  candidate=$(absolute_directory "$requested")
+  git -C "$candidate" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    die "not a Git working tree: $candidate"
+  root=$(git -C "$candidate" rev-parse --show-toplevel 2>/dev/null) ||
+    die "could not resolve Git repository: $candidate"
+  root=$(absolute_directory "$root")
+  printf '%s\n' "$root"
+}
+
+common_git_directory() {
+  local root=$1 common
+  common=$(git -C "$root" rev-parse --git-common-dir 2>/dev/null) ||
+    die "could not resolve Git common directory: $root"
+  case "$common" in
+    /*) ;;
+    *) common=$root/$common ;;
+  esac
+  absolute_directory "$common"
+}
+
+worktree_git_directory() {
+  local root=$1 git_dir
+  git_dir=$(git -C "$root" rev-parse --git-dir 2>/dev/null) ||
+    die "could not resolve worktree Git directory: $root"
+  case "$git_dir" in
+    /*) ;;
+    *) git_dir=$root/$git_dir ;;
+  esac
+  absolute_directory "$git_dir"
+}
+
+sha256_file() {
+  local path=$1 output digest
+  if command -v shasum >/dev/null 2>&1; then
+    output=$(shasum -a 256 "$path") || die "could not hash file: $path"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    output=$(sha256sum "$path") || die "could not hash file: $path"
+  else
+    die 'SHA-256 utility is unavailable'
+  fi
+  digest=${output%% *}
+  test "${#digest}" -eq 64 || die "invalid SHA-256 result for: $path"
+  case "$digest" in
+    *[!0-9a-f]*) die "invalid SHA-256 result for: $path" ;;
+  esac
+  printf '%s\n' "$digest"
+}
+
+print_file_with_line_boundary() {
+  local path=$1 last_byte
+  cat "$path" || die "could not read file: $path"
+  last_byte=$(tail -c 1 "$path" 2>/dev/null | od -An -tu1 | tr -d '[:space:]') ||
+    die "could not inspect final byte: $path"
+  if test "$last_byte" != 10; then
+    printf '\n'
+  fi
+}
+
+join_repository_path() {
+  local root=$1 relative=$2
+  validate_record_value 'repository path' "$relative"
+  case "$root" in
+    /) printf '/%s\n' "$relative" ;;
+    *) printf '%s/%s\n' "$root" "$relative" ;;
+  esac
+}
+
+compute_fingerprints() {
+  local root=$1 list_path manifest_path relative absolute kind file_digest
+  ensure_temp_root
+
+  FP_STATUS_FILE=$TMP_ROOT/status.$$
+  FP_INDEX_FILE=$TMP_ROOT/index.$$
+  FP_REFS_FILE=$TMP_ROOT/refs.$$
+  FP_REFS_SORTED=$TMP_ROOT/refs-sorted.$$
+  list_path=$TMP_ROOT/worktree-list.$$
+  manifest_path=$TMP_ROOT/worktree-manifest.$$
+
+  git -C "$root" status --porcelain=v1 -z --untracked-files=all >"$FP_STATUS_FILE" ||
+    die "could not inspect repository status: $root"
+  git -C "$root" ls-files -s -z >"$FP_INDEX_FILE" ||
+    die "could not inspect repository index: $root"
+  git -C "$root" for-each-ref --format='%(refname)%09%(objectname)' >"$FP_REFS_FILE" ||
+    die "could not inspect repository refs: $root"
+  LC_ALL=C sort "$FP_REFS_FILE" >"$FP_REFS_SORTED" ||
+    die "could not normalize repository refs: $root"
+  git -C "$root" ls-files --cached --others --exclude-standard -z >"$list_path" ||
+    die "could not enumerate repository files: $root"
+  : >"$manifest_path"
+  while IFS= read -r -d '' relative; do
+    validate_record_value 'repository path' "$relative"
+    absolute=$(join_repository_path "$root" "$relative")
+    if test -L "$absolute"; then
+      kind=symlink
+      link_path=$TMP_ROOT/link.$$
+      readlink "$absolute" >"$link_path" || die "could not read symlink: $absolute"
+      file_digest=$(sha256_file "$link_path")
+    elif test -f "$absolute"; then
+      kind='file'
+      file_digest=$(sha256_file "$absolute")
+    elif test -d "$absolute"; then
+      kind=directory
+      file_digest=none
+    else
+      kind=missing
+      file_digest=none
+    fi
+    printf '%s\0%s\0%s\0' "$relative" "$kind" "$file_digest" >>"$manifest_path"
+  done <"$list_path"
+
+  FP_STATUS=$(sha256_file "$FP_STATUS_FILE")
+  FP_INDEX=$(sha256_file "$FP_INDEX_FILE")
+  FP_REFS=$(sha256_file "$FP_REFS_SORTED")
+  FP_WORKTREE=$(sha256_file "$manifest_path")
+}
+
+git_operation() {
+  local common=$1
+  if test -f "$common/MERGE_HEAD"; then
+    printf 'merge\n'
+  elif test -d "$common/rebase-merge" || test -d "$common/rebase-apply"; then
+    printf 'rebase\n'
+  elif test -f "$common/CHERRY_PICK_HEAD"; then
+    printf 'cherry-pick\n'
+  elif test -f "$common/REVERT_HEAD"; then
+    printf 'revert\n'
+  elif test -f "$common/BISECT_LOG"; then
+    printf 'bisect\n'
+  else
+    printf 'none\n'
+  fi
+}
+
+prepare_path_records() {
+  local root=$1 label=$2 raw_file=$3 rows_file relative absolute count
+  ensure_temp_root
+  rows_file=$TMP_ROOT/$label.rows.$$
+  : >"$rows_file"
+  count=0
+  while IFS= read -r -d '' relative; do
+    absolute=$(join_repository_path "$root" "$relative")
+    printf '%s\t%s\n' "${label}_path" "$absolute" >>"$rows_file"
+    count=$((count + 1))
+  done <"$raw_file"
+  printf '%s_count\t%s\n' "$label" "$count"
+  cat "$rows_file"
+}
+
+matches_ticket_key() {
+  local candidate=$1 ticket_key=$2
+  test -n "$ticket_key" || return 1
+  printf '%s\n' "$candidate" | LC_ALL=C grep -F -i -e "$ticket_key" >/dev/null 2>&1
+}
+
+inspect_repository() {
+  local requested_repo='' base='' ticket_key=''
+  local root common worktree_git base_oid head branch detached
+  local worktree_output first_worktree current_path current_head current_branch line
+  local remote_output remote fetch_url push_url refs_output ref oid subject commits_output
+  local operation clean
+
+  while test "$#" -gt 0; do
+    case "$1" in
+      --repo) require_value "$@"; requested_repo=$2; shift 2 ;;
+      --base) require_value "$@"; base=$2; shift 2 ;;
+      --ticket-key) require_value "$@"; ticket_key=$2; shift 2 ;;
+      *) die "unknown inspect-repository option: $1" ;;
+    esac
+  done
+  test -n "$requested_repo" || die 'inspect-repository requires --repo'
+  test -n "$base" || die 'inspect-repository requires --base'
+  validate_record_value 'base ref' "$base"
+  validate_base_ref "$base"
+  if test -n "$ticket_key"; then
+    validate_record_value 'ticket key' "$ticket_key"
+  fi
+  root=$(repository_root "$requested_repo")
+  git -C "$root" rev-parse --verify "$base^{commit}" >/dev/null 2>&1 ||
+    die "base ref does not resolve to a commit: $base"
+  base_oid=$(git -C "$root" rev-parse "$base^{commit}")
+  head=$(git -C "$root" rev-parse --verify HEAD 2>/dev/null) ||
+    die "repository has no HEAD commit: $root"
+  if branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null); then
+    detached=false
+  else
+    branch=none
+    detached=true
+  fi
+  common=$(common_git_directory "$root")
+  worktree_git=$(worktree_git_directory "$root")
+  operation=$(git_operation "$worktree_git")
+  compute_fingerprints "$root"
+  if test -s "$FP_STATUS_FILE" || test "$operation" != none; then
+    clean=false
+  else
+    clean=true
+  fi
+
+  worktree_output=$(git -C "$root" worktree list --porcelain 2>/dev/null) ||
+    die "could not inspect repository worktrees: $root"
+  first_worktree=
+  while IFS= read -r line; do
+    case "$line" in
+      'worktree '*)
+        current_path=${line#worktree }
+        validate_record_value 'worktree path' "$current_path"
+        if test -z "$first_worktree"; then
+          first_worktree=$current_path
+        fi
+        ;;
+    esac
+  done <<EOF
+$worktree_output
+EOF
+  test -n "$first_worktree" || die "repository has no worktree record: $root"
+
+  ensure_temp_root
+  git -C "$root" diff --cached --name-only --diff-filter=ACDMRTXB -z >"$TMP_ROOT/staged.raw" ||
+    die "could not inspect staged paths: $root"
+  git -C "$root" diff --name-only --diff-filter=ACDMRTXB -z >"$TMP_ROOT/unstaged.raw" ||
+    die "could not inspect unstaged paths: $root"
+  git -C "$root" ls-files --others --exclude-standard -z >"$TMP_ROOT/untracked.raw" ||
+    die "could not inspect untracked paths: $root"
+  git -C "$root" diff --name-only --diff-filter=U -z >"$TMP_ROOT/conflict.raw" ||
+    die "could not inspect conflicted paths: $root"
+
+  printf 'format\tdarrow-ticket-to-pr-inspection-v1\n'
+  printf 'repository_root\t%s\n' "$root"
+  printf 'primary_worktree\t%s\n' "$first_worktree"
+  printf 'git_common_dir\t%s\n' "$common"
+  printf 'git_dir\t%s\n' "$worktree_git"
+  printf 'base\t%s\n' "$base"
+  printf 'base_oid\t%s\n' "$base_oid"
+  printf 'branch\t%s\n' "$branch"
+  printf 'head\t%s\n' "$head"
+  printf 'detached\t%s\n' "$detached"
+  printf 'operation\t%s\n' "$operation"
+  printf 'clean\t%s\n' "$clean"
+  if test -n "$ticket_key"; then
+    printf 'ticket_key\t%s\n' "$ticket_key"
+  else
+    printf 'ticket_key\tnone\n'
+  fi
+  prepare_path_records "$root" staged "$TMP_ROOT/staged.raw"
+  prepare_path_records "$root" unstaged "$TMP_ROOT/unstaged.raw"
+  prepare_path_records "$root" untracked "$TMP_ROOT/untracked.raw"
+  prepare_path_records "$root" conflict "$TMP_ROOT/conflict.raw"
+  printf 'status_fingerprint\t%s\n' "$FP_STATUS"
+  printf 'index_fingerprint\t%s\n' "$FP_INDEX"
+  printf 'worktree_fingerprint\t%s\n' "$FP_WORKTREE"
+  printf 'refs_fingerprint\t%s\n' "$FP_REFS"
+
+  remote_output=$(git -C "$root" remote 2>/dev/null) ||
+    die "could not inspect remotes: $root"
+  while IFS= read -r remote; do
+    test -n "$remote" || continue
+    validate_record_value 'remote name' "$remote"
+    fetch_url=$(git -C "$root" remote get-url -- "$remote" 2>/dev/null) ||
+      die "could not inspect fetch URL for remote: $remote"
+    push_url=$(git -C "$root" remote get-url --push -- "$remote" 2>/dev/null) ||
+      die "could not inspect push URL for remote: $remote"
+    validate_record_value 'remote fetch URL' "$fetch_url"
+    validate_record_value 'remote push URL' "$push_url"
+    printf 'remote\t%s\t%s\t%s\n' "$remote" "$fetch_url" "$push_url"
+  done <<EOF
+$remote_output
+EOF
+
+  current_path=
+  current_head=
+  current_branch=detached
+  while IFS= read -r line; do
+    case "$line" in
+      'worktree '*)
+        if test -n "$current_path"; then
+          printf 'worktree\t%s\t%s\t%s\n' "$current_path" "$current_head" "$current_branch"
+          if matches_ticket_key "$current_path $current_branch" "$ticket_key"; then
+            printf 'candidate_worktree\t%s\t%s\t%s\n' "$current_path" "$current_head" "$current_branch"
+          fi
+        fi
+        current_path=${line#worktree }
+        current_head=unknown
+        current_branch=detached
+        ;;
+      'HEAD '*) current_head=${line#HEAD } ;;
+      'branch refs/heads/'*) current_branch=${line#branch refs/heads/} ;;
+      '')
+        if test -n "$current_path"; then
+          printf 'worktree\t%s\t%s\t%s\n' "$current_path" "$current_head" "$current_branch"
+          if matches_ticket_key "$current_path $current_branch" "$ticket_key"; then
+            printf 'candidate_worktree\t%s\t%s\t%s\n' "$current_path" "$current_head" "$current_branch"
+          fi
+          current_path=
+          current_head=
+          current_branch=detached
+        fi
+        ;;
+    esac
+  done <<EOF
+$worktree_output
+
+EOF
+
+  if test -n "$ticket_key"; then
+    refs_output=$(git -C "$root" for-each-ref --format='%(refname)%09%(objectname)%09%(subject)' refs/heads refs/remotes) ||
+      die "could not inspect candidate refs: $root"
+    while IFS="$TAB" read -r ref oid subject; do
+      test -n "$ref" || continue
+      if matches_ticket_key "$ref $subject" "$ticket_key"; then
+        case "$ref" in
+          refs/heads/*) printf 'candidate_local_branch\t%s\t%s\n' "$ref" "$oid" ;;
+          refs/remotes/*) printf 'candidate_remote_branch\t%s\t%s\n' "$ref" "$oid" ;;
+        esac
+      fi
+    done <<EOF
+$refs_output
+EOF
+    commits_output=$(git -C "$root" log --all --fixed-strings --grep="$ticket_key" --format='%H%x09%s' 2>/dev/null) ||
+      die "could not inspect candidate commits: $root"
+    while IFS="$TAB" read -r oid subject; do
+      test -n "$oid" || continue
+      validate_record_value 'candidate commit subject' "$subject"
+      printf 'candidate_commit\t%s\t%s\n' "$oid" "$subject"
+    done <<EOF
+$commits_output
+EOF
+  fi
+}
+
+parse_launch_record() {
+  local record=$1 line line_number key a b c d extra
+  LAUNCH_FORMAT=
+  LAUNCH_WORKFLOW=
+  LAUNCH_RISK=
+  LAUNCH_PROFILE=
+  LAUNCH_SELECTED=
+  LAUNCH_EFFECTIVE=
+  LAUNCH_APPLIED_BY=
+  LAUNCH_VERIFIED=
+  LAUNCH_BOUNDARY=
+  LAUNCH_GATE=
+  LAUNCH_CHILDREN=
+  LAUNCH_INTERRUPTS=
+  line_number=0
+  while IFS= read -r line || test -n "$line"; do
+    line_number=$((line_number + 1))
+    case "$line" in *"$CR"*) die "launch record contains a carriage return: $record" ;; esac
+    key=
+    a=
+    b=
+    c=
+    d=
+    extra=
+    IFS="$TAB" read -r key a b c d extra <<EOF
+$line
+EOF
+    case "$line_number" in
+      1)
+        test "$key" = format && test "$a" = darrow-native-goal-preflight-v4 && test -z "$b$c$d$extra" ||
+          die "launch record is not v4: $record"
+        LAUNCH_FORMAT=$a
+        ;;
+      2)
+        test "$key" = workflow && test -n "$a" && test -z "$b$c$d$extra" || die "invalid workflow row: $record"
+        validate_record_value 'launch workflow' "$a"
+        LAUNCH_WORKFLOW=$a
+        ;;
+      3)
+        test "$key" = risk && test -n "$a" && test -z "$b$c$d$extra" || die "invalid risk row: $record"
+        case "$a" in routine|elevated|high) ;; *) die "invalid launch risk: $a" ;; esac
+        LAUNCH_RISK=$a
+        ;;
+      4)
+        test "$key" = profile && test -n "$a" && test -z "$b$c$d$extra" || die "invalid profile row: $record"
+        case "$a" in none|routine|routine-plus|scaled|repo-wide|judgment) ;; *) die "invalid launch profile: $a" ;; esac
+        LAUNCH_PROFILE=$a
+        ;;
+      5)
+        test "$key" = selected_route && test -n "$a" && test -n "$b" && test -n "$c" && test -n "$d" && test -z "$extra" || die "invalid selected_route row: $record"
+        validate_route_component 'selected harness' "$a"
+        validate_route_component 'selected provider' "$b"
+        validate_route_component 'selected model' "$c"
+        validate_route_component 'selected effort' "$d"
+        LAUNCH_SELECTED=$a'|'$b'|'$c'|'$d
+        ;;
+      6)
+        test "$key" = effective_route && test -n "$a" && test -n "$b" && test -n "$c" && test -n "$d" && test -z "$extra" || die "invalid effective_route row: $record"
+        validate_route_component 'effective harness' "$a"
+        validate_route_component 'effective provider' "$b"
+        validate_route_component 'effective model' "$c"
+        validate_route_component 'effective effort' "$d"
+        LAUNCH_EFFECTIVE=$a'|'$b'|'$c'|'$d
+        ;;
+      7)
+        test "$key" = route_applied_by && test -n "$a" && test -z "$b$c$d$extra" || die "invalid route_applied_by row: $record"
+        case "$a" in current-thread|host-api|native-subagent|nested-session|none) ;; *) die "invalid route_applied_by value: $a" ;; esac
+        LAUNCH_APPLIED_BY=$a
+        ;;
+      8)
+        test "$key" = route_verified && test -n "$a" && test -z "$b$c$d$extra" || die "invalid route_verified row: $record"
+        case "$a" in true|false) ;; *) die "invalid route_verified value: $a" ;; esac
+        LAUNCH_VERIFIED=$a
+        ;;
+      9)
+        test "$key" = launch_boundary && test -n "$a" && test -z "$b$c$d$extra" || die "invalid launch_boundary row: $record"
+        case "$a" in same_thread|host_api|native_subagent|nested_session|launch_required) ;; *) die "invalid launch_boundary value: $a" ;; esac
+        LAUNCH_BOUNDARY=$a
+        ;;
+      10)
+        test "$key" = verification_gate && test -n "$a" && test -z "$b$c$d$extra" || die "invalid verification_gate row: $record"
+        case "$a" in routine|elevated|high|not-applicable) ;; *) die "invalid verification_gate value: $a" ;; esac
+        LAUNCH_GATE=$a
+        ;;
+      11)
+        test "$key" = evaluation_child_invocations && test -n "$a" && test -z "$b$c$d$extra" || die "invalid evaluation_child_invocations row: $record"
+        validate_nonnegative_integer 'evaluation_child_invocations' "$a"
+        LAUNCH_CHILDREN=$a
+        ;;
+      12)
+        test "$key" = evaluation_human_interruptions && test -n "$a" && test -z "$b$c$d$extra" || die "invalid evaluation_human_interruptions row: $record"
+        validate_nonnegative_integer 'evaluation_human_interruptions' "$a"
+        LAUNCH_INTERRUPTS=$a
+        ;;
+      *) die "launch record has unexpected rows: $record" ;;
+    esac
+  done <"$record"
+  test "$line_number" -eq 12 || die "launch record is incomplete: $record"
+  if test "$LAUNCH_WORKFLOW" = decision-gated || test "$LAUNCH_PROFILE" = none; then
+    test "$LAUNCH_WORKFLOW" = decision-gated || die 'profile=none is reserved for decision-gated workflow'
+    test "$LAUNCH_PROFILE" = none || die 'decision-gated workflow requires profile=none'
+    test "$LAUNCH_RISK" = high || die 'decision-gated workflow requires risk=high'
+    test "$LAUNCH_SELECTED" = 'none|none|none|none' || die 'decision-gated workflow requires an empty selected route'
+    test "$LAUNCH_EFFECTIVE" = 'none|none|none|none' || die 'decision-gated workflow requires an empty effective route'
+    test "$LAUNCH_APPLIED_BY" = none || die 'decision-gated workflow requires route_applied_by=none'
+    test "$LAUNCH_VERIFIED" = false || die 'decision-gated workflow requires route_verified=false'
+    test "$LAUNCH_BOUNDARY" = launch_required || die 'decision-gated workflow requires launch_boundary=launch_required'
+    test "$LAUNCH_GATE" = not-applicable || die 'decision-gated workflow requires verification_gate=not-applicable'
+    test "$LAUNCH_CHILDREN" -eq 0 || die 'decision-gated workflow requires zero child invocations'
+    test "$LAUNCH_INTERRUPTS" -eq 1 || die 'decision-gated workflow requires one human interruption'
+  fi
+}
+
+validate_launch_structure() {
+  case "$LAUNCH_BOUNDARY" in
+    same_thread)
+      test "$LAUNCH_APPLIED_BY" = current-thread || die 'same_thread requires route_applied_by=current-thread'
+      test "$LAUNCH_VERIFIED" = true || die 'same_thread requires route_verified=true'
+      test "$LAUNCH_CHILDREN" -eq 0 || die 'same_thread requires zero child invocations'
+      test "$LAUNCH_SELECTED" = "$LAUNCH_EFFECTIVE" || die 'same_thread selected and effective routes differ'
+      ;;
+    host_api)
+      test "$LAUNCH_APPLIED_BY" = host-api || die 'host_api requires route_applied_by=host-api'
+      test "$LAUNCH_VERIFIED" = true || die 'host_api requires route_verified=true'
+      test "$LAUNCH_CHILDREN" -eq 0 || die 'host_api requires zero child invocations'
+      test "$LAUNCH_SELECTED" = "$LAUNCH_EFFECTIVE" || die 'host_api selected and effective routes differ'
+      ;;
+    native_subagent)
+      test "$LAUNCH_APPLIED_BY" = native-subagent || die 'native_subagent requires route_applied_by=native-subagent'
+      test "$LAUNCH_VERIFIED" = true || die 'native_subagent requires route_verified=true'
+      test "$LAUNCH_CHILDREN" -eq 1 || die 'native_subagent requires one child invocation'
+      test "$LAUNCH_SELECTED" = "$LAUNCH_EFFECTIVE" || die 'native_subagent selected and effective routes differ'
+      ;;
+    nested_session)
+      test "$LAUNCH_APPLIED_BY" = nested-session || die 'nested_session requires route_applied_by=nested-session'
+      test "$LAUNCH_VERIFIED" = true || die 'nested_session requires route_verified=true'
+      test "$LAUNCH_CHILDREN" -eq 1 || die 'nested_session requires one child invocation'
+      test "$LAUNCH_SELECTED" = "$LAUNCH_EFFECTIVE" || die 'nested_session selected and effective routes differ'
+      ;;
+    launch_required)
+      test "$LAUNCH_VERIFIED" = false || die 'launch_required requires route_verified=false'
+      case "$LAUNCH_APPLIED_BY" in
+        none)
+          test "$LAUNCH_CHILDREN" -eq 0 || die 'unlaunched launch_required requires zero child invocations'
+          test "$LAUNCH_EFFECTIVE" = 'none|none|none|none' || die 'unlaunched launch_required requires an empty effective route'
+          ;;
+        native-subagent)
+          test "$LAUNCH_CHILDREN" -eq 1 || die 'unverified native-subagent launch_required requires one child invocation'
+          test "$LAUNCH_SELECTED" != "$LAUNCH_EFFECTIVE" || die 'unverified native-subagent launch_required must not copy the selected route as effective'
+          ;;
+        *) die 'launch_required requires route_applied_by=none or native-subagent' ;;
+      esac
+      ;;
+  esac
+}
+
+validate_launch() {
+  local requested_record='' adaptive_children='' observed_children='' observed_route=''
+  local observed_applied_by='' observed_boundary=''
+  local record digest_before digest_after
+  while test "$#" -gt 0; do
+    case "$1" in
+      --record) require_value "$@"; requested_record=$2; shift 2 ;;
+      --adaptive-goal-children) require_value "$@"; adaptive_children=$2; shift 2 ;;
+      --observed-children) require_value "$@"; observed_children=$2; shift 2 ;;
+      --observed-route) require_value "$@"; observed_route=$2; shift 2 ;;
+      --observed-applied-by) require_value "$@"; observed_applied_by=$2; shift 2 ;;
+      --observed-boundary) require_value "$@"; observed_boundary=$2; shift 2 ;;
+      *) die "unknown validate-launch option: $1" ;;
+    esac
+  done
+  test -n "$requested_record" || die 'validate-launch requires --record'
+  test -n "$adaptive_children" || die 'validate-launch requires --adaptive-goal-children'
+  test -n "$observed_children" || die 'validate-launch requires --observed-children'
+  test -n "$observed_route" || die 'validate-launch requires --observed-route'
+  test -n "$observed_applied_by" || die 'validate-launch requires --observed-applied-by'
+  test -n "$observed_boundary" || die 'validate-launch requires --observed-boundary'
+  validate_nonnegative_integer 'adaptive-goal child count' "$adaptive_children"
+  validate_nonnegative_integer 'observed child count' "$observed_children"
+  test "$adaptive_children" -eq 1 || die 'exactly one adaptive-goal child is required'
+  validate_record_value 'observed route' "$observed_route"
+  validate_record_value 'observed applied-by value' "$observed_applied_by"
+  validate_record_value 'observed boundary value' "$observed_boundary"
+
+  record=$(absolute_regular_file "$requested_record")
+  digest_before=$(sha256_file "$record")
+  parse_launch_record "$record"
+  validate_launch_structure
+  test "$LAUNCH_CHILDREN" -eq "$observed_children" || die 'launch record child count does not match host observation'
+  test "$LAUNCH_EFFECTIVE" = "$observed_route" || die 'effective route does not match host observation'
+  test "$LAUNCH_APPLIED_BY" = "$observed_applied_by" || die 'route_applied_by does not match host observation'
+  test "$LAUNCH_BOUNDARY" = "$observed_boundary" || die 'launch boundary does not match host observation'
+  digest_after=$(sha256_file "$record")
+  test "$digest_before" = "$digest_after" || die 'launch record changed during validation'
+
+  printf 'format\tdarrow-ticket-to-pr-launch-validation-v1\n'
+  printf 'record\t%s\n' "$record"
+  printf 'record_sha256\t%s\n' "$digest_before"
+  printf 'adaptive_goal_children\t%s\n' "$adaptive_children"
+  printf 'launch_format\t%s\n' "$LAUNCH_FORMAT"
+  printf 'workflow\t%s\n' "$LAUNCH_WORKFLOW"
+  printf 'risk\t%s\n' "$LAUNCH_RISK"
+  printf 'profile\t%s\n' "$LAUNCH_PROFILE"
+  printf 'selected_route\t%s\n' "$(printf '%s' "$LAUNCH_SELECTED" | tr '|' '\t')"
+  printf 'effective_route\t%s\n' "$(printf '%s' "$LAUNCH_EFFECTIVE" | tr '|' '\t')"
+  printf 'route_applied_by\t%s\n' "$LAUNCH_APPLIED_BY"
+  printf 'route_verified\t%s\n' "$LAUNCH_VERIFIED"
+  printf 'launch_boundary\t%s\n' "$LAUNCH_BOUNDARY"
+  printf 'verification_gate\t%s\n' "$LAUNCH_GATE"
+  printf 'record_child_invocations\t%s\n' "$LAUNCH_CHILDREN"
+  printf 'observed_child_invocations\t%s\n' "$observed_children"
+  printf 'record_human_interruptions\t%s\n' "$LAUNCH_INTERRUPTS"
+  printf 'valid\ttrue\n'
+}
+
+parse_preservation_record() {
+  local record=$1 line key value rest
+  PRESERVE_FORMAT=
+  PRESERVE_ROOT=
+  PRESERVE_BRANCH=
+  PRESERVE_HEAD=
+  PRESERVE_STATUS=
+  PRESERVE_INDEX=
+  PRESERVE_WORKTREE=
+  while IFS= read -r line || test -n "$line"; do
+    case "$line" in *"$CR"*) die "preservation record contains a carriage return: $record" ;; esac
+    key=
+    value=
+    rest=
+    IFS="$TAB" read -r key value rest <<EOF
+$line
+EOF
+    case "$key" in
+      format)
+        test -z "$rest" || die "malformed format in preservation record: $record"
+        test -z "$PRESERVE_FORMAT" || die "duplicate format in preservation record: $record"
+        PRESERVE_FORMAT=$value
+        ;;
+      repository_root)
+        test -z "$rest" || die "malformed repository_root in preservation record: $record"
+        test -z "$PRESERVE_ROOT" || die "duplicate repository_root in preservation record: $record"
+        PRESERVE_ROOT=$value
+        ;;
+      branch)
+        test -z "$rest" || die "malformed branch in preservation record: $record"
+        test -z "$PRESERVE_BRANCH" || die "duplicate branch in preservation record: $record"
+        PRESERVE_BRANCH=$value
+        ;;
+      head)
+        test -z "$rest" || die "malformed head in preservation record: $record"
+        test -z "$PRESERVE_HEAD" || die "duplicate head in preservation record: $record"
+        PRESERVE_HEAD=$value
+        ;;
+      status_fingerprint)
+        test -z "$rest" || die "malformed status_fingerprint in preservation record: $record"
+        test -z "$PRESERVE_STATUS" || die "duplicate status_fingerprint in preservation record: $record"
+        PRESERVE_STATUS=$value
+        ;;
+      index_fingerprint)
+        test -z "$rest" || die "malformed index_fingerprint in preservation record: $record"
+        test -z "$PRESERVE_INDEX" || die "duplicate index_fingerprint in preservation record: $record"
+        PRESERVE_INDEX=$value
+        ;;
+      worktree_fingerprint)
+        test -z "$rest" || die "malformed worktree_fingerprint in preservation record: $record"
+        test -z "$PRESERVE_WORKTREE" || die "duplicate worktree_fingerprint in preservation record: $record"
+        PRESERVE_WORKTREE=$value
+        ;;
+    esac
+  done <"$record"
+  test "$PRESERVE_FORMAT" = darrow-ticket-to-pr-inspection-v1 || die "invalid preservation record format: $record"
+  test -n "$PRESERVE_ROOT" && test -n "$PRESERVE_BRANCH" && test -n "$PRESERVE_HEAD" &&
+    test -n "$PRESERVE_STATUS" && test -n "$PRESERVE_INDEX" && test -n "$PRESERVE_WORKTREE" ||
+    die "incomplete preservation record: $record"
+}
+
+verify_preservation_record() {
+  local requested_record=$1 record preserved_root current_branch current_head
+  record=$(absolute_regular_file "$requested_record")
+  parse_preservation_record "$record"
+  validate_record_value 'preserved repository path' "$PRESERVE_ROOT"
+  preserved_root=$(repository_root "$PRESERVE_ROOT")
+  test "$preserved_root" = "$PRESERVE_ROOT" || die "preservation repository path changed: $record"
+  if current_branch=$(git -C "$preserved_root" symbolic-ref --quiet --short HEAD 2>/dev/null); then :; else current_branch=none; fi
+  current_head=$(git -C "$preserved_root" rev-parse --verify HEAD 2>/dev/null) ||
+    die "preserved repository has no HEAD: $preserved_root"
+  test "$current_branch" = "$PRESERVE_BRANCH" || die "preserved checkout branch changed: $preserved_root"
+  test "$current_head" = "$PRESERVE_HEAD" || die "preserved checkout HEAD changed: $preserved_root"
+  compute_fingerprints "$preserved_root"
+  test "$FP_STATUS" = "$PRESERVE_STATUS" || die "preserved checkout status changed: $preserved_root"
+  test "$FP_INDEX" = "$PRESERVE_INDEX" || die "preserved checkout index changed: $preserved_root"
+  test "$FP_WORKTREE" = "$PRESERVE_WORKTREE" || die "preserved checkout file content changed: $preserved_root"
+  printf 'preservation_record\t%s\n' "$record"
+  printf 'preservation_verified\ttrue\t%s\n' "$preserved_root"
+}
+
+verify_delivery() {
+  local requested_repo='' base='' expected_base_oid='' branch='' expected_head='' remote='' remote_branch=''
+  local preservation_records='' preservation_count=0
+  local root current_branch base_oid head branch_oid remote_ref remote_oid remote_url
+  local ahead_count worktree_git operation status_file record
+  while test "$#" -gt 0; do
+    case "$1" in
+      --repo) require_value "$@"; requested_repo=$2; shift 2 ;;
+      --base) require_value "$@"; base=$2; shift 2 ;;
+      --base-oid) require_value "$@"; expected_base_oid=$2; shift 2 ;;
+      --branch) require_value "$@"; branch=$2; shift 2 ;;
+      --head) require_value "$@"; expected_head=$2; shift 2 ;;
+      --remote) require_value "$@"; remote=$2; shift 2 ;;
+      --remote-branch) require_value "$@"; remote_branch=$2; shift 2 ;;
+      --preservation-record)
+        require_value "$@"
+        validate_record_value 'preservation record path' "$2"
+        if test -z "$preservation_records"; then preservation_records=$2; else preservation_records=$preservation_records"$NL"$2; fi
+        preservation_count=$((preservation_count + 1))
+        shift 2
+        ;;
+      *) die "unknown verify-delivery option: $1" ;;
+    esac
+    done
+  test -n "$requested_repo" || die 'verify-delivery requires --repo'
+  test -n "$base" || die 'verify-delivery requires --base'
+  test -n "$expected_base_oid" || die 'verify-delivery requires --base-oid'
+  test -n "$branch" || die 'verify-delivery requires --branch'
+  test -n "$expected_head" || die 'verify-delivery requires --head'
+  test -n "$remote" || die 'verify-delivery requires --remote'
+  test -n "$remote_branch" || die 'verify-delivery requires --remote-branch'
+  validate_record_value 'base ref' "$base"
+  validate_base_ref "$base"
+  validate_record_value 'branch name' "$branch"
+  validate_record_value 'remote name' "$remote"
+  validate_record_value 'remote branch name' "$remote_branch"
+  validate_oid 'base oid' "$expected_base_oid"
+  validate_oid 'HEAD oid' "$expected_head"
+  git check-ref-format --branch "$branch" >/dev/null 2>&1 || die "invalid branch name: $branch"
+  git check-ref-format "refs/remotes/$remote/$remote_branch" >/dev/null 2>&1 || die "invalid remote branch: $remote/$remote_branch"
+
+  root=$(repository_root "$requested_repo")
+  current_branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null) ||
+    die "delivery checkout is detached: $root"
+  test "$current_branch" = "$branch" || die "delivery checkout is on $current_branch, expected $branch"
+  test "$branch" != "$base" && test "refs/heads/$branch" != "$base" || die 'task branch must be distinct from base'
+  base_oid=$(git -C "$root" rev-parse --verify "$base^{commit}" 2>/dev/null) ||
+    die "base ref does not resolve to a commit: $base"
+  test "$base_oid" = "$expected_base_oid" || die "base ref moved from expected object: $base"
+  head=$(git -C "$root" rev-parse --verify HEAD 2>/dev/null) || die "delivery checkout has no HEAD: $root"
+  test "$head" = "$expected_head" || die 'delivery HEAD does not match expected object'
+  branch_oid=$(git -C "$root" rev-parse --verify "refs/heads/$branch^{commit}" 2>/dev/null) ||
+    die "task branch does not exist: $branch"
+  test "$branch_oid" = "$expected_head" || die 'task branch does not point to expected HEAD'
+  git -C "$root" merge-base --is-ancestor "$expected_base_oid" "$expected_head" >/dev/null 2>&1 ||
+    die 'task branch is not descended from the deliberate base'
+  ahead_count=$(git -C "$root" rev-list --count "$expected_base_oid..$expected_head" 2>/dev/null) ||
+    die 'could not count commits ahead of base'
+  test "$ahead_count" -gt 0 || die 'task branch is not ahead of base'
+
+  remote_ref=refs/remotes/$remote/$remote_branch
+  remote_url=$(git -C "$root" remote get-url -- "$remote" 2>/dev/null) ||
+    die "configured remote does not exist: $remote"
+  validate_record_value 'remote URL' "$remote_url"
+  remote_oid=$(git -C "$root" rev-parse --verify "$remote_ref^{commit}" 2>/dev/null) ||
+    die "remote branch does not exist locally: $remote_ref"
+  git -C "$root" merge-base --is-ancestor "$expected_head" "$remote_oid" >/dev/null 2>&1 ||
+    die 'remote branch does not contain expected HEAD'
+  test "$remote_oid" = "$expected_head" || die 'remote branch does not match expected HEAD'
+
+  ensure_temp_root
+  status_file=$TMP_ROOT/delivery-status.$$
+  git -C "$root" status --porcelain=v1 -z --untracked-files=all >"$status_file" ||
+    die "could not inspect delivery cleanliness: $root"
+  test ! -s "$status_file" || die "delivery worktree is not clean: $root"
+  worktree_git=$(worktree_git_directory "$root")
+  operation=$(git_operation "$worktree_git")
+  test "$operation" = none || die "delivery repository has an in-progress operation: $operation"
+
+  printf 'format\tdarrow-ticket-to-pr-delivery-verification-v1\n'
+  printf 'repository_root\t%s\n' "$root"
+  printf 'base\t%s\n' "$base"
+  printf 'base_oid\t%s\n' "$base_oid"
+  printf 'branch\t%s\n' "$branch"
+  printf 'head\t%s\n' "$head"
+  printf 'ahead_count\t%s\n' "$ahead_count"
+  printf 'remote\t%s\n' "$remote"
+  printf 'remote_url\t%s\n' "$remote_url"
+  printf 'remote_ref\t%s\n' "$remote_ref"
+  printf 'remote_oid\t%s\n' "$remote_oid"
+  printf 'clean\ttrue\n'
+  printf 'preservation_records\t%s\n' "$preservation_count"
+  if test -n "$preservation_records"; then
+    while IFS= read -r record; do
+      test -n "$record" || continue
+      verify_preservation_record "$record"
+    done <<EOF
+$preservation_records
+EOF
+  fi
+  printf 'valid\ttrue\n'
+}
+
+render_result() {
+  local ticket='' outcome='' verification='' review='' reason='' next_action='' branch='' commit=''
+  local remote_branch='' pull_request='' preservation='' requested_launch_record='' launch_record=''
+  local requested_unvalidated_launch_record='' unvalidated_launch_record='' launch_digest=''
+  local value
+  while test "$#" -gt 0; do
+    case "$1" in
+      --ticket) require_value "$@"; ticket=$2; shift 2 ;;
+      --outcome) require_value "$@"; outcome=$2; shift 2 ;;
+      --verification) require_value "$@"; verification=$2; shift 2 ;;
+      --review) require_value "$@"; review=$2; shift 2 ;;
+      --reason) require_value "$@"; reason=$2; shift 2 ;;
+      --next-action) require_value "$@"; next_action=$2; shift 2 ;;
+      --branch) require_value "$@"; branch=$2; shift 2 ;;
+      --commit) require_value "$@"; commit=$2; shift 2 ;;
+      --remote-branch) require_value "$@"; remote_branch=$2; shift 2 ;;
+      --pull-request) require_value "$@"; pull_request=$2; shift 2 ;;
+      --preservation) require_value "$@"; preservation=$2; shift 2 ;;
+      --launch-record) require_value "$@"; requested_launch_record=$2; shift 2 ;;
+      --unvalidated-launch-record) require_value "$@"; requested_unvalidated_launch_record=$2; shift 2 ;;
+      *) die "unknown render-result option: $1" ;;
+    esac
+  done
+  test -n "$ticket" || die 'render-result requires --ticket'
+  test -n "$outcome" || die 'render-result requires --outcome'
+  validate_record_value 'ticket identifier' "$ticket"
+  case "$outcome" in
+    pr_created|pr_existing)
+      test -n "$verification" || die "$outcome requires --verification"
+      test -n "$review" || die "$outcome requires --review"
+      test -n "$pull_request" || die "$outcome requires --pull-request"
+      test -n "$branch" || die "$outcome requires --branch"
+      test -n "$commit" || die "$outcome requires --commit"
+      test -n "$remote_branch" || die "$outcome requires --remote-branch"
+      ;;
+    stopped|blocked|interrupted)
+      test -n "$reason" || die "$outcome requires --reason"
+      test -n "$next_action" || die "$outcome requires --next-action"
+      ;;
+    *) die "unsupported outcome: $outcome" ;;
+  esac
+  for value in "$verification" "$review" "$reason" "$next_action" "$branch" "$commit" "$remote_branch" "$pull_request" "$preservation"; do
+    if test -n "$value"; then
+      validate_record_value 'result value' "$value"
+    fi
+  done
+  if test -n "$commit"; then validate_oid 'commit' "$commit"; fi
+  if test -n "$requested_launch_record" && test -n "$requested_unvalidated_launch_record"; then
+    die 'render-result accepts only one launch-record option'
+  fi
+  if test -n "$requested_launch_record"; then
+    launch_record=$(absolute_regular_file "$requested_launch_record")
+    parse_launch_record "$launch_record"
+  fi
+  if test -n "$requested_unvalidated_launch_record"; then
+    case "$outcome" in blocked|interrupted) ;; *) die '--unvalidated-launch-record requires a blocked or interrupted outcome' ;; esac
+    unvalidated_launch_record=$(absolute_regular_file "$requested_unvalidated_launch_record")
+    launch_digest=$(sha256_file "$unvalidated_launch_record")
+  fi
+
+  if test -n "$launch_record"; then
+    print_file_with_line_boundary "$launch_record"
+  fi
+  if test -n "$unvalidated_launch_record"; then
+    printf 'launch_record_validation\trefused\n'
+    printf 'launch_record_path\t%s\n' "$unvalidated_launch_record"
+    printf 'launch_record_sha256\t%s\n' "$launch_digest"
+    printf 'launch_record_verbatim_begin\n'
+    print_file_with_line_boundary "$unvalidated_launch_record"
+    printf 'launch_record_verbatim_end\n'
+  fi
+  printf 'Ticket: %s\n' "$ticket"
+  printf 'Outcome: %s.' "$outcome"
+  if test -n "$review"; then printf ' Review: %s.' "$review"; fi
+  if test -n "$reason"; then printf ' Reason: %s.' "$reason"; fi
+  if test -n "$verification"; then printf ' Verification: %s.' "$verification"; fi
+  if test -n "$pull_request"; then printf ' Pull request: %s.' "$pull_request"; fi
+  if test -n "$next_action"; then printf ' Next action: %s.' "$next_action"; fi
+  printf '\n'
+  if test -n "$branch"; then printf 'Branch: %s.\n' "$branch"; fi
+  if test -n "$commit"; then printf 'Commit: %s.\n' "$commit"; fi
+  if test -n "$remote_branch"; then printf 'Remote branch: %s.\n' "$remote_branch"; fi
+  if test -n "$preservation"; then printf 'Preservation: %s.\n' "$preservation"; fi
+}
+
+main() {
+  test "$#" -gt 0 || { usage >&2; exit 64; }
+  command_name=$1
+  shift
+  case "$command_name" in
+    inspect-repository) inspect_repository "$@" ;;
+    validate-launch) validate_launch "$@" ;;
+    verify-delivery) verify_delivery "$@" ;;
+    render-result) render_result "$@" ;;
+    -h|--help|help) usage ;;
+    *) die "unknown operation: $command_name" ;;
+  esac
+}
+
+main "$@"

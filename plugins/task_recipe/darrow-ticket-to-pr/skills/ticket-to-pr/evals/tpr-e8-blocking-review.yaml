@@ -29,5 +29,4 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: blocking review prevents completion
-    expect_regex: "(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*review)(?=[\\s\\S]*(authorization|blocking|finding|defect))"
-    flags: i
+    expect_regex: "Outcome: blocked\\. Review: blocking authorization defect\\."
