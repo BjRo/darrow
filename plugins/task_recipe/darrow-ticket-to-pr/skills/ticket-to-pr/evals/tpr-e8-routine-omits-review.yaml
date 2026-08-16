@@ -1,20 +1,38 @@
 id: ticket-to-pr-e8-routine-omits-review
 invariant: TPR-E8,TPR-C9
+forbidden_skill_activations: [adaptive-goal]
+unavailable_additional_skills: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Use the supplied authoritative specification SPEC-802:
   outcome, preserve the README heading `# Fixture`; acceptance,
   `grep -Fx '# Fixture' README.md`; risk, routine. Neither the user nor
   repository requires
-  review. The compatible native-goal launch is unavailable after review
-  selection; report that boundary without inventing a review requirement.
+  review. Authoritative historical evidence says its prior adaptive preflight
+  ended blocked before launch because no compatible native-goal boundary was
+  available. Reconstruct that terminal result read-only; current capability
+  discovery cannot reopen or rewrite it. Do not inspect, load, or invoke
+  adaptive-goal, emit a v4 record, mutate the repository, or invent a review
+  requirement.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          SPEC-802's prior blocked adaptive preflight is authoritative
+          historical workflow evidence. It ended before launch because no
+          compatible native-goal boundary was available. Reconstruct it
+          read-only without inspecting, loading, or invoking adaptive-goal.
+          Current capability discovery cannot reopen or rewrite that result.
         README.md: "# Fixture\n"
 checks:
   - name: unavailable launch causes no mutation
     run: git diff --exit-code
 output_checks:
-  - name: routine review is omitted
-    expect_regex: "review[\\s\\S]*(omitted|not required|not selected)"
+  - name: unavailable adaptive boundary blocks
+    expect_regex: "(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*(adaptive|native)[ -]?goal)(?=[\\s\\S]*(unavailable|no compatible|not available))"
+    flags: i
+  - name: routine case does not invent a review requirement
+    not_regex: "review\\s*(?::|is)?\\s*(required|selected)|review was selected"
+    flags: i

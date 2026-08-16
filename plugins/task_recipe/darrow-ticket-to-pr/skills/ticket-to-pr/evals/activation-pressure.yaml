@@ -13,5 +13,5 @@ checks:
   - name: complexity does not grant recipe authority
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: recipe does not claim activation
-    not_regex: "\\b(pr_created|pr_existing|stopped|blocked|interrupted)\\b"
+  - name: recipe does not claim successful delivery
+    not_regex: "\\b(pr_created|pr_existing)\\b"

@@ -1,5 +1,6 @@
 id: ticket-to-pr-e10-pr-existing
 invariant: TPR-E10,TPR-C11
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Reconstruct this durable terminal result for the supplied
   authoritative ticket TKT-1011: outcome, change app.txt from unchanged to
@@ -21,6 +22,9 @@ fixture:
 
           The compatible forge inspection contract is the executable command
           `gh`, available on PATH. Invoke it through the host shell facility.
+          TKT-1011's completed adaptive goal is authoritative historical
+          evidence. Inspect the durable proposal read-only without loading or
+          invoking adaptive-goal again.
         app.txt: "unchanged\\n"
   bin:
     gh: |
@@ -49,6 +53,8 @@ checks:
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
   - name: historical existing outcome and proposal are reported
-    expect_regex: "TKT-1011[\\s\\S]*\\bpr_existing\\b[\\s\\S]*https://example.invalid/pr/1011|\\bpr_existing\\b[\\s\\S]*TKT-1011[\\s\\S]*https://example.invalid/pr/1011"
+    expect_regex: "(?=[\\s\\S]*TKT-1011)(?=[\\s\\S]*\\bpr_existing\\b)(?=[\\s\\S]*https://example.invalid/pr/1011)"
+    flags: i
   - name: successful result includes verification and review
-    expect_regex: "verification[\\s\\S]*review|review[\\s\\S]*verification"
+    expect_regex: "(?=[\\s\\S]*(verification|verified))(?=[\\s\\S]*review)"
+    flags: i

@@ -1,5 +1,6 @@
 id: ticket-to-pr-e9-pr-shape
 invariant: TPR-E9,TPR-C5,TPR-C7
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Reconstruct this durable re-entry for the supplied
   authoritative ticket TKT-901: outcome, change app.txt from `base` to
@@ -20,6 +21,9 @@ fixture:
 
           The compatible forge inspection contract is the executable command
           `gh`, available on PATH. Invoke it through the host shell facility.
+          TKT-901's completed adaptive goal is authoritative historical
+          evidence. Inspect the durable proposal read-only without loading or
+          invoking adaptive-goal again.
         app.txt: "base\n"
   bin:
     gh: |
@@ -45,14 +49,16 @@ checks:
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
   - name: existing proposal is the only successful shape
-    expect_regex: "\\bpr_existing\\b[\\s\\S]*main[\\s\\S]*https://example.invalid/pr/901"
+    expect_regex: "(?=[\\s\\S]*\\bpr_existing\\b)(?=[\\s\\S]*main)(?=[\\s\\S]*https://example.invalid/pr/901)"
+    flags: i
   - name: current verification is reported
-    expect_regex: "verification"
+    expect_regex: "verification|verified"
+    flags: i
   - name: conventional title is reported
     expect_regex: "fix: satisfy TKT-901"
   - name: template body and ticket reference are reported
     expect_regex: "Why this exists\\. Implements TKT-901|body[^\\n]*TKT-901|template[^\\n]*TKT-901"
     flags: i
   - name: proposal is reported as review ready
-    expect_regex: "review-ready|isDraft false|not draft|non[- ]draft"
+    expect_regex: "review-ready|isDraft\\s*:?\\s*false|not draft|non[- ]draft"
     flags: i

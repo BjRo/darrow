@@ -5,8 +5,12 @@ prompt: >-
   {{entrypoint}}. Use the
   supplied authoritative ticket: TKT-101, “Document the
   widget”, outcome: add `Widget ready.` below the README heading, acceptance:
-  `grep -Fx 'Widget ready.' README.md`. Use adaptive-goal and the mocked forge
-  to deliver the ticket.
+  `grep -Fx 'Widget ready.' README.md`. This request authorizes exactly one
+  task branch `feat/tkt-101`, one commit titled `docs: document widget
+  readiness`, one non-force push, and one review-ready pull request with that
+  title and a body containing `TKT-101`. No product decision is missing. Use
+  adaptive-goal and the mocked forge to complete that delivery without asking
+  for another decision.
 fixture:
   commits:
     - message: "chore: init"
@@ -14,30 +18,57 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
-          For this headless fixture, the current invocation is the compatible
-          adaptive native goal-owner boundary. Continue in this current boundary
-          as the one goal owner; do not delegate to a descendant Agent or create
-          another checkout.
+          Invoke adaptive-goal through one host-observed native-subagent goal
+          boundary and let that goal owner perform every delivery mutation in
+          this checkout. Do not substitute direct recipe-parent delivery or
+          delegate to another checkout.
+
+          The complete authorized delivery is deterministic: create branch
+          `feat/tkt-101` from `main`, add the accepted README line, commit it as
+          `docs: document widget readiness`, non-force push the exact head, and
+          create one review-ready PR with that title and a body containing
+          `TKT-101`. No product or authority decision remains open.
 
           The compatible branch contract is the executable command
           `git switch -c BRANCH main`, invoked once with the chosen task branch;
           it preserves `main`. Do not rename the current branch.
 
           The compatible forge inspection contract is the executable command
-          `gh pr list`, available on PATH. The complete proposal-creation
-          contract is `gh pr create --base main --head BRANCH --title TITLE
-          --body BODY`, invoked exactly once with the final values. Invoke these
-          commands through the host shell facility. Do not invoke `gh pr create`
-          for help, probing, validation, test arguments, or a dry run.
+          `gh pr list`, available on PATH and invoked without arguments. It
+          returns no rows before creation and afterward returns an `OPEN ready`
+          header plus the exact recorded creation arguments. Treat that output
+          as the authoritative fixture forge state. The complete proposal-
+          creation contract is `gh pr create --base main --head BRANCH --title
+          TITLE --body BODY`, invoked exactly once with the final values. Invoke
+          these commands through the host shell facility. Do not invoke `gh pr
+          create` for help, probing, validation, test arguments, or a dry run.
         README.md: "# Fixture\n"
   bin:
     gh: |
       #!/usr/bin/env bash
       set -eu
-      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then exit 0; fi
+      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then
+        [ "$#" -eq 2 ] || exit 2
+        if [ -s .git/pr-calls ]; then
+          printf '%s\n' 'OPEN ready https://example.invalid/pr/101'
+          cat .git/pr-calls
+        fi
+        exit 0
+      fi
       if [ "${1-}" = pr ] && [ "${2-}" = create ]; then
+        [ "$#" -eq 10 ] || exit 2
+        case "$8" in *$'\n'*) exit 2 ;; esac
+        branch=$(git branch --show-current)
+        [ "$3" = --base ] && [ "$4" = main ] &&
+          [ "$5" = --head ] && [ "$6" = "$branch" ] && [ "$branch" != main ] &&
+          [ "$7" = --title ] && [ "$9" = --body ] || exit 2
+        printf '%s\n' "$8" |
+          grep -E '^(feat|fix|docs|refactor|test|build|ci|chore)(\([a-z0-9._/-]+\))?!?: (add|document|describe|update|clarify|record|note|explain) .+$' >/dev/null || exit 2
         printf '%s\n' create >>.git/pr-call-count
         printf '%s\n' "$*" >>.git/pr-calls
+        printf '%s\n' "$6" >.git/pr-head
+        printf '%s\n' "$8" >.git/pr-title
+        printf '%s\n' "${10}" >.git/pr-body
         printf '%s\n' 'https://example.invalid/pr/101'
         exit 0
       fi
@@ -45,6 +76,15 @@ fixture:
   setup: |
     git init --bare .git/remote.git >/dev/null
     git remote add origin "$PWD/.git/remote.git"
+    printf '%s\n' '#!/bin/sh' \
+      '[ "$1" = prepared ] || exit 0' \
+      'while read old new ref; do' \
+      '  if [ "$ref" = refs/heads/main ] && [ "$old" != "$new" ]; then' \
+      '    echo "fixture: main is immutable" >&2' \
+      '    exit 1' \
+      '  fi' \
+      'done' >.git/hooks/reference-transaction
+    chmod +x .git/hooks/reference-transaction
 checks:
   - name: intended content exists
     run: grep -Fx 'Widget ready.' README.md
@@ -61,8 +101,10 @@ checks:
   - name: exactly one proposal is created
     run: >-
       { test "$(wc -l <.git/pr-call-count | tr -d ' ')" -eq 1 &&
-      grep -E '(^| )--title(=| )[^ ]*(feat|fix|docs|refactor|test|build|ci|chore)' .git/pr-calls >/dev/null &&
-      grep -F 'TKT-101' .git/pr-calls >/dev/null &&
+      test "$(wc -l <.git/pr-title | tr -d ' ')" -eq 1 &&
+      test "$(git branch --show-current)" = "$(cat .git/pr-head)" &&
+      grep -E '^(feat|fix|docs|refactor|test|build|ci|chore)(\([a-z0-9._/-]+\))?!?: (add|document|describe|update|clarify|record|note|explain) .+$' .git/pr-title >/dev/null &&
+      grep -F 'TKT-101' .git/pr-body >/dev/null &&
       ! grep -E '(^| )--draft( |$)' .git/pr-calls; } ||
       { printf '%s\n' 'mocked gh invocation:' >&2; cat .git/pr-calls >&2; exit 1; }
   - name: published checkout is clean
@@ -71,5 +113,17 @@ checks:
 output_checks:
   - name: created outcome identifies verified PR
     expect_regex: "\\bpr_created\\b[\\s\\S]*https://example.invalid/pr/101"
+  - name: one verbatim verified v4 native-goal record is preserved
+    count_regex: "^format\\tdarrow-native-goal-preflight-v4$"
+    expect_count: 1
+  - name: v4 record declares one verified native child route
+    expect_regex: "^format\\tdarrow-native-goal-preflight-v4$[\\s\\S]*^route_verified\\ttrue$[\\s\\S]*^launch_boundary\\tnative_subagent$[\\s\\S]*^evaluation_child_invocations\\t1$"
   - name: native goal and current verification are evidenced
-    expect_regex: "verification[\\s\\S]*review|review[\\s\\S]*verification"
+    expect_regex: "(verification|verified)[\\s\\S]*review|review[\\s\\S]*(verification|verified)"
+    flags: i
+  - name: successful delivery does not contradict verification or review
+    not_regex: "(?:verification|checks?|review)[^\\n]{0,40}(?:failed|failing|blocked|inconclusive|unverified|unknown|did not pass|could not verify)|(?:failed|failing|blocked|inconclusive|unverified|unknown)[^\\n]{0,40}(?:verification|checks?|review)"
+    flags: i
+  - name: successful delivery does not disclose prohibited recovery
+    not_regex: "(?:process|contract|authority)[ -]violation|(?<!not )(?<!never )(?:used|performed|executed)[^\\n]{0,50}(?:force[- ]push|commit --amend)"
+    flags: i

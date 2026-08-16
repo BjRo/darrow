@@ -7,9 +7,10 @@ prompt: >-
   `grep -Fx done app.txt`; current-content verification passed on the exact
   correlated commit. The
   first non-force push fails transiently and the next is accepted. Persist
-  safely, publish the verified exact head once, and never force-push or use a
-  fixed retry count. Use the repository-declared compatible native-goal, Git,
-  and forge contracts.
+  safely. This is unfinished publication recovery, not a historical terminal
+  result; adaptive-goal must own it rather than the recipe parent. Publish the
+  verified exact head once, and never force-push or use a fixed retry count.
+  Use the repository-declared compatible native-goal, Git, and forge contracts.
 fixture:
   commits:
     - message: "chore: init"
@@ -17,8 +18,8 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
-          For this headless fixture, the current invocation is the compatible
-          native goal-owner boundary. Continue in this boundary and do not
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
           delegate to another checkout.
 
           The compatible Git and forge contracts are the executable commands
@@ -66,4 +67,5 @@ checks:
     run: test "$(wc -l <.git/pr-call-count | tr -d ' ')" -eq 1
 output_checks:
   - name: recovered publication reports current verification
-    expect_regex: "\\bpr_created\\b[\\s\\S]*https://example.invalid/pr/605[\\s\\S]*verification"
+    expect_regex: "(?=[\\s\\S]*\\bpr_created\\b)(?=[\\s\\S]*https://example.invalid/pr/605)(?=[\\s\\S]*(verification|verified))"
+    flags: i

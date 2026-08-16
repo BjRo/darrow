@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -9,6 +9,11 @@ import type {
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 import { captureProcess } from "../process";
+import {
+  observeClaudeAgentRoute,
+  provisionClaudeTranscriptAliases,
+  type ClaudeAgentRouteEvidence,
+} from "./claude-route";
 
 export interface ClaudeUsage {
   input_tokens?: number;
@@ -248,6 +253,7 @@ function retainedResultEnvelope(event: ClaudeResultEnvelope) {
 export function retainedClaudeEvidence(
   stream: string,
   status?: { exitCode: number; stderrPresent: boolean },
+  route?: ClaudeAgentRouteEvidence,
 ): string {
   const parsed = claudeStream(stream);
   const retained: unknown[] = [];
@@ -261,6 +267,7 @@ export function retainedClaudeEvidence(
       retained.push({ type: "assistant", message: { content: skills } });
   }
   if (parsed.malformed) retained.push({ type: "malformed_stream" });
+  if (route) retained.push(route);
   if (status && status.exitCode !== 0)
     retained.push({
       type: "harness_failure",
@@ -274,7 +281,7 @@ export function claudeArgv(
   prompt: string,
   model: string,
   effort: string,
-  pluginDir?: string,
+  pluginDirs?: string | string[],
 ): string[] {
   const argv = [
     "claude",
@@ -293,11 +300,31 @@ export function claudeArgv(
     "--mcp-config",
     '{"mcpServers":{}}',
     "--no-chrome",
-    "--no-session-persistence",
     "--dangerously-skip-permissions",
   ];
-  if (pluginDir) argv.push("--plugin-dir", pluginDir);
+  const mountedPluginDirs =
+    typeof pluginDirs === "string" ? [pluginDirs] : (pluginDirs ?? []);
+  for (const pluginDir of mountedPluginDirs)
+    argv.push("--plugin-dir", pluginDir);
   return argv;
+}
+
+async function mountedClaudePluginDirs(repoDir: string): Promise<string[]> {
+  const pluginDirs: string[] = [];
+  const primary = join(repoDir, ".git", "eval-plugin");
+  if (existsSync(primary)) pluginDirs.push(primary);
+
+  const additionalRoot = join(repoDir, ".git", "eval-plugins");
+  if (existsSync(additionalRoot)) {
+    const entries = await readdir(additionalRoot, { withFileTypes: true });
+    pluginDirs.push(
+      ...entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(additionalRoot, entry.name))
+        .sort(),
+    );
+  }
+  return pluginDirs;
 }
 
 /**
@@ -357,14 +384,12 @@ export const claudeAdapter: HarnessAdapter = {
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
     const env = await isolatedHarnessEnvironment("claude", repoDir);
-    const evalPlugin = join(repoDir, ".git", "eval-plugin");
+    const configRoot = env.CLAUDE_CONFIG_DIR;
+    if (!configRoot)
+      throw new Error("Claude eval environment has no config root");
+    await provisionClaudeTranscriptAliases(repoDir, configRoot);
     const argv = await sandboxedAgentCommand(
-      claudeArgv(
-        prompt,
-        model,
-        effort,
-        existsSync(evalPlugin) ? evalPlugin : undefined,
-      ),
+      claudeArgv(prompt, model, effort, await mountedClaudePluginDirs(repoDir)),
       repoDir,
     );
     const proc = Bun.spawn(argv, {
@@ -380,6 +405,7 @@ export const claudeAdapter: HarnessAdapter = {
       },
     });
     const { out, err, code } = await captureProcess(proc);
+    const route = await observeClaudeAgentRoute(repoDir, configRoot);
     const durationMs = performance.now() - start;
     const outcome = await claudeOutcome(repoDir, out, code);
     const skillActivation = claudeSkillActivation(out);
@@ -392,10 +418,14 @@ export const claudeAdapter: HarnessAdapter = {
       outputTokens: outcome.outputTokens,
       costUsd: outcome.costUsd,
       resultText: outcome.resultText,
-      raw: retainedClaudeEvidence(out, {
-        exitCode: code,
-        stderrPresent: err.trim().length > 0,
-      }),
+      raw: retainedClaudeEvidence(
+        out,
+        {
+          exitCode: code,
+          stderrPresent: err.trim().length > 0,
+        },
+        route,
+      ),
       skillActivation: {
         ...skillActivation,
         complete: outcome.ok && skillActivation.complete,

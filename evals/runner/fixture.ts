@@ -17,6 +17,15 @@ import { captureProcess } from "./process";
 export const BLOCKED_EXTERNAL_COMMANDS = ["gh", "glab", "hub", "tea"] as const;
 const ACTIVATION_LOG = join(".git", "darrow-eval", "skill-activation.tsv");
 
+/** Removes case-declared unavailable capabilities from suite-level mounts. */
+export function filterAdditionalSkillDirs(
+  skillDirs: string[],
+  unavailableSkillNames: string[] = [],
+): string[] {
+  const unavailable = new Set(unavailableSkillNames);
+  return skillDirs.filter((skillDir) => !unavailable.has(basename(skillDir)));
+}
+
 function blockedExternalCommand(name: string): string {
   return `#!/bin/sh
 printf '%s\n' 'darrow eval: ${name} is disabled unless fixture.bin provides a mock' >&2
@@ -309,74 +318,146 @@ async function mountSourceClaudePlugin(
   options: {
     activationProbe?: { repoDir: string; token: string };
     explicitEntrypointBridgeSkillDir?: string;
+    pluginDir?: string;
   },
 ): Promise<void> {
-  const evalPlugin = join(repoDir, ".git", "eval-plugin");
-  await mkdir(join(evalPlugin, ".claude-plugin"), { recursive: true });
-  await cp(paths.manifest, join(evalPlugin, ".claude-plugin", "plugin.json"));
+  const pluginDir = options.pluginDir ?? join(repoDir, ".git", "eval-plugin");
+  await mkdir(join(pluginDir, ".claude-plugin"), { recursive: true });
+  await cp(paths.manifest, join(pluginDir, ".claude-plugin", "plugin.json"));
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
     await copySkillWithoutEvals(
       mountedSkillDir,
-      join(evalPlugin, "skills", name),
+      join(pluginDir, "skills", name),
       options.activationProbe,
       mountedSkillDir === options.explicitEntrypointBridgeSkillDir,
     );
   }
   if (existsSync(paths.agents))
-    await cp(paths.agents, join(evalPlugin, "agents"), { recursive: true });
+    await cp(paths.agents, join(pluginDir, "agents"), { recursive: true });
   if (existsSync(paths.bin))
-    await cp(paths.bin, join(evalPlugin, "bin"), { recursive: true });
+    await cp(paths.bin, join(pluginDir, "bin"), { recursive: true });
   if (existsSync(paths.config))
-    await cp(paths.config, join(evalPlugin, "config"), { recursive: true });
+    await cp(paths.config, join(pluginDir, "config"), { recursive: true });
 }
 
-async function mountSourceCodexPlugin(
+interface SourceCodexPlugin {
+  name: string;
+  source: string;
+  destination: string;
+  skillDirs: string[];
+  paths: PluginMountPaths;
+}
+
+async function copySourceCodexPlugin(
   repoDir: string,
-  skillDirs: string[],
-  paths: PluginMountPaths,
+  plugin: SourceCodexPlugin,
+  activationProbe?: { repoDir: string; token: string },
+): Promise<void> {
+  const destination = join(
+    repoDir,
+    ".git",
+    "eval-marketplace",
+    plugin.destination,
+  );
+  const { paths } = plugin;
+  await mkdir(join(destination, ".claude-plugin"), { recursive: true });
+  await mkdir(join(destination, ".codex-plugin"), { recursive: true });
+  await cp(paths.manifest, join(destination, ".claude-plugin", "plugin.json"));
+  await cp(
+    paths.codexManifest,
+    join(destination, ".codex-plugin", "plugin.json"),
+  );
+  for (const mountedSkillDir of plugin.skillDirs) {
+    const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
+    await copySkillWithoutEvals(
+      mountedSkillDir,
+      join(destination, "skills", name),
+      activationProbe,
+    );
+  }
+  if (existsSync(paths.agents))
+    await cp(paths.agents, join(destination, "agents"), { recursive: true });
+  if (existsSync(paths.bin))
+    await cp(paths.bin, join(destination, "bin"), { recursive: true });
+  if (existsSync(paths.config))
+    await cp(paths.config, join(destination, "config"), { recursive: true });
+}
+
+async function codexPluginName(paths: PluginMountPaths): Promise<string> {
+  const manifest = JSON.parse(await readFile(paths.codexManifest, "utf8")) as {
+    name?: unknown;
+  };
+  if (typeof manifest.name !== "string" || !manifest.name)
+    throw new Error(
+      `fixture: Codex plugin manifest has no name: ${paths.codexManifest}`,
+    );
+  return manifest.name;
+}
+
+async function sourceCodexPlugins(
+  primarySkillDirs: string[],
+  primaryPaths: PluginMountPaths,
+  additionalSkillDirs: string[],
+): Promise<SourceCodexPlugin[]> {
+  const primaryName = await codexPluginName(primaryPaths);
+  const plugins: SourceCodexPlugin[] = [
+    {
+      name: primaryName,
+      source: "./plugin",
+      destination: "plugin",
+      skillDirs: primarySkillDirs,
+      paths: primaryPaths,
+    },
+  ];
+  for (const skillDir of additionalSkillDirs) {
+    const paths = pluginMountPaths(skillDir);
+    if (!existsSync(paths.manifest) || !existsSync(paths.codexManifest))
+      throw new Error(
+        `fixture: additional Codex plugin manifest is unreadable: ${paths.codexManifest}`,
+      );
+    const name = await codexPluginName(paths);
+    const existing = plugins.find((plugin) => plugin.name === name);
+    if (existing) {
+      existing.skillDirs.push(skillDir);
+      continue;
+    }
+    plugins.push({
+      name,
+      source: `./plugins/${name}`,
+      destination: join("plugins", name),
+      skillDirs: [skillDir],
+      paths,
+    });
+  }
+  return plugins;
+}
+
+async function mountSourceCodexPlugins(
+  repoDir: string,
+  plugins: SourceCodexPlugin[],
   activationProbe?: { repoDir: string; token: string },
 ): Promise<void> {
   const marketplace = join(repoDir, ".git", "eval-marketplace");
-  const plugin = join(marketplace, "plugin");
-  const pluginName = basename(dirname(dirname(paths.codexManifest)));
   await mkdir(join(marketplace, ".claude-plugin"), { recursive: true });
-  await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
-  await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
   await writeFile(
     join(marketplace, ".claude-plugin", "marketplace.json"),
     JSON.stringify(
       {
         name: "darrow-eval",
         owner: { name: "Darrow eval" },
-        plugins: [
-          {
-            name: pluginName,
-            source: "./plugin",
-            description: "Filtered source plugin for evaluation",
-          },
-        ],
+        plugins: plugins.map(({ name, source }) => ({
+          name,
+          source,
+          description: "Filtered source plugin for evaluation",
+        })),
       },
       null,
       2,
     ) + "\n",
   );
-  await cp(paths.manifest, join(plugin, ".claude-plugin", "plugin.json"));
-  await cp(paths.codexManifest, join(plugin, ".codex-plugin", "plugin.json"));
-  for (const mountedSkillDir of skillDirs) {
-    const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
-    await copySkillWithoutEvals(
-      mountedSkillDir,
-      join(plugin, "skills", name),
-      activationProbe,
-    );
-  }
-  if (existsSync(paths.agents))
-    await cp(paths.agents, join(plugin, "agents"), { recursive: true });
-  if (existsSync(paths.bin))
-    await cp(paths.bin, join(plugin, "bin"), { recursive: true });
-  if (existsSync(paths.config))
-    await cp(paths.config, join(plugin, "config"), { recursive: true });
+  for (const plugin of plugins)
+    await copySourceCodexPlugin(repoDir, plugin, activationProbe);
 }
 
 function pluginMountPaths(skillDir: string): PluginMountPaths {
@@ -390,19 +471,23 @@ function pluginMountPaths(skillDir: string): PluginMountPaths {
   };
 }
 
+interface SourcePluginOptions {
+  primarySkillDirs: string[];
+  additionalSkillDirs: string[];
+  paths: PluginMountPaths;
+  sourceClaudePlugin: boolean;
+  sourceCodexPlugin: boolean;
+  activationProbe?: { repoDir: string; token: string };
+  claudeExplicitEntrypointBridgeSkillDir?: string;
+}
+
 async function mountSourcePlugins(
   repoDir: string,
-  skillDirs: string[],
-  paths: PluginMountPaths,
-  options: {
-    sourceClaudePlugin: boolean;
-    sourceCodexPlugin: boolean;
-    activationProbe?: { repoDir: string; token: string };
-    claudeExplicitEntrypointBridgeSkillDir?: string;
-  },
+  options: SourcePluginOptions,
 ): Promise<void> {
+  const { primarySkillDirs, additionalSkillDirs, paths } = options;
   if (options.sourceClaudePlugin && existsSync(paths.manifest))
-    await mountSourceClaudePlugin(repoDir, skillDirs, paths, {
+    await mountSourceClaudePlugin(repoDir, primarySkillDirs, paths, {
       activationProbe: options.activationProbe,
       explicitEntrypointBridgeSkillDir:
         options.claudeExplicitEntrypointBridgeSkillDir,
@@ -412,10 +497,9 @@ async function mountSourcePlugins(
     existsSync(paths.manifest) &&
     existsSync(paths.codexManifest)
   )
-    await mountSourceCodexPlugin(
+    await mountSourceCodexPlugins(
       repoDir,
-      skillDirs,
-      paths,
+      await sourceCodexPlugins(primarySkillDirs, paths, additionalSkillDirs),
       options.activationProbe,
     );
 }
@@ -462,29 +546,25 @@ async function mountSkillGroup(
     await mountPluginMechanics(repoDir, mount, paths);
 }
 
-async function mountAdditionalSourceSkills(
+async function mountAdditionalSourceClaudePlugins(
   repoDir: string,
-  mounts: string[],
-  group: SkillGroupMount,
+  skillDirs: string[],
+  activationProbe?: { token: string },
 ): Promise<void> {
-  for (const mount of mounts) {
-    await mountSkillGroup(repoDir, mount, group);
-    for (const paths of group.pluginPaths) {
-      if (existsSync(paths.agents))
-        await cp(paths.agents, join(repoDir, mount, "..", "agents"), {
-          recursive: true,
-        });
-    }
+  for (const skillDir of skillDirs) {
+    const paths = pluginMountPaths(skillDir);
+    if (!existsSync(paths.manifest))
+      throw new Error(
+        `fixture: additional Claude plugin manifest is unreadable: ${paths.manifest}`,
+      );
+    const pluginName = basename(dirname(dirname(paths.manifest)));
+    await mountSourceClaudePlugin(repoDir, [skillDir], paths, {
+      activationProbe: activationProbe
+        ? { repoDir, token: activationProbe.token }
+        : undefined,
+      pluginDir: join(repoDir, ".git", "eval-plugins", pluginName),
+    });
   }
-}
-
-function sourceSkillMounts(options: SkillMountOptions): string[] {
-  return [
-    ...(options.sourceClaudePlugin ? [".git/eval-plugin/skills"] : []),
-    ...(options.sourceCodexPlugin
-      ? [".git/eval-marketplace/plugin/skills"]
-      : []),
-  ];
 }
 
 async function excludeSkillMounts(
@@ -526,7 +606,10 @@ async function mountSkills(
   };
   for (const mount of skillMounts)
     await mountSkillGroup(repoDir, mount, allSkills);
-  await mountSourcePlugins(repoDir, primarySkillDirs, paths, {
+  await mountSourcePlugins(repoDir, {
+    primarySkillDirs,
+    additionalSkillDirs,
+    paths,
     sourceClaudePlugin,
     sourceCodexPlugin,
     activationProbe: activationProbe
@@ -536,11 +619,12 @@ async function mountSkills(
       ? skillDir
       : undefined,
   });
-  await mountAdditionalSourceSkills(repoDir, sourceSkillMounts(options), {
-    skillDirs: additionalSkillDirs,
-    pluginPaths: additionalPaths,
-    activationProbe,
-  });
+  if (sourceClaudePlugin)
+    await mountAdditionalSourceClaudePlugins(
+      repoDir,
+      additionalSkillDirs,
+      activationProbe,
+    );
   await excludeSkillMounts(repoDir, skillMounts);
 }
 

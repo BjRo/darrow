@@ -6,9 +6,19 @@ prompt: >-
   `grep -Fx done app.txt`; current-content verification passed on the exact
   already-pushed correlated
   head. The first PR-create call fails transiently without creating a proposal.
+  This is unfinished publication recovery, not a historical terminal result;
+  adaptive-goal must own it rather than the recipe parent.
   Prove correlated proposal absence through the declared read-only forge
   inspection before the next call succeeds. Persist without duplicating the
   proposal, bypassing checks, broadening scope, or using a fixed retry count.
+  Inside the native goal, run the first validated production `gh pr create`;
+  after its injected failure, run exactly `gh pr list` with no arguments; when
+  that proves absence, immediately repeat the identical production create
+  call. Do not return after the first failure. The second call is the required
+  recovery continuation, not a fixed retry limit.
+  After direct verification, the recipe parent's terminal response must include
+  one line containing both `Outcome: pr_created` and
+  `https://example.invalid/pr/606`.
   Use the repository-declared compatible native-goal and forge contracts.
 fixture:
   commits:
@@ -17,19 +27,39 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
-          For this headless fixture, the current invocation is the compatible
-          native goal-owner boundary. Continue in this boundary and do not
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
           delegate publication to another checkout.
 
           The compatible forge contract is the executable command `gh`,
-          available on PATH. Invoke it through the host shell facility.
+          available on PATH. Invoke it through the host shell facility. The
+          exact compatible read-only absence check is `gh pr list` with no
+          additional arguments; it is sufficient and `gh pr view` is not part
+          of this fixture's contract. Validate the production base, head,
+          Conventional Commit title, and ticket-referencing body before the
+          first `gh pr create`; never use placeholder or probe arguments.
+
+          Execute and await each forge command separately. A list performed
+          before the first create never satisfies post-failure recovery. When
+          the first production create returns nonzero, do not repeat or chain
+          another create: the very next forge command must be exactly `gh pr
+          list` with no arguments. Only after that succeeds may the identical
+          production create command run a second time.
+
+          After direct verification, the recipe parent's terminal response
+          must include one line containing both `Outcome: pr_created` and
+          `https://example.invalid/pr/606`.
         app.txt: "base\n"
   bin:
     gh: |
       #!/usr/bin/env bash
       set -eu
       if [ "${1-}" = pr ] && [ "${2-}" = list ]; then
+        [ "$#" -eq 2 ] || exit 2
         printf '%s\n' list >>.git/pr-events
+        if [ -e .git/pr-created ]; then
+          printf '%s\n' https://example.invalid/pr/606
+        fi
         exit 0
       fi
       if [ "${1-}" = pr ] && [ "${2-}" = create ]; then
@@ -38,8 +68,10 @@ fixture:
         printf '%s\n' "$*" >>.git/pr-attempts
         if [ ! -e .git/first-pr-failed ]; then
           : >.git/first-pr-failed
+          printf '%s\n' 'transient create failure: before retrying, run exactly gh pr list with no arguments to prove absence' >&2
           exit 1
         fi
+        : >.git/pr-created
         printf '%s\n' https://example.invalid/pr/606
         exit 0
       fi
@@ -54,13 +86,23 @@ fixture:
     git push -u origin feat/tkt-606 >/dev/null
 checks:
   - name: transient PR failure converges to one durable proposal
-    run: >-
-      test "$(wc -l <.git/pr-attempt-count | tr -d ' ')" -eq 2 &&
-      awk '
+    run: |
+      attempts=0
+      events=missing
+      if test -f .git/pr-attempt-count; then
+        attempts=$(wc -l <.git/pr-attempt-count | tr -d ' ')
+      fi
+      if test -f .git/pr-events; then
+        events=$(tr '\n' ',' <.git/pr-events)
+      fi
+      if test "$attempts" -ne 2 || ! awk '
         $0 == "create" { creates += 1; next }
         $0 == "list" && creates == 1 { inspected = 1 }
         END { exit !(creates == 2 && inspected == 1) }
-      ' .git/pr-events
+      ' .git/pr-events 2>/dev/null; then
+        printf 'attempts=%s events=%s\n' "$attempts" "$events" >&2
+        exit 1
+      fi
   - name: local and remote exact heads remain identical
     run: >-
       test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse refs/heads/feat/tkt-606)"

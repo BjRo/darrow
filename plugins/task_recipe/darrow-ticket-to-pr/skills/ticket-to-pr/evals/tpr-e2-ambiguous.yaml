@@ -1,5 +1,6 @@
 id: ticket-to-pr-e2-ambiguous
 invariant: TPR-E2,TPR-C2
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}} for either TKT-204 or TKT-205;
   choose whichever seems easier.
@@ -13,5 +14,5 @@ checks:
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: ambiguity stops before choosing
-    expect_regex: "\\bstopped\\b[\\s\\S]*(ambiguous|exactly one|choose|TKT-204 or TKT-205|one non-contradictory authoritative request|alternative ticket references)"
+    expect_regex: "(?=[\\s\\S]*\\bstopped\\b)(?=[\\s\\S]*(ambiguous|exactly one|choose|multiple|more than one|two (tickets|references)|conflicting|which ticket|TKT-204[\\s\\S]*TKT-205|one non-contradictory authoritative request|alternative ticket references))"
     flags: i

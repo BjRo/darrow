@@ -1,14 +1,27 @@
 id: ticket-to-pr-e4-ticket-owned-dirty
 invariant: TPR-E4,TPR-C6
+forbidden_skill_activations: [adaptive-goal]
+unavailable_additional_skills: [adaptive-goal]
 prompt: >-
-  {{entrypoint}}. Supplied SPEC-402 says the
-  existing uncommitted app.txt change is the intended ticket work. Continue
+  {{entrypoint}}. Use the supplied authoritative specification SPEC-402:
+  outcome, preserve the existing uncommitted app.txt line `ticket-owned
+  change`; acceptance, `grep -Fx 'ticket-owned change' app.txt`. Continue
   through dirty-work intake without discarding or recommitting it, but stop if
-  adaptive-goal is unavailable.
+  adaptive-goal is unavailable. The repository declares that boundary
+  unavailable, so report `blocked`; do not invoke it or emit a v4 launch
+  record.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          No compatible adaptive native-goal mutation boundary is available in
+          this fixture. Preserve ticket-owned dirty work and stop before any
+          branch, commit, push, or proposal mutation. Do not invoke
+          adaptive-goal or emit a v4 launch record. Report `blocked`, not
+          `stopped`, because the required capability is unavailable.
         app.txt: "base\n"
   files:
     app.txt: "ticket-owned change\n"
@@ -19,5 +32,5 @@ checks:
       test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: owned work passes intake before adaptive-goal block
-    expect_regex: "\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal[\\s\\S]*(dirty|local work|ticket-owned)"
+    expect_regex: "(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*(adaptive|native)[ -]?goal)(?=[\\s\\S]*(dirty|local work|ticket-owned|existing work|preserv(?:e|ed|ing)|app\\.txt))"
     flags: i

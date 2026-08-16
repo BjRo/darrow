@@ -7,7 +7,31 @@ modes:
     additional_skill_dirs:
       - ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
     required_skill_activations:
+      ticket-to-pr-e1-ready-delivery:
+        - adaptive-goal
+      ticket-to-pr-e2-authoritative-intake:
+        - adaptive-goal
+      ticket-to-pr-e2-resolved-reference:
+        - adaptive-goal
+      ticket-to-pr-e2-supplied-content:
+        - adaptive-goal
       ticket-to-pr-e3-adaptive-preflight:
+        - adaptive-goal
+      ticket-to-pr-e4-explicit-worktree:
+        - adaptive-goal
+      ticket-to-pr-e5-reentry:
+        - adaptive-goal
+      ticket-to-pr-e6-pr-block:
+        - adaptive-goal
+      ticket-to-pr-e6-push-block:
+        - adaptive-goal
+      ticket-to-pr-e6-recoverable-pr:
+        - adaptive-goal
+      ticket-to-pr-e6-recoverable-push:
+        - adaptive-goal
+      ticket-to-pr-e6-recovery:
+        - adaptive-goal
+      ticket-to-pr-e7-scope:
         - adaptive-goal
     entrypoint_by_harness:
       claude: /darrow-ticket-to-pr:ticket-to-pr

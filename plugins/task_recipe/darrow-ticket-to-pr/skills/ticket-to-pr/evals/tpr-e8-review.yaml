@@ -1,22 +1,33 @@
 id: ticket-to-pr-e8-review
 invariant: TPR-E8,TPR-C9
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Reconstruct this durable review boundary for the supplied
   authoritative ticket TKT-801: outcome, preserve security.txt at the exact
   line `base`; acceptance, `grep -Fx base security.txt`; the adaptive native
-  goal completed
-  the exact current content; and risk is high. Exact-content independent review
-  is required, but the environment exposes no compatible independent-review
-  capability. Do not substitute same-context review.
+  goal completed the exact current content; and risk is high. The prior
+  exact-content independent-review attempt ended blocked because no compatible
+  capability was available at that boundary. That completed attempt is
+  authoritative historical evidence; current capability discovery cannot
+  reopen or rewrite it. Do not substitute same-context review. Return
+  read-only, do not invoke adaptive-goal, and do not emit a v4 record. Report
+  the blocked review-capability gap.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          TKT-801's completed native-goal and blocked review attempt are
+          authoritative historical workflow evidence. Reconstruct them
+          read-only without inspecting, loading, or invoking adaptive-goal.
+          Current capability discovery cannot reopen or rewrite that attempt.
         security.txt: "base\n"
 checks:
   - name: unavailable review blocks publication mutation
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: review capability gap blocks
-    expect_regex: "\\bblocked\\b[\\s\\S]*(independent review|review capability|unavailable)"
+    expect_regex: "(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*(independent[- ]review|review capability|no compatible|unavailable))"
     flags: i

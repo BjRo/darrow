@@ -4,11 +4,21 @@ prompt: >-
   {{entrypoint}}. Use the supplied authoritative ticket TKT-301: outcome,
   implement retry behavior; description, the retry policy may be bounded or
   unbounded but the ticket does not choose between them; acceptance cannot be
-  finalized until that product decision is made. Continue through the recipe.
+  finalized until that product decision is made. Continue through the recipe:
+  invoke and await exactly one available `adaptive-goal` skill and let its
+  preflight own the decision-gated judgment. Do not decide readiness in the
+  recipe parent. Identify TKT-301 and report `Outcome: stopped` with the
+  smallest missing decision.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
+          delegate to another checkout.
         app.txt: "unchanged\n"
 checks:
   - name: decision-gated preflight prevents delivery mutation

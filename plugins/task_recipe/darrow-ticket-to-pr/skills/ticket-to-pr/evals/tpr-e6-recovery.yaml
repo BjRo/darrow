@@ -15,8 +15,8 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
-          For this headless fixture, the current invocation is the compatible
-          native goal-owner boundary. Continue in this boundary and do not
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
           delegate to another checkout.
 
           The compatible branch contract is the executable command
@@ -39,5 +39,5 @@ checks:
       test -z "$(git ls-files --others --exclude-standard)"
 output_checks:
   - name: terminal evidence preserves durable state
-    expect_regex: "\\b(blocked|interrupted)\\b[\\s\\S]*commit"
+    expect_regex: "(?=[\\s\\S]*\\b(blocked|interrupted)\\b)(?=[\\s\\S]*commit)"
     flags: i

@@ -130,6 +130,8 @@ export interface EvalCase {
   fixture: Fixture;
   /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
   mount_plugin_skills?: boolean;
+  /** Additional suite-mounted skills intentionally unavailable in this case. */
+  unavailable_additional_skills?: string[];
   /** Require HEAD to advance linearly when the public behavior explicitly commits. */
   expect_head_change?: boolean;
   /** Require repository state other than HEAD to change for an explicit setup action. */
@@ -139,6 +141,8 @@ export interface EvalCase {
   output_checks?: OutputCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
   activation?: ActivationClass;
+  /** Skills that must not be activated anywhere in the observed transcript. */
+  forbidden_skill_activations?: string[];
 }
 
 export interface HarnessResult {

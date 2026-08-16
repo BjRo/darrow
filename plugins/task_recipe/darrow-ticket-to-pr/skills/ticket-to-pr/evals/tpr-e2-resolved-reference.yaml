@@ -3,14 +3,17 @@ invariant: TPR-E2,TPR-C2
 prompt: >-
   {{entrypoint}} for TKT-202. Resolve the one
   stable reference through the repository's compatible read-only ticket
-  capability. Continue through intake, but stop honestly if adaptive-goal is
-  unavailable.
+  capability. Continue through intake and adaptive preflight.
 fixture:
   commits:
     - message: "chore: init"
       files:
         AGENTS.md: |
           # Fixture instructions
+
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
+          delegate to another checkout.
 
           The compatible read-only ticket contract is `ticket-reader get ID`.
         app.txt: "unchanged\n"
@@ -20,13 +23,18 @@ fixture:
       set -eu
       [ "${1-}" = get ] && [ "${2-}" = TKT-202 ]
       printf '%s\n' "$*" >>.git/ticket-read-calls
-      printf '%s\n' '{"id":"TKT-202","outcome":"Document widget","acceptance":["README contains Widget ready"]}'
+      printf '%s\n' '{"id":"TKT-202","outcome":"Document widget","description":"The widget format may be Markdown or HTML, but the ticket does not choose between them.","acceptance":["Acceptance cannot be finalized until the widget format is chosen."]}'
 checks:
   - name: stable reference is resolved exactly once without mutation
     run: >-
       test "$(wc -l <.git/ticket-read-calls | tr -d ' ')" -eq 1 &&
       git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: resolved intake reaches the adaptive-goal boundary
-    expect_regex: "TKT-202[\\s\\S]*\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal"
+  - name: resolved intake identifies the authoritative ticket
+    expect_regex: "\\bTKT-202\\b"
+  - name: resolved intake reports the adaptive decision stop
+    expect_regex: "\\bstopped\\b"
+    flags: i
+  - name: resolved intake names the smallest missing decision
+    expect_regex: "Markdown or HTML|widget format"
     flags: i

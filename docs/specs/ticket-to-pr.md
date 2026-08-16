@@ -94,8 +94,10 @@ Before product, repository, or publication mutation, the recipe:
 4. reconstructs any unambiguously correlated branch, commits, remote branch,
    and open pull request;
 5. confirms the invocation's exact authority; and
-6. invokes adaptive-goal with the authoritative ticket, acceptance criteria,
-   repository evidence, constraints, and authorized effects.
+6. returns directly after read-only verification when authoritative input
+   establishes a prior terminal outcome or completed adaptive-goal boundary;
+   otherwise invokes adaptive-goal with the authoritative ticket, acceptance
+   criteria, repository evidence, constraints, and authorized effects.
 
 This order is a hard gate. The recipe does not mutate delivery state before
 authoritative intake, repository safety, durable re-entry reconstruction, and
@@ -126,6 +128,13 @@ of a handoff, direct implementation in the recipe parent, a generic goal tool,
 or a generic subagent does not satisfy this invocation.
 Adaptive-goal owns the implementation decision, adaptation, recovery,
 verification, and completion.
+
+The only exception is authoritative historical reconstruction described under
+Terminal result: it returns after read-only current-state verification and does
+not relaunch completed or interrupted work. A stale or partial branch with an
+unfinished implementation or publication gate is not terminal reconstruction;
+the recipe still invokes adaptive-goal, and the recipe parent does not perform
+the remaining mutation itself.
 
 Adaptive-goal performs its normal read-only preflight. When required product
 behavior, authority, or another implementation decision is missing, it selects
@@ -234,8 +243,8 @@ creating a duplicate.
 
 For `pr_existing` and `pr_created`, current verification also preserves the
 proposal shape observed from the forge: deliberate base and correlated head,
-Conventional Commit-compatible title, ticket-referencing template body, and
-ready-versus-draft state. A confirmation-only re-entry still reports the same
+an imperative Conventional Commit-compatible title, ticket-referencing
+template body, and ready-versus-draft state. A confirmation-only re-entry still reports the same
 concise terminal outcome as a newly completed delivery.
 
 Unknown, stale, or content-invalidated checks and reviews are rerun. Claims that
@@ -337,6 +346,11 @@ means the proposal already existed when the reconstructed delivery began.
 When the historical classification is not established, the recipe reports
 only what the current invocation can prove and does not guess it.
 
+Historical reconstruction is resolved before adaptive-goal invocation and is
+strictly read-only. It does not finish interrupted work or reclassify a
+historical `pr_created` as `pr_existing` merely because the created proposal is
+now present.
+
 Adaptive-goal's `decision-gated` preflight maps to delivery outcome `stopped`.
 Delivery outcome `blocked` is used when the recipe could not reach or complete
 a required capability, route, permission, repository condition, or external
@@ -437,6 +451,19 @@ separately from the entrypoint. This calibrates workflow behavior without
 misrepresenting the bridge as native host activation.
 Unguarded controls using model-mediated headless loading record that distinct
 transport without claiming the explicit-only bridge was applied.
+Composition fixtures preserve every mounted plugin's namespace so a capability
+skill, bundled mechanics, and helper-selected native agent types remain under
+the same independently packaged owner on both hosts. A behavior case that
+requires adaptive-goal ownership also requires observed activation and a route
+record reconciled with the actual native launch boundary; a recipe-parent
+generic delegation or self-authored launch record is not equivalent evidence.
+Claude behavior fixtures keep their isolated fixture-local session transcript
+until route verification and result grading complete, then destroy it with the
+fixture. The eval runner bridges its logical temporary path to Claude's
+physical transcript key, observes exactly one matching native Agent transcript
+by its exact agent identity, and reconciles the effective model and effort
+against the verbatim v4 record. Disabling session persistence or trusting final
+prose cannot satisfy that oracle.
 
 Activation is calibrated separately from behavior. Activation cases cover
 direct, incomplete, ordinary-negative, natural-language, and pressure inputs;
@@ -445,7 +472,9 @@ and terminal-output evidence. A direct host skill event is preferred.
 When a host exposes no such event, the harness may inject a bounded private
 activation sentinel into the mounted evaluation copy of each skill and report
 that explicitly as controlled-probe evidence. It never infers activation from
-the final answer.
+the final answer. Negative activation cases may reject an explicit successful
+delivery claim, but ordinary prose such as being blocked by missing inputs is
+not evidence that the recipe claimed a terminal outcome.
 
 No-mutation cases compare the selected branch, every repository ref, index,
 tracked worktree, and untracked-file state. Cases whose contract explicitly
@@ -490,9 +519,12 @@ Required cases include:
 
 Before the full matrix, one fresh trial per host calibrates activation and a
 non-mutating intake case, followed by one effectful ready-delivery trial and one
-representative trial across all three comparative modes. The full matrix starts
-only after those probes show that skill mounting, entrypoint adaptation, hidden
-checks, and fail-closed external-effect fixtures work as intended.
+representative trial across all three comparative modes. The authoritative
+intake probe carries a deliberate unresolved product choice so mounted
+adaptive-goal reaches its decision gate without turning the intake calibration
+into a delivery case. The full matrix starts only after those probes show that
+skill mounting, entrypoint adaptation, hidden checks, and fail-closed
+external-effect fixtures work as intended.
 
 All designated candidate core cases and candidate edge variants require three
 passing trials per host and zero unintended or duplicate external mutations.

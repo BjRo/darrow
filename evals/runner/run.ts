@@ -4,7 +4,12 @@ import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { selectCaseIds } from "./case-selection";
-import { buildFixture, destroyFixture, readActivationProbe } from "./fixture";
+import {
+  buildFixture,
+  destroyFixture,
+  filterAdditionalSkillDirs,
+  readActivationProbe,
+} from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
 import { runChecks, runOutputChecks } from "./checks";
@@ -20,6 +25,7 @@ import {
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
+  forbiddenActivationChecks,
   gradeActivation,
   selectActivationObservation,
   validateActivationCase,
@@ -330,6 +336,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     checks: evalCase.checks,
     outputChecks: evalCase.output_checks ?? [],
     activation: activationEvidence(evalCase),
+    forbiddenSkillActivations: evalCase.forbidden_skill_activations ?? [],
     expectHeadChange: evalCase.expect_head_change ?? null,
     expectRepositoryChange: evalCase.expect_repository_change ?? null,
     requireEvaluationRecords: options.requireEvaluationRecords ?? false,
@@ -401,6 +408,31 @@ function goalDimensionsAssertionCheck(
   };
 }
 
+function goalRouteTranscriptChecks(
+  options: RunCaseOptions,
+  harness: HarnessResult,
+): CheckResult[] {
+  const observed = reconcileObservedGoalRouteApplication(
+    harness.resultText,
+    harness.raw,
+    {
+      harness: options.adapter.name,
+      model: options.model,
+      effort: options.effort,
+    },
+  );
+  if (observed) return [observed];
+  if (!options.requiredSkillActivations?.includes("adaptive-goal")) return [];
+  return [
+    {
+      name: "adaptive-goal route record is independently observable",
+      passed: false,
+      detail:
+        "required adaptive-goal activation has no reconciled v4 route record",
+    },
+  ];
+}
+
 /** Checks derived purely from the transcript: what the harness reported about
  * its own routing, versus what this run asked for and the case asserts. */
 function routeChecks(
@@ -410,28 +442,17 @@ function routeChecks(
 ): CheckResult[] {
   const {
     evalCase,
-    adapter,
-    model,
-    effort,
     requireEvaluationRecords = false,
     assertedGoalRoute,
     assertedGoalDimensions,
   } = options;
-  const observedGoalRouteCheck =
-    adapter.name === "codex"
-      ? reconcileObservedGoalRouteApplication(harness.resultText, harness.raw, {
-          harness: adapter.name,
-          model,
-          effort,
-        })
-      : undefined;
   const observedTicketPipelineCheck = reconcileObservedTicketPipelineRoutes(
     harness.resultText,
     harness.raw,
   );
   return [
     ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
-    ...(observedGoalRouteCheck ? [observedGoalRouteCheck] : []),
+    ...goalRouteTranscriptChecks(options, harness),
     ...(assertedGoalRoute
       ? [goalRouteAssertionCheck(observed, assertedGoalRoute)]
       : []),
@@ -515,6 +536,12 @@ async function trialChecks(
       evalCase.skillDir,
     )),
     ...routeChecks(options, harness, observedGoalRouteApplication),
+    ...(options.withoutSkill
+      ? []
+      : forbiddenActivationChecks(
+          evalCase.forbidden_skill_activations,
+          harness.skillActivation,
+        )),
   ];
 }
 
@@ -565,12 +592,12 @@ async function evaluateTrial(
   options: RunCaseOptions,
   context: TrialContext,
 ): Promise<TrialResult> {
-  const { evalCase, adapter, judge } = options;
+  const { evalCase, judge } = options;
   const { harness, repoDir } = context;
-  const observedGoalRouteApplication =
-    adapter.name === "codex"
-      ? observeCodexGoalRouteApplication(harness.resultText, harness.raw)
-      : undefined;
+  const observedGoalRouteApplication = observeCodexGoalRouteApplication(
+    harness.resultText,
+    harness.raw,
+  );
   const observedTicketPipelineRoutes =
     /^format\tdarrow-ticket-pipeline-result-v1$/m.test(harness.resultText)
       ? observeCodexTicketPipelineRoutes(harness.raw)
@@ -662,10 +689,14 @@ async function buildTrialFixture(
   activationProbe: { token: string } | undefined,
 ): Promise<string> {
   const { evalCase, adapter, withoutSkill = false } = options;
+  const additionalSkillDirs = filterAdditionalSkillDirs(
+    options.additionalSkillDirs ?? [],
+    evalCase.unavailable_additional_skills,
+  );
   return buildFixture({
     fixture: evalCase.fixture,
     skillDir: withoutSkill ? "" : evalCase.skillDir,
-    additionalSkillDirs: withoutSkill ? [] : options.additionalSkillDirs,
+    additionalSkillDirs: withoutSkill ? [] : additionalSkillDirs,
     skillMounts: adapter.skillMounts,
     mountPluginSkills: evalCase.mount_plugin_skills ?? false,
     sourceClaudePlugin: adapter.sourceClaudePlugin,
@@ -675,6 +706,15 @@ async function buildTrialFixture(
       options.entrypointTransport === "claude_headless_explicit_bridge",
     caseDir: evalCase.caseDir,
   });
+}
+
+function needsActivationEvidence(options: RunCaseOptions): boolean {
+  const { evalCase } = options;
+  return Boolean(
+    evalCase.activation ||
+    options.requiredSkillActivations?.length ||
+    evalCase.forbidden_skill_activations?.length,
+  );
 }
 
 async function runTrial(
@@ -690,7 +730,7 @@ async function runTrial(
     withoutSkill = false,
   } = options;
   const activationProbe =
-    (evalCase.activation || options.requiredSkillActivations?.length) &&
+    needsActivationEvidence(options) &&
     !withoutSkill &&
     adapter.name === "codex"
       ? { token: randomUUID() }
@@ -954,6 +994,14 @@ function entrypointSummary(
   };
 }
 
+function additionalSkillDirectorySummary(options: RunCaseOptions): string[] {
+  if (options.withoutSkill) return [];
+  return filterAdditionalSkillDirs(
+    options.additionalSkillDirs ?? [],
+    options.evalCase.unavailable_additional_skills,
+  );
+}
+
 function summarizeCase(
   options: RunCaseOptions,
   trialResults: TrialResult[],
@@ -980,9 +1028,7 @@ function summarizeCase(
       !options.withoutSkill &&
       !!evalCase.skillDir &&
       (evalCase.mount_plugin_skills ?? false),
-    additionalSkillDirectories: options.withoutSkill
-      ? []
-      : (options.additionalSkillDirs ?? []),
+    additionalSkillDirectories: additionalSkillDirectorySummary(options),
     ...activationSummary(options, trialResults),
     ...requiredSkillActivationSummary(options, trialResults),
     harness: adapter.name,

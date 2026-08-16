@@ -45,6 +45,12 @@ interface NestedGoalApplication {
   outputTokens: number;
 }
 
+interface ClaudeAgentApplication {
+  selected: GoalRoute;
+  effective: GoalRoute;
+  agentId: string;
+}
+
 /** Fields only a `darrow-native-goal-preflight-v4` record declares. */
 interface GoalPreflightV4 {
   workflow: string;
@@ -315,6 +321,24 @@ function hostGoalApplication(raw: string): HostRouteApplied | undefined {
   });
 }
 
+function claudeAgentApplication(
+  raw: string,
+): ClaudeAgentApplication | undefined {
+  return singleEventMatch(raw, (event) => {
+    const selected = goalRouteOf(event.selected);
+    const effective = goalRouteOf(event.effective);
+    return event.type === "darrow.claude_agent_route" &&
+      event.status === "completed" &&
+      event.appliedBy === "native-subagent" &&
+      event.launchBoundary === "native_subagent" &&
+      typeof event.agentId === "string" &&
+      selected &&
+      effective
+      ? { selected, effective, agentId: event.agentId }
+      : undefined;
+  });
+}
+
 function hostGoalDimensions(raw: string): HostDimensions | undefined {
   return singleEventMatch(raw, (event) => {
     const turn = acceptedHostTurn(event, "darrow.dimensions_applied");
@@ -504,6 +528,24 @@ export function observeCodexGoalRouteApplication(
     return nestedGoalRouteApplication(preflight, raw);
   if (preflight.launchBoundary === "host_api")
     return hostGoalRouteApplication(preflight, raw);
+  const claude = claudeAgentApplication(raw);
+  if (preflight.launchBoundary === "native_subagent" && claude) {
+    if (
+      !sameGoalRoute(preflight.selected, claude.selected) ||
+      !sameGoalRoute(preflight.effective, claude.effective)
+    )
+      return undefined;
+    return {
+      profile: preflight.profile,
+      selected: claude.selected,
+      effective: claude.effective,
+      appliedBy: preflight.appliedBy,
+      launchBoundary: preflight.launchBoundary,
+      childInvocationCount: 1,
+      childInputTokens: 0,
+      childOutputTokens: 0,
+    };
+  }
   return {
     profile: preflight.profile,
     selected: preflight.selected,
@@ -659,11 +701,15 @@ function closedChildThreadId(
 
 /** At least one completed native child spawn proves the runner boundary ran. */
 function nativeGoalAgentSpawned(raw: string): boolean {
-  return jsonlEvents(raw).some((event) => spawnedChildThreadId(event));
+  return (
+    claudeAgentApplication(raw) !== undefined ||
+    jsonlEvents(raw).some((event) => spawnedChildThreadId(event))
+  );
 }
 
 /** Every observed native child must be closed once, after its matching spawn. */
 function nativeGoalAgentsClosed(raw: string): boolean {
+  if (claudeAgentApplication(raw)) return true;
   const spawned = new Set<string>();
   const open = new Set<string>();
   for (const event of jsonlEvents(raw)) {

@@ -381,6 +381,66 @@ describe("orchestration outcome metrics", () => {
     ).toBe(false);
   });
 
+  test("reconciles a Claude v4 record with one host-observed native Agent route", () => {
+    const result = [
+      "format\tdarrow-native-goal-preflight-v4",
+      "workflow\tmechanical",
+      "risk\troutine",
+      "profile\troutine",
+      "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+      "effective_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+      "route_applied_by\tnative-subagent",
+      "route_verified\ttrue",
+      "launch_boundary\tnative_subagent",
+      "verification_gate\troutine",
+      "evaluation_child_invocations\t1",
+      "evaluation_human_interruptions\t0",
+    ].join("\n");
+    const raw = JSON.stringify({
+      type: "darrow.claude_agent_route",
+      status: "completed",
+      agentId: "agentgood",
+      selected: {
+        harness: "claude",
+        provider: "anthropic",
+        model: "claude-sonnet-5",
+        effort: "low",
+      },
+      effective: {
+        harness: "claude",
+        provider: "anthropic",
+        model: "claude-sonnet-5",
+        effort: "low",
+      },
+      appliedBy: "native-subagent",
+      launchBoundary: "native_subagent",
+    });
+    expect(observeCodexGoalRouteApplication(result, raw)).toEqual(
+      expect.objectContaining({
+        childInvocationCount: 1,
+        launchBoundary: "native_subagent",
+      }),
+    );
+    expect(
+      reconcileObservedGoalRouteApplication(result, raw, {
+        harness: "claude",
+        model: "claude-sonnet-5",
+        effort: "medium",
+      })?.passed,
+    ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        raw.replaceAll("claude-sonnet-5", "claude-opus-5"),
+        {
+          harness: "claude",
+          model: "claude-sonnet-5",
+          effort: "medium",
+        },
+      )?.passed,
+    ).toBe(false);
+  });
+
   test("records one first-class native goal runner", () => {
     const result = [
       "format\tdarrow-native-goal-preflight-v2",

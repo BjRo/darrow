@@ -220,6 +220,34 @@ describe("Codex skill activation observation", () => {
     });
   });
 
+  test("observes reads across independently installed plugin roots", () => {
+    const recipeRoot =
+      "/tmp/eval-home/plugins/cache/darrow/recipe/0.1.0/skills";
+    const goalRoot =
+      "/tmp/eval-home/plugins/cache/darrow/goal-loop/0.1.0/skills";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${goalRoot}/adaptive-goal/SKILL.md`,
+          aggregated_output:
+            "---\nname: adaptive-goal\ndescription: Goal loop\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, [recipeRoot, goalRoot])).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal"],
+    });
+  });
+
   test("does not treat a path existence check as reading a skill body", () => {
     const stream = [
       JSON.stringify({

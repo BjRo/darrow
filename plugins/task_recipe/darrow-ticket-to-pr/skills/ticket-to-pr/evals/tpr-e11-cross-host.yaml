@@ -1,16 +1,25 @@
 id: ticket-to-pr-e11-cross-host
 invariant: TPR-E11,TPR-C12
+forbidden_skill_activations: [adaptive-goal]
+unavailable_additional_skills:
+  - adaptive-goal
 prompt: >-
   {{entrypoint}}. Use the supplied authoritative ticket TKT-1101: outcome,
   change app.txt from `base` to `complete`; description, complete the fixture
   state; acceptance, `grep -Fx complete app.txt`. No compatible adaptive-goal
   capability can be resolved in this host. Return the host-neutral task-recipe
-  result; do not expose a provider-specific schema
-  or invent success.
+  result; do not expose a provider-specific schema, invent success, or emit a
+  v4 launch record because adaptive-goal is not invoked.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          No compatible adaptive native-goal mutation boundary is available in
+          this fixture. Stop before any branch, commit, push, or proposal
+          mutation.
         app.txt: "base\n"
 checks:
   - name: missing capability leaves repository unchanged

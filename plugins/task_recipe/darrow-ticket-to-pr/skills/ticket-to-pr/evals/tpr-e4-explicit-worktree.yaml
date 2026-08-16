@@ -7,15 +7,21 @@ prompt: >-
   original checkout, acceptance: the compatible worktree capability creates
   branch feat/tkt-403 at its declared path. Explicitly create the linked
   worktree through the available
-  compatible capability. Leave the original checkout's uncommitted
-  private-notes.txt byte-identical. Stop if the later native goal capability is
-  unavailable.
+  compatible capability before adaptive delivery, then invoke and await
+  exactly one available `adaptive-goal` from the created worktree. Leave the
+  original checkout's uncommitted private-notes.txt byte-identical. Do not
+  treat that explicitly preserved original-checkout file as ambiguous dirty
+  delivery work. Stop if the later native goal capability is unavailable.
 fixture:
   commits:
     - message: "chore: init"
       files:
         AGENTS.md: |
           # Fixture instructions
+
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. Its goal owner must continue in the checkout created by
+          the compatible worktree contract.
 
           The compatible explicit worktree contract is the executable command
           `worktree-capability`, available on PATH. Invoke it without arguments
@@ -30,6 +36,7 @@ fixture:
       original=$(cat .git/original-checkout)
       target="$original/.git/worktree-parent/tkt-403"
       git worktree add -b feat/tkt-403 "$target" HEAD >/dev/null
+      printf '%s\n' invoked >>.git/worktree-capability-calls
       printf '%s\n' "$target" >.git/worktree-created
   setup: |
     printf '%s\n' "$PWD" >.git/original-checkout
@@ -41,6 +48,7 @@ checks:
       test "$(git status --porcelain=v1 --untracked-files=all)" = "?? private-notes.txt"
   - name: compatible capability created a linked ticket worktree
     run: >-
+      test "$(wc -l <.git/worktree-capability-calls | tr -d ' ')" -eq 1 &&
       test -s .git/worktree-created &&
       worktree=$(cat .git/worktree-created) &&
       test -d "$worktree" &&
@@ -51,5 +59,8 @@ checks:
       "$(printf 'refs/heads/feat/tkt-403\nrefs/heads/main')"
 output_checks:
   - name: explicit worktree preserves original local work evidence
-    expect_regex: "(private-notes|original)[\\s\\S]*(preserved|unchanged)|(?:preserved|unchanged)[\\s\\S]*(private-notes|original)"
+    expect_regex: "(private-notes|original)[\\s\\S]*(preserved|unchanged|byte-identical)|(?:preserved|unchanged|byte-identical)[\\s\\S]*(private-notes|original)"
+    flags: i
+  - name: preservation report does not explicitly contradict itself
+    not_regex: "\\b(?:not|never|no longer|isn't|wasn't)(?:\\s+[A-Za-z-]+){0,3}\\s+(?:preserved|unchanged|byte[- ]identical)\\b"
     flags: i

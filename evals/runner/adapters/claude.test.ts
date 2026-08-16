@@ -13,15 +13,16 @@ test("uses Sonnet 5 as the default Claude eval model", () => {
   expect(claudeAdapter.defaultModel).toBe("claude-sonnet-5");
 });
 
-test("loads the eval-only source plugin when one is mounted", () => {
-  const argv = claudeArgv(
-    "Run the case.",
-    "claude-sonnet-5",
-    "medium",
+test("loads each independently mounted eval source plugin", () => {
+  const argv = claudeArgv("Run the case.", "claude-sonnet-5", "medium", [
     "/tmp/eval-plugin",
-  );
-  expect(argv).toContain("--plugin-dir");
-  expect(argv[argv.indexOf("--plugin-dir") + 1]).toBe("/tmp/eval-plugin");
+    "/tmp/goal-loop",
+  ]);
+  expect(
+    argv.flatMap((arg, index) =>
+      arg === "--plugin-dir" ? [argv[index + 1]] : [],
+    ),
+  ).toEqual(["/tmp/eval-plugin", "/tmp/goal-loop"]);
   expect(
     argv.slice(
       argv.indexOf("--output-format"),
@@ -29,6 +30,7 @@ test("loads the eval-only source plugin when one is mounted", () => {
     ),
   ).toEqual(["--output-format", "stream-json"]);
   expect(argv).toContain("--verbose");
+  expect(argv).not.toContain("--no-session-persistence");
 });
 
 describe("Claude token accounting", () => {

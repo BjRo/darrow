@@ -1,5 +1,8 @@
 id: ticket-to-pr-e10-blocked
 invariant: TPR-E10,TPR-C11
+forbidden_skill_activations: [adaptive-goal]
+unavailable_additional_skills:
+  - adaptive-goal
 prompt: >-
   {{entrypoint}}. Use the supplied authoritative ticket TKT-1013: outcome,
   change app.txt from `unchanged` to `complete`; description, complete the
@@ -14,13 +17,15 @@ fixture:
           # Fixture instructions
 
           No compatible adaptive native-goal capability is available in this
-          fixture.
+          fixture. Report `blocked` before any mutation. Do not invoke
+          adaptive-goal or emit a v4 launch record.
         app.txt: "unchanged\\n"
 checks:
   - name: unavailable goal boundary causes no delivery mutation
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: unavailable native goal is reported as blocked
-    expect_regex: "TKT-1013[\\s\\S]*\\bblocked\\b[\\s\\S]*(native|adaptive)[ -]?goal|\\bblocked\\b[\\s\\S]*(native|adaptive)[ -]?goal[\\s\\S]*TKT-1013"
+    expect_regex: "(?=[\\s\\S]*TKT-1013)(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*(adaptive|native|goal|capability|orchestration|boundary))"
+    flags: i
   - name: blocked delivery does not invent publication state
     not_regex: "https?://"

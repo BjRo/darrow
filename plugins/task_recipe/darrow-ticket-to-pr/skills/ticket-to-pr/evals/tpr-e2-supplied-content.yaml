@@ -2,18 +2,33 @@ id: ticket-to-pr-e2-supplied-content
 invariant: TPR-E2,TPR-C2
 prompt: >-
   {{entrypoint}}. The authoritative supplied
-  specification is SPEC-203: outcome “Document widget”; acceptance “README
-  contains Widget ready”. It is the only source. Continue through intake, but
-  stop honestly if adaptive-goal is unavailable.
+  specification is SPEC-203: outcome “Document widget”; description, the
+  widget format may be Markdown or HTML but the specification does not choose;
+  acceptance cannot be finalized until the widget format is chosen. It is the
+  only source. Continue through intake, invoke and await exactly one available
+  `adaptive-goal` skill, and let that capability make the decision-gated
+  judgment. Do not make the readiness decision in the recipe parent. Identify
+  SPEC-203 and report the returned stop as `Outcome: stopped`.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
+          delegate to another checkout.
         app.txt: "unchanged\n"
 checks:
   - name: supplied content proceeds without tracker or delivery mutation
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: supplied authority reaches adaptive-goal boundary
-    expect_regex: "SPEC-203[\\s\\S]*\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal"
+  - name: supplied authority identifies the specification
+    expect_regex: "\\bSPEC-203\\b"
+  - name: supplied authority reports the adaptive decision stop
+    expect_regex: "\\bstopped\\b"
+    flags: i
+  - name: supplied authority names the smallest missing decision
+    expect_regex: "Markdown or HTML|widget format"
     flags: i

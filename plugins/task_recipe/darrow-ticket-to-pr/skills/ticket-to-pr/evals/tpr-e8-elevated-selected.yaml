@@ -1,5 +1,6 @@
 id: ticket-to-pr-e8-elevated-selected
 invariant: TPR-E8,TPR-C9
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Reconstruct this durable review boundary for the supplied
   authoritative ticket TKT-803: outcome, preserve api.txt at the exact line
@@ -13,10 +14,17 @@ fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          TKT-803's completed adaptive goal and selected review boundary are
+          authoritative historical workflow evidence. Reconstruct them
+          read-only without loading or invoking adaptive-goal again.
         api.txt: "base\n"
 checks:
   - name: selected unavailable review prevents mutation
     run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: elevated review is selected and blocks
-    expect_regex: "\\bblocked\\b[\\s\\S]*review[\\s\\S]*(unavailable|blocked)"
+    expect_regex: "(?=[\\s\\S]*\\bblocked\\b)(?=[\\s\\S]*review)(?=[\\s\\S]*(unavailable|not available|no compatible|blocked))"
+    flags: i

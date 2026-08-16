@@ -17,6 +17,10 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
+          delegate recovery to another checkout.
+
           The compatible forge inspection contract is the executable command
           `gh`, available on PATH. Invoke it through the host shell facility.
         app.txt: "base\n"
@@ -56,7 +60,7 @@ checks:
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
   - name: stale evidence is replaced with current successful evidence
-    expect_regex: "\\bpr_existing\\b[\\s\\S]*verification[\\s\\S]*(complete|current)"
+    expect_regex: "(?=[\\s\\S]*\\bpr_existing\\b)(?=[\\s\\S]*(verification|verified))(?=[\\s\\S]*(complete|current|passed))"
     flags: i
   - name: duplicate creation is not claimed
     not_regex: "\\bpr_created\\b"

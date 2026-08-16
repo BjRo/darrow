@@ -1,5 +1,6 @@
 id: ticket-to-pr-e10-terminal
 invariant: TPR-E10,TPR-C11
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Reconstruct this durable terminal state for the supplied
   authoritative ticket TKT-1001: outcome, change app.txt from `base` toward
@@ -7,12 +8,22 @@ prompt: >-
   goal launched on the
   correlated task branch. The user interrupted that active goal after its one
   local partial commit but before any push. No remote branch or pull request
-  exists. Report the terminal delivery outcome concisely, preserving the
-  durable local state without guessing.
+  exists. The preserved historical terminal classification is `interrupted`;
+  do not resume or finish that work. This completed interruption is
+  authoritative historical evidence. Reconstruct it read-only without
+  inspecting, loading, or invoking adaptive-goal. Report the terminal delivery
+  outcome concisely, preserving the durable local state without guessing.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          TKT-1001's interrupted adaptive goal is authoritative historical
+          workflow evidence. Reconstruct it read-only without inspecting,
+          loading, or invoking adaptive-goal. Do not mutate its preserved local
+          branch or commit.
         app.txt: "base\n"
   setup: |
     git checkout -b feat/tkt-1001 >/dev/null

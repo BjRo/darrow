@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   activationPassRate,
   activationPassesThreshold,
+  forbiddenActivationChecks,
   gradeActivation,
   selectActivationObservation,
   validateActivationCase,
@@ -141,6 +142,42 @@ describe("skill activation grading", () => {
         }),
       ),
     ).toEqual([]);
+  });
+
+  test("fails closed when a forbidden skill is observed or evidence is incomplete", () => {
+    const complete = {
+      source: "harness_event" as const,
+      complete: true,
+      primarySkill: "ticket-to-pr",
+      observedSkills: ["ticket-to-pr"],
+    };
+    expect(
+      forbiddenActivationChecks(["adaptive-goal"], complete)[0]?.passed,
+    ).toBe(true);
+    expect(
+      forbiddenActivationChecks(["adaptive-goal"], {
+        ...complete,
+        observedSkills: ["ticket-to-pr", "adaptive-goal"],
+      })[0]?.passed,
+    ).toBe(false);
+    expect(
+      forbiddenActivationChecks(["adaptive-goal"], undefined)[0]?.passed,
+    ).toBe(false);
+  });
+
+  test("rejects malformed forbidden activation declarations", () => {
+    expect(
+      validateActivationCase(
+        evalCase({ forbidden_skill_activations: ["adaptive-goal", ""] }),
+      ),
+    ).toHaveLength(1);
+    expect(
+      validateActivationCase(
+        evalCase({
+          forbidden_skill_activations: ["adaptive-goal", "adaptive-goal"],
+        }),
+      ),
+    ).toHaveLength(1);
   });
 
   test("does not average measured activation trials with an unknown trial", () => {

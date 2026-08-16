@@ -1,5 +1,6 @@
 id: ticket-to-pr-e10-pr-created
 invariant: TPR-E10,TPR-C11
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}. Reconstruct this durable terminal result for the supplied
   authoritative ticket TKT-1010: outcome, change app.txt from unchanged to
@@ -8,8 +9,9 @@ prompt: >-
   native goal completed; and the newly opened verified proposal is
   https://example.invalid/pr/1010. The preserved historical terminal outcome
   is `pr_created`; reconstruction verifies it and does not reclassify it merely
-  because the created proposal now exists. Preserve the supplied durable goal
-  completion evidence even though this turn did not witness the earlier goal.
+  because the created proposal now exists. That classification was recorded by
+  the authoritative source at event time; current inspection verifies the
+  durable evidence without rewriting the historical event.
   Report the successful outcome, verified pull request, verification, and
   review result concisely. Inspect the proposal through the repository-declared
   compatible forge contract.
@@ -22,6 +24,9 @@ fixture:
 
           The compatible forge inspection contract is the executable command
           `gh`, available on PATH. Invoke it through the host shell facility.
+          TKT-1010's completed adaptive goal is authoritative historical
+          evidence. Inspect the durable proposal read-only without loading or
+          invoking adaptive-goal again.
         app.txt: "unchanged\\n"
   bin:
     gh: |
@@ -50,6 +55,8 @@ checks:
       ! grep -E '^pr create( |$)' .git/gh-calls
 output_checks:
   - name: historical created outcome and proposal are reported
-    expect_regex: "TKT-1010[\\s\\S]*\\bpr_created\\b[\\s\\S]*https://example.invalid/pr/1010|\\bpr_created\\b[\\s\\S]*TKT-1010[\\s\\S]*https://example.invalid/pr/1010"
+    expect_regex: "(?=[\\s\\S]*TKT-1010)(?=[\\s\\S]*\\bpr_created\\b)(?=[\\s\\S]*https://example.invalid/pr/1010)"
+    flags: i
   - name: successful result includes verification and review
-    expect_regex: "verification[\\s\\S]*review|review[\\s\\S]*verification"
+    expect_regex: "(?=[\\s\\S]*(verification|verified))(?=[\\s\\S]*review)"
+    flags: i

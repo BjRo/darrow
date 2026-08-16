@@ -10,7 +10,12 @@ import {
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { buildFixture, destroyFixture, readActivationProbe } from "./fixture";
+import {
+  buildFixture,
+  destroyFixture,
+  filterAdditionalSkillDirs,
+  readActivationProbe,
+} from "./fixture";
 
 const cleanup: string[] = [];
 
@@ -21,6 +26,15 @@ afterEach(async () => {
 });
 
 describe("eval fixture skill mounts", () => {
+  test("omits case-declared unavailable additional skills", () => {
+    expect(
+      filterAdditionalSkillDirs(
+        ["/plugins/ticket-to-pr", "/plugins/adaptive-goal"],
+        ["adaptive-goal"],
+      ),
+    ).toEqual(["/plugins/ticket-to-pr"]);
+  });
+
   test("blocks forge CLIs unless a fixture explicitly supplies a mock", async () => {
     const fixture = await buildFixture({
       fixture: {},
@@ -313,6 +327,8 @@ describe("eval fixture skill mounts", () => {
     await mkdir(capability, { recursive: true });
     await mkdir(join(primaryPlugin, ".claude-plugin"), { recursive: true });
     await mkdir(join(primaryPlugin, ".codex-plugin"), { recursive: true });
+    await mkdir(join(capabilityPlugin, ".claude-plugin"), { recursive: true });
+    await mkdir(join(capabilityPlugin, ".codex-plugin"), { recursive: true });
     await mkdir(join(capabilityPlugin, "bin"), { recursive: true });
     await mkdir(join(capabilityPlugin, "agents"), { recursive: true });
     await writeFile(
@@ -331,6 +347,14 @@ describe("eval fixture skill mounts", () => {
       join(primaryPlugin, ".codex-plugin", "plugin.json"),
       '{"name":"recipe","version":"0.1.0","description":"Recipe","skills":"./skills/"}\n',
     );
+    await writeFile(
+      join(capabilityPlugin, ".claude-plugin", "plugin.json"),
+      '{"name":"goal-loop","version":"0.1.0","description":"Goal loop"}\n',
+    );
+    await writeFile(
+      join(capabilityPlugin, ".codex-plugin", "plugin.json"),
+      '{"name":"goal-loop","version":"0.1.0","description":"Goal loop","skills":"./skills/"}\n',
+    );
     await writeFile(join(capabilityPlugin, "bin", "goal-loop"), "#!/bin/sh\n");
     await writeFile(join(capabilityPlugin, "agents", "worker.md"), "worker\n");
 
@@ -343,20 +367,81 @@ describe("eval fixture skill mounts", () => {
       sourceCodexPlugin: true,
     });
     cleanup.push(fixture);
-    for (const skillRoot of [
-      ".agents/skills",
-      ".git/eval-plugin/skills",
-      ".git/eval-marketplace/plugin/skills",
-    ]) {
-      expect(
-        existsSync(join(fixture, skillRoot, "adaptive-goal", "SKILL.md")),
-      ).toBe(true);
-      expect(
-        existsSync(join(fixture, skillRoot, "..", "bin", "goal-loop")),
-      ).toBe(true);
-    }
     expect(
-      existsSync(join(fixture, ".git", "eval-plugin", "agents", "worker.md")),
+      existsSync(
+        join(fixture, ".agents", "skills", "adaptive-goal", "SKILL.md"),
+      ),
+    ).toBe(true);
+    expect(existsSync(join(fixture, ".agents", "bin", "goal-loop"))).toBe(true);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-plugins",
+          "goal-loop",
+          "skills",
+          "adaptive-goal",
+          "SKILL.md",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-plugins",
+          "goal-loop",
+          "agents",
+          "worker.md",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(fixture, ".git", "eval-plugin", "skills", "adaptive-goal"),
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-marketplace",
+          "plugins",
+          "goal-loop",
+          "agents",
+          "worker.md",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-marketplace",
+          "plugins",
+          "goal-loop",
+          "skills",
+          "adaptive-goal",
+          "SKILL.md",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-marketplace",
+          "plugins",
+          "goal-loop",
+          "bin",
+          "goal-loop",
+        ),
+      ),
     ).toBe(true);
     expect(
       existsSync(
@@ -365,11 +450,37 @@ describe("eval fixture skill mounts", () => {
           ".git",
           "eval-marketplace",
           "plugin",
-          "agents",
-          "worker.md",
+          "skills",
+          "adaptive-goal",
         ),
       ),
-    ).toBe(true);
+    ).toBe(false);
+    const marketplace = JSON.parse(
+      await readFile(
+        join(
+          fixture,
+          ".git",
+          "eval-marketplace",
+          ".claude-plugin",
+          "marketplace.json",
+        ),
+        "utf8",
+      ),
+    ) as {
+      plugins: Array<{ name: string; source: string; description: string }>;
+    };
+    expect(marketplace.plugins).toEqual([
+      {
+        name: "recipe",
+        source: "./plugin",
+        description: "Filtered source plugin for evaluation",
+      },
+      {
+        name: "goal-loop",
+        source: "./plugins/goal-loop",
+        description: "Filtered source plugin for evaluation",
+      },
+    ]);
     await destroyFixture(fixture);
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });

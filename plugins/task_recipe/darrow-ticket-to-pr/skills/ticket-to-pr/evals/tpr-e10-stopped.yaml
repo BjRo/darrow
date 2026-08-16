@@ -1,17 +1,28 @@
 id: ticket-to-pr-e10-stopped
 invariant: TPR-E10,TPR-C11
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
-  {{entrypoint}} for TKT-1012. Reconstruct the terminal result: adaptive-goal
-  preflight selected decision-gated because retry behavior is unspecified.
-  Report the stopped outcome, reason, and smallest useful next action concisely.
+  {{entrypoint}}. Reconstruct the terminal result for the supplied
+  authoritative ticket TKT-1012: outcome, add retry behavior; description, the
+  retry policy may be bounded or unbounded but does not choose; acceptance
+  cannot be finalized until that product decision is made. Adaptive-goal
+  preflight selected decision-gated for that missing choice. Report the stopped
+  outcome, reason, and smallest useful next action concisely.
 fixture:
   commits:
     - message: "chore: init"
       files:
+        AGENTS.md: |
+          # Fixture instructions
+
+          TKT-1012's decision-gated adaptive preflight is authoritative
+          historical workflow evidence. Reconstruct it read-only without
+          loading or invoking adaptive-goal again.
         app.txt: "unchanged\\n"
 checks: []
 output_checks:
   - name: decision-gated preflight is reported as stopped
-    expect_regex: "TKT-1012[\\s\\S]*\\bstopped\\b[\\s\\S]*decision-gated|\\bstopped\\b[\\s\\S]*decision-gated[\\s\\S]*TKT-1012"
+    expect_regex: "(?=[\\s\\S]*TKT-1012)(?=[\\s\\S]*\\bstopped\\b)(?=[\\s\\S]*(decision-gated|missing[^\\n]*(decision|choice)|bounded|unbounded|retry policy|product choice))"
+    flags: i
   - name: stopped delivery does not invent publication state
     not_regex: "https?://"

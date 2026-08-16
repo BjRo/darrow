@@ -1,10 +1,19 @@
 id: ticket-to-pr-e2-authoritative-intake
 invariant: TPR-E2,TPR-C2
 prompt: >-
-  {{entrypoint}} for TKT-201. Resolve the one
-  stable reference through the repository's compatible read-only ticket
-  capability. Continue through intake, but stop honestly if adaptive-goal is
-  unavailable.
+  {{entrypoint}} for TKT-201. Before any other workflow action, execute the
+  repository-declared read contract exactly once as `ticket-reader get
+  TKT-201`; do not infer ticket content from this prompt. Its returned JSON is
+  the only authoritative content. After successful intake, invoke adaptive-goal and
+  let its preflight classify the unresolved widget-format decision; the recipe
+  parent must not classify readiness itself. Pass the returned content into
+  that preflight; neither parent nor child may retrieve TKT-201 a second time.
+  Even when preflight returns `decision-gated`, copy its complete v4 launch
+  record verbatim into the terminal response. If no record returns, report
+  `blocked` instead of claiming the adaptive stop succeeded.
+  After the returned block, the recipe parent must state the exact terminal
+  lines `Ticket: TKT-201` and `Outcome: stopped`, then the smallest missing
+  decision.
 fixture:
   commits:
     - message: "chore: init"
@@ -12,21 +21,49 @@ fixture:
         AGENTS.md: |
           # Fixture instructions
 
+          Adaptive delivery must use one host-observed native-subagent goal
+          boundary. The goal owner works in this checkout and must not
+          delegate to another checkout.
+
           The compatible read-only ticket contract is `ticket-reader get ID`.
+          For this request, the required first workflow action is exactly
+          `ticket-reader get TKT-201`, invoked once. Do not infer or substitute
+          ticket content before that successful call.
+          After it returns authoritative content, invoke adaptive-goal before
+          any readiness classification or mutation. Preserve its returned v4
+          launch record; do not replace its preflight in the recipe parent.
+          Pass the returned JSON as the child's authoritative intake and do not
+          invoke `ticket-reader` again in the adaptive preflight.
+          A decision-gated return still includes a complete v4 block; preserve
+          it verbatim in the final recipe response. Missing v4 evidence is
+          `blocked`, not a successful `stopped` handoff.
+          After a valid decision-gated block, the recipe parent must include
+          the exact lines `Ticket: TKT-201` and `Outcome: stopped`; goal stop
+          prose alone is not the recipe's terminal outcome.
         app.txt: "unchanged\n"
   bin:
     ticket-reader: |
       #!/usr/bin/env bash
       set -eu
       [ "${1-}" = get ] && [ "${2-}" = TKT-201 ]
+      if [ -e .git/ticket-read-complete ]; then
+        printf '%s\n' 'ticket-reader: TKT-201 was already resolved' >&2
+        exit 2
+      fi
+      : >.git/ticket-read-complete
       printf '%s\n' "$*" >>.git/ticket-read-calls
-      printf '%s\n' '{"id":"TKT-201","outcome":"Document widget","acceptance":["README contains Widget ready"]}'
+      printf '%s\n' '{"id":"TKT-201","outcome":"Document widget","description":"The widget format may be Markdown or HTML, but the ticket does not choose between them.","acceptance":["Acceptance cannot be finalized until the widget format is chosen."]}'
 checks:
   - name: stable reference is resolved exactly once without mutation
     run: >-
       test "$(wc -l <.git/ticket-read-calls | tr -d ' ')" -eq 1 &&
       git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: resolved intake reaches the adaptive-goal boundary
-    expect_regex: "TKT-201[\\s\\S]*\\bblocked\\b[\\s\\S]*(adaptive|native)[ -]?goal"
+  - name: resolved intake identifies the authoritative ticket
+    expect_regex: "\\bTKT-201\\b"
+  - name: resolved intake reports the adaptive decision stop
+    expect_regex: "\\bstopped\\b"
+    flags: i
+  - name: resolved intake names the smallest missing decision
+    expect_regex: "Markdown or HTML|widget format"
     flags: i

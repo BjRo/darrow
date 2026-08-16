@@ -1,5 +1,6 @@
 id: ticket-to-pr-e2-missing
 invariant: TPR-E2,TPR-C2
+forbidden_skill_activations: [adaptive-goal]
 prompt: >-
   {{entrypoint}}, but no ticket was supplied. Stop clearly with the exact
   missing input and make no repository mutation.

@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type {
   ActivationClass,
+  CheckResult,
   EvalCase,
   SkillActivationObservation,
   TrialActivationResult,
@@ -18,6 +19,17 @@ export function activationTargetSkill(evalCase: EvalCase): string {
 }
 
 export function validateActivationCase(evalCase: EvalCase): string[] {
+  const forbidden = evalCase.forbidden_skill_activations;
+  if (
+    forbidden !== undefined &&
+    (!Array.isArray(forbidden) ||
+      forbidden.some((skill) => typeof skill !== "string" || !skill.trim()) ||
+      new Set(forbidden).size !== forbidden.length)
+  ) {
+    return [
+      `${evalCase.id}: forbidden_skill_activations must contain unique non-empty skill names`,
+    ];
+  }
   if (evalCase.activation === undefined) return [];
   if (!ACTIVATION_CLASSES.includes(evalCase.activation)) {
     return [
@@ -36,6 +48,23 @@ export function validateActivationCase(evalCase: EvalCase): string[] {
     ];
   }
   return [];
+}
+
+export function forbiddenActivationChecks(
+  targets: string[] | undefined,
+  observation: SkillActivationObservation | undefined,
+): CheckResult[] {
+  return (targets ?? []).map((target) => {
+    const complete = observation?.complete === true;
+    const observedSkills = observation?.observedSkills ?? [];
+    return {
+      name: `forbidden skill ${target} is not activated`,
+      passed: complete && !observedSkills.includes(target),
+      detail: complete
+        ? `observed skills (${observation.source}): ${observedSkills.join(", ") || "none"}`
+        : "complete skill-activation evidence is unavailable",
+    };
+  });
 }
 
 export async function validateMountedActivationTarget(
