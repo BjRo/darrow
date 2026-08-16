@@ -1,0 +1,54 @@
+id: goal-review-verification-unavailable
+invariant: AGL-L11,AGL-L12,AGL-S4,AGL-S5,AGL-X6
+prompt: >-
+  /adaptive-goal Continue the existing candidate in release.env. On Codex,
+  invoke the $adaptive-goal skill. Run one comprehensive review, repair its
+  blocker under the existing authority to edit release.env, rerun `bash
+  check.sh`, and request fix-scoped verification. Treat unavailable verification
+  evidence as terminal. Publication is authorized only after a clear review;
+  do not publish or claim completion while the gate is unavailable. Select and
+  apply the policy route.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Repository instructions\nRun `bash check.sh` after release.env edits.\n"
+        release.env: "READY=no\n"
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -E '^READY=(no|yes)$' release.env >/dev/null
+          git_dir=$(git rev-parse --git-dir)
+          printf 'check\t%s\n' "$(git hash-object release.env)" >>"$git_dir/review-events"
+  setup: |
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD" "{{case_dir}}/fixtures" codex
+    git_dir=$(git rev-parse --git-dir)
+    printf '%s\n' release.env >"$git_dir/fixture-review-event-path"
+    printf '%s\n' 0 >"$git_dir/fixture-review-delay-seconds"
+    printf '%s\t%s\t%s\t%s\n' \
+      blocking 'Replace READY=no with READY=yes.' '' '' \
+      unavailable '' '' '' >"$git_dir/fixture-review-sequence"
+checks:
+  - name: repair is attempted before verification becomes unavailable
+    run: grep -Fx 'READY=yes' release.env >/dev/null
+  - name: unavailable sequence uses comprehensive then fix verification
+    run: >-
+      test "$(cut -f3 .git/independent-review-invocations | tr '\n' ' ')" = 'comprehensive verify ' &&
+      test "$(cut -f2 .git/independent-review-invocations | tr '\n' ' ')" = 'blocking unavailable '
+  - name: unavailable verification prevents publication
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: output reports unavailable verification as terminal
+    expect_regex: "unavailable|evidence gap"
+    flags: i
+  - name: output does not claim completion or publication
+    not_regex: '(^|[.!?]\s+)(the )?(goal|task|work|change|implementation) (is )?(complete|completed|done|finished)\b|(committed|pushed|opened).{0,80}(success|complete|https?://)'
+transcript_checks:
+  - name: unavailable verification settles the native goal as blocked
+    after_regex: "Repair verification outcome: unavailable"
+    expect_regex: '"method":"thread/goal/updated"[^\n]*"status":"blocked"'
+    not_regex: '"method":"thread/goal/updated"[^\n]*"status":"complete"'
+  - name: unavailable verification performs no hidden repository work
+    after_regex: "Repair verification outcome: unavailable"
+    not_regex: '"method":"item/(started|completed)"[^\n]*"type":"[^"]*(command|fileChange|mcpToolCall|dynamicToolCall)[^"]*"'
+    flags: i

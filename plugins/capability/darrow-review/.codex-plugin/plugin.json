@@ -1,7 +1,7 @@
 {
   "name": "darrow-review",
-  "version": "0.1.0",
-  "description": "Read-only code review across repository standards and originating specifications",
+  "version": "0.2.0",
+  "description": "Read-only comprehensive code review and fix-scoped repair verification",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,14 +9,15 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Code Review",
-    "shortDescription": "Review a pinned change on two axes",
-    "longDescription": "Review an exact branch, pull request, fixed-point, or working-tree change independently for repository standards and fulfillment of its originating specification.",
+    "shortDescription": "Review changes and verify repairs",
+    "longDescription": "Comprehensively review an exact change for repository standards and specification fulfillment, then fix-verify attempted findings and direct repair-caused regressions against the closed original finding set.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read"],
     "defaultPrompt": [
       "Review my uncommitted changes.",
-      "Review this branch against main and its spec."
+      "Review this branch against main and its spec.",
+      "Fix-verify these attempted review findings."
     ]
   }
 }

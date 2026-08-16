@@ -8,14 +8,153 @@ RESULT_TOOL=$SCRIPT_DIR/review-result
 
 usage() {
   printf 'Usage: %s render RESULT_FILE\n' "$PROGRAM" >&2
+  printf '       %s render-verification VERIFICATION_FILE\n' "$PROGRAM" >&2
 }
 
-[ "${1:-}" = "render" ] && [ "$#" -eq 2 ] || { usage; exit 2; }
+command=${1:-}
+[ "$#" -eq 2 ] || { usage; exit 2; }
 input=$2
 [ -f "$input" ] && [ -r "$input" ] || {
   printf '%s: result is not a readable regular file: %s\n' "$PROGRAM" "$input" >&2
   exit 2
 }
+
+if [ "$command" = "render-verification" ]; then
+  bash "$RESULT_TOOL" validate-verification "$input" >/dev/null || exit $?
+  awk -F '\t' '
+  function esc(value) {
+    gsub(/&/, "\\&amp;", value)
+    gsub(/</, "\\&lt;", value)
+    gsub(/>/, "\\&gt;", value)
+    gsub(/#/, "\\&#35;", value)
+    gsub(/`/, "\\&#96;", value)
+    gsub(/\*/, "\\&#42;", value)
+    gsub(/_/, "\\&#95;", value)
+    gsub(/\[/, "\\&#91;", value)
+    gsub(/\]/, "\\&#93;", value)
+    gsub(/[|]/, "\\&#124;", value)
+    return value
+  }
+  function esc_code(value) {
+    gsub(/&/, "\\&amp;", value)
+    gsub(/</, "\\&lt;", value)
+    gsub(/>/, "\\&gt;", value)
+    return value
+  }
+  function status(value) {
+    return toupper(value)
+  }
+  function code_value(label, value) {
+    printf "- **%s:** <code>%s</code>\n", label, esc_code(value)
+  }
+  {
+    kind = $1
+    if (kind == "original_target") original_target = $2
+    else if (kind == "prior_target") prior_target = $2
+    else if (kind == "current_target") current_target = $2
+    else if (kind == "history_target") history[++history_count] = $2
+    else if (kind == "previous_verification") {
+      previous_checksum = $2
+      previous_path = $3
+    }
+    else if (kind == "original_finding") {
+      key = $2
+      original_key[++original_count] = key
+      original_axis[key] = $3
+      original_order[key] = $4
+      original_severity[key] = $5
+      original_disposition[key] = $6
+      original_location[key] = $7
+      original_source[key] = $8
+      original_evidence[key] = $9
+    } else if (kind == "attempt") {
+      key = $2
+      attempted[++attempt_count] = key
+      attempt_status[key] = $3
+      attempt_progress[key] = $4
+      attempt_evidence[key] = $5
+      if ($3 == "resolved") resolved++
+      else if ($3 == "unresolved") unresolved++
+      else blocked++
+    } else if (kind == "regression") {
+      regression_key[++regression_count] = $2
+      regression_cause[regression_count] = $3
+      regression_order[regression_count] = $4
+      regression_axis[regression_count] = $5
+      regression_severity[regression_count] = $6
+      regression_status[regression_count] = $7
+      regression_progress[regression_count] = $8
+      regression_location[regression_count] = $9
+      regression_source[regression_count] = $10
+      regression_evidence[regression_count] = $11
+    } else if (kind == "check") {
+      check_command[++check_count] = $2
+      check_applicability[check_count] = $3
+      check_status[check_count] = $4
+      check_evidence[check_count] = $5
+    } else if (kind == "evidence_gap") gaps[++gap_count] = $2
+    else if (kind == "outcome") outcome = $2
+    else if (kind == "next_action") next_action = $2
+  }
+  END {
+    printf "# Repair verification — %s\n\n", status(outcome)
+    printf "**Outcome:** %s · Original findings: %d · Resolved: %d · Unresolved: %d · Blocked: %d · Regressions: %d\n\n", esc(outcome), original_count, resolved, unresolved, blocked, regression_count
+
+    print "## Attempted findings"
+    if (attempt_count == 0) print "No attempted findings were verifiable."
+    for (i = 1; i <= attempt_count; i++) {
+      key = attempted[i]
+      printf "\n### %d. %s — %s / %s (%s, %s)\n", i, esc_code(key), status(attempt_status[key]), status(attempt_progress[key]), status(original_severity[key]), esc(original_disposition[key])
+      code_value("Location", original_location[key])
+      code_value("Source", original_source[key])
+      printf "- **Original evidence:** %s\n", esc(original_evidence[key])
+      printf "- **Current evidence:** %s\n", esc(attempt_evidence[key])
+    }
+
+    print "\n## Repair-caused regressions"
+    if (regression_count == 0) print "No repair-caused regressions."
+    for (i = 1; i <= regression_count; i++) {
+      printf "\n### %d. %s — %s / %s (%s)\n", i, esc_code(regression_key[i]), status(regression_status[i]), status(regression_progress[i]), status(regression_severity[i])
+      code_value("Axis", regression_axis[i])
+      code_value("Caused by", regression_cause[i])
+      code_value("Location", regression_location[i])
+      code_value("Source", regression_source[i])
+      printf "- **Evidence:** %s\n", esc(regression_evidence[i])
+    }
+
+    print "\n## Checks"
+    for (i = 1; i <= check_count; i++)
+      printf "- **%s** (%s) — <code>%s</code>: %s\n", status(check_status[i]), esc_code(check_applicability[i]), esc_code(check_command[i]), esc(check_evidence[i])
+
+    print "\n## Evidence gaps"
+    if (gap_count == 0) print "No evidence gaps."
+    for (i = 1; i <= gap_count; i++) print "- " esc(gaps[i])
+
+    print "\n## Target binding"
+    code_value("Original target", original_target)
+    code_value("Prior target", prior_target)
+    code_value("Current target", current_target)
+    code_value("Previous verification checksum", previous_checksum)
+    code_value("Previous verification artifact", previous_path)
+    if (history_count > 0) {
+      print "- **Earlier targets:**"
+      for (i = 1; i <= history_count; i++) print "  - <code>" esc_code(history[i]) "</code>"
+    }
+
+    print "\n## Closed original finding set"
+    for (i = 1; i <= original_count; i++) {
+      key = original_key[i]
+      printf "- <code>%s</code> — %s #%s, %s/%s; <code>%s</code>; source <code>%s</code>; %s\n", esc_code(key), esc(original_axis[key]), esc_code(original_order[key]), esc(original_severity[key]), esc(original_disposition[key]), esc_code(original_location[key]), esc_code(original_source[key]), esc(original_evidence[key])
+    }
+
+    print "\n## Next action"
+    print esc(next_action)
+  }
+  ' "$input"
+  exit 0
+fi
+
+[ "$command" = "render" ] || { usage; exit 2; }
 
 bash "$RESULT_TOOL" validate "$input" >/dev/null || exit $?
 

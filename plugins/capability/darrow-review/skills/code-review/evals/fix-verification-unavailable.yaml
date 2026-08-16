@@ -1,0 +1,67 @@
+id: code-review-fix-verification-unavailable
+invariant: CR-C17,CR-C18,CR-C20,CR-E13
+prompt: >-
+  Fix-verify the uncommitted repair described by `.git/verification-input`.
+  Validate and use its pinned prior scope, closed original finding set,
+  attempted key, and first-verification marker. The caller requires `bash
+  external-check.sh`, but that evidence source is unavailable in this fixture.
+  Report the unavailable verification evidence honestly, return the normal
+  human repair-verification report, and remain read-only.
+fixture:
+  commits:
+    - message: "chore: base"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash external-check.sh` for endpoint changes.
+        endpoint.txt: "https://example.invalid/v2\n"
+        external-check.sh: |
+          #!/usr/bin/env bash
+          printf 'required external verifier is unavailable\n' >&2
+          exit 69
+    - message: "feat: introduce stale endpoint"
+      files:
+        endpoint.txt: "https://example.invalid/v1\n"
+  files:
+    endpoint.txt: "https://example.invalid/v2\n"
+  setup: |
+    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
+    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
+    {
+      printf 'original_target\t%s\n' "$original_target"
+      printf 'prior_target\t%s\n' "$original_target"
+      printf 'prior_manifest\t%s\n' "$prior_manifest"
+      printf 'previous_verification\tnone\tnone\n'
+      printf 'original_finding\tstandards:1:%s\tstandards\t1\thigh\tblocking\tendpoint.txt:1\t%s/AGENTS.md\tendpoint remained on v1\n' "$original_target" "$PWD"
+      printf 'attempted\tstandards:1:%s\n' "$original_target"
+    } >.git/verification-input
+    git status --porcelain --untracked-files=all >.git/status-before
+    git hash-object endpoint.txt >.git/endpoint-before
+    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+checks:
+  - name: unavailable verification remains read only
+    run: >-
+      git hash-object endpoint.txt >.git/endpoint-after &&
+      cmp .git/endpoint-before .git/endpoint-after &&
+      git status --porcelain --untracked-files=all >.git/status-after &&
+      cmp .git/status-before .git/status-after
+  - name: unavailable evidence produces a valid blocked artifact
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      tool=$(sed -n '1p' .git/review-result-tool) &&
+      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" && $3 == "applicable" && $4 == "blocked" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
+      awk -F '\t' '$1 == "evidence_gap" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
+      awk -F '\t' '$1 == "outcome" && $2 == "blocked" { found=1 } END { exit found ? 0 : 1 }' "$record"
+  - name: final response is the complete rendered verification report
+    run: >-
+      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
+      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+output_checks:
+  - name: reports unavailable verification as blocked
+    expect_regex: '^# Repair verification — BLOCKED[\s\S]*Evidence gaps[\s\S]*unavailable'
+  - name: does not claim clear or comprehensive review
+    not_regex: "^# (Repair verification — CLEAR|Code review —)"

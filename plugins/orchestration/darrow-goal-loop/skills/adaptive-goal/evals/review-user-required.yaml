@@ -28,7 +28,7 @@ checks:
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
   - name: user-required review clears the final changed target
     run: >-
-      awk -F '\t' 'NF == 2 && $2 == "clear" { ok=1 } END { exit ok ? 0 : 1 }'
+      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 } END { exit ok ? 0 : 1 }'
       .git/independent-review-invocations
   - name: user-required review stays local
     run: test "$(git rev-list --count HEAD)" -eq 1

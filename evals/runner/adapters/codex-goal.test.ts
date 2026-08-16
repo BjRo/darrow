@@ -21,7 +21,7 @@ import {
   isReportableGoalStatus,
   isFinalAgentMessage,
   parseCodexGoalHandoff,
-  parseExplicitReviewRoundBudget,
+  parseExplicitReviewRoundLimit,
   parseExplicitUserRoute,
   parsePreparedGoalDimensions,
   withMaterializedGoalLifecycle,
@@ -97,7 +97,7 @@ function handoffValue() {
     independentReview: {
       selection: "selected" as "selected" | "omitted",
       reason: "high-risk work requires independent final-tree review",
-      roundBudget: 3,
+      roundLimit: undefined as number | undefined,
     },
     selectedRoute: {
       harness: "codex",
@@ -177,7 +177,7 @@ after`);
       "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
       "utf8",
     );
-    expect(parentSkill).toContain('"roundBudget"');
+    expect(parentSkill).toContain("roundLimit");
     expect(parentSkill).toContain("file-backed objective");
     const canonicalGuidance = extractIntentRoutingGuidance(parentSkill);
     for (const gate of [
@@ -206,9 +206,10 @@ after`);
     );
     expect(canonicalGuidance).not.toContain("darrow-review-result-v1");
     expect(canonicalGuidance).toContain("Independent review: selected —");
-    expect(canonicalGuidance).toMatch(/at most three independent-review/);
-    expect(canonicalGuidance).toMatch(/fresh comprehensive review/i);
-    expect(canonicalGuidance).toMatch(/third review is terminal/i);
+    expect(canonicalGuidance).toMatch(/no default numeric review limit/i);
+    expect(canonicalGuidance).toMatch(/one comprehensive review/i);
+    expect(canonicalGuidance).toMatch(/fix-verify/i);
+    expect(canonicalGuidance).toMatch(/materially progresses/i);
   });
 
   test("recognizes only tab-separated ablation markers", () => {
@@ -220,66 +221,67 @@ after`);
     );
   });
 
-  test("extracts one explicit review-round budget", () => {
+  test("extracts one explicit review-round limit", () => {
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "Explicitly set the independent-review budget to four review rounds.",
       ),
     ).toBe(4);
-    expect(parseExplicitReviewRoundBudget("review_round_budget\t7")).toBe(7);
+    expect(parseExplicitReviewRoundLimit("review_round_budget\t7")).toBe(7);
+    expect(parseExplicitReviewRoundLimit("review_round_limit\t2")).toBe(2);
     expect(
-      parseExplicitReviewRoundBudget("Use the default independent review."),
+      parseExplicitReviewRoundLimit("Use progress-bounded independent review."),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "Do not use a review-round budget of four.",
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "I won't use a review-round budget of four.",
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "I won’t use a review-round budget of four.",
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "I am not going to use a review-round budget of four.",
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         'The phrase "review-round budget: four" is only an example.',
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "The phrase 'review-round budget: four' is only an example.",
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "Review-round budget: four is not authorized; use the default.",
       ),
     ).toBeUndefined();
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "Do not publish, but explicitly set the review budget to four.",
       ),
     ).toBe(4);
     expect(
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "Set the review budget to four; owner's note agrees.",
       ),
     ).toBe(4);
     expect(() =>
-      parseExplicitReviewRoundBudget(
+      parseExplicitReviewRoundLimit(
         "Set the review-round budget to 4. Choose a review budget of 5.",
       ),
-    ).toThrow("conflicting explicit review-round budgets");
+    ).toThrow("conflicting explicit review-round limits");
   });
 
   test("builds incremental one-response classifier prompts", () => {
@@ -303,7 +305,7 @@ after`);
     expect(withRisk).toContain("Select the workflow and proportional risk");
     expect(withRisk).toContain("verification_gate");
     expect(withRisk).toContain("feedback checks and final-tree checks");
-    expect(withRisk).toContain("independentReview.roundBudget");
+    expect(withRisk).toContain("independentReview.roundLimit");
     expect(withRisk).not.toContain("technical reference");
   });
 
@@ -561,33 +563,40 @@ fi
     expect(
       parseCodexGoalHandoff(handoff, catalog, dimensions).goalContract,
     ).toMatch(
-      /Independent review: selected —[\s\S]*at most three review rounds[\s\S]*fresh comprehensive review[\s\S]*first rework[\s\S]*later rework[\s\S]*review round 3 is terminal/,
+      /Independent review: selected —[\s\S]*one comprehensive review[\s\S]*first rework[\s\S]*fix verification[\s\S]*material progress[\s\S]*no implicit numeric review limit/,
     );
+    const nullLimitHandoff = JSON.stringify({
+      ...value,
+      independentReview: {
+        ...value.independentReview,
+        roundLimit: null,
+      },
+    });
+    expect(
+      parseCodexGoalHandoff(nullLimitHandoff, catalog, dimensions)
+        .independentReview.roundLimit,
+    ).toBeUndefined();
 
-    const explicitBudget = handoffValue();
-    explicitBudget.independentReview.roundBudget = 4;
+    const explicitLimit = handoffValue();
+    explicitLimit.independentReview.roundLimit = 4;
     expect(
       parseCodexGoalHandoff(
-        JSON.stringify(explicitBudget),
+        JSON.stringify(explicitLimit),
         catalog,
         dimensions,
-        { reviewRoundBudget: 4 },
+        { reviewRoundLimit: 4 },
       ).goalContract,
     ).toMatch(
-      /originating explicit budget of at most 4 review rounds[\s\S]*review round 4 is terminal/,
+      /originating explicit hard cap of at most 4 independent-review capability invocations/,
     );
     expect(() =>
-      parseCodexGoalHandoff(
-        JSON.stringify(explicitBudget),
-        catalog,
-        dimensions,
-      ),
-    ).toThrow("independent-review round budget must be 3");
+      parseCodexGoalHandoff(JSON.stringify(explicitLimit), catalog, dimensions),
+    ).toThrow("independent-review roundLimit must be omitted");
     expect(() =>
       parseCodexGoalHandoff(handoff, catalog, dimensions, {
-        reviewRoundBudget: 4,
+        reviewRoundLimit: 4,
       }),
-    ).toThrow("independent-review round budget must be 4");
+    ).toThrow("independent-review roundLimit must be 4");
     expect(
       Buffer.byteLength(
         parseCodexGoalHandoff(
@@ -646,7 +655,6 @@ fi
           independentReview: {
             selection: "omitted",
             reason: "complete deterministic oracle",
-            roundBudget: 0,
           },
         }),
         catalog,
@@ -660,7 +668,6 @@ fi
           independentReview: {
             selection: "selected",
             reason: "   ",
-            roundBudget: 3,
           },
         }),
         catalog,
@@ -681,7 +688,6 @@ fi
             independentReview: {
               selection: "selected",
               reason,
-              roundBudget: 3,
             },
           }),
           catalog,
@@ -696,7 +702,6 @@ fi
           independentReview: {
             selection: "selected",
             reason: "x".repeat(241),
-            roundBudget: 3,
           },
         }),
         catalog,

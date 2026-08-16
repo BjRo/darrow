@@ -133,6 +133,16 @@ close that descendant after its goal has been fulfilled. Do not prescribe
 planner, executor, verifier, or repair roles, and do not create another Darrow
 runner beneath it.
 
+For a selected review gate, tell the runner to preserve the compiled lifecycle:
+one comprehensive initial review, one all-eligible first rework, then
+exact-target fix verification and blocker/regression-only later rework while
+material progress continues. Each verification receives the previous
+verification artifact and checksum, its carried regression set, the prior
+pinned scope manifest, and a mechanically rendered prior-to-current repair
+delta; caller prose never substitutes for that causal evidence. A non-clear
+terminal outcome or explicit hard cap settles as blocked and performs no
+further repository or publication work.
+
 An accepted spawn request with explicit route values is route-application
 evidence. Confirm the exact route with `--applied-by native-subagent`, record:
 

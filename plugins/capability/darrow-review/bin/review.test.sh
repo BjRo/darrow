@@ -135,6 +135,35 @@ set -e
 check_equal "empty diff exits before review" 3 "$status"
 check_contains "empty diff is explicit" "declared review scope is empty" "$out"
 
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCOPE" prepare --repo "$REPO" --base HEAD --target HEAD --allow-empty 2>&1)
+status=$?
+set -e
+check_equal "empty fix scope requires a prior manifest" 2 "$status"
+check_contains "empty fix scope restriction is explicit" "valid only with --prior-manifest" "$out"
+
+printf 'two\n' >"$REPO/src/value.txt"
+prior_out=$("$SHELL_UNDER_TEST" "$SCOPE" prepare --repo "$REPO" --base HEAD --target WORKTREE)
+prior_manifest=$(manifest_from "$prior_out")
+printf 'one\n' >"$REPO/src/value.txt"
+current_out=$("$SHELL_UNDER_TEST" "$SCOPE" prepare --repo "$REPO" --base HEAD --target WORKTREE --allow-empty --prior-manifest "$prior_manifest")
+current_manifest=$(manifest_from "$current_out")
+check_contains "repair scope permits a restored base" "changed_count${TAB}0" "$current_out"
+repair_delta=$("$SHELL_UNDER_TEST" "$SCOPE" compare --prior-manifest "$prior_manifest" --current-manifest "$current_manifest")
+check_contains "repair delta binds the prior target" "prior_target${TAB}" "$repair_delta"
+check_contains "repair delta binds the current target" "current_target${TAB}" "$repair_delta"
+check_contains "repair delta shows the removed repair packet" "-+two" "$repair_delta"
+
+printf 'base-two\n' >"$REPO/src/value.txt"
+git -C "$REPO" add src/value.txt
+git -C "$REPO" commit -qm "chore: establish another base"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCOPE" prepare --repo "$REPO" --base HEAD --target WORKTREE --allow-empty --prior-manifest "$prior_manifest" 2>&1)
+status=$?
+set -e
+check_equal "repair scope rejects a changed effective base" 2 "$status"
+check_contains "repair base mismatch is explicit" "does not share the current effective base" "$out"
+
 echo "merge-base branch scope"
 fresh_repo
 root_commit=$(git -C "$REPO" rev-parse HEAD)
@@ -312,6 +341,160 @@ status=$?
 set -e
 check_equal "rejects untraceable blocking Spec finding" 4 "$status"
 check_contains "requires an originating requirement" "must cite an originating requirement" "$out"
+
+echo "repair verification result validation"
+verification=$REPO/.git/verification.tsv
+original_target="WORKTREE@base+original"
+prior_target=$original_target
+current_target="WORKTREE@base+repair-one"
+standards_key="standards:1:$original_target"
+spec_key="spec:2:$original_target"
+regression_key="regression:1:$standards_key"
+
+fix_axis=$REPO/.git/fix-axis.tsv
+{
+  printf 'format\tdarrow-review-fix-axis-v1\n'
+  printf 'axis\tstandards\n'
+  printf 'original\t%s\n' "$standards_key"
+  printf 'prior_regression\t%s\t%s\n' "$regression_key" "$standards_key"
+  printf 'attempt\t%s\tresolved\tresolved\tOriginal blocker remains fixed\n' "$standards_key"
+  printf 'regression_attempt\t%s\tresolved\tresolved\tRegression repair is present\n' "$regression_key"
+} >"$fix_axis"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-fix-axis standards "$fix_axis")
+check_contains "accepts a structured fix-axis result" "valid: darrow-review-fix-axis-v1" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "regression_attempt" { $2="regression:99:unknown" } { print }' "$fix_axis" >"$fix_axis.unknown"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-fix-axis standards "$fix_axis.unknown" 2>&1)
+status=$?
+set -e
+check_equal "rejects an unknown carried regression" 4 "$status"
+check_contains "reports unknown carried regression" "regression_attempt references an unknown prior regression" "$out"
+
+awk -F '\t' '$1 != "regression_attempt"' "$fix_axis" >"$fix_axis.missing-regression"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-fix-axis standards "$fix_axis.missing-regression" 2>&1)
+status=$?
+set -e
+check_equal "rejects an omitted carried regression state" 4 "$status"
+check_contains "requires every carried regression state" "prior regression is missing its fix-axis attempt" "$out"
+
+{
+  printf 'format\tdarrow-review-verification-v1\n'
+  printf 'original_target\t%s\n' "$original_target"
+  printf 'prior_target\t%s\n' "$prior_target"
+  printf 'current_target\t%s\n' "$current_target"
+  printf 'previous_verification\tnone\tnone\n'
+  printf 'original_finding\t%s\tstandards\t1\thigh\tblocking\tsrc/value.txt:1\t%s/AGENTS.md\tOriginal standards evidence\n' "$standards_key" "$REPO"
+  printf 'original_finding\t%s\tspec\t2\tlow\tadvisory\tsrc/value.txt:2\tuser objective\tOriginal advisory evidence\n' "$spec_key"
+  printf 'attempt\t%s\tresolved\tresolved\tThe violation is absent from the repair\n' "$standards_key"
+  printf 'attempt\t%s\tunresolved\tunchanged\tThe advisory remains\n' "$spec_key"
+  printf 'regression\t%s\t%s\t1\tstandards\thigh\tresolved\tresolved\tsrc/value.txt:3\t%s/AGENTS.md\tThe repair-caused regression is fixed\n' "$regression_key" "$standards_key" "$REPO"
+  printf 'check\tbash test.sh\tapplicable\tpass\tAll tests passed\n'
+  printf 'outcome\tclear\n'
+  printf 'next_action\treturn control to enclosing goal\n'
+} >"$verification"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification")
+check_contains "accepts a complete clear verification" "valid: darrow-review-verification-v1" "$out"
+
+out=$("$SHELL_UNDER_TEST" "$REPORT" render-verification "$verification")
+check_contains "renders a verification outcome heading" "# Repair verification — CLEAR" "$out"
+check_contains "renders stable finding status" "$standards_key" "$out"
+check_contains "renders repair-caused regression provenance" "$regression_key" "$out"
+check_contains "renders repair-caused regression axis" "**Axis:** <code>standards</code>" "$out"
+check_contains "renders verification target binding" "## Target binding" "$out"
+check_not_contains "verification Markdown omits raw TSV" "format${TAB}darrow-review-verification-v1" "$out"
+
+awk -F '\t' -v repeated="$prior_target" 'BEGIN { OFS="\t" } $1 == "current_target" { $2=repeated } $1 == "outcome" { $2="no_progress" } { print }' "$verification" >"$verification.oscillation"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.oscillation")
+check_contains "accepts oscillation as no progress" "valid: darrow-review-verification-v1" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "attempt" && $2 ~ /^standards:/ { $3="unresolved"; $4="progressing"; $5="Failure narrowed to one branch" } $1 == "regression" { next } $1 == "outcome" { $2="continue" } { print }' "$verification" >"$verification.progress"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.progress")
+check_contains "accepts materially progressing blocker" "valid: darrow-review-verification-v1" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "attempt" && $2 ~ /^standards:/ { $3="unresolved"; $4="unchanged"; $5="Same failure evidence" } $1 == "regression" { next } $1 == "outcome" { $2="no_progress" } { print }' "$verification" >"$verification.unchanged"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.unchanged")
+check_contains "accepts unchanged blocker as no progress" "valid: darrow-review-verification-v1" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "attempt" && $2 ~ /^standards:/ { $3="blocked"; $4="unavailable"; $5="Required evidence unavailable" } $1 == "regression" { next } $1 == "outcome" { $2="blocked" } { print }' "$verification" >"$verification.blocked"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.blocked")
+check_contains "accepts unavailable evidence as blocked" "valid: darrow-review-verification-v1" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "attempt" && $2 ~ /^spec:/ { $2="spec:99:WORKTREE@base+original" } { print }' "$verification" >"$verification.unknown"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.unknown" 2>&1)
+status=$?
+set -e
+check_equal "rejects attempt outside the closed finding set" 4 "$status"
+check_contains "reports unknown stable finding membership" "attempt references an unknown original finding" "$out"
+
+awk -F '\t' '1; $1 == "attempt" && $2 ~ /^standards:/' "$verification" >"$verification.duplicate"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.duplicate" 2>&1)
+status=$?
+set -e
+check_equal "rejects duplicate attempted finding IDs" 4 "$status"
+check_contains "reports duplicate attempted finding IDs" "duplicate attempt finding key" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "regression" { $3="standards:99:WORKTREE@base+original" } { print }' "$verification" >"$verification.bad-cause"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.bad-cause" 2>&1)
+status=$?
+set -e
+check_equal "rejects regression without a causal original finding" 4 "$status"
+check_contains "reports unknown regression cause" "regression caused_by references an unknown original finding" "$out"
+
+awk -F '\t' -v cause="$spec_key" 'BEGIN { OFS="\t" } $1 == "attempt" && $2 == cause { next } $1 == "regression" { $2="regression:1:" cause; $3=cause; $5="spec" } { print }' "$verification" >"$verification.unattempted-cause"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.unattempted-cause" 2>&1)
+status=$?
+set -e
+check_equal "rejects regression tied to an unattempted original finding" 4 "$status"
+check_contains "requires an attempted regression cause" "regression caused_by references an unattempted original finding" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "attempt" && $2 ~ /^standards:/ { $3="unresolved"; $4="progressing"; $5="Failure narrowed" } $1 == "regression" { next } $1 == "check" { $4="fail"; $5="The repair broke a deterministic check" } $1 == "outcome" { $2="continue" } { print }' "$verification" >"$verification.unscoped-check"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.unscoped-check" 2>&1)
+status=$?
+set -e
+check_equal "rejects a failed check without a scoped regression" 4 "$status"
+check_contains "requires regression evidence for a failed check" "failing deterministic check requires an unresolved or blocked repair-caused regression" "$out"
+
+previous_hash=$(git -C "$REPO" hash-object "$verification")
+next_verification=$REPO/.git/verification-next.tsv
+awk -F '\t' -v path="$verification" -v hash="$previous_hash" -v prior="$current_target" -v history="$prior_target" 'BEGIN { OFS="\t" }
+  $1 == "prior_target" { $2=prior }
+  $1 == "current_target" { $2="WORKTREE@base+repair-two"; print; print "history_target", history; next }
+  $1 == "previous_verification" { $2=hash; $3=path }
+  { print }
+' "$verification" >"$next_verification"
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$next_verification")
+check_contains "accepts a checksum-bound later regression verification" "valid: darrow-review-verification-v1" "$out"
+
+awk -F '\t' '$1 != "history_target"' "$next_verification" >"$next_verification.no-history"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$next_verification.no-history" 2>&1)
+status=$?
+set -e
+check_equal "rejects dropped repair target history" 4 "$status"
+check_contains "preserves repair target history" "prior repair target is missing from target history" "$out"
+
+awk -F '\t' '$1 != "regression"' "$next_verification" >"$next_verification.dropped"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$next_verification.dropped" 2>&1)
+status=$?
+set -e
+check_equal "rejects a dropped carried regression" 4 "$status"
+check_contains "preserves carried regression identity" "prior regression is missing from current verification" "$out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "outcome" { $2="continue" } { print }' "$verification" >"$verification.dishonest"
+set +e
+out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.dishonest" 2>&1)
+status=$?
+set -e
+check_equal "rejects a dishonest verification outcome" 4 "$status"
+check_contains "states the mechanically derived verification outcome" "outcome must be clear" "$out"
 
 if [ "$FAILURES" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILURES"

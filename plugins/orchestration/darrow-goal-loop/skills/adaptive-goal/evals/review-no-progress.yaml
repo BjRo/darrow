@@ -1,0 +1,57 @@
+id: goal-review-no-progress
+invariant: AGL-L11,AGL-L12,AGL-S5
+prompt: >-
+  /adaptive-goal Continue the existing candidate in value.env. On Codex, invoke
+  the $adaptive-goal skill. Run one comprehensive review, repair eligible
+  findings under the existing authority to edit value.env, rerun `bash
+  check.sh`, and then use fix-scoped verification. Stop safely if verification
+  reports unchanged failure evidence or no progress. Never publish. Select and
+  apply the policy route.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Repository instructions\nRun `bash check.sh` after value.env edits.\n"
+        value.env: "VALUE=bad\n"
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test -s value.env
+          git_dir=$(git rev-parse --git-dir)
+          printf 'check\t%s\n' "$(git hash-object value.env)" >>"$git_dir/review-events"
+  setup: |
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD" "{{case_dir}}/fixtures" codex
+    git_dir=$(git rev-parse --git-dir)
+    printf '%s\n' value.env >"$git_dir/fixture-review-event-path"
+    printf '%s\n' 0 >"$git_dir/fixture-review-delay-seconds"
+    printf '%s\t%s\t%s\t%s\n' \
+      blocking 'Replace VALUE=bad with VALUE=partial.' '' '' \
+      no_progress 'The same blocking failure evidence remains unchanged after repair.' '' '' \
+      >"$git_dir/fixture-review-sequence"
+checks:
+  - name: unchanged evidence stops after targeted verification
+    run: >-
+      grep -Fx 'VALUE=partial' value.env >/dev/null &&
+      test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 2 &&
+      test "$(cut -f2 .git/independent-review-invocations | sed -n '2p')" = no_progress &&
+      test "$(cut -f3 .git/independent-review-invocations | sed -n '2p')" = verify
+  - name: no-progress stop performs no later repository work
+    run: test "$(tail -n 1 .git/review-events | cut -f1)" = review
+output_checks:
+  - name: output identifies no progress
+    expect_regex: "no[ _-]?progress"
+    flags: i
+  - name: output reports the unsatisfied stop
+    expect_regex: "stop|block|unsatisfied|incomplete"
+    flags: i
+  - name: no-progress does not claim completion
+    not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|change|implementation) (is )?(complete|completed|done|finished)\\b"
+transcript_checks:
+  - name: no-progress settles the native goal as blocked
+    after_regex: "Repair verification outcome: no_progress"
+    expect_regex: '"method":"thread/goal/updated"[^\n]*"status":"blocked"'
+    not_regex: '"method":"thread/goal/updated"[^\n]*"status":"complete"'
+  - name: no-progress performs no hidden repository work
+    after_regex: "Repair verification outcome: no_progress"
+    not_regex: '"method":"item/(started|completed)"[^\n]*"type":"[^"]*(command|fileChange|mcpToolCall|dynamicToolCall)[^"]*"'
+    flags: i

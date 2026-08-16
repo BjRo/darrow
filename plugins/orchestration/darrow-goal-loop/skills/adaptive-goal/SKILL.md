@@ -193,43 +193,53 @@ Target preparation starts the review boundary. Finish only that capability
 invocation and await its ordinary response before any other repository work;
 do no repository work outside the capability invocation while it is pending.
 Interpret the capability's ordinary response semantically. No blocking
-findings returns control without adding authority. Blocking findings prevent
-completion and every not-yet-performed publication effect; repair only under
-existing authority, rerun invalidated checks, and independently review the
-changed target again, or stop and report the findings. An unavailable or
-inconclusive review stops and reports the evidence gap. Any content-changing
-edit invalidates the earlier review. Completion or publication requires review
-of the exact final content with no blocking findings.
+findings in the initial comprehensive review satisfy the gate for that exact
+content without adding authority. Otherwise that one comprehensive review
+establishes the closed finding set for all rework and verification.
 
-Every review invocation is a fresh comprehensive review of the exact current
-change. In particular, the first and second reviews never narrow their scope to
-findings from an earlier round. Rework scope may taper below; review scope does
-not.
+First rework attempts every eligible finding together. Eligibility requires
+existing repair authority, clear originating scope, low risk, no expansion of
+requested behavior, and no material expansion of verification. Attempt every
+eligible blocker and advisory. Record an ineligible blocker as blocked; retain
+an ineligible advisory only as a non-gating residual risk.
 
-Use at most three independent-review invocations and two rework phases unless
-the originating goal explicitly supplies a larger review-round budget. After
-the first failed review, the first rework resolves every blocking finding it
-can address under existing authority. It also resolves an advisory only when
-that change is clearly in scope, low risk, does not expand observable behavior,
-and does not materially increase verification. Rerun invalidated checks, then
-review the changed target.
+After each rework, rerun invalidated checks and ask the same matching capability
+to fix-verify only the attempted original findings and direct repair-caused
+regressions. Supply the original findings and target, canonical finding order,
+prior and current targets, prior target history, the prior scope manifest, the
+immediately prior verification artifact with its checksum and carried
+regressions when one exists, and current check evidence. The review capability
+pins the prior-to-current repair delta mechanically against the prior scope's
+same effective base; caller prose does not establish causality. Targeted verification cannot introduce an unrelated finding. It
+reports `clear`, `continue`, `no_progress`, or `blocked`.
 
-After the second failed review, every later permitted rework fixes blocking
-findings only; preserve advisories as residual risks without letting them
-trigger more work. Under the default budget, the third review is terminal. If
-it reports no blocking findings, the exact-content gate is satisfied. If it
-reports blocking findings or is unavailable or inconclusive, stop with the
-unsatisfied gate and findings reported; perform no further repair or
-publication. When the host persists native-goal status, settle that terminal
-review stop as `blocked` before the goal owner returns. If the host requires a
-repeated-blocker audit before accepting `blocked`, do not count review
-invocations as goal turns. Any required automatic continuation is
-status-settlement only: preserve the same unsatisfied review gate, perform no
-repository inspection, edit, check, review, or publication, and mark the goal
-`blocked` as soon as the host permits it. An explicitly larger review-round
-budget permits additional blocker-only rework and rereview, but grants no new
-authority and never permits completion against content that lacks a clear final
-review.
+`clear` satisfies the exact-content gate. Continue only while an unresolved
+blocker or repair-caused regression materially progresses. Later rework fixes
+only unresolved blockers and repair-caused regressions. A direct regression
+first detected by verification is progressing for one repair attempt; unchanged
+evidence after that attempt is no progress. Advisories never keep the gate open.
+When `continue` names an unresolved blocker or direct regression and existing
+authority covers its concrete repair, perform that later rework, rerun the
+invalidated checks, and request fix verification again. Do not treat
+`continue`, the first appearance of a direct regression, or the mere existence
+of an earlier repair round as a stop condition.
+Repeated targets, unchanged failure evidence, or oscillation to an earlier
+target is `no_progress`. `no_progress`, `blocked`, unavailable or inconclusive
+evidence, exhausted authority, or an explicit review limit stops with the
+unsatisfied gate and permits no further repair or publication.
+
+There is no default numeric review limit. If the originating request explicitly
+supplies one, preserve it as a hard cap on all capability invocations including
+the initial comprehensive review; reaching it stops even otherwise-progressing
+convergence. It grants no authority and never permits completion without clear
+exact-target evidence. Any later content-changing edit invalidates the chain.
+
+When the host persists native-goal status, settle every terminal unsatisfied
+review stop as `blocked` before returning. If the host requires a repeated
+blocker audit, do not count review invocations as goal turns. Any required
+automatic continuation is status settlement only: preserve the same gate,
+perform no repository inspection, edit, check, review, or publication, and
+mark the goal `blocked` as soon as the host permits it.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely. The workflow document
@@ -277,7 +287,7 @@ scope and non-goals, preserved work, permissions, the selected workflow and its
 sequence, risk gate, profile and concrete route, applicable feedback checks and
 final-tree checks, whether independent review is selected and why, its portable
 continuation clause when selected, any user-specified stopping budget including
-an explicitly enlarged review-round budget, and this exact final record. Target
+an explicit review-round limit, and this exact final record. Target
 at most 4,000 bytes by referencing repository facts, but never truncate, omit,
 or rewrite a material requirement merely to fit the inline objective limit. A
 filesystem-sharing launch boundary uses a verified file-backed objective when
@@ -325,8 +335,7 @@ Return exactly one object and stop that turn:
   "routeSource": "<policy|user>",
   "independentReview": {
     "selection": "<selected|omitted>",
-    "reason": "<concise non-empty reason>",
-    "roundBudget": 3
+    "reason": "<concise non-empty reason>"
   },
   "selectedRoute": {
     "harness": "<harness>",
@@ -341,11 +350,12 @@ Return exactly one object and stop that turn:
 Leave the `Independent review:` line out of `goalContract` in this host-API
 handoff. The enclosing launcher validates the structured decision and compiles
 the canonical portable clause, replacing any redundant line if one is present;
-high-risk handoffs that omit review are invalid. Set `roundBudget` to zero when
-review is omitted, three for selected default review, or the exact explicit
-larger originating budget. The launcher validates it against the originating
-request and fails closed on a missing, mismatched, ambiguous, or unauthorized
-enlargement. It compiles the review clause without dropping requirements and
+high-risk handoffs that omit review are invalid. Add `roundLimit` as a positive
+integer only when the originating request explicitly supplies that exact
+review-round limit. Omit it for selected progress-bounded convergence and when
+review is omitted. The launcher validates it against the originating request
+and fails closed on a missing, mismatched, ambiguous, or unauthorized limit. It
+compiles the review clause without dropping requirements and
 uses the verified file-backed objective path when the complete contract exceeds
 the native inline limit.
 
@@ -405,15 +415,14 @@ effective row.
 When an invoked capability terminates the goal with its own structured result,
 preserve that result alongside the mandatory v4 record rather than replacing
 either contract.
-Preserve the substance of the terminal independent review as goal evidence by
-reporting its outcome and any blocking findings in the enclosing
-response; do not require or reproduce the provider's serialization. After a
-repaired failure, report the prior blocking findings and that rereview occurred
-against the changed content. Only review of the exact final content with no
-blocking findings satisfies the gate; a prose claim by the author, stale
-review, or same-context self-review does not. When the host persists
-native-goal status, a terminal review stop also reports that the goal settled
-as `blocked`.
+Preserve the substance of terminal independent review evidence by reporting its
+outcome and any blocking findings in the enclosing response; do not require or
+reproduce the provider's serialization. After a repaired failure, report the
+prior blocking findings and the fix-verification outcome against the changed
+content. Only a clear initial review or clear exact-target verification chain
+satisfies the gate; a prose claim by the author, stale evidence, or same-context
+self-review does not. When the host persists native-goal status, a terminal
+review stop also reports that the goal settled as `blocked`.
 
 State changed files, final verification, remaining risks, and every authorized
 publication effect actually performed. Include this exact sentence: `Goal

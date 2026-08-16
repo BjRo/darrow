@@ -23,9 +23,9 @@ Once its exact-target preparation starts, finish only that capability
 invocation and await it before other repository work.
 Read its ordinary response semantically and report its outcome and any
 blocking findings; do not require or reproduce a provider-specific
-serialization. Apply the contract's blocking-finding, unavailable-review,
-repair, rereview,
-target-invalidation, and publication rules.
+serialization. Apply the contract's comprehensive-initial-review, closed-set
+fix-verification, prior-artifact continuity, pinned-repair-delta, progress,
+explicit-limit, target-invalidation, and publication rules.
 
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal

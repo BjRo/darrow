@@ -1,6 +1,7 @@
 # Review result protocol
 
-Use this protocol for both completed reviews and terminal scope failures.
+Use the first protocol for comprehensive reviews and terminal scope failures.
+Use the second additive protocol only for fix verification.
 
 ## Canonical artifact and output envelope
 
@@ -84,3 +85,112 @@ and return only that Markdown. In explicit machine mode, copy the validated
 file bytes verbatim. In composed mode, return the selected review report to the
 goal owner and exit the capability. Add no remediation, commit,
 publication, approval, merge, release, or deploy action inside review.
+
+## Fix-verification artifact
+
+Write fix verification to `verification.tsv` directly beneath the current
+scope artifact directory. Never overwrite or reinterpret an original
+`result.tsv`. The additive format is `darrow-review-verification-v1`; the
+initial `darrow-review-result-v1` format and renderer remain unchanged.
+
+The caller must supply the original comprehensive review target, its complete
+canonical finding order, the immediately prior repair target, the attempted
+finding set, earlier repair target history, and current deterministic-check
+evidence. It also supplies the validated prior scope manifest and, after the
+first verification, the immediately prior verification artifact with every
+carried regression. Missing or inconsistent binding evidence becomes an
+`evidence_gap` and `blocked` outcome. It never authorizes a new comprehensive
+review.
+
+Pin the current fix scope with `--allow-empty --prior-manifest` and use the
+manifest's `repair_show_command`. That command validates both pinned manifests,
+requires their effective bases to match, and renders their prior-to-current
+packet delta. Caller prose cannot establish
+repair causality, and an empty base-to-current diff is valid only in this fix
+mode when the repair delta shows restoration of the prior change.
+
+Derive every original finding key as
+`<axis>:<canonical-order>:<original-target>`. Derive every repair-caused
+regression key as
+`regression:<canonical-regression-order>:<causing-original-finding-key>`.
+
+Create this tab-separated record in the shown order:
+
+```text
+format<TAB>darrow-review-verification-v1
+original_target<TAB>original comprehensive-review target fingerprint
+prior_target<TAB>immediately prior repair target fingerprint
+current_target<TAB>current pinned target fingerprint
+history_target<TAB>earlier repair target fingerprint                 # repeat
+previous_verification<TAB>none<TAB>none                              # first verification
+previous_verification<TAB>Git blob checksum<TAB>absolute prior verification artifact # later verification
+original_finding<TAB>stable key<TAB>standards|spec<TAB>canonical positive order<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>location<TAB>source<TAB>original evidence  # repeat
+attempt<TAB>original finding key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence  # repeat
+regression<TAB>stable regression key<TAB>causing original finding key<TAB>canonical positive order<TAB>standards|spec<TAB>critical|high|medium|low<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>location<TAB>source<TAB>current evidence  # repeat
+check<TAB>literal command or none<TAB>applicable|not_applicable<TAB>pass|fail|blocked|not_applicable<TAB>evidence  # repeat
+evidence_gap<TAB>missing or inconsistent required evidence           # repeat
+outcome<TAB>clear|continue|no_progress|blocked
+next_action<TAB>one authorized enclosing-goal action, or none
+```
+
+Every blocking original finding has exactly one attempt. An advisory may remain
+unattempted when it was ineligible; advisories never determine the outcome. A
+regression is in scope only when evidence directly ties it to one attempted
+original finding in the pinned repair delta. Do not serialize an unrelated
+observation. On a later verification, the validator checks the prior artifact
+checksum and target link, preserves the original set, and requires every prior
+regression to retain its stable key and immutable cause, order, axis, severity,
+location, and source. The first verification binds `prior_target` to
+`original_target` and has no `history_target`; every later artifact carries
+exactly the prior artifact's history plus that artifact's `prior_target`.
+
+Before aggregation validate each applicable reader record with:
+
+```sh
+bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
+bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
+```
+
+The fix-axis schema declares supplied original keys with `original`, active
+carried regressions with `prior_regression`, original states with `attempt`,
+carried states with `regression_attempt`, newly detected direct regressions with
+`regression`, and missing evidence with `evidence_gap`. Without an explicit
+evidence gap, every supplied original and carried regression must have exactly
+one corresponding state record.
+
+Derive the outcome mechanically in this order:
+
+1. `blocked` for an evidence gap, blocked applicable check, blocked original
+   blocker, or blocked regression;
+2. `no_progress` when the current target equals the original, prior, or any
+   earlier target, or when any unresolved blocker or regression has unchanged
+   evidence;
+3. `continue` while any unresolved blocker or regression is materially
+   progressing. A newly detected direct regression is progressing for its first
+   verification; if its evidence remains after a repair attempt it is
+   unchanged; and
+4. `clear` when all original blockers and regressions are resolved. Unresolved
+   advisories do not prevent `clear`.
+
+A failed deterministic check must be represented by an unresolved or blocked
+repair-caused regression, not by an unscoped new finding. Validate with:
+
+```sh
+bash "$result_tool" validate-verification "$verification_record"
+```
+
+In default mode render with:
+
+```sh
+verification_report="$(dirname "$verification_record")/verification.md"
+bash "$report_tool" render-verification "$verification_record" >"$verification_report"
+bash "$report_tool" render-verification "$verification_record"
+```
+
+After confirming `verification.md` is readable and nonempty, make the second
+renderer invocation the last tool command and copy its stdout verbatim as the
+entire response. A handwritten summary is incomplete. When the requester
+explicitly asks for verification TSV or machine format, return only the
+validated TSV bytes. A composed caller interprets `clear`, `continue`,
+`no_progress`, or `blocked` semantically and retains all repair, stop,
+goal-status, and publication authority outside this read-only capability.

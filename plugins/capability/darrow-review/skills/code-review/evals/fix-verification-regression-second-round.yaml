@@ -1,0 +1,94 @@
+id: code-review-fix-verification-regression-second-round
+invariant: CR-C17,CR-C18,CR-C19,CR-C20,CR-E13
+prompt: >-
+  Fix-verify only the carried repair-caused regression described by the
+  caller-owned evidence file `.git/verification-input`. This is the second fix
+  verification round, not a comprehensive review. Validate the prior artifact,
+  preserve its stable regression identity, use the pinned prior-to-current
+  repair delta, run `bash check.sh`, return the normal human report, and remain
+  read-only.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          MODE must be good and RESULT must be ok. Run `bash check.sh`.
+        config.env: |
+          MODE=bad
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'MODE=good' config.env >/dev/null
+          grep -Fx 'RESULT=ok' config.env >/dev/null
+  files:
+    config.env: |
+      MODE=good
+      RESULT=ok
+  setup: |
+    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    cp config.env .git/current-config
+    printf 'MODE=good\n' >config.env
+    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD --target WORKTREE)
+    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
+    prior_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
+    prior_verification=$(dirname "$prior_manifest")/verification.tsv
+    original_target=ORIGINAL-TARGET-SECOND-ROUND
+    original_key=standards:1:$original_target
+    regression_key=regression:1:$original_key
+    {
+      printf 'format\tdarrow-review-verification-v1\n'
+      printf 'original_target\t%s\n' "$original_target"
+      printf 'prior_target\t%s\n' "$original_target"
+      printf 'current_target\t%s\n' "$prior_target"
+      printf 'previous_verification\tnone\tnone\n'
+      printf 'original_finding\t%s\tstandards\t1\thigh\tblocking\tconfig.env:1\t%s/AGENTS.md\tMODE was bad\n' "$original_key" "$PWD"
+      printf 'attempt\t%s\tresolved\tresolved\tMODE is good\n' "$original_key"
+      printf 'regression\t%s\t%s\t1\tstandards\thigh\tunresolved\tprogressing\tconfig.env:2\t%s/AGENTS.md\tRESULT is missing after the repair\n' "$regression_key" "$original_key" "$PWD"
+      printf 'check\tbash check.sh\tapplicable\tfail\tRESULT is missing\n'
+      printf 'outcome\tcontinue\n'
+      printf 'next_action\trepair the carried regression\n'
+    } >"$prior_verification"
+    bash "$tool_dir/review-result" validate-verification "$prior_verification"
+    prior_hash=$(git hash-object --no-filters "$prior_verification")
+    {
+      printf 'original_target\t%s\n' "$original_target"
+      printf 'prior_target\t%s\n' "$prior_target"
+      printf 'prior_manifest\t%s\n' "$prior_manifest"
+      printf 'previous_verification\t%s\t%s\n' "$prior_hash" "$prior_verification"
+      printf 'original_key\t%s\n' "$original_key"
+      printf 'regression_key\t%s\n' "$regression_key"
+    } >.git/verification-input
+    cp .git/current-config config.env
+    git hash-object config.env >.git/config-before
+    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+checks:
+  - name: second verification remains read only
+    run: git hash-object config.env >.git/config-after; cmp .git/config-before .git/config-after
+  - name: carried regression keeps its stable identity and resolves
+    run: >-
+      tool=$(sed -n '1p' .git/review-result-tool) &&
+      regression_key=$(awk -F '\t' '$1 == "regression_key" { print $2 }' .git/verification-input) &&
+      previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
+      previous_relative=${previous_path#"$PWD"/} &&
+      record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
+      test -n "$record" && test "$record" != "$previous_path" &&
+      bash "$tool" validate-verification "$record" &&
+      awk -F '\t' -v key="$regression_key" '$1 == "regression" && $2 == key && $7 == "resolved" && $8 == "resolved" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
+      awk -F '\t' '$1 == "outcome" && $2 == "clear" { found=1 } END { exit found ? 0 : 1 }' "$record"
+  - name: verification binds the previous artifact
+    run: >-
+      previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
+      previous_relative=${previous_path#"$PWD"/} &&
+      record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
+      expected=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' .git/verification-input) &&
+      actual=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' "$record") &&
+      test "$actual" = "$expected"
+output_checks:
+  - name: report clears the carried regression
+    expect_regex: '^# Repair verification — CLEAR[\s\S]*Repair-caused regressions[\s\S]*RESOLVED'
+  - name: report preserves the regression axis
+    expect_regex: '\*\*Axis:\*\* <code>standards</code>'
+  - name: does not return a comprehensive report
+    not_regex: "^# Code review —"

@@ -40,7 +40,7 @@ interface GoalHandoff {
   independentReview: {
     selection: "selected" | "omitted";
     reason: string;
-    roundBudget: number;
+    roundLimit?: number;
   };
   selectedRoute: GoalRoute;
   goalContract: string;
@@ -48,7 +48,7 @@ interface GoalHandoff {
 
 interface ExplicitGoalControls {
   route?: GoalRoute;
-  reviewRoundBudget?: number;
+  reviewRoundLimit?: number;
 }
 
 interface WorkflowEntry {
@@ -181,7 +181,9 @@ export function parseExplicitUserRoute(text: string): GoalRoute | undefined {
   };
 }
 
-const reviewBudgetWords = new Map<string, number>([
+const reviewLimitWords = new Map<string, number>([
+  ["one", 1],
+  ["two", 2],
   ["three", 3],
   ["four", 4],
   ["five", 5],
@@ -192,46 +194,47 @@ const reviewBudgetWords = new Map<string, number>([
   ["ten", 10],
 ]);
 
-function parseReviewBudgetValue(value: string): number {
-  const budget = /^\d+$/.test(value)
+function parseReviewLimitValue(value: string): number {
+  const limit = /^\d+$/.test(value)
     ? Number(value)
-    : reviewBudgetWords.get(value.toLowerCase());
-  if (!Number.isSafeInteger(budget) || budget! < 3)
-    throw new Error("explicit review-round budget must be at least three");
-  return budget!;
+    : reviewLimitWords.get(value.toLowerCase());
+  if (!Number.isSafeInteger(limit) || limit! < 1)
+    throw new Error("explicit review-round limit must be at least one");
+  return limit!;
 }
 
-export function parseExplicitReviewRoundBudget(
+export function parseExplicitReviewRoundLimit(
   text: string,
 ): number | undefined {
-  const token = "(\\d+|three|four|five|six|seven|eight|nine|ten)";
+  const token = "(\\d+|one|two|three|four|five|six|seven|eight|nine|ten)";
   const affirmativeBoundary = "(?:^|[.!?;\\n]\\s*|,\\s*(?:but|and)\\s+)";
   const action =
     "(?:(?:i|we)\\s+)?(?:explicitly\\s+)?(?:set|choose|authorize|request)";
-  const budgetName = "(?:independent[- ]review|review(?:[- ]round)?)\\s+budget";
+  const limitName =
+    "(?:independent[- ]review|review(?:[- ]round)?)\\s+(?:budget|limit)";
   const patterns = [
     new RegExp(
-      `${affirmativeBoundary}${action}\\s+(?:(?:the|an?)\\s+)?${budgetName}\\s*(?:(?:to|of|=|:)\\s*)?${token}(?:\\s+review\\s+rounds?)?\\b`,
+      `${affirmativeBoundary}${action}\\s+(?:(?:the|an?)\\s+)?${limitName}\\s*(?:(?:to|of|=|:)\\s*)?${token}(?:\\s+review\\s+rounds?)?\\b`,
       "gi",
     ),
     new RegExp(
       `${affirmativeBoundary}${action}\\s+(?:at\\s+most\\s+|up\\s+to\\s+|exactly\\s+)?${token}\\s+(?:independent[- ]review|review)\\s+rounds?\\b`,
       "gi",
     ),
-    new RegExp(`^review_round_budget\\t${token}$`, "gim"),
+    new RegExp(`^review_round_(?:budget|limit)\\t${token}$`, "gim"),
   ];
-  const budgets = new Set<number>();
+  const limits = new Set<number>();
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       if (isQuotedOrDisavowedBudgetMention(text, match.index, match[0].length))
         continue;
-      budgets.add(parseReviewBudgetValue(match[1]!));
+      limits.add(parseReviewLimitValue(match[1]!));
     }
   }
-  if (!budgets.size) return undefined;
-  if (budgets.size !== 1)
-    throw new Error("conflicting explicit review-round budgets");
-  return [...budgets][0];
+  if (!limits.size) return undefined;
+  if (limits.size !== 1)
+    throw new Error("conflicting explicit review-round limits");
+  return [...limits][0];
 }
 
 function isQuotedOrDisavowedBudgetMention(
@@ -333,10 +336,10 @@ export function buildPreparedGoalPrompt(
     "Select risk and profile independently: risk reflects the cost of an incorrect result, while routing reflects the kind and scale of reasoning required. Risk alone and a workflow label alone do not determine profile.",
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
-    "Return independentReview.roundBudget as 0 when review is omitted, 3 when review is selected under the default budget, or the exact explicitly user-specified larger review-round budget. Never infer or enlarge that budget on the user's behalf.",
+    "Return independentReview.roundLimit as the exact positive integer only when the engineering request explicitly supplies a review-round limit. Return null for progress-bounded review without a user limit and whenever review is omitted. Never infer a numeric limit on the user's behalf.",
     "",
     "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
-    "Return independentReview with selection selected or omitted, a concise non-empty reason, and the integer roundBudget described above. High risk must select independent review. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
+    "Return independentReview with selection selected or omitted, a concise non-empty reason, and only the optional roundLimit described above. High risk must select independent review. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
     "Finish with this record:",
     "format\tdarrow-native-goal-preflight-v4",
     "workflow\t<selected-workflow>",
@@ -414,7 +417,14 @@ function parseHandoffObject(text: string): Partial<GoalHandoff> {
   }
   if (value === null || typeof value !== "object")
     throw new Error("preflight handoff is not an object");
-  return value as Partial<GoalHandoff>;
+  const handoff = value as Partial<GoalHandoff>;
+  const rawReview = (
+    handoff as Partial<GoalHandoff> & {
+      independentReview?: { roundLimit?: unknown };
+    }
+  ).independentReview;
+  if (rawReview?.roundLimit === null) delete rawReview.roundLimit;
+  return handoff;
 }
 
 function isValidGoalRoute(route: GoalRoute | undefined): route is GoalRoute {
@@ -431,17 +441,24 @@ function isValidGoalContract(contract: unknown): contract is string {
   return typeof contract === "string" && contract.length > 0;
 }
 
+function isValidIndependentReview(
+  review: GoalHandoff["independentReview"] | undefined,
+): boolean {
+  if (!review) return false;
+  if (!["selected", "omitted"].includes(review.selection)) return false;
+  if (typeof review.reason !== "string") return false;
+  return (
+    review.roundLimit === undefined ||
+    (Number.isSafeInteger(review.roundLimit) && review.roundLimit > 0)
+  );
+}
+
 function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
   return (
     typeof handoff.workflow === "string" &&
     ["routine", "elevated", "high"].includes(handoff.risk ?? "") &&
     ["policy", "user"].includes(handoff.routeSource ?? "") &&
-    !!handoff.independentReview &&
-    ["selected", "omitted"].includes(
-      handoff.independentReview.selection ?? "",
-    ) &&
-    typeof handoff.independentReview.reason === "string" &&
-    Number.isSafeInteger(handoff.independentReview.roundBudget)
+    isValidIndependentReview(handoff.independentReview)
   );
 }
 
@@ -515,33 +532,37 @@ function assertIndependentReviewReason(reviewReason: string): void {
 
 function assertIndependentReviewPolicy(
   handoff: GoalHandoff,
-  explicitReviewRoundBudget?: number,
+  explicitReviewRoundLimit?: number,
 ): void {
   const review = handoff.independentReview;
   assertIndependentReviewReason(review.reason);
   if (handoff.risk === "high" && review.selection !== "selected")
     throw new Error("high-risk goal contract must select independent review");
   if (review.selection === "omitted") {
-    if (review.roundBudget !== 0)
+    if (review.roundLimit !== undefined)
+      throw new Error("omitted independent review must omit roundLimit");
+    if (explicitReviewRoundLimit !== undefined)
       throw new Error(
-        "omitted independent review must use a zero round budget",
-      );
-    if (explicitReviewRoundBudget !== undefined)
-      throw new Error(
-        "explicit review-round budget requires independent review",
+        "explicit review-round limit requires independent review",
       );
     return;
   }
-  const expectedReviewBudget = explicitReviewRoundBudget ?? 3;
-  if (review.roundBudget !== expectedReviewBudget)
+  if (explicitReviewRoundLimit === undefined && review.roundLimit !== undefined)
     throw new Error(
-      `independent-review round budget must be ${expectedReviewBudget}`,
+      "independent-review roundLimit must be omitted without an explicit user limit",
+    );
+  if (
+    explicitReviewRoundLimit !== undefined &&
+    review.roundLimit !== explicitReviewRoundLimit
+  )
+    throw new Error(
+      `independent-review roundLimit must be ${explicitReviewRoundLimit}`,
     );
 }
 
 function assertGoalContractRecord(
   handoff: GoalHandoff,
-  explicitReviewRoundBudget?: number,
+  explicitReviewRoundLimit?: number,
 ): void {
   const route = handoff.selectedRoute;
   const routeRecord = [
@@ -565,7 +586,7 @@ function assertGoalContractRecord(
     "evaluation_human_interruptions\t0",
   ];
   const contractLines = handoff.goalContract.split("\n");
-  assertIndependentReviewPolicy(handoff, explicitReviewRoundBudget);
+  assertIndependentReviewPolicy(handoff, explicitReviewRoundLimit);
   if (!requiredContractLines.every((line) => contractLines.includes(line)))
     throw new Error("goal contract does not preserve handoff and final record");
 }
@@ -584,22 +605,21 @@ function hasTextControl(value: string): boolean {
 
 function canonicalIndependentReviewClause(
   handoff: GoalHandoff,
-  explicitReviewRoundBudget?: number,
+  explicitReviewRoundLimit?: number,
 ): string {
   const reason = handoff.independentReview.reason.trim();
   if (handoff.independentReview.selection === "omitted")
     return `Independent review: omitted — ${reason}.`;
-  const roundBudget = handoff.independentReview.roundBudget;
-  const budgetClause =
-    explicitReviewRoundBudget === undefined
-      ? "use at most three review rounds and two rework phases by default"
-      : `use the originating explicit budget of at most ${roundBudget} review rounds and ${roundBudget - 1} rework phases`;
-  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; no blocking findings returns control, blocking findings block completion and publication, and unavailable or inconclusive review stops; ${budgetClause}; every review round is a fresh comprehensive review of the exact current change and must not narrow to earlier findings; after the first failed review, the first rework resolves every authorized blocker plus advisories only when clearly in scope, low risk, and neither expanding observable behavior nor materially increasing verification, then reruns invalidated checks and comprehensively reviews the changed content; after the second failed review, every later rework fixes blockers only and preserves advisories as residual risks; review round ${roundBudget} is terminal, so a non-clear result stops with no further repair or publication; a terminal review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication; every additional explicitly budgeted rework remains blocker-only, and final content still requires a clear comprehensive review.`;
+  const limitClause =
+    explicitReviewRoundLimit === undefined
+      ? "use progress-bounded convergence with no implicit numeric review limit"
+      : `use the originating explicit hard cap of at most ${explicitReviewRoundLimit} independent-review capability invocations, including the initial comprehensive review`;
+  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
 }
 
 function compileIndependentReviewClause(
   handoff: GoalHandoff,
-  explicitReviewRoundBudget?: number,
+  explicitReviewRoundLimit?: number,
 ): void {
   const marker = "format\tdarrow-native-goal-preflight-v4";
   const normalizedContract = handoff.goalContract
@@ -608,7 +628,7 @@ function compileIndependentReviewClause(
     .join("\n");
   const contract = normalizedContract.replace(
     marker,
-    `${canonicalIndependentReviewClause(handoff, explicitReviewRoundBudget)}\n${marker}`,
+    `${canonicalIndependentReviewClause(handoff, explicitReviewRoundLimit)}\n${marker}`,
   );
   handoff.goalContract = contract;
 }
@@ -625,8 +645,8 @@ export function parseCodexGoalHandoff(
     throw new Error(`unknown workflow: ${handoff.workflow}`);
   assertCatalogRoute(catalog, handoff.selectedRoute);
   assertRouteProvenance(handoff, dimensions, explicitControls.route);
-  assertGoalContractRecord(handoff, explicitControls.reviewRoundBudget);
-  compileIndependentReviewClause(handoff, explicitControls.reviewRoundBudget);
+  assertGoalContractRecord(handoff, explicitControls.reviewRoundLimit);
+  compileIndependentReviewClause(handoff, explicitControls.reviewRoundLimit);
   return handoff;
 }
 
@@ -636,9 +656,9 @@ function independentReviewSchema() {
     properties: {
       selection: { type: "string", enum: ["selected", "omitted"] },
       reason: { type: "string", minLength: 1, maxLength: 240 },
-      roundBudget: { type: "integer", minimum: 0 },
+      roundLimit: { type: ["integer", "null"], minimum: 1 },
     },
-    required: ["selection", "reason", "roundBudget"],
+    required: ["selection", "reason", "roundLimit"],
     additionalProperties: false,
   };
 }
@@ -1587,7 +1607,7 @@ async function runGoalPreflightPhase(
     prepared.dimensions,
     {
       route: parseExplicitUserRoute(run.prompt),
-      reviewRoundBudget: parseExplicitReviewRoundBudget(run.prompt),
+      reviewRoundLimit: parseExplicitReviewRoundLimit(run.prompt),
     },
   );
   assertControlRoute(handoff.selectedRoute, run.control?.expectedGoalRoute);

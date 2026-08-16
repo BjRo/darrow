@@ -3,11 +3,11 @@
 set -u
 
 repo=${1:-}
-mode=${2:-review}
+mode=${2:-}
 [ -n "$repo" ] || { printf '%s\n' 'repository path is required' >&2; exit 2; }
 case $mode in
-  review | fingerprint) ;;
-  *) printf '%s\n' 'usage: independent-review-fixture REPOSITORY [fingerprint]' >&2; exit 2 ;;
+  comprehensive | verify | fingerprint) ;;
+  *) printf '%s\n' 'usage: independent-review-fixture REPOSITORY comprehensive|verify|fingerprint' >&2; exit 2 ;;
 esac
 root=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null) || exit 2
 root=$(cd "$root" && pwd -P) || exit 2
@@ -50,6 +50,14 @@ if [ "$mode" = fingerprint ]; then
   printf '%s\n' "$target"
   exit 0
 fi
+if [ "$mode" = comprehensive ] && [ -f "$git_dir/independent-review-invocations" ]; then
+  printf '%s\n' 'comprehensive review already established the closed finding set' >&2
+  exit 2
+fi
+if [ "$mode" = verify ] && [ ! -f "$git_dir/independent-review-invocations" ]; then
+  printf '%s\n' 'fix verification requires the original comprehensive review' >&2
+  exit 2
+fi
 review_subject_oid=
 if [ -f "$git_dir/fixture-review-event-path" ]; then
   IFS= read -r review_subject <"$git_dir/fixture-review-event-path" || exit 2
@@ -68,6 +76,7 @@ fi
 outcome=clear
 failure_evidence='Fixture policy rejects this candidate'
 advisory_evidence=
+unrelated_evidence=
 if [ -f "$git_dir/fixture-review-sequence" ]; then
   invocation=1
   if [ -f "$git_dir/independent-review-invocations" ]; then
@@ -82,13 +91,13 @@ if [ -f "$git_dir/fixture-review-sequence" ]; then
   tab=$(printf '\t')
   old_ifs=$IFS
   IFS=$tab
-  read -r outcome failure_evidence advisory_evidence <<EOF
+  read -r outcome failure_evidence advisory_evidence unrelated_evidence <<EOF
 $sequence_line
 EOF
   IFS=$old_ifs
   case $outcome in
     clear) ;;
-    blocking) [ -n "$failure_evidence" ] || exit 2 ;;
+    blocking | continue | no_progress | blocked) [ -n "$failure_evidence" ] || exit 2 ;;
     inconclusive | unavailable) ;;
     *) exit 2 ;;
   esac
@@ -106,6 +115,19 @@ elif [ -f "$git_dir/fixture-review-reject-pattern" ]; then
   fi
 fi
 
+if [ "$mode" = comprehensive ]; then
+  case $outcome in
+    clear | blocking | inconclusive | unavailable) ;;
+    *) printf '%s\n' 'comprehensive fixture outcome is invalid' >&2; exit 2 ;;
+  esac
+else
+  case $outcome in
+    clear | continue | no_progress | blocked | inconclusive | unavailable) ;;
+    blocking) outcome='continue' ;;
+    *) printf '%s\n' 'verification fixture outcome is invalid' >&2; exit 2 ;;
+  esac
+fi
+
 if [ -n "$review_subject_oid" ]; then
   review_subject_end_oid=$(git -C "$root" hash-object -- "$review_subject") ||
     exit 2
@@ -118,11 +140,26 @@ if [ -n "$review_subject_oid" ]; then
   fi
 fi
 
-printf '%s\t%s\n' "$target" "$outcome" >>"$git_dir/independent-review-invocations"
+if [ "$mode" = verify ] &&
+  [ "$outcome" != inconclusive ] && [ "$outcome" != unavailable ] &&
+  [ "$outcome" != blocked ]; then
+  read_tab=$(printf '\t')
+  while IFS=$read_tab read -r recorded_target _; do
+    if [ "$recorded_target" = "$target" ]; then
+      outcome=no_progress
+      failure_evidence='Target fingerprint repeats an earlier convergence state'
+      break
+    fi
+  done <"$git_dir/independent-review-invocations"
+fi
+
+printf '%s\t%s\t%s\n' "$target" "$outcome" "$mode" >>"$git_dir/independent-review-invocations"
 if [ -n "$review_subject_oid" ]; then
   printf 'review\t%s\t%s\n' "$outcome" "$review_subject_oid" >>"$git_dir/review-events"
 fi
-if [ "$outcome" = clear ]; then
+if [ "$mode" = verify ]; then
+  printf 'Repair verification outcome: %s\n' "$outcome"
+elif [ "$outcome" = clear ]; then
   printf '%s\n' 'Independent review outcome: no blocking findings'
 elif [ "$outcome" = blocking ]; then
   printf '%s\n' 'Independent review outcome: blocking findings'
@@ -137,8 +174,10 @@ while IFS= read -r -d '' path; do
 done <"$changed_file"
 if [ "$outcome" = clear ]; then
   printf '%s\n' 'Summary: The current change has no blocking findings against the supplied goal and repository instructions.'
-elif [ "$outcome" = blocking ]; then
+elif [ "$outcome" = blocking ] || [ "$outcome" = continue ] || [ "$outcome" = no_progress ]; then
   printf 'Blocking finding: %s\n' "$failure_evidence"
+elif [ "$outcome" = blocked ]; then
+  printf 'Evidence gap: %s\n' "$failure_evidence"
 elif [ "$outcome" = inconclusive ]; then
   printf '%s\n' 'Evidence gap: The review could not reach a reliable conclusion from the available evidence.'
 else
@@ -146,4 +185,7 @@ else
 fi
 if [ -n "$advisory_evidence" ]; then
   printf 'Advisory finding: %s\n' "$advisory_evidence"
+fi
+if [ -n "$unrelated_evidence" ]; then
+  printf 'Unrelated observation excluded: %s\n' "$unrelated_evidence"
 fi
