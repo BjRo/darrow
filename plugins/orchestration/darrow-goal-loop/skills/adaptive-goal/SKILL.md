@@ -220,9 +220,16 @@ trigger more work. Under the default budget, the third review is terminal. If
 it reports no blocking findings, the exact-content gate is satisfied. If it
 reports blocking findings or is unavailable or inconclusive, stop with the
 unsatisfied gate and findings reported; perform no further repair or
-publication. An explicitly larger review-round budget permits additional
-blocker-only rework and rereview, but grants no new authority and never permits
-completion against content that lacks a clear final review.
+publication. When the host persists native-goal status, settle that terminal
+review stop as `blocked` before the goal owner returns. If the host requires a
+repeated-blocker audit before accepting `blocked`, do not count review
+invocations as goal turns. Any required automatic continuation is
+status-settlement only: preserve the same unsatisfied review gate, perform no
+repository inspection, edit, check, review, or publication, and mark the goal
+`blocked` as soon as the host permits it. An explicitly larger review-round
+budget permits additional blocker-only rework and rereview, but grants no new
+authority and never permits completion against content that lacks a clear final
+review.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely. The workflow document
@@ -404,7 +411,9 @@ response; do not require or reproduce the provider's serialization. After a
 repaired failure, report the prior blocking findings and that rereview occurred
 against the changed content. Only review of the exact final content with no
 blocking findings satisfies the gate; a prose claim by the author, stale
-review, or same-context self-review does not.
+review, or same-context self-review does not. When the host persists
+native-goal status, a terminal review stop also reports that the goal settled
+as `blocked`.
 
 State changed files, final verification, remaining risks, and every authorized
 publication effect actually performed. Include this exact sentence: `Goal

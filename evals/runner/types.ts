@@ -75,6 +75,12 @@ export interface OutputCheck {
   flags?: string;
 }
 
+/** Assertions over harness protocol evidence, kept outside the model workspace. */
+export interface TranscriptCheck extends OutputCheck {
+  /** Inspect only the suffix after the final matching protocol boundary. */
+  after_regex?: string;
+}
+
 export type ActivationClass = "positive" | "negative" | "competition";
 
 export type ActivationEvidenceSource =
@@ -123,6 +129,8 @@ export interface EvalCase {
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];
+  /** Assertions over the raw harness transcript, kept outside the model workspace. */
+  transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
   activation?: ActivationClass;
 }

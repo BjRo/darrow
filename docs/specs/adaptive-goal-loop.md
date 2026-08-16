@@ -236,7 +236,14 @@ Under the default budget, the third review is terminal. A third review with no
 blocking findings satisfies the gate. A third review with blocking findings,
 or an unavailable or inconclusive third review, stops the goal with the
 unsatisfied gate and findings reported; it authorizes no further repair or
-publication. An explicit larger budget permits additional blocker-only
+publication. On a host with persisted native-goal status, that terminal stop
+MUST settle the active goal as `blocked` before the goal owner returns. If the
+host requires additional turns before accepting the blocked transition, those
+automatic continuations are status-settlement turns only: they MUST preserve
+the same unsatisfied review gate and MUST NOT resume repository inspection,
+editing, verification, review, or publication. Review invocations are not
+native-goal turns and do not by themselves satisfy a host blocked-status audit.
+An explicit larger budget permits additional blocker-only
 rework/rereview rounds, but does not weaken exact-final-content review or grant
 new repair or publication authority. This is continuation policy compiled into
 one native goal, not a Darrow-owned retry controller.
@@ -558,7 +565,10 @@ the least launch machinery the host supports.
     materially increase verification. The second and any explicitly budgeted
     later rework address blockers only. The default third review is terminal:
     it either clears the exact final content or stops with the unsatisfied gate
-    and no further repair or publication.
+    and no further repair or publication. A persisted native goal settles that
+    stop as `blocked` before its owner returns. Host-required automatic
+    continuations before the blocked transition are status-settlement turns
+    only and never resume repository work, verification, or review.
 
 ### Safety invariants
 

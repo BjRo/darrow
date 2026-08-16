@@ -5,7 +5,7 @@ import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
-import { runChecks, runOutputChecks } from "./checks";
+import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
@@ -277,6 +277,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     fixture: evalCase.fixture,
     checks: evalCase.checks,
     outputChecks: evalCase.output_checks ?? [],
+    transcriptChecks: evalCase.transcript_checks ?? [],
     activation: activationEvidence(evalCase),
     expectHeadChange: evalCase.expect_head_change ?? null,
     requireEvaluationRecords: options.requireEvaluationRecords ?? false,
@@ -426,19 +427,33 @@ async function trialChecks(
           detail: "candidate created or switched to a different commit",
         },
       ];
+  // A no-skill baseline is judged on repository outcomes, not on an
+  // orchestration-specific reporting or protocol contract it cannot know.
+  const orchestrationChecks = withoutSkill
+    ? []
+    : await orchestrationContractChecks(evalCase, harness);
   return [
     ...(await runChecks(repoDir, evalCase.checks)),
     ...headChecks,
-    // A no-skill baseline is judged on the same repository outcomes, not
-    // on the orchestration-specific reporting contract it cannot know about.
-    ...(withoutSkill
-      ? []
-      : await runOutputChecks(
-          harness.resultText,
-          evalCase.output_checks ?? [],
-          evalCase.skillDir,
-        )),
+    ...orchestrationChecks,
     ...routeChecks(options, harness, observedGoalRouteApplication),
+  ];
+}
+
+async function orchestrationContractChecks(
+  evalCase: EvalCase,
+  harness: HarnessResult,
+): Promise<CheckResult[]> {
+  return [
+    ...(await runOutputChecks(
+      harness.resultText,
+      evalCase.output_checks ?? [],
+      evalCase.skillDir,
+    )),
+    ...(await runTranscriptChecks(
+      harness.raw,
+      evalCase.transcript_checks ?? [],
+    )),
   ];
 }
 

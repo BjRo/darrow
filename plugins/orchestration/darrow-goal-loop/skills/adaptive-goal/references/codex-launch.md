@@ -121,7 +121,12 @@ Materialize the objective before spawning, then spawn exactly one agent with:
 Tell the runner to call `create_goal` exactly once with the materialized
 objective, read and verify a file-backed complete contract before work, own
 that goal through terminal completion, run the workflow and risk gates, and
-return the required final record. The runner may use native Codex subagents for
+return the required final record. A terminal independent-review stop settles
+the created goal as `blocked` before the runner returns. If the native goal
+surface requires a repeated-blocker audit, automatic continuations are
+status-settlement only: they preserve the same blocker and use only the goal
+status surface until `blocked` is accepted, without resuming repository work,
+checks, review, or publication. The runner may use native Codex subagents for
 bounded work when useful, but remains the sole goal owner. Tell it to collect
 each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe

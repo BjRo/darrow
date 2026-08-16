@@ -67,6 +67,9 @@ checks:
       $1 == "review_start" { bad = 1 }
       END { exit !bad && starts == 3 ? 0 : 1 }
       ' .git/review-events
+  - name: terminal settlement performs no repository check or review
+    run: >-
+      test "$(tail -n 1 .git/review-events | cut -f1)" = review
   - name: each review targets different content
     run: >-
       cut -f1 .git/independent-review-invocations | sort -u >.git/review-targets &&
@@ -77,6 +80,18 @@ output_checks:
   - name: terminal review reports the unsatisfied gate
     expect_regex: "(review[\\s\\S]{0,300}(block|unsatisfied|fail|incomplete)|(block|unsatisfied|fail|incomplete)[\\s\\S]{0,300}review)"
     flags: i
+  - name: terminal review reports the settled native goal
+    expect_regex: "((native|persisted)[ -]goal[\\s\\S]{0,120}blocked|blocked[\\s\\S]{0,120}(native|persisted)[ -]goal)"
+    flags: i
   - name: terminal review does not claim completion or publication
     not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|change|implementation) (is )?(complete|completed|done|finished)\\b|(committed|pushed|opened).{0,80}(success|complete|https?://)|pull request[^\\n]+https?://"
+    flags: i
+transcript_checks:
+  - name: terminal review settles the actual native goal as blocked
+    after_regex: "Independent review outcome: blocking findings"
+    expect_regex: '"method":"thread/goal/updated"[^\n]*"status":"blocked"'
+    not_regex: '"method":"thread/goal/updated"[^\n]*"status":"complete"'
+  - name: terminal settlement performs no hidden repository activity
+    after_regex: "Independent review outcome: blocking findings"
+    not_regex: '"method":"item/(started|completed)"[^\n]*"type":"[^"]*(command|fileChange|mcpToolCall|dynamicToolCall)[^"]*"'
     flags: i
