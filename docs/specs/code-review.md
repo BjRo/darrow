@@ -41,11 +41,15 @@ Input:
 
 Output:
 
-- the exact review scope;
-- Standards and Spec findings reported separately;
-- each finding's severity, changed location, violated source, and evidence;
-- deterministic check results or an explicit evidence gap;
-- one aggregate `pass`, `fail`, or `blocked` verdict.
+- one human-readable Markdown report by default, leading with the aggregate
+  `pass`, `fail`, or `blocked` verdict and finding counts;
+- the exact review scope, Standards and Spec sources and statuses, each
+  finding's axis, severity, disposition, changed location, violated source,
+  and evidence, deterministic checks or an explicit evidence gap, risks, and
+  next action;
+- the validated `darrow-review-result-v1` TSV only when the requester
+  explicitly asks for the machine format. The TSV remains the canonical
+  mechanical artifact beneath the review scope artifact directory.
 
 If several reasonable fixed points would produce materially different review
 scopes, ask for the base rather than guessing. A request such as “review my
@@ -159,11 +163,18 @@ axis and report `not_available`. Do not invent requirements.
     content-changing edit invalidates it; author self-review, a stale result,
     or a result for another fingerprint cannot substitute for a fresh
     independent review.
+15. **CR-C15 — Deliberate presentation.** Standalone and composed review use
+    one human-readable Markdown report by default. An explicit request for
+    `darrow-review-result-v1`, raw TSV, or machine format returns only the
+    validated TSV. A response never contains both presentations.
+16. **CR-C16 — Complete rendering.** Markdown preserves every semantic field
+    from the validated TSV, prioritizes verdict and findings, renders checks
+    compactly, and presents detailed scope and sources later. Renderer
+    mechanics escape hostile field content without changing the canonical TSV.
 
-## Result shape
+## Result shape and presentation
 
-The exact serialization is an implementation detail, but output MUST be
-machine-readable and include:
+The validated TSV is the canonical internal mechanical artifact and includes:
 
 ```text
 base
@@ -176,6 +187,10 @@ verdict
 risks
 next_action
 ```
+
+The default user-facing result is a complete Markdown rendering of that
+artifact. The raw `darrow-review-result-v1` is user-facing only when explicitly
+requested as a machine format; the two forms are never concatenated.
 
 ## Packaging and portability
 
@@ -235,6 +250,11 @@ next_action
     requested from a larger goal exercise the same skill and finding semantics
     on Claude Code and Codex, without requiring the enclosing goal to reproduce
     the review's serialization.
+12. **CR-E12 — Presentation contract.** Acceptance evidence covers default
+    Markdown for passing, failing, and terminal blocked scope outcomes;
+    explicit raw-v1 negotiation; composed returns; semantic preservation;
+    hostile field escaping; absence of duplicated TSV in human output; and a
+    superficial summary that omits evidence.
 
 ## Non-goals
 

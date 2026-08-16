@@ -5,12 +5,13 @@ description: Review one bounded code change—pull request, branch, fixed-point 
 
 # Review code
 
-Return an independent, read-only review of one pinned change. For a standalone
-review request, the final response is only a validated
-`darrow-review-result-v1` record—no heading, Markdown fence, preface, or
-trailing explanation. For an explicit review clause inside a larger goal,
-return the same review report to the current goal owner, then exit this
-capability so the enclosing contract can apply its continuation rule.
+Return an independent, read-only review of one pinned change. By default, the
+final response is one complete, pleasant Markdown report. Return only a
+validated `darrow-review-result-v1` TSV when the requester explicitly asks for
+raw TSV, v1, or machine format. Never emit both forms. For an explicit review
+clause inside a larger goal, return the same normal report to the current goal
+owner, then exit this capability so the enclosing contract can apply its
+continuation rule.
 
 ## Working model
 
@@ -40,6 +41,7 @@ Resolve the bundled tools from this file:
 skill_dir=<absolute directory containing this SKILL.md>
 scope_tool="$skill_dir/../../bin/review-scope"
 result_tool="$skill_dir/../../bin/review-result"
+report_tool="$skill_dir/../../bin/review-report"
 ```
 
 Choose the scope mechanically:
@@ -68,8 +70,9 @@ bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
 
 Exit 2 means invalid/unreadable scope, exit 3 an empty declared diff, and exit
 4 an ambiguous merge base. For one of these terminal outcomes, read
-[`references/result-protocol.md`](references/result-protocol.md) completely and
-emit its blocked scope result without invoking a reader.
+[`references/result-protocol.md`](references/result-protocol.md) completely,
+write and validate its blocked scope TSV beneath the scope artifact directory,
+then return the selected presentation without invoking a reader.
 
 Otherwise treat the returned absolute manifest, changed paths, target
 fingerprint, and fixed `show_command` as authoritative. Do not replace them
@@ -146,17 +149,27 @@ source, and evidence; preserve their reporting axis. Suppress a model finding
 that merely restates deterministic tool output while keeping the check record.
 Do not introduce a new finding.
 
-Assemble and validate the result beneath the scope artifact directory. For a
-standalone invocation, copy its bytes verbatim as the entire final response.
+Assemble and validate the TSV result beneath the scope artifact directory.
+For the default human presentation, run:
+
+```sh
+bash "$report_tool" render "$result_record"
+```
+
+Return those Markdown bytes as the entire response. The renderer validates the
+TSV, preserves every semantic field, and escapes hostile Markdown content. Only
+when the requester explicitly asked for raw TSV, v1, or machine format, copy
+the validated TSV bytes verbatim instead. Never concatenate the Markdown and
+TSV forms.
 
 For a composed invocation with `verdict=pass`, set `next_action` to return
-control to the enclosing goal, return the review report, and exit this
+control to the enclosing goal, return the selected review presentation, and exit this
 capability. The goal owner interprets the report and may perform only actions
 already authorized by the enclosing contract. A pass grants no repair, commit,
 publication, or other authority.
 
 For a composed invocation with `verdict=fail`, set `next_action` to return the
-findings to the enclosing goal, return the review report, and exit this
+findings to the enclosing goal, return the selected review presentation, and exit this
 capability without repairing. The goal remains incomplete and no
 not-yet-performed publication action may proceed. Its owner may repair only
 under authority already present in the enclosing contract, rerun every check
@@ -164,7 +177,7 @@ invalidated by that edit, and invoke this capability again against the changed
 target. Without repair authority it stops and reports the findings.
 
 For a composed invocation with `verdict=blocked`, set `next_action` to return
-the evidence gap, return the review report, and exit this capability. The
+the evidence gap, return the selected review presentation, and exit this capability. The
 enclosing goal stops and reports the gap; neither author self-review nor a fresh
 generic reader may replace the unavailable evidence.
 

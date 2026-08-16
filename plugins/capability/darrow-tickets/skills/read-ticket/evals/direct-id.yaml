@@ -1,0 +1,86 @@
+id: read-ticket-direct-id
+invariant: TM-R1,TM-R2,TM-R3
+activation: positive
+mount_plugin_skills: true
+prompt: "Read ticket #12 and return the authoritative ticket without changing it."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      find_flag() {
+        want=$1; shift
+        prev=""
+        for arg in "$@"; do
+          if [ "$prev" = "$want" ]; then printf '%s' "$arg"; return 0; fi
+          prev=$arg
+        done
+        return 1
+      }
+      if [ "$1" = "api" ]; then
+        case "$2" in
+          */issues/12/parent) echo 7 ;;
+          */issues/12/dependencies/blocked_by) echo 3 ;;
+          *) echo "mock gh: unsupported api call: $*" >&2; exit 1 ;;
+        esac
+        exit 0
+      fi
+      case "$1 $2" in
+        "repo view")
+          json=$(find_flag --json "$@")
+          if [ "$json" = "url" ]; then echo "https://github.test/o/r"; else echo true; fi
+          ;;
+        "issue view")
+          json=$(find_flag --json "$@")
+          case "$json" in
+            number,state,title,url,labels)
+              printf '#12 open — Preserve exact ticket bodies\n'
+              printf 'https://github.test/o/r/issues/12\n'
+              printf 'labels: enhancement, area: tickets\n'
+              ;;
+            body)
+              printf '## Motivation\n\nCallers need TOKEN-ALPHA verbatim.\n\n## Acceptance criteria\n\n- Preserve TOKEN-BETA exactly.\n'
+              ;;
+            *) echo "mock gh: unsupported --json set: $json" >&2; exit 1 ;;
+          esac
+          ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: successful CLI output is relayed byte-for-byte
+    run: cat .git/last-message.md
+    expect_exact: |-
+      backend: github
+      #12 open — Preserve exact ticket bodies
+      https://github.test/o/r/issues/12
+      labels: enhancement, area: tickets
+      parent: #7
+      depends-on: #3
+      ## body
+      ## Motivation
+
+      Callers need TOKEN-ALPHA verbatim.
+
+      ## Acceptance criteria
+
+      - Preserve TOKEN-BETA exactly.
+  - name: exact ticket metadata and body are returned
+    run: cat .git/last-message.md
+    expect_regex: "#12 open.*Preserve exact ticket bodies[\\s\\S]*https://github.test/o/r/issues/12[\\s\\S]*TOKEN-ALPHA[\\s\\S]*TOKEN-BETA"
+  - name: native relations are returned
+    run: cat .git/last-message.md
+    expect_regex: "parent: #7[\\s\\S]*depends-on: #3"
+  - name: one exact ticket is fetched
+    run: cat .git/fixture-gh/calls
+    expect_regex: "issue view 12"
+  - name: tracker state is unchanged
+    run: cat .git/fixture-gh/calls
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

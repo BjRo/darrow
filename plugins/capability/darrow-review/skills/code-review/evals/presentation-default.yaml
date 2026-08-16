@@ -1,0 +1,44 @@
+id: code-review-presentation-default
+invariant: CR-C15,CR-C16,CR-E12
+prompt: >-
+  Review my uncommitted changes against this originating requirement: token
+  values must be positive integers. Report only; do not request machine format.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Review standard
+
+          Changed token code must not call console.log.
+        src/token.js: |
+          export function parseToken(value) {
+            return Number(value);
+          }
+  files:
+    src/token.js: |
+      export function parseToken(value) {
+        console.log("<token> & `debug`", value);
+        return Number(value);
+      }
+checks:
+  - name: raw TSV stays beneath the review artifact
+    run: test "$(find .git -path '*/darrow-review.*/*' -name '*.tsv' | wc -l | tr -d ' ')" -ge 1
+output_checks:
+  - name: default response is a complete Markdown report
+    expect_regex: "^# Code review — FAIL"
+  - name: verdict and counts lead the report
+    expect_regex: '^# Code review[^\n]*\n\n\*\*Verdict:\*\* fail .*\*\*Findings:\*\*'
+    flags: i
+  - name: findings preserve axis severity disposition location source and evidence
+    expect_regex: '### 1\\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards\)[\\s\\S]{0,500}Location[\\s\\S]{0,500}Source[\\s\\S]{0,500}Evidence'
+    flags: i
+  - name: report preserves checks risks next action scope and sources
+    expect_regex: '## Checks[\\s\\S]*## Risks[\\s\\S]*## Next action[\\s\\S]*## Scope[\\s\\S]*## Sources'
+  - name: hostile evidence is safe Markdown text
+    expect_regex: "&lt;token&gt;.*&amp;"
+  - name: human response does not duplicate raw TSV
+    not_regex: '^format\\tdarrow-review-result-v1$'
+  - name: superficial evidence-free summary fails
+    not_regex: '^# Code review[^\n]*\n(?:[^\n]*\n){0,8}.*(?:pass|fail).*$'
+    flags: i

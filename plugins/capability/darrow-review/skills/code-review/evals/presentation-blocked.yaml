@@ -1,0 +1,17 @@
+id: code-review-presentation-blocked
+invariant: CR-C15,CR-E12
+prompt: >-
+  Review my uncommitted changes. Report only and do not create a change just to
+  make a review scope.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Clean fixture\n"
+checks: []
+output_checks:
+  - name: terminal scope failure is human-readable Markdown
+    expect_regex: "^# Code review — BLOCKED[\\s\\S]*## Checks[\\s\\S]*declared review scope is empty"
+    flags: i
+  - name: terminal scope response does not leak TSV
+    not_regex: "^format\\tdarrow-review-result-v1$"
