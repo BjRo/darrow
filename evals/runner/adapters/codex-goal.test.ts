@@ -323,7 +323,10 @@ after`);
       "Apply the selected high verification gate defined in the canonical guidance above.",
     );
     expect(prompt).toContain(
-      "After they pass, complete the native goal and return without rerunning a passing broad gate",
+      "After all required final-tree and selected review gates pass, complete the native goal",
+    );
+    expect(prompt).not.toContain(
+      "After they pass, complete the native goal and return",
     );
     expect(prompt).toContain(
       "including every stopped turn and a terminal blocked turn",
@@ -721,6 +724,37 @@ fi
         dimensions,
       ),
     ).toThrow("invalid shape");
+  });
+
+  test("settles a terminal review stop without resuming engineering", () => {
+    const handoff = handoffValue();
+    const contract = parseCodexGoalHandoff(
+      JSON.stringify(handoff),
+      catalog,
+      dimensions,
+    ).goalContract;
+
+    expect(contract).toMatch(
+      /terminal[^.;]*review[^.;]*(settle|mark)[^.;]*native goal[^.;]*blocked/i,
+    );
+    expect(contract).toMatch(
+      /automatic continuation[^.;]*status[^.;]*(must not|never)[^.;]*(repository|engineering)[^.;]*(verification|review)/i,
+    );
+
+    const executionPrompt = buildGoalExecutionPrompt(
+      handoff,
+      "# Change feature\n\nExecute the selected change.",
+      "Canonical selection and verification guidance.",
+    );
+    expect(executionPrompt).toMatch(
+      /before returning[^.]*settle[^.]*complete only[^.]*gates[^.]*blocked[^.]*terminal/i,
+    );
+    expect(executionPrompt).not.toContain(
+      "Before returning, complete the native goal",
+    );
+    expect(executionPrompt).not.toContain(
+      "After they pass, complete the native goal and return",
+    );
   });
 
   test("preserves a complete contract that exceeds the inline objective limit", () => {

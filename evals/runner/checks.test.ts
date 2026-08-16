@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runChecks, runOutputChecks } from "./checks";
+import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
 
 describe("eval checks", () => {
   test("expect_exact rejects an expected line amid extra output", async () => {
@@ -128,6 +128,39 @@ describe("eval checks", () => {
         },
       ]),
     ).toEqual([expect.objectContaining({ passed: true })]);
+  });
+
+  test("transcript checks inspect only activity after the final boundary", async () => {
+    const transcript = [
+      "review outcome: blocking",
+      '{"type":"commandExecution"}',
+      "review outcome: blocking",
+      '{"method":"thread/goal/updated","goal":{"status":"blocked"}}',
+    ].join("\n");
+    const [settled, inactive] = await runTranscriptChecks(transcript, [
+      {
+        name: "actual goal status",
+        after_regex: "review outcome: blocking",
+        expect_regex: '"status":"blocked"',
+      },
+      {
+        name: "no later repository activity",
+        after_regex: "review outcome: blocking",
+        not_regex: '"type":"(commandExecution|fileChange)"',
+      },
+    ]);
+    expect(settled?.passed).toBe(true);
+    expect(inactive?.passed).toBe(true);
+
+    const [missingBoundary] = await runTranscriptChecks(transcript, [
+      {
+        name: "boundary must exist",
+        after_regex: "review outcome: clear",
+        not_regex: "commandExecution",
+      },
+    ]);
+    expect(missingBoundary?.passed).toBe(false);
+    expect(missingBoundary?.detail).toContain("after_regex");
   });
 
   test("output checks reject prose around a JSON object", async () => {

@@ -1,4 +1,4 @@
-import type { Check, CheckResult, OutputCheck } from "./types";
+import type { Check, CheckResult, OutputCheck, TranscriptCheck } from "./types";
 import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { validateExternalSchema } from "./schema";
@@ -242,6 +242,42 @@ export function runOutputChecks(
     schemaBaseDir,
   };
   return Promise.all(checks.map((check) => textCheck(context, check)));
+}
+
+function transcriptSuffix(
+  transcript: string,
+  check: TranscriptCheck,
+): string | undefined {
+  if (check.after_regex === undefined) return transcript;
+  const flags = regexFlags(check).replaceAll("g", "") + "g";
+  const boundary = new RegExp(check.after_regex, flags);
+  let suffix: string | undefined;
+  for (const match of transcript.matchAll(boundary)) {
+    suffix = transcript.slice((match.index ?? 0) + match[0].length);
+  }
+  return suffix;
+}
+
+/** Apply hidden assertions to raw harness evidence, optionally after the final
+ * occurrence of a protocol boundary such as the terminal review response. */
+export async function runTranscriptChecks(
+  transcript: string,
+  checks: TranscriptCheck[],
+): Promise<CheckResult[]> {
+  return Promise.all(
+    checks.map(async ({ after_regex, ...check }) => {
+      const scoped = transcriptSuffix(transcript, { after_regex, ...check });
+      if (scoped === undefined) {
+        return {
+          name: check.name,
+          passed: false,
+          detail: `after_regex /${after_regex}/ missed`,
+          metric: check.metric,
+        };
+      }
+      return (await runOutputChecks(scoped, [check]))[0]!;
+    }),
+  );
 }
 
 interface CommandOutcome {

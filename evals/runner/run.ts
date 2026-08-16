@@ -12,7 +12,7 @@ import {
 } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
-import { runChecks, runOutputChecks } from "./checks";
+import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
@@ -335,6 +335,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     fixture: evalCase.fixture,
     checks: evalCase.checks,
     outputChecks: evalCase.output_checks ?? [],
+    transcriptChecks: evalCase.transcript_checks ?? [],
     activation: activationEvidence(evalCase),
     forbiddenSkillActivations: evalCase.forbidden_skill_activations ?? [],
     expectHeadChange: evalCase.expect_head_change ?? null,
@@ -520,8 +521,13 @@ async function trialChecks(
   context: TrialContext,
   observedGoalRouteApplication: GoalRouteApplication | undefined,
 ): Promise<CheckResult[]> {
-  const { evalCase } = options;
+  const { evalCase, withoutSkill = false } = options;
   const { repoDir, baseRevision, baseMutationState, harness } = context;
+  // A no-skill baseline is judged on repository outcomes, not on an
+  // orchestration-specific reporting or protocol contract it cannot know.
+  const orchestrationChecks = withoutSkill
+    ? []
+    : await orchestrationContractChecks(evalCase, harness);
   return [
     ...(await runChecks(repoDir, evalCase.checks)),
     ...(await repositoryChecks(
@@ -530,11 +536,7 @@ async function trialChecks(
       baseRevision,
       baseMutationState,
     )),
-    ...(await runOutputChecks(
-      harness.resultText,
-      evalCase.output_checks ?? [],
-      evalCase.skillDir,
-    )),
+    ...orchestrationChecks,
     ...routeChecks(options, harness, observedGoalRouteApplication),
     ...(options.withoutSkill
       ? []
@@ -555,6 +557,23 @@ async function dryChecks(
       "",
       evalCase.output_checks ?? [],
       evalCase.skillDir,
+    )),
+  ];
+}
+
+async function orchestrationContractChecks(
+  evalCase: EvalCase,
+  harness: HarnessResult,
+): Promise<CheckResult[]> {
+  return [
+    ...(await runOutputChecks(
+      harness.resultText,
+      evalCase.output_checks ?? [],
+      evalCase.skillDir,
+    )),
+    ...(await runTranscriptChecks(
+      harness.raw,
+      evalCase.transcript_checks ?? [],
     )),
   ];
 }
