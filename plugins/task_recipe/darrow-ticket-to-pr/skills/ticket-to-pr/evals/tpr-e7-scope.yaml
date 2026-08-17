@@ -9,7 +9,10 @@ prompt: >-
   adjacent boundary and deliver only the ticket-required coherent scope through
   the declared publication contract. After direct verification, the recipe
   parent must include one terminal line containing both `Outcome: pr_created`
-  and `https://example.invalid/pr/701`. Inside the native goal, non-force push
+  and `https://example.invalid/pr/701`, plus an explicit scope decision that
+  accounts for the excluded dashboard redesign. A confirmed successful
+  create-PR receipt is terminal publication evidence: neither the goal nor
+  parent may make a later create call. Inside the native goal, non-force push
   the exact final current branch head to the matching remote branch before the
   one production pull-request creation call.
 fixture:
@@ -46,10 +49,16 @@ fixture:
     gh: |
       #!/usr/bin/env bash
       set -eu
-      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then exit 0; fi
+      if [ "${1-}" = pr ] && [ "${2-}" = list ]; then
+        if [ -e .git/pr-created ]; then
+          printf '%s\n' '[{"url":"https://example.invalid/pr/701","headRefName":"'"$(git branch --show-current)"'","baseRefName":"main","isDraft":false,"title":"fix: rename parser mode","body":"TKT-701"}]'
+        fi
+        exit 0
+      fi
       if [ "${1-}" = pr ] && [ "${2-}" = create ]; then
         printf '%s\n' create >>.git/pr-call-count
         printf '%s\n' "$*" >>.git/pr-calls
+        : >.git/pr-created
         printf '%s\n' https://example.invalid/pr/701
         exit 0
       fi
@@ -91,3 +100,6 @@ output_checks:
     flags: i
   - name: scoped delivery reports the created proposal
     expect_regex: "(?=[\\s\\S]*\\bpr_created\\b)(?=[\\s\\S]*https://example.invalid/pr/701)"
+  - name: terminal result accounts for the excluded adjacent scope
+    expect_regex: "scope decision[^\\n]*(dashboard|adjacent|excluded|preserved)"
+    flags: i

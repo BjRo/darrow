@@ -426,9 +426,12 @@ with the compatible create-PR capability.
 4. **TPR-C4 — One native goal owner.** One adaptive host-native goal owns
    implementation, recovery, verification, and completion without a Darrow
    workflow runtime.
-5. **TPR-C5 — Bounded authority.** Invocation authorizes one task branch,
-   intended commits, a non-force push, and exactly one pull request, but no
-   merge, deployment, release, ticket mutation, or unrelated effect.
+5. **TPR-C5 — Bounded authority and scope accounting.** Invocation authorizes
+   one task branch, intended commits, a non-force push, and exactly one pull
+   request, but no merge, deployment, release, ticket mutation, or unrelated
+   effect. Known adjacent exclusions are carried into the delegated goal and
+   rendered as an explicit terminal scope decision; successful publication
+   receipts do not authorize a later create call by either the goal or parent.
 6. **TPR-C6 — Preserved local work.** Pre-existing work is never lost or
    silently absorbed, and ambiguity stops before mutation.
 7. **TPR-C7 — Idempotent publication.** Correlated branches and pull requests

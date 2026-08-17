@@ -133,7 +133,7 @@ Give it:
 - the complete authoritative ticket returned by intake and the fact that it
   was already retrieved;
 - the exact repository, deliberate base and base object, inspection facts,
-  correlated durable state, preserved work, and known adjacent exclusions;
+  correlated durable state, preserved work, and known adjacent exclusions; and
 - authority for one distinct descendant task branch, intended coherent
   commits, one non-force push, and exactly one review-ready pull request; and
 - applicable repository checks, publication requirements, and prohibited
@@ -179,9 +179,11 @@ opaque evidence path is only for a validation refusal; never use it to bypass
 validation of a record that could be parsed.
 
 After launch, the native goal is the sole writer for branch, commit, push, and
-proposal state. When it returns, remain on its checkout and branch. The recipe
-parent performs only the read-only verification and rendering below; it never
-replays a failed or ambiguous mutation.
+proposal state. A confirmed successful create-PR receipt consumes publication
+mutation authority: neither the goal nor the recipe parent makes a later create
+call. When it returns, remain on its checkout and branch. The recipe parent
+performs only the read-only verification and rendering below; it never replays
+a failed or ambiguous mutation.
 
 ## 4. Verify current delivery
 
@@ -223,11 +225,15 @@ Select exactly one literal outcome:
   push, proposal, or verification gate prevented completion; or
 - `interrupted` — the user, explicit budget, or host ended execution.
 
-Outcome and next-action selection are semantic judgments. Supply them to
+Outcome, next-action, and scope-decision selection are semantic judgments.
+Supply them to
 `render-result`; do not ask the helper to infer either. For success, pass the
 current verification result, review result, and pull-request URL. For every
 non-success, pass the exact reason and smallest useful next action. Pass all
 known durable branch, commit, remote-branch, proposal, and preservation facts.
+For every post-launch success, pass `--scope-decision` with a concise account
+of included ticket work and every known adjacent exclusion (or state that none
+was identified). This is terminal evidence, not permission to expand scope.
 
 Pass `--launch-record` whenever adaptive-goal ran, including blocked or
 interrupted returns, except that a record whose structure caused validation to

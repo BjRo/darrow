@@ -838,7 +838,7 @@ EOF
 
 render_result() {
   local ticket='' outcome='' verification='' review='' reason='' next_action='' branch='' commit=''
-  local remote_branch='' pull_request='' preservation='' requested_launch_record='' launch_record=''
+  local remote_branch='' pull_request='' preservation='' scope_decision='' requested_launch_record='' launch_record=''
   local requested_unvalidated_launch_record='' unvalidated_launch_record='' launch_digest=''
   local value
   while test "$#" -gt 0; do
@@ -854,6 +854,7 @@ render_result() {
       --remote-branch) require_value "$@"; remote_branch=$2; shift 2 ;;
       --pull-request) require_value "$@"; pull_request=$2; shift 2 ;;
       --preservation) require_value "$@"; preservation=$2; shift 2 ;;
+      --scope-decision) require_value "$@"; scope_decision=$2; shift 2 ;;
       --launch-record) require_value "$@"; requested_launch_record=$2; shift 2 ;;
       --unvalidated-launch-record) require_value "$@"; requested_unvalidated_launch_record=$2; shift 2 ;;
       *) die "unknown render-result option: $1" ;;
@@ -870,6 +871,7 @@ render_result() {
       test -n "$branch" || die "$outcome requires --branch"
       test -n "$commit" || die "$outcome requires --commit"
       test -n "$remote_branch" || die "$outcome requires --remote-branch"
+      test -n "$scope_decision" || die "$outcome requires --scope-decision"
       ;;
     stopped|blocked|interrupted)
       test -n "$reason" || die "$outcome requires --reason"
@@ -877,7 +879,7 @@ render_result() {
       ;;
     *) die "unsupported outcome: $outcome" ;;
   esac
-  for value in "$verification" "$review" "$reason" "$next_action" "$branch" "$commit" "$remote_branch" "$pull_request" "$preservation"; do
+  for value in "$verification" "$review" "$reason" "$next_action" "$branch" "$commit" "$remote_branch" "$pull_request" "$preservation" "$scope_decision"; do
     if test -n "$value"; then
       validate_record_value 'result value' "$value"
     fi
@@ -919,6 +921,7 @@ render_result() {
   if test -n "$commit"; then printf 'Commit: %s.\n' "$commit"; fi
   if test -n "$remote_branch"; then printf 'Remote branch: %s.\n' "$remote_branch"; fi
   if test -n "$preservation"; then printf 'Preservation: %s.\n' "$preservation"; fi
+  if test -n "$scope_decision"; then printf 'Scope decision: %s.\n' "$scope_decision"; fi
 }
 
 main() {
