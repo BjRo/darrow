@@ -3,6 +3,10 @@ set -eu
 
 fixture_dir=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P) || exit 1
 installer=$fixture_dir/install-independent-review.sh
+test -f "$fixture_dir/independent-review/skill-fixture.md"
+test ! -e "$fixture_dir/independent-review/SKILL.md"
+test -f "$fixture_dir/../../SKILL.md"
+test "$(find "$fixture_dir/../../.." -type f -name SKILL.md | wc -l | tr -d ' ')" -eq 1
 temporary_root=$(mktemp -d "${TMPDIR:-/tmp}/darrow-review-fixture-test.XXXXXX") ||
   exit 1
 trap 'rm -rf "$temporary_root"' EXIT HUP INT TERM
