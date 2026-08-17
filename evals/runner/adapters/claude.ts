@@ -6,6 +6,7 @@ import type {
   HarnessResult,
   SkillActivationObservation,
 } from "../types";
+import { gitRecoveryCommandEvidence } from "./command-evidence";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 import { captureProcess } from "../process";
@@ -212,6 +213,20 @@ function retainedSkillBlocks(event: ClaudeResultEnvelope) {
   });
 }
 
+function retainedCommandBlocks(event: ClaudeResultEnvelope) {
+  if (event.type !== "assistant") return [];
+  return claudeContent(event).flatMap((block) => {
+    const input = isRecord(block.input) ? block.input : undefined;
+    if (
+      block.type !== "tool_use" ||
+      block.name !== "Bash" ||
+      typeof input?.command !== "string"
+    )
+      return [];
+    return gitRecoveryCommandEvidence(input.command);
+  });
+}
+
 /** Normalize Claude's direct Skill tool-use events without retaining messages. */
 export function claudeSkillActivation(
   stream: string,
@@ -265,6 +280,7 @@ export function retainedClaudeEvidence(
     const skills = retainedSkillBlocks(event);
     if (skills.length)
       retained.push({ type: "assistant", message: { content: skills } });
+    retained.push(...retainedCommandBlocks(event));
   }
   if (parsed.malformed) retained.push({ type: "malformed_stream" });
   if (route) retained.push(route);

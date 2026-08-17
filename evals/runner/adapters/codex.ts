@@ -6,6 +6,7 @@ import type {
   HarnessResult,
   SkillActivationObservation,
 } from "../types";
+import { gitRecoveryCommandEvidence } from "./command-evidence";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 import { captureProcess } from "../process";
@@ -132,6 +133,18 @@ function malformedCompletedCommand(event: CodexEvent): boolean {
     typeof event.item.exit_code !== "number" ||
     (event.item.status !== "completed" && event.item.status !== "failed")
   );
+}
+
+function retainedCommandEvidence(event: CodexEvent) {
+  const item = event.item;
+  if (
+    event.type !== "item.completed" ||
+    item?.type !== "command_execution" ||
+    typeof item.command !== "string" ||
+    (item.status !== "completed" && item.status !== "failed")
+  )
+    return [];
+  return gitRecoveryCommandEvidence(item.command);
 }
 
 function observedSkillReads(
@@ -316,7 +329,7 @@ export function retainedCodexEvidence(
       retainedCollaborationEvent(event),
       retainedNestedApplication(event),
     ].filter((value): value is object => value !== undefined);
-    return values;
+    return [...values, ...retainedCommandEvidence(event)];
   });
   for (const skill of observedSkillReads(events, installedSkillsRoots)) {
     retained.push({

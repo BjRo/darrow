@@ -250,11 +250,26 @@ concise terminal outcome as a newly completed delivery.
 Unknown, stale, or content-invalidated checks and reviews are rerun. Claims that
 work probably passed are not durable evidence.
 
-For recoverable commit-hook, push, or pull-request failures, the goal makes the
-smallest correction already authorized by the ticket, reruns invalidated
-verification, and continues until publication succeeds or a genuine external
-block, user interruption, or explicit budget stops it. It never bypasses hooks,
-force-pushes, broadens scope, or uses an arbitrary retry count.
+For a commit-hook rejection, the goal first diagnoses the failure and retries
+only after identifying a concrete ticket-authorized causal correction that
+materially changes the failing input and rerunning every check invalidated by
+that correction. An undiagnosed rejection or a retry with unchanged causal
+input is terminal `blocked`. When the diagnosed hook behavior does not depend
+on ticket-authorized content, no eligible causal correction exists: the goal
+makes exactly one failed commit attempt in total and does not probe with a
+second commit. The goal preserves the task branch, the pre-attempt HEAD,
+deliberate base ref and object, intended index, and worktree; it never bypasses
+hooks, amends, resets, switches away, moves the base, repeats an unchanged
+attempt, force-pushes, or broadens scope. The terminal blocked report names the
+actual preserved task branch, deliberate base, and staged ticket paths. If a
+hook itself mutates repository state, the terminal result reports that state
+without destructive cleanup.
+
+For recoverable push or pull-request failures, the goal makes the smallest
+correction already authorized by the ticket, reruns invalidated verification,
+and continues until publication succeeds or a genuine external block, user
+interruption, or explicit budget stops it. It never force-pushes, broadens
+scope, or uses an arbitrary retry count.
 
 A failed pull-request creation call is retried only after read-only forge
 reconstruction proves that the exact attempt created no correlated proposal.
@@ -444,7 +459,16 @@ with the compatible create-PR capability.
    phase.
 10. **TPR-C10 — Persistent safe recovery.** Recoverable failures receive the
     smallest authorized correction and invalidated checks without fixed retry
-    counts, bypasses, force pushes, or scope expansion.
+    counts, bypasses, force pushes, or scope expansion. A commit retry is
+    eligible only after diagnostics identify a concrete ticket-authorized
+    causal correction that materially changes the failing input and invalidated
+    checks rerun. An undiagnosed or unchanged hook rejection is terminal
+    `blocked` with the task branch, pre-attempt HEAD, base ref and object,
+    intended index, and worktree preserved. A hook independent of
+    ticket-authorized content receives exactly one failed commit attempt, and
+    the blocked report names the actual preserved task branch, deliberate base,
+    and staged ticket paths. Hook-caused mutations are reported without
+    destructive cleanup.
 11. **TPR-C11 — Stable terminal semantics.** Every invocation reports exactly
     one defined delivery outcome and its durable progress.
 12. **TPR-C12 — Cross-host contract.** Claude Code and Codex expose the same

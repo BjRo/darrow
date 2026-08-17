@@ -155,6 +155,23 @@ create-PR capability. Do not duplicate those mechanics in this recipe or its
 helper. The deliberate base is immutable delivery input and must never be
 renamed, deleted, reset, or force-moved.
 
+Pass this recovery clause into adaptive-goal unchanged: after a commit-hook
+rejection, diagnose the failure before considering another commit. A retry is
+eligible only when diagnostics identify a concrete ticket-authorized causal
+correction that materially changes the failing input and every invalidated
+check has rerun. An undiagnosed rejection or unchanged causal input is terminal
+`blocked`. When the hook behavior does not depend on ticket-authorized content,
+no eligible causal correction exists: make exactly one failed commit attempt in
+total and do not probe with another commit. Preserve the task branch,
+pre-attempt HEAD, deliberate base ref and object, intended index, and worktree.
+Never bypass the hook, amend, reset, switch away, move the base, repeat an
+unchanged attempt, force-push, or broaden scope. The blocked renderer input must
+name the actual preserved task branch, deliberate base, and every staged ticket
+path; do not replace those values with a generic preservation claim. If the
+hook itself mutates repository state, report that exact state without
+destructive cleanup. Keep this recovery judgment in the recipe's goal contract;
+do not weaken it to generic persistence.
+
 Map adaptive-goal's `decision-gated` preflight to `stopped` with its smallest
 missing decision. Map an unavailable capability, failed preflight, unsupported
 route, or unreconciled launch to `blocked`. Delegation adds no authority.

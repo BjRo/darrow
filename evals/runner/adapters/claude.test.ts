@@ -234,6 +234,46 @@ describe("Claude skill activation observation", () => {
     expect(retained).not.toContain("sensitive user-supplied subject");
   });
 
+  test("retains executed recovery violations without matching assistant prose", () => {
+    const stream = [
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "text",
+              text: "Never run git commit --no-verify or git commit -n.",
+            },
+            {
+              type: "tool_use",
+              name: "Bash",
+              input: {
+                command:
+                  "git commit --dry-run; git -c core.hooksPath=/dev/null commit -m bypass",
+              },
+            },
+            {
+              type: "tool_use",
+              name: "Bash",
+              input: { command: "git reset --soft HEAD" },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({ type: "result", subtype: "success", result: "blocked" }),
+    ].join("\n");
+
+    const retained = retainedClaudeEvidence(stream);
+    expect(retained.match(/darrow\.command_execution/g)).toHaveLength(2);
+    expect(retained).toContain(
+      '"command":"git recovery violation: hook-bypass"',
+    );
+    expect(retained).toContain(
+      '"command":"git recovery violation: history-rewrite"',
+    );
+    expect(retained).not.toContain("Never run git commit");
+  });
+
   test("treats JSON primitives as malformed and retains no stderr or result text", () => {
     const stream = [
       "null",

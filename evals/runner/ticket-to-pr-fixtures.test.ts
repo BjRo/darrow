@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { runChecks, runOutputChecks } from "./checks";
+import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
 import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase, OutputCheck } from "./types";
 
@@ -333,6 +333,93 @@ describe("ticket-to-PR evaluation fixtures", () => {
     ]);
   });
 
+  test("makes an unchanged hook rejection terminal with exact preserved state", async () => {
+    const evalCase = await loadCase("tpr-e6-recovery.yaml");
+    const contract = JSON.stringify(evalCase);
+    const skill = await readFile(resolve(CASES, "../SKILL.md"), "utf8");
+
+    expect(evalCase.prompt).not.toContain("original-base-oid");
+    expect(evalCase.prompt).not.toContain("pre-commit-attempts");
+    expect(evalCase.prompt).not.toContain("darrow.command_execution");
+    expect(contract).toContain("original base ref and object remain exact");
+    expect(contract).toContain(
+      "only the ticket branch and intended staged file",
+    );
+    expect(skill).toContain("materially changes the failing input");
+    expect(skill).toContain("pre-attempt HEAD");
+
+    const repoDir = await buildFixture({
+      fixture: evalCase.fixture,
+      skillDir: "",
+      skillMounts: [],
+    });
+    fixtures.push(repoDir);
+    expect(
+      Bun.spawnSync(["git", "switch", "-c", "fix/TKT-601-format-app"], {
+        cwd: repoDir,
+      }).exitCode,
+    ).toBe(0);
+    await Bun.write(join(repoDir, "app.txt"), "formatted\n");
+    expect(
+      Bun.spawnSync(["git", "add", "app.txt"], { cwd: repoDir }).exitCode,
+    ).toBe(0);
+    expect(
+      Bun.spawnSync(["git", "commit", "-m", "fix: format TKT-601 app"], {
+        cwd: repoDir,
+      }).exitCode,
+    ).toBe(1);
+    expect(await runChecks(repoDir, evalCase.checks)).toEqual(
+      evalCase.checks.map(() => expect.objectContaining({ passed: true })),
+    );
+
+    const transcriptChecks = evalCase.transcript_checks ?? [];
+    const branchCreation = JSON.stringify({
+      type: "darrow.command_execution",
+      command: "git branch create",
+    });
+    const proseOnly = [
+      JSON.stringify({
+        type: "darrow.skill_read_probe",
+        output: "Never run git commit --no-verify or git commit -n.",
+      }),
+      branchCreation,
+    ].join("\n");
+    expect(await runTranscriptChecks(proseOnly, transcriptChecks)).toEqual(
+      transcriptChecks.map(() => expect.objectContaining({ passed: true })),
+    );
+    const opaqueCapability = JSON.stringify({
+      type: "darrow.skill_read_probe",
+      output: "The compatible Git capability created the task branch.",
+    });
+    expect(
+      (await runTranscriptChecks(opaqueCapability, transcriptChecks)).every(
+        (check) => check.passed,
+      ),
+    ).toBe(true);
+    for (const command of [
+      "git recovery violation: hook-bypass",
+      "git recovery violation: history-rewrite",
+    ]) {
+      const executed = [
+        branchCreation,
+        JSON.stringify({ type: "darrow.command_execution", command }),
+      ].join("\n");
+      expect(
+        (await runTranscriptChecks(executed, transcriptChecks)).some(
+          (check) => !check.passed,
+        ),
+      ).toBe(true);
+    }
+    expect(
+      (
+        await runTranscriptChecks(
+          `${branchCreation}\n${branchCreation}`,
+          transcriptChecks,
+        )
+      ).some((check) => !check.passed),
+    ).toBe(true);
+  });
+
   test("makes durable review reconstruction an explicit read-only return", async () => {
     for (const name of [
       "tpr-e8-blocking-review.yaml",
@@ -454,6 +541,36 @@ describe("ticket-to-PR evaluation fixtures", () => {
       deliveryCase.output_checks ?? [],
     );
     expect(explicitNonUse.every((check) => check.passed)).toBe(true);
+  });
+
+  test("requires an unambiguous blocked recovery report with exact preserved state", async () => {
+    const recovery = (await loadCase("tpr-e6-recovery.yaml")) as EvalCase & {
+      output_checks?: OutputCheck[];
+    };
+    const checks = recovery.output_checks ?? [];
+
+    for (const output of [
+      "Outcome: blocked. Branch: fix/TKT-601. Base: main. Staged: app.txt.",
+      "Outcome: blocked. Branch: fix/tkt-601. Preservation: main remains unchanged; app.txt is staged.",
+      "Outcome: blocked. Branch: fix/tkt-601. Preservation: branch remains at base c859c97df9c009d76ae2323d32276c6d339f7ff1 with app.txt staged.",
+      "Outcome: blocked. Branch: fix/TKT-601. Base: main. Staged: app.txt. Preservation: no commit, push, remote branch, or PR was created.",
+      "Outcome: blocked. Branch: fix/TKT-601. Base: main. Staged: app.txt. Preservation: no commit push or PR created.",
+    ]) {
+      expect(
+        (await runOutputChecks(output, checks)).every((check) => check.passed),
+      ).toBe(true);
+    }
+    for (const output of [
+      "Outcome: interrupted. Branch: fix/TKT-601. Base: main. Staged: app.txt.",
+      "Outcome: not blocked. Branch: fix/TKT-601. Base: main. Staged: app.txt.",
+      "Delivery succeeded, then recovery was blocked. Branch: fix/TKT-601. Base: main. Staged: app.txt.",
+      "Outcome: blocked. Branch: fix/TKT-601. Base: main. Staged: app.txt. Pull request was created.",
+      "Outcome: blocked. Branch and base are preserved; the index is staged.",
+    ]) {
+      expect(
+        (await runOutputChecks(output, checks)).every((check) => check.passed),
+      ).toBe(false);
+    }
   });
 
   test("accepts order-independent terminal evidence without weakening blockers", async () => {
