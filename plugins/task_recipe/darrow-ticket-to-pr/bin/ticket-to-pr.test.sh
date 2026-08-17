@@ -345,7 +345,7 @@ check 'changed preserved checkout is refused' 2 "$?"
 printf '# render-result success and refusal paths\n'
 write_launch_record "$launch_record"
 launch_before=$(cksum "$launch_record")
-out=$(bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_created --verification 'current checks passed' --review 'omitted; not required for routine risk' --branch feat/TKT-31-mechanics --commit 0123456789012345678901234567890123456789 --remote-branch origin/feat/TKT-31-mechanics --pull-request https://example.invalid/pull/31 --preservation 'original checkout unchanged' --launch-record "$launch_record")
+out=$(bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_created --verification 'current checks passed' --review 'omitted; not required for routine risk' --scope-decision 'no adjacent exclusions identified' --branch feat/TKT-31-mechanics --commit 0123456789012345678901234567890123456789 --remote-branch origin/feat/TKT-31-mechanics --pull-request https://example.invalid/pull/31 --preservation 'original checkout unchanged' --launch-record "$launch_record")
 check 'successful result renders' 0 "$?"
 contains 'canonical ticket line' "$out" 'Ticket: TKT-31'
 contains 'canonical success evidence line' "$out" 'Outcome: pr_created. Review: omitted; not required for routine risk. Verification: current checks passed. Pull request: https://example.invalid/pull/31.'
@@ -353,7 +353,11 @@ contains 'durable branch renders' "$out" 'Branch: feat/TKT-31-mechanics.'
 contains 'durable commit renders' "$out" 'Commit: 0123456789012345678901234567890123456789.'
 contains 'durable remote branch renders' "$out" 'Remote branch: origin/feat/TKT-31-mechanics.'
 contains 'preservation evidence renders' "$out" 'Preservation: original checkout unchanged.'
+contains 'scope decision renders' "$out" 'Scope decision: no adjacent exclusions identified.'
 contains 'v4 launch record is preserved' "$out" "format${TAB}darrow-native-goal-preflight-v4"
+scope_out=$(bash "$SCRIPT" render-result --ticket TKT-701 --outcome pr_created --verification 'current checks passed' --review clear --scope-decision 'dashboard redesign excluded as adjacent scope' --branch feat/TKT-701-scope --commit 0123456789012345678901234567890123456789 --remote-branch origin/feat/TKT-701-scope --pull-request https://example.invalid/pull/701 --launch-record "$launch_record")
+check 'successful result renders a scope decision' 0 "$?"
+contains 'scope decision is preserved in successful result' "$scope_out" 'Scope decision: dashboard redesign excluded as adjacent scope.'
 case "$out" in
   "format${TAB}darrow-native-goal-preflight-v4"*"Ticket: TKT-31"*) check 'launch record precedes parent terminal lines' yes yes ;;
   *) check 'launch record precedes parent terminal lines' yes no ;;
@@ -370,7 +374,7 @@ Outcome: stopped."
 no_newline_record="$TEST_ROOT/no-newline-launch-record.tsv"
 launch_text=$(cat "$launch_record")
 printf '%s' "$launch_text" >"$no_newline_record"
-out=$(bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_created --verification passed --review clear --branch feat/TKT-31-mechanics --commit 0123456789012345678901234567890123456789 --remote-branch origin/feat/TKT-31-mechanics --pull-request https://example.invalid/pull/31 --launch-record "$no_newline_record")
+out=$(bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_created --verification passed --review clear --scope-decision 'no adjacent exclusions identified' --branch feat/TKT-31-mechanics --commit 0123456789012345678901234567890123456789 --remote-branch origin/feat/TKT-31-mechanics --pull-request https://example.invalid/pull/31 --launch-record "$no_newline_record")
 check 'valid record without final newline renders' 0 "$?"
 contains 'missing record newline does not merge the ticket line' "$out" "evaluation_human_interruptions${TAB}0
 Ticket: TKT-31"
@@ -395,6 +399,8 @@ bash "$SCRIPT" render-result --ticket TKT-31 --outcome 'done' --reason nope --ne
 check 'unknown outcome is refused' 2 "$?"
 bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_created --verification passed --review clear >"$TEST_ROOT/out" 2>"$TEST_ROOT/err"
 check 'success without pull request is refused' 2 "$?"
+bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_created --verification passed --review clear --branch feat/TKT-31-mechanics --commit 0123456789012345678901234567890123456789 --remote-branch origin/feat/TKT-31-mechanics --pull-request https://example.invalid/pull/31 >"$TEST_ROOT/out" 2>"$TEST_ROOT/err"
+check 'success without scope decision is refused' 2 "$?"
 bash "$SCRIPT" render-result --ticket TKT-31 --outcome pr_existing --verification passed --review clear --pull-request https://example.invalid/pull/31 >"$TEST_ROOT/out" 2>"$TEST_ROOT/err"
 check 'success without durable Git state is refused' 2 "$?"
 bash "$SCRIPT" render-result --ticket TKT-31 --outcome blocked --reason nope >"$TEST_ROOT/out" 2>"$TEST_ROOT/err"
