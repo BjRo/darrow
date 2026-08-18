@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  printf '%s\n' 'usage: claude-provider observe-direct'
+}
+
+die() {
+  printf 'claude-provider: %s\n' "$*" >&2
+  exit 2
+}
+
+test "$#" -eq 1 || {
+  usage >&2
+  exit 2
+}
+test "$1" = observe-direct || die "unknown command: $1"
+
+for selector in \
+  CLAUDE_CODE_USE_BEDROCK \
+  CLAUDE_CODE_USE_MANTLE \
+  CLAUDE_CODE_USE_VERTEX \
+  CLAUDE_CODE_USE_FOUNDRY \
+  CLAUDE_CODE_USE_ANTHROPIC_AWS; do
+  selector_value=$(printenv "$selector" 2>/dev/null || true)
+  test -z "$selector_value" ||
+    die "Claude provider is not observably direct Anthropic: $selector is set"
+done
+
+base_url=${ANTHROPIC_BASE_URL:-}
+case "$base_url" in
+  ''|https://api.anthropic.com|https://api.anthropic.com/) ;;
+  *) die "Claude provider is not observably direct Anthropic: ANTHROPIC_BASE_URL is custom" ;;
+esac
+
+printf 'provider\tclaude\tanthropic\n'
+printf 'provider_evidence\tcurrent-host-environment-default\n'

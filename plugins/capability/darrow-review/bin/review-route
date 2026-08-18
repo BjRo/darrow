@@ -1,0 +1,626 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+reviewers_file="$script_dir/../config/reviewers.json"
+reviewers_parser="$script_dir/reviewers-json.awk"
+claude_provider_probe="$script_dir/claude-provider"
+tab=$(printf '\t')
+tmp_record=
+
+umask 077
+
+cleanup_tmp_record() {
+  if test -n "$tmp_record" && test -e "$tmp_record"; then
+    rm -f "$tmp_record"
+  fi
+}
+trap cleanup_tmp_record EXIT HUP INT TERM
+
+usage() {
+  cat <<'EOF'
+usage: review-route resolve --repo <path> --host <codex|claude>
+       review-route select --repo <path> --host <codex|claude> --record <absolute-path>
+       review-route claude-agent --route-record <absolute-path>
+       review-route claude-agent --provider <id> --model <id> --effort <level>
+       review-route confirm-codex --route-record <absolute-path> --axis <standards|spec> --agent-id <host-id> --application-record <absolute-path>
+       review-route confirm-claude --route-record <absolute-path> --observed-record <absolute-path> --axis <standards|spec> --application-record <absolute-path>
+EOF
+}
+
+die() {
+  printf 'review-route: %s\n' "$*" >&2
+  exit 2
+}
+
+require_value() {
+  test "$#" -ge 2 && test -n "$2" || die "missing value for $1"
+}
+
+validate_host_provider() {
+  case "$1|$2" in
+    codex\|openai|claude\|anthropic) ;;
+    *) die "reviewer host and provider disagree: host=$1 provider=$2" ;;
+  esac
+}
+
+validate_strong_route() {
+  case "$1|$2|$3|$4" in
+    codex\|openai\|gpt-5.6-sol\|high|codex\|openai\|gpt-5.6-sol\|xhigh|codex\|openai\|gpt-5.6-sol\|max|codex\|openai\|gpt-5.5\|high|codex\|openai\|gpt-5.5\|xhigh|claude\|anthropic\|claude-opus-5\|xhigh|claude\|anthropic\|claude-sonnet-5\|high) ;;
+    *) die "unsupported strong reviewer route: host=$1 provider=$2 model=$3 effort=$4" ;;
+  esac
+}
+
+validate_effort() {
+  case "$1" in
+    low|medium|high|xhigh|max) ;;
+    *) die "unsupported reviewer effort: $1" ;;
+  esac
+}
+
+validate_model() {
+  test -n "$1" || die "reviewer model is empty"
+  case "$1" in
+    *[!A-Za-z0-9._-]*) die "unsafe reviewer model ID: $1" ;;
+  esac
+}
+
+validate_axis() {
+  case "$1" in
+    standards|spec) ;;
+    *) die "unsupported review axis: $1" ;;
+  esac
+}
+
+validate_agent_id() {
+  test -n "$1" || die "reviewer agent ID is empty"
+  case "$1" in
+    *[!A-Za-z0-9._/@:-]*) die "unsafe reviewer agent ID: $1" ;;
+  esac
+}
+
+require_direct_claude_provider() {
+  test -r "$claude_provider_probe" ||
+    die "Claude provider probe is unreadable: $claude_provider_probe"
+  bash "$claude_provider_probe" observe-direct >/dev/null ||
+    die "Claude provider is unavailable for an Anthropic-only reviewer route"
+}
+
+canonicalize_new_record() {
+  requested_record=$1
+  case "$requested_record" in
+    /*) ;;
+    *) die "record path must be absolute: $requested_record" ;;
+  esac
+  test ! -e "$requested_record" && test ! -L "$requested_record" ||
+    die "record path already exists: $requested_record"
+  record_parent=$(dirname -- "$requested_record")
+  record_name=$(basename -- "$requested_record")
+  test -d "$record_parent" && test -w "$record_parent" ||
+    die "record directory is unavailable: $record_parent"
+  record_parent=$(CDPATH='' cd -- "$record_parent" && pwd -P) ||
+    die "record directory is unreadable: $record_parent"
+  canonical_record="$record_parent/$record_name"
+  test ! -e "$canonical_record" && test ! -L "$canonical_record" ||
+    die "record path already exists: $canonical_record"
+}
+
+write_record() {
+  canonicalize_new_record "$1"
+  record_body=$2
+  tmp_record=$(mktemp "$record_parent/.darrow-review-record.XXXXXX") ||
+    die "could not create a temporary record in $record_parent"
+  printf '%s\n' "$record_body" >"$tmp_record" ||
+    die "could not write reviewer record: $canonical_record"
+  mv "$tmp_record" "$canonical_record" ||
+    die "could not install reviewer record: $canonical_record"
+  tmp_record=
+  written_record=$canonical_record
+}
+
+require_record_file() {
+  record_file=$1
+  case "$record_file" in
+    /*) ;;
+    *) die "record path must be absolute: $record_file" ;;
+  esac
+  test ! -L "$record_file" && test -f "$record_file" && test -r "$record_file" ||
+    die "record is unreadable or unsafe: $record_file"
+}
+
+read_route_record() {
+  route_record_file=$1
+  expected_host=${2:-}
+  require_record_file "$route_record_file"
+  route_format_count=0
+  route_selected_count=0
+  route_source_count=0
+  route_host=
+  route_provider=
+  route_model=
+  route_effort=
+  route_source=
+  while IFS="$tab" read -r key field2 field3 field4 field5 extra || test -n "${key:-}"; do
+    case "$key" in
+      format)
+        test "$field2" = darrow-reviewer-route-v1 && test -z "${field3:-}" &&
+          test -z "${field4:-}" && test -z "${field5:-}" && test -z "${extra:-}" ||
+          die "invalid route format record: $route_record_file"
+        route_format_count=$((route_format_count + 1))
+        ;;
+      selected_route)
+        test -n "${field2:-}" && test -n "${field3:-}" && test -n "${field4:-}" &&
+          test -n "${field5:-}" && test -z "${extra:-}" ||
+          die "invalid selected route record: $route_record_file"
+        route_host=$field2
+        route_provider=$field3
+        route_model=$field4
+        route_effort=$field5
+        route_selected_count=$((route_selected_count + 1))
+        ;;
+      route_source)
+        case "$field2" in bundled|repository) ;; *) die "invalid route source: $route_record_file" ;; esac
+        test -z "${field3:-}" && test -z "${field4:-}" && test -z "${field5:-}" &&
+          test -z "${extra:-}" || die "invalid route source record: $route_record_file"
+        route_source=$field2
+        route_source_count=$((route_source_count + 1))
+        ;;
+      *) die "unknown route record field in $route_record_file: ${key:-<empty>}" ;;
+    esac
+  done <"$route_record_file"
+  test "$route_format_count" -eq 1 && test "$route_selected_count" -eq 1 &&
+    test "$route_source_count" -eq 1 || die "incomplete or duplicate route record: $route_record_file"
+  validate_host_provider "$route_host" "$route_provider"
+  validate_model "$route_model"
+  validate_effort "$route_effort"
+  if test -n "$expected_host"; then
+    test "$route_host" = "$expected_host" ||
+      die "route record host mismatch: expected=$expected_host actual=$route_host"
+  fi
+}
+
+read_observed_record() {
+  observed_record_file=$1
+  require_record_file "$observed_record_file"
+  observed_format_count=0
+  observed_agent_count=0
+  observed_transcript_count=0
+  observed_provider_evidence_count=0
+  observed_route_count=0
+  observed_agent_id=
+  observed_host=
+  observed_provider=
+  observed_model=
+  observed_effort=
+  observed_provider_evidence=
+  while IFS="$tab" read -r key field2 field3 field4 field5 extra || test -n "${key:-}"; do
+    case "$key" in
+      format)
+        test "$field2" = darrow-review-claude-route-v1 && test -z "${field3:-}" &&
+          test -z "${field4:-}" && test -z "${field5:-}" && test -z "${extra:-}" ||
+          die "invalid observed-route format: $observed_record_file"
+        observed_format_count=$((observed_format_count + 1))
+        ;;
+      agent_id)
+        test -n "${field2:-}" && test -z "${field3:-}" && test -z "${field4:-}" &&
+          test -z "${field5:-}" && test -z "${extra:-}" ||
+          die "invalid observed agent ID: $observed_record_file"
+        case "$field2" in *[!A-Za-z0-9]*) die "unsafe observed agent ID: $field2" ;; esac
+        observed_agent_id=$field2
+        observed_agent_count=$((observed_agent_count + 1))
+        ;;
+      transcript)
+        case "${field2:-}" in /*) ;; *) die "observed transcript path is not absolute: $observed_record_file" ;; esac
+        test -z "${field3:-}" && test -z "${field4:-}" && test -z "${field5:-}" &&
+          test -z "${extra:-}" || die "invalid observed transcript record: $observed_record_file"
+        test -r "$field2" || die "observed transcript is unreadable: $field2"
+        observed_transcript_count=$((observed_transcript_count + 1))
+        ;;
+      provider_evidence)
+        test "${field2:-}" = current-host-environment-default &&
+          test -z "${field3:-}" && test -z "${field4:-}" &&
+          test -z "${field5:-}" && test -z "${extra:-}" ||
+          die "invalid observed provider evidence: $observed_record_file"
+        observed_provider_evidence=$field2
+        observed_provider_evidence_count=$((observed_provider_evidence_count + 1))
+        ;;
+      observed_route)
+        test -n "${field2:-}" && test -n "${field3:-}" && test -n "${field4:-}" &&
+          test -n "${field5:-}" && test -z "${extra:-}" ||
+          die "invalid observed route: $observed_record_file"
+        observed_host=$field2
+        observed_provider=$field3
+        observed_model=$field4
+        observed_effort=$field5
+        observed_route_count=$((observed_route_count + 1))
+        ;;
+      *) die "unknown observed-route field in $observed_record_file: ${key:-<empty>}" ;;
+    esac
+  done <"$observed_record_file"
+  test "$observed_format_count" -eq 1 && test "$observed_agent_count" -eq 1 &&
+    test "$observed_transcript_count" -eq 1 &&
+    test "$observed_provider_evidence_count" -eq 1 &&
+    test "$observed_route_count" -eq 1 ||
+    die "incomplete or duplicate observed-route record: $observed_record_file"
+  validate_host_provider "$observed_host" "$observed_provider"
+  test "$observed_host" = claude || die "observed route is not a Claude route"
+  validate_model "$observed_model"
+  validate_effort "$observed_effort"
+}
+
+repository_root() {
+  repo_path=$1
+  test -d "$repo_path" || die "directory does not exist: $repo_path"
+  repo_path=$(CDPATH='' cd -- "$repo_path" && pwd -P)
+  git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    die "not a git working tree: $repo_path"
+  git -C "$repo_path" rev-parse --show-toplevel
+}
+
+bundled_records() {
+  test -r "$reviewers_file" || die "reviewer configuration is unreadable: $reviewers_file"
+  test -r "$reviewers_parser" || die "reviewer parser is unreadable: $reviewers_parser"
+  awk -f "$reviewers_parser" "$reviewers_file"
+}
+
+reviewer_records() {
+  route_repo=$1
+  bundled=$(bundled_records)
+
+  while IFS="$tab" read -r host harness provider model effort extra; do
+    test -n "$host" || continue
+    test -n "$harness" && test -n "$provider" && test -n "$model" && test -n "$effort" &&
+      test -z "${extra:-}" || die "invalid bundled reviewer row for host=$host"
+    test "$host" = "$harness" ||
+      die "bundled reviewer host and harness disagree for host=$host"
+    validate_host_provider "$host" "$provider"
+    validate_strong_route "$host" "$provider" "$model" "$effort"
+  done <<EOF
+$bundled
+EOF
+
+  repository_config="$route_repo/.darrow/config.json"
+  if test ! -e "$repository_config" && test ! -L "$repository_config"; then
+    printf '%s\n' "$bundled" | while IFS="$tab" read -r host harness provider model effort; do
+      test -n "$host" || continue
+      printf '%s\t%s\t%s\t%s\t%s\tbundled\n' "$host" "$harness" "$provider" "$model" "$effort"
+    done
+    return
+  fi
+  test ! -L "$repository_config" && test -f "$repository_config" && test -r "$repository_config" ||
+    die "repository reviewer configuration is unreadable or unsafe: $repository_config"
+  repository=$(awk -v allow_missing_reviewers=1 -f "$reviewers_parser" "$repository_config") ||
+    die "repository reviewer configuration is invalid: $repository_config"
+
+  while IFS="$tab" read -r host harness provider model effort extra; do
+    test -n "$host" || continue
+    test -n "$harness" && test -n "$provider" && test -n "$model" && test -n "$effort" &&
+      test -z "${extra:-}" || die "invalid repository reviewer row for host=$host"
+    test "$host" = "$harness" ||
+      die "repository reviewer host and harness disagree for host=$host"
+    validate_host_provider "$host" "$provider"
+    validate_strong_route "$host" "$provider" "$model" "$effort"
+    bundled_match=0
+    while IFS="$tab" read -r bundled_host _; do
+      if test "$host" = "$bundled_host"; then
+        bundled_match=1
+        break
+      fi
+    done <<EOF
+$bundled
+EOF
+    test "$bundled_match" -eq 1 || die "repository reviewer host is not in bundled catalog: $host"
+  done <<EOF
+$repository
+EOF
+
+  while IFS="$tab" read -r host harness provider model effort; do
+    test -n "$host" || continue
+    replacement=
+    while IFS="$tab" read -r override_host override_harness override_provider override_model override_effort; do
+      if test "$host" = "$override_host"; then
+        replacement="$override_harness$tab$override_provider$tab$override_model$tab$override_effort"
+        break
+      fi
+    done <<EOF
+$repository
+EOF
+    if test -n "$replacement"; then
+      printf '%s\t%s\trepository\n' "$host" "$replacement"
+    else
+      printf '%s\t%s\t%s\t%s\t%s\tbundled\n' "$host" "$harness" "$provider" "$model" "$effort"
+    fi
+  done <<EOF
+$bundled
+EOF
+}
+
+resolve_route() {
+  repo=
+  host=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --repo)
+        require_value "$@"
+        repo=$2
+        shift 2
+        ;;
+      --host)
+        require_value "$@"
+        host=$2
+        shift 2
+        ;;
+      *) die "unknown resolve option: $1" ;;
+    esac
+  done
+  test -n "$repo" && test -n "$host" || die "resolve requires --repo and --host"
+  case "$host" in
+    codex|claude) ;;
+    *) die "unsupported host: $host" ;;
+  esac
+  if test "$host" = claude; then
+    require_direct_claude_provider
+  fi
+  repo=$(repository_root "$repo")
+  records=$(reviewer_records "$repo")
+  found=0
+  while IFS="$tab" read -r route_host harness provider model effort source extra; do
+    test -n "$route_host" && test -n "$harness" && test -n "$provider" &&
+      test -n "$model" && test -n "$effort" && test -n "$source" &&
+      test -z "${extra:-}" || die "invalid reviewer row for host=$route_host"
+    if test "$route_host" = "$host"; then
+      printf 'format\tdarrow-reviewer-route-v1\n'
+      printf 'selected_route\t%s\t%s\t%s\t%s\n' "$harness" "$provider" "$model" "$effort"
+      printf 'route_source\t%s\n' "$source"
+      found=1
+      break
+    fi
+  done <<EOF
+$records
+EOF
+  test "$found" -eq 1 || die "no reviewer route for host=$host"
+}
+
+select_route() {
+  repo=
+  host=
+  record=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --repo)
+        require_value "$@"
+        repo=$2
+        shift 2
+        ;;
+      --host)
+        require_value "$@"
+        host=$2
+        shift 2
+        ;;
+      --record)
+        require_value "$@"
+        record=$2
+        shift 2
+        ;;
+      *) die "unknown select option: $1" ;;
+    esac
+  done
+  test -n "$repo" && test -n "$host" && test -n "$record" ||
+    die "select requires --repo, --host, and --record"
+  route_body=$(resolve_route --repo "$repo" --host "$host")
+  write_record "$record" "$route_body"
+  read_route_record "$written_record" "$host"
+  printf 'format\tdarrow-reviewer-route-selection-v1\n'
+  printf 'record\t%s\n' "$written_record"
+  printf 'selected_route\t%s\t%s\t%s\t%s\n' \
+    "$route_host" "$route_provider" "$route_model" "$route_effort"
+  printf 'route_source\t%s\n' "$route_source"
+  printf 'model\t%s\n' "$route_model"
+  printf 'reasoning_effort\t%s\n' "$route_effort"
+}
+
+claude_agent() {
+  route_record=
+  provider=
+  model=
+  effort=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --route-record)
+        require_value "$@"
+        route_record=$2
+        shift 2
+        ;;
+      --provider)
+        require_value "$@"
+        provider=$2
+        shift 2
+        ;;
+      --model)
+        require_value "$@"
+        model=$2
+        shift 2
+        ;;
+      --effort)
+        require_value "$@"
+        effort=$2
+        shift 2
+        ;;
+      *) die "unknown claude-agent option: $1" ;;
+    esac
+  done
+  if test -n "$route_record"; then
+    test -z "$provider" && test -z "$model" && test -z "$effort" ||
+      die "claude-agent route record cannot be combined with route fields"
+    read_route_record "$route_record" claude
+    provider=$route_provider
+    model=$route_model
+    effort=$route_effort
+  fi
+  test -n "$provider" && test -n "$model" && test -n "$effort" ||
+    die "claude-agent requires --route-record or all route fields"
+  test "$provider" = anthropic || die "unsupported Claude provider: $provider"
+  require_direct_claude_provider
+  case "$model" in
+    claude-[A-Za-z0-9]* ) ;;
+    *) die "model must be a concrete Claude model ID: $model" ;;
+  esac
+  case "$model" in
+    *[!A-Za-z0-9._-]*) die "unsafe Claude model ID: $model" ;;
+  esac
+  case "$effort" in
+    low|medium|high|xhigh|max) ;;
+    *) die "unsupported Claude reviewer effort: $effort" ;;
+  esac
+
+  plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
+  case "$model|$effort" in
+    claude-opus-5\|xhigh) agent_name=review-reader-claude-opus-5-xhigh ;;
+    claude-sonnet-5\|high) agent_name=review-reader-claude-sonnet-5-high ;;
+    *) die "unsupported Claude reviewer route: $model/$effort" ;;
+  esac
+  agent_file="$plugin_dir/agents/$agent_name.md"
+  test -r "$agent_file" || die "review reader is unreadable: $agent_file"
+  grep -F -x -- "name: $agent_name" "$agent_file" >/dev/null ||
+    die "review reader name does not match route: $agent_file"
+  grep -F -x -- "model: $model" "$agent_file" >/dev/null ||
+    die "review reader model does not match route: $agent_file"
+  grep -F -x -- "effort: $effort" "$agent_file" >/dev/null ||
+    die "review reader effort does not match route: $agent_file"
+  grep -F -x -- "background: false" "$agent_file" >/dev/null ||
+    die "review reader must run in the foreground: $agent_file"
+
+  model_override=${CLAUDE_CODE_SUBAGENT_MODEL:-}
+  case "$model_override" in
+    ''|"$model") ;;
+    *) die "CLAUDE_CODE_SUBAGENT_MODEL overrides selected model: $model_override" ;;
+  esac
+  effort_override=${CLAUDE_CODE_EFFORT_LEVEL:-}
+  case "$effort_override" in
+    ''|"$effort") ;;
+    *) die "CLAUDE_CODE_EFFORT_LEVEL overrides selected effort: $effort_override" ;;
+  esac
+
+  printf 'format\tdarrow-review-claude-agent-v1\n'
+  printf 'selected_route\tclaude\t%s\t%s\t%s\n' "$provider" "$model" "$effort"
+  printf 'subagent_type\tdarrow-review:%s\n' "$agent_name"
+  printf 'model\t%s\n' "$model"
+  printf 'effort\t%s\n' "$effort"
+  printf 'agent_file\t%s\n' "$agent_file"
+}
+
+confirm_codex_record() {
+  route_record=
+  axis=
+  agent_id=
+  application_record=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --route-record)
+        require_value "$@"
+        route_record=$2
+        shift 2
+        ;;
+      --application-record)
+        require_value "$@"
+        application_record=$2
+        shift 2
+        ;;
+      --axis)
+        require_value "$@"
+        axis=$2
+        shift 2
+        ;;
+      --agent-id)
+        require_value "$@"
+        agent_id=$2
+        shift 2
+        ;;
+      *) die "unknown confirm-codex option: $1" ;;
+    esac
+  done
+  test -n "$route_record" && test -n "$axis" && test -n "$agent_id" &&
+    test -n "$application_record" ||
+    die "confirm-codex requires --route-record, --axis, --agent-id, and --application-record"
+  validate_axis "$axis"
+  validate_agent_id "$agent_id"
+  read_route_record "$route_record" codex
+  application_body="format${tab}darrow-reviewer-route-application-v1
+selected_route${tab}$route_host${tab}$route_provider${tab}$route_model${tab}$route_effort
+requested_route${tab}$route_host${tab}$route_provider${tab}$route_model${tab}$route_effort
+route_applied_by${tab}native-subagent
+route_bound${tab}true
+axis${tab}$axis
+agent_id${tab}$agent_id"
+  write_record "$application_record" "$application_body"
+  printf 'format\tdarrow-reviewer-record-location-v1\n'
+  printf 'record\t%s\n' "$written_record"
+}
+
+confirm_claude_record() {
+  route_record=
+  observed_record=
+  axis=
+  application_record=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --route-record)
+        require_value "$@"
+        route_record=$2
+        shift 2
+        ;;
+      --observed-record)
+        require_value "$@"
+        observed_record=$2
+        shift 2
+        ;;
+      --application-record)
+        require_value "$@"
+        application_record=$2
+        shift 2
+        ;;
+      --axis)
+        require_value "$@"
+        axis=$2
+        shift 2
+        ;;
+      *) die "unknown confirm-claude option: $1" ;;
+    esac
+  done
+  test -n "$route_record" && test -n "$observed_record" &&
+    test -n "$axis" && test -n "$application_record" ||
+    die "confirm-claude requires --route-record, --observed-record, --axis, and --application-record"
+  validate_axis "$axis"
+  read_route_record "$route_record" claude
+  read_observed_record "$observed_record"
+  test "$route_host|$route_provider|$route_model|$route_effort" = \
+    "$observed_host|$observed_provider|$observed_model|$observed_effort" ||
+    die "selected reviewer route does not match transcript-observed route"
+  application_body="format${tab}darrow-reviewer-route-application-v1
+selected_route${tab}$route_host${tab}$route_provider${tab}$route_model${tab}$route_effort
+observed_route${tab}$observed_host${tab}$observed_provider${tab}$observed_model${tab}$observed_effort
+provider_evidence${tab}$observed_provider_evidence
+route_applied_by${tab}native-subagent
+route_bound${tab}true
+axis${tab}$axis
+agent_id${tab}$observed_agent_id"
+  write_record "$application_record" "$application_body"
+  printf 'format\tdarrow-reviewer-record-location-v1\n'
+  printf 'record\t%s\n' "$written_record"
+}
+
+test "$#" -gt 0 || {
+  usage >&2
+  exit 2
+}
+command=$1
+shift
+case "$command" in
+  resolve) resolve_route "$@" ;;
+  select) select_route "$@" ;;
+  claude-agent) claude_agent "$@" ;;
+  confirm-codex) confirm_codex_record "$@" ;;
+  confirm-claude) confirm_claude_record "$@" ;;
+  -h|--help|help) usage ;;
+  *) die "unknown command: $command" ;;
+esac

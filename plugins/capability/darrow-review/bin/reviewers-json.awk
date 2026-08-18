@@ -1,5 +1,5 @@
 function fail(message) {
-  print "goal-loop: invalid route configuration: " message > "/dev/stderr"
+  print "review-route: invalid reviewer configuration: " message > "/dev/stderr"
   exit 2
 }
 
@@ -174,25 +174,25 @@ function skip_value(    character) {
     fail("invalid JSON value at byte " position)
 }
 
-function route_object(    key, value, separator, field_count, route_key, field) {
-  for (field in route)
-    delete route[field]
+function reviewer_object(    key, value, separator, field_count, field) {
+  for (field in reviewer)
+    delete reviewer[field]
+  field_count = 0
   expect("{")
   skip_space()
   if (substr(document, position, 1) == "}")
-    fail("route object must not be empty")
+    fail("reviewer object must not be empty")
 
   while (1) {
     key = string_value()
-    if (key != "host" && key != "profile" && key != "harness" &&
-        key != "provider" && key != "model" && key != "effort" &&
-        key != "fallbackModel" && key != "fallbackEffort")
-      fail("unknown route field: " key)
-    if (key in route)
-      fail("duplicate route field: " key)
+    if (key != "host" && key != "harness" && key != "provider" &&
+        key != "model" && key != "effort")
+      fail("unknown reviewer field: " key)
+    if (key in reviewer)
+      fail("duplicate reviewer field: " key)
     expect(":")
     value = string_value()
-    route[key] = value
+    reviewer[key] = value
     field_count++
 
     skip_space()
@@ -203,39 +203,32 @@ function route_object(    key, value, separator, field_count, route_key, field) 
       fail("expected , or } at byte " (position - 1))
   }
 
-  if (field_count != 8)
-    fail("each route must contain exactly eight fields")
-  safe_value("host", route["host"])
-  safe_value("profile", route["profile"])
-  safe_value("harness", route["harness"])
-  safe_value("provider", route["provider"])
-  safe_value("model", route["model"])
-  safe_value("effort", route["effort"])
-  safe_value("fallbackModel", route["fallbackModel"])
-  safe_value("fallbackEffort", route["fallbackEffort"])
+  if (field_count != 5)
+    fail("each reviewer must contain exactly five fields")
+  safe_value("host", reviewer["host"])
+  safe_value("harness", reviewer["harness"])
+  safe_value("provider", reviewer["provider"])
+  safe_value("model", reviewer["model"])
+  safe_value("effort", reviewer["effort"])
+  if (reviewer["host"] in seen_host)
+    fail("duplicate reviewer for host=" reviewer["host"])
+  seen_host[reviewer["host"]] = 1
 
-  route_key = route["host"] SUBSEP route["profile"]
-  if (route_key in seen_route)
-    fail("duplicate route for host=" route["host"] " profile=" route["profile"])
-  seen_route[route_key] = 1
-
-  records[++record_count] = route["host"] "\t" route["profile"] "\t" \
-    route["harness"] "\t" route["provider"] "\t" route["model"] "\t" \
-    route["effort"] "\t" route["fallbackModel"] "\t" route["fallbackEffort"]
+  records[++record_count] = reviewer["host"] "\t" reviewer["harness"] "\t" \
+    reviewer["provider"] "\t" reviewer["model"] "\t" reviewer["effort"]
 }
 
-function routes_array(    separator) {
+function reviewers_array(    separator) {
   expect("[")
   skip_space()
   if (substr(document, position, 1) == "]") {
-    if (!allow_missing_routes)
-      fail("bundled routes array must not be empty")
+    if (!allow_missing_reviewers)
+      fail("bundled reviewers array must not be empty")
     position++
     return
   }
-
   while (1) {
-    route_object()
+    reviewer_object()
     skip_space()
     separator = substr(document, position++, 1)
     if (separator == "]")
@@ -253,8 +246,8 @@ function root_object(    key, separator) {
     skip_space()
     if (position <= length(document))
       fail("unexpected content at byte " position)
-    if (!allow_missing_routes)
-      fail("root object must contain routes")
+    if (!allow_missing_reviewers)
+      fail("root object must contain reviewers")
     return
   }
   while (1) {
@@ -265,9 +258,9 @@ function root_object(    key, separator) {
       fail("duplicate root field: " key)
     seen_root[key] = 1
     expect(":")
-    if (key == "routes") {
-      routes_array()
-      found_routes = 1
+    if (key == "reviewers") {
+      reviewers_array()
+      found_reviewers = 1
     } else {
       skip_value()
     }
@@ -281,8 +274,8 @@ function root_object(    key, separator) {
   skip_space()
   if (position <= length(document))
     fail("unexpected content at byte " position)
-  if (!found_routes && !allow_missing_routes)
-    fail("root object must contain routes")
+  if (!found_reviewers && !allow_missing_reviewers)
+    fail("root object must contain reviewers")
 }
 
 {

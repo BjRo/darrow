@@ -377,6 +377,19 @@ describe("Codex skill activation observation", () => {
   test("retains the reduced collaboration records used by route verification", () => {
     const stream = [
       JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: ["child-1"],
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          fork_turns: "none",
+          prompt: "- review_axis: standards\nsensitive task context",
+        },
+      }),
+      JSON.stringify({
         type: "item.completed",
         item: {
           type: "collab_tool_call",
@@ -392,10 +405,40 @@ describe("Codex skill activation observation", () => {
           ].join("\n"),
         },
       }),
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: ["child-2"],
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          fork_turns: "none",
+          prompt: "sensitive copied context\n- review_axis: spec",
+        },
+      }),
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "wait_agent",
+          status: "in_progress",
+          receiver_thread_ids: ["child-1"],
+        },
+      }),
       JSON.stringify({ type: "turn.completed" }),
     ].join("\n");
 
     const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"type":"item.started"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
+    expect(retained).toContain('"tool":"wait_agent"');
+    expect(retained).toContain("- review_axis: standards");
+    expect(retained).not.toContain("- review_axis: spec");
+    expect(retained.match(/"tool":"spawn_agent"/g)).toHaveLength(3);
     expect(observeCodexTicketPipelineRoutes(retained)).toEqual([
       {
         phase: "refine",
@@ -406,5 +449,26 @@ describe("Codex skill activation observation", () => {
       },
     ]);
     expect(retained).not.toContain("sensitive task context");
+  });
+
+  test("retains a failed native spawn attempt as omission evidence", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "failed",
+          prompt: "- review_axis: standards\nsensitive failed task",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"tool":"spawn_agent"');
+    expect(retained).toContain('"status":"failed"');
+    expect(retained).toContain("- review_axis: standards");
+    expect(retained).not.toContain("sensitive failed task");
   });
 });

@@ -30,6 +30,9 @@ validated TSV bytes.
   set before spending reviewer calls.
 - **Two isolated axes:** Standards checks repository rules/design; Spec checks
   the originating objective. Neither axis receives the other's analysis.
+- **Explicit reviewer route:** every fresh reader uses one concrete per-host
+  model and effort resolved from bundled policy or the active-worktree config;
+  inherited, substituted, or unverifiable routes block.
 - **Evidence before taste:** deterministic tools settle formatting, lint,
   types, builds, and tests. Findings cite changed evidence and an authoritative
   source.
@@ -144,10 +147,12 @@ inapplicable deterministic check has current evidence.
 
 ### 3. Invoke isolated comprehensive readers
 
-Read [`references/axis-prompts.md`](references/axis-prompts.md) completely. Use
-the runtime's native fresh-reader facility. When both axes apply, issue both
-invocations before waiting for either; never simulate isolation in one context.
-When Spec is unavailable, invoke Standards only.
+Read [`references/axis-prompts.md`](references/axis-prompts.md) and
+[`references/reader-routing.md`](references/reader-routing.md) completely.
+Resolve and retain the concrete reviewer route beside the scope manifest, then
+use that reference's host-specific native fresh-reader boundary. When both axes
+apply, issue both invocations before waiting for either; never simulate
+isolation in one context. When Spec is unavailable, invoke Standards only.
 
 Give each reader only its template plus:
 
@@ -167,12 +172,13 @@ bash "$result_tool" validate-axis standards "$standards_record"
 bash "$result_tool" validate-axis spec "$spec_record"
 ```
 
-An invalid or missing record blocks that axis. Do not fix its judgment,
-reassign its finding, or manufacture replacement evidence.
+An invalid or missing record, or missing or mismatched route-application
+evidence, blocks that axis. Do not fix its judgment, reassign its finding,
+manufacture replacement evidence, or retry on another route.
 
 **Complete when:** every available axis has one fresh, isolated, schema-valid
-record—or its evidence-backed blocked state is preserved without coordinator
-substitution.
+record and exact-route evidence—or its evidence-backed blocked state is
+preserved without coordinator substitution.
 
 ### 4. Aggregate and return the comprehensive review
 
@@ -296,11 +302,13 @@ reader has been asked to inspect an unpinned or stale target.
 
 ### 3. Invoke isolated fix verifiers
 
-Read [`references/axis-prompts.md`](references/axis-prompts.md) completely.
-Group attempted findings by their original axis. Invoke the applicable
-Standards and Spec fix verifiers as fresh readers, issuing both invocations
-before waiting when both groups exist. Do not invoke an axis with no attempted
-finding and no regression evidence to verify.
+Read [`references/axis-prompts.md`](references/axis-prompts.md) and
+[`references/reader-routing.md`](references/reader-routing.md) completely.
+Resolve and retain the concrete reviewer route beside the current scope
+manifest. Group attempted findings by their original axis. Invoke the
+applicable Standards and Spec fix verifiers through that exact route as fresh
+readers, issuing both invocations before waiting when both groups exist. Do not
+invoke an axis with no attempted finding and no regression evidence to verify.
 
 Each verifier receives only:
 
@@ -335,10 +343,12 @@ bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
 bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
 ```
 
-An invalid record is an evidence gap.
+An invalid record or missing or mismatched route-application evidence is an
+evidence gap. Do not retry on another route.
 
 **Complete when:** each attempted axis has one isolated fix-verifier record and
-no observation outside the closed repair scope has entered aggregation.
+exact-route evidence, and no observation outside the closed repair scope has
+entered aggregation.
 
 ### 4. Derive and return verification
 

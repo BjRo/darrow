@@ -5,6 +5,29 @@ import { join } from "node:path";
 import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
 
 describe("eval checks", () => {
+  test("run checks receive explicit harness route environment", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-checks-"));
+    try {
+      const [result] = await runChecks(
+        repo,
+        [
+          {
+            name: "route",
+            run: 'test "$DARROW_EVAL_HARNESS" = codex && test "$DARROW_EVAL_MODEL" = gpt-5.6-terra && test "$DARROW_EVAL_EFFORT" = high',
+          },
+        ],
+        {
+          DARROW_EVAL_HARNESS: "codex",
+          DARROW_EVAL_MODEL: "gpt-5.6-terra",
+          DARROW_EVAL_EFFORT: "high",
+        },
+      );
+      expect(result?.passed).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   test("expect_exact rejects an expected line amid extra output", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-checks-"));
     try {

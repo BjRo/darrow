@@ -27,6 +27,10 @@ interface CodexEvent {
     aggregated_output?: unknown;
     tool?: unknown;
     prompt?: unknown;
+    model?: unknown;
+    reasoning_effort?: unknown;
+    fork_turns?: unknown;
+    forkTurns?: unknown;
     receiver_thread_ids?: unknown;
     receiverThreadIds?: unknown;
   };
@@ -193,33 +197,52 @@ function retainedTerminalEvent(event: CodexEvent): unknown | undefined {
   return usage ? { type: terminal, usage } : { type: terminal };
 }
 
-function retainedCollaborationEvent(event: CodexEvent): unknown | undefined {
+function acceptedCollaborationEvent(event: CodexEvent): boolean {
   const item = event.item;
-  if (
-    event.type !== "item.completed" ||
-    item?.type !== "collab_tool_call" ||
-    typeof item.tool !== "string" ||
-    item.status !== "completed"
-  )
-    return undefined;
-  const prompt =
-    typeof item.prompt === "string"
-      ? item.prompt
-          .split("\n")
-          .filter((line) =>
-            /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
-              line,
-            ),
-          )
-          .join("\n")
-      : undefined;
+  if (item?.type !== "collab_tool_call" || typeof item.tool !== "string")
+    return false;
+  if (event.type === "item.completed")
+    return item.tool === "spawn_agent" || item.status === "completed";
+  return (
+    event.type === "item.started" &&
+    ["spawn_agent", "wait", "wait_agent"].includes(item.tool) &&
+    item.status === "in_progress"
+  );
+}
+
+function retainedCollaborationPrompt(prompt: unknown): string | undefined {
+  if (typeof prompt !== "string") return undefined;
+  const retained = prompt
+    .split("\n")
+    .filter(
+      (line, index) =>
+        /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
+          line,
+        ) ||
+        (index === 0 && /^- review_axis: (?:standards|spec)$/.test(line)),
+    )
+    .join("\n");
+  return retained || undefined;
+}
+
+function retainedCollaborationEvent(event: CodexEvent): unknown | undefined {
+  if (!acceptedCollaborationEvent(event)) return undefined;
+  const item = event.item!;
+  const prompt = retainedCollaborationPrompt(item.prompt);
   return {
-    type: "item.completed",
+    type: event.type,
     item: {
       type: item.type,
       tool: item.tool,
-      status: "completed",
+      status: item.status,
       receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
+      ...(typeof item.model === "string" ? { model: item.model } : {}),
+      ...(typeof item.reasoning_effort === "string"
+        ? { reasoning_effort: item.reasoning_effort }
+        : {}),
+      ...(typeof (item.fork_turns ?? item.forkTurns) === "string"
+        ? { fork_turns: item.fork_turns ?? item.forkTurns }
+        : {}),
       ...(prompt ? { prompt } : {}),
     },
   };

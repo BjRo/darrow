@@ -127,10 +127,11 @@ route_records() {
   fi
   test ! -L "$repository_config" && test -f "$repository_config" && test -r "$repository_config" ||
     die "repository route configuration is unreadable or unsafe: $repository_config"
-  repository_records=$(awk -f "$routes_parser" "$repository_config") ||
+  repository_records=$(awk -v allow_missing_routes=1 -f "$routes_parser" "$repository_config") ||
     die "repository route configuration is invalid: $repository_config"
 
   while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
+    test -n "$host" || continue
     test -n "$host" && test -n "$profile" && test -n "$harness" && test -n "$provider" &&
       test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
       test -n "$fallback_effort" && test -z "${extra:-}" ||
@@ -142,6 +143,7 @@ $bundled_records
 EOF
 
   while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
+    test -n "$host" || continue
     test -n "$host" && test -n "$profile" && test -n "$harness" && test -n "$provider" &&
       test -n "$model" && test -n "$effort" && test -n "$fallback_model" &&
       test -n "$fallback_effort" && test -z "${extra:-}" ||

@@ -91,6 +91,76 @@ This keeps status, severity, lifecycle identity, progress, prior-artifact
 continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
 
+### Reviewer routes
+
+Every fresh standards, specification, and fix-verification reader runs on one
+explicit strong route. Bundled defaults are `gpt-5.6-sol` / `xhigh` on Codex
+and `claude-opus-5` / `xhigh` on Claude. A repository can replace either host's
+route in the independent `reviewers` section of the same shared
+`.darrow/config.json` used by adaptive goal routing:
+
+```json
+{
+  "reviewers": [
+    {
+      "host": "codex",
+      "harness": "codex",
+      "provider": "openai",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh"
+    },
+    {
+      "host": "claude",
+      "harness": "claude",
+      "provider": "anthropic",
+      "model": "claude-opus-5",
+      "effort": "xhigh"
+    }
+  ]
+}
+```
+
+The review capability owns only `reviewers`; it syntax-checks but otherwise
+ignores a sibling `routes` section. An absent or empty section and omitted hosts
+retain bundled reviewer policy. An unreadable, malformed, duplicate, unsafe,
+host/harness-mismatched, or host/provider-mismatched route stops review rather
+than inheriting or silently substituting a model.
+
+Repository overrides remain inside a shipped strong-route catalog so config
+cannot downgrade review. Codex currently supports `gpt-5.6-sol` at
+`high`/`xhigh`/`max` and `gpt-5.5` at `high`/`xhigh`. Claude supports
+`claude-opus-5`/`xhigh` and `claude-sonnet-5`/`high`. Add a catalog entry and,
+for Claude, its exact-tuple plugin agent before selecting another route.
+
+Codex supplies the exact model and effort to each native subagent boundary.
+Its application record is not standalone proof: the accepted native spawn
+event must bind the same child ID to the exact model, effort, fresh-context
+setting, and review axis. Missing native evidence blocks the reader.
+Claude follows the current Claude Code strategy: an exact-tuple foreground
+plugin agent pins the full model and effort together, and Agent receives no
+per-call model alias. The bundled Claude catalog supports `claude-opus-5` /
+`xhigh` and the supported override `claude-sonnet-5` / `high`; another tuple is
+unavailable until a matching plugin agent ships. The resulting
+`agent-<id>.jsonl` transcript must prove the same model/effort tuple on every
+assistant turn. Retained parent telemetry joins the current Agent tool-use ID
+to that exact host-reported child ID so stale transcripts cannot satisfy the
+gate. Any conflicting environment override, background launch, substitution,
+or unverifiable route blocks that review axis.
+
+### `bin/review-route`
+
+Resolves bundled and repository reviewer policy, owns selection and application
+record I/O at caller-supplied absolute paths, selects the Claude effort-specific
+plugin agent from the selection record, and binds every confirmed application
+to its axis and host-reported child ID.
+
+### `bin/review-claude-verify`
+
+Parses one completed Claude `agent-<id>.jsonl` transcript by exact agent ID and
+writes the one effective model and effort observed on every assistant turn to
+a caller-supplied absolute record path. Malformed, missing, partial, duplicate,
+or inconsistent evidence fails closed.
+
 ### Review references
 
 The skill bundles axis prompts, a design-smell reference, and the result
@@ -107,6 +177,8 @@ explicit without relying on another installed plugin.
   specification source. Preferences and speculative improvements are omitted.
 - Deterministic checks settle facts such as formatting, types, builds, and
   tests; reviewer opinion does not override their result.
+- Every fresh reader records exact route-application evidence; selected or
+  inherited metadata alone never satisfies the boundary.
 - An empty or invalid scope is reported honestly rather than treated as a
   successful review.
 

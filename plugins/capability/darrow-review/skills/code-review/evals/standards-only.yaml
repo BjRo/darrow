@@ -1,5 +1,5 @@
 id: code-review-standards-only
-invariant: CR-E1,CR-E2,CR-E4
+invariant: CR-E1,CR-E2,CR-E4,CR-C21,CR-E14
 prompt: >-
   Review my uncommitted changes. Report only; do not modify any files. There is
   no originating product specification for this cleanup.
@@ -30,9 +30,64 @@ checks:
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
-      test -n "$record" && if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi; && bash "$tool" validate "$record"
+      test -n "$record" || exit 1;
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
+  - name: only the standards reader retains exact default route evidence
+    run: >-
+      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
+      case "$DARROW_EVAL_HARNESS" in
+      codex) host=codex; provider=openai; model=gpt-5.6-sol; effort=xhigh ;;
+      claude) host=claude; provider=anthropic; model=claude-opus-5; effort=xhigh ;;
+      *) exit 2 ;; esac;
+      record="$artifact_dir/standards-route.tsv"; test -f "$record" || exit 1;
+      test ! -e "$artifact_dir/spec-route.tsv" || exit 1;
+      awk -F '\t' '$1 == "axis" && $2 == "standards" { found = 1 } END { exit !found }'
+      "$record" || exit 1;
+      agent=$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$record");
+      test -n "$agent" || exit 1;
+      case "$DARROW_EVAL_HARNESS" in codex) route_field=requested_route; proof_field=route_bound ;;
+      claude) route_field=observed_route; proof_field=route_bound ;; esac;
+      awk -F '\t' -v f="$route_field" -v h="$host" -v p="$provider" -v m="$model" -v e="$effort"
+      '$1 == f && $2 == h && $3 == p && $4 == m && $5 == e { found = 1 }
+      END { exit !found }' "$record" || exit 1;
+      awk -F '\t' -v f="$proof_field" '$1 == f && $2 == "true" { found = 1 }
+      END { exit !found }' "$record" || exit 1;
+      if test "$DARROW_EVAL_HARNESS" = codex; then
+      native=$(grep -F '"tool":"spawn_agent"' .git/retained-harness.jsonl |
+      grep -F '"status":"in_progress"' | grep -F "\"$agent\"" |
+      grep -F "\"model\":\"$model\"" | grep -F "\"reasoning_effort\":\"$effort\"") || exit 1;
+      case "$native" in *'"fork_turns":"none"'*) ;; *) exit 1 ;; esac;
+      case "$native" in *'- review_axis: standards'*) ;; *) exit 1 ;; esac;
+      test "$(grep -F '"tool":"spawn_agent"' .git/retained-harness.jsonl |
+      grep -F '"status":"in_progress"' | grep -c .)" -eq 1 || exit 1;
+      awk 'index($0, "\"tool\":\"spawn_agent\"") &&
+      !index($0, "\"status\":\"in_progress\"") &&
+      !index($0, "\"status\":\"completed\"") { failed = 1 }
+      END { exit failed }' .git/retained-harness.jsonl || exit 1; fi;
+      if test "$DARROW_EVAL_HARNESS" = claude; then observed="$artifact_dir/standards-observed-route.tsv";
+      test -f "$observed" || exit 1;
+      test "$agent" = "$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$observed")" || exit 1;
+      awk -F '\t' -v m="$model" -v e="$effort"
+      '$1 == "observed_route" && $2 == "claude" && $3 == "anthropic" && $4 == m && $5 == e { found = 1 }
+      END { exit !found }' "$observed" || exit 1;
+      subagent="darrow-review:review-reader-$model-$effort";
+      awk -v a="$subagent"
+      'index($0, "\"name\":\"Agent\"") {
+      value = $0; agents += gsub("\"name\":\"Agent\"", "", value);
+      value = $0; types += gsub("\"subagent_type\":\"" a "\"", "", value);
+      if (index($0, "- review_axis: standards")) found = 1 }
+      END { exit !(agents == 1 && types == 1 && found) }'
+      .git/retained-harness.jsonl || exit 1;
+      launch=$(grep -F '"type":"darrow.review_agent_launch"' .git/retained-harness.jsonl |
+      grep -F "\"agent_id\":\"$agent\"" | grep -F '"review_axis":"standards"' |
+      grep -F "\"subagent_type\":\"$subagent\"") || exit 1;
+      test "$(printf '%s\n' "$launch" | grep -c .)" -eq 1 || exit 1;
+      ! grep -F '"type":"darrow.review_agent_launch"' .git/retained-harness.jsonl |
+      grep -F '"review_axis":"spec"' >/dev/null || exit 1; fi
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
 output_checks:

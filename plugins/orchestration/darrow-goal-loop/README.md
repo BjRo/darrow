@@ -96,13 +96,16 @@ materially progress. Advisories never gate. Clear exact-target verification
 returns control; repetition, oscillation, no progress, unavailable evidence, or
 an explicit user limit stops completion and publication.
 
-Repository overrides use the same strict `{"routes":[...]}` object schema as
-the bundled file. An override replaces only its matching `(host, profile)`
-route; omitted routes keep bundled policy. A present override must be readable,
-valid, unique, safe, catalog-known, and host/harness-consistent or the helper
-stops without falling back. Prepared route rows identify `repository` or
-`bundled` policy provenance separately from `policy` versus explicit-user route
-authority.
+Repository overrides live in a shared `.darrow/config.json` object with
+independent `routes` and `reviewers` sections. The goal loop owns only
+`routes`: an override replaces its matching `(host, profile)` route, while an
+absent or empty `routes` section and omitted entries keep bundled policy. The helper
+syntax-checks but otherwise ignores `reviewers`, so another installed plugin
+can reuse the same file without creating a plugin dependency. A present config
+must be readable and valid as a whole; owned routes must also be unique, safe,
+catalog-known, and host/harness-consistent or the helper stops without falling
+back. Prepared route rows identify `repository` or `bundled` policy provenance
+separately from `policy` versus explicit-user route authority.
 
 ### `bin/claude-agent-route`
 

@@ -228,6 +228,47 @@ axis and report `not_available`. Do not invent requirements.
     aggregation or rendering. A failed applicable check requires a scoped
     unresolved or blocked repair-caused regression rather than an original
     blocker alone.
+21. **CR-C21 — Explicit reviewer route.** Before invoking any comprehensive or
+    fix-verification reader, the coordinator MUST resolve one concrete reviewer
+    route for the active host and apply that same provider, model, and effort to
+    every available axis. Bundled policy defaults to `gpt-5.6-sol` / `xhigh` on
+    Codex and `claude-opus-5` / `xhigh` on Claude. An active-worktree
+    `.darrow/config.json` MAY replace either host through its independent
+    `reviewers` section, but only with a plugin-supported strong model/effort
+    tuple; a repository override cannot lower this floor. Codex routes MUST use
+    the OpenAI provider and Claude routes MUST use the Anthropic provider;
+    provider identity MUST come from
+    the native host boundary rather than copied configuration. On Claude, the
+    bundled mechanics MAY identify the direct Anthropic provider from the
+    documented default only when they observe no active third-party provider,
+    Mantle, Claude-on-AWS, or custom API-endpoint selector in
+    the current host environment both before launch and during transcript
+    verification. Any such selector makes an Anthropic-only route unavailable.
+    Missing,
+    unreadable, invalid, unavailable,
+    silently-substituted, inherited, or unverifiable route evidence blocks the
+    affected reader instead of falling back to another model or same-context
+    judgment. Standards and Spec remain fresh and isolated even when they share
+    one route policy. Bundled mechanics MUST own reviewer-route record parsing,
+    serialization, and file creation; the coordinator supplies absolute artifact
+    paths and applies only the returned native launch fields. It MUST NOT
+    reconstruct route tuples or use shell redirection to create route evidence.
+    Each application record MUST bind its axis and the host-reported child ID.
+    Codex evidence is valid only when retained native events show a distinct
+    accepted fresh-context spawn for that ID, exact model and effort, and a
+    host-visible, unambiguous axis marker in its native task name or retained
+    prompt; a task name containing both axis tokens binds neither axis. An
+    application record alone is insufficient. Claude
+    uses a foreground exact-tuple plugin agent with full model and effort in
+    frontmatter and no per-call model alias. Its evidence binds the current
+    native Agent tool-use ID to its host-reported child ID, then binds that
+    exact ID to the parsed `agent-<id>.jsonl` transcript's `agentId`, model, and
+    effort on every assistant turn. Two-axis evidence MUST close the native
+    launch batch over all retained Agent or spawn events: exactly the bound
+    Standards and Spec readers may occur before their first wait or child
+    result. An unavailable-route result MUST retain zero native reader-launch
+    attempts, including inherited, substituted, background, generic, or
+    otherwise unbound attempts.
 
 ## Result shape and presentation
 
@@ -301,6 +342,13 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    by intent and interpret its reported findings and outcome; neither side needs
    a sibling plugin path, implementation name, output schema, tracker, or
    orchestrator-specific API.
+8. **CR-P8 — Self-contained reviewer routing.** Bundled reviewer defaults,
+   repository override parsing, host-specific launch mapping, and effective
+   route verification live inside `darrow-review`. Narrow bundled commands own
+   selection, observed-route, and application record I/O at caller-supplied
+   absolute paths. The plugin MAY share the `.darrow/config.json` envelope with
+   other independently installed plugins, but MUST NOT call or reference their
+   helpers or files.
 
 ## Evaluation requirements
 
@@ -344,10 +392,35 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     advisory, progressing and unchanged blockers, repeated and oscillating
     targets, a repair-caused regression, an unrelated observation excluded from
     scope, unavailable evidence, and exact-target read-only operation.
+14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
+    evidence covers bundled Sol/xhigh and Opus/xhigh defaults, repository
+    overrides in a config that may also contain adaptive-goal routes, direct
+    Anthropic-provider detection and rejection of every supported third-party
+    or custom-endpoint selector, parallel
+    two-axis application, one-axis omission, fix-verifier application,
+    conflicting environment overrides, unavailable models, and detected
+    Claude substitution. No passing case may rely on an inherited or
+    self-reported effective route. Tests also prove that file-bound helper
+    commands create each route artifact without coordinator-authored tuples or
+    redirects. Matched control/candidate trials use the same fixture,
+    participant prompt, checks, harness, model, and effort within each pair and
+    report native-evidence failures without converting them into acceptance.
+    Separately, at least one live passing route-mechanism case preserves and
+    cross-binds distinct native accepted-launch evidence for every applicable
+    axis. Codex evidence binds a native axis marker and places both accepted
+    starts before the first wait; Claude evidence places both
+    Agent calls in one parallel tool-use turn and joins each tool-use ID to its
+    host-reported child ID. Two-axis evidence rejects every additional native
+    launch in the retained batch, including unmarked or ineligible launches;
+    one-axis evidence rejects any native launch for the unavailable axis; and
+    unavailable-route evidence rejects every native reader-launch attempt.
 
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in
 [`review-convergence-issue-32.md`](../research/review-convergence-issue-32.md).
+Reviewer-route control/candidate results, native passing evidence, and their
+surface-specific limitations are recorded in
+[`code-review-reviewer-routing-trials.md`](../research/code-review-reviewer-routing-trials.md).
 
 ## Non-goals
 

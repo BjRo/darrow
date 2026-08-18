@@ -97,6 +97,33 @@ out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile scaled)
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\thigh'
 contains "$out" $'route_source\tpolicy'
 contains "$out" $'policy_route_source\trepository'
+
+cat >"$repo/.darrow/config.json" <<'EOF'
+{
+  "routes": [
+    {"host":"codex","profile":"scaled","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"high","fallbackModel":"none","fallbackEffort":"none"}
+  ],
+  "reviewers": [
+    {"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"xhigh"}
+  ]
+}
+EOF
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile scaled)
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\thigh'
+contains "$out" $'policy_route_source\trepository'
+
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"reviewers":[{"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"xhigh"}]}
+EOF
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'policy_route_source\tbundled'
+
+printf '%s\n' '{"routes":[]}' >"$repo/.darrow/config.json"
+out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'policy_route_source\tbundled'
+
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
   --route 'codex|openai|gpt-5.6-terra|low')
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tlow'
@@ -109,6 +136,23 @@ printf '{malformed' >"$repo/.darrow/config.json"
 if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
   >/dev/null 2>&1; then
   fail "malformed repository route configuration fell back to bundled policy"
+fi
+printf '{"routes":\f[]}\n' >"$repo/.darrow/config.json"
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "form-feed JSON whitespace was accepted"
+fi
+printf '{"routes":\v[]}\n' >"$repo/.darrow/config.json"
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "vertical-tab JSON whitespace was accepted"
+fi
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-terra","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}],"reviewers":1e}
+EOF
+if bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
+  >/dev/null 2>&1; then
+  fail "invalid JSON in the sibling reviewers section was accepted"
 fi
 cat >"$repo/.darrow/config.json" <<'EOF'
 {"routes":[{"host":"unknown","profile":"routine","harness":"unknown","provider":"openai","model":"test","effort":"low","fallbackModel":"none","fallbackEffort":"none"}]}
@@ -166,6 +210,21 @@ contains "$out" $'policy_route_source\trepository'
 git -C "$repo" worktree remove --force "$linked_repo"
 
 parser="$script_dir/routes-json.awk"
+empty_root="$tmp_root/empty-root.json"
+printf '%s\n' '{}' >"$empty_root"
+out=$(awk -v allow_missing_routes=1 -f "$parser" "$empty_root")
+test -z "$out" || fail "empty shared configuration did not retain bundled routes"
+if awk -f "$parser" "$empty_root" >/dev/null 2>&1; then
+  fail "empty bundled route catalog was accepted"
+fi
+escaped_sibling="$tmp_root/escaped-sibling.json"
+printf '%s\n' '{"reviewers":[{"note":"\u0061\n"}]}' >"$escaped_sibling"
+out=$(awk -v allow_missing_routes=1 -f "$parser" "$escaped_sibling")
+test -z "$out" || fail "escaped sibling configuration changed route policy"
+escaped_root="$tmp_root/escaped-root.json"
+printf '%s\n' '{"rout\u0065s":[]}' >"$escaped_root"
+out=$(awk -v allow_missing_routes=1 -f "$parser" "$escaped_root")
+test -z "$out" || fail "escaped routes key changed route policy"
 reordered_routes="$tmp_root/reordered-routes.json"
 cat >"$reordered_routes" <<'EOF'
 {

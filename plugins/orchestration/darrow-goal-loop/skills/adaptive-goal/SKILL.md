@@ -272,15 +272,17 @@ classifier route, host defaults, and enclosing evaluator are metadata, not user
 overrides. `inherit`, `current`, `default`, or an unresolved alias is not an
 auditable model identifier.
 
-The helper resolves policy from the active worktree root: when
-`<repo>/.darrow/config.json` is absent, routes come from bundled policy;
-otherwise its strict `{"routes":[...]}` entries replace matching bundled
-`(host, profile)` entries and other profiles inherit bundled routes. A present
-repository configuration must validate completely against the bundled
-host/profile catalog and host/harness relation; any unreadable or invalid file
-is a stop, not a fallback. `route_source` remains `policy` or `user` authority;
-for policy routes, `policy_route_source` discloses `repository` or `bundled`
-provenance.
+The helper resolves policy from the active worktree root. The shared
+`<repo>/.darrow/config.json` object may contain independent `routes` and
+`reviewers` sections. When the file or its `routes` section is absent or empty,
+goal routes come from bundled policy. Otherwise strict `routes` entries replace
+matching bundled `(host, profile)` entries and other profiles inherit bundled
+routes. Goal routing syntax-checks but does not interpret the sibling
+`reviewers` section. A present repository configuration must be readable and
+valid as a whole, and every owned route must validate against the bundled
+host/profile catalog and host/harness relation; any failure is a stop, not a
+fallback. `route_source` remains `policy` or `user` authority; for policy
+routes, `policy_route_source` discloses `repository` or `bundled` provenance.
 
 Write one complete goal contract containing the outcome, acceptance criteria,
 scope and non-goals, preserved work, permissions, the selected workflow and its

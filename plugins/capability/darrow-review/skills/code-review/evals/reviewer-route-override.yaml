@@ -1,78 +1,47 @@
-id: code-review-fix-verification-resolved
-invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E13,CR-E14
+id: code-review-reviewer-route-override
+invariant: CR-C4,CR-C21,CR-P8,CR-E14
 prompt: >-
-  Fix-verify the uncommitted repair described by the caller-owned evidence file
-  `.git/verification-input`; do not run another comprehensive review. Validate
-  and use its pinned prior scope, closed original finding set, attempted keys,
-  and first-verification marker. Use current deterministic evidence from `bash
-  check.sh`. Return the normal human repair-verification report and remain
-  read-only.
+  Explicitly use the installed $code-review skill to review my uncommitted
+  changes against this originating requirement:
+  exported mode must equal "safe". Do not repair the code.
 fixture:
   commits:
-    - message: "chore: base"
+    - message: "chore: init"
       files:
-        AGENTS.md: |
-          # Repository instructions
-
-          DEBUG must remain false. Run `bash check.sh` for config changes.
+        .darrow/config.json: |
+          {
+            "routes": [
+              {"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-terra","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}
+            ],
+            "reviewers": [
+              {"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.5","effort":"xhigh"},
+              {"host":"claude","harness":"claude","provider":"anthropic","model":"claude-sonnet-5","effort":"high"}
+            ]
+          }
         src/config.js: |
-          export const DEBUG = false;
-          export const TIMEOUT_MS = 2500;
-        check.sh: |
-          #!/usr/bin/env bash
-          set -eu
-          grep -Fx 'export const DEBUG = false;' src/config.js >/dev/null
-          grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
-          ! grep -F 'LEGACY' src/config.js >/dev/null
-    - message: "feat: introduce broken config"
-      files:
-        src/config.js: |
-          export const DEBUG = true;
-          export const TIMEOUT_MS = 1000;
-          export const LEGACY = true;
+          export const mode = "legacy";
   files:
     src/config.js: |
-      export const DEBUG = false;
-      export const TIMEOUT_MS = 2500;
-  setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
-    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
-    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
-    {
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$original_target"
-      printf 'prior_manifest\t%s\n' "$prior_manifest"
-      printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\tstandards:1:%s\tstandards\t1\thigh\tblocking\tsrc/config.js:1\t%s/AGENTS.md\tDEBUG remained enabled\n' "$original_target" "$PWD"
-      printf 'original_finding\tspec:2:%s\tspec\t2\thigh\tblocking\tsrc/config.js:2\trequirement: TIMEOUT_MS must be 2500\tTIMEOUT_MS was 1000\n' "$original_target"
-      printf 'original_finding\tspec:3:%s\tspec\t3\tlow\tadvisory\tsrc/config.js:3\tmaintenance note\tLEGACY was retained\n' "$original_target"
-      printf 'attempted\tstandards:1:%s\n' "$original_target"
-      printf 'attempted\tspec:2:%s\n' "$original_target"
-      printf 'attempted\tspec:3:%s\n' "$original_target"
-    } >.git/verification-input
-    git status --porcelain --untracked-files=all >.git/status-before
-    git hash-object src/config.js >.git/config-before
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+      export const mode = "unsafe";
 checks:
-  - name: verification preserves the repair bytes
-    run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
-  - name: verification remains read only
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: additive verification artifact validates and clears
+  - name: repository reviewer policy is retained with the pinned scope
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(sed -n '1p' .git/review-result-tool) &&
-      test -n "$record" && bash "$tool" validate-verification "$record" &&
-      grep -F 'outcome	clear' "$record" >/dev/null &&
-      test "$(grep -c '^attempt.*resolved.*resolved' "$record")" -eq 3
-  - name: both fix verifiers retain exact default route evidence
+      record=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      test -n "$record" && grep -F 'route_source	repository' "$record" >/dev/null
+  - name: configured host route is selected without inheritance
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      test -n "$record" && case "$DARROW_EVAL_HARNESS" in
+      codex) grep -F 'selected_route	codex	openai	gpt-5.5	xhigh' "$record" >/dev/null ;;
+      claude) grep -F 'selected_route	claude	anthropic	claude-sonnet-5	high' "$record" >/dev/null ;;
+      *) exit 2 ;; esac
+  - name: both isolated axes retain exact route application evidence
     run: >-
       selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
       test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
       case "$DARROW_EVAL_HARNESS" in
-      codex) host=codex; provider=openai; model=gpt-5.6-sol; effort=xhigh ;;
-      claude) host=claude; provider=anthropic; model=claude-opus-5; effort=xhigh ;;
+      codex) host=codex; provider=openai; model=gpt-5.5; effort=xhigh ;;
+      claude) host=claude; provider=anthropic; model=claude-sonnet-5; effort=high ;;
       *) exit 2 ;; esac;
       case "$DARROW_EVAL_HARNESS" in codex)
       test "$(grep -F '"tool":"spawn_agent"' .git/retained-harness.jsonl |
@@ -144,12 +113,9 @@ checks:
       batch=$(printf '%s\n' "$launch" | sed -E 's/.*"batch":([0-9]+).*/\1/');
       case "$axis" in standards) standards_batch=$batch ;; spec) spec_batch=$batch ;; esac;
       done; test "$standards_batch" = "$spec_batch" || exit 1; fi
-  - name: final response is the complete rendered verification report
-    run: >-
-      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+  - name: review remains read-only
+    run: test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
 output_checks:
-  - name: reports one fix-scoped clear result
-    expect_regex: '^# Repair verification — CLEAR[\s\S]*Original findings: 3[\s\S]*Resolved: 3'
-  - name: does not return a comprehensive-review report
-    not_regex: "^# Code review —"
+  - name: review returns the complete human protocol
+    expect_regex: '^# Code review — FAIL[\s\S]*## Findings[\s\S]*## Checks[\s\S]*## Scope[\s\S]*## Sources'
+    flags: i

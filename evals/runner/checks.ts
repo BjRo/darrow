@@ -264,11 +264,17 @@ interface CommandOutcome {
 async function runCommand(
   repoDir: string,
   command: string,
+  environment: Record<string, string>,
 ): Promise<CommandOutcome> {
-  const proc = Bun.spawn(["sh", "-e", "-c", command], {
+  const proc = Bun.spawn(["/bin/sh", "-e", "-c", command], {
     cwd: repoDir,
     stdout: "pipe",
     stderr: "pipe",
+    env: {
+      ...process.env,
+      PATH: process.env.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin",
+      ...environment,
+    },
   });
   const [out, err, code] = await Promise.all([
     new Response(proc.stdout).text(),
@@ -304,8 +310,9 @@ function commandOutputFailure(check: Check, out: string): string | undefined {
 async function runOneCheck(
   repoDir: string,
   check: Check,
+  environment: Record<string, string>,
 ): Promise<CheckResult> {
-  const { out, err, code } = await runCommand(repoDir, check.run);
+  const { out, err, code } = await runCommand(repoDir, check.run, environment);
   const expectedCode = check.exit_code ?? 0;
   if (code !== expectedCode) {
     const processOutput = [out.trim(), err.trim()].filter(Boolean).join("\n");
@@ -328,10 +335,11 @@ async function runOneCheck(
 export async function runChecks(
   repoDir: string,
   checks: Check[],
+  environment: Record<string, string> = {},
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   for (const check of checks) {
-    results.push(await runOneCheck(repoDir, check));
+    results.push(await runOneCheck(repoDir, check, environment));
   }
   return results;
 }

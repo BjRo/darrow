@@ -206,6 +206,184 @@ function retainedSkillBlocks(event: ClaudeResultEnvelope) {
   });
 }
 
+function retainedReviewAxisPrompt(prompt: unknown): string | undefined {
+  if (typeof prompt !== "string") return undefined;
+  const first = prompt.split("\n", 1)[0];
+  return first && /^- review_axis: (?:standards|spec)$/.test(first)
+    ? first
+    : undefined;
+}
+
+function normalizedReviewAgentInput(block: Record<string, unknown>) {
+  if (block.type !== "tool_use" || block.name !== "Agent") return undefined;
+  if (typeof block.id !== "string") return undefined;
+  const input = isRecord(block.input) ? block.input : undefined;
+  if (!input) return undefined;
+  const rawSubagentType = input.subagent_type ?? input.subagentType;
+  const subagentType =
+    typeof rawSubagentType === "string" ? rawSubagentType : "unknown";
+  const prompt = retainedReviewAxisPrompt(input.prompt);
+  return {
+    id: block.id,
+    subagentType,
+    prompt,
+    runInBackground: input.run_in_background,
+    model: input.model,
+  };
+}
+
+function retainedReviewAgentBlocks(event: ClaudeResultEnvelope) {
+  if (event.type !== "assistant") return [];
+  return claudeContent(event).flatMap((block) => {
+    const input = normalizedReviewAgentInput(block);
+    if (!input) return [];
+    return [
+      {
+        type: "tool_use",
+        name: "Agent",
+        id: input.id,
+        input: {
+          subagent_type: input.subagentType,
+          ...(typeof input.runInBackground === "boolean"
+            ? { run_in_background: input.runInBackground }
+            : {}),
+          ...(typeof input.model === "string" ? { model: input.model } : {}),
+          ...(input.prompt
+            ? { prompt: input.prompt }
+            : { prompt_marker: "invalid" }),
+        },
+      },
+    ];
+  });
+}
+
+function hostReportedAgentId(block: Record<string, unknown>) {
+  if (
+    block.type !== "tool_result" ||
+    typeof block.tool_use_id !== "string" ||
+    block.is_error === true ||
+    !Array.isArray(block.content)
+  )
+    return undefined;
+  const last = block.content.at(-1);
+  if (!isRecord(last) || last.type !== "text" || typeof last.text !== "string")
+    return undefined;
+  const match = last.text.match(
+    /^agentId: ([A-Za-z0-9]+) \(use SendMessage with to: '([A-Za-z0-9]+)'[\s\S]*\n<usage>[\s\S]*<\/usage>$/,
+  );
+  if (!match || match[1] !== match[2]) return undefined;
+  return { toolUseId: block.tool_use_id, agentId: match[1] };
+}
+
+function retainedReviewAgentResults(event: ClaudeResultEnvelope) {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) => {
+    const result = hostReportedAgentId(block);
+    return result ? [result] : [];
+  });
+}
+
+interface PendingReviewAgent {
+  axis: string;
+  batch: number;
+  subagentType: string;
+  turn: RetainedReviewAgentTurn;
+}
+
+type RetainedReviewAgentBlock = ReturnType<
+  typeof retainedReviewAgentBlocks
+>[number];
+
+interface RetainedReviewAgentTurn {
+  batch: number;
+  closed: boolean;
+  event: {
+    type: "assistant";
+    message: {
+      id?: string;
+      content: RetainedReviewAgentBlock[];
+    };
+  };
+}
+
+function assistantMessageId(event: ClaudeResultEnvelope) {
+  if (event.type !== "assistant" || !isRecord(event.message)) return undefined;
+  const id = event.message.id;
+  return typeof id === "string" && id ? id : undefined;
+}
+
+function reviewAgentTurn(
+  event: ClaudeResultEnvelope,
+  turns: Map<string, RetainedReviewAgentTurn>,
+  nextBatch: number,
+) {
+  const messageId = assistantMessageId(event);
+  const existing = messageId ? turns.get(messageId) : undefined;
+  if (existing && !existing.closed) return { turn: existing, created: false };
+  const turn = {
+    batch: nextBatch,
+    closed: false,
+    event: {
+      type: "assistant" as const,
+      message: {
+        ...(messageId ? { id: messageId } : {}),
+        content: [],
+      },
+    },
+  } satisfies RetainedReviewAgentTurn;
+  if (messageId) turns.set(messageId, turn);
+  return { turn, created: true };
+}
+
+function retainedReviewAgentEvidence(
+  event: ClaudeResultEnvelope,
+  pending: Map<string, PendingReviewAgent>,
+  turns: Map<string, RetainedReviewAgentTurn>,
+  previousBatch: number,
+) {
+  const retained: unknown[] = [];
+  const calls = retainedReviewAgentBlocks(event);
+  let batch = previousBatch;
+  if (calls.length) {
+    const { turn, created } = reviewAgentTurn(event, turns, previousBatch + 1);
+    if (created) {
+      batch = turn.batch;
+      retained.push(turn.event);
+    }
+    turn.event.message.content.push(...calls);
+    for (const block of calls) {
+      if (
+        !("prompt" in block.input) ||
+        block.input.run_in_background !== false ||
+        "model" in block.input ||
+        !block.input.subagent_type.startsWith("darrow-review:review-reader-")
+      )
+        continue;
+      pending.set(block.id, {
+        axis: block.input.prompt.replace("- review_axis: ", ""),
+        batch: turn.batch,
+        subagentType: block.input.subagent_type,
+        turn,
+      });
+    }
+  }
+  for (const result of retainedReviewAgentResults(event)) {
+    const call = pending.get(result.toolUseId);
+    if (!call) continue;
+    call.turn.closed = true;
+    retained.push({
+      type: "darrow.review_agent_launch",
+      tool_use_id: result.toolUseId,
+      agent_id: result.agentId,
+      review_axis: call.axis,
+      subagent_type: call.subagentType,
+      batch: call.batch,
+    });
+    pending.delete(result.toolUseId);
+  }
+  return { retained, batch };
+}
+
 /** Normalize Claude's direct Skill tool-use events without retaining messages. */
 export function claudeSkillActivation(
   stream: string,
@@ -250,6 +428,9 @@ export function retainedClaudeEvidence(
 ): string {
   const parsed = claudeStream(stream);
   const retained: unknown[] = [];
+  const pendingReviewAgents = new Map<string, PendingReviewAgent>();
+  const retainedReviewAgentTurns = new Map<string, RetainedReviewAgentTurn>();
+  let reviewAgentBatch = 0;
   for (const event of parsed.events) {
     if (event.type === "result") {
       retained.push(retainedResultEnvelope(event));
@@ -258,6 +439,14 @@ export function retainedClaudeEvidence(
     const skills = retainedSkillBlocks(event);
     if (skills.length)
       retained.push({ type: "assistant", message: { content: skills } });
+    const reviewEvidence = retainedReviewAgentEvidence(
+      event,
+      pendingReviewAgents,
+      retainedReviewAgentTurns,
+      reviewAgentBatch,
+    );
+    retained.push(...reviewEvidence.retained);
+    reviewAgentBatch = reviewEvidence.batch;
   }
   if (parsed.malformed) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)

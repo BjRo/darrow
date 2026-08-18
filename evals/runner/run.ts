@@ -236,6 +236,16 @@ function trialPrompt(options: RunCaseOptions, repoDir: string): string {
     .replaceAll("{{effort}}", effort);
 }
 
+function trialCheckEnvironment(
+  options: RunCaseOptions,
+): Record<string, string> {
+  return {
+    DARROW_EVAL_HARNESS: options.adapter.name,
+    DARROW_EVAL_MODEL: options.model,
+    DARROW_EVAL_EFFORT: options.effort,
+  };
+}
+
 function stableEvidence(value: unknown): string {
   if (Array.isArray(value))
     return `[${value.map((child) => stableEvidence(child)).join(",")}]`;
@@ -400,7 +410,7 @@ async function trialChecks(
   context: TrialContext,
   observedGoalRouteApplication: GoalRouteApplication | undefined,
 ): Promise<CheckResult[]> {
-  const { evalCase, withoutSkill = false } = options;
+  const { evalCase } = options;
   const { repoDir, baseRevision, harness } = context;
   const currentRevision = await repositoryHead(repoDir);
   const headChecks: CheckResult[] = evalCase.expect_head_change
@@ -427,13 +437,16 @@ async function trialChecks(
           detail: "candidate created or switched to a different commit",
         },
       ];
-  // A no-skill baseline is judged on repository outcomes, not on an
-  // orchestration-specific reporting or protocol contract it cannot know.
-  const orchestrationChecks = withoutSkill
-    ? []
-    : await orchestrationContractChecks(evalCase, harness);
+  const orchestrationChecks = await orchestrationContractChecks(
+    evalCase,
+    harness,
+  );
   return [
-    ...(await runChecks(repoDir, evalCase.checks)),
+    ...(await runChecks(
+      repoDir,
+      evalCase.checks,
+      trialCheckEnvironment(options),
+    )),
     ...headChecks,
     ...orchestrationChecks,
     ...routeChecks(options, harness, observedGoalRouteApplication),
@@ -482,6 +495,11 @@ async function evaluateTrial(
     /^format\tdarrow-ticket-pipeline-result-v1$/m.test(harness.resultText)
       ? observeCodexTicketPipelineRoutes(harness.raw)
       : undefined;
+  await writeFile(
+    join(repoDir, ".git", "retained-harness.jsonl"),
+    harness.raw,
+    { mode: 0o600 },
+  );
   const checks = await trialChecks(
     options,
     context,
@@ -545,6 +563,24 @@ function reportTrial(options: RunCaseOptions, result: TrialResult): void {
   }
 }
 
+async function evaluateDryTrial(
+  options: RunCaseOptions,
+  trial: number,
+  repoDir: string,
+): Promise<TrialResult> {
+  console.log(
+    `  [dry] ${options.evalCase.id} trial ${trial}: fixture at ${repoDir}`,
+  );
+  return dryTrialResult(
+    trial,
+    await runChecks(
+      repoDir,
+      options.evalCase.checks,
+      trialCheckEnvironment(options),
+    ),
+  );
+}
+
 async function runTrial(
   options: RunCaseOptions,
   trial: number,
@@ -569,12 +605,7 @@ async function runTrial(
   try {
     const baseRevision = await repositoryHead(repoDir);
     const prompt = trialPrompt(options, repoDir);
-    if (dry) {
-      console.log(
-        `  [dry] ${evalCase.id} trial ${trial}: fixture at ${repoDir}`,
-      );
-      return dryTrialResult(trial, await runChecks(repoDir, evalCase.checks));
-    }
+    if (dry) return await evaluateDryTrial(options, trial, repoDir);
     const harness: HarnessResult = await adapter.run(
       repoDir,
       prompt,

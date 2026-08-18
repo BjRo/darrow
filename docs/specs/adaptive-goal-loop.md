@@ -352,16 +352,18 @@ calibration. The routine route uses Sonnet 5 rather than Haiku 4.5 because
 current Claude Code does not support explicit effort on Haiku 4.5; exact
 `Haiku 4.5 / low` application is unavailable.
 
-An active worktree root MAY provide `.darrow/config.json` using the same strict
-`{"routes":[...]}` route-object schema. Each valid repository entry replaces
-the bundled entry with the same `(host, profile)`; omitted entries retain the
-bundled policy. A present repository configuration MUST be readable, safe,
-well-formed, duplicate-free, catalog-known, and host/harness-consistent. Any
-validation failure MUST stop route preparation and selection without falling
-back to bundled policy. The helper resolves both `prepare --repo` and
-`route --repo` against that same active worktree root. Prepared evidence MUST
-identify each policy route as `repository` or `bundled` without changing its
-separate `policy` versus explicit `user` authority.
+An active worktree root MAY provide one shared `.darrow/config.json` object
+with independent `routes` and `reviewers` sections. The goal-loop capability
+owns only `routes`; it MUST syntax-check but otherwise ignore `reviewers`. Each
+valid repository route replaces the bundled entry with the same
+`(host, profile)`; an absent or empty `routes` section and omitted entries retain
+bundled policy. A present repository configuration MUST be readable and well-formed as
+a whole, while every owned route MUST be safe, duplicate-free, catalog-known,
+and host/harness-consistent. Any validation failure MUST stop route preparation
+and selection without falling back to bundled policy. The helper resolves both
+`prepare --repo` and `route --repo` against that same active worktree root.
+Prepared evidence MUST identify each policy route as `repository` or `bundled`
+without changing its separate `policy` versus explicit `user` authority.
 
 An explicit user model or effort overrides policy. An unavailable user-pinned
 route stops instead of silently substituting another route. A policy-selected

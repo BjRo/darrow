@@ -9,6 +9,53 @@ import {
   retainedClaudeEvidence,
 } from "./claude";
 
+function reviewCall(
+  axis: "standards" | "spec",
+  prompt = `- review_axis: ${axis}\nsensitive task`,
+  inputOverrides: Record<string, unknown> = {},
+) {
+  return {
+    type: "assistant",
+    message: {
+      id: "message_parallel_review",
+      content: [
+        {
+          type: "tool_use",
+          name: "Agent",
+          id: `toolu_${axis}`,
+          input: {
+            subagent_type: "darrow-review:review-reader-claude-opus-5-xhigh",
+            run_in_background: false,
+            prompt,
+            ...inputOverrides,
+          },
+        },
+      ],
+    },
+  };
+}
+
+function reviewResult(axis: "standards" | "spec") {
+  const agentId = `${axis}one`;
+  return {
+    type: "user",
+    message: {
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: `toolu_${axis}`,
+          content: [
+            {
+              type: "text",
+              text: `agentId: ${agentId} (use SendMessage with to: '${agentId}', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: 10</usage>`,
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 test("uses Sonnet 5 as the default Claude eval model", () => {
   expect(claudeAdapter.defaultModel).toBe("claude-sonnet-5");
 });
@@ -167,12 +214,21 @@ describe("Claude skill activation observation", () => {
       JSON.stringify({
         type: "assistant",
         message: {
+          id: "message_parallel_review",
           content: [
             {
               type: "tool_use",
               name: "Skill",
               input: { skill: "darrow-discovery:plan-implementation" },
             },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          id: "message_parallel_review",
+          content: [
             {
               type: "tool_use",
               name: "Skill",
@@ -257,6 +313,148 @@ describe("Claude skill activation observation", () => {
     expect(retained).toContain('"type":"malformed_stream"');
     expect(retained).toContain('"stderr_present":true');
     expect(retained).not.toContain("sensitive interim result");
+  });
+
+  test("retains route fields for parallel review Agent calls without task text", () => {
+    const stream = [
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          id: "message_parallel_review",
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_standards",
+              input: {
+                subagent_type:
+                  "darrow-review:review-reader-claude-opus-5-xhigh",
+                run_in_background: false,
+                prompt: "- review_axis: standards\nsensitive standards task",
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          id: "message_parallel_review",
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_spec",
+              input: {
+                subagent_type:
+                  "darrow-review:review-reader-claude-opus-5-xhigh",
+                run_in_background: false,
+                prompt: "- review_axis: spec\nsensitive spec task",
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_standards",
+              content: [
+                { type: "text", text: "private standards result" },
+                {
+                  type: "text",
+                  text: "agentId: standardsone (use SendMessage with to: 'standardsone', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: 10</usage>",
+                },
+              ],
+            },
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_spec",
+              content: [
+                { type: "text", text: "private spec result" },
+                {
+                  type: "text",
+                  text: "agentId: specone (use SendMessage with to: 'specone', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: 12</usage>",
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        result: "private final result",
+      }),
+    ].join("\n");
+
+    const retained = retainedClaudeEvidence(stream);
+    const agentEvent = retained
+      .split("\n")
+      .find((line) => line.includes('"name":"Agent"'));
+    expect(agentEvent).toContain(
+      '"subagent_type":"darrow-review:review-reader-claude-opus-5-xhigh"',
+    );
+    expect(agentEvent).not.toContain('"model"');
+    expect(agentEvent).toContain("- review_axis: standards");
+    expect(agentEvent).toContain("- review_axis: spec");
+    expect(retained).toContain(
+      '"type":"darrow.review_agent_launch","tool_use_id":"toolu_standards","agent_id":"standardsone","review_axis":"standards"',
+    );
+    expect(retained).toContain(
+      '"type":"darrow.review_agent_launch","tool_use_id":"toolu_spec","agent_id":"specone","review_axis":"spec"',
+    );
+    expect(retained.match(/"batch":1/g)).toHaveLength(2);
+    expect(retained).not.toContain("sensitive standards task");
+    expect(retained).not.toContain("private final result");
+  });
+
+  test("does not coalesce a repeated message id after a child result", () => {
+    const stream = [
+      reviewCall("standards"),
+      reviewResult("standards"),
+      reviewCall("spec"),
+      reviewResult("spec"),
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+
+    const retained = retainedClaudeEvidence(stream);
+    expect(retained.match(/"batch":1/g)).toHaveLength(1);
+    expect(retained.match(/"batch":2/g)).toHaveLength(1);
+    expect(
+      retained.split("\n").filter((line) => line.includes('"name":"Agent"')),
+    ).toHaveLength(2);
+  });
+
+  test("retains an exact reader call but rejects a non-leading axis marker", () => {
+    const stream = JSON.stringify(
+      reviewCall("standards", "review context\n- review_axis: standards"),
+    );
+    const retained = retainedClaudeEvidence(stream);
+    expect(retained).toContain('"name":"Agent"');
+    expect(retained).toContain('"prompt_marker":"invalid"');
+    expect(retained).not.toContain("- review_axis: standards");
+  });
+
+  test("retains an ineligible Agent call as opaque omission evidence", () => {
+    const stream = JSON.stringify(
+      reviewCall("spec", "unmarked task", {
+        subagent_type: "general-purpose",
+        run_in_background: true,
+        model: "sonnet",
+      }),
+    );
+    const retained = retainedClaudeEvidence(stream);
+    expect(retained).toContain('"name":"Agent"');
+    expect(retained).toContain('"subagent_type":"general-purpose"');
+    expect(retained).toContain('"run_in_background":true');
+    expect(retained).toContain('"model":"sonnet"');
+    expect(retained).toContain('"prompt_marker":"invalid"');
   });
 
   test("marks malformed nested assistant content incomplete without throwing", () => {

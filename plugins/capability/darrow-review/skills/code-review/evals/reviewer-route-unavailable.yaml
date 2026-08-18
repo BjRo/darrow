@@ -1,0 +1,65 @@
+id: code-review-reviewer-route-unavailable
+invariant: CR-C4,CR-C10,CR-C21,CR-E7,CR-E14
+prompt: >-
+  Explicitly use the installed $code-review skill to review my uncommitted
+  changes against this originating requirement: exported mode must equal
+  "safe". The native host reports that the selected configured reviewer route
+  is unavailable for this run. Do not repair the code, inherit another reviewer
+  route, retry with a fallback, or substitute another model.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/config.json: |
+          {
+            "reviewers": [
+              {"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.5","effort":"xhigh"},
+              {"host":"claude","harness":"claude","provider":"anthropic","model":"claude-sonnet-5","effort":"high"}
+            ]
+          }
+        src/config.js: |
+          export const mode = "legacy";
+  files:
+    src/config.js: |
+      export const mode = "unsafe";
+checks:
+  - name: unavailable repository policy is retained without fallback
+    run: >-
+      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      test -n "$selection" && case "$DARROW_EVAL_HARNESS" in
+      codex) grep -F 'selected_route	codex	openai	gpt-5.5	xhigh' "$selection" >/dev/null ;;
+      claude) grep -F 'selected_route	claude	anthropic	claude-sonnet-5	high' "$selection" >/dev/null ;;
+      *) exit 2 ;; esac
+  - name: no reader accepts inherited or substituted route evidence
+    run: >-
+      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
+      for axis in standards spec; do record="$artifact_dir/$axis-route.tsv";
+      if test -e "$record"; then
+      ! awk -F '\t' '$1 == "route_verified" && $2 == "true" { found = 1 } END { exit !found }'
+      "$record" || exit 1;
+      ! awk -F '\t' '$1 == "route_bound" && $2 == "true" { found = 1 } END { exit !found }'
+      "$record" || exit 1; fi; done
+  - name: unavailable route retains zero native reader launch attempts
+    run: >-
+      case "$DARROW_EVAL_HARNESS" in codex)
+      awk 'index($0, "\"tool\":\"spawn_agent\"") { found = 1 }
+      END { exit found }' .git/retained-harness.jsonl ;;
+      claude) awk 'index($0, "\"name\":\"Agent\"") ||
+      index($0, "\"type\":\"darrow.review_agent_launch\"") { found = 1 }
+      END { exit found }' .git/retained-harness.jsonl ;;
+      *) exit 2 ;; esac
+  - name: blocked aggregate remains canonical and read only
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
+      else tool=.claude/bin/review-result; fi;
+      bash "$tool" validate "$record" &&
+      grep -F 'verdict	blocked' "$record" >/dev/null &&
+      test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
+    expect_regex: "^valid: darrow-review-result-v1$"
+output_checks:
+  - name: unavailable reviewer routes block the complete human protocol
+    expect_regex: '^# Code review — BLOCKED[\s\S]*## Findings[\s\S]*## Checks[\s\S]*## Scope[\s\S]*## Sources'
+    flags: i

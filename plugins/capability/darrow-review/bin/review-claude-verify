@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+transcript_parser="$script_dir/claude-route-json.awk"
+provider_probe="$script_dir/claude-provider"
+LC_ALL=C
+export LC_ALL
+tmp_record=
+umask 077
+
+cleanup_tmp_record() {
+  if test -n "$tmp_record" && test -e "$tmp_record"; then
+    rm -f "$tmp_record"
+  fi
+}
+trap cleanup_tmp_record EXIT HUP INT TERM
+
+usage() {
+  cat <<'EOF'
+usage: review-claude-verify --repo <path> --agent-id <id> [--projects-dir <dir>] [--record <absolute-path>]
+EOF
+}
+
+die() {
+  printf 'review-claude-verify: %s\n' "$*" >&2
+  exit 2
+}
+
+require_value() {
+  test "$#" -ge 2 && test -n "$2" || die "missing value for $1"
+}
+
+repo=
+agent_id=
+projects_dir=
+record=
+while test "$#" -gt 0; do
+  case "$1" in
+    --repo)
+      require_value "$@"
+      repo=$2
+      shift 2
+      ;;
+    --agent-id)
+      require_value "$@"
+      agent_id=$2
+      shift 2
+      ;;
+    --projects-dir)
+      require_value "$@"
+      projects_dir=$2
+      shift 2
+      ;;
+    --record)
+      require_value "$@"
+      record=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+test -n "$repo" && test -n "$agent_id" || die "--repo and --agent-id are required"
+test -r "$transcript_parser" || die "missing transcript parser: $transcript_parser"
+test -r "$provider_probe" || die "missing Claude provider probe: $provider_probe"
+bash "$provider_probe" observe-direct >/dev/null ||
+  die "Claude provider is unavailable for an Anthropic-only reviewer route"
+case "$agent_id" in
+  *[!A-Za-z0-9]*) die "unsafe agent id: $agent_id" ;;
+esac
+
+repo=$(CDPATH='' cd -- "$repo" && pwd -P) || die "unreadable repo: $repo"
+if test -z "$projects_dir"; then
+  config_dir=${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}
+  test -n "$config_dir" || die "Claude config directory is unavailable"
+  projects_dir="$config_dir/projects"
+fi
+test -d "$projects_dir" || die "no Claude projects directory: $projects_dir"
+projects_dir=$(CDPATH='' cd -- "$projects_dir" && pwd -P) ||
+  die "unreadable Claude projects directory: $projects_dir"
+
+slug=$(printf '%s' "$repo" | sed 's#^/##; s#/#-#g')
+session_dir="$projects_dir/-$slug"
+test -d "$session_dir" || die "no session transcripts for repo: $session_dir"
+
+transcript=
+transcript_count=0
+candidate_list=$(find "$session_dir" -type f -name "agent-$agent_id.jsonl" -print) ||
+  die "could not search session transcripts under $session_dir"
+while IFS= read -r candidate; do
+  test -n "$candidate" || continue
+  test -r "$candidate" || die "unreadable transcript candidate: $candidate"
+  transcript=$candidate
+  transcript_count=$((transcript_count + 1))
+done <<<"$candidate_list"
+test "$transcript_count" -eq 1 ||
+  die "expected exactly one assistant transcript for agent $agent_id; found $transcript_count"
+test -n "$transcript" ||
+  die "no transcript evidence found for agent $agent_id under $session_dir"
+
+observations=$(awk -v expected_agent_id="$agent_id" -f "$transcript_parser" "$transcript") ||
+  die "invalid transcript evidence for agent $agent_id in $transcript"
+models=$(cut -f 1 <<<"$observations" | sort -u) || true
+efforts=$(cut -f 2 <<<"$observations" | sort -u) || true
+model_count=$(printf '%s\n' "$models" | grep -c . || true)
+effort_count=$(printf '%s\n' "$efforts" | grep -c . || true)
+test "$model_count" -eq 1 ||
+  die "expected exactly one model across $model_count observed value(s) for agent $agent_id"
+test "$effort_count" -eq 1 ||
+  die "expected exactly one effort across $effort_count observed value(s) for agent $agent_id"
+
+record_body=$(printf 'format\tdarrow-review-claude-route-v1\nagent_id\t%s\ntranscript\t%s\nprovider_evidence\tcurrent-host-environment-default\nobserved_route\tclaude\tanthropic\t%s\t%s\n' \
+  "$agent_id" "$transcript" "$models" "$efforts")
+if test -z "$record"; then
+  printf '%s\n' "$record_body"
+  exit 0
+fi
+
+case "$record" in
+  /*) ;;
+  *) die "record path must be absolute: $record" ;;
+esac
+test ! -e "$record" && test ! -L "$record" || die "record path already exists: $record"
+record_parent=$(dirname -- "$record")
+record_name=$(basename -- "$record")
+test -d "$record_parent" && test -w "$record_parent" ||
+  die "record directory is unavailable: $record_parent"
+record_parent=$(CDPATH='' cd -- "$record_parent" && pwd -P) ||
+  die "record directory is unreadable: $record_parent"
+record="$record_parent/$record_name"
+test ! -e "$record" && test ! -L "$record" || die "record path already exists: $record"
+tmp_record=$(mktemp "$record_parent/.darrow-review-record.XXXXXX") ||
+  die "could not create a temporary record in $record_parent"
+printf '%s\n' "$record_body" >"$tmp_record" || die "could not write observed route: $record"
+mv "$tmp_record" "$record" || die "could not install observed route: $record"
+tmp_record=
+printf 'format\tdarrow-reviewer-record-location-v1\n'
+printf 'record\t%s\n' "$record"
