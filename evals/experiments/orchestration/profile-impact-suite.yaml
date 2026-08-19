@@ -11,7 +11,7 @@ case_routes:
       effort: high
     orchestration-oss-express-links:
       model: gpt-5.6-luna
-      effort: high
+      effort: medium
     orchestration-oss-go-git-insteadof:
       model: gpt-5.6-sol
       effort: high

@@ -1,0 +1,229 @@
+{
+  "format": "darrow-localized-model-routing-comparison-v1",
+  "date": "2026-08-19",
+  "status": "matched-n3-accepted-for-localized-defaults",
+  "comparison": {
+    "question": "Can Luna replace Terra for localized Codex routes without reducing deterministic task success?",
+    "harness": "codex-native-goal",
+    "harnessVersion": "codex-cli 0.148.0",
+    "trialsPerCase": 3,
+    "cases": [
+      "orchestration-routing-localized-retry-after",
+      "orchestration-routing-localized-version"
+    ],
+    "heldConstant": [
+      "effort within each comparison",
+      "prompts",
+      "fixtures",
+      "hidden checks",
+      "native-goal condition",
+      "runner revision"
+    ],
+    "intervention": "model"
+  },
+  "cells": [
+    {
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "passed": 6,
+      "trials": 6,
+      "escapedDefects": 0,
+      "totalDurationMs": 452172.003875,
+      "meanDurationMs": 75362.000646,
+      "inputTokens": 1980326,
+      "outputTokens": 17642,
+      "totalTokens": 1997968,
+      "cases": {
+        "orchestration-routing-localized-retry-after": {
+          "passed": 3,
+          "meanDurationMs": 98595.47975,
+          "p95DurationMs": 113904.814542
+        },
+        "orchestration-routing-localized-version": {
+          "passed": 3,
+          "meanDurationMs": 52128.521542,
+          "p95DurationMs": 63300.757625
+        }
+      }
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "effort": "medium",
+      "passed": 6,
+      "trials": 6,
+      "escapedDefects": 0,
+      "totalDurationMs": 386328.46275,
+      "meanDurationMs": 64388.077125,
+      "inputTokens": 911985,
+      "outputTokens": 15740,
+      "totalTokens": 927725,
+      "cases": {
+        "orchestration-routing-localized-retry-after": {
+          "passed": 3,
+          "meanDurationMs": 74109.981166,
+          "p95DurationMs": 77911.596166
+        },
+        "orchestration-routing-localized-version": {
+          "passed": 3,
+          "meanDurationMs": 54666.173084,
+          "p95DurationMs": 70451.540417
+        }
+      }
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "effort": "high",
+      "passed": 6,
+      "trials": 6,
+      "escapedDefects": 0,
+      "totalDurationMs": 524591.654167,
+      "meanDurationMs": 87431.942361,
+      "inputTokens": 1837783,
+      "outputTokens": 20803,
+      "totalTokens": 1858586,
+      "cases": {
+        "orchestration-routing-localized-retry-after": {
+          "passed": 3,
+          "meanDurationMs": 116803.364611,
+          "p95DurationMs": 122296.170333
+        },
+        "orchestration-routing-localized-version": {
+          "passed": 3,
+          "meanDurationMs": 58060.520111,
+          "p95DurationMs": 61660.724542
+        }
+      }
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "effort": "high",
+      "passed": 6,
+      "trials": 6,
+      "escapedDefects": 0,
+      "totalDurationMs": 524331.253834,
+      "meanDurationMs": 87388.542306,
+      "inputTokens": 960505,
+      "outputTokens": 23283,
+      "totalTokens": 983788,
+      "cases": {
+        "orchestration-routing-localized-retry-after": {
+          "passed": 3,
+          "meanDurationMs": 105279.659736,
+          "p95DurationMs": 126802.523833
+        },
+        "orchestration-routing-localized-version": {
+          "passed": 3,
+          "meanDurationMs": 69497.424875,
+          "p95DurationMs": 85919.546625
+        }
+      }
+    }
+  ],
+  "deltaLunaVsTerraPercent": {
+    "medium": {
+      "totalDuration": -14.562,
+      "totalTokens": -53.567
+    },
+    "high": {
+      "totalDuration": -0.05,
+      "totalTokens": -47.068
+    }
+  },
+  "pricing": {
+    "asOf": "2026-08-19",
+    "currency": "USD",
+    "unit": "per million text tokens",
+    "providerReportedCost": false,
+    "models": {
+      "gpt-5.6-terra": {
+        "input": 2.0,
+        "cachedInput": 0.2,
+        "output": 12.0,
+        "source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "gpt-5.6-luna": {
+        "input": 0.2,
+        "cachedInput": 0.02,
+        "output": 1.2,
+        "source": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+      }
+    },
+    "estimatedCostOmittedBecause": [
+      "cached-input and cache-write tokens were not exposed",
+      "per-request prompt sizes were not exposed for long-context pricing",
+      "provider cost was null"
+    ]
+  },
+  "decision": {
+    "promote": {
+      "routine": "codex|openai|gpt-5.6-luna|medium",
+      "routine-plus": "codex|openai|gpt-5.6-luna|high"
+    },
+    "retain": {
+      "scaled": "codex|openai|gpt-5.6-terra|medium",
+      "repo-wide": "codex|openai|gpt-5.6-terra|high",
+      "judgment": "codex|openai|gpt-5.6-sol|high"
+    }
+  },
+  "postPromotionValidation": {
+    "design": "N=1 adaptive preflight through the Codex app-server host API",
+    "result": "evals/results/localized-routing-policy-live/codex-adaptive-policy.json",
+    "sha256": "c6d0dae92b3f011a8c2c3d8c194a7c9c15961deda1c2eeafdc659323072b04c0",
+    "cases": [
+      {
+        "id": "orchestration-routing-localized-mechanical",
+        "workflow": "mechanical",
+        "risk": "routine",
+        "profile": "routine",
+        "selectedRoute": "codex|openai|gpt-5.6-luna|medium",
+        "effectiveRoute": "codex|openai|gpt-5.6-luna|medium",
+        "passed": true,
+        "childInvocations": 0,
+        "humanInterruptions": 0,
+        "escapedDefects": 0
+      },
+      {
+        "id": "orchestration-routing-localized-quality-feature",
+        "workflow": "implement-feature",
+        "risk": "routine",
+        "profile": "routine-plus",
+        "selectedRoute": "codex|openai|gpt-5.6-luna|high",
+        "effectiveRoute": "codex|openai|gpt-5.6-luna|high",
+        "passed": true,
+        "childInvocations": 0,
+        "humanInterruptions": 0,
+        "escapedDefects": 0
+      }
+    ]
+  },
+  "provenance": {
+    "runnerRevision": "3df838e8f79b85727e54229940fd0ef285050d65",
+    "runnerDirty": true,
+    "acceptedTrialReplacements": 0,
+    "results": [
+      {
+        "path": "evals/results/routing-localized-terra-medium-live.json",
+        "sha256": "df19a9131440ca8a7ad2736e30491de70adee88541646dc6e7dde304c1a75ffb"
+      },
+      {
+        "path": "evals/results/routing-localized-luna-medium-live.json",
+        "sha256": "2e8718aa5923637bfb9e5b43c14e6ce201d96e0ea64da0a9ac9259b64ab3bb97"
+      },
+      {
+        "path": "evals/results/routing-localized-terra-high-live.json",
+        "sha256": "a1809683567c8575f16b133ebdf95f268c57641229dca6ff311673aec4e5a3b7"
+      },
+      {
+        "path": "evals/results/routing-localized-luna-high-live.json",
+        "sha256": "c08c6e9c4d5f14cfd2f9c4df6390918d801969a4a80305e2ffae25dc23355843"
+      }
+    ]
+  },
+  "limitations": [
+    "synthetic localized JavaScript tasks only",
+    "cells ran sequentially rather than randomized",
+    "no blind model judge or human quality review",
+    "cumulative token accounting lacks cache and per-request detail",
+    "high-effort latency direction differed by case"
+  ]
+}

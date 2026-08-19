@@ -1,0 +1,29 @@
+version: 1
+experiment: orchestration-localized-routing-policy
+case_filter:
+  - orchestration-routing-localized-mechanical
+  - orchestration-routing-localized-quality-feature
+goal_expectations:
+  current:
+    orchestration-routing-localized-mechanical:
+      model: gpt-5.6-luna
+      effort: medium
+      profile: routine
+      workflow: mechanical
+      risk: routine
+    orchestration-routing-localized-quality-feature:
+      model: gpt-5.6-luna
+      effort: high
+      profile: routine-plus
+      workflow: implement-feature
+      risk: routine
+modes:
+  adaptive-policy:
+    condition_by_harness:
+      codex: conditions/darrow-goal-loop-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    apply_goal_route: true
+    goal_expectations: current
+    effort: low

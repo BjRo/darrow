@@ -3,13 +3,12 @@
 **TL;DR.** `darrow-goal-loop` is now an adaptive preflight around native goal
 execution: it inspects each task, chooses an execution workflow, gives more
 demanding work a stronger model/effort route, and independently gives
-higher-consequence work deeper validation and verification. In the latest N=1
-retrospective, the adaptive setup passed the same behavior contracts as raw
-Sol/medium native goal at roughly the same wall time (+3.6%) while estimated
-metered API cost fell 61% under current cached-input pricing. This suggests Darrow can retain
-native-goal performance while making orchestration meaningfully tunable and
-automatically using cheaper execution when the task allows it; N>=3 replication
-is still needed.
+higher-consequence work deeper validation and verification. The latest matched
+N=3 localized-routing experiment found Luna equal to Terra on deterministic
+task success, 14.6% faster at medium effort, and effectively wall-time neutral
+at high effort while using materially fewer host-reported tokens. This supports
+Luna for localized defaults while leaving the larger-work and judgment routes
+unchanged.
 
 This experiment compares four ways to complete the same engineering task:
 
@@ -34,9 +33,9 @@ contains model and CLI differences.
 
 ## Results so far
 
-All completed experiment cells are exploratory **N=1** calibrations. They are
-useful for rejecting clearly expensive designs, checking that routing works,
-and choosing what to evaluate next; they are not stable estimates of general
+Most historical experiment cells are exploratory **N=1** calibrations. The
+localized Terra-versus-Luna comparison is matched **N=3 per case** and is called
+out separately below. None of these results is a stable estimate of general
 performance. Time and tokens below are means per task. `unknown` means the
 harness could not report or reconcile the value, not zero. Quality is the
 deterministic task-pass rate followed by the condition-blind 1--5 judge score
@@ -156,8 +155,24 @@ It was 68.7% cheaper than the former policy, whose current-price estimate is
 3.4% higher than raw native. This is the clearest observed value of the current
 goal-loop design: task-specific workflow and verification remain available
 while model routing can reduce cost. The quality and latency result still needs
-N>=3 replication on matching routes before it should be treated as a general
-performance claim.
+N>=3 replication on matching routes in that OSS corpus before it should be
+treated as a general performance claim.
+
+### Localized Terra versus Luna routing
+
+The [matched N=3 snapshot](snapshots/2026-08-19-localized-luna-routing-n3.md),
+with its [machine-readable companion](snapshots/2026-08-19-localized-luna-routing-n3.json),
+compares Terra and Luna at medium and high effort on the same two localized
+tasks. Every one of the 24 trials passed all hidden behavior checks.
+
+| Effort | Terra pass / wall | Luna pass / wall | Luna wall delta | Luna token delta |
+| ------ | ----------------: | ---------------: | --------------: | ---------------: |
+| medium |      6/6 / 452.2s |     6/6 / 386.3s |          -14.6% |           -53.6% |
+| high   |      6/6 / 524.6s |     6/6 / 524.3s |          -0.05% |           -47.1% |
+
+This promotes Luna/medium for `routine` and Luna/high for `routine-plus`.
+Because the corpus is small and synthetic, it does not change the untested
+Terra routes for `scaled` or `repo-wide`, or the Sol route for `judgment`.
 
 ### Latest adaptive result versus raw Sol native
 

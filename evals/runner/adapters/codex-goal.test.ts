@@ -65,16 +65,16 @@ function contractPathFromObjective(objective: string): string {
 }
 
 const catalog = [
-  { model: "gpt-5.6-luna", efforts: ["high", "xhigh"] },
+  { model: "gpt-5.6-luna", efforts: ["medium", "high", "xhigh"] },
   { model: "gpt-5.6-terra", efforts: ["low", "medium", "high"] },
   { model: "gpt-5.6-sol", efforts: ["medium", "high"] },
 ];
 
 const prepared = [
   "format\tdarrow-native-goal-prepared-v1",
-  "route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium",
+  "route\troutine\tcodex\topenai\tgpt-5.6-luna\tmedium",
   "route_policy_source\troutine\tbundled",
-  "route\troutine-plus\tcodex\topenai\tgpt-5.6-terra\thigh",
+  "route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\thigh",
   "route_policy_source\troutine-plus\tbundled",
   "route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium",
   "route_policy_source\tscaled\trepository",
@@ -781,11 +781,11 @@ fi
   test("accepts a routine coding route for clear high-risk work", () => {
     const value = handoffValue();
     value.profile = "routine";
-    value.selectedRoute.model = "gpt-5.6-terra";
+    value.selectedRoute.model = "gpt-5.6-luna";
     value.selectedRoute.effort = "medium";
     value.goalContract = value.goalContract
       .replace("profile\tjudgment", "profile\troutine")
-      .replaceAll("gpt-5.6-sol\thigh", "gpt-5.6-terra\tmedium");
+      .replaceAll("gpt-5.6-sol\thigh", "gpt-5.6-luna\tmedium");
 
     expect(
       parseCodexGoalHandoff(JSON.stringify(value), catalog, dimensions)
@@ -793,7 +793,7 @@ fi
     ).toEqual({
       harness: "codex",
       provider: "openai",
-      model: "gpt-5.6-terra",
+      model: "gpt-5.6-luna",
       effort: "medium",
     });
   });

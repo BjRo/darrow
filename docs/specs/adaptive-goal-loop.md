@@ -334,23 +334,25 @@ The bundled default policy maps these profiles to host-specific routes:
 
 | Profile        | Codex route                | Claude route                 |
 | -------------- | -------------------------- | ---------------------------- |
-| `routine`      | `gpt-5.6-terra` / `medium` | `claude-sonnet-5` / `low`    |
-| `routine-plus` | `gpt-5.6-terra` / `high`   | `claude-sonnet-5` / `medium` |
+| `routine`      | `gpt-5.6-luna` / `medium`  | `claude-sonnet-5` / `low`    |
+| `routine-plus` | `gpt-5.6-luna` / `high`    | `claude-sonnet-5` / `medium` |
 | `scaled`       | `gpt-5.6-terra` / `medium` | `claude-sonnet-5` / `medium` |
 | `repo-wide`    | `gpt-5.6-terra` / `high`   | `claude-opus-5` / `high`     |
 | `judgment`     | `gpt-5.6-sol` / `high`     | `claude-opus-5` / `high`     |
 
-The original GPT-5.6 mappings were promoted after an exploratory N=1
-calibration in which every task contract passed and reconstructed list-price
-cost was about 72% below raw Sol controls. The observable native-runner design
-later moved the two Luna profiles to Terra because the tested first-class
-spawn surface accepts Terra and Sol but not Luna. Neither observation proves a
-stable quality or performance ranking, and the earlier cost result does not
-validate the revised routine routes. Continued multi-trial evaluation remains
-required. The Claude mappings have not received equivalent comparative
-calibration. The routine route uses Sonnet 5 rather than Haiku 4.5 because
-current Claude Code does not support explicit effort on Haiku 4.5; exact
-`Haiku 4.5 / low` application is unavailable.
+The Codex localized defaults were promoted from Terra to Luna after matched
+N=3 trials on two dissimilar, fully specified implementation tasks. At both
+medium and high effort every Terra and Luna trial passed the same hidden checks
+with no escaped defects. Luna medium reduced aggregate wall time by 14.6%; Luna
+high was effectively wall-time neutral in aggregate, with opposite per-case
+results. Host-reported token totals also favored Luna, but the harness did not
+supply actual cost and its cumulative token accounting is too noisy for a
+precise cost claim. This evidence supports the localized defaults only; it does
+not justify changing the untested `scaled`, `repo-wide`, or `judgment` routes,
+and broader held-out calibration remains required. The Claude mappings have not
+received equivalent comparative calibration. The routine route uses Sonnet 5
+rather than Haiku 4.5 because current Claude Code does not support explicit
+effort on Haiku 4.5; exact `Haiku 4.5 / low` application is unavailable.
 
 An active worktree root MAY provide one shared `.darrow/config.json` object
 with independent `routes` and `reviewers` sections. The goal-loop capability

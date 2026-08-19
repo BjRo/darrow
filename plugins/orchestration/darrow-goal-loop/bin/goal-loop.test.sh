@@ -54,8 +54,8 @@ out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
 contains "$out" $'format\tdarrow-native-goal-prepared-v1'
 repo_abs=$(git -C "$repo" rev-parse --show-toplevel)
 contains "$out" $'instruction\t'"$repo_abs/AGENTS.md"
-contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium'
-contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-terra\thigh'
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\tmedium'
+contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-luna\thigh'
 contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route\trepo-wide\tcodex\topenai\tgpt-5.6-terra\thigh'
 contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh'
@@ -80,7 +80,7 @@ contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
 contains "$out" $'profile\troutine'
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\tmedium'
 contains "$out" $'route_source\tpolicy'
 contains "$out" $'policy_route_source\tbundled'
 
@@ -89,7 +89,7 @@ cat >"$repo/.darrow/config.json" <<'EOF'
 {"routes":[{"host":"codex","profile":"scaled","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"high","fallbackModel":"none","fallbackEffort":"none"}]}
 EOF
 out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
-contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\tmedium'
 contains "$out" $'route_policy_source\troutine\tbundled'
 contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-sol\thigh'
 contains "$out" $'route_policy_source\tscaled\trepository'
@@ -116,12 +116,12 @@ cat >"$repo/.darrow/config.json" <<'EOF'
 {"reviewers":[{"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"xhigh"}]}
 EOF
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\tmedium'
 contains "$out" $'policy_route_source\tbundled'
 
 printf '%s\n' '{"routes":[]}' >"$repo/.darrow/config.json"
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\tmedium'
 contains "$out" $'policy_route_source\tbundled'
 
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
