@@ -1,0 +1,49 @@
+id: orchestration-routing-localized-version
+invariant: ORCH-ROUTING-LOCALIZED-BOUNDARIES
+prompt: |-
+  Work directly in this small JavaScript repository and implement the requested behavior. Do not commit or publish changes.
+
+  Update `src/version.js` so `isStableVersion(value)` returns true only for canonical stable semantic versions: three dot-separated non-negative integer components with no leading zeroes except the value zero itself. Reject prerelease tags, build metadata, omitted components, extra components, non-string inputs, and surrounding whitespace.
+
+  Add focused tests for accepted and rejected boundaries and run `bash test.sh` before finishing.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/version.js: |
+          export const isStableVersion = (_value) => false;
+        test/version.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { isStableVersion } from "../src/version.js";
+
+          test("recognizes a canonical stable version", () => {
+            assert.equal(isStableVersion("1.2.3"), true);
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/version.test.js
+checks:
+  - name: canonical stable versions are recognized
+    run: >-
+      node --input-type=module -e
+      "import('./src/version.js').then(({isStableVersion}) => {
+      for (const value of ['0.0.0', '1.2.3', '10.20.30']) {
+      if (!isStableVersion(value)) process.exit(1) } })"
+  - name: unstable and noncanonical versions are rejected
+    metric: escaped_defect
+    run: >-
+      node --input-type=module -e
+      "import('./src/version.js').then(({isStableVersion}) => {
+      for (const value of ['01.2.3', '1.02.3', '1.2', '1.2.3-beta',
+      '1.2.3+build', ' 1.2.3 ', '1.2.3.4', 123]) {
+      if (isStableVersion(value)) process.exit(1) } })"
+  - name: repository tests pass
+    run: bash test.sh
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1

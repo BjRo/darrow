@@ -30,9 +30,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: mechanical routine route is selected
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\tmechanical[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium"
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\tmechanical[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium"
   - name: selected route is effective
-    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium[\\s\\S]*route_verified\\ttrue"
   - name: matching routine route uses a zero-child host boundary
     expect_regex: "launch_boundary\\t(?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations\\t0"
   - name: final record reports no human stop

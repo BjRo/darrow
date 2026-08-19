@@ -1,0 +1,68 @@
+id: goal-preflight-quality-sensitive-localized
+invariant: AGL-P1,AGL-P2,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-L6,AGL-L10,AGL-S3
+prompt: >-
+  /adaptive-goal Add an exported isStableVersion(value) to src/version.js that returns true
+  only for canonical stable semantic versions: three dot-separated non-negative
+  integer components with no leading zeroes except the value zero itself. Reject
+  prerelease tags, build metadata, omitted components, and surrounding
+  whitespace. On Codex, invoke the $adaptive-goal skill. Add focused tests for
+  the accepted and rejected boundaries and run bash test.sh. The implementation
+  is localized and fully specified, but the boundary cases make first-pass
+  correctness more valuable than the cheapest routine route. Select and apply
+  the policy route rather than pinning a model. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/version.js: |
+          export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;
+        test/version.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { formatVersion } from "../src/version.js";
+
+          test("formats a version", () => {
+            assert.equal(formatVersion(1, 2, 3), "1.2.3");
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/version.test.js
+checks:
+  - name: canonical stable versions are recognized
+    run: >-
+      node --input-type=module -e
+      "import('./src/version.js').then(({isStableVersion}) => {
+      for (const value of ['0.0.0', '1.2.3', '10.20.30']) {
+      if (!isStableVersion(value)) process.exit(1) } })"
+  - name: noncanonical and unstable versions are rejected
+    metric: escaped_defect
+    run: >-
+      node --input-type=module -e
+      "import('./src/version.js').then(({isStableVersion}) => {
+      for (const value of ['01.2.3', '1.02.3', '1.2', '1.2.3-beta',
+      '1.2.3+build', ' 1.2.3 ', '1.2.3.4']) {
+      if (isStableVersion(value)) process.exit(1) } })"
+  - name: focused tests are durable
+    run: >-
+      grep -F '0.0.0' test/version.test.js >/dev/null &&
+      grep -F '01.2.3' test/version.test.js >/dev/null &&
+      grep -F '1.2.3-beta' test/version.test.js >/dev/null &&
+      bash test.sh >/dev/null
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: localized quality-sensitive route is selected
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine-plus[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh"
+  - name: selected route is effective
+    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"
+  - name: differing policy route uses one observable goal runner
+    expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\tnative_subagent[\\s\\S]*evaluation_child_invocations\\t1"
+  - name: no human stop was needed
+    expect_regex: "evaluation_human_interruptions\\t0"
+  - name: routine verification gate is reported
+    expect_regex: "verification_gate\\troutine"

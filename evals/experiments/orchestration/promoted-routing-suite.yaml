@@ -8,7 +8,7 @@ case_routes:
   codex:
     orchestration-oss-express-links:
       model: gpt-5.6-luna
-      effort: high
+      effort: medium
     orchestration-oss-commander-env:
       model: gpt-5.6-terra
       effort: medium
@@ -19,7 +19,7 @@ goal_expectations:
   promoted:
     orchestration-oss-express-links:
       model: gpt-5.6-luna
-      effort: high
+      effort: medium
       profile: routine
       workflow: fix-bug
       risk: high

@@ -42,9 +42,9 @@ output_checks:
   - name: preflight record is emitted
     expect_regex: "format\\tdarrow-native-goal-preflight-v4"
   - name: bounded routine route is selected
-    expect_regex: "workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium"
+    expect_regex: "workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium"
   - name: selected route is effective
-    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-terra\\tmedium[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium[\\s\\S]*route_verified\\ttrue"
   - name: differing policy route uses one observable goal runner
     expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\tnative_subagent[\\s\\S]*evaluation_child_invocations\\t1"
   - name: no custom role orchestration remains
