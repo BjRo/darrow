@@ -1,6 +1,6 @@
 {
   "name": "darrow-git",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Intent-triggered git workflow skills: create-branch, create-commit, create-pr",
   "author": {
     "name": "Björn Rochel"

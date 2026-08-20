@@ -56,7 +56,7 @@ git add tracked.txt preserved.txt
 echo worktree-preserved > preserved.txt
 echo outside > outside.txt
 mkdir -p .git/hooks
-printf '#!/bin/sh\ngit show :tracked.txt | grep -qx corrected\n' > .git/hooks/pre-commit
+printf '#!/bin/sh\necho "run: printf corrected > tracked.txt" >&2\ngit show :tracked.txt | grep -qx corrected\n' > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 bash "$SCRIPT" commit -m "fix: correct tracked file" > /dev/null 2>&1
 check "hook failure preserves history" 2 "$(git rev-list --count HEAD)"
@@ -93,6 +93,50 @@ check "directory retry rejected" 7 $?
 check "directory refusal preserves index" "$before_index" "$(git write-tree)"
 check "directory refusal preserves history" "$before_head" "$(git rev-parse HEAD)"
 check "directory refusal preserves untracked file" "unrelated" "$(cat src/untracked.txt)"
+
+echo "# H6: hook-directed remediation preserves the staged retry boundary"
+fresh_repo
+echo base > tracked.txt && git add tracked.txt && git commit -qm "chore: track file"
+echo stale > tracked.txt && git add tracked.txt
+mkdir -p .git/hooks
+printf '#!/bin/sh\necho "run: printf corrected > tracked.txt" >&2\ngit show :tracked.txt | grep -qx corrected\n' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+bash "$SCRIPT" commit -m "fix: correct tracked file" > /dev/null 2>&1
+check "hook failure preserves remediation precondition" 2 "$(git rev-list --count HEAD)"
+bash "$SCRIPT" remediate --after-hook-failure --command "printf corrected > tracked.txt" --refresh-staged tracked.txt -m "fix: correct tracked file" > /dev/null 2>&1
+check "unambiguous remediation commits" 0 $?
+check "remediation commits corrected content" "corrected" "$(git show HEAD:tracked.txt)"
+
+echo "# H7: remediation index mutation is restored and refused"
+fresh_repo
+echo base > tracked.txt && git add tracked.txt && git commit -qm "chore: track file"
+echo stale > tracked.txt && git add tracked.txt
+echo outside > outside.txt
+mkdir -p .git/hooks
+printf '#!/bin/sh\necho "run: git add outside.txt" >&2\nexit 1\n' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+bash "$SCRIPT" commit -m "fix: correct tracked file" > /dev/null 2>&1
+before_index=$(git write-tree)
+before_head=$(git rev-parse HEAD)
+bash "$SCRIPT" remediate --after-hook-failure --command "git add outside.txt" --refresh-staged tracked.txt -m "fix: correct tracked file" > /dev/null 2>&1
+check "index-mutating remediation rejected" 7 $?
+check "index-mutating remediation restores index" "$before_index" "$(git write-tree)"
+check "index-mutating remediation preserves history" "$before_head" "$(git rev-parse HEAD)"
+check "index-mutating remediation preserves worktree" "outside" "$(cat outside.txt)"
+
+echo "# H8: remediation not present in hook diagnostics is refused"
+fresh_repo
+echo stale > tracked.txt && git add tracked.txt
+mkdir -p .git/hooks
+printf '#!/bin/sh\necho "run: printf corrected > tracked.txt" >&2\nexit 1\n' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+bash "$SCRIPT" commit -m "fix: correct tracked file" > /dev/null 2>&1
+before_index=$(git write-tree)
+before_head=$(git rev-parse HEAD)
+bash "$SCRIPT" remediate --after-hook-failure --command "printf unrelated > tracked.txt" --refresh-staged tracked.txt -m "fix: correct tracked file" > /dev/null 2>&1
+check "unreported remediation rejected" 7 $?
+check "unreported remediation preserves index" "$before_index" "$(git write-tree)"
+check "unreported remediation preserves history" "$before_head" "$(git rev-parse HEAD)"
 
 echo "# M1: sweep shortcuts rejected"
 fresh_repo
