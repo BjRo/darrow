@@ -24,7 +24,11 @@ Example: _“Create a branch for DAR-123 retry handling.”_
 Creates one new Conventional Commit. An existing staged set is treated as the
 user's exact selection; otherwise the skill deliberately selects only paths
 belonging to the requested change. Hooks run normally, and history is never
-rewritten as part of this workflow.
+rewritten as part of this workflow. After a reported hook failure, it can
+refresh only explicitly authorized paths already in that staged set and rerun
+the normal commit path; unrelated work remains excluded. An unambiguous,
+path-scoped hook diagnosis can also run through a snapshot-guarded remediation
+step before that retry.
 
 Example: _“Commit these changes.”_
 

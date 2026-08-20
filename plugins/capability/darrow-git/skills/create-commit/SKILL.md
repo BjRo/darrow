@@ -94,12 +94,70 @@ This `commit.sh commit` call is the only commit-creation command in the
 workflow. Use neither raw Git nor a history-rewriting option. Do not use sweep
 paths such as `.` or globs. If the script rejects the input, correct only the
 proposed selection or message and retry. If commit execution fails because of
-a hook, identity, or conflict, relay the error verbatim and stop; do not bypass
-the failure.
+a hook, inspect its diagnostic before stopping: continue with §3a or §3b only
+when their exact conditions are met. If execution fails because of identity or
+conflict, relay the error verbatim and stop; do not bypass the failure.
+
+### 3a. Retry an explicit hook-failure correction
+
+Only after a hook failure has been reported in the request or by this workflow,
+and only when the user literally authorizes refreshing named corrected paths,
+offer one guarded retry. The authorization must name every path; “try again” or
+“include my fixes” does not authorize refreshing the index. Each named path
+must already be part of the existing staged set. Never use this path for an
+unstaged selection, an outside path, or a new file.
+
+When a reported hook failure includes corrected worktree content but lacks that
+literal path-by-path authorization, refuse the retry and make no Git mutation:
+do not run `commit`, `retry`, `git add`, or any alternative staging/commit
+command. Ask for the exact staged paths to refresh. A normal staged commit
+would retain stale index content, so it is not an authorized substitute.
+
+```sh
+bash <skill-dir>/scripts/commit.sh retry --after-hook-failure \
+  --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
+```
+
+This refreshes only the explicitly authorized staged paths from the working
+tree, preserves every other staged blob and all excluded work, then reruns the
+ordinary commit validation and hooks. If it refuses or a hook fails again,
+relay the output and stop. Do not use a raw staging command, a hook bypass, or
+a broader retry.
+
+### 3b. Remediate an unambiguous hook diagnosis
+
+When the hook diagnostic states one concrete corrective command, interpret and
+run it when its effect is unambiguous and limited to the failed intended
+commit's explicitly named staged paths. The literal command must occur in the
+failed diagnostic; do not infer a command from prose or combine alternatives.
+Do not reject a hook-provided command merely because its tool is unfamiliar.
+If the diagnostic is ambiguous, ask the user to identify the remediation and
+stop without mutation.
+
+A diagnostic line in the ordinary form `run: <command>` names that one
+concrete command. When it names only the authorized staged path, use §3b with
+the text after `run:` exactly; do not fall back to an ordinary retry, which
+would retain the stale index content.
+
+Pass the literal command and every path the user explicitly authorizes to the
+guarded script:
+
+```sh
+bash <skill-dir>/scripts/commit.sh remediate --after-hook-failure \
+  --command "<literal hook-directed command>" \
+  --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
+```
+
+The script binds remediation to the saved failed-commit `HEAD` and index
+snapshot. It refuses a changed `HEAD`; if remediation changes the index, it
+restores that failed snapshot and stops. Only after those checks does it invoke
+the guarded staged retry, which refreshes the authorized paths and reruns the
+ordinary hook. Never execute a diagnostic command directly in the shell.
 
 **Complete when:** the script prints `<hash> <subject>` for one newly added
 commit, or its execution failure has been reported without changing existing
-history or bypassing safeguards.
+history or bypassing safeguards. A guarded retry is complete only when it
+preserves the original staged set except for the literally authorized paths.
 
 ### 4. Report the result
 

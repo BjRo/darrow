@@ -1,0 +1,36 @@
+id: create-commit-hook-remediation
+invariant: GW-C9
+expect_head_change: true
+prompt: >-
+  The pre-commit hook failed with `run: printf 'export const a = 2;\n' >
+  src/a.ts`. It failed for my staged src/a.ts correction. I explicitly
+  authorize refreshing src/a.ts and retrying the commit. Do not include
+  notes.txt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/a.ts: "export const a = 0;\n"
+  files:
+    src/a.ts: "export const a = 1;\n"
+    notes.txt: "unrelated scratch notes\n"
+  staged:
+    - src/a.ts
+  hooks:
+    pre-commit: "#!/bin/sh\ngit show :src/a.ts | grep -qx 'export const a = 2;'\n"
+  setup: |
+    git_dir=$(git rev-parse --git-dir)
+    head=$(git rev-parse HEAD)
+    tree=$(git write-tree)
+    printf 'format\tdarrow-create-commit-hook-failure-v1\nhead\t%s\nindex_tree\t%s\noutput\nrun: printf '\''export const a = 2;\\n'\'' > src/a.ts\n' "$head" "$tree" > "$git_dir/darrow-create-commit-hook-failure"
+checks:
+  - name: remediation creates one corrected commit
+    run: git rev-list --count HEAD
+    expect_regex: "^2$"
+  - name: remediation commits corrected staged content
+    run: git show HEAD:src/a.ts
+    expect_regex: "export const a = 2"
+  - name: unrelated work remains excluded
+    run: git status --short
+    expect_regex: "\\?\\? notes\\.txt"
