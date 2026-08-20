@@ -407,8 +407,10 @@ evaluation_human_interruptions\t<integer>
 not internal continuation turns or helper subagents created by native goal
 mode. A same-thread launch therefore reports zero and a native goal runner
 reports one. Native descendants remain visible through host telemetry. A
-`decision-gated` stop reports one human interruption; ordinary native reasoning
-and automatic permission review do not.
+`decision-gated` stop reports one human interruption. After launch, each
+distinct material question presented for user decision also reports one,
+including a question answered and relayed during the same run. Ordinary native
+reasoning and automatic permission review do not.
 
 ## `adaptive-goal` — Adaptive Goal Loop
 
@@ -526,10 +528,11 @@ the least launch machinery the host supports.
 5. **AGL-L5 — Goal persistence.** The native goal or allowed Claude Agent runner
    receives the full contract inline or reads and verifies the exact
    file-backed contract before doing work, then remains the sole owner until
-   its own terminal state, user interruption, budget stop, or a genuine human
-   decision. The launcher keeps a file-backed contract readable for that
-   lifetime. A Claude Agent runner MUST NOT claim session-scoped `/goal`
-   persistence.
+   its own terminal state, user interruption, or budget stop. A material human
+   decision that emerges after activation pauses mutation and follows AGL-L13;
+   it does not end ownership while the host can request and return feedback.
+   The launcher keeps a file-backed contract readable for that lifetime. A
+   Claude Agent runner MUST NOT claim session-scoped `/goal` persistence.
 6. **AGL-L6 — Final evidence.** The host-native goal owner runs the contract's
    applicable final-tree checks after implementation, affected callers, and
    documentation are complete and before claiming completion. A narrow
@@ -592,6 +595,15 @@ the least launch machinery the host supports.
     settles every terminal unsatisfied gate as `blocked`; host-required
     continuation before that transition is status settlement only and never
     resumes repository work, verification, review, or publication.
+13. **AGL-L13 — Human-feedback relay.** When a material decision becomes
+    necessary after activation, the goal owner pauses repository and external
+    mutation and asks the smallest concrete question. A current-thread owner
+    asks the user directly; a delegated owner sends the question to its parent,
+    which returns the user's explicit answer to the same owner when the host
+    supports feedback relay. Pending feedback is a pause, not completion or
+    blockage, and the answer grants only the decision or authority it states.
+    If the host cannot relay feedback, the owner stops honestly with the
+    question and observed durable facts instead of guessing.
 
 ### Safety invariants
 
@@ -599,7 +611,8 @@ the least launch machinery the host supports.
    beyond the request and current host policy.
 2. **AGL-S2 — Meaningful human gates.** Missing product decisions, destructive
    operations, security or privacy policy, external publication, and new
-   authority stop before launch unless already approved.
+   authority stop before launch unless already approved. A material decision
+   discovered only after launch follows AGL-L13 and MUST NOT be inferred.
 3. **AGL-S3 — No derived publication authority.** A native goal MAY perform a
    branch, commit, push, pull request, or other publication effect only when
    that exact effect was explicitly pre-authorized in the originating request
@@ -725,6 +738,12 @@ the least launch machinery the host supports.
     activation retry is introduced. Cover complete, blocked, paused,
     materialization-validation failure, goal-set rejection, and launcher failure
     lifecycles, including exact-once goal activation and attachment release.
+14. Exercise an after-launch material decision with both a current-thread owner
+    and a delegated owner. Verify that mutation pauses, the smallest concrete
+    question reaches the user, the explicit answer returns to the same owner,
+    and continuation preserves the original scope and authority. An unavailable
+    feedback relay stops honestly; a pending answer is never reported as
+    completion or blockage while relay remains available.
 
 ## Non-goals
 

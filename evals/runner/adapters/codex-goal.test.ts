@@ -17,8 +17,10 @@ import {
   buildPreparedGoalPrompt,
   extractIntentRoutingGuidance,
   goalDimensionStage,
+  isHumanFeedbackPauseText,
   isGoalTerminalStatus,
   isReportableGoalStatus,
+  isResumableGoalStatus,
   isFinalAgentMessage,
   parseCodexGoalHandoff,
   parseExplicitReviewRoundLimit,
@@ -192,6 +194,11 @@ after`);
     expect(canonicalGuidance).toMatch(
       /broad final-tree gates as routine\s+implementation feedback/,
     );
+    expect(canonicalGuidance).toContain(
+      "material decision first emerges after activation",
+    );
+    expect(canonicalGuidance).toContain("Pending feedback is neither");
+    expect(canonicalGuidance).toContain("- phase: human-feedback-request");
     expect(canonicalGuidance).toMatch(
       /environment exposes a\s+capability matching that intent/,
     );
@@ -333,6 +340,10 @@ after`);
     expect(prompt).toContain(
       "including every stopped turn and a terminal blocked turn",
     );
+    expect(prompt).toContain("- phase: human-feedback-request");
+    expect(prompt).toMatch(
+      /feedback[^.]*pause[^.]*leave the native goal active/i,
+    );
     expect(prompt).toContain("# Change feature");
   });
 
@@ -362,6 +373,23 @@ after`);
     expect(isGoalTerminalStatus("blocked")).toBe(true);
     expect(isGoalTerminalStatus("paused")).toBe(false);
     expect(isGoalTerminalStatus("active")).toBe(false);
+    expect(isResumableGoalStatus("paused")).toBe(true);
+    expect(isResumableGoalStatus("active")).toBe(true);
+    expect(isResumableGoalStatus("complete")).toBe(false);
+  });
+
+  test("recognizes only an explicit final feedback-pause marker", () => {
+    expect(
+      isHumanFeedbackPauseText(
+        "- phase: human-feedback-request\nWhich behavior should apply?",
+      ),
+    ).toBe(true);
+    expect(
+      isHumanFeedbackPauseText(
+        "Context first\n- phase: human-feedback-request\nQuestion",
+      ),
+    ).toBe(false);
+    expect(isHumanFeedbackPauseText("The goal is paused.")).toBe(false);
   });
 
   test("materializes an oversized objective before exactly one goal-set call", async () => {
@@ -508,6 +536,41 @@ fi
       ).rejects.toThrow("turn/start failed after goal activation");
       expect(retained?.attachmentDir).toBe(dirname(contractFile));
       expect(retained?.contractSha256).toHaveLength(64);
+      expect(await Bun.file(contractFile).exists()).toBe(true);
+    } finally {
+      await materialized?.cleanup();
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("retains an oversized attachment after a successful feedback pause", async () => {
+    const repo = await adapterFixtureRepo();
+    let contractFile = "";
+    let retained:
+      | Awaited<ReturnType<typeof activateMaterializedGoal>>["attachment"]
+      | undefined;
+    let materialized:
+      Awaited<ReturnType<typeof activateMaterializedGoal>> | undefined;
+    try {
+      materialized = await activateMaterializedGoal(
+        goalSetter((params) => {
+          contractFile = contractPathFromObjective(
+            (params as { objective: string }).objective,
+          );
+        }),
+        repo,
+        "thread-1",
+        "paused".repeat(701),
+      );
+      const result = await withMaterializedGoalLifecycle(
+        materialized,
+        async () => "paused",
+        (attachment) => {
+          retained = attachment;
+        },
+      );
+      expect(result).toBe("paused");
+      expect(retained?.attachmentDir).toBe(dirname(contractFile));
       expect(await Bun.file(contractFile).exists()).toBe(true);
     } finally {
       await materialized?.cleanup();
