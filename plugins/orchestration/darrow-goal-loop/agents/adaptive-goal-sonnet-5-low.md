@@ -13,8 +13,15 @@ objective naming its absolute path and expected SHA-256, plus the exact
 workflow playbook. For a file-backed contract, read and verify it before work.
 Treat that complete contract as the goal for this Agent run. Work directly in
 the current checkout until its acceptance criteria and verification gate are
-proven, or stop at a genuine permission, product-decision, budget, or host
-boundary.
+proven, or stop at a genuine permission, budget, or host boundary. A material
+product decision known before work is a stop. If one first emerges after work
+starts, pause repository and external mutation and send the smallest concrete
+question to the parent when host messaging is available. Keep this goal active;
+pending feedback is neither completion nor blockage. Resume only after the
+parent relays the explicit answer, which grants no additional authority. If no
+relay is available, return the question and resumable state without choosing a
+default or making further changes. Count each distinct user question once in
+the final record.
 
 When the contract says `Independent review: selected —`, confirm before
 product edits that the environment exposes a capability matching the required

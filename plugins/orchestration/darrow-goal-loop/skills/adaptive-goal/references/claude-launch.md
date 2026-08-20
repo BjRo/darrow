@@ -45,6 +45,12 @@ goal. Set the exact materialized objective rather than an oversized inline
 contract. Record `same_thread`, `current-thread`, verified true, and zero
 children.
 
+If a material decision first emerges after activation, leave the goal active,
+pause repository and external mutation, and ask the user the smallest concrete
+question. Pending feedback is neither completion nor blockage. Continue the
+same goal after the explicit answer arrives, count the question once, and keep
+any file-backed objective attached while paused.
+
 Do not treat a `claude` executable on `PATH` as evidence of same-thread control.
 
 **Complete when:** the current thread reports the materialized objective as its
@@ -109,8 +115,17 @@ Materialize the objective before invoking the `Agent` tool exactly once with:
   selected workflow document, its absolute path, identifier, and content hash.
 
 Tell the runner to read and verify a file-backed complete contract before work,
-own the contract through terminal completion, run the workflow and risk gates,
-and return the required final record. Preserve the
+own the contract through completion or a material-feedback pause, run the
+workflow and risk gates, and return the required final record. When a material
+decision first emerges after activation, it pauses mutation and sends the
+smallest concrete question to its creator through host parent messaging when
+available. The creator surfaces the question to the user and relays the exact
+answer to that same runner without launching a replacement. Pending feedback
+is neither completion nor blockage, and each distinct user question counts
+once. If this Agent boundary exposes no usable feedback relay, the runner
+returns the pending question and resumable lifecycle facts without further
+mutation; the launcher retains the objective attachment and reports the pause
+honestly. Preserve the
 contract's exact `Independent review: selected|omitted — reason` clause in the
 task. When selected, tell the runner explicitly to confirm the compatible
 capability before product edits, invoke it after final-tree checks, and report

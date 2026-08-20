@@ -379,8 +379,10 @@ export function buildGoalExecutionPrompt(
     intentRoutingGuidance,
     `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
+    "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, preserve the v4 record, and leave the native goal active for a later resumed turn.",
+    "In a feedback-pause record, replace only `evaluation_human_interruptions` with the number of distinct user questions asked so far; do not rewrite the applied route evidence.",
     "Preserve the exact v4 launch record below in the final response, including every stopped turn and a terminal blocked turn; an automatic continuation must not replace it with a summary.",
-    "Before returning, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied; include this exact evidence in the v4 launch record.",
+    "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied; include this exact evidence in the v4 launch record. A human-feedback pause is nonterminal and must not settle the goal.",
     "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
     "format\tdarrow-native-goal-preflight-v4",
     `workflow\t${handoff.workflow}`,
@@ -1023,6 +1025,22 @@ function isFailedGoalTurn(
   );
 }
 
+export function isHumanFeedbackPauseText(text: unknown): boolean {
+  return (
+    typeof text === "string" &&
+    /^- phase: human-feedback-request(?:\n|$)/.test(text)
+  );
+}
+
+function isHumanFeedbackPause(message: AppServerMessage): boolean {
+  return (
+    message.method === "item/completed" &&
+    message.params?.item?.type === "agentMessage" &&
+    message.params.item.phase === "final_answer" &&
+    isHumanFeedbackPauseText(message.params.item.text)
+  );
+}
+
 /** Complete and blocked are both observable native-goal outcomes. The eval's
  * repository and output checks decide whether either is correct for the case. */
 export function isReportableGoalStatus(
@@ -1037,6 +1055,31 @@ export function isGoalTerminalStatus(
   return status === "complete" || status === "blocked";
 }
 
+export function isResumableGoalStatus(
+  status: string | undefined,
+): status is "active" | "paused" {
+  return status === "active" || status === "paused";
+}
+
+async function collectHumanFeedbackPause(
+  client: AppServerClient,
+  threadId: string,
+  message: AppServerMessage,
+): Promise<TurnOutcome> {
+  const turnId = message.params?.turnId;
+  if (typeof turnId !== "string")
+    throw new Error("native goal feedback pause did not name its turn");
+  const result = await runTurn(client, turnId);
+  const goal = await client.request<GoalGetResult>("thread/goal/get", {
+    threadId,
+  });
+  if (!isResumableGoalStatus(goal.goal?.status))
+    throw new Error(
+      `native goal feedback pause ended as ${goal.goal?.status ?? "missing"}`,
+    );
+  return result;
+}
+
 async function runNativeGoal(
   client: AppServerClient,
   threadId: string,
@@ -1045,12 +1088,15 @@ async function runNativeGoal(
   const terminal = await client.waitFor(
     (message) =>
       isSettledGoalUpdate(message, threadId) ||
-      isFailedGoalTurn(message, threadId),
+      isFailedGoalTurn(message, threadId) ||
+      isHumanFeedbackPause(message),
   );
-  if (terminal.method === "turn/completed")
+  if (isFailedGoalTurn(terminal, threadId))
     throw new Error(
       `Codex goal turn failed: ${JSON.stringify(terminal.params!.turn!.error)}`,
     );
+  if (isHumanFeedbackPause(terminal))
+    return collectHumanFeedbackPause(client, threadId, terminal);
   if (!isReportableGoalStatus(terminal.params!.goal!.status))
     throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
   confirmTerminal();
@@ -1684,14 +1730,17 @@ function recordGoalEvidence(options: GoalEvidenceOptions): void {
   });
 }
 
-async function assertGoalSettled(
+async function assertGoalOutcome(
   client: AppServerClient,
   threadId: string,
 ): Promise<void> {
   const goal = await client.request<GoalGetResult>("thread/goal/get", {
     threadId,
   });
-  if (!isReportableGoalStatus(goal.goal?.status))
+  if (
+    !isReportableGoalStatus(goal.goal?.status) &&
+    !isResumableGoalStatus(goal.goal?.status)
+  )
     throw new Error(`native goal ended as ${goal.goal?.status ?? "missing"}`);
 }
 
@@ -1740,7 +1789,8 @@ export async function withMaterializedGoalLifecycle<T>(
     else recordRetention(materialized.attachment);
     throw error;
   }
-  await materialized.cleanup();
+  if (terminalConfirmed) await materialized.cleanup();
+  else recordRetention(materialized.attachment);
   return result;
 }
 
@@ -1788,7 +1838,7 @@ async function runGoalExecutionPhase(
       });
       const result = await runNativeGoal(client, threadId, confirmTerminal);
       const durationMs = performance.now() - started;
-      await assertGoalSettled(client, threadId);
+      await assertGoalOutcome(client, threadId);
       return { result, durationMs };
     },
     (attachment) => recordRetainedObjective(client, threadId, attachment),

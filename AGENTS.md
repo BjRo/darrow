@@ -62,7 +62,8 @@ Review agents must not run Git or GitHub commands against this repository.
   candidate and relevant control against the same fixtures, prompts, checks,
   harness, model, and effort; report trial count, metrics, and limitations.
 - Run relevant script tests with both `bash` and `/bin/bash`.
-- Run evals with `cd evals && bun runner/run.ts --case <substring> [--dry]`.
+- Run evals with `cd evals && bun runner/run.ts --case <substring> --harness
+<claude|codex> [--dry]`.
 - Keep eval prompts participant-visible and hide their pass criteria.
 - Quote YAML prompts containing `#` and make fixture binaries succeed on valid
   empty state.

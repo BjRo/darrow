@@ -71,6 +71,13 @@ evaluation_child_invocations\t0
 
 Do not create a child agent or shell process around this boundary.
 
+If a material decision first emerges after activation, leave the goal active,
+pause repository and external mutation, and ask the user the smallest concrete
+question. Pending feedback is neither `complete` nor `blocked`. Continue the
+same goal only after the explicit answer arrives, and count that question once
+in `evaluation_human_interruptions`. If the turn ends while awaiting the
+answer, retain any objective attachment as described above.
+
 The prompt, route table, and model defaults are not active-route metadata.
 `inherit` is a launch choice, not a model identifier. If the selected and active
 routes differ, do not use this boundary.
@@ -120,8 +127,19 @@ Materialize the objective before spawning, then spawn exactly one agent with:
 
 Tell the runner to call `create_goal` exactly once with the materialized
 objective, read and verify a file-backed complete contract before work, own
-that goal through terminal completion, run the workflow and risk gates, and
-return the required final record. A terminal independent-review stop settles
+that goal through completion or a material-feedback pause, run the workflow
+and risk gates, and return the required final record. If a material decision
+first emerges after activation, tell it to pause mutation and return the
+smallest concrete question to its creator without completing or blocking the
+goal. Its actual feedback request begins with the exact marker
+`- phase: human-feedback-request`. The creator surfaces the question to the
+user and sends the explicit answer back to the same runner thread; that actual
+reply begins with `- phase: human-feedback-response`. Do not put either event
+marker, a guessed answer, or a future feedback response in the initial spawn
+task. Keep the runner open while feedback is pending, resume only after its
+explicit answer, and count each distinct user question once. If the host cannot
+relay an answer, preserve the runner and objective as resumable state and
+return the pending question honestly. A terminal independent-review stop settles
 the created goal as `blocked` before the runner returns. If the native goal
 surface requires a repeated-blocker audit, automatic continuations are
 status-settlement only: they preserve the same blocker and use only the goal
@@ -153,7 +171,11 @@ route_verified\ttrue
 evaluation_child_invocations\t1
 ```
 
-Wait for that same agent to finish and collect its terminal result. **Cleanup:**
+Wait for that same agent to finish and collect its result. A feedback request
+is a pause: relay the answer to that same agent and wait again rather than
+closing or replacing it.
+
+**Cleanup:**
 Close the subagent when the goal has been fulfilled and its terminal result has
 been collected, if the runtime exposes a close control. A completed close call
 must target the same thread created by the accepted spawn; self-report is not

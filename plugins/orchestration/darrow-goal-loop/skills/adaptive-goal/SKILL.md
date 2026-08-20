@@ -177,6 +177,23 @@ invalidate that result. Do not use broad final-tree gates as routine
 implementation feedback. Follow any different repository-mandated cadence, and
 do not invent a seam, oracle, or command merely to imitate test-first work.
 
+Compile this human-feedback rule into every activated contract. A material
+decision known during preflight still selects `decision-gated` and prevents
+launch. When a material decision first emerges after activation, pause
+repository and external mutation and ask only the smallest concrete question.
+A current-thread owner asks the user directly. A delegated owner sends the
+question to its creator; the creator surfaces it to the user and relays the
+explicit answer to that same still-active owner. Pending feedback is neither
+completion nor blockage while that relay remains available: do not close the
+owner, launch a replacement, or choose a default. Resume only the authorized
+work after the exact answer arrives; it grants no authority beyond what it
+states. If the host cannot relay feedback, preserve the active or resumable
+goal state and return the question honestly without further mutation. Begin a
+current-thread pause response with the exact marker
+`- phase: human-feedback-request`. Count each distinct question presented for
+user decision once in `evaluation_human_interruptions`, including a question
+resolved during the same run.
+
 Apply the selected proportional risk gate:
 
 | Risk | Required verification |
@@ -289,7 +306,8 @@ scope and non-goals, preserved work, permissions, the selected workflow and its
 sequence, risk gate, profile and concrete route, applicable feedback checks and
 final-tree checks, whether independent review is selected and why, its portable
 continuation clause when selected, any user-specified stopping budget including
-an explicit review-round limit, and this exact final record. Target
+an explicit review-round limit, the human-feedback rule above, and this exact
+final record. Target
 at most 4,000 bytes by referencing repository facts, but never truncate, omit,
 or rewrite a material requirement merely to fit the inline objective limit. A
 filesystem-sharing launch boundary uses a verified file-backed objective when
@@ -390,10 +408,15 @@ runner owns implementation, verification, recovery, and completion.
 
 ## 4. Return host-native completion
 
-Continue until the selected goal owner reaches a terminal state. A native goal
-runner may use host-native subagents for bounded work; it remains the sole goal
-owner, and Darrow does not prescribe planner, executor, verifier, or repair
-roles.
+Continue until the selected goal owner reaches a terminal state or pauses for
+material human feedback. For a delegated owner, keep the same owner active,
+relay its smallest question to the user, send the exact answer back, and then
+continue collecting that owner's result. When feedback cannot be relayed in
+the current run, preserve the active goal and its objective attachment, return
+the question with the current v4 launch record, and do not claim completion or
+blockage. A native goal runner may use host-native subagents for bounded work;
+it remains the sole goal owner, and Darrow does not prescribe planner,
+executor, verifier, or repair roles.
 On Codex, every agent creator collects the child's terminal result. When the
 host exposes a close control, close the subagent after its goal has been
 fulfilled and its terminal result has been collected. The goal runner applies

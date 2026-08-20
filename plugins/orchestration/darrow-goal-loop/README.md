@@ -25,6 +25,13 @@ workflow loading, and route application are separate: completion succeeds only
 when host or launcher evidence proves the selected workflow was supplied and
 provider, model, and effort are identical.
 
+A product decision known during preflight stops before launch. If one first
+emerges during an active goal, mutation pauses while the current-thread owner
+asks the user directly or a delegated owner relays the smallest question
+through its parent. An available relay resumes the same owner with the explicit
+answer; an unavailable relay preserves resumable state instead of guessing,
+completing, or declaring the goal blocked.
+
 Launch boundaries are ordered by cost and fidelity:
 
 1. current-thread native goal tool;

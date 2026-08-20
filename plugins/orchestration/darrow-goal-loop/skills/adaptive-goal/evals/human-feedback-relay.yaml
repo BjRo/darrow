@@ -1,0 +1,111 @@
+id: goal-human-feedback-relay
+invariant: AGL-L5,AGL-L8,AGL-L10,AGL-L13,AGL-S1,AGL-S2
+prompt: >-
+  /adaptive-goal Add an exported priceCents(amount) function to src/pricing.js
+  whose result is exactly Math.round(amount * 100). On Codex, invoke the
+  $adaptive-goal skill. Select and apply the routine policy route through one
+  observable goal runner. Establish focused evidence first, then run
+  `feedbackctl discover` during implementation. If it unexpectedly reports
+  `feedback_required`, only the parent is authorized to obtain the user's
+  answer with `feedbackctl answer <reported-id>` and relay that exact answer to
+  the same runner. Do not call `answer` before the runner reports the material
+  question, and do not include an answer in the initial goal contract or runner
+  task. Use the adaptive-goal's host feedback relay and keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash test.sh` for pricing behavior changes. During implementation,
+          run `feedbackctl discover` after focused acceptance evidence fails.
+          Focused pricing evidence must exercise amount 1.235 so either policy
+          would have a distinct observable expectation.
+          If discovery unexpectedly discloses a compatibility choice, treat the
+          exact reported question as product-owned. Do not edit production
+          behavior after disclosure until the parent relays the user answer and
+          the runner calls `feedbackctl acknowledge <id> <answer>`.
+        package.json: '{"type":"module"}'
+        src/pricing.js: |
+          export const identity = (value) => value;
+        test/pricing.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identity } from "../src/pricing.js";
+
+          test("identity", () => assert.equal(identity(3), 3));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/pricing.test.js
+  bin:
+    feedbackctl: |
+      #!/usr/bin/env bash
+      set -eu
+      git_dir=$(git rev-parse --git-dir)
+      trace="$git_dir/human-feedback-trace"
+      state="$git_dir/human-feedback-state"
+      case "${1-}" in
+        discover)
+          test ! -e "$state"
+          git hash-object src/pricing.js >"$state"
+          printf 'discover\trounding-mode\t%s\n' "$(cat "$state")" >>"$trace"
+          printf '%s\n' \
+            'feedback_required' \
+            'id: rounding-mode' \
+            'question: Should fractional cents be rounded down or to the nearest cent?'
+          ;;
+        answer)
+          test "${2-}" = rounding-mode
+          test -s "$state"
+          test "$(git hash-object src/pricing.js)" = "$(cat "$state")"
+          test "$(grep -c '^answer.' "$trace" 2>/dev/null || true)" -eq 0
+          printf 'answer\trounding-mode\tnearest\t%s\n' "$(git hash-object src/pricing.js)" >>"$trace"
+          printf '%s\n' nearest
+          ;;
+        acknowledge)
+          test "${2-}" = rounding-mode
+          test "${3-}" = nearest
+          test "$(git hash-object src/pricing.js)" = "$(cat "$state")"
+          test "$(grep -c '^answer.rounding-mode.nearest.' "$trace")" -eq 1
+          printf 'acknowledge\trounding-mode\tnearest\t%s\n' "$(git hash-object src/pricing.js)" >>"$trace"
+          ;;
+        *)
+          printf '%s\n' 'usage: feedbackctl discover|answer|acknowledge' >&2
+          exit 64
+          ;;
+      esac
+checks:
+  - name: relayed decision produces the approved pricing behavior
+    run: >-
+      node --input-type=module -e
+      "import('./src/pricing.js').then(({priceCents}) => {
+      if (priceCents(1.234) !== 123 || priceCents(1.235) !== 124) process.exit(1) })"
+  - name: focused evidence covers the relayed nearest-cent policy
+    run: >-
+      grep -F 'priceCents(1.235)' test/pricing.test.js >/dev/null && bash test.sh
+  - name: feedback handshake precedes production mutation
+    run: >-
+      awk -F '\t' '
+      NR == 1 && $1 == "discover" { before = $3; next }
+      NR == 2 && $1 == "answer" && $2 == "rounding-mode" && $3 == "nearest" && $4 == before { next }
+      NR == 3 && $1 == "acknowledge" && $2 == "rounding-mode" && $3 == "nearest" && $4 == before { ok = 1 }
+      END { exit ok && NR == 3 ? 0 : 1 }
+      ' .git/human-feedback-trace
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: completion preserves the outer launch record
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+  - name: one delegated goal owner is reported
+    expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\tnative_subagent[\\s\\S]*evaluation_child_invocations\\t1"
+  - name: one human feedback pause is counted
+    expect_regex: "evaluation_human_interruptions\\t1"
+  - name: completion reports the explicit relayed decision
+    expect_regex: "(round|rounding)[\\s\\S]{0,120}nearest"
+    flags: i
+transcript_checks:
+  - name: parent resumes the same delegated owner after feedback
+    expect_regex: '"tool":"spawn_agent","status":"completed","receiver_thread_ids":\["([^"]+)"\][\s\S]*"tool":"(?:wait|wait_agent)","status":"completed","receiver_thread_ids":\["\1"\][\s\S]*"tool":"(?:send_input|send_message|followup_task)","status":"completed","receiver_thread_ids":\["\1"\],"prompt":"- phase: human-feedback-response[^"]*"[\s\S]*"tool":"(?:wait|wait_agent)","status":"completed","receiver_thread_ids":\["\1"\]'
+  - name: initial runner launch does not masquerade as a feedback exchange
+    not_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: human-feedback-(?:request|response)'

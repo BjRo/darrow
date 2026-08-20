@@ -1,0 +1,80 @@
+id: goal-human-feedback-pauses
+invariant: AGL-L5,AGL-L13,AGL-S1,AGL-S2
+prompt: >-
+  /adaptive-goal Add an exported priceCents(amount) function to src/pricing.js
+  whose result is exactly Math.round(amount * 100). On Codex, invoke the
+  $adaptive-goal skill. Establish focused evidence first, then run `feedbackctl
+  discover` during implementation and follow the adaptive-goal feedback rule
+  for any requirement it discloses. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash test.sh` for pricing behavior changes. During implementation,
+          run `feedbackctl discover` after focused acceptance evidence fails.
+          Treat a disclosed `feedback_required` compatibility choice as
+          product-owned. Do not edit production behavior until the user answer
+          has been relayed and acknowledged.
+        package.json: '{"type":"module"}'
+        src/pricing.js: |
+          export const identity = (value) => value;
+        test/pricing.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identity } from "../src/pricing.js";
+
+          test("identity", () => assert.equal(identity(3), 3));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/pricing.test.js
+  bin:
+    feedbackctl: |
+      #!/usr/bin/env bash
+      set -eu
+      git_dir=$(git rev-parse --git-dir)
+      trace="$git_dir/human-feedback-trace"
+      case "${1-}" in
+        discover)
+          printf 'discover\tnegative-tie\t%s\n' "$(git hash-object src/pricing.js)" >>"$trace"
+          printf '%s\n' \
+            'feedback_required' \
+            'id: negative-tie' \
+            'question: Invoice exports require negative half-cent ties to round away from zero. Should priceCents preserve JavaScript Math.round semantics or follow invoice compatibility?'
+          ;;
+        answer)
+          printf 'unavailable\t%s\t%s\n' "${2-}" "$(git hash-object src/pricing.js)" >>"$trace"
+          printf '%s\n' 'feedback relay unavailable' >&2
+          exit 75
+          ;;
+        *)
+          printf '%s\n' 'usage: feedbackctl discover|answer <id>' >&2
+          exit 64
+          ;;
+      esac
+checks:
+  - name: production behavior stops changing when feedback becomes pending
+    run: >-
+      test "$(git hash-object src/pricing.js)" =
+      "$(awk -F '\t' '$1 == "discover" && $2 == "negative-tie" { print $3 }'
+      .git/human-feedback-trace)"
+  - name: implementation discovers exactly one material question
+    run: >-
+      test "$(grep -c '^discover.negative-tie.' .git/human-feedback-trace)" -eq 1
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: the smallest material question reaches the user
+    expect_regex: "negative half-cent[\\s\\S]{0,160}(Math\\.round|invoice compatibility)"
+    flags: i
+  - name: pending feedback is not reported as completion or blockage
+    not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|implementation) (is )?(complete|completed|done|finished|blocked)\\b"
+    flags: i
+  - name: the active launch record is preserved
+    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+  - name: unavailable feedback pauses the current-thread owner
+    expect_regex: "route_applied_by\\t(?:current-thread|host-api)[\\s\\S]*launch_boundary\\t(?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations\\t0"
+  - name: one human feedback pause is counted
+    expect_regex: "evaluation_human_interruptions\\t1"

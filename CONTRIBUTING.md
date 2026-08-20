@@ -80,5 +80,5 @@ ADRs change, refresh it first with
 Run script tests with both `bash` and `/bin/bash`. Run relevant evals with:
 
 ```sh
-cd evals && bun runner/run.ts --case <substring> [--dry]
+cd evals && bun runner/run.ts --case <substring> --harness <claude|codex> [--dry]
 ```
