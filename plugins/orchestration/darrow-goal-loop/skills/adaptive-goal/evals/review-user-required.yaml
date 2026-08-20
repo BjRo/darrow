@@ -37,4 +37,4 @@ output_checks:
     expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
     flags: i
   - name: routine risk remains proportionate despite explicit review
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\troutine[\\s\\S]*verification_gate\\troutine"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*risk: routine[\\s\\S]*verification_gate: routine"

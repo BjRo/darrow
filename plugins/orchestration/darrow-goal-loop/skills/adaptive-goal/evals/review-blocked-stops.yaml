@@ -42,4 +42,4 @@ output_checks:
     not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|change|implementation) (is )?(complete|completed|done|finished)\\b"
     flags: i
   - name: stopped goal preserves its launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"

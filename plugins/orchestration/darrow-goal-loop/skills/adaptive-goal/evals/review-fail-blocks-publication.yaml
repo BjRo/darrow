@@ -51,7 +51,7 @@ output_checks:
     expect_regex: "(blocking finding|review[\\s\\S]{0,120}(fail|reject)|reject[\\s\\S]{0,120}review)"
     flags: i
   - name: stopped goal preserves its launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*verification_gate\\t(routine|elevated)"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*verification_gate: (routine|elevated)"
   - name: no publication success is claimed
     not_regex: "(committed|pushed|opened).{0,80}(success|complete|https?://)|pull request[^\\n]+https?://"
     flags: i

@@ -51,6 +51,6 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: adaptive-goal returns the exact authority stop
-    expect_exact: "format\tdarrow-adaptive-goal-authority-stop-v1\nstatus\tinvocation_required\nreason\texplicit-orchestration-entrypoint-required"
+    expect_exact: "format: darrow-adaptive-goal-authority-stop-v1\nstatus: invocation_required\nreason: explicit-orchestration-entrypoint-required"
   - name: preflight never begins
     not_regex: "darrow-native-goal-preflight|selected_route|launch_boundary"

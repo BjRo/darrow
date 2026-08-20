@@ -197,7 +197,7 @@ evidence. When no matching capability is available, the goal stops honestly
 instead of synthesizing or downgrading the requirement. A matching capability
 may itself use fresh readers; that is its execution machinery, not a substitute
 for capability discovery. An availability stop preserves the mandatory
-native-goal launch record alongside the evidence gap.
+human-readable completion report alongside the evidence gap.
 
 After implementation and applicable final-tree checks, the goal owner supplies
 the exact final change, originating objective or specification, repository
@@ -383,10 +383,9 @@ correspond to an explicit route in the engineering request. The enclosing
 launcher validates the route against both that source and the live host catalog
 before starting work.
 
-### Launch record
+### Launch record and completion report
 
-Preflight produces these tab-separated records before activation and carries
-them into the native goal's final response:
+Preflight produces these tab-separated machine records before activation:
 
 ```text
 format\tdarrow-native-goal-preflight-v4
@@ -402,6 +401,46 @@ verification_gate\t<routine|elevated|high|not-applicable>
 evaluation_child_invocations\t<integer>
 evaluation_human_interruptions\t<integer>
 ```
+
+The compiled goal contract MUST carry both these internal values and the
+completion-report rule below so every launch boundary can render the same
+caller-facing result without relying on parent-thread context.
+
+The native goal carries the values forward but reports them to its caller as a
+human-readable completion record. Each field uses `key: value`; the effective
+provider and model form one `model` value separated by `>`, while effort
+remains its own field:
+
+```text
+format: darrow-native-goal-report-v1
+workflow: <workflow>
+risk: <routine|elevated|high>
+profile: <profile>
+harness: <harness>
+model: <provider> > <model>
+effort: <effort>
+route_applied_by: <current-thread|host-api|native-subagent|nested-session|none>
+route_verified: <true|false>
+launch_boundary: <same_thread|host_api|native_subagent|nested_session|launch_required>
+verification_gate: <routine|elevated|high|not-applicable>
+evaluation_child_invocations: <integer>
+evaluation_human_interruptions: <integer>
+```
+
+For a verified route, `harness`, `model`, and `effort` describe the effective
+route that matched selection. `harness` is the route harness (`codex` or
+`claude`), never `route_applied_by` or `launch_boundary`. For an unverified or
+unavailable route they describe only observed effective values, using `unknown`
+or `none` rather than copying selection. The tab-separated preflight and
+route-application records remain internal protocol evidence and MUST NOT be
+reproduced in the human-facing completion report.
+
+Validation is scoped to the single contiguous block beginning with
+`format: darrow-native-goal-report-v1`; fields in a preserved companion
+capability result are not duplicate report fields. The internal-record ban
+detects Darrow's exact preflight and route-application format markers even when
+Markdown presentation prefixes them, without rejecting unrelated capability
+serializations.
 
 `evaluation_child_invocations` counts sessions or subagents created by Darrow,
 not internal continuation turns or helper subagents created by native goal
@@ -428,7 +467,7 @@ the least launch machinery the host supports.
 ### Output
 
 - a completed native-goal result when activation succeeds;
-- the launch record and concise goal contract;
+- the human-readable completion report and concise goal contract;
 - or the smallest missing decision or launch capability when activation stops.
 
 ### Preflight invariants
@@ -646,9 +685,9 @@ the least launch machinery the host supports.
    and returns exactly:
 
    ```text
-   format\tdarrow-adaptive-goal-authority-stop-v1
-   status\tinvocation_required
-   reason\texplicit-orchestration-entrypoint-required
+   format: darrow-adaptive-goal-authority-stop-v1
+   status: invocation_required
+   reason: explicit-orchestration-entrypoint-required
    ```
 
 4. **AGL-X4 — Self-contained mappings.** Route configuration, canonical risk

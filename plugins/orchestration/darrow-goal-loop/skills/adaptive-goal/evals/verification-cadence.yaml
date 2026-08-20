@@ -63,6 +63,6 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: verification cadence retains a bounded routine route
-    expect_regex: "workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine"
+    expect_regex: "workflow: implement-feature[\\s\\S]*risk: routine[\\s\\S]*profile: routine"
   - name: routine verification gate is reported
-    expect_regex: "verification_gate\\troutine"
+    expect_regex: "verification_gate: routine"

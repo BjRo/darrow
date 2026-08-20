@@ -99,4 +99,4 @@ output_checks:
     expect_regex: "(initial|prior|first)[\\s\\S]{0,160}(fail|reject|block)[\\s\\S]{0,160}RETRY_COUNT"
     flags: i
   - name: completion preserves the outer launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"

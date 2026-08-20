@@ -30,7 +30,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: routine verification is reported
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\troutine[\\s\\S]*verification_gate\\troutine"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*risk: routine[\\s\\S]*verification_gate: routine"
   - name: completion does not claim independent review
     not_regex: "independent review (passed|completed|clear|found no blocking)"
     flags: i

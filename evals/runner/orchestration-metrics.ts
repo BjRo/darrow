@@ -45,7 +45,7 @@ interface NestedGoalApplication {
   outputTokens: number;
 }
 
-/** Fields only a `darrow-native-goal-preflight-v4` record declares. */
+/** Workflow fields shared by internal v4 records and readable v1 reports. */
 interface GoalPreflightV4 {
   workflow: string;
   risk: NonNullable<GoalRouteApplication["risk"]>;
@@ -59,7 +59,7 @@ interface GoalPreflight {
   appliedBy: GoalRouteApplication["appliedBy"];
   launchBoundary: GoalRouteApplication["launchBoundary"];
   declaredChildren: number;
-  /** Present exactly when the preflight record is v4. */
+  /** Present for workflow-bearing v4 records and readable v1 reports. */
   v4?: GoalPreflightV4;
 }
 
@@ -85,14 +85,17 @@ const LAUNCH_BOUNDARY_VALUES = [
   "nested_session",
 ] as const;
 
-const DECLARED_CHILDREN = /^evaluation_child_invocations\t([0-9]+)$/m;
+const DECLARED_CHILDREN =
+  /^(?:evaluation_child_invocations\t|evaluation_child_invocations: )([0-9]+)$/m;
 const GOAL_PREFLIGHT_FORMAT = /^format\t(darrow-native-goal-preflight-v[24])$/m;
 const GOAL_PREFLIGHT_V4 = /^format\tdarrow-native-goal-preflight-v4$/m;
 const GOAL_PREFLIGHT_V2 = /^format\tdarrow-native-goal-preflight-v2$/m;
+const GOAL_REPORT_V1 = /^format: darrow-native-goal-report-v1$/m;
 const TICKET_PIPELINE_FORMAT = /^format\tdarrow-ticket-pipeline-result-v1$/m;
 const GOAL_LOOP_RESULT = /^format\tdarrow-goal-loop-result-v1$/m;
-const ROUTE_VERIFIED = /^route_verified\ttrue$/m;
-const LAUNCH_REQUIRED = /^launch_boundary\tlaunch_required$/m;
+const ROUTE_VERIFIED = /^(?:route_verified\ttrue|route_verified: true)$/m;
+const LAUNCH_REQUIRED =
+  /^(?:launch_boundary\tlaunch_required|launch_boundary: launch_required)$/m;
 const CODEX_STREAM_EVENT = /^(thread|turn|item)\./;
 const SHA256 = /^[a-f0-9]{64}$/;
 
@@ -105,11 +108,11 @@ const NESTED_APPLICATION_MARKERS = [
 
 /** A `launch_required` stop must leave every route field unapplied. */
 const LAUNCH_REQUIRED_MARKERS = [
-  /^selected_route\tnone\tnone\tnone\tnone$/m,
-  /^effective_route\tnone\tnone\tnone\tnone$/m,
-  /^route_applied_by\tnone$/m,
-  /^route_verified\tfalse$/m,
-  /^evaluation_child_invocations\t0$/m,
+  /^(?:selected_route\tnone\tnone\tnone\tnone|harness: none)$/m,
+  /^(?:effective_route\tnone\tnone\tnone\tnone|model: none > none)$/m,
+  /^(?:route_applied_by\tnone|route_applied_by: none)$/m,
+  /^(?:route_verified\tfalse|route_verified: false)$/m,
+  /^(?:evaluation_child_invocations\t0|evaluation_child_invocations: 0)$/m,
 ];
 
 /** Boundary-specific expectations the controller record must satisfy.
@@ -212,6 +215,20 @@ function parseGoalRoute(text: string, field: string): GoalRoute | undefined {
         provider: match[2]!,
         model: match[3]!,
         effort: match[4]!,
+      }
+    : undefined;
+}
+
+function parseGoalReportRoute(text: string): GoalRoute | undefined {
+  const harness = matchField(text, /^harness: ([^\n]+)$/m);
+  const model = text.match(/^model: ([^\n]+) > ([^\n]+)$/m);
+  const effort = matchField(text, /^effort: ([^\n]+)$/m);
+  return harness && model && effort
+    ? {
+        harness,
+        provider: model[1]!,
+        model: model[2]!,
+        effort,
       }
     : undefined;
 }
@@ -361,6 +378,21 @@ function goalPreflightV4Fields(
     : undefined;
 }
 
+function goalReportV1Fields(resultText: string): GoalPreflightV4 | undefined {
+  const workflow = matchField(resultText, /^workflow: ([^\n]+)$/m);
+  const risk = memberOf(
+    RISK_LEVELS,
+    matchField(resultText, /^risk: (routine|elevated|high)$/m),
+  );
+  const verificationGate = memberOf(
+    RISK_LEVELS,
+    matchField(resultText, /^verification_gate: (routine|elevated|high)$/m),
+  );
+  return workflow && risk && verificationGate
+    ? { workflow, risk, verificationGate }
+    : undefined;
+}
+
 function goalPreflightBase(resultText: string): GoalPreflight | undefined {
   const profile = matchField(resultText, /^profile\t([^\t\n]+)$/m);
   const selected = parseGoalRoute(resultText, "selected_route");
@@ -391,7 +423,40 @@ function goalPreflightBase(resultText: string): GoalPreflight | undefined {
   };
 }
 
+function goalReportV1Base(resultText: string): GoalPreflight | undefined {
+  const profile = matchField(resultText, /^profile: ([^\n]+)$/m);
+  const route = parseGoalReportRoute(resultText);
+  const appliedBy = memberOf(
+    APPLIED_BY_VALUES,
+    matchField(
+      resultText,
+      /^route_applied_by: (current-thread|host-api|native-subagent|nested-session)$/m,
+    ),
+  );
+  const launchBoundary = memberOf(
+    LAUNCH_BOUNDARY_VALUES,
+    matchField(
+      resultText,
+      /^launch_boundary: (same_thread|host_api|native_subagent|nested_session)$/m,
+    ),
+  );
+  if (!profile || !route || !appliedBy || !launchBoundary) return undefined;
+  return {
+    profile,
+    selected: route,
+    effective: route,
+    appliedBy,
+    launchBoundary,
+    declaredChildren: declaredChildCount(resultText),
+  };
+}
+
 function parseGoalPreflight(resultText: string): GoalPreflight | undefined {
+  if (GOAL_REPORT_V1.test(resultText)) {
+    const base = goalReportV1Base(resultText);
+    const v4 = goalReportV1Fields(resultText);
+    return base && v4 ? { ...base, v4 } : undefined;
+  }
   const format = matchField(resultText, GOAL_PREFLIGHT_FORMAT);
   if (!format) return undefined;
   const base = goalPreflightBase(resultText);
@@ -579,11 +644,20 @@ function goalRouteApplicationVerified(
   hostRoute: HostRoute,
 ): boolean {
   if (!observed) return false;
+  const nativeRoute =
+    observed.launchBoundary === "native_subagent"
+      ? nativeGoalAgentRoute(raw)
+      : undefined;
   const checks = [
     ROUTE_VERIFIED.test(resultText),
-    hostWorkflowVerified(GOAL_PREFLIGHT_V4.test(resultText), observed),
+    hostWorkflowVerified(
+      GOAL_PREFLIGHT_V4.test(resultText) || GOAL_REPORT_V1.test(resultText),
+      observed,
+    ),
     observed.launchBoundary !== "native_subagent" ||
-      nativeGoalAgentSpawned(raw),
+      (nativeRoute !== undefined &&
+        sameGoalRoute(observed.selected, nativeRoute) &&
+        sameGoalRoute(observed.effective, nativeRoute)),
     sameGoalRoute(observed.selected, observed.effective),
     goalBoundaryMatches(
       observed,
@@ -599,8 +673,10 @@ export function reconcileObservedGoalRouteApplication(
   raw: string,
   hostRoute: HostRoute,
 ): CheckResult | undefined {
-  const isV4 = GOAL_PREFLIGHT_V4.test(resultText);
-  if (!isV4 && !GOAL_PREFLIGHT_V2.test(resultText)) return undefined;
+  const hasWorkflowReport =
+    GOAL_PREFLIGHT_V4.test(resultText) || GOAL_REPORT_V1.test(resultText);
+  if (!hasWorkflowReport && !GOAL_PREFLIGHT_V2.test(resultText))
+    return undefined;
   const launchRequired = goalLaunchRequiredCheck(resultText);
   if (launchRequired) return launchRequired;
   const observed = observeCodexGoalRouteApplication(resultText, raw);
@@ -657,9 +733,46 @@ function closedChildThreadId(
   return completedCollabThreadId(event, ["close_agent", "closeAgent"]);
 }
 
-/** At least one completed native child spawn proves the runner boundary ran. */
-function nativeGoalAgentSpawned(raw: string): boolean {
-  return jsonlEvents(raw).some((event) => spawnedChildThreadId(event));
+/** `undefined` means this is not a native spawn request; `null` is malformed. */
+function nativeGoalSpawnRequest(
+  event: Record<string, unknown>,
+): GoalRoute | null | undefined {
+  const item = recordOf(event.item);
+  const isSpawn =
+    item.type === "collab_tool_call" || item.type === "collabAgentToolCall";
+  const isStartedSpawn =
+    event.type === "item.started" &&
+    isSpawn &&
+    (item.tool === "spawn_agent" || item.tool === "spawnAgent");
+  if (!isStartedSpawn) return undefined;
+  if (
+    typeof item.model !== "string" ||
+    typeof item.reasoning_effort !== "string" ||
+    item.fork_turns !== "none"
+  )
+    return null;
+  return {
+    harness: "codex",
+    provider: "openai",
+    model: item.model,
+    effort: item.reasoning_effort,
+  };
+}
+
+/** Route of the first accepted native goal-runner spawn. A started request
+ * must carry the explicit route and be followed by its completed spawn. */
+function nativeGoalAgentRoute(raw: string): GoalRoute | undefined {
+  let requested: GoalRoute | undefined;
+  for (const event of jsonlEvents(raw)) {
+    const request = nativeGoalSpawnRequest(event);
+    if (request !== undefined) {
+      if (request === null || requested) return undefined;
+      requested = request;
+      continue;
+    }
+    if (spawnedChildThreadId(event)) return requested;
+  }
+  return undefined;
 }
 
 /** Every observed native child must be closed once, after its matching spawn. */
@@ -769,7 +882,12 @@ export function hasUnreconciledOrchestrationUsage(
   resultText: string,
   hostHarness: string,
 ): boolean {
-  if (/^launch_boundary\tnested_session$/m.test(resultText)) return true;
+  if (
+    /^(?:launch_boundary\tnested_session|launch_boundary: nested_session)$/m.test(
+      resultText,
+    )
+  )
+    return true;
   for (const match of resultText.matchAll(
     /^route\t(?:(?:planner|executor|verifier|repair)\t([^\t\n]+)|(?:refine|challenge|implement|review|rework|qa|codify)\t[0-9]+\t([^\t\n]+))\t/gm,
   )) {
@@ -806,7 +924,7 @@ export function extractOrchestrationMetrics(
   const declaredChildren = matchField(resultText, DECLARED_CHILDREN);
   const declaredInterruptions = matchField(
     resultText,
-    /^evaluation_human_interruptions\t([0-9]+)$/m,
+    /^(?:evaluation_human_interruptions\t|evaluation_human_interruptions: )([0-9]+)$/m,
   );
   if (!hasGoalLoopResult && !routeRecords && !declaredChildren)
     return undefined;

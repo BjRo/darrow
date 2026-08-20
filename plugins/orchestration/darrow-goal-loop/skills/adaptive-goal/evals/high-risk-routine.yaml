@@ -59,10 +59,10 @@ output_checks:
     expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
     flags: i
   - name: high risk uses the routine coding route
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\tchange-feature[\\s\\S]*risk\\thigh[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: change-feature[\\s\\S]*risk: high[\\s\\S]*profile: routine[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"
   - name: selected route is effective
-    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium[\\s\\S]*route_verified: true"
   - name: high verification gate is reported
-    expect_regex: "verification_gate\\thigh"
+    expect_regex: "verification_gate: high"
   - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions\\t0"
+    expect_regex: "evaluation_human_interruptions: 0"

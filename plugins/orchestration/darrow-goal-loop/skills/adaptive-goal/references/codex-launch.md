@@ -128,7 +128,10 @@ Materialize the objective before spawning, then spawn exactly one agent with:
 Tell the runner to call `create_goal` exactly once with the materialized
 objective, read and verify a file-backed complete contract before work, own
 that goal through completion or a material-feedback pause, run the workflow
-and risk gates, and return the required final record. If a material decision
+and risk gates, and return the contract's human-readable final report without
+reproducing its internal tab-separated record. In that report, `harness` is the
+effective route harness `codex`, not `native-subagent` or another launch-boundary
+label. If a material decision
 first emerges after activation, tell it to pause mutation and return the
 smallest concrete question to its creator without completing or blocking the
 goal. Its actual feedback request begins with the exact marker

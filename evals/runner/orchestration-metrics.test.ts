@@ -264,25 +264,21 @@ describe("orchestration outcome metrics", () => {
       })?.passed,
     ).toBe(false);
 
-    const hostApi = result
-      .replace(
-        "darrow-native-goal-preflight-v2",
-        "darrow-native-goal-preflight-v4",
-      )
-      .replace(
-        "profile\tstandard",
-        [
-          "workflow\tchange-feature",
-          "risk\televated",
-          "profile\tstandard",
-        ].join("\n"),
-      )
-      .replaceAll("nested-session", "host-api")
-      .replace("nested_session", "host_api")
-      .replace(
-        "evaluation_child_invocations\t1",
-        "verification_gate\televated\nevaluation_child_invocations\t0",
-      );
+    const hostApi = [
+      "format: darrow-native-goal-report-v1",
+      "workflow: change-feature",
+      "risk: elevated",
+      "profile: standard",
+      "harness: codex",
+      "model: openai > gpt-5.6-sol",
+      "effort: medium",
+      "route_applied_by: host-api",
+      "route_verified: true",
+      "launch_boundary: host_api",
+      "verification_gate: elevated",
+      "evaluation_child_invocations: 0",
+      "evaluation_human_interruptions: 0",
+    ].join("\n");
     const hostRaw = [
       JSON.stringify({
         type: "darrow.route_applied",
@@ -383,15 +379,19 @@ describe("orchestration outcome metrics", () => {
 
   test("records one first-class native goal runner", () => {
     const result = [
-      "format\tdarrow-native-goal-preflight-v2",
-      "profile\tjudgment",
-      "selected_route\tcodex\topenai\tgpt-5.6-sol\thigh",
-      "effective_route\tcodex\topenai\tgpt-5.6-sol\thigh",
-      "route_applied_by\tnative-subagent",
-      "route_verified\ttrue",
-      "launch_boundary\tnative_subagent",
-      "evaluation_child_invocations\t1",
-      "evaluation_human_interruptions\t0",
+      "format: darrow-native-goal-report-v1",
+      "workflow: fix-bug",
+      "risk: routine",
+      "profile: judgment",
+      "harness: codex",
+      "model: openai > gpt-5.6-sol",
+      "effort: high",
+      "route_applied_by: native-subagent",
+      "route_verified: true",
+      "launch_boundary: native_subagent",
+      "verification_gate: routine",
+      "evaluation_child_invocations: 1",
+      "evaluation_human_interruptions: 0",
     ].join("\n");
 
     expect(observeCodexGoalRouteApplication(result, "")).toEqual({
@@ -414,15 +414,29 @@ describe("orchestration outcome metrics", () => {
       childInputTokens: 0,
       childOutputTokens: 0,
     });
-    const spawn = JSON.stringify({
-      type: "item.completed",
-      item: {
-        type: "collab_tool_call",
-        tool: "spawn_agent",
-        status: "completed",
-        receiver_thread_ids: ["adaptive-goal-runner-thread"],
-      },
-    });
+    const spawn = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: [],
+          model: "gpt-5.6-sol",
+          reasoning_effort: "high",
+          fork_turns: "none",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "completed",
+          receiver_thread_ids: ["adaptive-goal-runner-thread"],
+        },
+      }),
+    ].join("\n");
     const close = JSON.stringify({
       type: "item.completed",
       item: {
@@ -440,6 +454,20 @@ describe("orchestration outcome metrics", () => {
         effort: "low",
       })?.passed,
     ).toBe(true);
+    expect(
+      reconcileObservedGoalRouteApplication(
+        result,
+        spawn.replace('"model":"gpt-5.6-sol"', '"model":"wrong"'),
+        { harness: "codex", model: "gpt-5.6-terra", effort: "low" },
+      )?.passed,
+    ).toBe(false);
+    expect(
+      reconcileObservedGoalRouteApplication(result, spawn.split("\n")[1]!, {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
+    ).toBe(false);
     expect(
       reconcileObservedGoalRouteApplication(result, spawn, {
         harness: "codex",

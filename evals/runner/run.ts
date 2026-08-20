@@ -10,6 +10,12 @@ import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
 import {
+  exposesInternalGoalRecord,
+  parseGoalReport,
+  type GoalReport,
+  validGoalReportValues,
+} from "./goal-report";
+import {
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
@@ -859,62 +865,132 @@ async function runCase(options: RunCaseOptions): Promise<CaseResult> {
   return summarizeCase(options, trialResults);
 }
 
-/** The `darrow-native-goal-preflight-v4` records an adaptive-goal run must report. */
-function goalRouteRecordChecks(resultText: string): CheckResult[] {
+function goalReportShapeChecks(
+  report: GoalReport | undefined,
+  resultText: string,
+): CheckResult[] {
   return [
     {
-      name: "goal route application record uses v4",
-      passed: /^format\tdarrow-native-goal-preflight-v4$/m.test(resultText),
-      detail: "expected darrow-native-goal-preflight-v4",
+      name: "goal completion report has one value for every field",
+      passed: report !== undefined,
+      detail: "expected each readable report field exactly once",
+    },
+    {
+      name: "goal completion report omits internal TSV records",
+      passed: !exposesInternalGoalRecord(resultText),
+      detail: "internal tab-separated records are not caller-facing output",
+    },
+  ];
+}
+
+function validWorkflowGate(report: GoalReport | undefined): boolean {
+  if (!report) return false;
+  return (
+    /^(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)$/.test(
+      report.workflow,
+    ) &&
+    /^(?:routine|elevated|high)$/.test(report.risk) &&
+    /^(?:routine|elevated|high|not-applicable)$/.test(report.verification_gate)
+  );
+}
+
+function validEffectiveRoute(report: GoalReport | undefined): boolean {
+  return Boolean(
+    report?.harness && /^[^\n]+ > [^\n]+$/.test(report.model) && report.effort,
+  );
+}
+
+function validRouteApplication(report: GoalReport | undefined): boolean {
+  if (!report) return false;
+  return (
+    /^(?:current-thread|host-api|native-subagent|nested-session|none)$/.test(
+      report.route_applied_by,
+    ) && /^(?:true|false)$/.test(report.route_verified)
+  );
+}
+
+function goalReportContentChecks(
+  report: GoalReport | undefined,
+): CheckResult[] {
+  return [
+    {
+      name: "goal completion report uses the readable format",
+      passed: report?.format === "darrow-native-goal-report-v1",
+      detail: "expected darrow-native-goal-report-v1",
+    },
+    {
+      name: "goal completion report field values are valid",
+      passed: validGoalReportValues(report),
+      detail: "expected canonical enums, route display, and integer counters",
     },
     {
       name: "workflow and risk gate are reported",
-      passed:
-        /^workflow\t(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)$/m.test(
-          resultText,
-        ) &&
-        /^risk\t(?:routine|elevated|high)$/m.test(resultText) &&
-        /^verification_gate\t(?:routine|elevated|high|not-applicable)$/m.test(
-          resultText,
-        ),
+      passed: validWorkflowGate(report),
       detail: "expected workflow, risk, and verification_gate records",
     },
     {
-      name: "selected and effective goal routes are reported",
-      passed:
-        /^selected_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
-          resultText,
-        ) &&
-        /^effective_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
-          resultText,
-        ),
-      detail: "expected selected_route and effective_route records",
+      name: "effective goal route is reported readably",
+      passed: validEffectiveRoute(report),
+      detail: "expected harness, provider > model, and effort fields",
     },
     {
       name: "route application and verification are reported",
-      passed:
-        /^route_applied_by\t(?:current-thread|host-api|native-subagent|nested-session|none)$/m.test(
-          resultText,
-        ) && /^route_verified\t(?:true|false)$/m.test(resultText),
+      passed: validRouteApplication(report),
       detail: "expected route_applied_by and route_verified records",
     },
   ];
+}
+
+/** The human-readable completion record an adaptive-goal run must report. */
+function goalRouteRecordChecks(resultText: string): CheckResult[] {
+  const report = parseGoalReport(resultText);
+  return [
+    ...goalReportShapeChecks(report, resultText),
+    ...goalReportContentChecks(report),
+  ];
+}
+
+function evaluationCounterPassed(
+  requireGoalRouteApplication: boolean,
+  reportValue: string | undefined,
+  records: RegExpMatchArray | null,
+): boolean {
+  return requireGoalRouteApplication
+    ? /^\d+$/.test(reportValue ?? "")
+    : records?.length === 1;
 }
 
 function evaluationRecordChecks(
   resultText: string,
   requireGoalRouteApplication = false,
 ): CheckResult[] {
+  const report = requireGoalRouteApplication
+    ? parseGoalReport(resultText)
+    : undefined;
+  const childRecords = resultText.match(
+    /^(?:evaluation_child_invocations\t|evaluation_child_invocations: )\d+$/gm,
+  );
+  const interruptionRecords = resultText.match(
+    /^(?:evaluation_human_interruptions\t|evaluation_human_interruptions: )\d+$/gm,
+  );
   return [
     {
       name: "reported child invocation count",
-      passed: /^evaluation_child_invocations\t\d+$/m.test(resultText),
-      detail: "expected evaluation_child_invocations<TAB><integer>",
+      passed: evaluationCounterPassed(
+        requireGoalRouteApplication,
+        report?.evaluation_child_invocations,
+        childRecords,
+      ),
+      detail: "expected evaluation_child_invocations with an integer",
     },
     {
       name: "reported human intervention count",
-      passed: /^evaluation_human_interruptions\t\d+$/m.test(resultText),
-      detail: "expected evaluation_human_interruptions<TAB><integer>",
+      passed: evaluationCounterPassed(
+        requireGoalRouteApplication,
+        report?.evaluation_human_interruptions,
+        interruptionRecords,
+      ),
+      detail: "expected evaluation_human_interruptions with an integer",
     },
     ...(requireGoalRouteApplication ? goalRouteRecordChecks(resultText) : []),
   ];

@@ -36,7 +36,7 @@ explicit-limit, target-invalidation, and publication rules.
 
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal
-owner. Preserve user-owned changes and return the contract's final launch record
-verbatim with changed files, verification evidence, and remaining risks. Do not
+owner. Preserve user-owned changes and return the contract's human-readable
+final report with changed files, verification evidence, and remaining risks. Do not
 commit, push, open a pull request, merge, release, or deploy unless the contract
 explicitly grants that authority.

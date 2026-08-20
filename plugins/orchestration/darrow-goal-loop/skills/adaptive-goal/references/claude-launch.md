@@ -116,7 +116,8 @@ Materialize the objective before invoking the `Agent` tool exactly once with:
 
 Tell the runner to read and verify a file-backed complete contract before work,
 own the contract through completion or a material-feedback pause, run the
-workflow and risk gates, and return the required final record. When a material
+workflow and risk gates, and return the contract's human-readable final report
+without reproducing its internal tab-separated record. When a material
 decision first emerges after activation, it pauses mutation and sends the
 smallest concrete question to its creator through host parent messaging when
 available. The creator surfaces the question to the user and relays the exact
@@ -175,11 +176,11 @@ case:
 
 - do not record `route_verified: true`, and do not report the child's work as
   having run on the selected route;
-- when no transcript route is observable, record
-  `effective_route<TAB>claude<TAB>anthropic<TAB>unknown<TAB>unknown`; when a
-  mismatched route is observable, record that exact observed tuple. Never copy
-  the selected model or effort into `effective_route` after failed
-  verification;
+- when no transcript route is observable, use `harness: claude`,
+  `model: anthropic > unknown`, and `effort: unknown` in the human report; when
+  a mismatched route is observable, report that exact effective harness,
+  provider, model, and effort. Never copy the selected model or effort into the
+  report after failed verification;
 - preserve whatever the child already wrote to the working tree without
   discarding it silently, and tell the user plainly which model actually ran
   instead of the selected one, citing the observed route;

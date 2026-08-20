@@ -340,6 +340,12 @@ after`);
     expect(prompt).toContain(
       "including every stopped turn and a terminal blocked turn",
     );
+    expect(prompt).toContain("format: darrow-native-goal-report-v1");
+    expect(prompt).toContain("model: openai > gpt-5.6-sol");
+    expect(prompt).toContain("effort: high");
+    expect(prompt).not.toContain(
+      "Preserve the exact v4 launch record below in the final response",
+    );
     expect(prompt).toContain("- phase: human-feedback-request");
     expect(prompt).toMatch(
       /feedback[^.]*pause[^.]*leave the native goal active/i,

@@ -39,17 +39,21 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: preflight record is emitted
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+  - name: human-readable completion report is emitted
+    expect_regex: "format: darrow-native-goal-report-v1"
+  - name: provider and model are reported readably
+    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"
+  - name: completion report does not expose tab-separated fields
+    not_regex: "format\\tdarrow-native-goal-(?:preflight-v(?:2|4)|route-application-v1)"
   - name: bounded routine route is selected
-    expect_regex: "workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium"
+    expect_regex: "workflow: implement-feature[\\s\\S]*risk: routine[\\s\\S]*profile: routine[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"
   - name: selected route is effective
-    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium[\\s\\S]*route_verified: true"
   - name: differing policy route uses one observable goal runner
-    expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\tnative_subagent[\\s\\S]*evaluation_child_invocations\\t1"
+    expect_regex: "route_applied_by: native-subagent[\\s\\S]*launch_boundary: native_subagent[\\s\\S]*evaluation_child_invocations: 1"
   - name: no custom role orchestration remains
     not_regex: "route\\t(planner|executor|verifier|repair)\\t"
   - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions\\t0"
+    expect_regex: "evaluation_human_interruptions: 0"
   - name: routine verification gate is reported
-    expect_regex: "verification_gate\\troutine"
+    expect_regex: "verification_gate: routine"

@@ -25,6 +25,10 @@ workflow loading, and route application are separate: completion succeeds only
 when host or launcher evidence proves the selected workflow was supplied and
 provider, model, and effort are identical.
 
+The goal owner returns its launch evidence as readable `key: value` lines. The
+model field combines provider and model as `provider > model`, while effort is
+reported separately.
+
 A product decision known during preflight stops before launch. If one first
 emerges during an active goal, mutation pauses while the current-thread owner
 asks the user directly or a delegated owner relays the smallest question

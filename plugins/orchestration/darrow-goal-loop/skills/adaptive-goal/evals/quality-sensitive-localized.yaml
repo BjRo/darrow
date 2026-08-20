@@ -57,12 +57,12 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: localized quality-sensitive route is selected
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\timplement-feature[\\s\\S]*risk\\troutine[\\s\\S]*profile\\troutine-plus[\\s\\S]*selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: implement-feature[\\s\\S]*risk: routine[\\s\\S]*profile: routine-plus[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: high"
   - name: selected route is effective
-    expect_regex: "effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\thigh[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: high[\\s\\S]*route_verified: true"
   - name: differing policy route uses one observable goal runner
-    expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\tnative_subagent[\\s\\S]*evaluation_child_invocations\\t1"
+    expect_regex: "route_applied_by: native-subagent[\\s\\S]*launch_boundary: native_subagent[\\s\\S]*evaluation_child_invocations: 1"
   - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions\\t0"
+    expect_regex: "evaluation_human_interruptions: 0"
   - name: routine verification gate is reported
-    expect_regex: "verification_gate\\troutine"
+    expect_regex: "verification_gate: routine"

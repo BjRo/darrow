@@ -24,9 +24,9 @@ stop before running the helper, consuming further orchestration budget, or
 editing the worktree. Return exactly:
 
 ```text
-format\tdarrow-adaptive-goal-authority-stop-v1
-status\tinvocation_required
-reason\texplicit-orchestration-entrypoint-required
+format: darrow-adaptive-goal-authority-stop-v1
+status: invocation_required
+reason: explicit-orchestration-entrypoint-required
 ```
 
 ### Claude activation is mandatory
@@ -62,18 +62,19 @@ is materially missing, select `decision-gated`, read its workflow document, and
 stop with this record:
 
 ```text
-format\tdarrow-native-goal-preflight-v4
-workflow\tdecision-gated
-risk\thigh
-profile\tnone
-selected_route\tnone\tnone\tnone\tnone
-effective_route\tnone\tnone\tnone\tnone
-route_applied_by\tnone
-route_verified\tfalse
-launch_boundary\tlaunch_required
-verification_gate\tnot-applicable
-evaluation_child_invocations\t0
-evaluation_human_interruptions\t1
+format: darrow-native-goal-report-v1
+workflow: decision-gated
+risk: high
+profile: none
+harness: none
+model: none > none
+effort: none
+route_applied_by: none
+route_verified: false
+launch_boundary: launch_required
+verification_gate: not-applicable
+evaluation_child_invocations: 0
+evaluation_human_interruptions: 1
 ```
 
 Name the smallest missing decision and do not activate implementation work.
@@ -143,7 +144,7 @@ same-context judgment, or capability created during the run is not availability
 evidence. Stop honestly when no matching capability exists. A matching
 capability may use fresh readers internally; native delegation alone cannot
 satisfy this gate. An availability stop returns the evidence gap together with
-the mandatory v4 launch record.
+the mandatory human-readable report.
 Represent the decision in the compiled contract with one unambiguous line
 beginning `Independent review: selected —` or
 `Independent review: omitted —`, followed by the reason. High risk MUST use
@@ -306,8 +307,9 @@ scope and non-goals, preserved work, permissions, the selected workflow and its
 sequence, risk gate, profile and concrete route, applicable feedback checks and
 final-tree checks, whether independent review is selected and why, its portable
 continuation clause when selected, any user-specified stopping budget including
-an explicit review-round limit, the human-feedback rule above, and this exact
-final record. Target
+an explicit review-round limit, the human-feedback rule above, the Section 4
+human-readable completion-report rule, and this exact internal launch record.
+Target
 at most 4,000 bytes by referencing repository facts, but never truncate, omit,
 or rewrite a material requirement merely to fit the inline objective limit. A
 filesystem-sharing launch boundary uses a verified file-backed objective when
@@ -413,7 +415,7 @@ material human feedback. For a delegated owner, keep the same owner active,
 relay its smallest question to the user, send the exact answer back, and then
 continue collecting that owner's result. When feedback cannot be relayed in
 the current run, preserve the active goal and its objective attachment, return
-the question with the current v4 launch record, and do not claim completion or
+the question with the current human-readable report, and do not claim completion or
 blockage. A native goal runner may use host-native subagents for bounded work;
 it remains the sole goal owner, and Darrow does not prescribe planner,
 executor, verifier, or repair roles.
@@ -425,21 +427,42 @@ unnecessary, stop or interrupt it when the host exposes that control. Absence
 or failure of a close control does not block launch or invalidate an otherwise
 fulfilled goal; report any residual cleanup state without replacing the goal's
 terminal result.
-The final response must include the v4 launch record verbatim. Never copy the
-selected route into
-`effective_route` without host evidence. Count only sessions or subagents
+The final response must render the internal v4 launch values as this exact
+human-readable report. Use one `key: value` per line, combine the effective
+provider and model with ` > `, and keep effort separate:
+
+```text
+format: darrow-native-goal-report-v1
+workflow: <workflow>
+risk: <routine|elevated|high>
+profile: <routine|routine-plus|scaled|repo-wide|judgment|none>
+harness: <harness|none>
+model: <provider|none> > <model|none>
+effort: <effort|none>
+route_applied_by: <current-thread|host-api|native-subagent|nested-session|none>
+route_verified: <true|false>
+launch_boundary: <same_thread|host_api|native_subagent|nested_session|launch_required>
+verification_gate: <routine|elevated|high|not-applicable>
+evaluation_child_invocations: <integer>
+evaluation_human_interruptions: <integer>
+```
+
+Do not reproduce the tab-separated v4 record in the final response. Never copy
+the selected route into `harness`, `model`, or `effort` without effective-route
+evidence. `harness` is the effective route harness (`codex` or `claude`), never
+the `route_applied_by` value or `launch_boundary`. Count only sessions or subagents
 created directly by Darrow: same-thread and host-API launches are zero; a
 native goal runner or explicitly authorized nested session is one. Native
 descendants remain host-visible but are not Darrow child invocations.
-For a Claude native-subagent whose transcript route cannot be observed, record
-`effective_route<TAB>claude<TAB>anthropic<TAB>unknown<TAB>unknown`,
-`route_verified<TAB>false`, and `launch_boundary<TAB>launch_required`. If
+For a Claude native-subagent whose transcript route cannot be observed, report
+`harness: claude`, `model: anthropic > unknown`, `effort: unknown`,
+`route_verified: false`, and `launch_boundary: launch_required`. If
 transcript evidence instead proves a mismatched route, record that observed
-tuple. Failed verification never permits copying the selected tuple into the
-effective row.
+route. Failed verification never permits copying the selected model or effort
+into the report.
 When an invoked capability terminates the goal with its own structured result,
-preserve that result alongside the mandatory v4 record rather than replacing
-either contract.
+preserve that result alongside the mandatory human-readable report rather than
+replacing either contract.
 Preserve the substance of terminal independent review evidence by reporting its
 outcome and any blocking findings in the enclosing response; do not require or
 reproduce the provider's serialization. After a repaired failure, report the

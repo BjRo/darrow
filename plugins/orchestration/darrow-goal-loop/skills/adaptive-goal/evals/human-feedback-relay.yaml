@@ -96,11 +96,11 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
 output_checks:
   - name: completion preserves the outer launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"
   - name: one delegated goal owner is reported
-    expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\tnative_subagent[\\s\\S]*evaluation_child_invocations\\t1"
+    expect_regex: "route_applied_by: native-subagent[\\s\\S]*launch_boundary: native_subagent[\\s\\S]*evaluation_child_invocations: 1"
   - name: one human feedback pause is counted
-    expect_regex: "evaluation_human_interruptions\\t1"
+    expect_regex: "evaluation_human_interruptions: 1"
   - name: completion reports the explicit relayed decision
     expect_regex: "(round|rounding)[\\s\\S]{0,120}nearest"
     flags: i

@@ -21,19 +21,19 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: v4 preflight record is emitted
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"
   - name: decision-gated workflow is explicit
-    expect_regex: "workflow\\tdecision-gated[\\s\\S]*risk\\thigh"
+    expect_regex: "workflow: decision-gated[\\s\\S]*risk: high"
   - name: no route is falsely applied
-    expect_regex: "route_applied_by\\tnone[\\s\\S]*route_verified\\tfalse"
+    expect_regex: "route_applied_by: none[\\s\\S]*route_verified: false"
   - name: goal launch stops honestly
-    expect_regex: "launch_boundary\\tlaunch_required"
+    expect_regex: "launch_boundary: launch_required"
   - name: verification is honestly inapplicable before launch
-    expect_regex: "verification_gate\\tnot-applicable"
+    expect_regex: "verification_gate: not-applicable"
   - name: no child was launched
-    expect_regex: "evaluation_child_invocations\\t0"
+    expect_regex: "evaluation_child_invocations: 0"
   - name: human interruption is counted
-    expect_regex: "evaluation_human_interruptions\\t1"
+    expect_regex: "evaluation_human_interruptions: 1"
   - name: missing policy is named
     expect_regex: "(authorization|policy|rollout)"
     flags: i

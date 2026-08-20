@@ -71,4 +71,4 @@ output_checks:
     expect_regex: "(fix|repair)[ -](verification|verify)[\\s\\S]{0,220}(clear|no blocking|pass)"
     flags: i
   - name: completion preserves the outer launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"

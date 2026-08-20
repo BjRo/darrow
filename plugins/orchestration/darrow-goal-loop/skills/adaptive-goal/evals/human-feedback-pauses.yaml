@@ -73,8 +73,8 @@ output_checks:
     not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|implementation) (is )?(complete|completed|done|finished|blocked)\\b"
     flags: i
   - name: the active launch record is preserved
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"
   - name: unavailable feedback pauses the current-thread owner
-    expect_regex: "route_applied_by\\t(?:current-thread|host-api)[\\s\\S]*launch_boundary\\t(?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations\\t0"
+    expect_regex: "route_applied_by: (?:current-thread|host-api)[\\s\\S]*launch_boundary: (?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations: 0"
   - name: one human feedback pause is counted
-    expect_regex: "evaluation_human_interruptions\\t1"
+    expect_regex: "evaluation_human_interruptions: 1"

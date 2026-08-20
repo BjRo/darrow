@@ -62,4 +62,4 @@ output_checks:
     expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
     flags: i
   - name: elevated verification is reported
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\televated[\\s\\S]*verification_gate\\televated"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*risk: elevated[\\s\\S]*verification_gate: elevated"

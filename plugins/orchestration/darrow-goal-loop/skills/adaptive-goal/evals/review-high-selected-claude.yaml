@@ -57,17 +57,17 @@ checks:
       END { exit ok ? 0 : 1 }' .git/independent-review-invocations
 output_checks:
   - name: high risk uses the Claude routine route
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*workflow\\tchange-feature[\\s\\S]*risk\\thigh[\\s\\S]*profile\\troutine[\\s\\S]*selected_route\\tclaude\\tanthropic\\tclaude-sonnet-5\\tlow"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: change-feature[\\s\\S]*risk: high[\\s\\S]*profile: routine[\\s\\S]*harness: claude"
   - name: route is verified or unavailable honestly
-    expect_regex: "(effective_route\\tclaude\\tanthropic\\tclaude-sonnet-5\\tlow[\\s\\S]*route_verified\\ttrue[\\s\\S]*launch_boundary\\tnative_subagent|effective_route\\tclaude\\tanthropic\\tunknown\\tunknown[\\s\\S]*route_verified\\tfalse[\\s\\S]*launch_boundary\\tlaunch_required)"
+    expect_regex: "(model: anthropic > claude-sonnet-5[\\s\\S]*effort: low[\\s\\S]*route_verified: true[\\s\\S]*launch_boundary: native_subagent|model: anthropic > unknown[\\s\\S]*effort: unknown[\\s\\S]*route_verified: false[\\s\\S]*launch_boundary: launch_required)"
   - name: exactly one observable native Claude goal runner is reported
-    expect_regex: "route_applied_by\\tnative-subagent[\\s\\S]*launch_boundary\\t(native_subagent|launch_required)[\\s\\S]*evaluation_child_invocations\\t1"
+    expect_regex: "route_applied_by: native-subagent[\\s\\S]*launch_boundary: (native_subagent|launch_required)[\\s\\S]*evaluation_child_invocations: 1"
   - name: failed verification never copies the selected route
-    not_regex: "effective_route\\tclaude\\tanthropic\\tclaude-sonnet-5\\tlow[\\s\\S]*route_verified\\tfalse"
+    not_regex: "model: anthropic > claude-sonnet-5[\\s\\S]*effort: low[\\s\\S]*route_verified: false"
   - name: completion reports the semantic review outcome
     expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
     flags: i
   - name: high verification gate is reported
-    expect_regex: "verification_gate\\thigh"
+    expect_regex: "verification_gate: high"
   - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions\\t0"
+    expect_regex: "evaluation_human_interruptions: 0"
