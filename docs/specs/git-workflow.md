@@ -47,6 +47,10 @@ clear Conventional Commit message. Inspect state first (`git status`,
 - **GW-C6 — No history rewriting.** Never `--amend`, `--no-verify`, force
   operations, or rebase unless the user explicitly asked for that operation.
 - **GW-C7 — Respect hooks.** If a commit hook fails, report it; don't bypass.
+- **GW-C8 — Authorized staged retry only.** After a hook failure, a retry may
+  refresh only literal, explicitly authorized paths that were already in the
+  staged set. It preserves every other staged blob and rejects a path outside
+  that set without changing the index, worktree, or history.
 
 ### Non-goals
 

@@ -150,8 +150,71 @@ case "$cmd" in
     git log -1 --format='%h %s'
     ;;
 
+  retry)
+    # A hook-failure retry may refresh only named paths already in the index.
+    # It then delegates to `commit`, retaining that command's normal checks and
+    # hook execution rather than creating a bypass path.
+    refresh_files=()
+    msgs=()
+    after_hook_failure=0
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --after-hook-failure)
+          after_hook_failure=1
+          shift
+          ;;
+        --refresh-staged)
+          shift
+          while [[ $# -gt 0 && "$1" != -m && "$1" != --after-hook-failure && "$1" != --refresh-staged ]]; do
+            refresh_files+=("$1")
+            shift
+          done
+          ;;
+        -m)
+          if [[ $# -lt 2 ]]; then
+            echo "error: -m needs a value" >&2
+            exit 2
+          fi
+          msgs+=("$2")
+          shift 2
+          ;;
+        *)
+          echo "error: retry accepts only --after-hook-failure, --refresh-staged, and -m" >&2
+          exit 2
+          ;;
+      esac
+    done
+    if [[ $after_hook_failure -ne 1 || ${#refresh_files[@]} -eq 0 || ${#msgs[@]} -eq 0 ]]; then
+      echo "error: retry needs --after-hook-failure, --refresh-staged <path>..., and -m" >&2
+      exit 2
+    fi
+    if in_conflict; then
+      echo "error: merge/rebase in progress — resolve conflicts first; do not commit" >&2
+      exit 8
+    fi
+    if git diff --cached --quiet; then
+      echo "error: retry needs an existing staged set" >&2
+      exit 7
+    fi
+    for f in ${refresh_files[@]+"${refresh_files[@]}"}; do
+      if [[ "$f" == "." || "$f" == ".." || "$f" == -* || "$f" == :* || "$f" == *[\*\?\[]* ]]; then
+        echo "error: only explicit file paths allowed, got: $f" >&2
+        exit 7
+      fi
+      staged_path=$(git diff --cached --name-only -- "$f")
+      if [[ "$staged_path" != "$f" ]]; then
+        echo "error: retry path is not in the existing staged set: $f" >&2
+        exit 7
+      fi
+    done
+    git add -- "${refresh_files[@]}"
+    msg_args=()
+    for m in "${msgs[@]}"; do msg_args+=(-m "$m"); done
+    exec "$0" commit "${msg_args[@]}"
+    ;;
+
   *)
-    echo "usage: commit.sh inspect | diff <path>... | commit [-m <msg>]... [<path>]..." >&2
+    echo "usage: commit.sh inspect | diff <path>... | commit [-m <msg>]... [<path>]... | retry --after-hook-failure --refresh-staged <path>... -m <msg>" >&2
     exit 64
     ;;
 esac

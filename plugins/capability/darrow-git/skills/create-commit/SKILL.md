@@ -97,9 +97,36 @@ proposed selection or message and retry. If commit execution fails because of
 a hook, identity, or conflict, relay the error verbatim and stop; do not bypass
 the failure.
 
+### 3a. Retry an explicit hook-failure correction
+
+Only after a hook failure has been reported in the request or by this workflow,
+and only when the user literally authorizes refreshing named corrected paths,
+offer one guarded retry. The authorization must name every path; “try again” or
+“include my fixes” does not authorize refreshing the index. Each named path
+must already be part of the existing staged set. Never use this path for an
+unstaged selection, an outside path, or a new file.
+
+When a reported hook failure includes corrected worktree content but lacks that
+literal path-by-path authorization, refuse the retry and make no Git mutation:
+do not run `commit`, `retry`, `git add`, or any alternative staging/commit
+command. Ask for the exact staged paths to refresh. A normal staged commit
+would retain stale index content, so it is not an authorized substitute.
+
+```sh
+bash <skill-dir>/scripts/commit.sh retry --after-hook-failure \
+  --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
+```
+
+This refreshes only the explicitly authorized staged paths from the working
+tree, preserves every other staged blob and all excluded work, then reruns the
+ordinary commit validation and hooks. If it refuses or a hook fails again,
+relay the output and stop. Do not use a raw staging command, a hook bypass, or
+a broader retry.
+
 **Complete when:** the script prints `<hash> <subject>` for one newly added
 commit, or its execution failure has been reported without changing existing
-history or bypassing safeguards.
+history or bypassing safeguards. A guarded retry is complete only when it
+preserves the original staged set except for the literally authorized paths.
 
 ### 4. Report the result
 
