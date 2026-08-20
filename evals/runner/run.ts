@@ -922,7 +922,7 @@ function evaluationRecordChecks(
 
 const { values } = parseArgs({
   options: {
-    harness: { type: "string", default: "claude" },
+    harness: { type: "string" },
     model: { type: "string" },
     effort: { type: "string", default: "medium" },
     trials: { type: "string", default: "5" },
@@ -960,14 +960,21 @@ if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
   process.exit(1);
 }
 
-const baseAdapter = ADAPTERS[values.harness!];
-if (!baseAdapter) {
+const harness = values.harness;
+if (!harness) {
   console.error(
-    `Unknown harness '${values.harness}'. Available: ${Object.keys(ADAPTERS).join(", ")}`,
+    `--harness is required; available: ${Object.keys(ADAPTERS).join(", ")}`,
   );
   process.exit(1);
 }
-if (values["apply-goal-route"] && values.harness !== "codex") {
+const baseAdapter = ADAPTERS[harness];
+if (!baseAdapter) {
+  console.error(
+    `Unknown harness '${harness}'. Available: ${Object.keys(ADAPTERS).join(", ")}`,
+  );
+  process.exit(1);
+}
+if (values["apply-goal-route"] && harness !== "codex") {
   console.error("--apply-goal-route currently requires --harness codex");
   process.exit(1);
 }

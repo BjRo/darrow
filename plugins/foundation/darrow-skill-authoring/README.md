@@ -28,8 +28,8 @@ bash skills/author-agent-skill/scripts/inspect-skill.test.sh
 Run the judgment evals from the repository `evals` directory:
 
 ```sh
-bun runner/run.ts --case author-agent-skill --dry
-bun runner/run.ts --case author-agent-skill
+bun runner/run.ts --case author-agent-skill --harness claude --dry
+bun runner/run.ts --case author-agent-skill --harness claude
 ```
 
 ## License

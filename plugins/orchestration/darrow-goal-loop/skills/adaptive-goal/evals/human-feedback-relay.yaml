@@ -1,15 +1,16 @@
 id: goal-human-feedback-relay
 invariant: AGL-L5,AGL-L8,AGL-L10,AGL-L13,AGL-S1,AGL-S2
 prompt: >-
-  /adaptive-goal Add an exported priceCents(amount) function to src/pricing.js.
-  On Codex, invoke the $adaptive-goal skill. Select and apply the routine policy
-  route through one observable goal runner. Establish focused evidence first,
-  then run `feedbackctl discover` during implementation. If the runner reports
-  the disclosed product question, its parent is authorized to obtain the user's
-  answer with `feedbackctl answer rounding-mode` and relay that exact answer to
-  the same runner. Only the parent may call `answer`; do not include its result
-  in the initial goal contract or runner task. Use the adaptive-goal's host
-  feedback relay and keep the result local.
+  /adaptive-goal Add an exported priceCents(amount) function to src/pricing.js
+  whose result is exactly Math.round(amount * 100). On Codex, invoke the
+  $adaptive-goal skill. Select and apply the routine policy route through one
+  observable goal runner. Establish focused evidence first, then run
+  `feedbackctl discover` during implementation. If it unexpectedly reports
+  `feedback_required`, only the parent is authorized to obtain the user's
+  answer with `feedbackctl answer <reported-id>` and relay that exact answer to
+  the same runner. Do not call `answer` before the runner reports the material
+  question, and do not include an answer in the initial goal contract or runner
+  task. Use the adaptive-goal's host feedback relay and keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -21,9 +22,10 @@ fixture:
           run `feedbackctl discover` after focused acceptance evidence fails.
           Focused pricing evidence must exercise amount 1.235 so either policy
           would have a distinct observable expectation.
-          A disclosed rounding choice is product-owned. Do not edit production
-          behavior until the parent relays the user answer and the runner calls
-          `feedbackctl acknowledge <id> <answer>`.
+          If discovery unexpectedly discloses a compatibility choice, treat the
+          exact reported question as product-owned. Do not edit production
+          behavior after disclosure until the parent relays the user answer and
+          the runner calls `feedbackctl acknowledge <id> <answer>`.
         package.json: '{"type":"module"}'
         src/pricing.js: |
           export const identity = (value) => value;
