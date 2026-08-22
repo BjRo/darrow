@@ -68,6 +68,9 @@ Review agents must not run Git or GitHub commands against this repository.
 - Run evals with `cd evals && bun runner/run.ts --case <substring> --harness
 <claude|codex> [--dry]`.
 - Keep eval prompts participant-visible and hide their pass criteria.
+- Keep fixture skills inert in the source tree: never name an eval fixture
+  `SKILL.md`. Use a non-discoverable template filename and materialize it as
+  `SKILL.md` only inside the isolated eval repository during setup.
 - Quote YAML prompts containing `#` and make fixture binaries succeed on valid
   empty state.
 

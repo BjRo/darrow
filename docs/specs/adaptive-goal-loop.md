@@ -916,6 +916,10 @@ the least launch machinery the host supports.
    on the independent-review intent and semantic outcome, allowing the
    environment to provide implementations with ordinary prose, native command,
    or structured responses.
+7. **AGL-X7 — Inert eval skills.** A checked-in eval fixture MUST NOT use the
+   host-discoverable `SKILL.md` filename. Eval setup materializes an inert skill
+   template as `SKILL.md` only inside the isolated repository where that skill
+   is intended to participate in discovery.
 
 ## Evaluation requirements
 

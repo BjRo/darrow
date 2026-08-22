@@ -3,6 +3,13 @@ set -eu
 
 fixture_dir=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P) || exit 1
 installer=$fixture_dir/install-independent-review.sh
+source_skill=$fixture_dir/independent-review/SKILL.fixture.md
+discoverable_fixture_skills=$(find "$fixture_dir" -name SKILL.md -print)
+if [ -n "$discoverable_fixture_skills" ]; then
+  printf '%s\n' "eval fixture skills are host-discoverable: $discoverable_fixture_skills" >&2
+  exit 1
+fi
+test -f "$source_skill"
 temporary_root=$(mktemp -d "${TMPDIR:-/tmp}/darrow-review-fixture-test.XXXXXX") ||
   exit 1
 trap 'rm -rf "$temporary_root"' EXIT HUP INT TERM
@@ -26,6 +33,7 @@ fi
 bash "$installer" "$repo" "$fixture_dir" codex
 test -x "$repo/.agents/bin/independent-review-fixture"
 test -f "$repo/.agents/skills/independent-code-review/SKILL.md"
+cmp "$source_skill" "$repo/.agents/skills/independent-code-review/SKILL.md"
 test ! -e "$repo/.claude"
 
 printf '%s\n' 'after' >"$repo/candidate.txt"
@@ -147,6 +155,15 @@ mkdir -p "$claude_repo"
 bash "$installer" "$claude_repo" "$fixture_dir" claude
 test -x "$claude_repo/.claude/bin/independent-review-fixture"
 test -f "$claude_repo/.claude/skills/independent-code-review/SKILL.md"
+cmp "$source_skill" "$claude_repo/.claude/skills/independent-code-review/SKILL.md"
 test ! -e "$claude_repo/.agents"
+
+both_repo=$temporary_root/both-repo
+mkdir -p "$both_repo"
+bash "$installer" "$both_repo" "$fixture_dir" both
+test -x "$both_repo/.agents/bin/independent-review-fixture"
+test -x "$both_repo/.claude/bin/independent-review-fixture"
+cmp "$source_skill" "$both_repo/.agents/skills/independent-code-review/SKILL.md"
+cmp "$source_skill" "$both_repo/.claude/skills/independent-code-review/SKILL.md"
 
 printf '%s\n' 'all independent-review fixture tests passed'

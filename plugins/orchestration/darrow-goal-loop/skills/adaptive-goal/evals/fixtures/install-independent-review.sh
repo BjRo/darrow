@@ -15,7 +15,7 @@ case "$host" in
 esac
 for host_root in $host_roots; do
   mkdir -p "$repo/$host_root/skills/independent-code-review" "$repo/$host_root/bin"
-  cp "$fixture_dir/independent-review/SKILL.md" "$repo/$host_root/skills/independent-code-review/SKILL.md"
+  cp "$fixture_dir/independent-review/SKILL.fixture.md" "$repo/$host_root/skills/independent-code-review/SKILL.md"
   cp "$fixture_dir/independent-review/independent-review-fixture" "$repo/$host_root/bin/independent-review-fixture"
   chmod +x "$repo/$host_root/bin/independent-review-fixture"
 done

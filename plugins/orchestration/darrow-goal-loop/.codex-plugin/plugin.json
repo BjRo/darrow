@@ -1,6 +1,6 @@
 {
   "name": "darrow-goal-loop",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Adaptive Goal Loop: compile bounded engineering requests and activate host-native goals on verified routes",
   "author": {
     "name": "Björn Rochel",
