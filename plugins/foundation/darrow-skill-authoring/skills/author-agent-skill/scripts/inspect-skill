@@ -1,74 +1,65 @@
 #!/usr/bin/env bash
 set -u
-
 PROGRAM=${0##*/}
-
-usage() {
-  cat <<EOF
-Usage: $PROGRAM inspect SKILL_DIRECTORY PLUGIN_ROOT
-
-Validate portable skill metadata and inline Markdown-linked resource containment.
-Output paths are absolute. The command does not modify the inspected plugin.
-EOF
-}
-
+usage() { printf '%s\n' "Usage: $PROGRAM inspect SKILL_DIRECTORY PLUGIN_ROOT" '' "Validate portable skill metadata and inline Markdown-linked resource containment." "Output paths are absolute. The command does not modify the inspected plugin."; }
 fail() {
   code=$1
   shift
   printf '%s: %s\n' "$PROGRAM" "$*" >&2
   exit "$code"
 }
-
 absolute_directory() {
-  candidate=$1
-  label=$2
+  candidate=$1 label=$2
   case "$candidate" in
     /*) attempted=$candidate ;;
     *) attempted=$(pwd -P)/$candidate ;;
   esac
-  [ -d "$candidate" ] && [ -r "$candidate" ] && [ -x "$candidate" ] ||
-    fail 2 "$label is not a readable directory: $attempted"
-  (cd "$candidate" 2>/dev/null && pwd -P) ||
-    fail 2 "cannot resolve $label: $attempted"
+  [ -d "$candidate" ] && [ -r "$candidate" ] && [ -x "$candidate" ] || fail 2 "$label is not a readable directory: $attempted"
+  (cd "$candidate" 2>/dev/null && pwd -P) || fail 2 "cannot resolve $label: $attempted"
 }
-
-trim_scalar() {
-  printf '%s\n' "$1" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+absolute_path_guess() {
+  candidate=$1
+  case "$candidate" in
+    /*) printf '%s\n' "$candidate" ;;
+    *) printf '%s/%s\n' "$(pwd -P)" "$candidate" ;;
+  esac
 }
-
+strip_matching_quotes() {
+  value=$1 label=$2 skill_file=$3
+  case "$value" in
+    \"*\") value=${value#\"}; value=${value%\"} ;;
+    \"*) fail 2 "skill $label has an unmatched double quote: $skill_file" ;;
+    \'*\') value=${value#\'}; value=${value%\'} ;;
+    \'*) fail 2 "skill $label has an unmatched single quote: $skill_file" ;;
+  esac
+  printf '%s\n' "$value"
+}
 command=${1:-}
-[ "$command" = "inspect" ] || {
-  usage >&2
-  exit 2
-}
+[ "$command" = "inspect" ] || { usage >&2; exit 2; }
 shift
 [ "$#" -eq 2 ] || fail 2 "inspect requires SKILL_DIRECTORY and PLUGIN_ROOT"
-
 skill_input=$1
 plugin_input=$2
 plugin_root=$(absolute_directory "$plugin_input" "plugin root") || exit $?
-
 if [ -d "$skill_input" ]; then
   skill_directory=$(absolute_directory "$skill_input" "skill directory") || exit $?
 else
-  case "$skill_input" in
-    /*) missing_skill=$skill_input/SKILL.md ;;
-    *) missing_skill=$(pwd -P)/$skill_input/SKILL.md ;;
-  esac
+  missing_skill=$(absolute_path_guess "$skill_input")/SKILL.md
   fail 2 "skill file is not a readable regular file: $missing_skill"
 fi
-
 case "$skill_directory/" in
   "$plugin_root/"*) ;;
   *) fail 2 "skill directory escapes plugin root: $skill_directory" ;;
 esac
-
 skill_file=$skill_directory/SKILL.md
-[ -f "$skill_file" ] && [ -r "$skill_file" ] ||
-  fail 2 "skill file is not a readable regular file: $skill_file"
+[ -f "$skill_file" ] && [ -r "$skill_file" ] || fail 2 "skill file is not a readable regular file: $skill_file"
 [ ! -L "$skill_file" ] || fail 2 "skill file must not be a symbolic link: $skill_file"
-
 metadata=$(awk '
+  function trim(value) {
+    sub(/^[[:space:]]+/, "", value)
+    sub(/[[:space:]]+$/, "", value)
+    return value
+  }
   BEGIN { state = 0; bad = 0; name = ""; description = ""; disable_seen = 0 }
   NR == 1 {
     if ($0 != "---") bad = 1
@@ -81,12 +72,14 @@ metadata=$(awk '
     if (name != "") bad = 1
     name = $0
     sub(/^name[[:space:]]*:[[:space:]]*/, "", name)
+    name = trim(name)
     next
   }
   state == 1 && /^description[[:space:]]*:/ {
     if (description != "") bad = 1
     description = $0
     sub(/^description[[:space:]]*:[[:space:]]*/, "", description)
+    description = trim(description)
     next
   }
   state == 1 && /^disable-model-invocation[[:space:]]*:/ {
@@ -100,30 +93,16 @@ metadata=$(awk '
   state == 1 { bad = 1 }
   END {
     if (state != 2 || bad || name == "" || description == "") exit 3
-    print name
-    print description
+    printf "%s\034%s\n", name, description
   }
 ' "$skill_file") ||
   fail 2 "frontmatter must contain one single-line name and description plus an optional boolean disable-model-invocation: $skill_file"
 
-name=$(printf '%s\n' "$metadata" | sed -n '1p')
-description=$(printf '%s\n' "$metadata" | sed -n '2p')
-name=$(trim_scalar "$name")
-description=$(trim_scalar "$description")
-
-case "$name" in
-  \"*\") name=${name#\"}; name=${name%\"} ;;
-  \"*) fail 2 "skill name has an unmatched double quote: $skill_file" ;;
-  \'*\') name=${name#\'}; name=${name%\'} ;;
-  \'*) fail 2 "skill name has an unmatched single quote: $skill_file" ;;
-esac
-case "$description" in
-  \"*\") description=${description#\"}; description=${description%\"} ;;
-  \"*) fail 2 "skill description has an unmatched double quote: $skill_file" ;;
-  \'*\') description=${description#\'}; description=${description%\'} ;;
-  \'*) fail 2 "skill description has an unmatched single quote: $skill_file" ;;
-esac
-
+metadata_separator=$(printf '\034')
+name=${metadata%%"$metadata_separator"*}
+description=${metadata#*"$metadata_separator"}
+name=$(strip_matching_quotes "$name" "name" "$skill_file")
+description=$(strip_matching_quotes "$description" "description" "$skill_file")
 case "$name" in
   ""|*[!a-z0-9-]*|-*|*-) fail 2 "skill name must use lower-case letters, digits, and internal hyphens: $skill_file" ;;
 esac
@@ -133,23 +112,16 @@ esac
 [ "$name" = "${skill_directory##*/}" ] ||
   fail 2 "skill name '$name' does not match directory '${skill_directory##*/}': $skill_file"
 [ -n "$description" ] || fail 2 "skill description is empty: $skill_file"
-
-links_file=$(mktemp "${TMPDIR:-/tmp}/darrow-skill-links.XXXXXX") ||
+inventory_file=$(mktemp "${TMPDIR:-/tmp}/darrow-skill-inventory.XXXXXX") ||
   fail 2 "cannot create a temporary link inventory"
-scripts_file=$(mktemp "${TMPDIR:-/tmp}/darrow-skill-scripts.XXXXXX") || {
-  rm -f "$links_file"
-  fail 2 "cannot create a temporary script inventory"
-}
-trap 'rm -f "$links_file" "$scripts_file"' EXIT HUP INT TERM
-grep -Eo '\]\([^)]*\)' "$skill_file" >"$links_file" 2>/dev/null || :
-
+trap 'rm -f "$inventory_file"' EXIT HUP INT TERM
+grep -Eo '\]\([^)]*\)' "$skill_file" >"$inventory_file" 2>/dev/null || :
 printf 'format\tdarrow-skill-inspection-v1\n'
 printf 'plugin_root\t%s\n' "$plugin_root"
 printf 'skill_directory\t%s\n' "$skill_directory"
 printf 'skill_file\t%s\n' "$skill_file"
 printf 'name\t%s\n' "$name"
 printf 'description_length\t%s\n' "${#description}"
-
 while IFS= read -r markdown_link; do
   target=${markdown_link#](}
   target=${target%)}
@@ -162,7 +134,6 @@ while IFS= read -r markdown_link; do
     http://*|https://*|mailto:*) continue ;;
     /*) fail 2 "absolute local references are not portable: $target" ;;
   esac
-
   target_parent=${target%/*}
   target_name=${target##*/}
   if [ "$target_parent" = "$target" ]; then
@@ -179,19 +150,17 @@ while IFS= read -r markdown_link; do
     fail 2 "local reference is not a readable regular file: $reference"
   [ ! -L "$reference" ] || fail 2 "local reference must not be a symbolic link: $reference"
   printf 'local_reference\t%s\n' "$reference"
-done <"$links_file"
-
+done <"$inventory_file"
 if [ -e "$skill_directory/scripts" ]; then
   [ -d "$skill_directory/scripts" ] && [ -r "$skill_directory/scripts" ] && [ -x "$skill_directory/scripts" ] ||
     fail 2 "scripts path is not a readable directory: $skill_directory/scripts"
-  find "$skill_directory/scripts" -type f -print >"$scripts_file" 2>/dev/null ||
+  find "$skill_directory/scripts" -type f -print >"$inventory_file" 2>/dev/null ||
     fail 2 "cannot enumerate bundled scripts: $skill_directory/scripts"
-  LC_ALL=C sort "$scripts_file" >"$links_file" ||
+  LC_ALL=C sort -o "$inventory_file" "$inventory_file" ||
     fail 2 "cannot sort bundled scripts: $skill_directory/scripts"
   while IFS= read -r bundled_script; do
     [ -r "$bundled_script" ] || fail 2 "bundled script is unreadable: $bundled_script"
     printf 'bundled_script\t%s\n' "$bundled_script"
-  done <"$links_file"
+done <"$inventory_file"
 fi
-
 printf 'status\tvalid\n'

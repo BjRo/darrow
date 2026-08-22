@@ -10,11 +10,8 @@ Codex.
   and workflow behavior, separates deterministic mechanics from judgment, and
   verifies the resulting package in fresh context.
 
-The plugin is self-contained. It does not require another Darrow plugin, an MCP
-server, or a workflow runtime. Its bundled inspector validates portable
-metadata and containment for inline Markdown-linked local resources; the
-workflow inspects other path forms, and native runtime validators remain
-authoritative for their complete formats.
+See [`author-agent-skill`](skills/author-agent-skill/SKILL.md) for the
+self-containment and validation boundaries.
 
 ## Development
 
