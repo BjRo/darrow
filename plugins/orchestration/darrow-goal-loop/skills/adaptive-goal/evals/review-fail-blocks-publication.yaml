@@ -48,10 +48,10 @@ checks:
     run: test ! -s .git/gh-calls && test -z "$(git remote)"
 output_checks:
   - name: stopped goal reports the blocking review finding
-    expect_regex: "(blocking finding|review[\\s\\S]{0,120}(fail|reject)|reject[\\s\\S]{0,120}review)"
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Independent review:[ \\t]*blocking[ \\t]+—[ \\t]+\\S.*$"
     flags: i
   - name: stopped goal preserves its launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*verification_gate\\t(routine|elevated)"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*verification_gate: (routine|elevated)"
   - name: no publication success is claimed
     not_regex: "(committed|pushed|opened).{0,80}(success|complete|https?://)|pull request[^\\n]+https?://"
     flags: i

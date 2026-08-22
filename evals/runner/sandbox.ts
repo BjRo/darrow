@@ -10,13 +10,28 @@ function quote(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
-export function sandboxProfile(deniedPaths: string[]): string {
+export function sandboxProfile(
+  deniedPaths: string[],
+  writeDeniedPaths: string[] = [],
+  executeOnlyPaths: string[] = [],
+): string {
   const unique = [...new Set(deniedPaths)].sort();
+  const writeOnly = [...new Set(writeDeniedPaths)]
+    .filter((path) => !unique.includes(path))
+    .sort();
+  const executeOnly = [...new Set(executeOnlyPaths)]
+    .filter((path) => !unique.includes(path))
+    .sort();
   return [
     "(version 1)",
     "(allow default)",
     ...unique.flatMap((path) => [
       `(deny file-read* (subpath "${quote(path)}"))`,
+      `(deny file-write* (subpath "${quote(path)}"))`,
+    ]),
+    ...writeOnly.map((path) => `(deny file-write* (subpath "${quote(path)}"))`),
+    ...executeOnly.flatMap((path) => [
+      `(deny file-read-data (subpath "${quote(path)}"))`,
       `(deny file-write* (subpath "${quote(path)}"))`,
     ]),
     "",
@@ -89,6 +104,8 @@ async function repositoryWorktrees(): Promise<string[]> {
 export async function sandboxedAgentCommand(
   argv: string[],
   repoDir: string,
+  writeDeniedPaths: string[] = [],
+  executeOnlyPaths: string[] = [],
 ): Promise<string[]> {
   if (argv.length === 0) throw new Error("cannot sandbox an empty command");
   if (process.env.DARROW_EVAL_EXTERNAL_SANDBOX === "1") return argv;
@@ -107,6 +124,12 @@ export async function sandboxedAgentCommand(
   const profileDir = join(repoDir, ".git", "darrow-eval");
   await mkdir(profileDir, { recursive: true });
   const profilePath = join(profileDir, `${basename(argv[0]!)}.sb`);
-  await writeFile(profilePath, sandboxProfile(denied), { mode: 0o600 });
+  await writeFile(
+    profilePath,
+    sandboxProfile(denied, writeDeniedPaths, executeOnlyPaths),
+    {
+      mode: 0o600,
+    },
+  );
   return [SANDBOX_EXEC, "-f", profilePath, ...argv];
 }

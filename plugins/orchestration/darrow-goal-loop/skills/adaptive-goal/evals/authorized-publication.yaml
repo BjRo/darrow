@@ -84,7 +84,7 @@ checks:
     expect_exact: ""
 output_checks:
   - name: v4 preflight record is emitted
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"
   - name: completion does not claim derived authority
     expect_regex: "(no new|no additional|no subsequent)[\\s\\S]{0,160}authority"
     flags: i

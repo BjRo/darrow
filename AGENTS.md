@@ -58,6 +58,9 @@ Review agents must not run Git or GitHub commands against this repository.
 
 - Give every skill colocated eval cases that verify its public behavior and
   intent boundaries. Test deterministic scripts separately when present.
+- When changing `darrow-review`'s externally visible independent-review or
+  fix-verification outcome semantics, also run the affected review-composition
+  evals under `plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/`.
 - Develop behavior-changing variants from comparative evidence. Run the
   candidate and relevant control against the same fixtures, prompts, checks,
   harness, model, and effort; report trial count, metrics, and limitations.

@@ -2,9 +2,38 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
+import {
+  runChecks,
+  runOutputChecks,
+  runTranscriptChecks,
+  validateRegexChecks,
+} from "./checks";
 
 describe("eval checks", () => {
+  test("invalid regular expressions fail preflight before harness execution", () => {
+    expect(
+      validateRegexChecks(
+        [
+          {
+            name: "unsupported inline flag",
+            not_regex: "(?i)forbidden",
+          },
+        ],
+        "example output_checks",
+      ),
+    ).toEqual([
+      expect.stringContaining(
+        "example output_checks unsupported inline flag: invalid not_regex",
+      ),
+    ]);
+    expect(
+      validateRegexChecks(
+        [{ name: "supported flag", not_regex: "forbidden", flags: "i" }],
+        "example output_checks",
+      ),
+    ).toEqual([]);
+  });
+
   test("run checks receive explicit harness route environment", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-checks-"));
     try {

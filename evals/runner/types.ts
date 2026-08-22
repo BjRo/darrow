@@ -133,6 +133,8 @@ export interface EvalCase {
   transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
   activation?: ActivationClass;
+  /** Override the owning adaptive-goal skill's default required completion report. */
+  goal_report?: "required" | "optional" | "forbidden";
 }
 
 export interface HarnessResult {

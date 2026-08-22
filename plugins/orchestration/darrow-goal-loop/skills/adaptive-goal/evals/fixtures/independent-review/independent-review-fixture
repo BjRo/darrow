@@ -58,6 +58,7 @@ if [ "$mode" = verify ] && [ ! -f "$git_dir/independent-review-invocations" ]; t
   printf '%s\n' 'fix verification requires the original comprehensive review' >&2
   exit 2
 fi
+printf 'review_start\t%s\n' "$target" >>"$git_dir/independent-review-events"
 review_subject_oid=
 if [ -f "$git_dir/fixture-review-event-path" ]; then
   IFS= read -r review_subject <"$git_dir/fixture-review-event-path" || exit 2
@@ -158,7 +159,7 @@ if [ -n "$review_subject_oid" ]; then
   printf 'review\t%s\t%s\n' "$outcome" "$review_subject_oid" >>"$git_dir/review-events"
 fi
 if [ "$mode" = verify ]; then
-  printf 'Repair verification outcome: %s\n' "$outcome"
+  printf 'Fix verification: %s.\n' "$outcome"
 elif [ "$outcome" = clear ]; then
   printf '%s\n' 'Independent review outcome: no blocking findings'
 elif [ "$outcome" = blocking ]; then

@@ -5,10 +5,29 @@ import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
-import { runChecks, runOutputChecks, runTranscriptChecks } from "./checks";
-import { claudeAdapter } from "./adapters/claude";
+import {
+  runChecks,
+  runOutputChecks,
+  runTranscriptChecks,
+  validateRegexChecks,
+} from "./checks";
+import {
+  claudeAdapter,
+  claudeGoalRouteEvidence,
+  claudeGoalRouteEvidenceSummary,
+  claudeGoalRouteReportMatches,
+  claudeParentLifecycleOperations,
+  hasClaudeGoalAgentEvidence,
+} from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { codexGoalAdapter } from "./adapters/codex-goal";
+import {
+  exposesInternalGoalRecord,
+  parsePausedGoalReport,
+  parseGoalReport,
+  type GoalReport,
+  validGoalReportValues,
+} from "./goal-report";
 import {
   activationPassRate,
   activationPassesThreshold,
@@ -177,6 +196,29 @@ async function scanCases(
   return cases;
 }
 
+function validateCaseConfiguration(evalCase: EvalCase): void {
+  if (
+    evalCase.expect_head_change !== undefined &&
+    typeof evalCase.expect_head_change !== "boolean"
+  ) {
+    throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
+  }
+  const activationErrors = validateActivationCase(evalCase);
+  if (activationErrors.length) throw new Error(activationErrors.join("; "));
+  const regexErrors = [
+    ...validateRegexChecks(evalCase.checks, `${evalCase.id} checks`),
+    ...validateRegexChecks(
+      evalCase.output_checks ?? [],
+      `${evalCase.id} output_checks`,
+    ),
+    ...validateRegexChecks(
+      evalCase.transcript_checks ?? [],
+      `${evalCase.id} transcript_checks`,
+    ),
+  ];
+  if (regexErrors.length) throw new Error(regexErrors.join("; "));
+}
+
 /** Point every `fixture.source` case at its prepared corpus checkout. */
 async function resolveCorpusFixtures(
   cases: EvalCase[],
@@ -210,16 +252,7 @@ async function loadCases(
   const selected = filter?.length
     ? cases.filter((c) => filter.some((value) => c.id.includes(value)))
     : cases;
-  for (const evalCase of selected) {
-    if (
-      evalCase.expect_head_change !== undefined &&
-      typeof evalCase.expect_head_change !== "boolean"
-    ) {
-      throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
-    }
-    const activationErrors = validateActivationCase(evalCase);
-    if (activationErrors.length) throw new Error(activationErrors.join("; "));
-  }
+  for (const evalCase of selected) validateCaseConfiguration(evalCase);
   await resolveCorpusFixtures(selected, corpusManifest);
   return selected;
 }
@@ -277,6 +310,20 @@ function activationEvidence(evalCase: EvalCase) {
     : null;
 }
 
+function goalReportEvidence(evalCase: EvalCase) {
+  if (!evalCase.skillDir.endsWith("/adaptive-goal")) return null;
+  return evalCase.goal_report ?? "required";
+}
+
+function standaloneEvaluationRecordEvidence(options: RunCaseOptions) {
+  if (goalReportEvidence(options.evalCase) !== null) return null;
+  return options.requireEvaluationRecords ?? false;
+}
+
+function requiresStandaloneEvaluationRecords(options: RunCaseOptions) {
+  return standaloneEvaluationRecordEvidence(options) === true;
+}
+
 function evaluationDigest(options: RunCaseOptions): string {
   const { evalCase, condition, judge } = options;
   const participantPrompt = condition?.text.trim()
@@ -289,8 +336,9 @@ function evaluationDigest(options: RunCaseOptions): string {
     outputChecks: evalCase.output_checks ?? [],
     transcriptChecks: evalCase.transcript_checks ?? [],
     activation: activationEvidence(evalCase),
+    goalReport: goalReportEvidence(evalCase),
     expectHeadChange: evalCase.expect_head_change ?? null,
-    requireEvaluationRecords: options.requireEvaluationRecords ?? false,
+    requireEvaluationRecords: standaloneEvaluationRecordEvidence(options),
     expectedGoalRoute: options.expectedGoalRoute ?? null,
     assertedGoalRoute: options.assertedGoalRoute ?? null,
     assertedGoalDimensions: options.assertedGoalDimensions ?? null,
@@ -366,15 +414,8 @@ function routeChecks(
   harness: HarnessResult,
   observed: GoalRouteApplication | undefined,
 ): CheckResult[] {
-  const {
-    evalCase,
-    adapter,
-    model,
-    effort,
-    requireEvaluationRecords = false,
-    assertedGoalRoute,
-    assertedGoalDimensions,
-  } = options;
+  const { adapter, model, effort, assertedGoalRoute, assertedGoalDimensions } =
+    options;
   const observedGoalRouteCheck =
     adapter.name === "codex"
       ? reconcileObservedGoalRouteApplication(harness.resultText, harness.raw, {
@@ -396,11 +437,8 @@ function routeChecks(
     ...(assertedGoalDimensions
       ? [goalDimensionsAssertionCheck(observed, assertedGoalDimensions)]
       : []),
-    ...(requireEvaluationRecords
-      ? evaluationRecordChecks(
-          harness.resultText,
-          evalCase.skillDir.endsWith("/adaptive-goal"),
-        )
+    ...(requiresStandaloneEvaluationRecords(options)
+      ? evaluationRecordChecks(harness.resultText)
       : []),
   ];
 }
@@ -440,6 +478,7 @@ async function trialChecks(
   const orchestrationChecks = await orchestrationContractChecks(
     evalCase,
     harness,
+    options.adapter.name,
   );
   return [
     ...(await runChecks(
@@ -456,6 +495,7 @@ async function trialChecks(
 async function orchestrationContractChecks(
   evalCase: EvalCase,
   harness: HarnessResult,
+  adapterName: string,
 ): Promise<CheckResult[]> {
   return [
     ...(await runOutputChecks(
@@ -467,7 +507,133 @@ async function orchestrationContractChecks(
       harness.raw,
       evalCase.transcript_checks ?? [],
     )),
+    ...adaptiveGoalReportChecks(evalCase, harness, adapterName),
   ];
+}
+
+function adaptiveGoalReportChecks(
+  evalCase: EvalCase,
+  harness: HarnessResult,
+  adapterName: string,
+): CheckResult[] {
+  if (!evalCase.skillDir.endsWith("/adaptive-goal")) return [];
+  const reportPolicy = evalCase.goal_report ?? "required";
+  const hasReport =
+    /^[ \t]*format: darrow-native-goal-report-v1[ \t]*\r?$/m.test(
+      harness.resultText,
+    );
+  if (reportPolicy === "optional" && !hasReport)
+    return [
+      internalGoalRecordCheck(harness.resultText),
+      ...(adapterName === "claude"
+        ? claudeNativeSubagentRouteChecks(undefined, harness.raw, false, true)
+        : []),
+    ];
+  if (reportPolicy !== "forbidden") {
+    const report =
+      reportPolicy === "optional"
+        ? parsePausedGoalReport(harness.resultText)
+        : parseGoalReport(harness.resultText);
+    return [
+      ...goalRouteRecordChecks(harness.resultText, report),
+      ...claudeNativeSubagentRouteChecks(report, harness.raw),
+    ];
+  }
+  return [
+    {
+      name: "goal completion report is omitted at the non-activation boundary",
+      passed: !hasReport,
+      detail: "non-activation output must not contain an adaptive-goal report",
+    },
+  ];
+}
+
+const CLAUDE_GOAL_RUNNERS: Record<string, { model: string; effort: string }> = {
+  "darrow-goal-loop:adaptive-goal-sonnet-5-low": {
+    model: "claude-sonnet-5",
+    effort: "low",
+  },
+  "darrow-goal-loop:adaptive-goal-sonnet-5-medium": {
+    model: "claude-sonnet-5",
+    effort: "medium",
+  },
+  "darrow-goal-loop:adaptive-goal-opus-5-high": {
+    model: "claude-opus-5",
+    effort: "high",
+  },
+};
+
+function claudeNativeSubagentRouteChecks(
+  report: GoalReport | undefined,
+  raw: string,
+  reconcileReport = true,
+  requireOwner = false,
+): CheckResult[] {
+  const evidence = claudeGoalRouteEvidence(raw);
+  const evidenceSummary = claudeGoalRouteEvidenceSummary(raw);
+  const parentOperations = claudeParentLifecycleOperations(raw);
+  const retainedGoalOwner = hasClaudeGoalAgentEvidence(raw);
+  const reportsClaudeOwner = reportsClaudeNativeOwner(report);
+  const parentLifecycleCheck = claudeParentLifecycleCheck(parentOperations);
+  if (!retainedGoalOwner && !reportsClaudeOwner && !requireOwner)
+    return parentOperations.length ? [parentLifecycleCheck] : [];
+  const selected = selectedClaudeGoalRoute(evidence);
+  return [
+    {
+      name: "Claude native-subagent route has retained effective-route evidence",
+      passed: [evidence, selected].every((value) => value !== undefined),
+      detail: `expected one marked completed Claude runner and one transcript-derived route observation (${evidenceSummary})`,
+    },
+    ...(reconcileReport
+      ? [
+          {
+            name: "Claude route report matches retained effective-route evidence",
+            passed: claudeRouteReportMatchesEvidence(
+              report,
+              evidence,
+              selected,
+            ),
+            detail:
+              "reported route verification must reconcile with observation and confirmation evidence",
+          },
+        ]
+      : []),
+    parentLifecycleCheck,
+  ];
+}
+
+function claudeParentLifecycleCheck(parentOperations: string[]): CheckResult {
+  return {
+    name: "Claude parent performs no mutation or verification outside the owner",
+    passed: parentOperations.length === 0,
+    detail: parentOperations.length
+      ? `unexpected normalized parent operations: ${parentOperations.join(", ")}`
+      : "no parent mutation or verification outside the owner",
+  };
+}
+
+function reportsClaudeNativeOwner(report: GoalReport | undefined): boolean {
+  if (!report) return false;
+  return [
+    report.harness === "claude",
+    report.route_applied_by === "native-subagent",
+  ].every(Boolean);
+}
+
+function selectedClaudeGoalRoute(
+  evidence: ReturnType<typeof claudeGoalRouteEvidence>,
+) {
+  if (!evidence) return undefined;
+  return CLAUDE_GOAL_RUNNERS[evidence.subagentType];
+}
+
+function claudeRouteReportMatchesEvidence(
+  report: GoalReport | undefined,
+  evidence: ReturnType<typeof claudeGoalRouteEvidence>,
+  selected: { model: string; effort: string } | undefined,
+): boolean {
+  if (!report || !evidence || !selected) return false;
+  return claudeGoalRouteReportMatches(report, evidence, selected);
 }
 
 function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
@@ -859,64 +1025,48 @@ async function runCase(options: RunCaseOptions): Promise<CaseResult> {
   return summarizeCase(options, trialResults);
 }
 
-/** The `darrow-native-goal-preflight-v4` records an adaptive-goal run must report. */
-function goalRouteRecordChecks(resultText: string): CheckResult[] {
-  return [
-    {
-      name: "goal route application record uses v4",
-      passed: /^format\tdarrow-native-goal-preflight-v4$/m.test(resultText),
-      detail: "expected darrow-native-goal-preflight-v4",
-    },
-    {
-      name: "workflow and risk gate are reported",
-      passed:
-        /^workflow\t(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)$/m.test(
-          resultText,
-        ) &&
-        /^risk\t(?:routine|elevated|high)$/m.test(resultText) &&
-        /^verification_gate\t(?:routine|elevated|high|not-applicable)$/m.test(
-          resultText,
-        ),
-      detail: "expected workflow, risk, and verification_gate records",
-    },
-    {
-      name: "selected and effective goal routes are reported",
-      passed:
-        /^selected_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
-          resultText,
-        ) &&
-        /^effective_route\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+\t[^\t\n]+$/m.test(
-          resultText,
-        ),
-      detail: "expected selected_route and effective_route records",
-    },
-    {
-      name: "route application and verification are reported",
-      passed:
-        /^route_applied_by\t(?:current-thread|host-api|native-subagent|nested-session|none)$/m.test(
-          resultText,
-        ) && /^route_verified\t(?:true|false)$/m.test(resultText),
-      detail: "expected route_applied_by and route_verified records",
-    },
-  ];
-}
-
-function evaluationRecordChecks(
+/** The human-readable completion record an adaptive-goal run must report. */
+function goalRouteRecordChecks(
   resultText: string,
-  requireGoalRouteApplication = false,
+  report: GoalReport | undefined,
 ): CheckResult[] {
   return [
     {
+      name: "goal completion report is canonical",
+      passed: validGoalReportValues(report),
+      detail:
+        "expected one ordered readable report with every field and canonical value",
+    },
+    internalGoalRecordCheck(resultText),
+  ];
+}
+
+function internalGoalRecordCheck(resultText: string): CheckResult {
+  return {
+    name: "goal completion report omits internal TSV records",
+    passed: !exposesInternalGoalRecord(resultText),
+    detail: "internal tab-separated records are not caller-facing output",
+  };
+}
+
+function evaluationRecordChecks(resultText: string): CheckResult[] {
+  const childRecords = resultText.match(
+    /^(?:evaluation_child_invocations\t|evaluation_child_invocations: )\d+$/gm,
+  );
+  const interruptionRecords = resultText.match(
+    /^(?:evaluation_human_interruptions\t|evaluation_human_interruptions: )\d+$/gm,
+  );
+  return [
+    {
       name: "reported child invocation count",
-      passed: /^evaluation_child_invocations\t\d+$/m.test(resultText),
-      detail: "expected evaluation_child_invocations<TAB><integer>",
+      passed: childRecords?.length === 1,
+      detail: "expected evaluation_child_invocations with an integer",
     },
     {
       name: "reported human intervention count",
-      passed: /^evaluation_human_interruptions\t\d+$/m.test(resultText),
-      detail: "expected evaluation_human_interruptions<TAB><integer>",
+      passed: interruptionRecords?.length === 1,
+      detail: "expected evaluation_human_interruptions with an integer",
     },
-    ...(requireGoalRouteApplication ? goalRouteRecordChecks(resultText) : []),
   ];
 }
 

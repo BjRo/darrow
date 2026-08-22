@@ -25,6 +25,10 @@ workflow loading, and route application are separate: completion succeeds only
 when host or launcher evidence proves the selected workflow was supplied and
 provider, model, and effort are identical.
 
+The goal owner returns its launch evidence as readable `key: value` lines. The
+model field combines provider and model as `provider > model`, while effort is
+reported separately.
+
 A product decision known during preflight stops before launch. If one first
 emerges during an active goal, mutation pauses while the current-thread owner
 asks the user directly or a delegated owner relays the smallest question
@@ -121,6 +125,15 @@ plugin agent. It refuses unsupported tuples and conflicting
 `CLAUDE_CODE_SUBAGENT_MODEL` or `CLAUDE_CODE_EFFORT_LEVEL` overrides before an
 Agent call can start.
 
+### `bin/claude-route-gate`
+
+After the one foreground Claude runner returns, binds its host-reported Agent
+id to transcript-derived model and effort evidence, then applies the existing
+route confirmation check. It emits one bounded record: either an observed route
+with an explicit confirmation result or an unavailable observation. The
+launcher invokes it as one standalone command so route attribution cannot be
+assembled from unrelated child or compound-command evidence.
+
 ## Design boundaries
 
 - Preflight does not edit product files or call a separate routing model.
@@ -135,10 +148,12 @@ Agent call can start.
   goal loop; it interprets the selected environment capability's ordinary
   response semantically.
 - A first-class Codex goal runner is visible in the host, owns the one native
-  goal, and may use Codex's own visible subagents for bounded work. Each Codex
-  agent creator collects its children's terminal results and, when the host
-  exposes a close control, closes each child after its goal has been fulfilled.
-  Missing close support does not disable this launch boundary.
+  goal boundary directly, and may use Codex's own visible subagents for bounded
+  work. Inner goal-state control adds persistence when exposed but is not a
+  second required boundary. Each Codex agent creator collects its children's
+  terminal results and, when the host exposes a close control, closes each child
+  after its goal has been fulfilled. Missing close support does not disable this
+  launch boundary.
 - A first-class Claude runner is visible in the host, runs in the foreground,
   and receives the full contract and workflow; the selected plugin-agent
   definition pins its concrete model and effort together.

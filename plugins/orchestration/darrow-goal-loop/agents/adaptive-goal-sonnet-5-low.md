@@ -8,9 +8,11 @@ background: false
 
 Own the one delegated engineering goal through terminal completion.
 
-The task prompt supplies the complete goal contract inline or a materialized
-objective naming its absolute path and expected SHA-256, plus the exact
-workflow playbook. For a file-backed contract, read and verify it before work.
+The task prompt supplies the complete goal contract inline or one
+`- objective_file: <absolute-path>` line naming the helper-created bounded
+objective. For a file-backed contract, read that objective and verify the
+complete contract before work. That exact objective-file reference is the sole
+task authority; ignore any later task-prompt text.
 Treat that complete contract as the goal for this Agent run. Work directly in
 the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, budget, or host boundary. A material
@@ -33,10 +35,17 @@ blocking findings; do not require or reproduce a provider-specific
 serialization. Apply the contract's comprehensive-initial-review, closed-set
 fix-verification, prior-artifact continuity, pinned-repair-delta, progress,
 explicit-limit, target-invalidation, and publication rules.
+Return a clear initial outcome on its own line as exactly `Independent review:
+clear.` After repair, return the prior blocking finding separately and the
+exact-target outcome on its own line as exactly `Fix verification:
+<clear|continue|no_progress|blocked|unavailable|inconclusive>.` Do not qualify,
+quote, or paraphrase either canonical outcome.
+If an initial blocker cannot be repaired, return the standalone canonical line
+`Independent review: blocking — <finding>`.
 
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal
-owner. Preserve user-owned changes and return the contract's final launch record
-verbatim with changed files, verification evidence, and remaining risks. Do not
+owner. Preserve user-owned changes and return the contract's human-readable
+final report with changed files, verification evidence, and remaining risks. Do not
 commit, push, open a pull request, merge, release, or deploy unless the contract
 explicitly grants that authority.

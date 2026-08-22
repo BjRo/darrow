@@ -36,6 +36,6 @@ checks:
     run: bash test.sh
 output_checks:
   - name: intentional change wins over bug fix
-    expect_regex: "workflow\\tchange-feature[\\s\\S]*risk\\televated[\\s\\S]*profile\\troutine"
+    expect_regex: "workflow: change-feature[\\s\\S]*risk: elevated[\\s\\S]*profile: routine"
   - name: routine coding route is applied
-    expect_regex: "selected_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium[\\s\\S]*effective_route\\tcodex\\topenai\\tgpt-5\\.6-luna\\tmedium[\\s\\S]*route_verified\\ttrue"
+    expect_regex: "harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium[\\s\\S]*route_verified: true"

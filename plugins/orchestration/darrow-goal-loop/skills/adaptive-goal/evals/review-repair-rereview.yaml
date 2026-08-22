@@ -10,7 +10,9 @@ prompt: >-
   rerun `bash check.sh`, and request fix-scoped verification of that attempted
   finding against the changed target fingerprint. If verification is
   unavailable or inconclusive, stop. Complete only after exact-target clear
-  verification. Select and apply the
+  verification. Every check, review, and edit named here belongs to the
+  activated goal owner; the classifier must compile those steps and activate
+  that owner before executing any of them. Select and apply the
   policy route. Keep the result local; commits, pushes, pull requests, and other
   publication are not authorized.
 fixture:
@@ -92,11 +94,10 @@ checks:
   - name: repair and fix verification stay local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: completion reports the semantic fix-verification outcome
-    expect_regex: "(fix|repair)[ -](verification|verify)[\\s\\S]{0,160}(no blocking|clear|pass)"
-    flags: i
+  - name: completion reports the clear fix-verification outcome
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Fix verification:[ \\t]*clear\\.[ \\t]*$"
   - name: completion reports the prior failed target and finding
-    expect_regex: "(initial|prior|first)[\\s\\S]{0,160}(fail|reject|block)[\\s\\S]{0,160}RETRY_COUNT"
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Initial independent review:[ \\t]*blocking[ \\t]+—[ \\t]+.*(?:RETRY_COUNT|retry[- ]count).*$"
     flags: i
   - name: completion preserves the outer launch record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"

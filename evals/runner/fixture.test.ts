@@ -7,7 +7,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -56,6 +56,7 @@ describe("eval fixture skill mounts", () => {
       sourceClaudePlugin: true,
     });
     cleanup.push(fixture);
+    expect(fixture).toBe(realpathSync(fixture));
     expect(
       existsSync(join(fixture, ".claude", "skills", "primary", "SKILL.md")),
     ).toBe(false);

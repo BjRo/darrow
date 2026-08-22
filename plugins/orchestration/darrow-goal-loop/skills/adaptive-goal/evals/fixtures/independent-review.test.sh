@@ -37,6 +37,8 @@ printf '%s\n' "$result" |
 test "$(wc -l <"$repo/.git/independent-review-invocations" | tr -d ' ')" -eq 1
 test "$(awk -F '\t' 'NF == 3 && $2 == "clear" { print "yes" }' "$repo/.git/independent-review-invocations")" = yes
 test "$(cut -f3 "$repo/.git/independent-review-invocations")" = comprehensive
+test "$(cut -f1 "$repo/.git/independent-review-events")" = review_start
+test "$(cut -f2 "$repo/.git/independent-review-events")" = "$(cut -f1 "$repo/.git/independent-review-invocations")"
 test "$(awk -F '\t' '$1 == "review" && $2 == "clear" && $3 != "" { print "yes" }' "$repo/.git/review-events")" = yes
 test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 == start { print "yes"; exit }' "$repo/.git/review-events")" = yes
 first_target=$(printf '%s\n' "$result" | sed -n 's/^Reviewed target: //p')
@@ -58,7 +60,7 @@ while [ "$(grep -c '^review_start' "$repo/.git/review-events")" -le "$review_sta
 done
 printf '%s\n' '# Changed instructions while review was pending' >"$repo/AGENTS.md"
 wait "$review_pid"
-grep -Fx 'Repair verification outcome: inconclusive' "$concurrent_result" >/dev/null
+grep -Fx 'Fix verification: inconclusive.' "$concurrent_result" >/dev/null
 test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 != start { print "yes" }' "$repo/.git/review-events")" = yes
 printf '%s\n' '0' >"$repo/.git/fixture-review-delay-seconds"
 printf '%s\n' '# Instructions' >"$repo/AGENTS.md"
@@ -78,7 +80,7 @@ touch "$repo/.git/fixture-review-fail"
 printf '%s\n' 'fail target' >"$repo/candidate.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify)
 printf '%s\n' "$result" |
-  grep -Fx 'Repair verification outcome: continue' >/dev/null
+  grep -Fx 'Fix verification: continue.' >/dev/null
 printf '%s\n' "$result" | grep -F 'Blocking finding: ' >/dev/null
 rm "$repo/.git/fixture-review-fail"
 
@@ -86,7 +88,7 @@ touch "$repo/.git/fixture-review-inconclusive"
 printf '%s\n' 'inconclusive target' >"$repo/candidate.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify)
 printf '%s\n' "$result" |
-  grep -Fx 'Repair verification outcome: inconclusive' >/dev/null
+  grep -Fx 'Fix verification: inconclusive.' >/dev/null
 printf '%s\n' "$result" | grep -F 'Evidence gap: ' >/dev/null
 rm "$repo/.git/fixture-review-inconclusive"
 
@@ -94,7 +96,7 @@ touch "$repo/.git/fixture-review-blocked"
 printf '%s\n' 'blocked target' >"$repo/candidate.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify)
 printf '%s\n' "$result" |
-  grep -Fx 'Repair verification outcome: unavailable' >/dev/null
+  grep -Fx 'Fix verification: unavailable.' >/dev/null
 printf '%s\n' "$result" | grep -F 'Evidence gap: ' >/dev/null
 rm "$repo/.git/fixture-review-blocked"
 
@@ -112,7 +114,7 @@ printf '%s\n' "$result" |
 printf '%s\n' 'repaired' >"$repo/candidate.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify)
 printf '%s\n' "$result" |
-  grep -Fx 'Repair verification outcome: clear' >/dev/null
+  grep -Fx 'Fix verification: clear.' >/dev/null
 test "$(wc -l <"$repo/.git/independent-review-invocations" | tr -d ' ')" -eq 2
 if bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify >/dev/null 2>&1; then
   printf '%s\n' 'exhausted review sequence was accepted' >&2
@@ -129,7 +131,7 @@ printf '%s\n' "$result" |
 printf '%s\n' 'unavailable repair' >"$repo/candidate.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify)
 printf '%s\n' "$result" |
-  grep -Fx 'Repair verification outcome: unavailable' >/dev/null
+  grep -Fx 'Fix verification: unavailable.' >/dev/null
 printf '%s\n' "$result" | grep -F 'Evidence gap: ' >/dev/null
 test "$(cut -f3 "$repo/.git/independent-review-invocations" | tr '\n' ' ')" = 'comprehensive verify '
 

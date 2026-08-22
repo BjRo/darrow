@@ -40,6 +40,8 @@ fixture:
           if (display(value) !== '42') process.exit(1);
           if (audit(value) !== 'user=42') process.exit(1);
           EOF
+          review_target=$(.agents/bin/independent-review-fixture "$PWD" fingerprint)
+          printf 'check\t%s\n' "$review_target" >>.git/independent-review-events
         package.json: '{"type":"module"}'
   setup: >-
     bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
@@ -53,13 +55,18 @@ checks:
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
   - name: selected review clears the final changed target
     run: >-
-      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 } END { exit ok ? 0 : 1 }'
-      .git/independent-review-invocations
+      test "$(cut -f1 .git/independent-review-invocations)" =
+      "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)" &&
+      awk -F '\t' '$1 == "check" { checked[$2]=1 }
+      $1 == "review_start" && checked[$2] { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/independent-review-events &&
+      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/independent-review-invocations
   - name: elevated work stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: completion reports the semantic review outcome
-    expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?(?:(?:Independent review:|\\*\\*Independent review:\\*\\*)[ \\t]*clear\\.|\\*\\*Independent review:[ \\t]*clear\\.\\*\\*)[ \\t]*$"
     flags: i
   - name: elevated verification is reported
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\televated[\\s\\S]*verification_gate\\televated"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*risk: elevated[\\s\\S]*verification_gate: elevated"

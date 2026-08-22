@@ -379,23 +379,23 @@ export function buildGoalExecutionPrompt(
     intentRoutingGuidance,
     `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
-    "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, preserve the v4 record, and leave the native goal active for a later resumed turn.",
-    "In a feedback-pause record, replace only `evaluation_human_interruptions` with the number of distinct user questions asked so far; do not rewrite the applied route evidence.",
-    "Preserve the exact v4 launch record below in the final response, including every stopped turn and a terminal blocked turn; an automatic continuation must not replace it with a summary.",
-    "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied; include this exact evidence in the v4 launch record. A human-feedback pause is nonterminal and must not settle the goal.",
+    "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
+    "Preserve the exact human-readable report below in every terminal final response, including a terminal blocked turn; an automatic continuation must not replace it with a summary. Do not reproduce the tab-separated v4 record from the internal goal contract.",
+    "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied; include this exact evidence in the human-readable report. A human-feedback pause is nonterminal and must not settle the goal.",
     "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
-    "format\tdarrow-native-goal-preflight-v4",
-    `workflow\t${handoff.workflow}`,
-    `risk\t${handoff.risk}`,
-    `profile\t${handoff.profile}`,
-    `selected_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
-    `effective_route\t${selected.harness}\t${selected.provider}\t${selected.model}\t${selected.effort}`,
-    "route_applied_by\thost-api",
-    "route_verified\ttrue",
-    "launch_boundary\thost_api",
-    `verification_gate\t${handoff.risk}`,
-    "evaluation_child_invocations\t0",
-    "evaluation_human_interruptions\t0",
+    "format: darrow-native-goal-report-v1",
+    `workflow: ${handoff.workflow}`,
+    `risk: ${handoff.risk}`,
+    `profile: ${handoff.profile}`,
+    `harness: ${selected.harness}`,
+    `model: ${selected.provider} > ${selected.model}`,
+    `effort: ${selected.effort}`,
+    "route_applied_by: host-api",
+    "route_verified: true",
+    "launch_boundary: host_api",
+    `verification_gate: ${handoff.risk}`,
+    "evaluation_child_invocations: 0",
+    "evaluation_human_interruptions: 0",
   ].join("\n");
 }
 
@@ -1026,10 +1026,10 @@ function isFailedGoalTurn(
 }
 
 export function isHumanFeedbackPauseText(text: unknown): boolean {
-  return (
-    typeof text === "string" &&
-    /^- phase: human-feedback-request(?:\n|$)/.test(text)
-  );
+  if (typeof text !== "string") return false;
+  const marker = text.match(/^- phase: human-feedback-request\r?\n/);
+  if (!marker) return false;
+  return text.slice(marker[0].length).trim().length > 0;
 }
 
 function isHumanFeedbackPause(message: AppServerMessage): boolean {

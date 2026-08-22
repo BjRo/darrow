@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+claude_verify_route="$script_dir/claude-verify-route"
+goal_loop="$script_dir/goal-loop"
+tab=$(printf '\t')
+
+usage() {
+  cat <<'EOF'
+usage: claude-route-gate --repo <path> --agent-id <id> --selected <harness|provider|model|effort>
+
+Observes one completed Claude Agent's effective route and confirms it against
+the selected route. An unavailable observation is a bounded, successful gate
+record with no confirmation; malformed evidence fails closed.
+EOF
+}
+
+die() {
+  printf 'claude-route-gate: %s\n' "$*" >&2
+  exit 2
+}
+
+unavailable() {
+  printf 'format\tdarrow-claude-route-gate-v1\n'
+  printf 'agent_id\t%s\n' "$agent_id"
+  printf 'observation\tunavailable\n'
+}
+
+require_value() {
+  test "$#" -ge 2 && test -n "$2" || die "missing value for $1"
+}
+
+repo=
+agent_id=
+selected=
+while test "$#" -gt 0; do
+  case "$1" in
+    --repo)
+      require_value "$@"
+      repo=$2
+      shift 2
+      ;;
+    --agent-id)
+      require_value "$@"
+      agent_id=$2
+      shift 2
+      ;;
+    --selected)
+      require_value "$@"
+      selected=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+
+test -n "$repo" && test -n "$agent_id" && test -n "$selected" ||
+  die "--repo, --agent-id, and --selected are required"
+case "$agent_id" in
+  *[!a-zA-Z0-9]*) die "unsafe agent id: $agent_id" ;;
+esac
+
+old_ifs=$IFS
+IFS='|'
+read -r selected_harness selected_provider selected_model selected_effort selected_extra <<EOF
+$selected
+EOF
+IFS=$old_ifs
+test "$selected_harness" = claude && test "$selected_provider" = anthropic &&
+  test -n "$selected_model" && test -n "$selected_effort" &&
+  test -z "${selected_extra:-}" || die "invalid selected route"
+case "$selected_model" in
+  *[!a-zA-Z0-9._-]*) die "invalid selected model" ;;
+esac
+case "$selected_effort" in
+  low|medium|high|xhigh|max|ultra) ;;
+  *) die "invalid selected effort" ;;
+esac
+
+repo=$(CDPATH='' cd -- "$repo" && pwd) || die "unreadable repo: $repo"
+test -r "$claude_verify_route" || die "route verifier is unreadable"
+test -r "$goal_loop" || die "goal-loop helper is unreadable"
+
+if test "${DARROW_CLAUDE_ROUTE_TELEMETRY:-}" = untrusted; then
+  unavailable
+  exit 0
+fi
+
+if ! verify_output=$(bash "$claude_verify_route" --repo "$repo" --agent-id "$agent_id" 2>/dev/null); then
+  unavailable
+  exit 0
+fi
+
+format_count=0
+agent_count=0
+route_count=0
+observed_harness=
+observed_provider=
+observed_model=
+observed_effort=
+while IFS="$tab" read -r key value1 value2 value3 value4 extra; do
+  case "$key" in
+    format)
+      test "$value1" = darrow-claude-verify-route-v1 &&
+        test -z "${value2:-}${value3:-}${value4:-}${extra:-}" ||
+        die "malformed verifier format"
+      format_count=$((format_count + 1))
+      ;;
+    agent_id)
+      test "$value1" = "$agent_id" &&
+        test -z "${value2:-}${value3:-}${value4:-}${extra:-}" ||
+        die "verifier agent id does not match"
+      agent_count=$((agent_count + 1))
+      ;;
+    transcript)
+      test -n "$value1" &&
+        test -z "${value2:-}${value3:-}${value4:-}${extra:-}" ||
+        die "malformed verifier transcript"
+      ;;
+    observed_route)
+      test -n "$value1" && test -n "$value2" && test -n "$value3" &&
+        test -n "$value4" && test -z "${extra:-}" ||
+        die "malformed observed route"
+      observed_harness=$value1
+      observed_provider=$value2
+      observed_model=$value3
+      observed_effort=$value4
+      route_count=$((route_count + 1))
+      ;;
+    *) die "unexpected verifier record: $key" ;;
+  esac
+done <<EOF
+$verify_output
+EOF
+
+test "$format_count" -eq 1 && test "$agent_count" -eq 1 &&
+  test "$route_count" -eq 1 || die "incomplete or duplicate verifier record"
+test "$observed_harness" = claude && test "$observed_provider" = anthropic ||
+  die "unexpected observed harness or provider"
+effective="$observed_harness|$observed_provider|$observed_model|$observed_effort"
+if bash "$goal_loop" confirm-route --selected "$selected" --effective "$effective" \
+  --applied-by native-subagent >/dev/null 2>&1; then
+  confirmation=confirmed
+else
+  confirmation=rejected
+fi
+
+printf 'format\tdarrow-claude-route-gate-v1\n'
+printf 'agent_id\t%s\n' "$agent_id"
+printf 'observed_route\t%s\t%s\t%s\t%s\n' \
+  "$observed_harness" "$observed_provider" "$observed_model" "$observed_effort"
+printf 'confirmation\t%s\n' "$confirmation"

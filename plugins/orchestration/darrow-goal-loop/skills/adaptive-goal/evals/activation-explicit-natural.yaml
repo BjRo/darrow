@@ -24,9 +24,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: explicit preflight emits the v4 record
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4"
+    expect_regex: "format: darrow-native-goal-report-v1"
   - name: missing policy stops before launch
-    expect_regex: "workflow\\tdecision-gated[\\s\\S]*launch_boundary\\tlaunch_required"
+    expect_regex: "workflow: decision-gated[\\s\\S]*launch_boundary: launch_required"
   - name: invocation does not invent authority
     expect_regex: "(authorization|policy|rollout)"
     flags: i

@@ -1,5 +1,6 @@
 id: goal-preflight-authority-stop-non-orchestration-parent
 invariant: AGL-X3,AGL-S1
+goal_report: forbidden
 prompt: >-
   /non-orchestration-parent Change auth.js from role checks to an unspecified
   new authorization policy. On Codex, invoke the
@@ -51,6 +52,6 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: adaptive-goal returns the exact authority stop
-    expect_exact: "format\tdarrow-adaptive-goal-authority-stop-v1\nstatus\tinvocation_required\nreason\texplicit-orchestration-entrypoint-required"
+    expect_exact: "format: darrow-adaptive-goal-authority-stop-v1\nstatus: invocation_required\nreason: explicit-orchestration-entrypoint-required"
   - name: preflight never begins
     not_regex: "darrow-native-goal-preflight|selected_route|launch_boundary"

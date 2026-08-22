@@ -14,7 +14,8 @@ usage:
   goal-loop prepare --repo <path> --host <codex|claude>
   goal-loop route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
   goal-loop confirm-route --selected <harness|provider|model|effort> --effective <harness|provider|model|effort> --applied-by <current-thread|host-api|native-subagent|nested-session>
-  goal-loop materialize-objective --repo <path> --goal-file <path>
+  goal-loop materialize-objective [--force-file-backed] --repo <path> --goal-file <path>
+  goal-loop release-staging --goal-file <path> --expected-sha256 <digest>
   goal-loop release-objective --attachment-dir <path> --expected-sha256 <digest>
   goal-loop launch --host <codex|claude> --repo <path> --goal-file <path> --provider <id> --model <id> --effort <level> --allow-nested
 EOF
@@ -450,8 +451,13 @@ EOF
 materialize_objective() {
   repo=
   goal_file=
+  force_file_backed=0
   while test "$#" -gt 0; do
     case "$1" in
+      --force-file-backed)
+        force_file_backed=1
+        shift
+        ;;
       --repo)
         require_value "$@"
         repo=$2
@@ -475,7 +481,7 @@ materialize_objective() {
   goal_size=$(wc -c <"$goal_file" | tr -d ' ')
   test "$goal_size" -gt 0 || die "goal file is empty: $goal_file"
 
-  if test "$goal_size" -le 4000; then
+  if test "$goal_size" -le 4000 && test "$force_file_backed" -eq 0; then
     contract_digest=$(sha256_file "$goal_file")
     printf 'format\tdarrow-native-goal-objective-v1\n'
     printf 'mode\tinline\n'
@@ -528,6 +534,7 @@ materialize_objective() {
     "Expected SHA-256: $contract_digest" \
     'Verify the file digest before following the contract.' \
     'If the file is missing, unreadable, or does not match, stop and report the evidence gap.' \
+    'This accepted ownership-marked task already makes you the sole goal owner; execute the contract directly even when no inner goal-control tool exists.' \
     'Follow that complete contract through terminal completion.' >"$objective_file"; then
     rm -f "$objective_file" "$contract_file"
     rmdir "$attachment_dir" 2>/dev/null || true
@@ -611,6 +618,45 @@ release_goal_attachment_dir() {
   rm -f "$release_dir/goal-objective.txt" "$release_dir/goal-contract.md"
   rmdir "$release_dir" 2>/dev/null ||
     die "could not remove goal attachment directory: $release_dir"
+}
+
+release_staging() {
+  goal_file=
+  expected_sha256=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --goal-file)
+        require_value "$@"
+        goal_file=$2
+        shift 2
+        ;;
+      --expected-sha256)
+        require_value "$@"
+        expected_sha256=$2
+        shift 2
+        ;;
+      *) die "unknown release-staging option: $1" ;;
+    esac
+  done
+  test -n "$goal_file" && test -n "$expected_sha256" ||
+    die "release-staging requires --goal-file and --expected-sha256"
+  validate_sha256_digest "$expected_sha256"
+  goal_file=$(absolute_regular_file "$goal_file")
+  staging_parent=$(absolute_dir "$(dirname -- "$goal_file")")
+  staging_root=$(absolute_dir "${TMPDIR:-/tmp}")
+  case "$staging_parent/" in
+    "$staging_root/"*) ;;
+    *) die "goal staging file is outside the temporary root: $goal_file" ;;
+  esac
+  actual_sha256=$(sha256_file "$goal_file")
+  test "$actual_sha256" = "$expected_sha256" ||
+    die "goal staging digest does not match: $goal_file"
+  rm -f "$goal_file"
+  test ! -e "$goal_file" ||
+    die "could not remove goal staging file: $goal_file"
+  printf 'format\tdarrow-native-goal-staging-release-v1\n'
+  printf 'status\treleased\n'
+  printf 'goal_file\t%s\n' "$goal_file"
 }
 
 release_objective() {
@@ -798,6 +844,7 @@ case "$command" in
   route) route "$@" ;;
   confirm-route) confirm_route "$@" ;;
   materialize-objective) materialize_objective "$@" ;;
+  release-staging) release_staging "$@" ;;
   release-objective) release_objective "$@" ;;
   launch) launch "$@" ;;
   -h|--help|help) usage ;;

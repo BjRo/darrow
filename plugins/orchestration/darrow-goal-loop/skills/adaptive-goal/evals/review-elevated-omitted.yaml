@@ -32,7 +32,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: elevated verification remains selected
-    expect_regex: "format\\tdarrow-native-goal-preflight-v4[\\s\\S]*risk\\televated[\\s\\S]*verification_gate\\televated"
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*risk: elevated[\\s\\S]*verification_gate: elevated"
   - name: completion does not claim independent review
     not_regex: "independent review (passed|completed|clear|found no blocking)"
     flags: i

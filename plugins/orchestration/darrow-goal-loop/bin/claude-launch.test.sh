@@ -10,6 +10,7 @@ skill="$plugin_dir/skills/adaptive-goal/SKILL.md"
 goal_loop="$plugin_dir/bin/goal-loop"
 claude_agent_route="$plugin_dir/bin/claude-agent-route"
 claude_verify_route="$plugin_dir/bin/claude-verify-route"
+claude_route_gate="$plugin_dir/bin/claude-route-gate"
 
 fail() {
   printf 'FAIL: %s\n' "$*" >&2
@@ -37,6 +38,10 @@ check_runner() {
     fail "$agent lacks visible Adaptive Goal Loop metadata"
   grep -F -- 'Read its ordinary response semantically' "$agent" >/dev/null ||
     fail "$agent does not interpret selected independent-review evidence"
+  grep -F -- 'Independent review:' "$agent" >/dev/null ||
+    fail "$agent does not return the canonical initial-review outcome"
+  grep -F -- 'Fix verification:' "$agent" >/dev/null ||
+    fail "$agent does not return the canonical repair-verification outcome"
   grep -F -- "darrow-goal-loop:adaptive-goal-$suffix" "$guide" >/dev/null ||
     fail "Claude launch guide does not route $model/$effort to its runner"
   resolved=$(bash "$claude_agent_route" --provider anthropic --model "$model" --effort "$effort")
@@ -83,6 +88,13 @@ grep -F -- 'Claude activation is mandatory' "$skill" >/dev/null ||
   fail 'parent skill does not forbid direct Claude implementation'
 grep -F -- 'Do not implement directly in the classifier turn' "$skill" >/dev/null ||
   fail 'parent skill does not preserve read-only Claude preflight'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop prepare --repo <absolute-repo> --host claude'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop route --repo <absolute-repo> --host claude --profile <profile>'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop materialize-objective --force-file-backed --repo <absolute-repo> --goal-file <absolute-contract-file>'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop release-staging --goal-file <exact-staging-path> --expected-sha256 <exact-helper-returned-contract-sha256>'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop release-objective --attachment-dir <exact-helper-returned-attachment-dir> --expected-sha256 <exact-helper-returned-contract-sha256>'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/claude-agent-route --provider anthropic --model <claude-sonnet-5|claude-opus-5> --effort <low|medium|high>'
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/claude-route-gate --repo <absolute-repo> --agent-id <host-reported-agent-id> --selected 'claude|anthropic|<model>|<effort>'"
 
 if CLAUDE_CODE_SUBAGENT_MODEL=claude-opus-5 bash "$claude_agent_route" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null 2>&1; then
@@ -101,13 +113,14 @@ if bash "$claude_agent_route" --provider anthropic \
   fail 'Claude route helper accepted a route without a bundled runner'
 fi
 
-grep -F -- 'claude-verify-route' "$guide" >/dev/null ||
-  fail 'Claude launch guide does not require transcript-based route verification'
+grep -F -- 'claude-route-gate' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not require the bounded route gate'
 grep -F -- 'self-report prove neither model nor effort' "$guide" >/dev/null ||
   fail 'Claude launch guide no longer discloses that self-report proves nothing'
 grep -F -- 'still confidently self-report the selected model' "$guide" >/dev/null ||
   fail 'Claude launch guide does not warn that self-report can be wrong'
 test -x "$claude_verify_route" || fail "claude-verify-route is not executable: $claude_verify_route"
+test -x "$claude_route_gate" || fail "claude-route-gate is not executable: $claude_route_gate"
 
 # --- claude-verify-route: synthetic transcript fixtures, no live Agent call ---
 verify_tmp=$(mktemp -d)
@@ -138,9 +151,63 @@ case "$resolved" in
   *) fail 'claude-verify-route did not derive the consistent observed route' ;;
 esac
 
+gate_record=$(CLAUDE_CONFIG_DIR="$verify_tmp" bash "$claude_route_gate" \
+  --repo "$fixture_repo" --agent-id agentgood \
+  --selected 'claude|anthropic|claude-sonnet-5|low')
+case "$gate_record" in
+  $'format\tdarrow-claude-route-gate-v1\nagent_id\tagentgood\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed') ;;
+  *) fail 'claude-route-gate did not bind and confirm the observed Agent route' ;;
+esac
+case "$gate_record" in
+  *transcript*) fail 'claude-route-gate exposed a transcript path' ;;
+esac
+
+untrusted_record=$(DARROW_CLAUDE_ROUTE_TELEMETRY=untrusted \
+  CLAUDE_CONFIG_DIR="$verify_tmp" bash "$claude_route_gate" \
+  --repo "$fixture_repo" --agent-id agentgood \
+  --selected 'claude|anthropic|claude-sonnet-5|low')
+case "$untrusted_record" in
+  $'format\tdarrow-claude-route-gate-v1\nagent_id\tagentgood\nobservation\tunavailable') ;;
+  *) fail 'claude-route-gate trusted telemetry marked untrusted by its host' ;;
+esac
+
+mismatch_record=$(CLAUDE_CONFIG_DIR="$verify_tmp" bash "$claude_route_gate" \
+  --repo "$fixture_repo" --agent-id agentgood \
+  --selected 'claude|anthropic|claude-opus-5|high')
+case "$mismatch_record" in
+  *$'confirmation\trejected') ;;
+  *) fail 'claude-route-gate did not reject a mismatched selected route' ;;
+esac
+
+unavailable_record=$(CLAUDE_CONFIG_DIR="$verify_tmp" bash "$claude_route_gate" \
+  --repo "$fixture_repo" --agent-id agentmissing \
+  --selected 'claude|anthropic|claude-sonnet-5|low')
+case "$unavailable_record" in
+  $'format\tdarrow-claude-route-gate-v1\nagent_id\tagentmissing\nobservation\tunavailable') ;;
+  *) fail 'claude-route-gate did not fail closed on unavailable observation' ;;
+esac
+
 if bash "$claude_verify_route" --repo "$fixture_repo" --agent-id agentmissing \
   --projects-dir "$projects_root" >/dev/null 2>&1; then
   fail 'claude-verify-route accepted an agent id with no transcript evidence'
+fi
+
+mentioned_transcript="$session_dir/mentioned.jsonl"
+printf '%s\n' \
+  '{"parentUuid":null,"isSidechain":true,"message":{"model":"claude-sonnet-5","id":"msg_x","type":"message","role":"assistant","content":[{"type":"text","text":"agentmentioned"}]},"requestId":"req_x","type":"assistant","uuid":"u1","timestamp":"t","effort":"low","session_id":"otheragent","userType":"agent"}' \
+  >"$mentioned_transcript"
+if bash "$claude_verify_route" --repo "$fixture_repo" --agent-id agentmentioned \
+  --projects-dir "$projects_root" >/dev/null 2>&1; then
+  fail 'claude-verify-route accepted an agent id mentioned outside session_id'
+fi
+
+nested_session_transcript="$session_dir/nested-session.jsonl"
+printf '%s\n' \
+  '{"parentUuid":null,"isSidechain":true,"message":{"model":"claude-sonnet-5","id":"msg_x","type":"message","role":"assistant","content":[{"type":"tool_use","input":{"session_id":"agentnested","userType":"agent"}}]},"requestId":"req_x","type":"assistant","uuid":"u1","timestamp":"t","effort":"low","session_id":"otheragent","userType":"agent"}' \
+  >"$nested_session_transcript"
+if bash "$claude_verify_route" --repo "$fixture_repo" --agent-id agentnested \
+  --projects-dir "$projects_root" >/dev/null 2>&1; then
+  fail 'claude-verify-route accepted a nested session_id as transcript ownership'
 fi
 
 mixed_transcript="$session_dir/mixed.jsonl"
@@ -149,16 +216,6 @@ write_turn "$mixed_transcript" agentmixed claude-opus-5 low
 if bash "$claude_verify_route" --repo "$fixture_repo" --agent-id agentmixed \
   --projects-dir "$projects_root" >/dev/null 2>&1; then
   fail 'claude-verify-route accepted inconsistent model evidence across turns'
-fi
-
-# The gate confirm-route provides only rejects a mismatch when fed a real
-# observed value; prove the two compose, not just that each rejects in
-# isolation.
-if bash "$goal_loop" confirm-route \
-  --selected  'claude|anthropic|claude-opus-5|high' \
-  --effective 'claude|anthropic|claude-sonnet-5|high' \
-  --applied-by native-subagent >/dev/null 2>&1; then
-  fail 'confirm-route accepted a transcript-observed model that differs from the selected model'
 fi
 
 printf 'claude launch tests passed\n'
