@@ -1,4 +1,10 @@
 import type { CheckResult, GoalRoute, GoalRouteApplication } from "./types";
+import {
+  parsePausedGoalReport,
+  parseGoalReport,
+  validGoalReportValues,
+  type GoalReport,
+} from "./goal-report";
 
 export interface OrchestrationMetrics {
   childInvocationCount: number;
@@ -90,14 +96,15 @@ const DECLARED_CHILDREN =
 const GOAL_PREFLIGHT_FORMAT = /^format\t(darrow-native-goal-preflight-v[24])$/m;
 const GOAL_PREFLIGHT_V4 = /^format\tdarrow-native-goal-preflight-v4$/m;
 const GOAL_PREFLIGHT_V2 = /^format\tdarrow-native-goal-preflight-v2$/m;
-const GOAL_REPORT_V1 = /^format: darrow-native-goal-report-v1$/m;
+const GOAL_REPORT_V1 = /^format: darrow-native-goal-report-v1[ \t]*$/m;
 const TICKET_PIPELINE_FORMAT = /^format\tdarrow-ticket-pipeline-result-v1$/m;
 const GOAL_LOOP_RESULT = /^format\tdarrow-goal-loop-result-v1$/m;
-const ROUTE_VERIFIED = /^(?:route_verified\ttrue|route_verified: true)$/m;
+const ROUTE_VERIFIED = /^(?:route_verified\ttrue|route_verified: true)[ \t]*$/m;
 const LAUNCH_REQUIRED =
-  /^(?:launch_boundary\tlaunch_required|launch_boundary: launch_required)$/m;
+  /^(?:launch_boundary\tlaunch_required|launch_boundary: launch_required)[ \t]*$/m;
 const CODEX_STREAM_EVENT = /^(thread|turn|item)\./;
 const SHA256 = /^[a-f0-9]{64}$/;
+const NATIVE_GOAL_OWNER_PROMPT = /^- phase: adaptive-goal-runner(?:\r?\n|$)/;
 
 /** Markers a nested Codex session must print to claim it applied the route. */
 const NESTED_APPLICATION_MARKERS = [
@@ -219,16 +226,14 @@ function parseGoalRoute(text: string, field: string): GoalRoute | undefined {
     : undefined;
 }
 
-function parseGoalReportRoute(text: string): GoalRoute | undefined {
-  const harness = matchField(text, /^harness: ([^\n]+)$/m);
-  const model = text.match(/^model: ([^\n]+) > ([^\n]+)$/m);
-  const effort = matchField(text, /^effort: ([^\n]+)$/m);
-  return harness && model && effort
+function parseGoalReportRoute(report: GoalReport): GoalRoute | undefined {
+  const model = report.model.match(/^([^\n]+) > ([^\n]+)$/);
+  return model
     ? {
-        harness,
+        harness: report.harness,
         provider: model[1]!,
         model: model[2]!,
-        effort,
+        effort: report.effort,
       }
     : undefined;
 }
@@ -378,21 +383,6 @@ function goalPreflightV4Fields(
     : undefined;
 }
 
-function goalReportV1Fields(resultText: string): GoalPreflightV4 | undefined {
-  const workflow = matchField(resultText, /^workflow: ([^\n]+)$/m);
-  const risk = memberOf(
-    RISK_LEVELS,
-    matchField(resultText, /^risk: (routine|elevated|high)$/m),
-  );
-  const verificationGate = memberOf(
-    RISK_LEVELS,
-    matchField(resultText, /^verification_gate: (routine|elevated|high)$/m),
-  );
-  return workflow && risk && verificationGate
-    ? { workflow, risk, verificationGate }
-    : undefined;
-}
-
 function goalPreflightBase(resultText: string): GoalPreflight | undefined {
   const profile = matchField(resultText, /^profile\t([^\t\n]+)$/m);
   const selected = parseGoalRoute(resultText, "selected_route");
@@ -424,39 +414,32 @@ function goalPreflightBase(resultText: string): GoalPreflight | undefined {
 }
 
 function goalReportV1Base(resultText: string): GoalPreflight | undefined {
-  const profile = matchField(resultText, /^profile: ([^\n]+)$/m);
-  const route = parseGoalReportRoute(resultText);
-  const appliedBy = memberOf(
-    APPLIED_BY_VALUES,
-    matchField(
-      resultText,
-      /^route_applied_by: (current-thread|host-api|native-subagent|nested-session)$/m,
-    ),
-  );
+  const report =
+    parseGoalReport(resultText) ?? parsePausedGoalReport(resultText);
+  if (!validGoalReportValues(report)) return undefined;
+  const route = parseGoalReportRoute(report!);
+  const appliedBy = memberOf(APPLIED_BY_VALUES, report!.route_applied_by);
   const launchBoundary = memberOf(
     LAUNCH_BOUNDARY_VALUES,
-    matchField(
-      resultText,
-      /^launch_boundary: (same_thread|host_api|native_subagent|nested_session)$/m,
-    ),
+    report!.launch_boundary,
   );
-  if (!profile || !route || !appliedBy || !launchBoundary) return undefined;
+  const risk = memberOf(RISK_LEVELS, report!.risk);
+  const verificationGate = memberOf(RISK_LEVELS, report!.verification_gate);
+  if (!route || !appliedBy || !launchBoundary || !risk || !verificationGate)
+    return undefined;
   return {
-    profile,
+    profile: report!.profile,
     selected: route,
     effective: route,
     appliedBy,
     launchBoundary,
-    declaredChildren: declaredChildCount(resultText),
+    declaredChildren: Number(report!.evaluation_child_invocations),
+    v4: { workflow: report!.workflow, risk, verificationGate },
   };
 }
 
 function parseGoalPreflight(resultText: string): GoalPreflight | undefined {
-  if (GOAL_REPORT_V1.test(resultText)) {
-    const base = goalReportV1Base(resultText);
-    const v4 = goalReportV1Fields(resultText);
-    return base && v4 ? { ...base, v4 } : undefined;
-  }
+  if (GOAL_REPORT_V1.test(resultText)) return goalReportV1Base(resultText);
   const format = matchField(resultText, GOAL_PREFLIGHT_FORMAT);
   if (!format) return undefined;
   const base = goalPreflightBase(resultText);
@@ -582,11 +565,25 @@ export function observeCodexGoalRouteApplication(
 }
 
 /** The check produced when the goal stopped before launching anything. */
-function goalLaunchRequiredCheck(resultText: string): CheckResult | undefined {
+function observedGoalSpawn(raw: string): boolean {
+  return jsonlEvents(raw).some((event) => {
+    const item = recordOf(event.item);
+    return (
+      (item.type === "collab_tool_call" ||
+        item.type === "collabAgentToolCall") &&
+      (item.tool === "spawn_agent" || item.tool === "spawnAgent")
+    );
+  });
+}
+
+function goalLaunchRequiredCheck(
+  resultText: string,
+  raw: string,
+): CheckResult | undefined {
   if (!LAUNCH_REQUIRED.test(resultText)) return undefined;
-  const stoppedWithoutRoute = LAUNCH_REQUIRED_MARKERS.every((marker) =>
-    marker.test(resultText),
-  );
+  const stoppedWithoutRoute =
+    !observedGoalSpawn(raw) &&
+    LAUNCH_REQUIRED_MARKERS.every((marker) => marker.test(resultText));
   return {
     name: "goal stopped without claiming an unapplied route",
     passed: stoppedWithoutRoute,
@@ -626,12 +623,14 @@ function goalBoundaryMatches(
   observed: GoalRouteApplication,
   declaredChildren: number,
   effectiveMatchesCurrentTurn: boolean,
+  raw: string,
 ): boolean {
   const expected = GOAL_BOUNDARY_EXPECTATIONS[observed.launchBoundary];
   return (
     expected !== undefined &&
     observed.appliedBy === expected.appliedBy &&
     declaredChildren === expected.children &&
+    (expected.children !== 0 || !observedGoalSpawn(raw)) &&
     (expected.sameTurn === undefined ||
       expected.sameTurn === effectiveMatchesCurrentTurn)
   );
@@ -644,10 +643,6 @@ function goalRouteApplicationVerified(
   hostRoute: HostRoute,
 ): boolean {
   if (!observed) return false;
-  const nativeRoute =
-    observed.launchBoundary === "native_subagent"
-      ? nativeGoalAgentRoute(raw)
-      : undefined;
   const checks = [
     ROUTE_VERIFIED.test(resultText),
     hostWorkflowVerified(
@@ -655,14 +650,13 @@ function goalRouteApplicationVerified(
       observed,
     ),
     observed.launchBoundary !== "native_subagent" ||
-      (nativeRoute !== undefined &&
-        sameGoalRoute(observed.selected, nativeRoute) &&
-        sameGoalRoute(observed.effective, nativeRoute)),
+      nativeGoalRouteMatches(raw, observed.effective),
     sameGoalRoute(observed.selected, observed.effective),
     goalBoundaryMatches(
       observed,
-      declaredChildCount(resultText),
+      observed.childInvocationCount,
       effectiveRouteMatchesHost(observed, hostRoute),
+      raw,
     ),
   ];
   return checks.every(Boolean);
@@ -677,7 +671,7 @@ export function reconcileObservedGoalRouteApplication(
     GOAL_PREFLIGHT_V4.test(resultText) || GOAL_REPORT_V1.test(resultText);
   if (!hasWorkflowReport && !GOAL_PREFLIGHT_V2.test(resultText))
     return undefined;
-  const launchRequired = goalLaunchRequiredCheck(resultText);
+  const launchRequired = goalLaunchRequiredCheck(resultText, raw);
   if (launchRequired) return launchRequired;
   const observed = observeCodexGoalRouteApplication(resultText, raw);
   const passed = goalRouteApplicationVerified(
@@ -687,12 +681,12 @@ export function reconcileObservedGoalRouteApplication(
     hostRoute,
   );
   return {
-    name: "harness-observed goal route matches selected model and effort",
+    name: "goal route report matches the observable application boundary",
     passed,
     detail: passed
       ? `${observed!.effective.model}/${observed!.effective.effort} via ${observed!.appliedBy}${
           observed!.launchBoundary === "native_subagent"
-            ? `; cleanup=${nativeGoalAgentsClosed(raw) ? "closed" : "not-closed"}`
+            ? `; route-telemetry=boundary-only; cleanup=${nativeGoalAgentsClosed(raw) ? "closed" : "not-closed"}`
             : ""
         }`
       : "selected/effective route or application boundary was not observed",
@@ -733,46 +727,195 @@ function closedChildThreadId(
   return completedCollabThreadId(event, ["close_agent", "closeAgent"]);
 }
 
-/** `undefined` means this is not a native spawn request; `null` is malformed. */
-function nativeGoalSpawnRequest(
+/** One ownership-marked accepted start/completion pair is the application
+ * evidence Codex CLI exposes. Its stream currently redacts model, effort, and
+ * fork arguments. */
+function nativeGoalSpawnStarted(
   event: Record<string, unknown>,
-): GoalRoute | null | undefined {
-  const item = recordOf(event.item);
-  const isSpawn =
-    item.type === "collab_tool_call" || item.type === "collabAgentToolCall";
-  const isStartedSpawn =
+  item: Record<string, unknown>,
+): boolean {
+  return (
     event.type === "item.started" &&
-    isSpawn &&
-    (item.tool === "spawn_agent" || item.tool === "spawnAgent");
-  if (!isStartedSpawn) return undefined;
-  if (
-    typeof item.model !== "string" ||
-    typeof item.reasoning_effort !== "string" ||
-    item.fork_turns !== "none"
-  )
-    return null;
-  return {
-    harness: "codex",
-    provider: "openai",
-    model: item.model,
-    effort: item.reasoning_effort,
+    (item.type === "collab_tool_call" || item.type === "collabAgentToolCall") &&
+    (item.tool === "spawn_agent" || item.tool === "spawnAgent") &&
+    item.status === "in_progress"
+  );
+}
+
+function collaborationSenderThreadId(
+  item: Record<string, unknown>,
+): string | undefined {
+  const sender = item.sender_thread_id ?? item.senderThreadId;
+  return typeof sender === "string" && sender ? sender : undefined;
+}
+
+function nativeGoalSpawnKind(
+  prompt: unknown,
+  ownerStarted: boolean,
+): "owner" | "descendant" | undefined {
+  if (typeof prompt !== "string") return undefined;
+  if (NATIVE_GOAL_OWNER_PROMPT.test(prompt)) return "owner";
+  return ownerStarted ? "descendant" : undefined;
+}
+
+interface NativeGoalSpawnState {
+  ownerStarted: boolean;
+  ownerCompleted: boolean;
+  goalThreads: Set<string>;
+  ownerAttestation?: NativeGoalSpawnAttestation;
+  objectiveReleased: boolean;
+  pending?: {
+    kind: "owner" | "descendant";
+    sender: string;
+    attestation?: NativeGoalSpawnAttestation;
   };
 }
 
-/** Route of the first accepted native goal-runner spawn. A started request
- * must carry the explicit route and be followed by its completed spawn. */
-function nativeGoalAgentRoute(raw: string): GoalRoute | undefined {
-  let requested: GoalRoute | undefined;
-  for (const event of jsonlEvents(raw)) {
-    const request = nativeGoalSpawnRequest(event);
-    if (request !== undefined) {
-      if (request === null || requested) return undefined;
-      requested = request;
-      continue;
-    }
-    if (spawnedChildThreadId(event)) return requested;
+interface NativeGoalSpawnAttestation {
+  model: string;
+  effort: string;
+  forkTurns: "none";
+  requestSha256: string;
+  objectiveSha256: string;
+  contractSha256: string;
+  baselineSha256: string;
+  fixtureStateSha256: string;
+  objectiveMode: "inline" | "file-backed";
+}
+
+function nativeGoalSpawnAttestation(
+  item: Record<string, unknown>,
+): NativeGoalSpawnAttestation | undefined {
+  const proof = recordOf(item.goal_spawn_attestation);
+  const valid = [
+    typeof proof.model === "string",
+    typeof proof.effort === "string",
+    proof.forkTurns === "none",
+    SHA256.test(stringOr(proof.requestSha256, "")),
+    SHA256.test(stringOr(proof.objectiveSha256, "")),
+    SHA256.test(stringOr(proof.contractSha256, "")),
+    SHA256.test(stringOr(proof.baselineSha256, "")),
+    SHA256.test(stringOr(proof.fixtureStateSha256, "")),
+    proof.objectiveMode === "inline" || proof.objectiveMode === "file-backed",
+  ].every(Boolean);
+  return valid ? (proof as unknown as NativeGoalSpawnAttestation) : undefined;
+}
+
+function sameNativeGoalSpawnAttestation(
+  left: NativeGoalSpawnAttestation | undefined,
+  right: NativeGoalSpawnAttestation | undefined,
+): boolean {
+  return !!left && !!right && JSON.stringify(left) === JSON.stringify(right);
+}
+
+function permittedNativeGoalSpawnStart(
+  state: NativeGoalSpawnState,
+  kind: "owner" | "descendant" | undefined,
+  sender: string | undefined,
+  attestation: NativeGoalSpawnAttestation | undefined,
+): boolean {
+  return [
+    !state.pending,
+    !!kind,
+    !!sender,
+    kind !== "owner" || (!state.ownerStarted && !!attestation),
+    kind !== "descendant" ||
+      (state.ownerCompleted && !!sender && state.goalThreads.has(sender)),
+  ].every(Boolean);
+}
+
+function startNativeGoalSpawn(
+  state: NativeGoalSpawnState,
+  item: Record<string, unknown>,
+): boolean {
+  const kind = nativeGoalSpawnKind(item.prompt, state.ownerStarted);
+  const sender = collaborationSenderThreadId(item);
+  const attestation = nativeGoalSpawnAttestation(item);
+  if (!permittedNativeGoalSpawnStart(state, kind, sender, attestation))
+    return false;
+  if (kind === "owner") state.ownerStarted = true;
+  state.pending = { kind: kind!, sender: sender!, attestation };
+  return true;
+}
+
+function completeNativeGoalSpawn(
+  state: NativeGoalSpawnState,
+  event: Record<string, unknown>,
+): boolean {
+  const child = spawnedChildThreadId(event);
+  const item = recordOf(event.item);
+  const sender = collaborationSenderThreadId(item);
+  const attestation = nativeGoalSpawnAttestation(item);
+  if (!state.pending || !child || sender !== state.pending.sender) return false;
+  if (
+    state.pending.kind === "owner" &&
+    !sameNativeGoalSpawnAttestation(state.pending.attestation, attestation)
+  )
+    return false;
+  if (state.pending.kind === "owner") {
+    state.ownerCompleted = true;
+    state.ownerAttestation = attestation;
   }
-  return undefined;
+  state.goalThreads.add(child);
+  state.pending = undefined;
+  return true;
+}
+
+function nativeGoalAgentAttestation(
+  raw: string,
+): NativeGoalSpawnAttestation | undefined {
+  const state: NativeGoalSpawnState = {
+    ownerStarted: false,
+    ownerCompleted: false,
+    objectiveReleased: false,
+    goalThreads: new Set<string>(),
+  };
+  for (const event of jsonlEvents(raw)) {
+    if (!acceptNativeGoalEvent(state, event)) return undefined;
+  }
+  return completedNativeGoalAttestation(state);
+}
+
+function acceptNativeGoalEvent(
+  state: NativeGoalSpawnState,
+  event: Record<string, unknown>,
+): boolean {
+  if (
+    event.type === "darrow.parent_tool_before_goal" ||
+    event.type === "darrow.parent_tool_after_goal"
+  )
+    return false;
+  if (event.type === "darrow.objective_release") {
+    state.objectiveReleased =
+      event.status === "completed" &&
+      event.contract_sha256 === state.ownerAttestation?.contractSha256;
+    return state.objectiveReleased;
+  }
+  const item = recordOf(event.item);
+  if (nativeGoalSpawnStarted(event, item))
+    return startNativeGoalSpawn(state, item);
+  return !spawnedChildThreadId(event) || completeNativeGoalSpawn(state, event);
+}
+
+function completedNativeGoalAttestation(
+  state: NativeGoalSpawnState,
+): NativeGoalSpawnAttestation | undefined {
+  const proof = state.ownerAttestation;
+  const completed =
+    state.ownerStarted && state.ownerCompleted && !state.pending;
+  const cleaned =
+    proof?.objectiveMode !== "file-backed" || state.objectiveReleased;
+  return completed && cleaned ? proof : undefined;
+}
+
+function nativeGoalRouteMatches(raw: string, route: GoalRoute): boolean {
+  const proof = nativeGoalAgentAttestation(raw);
+  return (
+    route.harness === "codex" &&
+    route.provider === "openai" &&
+    proof?.model === route.model &&
+    proof.effort === route.effort
+  );
 }
 
 /** Every observed native child must be closed once, after its matching spawn. */

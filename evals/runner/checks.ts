@@ -48,6 +48,39 @@ function regexFlags(check: { flags?: string }): string {
   return "m" + (check.flags ?? "");
 }
 
+type RegexCheck = {
+  name: string;
+  expect_regex?: string;
+  not_regex?: string;
+  after_regex?: string;
+  flags?: string;
+};
+
+/** Compile declared patterns before an eval spends a harness call on them. */
+export function validateRegexChecks(
+  checks: RegexCheck[],
+  scope: string,
+): string[] {
+  const failures: string[] = [];
+  for (const check of checks) {
+    for (const field of ["expect_regex", "not_regex", "after_regex"] as const) {
+      const pattern = check[field];
+      if (pattern === undefined) continue;
+      try {
+        const flags =
+          field === "after_regex"
+            ? regexFlags(check).replaceAll("g", "") + "g"
+            : regexFlags(check);
+        new RegExp(pattern, flags);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        failures.push(`${scope} ${check.name}: invalid ${field}: ${detail}`);
+      }
+    }
+  }
+  return failures;
+}
+
 interface OutputContext {
   text: string;
   parsed: unknown;

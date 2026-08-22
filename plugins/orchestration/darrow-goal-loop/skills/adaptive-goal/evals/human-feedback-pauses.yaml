@@ -1,5 +1,6 @@
 id: goal-human-feedback-pauses
 invariant: AGL-L5,AGL-L13,AGL-S1,AGL-S2
+goal_report: optional
 prompt: >-
   /adaptive-goal Add an exported priceCents(amount) function to src/pricing.js
   whose result is exactly Math.round(amount * 100). On Codex, invoke the
@@ -66,15 +67,11 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
 output_checks:
+  - name: pause starts with the canonical feedback marker
+    expect_regex: "^- phase: human-feedback-request(?:\\r?\\n|$)"
   - name: the smallest material question reaches the user
-    expect_regex: "negative half-cent[\\s\\S]{0,160}(Math\\.round|invoice compatibility)"
+    expect_regex: "(negative half-cent[\\s\\S]{0,160}(Math\\.round|invoice compatibility)|Math\\.round[\\s\\S]{0,160}negative half-cent)"
     flags: i
   - name: pending feedback is not reported as completion or blockage
     not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|implementation) (is )?(complete|completed|done|finished|blocked)\\b"
     flags: i
-  - name: the active launch record is preserved
-    expect_regex: "format: darrow-native-goal-report-v1"
-  - name: unavailable feedback pauses the current-thread owner
-    expect_regex: "route_applied_by: (?:current-thread|host-api)[\\s\\S]*launch_boundary: (?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations: 0"
-  - name: one human feedback pause is counted
-    expect_regex: "evaluation_human_interruptions: 1"

@@ -6,7 +6,10 @@ prompt: >-
   local work, but I explicitly require independent code review before
   completion. Acceptance is that `bash check.sh` passes. If review is
   unavailable or inconclusive, stop, report the evidence gap, and do not commit,
-  push, or open a pull request. Select and apply the policy route.
+  push, or open a pull request. A blocked result must still begin with the
+  skill's complete ordered 13-field `format: darrow-native-goal-report-v1`
+  report; do not abbreviate it, drop route/boundary/counter fields, or add a
+  substitute `status:` field. Select and apply the policy route.
 fixture:
   commits:
     - message: "chore: init"

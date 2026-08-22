@@ -8,7 +8,46 @@ import {
   reconcileObservedTicketPipelineRoutes,
 } from "./orchestration-metrics";
 
+const CODEX_ROUTE = {
+  harness: "codex" as const,
+  model: "gpt-5.6-terra",
+  effort: "low",
+};
+
+function reconcileGoalRoute(result: string, raw: string) {
+  return reconcileObservedGoalRouteApplication(result, raw, CODEX_ROUTE)!;
+}
+
 describe("orchestration outcome metrics", () => {
+  test("requires every zero-child stop to have no observed spawn attempt", () => {
+    const stopped = [
+      "format: darrow-native-goal-report-v1",
+      "workflow: change-feature",
+      "risk: routine",
+      "profile: routine",
+      "harness: none",
+      "model: none > none",
+      "effort: none",
+      "route_applied_by: none",
+      "route_verified: false",
+      "launch_boundary: launch_required",
+      "verification_gate: not-applicable",
+      "evaluation_child_invocations: 0",
+      "evaluation_human_interruptions: 1",
+    ].join("\n");
+    const spawn = JSON.stringify({
+      type: "item.started",
+      item: {
+        type: "collab_tool_call",
+        tool: "spawn_agent",
+        status: "in_progress",
+        prompt: "unmarked generic helper",
+      },
+    });
+    expect(reconcileGoalRoute(stopped, "").passed).toBe(true);
+    expect(reconcileGoalRoute(stopped, spawn).passed).toBe(false);
+  });
+
   test("counts child routes, interruptions, and failed quality oracles", () => {
     const result = [
       "format\tdarrow-goal-loop-result-v1",
@@ -256,6 +295,22 @@ describe("orchestration outcome metrics", () => {
         effort: "low",
       })?.passed,
     ).toBe(true);
+    const unmarkedSpawn = JSON.stringify({
+      type: "item.started",
+      item: {
+        type: "collab_tool_call",
+        tool: "spawn_agent",
+        status: "in_progress",
+        prompt: "generic helper",
+      },
+    });
+    expect(
+      reconcileObservedGoalRouteApplication(sameThread, unmarkedSpawn, {
+        harness: "codex",
+        model: "gpt-5.6-terra",
+        effort: "low",
+      })?.passed,
+    ).toBe(false);
     expect(
       reconcileObservedGoalRouteApplication(sameThread, "", {
         harness: "codex",
@@ -268,7 +323,7 @@ describe("orchestration outcome metrics", () => {
       "format: darrow-native-goal-report-v1",
       "workflow: change-feature",
       "risk: elevated",
-      "profile: standard",
+      "profile: judgment",
       "harness: codex",
       "model: openai > gpt-5.6-sol",
       "effort: medium",
@@ -319,7 +374,7 @@ describe("orchestration outcome metrics", () => {
       }),
     ].join("\n");
     expect(observeCodexGoalRouteApplication(hostApi, hostRaw)).toEqual({
-      profile: "standard",
+      profile: "judgment",
       selected: {
         harness: "codex",
         provider: "openai",
@@ -414,6 +469,17 @@ describe("orchestration outcome metrics", () => {
       childInputTokens: 0,
       childOutputTokens: 0,
     });
+    const goalSpawnAttestation = {
+      model: "gpt-5.6-sol",
+      effort: "high",
+      forkTurns: "none",
+      requestSha256: "0".repeat(64),
+      objectiveSha256: "1".repeat(64),
+      contractSha256: "2".repeat(64),
+      baselineSha256: "3".repeat(64),
+      fixtureStateSha256: "4".repeat(64),
+      objectiveMode: "inline",
+    };
     const spawn = [
       JSON.stringify({
         type: "item.started",
@@ -421,10 +487,10 @@ describe("orchestration outcome metrics", () => {
           type: "collab_tool_call",
           tool: "spawn_agent",
           status: "in_progress",
+          sender_thread_id: "parent-thread",
           receiver_thread_ids: [],
-          model: "gpt-5.6-sol",
-          reasoning_effort: "high",
-          fork_turns: "none",
+          prompt: "- phase: adaptive-goal-runner\nexact goal contract",
+          goal_spawn_attestation: goalSpawnAttestation,
         },
       }),
       JSON.stringify({
@@ -433,7 +499,9 @@ describe("orchestration outcome metrics", () => {
           type: "collab_tool_call",
           tool: "spawn_agent",
           status: "completed",
+          sender_thread_id: "parent-thread",
           receiver_thread_ids: ["adaptive-goal-runner-thread"],
+          goal_spawn_attestation: goalSpawnAttestation,
         },
       }),
     ].join("\n");
@@ -447,85 +515,130 @@ describe("orchestration outcome metrics", () => {
       },
     });
 
+    expect(reconcileGoalRoute(result, spawn).passed).toBe(true);
     expect(
-      reconcileObservedGoalRouteApplication(result, spawn, {
-        harness: "codex",
-        model: "gpt-5.6-terra",
-        effort: "low",
-      })?.passed,
-    ).toBe(true);
-    expect(
-      reconcileObservedGoalRouteApplication(
+      reconcileGoalRoute(
         result,
-        spawn.replace('"model":"gpt-5.6-sol"', '"model":"wrong"'),
-        { harness: "codex", model: "gpt-5.6-terra", effort: "low" },
-      )?.passed,
+        spawn.replaceAll('"model":"gpt-5.6-sol"', '"model":"gpt-5.5"'),
+      ).passed,
     ).toBe(false);
     expect(
-      reconcileObservedGoalRouteApplication(result, spawn.split("\n")[1]!, {
-        harness: "codex",
-        model: "gpt-5.6-terra",
-        effort: "low",
-      })?.passed,
+      reconcileGoalRoute(
+        result,
+        spawn.replaceAll(
+          `,"goal_spawn_attestation":${JSON.stringify(goalSpawnAttestation)}`,
+          "",
+        ),
+      ).passed,
     ).toBe(false);
     expect(
-      reconcileObservedGoalRouteApplication(result, spawn, {
-        harness: "codex",
-        model: "gpt-5.6-terra",
-        effort: "low",
-      })?.detail,
-    ).toContain("cleanup=not-closed");
-    expect(
-      reconcileObservedGoalRouteApplication(result, [close, spawn].join("\n"), {
-        harness: "codex",
-        model: "gpt-5.6-terra",
-        effort: "low",
-      })?.passed,
+      reconcileGoalRoute(
+        result
+          .split("\n")
+          .map((line) => `${line}  `)
+          .join("\n"),
+        spawn,
+      ).passed,
     ).toBe(true);
+    expect(reconcileGoalRoute(result, spawn.split("\n")[1]!).passed).toBe(
+      false,
+    );
     expect(
-      reconcileObservedGoalRouteApplication(result, [spawn, close].join("\n"), {
-        harness: "codex",
-        model: "gpt-5.6-terra",
-        effort: "low",
-      })?.passed,
-    ).toBe(true);
+      reconcileGoalRoute(
+        result,
+        spawn.replace(
+          "- phase: adaptive-goal-runner\\nexact goal contract",
+          "unrelated helper",
+        ),
+      ).passed,
+    ).toBe(false);
     expect(
-      reconcileObservedGoalRouteApplication(result, [spawn, close].join("\n"), {
-        harness: "codex",
-        model: "gpt-5.6-terra",
-        effort: "low",
-      })?.detail,
+      reconcileGoalRoute(
+        result,
+        spawn.replace(
+          "- phase: adaptive-goal-runner\\nexact goal contract",
+          "unrelated helper\\n- phase: adaptive-goal-runner",
+        ),
+      ).passed,
+    ).toBe(false);
+    expect(reconcileGoalRoute(result, spawn).detail).toContain(
+      "route-telemetry=boundary-only",
+    );
+    expect(reconcileGoalRoute(result, spawn).detail).toContain(
+      "cleanup=not-closed",
+    );
+    expect(reconcileGoalRoute(result, [close, spawn].join("\n")).passed).toBe(
+      true,
+    );
+    expect(reconcileGoalRoute(result, [spawn, close].join("\n")).passed).toBe(
+      true,
+    );
+    expect(
+      reconcileGoalRoute(result, [spawn, close].join("\n")).detail,
     ).toContain("cleanup=closed");
 
-    const descendantSpawn = spawn.replace(
-      "adaptive-goal-runner-thread",
-      "native-descendant-thread",
-    );
+    const descendantSpawn = spawn
+      .replace(
+        "- phase: adaptive-goal-runner\\nexact goal contract",
+        "bounded native task",
+      )
+      .replaceAll("parent-thread", "adaptive-goal-runner-thread")
+      .replace('adaptive-goal-runner-thread"],', 'native-descendant-thread"],');
     const descendantClose = close.replace(
       "adaptive-goal-runner-thread",
       "native-descendant-thread",
     );
     expect(
-      reconcileObservedGoalRouteApplication(
-        result,
-        [spawn, descendantSpawn, close].join("\n"),
-        {
-          harness: "codex",
-          model: "gpt-5.6-terra",
-          effort: "low",
-        },
-      )?.passed,
+      reconcileGoalRoute(result, [spawn, descendantSpawn, close].join("\n"))
+        .passed,
     ).toBe(true);
     expect(
-      reconcileObservedGoalRouteApplication(
+      reconcileGoalRoute(
         result,
         [spawn, descendantSpawn, descendantClose, close].join("\n"),
-        {
-          harness: "codex",
-          model: "gpt-5.6-terra",
-          effort: "low",
-        },
-      )?.passed,
+      ).passed,
+    ).toBe(true);
+    expect(
+      reconcileGoalRoute(
+        result,
+        [
+          spawn,
+          descendantSpawn.replaceAll(
+            '"sender_thread_id":"adaptive-goal-runner-thread"',
+            '"sender_thread_id":"parent-thread"',
+          ),
+          close,
+        ].join("\n"),
+      ).passed,
+    ).toBe(false);
+    expect(
+      reconcileGoalRoute(result, [spawn, spawn, close].join("\n")).passed,
+    ).toBe(false);
+    expect(
+      reconcileGoalRoute(
+        result,
+        [
+          spawn,
+          JSON.stringify({
+            type: "darrow.parent_tool_after_goal",
+            operation: "command_execution",
+          }),
+          close,
+        ].join("\n"),
+      ).passed,
+    ).toBe(false);
+    const fileBackedSpawn = spawn.replaceAll(
+      '"objectiveMode":"inline"',
+      '"objectiveMode":"file-backed"',
+    );
+    const release = JSON.stringify({
+      type: "darrow.objective_release",
+      status: "completed",
+      contract_sha256: goalSpawnAttestation.contractSha256,
+    });
+    expect(reconcileGoalRoute(result, fileBackedSpawn).passed).toBe(false);
+    expect(
+      reconcileGoalRoute(result, [fileBackedSpawn, release].join("\n")).passed,
     ).toBe(true);
   });
 });

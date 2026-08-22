@@ -48,10 +48,37 @@ checks:
       '1.2.3+build', ' 1.2.3 ', '1.2.3.4']) {
       if (isStableVersion(value)) process.exit(1) } })"
   - name: focused tests are durable
-    run: >-
-      grep -F '0.0.0' test/version.test.js >/dev/null &&
-      grep -F '01.2.3' test/version.test.js >/dev/null &&
-      grep -F '1.2.3-beta' test/version.test.js >/dev/null &&
+    run: |
+      set -eu
+      probe=.git/version-test-probe
+      mkdir -p "$probe/src" "$probe/test"
+      cp package.json "$probe/package.json"
+      cp test/version.test.js "$probe/test/version.test.js"
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*$/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^[0-9]+\.[0-9]+\.[0-9]+$/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
       bash test.sh >/dev/null
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1

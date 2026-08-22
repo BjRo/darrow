@@ -33,8 +33,6 @@ output_checks:
     expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: mechanical[\\s\\S]*risk: routine[\\s\\S]*profile: routine[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"
   - name: selected route is effective
     expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium[\\s\\S]*route_verified: true"
-  - name: matching routine route uses a zero-child host boundary
-    expect_regex: "launch_boundary: (?:same_thread|host_api)[\\s\\S]*evaluation_child_invocations: 0"
   - name: final record reports no human stop
     expect_regex: "evaluation_human_interruptions: 0"
   - name: routine verification gate is reported

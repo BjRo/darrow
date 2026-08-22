@@ -35,7 +35,12 @@ require_text "$guide" 'materialize-objective'
 require_text "$guide" 'before the first `create_goal` call'
 # shellcheck disable=SC2016 # literal Markdown code span
 require_text "$guide" 'Do not retry `create_goal`'
+require_text "$guide" 'Initial independent review: blocking —'
+require_text "$guide" 'Fix verification: <outcome>.'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'Do not run `confirm-route`'
 require_text "$skill" 'without requiring a close control'
+require_text "$skill" 'The creator never runs'
 require_text "$skill" 'file-backed objective'
 require_text "$readme" 'exposes a close control, closes each child'
 

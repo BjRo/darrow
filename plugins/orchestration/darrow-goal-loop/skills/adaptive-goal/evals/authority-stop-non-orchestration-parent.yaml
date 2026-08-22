@@ -1,5 +1,6 @@
 id: goal-preflight-authority-stop-non-orchestration-parent
 invariant: AGL-X3,AGL-S1
+goal_report: forbidden
 prompt: >-
   /non-orchestration-parent Change auth.js from role checks to an unspecified
   new authorization policy. On Codex, invoke the

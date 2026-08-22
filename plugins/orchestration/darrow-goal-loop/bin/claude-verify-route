@@ -77,16 +77,17 @@ session_dir="$projects_dir/$slug"
 test -d "$session_dir" || die "no session transcripts for repo: $session_dir"
 
 transcript=
+session_owner="\"session_id\":\"$agent_id\",\"userType\":\"agent\"}$"
 for candidate in "$session_dir"/*/subagents/*.jsonl "$session_dir"/*.jsonl; do
  test -r "$candidate" || continue
- if grep -q -F -- "$agent_id" "$candidate" 2>/dev/null; then
+ if grep -q -E -- "$session_owner" "$candidate" 2>/dev/null; then
   transcript=$candidate
   break
  fi
 done
 test -n "$transcript" || die "no transcript evidence found for agent $agent_id under $session_dir"
 
-matches=$(grep -F -- "$agent_id" "$transcript" | grep -F -- '"type":"assistant"') || true
+matches=$(grep -E -- "$session_owner" "$transcript" | grep -F -- '"type":"assistant"') || true
 test -n "$matches" || die "no assistant turns recorded for agent $agent_id in $transcript"
 
 models=$(printf '%s\n' "$matches" | grep -E -o '"message":\{"model":"[^"]*"' | sed -E 's/.*"model":"([^"]*)"/\1/' | sort -u) || true

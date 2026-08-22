@@ -64,6 +64,33 @@ test "$inline_contract" = "$inline_objective" ||
   fail "inline objective did not use the complete contract"
 cmp -s "$inline_goal" "$inline_objective" ||
   fail "inline objective changed the contract"
+inline_digest=$(record_value "$inline_out" contract_sha256)
+if bash "$goal_loop" release-staging --goal-file "$inline_goal" \
+  --expected-sha256 0000000000000000000000000000000000000000000000000000000000000000 \
+  >/dev/null 2>&1; then
+  fail "staging cleanup accepted mismatched provenance"
+fi
+test -e "$inline_goal" ||
+  fail "refused staging cleanup still removed the contract"
+bash "$goal_loop" release-staging --goal-file "$inline_goal" \
+  --expected-sha256 "$inline_digest" >/dev/null
+test ! -e "$inline_goal" || fail "inline staging file was not removed"
+
+forced_goal="$staging/forced-goal.md"
+printf '%s\n' 'small complete contract' >"$forced_goal"
+forced_out=$(bash "$goal_loop" materialize-objective --force-file-backed \
+  --repo "$repo" --goal-file "$forced_goal")
+test "$(record_value "$forced_out" mode)" = file-backed ||
+  fail "forced small objective was not file-backed"
+forced_contract=$(record_value "$forced_out" contract_file)
+forced_attachment=$(record_value "$forced_out" attachment_dir)
+forced_digest=$(record_value "$forced_out" contract_sha256)
+cmp -s "$forced_goal" "$forced_contract" ||
+  fail "forced file-backed contract changed the staged bytes"
+bash "$goal_loop" release-staging --goal-file "$forced_goal" \
+  --expected-sha256 "$forced_digest" >/dev/null
+bash "$goal_loop" release-objective --attachment-dir "$forced_attachment" \
+  --expected-sha256 "$forced_digest" >/dev/null
 
 large_goal="$staging/large-goal.md"
 dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' y >"$large_goal"
@@ -93,6 +120,9 @@ case "$large_contract/" in
 esac
 cmp -s "$large_goal" "$large_contract" ||
   fail "file-backed contract was not copied byte-for-byte"
+bash "$goal_loop" release-staging --goal-file "$large_goal" \
+  --expected-sha256 "$large_digest" >/dev/null
+test ! -e "$large_goal" || fail "file-backed staging file was not removed"
 test "$(file_mode "$large_contract")" = 600 ||
   fail "file-backed contract permissions were not restrictive"
 test "$(file_mode "$(dirname -- "$large_contract")")" = 700 ||
@@ -103,6 +133,8 @@ grep -F -- "$large_digest" "$large_objective" >/dev/null ||
   fail "native objective did not contain the expected digest"
 grep -F -- 'Before doing any work' "$large_objective" >/dev/null ||
   fail "native objective did not require pre-work loading"
+grep -F -- 'already makes you the sole goal owner' "$large_objective" >/dev/null ||
+  fail "native objective did not establish direct receiver ownership"
 grep -F -- 'stop and report the evidence gap' "$large_objective" >/dev/null ||
   fail "native objective did not fail closed"
 bash "$goal_loop" release-objective --attachment-dir "$large_attachment" \
@@ -110,9 +142,12 @@ bash "$goal_loop" release-objective --attachment-dir "$large_attachment" \
 test ! -e "$large_attachment" ||
   fail "released goal attachment still exists"
 
+dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' y >"$large_goal"
 unsafe_out=$(bash "$goal_loop" materialize-objective \
   --repo "$repo" --goal-file "$large_goal")
 unsafe_attachment=$(record_value "$unsafe_out" attachment_dir)
+bash "$goal_loop" release-staging --goal-file "$large_goal" \
+  --expected-sha256 "$(record_value "$unsafe_out" contract_sha256)" >/dev/null
 printf 'unexpected\n' >"$unsafe_attachment/unrelated.txt"
 if bash "$goal_loop" release-objective \
   --attachment-dir "$unsafe_attachment" \
@@ -128,7 +163,8 @@ bash "$goal_loop" release-objective --attachment-dir "$unsafe_attachment" \
 
 outside_attachment="$tmp_root/darrow-goal-contract.docs"
 mkdir -p "$outside_attachment"
-cp "$large_goal" "$outside_attachment/goal-contract.md"
+dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' y \
+  >"$outside_attachment/goal-contract.md"
 printf 'unrelated objective\n' >"$outside_attachment/goal-objective.txt"
 if outside_error=$(bash "$goal_loop" release-objective \
   --attachment-dir "$outside_attachment" \
@@ -142,10 +178,13 @@ esac
 test -e "$outside_attachment/goal-contract.md" ||
   fail "out-of-root cleanup refusal still deleted the contract"
 
+dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' y >"$large_goal"
 provenance_out=$(bash "$goal_loop" materialize-objective \
   --repo "$repo" --goal-file "$large_goal")
 provenance_attachment=$(record_value "$provenance_out" attachment_dir)
 provenance_digest=$(record_value "$provenance_out" contract_sha256)
+bash "$goal_loop" release-staging --goal-file "$large_goal" \
+  --expected-sha256 "$provenance_digest" >/dev/null
 if bash "$goal_loop" release-objective \
   --attachment-dir "$provenance_attachment" \
   --expected-sha256 0000000000000000000000000000000000000000000000000000000000000000 \
@@ -167,6 +206,7 @@ EOF
 chmod +x "$hash_bin/shasum"
 hash_tmp="$tmp_root/hash-tmp"
 mkdir -p "$hash_tmp"
+dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' y >"$large_goal"
 if TMPDIR="$hash_tmp" PATH="$hash_bin:$PATH" \
   bash "$goal_loop" materialize-objective \
   --repo "$repo" --goal-file "$large_goal" >/dev/null 2>&1; then

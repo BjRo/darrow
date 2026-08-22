@@ -1,5 +1,5 @@
 import { mkdtemp, writeFile, mkdir, cp, rm, readdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { Fixture } from "./types";
@@ -390,7 +390,7 @@ export async function buildFixture(
   options: BuildFixtureOptions,
 ): Promise<string> {
   const { fixture, skillDir, caseDir = "" } = options;
-  const repoDir = await mkdtemp(join(tmpdir(), "darrow-eval-"));
+  const repoDir = realpathSync(await mkdtemp(join(tmpdir(), "darrow-eval-")));
   await initFixtureRepo(repoDir, fixture);
   await applyFixtureContent(repoDir, fixture);
   if (fixture.ticket) await provisionFixtureTicket(repoDir, fixture.ticket);

@@ -2,39 +2,102 @@
 
 Use the first boundary that can honor the compiled route.
 
+Follow this numbered order without skipping, retrying, or reordering: (1)
+prepare, (2) route, (3) runner resolution, (4) `TMPDIR` probe, (5) one staging
+Write, (6) materialize, (7) release staging, (8) one foreground Agent, (9)
+route gate after its terminal result, and (10) file-backed objective release
+when applicable. The sections below explain those steps; their document order
+does not authorize entering a later step early. Stop before Agent activation
+on any missing, failed, out-of-order, duplicate, or retried step.
+
+The first protocol-bearing Bash call is the literal standalone `prepare`
+command below. Resolve the absolute repository and plugin paths with Claude's
+native `Read`, `Glob`, or `Grep` before calling Bash, using `ToolSearch` only to
+load those native tools when needed. Never use Bash `find`, `ls`, or a
+redirected shell inspection to locate them. An exact standalone `true` is
+tolerated only as an inert host no-op: it advances no sequence state and
+supplies no evidence. Do not use any other placeholder/no-op command or combine
+`true` with another command; those are executed boundary events, not a
+scratchpad.
+
+The classifier does not run repository tests or implementation commands. Apart
+from the exact inert `true` exception, its only Bash calls before the Agent are the literal standalone prepare, route,
+runner-resolution, temporary-root probe, materialization, and staging-release
+commands shown here. Replace placeholders with concrete values directly; do
+not introduce assignments or shell expansions. Use Claude's native `Read`,
+`Glob`, and `Grep` tools for permitted repository inspection. Never use Bash
+for discovery, listing, status, hashing, inspection, tests, or command lists;
+even read-only shell inspection invalidates the sole-owner boundary. Stage the
+contract only with the one native `Write`; never use `>`, `>>`, a heredoc,
+`tee`, or another shell file-creation command.
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop prepare --repo <absolute-repo> --host claude
+```
+
+Then run the route helper as its own tool call:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop route --repo <absolute-repo> --host claude --profile <profile>
+```
+
+Only an explicit user route override adds the literal option
+`--route 'claude|anthropic|<model>|<effort>'`.
+
 ## Materialize the native objective
 
-For a boundary whose goal owner shares this filesystem, put the complete
-contract in a private temporary staging file outside the repository and run:
+For a boundary whose goal owner shares this filesystem, resolve the runner's
+isolated temporary root with the one standalone command
+`/usr/bin/printenv TMPDIR`. Use the host's file-write tool once to put the
+complete contract at an absolute path inside that canonical root, then run:
 
 ```sh
-bash "$goal_loop" materialize-objective --repo "$repo" \
-  --goal-file <absolute-contract-file>
+/bin/bash <absolute-plugin-bin>/goal-loop materialize-objective --force-file-backed --repo <absolute-repo> --goal-file <absolute-contract-file>
 ```
 
-Use the exact returned `objective_file`: it contains the complete contract
-inline through 4,000 bytes or a bounded path-and-SHA-256 objective above that
-limit. A file-backed owner reads and verifies the complete contract before
-work. Stop before activation if materialization fails. Never truncate or
-recompact after a size rejection, and never retry the goal or Agent call after
-one begins. Keep any returned attachment readable through paused states and the
-terminal result, then release it only with:
+Use that one staging Write's exact absolute path as `--goal-file`. The helper's
+returned `contract_sha256` must equal the digest of those exact staged bytes;
+stop before activation on any path or digest mismatch. Canonical path aliases
+and locations outside that runner-controlled root are not private staging.
+
+Claude always uses `--force-file-backed` so the Agent call has one stable
+objective field regardless of contract size. Pass only the exact returned
+`objective_file` path in the one-line Agent body specified below. The
+classifier does not read, hash, copy, or reproduce that file; the file-backed
+owner reads it and verifies the complete contract before work. An inline result
+is invalid on this boundary. Stop before activation if materialization fails.
+Never truncate or recompact after a size rejection.
+
+After successful materialization and before Agent activation, release the
+caller-created staging file exactly once with:
 
 ```sh
-bash "$goal_loop" release-objective \
-  --attachment-dir <exact-helper-returned-attachment-dir> \
-  --expected-sha256 <exact-helper-returned-contract-sha256>
+/bin/bash <absolute-plugin-bin>/goal-loop release-staging --goal-file <exact-staging-path> --expected-sha256 <exact-helper-returned-contract-sha256>
 ```
 
-Do not reconstruct deletion commands.
+Only a successful exact release record permits activation. Keep any returned
+file-backed attachment readable through paused states and the terminal result,
+then release it only with:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop release-objective --attachment-dir <exact-helper-returned-attachment-dir> --expected-sha256 <exact-helper-returned-contract-sha256>
+```
+
+On Claude, invoke all helpers as standalone Bash commands with the concrete
+absolute plugin executable, repository, goal-file or attachment path, and
+digest substituted literally. Do not use assignments, shell variables,
+comments, substitutions, pipelines, command lists, redirects, or extra
+arguments. Treat only a successful release record for the exact materialized
+attachment as cleanup; a failed or mismatched call does not release it and
+must not be retried.
+
+Do not reconstruct deletion commands or retry a staging release, goal, or Agent
+call after one begins.
 If the launcher fails after activation without confirming a terminal result,
 retain the attachment and report the goal identifier, exact attachment path,
 and expected digest as resumable lifecycle evidence; do not remove the contract
 from a still-active or paused goal. Once terminal status is confirmed, release
 the attachment even if later result collection fails.
-Remove the caller-created staging file after activation accepts an inline
-objective; in file-backed mode it may be removed as soon as materialization
-succeeds because the helper has already made and verified its private copy.
 
 ## Same thread
 
@@ -82,9 +145,7 @@ Resolve the runner and validate those environment boundaries before invoking
 Agent:
 
 ```sh
-claude_agent_route="$skill_dir/../../bin/claude-agent-route"
-bash "$claude_agent_route" --provider "$provider" \
-  --model "$model" --effort "$effort"
+/bin/bash <absolute-plugin-bin>/claude-agent-route --provider anthropic --model <claude-sonnet-5|claude-opus-5> --effort <low|medium|high>
 ```
 
 Use the exact `subagent_type` and absolute `agent_file` from that output. A
@@ -105,34 +166,27 @@ family alias.
 
 Materialize the objective before invoking the `Agent` tool exactly once with:
 
+- a task whose first line is the exact ownership marker
+  `- phase: adaptive-goal-runner`;
 - `subagent_type` set to that exact namespaced runner;
 - `run_in_background` set to `false`;
 - no per-invocation `model` override, because the selected full model ID and
   effort are pinned together in the runner definition;
 - no `resume` or worktree isolation; and
-- a self-contained task containing the exact materialized objective and, when
-  file-backed, its absolute contract path and expected SHA-256, plus the exact
-  selected workflow document, its absolute path, identifier, and content hash.
+- a task body bound only to the successful materialization as described below.
 
-Tell the runner to read and verify a file-backed complete contract before work,
-own the contract through completion or a material-feedback pause, run the
-workflow and risk gates, and return the contract's human-readable final report
-without reproducing its internal tab-separated record. When a material
-decision first emerges after activation, it pauses mutation and sends the
-smallest concrete question to its creator through host parent messaging when
-available. The creator surfaces the question to the user and relays the exact
-answer to that same runner without launching a replacement. Pending feedback
-is neither completion nor blockage, and each distinct user question counts
-once. If this Agent boundary exposes no usable feedback relay, the runner
-returns the pending question and resumable lifecycle facts without further
-mutation; the launcher retains the objective attachment and reports the pause
-honestly. Preserve the
-contract's exact `Independent review: selected|omitted — reason` clause in the
-task. When selected, tell the runner explicitly to confirm the compatible
-capability before product edits, invoke it after final-tree checks, and report
-its outcome and any blocking findings. Do not require a provider-specific
-serialization. The runner may use host-native subagents for bounded work, but
-it remains the sole goal owner and must not create another Darrow runner.
+After the ownership marker, put either the exact complete contract bytes whose
+digest equals the materialization record or, for file-backed materialization,
+exactly `- objective_file: <helper-returned-absolute-objective_file>`. Do not
+read that file in the classifier turn or add copied proof fields, omitted text,
+or explanations. The routed Agent reads the bounded objective and verifies the
+complete contract before work. When the exact file-backed reference is the
+first body line, the runner treats it as the sole task authority and ignores
+any later task text; appended text is neither contract nor route evidence. The
+compiled contract already contains the
+workflow, risk gates, feedback protocol, review clause, reporting contract, and
+sole-owner instructions. Do not restate or append them in the Agent task. A
+marker-only task is not an executable goal.
 
 Wait for that same foreground Agent call to return, then verify what actually
 ran before recording anything. Selecting a namespaced `subagent_type` whose
@@ -142,6 +196,16 @@ different model than its own frontmatter names, and a misrouted runner will
 still confidently self-report the selected model. Prompt text and runner
 self-report prove neither model nor effort. Derive the effective route from
 the child's own transcript instead:
+
+After the Agent returns, do not call `Bash`, `Read`, `Edit`, `Write`, `Glob`,
+`Grep`, or another repository tool to inspect, test, or restate its work. The
+only permitted post-return tools are one exact `claude-route-gate` call and the
+exact `release-objective` cleanup above when an attachment exists. The gate
+binds the Agent tool result's host-reported id to transcript observation and
+route confirmation in one deterministic operation. Changed-file, check,
+review, and remaining-risk statements come from the collected Agent result;
+route verification and attachment cleanup neither authorize parent
+revalidation nor invalidate those collected facts.
 
 Before interpreting the child as terminally successful, also reconcile its
 result against the compiled independent-review clause. A selected gate requires
@@ -153,26 +217,22 @@ inconclusive, no-progress, explicitly capped, or left blockers or regressions,
 even if deterministic checks passed or route verification separately failed.
 Interpret the capability's ordinary response; do not parse or reproduce its output format.
 
-```sh
-claude_verify_route="$skill_dir/../../bin/claude-verify-route"
-bash "$claude_verify_route" --repo "$repo" --agent-id "$agent_id"
-```
-
-`$agent_id` is the id the Agent tool result reports for this call. Feed the
-resulting `observed_route` into the existing confirmation gate rather than
-asserting the selected route back at it:
+Invoke the gate as exactly one standalone Bash command after the Agent result,
+replacing every placeholder with a concrete literal. Do not use assignments,
+shell variables, comments, substitutions, pipelines, command lists, redirects,
+or extra arguments in this call:
 
 ```sh
-bash "$goal_loop" confirm-route \
-  --selected  'claude|anthropic|<model>|<effort>' \
-  --effective 'claude|anthropic|<observed-model>|<observed-effort>' \
-  --applied-by native-subagent
+/bin/bash <absolute-plugin-bin>/claude-route-gate --repo <absolute-repo> --agent-id <host-reported-agent-id> --selected 'claude|anthropic|<model>|<effort>'
 ```
 
-If `claude-verify-route` finds no transcript evidence, or `confirm-route`
-rejects the pair because the observed route does not match the selected one,
-this boundary has failed even though the Agent call itself succeeded. In that
-case:
+The gate returns either one observed route with an explicit `confirmed` or
+`rejected` result, or an `unavailable` observation with no confirmation. It
+validates that the verifier's agent id exactly equals the id in both this
+command and the completed Agent result. If observation is unavailable or
+confirmation is rejected because the effective route differs from the
+selected one, this boundary has failed even though the Agent call itself
+succeeded. In that case:
 
 - do not record `route_verified: true`, and do not report the child's work as
   having run on the selected route;
@@ -181,18 +241,30 @@ case:
   a mismatched route is observable, report that exact effective harness,
   provider, model, and effort. Never copy the selected model or effort into the
   report after failed verification;
+- preserve the independently observable accepted Agent boundary as
+  `route_applied_by: native-subagent` and `evaluation_child_invocations: 1`;
+  unavailable route arguments do not erase the child invocation that occurred;
 - preserve whatever the child already wrote to the working tree without
   discarding it silently, and tell the user plainly which model actually ran
   instead of the selected one, citing the observed route;
 - record `launch_required`, naming the unavailable capability (for example,
   "claude-opus-5 is not currently applicable through this subagent boundary on
   this host/account — it silently substituted claude-sonnet-5"); and
+- render exactly one complete `darrow-native-goal-report-v1` block from the
+  contract even on this stop, with `route_verified: false` and
+  `launch_boundary: launch_required`; and
 - stop rather than continue the contract as if the selected route had run. A
   failed verification is a stop, not a retry loop — do not launch a second
   runner or substitute a nested process to try again.
 
-Only once `confirm-route` accepts a real, transcript-derived effective route
-equal to the selected route may you record:
+After the route gate and required attachment cleanup, render the collected
+Agent result immediately. Begin with the raw `format:` report line, never a
+Markdown code fence. Do not call another tool. If the Agent omitted a
+changed-file, check, review, risk, or publication fact, report that omission;
+never fill it by inspecting the repository.
+
+Only once `claude-route-gate` reports an explicitly confirmed,
+transcript-derived effective route equal to the selected route may you record:
 
 ```text
 launch_boundary\tnative_subagent
@@ -210,8 +282,8 @@ runner's task, not an undisclosed `/goal` evaluator. Do not claim `/goal`
 persistence, evaluator turns, or status telemetry for this boundary.
 
 **Complete when:** the accepted Agent call names the exact selected-route
-runner, the visible runner returns terminally, `claude-verify-route` plus
-`confirm-route` prove the observed transcript route equals the selected route,
+runner, the visible runner returns terminally, `claude-route-gate` proves the
+host-reported Agent id and observed transcript route equal the selected route,
 and the result proves the contract and final-tree checks complete.
 
 ## Enclosing launcher

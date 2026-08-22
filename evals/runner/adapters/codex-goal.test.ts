@@ -337,9 +337,7 @@ after`);
     expect(prompt).not.toContain(
       "After they pass, complete the native goal and return",
     );
-    expect(prompt).toContain(
-      "including every stopped turn and a terminal blocked turn",
-    );
+    expect(prompt).toContain("including a terminal blocked turn");
     expect(prompt).toContain("format: darrow-native-goal-report-v1");
     expect(prompt).toContain("model: openai > gpt-5.6-sol");
     expect(prompt).toContain("effort: high");
@@ -349,6 +347,9 @@ after`);
     expect(prompt).toContain("- phase: human-feedback-request");
     expect(prompt).toMatch(
       /feedback[^.]*pause[^.]*leave the native goal active/i,
+    );
+    expect(prompt).toMatch(
+      /terminal human-readable report is optional[^.]*nonterminal pause/i,
     );
     expect(prompt).toContain("# Change feature");
   });
@@ -396,6 +397,12 @@ after`);
       ),
     ).toBe(false);
     expect(isHumanFeedbackPauseText("The goal is paused.")).toBe(false);
+    expect(isHumanFeedbackPauseText("- phase: human-feedback-request")).toBe(
+      false,
+    );
+    expect(
+      isHumanFeedbackPauseText("- phase: human-feedback-request\n   \n"),
+    ).toBe(false);
   });
 
   test("materializes an oversized objective before exactly one goal-set call", async () => {

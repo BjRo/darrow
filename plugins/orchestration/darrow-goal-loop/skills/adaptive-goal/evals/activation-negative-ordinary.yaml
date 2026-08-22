@@ -1,6 +1,7 @@
 id: goal-preflight-activation-negative-ordinary
 invariant: AGL-X3
 activation: negative
+goal_report: forbidden
 prompt: >-
   In this repository, change the first README heading from Old Name to New Name
   and report the edited file. Make only that ordinary localized edit.

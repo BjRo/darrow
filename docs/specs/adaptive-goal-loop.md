@@ -53,10 +53,13 @@ The launch boundary is selected in this order:
 6. stop as `launch_required` when none of those boundaries is available.
 
 This order is normative. A native goal runner is an observable host agent
-thread, not a shell process or Darrow role controller. A Codex runner activates
-the native goal tool. Claude does not expose its session-scoped `/goal` command
-to Agent-tool children, so a Claude runner owns the compiled contract as its
-single foreground delegated task and MUST NOT claim `/goal` evaluator turns or
+thread, not a shell process or Darrow role controller. A first-class Codex
+runner is itself the host-native owner boundary for the compiled contract; when
+that runner exposes native goal-state control it uses the control once for
+persistence, but it does not require or simulate an inner goal boundary.
+Claude does not expose its session-scoped `/goal` command to Agent-tool
+children, so a Claude runner owns the compiled contract as its single
+foreground delegated task and MUST NOT claim `/goal` evaluator turns or
 persistence. Process nesting is an explicit compatibility boundary, never an
 automatic interactive fallback.
 
@@ -73,8 +76,12 @@ capability when these requirements still hold.
 Preflight is the work performed before a native goal is active. It may inspect
 the request, repository state, applicable instructions, accepted decisions,
 manifests, CI configuration, and focused test surfaces. It MUST NOT edit product
-files, invoke implementation agents, or consume a separate model call solely
-to classify or route the task.
+files, execute a focused check, test, build, lint, review, or verification
+command, invoke implementation agents, or consume a separate model call solely
+to classify or route the task. Imperative implementation, check, and review
+steps in the originating request are owner instructions to compile into the
+contract; their wording does not authorize the classifier to execute them
+before activation.
 
 An enclosing host SHOULD assemble deterministic repository evidence before the
 classifier turn and request one structured handoff without repository tools.
@@ -114,7 +121,8 @@ before its first goal-set call:
    the repository, with an absolute path and restrictive permissions;
 2. calculate its SHA-256 digest and produce an inline objective of at most
    4,000 bytes that tells the goal owner to read and verify that exact file
-   before doing any work;
+   before doing any work, and that the accepted ownership-marked task already
+   makes it the sole goal owner even when no inner goal-control tool exists;
 3. stop before goal activation if the file cannot be materialized or the
    bounded objective cannot be produced; and
 4. keep the attachment readable across active and paused states until the goal
@@ -169,6 +177,11 @@ phase owned by adaptive-goal. Preflight selects it by this policy:
 | High risk     | Select by default                                                                               |
 | Any risk      | Select when repository policy or the user requires it                                           |
 
+A persisted-format coexistence transition that coordinates a writer, a
+dual-format reader, a migration utility, and multiple consumers needs
+independent compatibility judgment, so it selects review under the elevated
+risk rule.
+
 The compiled contract MUST state `selected` or `omitted` with its reason in
 one unambiguous independent-review clause. A selected clause carries the
 portable intent, timing, semantic continuation, target invalidation, and
@@ -197,7 +210,12 @@ evidence. When no matching capability is available, the goal stops honestly
 instead of synthesizing or downgrading the requirement. A matching capability
 may itself use fresh readers; that is its execution machinery, not a substitute
 for capability discovery. An availability stop preserves the mandatory
-human-readable completion report alongside the evidence gap.
+human-readable completion report alongside the evidence gap and includes the
+standalone canonical sentence `Independent review availability: unavailable.`
+
+This capability check is part of read-only preflight. A known selected review
+gate MUST be proven available before the goal owner edits product files; the
+owner cannot implement first and disclose the missing gate afterward.
 
 After implementation and applicable final-tree checks, the goal owner supplies
 the exact final change, originating objective or specification, repository
@@ -213,6 +231,37 @@ current change and establishes a closed finding set. A result with no blocking
 findings satisfies the gate for that content. Blocking findings prevent
 completion and every not-yet-performed publication effect.
 
+A preexisting candidate described as review-ready is not already-verified
+evidence. Before the initial comprehensive review, the owner MUST run every
+applicable exact-target check required by the selected risk gate against that
+candidate and supply the resulting current evidence to the review capability.
+The candidate's current content is the first review target: the owner MUST NOT
+edit it before that review returns, even when an exact-target check fails or the
+content already differs from the approved final outcome. Any authorized repair
+starts only from the review's closed finding set.
+
+The caller-facing completion text MUST make the semantic outcome explicit. A
+clear initial review uses the standalone canonical sentence `Independent
+review: clear.` on its own unquoted line. An optional Markdown bullet or
+balanced strong emphasis around the label or the entire exact sentence is
+presentation, not a semantic change. Prose paraphrases, negated framing, quotations, and qualified or
+ambiguous continuations do not satisfy this outcome. After repair, retain both
+`Initial independent review: blocking — <finding>` and
+the standalone sentence `Fix verification: clear.` (or the actual non-clear
+outcome) so the prior
+finding and exact-target verification remain visible without depending on a
+provider-specific serialization. Supporting detail belongs on another line;
+the canonical outcome sentence has no suffix. It preserves the verifier's
+returned outcome verbatim even when an explicit limit converts the overall
+review gate to `blocked`; the separate review-gate sentence reports that stop.
+An initial blocking result that cannot be repaired is reported on its own line
+as `Independent review: blocking — <finding>`.
+
+An initial `unavailable`, `inconclusive`, or otherwise terminal unsatisfied
+review outcome never replaces the outer launch result. Before returning, the
+owner MUST append the complete human-readable completion report defined below,
+including the truthful blocked review-gate state and counters.
+
 The first rework attempts every eligible finding together. A finding is
 eligible only when its repair is already authorized, clearly within the
 originating scope, low risk, does not expand requested behavior, and does not
@@ -220,6 +269,12 @@ materially expand verification. Every eligible blocker is attempted; an
 eligible advisory is also attempted in this first rework. An ineligible blocker
 is recorded as blocked and stops convergence. An ineligible advisory remains a
 residual risk and never keeps the gate open.
+
+One rework performs at most one authorized repair attempt per finding. After
+that attempt, the goal owner runs the invalidated checks and requests fix
+verification; it MUST NOT self-iterate on the same finding before that response.
+A second attempt belongs to a later rework and is available only when
+verification returns `continue` and existing authority covers it.
 
 After each rework, the goal owner reruns invalidated checks and invokes the same
 independent capability in fix-verification mode. It supplies the original
@@ -235,6 +290,15 @@ unchanged; and any direct repair-caused regression tied to the finding whose
 repair caused it. Unrelated observations cannot enter the closed convergence
 set. Advisories never determine the gate outcome.
 
+Check evidence established after the latest content edit and supplied to fix
+verification remains final-tree evidence for that exact content. The review
+response does not itself invalidate those checks. If that response reaches an
+explicit limit or another terminal stop without authorizing a later edit, the
+goal owner MUST NOT rerun a check after the response. With selected review,
+the last final-tree check for an exact target occurs before its review
+invocation; a post-review check is not final verification and is forbidden
+after a terminal response.
+
 `clear` satisfies the exact-content gate. `continue` permits another rework only
 when at least one unresolved blocker or repair-caused regression materially
 progressed. A direct repair-caused regression first detected by verification is
@@ -247,13 +311,28 @@ inconclusive evidence, exhausted repair authority, or an explicit limit stops
 the goal with the unsatisfied gate and authorizes no further repair or
 publication.
 
+Before every fix-verification invocation after the first, the owner MUST compare
+the prospective current target fingerprint with the complete prior target
+history. When the verifier's requested later repair would restore exact content
+already present in that history, the owner MUST reject it before editing the
+current target or rerunning its checks. A repeated or earlier fingerprint stops
+as `no_progress` before the capability is invoked; the owner MUST NOT make a
+redundant verification call.
+Because no new verifier result exists in that branch, caller-facing text
+preserves the latest returned `Fix verification: continue.` outcome and reports
+the separate repeated-target or oscillation `no_progress` stop explicitly. It
+MUST NOT synthesize `Fix verification: no_progress.` unless the capability
+actually returned that outcome.
+
 There is no default numeric review or rework limit. Convergence continues only
 while the verifier reports material progress. When the originating request
 supplies an explicit review-round limit, that number is a hard cap on all
 independent-review capability invocations, including the initial comprehensive
 review; reaching it stops even otherwise-progressing convergence. A limit
 grants no new authority and never permits completion without `clear` evidence
-for the exact final content.
+for the exact final content. A terminal stop caused by that limit MUST report
+the standalone canonical sentence `Review gate: blocked — explicit limit
+reached.`
 
 On a host with persisted native-goal status, every terminal unsatisfied-review
 stop MUST settle the active goal as `blocked` before the goal owner returns. If
@@ -297,8 +376,16 @@ selected document MUST be loaded into the native execution turn.
 | `change-feature`    | characterize current behavior and compatibility, update acceptance evidence, implementation, callers and docs, verify old and new boundaries |
 | `refactor`          | characterize preserved behavior, restructure in bounded slices, prove behavior remains unchanged, run affected gates                         |
 | `migration`         | inventory consumers and compatibility, sequence the migration, update consumers and docs, run broader gates                                  |
-| `mechanical`        | apply the exact deterministic transformation and run its complete oracle                                                                     |
+| `mechanical`        | apply the exact deterministic non-behavioral transformation and run its complete oracle                                                      |
 | `decision-gated`    | name the smallest missing decision and do not launch writing work                                                                            |
+
+`decision-gated` is terminal preflight, not a selected route waiting for
+application. Its completion report MUST use `profile: none`, `harness: none`,
+`model: none > none`, `effort: none`, `route_applied_by: none`,
+`route_verified: false`, `launch_boundary: launch_required`,
+`verification_gate: not-applicable`, zero child invocations, and one human
+interruption. It MUST NOT copy a selected route or an ordinary launch boundary
+into those fields.
 
 Risk adds proportional verification without changing the workflow:
 
@@ -314,21 +401,41 @@ Routing uses stable semantic profiles whose concrete mappings live in bundled
 configuration by default:
 
 - `routine` — ordinary localized coding, including exact mechanical work and
-  clear high-risk changes;
-- `routine-plus` — ordinary localized coding where its additional quality is
-  specifically worthwhile;
+  clear, fully specified changes regardless of consequence severity;
+- `routine-plus` — ordinary localized coding only when implementation itself
+  needs additional reasoning, such as an explicit priority on
+  boundary-sensitive first-pass correctness over the cheapest routine route or
+  repository evidence of materially competing implementations;
 - `scaled` — larger straightforward work across several files or components;
 - `repo-wide` — straightforward repository-wide change;
 - `judgment` — hard diagnosis, architecture, planning, or review.
 
+Profile selection uses the reasoning uncertainty established by the request
+and permitted read-only preflight at activation time. A request that explicitly
+identifies an unresolved hard diagnosis across multiple plausible layers or
+state transitions is `judgment`; finding a small eventual patch or recognizing
+the cause after activation MUST NOT retroactively downgrade that route.
+
+A sequenced transition spanning a producer or writer, compatibility reader,
+migration utility, and multiple consumers is `scaled`. Short individual edits
+or a compact repository do not reduce that multi-component implementation to
+`routine`.
+
 Risk and profile are independent selections. Risk represents the cost of an
 incorrect result and adds verification gates; routing represents the kind and
 scale of reasoning needed to reach the result and selects a model route. Risk
-alone MUST NOT raise or lower the profile, and reasoning difficulty MUST NOT
-weaken the risk gate. Thus a clear security-boundary change can use `high`
-verification with a routine coding route, while a difficult
+alone, a security boundary, and added verification work MUST NOT raise or lower
+the profile when implementation behavior is clear and fully specified;
+reasoning difficulty MUST NOT weaken the risk gate. Thus a clear
+security-boundary change can use `high` verification with a routine coding
+route, while a difficult
 behavior-preserving refactor can use `routine` verification with a judgment
 route.
+
+Changing an existing promised output for inputs that callers may already use
+is a compatibility concern. When the request requires compatibility evidence
+for that contract change, risk is at least `elevated` even if the edit itself is
+localized and reversible.
 
 The bundled default policy maps these profiles to host-specific routes:
 
@@ -374,6 +481,26 @@ Selection alone is not execution. The selected route MUST be applied at the
 native-goal boundary and reconciled with the effective provider, model, and
 effort before completion can be reported.
 
+Route identity and launch mechanics are separate evidence. The effective route
+is the `(model, effort)` pair after the host and provider are fixed by the
+boundary; `fork_turns` is launch policy, not part of route identity. A host that
+emits a normalized accepted route record lets an evaluator compare that one
+pair atomically. Current Codex CLI collaboration events redact native-agent
+spawn arguments: they prove that one native runner was accepted, but do not
+independently expose its model or effort. On that surface, evaluation MUST
+report the limitation and reconcile the declared selected/effective pair with
+an accepted spawn whose observable prompt begins with the canonical
+`- phase: adaptive-goal-runner` ownership marker; an unrelated generic spawn is
+not goal-owner evidence. It MUST NOT pretend that unavailable `model`,
+`reasoning_effort`, or `fork_turns` event fields were observed.
+
+The receiver of that first-line marker is already the activated sole goal
+owner. It executes the supplied contract directly and MUST NOT recursively run
+adaptive-goal preflight or seek another owner. Native goal-state control may
+persist that ownership when the receiver exposes it; absence of that optional
+control inside the accepted runner does not turn the established boundary into
+`launch_required`.
+
 An enclosing host API MAY split activation into a read-only preflight turn and
 a native-goal execution turn. The preflight handoff names its route source as
 `policy` or `user`, and policy routes additionally name `repository` or
@@ -406,10 +533,25 @@ The compiled goal contract MUST carry both these internal values and the
 completion-report rule below so every launch boundary can render the same
 caller-facing result without relying on parent-thread context.
 
-The native goal carries the values forward but reports them to its caller as a
-human-readable completion record. Each field uses `key: value`; the effective
-provider and model form one `model` value separated by `>`, while effort
-remains its own field:
+For a delegated owner, the creator MUST render the completion report from the
+retained v4 launch and observed route values after collecting the terminal
+result. It MUST NOT return the owner's prose unchanged when that prose omits or
+malforms the report. Rendering those retained values is result collection, not
+parent-thread repository verification; the creator still MUST NOT inspect,
+edit, or recheck the completed work.
+
+Immediately before sending any terminal response, the sender MUST perform one
+response-only validation that exactly one contiguous report block begins with
+`format: darrow-native-goal-report-v1` and contains every ordered field below.
+If it is absent or malformed, the sender repairs that block from the retained
+values before responding. This validation reads no repository state.
+
+Every terminal response MUST begin with the human-readable completion record.
+The first non-whitespace line is the `format:` line: no prose, heading, bullet,
+or Markdown code fence precedes or wraps the record.
+The native goal carries the values forward and reports them to its caller. Each
+field uses `key: value`; the effective provider and model form one `model` value
+separated by `>`, while effort remains its own field:
 
 ```text
 format: darrow-native-goal-report-v1
@@ -506,6 +648,16 @@ the least launch machinery the host supports.
     the portable independent-review intent, target binding, and semantic
     continuation into the goal without naming an implementation or output
     format.
+12. **AGL-P12 — Complete contract identity.** The compiled contract carries
+    exactly one nonempty value for each of these canonical labels before its
+    internal launch record: `Outcome`, `Acceptance criteria`, `Scope`,
+    `Non-goals`, `Preserved work`, `Permissions`, `Workflow sequence`,
+    `Feedback checks`, `Final-tree checks`, `Independent review`,
+    `Stopping budget`, `Human feedback`, and `Completion report`. A label may
+    reference repository facts or state that no optional authority or budget
+    exists, but it MUST NOT be omitted. The launch boundary authenticates one
+    digest for this complete contract; caller-facing evals do not reconstruct
+    completeness from duplicated report-field regexes.
 
 ### Routing invariants
 
@@ -533,9 +685,12 @@ the least launch machinery the host supports.
 7. **AGL-R7 — Authoritative reconciliation.** `route_verified` is true only when
    host metadata, an accepted host-API turn request, a Codex native-agent spawn
    with concrete route values, transcript-derived Claude child-route evidence
-   confirmed against its immutable runner definition, or a successfully
-   completed launcher record proves that selected and effective routes are
-   identical. Prompt text and model self-report are not application evidence.
+   bound to that completed Agent's host-reported id and confirmed against its
+   immutable runner definition, or a successfully completed launcher record
+   proves that selected and effective routes are identical. The Claude
+   observation and confirmation MUST be one deterministic lifecycle operation;
+   unrelated child evidence, prompt text, and model self-report are not
+   application evidence.
    When a Claude child route cannot be observed, the effective model and effort
    are `unknown`; when the observed route mismatches, the effective row records
    that observed tuple. Failed verification never copies the selected tuple into
@@ -550,8 +705,11 @@ the least launch machinery the host supports.
 
 1. **AGL-L1 — Native ownership.** Exactly one host-native goal owner owns
    implementation, verification, recovery, and completion after activation.
-   This is a native goal on a surface that exposes goal control or the one
-   foreground Claude Agent runner allowed by AGL-L9.
+   This is a native goal on a surface that exposes goal control, the one
+   first-class Codex runner allowed by AGL-L8, or the one foreground Claude
+   Agent runner allowed by AGL-L9. After a delegated owner returns terminally,
+   its creator only collects and reports that result; it MUST NOT inspect or
+   change the repository or rerun the owner's checks.
 2. **AGL-L2 — Same thread when exact.** A current-thread native goal tool is used
    only when the active provider, model, and effort exactly match the selected
    route. A new process MUST NOT be created merely for uniformity across hosts,
@@ -572,6 +730,25 @@ the least launch machinery the host supports.
    it does not end ownership while the host can request and return feedback.
    The launcher keeps a file-backed contract readable for that lifetime. A
    Claude Agent runner MUST NOT claim session-scoped `/goal` persistence.
+   A Claude classifier MAY read repository evidence needed to compile this
+   contract, but MUST NOT edit product files or run implementation or
+   verification commands before the selected Agent starts. It performs that
+   read-only inspection through host-native read, glob, and search tools rather
+   than shell discovery or command lists. Its only pre-owner shell calls are
+   the exact standalone bundled preflight, route, runner-resolution,
+   materialization, staging-release, and temporary-root helpers.
+   An exact standalone `true` MAY occur as an inert host no-op; it advances no
+   sequence state, supplies no evidence, and is ignored by the lifecycle
+   oracle. No compound command or other extra shell call receives that
+   exemption.
+   Its only pre-owner writes are the contract staging file inside the
+   runner-controlled isolated
+   temporary root and helper materialization. The staging Write is singular,
+   host-native, and never replaced or preceded by shell redirection, a heredoc,
+   or `tee`. It is canonically inside that root and bound by exact path and content digest to
+   the successful materialization result. The classifier releases that staging
+   file through the exact helper before activating the owner; only a successful
+   bound release permits activation.
 6. **AGL-L6 — Final evidence.** The host-native goal owner runs the contract's
    applicable final-tree checks after implementation, affected callers, and
    documentation are complete and before claiming completion. A narrow
@@ -582,23 +759,44 @@ the least launch machinery the host supports.
    level.
 8. **AGL-L8 — Observable goal runner.** When in-place Codex activation cannot
    apply the selected route, Darrow MAY create exactly one first-class native
-   agent thread with explicit model and effort. That runner owns the one native
-   goal. Host-native delegation beneath it remains visible and is not
-   Darrow-defined planner, executor, verifier, or repair fan-out.
+   agent thread with explicit model and effort. The accepted task is the one
+   native owner boundary and the runner owns the compiled contract directly.
+   An inline contract follows the ownership marker byte-for-byte. For a
+   file-backed materialization, the remaining task body is exactly one
+   `- objective_file: <helper-returned-absolute-path>` line; the owner reads
+   that bounded objective and verifies the complete attached contract. No
+   copied contract, digest, workflow proof, or explanatory suffix is added to
+   that one-field boundary.
+   It uses native goal-state control once when that control is exposed inside
+   the runner, but absence of an inner control does not invalidate the accepted
+   boundary or authorize another owner. Host-native delegation beneath it
+   remains visible and is not Darrow-defined planner, executor, verifier, or
+   repair fan-out.
 9. **AGL-L9 — Observable Claude goal runner.** When in-place Claude activation
    cannot apply the selected route, Darrow MAY invoke exactly one foreground
    plugin subagent. Its route-specific definition MUST pin both the selected
    full model ID and effort; family aliases are not exact route evidence. The
    launch MUST fail before spawning when a process environment override would
-   replace either value. The task MUST contain the exact workflow document and
-   supply the complete contract either inline or through a verified file-backed
-   objective on a shared filesystem. The accepted Agent call is the terminal
+   replace either value. Before the Agent call, the launcher MUST successfully
+   materialize the complete contract as a forced file-backed objective on the
+   shared filesystem. The task begins with the ownership marker. Its remaining
+   body is exactly one
+   `- objective_file: <helper-returned-absolute-path>` line. That one body,
+   reconciled with the completed materialization record, binds the task without
+   making the classifier read, hash, or reproduce the bounded objective; the
+   goal owner reads it and verifies the complete contract. When that exact
+   file-backed reference is present, the runner definition treats it as the
+   sole task authority and ignores any later prompt text; such text is not
+   contract or route evidence. A marker-only task is invalid. The
+   accepted Agent call is the terminal
    boundary and counts as one Darrow child. Because the Agent tool exposes no
    child `/goal` API, this boundary MUST be reported as a native Agent contract
    runner rather than a `/goal` session. After it returns, the parent MUST
-   reconcile the child's transcript-derived model and effort with the selected
-   route. Missing
-   or mismatched transcript evidence records `route_verified=false` and
+   use one standalone lifecycle gate to bind the Agent result's host-reported
+   id to the child's transcript-derived model and effort and reconcile that
+   observation with the selected route. An observed route requires an explicit
+   confirmation result; an unavailable observation has none. Missing or
+   mismatched transcript evidence records `route_verified=false` and
    `launch_required` instead of successful route application.
 10. **AGL-L10 — Codex agent cleanup.** Codex launch instructions SHOULD tell
     each agent creator to collect its child's terminal result and, when the host
@@ -639,10 +837,29 @@ the least launch machinery the host supports.
     mutation and asks the smallest concrete question. A current-thread owner
     asks the user directly; a delegated owner sends the question to its parent,
     which returns the user's explicit answer to the same owner when the host
-    supports feedback relay. Pending feedback is a pause, not completion or
+    supports feedback relay. When the originating request explicitly authorizes
+    one named answer-acquisition command, the parent runs that exact command
+    only after receiving the question and treats its successful output as the
+    explicit answer; it does not ask the caller the same question again.
+    Pending feedback is a pause, not completion or
     blockage, and the answer grants only the decision or authority it states.
     If the host cannot relay feedback, the owner stops honestly with the
-    question and observed durable facts instead of guessing.
+    question and observed durable facts instead of guessing. Every pause
+    response begins with `- phase: human-feedback-request` and states the
+    complete smallest question; the marker without that question is not a valid
+    pause result. A terminal human-readable completion report is optional on a
+    nonterminal pause. When present it remains a truthful current snapshot, but
+    the host preserves the active owner and objective as the durable
+    continuation state instead of reconstructing them from caller-facing report
+    fields.
+    After feedback is relayed, the same owner completes any
+    repository- or contract-mandated acknowledgement handshake with that exact
+    answer before resuming mutation; the creator does not acknowledge on the
+    owner's behalf. For each resolved question, the owner's terminal result
+    states that the exact answer was applied on one line as
+    `Applied relayed decision: <exact answer>`. The creator preserves each such
+    line in the caller-facing completion. An optional Markdown bullet, inline
+    code around the answer, or terminal period is presentation only.
 
 ### Safety invariants
 
@@ -716,8 +933,11 @@ the least launch machinery the host supports.
    interruptions, and Codex cleanup-control availability and outcomes.
    Reconcile selected routes and any claimed Codex native-runner cleanup against
    harness-observed application and collaboration records, and include all
-   host-reported agent usage in token totals. Internal native continuation turns
-   and native descendants are not Darrow child invocations.
+   host-reported agent usage in token totals. When native-spawn route arguments
+   are redacted, distinguish accepted-boundary evidence from independently
+   observed route identity instead of requiring fields the host does not emit.
+   Internal native continuation turns and native descendants are not Darrow
+   child invocations.
 5. Use at least three trials per evidence-bearing default decision. An explicit
    product decision MAY accept N=1 uncertainty to simplify or change policy,
    but its rationale, limitations, and follow-up calibration requirement MUST

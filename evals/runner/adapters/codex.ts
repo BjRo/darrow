@@ -1,6 +1,15 @@
-import { readFile, realpath } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
   HarnessResult,
@@ -8,6 +17,11 @@ import type {
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
+import {
+  fixtureStateFingerprint,
+  repositoryFingerprint,
+  verifiedCodexSpawnAttestation,
+} from "../codex-spawn-guard";
 
 interface CodexUsage {
   input_tokens?: number;
@@ -20,6 +34,7 @@ interface CodexEvent {
   msg?: { type?: unknown; info?: { total_token_usage?: CodexUsage } };
   info?: { total_token_usage?: CodexUsage };
   item?: {
+    id?: unknown;
     type?: unknown;
     command?: unknown;
     exit_code?: unknown;
@@ -27,10 +42,8 @@ interface CodexEvent {
     aggregated_output?: unknown;
     tool?: unknown;
     prompt?: unknown;
-    model?: unknown;
-    reasoning_effort?: unknown;
-    fork_turns?: unknown;
-    forkTurns?: unknown;
+    sender_thread_id?: unknown;
+    senderThreadId?: unknown;
     receiver_thread_ids?: unknown;
     receiverThreadIds?: unknown;
   };
@@ -212,39 +225,271 @@ function acceptedCollaborationEvent(event: CodexEvent): boolean {
 
 function retainedCollaborationPrompt(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
-  const retained = prompt
-    .split("\n")
-    .filter(
-      (line, index) =>
+  const lines = prompt.split("\n");
+  if (lines[0] === "- phase: adaptive-goal-runner") return lines[0];
+  const retained = lines
+    .filter((line, index) => {
+      if (line === "- phase: adaptive-goal-runner") return false;
+      return (
         /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
           line,
         ) ||
-        (index === 0 && /^- review_axis: (?:standards|spec)$/.test(line)),
-    )
+        (index === 0 && /^- review_axis: (?:standards|spec)$/.test(line))
+      );
+    })
     .join("\n");
   return retained || undefined;
 }
 
-function retainedCollaborationEvent(event: CodexEvent): unknown | undefined {
+function retainedCollaborationEvent(
+  event: CodexEvent,
+  spawnGuardSecret?: string,
+): unknown | undefined {
   if (!acceptedCollaborationEvent(event)) return undefined;
   const item = event.item!;
   const prompt = retainedCollaborationPrompt(item.prompt);
+  const attestation =
+    spawnGuardSecret && typeof item.prompt === "string"
+      ? verifiedCodexSpawnAttestation(item.prompt, spawnGuardSecret)
+      : undefined;
+  const publicAttestation = attestation
+    ? {
+        model: attestation.model,
+        effort: attestation.effort,
+        forkTurns: attestation.forkTurns,
+        requestSha256: attestation.requestSha256,
+        objectiveSha256: attestation.objectiveSha256,
+        contractSha256: attestation.contractSha256,
+        baselineSha256: attestation.baselineSha256,
+        fixtureStateSha256: attestation.fixtureStateSha256,
+        objectiveMode: attestation.objectiveMode,
+      }
+    : undefined;
   return {
     type: event.type,
     item: {
       type: item.type,
       tool: item.tool,
       status: item.status,
+      sender_thread_id: item.sender_thread_id ?? item.senderThreadId,
       receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
-      ...(typeof item.model === "string" ? { model: item.model } : {}),
-      ...(typeof item.reasoning_effort === "string"
-        ? { reasoning_effort: item.reasoning_effort }
-        : {}),
-      ...(typeof (item.fork_turns ?? item.forkTurns) === "string"
-        ? { fork_turns: item.fork_turns ?? item.forkTurns }
-        : {}),
       ...(prompt ? { prompt } : {}),
+      ...(publicAttestation
+        ? { goal_spawn_attestation: publicAttestation }
+        : {}),
     },
+  };
+}
+
+interface PostGoalEvidenceContext {
+  seen: Set<string>;
+  repoDir: string;
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
+  goalLoopPath?: string;
+}
+
+function retainedPostGoalToolEvent(
+  event: CodexEvent,
+  context: PostGoalEvidenceContext,
+): unknown | undefined {
+  const item = postGoalToolItem(event);
+  if (!item) return undefined;
+  const id = typeof item.id === "string" ? item.id : undefined;
+  if (id && context.seen.has(id)) return undefined;
+  if (id) context.seen.add(id);
+  if (retainedHumanFeedbackEvent(event)) return undefined;
+  const release = retainedObjectiveReleaseEvent(
+    event,
+    context.attestation,
+    context.goalLoopPath,
+  );
+  if (release) return release;
+  return {
+    type: "darrow.parent_tool_after_goal",
+    operation: postGoalToolOperation(item, context.repoDir),
+  };
+}
+
+function postGoalToolItem(
+  event: CodexEvent,
+): NonNullable<CodexEvent["item"]> | undefined {
+  const item = event.item;
+  const valid = [
+    event.type === "item.started" || event.type === "item.completed",
+    !!item,
+    typeof item?.type === "string",
+    !postGoalToolIgnored(String(item?.type)),
+    !(item?.type === "command_execution" && event.type === "item.started"),
+  ].every(Boolean);
+  return valid ? item : undefined;
+}
+
+function postGoalToolIgnored(type: string): boolean {
+  return [
+    "agent_message",
+    "reasoning",
+    "collab_tool_call",
+    "collabAgentToolCall",
+  ].includes(type);
+}
+
+function literalShellWords(command: string): string[] | undefined {
+  const payload = shellPayload(command)?.trim();
+  if (!payload) return undefined;
+  const words: string[] = [];
+  const token =
+    /(?:'([^'\r\n]*)'|"([^"$`\\\r\n]*)"|([A-Za-z0-9_./:@,+%=-]+))(?:[ \t]+|$)/y;
+  let index = 0;
+  while (index < payload.length) {
+    token.lastIndex = index;
+    const match = token.exec(payload);
+    if (!match) return undefined;
+    words.push(match[1] ?? match[2] ?? match[3]!);
+    index = token.lastIndex;
+  }
+  return words;
+}
+
+function retainedObjectiveReleaseEvent(
+  event: CodexEvent,
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
+  goalLoopPath?: string,
+): unknown | undefined {
+  const command = completedCommand(event);
+  if (!command || !attestation || !goalLoopPath) return undefined;
+  if (!objectiveReleaseCommandMatches(command, attestation, goalLoopPath))
+    return undefined;
+  if (!objectiveReleaseOutputMatches(event, attestation)) return undefined;
+  return {
+    type: "darrow.objective_release",
+    status: "completed",
+    contract_sha256: attestation.contractSha256,
+  };
+}
+
+function objectiveReleaseCommandMatches(
+  command: string,
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+  goalLoopPath: string,
+): boolean {
+  if (!attestation.attachmentDir || attestation.objectiveMode !== "file-backed")
+    return false;
+  const expected = [
+    "/bin/bash",
+    goalLoopPath,
+    "release-objective",
+    "--attachment-dir",
+    attestation.attachmentDir,
+    "--expected-sha256",
+    attestation.contractSha256,
+  ];
+  return (
+    JSON.stringify(literalShellWords(command)) === JSON.stringify(expected)
+  );
+}
+
+function objectiveReleaseOutputMatches(
+  event: CodexEvent,
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+): boolean {
+  if (!attestation.attachmentDir) return false;
+  const output = event.item?.aggregated_output;
+  return !(
+    typeof output !== "string" ||
+    !/^format\tdarrow-native-goal-objective-release-v1$/m.test(output) ||
+    !/^status\treleased$/m.test(output) ||
+    !new RegExp(
+      `^attachment_dir\\t${escapeRegExp(attestation.attachmentDir)}$`,
+      "m",
+    ).test(output)
+  );
+}
+
+function postGoalToolOperation(
+  item: NonNullable<CodexEvent["item"]>,
+  repoDir: string,
+): string {
+  return item.type === "command_execution" && typeof item.command === "string"
+    ? postGoalCommandOperation(item.command, repoDir)
+    : String(item.type);
+}
+
+function postGoalCommandOperation(command: string, repoDir: string): string {
+  if (/\bgit\s+(?:status|diff)\b/.test(command)) return "repository-inspection";
+  if (
+    /\b(?:bash\s+)?test\.sh\b|\b(?:bun|npm|pnpm)\s+(?:run\s+)?test\b|\bnode\s+--test\b/.test(
+      command,
+    )
+  )
+    return "verification";
+  if (/\bindependent-review-fixture\b/.test(command))
+    return "independent-review";
+  if (/\bgoal-loop\s+release-(?:staging|objective)\b/.test(command))
+    return "objective-cleanup";
+  const privateRoot = join(repoDir, ".git", "darrow-eval", "state", "codex");
+  if (/\brm\b/.test(command) && command.includes(privateRoot))
+    return "private-staging-cleanup";
+  return "command";
+}
+
+function retainedPreGoalToolEvent(
+  event: CodexEvent,
+  repoDir: string,
+): unknown | undefined {
+  const item = event.item;
+  if (!item || typeof item.type !== "string") return undefined;
+  const command = completedCommand(event);
+  if (command) {
+    const operation = postGoalCommandOperation(command, repoDir);
+    return operation === "verification" || operation === "independent-review"
+      ? { type: "darrow.parent_tool_before_goal", operation }
+      : undefined;
+  }
+  if (
+    event.type === "item.started" &&
+    ![
+      "agent_message",
+      "reasoning",
+      "command_execution",
+      // The spawn hook allows apply_patch before ownership only for the one
+      // objective staging file inside the evaluator-created temporary root.
+      "file_change",
+      "collab_tool_call",
+      "collabAgentToolCall",
+      "file_read",
+      "grep",
+      "glob",
+    ].includes(item.type)
+  )
+    return {
+      type: "darrow.parent_tool_before_goal",
+      operation: item.type,
+    };
+  return undefined;
+}
+
+function attestedGoalSpawn(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const event = value as {
+    type?: unknown;
+    item?: { tool?: unknown; goal_spawn_attestation?: unknown };
+  };
+  return (
+    (event.type === "item.started" || event.type === "item.completed") &&
+    event.item?.tool === "spawn_agent" &&
+    !!event.item.goal_spawn_attestation
+  );
+}
+
+function retainedHumanFeedbackEvent(event: CodexEvent): unknown | undefined {
+  const command = completedCommand(event);
+  const payload = command ? shellPayload(command)?.trim() : undefined;
+  if (!payload || !/(?:^|\/)feedbackctl answer rounding-mode$/.test(payload))
+    return undefined;
+  return {
+    type: "darrow.human_feedback_answer",
+    feedback_id: "rounding-mode",
+    status: "completed",
   };
 }
 
@@ -316,23 +561,89 @@ function retainedNestedApplication(event: CodexEvent): unknown | undefined {
   };
 }
 
-/** Retain only bounded activation, orchestration, and terminal accounting evidence. */
-export function retainedCodexEvidence(
-  stream: string,
+interface CodexRetentionStatus {
+  exitCode: number;
+  stderrPresent: boolean;
+  spawnGuardSecret?: string;
+  goalLoopPath?: string;
+}
+
+interface CodexRetentionState {
+  goalOwnerAccepted: boolean;
+  goalAttestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
+  postGoalToolIds: Set<string>;
+  pendingPostGoalCommands: Set<string>;
+}
+
+function retainCodexEvent(
+  event: CodexEvent,
+  state: CodexRetentionState,
   repoDir: string,
-  status?: { exitCode: number; stderrPresent: boolean },
-  installedSkillsRoot = join(repoDir, ".agents", "skills"),
-): string {
-  const events = codexEvents(stream);
-  const retained = events.flatMap((event) => {
-    const values = [
-      retainedTerminalEvent(event),
-      retainedHostProtocolEvent(event),
-      retainedCollaborationEvent(event),
-      retainedNestedApplication(event),
-    ].filter((value): value is object => value !== undefined);
-    return values;
-  });
+  status?: CodexRetentionStatus,
+): object[] {
+  const collaboration = retainedCollaborationEvent(
+    event,
+    status?.spawnGuardSecret,
+  );
+  const lifecycle = state.goalOwnerAccepted
+    ? retainedPostGoalToolEvent(event, {
+        seen: state.postGoalToolIds,
+        repoDir,
+        attestation: state.goalAttestation,
+        goalLoopPath: status?.goalLoopPath,
+      })
+    : retainedPreGoalToolEvent(event, repoDir);
+  const values = [
+    retainedTerminalEvent(event),
+    retainedHostProtocolEvent(event),
+    collaboration,
+    retainedHumanFeedbackEvent(event),
+    retainedNestedApplication(event),
+    lifecycle,
+  ].filter((value): value is object => value !== undefined);
+  trackPostGoalCommand(event, state);
+  acceptAttestedGoalSpawn(event, collaboration, state, status);
+  return values;
+}
+
+function trackPostGoalCommand(
+  event: CodexEvent,
+  state: CodexRetentionState,
+): void {
+  const id = event.item?.id;
+  if (!state.goalOwnerAccepted || typeof id !== "string") return;
+  if (event.type === "item.started" && event.item?.type === "command_execution")
+    state.pendingPostGoalCommands.add(id);
+  if (event.type === "item.completed") state.pendingPostGoalCommands.delete(id);
+}
+
+function acceptAttestedGoalSpawn(
+  event: CodexEvent,
+  collaboration: unknown,
+  state: CodexRetentionState,
+  status?: CodexRetentionStatus,
+): void {
+  if (!attestedGoalSpawn(collaboration)) return;
+  state.goalOwnerAccepted = true;
+  if (!status?.spawnGuardSecret || typeof event.item?.prompt !== "string")
+    return;
+  state.goalAttestation = verifiedCodexSpawnAttestation(
+    event.item.prompt,
+    status.spawnGuardSecret,
+  );
+}
+
+function appendCodexRetentionState(
+  retained: object[],
+  state: CodexRetentionState,
+  events: CodexEvent[],
+  installedSkillsRoot: string,
+): void {
+  for (let index = 0; index < state.pendingPostGoalCommands.size; index++)
+    retained.push({
+      type: "darrow.parent_tool_after_goal",
+      operation: "incomplete-command",
+    });
   for (const skill of observedSkillReads(events, installedSkillsRoot)) {
     retained.push({
       type: "darrow.skill_read_probe",
@@ -341,6 +652,26 @@ export function retainedCodexEvidence(
       status: "completed",
     });
   }
+}
+
+/** Retain only bounded activation, orchestration, and terminal accounting evidence. */
+export function retainedCodexEvidence(
+  stream: string,
+  repoDir: string,
+  status?: CodexRetentionStatus,
+  installedSkillsRoot = join(repoDir, ".agents", "skills"),
+): string {
+  const events = codexEvents(stream);
+  const state: CodexRetentionState = {
+    goalOwnerAccepted: false,
+    goalAttestation: undefined,
+    postGoalToolIds: new Set<string>(),
+    pendingPostGoalCommands: new Set<string>(),
+  };
+  const retained = events.flatMap((event) =>
+    retainCodexEvent(event, state, repoDir, status),
+  );
+  appendCodexRetentionState(retained, state, events, installedSkillsRoot);
   if (codexStreamMalformed(stream)) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)
     retained.push({
@@ -432,6 +763,7 @@ function codexArgv(
     "--skip-git-repo-check",
     "--ephemeral",
     "--ignore-rules",
+    "--dangerously-bypass-hook-trust",
     "--dangerously-bypass-approvals-and-sandbox",
     // Final agent message lands under .git/ so checks can read it without
     // it ever appearing in the model's worktree (same trick as fixture-bin).
@@ -516,6 +848,171 @@ interface CodexExecution {
   err: string;
   code: number;
   durationMs: number;
+  spawnGuardSecret: string;
+  goalLoopPath: string;
+}
+
+interface CodexSpawnGuard {
+  secret: string;
+  executablePath: string;
+  writeDeniedPaths: string[];
+}
+
+interface CodexSpawnGuardPolicy {
+  secret: string;
+  baselineSha256: string;
+  fixtureStateSha256: string;
+  requestSha256: string;
+  objectiveRoot: string;
+  goalLoopPath: string;
+  statePath: string;
+}
+
+function shellSingleQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+async function installCodexSpawnGuard(
+  repoDir: string,
+  env: Record<string, string>,
+  options: {
+    prompt: string;
+    objectiveRoot: string;
+    goalLoopPath: string;
+  },
+): Promise<CodexSpawnGuard> {
+  const configRoot = env.CODEX_HOME;
+  if (!configRoot) throw new Error("Codex eval has no isolated config root");
+  const runtimeDir = join(repoDir, ".git", "darrow-eval", "codex-guard");
+  await mkdir(runtimeDir, { recursive: true });
+  const wrapperPath = join(runtimeDir, "codex-spawn-guard-entry.ts");
+  const executablePath = join(runtimeDir, "codex-spawn-guard");
+  const statePath = join(runtimeDir, "state");
+  const hooksPath = join(configRoot, "hooks.json");
+  const policy: CodexSpawnGuardPolicy = {
+    secret: randomBytes(32).toString("hex"),
+    baselineSha256: await repositoryFingerprint(repoDir),
+    fixtureStateSha256: await fixtureStateFingerprint(repoDir),
+    requestSha256: createHash("sha256").update(options.prompt).digest("hex"),
+    objectiveRoot: options.objectiveRoot,
+    goalLoopPath: options.goalLoopPath,
+    statePath,
+  };
+  await compileCodexSpawnGuard(wrapperPath, executablePath, policy);
+  await writeCodexSpawnHook(hooksPath, executablePath);
+  return {
+    secret: policy.secret,
+    executablePath,
+    writeDeniedPaths: [hooksPath],
+  };
+}
+
+async function compileCodexSpawnGuard(
+  wrapperPath: string,
+  executablePath: string,
+  policy: CodexSpawnGuardPolicy,
+): Promise<void> {
+  const guardSource = join(import.meta.dir, "..", "codex-spawn-guard.ts");
+  await writeFile(
+    wrapperPath,
+    [
+      `import { guardCodexSpawn } from ${JSON.stringify(guardSource)};`,
+      "const input = JSON.parse(await new Response(Bun.stdin.stream()).text());",
+      `const result = await guardCodexSpawn(input, ${JSON.stringify(policy)});`,
+      "if (result) process.stdout.write(`${JSON.stringify(result)}\\n`);",
+      "",
+    ].join("\n"),
+    { mode: 0o400 },
+  );
+  const build = Bun.spawn(
+    [
+      process.execPath,
+      "build",
+      "--compile",
+      wrapperPath,
+      "--outfile",
+      executablePath,
+    ],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const [buildOut, buildErr, buildCode] = await Promise.all([
+    new Response(build.stdout).text(),
+    new Response(build.stderr).text(),
+    build.exited,
+  ]);
+  await rm(wrapperPath, { force: true });
+  if (buildCode !== 0)
+    throw new Error(
+      `cannot compile Codex spawn guard: ${buildErr.trim() || buildOut.trim()}`,
+    );
+  await chmod(executablePath, 0o500);
+}
+
+async function writeCodexSpawnHook(
+  hooksPath: string,
+  executablePath: string,
+): Promise<void> {
+  await writeFile(
+    hooksPath,
+    `${JSON.stringify({
+      hooks: {
+        PreToolUse: ["Agent", "Bash", "apply_patch"].map((matcher) => ({
+          matcher,
+          hooks: [
+            {
+              type: "command",
+              command: shellSingleQuote(executablePath),
+              timeout: 30,
+            },
+          ],
+        })),
+      },
+    })}\n`,
+    { mode: 0o400 },
+  );
+}
+
+interface CodexProcessContext {
+  canonicalRepoDir: string;
+  installedSkillsRoot: string;
+  installedPluginRoot: string;
+  goalLoopPath: string;
+  objectiveRoot: string;
+  env: Record<string, string>;
+  spawnGuard: CodexSpawnGuard;
+}
+
+async function codexProcessContext(
+  repoDir: string,
+  prompt: string,
+): Promise<CodexProcessContext> {
+  const canonicalRepoDir = await realpath(repoDir);
+  const env = await isolatedHarnessEnvironment("codex", repoDir);
+  const objectiveRoot = await realpath(
+    await mkdtemp(
+      join(process.env.TMPDIR ?? "/tmp", "darrow-codex-objective-"),
+    ),
+  );
+  env.TMPDIR = objectiveRoot;
+  const installedSkillsRoot = await codexEvalSkillsRoot(repoDir, env);
+  const installedPluginRoot = await realpath(join(installedSkillsRoot, ".."));
+  const goalLoopPath = await realpath(
+    join(installedPluginRoot, "bin", "goal-loop"),
+  );
+  const spawnGuard = await installCodexSpawnGuard(canonicalRepoDir, env, {
+    prompt,
+    objectiveRoot,
+    goalLoopPath,
+  });
+  return {
+    canonicalRepoDir,
+    installedSkillsRoot,
+    installedPluginRoot,
+    goalLoopPath,
+    objectiveRoot,
+    env,
+    spawnGuard,
+  };
 }
 
 async function executeCodex(
@@ -525,38 +1022,49 @@ async function executeCodex(
   effort: string,
 ): Promise<CodexExecution> {
   const start = performance.now();
-  const canonicalRepoDir = await realpath(repoDir);
-  const env = await isolatedHarnessEnvironment("codex", repoDir);
-  const installedSkillsRoot = await codexEvalSkillsRoot(repoDir, env);
+  const context = await codexProcessContext(repoDir, prompt);
+  const { env, spawnGuard } = context;
   const argv = await sandboxedAgentCommand(
     codexArgv(repoDir, prompt, model, effort),
     repoDir,
+    [
+      ...spawnGuard.writeDeniedPaths,
+      join(context.canonicalRepoDir, ".git", "fixture-bin"),
+      context.installedPluginRoot,
+    ],
+    [spawnGuard.executablePath],
   );
-  const proc = Bun.spawn(argv, {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-    // Fixture mocks (e.g. gh) shadow real network tools for the harness
-    // and every subprocess it spawns.
-    env: {
-      ...env,
-      DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
-      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-    },
-  });
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-  return {
-    canonicalRepoDir,
-    installedSkillsRoot,
-    out,
-    err,
-    code,
-    durationMs: performance.now() - start,
-  };
+  try {
+    const proc = Bun.spawn(argv, {
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      // Fixture mocks (e.g. gh) shadow real network tools for the harness
+      // and every subprocess it spawns.
+      env: {
+        ...env,
+        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+      },
+    });
+    const [out, err, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    return {
+      canonicalRepoDir: context.canonicalRepoDir,
+      installedSkillsRoot: context.installedSkillsRoot,
+      out,
+      err,
+      code,
+      durationMs: performance.now() - start,
+      spawnGuardSecret: spawnGuard.secret,
+      goalLoopPath: context.goalLoopPath,
+    };
+  } finally {
+    await rm(context.objectiveRoot, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -592,6 +1100,8 @@ export const codexAdapter: HarnessAdapter = {
       err,
       code,
       durationMs,
+      spawnGuardSecret,
+      goalLoopPath,
     } = execution;
 
     const {
@@ -621,6 +1131,8 @@ export const codexAdapter: HarnessAdapter = {
         {
           exitCode: code,
           stderrPresent: err.trim().length > 0,
+          spawnGuardSecret,
+          goalLoopPath,
         },
         installedSkillsRoot,
       ),

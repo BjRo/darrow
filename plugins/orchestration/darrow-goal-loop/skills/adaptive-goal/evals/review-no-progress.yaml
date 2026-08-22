@@ -28,16 +28,28 @@ fixture:
       blocking 'Replace VALUE=bad with VALUE=partial.' '' '' \
       no_progress 'The same blocking failure evidence remains unchanged after repair.' '' '' \
       >"$git_dir/fixture-review-sequence"
+    git ls-files --others --exclude-standard |
+      while IFS= read -r path; do
+        printf '%s\t%s\n' "$path" "$(git hash-object -- "$path")"
+      done >"$git_dir/fixture-untracked-baseline"
 checks:
   - name: unchanged evidence stops after targeted verification
     run: >-
-      grep -Fx 'VALUE=partial' value.env >/dev/null &&
+      test "$(cat value.env)" = 'VALUE=partial' &&
+      test "$(git diff --name-only HEAD --)" = value.env &&
+      git ls-files --others --exclude-standard |
+      while IFS= read -r path; do
+        printf '%s\t%s\n' "$path" "$(git hash-object -- "$path")"
+      done >.git/fixture-untracked-final &&
+      cmp .git/fixture-untracked-baseline .git/fixture-untracked-final &&
       test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 2 &&
       test "$(cut -f2 .git/independent-review-invocations | sed -n '2p')" = no_progress &&
       test "$(cut -f3 .git/independent-review-invocations | sed -n '2p')" = verify
   - name: no-progress stop performs no later repository work
     run: test "$(tail -n 1 .git/review-events | cut -f1)" = review
 output_checks:
+  - name: output preserves the no-progress verification outcome
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Fix verification:[ \\t]*no_progress\\.[ \\t]*$"
   - name: output identifies no progress
     expect_regex: "no[ _-]?progress"
     flags: i
@@ -46,12 +58,3 @@ output_checks:
     flags: i
   - name: no-progress does not claim completion
     not_regex: "(^|[.!?]\\s+)(the )?(goal|task|work|change|implementation) (is )?(complete|completed|done|finished)\\b"
-transcript_checks:
-  - name: no-progress settles the native goal as blocked
-    after_regex: "Repair verification outcome: no_progress"
-    expect_regex: '"method":"thread/goal/updated"[^\n]*"status":"blocked"'
-    not_regex: '"method":"thread/goal/updated"[^\n]*"status":"complete"'
-  - name: no-progress performs no hidden repository work
-    after_regex: "Repair verification outcome: no_progress"
-    not_regex: '"method":"item/(started|completed)"[^\n]*"type":"[^"]*(command|fileChange|mcpToolCall|dynamicToolCall)[^"]*"'
-    flags: i

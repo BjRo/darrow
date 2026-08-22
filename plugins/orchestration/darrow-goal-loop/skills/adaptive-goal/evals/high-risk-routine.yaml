@@ -32,7 +32,10 @@ fixture:
         package.json: '{"type":"module"}'
         test.sh: |
           #!/usr/bin/env bash
+          set -eu
           node auth-config.test.js
+          review_target=$(.agents/bin/independent-review-fixture "$PWD" fingerprint)
+          printf 'check\t%s\n' "$review_target" >>.git/independent-review-events
   setup: >-
     bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
     "{{case_dir}}/fixtures" codex
@@ -52,11 +55,16 @@ checks:
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
   - name: independent review clears the final changed target
     run: >-
-      awk -F '\t' 'NF == 3 && $1 ~ /^WORKTREE@/ && $2 == "clear" && $3 == "comprehensive" { ok=1 }
+      test "$(cut -f1 .git/independent-review-invocations)" =
+      "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)" &&
+      awk -F '\t' '$1 == "check" { checked[$2]=1 }
+      $1 == "review_start" && checked[$2] { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/independent-review-events &&
+      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
       END { exit ok ? 0 : 1 }' .git/independent-review-invocations
 output_checks:
   - name: completion reports the semantic review outcome
-    expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?(?:(?:Independent review:|\\*\\*Independent review:\\*\\*)[ \\t]*clear\\.|\\*\\*Independent review:[ \\t]*clear\\.\\*\\*)[ \\t]*$"
     flags: i
   - name: high risk uses the routine coding route
     expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: change-feature[\\s\\S]*risk: high[\\s\\S]*profile: routine[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"

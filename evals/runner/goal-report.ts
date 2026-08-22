@@ -38,6 +38,20 @@ const GOAL_REPORT_VALUES: Record<keyof GoalReport, RegExp> = {
   evaluation_human_interruptions: /^\d+$/,
 };
 
+const DECISION_GATED_REPORT: Partial<GoalReport> = {
+  risk: "high",
+  profile: "none",
+  harness: "none",
+  model: "none > none",
+  effort: "none",
+  route_applied_by: "none",
+  route_verified: "false",
+  launch_boundary: "launch_required",
+  verification_gate: "not-applicable",
+  evaluation_child_invocations: "0",
+  evaluation_human_interruptions: "1",
+};
+
 function reportStarts(lines: string[]): number[] {
   const marker = `format: ${GOAL_REPORT_FORMAT}`;
   return lines.flatMap((line, index) =>
@@ -47,9 +61,9 @@ function reportStarts(lines: string[]): number[] {
 
 /** Parse exactly one ordered, contiguous adaptive-goal report block. */
 export function parseGoalReport(resultText: string): GoalReport | undefined {
-  const lines = resultText.split("\n");
+  const lines = resultText.trimStart().split("\n");
   const starts = reportStarts(lines);
-  if (starts.length !== 1) return undefined;
+  if (starts.length !== 1 || starts[0] !== 0) return undefined;
   const report = {} as GoalReport;
   for (const [offset, key] of GOAL_REPORT_KEYS.entries()) {
     const line = lines[starts[0]! + offset]?.trim();
@@ -61,11 +75,30 @@ export function parseGoalReport(resultText: string): GoalReport | undefined {
   return report.format === GOAL_REPORT_FORMAT ? report : undefined;
 }
 
+/** Parse the optional report that may follow a nonterminal feedback question. */
+export function parsePausedGoalReport(
+  resultText: string,
+): GoalReport | undefined {
+  const lines = resultText.trimStart().split("\n");
+  if (lines[0]?.trim() !== "- phase: human-feedback-request") return undefined;
+  const starts = reportStarts(lines);
+  if (starts.length !== 1 || starts[0]! < 2) return undefined;
+  const question = lines.slice(1, starts[0]).join("\n").trim();
+  if (!question) return undefined;
+  return parseGoalReport(lines.slice(starts[0]).join("\n"));
+}
+
 /** Validate every closed field and counter in a parsed report. */
 export function validGoalReportValues(report: GoalReport | undefined): boolean {
   if (!report) return false;
-  return GOAL_REPORT_KEYS.every((key) =>
-    GOAL_REPORT_VALUES[key].test(report[key]),
+  return (
+    GOAL_REPORT_KEYS.every((key) =>
+      GOAL_REPORT_VALUES[key].test(report[key]),
+    ) &&
+    (report.workflow !== "decision-gated" ||
+      Object.entries(DECISION_GATED_REPORT).every(
+        ([key, value]) => report[key as keyof GoalReport] === value,
+      ))
   );
 }
 

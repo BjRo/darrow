@@ -8,7 +8,25 @@ prompt: >-
   specified. Add focused evidence for the new value and preserve the other
   cookie options. Acceptance is that bash test.sh passes. Select and apply the
   policy route rather than pinning it. Keep the result local; commits, pushes,
-  pull requests, and other publication are not authorized.
+  pull requests, and other publication are not authorized. Follow the skill's
+  numbered Claude launch sequence literally. The goal owner must run `bash
+  test.sh` against the final edited target before invoking the comprehensive
+  independent review, and must not rerun it after a clear review response.
+  Before its one Agent starts, use
+  only native Read, Glob, or Grep for inspection; do not call Bash `echo`,
+  `ls`, `find`, another placeholder/no-op, a redirect, or a command list. An
+  exact standalone `true` is tolerated only as an inert no-op and supplies no
+  evidence; do not combine it with anything. Make the literal standalone
+  prepare helper the first protocol-bearing Bash call.
+  The repository is `{{repo_dir}}` and the helper directory is
+  `{{repo_dir}}/.git/eval-plugin/bin`; no additional inspection, listing, or
+  path discovery is needed before the owner. Make the first protocol-bearing Bash call exactly `/bin/bash
+  {{repo_dir}}/.git/eval-plugin/bin/goal-loop prepare --repo {{repo_dir}}
+  --host claude`.
+  Do not use Bash `pwd` before the owner or `git status` after it. After the
+  Agent returns, use only the exact route gate and objective-release calls.
+  Begin the final response directly with the raw `format:` report line, with no
+  prose or Markdown fence before or around the report.
 fixture:
   commits:
     - message: "chore: init"
@@ -33,7 +51,10 @@ fixture:
         package.json: '{"type":"module"}'
         test.sh: |
           #!/usr/bin/env bash
+          set -eu
           node auth-config.test.js
+          review_target=$(.claude/bin/independent-review-fixture "$PWD" fingerprint)
+          printf 'check\t%s\n' "$review_target" >>.git/independent-review-events
   setup: >-
     bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
     "{{case_dir}}/fixtures" claude
@@ -53,21 +74,20 @@ checks:
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
   - name: independent review clears the final changed target
     run: >-
-      awk -F '\t' 'NF == 3 && $1 ~ /^WORKTREE@/ && $2 == "clear" && $3 == "comprehensive" { ok=1 }
+      test "$(cut -f1 .git/independent-review-invocations)" =
+      "$(.claude/bin/independent-review-fixture "$PWD" fingerprint)" &&
+      awk -F '\t' '$1 == "check" { checked[$2]=1 }
+      $1 == "review_start" && checked[$2] { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/independent-review-events &&
+      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
       END { exit ok ? 0 : 1 }' .git/independent-review-invocations
 output_checks:
-  - name: high risk uses the Claude routine route
-    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: change-feature[\\s\\S]*risk: high[\\s\\S]*profile: routine[\\s\\S]*harness: claude"
-  - name: route is verified or unavailable honestly
-    expect_regex: "(model: anthropic > claude-sonnet-5[\\s\\S]*effort: low[\\s\\S]*route_verified: true[\\s\\S]*launch_boundary: native_subagent|model: anthropic > unknown[\\s\\S]*effort: unknown[\\s\\S]*route_verified: false[\\s\\S]*launch_boundary: launch_required)"
-  - name: exactly one observable native Claude goal runner is reported
-    expect_regex: "route_applied_by: native-subagent[\\s\\S]*launch_boundary: (native_subagent|launch_required)[\\s\\S]*evaluation_child_invocations: 1"
-  - name: failed verification never copies the selected route
-    not_regex: "model: anthropic > claude-sonnet-5[\\s\\S]*effort: low[\\s\\S]*route_verified: false"
-  - name: completion reports the semantic review outcome
-    expect_regex: "(independent[ -]review[\\s\\S]{0,120}(no blocking|clear|pass)|(no blocking|clear|pass)[\\s\\S]{0,120}independent[ -]review)"
-    flags: i
-  - name: high verification gate is reported
-    expect_regex: "verification_gate: high"
-  - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions: 0"
+  - name: completion preserves the selected workflow dimensions
+    expect_regex: "^workflow: change-feature$[\\s\\S]*^risk: high$[\\s\\S]*^profile: routine$"
+  - name: completion reports the clear independent-review outcome
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?(?:(?:Independent review:|\\*\\*Independent review:\\*\\*)[ \\t]*clear\\.|\\*\\*Independent review:[ \\t]*clear\\.\\*\\*)[ \\t]*$"
+transcript_checks:
+  - name: one marked selected foreground runner is id-bound to route observation
+    expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"\}[\s\S]*"type":"darrow.goal_agent_completion","tool_use_id":"\1","subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","status":"completed","agent_id":"([A-Za-z0-9]+)"[\s\S]*"type":"darrow.claude_route_observation"[^\r\n]*"goal_tool_use_id":"\1","agent_id":"\2"'
+  - name: no second adaptive-goal runner is launched
+    not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"[\s\S]*"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"'

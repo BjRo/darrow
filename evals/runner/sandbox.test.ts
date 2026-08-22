@@ -15,11 +15,25 @@ afterEach(async () => {
 
 describe("eval outer sandbox", () => {
   test("builds deterministic deny rules and escapes literals", () => {
-    const profile = sandboxProfile(['/tmp/z"q', "/tmp/a\\b", "/tmp/a\\b"]);
+    const profile = sandboxProfile(
+      ['/tmp/z"q', "/tmp/a\\b", "/tmp/a\\b"],
+      ["/tmp/write-only"],
+      ["/tmp/execute-only"],
+    );
     expect(profile).toContain('(deny file-read* (subpath "/tmp/z\\"q"))');
     expect(profile).toContain('(deny file-write* (subpath "/tmp/a\\\\b"))');
     expect(profile.match(/\/tmp\/a/g)?.length).toBe(2);
     expect(profile.indexOf("/tmp/a")).toBeLessThan(profile.indexOf("/tmp/z"));
+    expect(profile).toContain('(deny file-write* (subpath "/tmp/write-only"))');
+    expect(profile).not.toContain(
+      '(deny file-read* (subpath "/tmp/write-only"))',
+    );
+    expect(profile).toContain(
+      '(deny file-read-data (subpath "/tmp/execute-only"))',
+    );
+    expect(profile).toContain(
+      '(deny file-write* (subpath "/tmp/execute-only"))',
+    );
   });
 
   test("wraps agents on macOS or requires declared external isolation", async () => {
@@ -32,7 +46,11 @@ describe("eval outer sandbox", () => {
     await mkdir(join(repoDir, ".git"));
 
     if (process.platform === "darwin") {
-      const command = await sandboxedAgentCommand(["/usr/bin/true"], repoDir);
+      const protectedPath = join(repoDir, ".git", "eval-plugin");
+      await mkdir(protectedPath, { recursive: true });
+      const command = await sandboxedAgentCommand(["/usr/bin/true"], repoDir, [
+        protectedPath,
+      ]);
       expect(command[0]).toBe("/usr/bin/sandbox-exec");
       expect(command.slice(-1)).toEqual(["/usr/bin/true"]);
       const profile = await readFile(command[2]!, "utf8");
@@ -48,6 +66,12 @@ describe("eval outer sandbox", () => {
         `(deny file-read* (subpath "${await realpath(main!)}"))`,
       );
       expect(profile).not.toContain(await realpath(unrelatedDir));
+      expect(profile).toContain(
+        `(deny file-write* (subpath "${protectedPath}"))`,
+      );
+      expect(profile).not.toContain(
+        `(deny file-read* (subpath "${protectedPath}"))`,
+      );
 
       const deniedRead = await sandboxedAgentCommand(
         ["/bin/cat", join(import.meta.dir, "types.ts")],

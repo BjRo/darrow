@@ -1,6 +1,15 @@
-import { writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { existsSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  relative,
+  sep,
+} from "node:path";
 import type {
   HarnessAdapter,
   HarnessResult,
@@ -34,12 +43,20 @@ export function claudeRunSucceeded(
 
 interface ClaudeResultEnvelope {
   type?: unknown;
+  parent_tool_use_id?: unknown;
   subtype?: string;
   is_error?: boolean;
   usage?: unknown;
   total_cost_usd?: unknown;
   result?: unknown;
   message?: unknown;
+}
+
+function isTopLevelClaudeEvent(event: ClaudeResultEnvelope): boolean {
+  return !(
+    typeof event.parent_tool_use_id === "string" &&
+    event.parent_tool_use_id.length > 0
+  );
 }
 
 interface ClaudeOutcome {
@@ -206,10 +223,13 @@ function retainedSkillBlocks(event: ClaudeResultEnvelope) {
   });
 }
 
-function retainedReviewAxisPrompt(prompt: unknown): string | undefined {
+function retainedAgentPromptMarker(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const first = prompt.split("\n", 1)[0];
-  return first && /^- review_axis: (?:standards|spec)$/.test(first)
+  return first &&
+    /^(?:- review_axis: (?:standards|spec)|- phase: adaptive-goal-runner)$/.test(
+      first,
+    )
     ? first
     : undefined;
 }
@@ -222,7 +242,7 @@ function normalizedReviewAgentInput(block: Record<string, unknown>) {
   const rawSubagentType = input.subagent_type ?? input.subagentType;
   const subagentType =
     typeof rawSubagentType === "string" ? rawSubagentType : "unknown";
-  const prompt = retainedReviewAxisPrompt(input.prompt);
+  const prompt = retainedAgentPromptMarker(input.prompt);
   return {
     id: block.id,
     subagentType,
@@ -258,21 +278,40 @@ function retainedReviewAgentBlocks(event: ClaudeResultEnvelope) {
 }
 
 function hostReportedAgentId(block: Record<string, unknown>) {
-  if (
-    block.type !== "tool_result" ||
-    typeof block.tool_use_id !== "string" ||
-    block.is_error === true ||
-    !Array.isArray(block.content)
-  )
-    return undefined;
+  if (!successfulToolResult(block)) return undefined;
   const last = block.content.at(-1);
-  if (!isRecord(last) || last.type !== "text" || typeof last.text !== "string")
-    return undefined;
-  const match = last.text.match(
+  const text = textContent(last);
+  if (!text) return undefined;
+  const match = text.match(
     /^agentId: ([A-Za-z0-9]+) \(use SendMessage with to: '([A-Za-z0-9]+)'[\s\S]*\n<usage>[\s\S]*<\/usage>$/,
   );
-  if (!match || match[1] !== match[2]) return undefined;
-  return { toolUseId: block.tool_use_id, agentId: match[1] };
+  const agentId = match?.[1];
+  if (!agentId || agentId !== match?.[2]) return undefined;
+  return { toolUseId: block.tool_use_id, agentId };
+}
+
+function successfulToolResult(block: Record<string, unknown>): block is Record<
+  string,
+  unknown
+> & {
+  type: "tool_result";
+  tool_use_id: string;
+  content: unknown[];
+} {
+  return [
+    block.type === "tool_result",
+    typeof block.tool_use_id === "string",
+    block.is_error !== true,
+    Array.isArray(block.content),
+  ].every(Boolean);
+}
+
+function textContent(block: unknown): string | undefined {
+  return isRecord(block) &&
+    block.type === "text" &&
+    typeof block.text === "string"
+    ? block.text
+    : undefined;
 }
 
 function retainedReviewAgentResults(event: ClaudeResultEnvelope) {
@@ -281,6 +320,1619 @@ function retainedReviewAgentResults(event: ClaudeResultEnvelope) {
     const result = hostReportedAgentId(block);
     return result ? [result] : [];
   });
+}
+
+interface PendingGoalAgent {
+  subagentType: string;
+}
+
+interface CompletedGoalAgent extends PendingGoalAgent {
+  agentId: string;
+}
+
+interface PendingRouteGate {
+  goalToolUseId: string;
+  agentId: string;
+  selectedModel: string;
+  selectedEffort: string;
+  observedRouteTrusted: boolean;
+}
+
+interface GoalAttachment {
+  attachmentDir: string;
+  contractSha256: string;
+}
+
+interface MaterializedGoalObjective {
+  status: "inline" | "file-backed";
+  contractFile: string;
+  contractSha256: string;
+  objectiveFile: string;
+  attachment: GoalAttachment | null;
+}
+
+interface StagedGoalObjective {
+  block: Record<string, unknown>;
+  toolUseId: string;
+  path: string;
+  sha256: string;
+}
+
+type ClaudePreflightStage =
+  | "prepare"
+  | "prepare-pending"
+  | "route"
+  | "route-pending"
+  | "runner"
+  | "runner-pending"
+  | "complete"
+  | "failed";
+
+type PendingClaudePreflight =
+  | { id: string; kind: "prepare" }
+  | { id: string; kind: "route"; profile: string }
+  | { id: string; kind: "runner"; model: string; effort: string };
+
+interface SelectedClaudeRoute {
+  model: string;
+  effort: string;
+}
+
+const adaptiveGoalRunner =
+  /^darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)$/;
+
+function retainGoalAgentStarts(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  const objective = state.materializedObjective;
+  if (
+    !objective ||
+    !state.stagingReleased ||
+    state.preflightStage !== "complete" ||
+    !state.resolvedGoalRunner ||
+    state.goalAgentStarted
+  )
+    return;
+  for (const block of claudeContent(event)) {
+    const start = goalAgentStart(block, objective);
+    if (start?.pending.subagentType !== state.resolvedGoalRunner) continue;
+    state.pendingGoalAgents.set(start.id, start.pending);
+    state.goalAgentStarted = true;
+    return;
+  }
+}
+
+function goalAgentStart(block: unknown, objective: MaterializedGoalObjective) {
+  if (!isRecord(block)) return undefined;
+  const input = normalizedReviewAgentInput(block);
+  if (!input || !isRecord(block.input)) return undefined;
+  const valid = [
+    adaptiveGoalRunner.test(input.subagentType),
+    input.runInBackground === false,
+    input.model === undefined,
+    input.prompt === "- phase: adaptive-goal-runner",
+    boundGoalAgentPrompt(block.input.prompt, objective),
+  ].every(Boolean);
+  if (!valid) return undefined;
+  return { id: input.id, pending: { subagentType: input.subagentType } };
+}
+
+function boundGoalAgentPrompt(
+  prompt: unknown,
+  objective: MaterializedGoalObjective,
+) {
+  return goalAgentPromptIssue(prompt, objective) === undefined;
+}
+
+function goalAgentPromptIssue(
+  prompt: unknown,
+  objective: MaterializedGoalObjective,
+): string | undefined {
+  if (typeof prompt !== "string") return "shape";
+  const marker = "- phase: adaptive-goal-runner";
+  if (!prompt.startsWith(`${marker}\n`)) return "marker";
+  const body = prompt.slice(marker.length + 1);
+  const boundedObjective =
+    objective.status === "file-backed"
+      ? `- objective_file: ${objective.objectiveFile}`
+      : null;
+  if (!boundedObjective)
+    return sha256Text(body) === objective.contractSha256
+      ? undefined
+      : "body-mismatch";
+  if (
+    [body === boundedObjective, body.startsWith(`${boundedObjective}\n`)].some(
+      Boolean,
+    )
+  )
+    return undefined;
+  if (body.includes(boundedObjective)) return "body-reference-not-leading";
+  if (boundedObjective.startsWith(body)) return "body-truncated";
+  return "body-mismatch";
+}
+
+function sha256Text(value: string): string {
+  return new Bun.CryptoHasher("sha256").update(value).digest("hex");
+}
+
+function retainedGoalAgentCompletions(
+  event: ClaudeResultEnvelope,
+  pending: Map<string, PendingGoalAgent>,
+  completed: Map<string, CompletedGoalAgent>,
+) {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) => {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      typeof block.tool_use_id !== "string"
+    )
+      return [];
+    const call = pending.get(block.tool_use_id);
+    if (!call) return [];
+    pending.delete(block.tool_use_id);
+    const result = hostReportedAgentId(block);
+    if (block.is_error !== true && result)
+      completed.set(block.tool_use_id, {
+        subagentType: call.subagentType,
+        agentId: result.agentId,
+      });
+    return [
+      {
+        type: "darrow.goal_agent_completion",
+        tool_use_id: block.tool_use_id,
+        subagent_type: call.subagentType,
+        status: block.is_error === true ? "failed" : "completed",
+        ...(result ? { agent_id: result.agentId } : {}),
+      },
+    ];
+  });
+}
+
+function bashToolCommand(block: unknown) {
+  if (!isRecord(block)) return undefined;
+  if (block.type !== "tool_use" || block.name !== "Bash") return undefined;
+  if (typeof block.id !== "string" || !isRecord(block.input)) return undefined;
+  if (typeof block.input.command !== "string") return undefined;
+  return { id: block.id, command: block.input.command };
+}
+
+function literalShellWords(command: string): string[] | undefined {
+  if (command !== command.trim()) return undefined;
+  const words: string[] = [];
+  const token =
+    /(?:'([^'\r\n]*)'|"([^"$`\\\r\n]*)"|([A-Za-z0-9_./:@,+%=-]+))(?:[ \t]+|$)/y;
+  let index = 0;
+  while (index < command.length) {
+    token.lastIndex = index;
+    const match = token.exec(command);
+    if (!match) return undefined;
+    words.push(match[1] ?? match[2] ?? match[3]!);
+    index = token.lastIndex;
+  }
+  return words;
+}
+
+interface ClaudeEvidenceContext {
+  repoDir: string;
+  pluginDir: string;
+  stagingRoot: string;
+  observedRouteTrusted: boolean;
+}
+
+function trustedRouteObservation(
+  context: ClaudeEvidenceContext | undefined,
+): boolean {
+  return context?.observedRouteTrusted === true;
+}
+
+function expectedBundledExecutable(
+  path: string,
+  name: string,
+  context: ClaudeEvidenceContext | undefined,
+): boolean {
+  return (
+    !!context &&
+    path === join(context.pluginDir, "bin", name) &&
+    isAbsolute(path) &&
+    normalize(path) === path
+  );
+}
+
+function concreteAbsolutePath(path: string): boolean {
+  return isAbsolute(path) && normalize(path) === path;
+}
+
+function routeForGoalRunner(subagentType: string) {
+  const routes: Record<string, { model: string; effort: string }> = {
+    "darrow-goal-loop:adaptive-goal-sonnet-5-low": {
+      model: "claude-sonnet-5",
+      effort: "low",
+    },
+    "darrow-goal-loop:adaptive-goal-sonnet-5-medium": {
+      model: "claude-sonnet-5",
+      effort: "medium",
+    },
+    "darrow-goal-loop:adaptive-goal-opus-5-high": {
+      model: "claude-opus-5",
+      effort: "high",
+    },
+  };
+  return routes[subagentType];
+}
+
+function routeGateCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+) {
+  const tool = bashToolCommand(block);
+  if (!tool) return undefined;
+  const words = literalShellWords(tool.command);
+  if (!validRouteGateWords(words, context)) return undefined;
+  const selected = words[7]!.match(
+    /^claude\|anthropic\|([A-Za-z0-9._-]+)\|(low|medium|high|xhigh|max|ultra)$/,
+  );
+  if (!selected) return undefined;
+  return {
+    id: tool.id,
+    agentId: words[5]!,
+    selectedModel: selected[1]!,
+    selectedEffort: selected[2]!,
+  };
+}
+
+function validRouteGateWords(
+  words: string[] | undefined,
+  context: ClaudeEvidenceContext | undefined,
+): words is string[] {
+  return (
+    !!words &&
+    [
+      words.length === 8,
+      words[0] === "/bin/bash",
+      expectedBundledExecutable(words[1] ?? "", "claude-route-gate", context),
+      words[2] === "--repo",
+      words[3] === context?.repoDir,
+      words[4] === "--agent-id",
+      /^[A-Za-z0-9]+$/.test(words[5] ?? ""),
+      words[6] === "--selected",
+    ].every(Boolean)
+  );
+}
+
+function materializeObjectiveCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+): { id: string; goalFile: string } | undefined {
+  const tool = bashToolCommand(block);
+  if (!tool) return undefined;
+  const words = literalShellWords(tool.command);
+  if (!words) return undefined;
+  const valid = [
+    words.length === 8,
+    words[0] === "/bin/bash",
+    expectedBundledExecutable(words[1]!, "goal-loop", context),
+    words[2] === "materialize-objective",
+    words[3] === "--force-file-backed",
+    words[4] === "--repo",
+    words[5] === context?.repoDir,
+    words[6] === "--goal-file",
+    concreteAbsolutePath(words[7] ?? ""),
+  ].every(Boolean);
+  if (!valid) return undefined;
+  return { id: tool.id, goalFile: words[7]! };
+}
+
+function objectiveReleaseCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+): ({ id: string } & GoalAttachment) | undefined {
+  const tool = bashToolCommand(block);
+  if (!tool) return undefined;
+  const words = literalShellWords(tool.command);
+  if (!words) return undefined;
+  const valid = [
+    words.length === 7,
+    words[0] === "/bin/bash",
+    expectedBundledExecutable(words[1]!, "goal-loop", context),
+    words[2] === "release-objective",
+    words[3] === "--attachment-dir",
+    concreteAbsolutePath(words[4] ?? ""),
+    words[5] === "--expected-sha256",
+    /^[0-9a-f]{64}$/.test(words[6] ?? ""),
+  ].every(Boolean);
+  if (!valid) return undefined;
+  return {
+    id: tool.id,
+    attachmentDir: words[4]!,
+    contractSha256: words[6]!,
+  };
+}
+
+interface StagingReleaseCall {
+  id: string;
+  goalFile: string;
+  contractSha256: string;
+}
+
+function stagingReleaseCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+): StagingReleaseCall | undefined {
+  const tool = bashToolCommand(block);
+  if (!tool) return undefined;
+  const words = literalShellWords(tool.command);
+  if (!words) return undefined;
+  const valid = [
+    words.length === 7,
+    words[0] === "/bin/bash",
+    expectedBundledExecutable(words[1]!, "goal-loop", context),
+    words[2] === "release-staging",
+    words[3] === "--goal-file",
+    concreteAbsolutePath(words[4] ?? ""),
+    words[5] === "--expected-sha256",
+    /^[0-9a-f]{64}$/.test(words[6] ?? ""),
+  ].every(Boolean);
+  if (!valid) return undefined;
+  return {
+    id: tool.id,
+    goalFile: words[4]!,
+    contractSha256: words[6]!,
+  };
+}
+
+function claudePreflightCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+): PendingClaudePreflight | undefined {
+  const tool = bashToolCommand(block);
+  const words = tool ? literalShellWords(tool.command) : undefined;
+  if (!tool || !words || words[0] !== "/bin/bash") return undefined;
+  return (
+    goalLoopPreflightCall(tool.id, words, context) ??
+    runnerPreflightCall(tool.id, words, context)
+  );
+}
+
+function goalLoopPreflightCall(
+  id: string,
+  words: string[],
+  context: ClaudeEvidenceContext | undefined,
+): PendingClaudePreflight | undefined {
+  if (!expectedBundledExecutable(words[1] ?? "", "goal-loop", context))
+    return undefined;
+  if (validClaudePrepareWords(words, context)) return { id, kind: "prepare" };
+  return validClaudeRouteWords(words, context)
+    ? { id, kind: "route", profile: words[8]! }
+    : undefined;
+}
+
+function validClaudeGoalLoopCommon(
+  words: string[],
+  context: ClaudeEvidenceContext | undefined,
+): boolean {
+  return [
+    words[3] === "--repo",
+    words[4] === context?.repoDir,
+    words[5] === "--host",
+    words[6] === "claude",
+  ].every(Boolean);
+}
+
+function validClaudePrepareWords(
+  words: string[],
+  context: ClaudeEvidenceContext | undefined,
+): boolean {
+  return (
+    words.length === 7 &&
+    words[2] === "prepare" &&
+    validClaudeGoalLoopCommon(words, context)
+  );
+}
+
+function validClaudeRouteWords(
+  words: string[],
+  context: ClaudeEvidenceContext | undefined,
+): boolean {
+  return [
+    words.length === 9 || words.length === 11,
+    words[2] === "route",
+    validClaudeGoalLoopCommon(words, context),
+    words[7] === "--profile",
+    /^(?:routine|routine-plus|scaled|repo-wide|judgment)$/.test(words[8] ?? ""),
+    exactOptionalClaudeRoute(words),
+  ].every(Boolean);
+}
+
+function runnerPreflightCall(
+  id: string,
+  words: string[],
+  context: ClaudeEvidenceContext | undefined,
+): PendingClaudePreflight | undefined {
+  const valid = [
+    words.length === 8,
+    expectedBundledExecutable(words[1] ?? "", "claude-agent-route", context),
+    words[2] === "--provider",
+    words[3] === "anthropic",
+    words[4] === "--model",
+    /^(?:claude-sonnet-5|claude-opus-5)$/.test(words[5] ?? ""),
+    words[6] === "--effort",
+    /^(?:low|medium|high)$/.test(words[7] ?? ""),
+  ].every(Boolean);
+  return valid
+    ? { id, kind: "runner", model: words[5]!, effort: words[7]! }
+    : undefined;
+}
+
+function tempRootProbeCall(block: unknown): { id: string } | undefined {
+  const tool = bashToolCommand(block);
+  const words = tool ? literalShellWords(tool.command) : undefined;
+  if (
+    !tool ||
+    !words ||
+    words.length !== 2 ||
+    !["printenv", "/usr/bin/printenv"].includes(words[0] ?? "") ||
+    words[1] !== "TMPDIR"
+  )
+    return undefined;
+  return { id: tool.id };
+}
+
+function exactOptionalClaudeRoute(words: string[]): boolean {
+  if (words.length === 9) return true;
+  if (words[9] !== "--route") return false;
+  return /^claude\|anthropic\|[A-Za-z0-9._-]+\|(?:low|medium|high|xhigh|max|ultra)$/.test(
+    words[10] ?? "",
+  );
+}
+
+function goalRunnerForRoute(model: string, effort: string): string | undefined {
+  return [
+    "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+    "darrow-goal-loop:adaptive-goal-sonnet-5-medium",
+    "darrow-goal-loop:adaptive-goal-opus-5-high",
+  ].find((runner) => {
+    const route = routeForGoalRunner(runner);
+    return route?.model === model && route.effort === effort;
+  });
+}
+
+function validPreparedResult(
+  text: string,
+  context: ClaudeEvidenceContext | undefined,
+): boolean {
+  const lines = text.trim().split(/\r?\n/);
+  return (
+    lines[0] === "format\tdarrow-native-goal-prepared-v1" &&
+    lines[1] === `repo\t${context?.repoDir}` &&
+    lines.some((line) =>
+      /^route\t[^\t]+\tclaude\tanthropic\t[^\t]+\t[^\t]+$/.test(line),
+    ) &&
+    lines.some((line) =>
+      /^workflow\t(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical|decision-gated)\t\//.test(
+        line,
+      ),
+    )
+  );
+}
+
+function selectedRouteResult(
+  text: string,
+  profile: string,
+): SelectedClaudeRoute | undefined {
+  const lines = text.trim().split(/\r?\n/);
+  if (
+    lines[0] !== "format\tdarrow-native-goal-route-v2" ||
+    lines[1] !== `profile\t${profile}` ||
+    !/^route_source\t(?:policy|user)$/.test(lines[3] ?? "")
+  )
+    return undefined;
+  const selected = lines[2]?.match(
+    /^selected_route\tclaude\tanthropic\t([A-Za-z0-9._-]+)\t(low|medium|high|xhigh|max|ultra)$/,
+  );
+  if (!selected) return undefined;
+  if (!validSelectedRouteTail(lines)) return undefined;
+  return { model: selected[1]!, effort: selected[2]! };
+}
+
+function validSelectedRouteTail(lines: string[]): boolean {
+  const fallback = /^fallback\t[^\t\r\n]+\t[^\t\r\n]+$/;
+  if (lines[3] === "route_source\tuser")
+    return lines.length === 5 && fallback.test(lines[4] ?? "");
+  return (
+    lines[3] === "route_source\tpolicy" &&
+    lines.length === 6 &&
+    /^policy_route_source\t[^\t\r\n]+$/.test(lines[4] ?? "") &&
+    fallback.test(lines[5] ?? "")
+  );
+}
+
+function resolvedRunnerResult(
+  text: string,
+  route: SelectedClaudeRoute,
+  context: ClaudeEvidenceContext | undefined,
+): string | undefined {
+  const runner = goalRunnerForRoute(route.model, route.effort);
+  if (!runner || !context) return undefined;
+  const runnerName = runner.slice("darrow-goal-loop:".length);
+  const expected = [
+    "format\tdarrow-claude-agent-route-v1",
+    `selected_route\tclaude\tanthropic\t${route.model}\t${route.effort}`,
+    `subagent_type\t${runner}`,
+    `agent_file\t${join(context.pluginDir, "agents", `${runnerName}.md`)}`,
+  ].join("\n");
+  return text.trim() === expected ? runner : undefined;
+}
+
+function retainClaudePreflightStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (
+    event.type !== "assistant" ||
+    state.pendingPreflight ||
+    state.preflightStage === "complete" ||
+    state.preflightStage === "failed"
+  )
+    return;
+  const expectedKind = expectedClaudePreflightKind(state.preflightStage);
+  if (!expectedKind) return;
+  for (const block of claudeContent(event)) {
+    if (!isRecord(block)) continue;
+    const call = claudePreflightCall(block, state.context);
+    if (call?.kind !== expectedKind) continue;
+    state.pendingPreflight = call;
+    state.acceptedPreflightBlocks.add(block);
+    state.preflightStage = `${call.kind}-pending` as ClaudePreflightStage;
+    return;
+  }
+}
+
+function expectedClaudePreflightKind(
+  stage: ClaudePreflightStage,
+): PendingClaudePreflight["kind"] | undefined {
+  const kinds: Partial<
+    Record<ClaudePreflightStage, PendingClaudePreflight["kind"]>
+  > = { prepare: "prepare", route: "route", runner: "runner" };
+  return kinds[stage];
+}
+
+function retainClaudePreflightResult(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  const pending = state.pendingPreflight;
+  if (event.type !== "user" || !pending) return;
+  for (const block of claudeContent(event)) {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      block.tool_use_id !== pending.id
+    )
+      continue;
+    state.pendingPreflight = undefined;
+    const accepted =
+      block.is_error !== true &&
+      acceptClaudePreflightResult(pending, toolResultText(block), state);
+    if (!accepted) state.preflightStage = "failed";
+    return;
+  }
+}
+
+function acceptClaudePreflightResult(
+  pending: PendingClaudePreflight,
+  text: string,
+  state: ClaudeEvidenceState,
+): boolean {
+  if (pending.kind === "prepare") {
+    const valid = validPreparedResult(text, state.context);
+    if (valid) state.preflightStage = "route";
+    return valid;
+  }
+  if (pending.kind === "route")
+    return acceptSelectedRoute(pending, text, state);
+  return acceptResolvedRunner(pending, text, state);
+}
+
+function acceptSelectedRoute(
+  pending: Extract<PendingClaudePreflight, { kind: "route" }>,
+  text: string,
+  state: ClaudeEvidenceState,
+): boolean {
+  const route = selectedRouteResult(text, pending.profile);
+  if (!route || !goalRunnerForRoute(route.model, route.effort)) return false;
+  state.selectedClaudeRoute = route;
+  state.preflightStage = "runner";
+  return true;
+}
+
+function acceptResolvedRunner(
+  pending: Extract<PendingClaudePreflight, { kind: "runner" }>,
+  text: string,
+  state: ClaudeEvidenceState,
+): boolean {
+  const selected = state.selectedClaudeRoute;
+  if (!selected) return false;
+  if (pending.model !== selected.model || pending.effort !== selected.effort)
+    return false;
+  const runner = resolvedRunnerResult(text, selected, state.context);
+  if (!runner) return false;
+  state.resolvedGoalRunner = runner;
+  state.preflightStage = "complete";
+  return true;
+}
+
+function pathWithinCanonicalRoot(
+  path: string,
+  root: string | undefined,
+): boolean {
+  const canonicalPath = canonicalProspectiveFile(path);
+  if (!root || !canonicalPath) return false;
+  let canonicalRoot: string;
+  try {
+    canonicalRoot = realpathSync(root);
+  } catch {
+    return false;
+  }
+  const fromRoot = relative(canonicalRoot, canonicalPath);
+  return (
+    fromRoot !== "" &&
+    fromRoot !== ".." &&
+    !fromRoot.startsWith(`..${sep}`) &&
+    !isAbsolute(fromRoot)
+  );
+}
+
+function canonicalProspectiveFile(path: string): string | undefined {
+  if (!concreteAbsolutePath(path)) return undefined;
+  try {
+    return existsSync(path)
+      ? realpathSync(path)
+      : join(realpathSync(dirname(path)), basename(path));
+  } catch {
+    return undefined;
+  }
+}
+
+function retainTempRootProbeStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (
+    event.type !== "assistant" ||
+    !claudeRouteSelected(state) ||
+    state.tempRootProbeStarted
+  )
+    return;
+  for (const block of claudeContent(event)) {
+    if (!isRecord(block)) continue;
+    const probe = tempRootProbeCall(block);
+    if (!probe) continue;
+    state.tempRootProbeStarted = true;
+    state.tempRootProbeBlock = block;
+    state.pendingTempRootProbe = probe.id;
+    return;
+  }
+}
+
+function claudeRouteSelected(state: ClaudeEvidenceState): boolean {
+  return ["runner", "runner-pending", "complete"].includes(
+    state.preflightStage,
+  );
+}
+
+function retainTempRootProbeResult(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "user" || !state.pendingTempRootProbe) return;
+  for (const block of claudeContent(event)) {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      block.tool_use_id !== state.pendingTempRootProbe
+    )
+      continue;
+    state.pendingTempRootProbe = undefined;
+    state.tempRootObserved =
+      block.is_error !== true &&
+      toolResultText(block).trim() === state.context?.stagingRoot;
+    return;
+  }
+}
+
+function acceptPreGoalStagingWrite(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  if (
+    !state.tempRootObserved ||
+    state.stagedGoalObjective ||
+    block.name !== "Write" ||
+    typeof block.id !== "string" ||
+    !isRecord(block.input)
+  )
+    return false;
+  const path = block.input.file_path;
+  const content = block.input.content;
+  if (
+    typeof path !== "string" ||
+    typeof content !== "string" ||
+    !pathWithinCanonicalRoot(path, state.context?.stagingRoot)
+  )
+    return false;
+  state.stagedGoalObjective = {
+    block,
+    toolUseId: block.id,
+    path,
+    sha256: sha256Text(content),
+  };
+  return true;
+}
+
+function retainPreGoalStagingWrite(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "assistant" || state.completedGoalAgents.size !== 0)
+    return;
+  for (const block of claudeContent(event)) {
+    if (isRecord(block) && acceptPreGoalStagingWrite(block, state)) return;
+  }
+}
+
+const claudePreGoalReadOnlyTools = new Set([
+  "Skill",
+  "ToolSearch",
+  "Read",
+  "Glob",
+  "Grep",
+  "WebFetch",
+  "WebSearch",
+  "TodoWrite",
+  "TaskCreate",
+  "TaskUpdate",
+  "AskUserQuestion",
+]);
+
+function permittedPreGoalTool(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  if (state.goalAgentStarted) return acceptedGoalAgentBlock(block, state);
+  if (typeof block.name !== "string") return false;
+  if (claudePreGoalReadOnlyTools.has(block.name)) return true;
+  if (block.name === "Bash") return permittedPreGoalBash(block, state);
+  if (block.name === "Write") return block === state.stagedGoalObjective?.block;
+  return acceptedGoalAgentBlock(block, state);
+}
+
+function acceptedGoalAgentBlock(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  return (
+    block.name === "Agent" &&
+    typeof block.id === "string" &&
+    state.pendingGoalAgents.has(block.id)
+  );
+}
+
+function permittedPreGoalBash(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  if (exactInertPreGoalNoop(block)) return true;
+  if (tempRootProbeCall(block)) return block === state.tempRootProbeBlock;
+  if (stagingReleaseCall(block, state.context))
+    return block === state.stagingReleaseBlock;
+  const materialization = materializeObjectiveCall(block, state.context);
+  if (materialization)
+    return materialization.id === state.materializationToolUseId;
+  return state.acceptedPreflightBlocks.has(block);
+}
+
+function exactInertPreGoalNoop(block: Record<string, unknown>): boolean {
+  const tool = bashToolCommand(block);
+  return tool?.command.trim() === "true";
+}
+
+function retainedPreGoalRepositoryTools(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "assistant" || state.completedGoalAgents.size !== 0)
+    return [];
+  return claudeContent(event).flatMap((block) => {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_use" ||
+      permittedPreGoalTool(block, state)
+    )
+      return [];
+    const tool = typeof block.name === "string" ? block.name : "unknown";
+    return [
+      {
+        type: "darrow.parent_repository_tool_before_goal",
+        tool,
+        operation:
+          rejectedGoalAgentOperation(block, state) ??
+          postGoalRepositoryOperation({ ...block, name: tool }),
+      },
+    ];
+  });
+}
+
+function rejectedGoalAgentOperation(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): string | undefined {
+  if (block.name !== "Agent") return undefined;
+  if (!state.materializedObjective) return "agent-objective-missing";
+  if (!state.stagingReleased) return "agent-staging-unreleased";
+  const input = normalizedReviewAgentInput(block);
+  if (!input || !isRecord(block.input)) return "agent-shape-invalid";
+  const invocationIssue = goalAgentInvocationIssue(input);
+  if (invocationIssue) return invocationIssue;
+  const promptIssue = goalAgentPromptIssue(
+    block.input.prompt,
+    state.materializedObjective,
+  );
+  if (promptIssue) return `agent-contract-${promptIssue}`;
+  return "agent-duplicate";
+}
+
+function goalAgentInvocationIssue(
+  input: NonNullable<ReturnType<typeof normalizedReviewAgentInput>>,
+): string | undefined {
+  if (!adaptiveGoalRunner.test(input.subagentType))
+    return "agent-route-invalid";
+  if (input.runInBackground !== false) return "agent-background-invalid";
+  if (input.model !== undefined) return "agent-model-override";
+  if (input.prompt !== "- phase: adaptive-goal-runner")
+    return "agent-marker-invalid";
+  return undefined;
+}
+
+function objectiveMaterializationRecord(
+  text: string,
+): MaterializedGoalObjective | undefined {
+  const lines = text.trim().split(/\r?\n/);
+  const recordPatterns = [
+    /^contract_bytes\t[1-9][0-9]*$/,
+    /^contract_sha256\t[0-9a-f]{64}$/,
+    /^contract_file\t\/[^\t\r\n]+$/,
+    /^objective_bytes\t[1-9][0-9]*$/,
+    /^objective_file\t\/[^\t\r\n]+$/,
+  ];
+  const recordsValid = recordPatterns.every((pattern, index) =>
+    pattern.test(String(lines[index + 2])),
+  );
+  const baseValid = [
+    lines.length === 8,
+    lines[0] === "format\tdarrow-native-goal-objective-v1",
+    recordsValid,
+  ].every(Boolean);
+  if (!baseValid) return undefined;
+  const inline = [
+    lines[1] === "mode\tinline",
+    lines[7] === "attachment_dir\tnone",
+  ].every(Boolean);
+  const contractFile = lines[4]!.slice("contract_file\t".length);
+  const contractSha256 = lines[3]!.slice("contract_sha256\t".length);
+  const objectiveFile = lines[6]!.slice("objective_file\t".length);
+  if (inline)
+    return {
+      status: "inline",
+      contractFile,
+      contractSha256,
+      objectiveFile,
+      attachment: null,
+    };
+  const attachment = String(lines[7]).match(/^attachment_dir\t(\/[^\t\r\n]+)$/);
+  if (lines[1] !== "mode\tfile-backed") return undefined;
+  if (!attachment) return undefined;
+  return {
+    status: "file-backed",
+    contractFile,
+    contractSha256,
+    objectiveFile,
+    attachment: {
+      attachmentDir: attachment[1]!,
+      contractSha256,
+    },
+  };
+}
+
+function retainObjectiveMaterializationStarts(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "assistant" || state.materializationStarted) return;
+  const staged = state.stagedGoalObjective;
+  if (!staged) return;
+  for (const block of claudeContent(event)) {
+    const call = materializeObjectiveCall(block, state.context);
+    if (!call || call.goalFile !== staged.path) continue;
+    state.materializationStarted = true;
+    state.materializationToolUseId = call.id;
+    state.pendingMaterializations.set(call.id, staged);
+    return;
+  }
+}
+
+function retainObjectiveMaterializationResults(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "user") return [];
+  const retained: unknown[] = [];
+  for (const block of claudeContent(event)) {
+    const objective = acceptedObjectiveMaterialization(block, state);
+    if (!objective) continue;
+    state.materializedObjective = objective;
+    state.expectedAttachment = objective.attachment;
+    retained.push({
+      type: "darrow.goal_objective_materialization",
+      status: objective.status,
+    });
+  }
+  return retained;
+}
+
+function acceptedObjectiveMaterialization(
+  block: unknown,
+  state: ClaudeEvidenceState,
+): MaterializedGoalObjective | undefined {
+  if (!isRecord(block) || block.type !== "tool_result") return undefined;
+  if (typeof block.tool_use_id !== "string") return undefined;
+  const staged = state.pendingMaterializations.get(block.tool_use_id);
+  if (!staged) return undefined;
+  state.pendingMaterializations.delete(block.tool_use_id);
+  if (block.is_error === true) return undefined;
+  const objective = objectiveMaterializationRecord(toolResultText(block));
+  if (!objective || objective.contractSha256 !== staged.sha256)
+    return undefined;
+  if (objective.status === "inline" && objective.contractFile !== staged.path)
+    return undefined;
+  return objective;
+}
+
+function retainStagingReleaseStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  const staged = state.stagedGoalObjective;
+  if (
+    event.type !== "assistant" ||
+    !state.materializedObjective ||
+    !staged ||
+    state.stagingReleaseStarted
+  )
+    return;
+  for (const block of claudeContent(event)) {
+    const release = stagingReleaseCall(block, state.context);
+    if (
+      !release ||
+      release.goalFile !== staged.path ||
+      release.contractSha256 !== staged.sha256
+    )
+      continue;
+    state.stagingReleaseStarted = true;
+    state.stagingReleaseBlock = isRecord(block) ? block : undefined;
+    state.pendingStagingRelease = release;
+    return;
+  }
+}
+
+function retainStagingReleaseResult(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  const pending = state.pendingStagingRelease;
+  if (event.type !== "user" || !pending) return;
+  for (const block of claudeContent(event)) {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      block.tool_use_id !== pending.id
+    )
+      continue;
+    state.pendingStagingRelease = undefined;
+    const expected = [
+      "format\tdarrow-native-goal-staging-release-v1",
+      "status\treleased",
+      `goal_file\t${pending.goalFile}`,
+    ].join("\n");
+    state.stagingReleased =
+      block.is_error !== true && toolResultText(block).trim() === expected;
+    return;
+  }
+}
+
+function retainRouteGateStarts(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "assistant" || state.completedGoalAgents.size !== 1)
+    return;
+  const [goalToolUseId, goal] = [...state.completedGoalAgents.entries()][0]!;
+  const selected = routeForGoalRunner(goal.subagentType);
+  if (!selected) return;
+  for (const block of claudeContent(event)) {
+    const call = routeGateCall(block, state.context);
+    if (
+      !call ||
+      state.routeGateStarted ||
+      call.agentId !== goal.agentId ||
+      call.selectedModel !== selected.model ||
+      call.selectedEffort !== selected.effort
+    )
+      continue;
+    state.routeGateStarted = true;
+    state.pendingRouteGates.set(call.id, {
+      goalToolUseId,
+      agentId: goal.agentId,
+      selectedModel: call.selectedModel,
+      selectedEffort: call.selectedEffort,
+      observedRouteTrusted: trustedRouteObservation(state.context),
+    });
+  }
+}
+
+function toolResultText(block: Record<string, unknown>): string {
+  if (typeof block.content === "string") return block.content;
+  if (!Array.isArray(block.content)) return "";
+  return block.content
+    .flatMap((item) =>
+      isRecord(item) && item.type === "text" && typeof item.text === "string"
+        ? [item.text]
+        : [],
+    )
+    .join("\n");
+}
+
+function claudeRouteGateRecord(
+  text: string,
+  agentId: string,
+  observedRouteTrusted: boolean,
+) {
+  const lines = text.trim().split(/\r?\n/);
+  if (
+    lines[0] !== "format\tdarrow-claude-route-gate-v1" ||
+    lines[1] !== `agent_id\t${agentId}`
+  )
+    return undefined;
+  if (lines.length === 3 && lines[2] === "observation\tunavailable")
+    return { status: "unavailable" as const };
+  if (!observedRouteTrusted) return undefined;
+  if (lines.length !== 4) return undefined;
+  const route = lines[2]!.match(
+    /^observed_route\t(claude)\t(anthropic)\t([^\t\r\n]+)\t([^\t\r\n]+)$/,
+  );
+  const confirmation = lines[3]!.match(/^confirmation\t(confirmed|rejected)$/);
+  if (!route || !confirmation) return undefined;
+  return {
+    status: "observed" as const,
+    harness: route[1]!,
+    provider: route[2]!,
+    model: route[3]!,
+    effort: route[4]!,
+    confirmation: confirmation[1]! as "confirmed" | "rejected",
+  };
+}
+
+function retainedRouteGateResults(
+  event: ClaudeResultEnvelope,
+  pending: Map<string, PendingRouteGate>,
+) {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) =>
+    retainedRouteGateResult(block, pending),
+  );
+}
+
+function retainedRouteGateResult(
+  block: unknown,
+  pending: Map<string, PendingRouteGate>,
+): unknown[] {
+  if (!isRecord(block) || block.type !== "tool_result") return [];
+  if (typeof block.tool_use_id !== "string") return [];
+  const call = pending.get(block.tool_use_id);
+  if (!call) return [];
+  pending.delete(block.tool_use_id);
+  const text = toolResultText(block);
+  const record =
+    block.is_error === true
+      ? { status: "unavailable" as const }
+      : claudeRouteGateRecord(text, call.agentId, call.observedRouteTrusted);
+  if (!record) return [];
+  return [
+    {
+      type: "darrow.claude_route_observation",
+      tool_use_id: block.tool_use_id,
+      goal_tool_use_id: call.goalToolUseId,
+      agent_id: call.agentId,
+      status: record.status,
+      ...(record.status === "observed"
+        ? {
+            harness: record.harness,
+            provider: record.provider,
+            model: record.model,
+            effort: record.effort,
+          }
+        : {}),
+    },
+    ...(record.status === "observed"
+      ? [
+          {
+            type: "darrow.claude_route_confirmation",
+            tool_use_id: block.tool_use_id,
+            goal_tool_use_id: call.goalToolUseId,
+            agent_id: call.agentId,
+            status: record.confirmation,
+            selectedModel: call.selectedModel,
+            selectedEffort: call.selectedEffort,
+            effectiveModel: record.model,
+            effectiveEffort: record.effort,
+          },
+        ]
+      : []),
+  ];
+}
+
+function postGoalRepositoryOperation(block: Record<string, unknown>): string {
+  if (block.name !== "Bash") return String(block.name).toLowerCase();
+  const tool = bashToolCommand(block);
+  const command = tool?.command ?? "";
+  const words = literalShellWords(command);
+  const executable = words?.[0] ? basename(words[0]) : "compound";
+  const commandShape =
+    diagnosticShellExecutables(command).join("+") || executable;
+  return (
+    bashMutationOperation(command, commandShape) ??
+    knownBashOperation(command, executable, commandShape) ??
+    `other-${commandShape}`
+  );
+}
+
+function bashMutationOperation(
+  command: string,
+  commandShape: string,
+): string | undefined {
+  if (/\bsed\b[^\r\n]*[ \t]-i(?:[ \t]|$)/.test(command)) return "mutation-sed";
+  if (
+    /\bfind\b[^\r\n]*(?:-delete|-exec|-execdir|-ok|-okdir|-fprint)/.test(
+      command,
+    )
+  )
+    return "mutation-find";
+  const mutator = command.match(
+    /(?:^|[;&|][ \t]*)(?:\/[A-Za-z0-9_./-]+\/)?(rm|mv|cp|touch|mkdir|tee|install)(?:[ \t]|$)/,
+  )?.[1];
+  if (mutator) return `mutation-${mutator}`;
+  if (hasShellWriteRedirection(command))
+    return `mutation-redirect-${commandShape}`;
+  return undefined;
+}
+
+function knownBashOperation(
+  command: string,
+  executable: string,
+  commandShape: string,
+): string | undefined {
+  if (/\bgit[ \t]+status\b/.test(command)) return "git-status";
+  if (/\bgit[ \t]+diff\b/.test(command)) return "git-diff";
+  if (
+    /\b(?:bash[ \t]+)?test\.sh\b|\b(?:bun|npm|pnpm)[ \t]+test\b/.test(command)
+  )
+    return `test-${commandShape}`;
+  if (/\b(?:shasum|sha256sum)\b/.test(command)) return "hash";
+  if (
+    /\b(?:pwd|ls|find|wc|head|tail|sed|awk|readlink|realpath|dirname)\b/.test(
+      command,
+    )
+  )
+    return `inspect-${commandShape}`;
+  if (command.includes("goal-loop")) return "goal-loop-unbound";
+  if (command.includes("claude-agent-route")) return "agent-route-unbound";
+  if (command.includes("claude-route-gate")) return "route-gate-unbound";
+  return undefined;
+}
+
+function diagnosticShellExecutables(command: string): string[] {
+  return command
+    .split(/&&|\|\||[;\n|]/)
+    .slice(0, 4)
+    .flatMap((segment) => {
+      const first = segment.trim().match(/^([A-Za-z0-9_./-]+)/)?.[1];
+      return first ? [basename(first)] : [];
+    });
+}
+
+function hasShellWriteRedirection(command: string): boolean {
+  let quote: "'" | '"' | null = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index]!;
+    if (char === "\\" && quote !== "'") {
+      index += 1;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (char === ">") return true;
+  }
+  return false;
+}
+
+function acceptObjectiveRelease(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  const release = objectiveReleaseCall(block, state.context);
+  const expected = state.expectedAttachment;
+  if (!release || !expected || state.objectiveReleaseStarted) return false;
+  const matches = [
+    release.attachmentDir === expected.attachmentDir,
+    release.contractSha256 === expected.contractSha256,
+  ].every(Boolean);
+  if (!matches) return false;
+  state.objectiveReleaseStarted = true;
+  state.pendingObjectiveReleases.set(release.id, release);
+  return true;
+}
+
+function retainedPostGoalRepositoryTools(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "assistant" || state.completedGoalAgents.size !== 1)
+    return [];
+  const [goalToolUseId] = state.completedGoalAgents.keys();
+  return claudeContent(event).flatMap((block) => {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_use" ||
+      typeof block.name !== "string"
+    )
+      return [];
+    const gate = routeGateCall(block, state.context);
+    if (gate && state.pendingRouteGates.has(gate.id)) return [];
+    if (acceptObjectiveRelease(block, state)) return [];
+    if (block.name === "ToolSearch") return [];
+    const operation = postGoalRepositoryOperation(block);
+    return [
+      {
+        type: "darrow.parent_repository_tool_after_goal",
+        goal_tool_use_id: goalToolUseId,
+        tool: block.name,
+        operation,
+      },
+    ];
+  });
+}
+
+function retainedObjectiveReleaseResults(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) => {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      typeof block.tool_use_id !== "string"
+    )
+      return [];
+    const release = state.pendingObjectiveReleases.get(block.tool_use_id);
+    if (!release) return [];
+    state.pendingObjectiveReleases.delete(block.tool_use_id);
+    const expected = [
+      "format\tdarrow-native-goal-objective-release-v1",
+      "status\treleased",
+      `attachment_dir\t${release.attachmentDir}`,
+    ].join("\n");
+    if (block.is_error !== true && toolResultText(block).trim() === expected) {
+      state.objectiveReleased = true;
+      return [];
+    }
+    return [postGoalLifecycleViolation(state, "release-failed")];
+  });
+}
+
+function postGoalLifecycleViolation(
+  state: ClaudeEvidenceState,
+  operation: string,
+) {
+  const [goalToolUseId] = state.completedGoalAgents.keys();
+  return {
+    type: "darrow.parent_repository_tool_after_goal",
+    goal_tool_use_id: goalToolUseId,
+    tool: "Bash",
+    operation,
+  };
+}
+
+export interface ClaudeGoalRouteEvidence {
+  goalToolUseId: string;
+  agentId: string;
+  subagentType: string;
+  observation:
+    | { status: "unavailable" }
+    | {
+        status: "observed";
+        harness: string;
+        provider: string;
+        model: string;
+        effort: string;
+      };
+  confirmation?: {
+    status: "confirmed" | "rejected";
+    selectedModel?: string;
+    selectedEffort?: string;
+    effectiveModel?: string;
+    effectiveEffort?: string;
+  };
+}
+
+function retainedRecords(raw: string): Record<string, unknown>[] {
+  return raw.split("\n").flatMap((line) => {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      return isRecord(parsed) ? [parsed] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Summarize only normalized lifecycle facts when Claude route evidence fails. */
+export function claudeGoalRouteEvidenceSummary(raw: string): string {
+  const events = retainedRecords(raw);
+  const count = (type: string) =>
+    events.filter((event) => event.type === type).length;
+  const parentOperations = claudeParentLifecycleOperations(raw);
+  return [
+    `materializations=${count("darrow.goal_objective_materialization")}`,
+    `goal_completions=${count("darrow.goal_agent_completion")}`,
+    `route_observations=${count("darrow.claude_route_observation")}`,
+    `parent_operations=${parentOperations.length ? parentOperations.join(",") : "none"}`,
+  ].join("; ");
+}
+
+/** Return only normalized parent lifecycle labels, never commands or inputs. */
+export function claudeParentLifecycleOperations(raw: string): string[] {
+  return retainedRecords(raw).flatMap((event) =>
+    (event.type === "darrow.parent_repository_tool_before_goal" ||
+      event.type === "darrow.parent_repository_tool_after_goal") &&
+    typeof event.operation === "string"
+      ? [
+          `${event.type === "darrow.parent_repository_tool_before_goal" ? "before" : "after"}:${event.operation}`,
+        ]
+      : [],
+  );
+}
+
+/** Whether the retained stream shows an attempted marked Claude goal owner. */
+export function hasClaudeGoalAgentEvidence(raw: string): boolean {
+  return retainedRecords(raw).some(
+    (event) => event.type === "darrow.goal_agent_completion",
+  );
+}
+
+function goalCompletion(events: Record<string, unknown>[]) {
+  const completions = events.filter(
+    (event) => event.type === "darrow.goal_agent_completion",
+  );
+  if (completions.length !== 1) return undefined;
+  const completion = completions[0]!;
+  return [
+    completion.status === "completed",
+    typeof completion.tool_use_id === "string",
+    typeof completion.agent_id === "string",
+    typeof completion.subagent_type === "string",
+  ].every(Boolean)
+    ? completion
+    : undefined;
+}
+
+function hasPriorGoalMaterialization(
+  events: Record<string, unknown>[],
+  completion: Record<string, unknown>,
+) {
+  const completionIndex = events.indexOf(completion);
+  const materializations = events.flatMap((event, index) =>
+    event.type === "darrow.goal_objective_materialization" &&
+    (event.status === "inline" || event.status === "file-backed") &&
+    index < completionIndex
+      ? [event]
+      : [],
+  );
+  return materializations.length === 1;
+}
+
+function routeObservation(
+  events: Record<string, unknown>[],
+  goalToolUseId: string,
+  agentId: string,
+): ClaudeGoalRouteEvidence["observation"] | undefined {
+  const matches = events.filter(
+    (event) =>
+      event.type === "darrow.claude_route_observation" &&
+      event.goal_tool_use_id === goalToolUseId &&
+      event.agent_id === agentId,
+  );
+  if (matches.length !== 1) return undefined;
+  const observation = matches[0]!;
+  if (observation.status === "unavailable") return { status: "unavailable" };
+  const fields = ["harness", "provider", "model", "effort"] as const;
+  if (
+    observation.status !== "observed" ||
+    !fields.every((key) => typeof observation[key] === "string")
+  )
+    return undefined;
+  return {
+    status: "observed",
+    harness: observation.harness as string,
+    provider: observation.provider as string,
+    model: observation.model as string,
+    effort: observation.effort as string,
+  };
+}
+
+function optionalString(record: Record<string, unknown>, key: string) {
+  return typeof record[key] === "string" ? record[key] : undefined;
+}
+
+function routeConfirmation(
+  events: Record<string, unknown>[],
+  goalToolUseId: string,
+  agentId: string,
+): ClaudeGoalRouteEvidence["confirmation"] | null | undefined {
+  const matches = events.filter(
+    (event) =>
+      event.type === "darrow.claude_route_confirmation" &&
+      event.goal_tool_use_id === goalToolUseId &&
+      event.agent_id === agentId,
+  );
+  if (!matches.length) return undefined;
+  if (matches.length !== 1) return null;
+  const confirmation = matches[0]!;
+  if (confirmation.status !== "confirmed" && confirmation.status !== "rejected")
+    return null;
+  return {
+    status: confirmation.status,
+    selectedModel: optionalString(confirmation, "selectedModel"),
+    selectedEffort: optionalString(confirmation, "selectedEffort"),
+    effectiveModel: optionalString(confirmation, "effectiveModel"),
+    effectiveEffort: optionalString(confirmation, "effectiveEffort"),
+  };
+}
+
+/** Read only the bounded route facts retained from a Claude harness stream. */
+export function claudeGoalRouteEvidence(
+  raw: string,
+): ClaudeGoalRouteEvidence | undefined {
+  const events = retainedRecords(raw);
+  const completion = goalCompletion(events);
+  if (!completion || !hasPriorGoalMaterialization(events, completion))
+    return undefined;
+  const goalToolUseId = completion.tool_use_id as string;
+  const agentId = completion.agent_id as string;
+  const observation = routeObservation(events, goalToolUseId, agentId);
+  if (!observation) return undefined;
+  const confirmation = routeConfirmation(events, goalToolUseId, agentId);
+  if (
+    confirmation === null ||
+    (observation.status === "observed" && !confirmation) ||
+    (observation.status === "unavailable" && confirmation)
+  )
+    return undefined;
+  return {
+    goalToolUseId,
+    agentId,
+    subagentType: completion.subagent_type as string,
+    observation,
+    ...(confirmation ? { confirmation } : {}),
+  };
+}
+
+interface ClaudeGoalRouteReport {
+  harness: string;
+  model: string;
+  effort: string;
+  route_applied_by: string;
+  route_verified: string;
+  launch_boundary: string;
+  evaluation_child_invocations: string;
+}
+
+function confirmedClaudeGoalRoute(
+  evidence: ClaudeGoalRouteEvidence,
+  selected: { model: string; effort: string },
+): boolean {
+  const observed = evidence.observation;
+  const confirmation = evidence.confirmation;
+  return [
+    observed.status === "observed" &&
+      observed.harness === "claude" &&
+      observed.provider === "anthropic",
+    observed.status === "observed" && observed.model === selected.model,
+    observed.status === "observed" && observed.effort === selected.effort,
+    confirmation?.status === "confirmed",
+    confirmation?.selectedModel === selected.model,
+    confirmation?.selectedEffort === selected.effort,
+    observationMatchesConfirmation(observed, confirmation),
+  ].every(Boolean);
+}
+
+function observationMatchesConfirmation(
+  observed: ClaudeGoalRouteEvidence["observation"],
+  confirmation: ClaudeGoalRouteEvidence["confirmation"],
+) {
+  return (
+    observed.status === "observed" &&
+    confirmation?.effectiveModel === observed.model &&
+    confirmation.effectiveEffort === observed.effort
+  );
+}
+
+function unavailableRouteReportMatches(
+  report: ClaudeGoalRouteReport,
+  evidence: ClaudeGoalRouteEvidence,
+) {
+  return [
+    evidence.confirmation === undefined,
+    report.harness === "claude",
+    report.model === "anthropic > unknown",
+    report.effort === "unknown",
+    report.route_verified === "false",
+    report.launch_boundary === "launch_required",
+  ].every(Boolean);
+}
+
+function confirmationSelectedRouteMatches(
+  evidence: ClaudeGoalRouteEvidence,
+  selected: { model: string; effort: string },
+) {
+  return [
+    evidence.confirmation?.selectedModel === selected.model,
+    evidence.confirmation?.selectedEffort === selected.effort,
+  ].every(Boolean);
+}
+
+/** Reconcile caller-facing route fields with retained observation evidence. */
+export function claudeGoalRouteReportMatches(
+  report: ClaudeGoalRouteReport,
+  evidence: ClaudeGoalRouteEvidence,
+  selected: { model: string; effort: string },
+): boolean {
+  const validOwner =
+    report.route_applied_by === "native-subagent" &&
+    report.evaluation_child_invocations === "1";
+  if (!validOwner) return false;
+  if (evidence.observation.status === "observed" && !evidence.confirmation)
+    return false;
+  if (evidence.observation.status === "unavailable")
+    return unavailableRouteReportMatches(report, evidence);
+  const observed = evidence.observation;
+  if (!confirmationSelectedRouteMatches(evidence, selected)) return false;
+  const verified = confirmedClaudeGoalRoute(evidence, selected);
+  return [
+    report.harness === observed.harness &&
+      report.model === `${observed.provider} > ${observed.model}`,
+    report.effort === observed.effort,
+    report.route_verified === String(verified),
+    report.launch_boundary ===
+      (verified ? "native_subagent" : "launch_required"),
+  ].every(Boolean);
 }
 
 interface PendingReviewAgent {
@@ -421,33 +2073,135 @@ function retainedResultEnvelope(event: ClaudeResultEnvelope) {
   };
 }
 
+interface ClaudeEvidenceState {
+  pendingReviewAgents: Map<string, PendingReviewAgent>;
+  pendingGoalAgents: Map<string, PendingGoalAgent>;
+  completedGoalAgents: Map<string, CompletedGoalAgent>;
+  pendingRouteGates: Map<string, PendingRouteGate>;
+  retainedReviewAgentTurns: Map<string, RetainedReviewAgentTurn>;
+  reviewAgentBatch: number;
+  context?: ClaudeEvidenceContext;
+  preflightStage: ClaudePreflightStage;
+  pendingPreflight?: PendingClaudePreflight;
+  acceptedPreflightBlocks: Set<Record<string, unknown>>;
+  selectedClaudeRoute?: SelectedClaudeRoute;
+  resolvedGoalRunner?: string;
+  goalAgentStarted: boolean;
+  routeGateStarted: boolean;
+  tempRootProbeStarted: boolean;
+  tempRootProbeBlock?: Record<string, unknown>;
+  pendingTempRootProbe?: string;
+  tempRootObserved: boolean;
+  stagedGoalObjective?: StagedGoalObjective;
+  materializationStarted: boolean;
+  materializationToolUseId?: string;
+  pendingMaterializations: Map<string, StagedGoalObjective>;
+  stagingReleaseStarted: boolean;
+  stagingReleaseBlock?: Record<string, unknown>;
+  pendingStagingRelease?: StagingReleaseCall;
+  stagingReleased: boolean;
+  expectedAttachment?: GoalAttachment | null;
+  materializedObjective?: MaterializedGoalObjective;
+  objectiveReleaseStarted: boolean;
+  pendingObjectiveReleases: Map<string, GoalAttachment>;
+  objectiveReleased: boolean;
+}
+
+function newClaudeEvidenceState(
+  context: ClaudeEvidenceContext | undefined,
+): ClaudeEvidenceState {
+  return {
+    pendingReviewAgents: new Map(),
+    pendingGoalAgents: new Map(),
+    completedGoalAgents: new Map(),
+    pendingRouteGates: new Map(),
+    retainedReviewAgentTurns: new Map(),
+    reviewAgentBatch: 0,
+    context,
+    preflightStage: "prepare",
+    acceptedPreflightBlocks: new Set(),
+    goalAgentStarted: false,
+    routeGateStarted: false,
+    tempRootProbeStarted: false,
+    tempRootObserved: false,
+    materializationStarted: false,
+    pendingMaterializations: new Map(),
+    stagingReleaseStarted: false,
+    stagingReleased: false,
+    objectiveReleaseStarted: false,
+    pendingObjectiveReleases: new Map(),
+    objectiveReleased: false,
+  };
+}
+
+function retainedNonResultEvent(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  const retained: unknown[] = [];
+  const skills = retainedSkillBlocks(event);
+  if (skills.length)
+    retained.push({ type: "assistant", message: { content: skills } });
+  const topLevel = isTopLevelClaudeEvent(event);
+  if (topLevel) {
+    retainClaudePreflightStart(event, state);
+    retainClaudePreflightResult(event, state);
+    retainTempRootProbeStart(event, state);
+    retainTempRootProbeResult(event, state);
+    retainPreGoalStagingWrite(event, state);
+    retainObjectiveMaterializationStarts(event, state);
+    retained.push(...retainObjectiveMaterializationResults(event, state));
+    retainStagingReleaseStart(event, state);
+    retainStagingReleaseResult(event, state);
+    retainGoalAgentStarts(event, state);
+    retained.push(...retainedPreGoalRepositoryTools(event, state));
+    retainRouteGateStarts(event, state);
+    retained.push(...retainedPostGoalRepositoryTools(event, state));
+  }
+  const reviewEvidence = retainedReviewAgentEvidence(
+    event,
+    state.pendingReviewAgents,
+    state.retainedReviewAgentTurns,
+    state.reviewAgentBatch,
+  );
+  retained.push(...reviewEvidence.retained);
+  if (topLevel) {
+    retained.push(
+      ...retainedGoalAgentCompletions(
+        event,
+        state.pendingGoalAgents,
+        state.completedGoalAgents,
+      ),
+    );
+    retained.push(...retainedRouteGateResults(event, state.pendingRouteGates));
+    retained.push(...retainedObjectiveReleaseResults(event, state));
+  }
+  state.reviewAgentBatch = reviewEvidence.batch;
+  return retained;
+}
+
 /** Retain bounded accounting and reduced Skill events, not result text. */
 export function retainedClaudeEvidence(
   stream: string,
   status?: { exitCode: number; stderrPresent: boolean },
+  context?: ClaudeEvidenceContext,
 ): string {
   const parsed = claudeStream(stream);
   const retained: unknown[] = [];
-  const pendingReviewAgents = new Map<string, PendingReviewAgent>();
-  const retainedReviewAgentTurns = new Map<string, RetainedReviewAgentTurn>();
-  let reviewAgentBatch = 0;
+  const state = newClaudeEvidenceState(context);
   for (const event of parsed.events) {
     if (event.type === "result") {
       retained.push(retainedResultEnvelope(event));
       continue;
     }
-    const skills = retainedSkillBlocks(event);
-    if (skills.length)
-      retained.push({ type: "assistant", message: { content: skills } });
-    const reviewEvidence = retainedReviewAgentEvidence(
-      event,
-      pendingReviewAgents,
-      retainedReviewAgentTurns,
-      reviewAgentBatch,
-    );
-    retained.push(...reviewEvidence.retained);
-    reviewAgentBatch = reviewEvidence.batch;
+    retained.push(...retainedNonResultEvent(event, state));
   }
+  if (
+    state.completedGoalAgents.size === 1 &&
+    state.expectedAttachment &&
+    !state.objectiveReleased
+  )
+    retained.push(postGoalLifecycleViolation(state, "release-missing"));
   if (parsed.malformed) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)
     retained.push({
@@ -521,6 +2275,106 @@ async function claudeOutcome(
   return outcome;
 }
 
+function retainedClaudeRunEvidence(
+  out: string,
+  code: number,
+  err: string,
+  context: ClaudeEvidenceContext,
+) {
+  return retainedClaudeEvidence(
+    out,
+    { exitCode: code, stderrPresent: err.trim().length > 0 },
+    context,
+  );
+}
+
+function claudeProcessEnvironment(
+  env: Record<string, string>,
+  repoDir: string,
+) {
+  return {
+    ...env,
+    DARROW_CLAUDE_ROUTE_TELEMETRY: "untrusted",
+    DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+    PATH: `${claudeSafeInspectionBin(repoDir)}:${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+  };
+}
+
+function protectedClaudeRuntimePaths(
+  repoDir: string,
+  pluginDir: string,
+  env: Record<string, string>,
+) {
+  const searchPaths = (env.PATH ?? "")
+    .split(":")
+    .filter((path) => concreteAbsolutePath(path));
+  return [
+    pluginDir,
+    env.ZDOTDIR,
+    claudeSafeInspectionBin(repoDir),
+    join(repoDir, ".git", "fixture-bin"),
+    ...searchPaths,
+  ].filter(
+    (path): path is string => typeof path === "string" && path.length > 0,
+  );
+}
+
+function claudeSafeInspectionBin(repoDir: string): string {
+  return join(repoDir, ".git", "darrow-eval", "safe-inspection-bin");
+}
+
+async function installClaudeSafeInspectionWrappers(repoDir: string) {
+  const bin = claudeSafeInspectionBin(repoDir);
+  await mkdir(bin, { recursive: true });
+  await Promise.all([
+    writeFile(
+      join(bin, "find"),
+      `#!/bin/sh
+for arg do
+  case "$arg" in
+    -delete|-exec|-execdir|-ok|-okdir|-fprint|-fprint0|-fprintf|-fls) exit 64 ;;
+  esac
+done
+exec /usr/bin/find "$@"
+`,
+      { mode: 0o500 },
+    ),
+    writeFile(join(bin, "ls"), '#!/bin/sh\nexec /bin/ls "$@"\n', {
+      mode: 0o500,
+    }),
+    writeFile(join(bin, "sort"), '#!/bin/sh\nexec /usr/bin/sort "$@"\n', {
+      mode: 0o500,
+    }),
+    writeFile(join(bin, "head"), '#!/bin/sh\nexec /usr/bin/head "$@"\n', {
+      mode: 0o500,
+    }),
+    writeFile(
+      join(bin, "printenv"),
+      '#!/bin/sh\n[ "$#" -eq 1 ] && [ "$1" = TMPDIR ] || exit 64\nexec /usr/bin/printenv TMPDIR\n',
+      { mode: 0o500 },
+    ),
+  ]);
+}
+
+async function spawnClaudeEvaluation(
+  argv: string[],
+  repoDir: string,
+  env: Record<string, string>,
+) {
+  const proc = Bun.spawn(argv, {
+    cwd: repoDir,
+    stdout: "pipe",
+    stderr: "pipe",
+    // Fixture mocks shadow real network tools for every subprocess.
+    env: claudeProcessEnvironment(env, repoDir),
+  });
+  return Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+}
+
 /**
  * Runs the skill via headless Claude Code (`claude -p`). The fixture exposes
  * the source plugin through `--plugin-dir`, matching installed-plugin resource
@@ -545,54 +2399,52 @@ export const claudeAdapter: HarnessAdapter = {
 
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
     const start = performance.now();
-    const env = await isolatedHarnessEnvironment("claude", repoDir);
-    const evalPlugin = join(repoDir, ".git", "eval-plugin");
-    const argv = await sandboxedAgentCommand(
-      claudeArgv(
-        prompt,
-        model,
-        effort,
-        existsSync(evalPlugin) ? evalPlugin : undefined,
-      ),
-      repoDir,
+    const repo = realpathSync(repoDir);
+    const env = await isolatedHarnessEnvironment("claude", repo);
+    await installClaudeSafeInspectionWrappers(repo);
+    const stagingRoot = realpathSync(
+      await mkdtemp(join(tmpdir(), "darrow-claude-objective-")),
     );
-    const proc = Bun.spawn(argv, {
-      cwd: repoDir,
-      stdout: "pipe",
-      stderr: "pipe",
-      // Fixture mocks (e.g. gh) shadow real network tools for the harness
-      // and every subprocess it spawns.
-      env: {
-        ...env,
-        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
-        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-      },
-    });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    const durationMs = performance.now() - start;
-    const outcome = await claudeOutcome(repoDir, out, code);
-    const skillActivation = claudeSkillActivation(out);
-
-    return {
-      ok: outcome.ok,
-      durationMs,
-      tokenUsageComplete: outcome.tokenUsageComplete,
-      inputTokens: outcome.inputTokens,
-      outputTokens: outcome.outputTokens,
-      costUsd: outcome.costUsd,
-      resultText: outcome.resultText,
-      raw: retainedClaudeEvidence(out, {
-        exitCode: code,
-        stderrPresent: err.trim().length > 0,
-      }),
-      skillActivation: {
-        ...skillActivation,
-        complete: outcome.ok && skillActivation.complete,
-      },
+    env.TMPDIR = stagingRoot;
+    const evalPlugin = join(repo, ".git", "eval-plugin");
+    const evidenceContext = {
+      repoDir: repo,
+      pluginDir: evalPlugin,
+      stagingRoot,
+      observedRouteTrusted: false,
     };
+    try {
+      const argv = await sandboxedAgentCommand(
+        claudeArgv(
+          prompt,
+          model,
+          effort,
+          existsSync(evalPlugin) ? evalPlugin : undefined,
+        ),
+        repo,
+        protectedClaudeRuntimePaths(repo, evalPlugin, env),
+      );
+      const [out, err, code] = await spawnClaudeEvaluation(argv, repo, env);
+      const durationMs = performance.now() - start;
+      const outcome = await claudeOutcome(repo, out, code);
+      const skillActivation = claudeSkillActivation(out);
+
+      return {
+        ok: outcome.ok,
+        durationMs,
+        tokenUsageComplete: outcome.tokenUsageComplete,
+        inputTokens: outcome.inputTokens,
+        outputTokens: outcome.outputTokens,
+        costUsd: outcome.costUsd,
+        resultText: outcome.resultText,
+        raw: retainedClaudeRunEvidence(out, code, err, evidenceContext),
+        skillActivation: {
+          ...skillActivation,
+          complete: outcome.ok && skillActivation.complete,
+        },
+      };
+    } finally {
+      await rm(stagingRoot, { recursive: true, force: true });
+    }
   },
 };

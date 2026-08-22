@@ -43,8 +43,7 @@ checks:
       test "$(cut -f3 .git/independent-review-invocations | tr '\n' ' ')" = 'comprehensive verify verify ' &&
       test "$(cut -f2 .git/independent-review-invocations | tr '\n' ' ')" = 'blocking continue clear '
 output_checks:
-  - name: completion reports repaired regression and clear verification
-    expect_regex: "regression[\\s\\S]{0,260}(fix|resolved)[\\s\\S]{0,260}(clear|pass|no blocking)"
-    flags: i
+  - name: completion reports clear fix verification
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Fix verification:[ \\t]*clear\\.[ \\t]*$"
   - name: completion does not promote the excluded observation
     not_regex: "renam(e|ing|ed) SIDE"
