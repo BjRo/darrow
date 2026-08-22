@@ -33,18 +33,7 @@ const COMPLETE_CONTRACT = [
   "Stopping budget: No user-specified numeric limit.",
   "Human feedback: Pause for the smallest material question.",
   "Completion report: Begin with the canonical report.",
-  "format\tdarrow-native-goal-preflight-v4",
-  "workflow\tchange-feature",
-  "risk\troutine",
-  "profile\troutine",
-  "selected_route\tcodex\topenai\tgpt-5.6-luna\tlow",
-  "effective_route\tcodex\topenai\tgpt-5.6-luna\tlow",
-  "route_applied_by\tnative-subagent",
-  "route_verified\ttrue",
-  "launch_boundary\tnative_subagent",
-  "verification_gate\troutine",
-  "evaluation_child_invocations\t1",
-  "evaluation_human_interruptions\t0",
+  "Protocol ledger: /tmp/darrow-goal-run.fixture",
 ].join("\n");
 
 test("Codex no-skill control does not require a plugin package", async () => {
@@ -706,7 +695,8 @@ describe("Codex skill activation observation", () => {
           id: "release-1",
           type: "command_execution",
           command:
-            `/bin/bash ${goalLoopPath} release-objective ` +
+            `/bin/bash ${goalLoopPath} step release-objective ` +
+            "--ledger /tmp/darrow-goal-run.fixture " +
             `--attachment-dir ${attachmentDir} --expected-sha256 ${digest}`,
           exit_code: 0,
           status: "completed",

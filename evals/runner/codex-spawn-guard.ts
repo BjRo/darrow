@@ -6,7 +6,15 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { createHash, createHmac } from "node:crypto";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  relative,
+  resolve,
+} from "node:path";
 import { parseArgs } from "node:util";
 
 const OWNER_MARKER = "- phase: adaptive-goal-runner";
@@ -22,6 +30,7 @@ export interface CodexSpawnAttestation {
   baselineSha256: string;
   fixtureStateSha256: string;
   objectiveMode: "inline" | "file-backed";
+  ledger: string;
   attachmentDir?: string;
 }
 
@@ -54,6 +63,7 @@ const CONTRACT_LABELS = [
   "Stopping budget",
   "Human feedback",
   "Completion report",
+  "Protocol ledger",
 ] as const;
 
 const FIXTURE_STATE_ENTRY =
@@ -123,96 +133,58 @@ export async function fixtureStateFingerprint(
   return sha256(records.join(""));
 }
 
-function recordValue(contract: string, key: string): string | undefined {
-  const matches = contract
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith(`${key}\t`));
-  return matches.length === 1 ? matches[0]!.slice(key.length + 1) : undefined;
-}
-
 function completeContractLabels(contract: string): boolean {
-  return CONTRACT_LABELS.every((label) => {
-    const matches = contract
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith(`${label}: `));
-    return matches.length === 1 && !!matches[0]!.slice(label.length + 2).trim();
-  });
+  const lines = contract.split(/\r?\n/);
+  const indexes = CONTRACT_LABELS.map((label) =>
+    lines.flatMap((line, index) =>
+      line.startsWith(`${label}:`) ? [index] : [],
+    ),
+  );
+  return (
+    indexes.every((matches, index) => {
+      if (matches.length !== 1) return false;
+      const label = CONTRACT_LABELS[index]!;
+      const line = lines[matches[0]!]!;
+      return (
+        line.startsWith(`${label}: `) && !!line.slice(label.length + 2).trim()
+      );
+    }) &&
+    indexes.every((matches, index) =>
+      index === 0 ? true : matches[0]! > indexes[index - 1]![0]!,
+    )
+  );
 }
 
-function contractDimensionChecks(
-  contract: string,
-  route: string,
-): Array<[string, boolean]> {
-  return [
-    [
-      "format",
-      recordValue(contract, "format") === "darrow-native-goal-preflight-v4",
-    ],
-    [
-      "workflow",
-      /^(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical)$/.test(
-        recordValue(contract, "workflow") ?? "",
-      ),
-    ],
-    [
-      "risk",
-      /^(?:routine|elevated|high)$/.test(recordValue(contract, "risk") ?? ""),
-    ],
-    [
-      "profile",
-      /^(?:routine|routine-plus|scaled|repo-wide|judgment)$/.test(
-        recordValue(contract, "profile") ?? "",
-      ),
-    ],
-    ["selected_route", recordValue(contract, "selected_route") === route],
-    ["effective_route", recordValue(contract, "effective_route") === route],
-  ];
-}
-
-function contractBoundaryChecks(contract: string): Array<[string, boolean]> {
-  return [
-    [
-      "route_applied_by",
-      recordValue(contract, "route_applied_by") === "native-subagent",
-    ],
-    ["route_verified", recordValue(contract, "route_verified") === "true"],
-    [
-      "launch_boundary",
-      recordValue(contract, "launch_boundary") === "native_subagent",
-    ],
-    [
-      "verification_gate",
-      recordValue(contract, "verification_gate") ===
-        recordValue(contract, "risk"),
-    ],
-    [
-      "evaluation_child_invocations",
-      recordValue(contract, "evaluation_child_invocations") === "1",
-    ],
-    [
-      "evaluation_human_interruptions",
-      recordValue(contract, "evaluation_human_interruptions") === "0",
-    ],
-    [
-      "record_order",
-      contract.indexOf("format\tdarrow-native-goal-preflight-v4") >
-        contract.indexOf("Completion report: "),
-    ],
-  ];
-}
-
-function contractRecordIssues(
-  contract: string,
-  model: string,
-  effort: string,
-): string[] {
-  const route = `codex\topenai\t${model}\t${effort}`;
+export function goalContractRecordIssues(contract: string): string[] {
+  const ledger = contractLabelValue(contract, "Protocol ledger");
   const checks: Array<[string, boolean]> = [
     ["contract_labels", completeContractLabels(contract)],
-    ...contractDimensionChecks(contract, route),
-    ...contractBoundaryChecks(contract),
+    [
+      "protocol_ledger",
+      !!ledger &&
+        isAbsolute(ledger) &&
+        normalize(ledger) === ledger &&
+        basename(ledger).startsWith("darrow-goal-run."),
+    ],
+    [
+      "legacy_launch_record",
+      !contract.includes("darrow-native-goal-preflight-v4"),
+    ],
   ];
   return checks.filter(([, valid]) => !valid).map(([name]) => name);
+}
+
+function contractLabelValue(
+  contract: string,
+  label: string,
+): string | undefined {
+  const prefix = `${label}: `;
+  const matches = contract
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith(prefix));
+  return matches.length === 1
+    ? matches[0]!.slice(prefix.length).trim()
+    : undefined;
 }
 
 function fileBackedContractReference(
@@ -390,6 +362,9 @@ function spawnAttestation(
   resolved: ResolvedContract,
   policy: CodexSpawnGuardPolicy,
 ): CodexSpawnAttestation {
+  const ledger = contractLabelValue(resolved.contract, "Protocol ledger");
+  if (!ledger)
+    throw new Error("validated goal contract lost its protocol ledger");
   return {
     model: route.model,
     effort: route.effort,
@@ -400,6 +375,7 @@ function spawnAttestation(
     baselineSha256: policy.baselineSha256,
     fixtureStateSha256: policy.fixtureStateSha256,
     objectiveMode: resolved.objectiveMode,
+    ledger,
     ...(resolved.attachmentDir
       ? { attachmentDir: resolved.attachmentDir }
       : {}),
@@ -465,11 +441,7 @@ async function guardOwnerAgent(
     return denied(
       "adaptive goal owner objective was not a valid inline or file-backed contract",
     );
-  const contractIssues = contractRecordIssues(
-    resolved.contract,
-    route.model,
-    route.effort,
-  );
+  const contractIssues = goalContractRecordIssues(resolved.contract);
   if (contractIssues.length)
     return denied(
       `adaptive goal owner contract has invalid fields: ${contractIssues.join(", ")}`,
@@ -523,7 +495,7 @@ function parentLifecycleShellAllowed(
   if (!attachment) return false;
   return (
     command ===
-    `/bin/bash ${policy.goalLoopPath} release-objective --attachment-dir ${attachment} --expected-sha256 ${state.attestation.contractSha256}`
+    `/bin/bash ${policy.goalLoopPath} step release-objective --ledger ${state.attestation.ledger} --attachment-dir ${attachment} --expected-sha256 ${state.attestation.contractSha256}`
   );
 }
 
@@ -628,6 +600,9 @@ function validAttestation(
     /^[0-9a-f]{64}$/.test(String(record.baselineSha256 ?? "")),
     /^[0-9a-f]{64}$/.test(String(record.fixtureStateSha256 ?? "")),
     record.objectiveMode === "inline" || record.objectiveMode === "file-backed",
+    typeof record.ledger === "string" &&
+      isAbsolute(record.ledger) &&
+      normalize(record.ledger) === record.ledger,
     record.objectiveMode !== "file-backed" ||
       (typeof record.attachmentDir === "string" &&
         record.attachmentDir.startsWith("/")),

@@ -12,7 +12,7 @@ The task prompt supplies the complete goal contract inline or one
 `- objective_file: <absolute-path>` line naming the helper-created bounded
 objective. For a file-backed contract, read that objective and verify the
 complete contract before work. That exact objective-file reference is the sole
-task authority; ignore any later task-prompt text.
+task authority; any later task-prompt text invalidates the launch.
 Treat that complete contract as the goal for this Agent run. Work directly in
 the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, budget, or host boundary. A material
@@ -25,14 +25,18 @@ relay is available, return the question and resumable state without choosing a
 default or making further changes. Count each distinct user question once in
 the final record.
 
-When the contract says `Independent review: selected —`, confirm before
-product edits that the environment exposes a capability matching the required
-review intent. Invoke it only after the final candidate and checks are ready.
+When the contract says `Independent review: selected —`, its matching
+environment capability was proven available during pre-activation. If that
+proof is absent, do not edit; return the evidence gap so the parent can record a
+pre-activation launch stop. Invoke the proven capability only after the final
+candidate and checks are ready.
 Once its exact-target preparation starts, finish only that capability
 invocation and await it before other repository work.
 Read its ordinary response semantically and report its outcome and any
 blocking findings; do not require or reproduce a provider-specific
-serialization. Apply the contract's comprehensive-initial-review, closed-set
+serialization. Record each returned semantic outcome through the contract's
+`Protocol ledger:` path with `goal-loop step review`; never edit ledger files
+directly. Apply the contract's comprehensive-initial-review, closed-set
 fix-verification, prior-artifact continuity, pinned-repair-delta, progress,
 explicit-limit, target-invalidation, and publication rules.
 Return a clear initial outcome on its own line as exactly `Independent review:
@@ -46,6 +50,8 @@ If an initial blocker cannot be repaired, return the standalone canonical line
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal
 owner. Preserve user-owned changes and return the contract's human-readable
-final report with changed files, verification evidence, and remaining risks. Do not
+terminal evidence with changed files, verification evidence, review outcomes,
+and remaining risks. The parent records route and objective-release evidence
+and renders the canonical report from the ledger. Do not
 commit, push, open a pull request, merge, release, or deploy unless the contract
 explicitly grants that authority.

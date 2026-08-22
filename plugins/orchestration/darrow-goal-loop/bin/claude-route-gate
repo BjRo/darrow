@@ -10,7 +10,7 @@ tab=$(printf '\t')
 
 usage() {
   cat <<'EOF'
-usage: claude-route-gate --repo <path> --agent-id <id> --selected <harness|provider|model|effort>
+usage: claude-route-gate --repo <path> --agent-id <id> --selected <harness|provider|model|effort> [--ledger <absolute-path>]
 
 Observes one completed Claude Agent's effective route and confirms it against
 the selected route. An unavailable observation is a bounded, successful gate
@@ -23,10 +23,31 @@ die() {
   exit 2
 }
 
+record_ledger_activation() {
+  effective_for_ledger=$1
+  test -n "$ledger" || return 0
+  bash "$goal_loop" step activate --ledger "$ledger" \
+    --applied-by native-subagent --boundary native_subagent \
+    --agent-id "$agent_id" --effective-route "$effective_for_ledger" \
+    --route-verified false >/dev/null
+}
+
+record_ledger_observation() {
+  effective_for_ledger=$1
+  confirmation_for_ledger=$2
+  test -n "$ledger" || return 0
+  bash "$goal_loop" step observe-route --ledger "$ledger" \
+    --agent-id "$agent_id" --effective-route "$effective_for_ledger" \
+    --confirmation "$confirmation_for_ledger" >/dev/null
+}
+
 unavailable() {
+  unavailable_route='claude|anthropic|unknown|unknown'
+  record_ledger_activation "$unavailable_route"
   printf 'format\tdarrow-claude-route-gate-v1\n'
   printf 'agent_id\t%s\n' "$agent_id"
   printf 'observation\tunavailable\n'
+  record_ledger_observation "$unavailable_route" unavailable
 }
 
 require_value() {
@@ -36,6 +57,7 @@ require_value() {
 repo=
 agent_id=
 selected=
+ledger=
 while test "$#" -gt 0; do
   case "$1" in
     --repo)
@@ -51,6 +73,11 @@ while test "$#" -gt 0; do
     --selected)
       require_value "$@"
       selected=$2
+      shift 2
+      ;;
+    --ledger)
+      require_value "$@"
+      ledger=$2
       shift 2
       ;;
     -h|--help)
@@ -152,8 +179,12 @@ else
   confirmation=rejected
 fi
 
+record_ledger_activation "$effective"
+
 printf 'format\tdarrow-claude-route-gate-v1\n'
 printf 'agent_id\t%s\n' "$agent_id"
 printf 'observed_route\t%s\t%s\t%s\t%s\n' \
   "$observed_harness" "$observed_provider" "$observed_model" "$observed_effort"
 printf 'confirmation\t%s\n' "$confirmation"
+record_ledger_observation "$effective" "$confirmation"
+test "$confirmation" != rejected || exit 3

@@ -84,17 +84,19 @@ grep -F -- 'do not parse or reproduce its output' "$guide" >/dev/null ||
 # shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
 grep -F -- 'does not expose its session-scoped `/goal` command' "$guide" >/dev/null ||
   fail 'Claude launch guide does not disclose the native goal limitation'
-grep -F -- 'Claude activation is mandatory' "$skill" >/dev/null ||
+grep -F -- 'The helper protocol is mandatory' "$skill" >/dev/null ||
   fail 'parent skill does not forbid direct Claude implementation'
-grep -F -- 'Do not implement directly in the classifier turn' "$skill" >/dev/null ||
+grep -F -- 'directly in the classifier turn' "$skill" >/dev/null ||
   fail 'parent skill does not preserve read-only Claude preflight'
-require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop prepare --repo <absolute-repo> --host claude'
-require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop route --repo <absolute-repo> --host claude --profile <profile>'
-require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop materialize-objective --force-file-backed --repo <absolute-repo> --goal-file <absolute-contract-file>'
-require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop release-staging --goal-file <exact-staging-path> --expected-sha256 <exact-helper-returned-contract-sha256>'
-require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop release-objective --attachment-dir <exact-helper-returned-attachment-dir> --expected-sha256 <exact-helper-returned-contract-sha256>'
-require_line "$guide" '/bin/bash <absolute-plugin-bin>/claude-agent-route --provider anthropic --model <claude-sonnet-5|claude-opus-5> --effort <low|medium|high>'
-require_line "$guide" "/bin/bash <absolute-plugin-bin>/claude-route-gate --repo <absolute-repo> --agent-id <host-reported-agent-id> --selected 'claude|anthropic|<model>|<effort>'"
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop step start --repo <absolute-repo> --host claude'
+require_line "$guide" '/bin/bash <absolute-plugin-bin>/goal-loop step prepare --ledger <absolute-ledger>'
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/goal-loop step route --ledger <absolute-ledger> \\"
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/goal-loop step stage --ledger <absolute-ledger> \\"
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/goal-loop step materialize --ledger <absolute-ledger> \\"
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/goal-loop step release-staging \\"
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/goal-loop step release-objective \\"
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/goal-loop step runner --ledger <absolute-ledger> \\"
+require_line "$guide" "/bin/bash <absolute-plugin-bin>/claude-route-gate --repo <absolute-repo> \\"
 
 if CLAUDE_CODE_SUBAGENT_MODEL=claude-opus-5 bash "$claude_agent_route" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null 2>&1; then
@@ -171,9 +173,12 @@ case "$untrusted_record" in
   *) fail 'claude-route-gate trusted telemetry marked untrusted by its host' ;;
 esac
 
+mismatch_status=0
 mismatch_record=$(CLAUDE_CONFIG_DIR="$verify_tmp" bash "$claude_route_gate" \
   --repo "$fixture_repo" --agent-id agentgood \
-  --selected 'claude|anthropic|claude-opus-5|high')
+  --selected 'claude|anthropic|claude-opus-5|high') || mismatch_status=$?
+test "$mismatch_status" -ne 0 ||
+  fail 'claude-route-gate returned success for a rejected route'
 case "$mismatch_record" in
   *$'confirmation\trejected') ;;
   *) fail 'claude-route-gate did not reject a mismatched selected route' ;;

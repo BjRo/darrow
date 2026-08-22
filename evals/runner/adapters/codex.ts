@@ -8,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
@@ -377,7 +377,10 @@ function objectiveReleaseCommandMatches(
   const expected = [
     "/bin/bash",
     goalLoopPath,
+    "step",
     "release-objective",
+    "--ledger",
+    attestation.ledger,
     "--attachment-dir",
     attestation.attachmentDir,
     "--expected-sha256",
@@ -848,8 +851,8 @@ interface CodexExecution {
   err: string;
   code: number;
   durationMs: number;
-  spawnGuardSecret: string;
-  goalLoopPath: string;
+  spawnGuardSecret?: string;
+  goalLoopPath?: string;
 }
 
 interface CodexSpawnGuard {
@@ -975,11 +978,11 @@ async function writeCodexSpawnHook(
 interface CodexProcessContext {
   canonicalRepoDir: string;
   installedSkillsRoot: string;
-  installedPluginRoot: string;
-  goalLoopPath: string;
+  installedPluginRoot?: string;
+  goalLoopPath?: string;
   objectiveRoot: string;
   env: Record<string, string>;
-  spawnGuard: CodexSpawnGuard;
+  spawnGuard?: CodexSpawnGuard;
 }
 
 async function codexProcessContext(
@@ -995,15 +998,24 @@ async function codexProcessContext(
   );
   env.TMPDIR = objectiveRoot;
   const installedSkillsRoot = await codexEvalSkillsRoot(repoDir, env);
-  const installedPluginRoot = await realpath(join(installedSkillsRoot, ".."));
-  const goalLoopPath = await realpath(
-    join(installedPluginRoot, "bin", "goal-loop"),
-  );
-  const spawnGuard = await installCodexSpawnGuard(canonicalRepoDir, env, {
-    prompt,
-    objectiveRoot,
-    goalLoopPath,
-  });
+  const installedPluginRoot =
+    basename(installedSkillsRoot) === "skills"
+      ? await realpath(join(installedSkillsRoot, ".."))
+      : undefined;
+  const goalLoopCandidate = installedPluginRoot
+    ? join(installedPluginRoot, "bin", "goal-loop")
+    : undefined;
+  const goalLoopPath =
+    goalLoopCandidate && existsSync(goalLoopCandidate)
+      ? await realpath(goalLoopCandidate)
+      : undefined;
+  const spawnGuard = goalLoopPath
+    ? await installCodexSpawnGuard(canonicalRepoDir, env, {
+        prompt,
+        objectiveRoot,
+        goalLoopPath,
+      })
+    : undefined;
   return {
     canonicalRepoDir,
     installedSkillsRoot,
@@ -1028,11 +1040,11 @@ async function executeCodex(
     codexArgv(repoDir, prompt, model, effort),
     repoDir,
     [
-      ...spawnGuard.writeDeniedPaths,
+      ...(spawnGuard?.writeDeniedPaths ?? []),
       join(context.canonicalRepoDir, ".git", "fixture-bin"),
-      context.installedPluginRoot,
+      ...(context.installedPluginRoot ? [context.installedPluginRoot] : []),
     ],
-    [spawnGuard.executablePath],
+    spawnGuard ? [spawnGuard.executablePath] : [],
   );
   try {
     const proc = Bun.spawn(argv, {
@@ -1059,7 +1071,7 @@ async function executeCodex(
       err,
       code,
       durationMs: performance.now() - start,
-      spawnGuardSecret: spawnGuard.secret,
+      spawnGuardSecret: spawnGuard?.secret,
       goalLoopPath: context.goalLoopPath,
     };
   } finally {

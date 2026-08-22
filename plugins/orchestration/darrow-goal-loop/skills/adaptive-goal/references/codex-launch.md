@@ -6,25 +6,31 @@ The classifier never executes a repository check, test, build, typecheck,
 lint, independent review, or verification probe. Record those commands in the
 contract for the native owner. Once the ownership-marked spawn starts, run no
 parent command except the exact `feedbackctl answer` acquisition required by a
-material-feedback relay or the exact successful file-backed
-`release-objective` call after terminal collection. Waiting, messaging,
-stopping, and closing use host collaboration controls, not shell commands.
+material-feedback relay or a state-bound `goal-loop step` evidence call.
+Waiting, messaging, stopping, and closing use host collaboration controls, not
+shell commands.
 
 ## Materialize the native objective
 
 Before a same-thread, host-API, native-runner, or shared-filesystem nested goal
-activation, put the complete compiled contract in a private temporary staging
-file outside the repository. The contract uses the exact labeled shape from
-Section 2 of the parent skill and includes its complete internal launch record.
-Preserve it byte-for-byte; this is the contract,
+activation, put the complete compiled contract in a file that is a direct child
+of the exact mode-0700 `staging_dir` returned by `step start`. The contract uses the exact labeled shape from
+Section 2 of the parent skill and references the absolute ledger once. The
+ledger owns internal route, lifecycle, and review evidence. Preserve the
+contract byte-for-byte; this is the contract,
 not a lossy summary or a separate plan. Run:
 
 ```sh
-bash "$goal_loop" materialize-objective --repo "$repo" \
+bash "$goal_loop" step stage --ledger <absolute-ledger> \
   --goal-file <absolute-contract-file>
+bash "$goal_loop" step materialize --ledger <absolute-ledger> \
+  --goal-file <absolute-contract-file> \
+  --expected-sha256 <step-stage-contract-sha256>
 ```
 
 Use the returned absolute `objective_file` as the exact native goal objective.
+`step stage` hashes the exact staged bytes; pass its returned
+`contract_sha256` to materialization and both release transitions.
 The helper reports `inline` when the complete contract is at most 4,000 bytes.
 Above that limit it copies the complete contract to a private attachment,
 hashes it with SHA-256, and writes a bounded objective that requires the goal
@@ -39,7 +45,7 @@ Keep a returned attachment directory readable until the goal reaches a
 terminal state, including paused and native continuation turns; then run:
 
 ```sh
-bash "$goal_loop" release-objective \
+bash "$goal_loop" step release-objective --ledger <absolute-ledger> \
   --attachment-dir <exact-helper-returned-attachment-dir> \
   --expected-sha256 <exact-helper-returned-contract-sha256>
 ```
@@ -55,7 +61,7 @@ Release the caller-created staging file immediately after successful
 materialization and before activation, in both modes, with the bundled helper:
 
 ```sh
-bash "$goal_loop" release-staging \
+bash "$goal_loop" step release-staging --ledger <absolute-ledger> \
   --goal-file <exact-caller-created-staging-file> \
   --expected-sha256 <exact-materialization-contract-sha256>
 ```
@@ -64,28 +70,25 @@ Stop before activation if this exact release fails. The inline objective is
 already held in memory for the native call; the file-backed copy remains in its
 helper-owned attachment until terminal cleanup.
 
+If selected review, the exact launch boundary, or a required enforcement
+boundary is unavailable before activation, record `goal-loop step launch-stop`
+with the matching reason, release any materialized attachment, and render the
+helper's `launch_required` report. Do not activate or implement first.
+
 ## Same thread
 
 When the current runtime exposes `create_goal`, obtain the concrete active
-provider, model, and effort from host metadata. Confirm the exact match before
-activation:
-
-```sh
-bash "$goal_loop" confirm-route --selected "$selected_route" \
-  --effective "$active_route" --applied-by current-thread
-```
-
-Only after that succeeds and objective materialization has completed, call
+provider, model, and effort from host metadata and require the exact match
+before activation. Only after objective materialization has completed, call
 `create_goal` exactly once with the exact contents of `objective_file` as
 `objective`.
-Supply a token budget only when the user specified one. Continue in the same
-thread and record:
+Supply a token budget only when the user specified one. After the native goal
+call is accepted, record:
 
-```text
-launch_boundary\tsame_thread
-route_applied_by\tcurrent-thread
-route_verified\ttrue
-evaluation_child_invocations\t0
+```sh
+bash "$goal_loop" step activate --ledger <absolute-ledger> \
+  --applied-by current-thread --boundary same_thread --agent-id none \
+  --effective-route '<selected-route>' --route-verified true
 ```
 
 Do not create a child agent or shell process around this boundary.
@@ -157,7 +160,7 @@ workflow and risk gates, and return the contract's human-readable final report
 without reproducing its internal tab-separated record. In that report,
 `harness` is the effective route harness `codex`, not `native-subagent` or
 another launch-boundary label. For every terminal result, begin the response
-with the complete canonical report before changed-file, verification, review,
+with the complete canonical report and helper-owned terminal sentence before changed-file, verification, review,
 risk, or blockage prose. A blocked result never omits or postpones this leading
 block. If a material decision
 first emerges after activation, tell it to pause mutation and return the
@@ -227,13 +230,15 @@ paraphrase does not replace it.
 The guard-attested accepted spawn request with explicit route values is the
 Codex native-runner route-application evidence. Do not run `confirm-route` or
 another shell confirmation before or after that spawn; it adds no independent
-host evidence and violates the parent boundary after activation. Record:
+host evidence. Trusted Codex hooks record the accepted Agent id, model, and
+effort automatically. Otherwise record the accepted host-reported id
+immediately:
 
-```text
-launch_boundary\tnative_subagent
-route_applied_by\tnative-subagent
-route_verified\ttrue
-evaluation_child_invocations\t1
+```sh
+bash "$goal_loop" step activate --ledger <absolute-ledger> \
+  --applied-by native-subagent --boundary native_subagent \
+  --agent-id <host-reported-agent-id> \
+  --effective-route '<selected-route>' --route-verified true
 ```
 
 Wait for that same agent to finish and collect its result. A feedback request

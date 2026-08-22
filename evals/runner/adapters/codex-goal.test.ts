@@ -108,19 +108,19 @@ function handoffValue() {
       effort: "high",
     },
     goalContract: [
-      "Change the bounded stream behavior and run focused tests.",
-      "format\tdarrow-native-goal-preflight-v4",
-      "workflow\tchange-feature",
-      "risk\thigh",
-      "profile\tjudgment",
-      "selected_route\tcodex\topenai\tgpt-5.6-sol\thigh",
-      "effective_route\tcodex\topenai\tgpt-5.6-sol\thigh",
-      "route_applied_by\thost-api",
-      "route_verified\ttrue",
-      "launch_boundary\thost_api",
-      "verification_gate\thigh",
-      "evaluation_child_invocations\t0",
-      "evaluation_human_interruptions\t0",
+      "Outcome: Change the bounded stream behavior.",
+      "Acceptance criteria: Focused and final-tree checks pass.",
+      "Scope: Bounded stream behavior.",
+      "Non-goals: Unrelated behavior.",
+      "Preserved work: Existing fixture changes.",
+      "Permissions: Repository-local implementation only.",
+      "Workflow sequence: Follow change-feature guidance.",
+      "Feedback checks: Run the focused stream test.",
+      "Final-tree checks: Run the scoped repository gate.",
+      "Stopping budget: No numeric review limit.",
+      "Human feedback: Pause on a material decision.",
+      "Completion report: Return terminal engineering evidence.",
+      "Protocol ledger: /tmp/darrow-goal-run.fixture",
     ].join("\n"),
   };
 }
@@ -310,7 +310,7 @@ after`);
       "workflow-risk",
     );
     expect(withRisk).toContain("Select the workflow and proportional risk");
-    expect(withRisk).toContain("verification_gate");
+    expect(withRisk).toContain("prepared ledger owns route");
     expect(withRisk).toContain("feedback checks and final-tree checks");
     expect(withRisk).toContain("independentReview.roundLimit");
     expect(withRisk).not.toContain("technical reference");
@@ -337,10 +337,10 @@ after`);
     expect(prompt).not.toContain(
       "After they pass, complete the native goal and return",
     );
-    expect(prompt).toContain("including a terminal blocked turn");
-    expect(prompt).toContain("format: darrow-native-goal-report-v1");
-    expect(prompt).toContain("model: openai > gpt-5.6-sol");
-    expect(prompt).toContain("effort: high");
+    expect(prompt).toContain(
+      "Do not hand-author a darrow-native-goal-report-v1",
+    );
+    expect(prompt).toContain("enclosing launcher renders the canonical report");
     expect(prompt).not.toContain(
       "Preserve the exact v4 launch record below in the final response",
     );
@@ -415,9 +415,11 @@ after`);
           calls += 1;
           objective = (params as { objective: string }).objective;
         }),
-        repo,
-        "thread-1",
-        "x".repeat(4001),
+        {
+          repoDir: repo,
+          threadId: "thread-1",
+          goalContract: "x".repeat(4001),
+        },
       );
       expect(calls).toBe(1);
       expect(Buffer.byteLength(objective)).toBeLessThanOrEqual(4000);
@@ -444,9 +446,11 @@ after`);
             );
             throw new Error("goal service rejected objective");
           }),
-          repo,
-          "thread-1",
-          "y".repeat(4001),
+          {
+            repoDir: repo,
+            threadId: "thread-1",
+            goalContract: "y".repeat(4001),
+          },
         ),
       ).rejects.toThrow("goal service rejected objective");
       expect(calls).toBe(1);
@@ -484,9 +488,11 @@ fi
               "goal-set must not run after invalid materialization",
             );
           }),
-          repo,
-          "thread-1",
-          "z".repeat(4001),
+          {
+            repoDir: repo,
+            threadId: "thread-1",
+            goalContract: "z".repeat(4001),
+          },
         ),
       ).rejects.toThrow("invalid byte count");
       const attachment = (
@@ -532,9 +538,11 @@ fi
             (params as { objective: string }).objective,
           );
         }),
-        repo,
-        "thread-1",
-        "retained".repeat(501),
+        {
+          repoDir: repo,
+          threadId: "thread-1",
+          goalContract: "retained".repeat(501),
+        },
       );
       await expect(
         withMaterializedGoalLifecycle(
@@ -571,9 +579,11 @@ fi
             (params as { objective: string }).objective,
           );
         }),
-        repo,
-        "thread-1",
-        "paused".repeat(701),
+        {
+          repoDir: repo,
+          threadId: "thread-1",
+          goalContract: "paused".repeat(701),
+        },
       );
       const result = await withMaterializedGoalLifecycle(
         materialized,
@@ -602,9 +612,11 @@ fi
             (params as { objective: string }).objective,
           );
         }),
-        repo,
-        "thread-1",
-        "terminal".repeat(501),
+        {
+          repoDir: repo,
+          threadId: "thread-1",
+          goalContract: "terminal".repeat(501),
+        },
       );
       await expect(
         withMaterializedGoalLifecycle(
@@ -641,6 +653,26 @@ fi
     ).toMatch(
       /Independent review: selected —[\s\S]*one comprehensive review[\s\S]*first rework[\s\S]*fix verification[\s\S]*material progress[\s\S]*no implicit numeric review limit/,
     );
+    const embeddedLedger = {
+      ...value,
+      goalContract: value.goalContract.replace(
+        "Protocol ledger: /tmp/darrow-goal-run.fixture",
+        "Review protocol. Protocol ledger: /tmp/darrow-goal-run.fixture",
+      ),
+    };
+    const ledgerBound = parseCodexGoalHandoff(
+      JSON.stringify(embeddedLedger),
+      catalog,
+      dimensions,
+      { ledger: "/tmp/darrow-goal-run.fixture" },
+    );
+    expect(
+      ledgerBound.goalContract
+        .split("\n")
+        .filter(
+          (line) => line === "Protocol ledger: /tmp/darrow-goal-run.fixture",
+        ),
+    ).toHaveLength(1);
     const nullLimitHandoff = JSON.stringify({
       ...value,
       independentReview: {
@@ -786,11 +818,14 @@ fi
     ).toThrow("independent-review reason must be one bounded text line");
     expect(() =>
       parseCodexGoalHandoff(
-        handoff.replace('"high"', '"routine"'),
+        JSON.stringify({
+          ...value,
+          goalContract: `${value.goalContract}\nformat\tdarrow-native-goal-preflight-v4`,
+        }),
         catalog,
         dimensions,
       ),
-    ).toThrow("goal contract does not preserve handoff");
+    ).toThrow("goal contract duplicates internal launch state");
     expect(() =>
       parseCodexGoalHandoff(
         handoff.replace('"change-feature"', '"unknown-workflow"'),
@@ -805,6 +840,36 @@ fi
         dimensions,
       ),
     ).toThrow("invalid shape");
+  });
+
+  test("requires one ordered nonempty canonical contract label set", () => {
+    const parseContract = (goalContract: string) =>
+      parseCodexGoalHandoff(
+        JSON.stringify({ ...handoffValue(), goalContract }),
+        catalog,
+        dimensions,
+      );
+    const valid = handoffValue().goalContract;
+    expect(() => parseContract(valid.replace(/^Scope:.*\n/m, ""))).toThrow(
+      "goal contract is incomplete",
+    );
+    expect(() =>
+      parseContract(valid.replace("Scope:", "Scope: duplicate\nScope:")),
+    ).toThrow("goal contract is incomplete");
+    expect(() =>
+      parseContract(
+        valid.replace(
+          "Acceptance criteria: Focused and final-tree checks pass.\nScope: Bounded stream behavior.",
+          "Scope: Bounded stream behavior.\nAcceptance criteria: Focused and final-tree checks pass.",
+        ),
+      ),
+    ).toThrow("goal contract is incomplete");
+    expect(() =>
+      parseContract(valid.replace("Scope: Bounded stream behavior.", "Scope:")),
+    ).toThrow("goal contract is incomplete");
+    expect(() =>
+      parseContract(`${valid}\nProtocol ledger: /tmp/darrow-goal-run.second`),
+    ).toThrow("goal contract duplicates Protocol ledger");
   });
 
   test("settles a terminal review stop without resuming engineering", () => {

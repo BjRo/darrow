@@ -12,6 +12,7 @@ export const GOAL_REPORT_KEYS = [
   "verification_gate",
   "evaluation_child_invocations",
   "evaluation_human_interruptions",
+  "enforcement",
 ] as const;
 
 export type GoalReport = Record<(typeof GOAL_REPORT_KEYS)[number], string>;
@@ -36,6 +37,7 @@ const GOAL_REPORT_VALUES: Record<keyof GoalReport, RegExp> = {
   verification_gate: /^(?:routine|elevated|high|not-applicable)$/,
   evaluation_child_invocations: /^\d+$/,
   evaluation_human_interruptions: /^\d+$/,
+  enforcement: /^(?:helper|helper\+claude-hooks|helper\+codex-hooks)$/,
 };
 
 const DECISION_GATED_REPORT: Partial<GoalReport> = {
@@ -95,11 +97,24 @@ export function validGoalReportValues(report: GoalReport | undefined): boolean {
     GOAL_REPORT_KEYS.every((key) =>
       GOAL_REPORT_VALUES[key].test(report[key]),
     ) &&
-    (report.workflow !== "decision-gated" ||
-      Object.entries(DECISION_GATED_REPORT).every(
-        ([key, value]) => report[key as keyof GoalReport] === value,
-      ))
+    decisionReportIsConsistent(report) &&
+    routeReportIsConsistent(report)
   );
+}
+
+function decisionReportIsConsistent(report: GoalReport): boolean {
+  if (report.workflow !== "decision-gated")
+    return report.verification_gate === report.risk;
+  return Object.entries(DECISION_GATED_REPORT).every(
+    ([key, value]) => report[key as keyof GoalReport] === value,
+  );
+}
+
+function routeReportIsConsistent(report: GoalReport): boolean {
+  if (report.launch_boundary === "launch_required")
+    return report.route_verified === "false";
+  if (report.route_verified !== "true") return true;
+  return report.harness !== "none" && report.route_applied_by !== "none";
 }
 
 /** Detect an internal Darrow launch record regardless of Markdown prefixes. */

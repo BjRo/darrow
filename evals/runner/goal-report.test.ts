@@ -20,6 +20,7 @@ const report = [
   "verification_gate: routine",
   "evaluation_child_invocations: 1",
   "evaluation_human_interruptions: 0",
+  "enforcement: helper",
 ].join("\n");
 
 describe("adaptive-goal completion reports", () => {
@@ -38,6 +39,7 @@ describe("adaptive-goal completion reports", () => {
       verification_gate: "routine",
       evaluation_child_invocations: "1",
       evaluation_human_interruptions: "0",
+      enforcement: "helper",
     });
     expect(parseGoalReport(`Done.\n\n${report}`)).toBeUndefined();
     expect(parseGoalReport(`\`\`\`text\n${report}\n\`\`\``)).toBeUndefined();
@@ -73,10 +75,26 @@ describe("adaptive-goal completion reports", () => {
       ["harness: codex", "harness: native-subagent"],
       ["effort: medium", "effort: extreme"],
       ["launch_boundary: native_subagent", "launch_boundary: invalid"],
+      ["enforcement: helper", "enforcement: invented"],
     ]) {
       const invalid = parseGoalReport(report.replace(current!, replacement!));
       expect(invalid).toBeDefined();
       expect(validGoalReportValues(invalid)).toBe(false);
+    }
+  });
+
+  test("rejects cross-field route and risk contradictions", () => {
+    for (const [current, replacement] of [
+      ["verification_gate: routine", "verification_gate: elevated"],
+      ["launch_boundary: native_subagent", "launch_boundary: launch_required"],
+      ["harness: codex", "harness: none"],
+      ["route_applied_by: native-subagent", "route_applied_by: none"],
+    ]) {
+      expect(
+        validGoalReportValues(
+          parseGoalReport(report.replace(current!, replacement!)),
+        ),
+      ).toBe(false);
     }
   });
 

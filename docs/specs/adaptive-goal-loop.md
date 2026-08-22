@@ -4,8 +4,8 @@ Darrow should turn a bounded engineering request into a well-framed native
 goal contract, choose a proportionate model route, and activate the host's
 narrowest goal-capable boundary. The host owns execution, recovery, and
 completion.
-Darrow owns only the preflight policy that improves what the native loop is
-asked to achieve.
+Darrow owns the preflight policy and deterministic protocol validation that
+improve what the native loop is asked to achieve.
 
 Plugin: `darrow-goal-loop`  
 Skill: `adaptive-goal` (Adaptive Goal Loop)
@@ -24,6 +24,15 @@ The retained opportunity is earlier and smaller:
 ```text
 request + repository -> preflight -> host goal owner -> native completion
 ```
+
+The bundled helper maintains a private, temporary protocol-evidence ledger for
+one explicitly invoked run. That ledger authenticates the ordering and inputs
+of preflight, route selection, objective materialization, activation evidence,
+review outcomes, cleanup, and terminal reporting. It is not an execution
+controller: it never schedules work, invokes a model or capability, selects a
+repair, retries a failed phase, or decides whether semantic work should
+continue. The one host-native goal owner retains all implementation,
+adaptation, recovery, review-invocation, and completion judgment.
 
 Preflight can improve the native run by making completion explicit, discovering
 repository constraints and checks, selecting a suitable workflow and risk
@@ -204,7 +213,8 @@ capability matching the intent **independently review this pinned code change**
 without prescribing its plugin, command, result schema, or serialization. It
 MUST NOT name, locate, or read files from a sibling plugin. Before any
 repository mutation, the goal owner confirms that the environment exposes a
-capability matching that intent. An ad hoc review prompt, generic subagent,
+capability matching that intent. The read-only classifier or enclosing launcher,
+not the implementation owner, proves that availability before activation. An ad hoc review prompt, generic subagent,
 same-context judgment, or capability written during the run is not availability
 evidence. When no matching capability is available, the goal stops honestly
 instead of synthesizing or downgrading the requirement. A matching capability
@@ -512,39 +522,29 @@ before starting work.
 
 ### Launch record and completion report
 
-Preflight produces these tab-separated machine records before activation:
+Preparation, routing, materialization, activation, review, cleanup, and terminal
+reporting produce `darrow-goal-step-v1` evidence records in prerequisite order.
+The helper-owned protocol ledger MUST carry the internal workflow, risk,
+profile, selected and effective routes, application boundary, verification,
+counters, enforcement tier, and cleanup values. The compiled goal contract
+carries the exact `Protocol ledger: <absolute path>` reference and the
+completion-report requirement but MUST NOT duplicate those internal records.
+Every launch boundary records its evidence through the helper so the terminal
+report can be rendered from one authority without relying on parent-thread
+memory.
 
-```text
-format\tdarrow-native-goal-preflight-v4
-workflow\t<workflow>
-risk\t<routine|elevated|high>
-profile\t<profile>
-selected_route\t<harness>\t<provider>\t<model>\t<effort>
-effective_route\t<harness>\t<provider>\t<model>\t<effort>
-route_applied_by\t<current-thread|host-api|native-subagent|nested-session|none>
-route_verified\t<true|false>
-launch_boundary\t<same_thread|host_api|native_subagent|nested_session|launch_required>
-verification_gate\t<routine|elevated|high|not-applicable>
-evaluation_child_invocations\t<integer>
-evaluation_human_interruptions\t<integer>
-```
-
-The compiled goal contract MUST carry both these internal values and the
-completion-report rule below so every launch boundary can render the same
-caller-facing result without relying on parent-thread context.
-
-For a delegated owner, the creator MUST render the completion report from the
-retained v4 launch and observed route values after collecting the terminal
-result. It MUST NOT return the owner's prose unchanged when that prose omits or
-malforms the report. Rendering those retained values is result collection, not
+For a delegated owner, the creator MUST render the completion report through
+the retained helper ledger after collecting the terminal result. It MUST NOT
+return the owner's prose unchanged when that prose omits or malforms the
+report. Rendering those retained values is result collection, not
 parent-thread repository verification; the creator still MUST NOT inspect,
 edit, or recheck the completed work.
 
 Immediately before sending any terminal response, the sender MUST perform one
 response-only validation that exactly one contiguous report block begins with
 `format: darrow-native-goal-report-v1` and contains every ordered field below.
-If it is absent or malformed, the sender repairs that block from the retained
-values before responding. This validation reads no repository state.
+If it is absent or malformed, the sender uses the exact helper-persisted output;
+it never reconstructs fields. This validation reads no repository state.
 
 Every terminal response MUST begin with the human-readable completion record.
 The first non-whitespace line is the `format:` line: no prose, heading, bullet,
@@ -567,15 +567,28 @@ launch_boundary: <same_thread|host_api|native_subagent|nested_session|launch_req
 verification_gate: <routine|elevated|high|not-applicable>
 evaluation_child_invocations: <integer>
 evaluation_human_interruptions: <integer>
+enforcement: <helper|helper+claude-hooks|helper+codex-hooks>
 ```
+
+The helper appends exactly one canonical terminal sentence: `Native goal
+completed.`, `Native goal settled as blocked.`, or `Native goal requires host
+launch.` Applicable canonical review sentences precede that terminal sentence.
+The 14 report fields remain the fixed parseable block.
+
+For every activated workflow, `verification_gate` equals `risk`; high risk
+requires selected independent review in the ledger. `route_verified: true`
+requires a concrete effective route, application boundary, and non-launch-
+required boundary. `launch_boundary: launch_required` always implies
+`route_verified: false`. The fixed decision-gated tuple remains the sole
+exception with `verification_gate: not-applicable`.
 
 For a verified route, `harness`, `model`, and `effort` describe the effective
 route that matched selection. `harness` is the route harness (`codex` or
 `claude`), never `route_applied_by` or `launch_boundary`. For an unverified or
 unavailable route they describe only observed effective values, using `unknown`
 or `none` rather than copying selection. The tab-separated preflight and
-route-application records remain internal protocol evidence and MUST NOT be
-reproduced in the human-facing completion report.
+route-application records remain ledger-owned internal protocol evidence and
+MUST NOT be reproduced in the human-facing completion report.
 
 Validation is scoped to the single contiguous block beginning with
 `format: darrow-native-goal-report-v1`; fields in a preserved companion
@@ -701,6 +714,72 @@ the least launch machinery the host supports.
    explicit user route may bypass that mapping, and it remains subject to live
    catalog validation.
 
+### Protocol-ledger invariants
+
+1. **AGL-E1 — One private run ledger.** `goal-loop step start` mints one
+   unpredictable run identifier, one mode-0700 ledger directory, and one
+   separate mode-0700 staging directory below the resolved temporary root.
+   Every later step names the absolute ledger path; the ledger binds the exact
+   staging directory.
+   Symlinked, malformed, unlocked, corrupt, foreign-repository, or
+   foreign-host state is refused.
+2. **AGL-E2 — Monotonic helper protocol.** Protocol-bearing helper operations
+   are invoked through `goal-loop step`. The helper refuses missing
+   prerequisites, skipped steps, duplicate steps, concurrent mutation, and a
+   call after terminal reporting. A refusal never advances state.
+3. **AGL-E3 — Evidence, not execution control.** The ledger records
+   caller-chosen workflow, risk, profile, routes, objective identity, owner and
+   review evidence, counters, cleanup, and report fields. It MUST NOT select or
+   invoke a workflow, model, goal owner, reviewer, repair, retry, continuation,
+   publication effect, or terminal goal status.
+4. **AGL-E4 — Bound objective identity.** Materialization verifies a
+   caller-supplied SHA-256 digest. A Claude run mechanically requires the
+   Claude host and file-backed materialization; another host cannot claim that
+   path. The staging file is a canonical direct child of that run's exact
+   staging directory. Staging and attachment release remain exact-once and
+   digest-bound, and staging release removes the now-empty run directory.
+5. **AGL-E5 — Review-chain evidence.** The owner records its semantic
+   review selection with the route and its interpretation of each selected
+   independent-review response through a validated enum and exact target
+   fingerprint. The helper refuses evidence for an omitted review,
+   verification before a blocking comprehensive review, a second comprehensive
+   review, verification after any terminal review outcome, and verification of
+   any fingerprint already present in the target history. An explicit review
+   limit and invocation count are persisted; reaching the limit closes the
+   chain without replacing the last semantic outcome.
+   A selected review cannot report completion without a clear exact-target
+   chain. The helper never parses or invokes another plugin.
+6. **AGL-E6 — Optional host hardening.** Lifecycle hooks may deny covered
+   protocol-violating Bash, write, Agent, and termination calls and may commit
+   host-observed route evidence. Hooks remain trust- or configuration-dependent
+   hardening; the helper ledger is the correctness layer when hooks are absent.
+   Hook state is private plugin data keyed by host session identifier, and
+   covered direct writes to hook or ledger state are denied. A covered
+   pre-owner Bash call must be one complete helper command with no compound
+   syntax, substitution, pipe, or redirection. A Claude launch body must equal
+   the marker plus the ledger-owned one-line objective reference, and a second
+   launch is denied after the first accepted Agent call.
+7. **AGL-E7 — Helper-rendered terminal output.** `goal-loop step report`
+   renders the complete ordered `darrow-native-goal-report-v1` block and every
+   applicable canonical review sentence from validated ledger values. The
+   model MUST NOT hand-author or translate those records. The helper persists
+   the exact report together with its canonical terminal sentence; a trusted
+   Stop hook requires the final response to begin with that exact output and
+   contain exactly one report. The final
+   `enforcement` field truthfully discloses whether only the helper or helper
+   plus trusted host hooks supplied evidence.
+8. **AGL-E8 — Deliberate route-gate exits.** A confirmed Claude observation
+   succeeds. A rejected observed route exits nonzero, records the rejection,
+   and cannot mark the route verified or continue the goal. An unavailable
+   observation exits zero as a bounded observation
+   result, records no confirmation, and can only produce an unverified
+   `launch_required` report.
+9. **AGL-E9 — Pre-activation terminal evidence.** A selected reviewer that is
+   unavailable, an unavailable exact launch boundary, or an unavailable
+   required enforcement boundary is recorded before activation as a terminal
+   launch stop. Any materialized objective is released, no product work starts,
+   and only the helper-rendered `launch_required` report may follow.
+
 ### Launch invariants
 
 1. **AGL-L1 — Native ownership.** Exactly one host-native goal owner owns
@@ -742,8 +821,8 @@ the least launch machinery the host supports.
    oracle. No compound command or other extra shell call receives that
    exemption.
    Its only pre-owner writes are the contract staging file inside the
-   runner-controlled isolated
-   temporary root and helper materialization. The staging Write is singular,
+   ledger-owned isolated staging directory and helper materialization. The
+   staging Write is singular,
    host-native, and never replaced or preceded by shell redirection, a heredoc,
    or `tee`. It is canonically inside that root and bound by exact path and content digest to
    the successful materialization result. The classifier releases that staging
@@ -785,9 +864,9 @@ the least launch machinery the host supports.
    reconciled with the completed materialization record, binds the task without
    making the classifier read, hash, or reproduce the bounded objective; the
    goal owner reads it and verifies the complete contract. When that exact
-   file-backed reference is present, the runner definition treats it as the
-   sole task authority and ignores any later prompt text; such text is not
-   contract or route evidence. A marker-only task is invalid. The
+   file-backed reference is present, it is the sole task authority. Any copied
+   contract, explanatory suffix, or later prompt text invalidates the launch.
+   A marker-only task is invalid. The
    accepted Agent call is the terminal
    boundary and counts as one Darrow child. Because the Agent tool exposes no
    child `/goal` API, this boundary MUST be reported as a native Agent contract
@@ -1013,7 +1092,9 @@ the least launch machinery the host supports.
 - Supervising planner, executor, verifier, or repair agents. Native goal mode
   may delegate bounded work through host-visible subagents.
 - Reimplementing native goal persistence, retry, recovery, or completion.
-- Building a daemon, queue, workflow database, phase ledger, or task manager.
+- Building a daemon, queue, task manager, or phase ledger that schedules work,
+  owns continuation, or coordinates execution roles. A private helper ledger
+  that only validates caller-chosen protocol evidence is explicitly in scope.
 - Maintaining provider SDKs or cross-vendor role routing.
 - Running parallel writers or several candidate implementations.
 - Treating preflight as a separate planning model call.

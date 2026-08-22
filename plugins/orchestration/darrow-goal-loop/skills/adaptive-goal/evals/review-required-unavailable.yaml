@@ -1,5 +1,5 @@
 id: goal-review-required-unavailable
-invariant: AGL-P11,AGL-L11,AGL-S4,AGL-S5,AGL-X1,AGL-X6
+invariant: AGL-P11,AGL-E9,AGL-L11,AGL-S4,AGL-S5,AGL-X1,AGL-X6
 prompt: >-
   /adaptive-goal Change requireMfa in auth-policy.js from false to true. On
   Codex, invoke the $adaptive-goal skill. This is an authorization boundary

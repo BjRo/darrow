@@ -1,0 +1,402 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+goal_loop="$script_dir/goal-loop"
+
+deny() {
+  printf 'darrow goal hook: %s\n' "$1" >&2
+  exit 2
+}
+
+json_string_field() {
+  DARROW_HOOK_FIELD=$1 awk '
+    {
+      if (NR > 1) json = json "\n"
+      json = json $0
+    }
+    END {
+      needle = "\"" ENVIRON["DARROW_HOOK_FIELD"] "\""
+      start = index(json, needle)
+      if (start == 0) exit 1
+      pos = start + length(needle)
+      while (substr(json, pos, 1) ~ /[ \t\r\n]/) pos++
+      if (substr(json, pos, 1) != ":") exit 1
+      pos++
+      while (substr(json, pos, 1) ~ /[ \t\r\n]/) pos++
+      if (substr(json, pos, 1) != "\"") exit 1
+      pos++
+      value = ""
+      escaped = 0
+      for (; pos <= length(json); pos++) {
+        char = substr(json, pos, 1)
+        if (escaped) {
+          if (char == "n") value = value "\n"
+          else if (char == "r") value = value "\r"
+          else if (char == "t") value = value "\t"
+          else if (char == "b") value = value sprintf("%c", 8)
+          else if (char == "f") value = value sprintf("%c", 12)
+          else if (char == "\"" || char == "\\" || char == "/") value = value char
+          else exit 1
+          escaped = 0
+        } else if (char == "\\") {
+          escaped = 1
+        } else if (char == "\"") {
+          print value
+          exit 0
+        } else {
+          value = value char
+        }
+      }
+      exit 1
+    }
+  '
+}
+
+state_value() {
+  state_file=$1
+  state_wanted=$2
+  state_tab=$(printf '\t')
+  while IFS="$state_tab" read -r state_key state_result state_extra; do
+    if test "$state_key" = "$state_wanted"; then
+      test -n "$state_result" && test -z "${state_extra:-}" || return 1
+      printf '%s\n' "$state_result"
+      return 0
+    fi
+  done <"$state_file"
+  return 1
+}
+
+pending_contains() {
+  pending_file=$1
+  pending_candidate=$2
+  pending_tab=$(printf '\t')
+  while IFS="$pending_tab" read -r pending_key pending_value pending_extra; do
+    if test "$pending_key" = before && test "$pending_value" = "$pending_candidate" &&
+      test -z "${pending_extra:-}"; then
+      return 0
+    fi
+  done <"$pending_file"
+  return 1
+}
+
+secure_plugin_data() {
+  test -n "$hook_plugin_data" || return 1
+  case "$hook_plugin_data" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  test ! -L "$hook_plugin_data" || deny "plugin data path must not be a symbolic link"
+  umask 077
+  mkdir -p "$hook_plugin_data" || deny "could not create plugin data directory"
+  chmod 700 "$hook_plugin_data" || deny "could not secure plugin data directory"
+  hook_sessions="$hook_plugin_data/sessions"
+  test ! -L "$hook_sessions" || deny "hook session path must not be a symbolic link"
+  mkdir -p "$hook_sessions" || deny "could not create hook session directory"
+  chmod 700 "$hook_sessions" || deny "could not secure hook session directory"
+}
+
+repository_root() {
+  repo_from=$1
+  git -C "$repo_from" rev-parse --show-toplevel 2>/dev/null || return 1
+}
+
+write_start_snapshot() {
+  snapshot_file=$1
+  snapshot_repo=$2
+  snapshot_tmp="$snapshot_file.tmp.$$"
+  {
+    printf 'repo\t%s\n' "$snapshot_repo"
+    for snapshot_candidate in "${TMPDIR:-/tmp}"/darrow-goal-run.*; do
+      test -d "$snapshot_candidate" || continue
+      printf 'before\t%s\n' "$snapshot_candidate"
+    done
+  } >"$snapshot_tmp" || deny "could not stage hook session snapshot"
+  chmod 600 "$snapshot_tmp" || deny "could not secure hook session snapshot"
+  mv "$snapshot_tmp" "$snapshot_file" || deny "could not commit hook session snapshot"
+}
+
+bind_started_ledger() {
+  bind_pending=$1
+  bind_repo=$(state_value "$bind_pending" repo) || deny "start hook snapshot is malformed"
+  bind_count=0
+  bind_ledger=
+  for bind_candidate in "${TMPDIR:-/tmp}"/darrow-goal-run.*; do
+    test -d "$bind_candidate" && test -f "$bind_candidate/state" || continue
+    pending_contains "$bind_pending" "$bind_candidate" && continue
+    test "$(state_value "$bind_candidate/state" repo 2>/dev/null || true)" = "$bind_repo" || continue
+    test "$(state_value "$bind_candidate/state" session_id 2>/dev/null || true)" = none || continue
+    bind_host=$(state_value "$bind_candidate/state" host 2>/dev/null || true)
+    case "$bind_host" in claude|codex) ;; *) continue ;; esac
+    bind_count=$((bind_count + 1))
+    bind_ledger=$bind_candidate
+  done
+  test "$bind_count" -eq 1 || deny "could not identify exactly one newly started goal ledger"
+  bind_enforcement="helper+$bind_host-hooks"
+  bash "$goal_loop" step hook-bind --ledger "$bind_ledger" \
+    --session-id "$hook_session_id" --enforcement "$bind_enforcement" >/dev/null ||
+    deny "could not bind goal ledger to hook session"
+  bind_file="$hook_sessions/$hook_session_id"
+  bind_tmp="$bind_file.tmp.$$"
+  printf '%s\n' "$bind_ledger" >"$bind_tmp" || deny "could not stage hook session binding"
+  chmod 600 "$bind_tmp" || deny "could not secure hook session binding"
+  mv "$bind_tmp" "$bind_file" || deny "could not commit hook session binding"
+  rm -f "$bind_pending"
+}
+
+load_active_ledger() {
+  active_binding="$hook_sessions/$hook_session_id"
+  test -f "$active_binding" && test ! -L "$active_binding" || return 1
+  IFS= read -r active_ledger <"$active_binding" || return 1
+  case "$active_ledger" in
+    "${TMPDIR:-/tmp}"/darrow-goal-run.*) ;;
+    *) deny "hook session contains an unsafe goal ledger path" ;;
+  esac
+  test -d "$active_ledger" && test -f "$active_ledger/state" ||
+    deny "hook session goal ledger is unavailable"
+  active_state="$active_ledger/state"
+  test "$(state_value "$active_state" session_id)" = "$hook_session_id" ||
+    deny "hook session does not match goal ledger binding"
+  active_phase=$(state_value "$active_state" phase)
+  active_host=$(state_value "$active_state" host)
+  active_temp_root=$(state_value "$active_state" temp_root)
+  active_staging_dir=$(state_value "$active_state" staging_dir)
+}
+
+target_path() {
+  target_input=$1
+  case "$target_input" in
+    /*) target_candidate=$target_input ;;
+    *) target_candidate=$hook_cwd/$target_input ;;
+  esac
+  target_name=$(basename -- "$target_candidate")
+  case "$target_name" in ''|.|..) deny "unsafe tool target path" ;; esac
+  target_parent=$(CDPATH='' cd -- "$(dirname -- "$target_candidate")" 2>/dev/null && pwd -P) ||
+    deny "tool target parent is unreadable"
+  target_candidate=$target_parent/$target_name
+  test ! -L "$target_candidate" || deny "tool target must not be a symbolic link"
+  printf '%s\n' "$target_candidate"
+}
+
+deny_protected_target() {
+  protected_target=$1
+  case "$protected_target/" in
+    "$active_ledger/"*|"$hook_plugin_data/"*)
+      deny "direct writes to goal protocol state are forbidden"
+      ;;
+  esac
+  case "$protected_target" in
+    "$active_temp_root"/darrow-goal-run.*)
+      deny "direct writes to goal protocol state are forbidden"
+      ;;
+  esac
+}
+
+allow_helper_command() {
+  helper_command=$1
+  case "$helper_command" in
+    ''|*';'*|*'|'*|*'&'*|*'<'*|*'>'*|*'`'*|*'$'*|*'('*|*')'*|*'{'*|*'}'*) return 1 ;;
+    *"'"*|*\\*|*'*'*|*'?'*|*'['*|*$'\n'*|*$'\r'*) return 1 ;;
+  esac
+  test "$helper_command" = "/usr/bin/printenv TMPDIR" && return 0
+  read -r -a helper_words <<<"$helper_command"
+  set -- "${helper_words[@]}"
+  case "${1:-}" in /bin/bash|bash) ;; *) return 1 ;; esac
+  case "${2:-}|${3:-}" in
+    "$goal_loop|step") test "$#" -ge 4 && return 0 ;;
+    "$script_dir/claude-route-gate|--repo") test "$#" -ge 8 && return 0 ;;
+  esac
+  return 1
+}
+
+is_start_command() {
+  start_command=$1
+  allow_helper_command "$start_command" || return 1
+  read -r -a start_words <<<"$start_command"
+  set -- "${start_words[@]}"
+  test "$#" -eq 8 && test "$2" = "$goal_loop" &&
+    test "$3" = step && test "$4" = start &&
+    test "$5" = --repo && test "$7" = --host
+}
+
+pre_tool_use() {
+  pre_tool=$1
+  case "$pre_tool" in
+    Bash)
+      pre_command=$(json_string_field command <"$hook_input" 2>/dev/null || true)
+      if allow_helper_command "$pre_command"; then
+        return 0
+      fi
+      case "$pre_command" in
+        *"$active_ledger"*|*"$hook_plugin_data"*)
+          deny "direct shell access to goal protocol state is forbidden"
+          ;;
+      esac
+      case "$active_phase" in
+        active|reviewed|route-rejected|route-unavailable|released|reported) return 0 ;;
+        *) deny "tool use is reserved for the routed goal owner" ;;
+      esac
+      ;;
+    Write|Edit)
+      pre_path=$(json_string_field file_path <"$hook_input" 2>/dev/null || true)
+      test -n "$pre_path" || deny "$pre_tool omitted a file path"
+      pre_path=$(target_path "$pre_path")
+      deny_protected_target "$pre_path"
+      case "$active_phase" in
+        runner-resolved|routed)
+          test "$(dirname -- "$pre_path")" = "$active_staging_dir" ||
+            deny "goal staging writes must remain in the ledger-owned staging directory"
+          test ! -e "$hook_sessions/$hook_session_id.write-seen" &&
+            test ! -e "$hook_sessions/$hook_session_id.write-pending" ||
+            deny "only one goal staging write is allowed"
+          printf '%s\n' "$pre_path" >"$hook_sessions/$hook_session_id.write-pending"
+          chmod 600 "$hook_sessions/$hook_session_id.write-pending"
+          ;;
+        active|reviewed|route-rejected|route-unavailable|released|reported) ;;
+        *) deny "write use is reserved for the routed goal owner" ;;
+      esac
+      ;;
+    apply_patch)
+      case "$active_phase" in
+        active|reviewed|route-rejected|route-unavailable|released|reported)
+          case "$hook_raw" in
+            *"$active_ledger"*|*"$hook_plugin_data"*)
+              deny "direct patches to goal protocol state are forbidden"
+              ;;
+          esac
+          ;;
+        *) deny "patch use is reserved for the routed goal owner" ;;
+      esac
+      ;;
+    Agent)
+      test "$active_phase" = staging-released ||
+        deny "goal owner launch requires released staging"
+      test ! -e "$hook_sessions/$hook_session_id.spawn-pending" &&
+        test ! -e "$hook_sessions/$hook_session_id.spawn-seen" ||
+        deny "a goal owner was already launched"
+      if test "$active_host" = claude; then
+        pre_objective_file=$(state_value "$active_state" objective_file)
+        test "$pre_objective_file" != none ||
+          deny "Claude goal owner has no ledger-owned objective"
+        pre_prompt=$(json_string_field prompt <"$hook_input" 2>/dev/null || true)
+        expected_prompt="- phase: adaptive-goal-runner
+- objective_file: $pre_objective_file"
+        test "$pre_prompt" = "$expected_prompt" ||
+          deny "Claude goal owner task does not exactly match the ledger-owned objective"
+        pre_runner=$(state_value "$active_state" runner_type)
+        case "$hook_compact" in
+          *"\"subagent_type\":\"$pre_runner\""*) ;;
+          *) deny "Claude goal owner does not match the resolved runner" ;;
+        esac
+        case "$hook_compact" in
+          *'"run_in_background":false'*) ;;
+          *) deny "Claude goal owner must run in the foreground" ;;
+        esac
+      else
+        pre_route=$(state_value "$active_state" selected_route)
+        old_ifs=$IFS
+        IFS='|'
+        read -r pre_harness pre_provider pre_model pre_effort pre_extra <<EOF
+$pre_route
+EOF
+        IFS=$old_ifs
+        test "$pre_harness" = codex && test "$pre_provider" = openai &&
+          test -z "${pre_extra:-}" ||
+          deny "Codex goal route is malformed"
+        case "$hook_compact" in
+          *"\"model\":\"$pre_model\""*) ;;
+          *) deny "Codex goal owner model does not match the selected route" ;;
+        esac
+        case "$hook_compact" in
+          *"\"reasoning_effort\":\"$pre_effort\""*) ;;
+          *) deny "Codex goal owner effort does not match the selected route" ;;
+        esac
+      fi
+      printf '%s\n' "$active_host" >"$hook_sessions/$hook_session_id.spawn-pending"
+      chmod 600 "$hook_sessions/$hook_session_id.spawn-pending"
+      ;;
+  esac
+}
+
+post_tool_use() {
+  post_tool=$1
+  case "$post_tool" in
+    Write|Edit)
+      post_pending="$hook_sessions/$hook_session_id.write-pending"
+      test -f "$post_pending" || return 0
+      mv "$post_pending" "$hook_sessions/$hook_session_id.write-seen" ||
+        deny "could not record goal staging write"
+      ;;
+    Agent)
+      post_pending="$hook_sessions/$hook_session_id.spawn-pending"
+      test -f "$post_pending" || return 0
+      if test "$active_host" = codex; then
+        post_agent_id=$(json_string_field agent_id <"$hook_input" 2>/dev/null || true)
+        test -n "$post_agent_id" || deny "Codex goal owner response omitted an agent id"
+        post_route=$(state_value "$active_state" selected_route)
+        bash "$goal_loop" step activate --ledger "$active_ledger" \
+          --applied-by native-subagent --boundary native_subagent \
+          --agent-id "$post_agent_id" --effective-route "$post_route" \
+          --route-verified true --enforcement helper+codex-hooks >/dev/null ||
+          deny "could not record Codex goal owner activation"
+      fi
+      mv "$post_pending" "$hook_sessions/$hook_session_id.spawn-seen" ||
+        deny "could not record goal owner launch"
+      ;;
+  esac
+}
+
+hook_input=$(mktemp "${TMPDIR:-/tmp}/darrow-goal-hook-input.XXXXXX") || exit 0
+trap 'rm -f "$hook_input"' EXIT HUP INT TERM
+umask 077
+tee "$hook_input" >/dev/null
+hook_raw=$(awk '{ if (NR > 1) value = value "\n"; value = value $0 } END { print value }' "$hook_input")
+hook_compact=$(printf '%s' "$hook_raw" | tr -d '[:space:]')
+hook_session_id=$(json_string_field session_id <"$hook_input" 2>/dev/null || true)
+hook_event=$(json_string_field hook_event_name <"$hook_input" 2>/dev/null || true)
+hook_tool=$(json_string_field tool_name <"$hook_input" 2>/dev/null || true)
+hook_cwd=$(json_string_field cwd <"$hook_input" 2>/dev/null || true)
+hook_plugin_data=${CLAUDE_PLUGIN_DATA:-${PLUGIN_DATA:-}}
+
+case "$hook_session_id" in
+  *[!a-zA-Z0-9._-]*|'') exit 0 ;;
+esac
+secure_plugin_data || exit 0
+
+hook_pending="$hook_sessions/$hook_session_id.pending"
+if test "$hook_event" = PreToolUse && test "$hook_tool" = Bash; then
+  hook_command=$(json_string_field command <"$hook_input" 2>/dev/null || true)
+  if is_start_command "$hook_command"; then
+    hook_repo=$(repository_root "$hook_cwd" 2>/dev/null || true)
+    test -n "$hook_repo" || deny "goal start hook requires a repository cwd"
+    write_start_snapshot "$hook_pending" "$hook_repo"
+    exit 0
+  fi
+fi
+
+if test "$hook_event" = PostToolUse && test "$hook_tool" = Bash && test -f "$hook_pending"; then
+  bind_started_ledger "$hook_pending"
+  exit 0
+fi
+
+load_active_ledger || exit 0
+
+case "$hook_event" in
+  PreToolUse) pre_tool_use "$hook_tool" ;;
+  PostToolUse) post_tool_use "$hook_tool" ;;
+  Stop)
+    test "$active_phase" = reported || deny "goal turn cannot end before the canonical helper report"
+    active_report="$active_ledger/report"
+    test -f "$active_report" && test ! -L "$active_report" ||
+      deny "canonical helper report is unavailable"
+    stop_message=$(json_string_field last_assistant_message <"$hook_input" 2>/dev/null || true)
+    canonical_report=$(cat "$active_report")
+    case "$stop_message" in
+      "$canonical_report"|"$canonical_report"$'\n'*) ;;
+      *) deny "final response must begin with the exact canonical helper report" ;;
+    esac
+    report_count=$(printf '%s\n' "$stop_message" | awk '$0 == "format: darrow-native-goal-report-v1" { count++ } END { print count + 0 }')
+    test "$report_count" -eq 1 || deny "final response must contain exactly one canonical helper report"
+    ;;
+  SubagentStop) ;;
+esac

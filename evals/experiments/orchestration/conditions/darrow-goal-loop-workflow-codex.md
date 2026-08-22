@@ -19,9 +19,9 @@ Return only the requested `darrow-native-goal-handoff-v3` object. Set
 route. Put the bounded engineering contract in `goalContract`. It must require
 the execution turn to follow the selected workflow, satisfy the routine gate,
 implement and verify the task, complete the active native goal, avoid commits
-and publication, and finish with the exact v4 launch record using the selected
-route as both selected and effective, `route_applied_by` `host-api`,
-`route_verified` `true`, `launch_boundary` `host_api`, and zero child
-invocations and human interruptions. The adapter will validate the selection,
-load the selected workflow document, and apply the selected model and effort to
-the next turn.
+and publication, preserve the adapter-supplied protocol-ledger reference, and
+leave terminal report rendering to the enclosing adapter. Do not put internal
+launch records or a hand-authored `darrow-native-goal-report-v1` in the
+contract. The adapter will validate the selection, bind the authoritative
+ledger, load the selected workflow document, apply the selected model and
+effort to the next turn, and render the terminal report from recorded evidence.

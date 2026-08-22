@@ -23,18 +23,7 @@ const contract = [
   "Stopping budget: No user-specified numeric limit.",
   "Human feedback: Pause mutation and ask one smallest material question.",
   "Completion report: Begin terminal output with the canonical report.",
-  "format\tdarrow-native-goal-preflight-v4",
-  "workflow\tchange-feature",
-  "risk\thigh",
-  "profile\troutine",
-  "selected_route\tcodex\topenai\tgpt-5.6-luna\tlow",
-  "effective_route\tcodex\topenai\tgpt-5.6-luna\tlow",
-  "route_applied_by\tnative-subagent",
-  "route_verified\ttrue",
-  "launch_boundary\tnative_subagent",
-  "verification_gate\thigh",
-  "evaluation_child_invocations\t1",
-  "evaluation_human_interruptions\t0",
+  "Protocol ledger: /tmp/darrow-goal-run.fixture",
 ].join("\n");
 
 function hookInput(cwd: string, message = contract) {
@@ -91,6 +80,7 @@ describe("Codex adaptive-goal spawn guard", () => {
         baselineSha256: baseline,
         fixtureStateSha256: fixtureState,
         objectiveMode: "inline",
+        ledger: "/tmp/darrow-goal-run.fixture",
       });
       expect(
         verifiedCodexSpawnAttestation(message!, "wrong-secret"),
