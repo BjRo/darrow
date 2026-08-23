@@ -318,7 +318,12 @@ after`);
       "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
       "utf8",
     );
-    expect(parentSkill).toContain("roundLimit");
+    expect(parentSkill.split(/\r?\n/).length).toBeLessThanOrEqual(500);
+    const handoffGuidance = readFileSync(
+      "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/references/handoff.md",
+      "utf8",
+    );
+    expect(handoffGuidance).toContain("roundLimit");
     expect(parentSkill).toContain("file-backed objective");
     const canonicalGuidance = extractIntentRoutingGuidance(parentSkill);
     for (const gate of [
@@ -454,7 +459,16 @@ after`);
     expect(withRisk).toContain("independentReview.roundLimit");
     expect(withRisk).toContain("readinessGate");
     expect(withRisk).toContain(
+      "`Permissions:`, `Workflow sequence:`, `Feedback checks:`",
+    );
+    expect(withRisk).toContain(
+      "final `Protocol ledger: <absolute-ledger>` line",
+    );
+    expect(withRisk).toContain(
       "do not treat the artifact contents being absent from prepared evidence as a known missing decision",
+    );
+    expect(withRisk).toContain(
+      "Focused boundary evidence and compatibility verification do not by themselves justify routine-plus",
     );
     expect(withRisk).not.toContain("technical reference");
   });
@@ -468,6 +482,7 @@ after`);
       handoffValue(),
       "# Change feature\n\nExecute the selected change.",
       guidance,
+      "/tmp/plugin/bin/goal-loop",
     );
 
     expect(prompt.match(/Canonical selection triggers\./g)).toHaveLength(1);
@@ -484,6 +499,12 @@ after`);
       "Do not hand-author a darrow-native-goal-report-v1",
     );
     expect(prompt).toContain("enclosing launcher renders the canonical report");
+    expect(prompt).toContain(
+      "Do not run `goal-loop step release-objective` or `goal-loop step report`",
+    );
+    expect(prompt).toContain(
+      "/bin/bash '/tmp/plugin/bin/goal-loop' step review --ledger <Protocol ledger>",
+    );
     expect(prompt).not.toContain(
       "Preserve the exact v4 launch record below in the final response",
     );
@@ -1023,6 +1044,13 @@ fi
       parseCodexGoalHandoff(handoff, catalog, dimensions).goalContract,
     ).toMatch(
       /Readiness gate: selected —[\s\S]*before repository or external mutation[\s\S]*Continue only on `ready`/,
+    );
+    expect(
+      parseCodexGoalHandoff(handoff, catalog, dimensions, {
+        goalLoop: "/tmp/plugin/bin/goal-loop",
+      }).goalContract,
+    ).toContain(
+      "/bin/bash '/tmp/plugin/bin/goal-loop' step review --ledger <Protocol ledger>",
     );
     const embeddedLedger = {
       ...value,

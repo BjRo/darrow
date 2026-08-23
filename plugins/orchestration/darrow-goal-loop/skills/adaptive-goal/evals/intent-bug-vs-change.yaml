@@ -26,6 +26,9 @@ fixture:
         test.sh: |
           #!/usr/bin/env bash
           node discount.test.js
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
 checks:
   - name: approved rounding contract is implemented
     run: >-

@@ -345,14 +345,14 @@ export function buildPreparedGoalPrompt(
     intentRoutingGuidance,
     "A `user_route` record in the engineering request is an explicit user pin in harness/provider/model/effort order; when present, select it with routeSource user. No other request text is evaluator control metadata.",
     "Select risk and profile independently: risk reflects the cost of an incorrect result, while routing reflects the kind and scale of reasoning required. Risk alone and a workflow label alone do not determine profile.",
-    "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
+    "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Focused boundary evidence and compatibility verification do not by themselves justify routine-plus. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
     "Return independentReview.roundLimit as the exact positive integer only when the engineering request explicitly supplies a review-round limit. Return null for progress-bounded review without a user limit and whenever review is omitted. Never infer a numeric limit on the user's behalf.",
     "Select readinessGate before implementation. Select it for an authoritative ticket, specification, plan, or accepted conversational plan whose exact current scope has not already completed an implementation-readiness assessment, and whenever the user, repository, or delegating orchestration explicitly requires readiness. A completed same-scope semantic discussion that resolved the findings counts as already assessed even without a separately rendered gate result. Re-select after a material scope, acceptance, or constraint change only when reassessment adds actual value. Omit it for a bounded request fully stated in the preserved conversation, for an already-assessed unchanged scope, and when the user explicitly skips the default gate. A user skip does not override a repository or delegating-orchestration requirement. Mere capability installation never selects the gate. Return a concise reason for either selection.",
     "When the engineering request names an authoritative artifact that this one-response classifier has not opened, do not treat the artifact contents being absent from prepared evidence as a known missing decision or authority. Select the task-level workflow from the stated implementation intent and let a selected implementation-readiness capability assess that artifact's completeness before mutation. Use decision-gated only for a missing choice or authority actually established by the preserved request or prepared evidence.",
     "When workflow is decision-gated, return the fixed terminal tuple: risk high, profile none, routeSource none, readinessGate omitted, independentReview omitted with roundLimit null, and selectedRoute {harness: none, provider: none, model: none, effort: none}. Put the missing decision or authority in goalContract. This terminal handoff is reported without native-goal activation.",
     "",
-    "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. Include the exact prepared ledger once as `Protocol ledger: <absolute-ledger>`. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
+    "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. Write exactly one non-empty line for each of these labels in this order: `Outcome:`, `Acceptance criteria:`, `Scope:`, `Non-goals:`, `Preserved work:`, `Permissions:`, `Workflow sequence:`, `Feedback checks:`, `Final-tree checks:`, `Stopping budget:`, `Human feedback:`, and `Completion report:`. Include the exact prepared ledger once as the final `Protocol ledger: <absolute-ledger>` line. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
     "Return readinessGate and independentReview as parallel structured decisions with selection selected or omitted and a concise non-empty reason. Return only the optional independentReview.roundLimit described above. High risk must select independent review except for the fixed decision-gated terminal tuple. Do not write Readiness gate or Independent review lines in goalContract; the host compiles both canonical portable clauses from these structured decisions.",
     "Do not copy a tab-separated launch record into goalContract; the prepared ledger owns route, launch, digest, review, and reporting evidence.",
     "",
@@ -370,8 +370,12 @@ export function buildGoalExecutionPrompt(
   handoff: GoalHandoff,
   workflowContent: string,
   intentRoutingGuidance: string,
+  goalLoop?: string,
 ): string {
   const selected = handoff.selectedRoute;
+  const reviewTransition = goalLoop
+    ? `/bin/bash '${goalLoop.replaceAll("'", `'"'"'`)}' step review --ledger <Protocol ledger>`
+    : "goal-loop step review --ledger <Protocol ledger>";
   return [
     "The enclosing app-server launcher set the compiled contract as this thread's active native goal.",
     "Do not call create_goal; this same thread already has the active goal.",
@@ -386,8 +390,8 @@ export function buildGoalExecutionPrompt(
       : "Implementation readiness is omitted for this goal; do not invoke or record a readiness assessment.",
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
     "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
-    "When independent review is selected, record each returned semantic result against its exact target fingerprint with `goal-loop step review --ledger <Protocol ledger>`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.",
-    "Do not hand-author a darrow-native-goal-report-v1 block. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
+    `When independent review is selected, record each returned semantic result against its exact target fingerprint with \`${reviewTransition}\`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.`,
+    "Do not hand-author a darrow-native-goal-report-v1 block. Do not run `goal-loop step release-objective` or `goal-loop step report`; those are enclosing-launcher operations. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
     "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied. A human-feedback pause is nonterminal and must not settle the goal.",
     "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
   ].join("\n");
@@ -691,15 +695,19 @@ function hasTextControl(value: string): boolean {
 function canonicalIndependentReviewClause(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
+  goalLoop?: string,
 ): string {
   const reason = handoff.independentReview.reason.trim();
   if (handoff.independentReview.selection === "omitted")
     return `Independent review: omitted — ${reason}.`;
+  const transition = goalLoop
+    ? `/bin/bash '${goalLoop.replaceAll("'", `'"'"'`)}' step review --ledger <Protocol ledger>`
+    : "goal-loop step review --ledger <Protocol ledger>";
   const limitClause =
     explicitReviewRoundLimit === undefined
       ? "use progress-bounded convergence with no implicit numeric review limit"
       : `use the originating explicit hard cap of at most ${explicitReviewRoundLimit} independent-review capability invocations, including the initial comprehensive review`;
-  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
+  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; record each returned semantic result against its exact target fingerprint with \`${transition}\`; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
 }
 
 function canonicalReadinessGateClause(
@@ -733,6 +741,7 @@ function compileReadinessGateClause(
 function compileIndependentReviewClause(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
+  goalLoop?: string,
 ): void {
   const lines = handoff.goalContract
     .split("\n")
@@ -752,7 +761,11 @@ function compileIndependentReviewClause(
   lines.splice(
     insertAt,
     0,
-    canonicalIndependentReviewClause(handoff, explicitReviewRoundLimit),
+    canonicalIndependentReviewClause(
+      handoff,
+      explicitReviewRoundLimit,
+      goalLoop,
+    ),
   );
   handoff.goalContract = lines.join("\n");
 }
@@ -794,7 +807,11 @@ export function parseCodexGoalHandoff(
     explicitControls.ledger,
   );
   compileReadinessGateClause(handoff, explicitControls.goalLoop);
-  compileIndependentReviewClause(handoff, explicitControls.reviewRoundLimit);
+  compileIndependentReviewClause(
+    handoff,
+    explicitControls.reviewRoundLimit,
+    explicitControls.goalLoop,
+  );
   const contractIssues = goalContractRecordIssues(handoff.goalContract);
   if (contractIssues.length)
     throw new Error(
@@ -2772,6 +2789,7 @@ function goalOwnerPrompt(context: GoalOwnerTurnContext): string {
     context.phase.handoff,
     context.workflow.content,
     context.phase.prepared.intentRoutingGuidance,
+    join(context.repoDir, ".agents", "bin", "goal-loop"),
   );
 }
 
