@@ -461,6 +461,9 @@ after`);
     expect(withRisk).toContain(
       "do not treat the artifact contents being absent from prepared evidence as a known missing decision",
     );
+    expect(withRisk).toContain(
+      "Focused boundary evidence and compatibility verification do not by themselves justify routine-plus",
+    );
     expect(withRisk).not.toContain("technical reference");
   });
 
@@ -489,6 +492,9 @@ after`);
       "Do not hand-author a darrow-native-goal-report-v1",
     );
     expect(prompt).toContain("enclosing launcher renders the canonical report");
+    expect(prompt).toContain(
+      "Do not run `goal-loop step release-objective` or `goal-loop step report`",
+    );
     expect(prompt).not.toContain(
       "Preserve the exact v4 launch record below in the final response",
     );
