@@ -230,37 +230,10 @@ semantic verdict in the ledger. It continues only on `ready`. Any other
 verdict returns `blocked` without mutation and places the complete readiness
 result plus smallest useful next action before the creator's outer report.
 
-For a selected review gate, tell the runner to preserve the compiled lifecycle:
-one comprehensive initial review, one all-eligible first rework, then
-exact-target fix verification and blocker/regression-only later rework while
-material progress continues. Each rework performs at most one authorized
-repair attempt per finding, followed by invalidated checks and verification;
-the runner never self-iterates on that finding before the response. Each
-verification receives the previous
-verification artifact and checksum, its carried regression set, the prior
-pinned scope manifest, and a mechanically rendered prior-to-current repair
-delta; caller prose never substitutes for that causal evidence. A non-clear
-terminal outcome or explicit hard cap settles as blocked and performs no
-further repository or publication work. Check evidence established after the
-latest content edit and supplied to verification remains final-tree evidence
-for that exact content; the review response does not invalidate it, so do not
-rerun a check after a terminal response. The runner must execute the last
-final-tree check for an exact target before its review invocation and must not
-describe a later check as final verification. Require its terminal result to
-preserve the prior blocker as `Initial independent review: blocking —
-<finding>` and the standalone `Fix verification: <outcome>.` sentence without
-a suffix, keeping the verifier's returned outcome verbatim. A cap-induced
-overall block never rewrites `Fix verification: continue.` as `blocked`. When
-the explicit hard cap causes the stop, also require the separate standalone
-canonical sentence `Review gate: blocked — explicit limit reached.`
-
-For a clear initial review, require the runner's terminal result to include the
-standalone canonical sentence `Independent review: clear.`, and preserve that
-sentence verbatim in the caller-facing completion. For an initial blocker that
-cannot be repaired, require `Independent
-review: blocking — <finding>` on its own line and preserve it verbatim. It may
-use its own Markdown bullet but must otherwise be its own unquoted line. A prose
-paraphrase does not replace it.
+For a selected review gate, read
+[`review-lifecycle.md`](review-lifecycle.md) completely and compile that
+lifecycle plus the parent skill's canonical outcome sentences into the runner's
+contract. Do not restate the lifecycle in the launch message.
 
 The guard-attested accepted spawn request with explicit route values is the
 Codex native-runner route-application evidence. Do not run `confirm-route` or

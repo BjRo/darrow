@@ -304,25 +304,18 @@ Apply the selected proportional risk gate:
 | `elevated` | routine gates plus affected-caller or compatibility checks and one plausible counterexample |
 | `high` | elevated gates plus an adversarial boundary or state-transition check and independent final-tree review |
 
-For selected independent review, compile this continuation behavior into the
-goal contract: invoke the matching capability after implementation and
-applicable final-tree checks, supplying the exact final change, originating
-objective or specification, repository standards, and current check evidence.
-Treat a preexisting candidate described as review-ready as unverified: before
-the initial comprehensive review, run every applicable exact-target check
-required by the selected risk gate and supply that current evidence to the
-review capability.
-Its current content is the first review target. Do not edit it before that
-review returns, even when a check fails or it already differs from the approved
-final outcome; any authorized repair starts only from the review's closed
-finding set.
+For selected independent review, read
+[`references/review-lifecycle.md`](references/review-lifecycle.md) completely
+and compile its lifecycle into the goal contract. Invoke the matching capability
+after implementation and current final-tree checks with the exact change,
+originating authority, repository standards, and check evidence. A preexisting
+review-ready candidate still requires current checks before its initial review.
+
 Target preparation starts the review boundary. Finish only that capability
-invocation and await its ordinary response before any other repository work;
-do no repository work outside the capability invocation while it is pending.
-Interpret the capability's ordinary response semantically. No blocking
-findings in the initial comprehensive review satisfy the gate for that exact
-content without adding authority. Otherwise that one comprehensive review
-establishes the closed finding set for all rework and verification.
+invocation and await its ordinary response; do no repository work outside the
+capability invocation while pending. Interpret the capability's ordinary response semantically. The first
+invocation is one comprehensive review of the current content and creates
+the closed finding set; only no blocking findings clears that exact target.
 
 After each review capability returns, record its semantic result against the
 exact target fingerprint:
@@ -334,95 +327,22 @@ exact target fingerprint:
   --outcome <semantic-outcome> [--finding <bounded-finding>]
 ```
 
-Prefer `--target-fingerprint` when the review capability returns an exact
-non-SHA target identifier; the helper derives the ledger SHA-256 internally.
-Never reconstruct that hash with a shell variable, assignment, substitution,
-command list, redirect, or pipeline.
-The helper permits one comprehensive review, rejects verification before that
-review, and rejects every repeated target fingerprint. These checks validate
-protocol evidence only; they do not choose findings, repairs, or whether
-material progress exists.
+Prefer the reviewer's literal `--target-fingerprint`; the helper derives its
+SHA-256. The helper permits one comprehensive review and rejects out-of-order or
+repeated-target evidence without choosing findings or repairs.
 
-Make the caller-facing outcome explicit: report a clear initial result as the
-standalone canonical sentence `Independent review: clear.` It may occupy its
-own Markdown bullet, and balanced strong emphasis may surround the label or the
-entire exact sentence, but it must otherwise be its own unquoted line; do not embed it in another
-clause. Prose paraphrases, negated framing, quotations, and qualified or
-ambiguous continuations are not outcomes. An initial blocking result that
-cannot be repaired is `Independent review: blocking — <finding>` on its own
-line. After repair, preserve
-`Initial independent review: blocking — <finding>` and report the exact-target
-result as the standalone sentence
+Use standalone, unquoted canonical outcomes. A clear initial result is
+`Independent review: clear.` An unrepaired initial blocker is `Independent
+review: blocking — <finding>`. After repair, preserve `Initial independent
+review: blocking — <finding>` and report the exact-target result as
 `Fix verification: <clear|continue|no_progress|blocked|unavailable|inconclusive>.`
-Do not rely on nearby
-prose or a provider-specific serialization to imply these outcomes. Supporting
-detail belongs on another line; the canonical outcome sentence has no suffix.
-Preserve the verifier's returned outcome verbatim even when an explicit limit
-converts the overall review gate to `blocked`. Do not rewrite `continue` as
-`blocked`; report the overall stop in the separate review-gate sentence.
-An initial `unavailable`, `inconclusive`, or otherwise terminal unsatisfied
-review result does not replace the outer launch result. Before returning, append
-the complete Section 4 human-readable report with the truthful blocked
-review-gate state and counters.
-
-First rework attempts every eligible finding together. Eligibility requires
-existing repair authority, clear originating scope, low risk, no expansion of
-requested behavior, and no material expansion of verification. Attempt every
-eligible blocker and advisory. Record an ineligible blocker as blocked; retain
-an ineligible advisory only as a non-gating residual risk.
-
-One rework performs at most one authorized repair attempt per finding. After
-that attempt, run the invalidated checks and request fix verification; never
-self-iterate on the same finding before that response. A second attempt belongs
-to a later rework and is available only when verification returns `continue`
-and existing authority covers it.
-
-After each rework, rerun invalidated checks and ask the same matching capability
-to fix-verify only the attempted original findings and direct repair-caused
-regressions. Supply the original findings and target, canonical finding order,
-prior and current targets, prior target history, the prior scope manifest, the
-immediately prior verification artifact with its checksum and carried
-regressions when one exists, and current check evidence. The review capability
-pins the prior-to-current repair delta mechanically against the prior scope's
-same effective base; caller prose does not establish causality. Targeted verification cannot introduce an unrelated finding. It
-reports `clear`, `continue`, `no_progress`, `blocked`, `unavailable`, or
-`inconclusive`.
-
-Check evidence established after the latest content edit and supplied to fix
-verification remains final-tree evidence for that exact content. The review
-response does not itself invalidate those checks. If that response reaches an
-explicit limit or another terminal stop without authorizing a later edit, do
-not rerun a check after the response. With selected review, run the last
-final-tree check for an exact target before its review invocation. Never call a
-post-review check final verification; it is forbidden after a terminal
-response.
-
-`clear` satisfies the exact-content gate. Continue only while an unresolved
-blocker or repair-caused regression materially progresses. Later rework fixes
-only unresolved blockers and repair-caused regressions. A direct regression
-first detected by verification is progressing for one repair attempt; unchanged
-evidence after that attempt is no progress. Advisories never keep the gate open.
-When `continue` names an unresolved blocker or direct regression and existing
-authority covers its concrete repair, perform that later rework, rerun the
-invalidated checks, and request fix verification again. Do not treat
-`continue`, the first appearance of a direct regression, or the mere existence
-of an earlier repair round as a stop condition.
-Repeated targets, unchanged failure evidence, or oscillation to an earlier
-target is `no_progress`. `no_progress`, `blocked`, unavailable or inconclusive
-evidence, exhausted authority, or an explicit review limit stops with the
-unsatisfied gate and permits no further repair or publication.
-
-Before every fix-verification invocation after the first, compare the
-prospective current target fingerprint with the complete prior target history.
-A verifier-requested later repair that would restore exact content already in
-that history stops before editing the current target or rerunning its checks.
-A repeated or earlier fingerprint stops as `no_progress` before invoking the
-capability; never make the redundant verification call. Because that stop has
-no new verifier response, preserve the latest returned standalone
-`Fix verification: continue.` line and report the repeated-target or
-oscillation `no_progress` stop separately. Never synthesize
-`Fix verification: no_progress.` unless the capability actually returned that
-outcome.
+Preserve the returned outcome verbatim; a separate gate sentence reports any
+overall stop. The lifecycle reference owns rework, fix-verify, target history,
+check invalidation, and progress mechanics. Continue only while an unresolved
+blocker or repair-caused regression materially progresses; `clear` satisfies
+the exact target, while repetition, oscillation, no progress, unavailable or
+inconclusive evidence, exhausted authority, or a reached limit stops repair and
+publication.
 
 There is no default numeric review limit. If the originating request explicitly
 supplies one, preserve it as a hard cap on all capability invocations including
@@ -432,12 +352,8 @@ exact-target evidence. A terminal stop caused by that limit reports the
 standalone canonical sentence `Review gate: blocked — explicit limit reached.`
 Any later content-changing edit invalidates the chain.
 
-When the host persists native-goal status, settle every terminal unsatisfied
-review stop as `blocked` before returning. If the host requires a repeated
-blocker audit, do not count review invocations as goal turns. Any required
-automatic continuation is status settlement only: preserve the same gate,
-perform no repository inspection, edit, check, review, or publication, and
-mark the goal `blocked` as soon as the host permits it.
+Settle every terminal unsatisfied review as `blocked`; any host-required
+continuation is status settlement only and performs no repository work.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely and use only its sequence; small

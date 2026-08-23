@@ -318,6 +318,7 @@ after`);
       "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
       "utf8",
     );
+    expect(parentSkill.split(/\r?\n/).length).toBeLessThanOrEqual(500);
     const handoffGuidance = readFileSync(
       "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/references/handoff.md",
       "utf8",
