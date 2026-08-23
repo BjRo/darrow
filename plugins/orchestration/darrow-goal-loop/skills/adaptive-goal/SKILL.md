@@ -8,33 +8,6 @@ description: Compile one bounded engineering request and activate it as a host-n
 Compile the request, activate one host-native goal owner, and let the host own
 the loop.
 
-### Claude literal launch path
-
-On an interactive Claude invocation, keep the parent protocol literal. If the
-request supplies absolute repository and helper paths, use them directly and
-perform no path discovery. The first protocol-bearing Bash call is the exact
-standalone `goal-loop step start` command. Copy each returned absolute ledger,
-staging, digest, objective, and attachment value literally into the next
-standalone call; never use a shell variable, assignment, substitution,
-redirect, pipe, heredoc, or command list. Use native `Write` exactly once for
-the complete contract at the returned staging path. That Write's first line is
-`Outcome:`. Never hand-author the file-backed objective wrapper or an
-`Expected SHA-256:` line; `step materialize` creates that wrapper. Then perform, in order,
-`step prepare`, `step route`, `step runner`, `step stage`, `step materialize`,
-and `step release-staging`. At the `helper` enforcement tier, record the
-provisional Claude activation with agent id `pending`. With trusted hooks,
-record the same explicit transition with `--enforcement helper+claude-hooks`;
-the hooks validate it and refuse an Agent without it. Invoke one foreground Agent with only the marker and exact
-returned `objective_file` line. After it returns, call only the exact
-`claude-route-gate`, attachment release, and terminal report commands. A denied
-or malformed lifecycle call is a stop; do not improvise a recovery command or
-hand-author the report. Once the Agent has returned terminally, never invoke a
-skill, send a message, schedule a wakeup, or retry readiness in the parent. If
-the route gate reports that observation is unavailable, render the truthful
-`launch-required` terminal report through the helper and stop. After the report
-call succeeds, make no further tool call and paste its output as specified
-below.
-
 ### Literal terminal report
 
 For every terminal path, return the successful `goal-loop step report` output
@@ -70,114 +43,28 @@ reason: explicit-orchestration-entrypoint-required
 
 ### Enforce the activation barrier
 
-Do not edit product files until read-only preflight is complete and exactly one
-goal owner has been activated on a verified route. Preflight includes preparing
-repository evidence, selecting workflow/risk/profile/route, and proving any
-selected implementation-readiness and independent-review capabilities are
-already available. Direct
-implementation in the classifier turn is invalid. Same-thread implementation
-is valid only after concrete active-route metadata matches selection and the
-native goal is accepted. If no boundary can prove those conditions, preserve
-the product tree and stop with the complete human-readable `launch_required`
-report.
+Keep preflight read-only until exactly one goal owner is active on a verified
+route. Inspection may identify applicable checks but MUST NOT execute a test,
+build, typecheck, lint, review, or verification command. Compile imperative
+implementation and check requests for the owner; they do not authorize work in
+the classifier turn.
 
-On every harness, repository evidence collection is inspection only. The
-classifier MUST NOT execute a focused check, test command, build, typecheck,
-lint, review, or verification probe before the goal owner starts, even when the
-command is read-only with respect to product files or would make later review
-easier. It records the applicable commands in `Feedback checks:` and
-`Final-tree checks:` for the owner to run. After a delegated owner starts, the
-creator uses only that exact thread's wait, feedback relay, stop, or close
-controls and the state-bound `goal-loop step` evidence calls described by the
-launch guide; it runs no repository or verification command itself.
-
-Treat imperative implementation, check, and review steps in the originating
-request as owner instructions to compile into the contract. Their imperative
-wording never authorizes the classifier to execute them before activation.
-
-Implementation-readiness availability is a hard part of the barrier when the
-readiness gate is selected. Before any goal-owner launch, identify a
-host-advertised skill or tool whose description explicitly matches assessing
-whether an authoritative ticket, specification, plan, or request is ready for
-implementation. Mere skill installation does not select the gate, but a
-selected gate requires a matching installed capability. If none exists, do not
-spawn, edit, or run implementation checks. Record and render the gap:
-
-```sh
-/bin/bash <absolute-plugin-bin>/goal-loop step launch-stop \
-  --ledger <absolute-ledger> --reason readiness-unavailable
-/bin/bash <absolute-plugin-bin>/goal-loop step report \
-  --ledger <absolute-ledger> --status launch-required \
-  --human-interruptions 0
-```
-
-The helper includes `Implementation readiness availability: unavailable.` When
-readiness is omitted, this availability check does not apply.
-
-Review availability is a hard part of that barrier when review is selected.
-Before any goal-owner spawn for such a contract, identify a host-advertised
-skill or tool whose description explicitly matches independent review of the
-exact current code change. `spawn_agent`, an Agent tool, a fresh context, or a
-review prompt is generic delegation—not a review capability. If generic
-delegation is all the environment exposes, do not spawn, edit, or run
-implementation checks. Record the stop and render the evidence gap through the
-helper:
-
-```sh
-/bin/bash <absolute-plugin-bin>/goal-loop step launch-stop \
-  --ledger <absolute-ledger> --reason review-unavailable
-/bin/bash <absolute-plugin-bin>/goal-loop step report \
-  --ledger <absolute-ledger> --status launch-required \
-  --human-interruptions 0
-```
-
-The helper includes `Independent review availability: unavailable.` When review
-is omitted, this availability check does not apply.
+Before activation, prove that every selected implementation-readiness or
+independent-review capability is host-advertised and matches the required
+intent. Generic delegation is not capability evidence. If a selected
+capability or exact launch boundary is unavailable, preserve the product tree
+and use the applicable host guide to record the stop and render
+`launch_required`.
 
 ### The helper protocol is mandatory
 
-On every interactive host, the preflight and launch protocol is mandatory even
-for a small or obvious task. Before any product write, start one
-`goal-loop step` ledger, prepare through it, select the dimensions, record the
-route through it, read the applicable launch guide, and activate the first
-boundary that can apply that exact helper-selected route. Do not implement
-directly in the classifier turn, replace the selected harness with a boundary
-label such as `current-thread`, or report same-thread activation without
-route-confirmation evidence.
-
-The helper ledger enforces the evidence sequence: start, prepare, route,
-optional Claude runner resolution, private staging, digest binding,
-materialization, staging release, owner activation, route observation,
-implementation-readiness selection and verdict, review evidence, objective
-release, and terminal report. It rejects missing,
-duplicate, out-of-order, or mismatched evidence. This is a protocol ledger, not
-a phase scheduler: it does not create agents, assign stage roles, continue a
-goal, or decide what engineering work runs next.
-
-Claude materialization is always file-backed. Its Agent task carries exactly
-one objective body field,
-`- objective_file: <exact-helper-returned-path>`, after the ownership marker.
-Never copy the inline contract into a Claude Agent call or omit that field.
-The first protocol-bearing Bash call is the standalone `step start` command.
-Resolve unknown repository, plugin, or helper paths beforehand with Claude's
-native `Read`, `Glob`, or `Grep`, using `ToolSearch` only to load those
-native tools. An exact standalone `true` is tolerated only as an inert host
-no-op and supplies no evidence.
-
-The classifier may inspect repository evidence needed to compile the contract,
-but MUST NOT edit product files or run implementation or verification commands
-before the selected owner starts. On Claude, retain the exact `staging_dir`
-returned by `step start` and stage the compiled contract once as a direct child
-of that directory with native `Write`. Pre-owner Bash calls are
-limited to the bundled step helper, runner resolution, route gate, and the
-standalone `/usr/bin/printenv TMPDIR` probe. Pass the staging path to
-`step stage`; use its returned `contract_sha256` as the expected digest for
-materialization and release. The helper validates the bytes at every
-transition. Treat phase-specific trusted-hook context as the next transition
-to perform, not as evidence that it already happened. Optional host hooks
-harden this protocol when installed and
-trusted; their absence does not weaken helper validation and is disclosed by
-the terminal `enforcement` value.
+Use one `goal-loop step` ledger for every interactive run, including small
+tasks. Record preparation, route selection, materialization, activation,
+selected readiness and review evidence, cleanup, and terminal reporting in its
+required order. A denied, duplicate, out-of-order, or mismatched transition is
+a stop. The ledger validates evidence; it never schedules work or owns
+continuation. The selected host guide owns the literal command and tool
+protocol.
 
 ## 1. Prepare without writing
 
@@ -771,87 +658,16 @@ For an interactive invocation, read exactly one host launch guide completely:
 - Codex: [`references/codex-launch.md`](references/codex-launch.md)
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
 
-Prefer the current thread only when host metadata proves its effective route
-matches the selected route. Otherwise use a supported host API, then on Codex
-use exactly one first-class native goal runner when `spawn_agent` can apply the
-selected model and effort, without requiring a close control. Its initial task
-message begins with the exact ownership marker
-`- phase: adaptive-goal-runner`; generic delegation without that marker is not
-the goal-owner boundary. The remaining task body binds either delegated runner
-to the successful materialization: supply the exact complete inline objective
-or, for file-backed materialization, the one exact
-`- objective_file: <helper-returned-absolute-objective_file>` line. The owner
-reads that bounded objective and verifies the attached complete contract; the
-classifier does not read, hash, copy, or reproduce it. Add no digest, workflow
-proof, explanation, or other task text. The bound objective file is the sole
-task authority. Do not start the Agent before materialization succeeds. A
-marker-only task is not a goal. A nested
-compatibility process requires explicit user authorization and an enclosing
-launcher; never select it automatically from an interactive skill. If no
-boundary can apply the route, record `goal-loop step launch-stop --reason
-launch-unavailable`, release any materialized objective, report
-`launch_required` honestly, and stop.
-
-If your current task begins with `- phase: adaptive-goal-runner`, the accepted
-spawn already activated you as the sole goal owner. Execute the supplied goal
-contract directly. Do not invoke this skill again, repeat preflight, spawn a
-replacement owner, or return `launch_required` because `create_goal` is absent.
-Do not call `create_goal`; the accepted runner task remains the one ownership
-boundary.
-
-If that contract selects `Readiness gate:`, invoke the matching available
-implementation-readiness capability and record its semantic verdict through
-the exact absolute `step readiness` command before any repository or external
-mutation. Continue only after the ledger accepts `ready`. For
-`needs-discovery`, `needs-decision`, or `blocked`, do not mutate, settle the
-native goal as blocked, and return the capability's complete human-readable
-result with its smallest useful next action before the outer report. This is a
-terminal readiness-gate result, not a newly emerged feedback question; never
-convert it into the generic resumable human-feedback pause. If the contract
-omits readiness, do not invoke or record it.
-
-For a Codex native runner, the guard-attested accepted spawn with its concrete
-model and effort is the route confirmation. Trusted Codex hooks record the
-accepted host-reported agent id, exact selected route, native-subagent boundary,
-and verified route immediately after spawn acceptance. Only when `step start`
-reported the `helper` enforcement tier does the creator record that same
-evidence with the exact manual `goal-loop step activate` call before waiting;
-it never duplicates trusted-hook activation. The runner never records
-activation or renders the ledger report. The creator never runs the old `confirm-route`
-self-attestation around that boundary. After activation it only waits,
-performs an authorized feedback relay, records cleanup and report evidence,
-renders the helper report, and closes the owner when the host exposes that
-control.
-
 Activate exactly one goal owner. Darrow adds no planner, verifier, repair agent,
 retry loop, or cross-vendor route. The native goal or allowed Claude Agent
 runner owns implementation, verification, recovery, and completion.
 
 ## 4. Return host-native completion
 
-Continue until the selected goal owner reaches a terminal state or pauses for
-material human feedback. For a delegated owner, keep the same owner active,
-relay its smallest question to the user, send the exact answer back, and then
-continue collecting that owner's result. When feedback cannot be relayed in
-the current run, preserve the active goal and its objective attachment, return
-at least the canonical feedback marker and complete smallest question, and do
-not claim completion or blockage. The terminal human-readable report is
-optional on a nonterminal pause; if included, keep it truthful, but never treat
-it as continuation authority. The host-preserved owner and objective are the
-continuation state. A native goal runner may use host-native subagents for bounded work;
-it remains the sole goal owner, and Darrow does not prescribe planner,
-executor, verifier, or repair roles.
-After a delegated owner returns terminally, only collect and render its result.
-Do not inspect or edit the repository, rerun any focused or final-tree command,
-or substitute parent-thread verification; that would violate sole ownership
-and duplicate the compiled cadence. On Claude, the only post-return tool calls
-are one required `claude-route-gate` invocation and the exact terminal
-`release-objective` cleanup when an attachment exists; neither authorizes
-repository inspection. The gate binds the completed Agent's host-reported id,
-transcript observation, and confirmation atomically. Only its successful
-confirmation of a matching observed route permits `route_verified: true`.
-Do not ask the model to reconstruct the mandatory report. After route,
-objective-release, and review evidence are recorded, render it exactly once:
+Follow the selected host guide until the same owner reaches a terminal state or
+pauses for material feedback. The creator may relay feedback to that owner, but
+must not replace it or inspect, edit, or reverify its repository work after it
+returns. Render the terminal report from the ledger exactly once:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step report --ledger <absolute-ledger> \
@@ -860,11 +676,9 @@ objective-release, and review evidence are recorded, render it exactly once:
 ```
 
 Use that exact helper output, including its canonical terminal sentence, as the
-leading response block, then preserve the
-owner's changed-file, verification, review-detail, and risk prose alongside it.
-The helper validates terminal state and renders applicable canonical review
-sentences. This collection grants no authority to inspect or revalidate the
-repository.
+leading response block, then preserve the owner's collected changed-file,
+verification, review-detail, and risk prose. The helper validates terminal
+state and renders applicable canonical review sentences.
 For a selected readiness verdict other than `ready`, invert only this ordering:
 the complete implementation-readiness result comes first, followed immediately
 by the exact terminal helper report with no Markdown code fence before or around
@@ -875,18 +689,6 @@ an unavailable or rejected route still requires the truthful `launch-required`
 report. Do not summarize, replace, or store the readiness result in the ledger.
 This is the only terminal path on which the canonical outer report does not
 begin the response.
-On Codex, every agent creator collects the child's terminal result. When the
-host exposes a close control, close the subagent after its goal has been
-fulfilled and its terminal result has been collected. The goal runner applies
-the same guidance to descendants it creates. If an active child becomes
-unnecessary, stop or interrupt it when the host exposes that control. Absence
-or failure of a close control does not block launch or invalidate an otherwise
-fulfilled goal; report any residual cleanup state without replacing the goal's
-terminal result.
-After the one goal-owner spawn is accepted, `spawn_agent` is forbidden for the
-rest of the invocation, including tool discovery, waiting, retry, or cleanup.
-Wait for, message, stop, or close only the accepted thread through the matching
-host control; never create a helper or replacement while locating that control.
 `decision-gated` is the terminal preflight exception to the general completion
 template below. Render its fixed report through the helper command in Section
 1. Because no route
@@ -929,16 +731,6 @@ the `route_applied_by` value or `launch_boundary`. Count only sessions or subage
 created directly by Darrow: same-thread and host-API launches are zero; a
 native goal runner or explicitly authorized nested session is one. Native
 descendants remain host-visible but are not Darrow child invocations.
-For a Claude native-subagent whose transcript route cannot be observed, report
-`harness: claude`, `model: anthropic > unknown`, `effort: unknown`,
-`route_verified: false`, and `launch_boundary: launch_required`. If
-transcript evidence instead proves a mismatched route, record that observed
-route. Failed verification never permits copying the selected model or effort
-into the report. Route observability changes only those route facts; it does
-not alter or invalidate the delegated owner's collected implementation,
-verification, or independent-review result. Do not rerun or qualify that
-result because route verification is unavailable. Keep any route caveat on a
-separate line.
 When an invoked capability terminates the goal with its own structured result,
 preserve that result alongside the mandatory human-readable report rather than
 replacing either contract.
