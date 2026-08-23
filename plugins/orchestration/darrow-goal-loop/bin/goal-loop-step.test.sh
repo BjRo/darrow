@@ -72,6 +72,28 @@ activate_codex_review_ledger() {
     --effective-route "$fixture_route" --route-verified true >/dev/null
 }
 
+stage_codex_native_ledger() {
+  codex_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+    --repo "$repo" --host codex)
+  codex_ledger=$(record_value "$codex_start" ledger)
+  codex_staging=$(record_value "$codex_start" staging_dir)
+  bash "$goal_loop" step prepare --ledger "$codex_ledger" >/dev/null
+  codex_route_out=$(bash "$goal_loop" step route --ledger "$codex_ledger" \
+    --workflow fix-bug --risk routine --profile routine \
+    --verification-gate routine --readiness omitted --review omitted)
+  codex_route=$(record_value "$codex_route_out" selected_route)
+  codex_goal="$codex_staging/goal.md"
+  printf '%s\n' 'Outcome: exercise Codex native owner identity' >"$codex_goal"
+  codex_digest=$(shasum -a 256 "$codex_goal")
+  codex_digest=${codex_digest%% *}
+  bash "$goal_loop" step stage --ledger "$codex_ledger" \
+    --goal-file "$codex_goal" >/dev/null
+  bash "$goal_loop" step materialize --ledger "$codex_ledger" \
+    --goal-file "$codex_goal" --expected-sha256 "$codex_digest" >/dev/null
+  bash "$goal_loop" step release-staging --ledger "$codex_ledger" \
+    --goal-file "$codex_goal" --expected-sha256 "$codex_digest" >/dev/null
+}
+
 signal_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
   --repo "$repo" --host codex)
 signal_ledger=$(record_value "$signal_start" ledger)
@@ -103,6 +125,52 @@ test "$(shasum -a 256 "$signal_ledger/state")" = "$signal_state_before" ||
 test "$(shasum -a 256 "$signal_ledger/events")" = "$signal_events_before" ||
   fail 'interrupted ledger did not restore events'
 bash "$goal_loop" step prepare --ledger "$signal_ledger" >/dev/null
+
+stage_codex_native_ledger
+expect_refusal 'Codex native owner rejects legacy agent id' bash "$goal_loop" \
+  step activate --ledger "$codex_ledger" --applied-by native-subagent \
+  --boundary native_subagent --agent-id adaptive_goal_runner \
+  --effective-route "$codex_route" --route-verified true
+for unsafe_ref in \
+  '/root/' \
+  '/root//adaptive_goal_runner' \
+  '/root/../adaptive_goal_runner' \
+  '/other/adaptive_goal_runner' \
+  '/root/adaptive-goal-runner' \
+  '/root/adaptive goal_runner' \
+  $'/root/adaptive\tgoal_runner' \
+  $'/root/adaptive\ngoal_runner' \
+  '/root/adaptive_goal_runner;bad'; do
+  expect_refusal "unsafe Codex agent reference $unsafe_ref" bash "$goal_loop" \
+    step activate --ledger "$codex_ledger" --applied-by native-subagent \
+    --boundary native_subagent --agent-ref "$unsafe_ref" \
+    --effective-route "$codex_route" --route-verified true
+done
+codex_activate=$(bash "$goal_loop" step activate --ledger "$codex_ledger" \
+  --applied-by native-subagent --boundary native_subagent \
+  --agent-ref /root/parent/adaptive_goal_runner \
+  --effective-route "$codex_route" --route-verified true)
+test "$(record_value "$codex_activate" agent_ref)" = \
+  /root/parent/adaptive_goal_runner || fail 'canonical Codex agent reference'
+grep -F $'agent_ref\t/root/parent/adaptive_goal_runner' \
+  "$codex_ledger/state" >/dev/null || fail 'Codex agent reference ledger binding'
+codex_report=$(bash "$goal_loop" step report --ledger "$codex_ledger" \
+  --status complete --human-interruptions 0)
+grep -F 'evaluation_child_invocations: 1' <<<"$codex_report" >/dev/null ||
+  fail 'canonical Codex owner did not count one child'
+
+stage_codex_native_ledger
+codex_failed_stop=$(bash "$goal_loop" step launch-stop \
+  --ledger "$codex_ledger" --reason launch-unavailable \
+  --agent-ref /root/adaptive_goal_runner)
+test "$(record_value "$codex_failed_stop" agent_ref)" = \
+  /root/adaptive_goal_runner || fail 'failed accepted Codex owner reference'
+grep -F $'child_invocations\t1' "$codex_ledger/state" >/dev/null ||
+  fail 'failed accepted Codex owner lost its child invocation'
+codex_failed_report=$(bash "$goal_loop" step report --ledger "$codex_ledger" \
+  --status launch-required --human-interruptions 0)
+grep -F 'evaluation_child_invocations: 1' <<<"$codex_failed_report" >/dev/null ||
+  fail 'failed accepted Codex owner report lost its child invocation'
 
 start_out=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
   --repo "$repo" --host claude)

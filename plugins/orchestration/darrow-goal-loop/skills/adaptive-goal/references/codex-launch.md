@@ -238,20 +238,39 @@ contract. Do not restate the lifecycle in the launch message.
 The accepted spawn request with explicit route values is the
 Codex native-runner route-application evidence. Do not run `confirm-route` or
 another shell confirmation before or after that spawn; it adds no independent
-host evidence. Recording the accepted host-reported id is mandatory
-immediately after spawn acceptance and before the first wait:
+host evidence. The runner identity is the exact `task_name` value in the
+accepted public spawn result, not the short task name supplied in the request
+and not an inferred thread id. Require that host-returned value to match the
+canonical grammar `/root(?:/[a-z0-9_]+)+`, retain it byte-for-byte as the agent
+reference, and reject a foreign root, traversal or empty segment, whitespace,
+tab or newline, shell metacharacter, or unrelated safe-looking child. Do not
+strip `/root/`, flatten nested paths, or otherwise normalize the value.
+Recording that reference is mandatory immediately after spawn acceptance and
+before the first wait:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step activate --ledger <absolute-ledger> \
   --applied-by native-subagent --boundary native_subagent \
-  --agent-id <host-reported-agent-id> \
+  --agent-ref <host-returned-canonical-task-name> \
   --effective-route '<selected-route>' --route-verified true
 ```
 
 Do not ask the runner to make this call and do not substitute `same_thread`.
-Then wait for that same agent to finish and collect its result. A feedback request
-is a pause: relay the answer to that same agent and wait again rather than
-closing or replacing it.
+Then use that exact agent reference as every wait, message, interrupt, and
+cleanup target for the runner. A feedback request is a pause: relay the answer
+to that same reference and wait again rather than closing or replacing it.
+Never accept an activation merely because the helper echoes its argument; the
+recorded reference must match the accepted spawn result or the same spawn's
+retained host receiver identity.
+
+If the activation transition is rejected after the spawn was accepted,
+interrupt that exact reference when the host exposes interruption, then run
+`goal-loop step launch-stop --reason launch-unavailable` with the same
+`--agent-ref` and no alternate reason. Release a materialized objective, render
+the `launch_required` report, and preserve `evaluation_child_invocations: 1`
+plus the observed interruption and cleanup state. Do not retry activation,
+spawn a replacement, report zero children, or reinterpret this as ordinary
+blocked work.
 Once that spawn is accepted, `spawn_agent` is forbidden for the rest of the
 invocation, including tool discovery, waiting, retry, or cleanup. Use only the
 matching wait, message, stop, or close control for the accepted thread; never

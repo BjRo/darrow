@@ -114,13 +114,17 @@ const NESTED_APPLICATION_MARKERS = [
 ];
 
 /** A `launch_required` stop must leave every route field unapplied. */
-const LAUNCH_REQUIRED_MARKERS = [
+const UNAPPLIED_ROUTE_MARKERS = [
   /^(?:selected_route\tnone\tnone\tnone\tnone|harness: none)$/m,
   /^(?:effective_route\tnone\tnone\tnone\tnone|model: none > none)$/m,
   /^(?:route_applied_by\tnone|route_applied_by: none)$/m,
   /^(?:route_verified\tfalse|route_verified: false)$/m,
-  /^(?:evaluation_child_invocations\t0|evaluation_child_invocations: 0)$/m,
 ];
+const ZERO_CHILDREN =
+  /^(?:evaluation_child_invocations\t0|evaluation_child_invocations: 0)$/m;
+const ONE_CHILD =
+  /^(?:evaluation_child_invocations\t1|evaluation_child_invocations: 1)$/m;
+const CODEX_AGENT_REF = /^\/root(?:\/[a-z0-9_]+)+$/;
 
 /** Boundary-specific expectations the controller record must satisfy.
  *  `sameTurn` is omitted where the boundary constrains neither answer. */
@@ -583,14 +587,127 @@ function goalLaunchRequiredCheck(
   if (!LAUNCH_REQUIRED.test(resultText)) return undefined;
   const stoppedWithoutRoute =
     !observedGoalSpawn(raw) &&
-    LAUNCH_REQUIRED_MARKERS.every((marker) => marker.test(resultText));
+    UNAPPLIED_ROUTE_MARKERS.every((marker) => marker.test(resultText)) &&
+    ZERO_CHILDREN.test(resultText);
+  const stoppedAfterAcceptedChild =
+    UNAPPLIED_ROUTE_MARKERS.every((marker) => marker.test(resultText)) &&
+    ONE_CHILD.test(resultText) &&
+    acceptedCodexLaunchFailure(raw);
+  const passed = stoppedWithoutRoute || stoppedAfterAcceptedChild;
   return {
     name: "goal stopped without claiming an unapplied route",
-    passed: stoppedWithoutRoute,
-    detail: stoppedWithoutRoute
-      ? "launch_required with no effective route"
-      : "launch_required must report an unapplied, unverified route",
+    passed,
+    detail: passed
+      ? stoppedAfterAcceptedChild
+        ? "launch_required after one interrupted accepted Codex child"
+        : "launch_required with no effective route"
+      : "launch_required must report an unapplied route and exact child lifecycle",
   };
+}
+
+function acceptedCodexLaunchFailure(raw: string): boolean {
+  const events = Array.from(jsonlEvents(raw));
+  const spawnRefs = events
+    .map(spawnedChildThreadId)
+    .filter((value): value is string => value !== undefined);
+  const agentRef = spawnRefs.length === 1 ? spawnRefs[0] : undefined;
+  if (!agentRef || !CODEX_AGENT_REF.test(agentRef)) return false;
+  const attestation = nativeGoalAgentAttestation(raw);
+  const stages = acceptedLaunchFailureStages(
+    events,
+    agentRef,
+    attestation?.objectiveMode === "file-backed",
+  );
+  return [
+    !!attestation,
+    !observedRunnerWait(events),
+    stages.every((stage) => stage >= 0),
+    stages.every((stage, index) => index === 0 || stages[index - 1]! < stage),
+  ].every(Boolean);
+}
+
+function acceptedLaunchFailureStages(
+  events: Record<string, unknown>[],
+  agentRef: string,
+  releaseRequired: boolean,
+): number[] {
+  const stages = [
+    singleMatchingEvent(
+      events,
+      (event) => spawnedChildThreadId(event) === agentRef,
+    ),
+    singleMatchingEvent(events, (event) =>
+      retainedEventMatches(event, "darrow.goal_activation_rejected", agentRef),
+    ),
+    singleMatchingEvent(
+      events,
+      (event) =>
+        completedCollabThreadId(event, ["interrupt_agent"]) === agentRef,
+    ),
+    singleMatchingEvent(events, (event) => acceptedLaunchStop(event, agentRef)),
+  ];
+  if (releaseRequired)
+    stages.push(
+      singleMatchingEvent(events, (event) =>
+        retainedEventMatches(event, "darrow.objective_release"),
+      ),
+    );
+  stages.push(
+    singleMatchingEvent(
+      events,
+      (event) => closedChildThreadId(event) === agentRef,
+    ),
+    singleMatchingEvent(events, (event) =>
+      retainedEventMatches(
+        event,
+        "darrow.goal_report",
+        undefined,
+        "launch-required",
+      ),
+    ),
+  );
+  return stages;
+}
+
+function singleMatchingEvent(
+  events: Record<string, unknown>[],
+  matches: (event: Record<string, unknown>) => boolean,
+): number {
+  const indices = events.flatMap((event, index) =>
+    matches(event) ? [index] : [],
+  );
+  return indices.length === 1 ? indices[0]! : -1;
+}
+
+function retainedEventMatches(
+  event: Record<string, unknown>,
+  type: string,
+  agentRef?: string,
+  status?: string,
+): boolean {
+  return [
+    event.type === type,
+    agentRef === undefined || event.agent_ref === agentRef,
+    status === undefined || event.status === status,
+  ].every(Boolean);
+}
+
+function acceptedLaunchStop(
+  event: Record<string, unknown>,
+  agentRef: string,
+): boolean {
+  return [
+    retainedEventMatches(event, "darrow.goal_launch_stop", agentRef),
+    event.child_invocations === 1,
+  ].every(Boolean);
+}
+
+function observedRunnerWait(events: Record<string, unknown>[]): boolean {
+  return events.some((event) =>
+    Boolean(
+      completedCollabThreadId(event, ["wait", "wait_agent", "send_message"]),
+    ),
+  );
 }
 
 function hostWorkflowVerified(
@@ -698,19 +815,30 @@ function completedCollabThreadId(
   event: Record<string, unknown>,
   tools: readonly string[],
 ): string | undefined {
-  const item = recordOf(event.item);
+  const item = completedCollaborationItem(event, tools);
+  if (!item) return undefined;
+  if (item.agent_ref !== undefined)
+    return typeof item.agent_ref === "string" &&
+      CODEX_AGENT_REF.test(item.agent_ref)
+      ? item.agent_ref
+      : undefined;
   const threadIds = item.receiver_thread_ids ?? item.receiverThreadIds;
-  if (
-    event.type !== "item.completed" ||
-    (item.type !== "collab_tool_call" && item.type !== "collabAgentToolCall") ||
-    typeof item.tool !== "string" ||
-    !tools.includes(item.tool) ||
-    item.status !== "completed" ||
-    !Array.isArray(threadIds) ||
-    threadIds.length !== 1
-  )
-    return undefined;
+  if (!Array.isArray(threadIds) || threadIds.length !== 1) return undefined;
   return String(threadIds[0]);
+}
+
+function completedCollaborationItem(
+  event: Record<string, unknown>,
+  tools: readonly string[],
+): Record<string, unknown> | undefined {
+  const item = recordOf(event.item);
+  const completed = [
+    event.type === "item.completed",
+    item.type === "collab_tool_call" || item.type === "collabAgentToolCall",
+    typeof item.tool === "string" && tools.includes(item.tool),
+    item.status === "completed",
+  ].every(Boolean);
+  return completed ? item : undefined;
 }
 
 /** Thread id of a completed `spawn_agent` call that spawned exactly one child. */

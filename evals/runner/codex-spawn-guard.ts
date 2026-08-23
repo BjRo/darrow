@@ -50,7 +50,7 @@ interface CodexSpawnGuardState {
   acceptedUpdatedInputSha256: string;
   toolUseId?: string;
   attestation: CodexSpawnAttestation;
-  acceptedAgentId?: string;
+  acceptedAgentRef?: string;
 }
 
 const CONTRACT_LABELS = [
@@ -338,7 +338,7 @@ function signedState(state: CodexSpawnGuardState, secret: string): string {
 }
 
 async function readGuardState(
-  policy: CodexSpawnGuardPolicy,
+  policy: Pick<CodexSpawnGuardPolicy, "statePath" | "secret">,
 ): Promise<CodexSpawnGuardState | undefined> {
   try {
     const proof = (await readFile(policy.statePath, "utf8")).trim();
@@ -356,6 +356,15 @@ async function readGuardState(
   } catch {
     return undefined;
   }
+}
+
+/** Exact canonical task_name captured from the signed accepted spawn result. */
+export async function verifiedCodexAcceptedAgentRef(
+  statePath: string,
+  secret: string,
+): Promise<string | undefined> {
+  const state = await readGuardState({ statePath, secret });
+  return canonicalCodexAgentRef(state?.acceptedAgentRef);
 }
 
 function hookTurnId(hook: Record<string, unknown>): string | undefined {
@@ -483,7 +492,10 @@ export async function guardCodexSpawn(
   const hook = hookInput as Record<string, unknown>;
   const toolName =
     typeof hook.tool_name === "string" ? hook.tool_name : "Agent";
-  if (hook.hook_event_name === "PostToolUse" && toolName === "Agent")
+  if (
+    hook.hook_event_name === "PostToolUse" &&
+    ["Agent", "spawn_agent", "spawnAgent"].includes(toolName)
+  )
     return observeAcceptedOwner(hook, policy);
   if (toolName === "Bash") return guardParentShell(hook, policy);
   if (toolName === "apply_patch") return guardParentPatch(hook, policy);
@@ -492,23 +504,28 @@ export async function guardCodexSpawn(
   return guardOwnerAgent(hook, input, policy);
 }
 
-function postToolAgentId(hook: Record<string, unknown>): string | undefined {
-  const response = hook.tool_response;
-  if (!response || typeof response !== "object" || Array.isArray(response))
-    return undefined;
-  const agentId = (response as Record<string, unknown>).agent_id;
-  return typeof agentId === "string" && /^[A-Za-z0-9._-]+$/.test(agentId)
-    ? agentId
+function canonicalCodexAgentRef(value: unknown): string | undefined {
+  return typeof value === "string" && /^\/root(?:\/[a-z0-9_]+)+$/.test(value)
+    ? value
     : undefined;
 }
 
-function acceptedOwnerOutput(agentId: string): Record<string, unknown> {
+function postToolAgentRef(hook: Record<string, unknown>): string | undefined {
+  const response = hook.tool_response;
+  if (!response || typeof response !== "object" || Array.isArray(response))
+    return undefined;
+  return canonicalCodexAgentRef(
+    (response as Record<string, unknown>).task_name,
+  );
+}
+
+function acceptedOwnerOutput(agentRef: string): Record<string, unknown> {
   return {
     hookSpecificOutput: {
       hookEventName: "PostToolUse",
       additionalContext:
-        `Darrow observed accepted native-subagent id ${agentId}. ` +
-        "Record it now with the exact documented goal-loop step activate command before waiting.",
+        `Darrow observed accepted native-subagent reference ${agentRef} from task_name. ` +
+        "Record it unchanged with the exact documented goal-loop step activate command before waiting.",
     },
   };
 }
@@ -555,19 +572,21 @@ async function observeAcceptedOwner(
     return deniedPostToolUse("Codex owner activation has no accepted spawn");
   const bindingIssue = ownerCompletionBindingIssue(hook, state);
   if (bindingIssue) return deniedPostToolUse(bindingIssue);
-  const agentId = postToolAgentId(hook);
-  if (!agentId)
-    return deniedPostToolUse("Codex owner response omitted a safe agent id");
-  if (state.acceptedAgentId)
-    return state.acceptedAgentId === agentId
-      ? acceptedOwnerOutput(agentId)
-      : deniedPostToolUse("Codex accepted owner agent id changed");
+  const agentRef = postToolAgentRef(hook);
+  if (!agentRef)
+    return deniedPostToolUse(
+      "Codex owner response omitted a canonical task_name",
+    );
+  if (state.acceptedAgentRef)
+    return state.acceptedAgentRef === agentRef
+      ? acceptedOwnerOutput(agentRef)
+      : deniedPostToolUse("Codex accepted owner reference changed");
   await writeFile(
     policy.statePath,
-    signedState({ ...state, acceptedAgentId: agentId }, policy.secret),
+    signedState({ ...state, acceptedAgentRef: agentRef }, policy.secret),
     { mode: 0o600 },
   );
-  return acceptedOwnerOutput(agentId);
+  return acceptedOwnerOutput(agentRef);
 }
 
 interface CanonicalOwnerContract {
@@ -722,6 +741,7 @@ function parentLifecycleShellAllowed(
   if (/^(?:[^\s/]+\/)*feedbackctl answer [A-Za-z0-9._-]+$/.test(command))
     return true;
   if (parentActivationCommand(command, state, policy)) return true;
+  if (parentLaunchStopCommand(command, state, policy)) return true;
   if (parentReportCommand(command, state, policy)) return true;
   const attachment = state.attestation.attachmentDir;
   if (!attachment) return false;
@@ -739,17 +759,31 @@ function parentActivationCommand(
   const prefix =
     `/bin/bash ${policy.goalLoopPath} step activate ` +
     `--ledger ${state.attestation.ledger} ` +
-    "--applied-by native-subagent --boundary native_subagent --agent-id ";
+    "--applied-by native-subagent --boundary native_subagent --agent-ref ";
   const suffix =
     " --effective-route " +
     `'codex|openai|${state.attestation.model}|${state.attestation.effort}' ` +
     "--route-verified true";
   if (!command.startsWith(prefix) || !command.endsWith(suffix)) return false;
-  const agentId = command.slice(prefix.length, -suffix.length);
+  const agentRef = command.slice(prefix.length, -suffix.length);
   return (
-    /^[A-Za-z0-9._-]+$/.test(agentId) &&
-    agentId !== "none" &&
-    agentId === state.acceptedAgentId
+    canonicalCodexAgentRef(agentRef) === agentRef &&
+    agentRef === state.acceptedAgentRef
+  );
+}
+
+function parentLaunchStopCommand(
+  command: string,
+  state: CodexSpawnGuardState,
+  policy: CodexSpawnGuardPolicy,
+): boolean {
+  const agentRef = state.acceptedAgentRef;
+  return (
+    !!agentRef &&
+    command ===
+      `/bin/bash ${policy.goalLoopPath} step launch-stop ` +
+        `--ledger ${state.attestation.ledger} --reason launch-unavailable ` +
+        `--agent-ref ${agentRef}`
   );
 }
 

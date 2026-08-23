@@ -20,6 +20,7 @@ import { isolatedHarnessEnvironment } from "../environment";
 import {
   fixtureStateFingerprint,
   repositoryFingerprint,
+  verifiedCodexAcceptedAgentRef,
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
 
@@ -46,7 +47,11 @@ interface CodexEvent {
     senderThreadId?: unknown;
     receiver_thread_ids?: unknown;
     receiverThreadIds?: unknown;
+    task_name?: unknown;
+    taskName?: unknown;
   };
+  tool_response?: unknown;
+  result?: unknown;
   [key: string]: unknown;
 }
 
@@ -223,6 +228,81 @@ function acceptedCollaborationEvent(event: CodexEvent): boolean {
   );
 }
 
+function canonicalCodexAgentRef(value: unknown): string | undefined {
+  return typeof value === "string" && /^\/root(?:\/[a-z0-9_]+)+$/.test(value)
+    ? value
+    : undefined;
+}
+
+function taskNameAgentRefs(value: unknown): string[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const record = value as Record<string, unknown>;
+  return [record.task_name, record.taskName]
+    .map(canonicalCodexAgentRef)
+    .filter((reference): reference is string => reference !== undefined);
+}
+
+function invalidTaskNameAgentRef(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return ["task_name", "taskName"].some(
+    (key) => key in record && canonicalCodexAgentRef(record[key]) === undefined,
+  );
+}
+
+function soleReceiverAgentRef(value: unknown): string | undefined {
+  if (!Array.isArray(value) || value.length !== 1) return undefined;
+  return canonicalCodexAgentRef(value[0]);
+}
+
+function unsafeReceiverAgentRef(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length !== 1) return true;
+  const receiver = value[0];
+  if (typeof receiver !== "string" || receiver.length === 0) return true;
+  if (canonicalCodexAgentRef(receiver)) return false;
+  return !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(receiver);
+}
+
+function invalidCompletedReceiverAgentRef(event: CodexEvent): boolean {
+  if (event.type !== "item.completed" || !event.item) return false;
+  const item = event.item;
+  return ["receiver_thread_ids", "receiverThreadIds"].some(
+    (key) =>
+      key in item && unsafeReceiverAgentRef(item[key as keyof typeof item]),
+  );
+}
+
+function collaborationAgentRefCandidates(event: CodexEvent): string[] {
+  const item = event.item;
+  const candidates = [item, event.tool_response, event.result];
+  const references = candidates.flatMap(taskNameAgentRefs);
+  const receiver = soleReceiverAgentRef(
+    item?.receiver_thread_ids ?? item?.receiverThreadIds,
+  );
+  return receiver ? [...references, receiver] : references;
+}
+
+function acceptedCollaborationAgentRef(event: CodexEvent): string | undefined {
+  const candidates = collaborationAgentRefCandidates(event);
+  return new Set(candidates).size === 1 ? candidates[0] : undefined;
+}
+
+function collaborationAgentRefConflicts(
+  event: CodexEvent,
+  acceptedAgentRef?: string,
+): boolean {
+  const candidates = collaborationAgentRefCandidates(event);
+  return (
+    [event.item, event.tool_response, event.result].some(
+      invalidTaskNameAgentRef,
+    ) ||
+    invalidCompletedReceiverAgentRef(event) ||
+    new Set(candidates).size > 1 ||
+    (!!acceptedAgentRef &&
+      candidates.some((candidate) => candidate !== acceptedAgentRef))
+  );
+}
+
 function retainedCollaborationPrompt(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const lines = prompt.split("\n");
@@ -244,40 +324,77 @@ function retainedCollaborationPrompt(prompt: unknown): string | undefined {
 function retainedCollaborationEvent(
   event: CodexEvent,
   spawnGuardSecret?: string,
+  acceptedAgentRef?: string,
 ): unknown | undefined {
   if (!acceptedCollaborationEvent(event)) return undefined;
   const item = event.item!;
   const prompt = retainedCollaborationPrompt(item.prompt);
-  const attestation =
-    spawnGuardSecret && typeof item.prompt === "string"
-      ? verifiedCodexSpawnAttestation(item.prompt, spawnGuardSecret)
-      : undefined;
-  const publicAttestation = attestation
-    ? {
-        model: attestation.model,
-        effort: attestation.effort,
-        forkTurns: attestation.forkTurns,
-        requestSha256: attestation.requestSha256,
-        objectiveSha256: attestation.objectiveSha256,
-        contractSha256: attestation.contractSha256,
-        baselineSha256: attestation.baselineSha256,
-        fixtureStateSha256: attestation.fixtureStateSha256,
-        objectiveMode: attestation.objectiveMode,
-      }
-    : undefined;
+  const attestation = collaborationSpawnAttestation(item, spawnGuardSecret);
+  if (collaborationAgentRefConflicts(event, acceptedAgentRef)) return undefined;
+  const agentRef =
+    acceptedCollaborationAgentRef(event) ||
+    (attestation && acceptedAgentRef) ||
+    undefined;
+  if (
+    acceptedAgentRef &&
+    item.tool !== "spawn_agent" &&
+    agentRef !== acceptedAgentRef
+  )
+    return undefined;
+  return retainedCollaborationRecord(event, item, {
+    prompt,
+    attestation,
+    agentRef,
+  });
+}
+
+function collaborationSpawnAttestation(
+  item: NonNullable<CodexEvent["item"]>,
+  secret?: string,
+): ReturnType<typeof verifiedCodexSpawnAttestation> {
+  if (item.tool !== "spawn_agent" || !secret || typeof item.prompt !== "string")
+    return undefined;
+  return verifiedCodexSpawnAttestation(item.prompt, secret);
+}
+
+function retainedCollaborationRecord(
+  event: CodexEvent,
+  item: NonNullable<CodexEvent["item"]>,
+  evidence: {
+    prompt?: string;
+    attestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
+    agentRef?: string;
+  },
+): object {
+  const retained: Record<string, unknown> = {
+    type: item.type,
+    tool: item.tool,
+    status: item.status,
+    sender_thread_id: item.sender_thread_id ?? item.senderThreadId,
+    receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
+  };
+  if (evidence.agentRef) retained.agent_ref = evidence.agentRef;
+  if (evidence.prompt) retained.prompt = evidence.prompt;
+  if (evidence.attestation)
+    retained.goal_spawn_attestation = publicSpawnAttestation(
+      evidence.attestation,
+    );
+  return { type: event.type, item: retained };
+}
+
+function publicSpawnAttestation(
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+): object {
   return {
-    type: event.type,
-    item: {
-      type: item.type,
-      tool: item.tool,
-      status: item.status,
-      sender_thread_id: item.sender_thread_id ?? item.senderThreadId,
-      receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
-      ...(prompt ? { prompt } : {}),
-      ...(publicAttestation
-        ? { goal_spawn_attestation: publicAttestation }
-        : {}),
-    },
+    model: attestation.model,
+    effort: attestation.effort,
+    forkTurns: attestation.forkTurns,
+    requestSha256: attestation.requestSha256,
+    objectiveSha256: attestation.objectiveSha256,
+    contractSha256: attestation.contractSha256,
+    baselineSha256: attestation.baselineSha256,
+    fixtureStateSha256: attestation.fixtureStateSha256,
+    objectiveMode: attestation.objectiveMode,
   };
 }
 
@@ -286,6 +403,12 @@ interface PostGoalEvidenceContext {
   repoDir: string;
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
   goalLoopPath?: string;
+  agentRef?: string;
+  activationState: "pending" | "recorded" | "rejected";
+  interrupted: boolean;
+  closed: boolean;
+  launchStopRecorded: boolean;
+  objectiveReleased: boolean;
 }
 
 function retainedPostGoalToolEvent(
@@ -298,12 +421,42 @@ function retainedPostGoalToolEvent(
   if (id && context.seen.has(id)) return undefined;
   if (id) context.seen.add(id);
   if (retainedHumanFeedbackEvent(event)) return undefined;
+  const lifecycle = retainedGoalLifecycleEvent(event, context);
+  if (lifecycle) return lifecycle;
+  return {
+    type: "darrow.parent_tool_after_goal",
+    operation: postGoalToolOperation(item, context.repoDir),
+  };
+}
+
+function retainedGoalLifecycleEvent(
+  event: CodexEvent,
+  context: PostGoalEvidenceContext,
+): unknown | undefined {
   const activation = retainedGoalActivationEvent(
     event,
     context.attestation,
     context.goalLoopPath,
+    context.agentRef,
   );
   if (activation) return activation;
+  const rejected = retainedGoalActivationRejectedEvent(
+    event,
+    context.attestation,
+    context.goalLoopPath,
+    context.agentRef,
+  );
+  if (rejected) return rejected;
+  const launchStop =
+    context.activationState === "rejected" && context.interrupted
+      ? retainedGoalLaunchStopEvent(
+          event,
+          context.attestation,
+          context.goalLoopPath,
+          context.agentRef,
+        )
+      : undefined;
+  if (launchStop) return launchStop;
   const release = retainedObjectiveReleaseEvent(
     event,
     context.attestation,
@@ -315,11 +468,34 @@ function retainedPostGoalToolEvent(
     context.attestation,
     context.goalLoopPath,
   );
-  if (report) return report;
-  return {
-    type: "darrow.parent_tool_after_goal",
-    operation: postGoalToolOperation(item, context.repoDir),
-  };
+  return goalReportFollowsLifecycle(report, context) ? report : undefined;
+}
+
+function goalReportFollowsLifecycle(
+  report: unknown,
+  context: PostGoalEvidenceContext,
+): boolean {
+  if (!report || typeof report !== "object" || Array.isArray(report))
+    return false;
+  const status = (report as { status?: unknown }).status;
+  if (status !== "launch-required")
+    return context.activationState === "recorded";
+  return acceptedLaunchFailureLifecycle(context);
+}
+
+function acceptedLaunchFailureLifecycle(
+  context: PostGoalEvidenceContext,
+): boolean {
+  const objectiveClean =
+    context.attestation?.objectiveMode !== "file-backed" ||
+    context.objectiveReleased;
+  return [
+    context.activationState === "rejected",
+    context.interrupted,
+    context.closed,
+    context.launchStopRecorded,
+    objectiveClean,
+  ].every(Boolean);
 }
 
 function postGoalToolItem(
@@ -383,13 +559,16 @@ function retainedGoalActivationEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
   goalLoopPath?: string,
+  acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !goalLoopPath) return undefined;
+  if (!command || !attestation || !goalLoopPath || !acceptedAgentRef)
+    return undefined;
   const evidence = goalActivationCommandEvidence(
     command,
     attestation,
     goalLoopPath,
+    acceptedAgentRef,
   );
   if (!evidence || !goalActivationOutputMatches(event, evidence))
     return undefined;
@@ -397,16 +576,54 @@ function retainedGoalActivationEvent(
     type: "darrow.goal_activation",
     status: "completed",
     boundary: "native_subagent",
-    agent_id: evidence.agentId,
+    agent_ref: evidence.agentRef,
     effective_route: evidence.route,
   };
+}
+
+function retainedGoalActivationRejectedEvent(
+  event: CodexEvent,
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
+  goalLoopPath?: string,
+  acceptedAgentRef?: string,
+): unknown | undefined {
+  const command = rejectedCommand(event);
+  if (!command || !attestation || !goalLoopPath || !acceptedAgentRef)
+    return undefined;
+  const evidence = goalActivationCommandEvidence(
+    command,
+    attestation,
+    goalLoopPath,
+    acceptedAgentRef,
+  );
+  return evidence
+    ? {
+        type: "darrow.goal_activation_rejected",
+        status: "rejected",
+        agent_ref: evidence.agentRef,
+      }
+    : undefined;
+}
+
+function rejectedCommand(event: CodexEvent): string | undefined {
+  if (
+    event.type !== "item.completed" ||
+    event.item?.type !== "command_execution" ||
+    typeof event.item.command !== "string" ||
+    typeof event.item.exit_code !== "number" ||
+    event.item.exit_code === 0 ||
+    (event.item.status !== "completed" && event.item.status !== "failed")
+  )
+    return undefined;
+  return event.item.command;
 }
 
 function goalActivationCommandEvidence(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
   goalLoopPath: string,
-): { agentId: string; route: string } | undefined {
+  acceptedAgentRef: string,
+): { agentRef: string; route: string } | undefined {
   const words = literalShellWords(command);
   const route = `codex|openai|${attestation.model}|${attestation.effort}`;
   if (!words || words.length !== 16) return undefined;
@@ -421,22 +638,25 @@ function goalActivationCommandEvidence(
     "native-subagent",
     "--boundary",
     "native_subagent",
-    "--agent-id",
+    "--agent-ref",
   ];
   if (JSON.stringify(words.slice(0, 11)) !== JSON.stringify(prefix))
     return undefined;
-  const agentId = words[11]!;
-  if (!/^[A-Za-z0-9._-]+$/.test(agentId) || agentId === "none")
+  const agentRef = words[11]!;
+  if (
+    canonicalCodexAgentRef(agentRef) !== agentRef ||
+    agentRef !== acceptedAgentRef
+  )
     return undefined;
   const suffix = ["--effective-route", route, "--route-verified", "true"];
   if (JSON.stringify(words.slice(12)) !== JSON.stringify(suffix))
     return undefined;
-  return { agentId, route };
+  return { agentRef, route };
 }
 
 function goalActivationOutputMatches(
   event: CodexEvent,
-  evidence: { agentId: string; route: string },
+  evidence: { agentRef: string; route: string },
 ): boolean {
   const output = event.item?.aggregated_output;
   return !(
@@ -444,7 +664,7 @@ function goalActivationOutputMatches(
     !/^format\tdarrow-goal-step-v1$/m.test(output) ||
     !/^step\tactivate$/m.test(output) ||
     !/^status\trecorded$/m.test(output) ||
-    !new RegExp(`^agent_id\\t${escapeRegExp(evidence.agentId)}$`, "m").test(
+    !new RegExp(`^agent_ref\\t${escapeRegExp(evidence.agentRef)}$`, "m").test(
       output,
     ) ||
     !new RegExp(
@@ -452,6 +672,73 @@ function goalActivationOutputMatches(
       "m",
     ).test(output) ||
     !/^route_verified\ttrue$/m.test(output)
+  );
+}
+
+function retainedGoalLaunchStopEvent(
+  event: CodexEvent,
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
+  goalLoopPath?: string,
+  acceptedAgentRef?: string,
+): unknown | undefined {
+  const command = completedCommand(event);
+  if (!command || !attestation || !goalLoopPath || !acceptedAgentRef)
+    return undefined;
+  if (
+    !goalLaunchStopCommandMatches(
+      command,
+      attestation,
+      goalLoopPath,
+      acceptedAgentRef,
+    ) ||
+    !goalLaunchStopOutputMatches(event, acceptedAgentRef)
+  )
+    return undefined;
+  return {
+    type: "darrow.goal_launch_stop",
+    status: "launch-unavailable",
+    agent_ref: acceptedAgentRef,
+    child_invocations: 1,
+  };
+}
+
+function goalLaunchStopCommandMatches(
+  command: string,
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+  goalLoopPath: string,
+  acceptedAgentRef: string,
+): boolean {
+  const expected = [
+    "/bin/bash",
+    goalLoopPath,
+    "step",
+    "launch-stop",
+    "--ledger",
+    attestation.ledger,
+    "--reason",
+    "launch-unavailable",
+    "--agent-ref",
+    acceptedAgentRef,
+  ];
+  return (
+    JSON.stringify(literalShellWords(command)) === JSON.stringify(expected)
+  );
+}
+
+function goalLaunchStopOutputMatches(
+  event: CodexEvent,
+  acceptedAgentRef: string,
+): boolean {
+  const output = event.item?.aggregated_output;
+  return (
+    typeof output === "string" &&
+    /^format\tdarrow-goal-step-v1$/m.test(output) &&
+    /^step\tlaunch-stop$/m.test(output) &&
+    /^status\trecorded$/m.test(output) &&
+    /^reason\tlaunch-unavailable$/m.test(output) &&
+    new RegExp(`^agent_ref\\t${escapeRegExp(acceptedAgentRef)}$`, "m").test(
+      output,
+    )
   );
 }
 
@@ -624,11 +911,18 @@ function attestedGoalSpawn(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const event = value as {
     type?: unknown;
-    item?: { tool?: unknown; goal_spawn_attestation?: unknown };
+    item?: {
+      tool?: unknown;
+      status?: unknown;
+      agent_ref?: unknown;
+      goal_spawn_attestation?: unknown;
+    };
   };
   return (
-    (event.type === "item.started" || event.type === "item.completed") &&
+    event.type === "item.completed" &&
     event.item?.tool === "spawn_agent" &&
+    event.item.status === "completed" &&
+    canonicalCodexAgentRef(event.item.agent_ref) === event.item.agent_ref &&
     !!event.item.goal_spawn_attestation
   );
 }
@@ -718,6 +1012,7 @@ interface CodexRetentionStatus {
   stderrPresent: boolean;
   spawnGuardSecret?: string;
   goalLoopPath?: string;
+  acceptedAgentRef?: string;
 }
 
 interface CodexRetentionState {
@@ -725,6 +1020,12 @@ interface CodexRetentionState {
   goalAttestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
   postGoalToolIds: Set<string>;
   pendingPostGoalCommands: Set<string>;
+  goalOwnerReference?: string;
+  activationState: "pending" | "recorded" | "rejected";
+  interrupted: boolean;
+  closed: boolean;
+  launchStopRecorded: boolean;
+  objectiveReleased: boolean;
 }
 
 function retainCodexEvent(
@@ -736,6 +1037,7 @@ function retainCodexEvent(
   const collaboration = retainedCollaborationEvent(
     event,
     status?.spawnGuardSecret,
+    state.goalOwnerReference ?? status?.acceptedAgentRef,
   );
   const lifecycle = state.goalOwnerAccepted
     ? retainedPostGoalToolEvent(event, {
@@ -743,8 +1045,19 @@ function retainCodexEvent(
         repoDir,
         attestation: state.goalAttestation,
         goalLoopPath: status?.goalLoopPath,
+        agentRef: state.goalOwnerReference,
+        activationState: state.activationState,
+        interrupted: state.interrupted,
+        closed: state.closed,
+        launchStopRecorded: state.launchStopRecorded,
+        objectiveReleased: state.objectiveReleased,
       })
     : retainedPreGoalToolEvent(event, repoDir);
+  const collaborationViolation = retainedCollaborationViolation(
+    event,
+    collaboration,
+    state,
+  );
   const values = [
     retainedTerminalEvent(event),
     retainedHostProtocolEvent(event),
@@ -752,10 +1065,69 @@ function retainCodexEvent(
     retainedHumanFeedbackEvent(event),
     retainedNestedApplication(event),
     lifecycle,
+    collaborationViolation,
   ].filter((value): value is object => value !== undefined);
   trackPostGoalCommand(event, state);
   acceptAttestedGoalSpawn(event, collaboration, state, status);
+  updateGoalLifecycleState(event, collaboration, lifecycle, state);
   return values;
+}
+
+function runnerControlKind(event: CodexEvent): string | undefined {
+  if (!acceptedCollaborationEvent(event)) return undefined;
+  const tool = event.item?.tool;
+  return typeof tool === "string" &&
+    [
+      "wait",
+      "wait_agent",
+      "send_message",
+      "interrupt_agent",
+      "close_agent",
+    ].includes(tool)
+    ? tool
+    : undefined;
+}
+
+function retainedCollaborationViolation(
+  event: CodexEvent,
+  collaboration: unknown,
+  state: CodexRetentionState,
+): object | undefined {
+  const tool = state.goalOwnerAccepted ? runnerControlKind(event) : undefined;
+  if (!tool) return undefined;
+  const activationRequired = ["wait", "wait_agent", "send_message"].includes(
+    tool,
+  );
+  const invalidOrder = activationRequired
+    ? state.activationState !== "recorded"
+    : state.activationState === "pending";
+  return !collaboration || invalidOrder
+    ? { type: "darrow.parent_tool_after_goal", operation: tool }
+    : undefined;
+}
+
+function retainedEventType(value: unknown): string | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? String((value as { type?: unknown }).type ?? "") || undefined
+    : undefined;
+}
+
+function updateGoalLifecycleState(
+  event: CodexEvent,
+  collaboration: unknown,
+  lifecycle: unknown,
+  state: CodexRetentionState,
+): void {
+  const type = retainedEventType(lifecycle);
+  if (type === "darrow.goal_activation") state.activationState = "recorded";
+  if (type === "darrow.goal_activation_rejected")
+    state.activationState = "rejected";
+  if (type === "darrow.goal_launch_stop") state.launchStopRecorded = true;
+  if (type === "darrow.objective_release") state.objectiveReleased = true;
+  if (!collaboration) return;
+  const tool = runnerControlKind(event);
+  if (tool === "interrupt_agent") state.interrupted = true;
+  if (tool === "close_agent") state.closed = true;
 }
 
 function trackPostGoalCommand(
@@ -776,7 +1148,11 @@ function acceptAttestedGoalSpawn(
   status?: CodexRetentionStatus,
 ): void {
   if (!attestedGoalSpawn(collaboration)) return;
+  const record = collaboration as { item?: { agent_ref?: unknown } };
+  const acceptedReference = canonicalCodexAgentRef(record.item?.agent_ref);
+  if (!acceptedReference) return;
   state.goalOwnerAccepted = true;
+  state.goalOwnerReference = acceptedReference;
   if (!status?.spawnGuardSecret || typeof event.item?.prompt !== "string")
     return;
   state.goalAttestation = verifiedCodexSpawnAttestation(
@@ -819,6 +1195,12 @@ export function retainedCodexEvidence(
     goalAttestation: undefined,
     postGoalToolIds: new Set<string>(),
     pendingPostGoalCommands: new Set<string>(),
+    goalOwnerReference: status?.acceptedAgentRef,
+    activationState: "pending",
+    interrupted: false,
+    closed: false,
+    launchStopRecorded: false,
+    objectiveReleased: false,
   };
   const retained = events.flatMap((event) =>
     retainCodexEvent(event, state, repoDir, status),
@@ -1002,12 +1384,14 @@ interface CodexExecution {
   durationMs: number;
   spawnGuardSecret?: string;
   goalLoopPath?: string;
+  acceptedAgentRef?: string;
 }
 
 interface CodexSpawnGuard {
   secret: string;
   executablePath: string;
   writeDeniedPaths: string[];
+  statePath: string;
 }
 
 interface CodexSpawnGuardPolicy {
@@ -1056,6 +1440,7 @@ async function installCodexSpawnGuard(
     secret: policy.secret,
     executablePath,
     writeDeniedPaths: [hooksPath],
+    statePath,
   };
 }
 
@@ -1208,23 +1593,13 @@ async function executeCodex(
     spawnGuard ? [spawnGuard.executablePath] : [],
   );
   try {
-    const proc = Bun.spawn(argv, {
-      cwd: repoDir,
-      stdout: "pipe",
-      stderr: "pipe",
-      // Fixture mocks (e.g. gh) shadow real network tools for the harness
-      // and every subprocess it spawns.
-      env: {
-        ...env,
-        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
-        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-      },
-    });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const { out, err, code } = await runCodexProcess(argv, repoDir, env);
+    const acceptedAgentRef = spawnGuard
+      ? await verifiedCodexAcceptedAgentRef(
+          spawnGuard.statePath,
+          spawnGuard.secret,
+        )
+      : undefined;
     return {
       canonicalRepoDir: context.canonicalRepoDir,
       installedSkillsRoot: context.installedSkillsRoot,
@@ -1234,10 +1609,82 @@ async function executeCodex(
       durationMs: performance.now() - start,
       spawnGuardSecret: spawnGuard?.secret,
       goalLoopPath: context.goalLoopPath,
+      acceptedAgentRef,
     };
   } finally {
     await rm(context.objectiveRoot, { recursive: true, force: true });
   }
+}
+
+async function runCodexProcess(
+  argv: string[],
+  repoDir: string,
+  env: Record<string, string>,
+): Promise<{ out: string; err: string; code: number }> {
+  const proc = Bun.spawn(argv, {
+    cwd: repoDir,
+    stdout: "pipe",
+    stderr: "pipe",
+    // Fixture mocks shadow real network tools for the harness and children.
+    env: {
+      ...env,
+      DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+    },
+  });
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { out, err, code };
+}
+
+async function codexHarnessResult(
+  repoDir: string,
+  execution: CodexExecution,
+): Promise<HarnessResult> {
+  const {
+    canonicalRepoDir,
+    installedSkillsRoot,
+    out,
+    err,
+    code,
+    durationMs,
+    spawnGuardSecret,
+    goalLoopPath,
+    acceptedAgentRef,
+  } = execution;
+  const usage = codexTokenUsage(out);
+  const ok = codexRunSucceeded(code, out);
+  const resultText = await codexFinalMessage(repoDir);
+  const activation = codexSkillActivation(
+    out,
+    canonicalRepoDir,
+    installedSkillsRoot,
+  );
+  return {
+    ok,
+    durationMs,
+    tokenUsageComplete: usage.complete,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    costUsd: null,
+    resultText,
+    raw: retainedCodexEvidence(
+      out,
+      canonicalRepoDir,
+      {
+        exitCode: code,
+        stderrPresent: err.trim().length > 0,
+        spawnGuardSecret,
+        goalLoopPath,
+        acceptedAgentRef,
+      },
+      installedSkillsRoot,
+    ),
+    skillActivation: { ...activation, complete: ok && activation.complete },
+  };
 }
 
 /**
@@ -1265,54 +1712,9 @@ export const codexAdapter: HarnessAdapter = {
   },
 
   async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
-    const execution = await executeCodex(repoDir, prompt, model, effort);
-    const {
-      canonicalRepoDir,
-      installedSkillsRoot,
-      out,
-      err,
-      code,
-      durationMs,
-      spawnGuardSecret,
-      goalLoopPath,
-    } = execution;
-
-    const {
-      complete: tokenUsageComplete,
-      inputTokens,
-      outputTokens,
-    } = codexTokenUsage(out);
-    const ok = codexRunSucceeded(code, out);
-    const resultText = await codexFinalMessage(repoDir);
-    const skillActivation = codexSkillActivation(
-      out,
-      canonicalRepoDir,
-      installedSkillsRoot,
+    return codexHarnessResult(
+      repoDir,
+      await executeCodex(repoDir, prompt, model, effort),
     );
-
-    return {
-      ok,
-      durationMs,
-      tokenUsageComplete,
-      inputTokens,
-      outputTokens,
-      costUsd: null,
-      resultText,
-      raw: retainedCodexEvidence(
-        out,
-        canonicalRepoDir,
-        {
-          exitCode: code,
-          stderrPresent: err.trim().length > 0,
-          spawnGuardSecret,
-          goalLoopPath,
-        },
-        installedSkillsRoot,
-      ),
-      skillActivation: {
-        ...skillActivation,
-        complete: ok && skillActivation.complete,
-      },
-    };
   },
 };

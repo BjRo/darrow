@@ -10,7 +10,10 @@ import {
   codexTokenUsage,
   retainedCodexEvidence,
 } from "./codex";
-import { observeCodexTicketPipelineRoutes } from "../orchestration-metrics";
+import {
+  observeCodexTicketPipelineRoutes,
+  reconcileObservedGoalRouteApplication,
+} from "../orchestration-metrics";
 import {
   fixtureStateFingerprint,
   guardCodexSpawn,
@@ -567,6 +570,7 @@ describe("Codex skill activation observation", () => {
         tool: "spawn_agent",
         sender_thread_id: "parent-thread",
         receiver_thread_ids: ["goal-thread"],
+        task_name: "/root/adaptive_goal_runner",
         prompt,
       };
       const stream = [
@@ -688,6 +692,10 @@ describe("Codex skill activation observation", () => {
             status: type === "item.started" ? "in_progress" : "completed",
             sender_thread_id: "parent-thread",
             receiver_thread_ids: type === "item.started" ? [] : ["goal-thread"],
+            task_name:
+              type === "item.started"
+                ? undefined
+                : "/root/adaptive_goal_runner",
             prompt,
           },
         });
@@ -700,7 +708,7 @@ describe("Codex skill activation observation", () => {
           command:
             `/bin/bash ${goalLoopPath} step activate --ledger ${attestation.ledger} ` +
             "--applied-by native-subagent --boundary native_subagent " +
-            "--agent-id goal-thread " +
+            "--agent-ref /root/adaptive_goal_runner " +
             "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
             "--route-verified true",
           exit_code: 0,
@@ -709,7 +717,7 @@ describe("Codex skill activation observation", () => {
             "format\tdarrow-goal-step-v1",
             "step\tactivate",
             "status\trecorded",
-            "agent_id\tgoal-thread",
+            "agent_ref\t/root/adaptive_goal_runner",
             "effective_route\tcodex|openai|gpt-5.6-luna|low",
             "route_verified\ttrue",
           ].join("\n"),
@@ -733,6 +741,23 @@ describe("Codex skill activation observation", () => {
           ].join("\n"),
         },
       });
+      const lifecycle = (
+        tool: "wait_agent" | "interrupt_agent" | "close_agent",
+        agentRef = "/root/adaptive_goal_runner",
+        replayedPrompt?: string,
+      ) =>
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            id: `${tool}-1`,
+            type: "collab_tool_call",
+            tool,
+            status: "completed",
+            sender_thread_id: "parent-thread",
+            receiver_thread_ids: [agentRef],
+            prompt: replayedPrompt,
+          },
+        });
       const report = JSON.stringify({
         type: "item.completed",
         item: {
@@ -746,6 +771,7 @@ describe("Codex skill activation observation", () => {
           aggregated_output: [
             "format: darrow-native-goal-report-v1",
             "launch_boundary: native_subagent",
+            "evaluation_child_invocations: 1",
             "Native goal completed.",
           ].join("\n"),
         },
@@ -755,7 +781,9 @@ describe("Codex skill activation observation", () => {
           spawn("item.started"),
           spawn("item.completed"),
           activation,
+          lifecycle("wait_agent"),
           release,
+          lifecycle("close_agent"),
           report,
         ].join("\n"),
         repo,
@@ -769,7 +797,65 @@ describe("Codex skill activation observation", () => {
       expect(retained).toContain('"type":"darrow.goal_activation"');
       expect(retained).toContain('"type":"darrow.objective_release"');
       expect(retained).toContain('"type":"darrow.goal_report"');
+      expect(
+        retained.match(/"agent_ref":"\/root\/adaptive_goal_runner"/g),
+      ).toHaveLength(4);
+      expect(retained).toContain('"tool":"wait_agent"');
+      expect(retained).toContain('"tool":"close_agent"');
       expect(retained).not.toContain("darrow.parent_tool_after_goal");
+      const waitBeforeActivation = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          lifecycle("wait_agent"),
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(waitBeforeActivation).toContain("darrow.parent_tool_after_goal");
+      const wrongLifecycleTarget = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          activation,
+          lifecycle("wait_agent", "/root/other_goal_runner"),
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(wrongLifecycleTarget).toContain("darrow.parent_tool_after_goal");
+      expect(wrongLifecycleTarget).not.toContain(
+        '"agent_ref":"/root/other_goal_runner"',
+      );
+      const targetlessLifecycle = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          activation,
+          lifecycle("wait_agent", "/root/adaptive_goal_runner", prompt).replace(
+            ',"receiver_thread_ids":["/root/adaptive_goal_runner"]',
+            "",
+          ),
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(targetlessLifecycle).toContain("darrow.parent_tool_after_goal");
       const wrong = retainedCodexEvidence(
         [
           spawn("item.started"),
@@ -806,6 +892,202 @@ describe("Codex skill activation observation", () => {
         },
       );
       expect(forgedRoute).toContain("darrow.parent_tool_after_goal");
+      const differentChild = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          activation.replaceAll(
+            "/root/adaptive_goal_runner",
+            "/root/other_goal_runner",
+          ),
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(differentChild).toContain("darrow.parent_tool_after_goal");
+      expect(differentChild).not.toContain('"type":"darrow.goal_activation"');
+      const conflictingSpawnIdentity = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed").replace(
+            '"receiver_thread_ids":["goal-thread"]',
+            '"receiver_thread_ids":["/root/other_goal_runner"]',
+          ),
+          activation,
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+          acceptedAgentRef: "/root/adaptive_goal_runner",
+        },
+      );
+      expect(conflictingSpawnIdentity).not.toContain(
+        '"type":"darrow.goal_activation"',
+      );
+      for (const unsafeReceivers of [
+        ["/root/../other_goal_runner"],
+        ["/root/adaptive_goal_runner", "/root/other_goal_runner"],
+      ]) {
+        const unsafeSpawnIdentity = retainedCodexEvidence(
+          [
+            spawn("item.started"),
+            spawn("item.completed").replace(
+              '["goal-thread"]',
+              JSON.stringify(unsafeReceivers),
+            ),
+            activation,
+          ].join("\n"),
+          repo,
+          {
+            exitCode: 0,
+            stderrPresent: false,
+            spawnGuardSecret: "secret",
+            goalLoopPath,
+            acceptedAgentRef: "/root/adaptive_goal_runner",
+          },
+        );
+        expect(unsafeSpawnIdentity).not.toContain(
+          '"type":"darrow.goal_activation"',
+        );
+      }
+      const redactedPublicEvent = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed").replace(
+            ',"task_name":"/root/adaptive_goal_runner"',
+            "",
+          ),
+          activation,
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+          acceptedAgentRef: "/root/adaptive_goal_runner",
+        },
+      );
+      expect(redactedPublicEvent).toContain('"type":"darrow.goal_activation"');
+      expect(redactedPublicEvent).toContain(
+        '"agent_ref":"/root/adaptive_goal_runner"',
+      );
+      const launchStop = JSON.stringify({
+        type: "item.completed",
+        item: {
+          id: "launch-stop-1",
+          type: "command_execution",
+          command:
+            `/bin/bash ${goalLoopPath} step launch-stop ` +
+            `--ledger ${attestation.ledger} --reason launch-unavailable ` +
+            "--agent-ref /root/adaptive_goal_runner",
+          exit_code: 0,
+          status: "completed",
+          aggregated_output: [
+            "format\tdarrow-goal-step-v1",
+            "step\tlaunch-stop",
+            "status\trecorded",
+            "reason\tlaunch-unavailable",
+            "agent_ref\t/root/adaptive_goal_runner",
+          ].join("\n"),
+        },
+      });
+      const launchRequiredReport = report
+        .replace("--status complete", "--status launch-required")
+        .replace("Native goal completed.", "Native goal requires host launch.")
+        .replace("harness: codex", "harness: none")
+        .replace("model: openai > gpt-5.6-luna", "model: none > none")
+        .replace("effort: low", "effort: none")
+        .replace("route_applied_by: native-subagent", "route_applied_by: none")
+        .replace("route_verified: true", "route_verified: false")
+        .replace(
+          "launch_boundary: native_subagent",
+          "launch_boundary: launch_required",
+        );
+      const rejectedActivation = activation
+        .replace('"exit_code":0', '"exit_code":1')
+        .replace('"status":"completed"', '"status":"failed"')
+        .replace(
+          /"aggregated_output":"[^"]*(?:\\n[^"]*)*"/,
+          '"aggregated_output":"activation rejected"',
+        );
+      const failedAfterSpawn = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          rejectedActivation,
+          lifecycle("interrupt_agent"),
+          launchStop,
+          release,
+          lifecycle("close_agent"),
+          launchRequiredReport,
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(failedAfterSpawn).toContain(
+        '"type":"darrow.goal_activation_rejected"',
+      );
+      expect(failedAfterSpawn).toContain('"tool":"interrupt_agent"');
+      expect(failedAfterSpawn).toContain('"tool":"close_agent"');
+      expect(failedAfterSpawn).toContain('"type":"darrow.goal_launch_stop"');
+      expect(failedAfterSpawn).toContain('"child_invocations":1');
+      expect(failedAfterSpawn).toContain(
+        '"type":"darrow.goal_report","status":"launch-required"',
+      );
+      expect(failedAfterSpawn).not.toContain("darrow.parent_tool_after_goal");
+      const failedLaunchResult = [
+        "format: darrow-native-goal-report-v1",
+        "workflow: change-feature",
+        "risk: routine",
+        "profile: routine",
+        "harness: none",
+        "model: none > none",
+        "effort: none",
+        "route_applied_by: none",
+        "route_verified: false",
+        "launch_boundary: launch_required",
+        "verification_gate: routine",
+        "evaluation_child_invocations: 1",
+        "evaluation_human_interruptions: 0",
+        "enforcement: helper",
+        "Native goal requires host launch.",
+      ].join("\n");
+      expect(
+        reconcileObservedGoalRouteApplication(
+          failedLaunchResult,
+          failedAfterSpawn,
+          { harness: "codex", model: "gpt-5.6-luna", effort: "low" },
+        )?.passed,
+      ).toBe(true);
+      const inlineFailedAfterSpawn = failedAfterSpawn
+        .split("\n")
+        .filter((line) => !line.includes('"type":"darrow.objective_release"'))
+        .join("\n")
+        .replaceAll(
+          '"objectiveMode":"file-backed"',
+          '"objectiveMode":"inline"',
+        );
+      expect(
+        reconcileObservedGoalRouteApplication(
+          failedLaunchResult,
+          inlineFailedAfterSpawn,
+          { harness: "codex", model: "gpt-5.6-luna", effort: "low" },
+        )?.passed,
+      ).toBe(true);
     } finally {
       await rm(repo, { recursive: true, force: true });
       await rm(objectiveRoot, { recursive: true, force: true });
