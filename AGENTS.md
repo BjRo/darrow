@@ -64,6 +64,15 @@ Review agents must not run Git or GitHub commands against this repository.
 - Develop behavior-changing variants from comparative evidence. Run the
   candidate and relevant control against the same fixtures, prompts, checks,
   harness, model, and effort; report trial count, metrics, and limitations.
+- Evaluate host-specific behavior on its native harness. Never use Claude as a
+  proxy for Codex behavior or Codex as a proxy for Claude behavior. Run both
+  harnesses only when the behavior or comparative claim is explicitly
+  cross-host.
+- During iterative live eval work, run cases sequentially and stop at the first
+  failure. Inspect the evidence and determine whether the cause is product
+  behavior, a harness or fixture defect, or an invalid expectation; fix it or
+  deliberately revise the case before running the next eval. Never continue
+  past an unexplained failure.
 - Run relevant script tests with both `bash` and `/bin/bash`.
 - Run evals with `cd evals && bun runner/run.ts --case <substring> --harness
 <claude|codex> [--dry]`.
