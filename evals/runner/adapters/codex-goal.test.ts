@@ -459,6 +459,12 @@ after`);
     expect(withRisk).toContain("independentReview.roundLimit");
     expect(withRisk).toContain("readinessGate");
     expect(withRisk).toContain(
+      "`Permissions:`, `Workflow sequence:`, `Feedback checks:`",
+    );
+    expect(withRisk).toContain(
+      "final `Protocol ledger: <absolute-ledger>` line",
+    );
+    expect(withRisk).toContain(
       "do not treat the artifact contents being absent from prepared evidence as a known missing decision",
     );
     expect(withRisk).toContain(
