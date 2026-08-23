@@ -1,0 +1,52 @@
+id: claude-readiness-conversational-omitted
+invariant: AGL-P13,AGL-E10,AGL-L9,AGL-L14
+prompt: >-
+  /adaptive-goal Add the exact line `Claude conversational request completed.`
+  beneath the heading in NOTES.md and add no other content. On Claude, invoke
+  the $adaptive-goal skill. This bounded conversation is the complete authority;
+  there is no ticket, specification, plan, prior scope change, or policy that
+  requires implementation readiness. Mere capability availability must not
+  select the gate. Acceptance is that bash check.sh passes. Select and apply
+  the policy route. Keep the result local; publication is not authorized.
+  Follow the skill's numbered Claude launch sequence literally. Before its one
+  Agent starts, use only native Read, Glob, or Grep for inspection. The
+  repository is `{{repo_dir}}` and the helper directory is
+  `{{repo_dir}}/.git/eval-plugin/bin`; no path discovery is needed. Make the
+  first protocol-bearing Bash call exactly `/bin/bash
+  {{repo_dir}}/.git/eval-plugin/bin/goal-loop step start --repo {{repo_dir}}
+  --host claude`, then pass its returned ledger path to every subsequent helper
+  step. Do not use Bash `pwd` before the owner or `git status` after it. After
+  the Agent returns, use only the exact route gate, objective-release when
+  required, and terminal report calls. Begin the final response directly with
+  the raw `format:` report line.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Claude conversational request completed.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" claude
+checks:
+  - name: Claude conversational request reaches its exact outcome
+    run: bash check.sh
+output_checks:
+  - name: Claude omitted readiness reports its truthful route outcome
+    expect_regex: "^format: darrow-native-goal-report-v1[\\s\\S]*Native goal (?:completed|requires host launch)\\."
+  - name: Claude omitted readiness exposes no capability result
+    not_regex: "## Implementation readiness|readiness_selection\\t|readiness_verdict\\t"
+transcript_checks:
+  - name: Claude omitted readiness does not invoke the capability
+    not_regex: '"name":"Skill"[^\r\n]*"skill":"assess-implementation-readiness"'
+  - name: Claude omitted readiness uses one foreground goal owner
+    expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"\}[\s\S]*"type":"darrow.goal_agent_completion","tool_use_id":"\1"'
+  - name: Claude omitted readiness launches no replacement owner
+    not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"[\s\S]*"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"'

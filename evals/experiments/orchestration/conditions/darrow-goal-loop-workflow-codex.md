@@ -14,9 +14,10 @@ route is metadata, not a user override.
 The `evaluation_expected_route` record is the enclosing harness's matched raw
 native control, not a user override; the selected policy route must match it.
 
-Return only the requested `darrow-native-goal-handoff-v3` object. Set
+Return only the requested `darrow-native-goal-handoff-v4` object. Set
 `routeSource` to `policy` unless the engineering request explicitly pins a
-route. Put the bounded engineering contract in `goalContract`. It must require
+route. Return the structured readiness decision requested by the prepared
+prompt and leave its prose clause to the adapter. Put the bounded engineering contract in `goalContract`. It must require
 the execution turn to follow the selected workflow, satisfy the routine gate,
 implement and verify the task, complete the active native goal, avoid commits
 and publication, preserve the adapter-supplied protocol-ledger reference, and

@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   exposesInternalGoalRecord,
+  parseImplementationReadinessResult,
   parsePausedGoalReport,
+  parseReadinessCompanionGoalReport,
   parseGoalReport,
+  parseTerminalGoalReport,
   validGoalReportValues,
 } from "./goal-report";
 
@@ -65,6 +68,74 @@ describe("adaptive-goal completion reports", () => {
     ).toBeUndefined();
     expect(parsePausedGoalReport(`Question first\n${report}`)).toBeUndefined();
     expect(parsePausedGoalReport(`${pause}\n${report}`)).toBeUndefined();
+  });
+
+  test("parses a terminal report after a complete non-ready readiness result", () => {
+    const readiness = [
+      "## Implementation readiness",
+      "",
+      "**Verdict:** `needs-decision`",
+      "",
+      "### Basis",
+      "",
+      "- **Source:** authoritative request",
+      "  - **Authority:** `authoritative`",
+      "  - **Status:** `available`",
+      "  - **Summary:** One material behavior remains undecided.",
+      "",
+      "### Quality bar",
+      "",
+      "None.",
+      "",
+      "### Findings",
+      "",
+      "- **Type:** `unresolved-decision`",
+      "  - **Summary:** The request does not choose the behavior.",
+      "  - **Evidence:**",
+      "    - The authoritative request leaves the choice open.",
+      "",
+      "### Required next action",
+      "",
+      "- **Type:** `decision`",
+      "- **Description:** Choose the missing behavior.",
+    ].join("\n");
+    const result = `${readiness}\n\n${report}\nNative goal settled as blocked.`;
+    expect(parseReadinessCompanionGoalReport(result)?.workflow).toBe(
+      "implement-feature",
+    );
+    expect(parseTerminalGoalReport(result)?.harness).toBe("codex");
+    expect(parseGoalReport(result)).toBeUndefined();
+    expect(parseImplementationReadinessResult(readiness)?.verdict).toBe(
+      "needs-decision",
+    );
+    expect(
+      parseReadinessCompanionGoalReport(
+        `## Implementation readiness\n\nAssessment pending.\n\n${report}`,
+      ),
+    ).toBeUndefined();
+    expect(
+      parseReadinessCompanionGoalReport(`${result}\n\n${report}`),
+    ).toBeUndefined();
+    expect(
+      parseReadinessCompanionGoalReport(
+        `${readiness}\n\n\`\`\`text\n${report}\n\`\`\``,
+      ),
+    ).toBeUndefined();
+    expect(
+      parseReadinessCompanionGoalReport(
+        `${readiness.replace("### Findings", "### Omitted findings")}\n\n${report}`,
+      ),
+    ).toBeUndefined();
+    expect(
+      parseReadinessCompanionGoalReport(
+        `${readiness.replace("unresolved-decision", "invented-gap")}\n\n${report}`,
+      ),
+    ).toBeUndefined();
+    expect(
+      parseReadinessCompanionGoalReport(
+        `${readiness.replace("`decision`", "`discovery`")}\n\n${report}`,
+      ),
+    ).toBeUndefined();
   });
 
   test("rejects values outside every closed report field", () => {

@@ -24,7 +24,7 @@ import { codexGoalAdapter } from "./adapters/codex-goal";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
-  parseGoalReport,
+  parseTerminalGoalReport,
   type GoalReport,
   validGoalReportValues,
 } from "./goal-report";
@@ -533,7 +533,7 @@ function adaptiveGoalReportChecks(
     const report =
       reportPolicy === "optional"
         ? parsePausedGoalReport(harness.resultText)
-        : parseGoalReport(harness.resultText);
+        : parseTerminalGoalReport(harness.resultText);
     return [
       ...goalRouteRecordChecks(harness.resultText, report),
       ...claudeNativeSubagentRouteChecks(report, harness.raw),

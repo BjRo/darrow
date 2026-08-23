@@ -28,14 +28,24 @@ the hooks validate it and refuse an Agent without it. Invoke one foreground Agen
 returned `objective_file` line. After it returns, call only the exact
 `claude-route-gate`, attachment release, and terminal report commands. A denied
 or malformed lifecycle call is a stop; do not improvise a recovery command or
-hand-author the report.
+hand-author the report. Once the Agent has returned terminally, never invoke a
+skill, send a message, schedule a wakeup, or retry readiness in the parent. If
+the route gate reports that observation is unavailable, render the truthful
+`launch-required` terminal report through the helper and stop. After the report
+call succeeds, make no further tool call and paste its output as specified
+below.
 
 ### Literal terminal report
 
 For every terminal path, return the successful `goal-loop step report` output
 verbatim as the first response bytes. Do not preface it, label it, quote it, or
 put it in a Markdown fence. Append any explanation only after the complete raw
-helper block and its terminal sentence.
+helper block and its terminal sentence. The sole exception is a selected
+implementation-readiness assessment whose verdict is not `ready`: preserve the
+capability's complete human-readable result first, then place the outer helper
+report immediately after it. The result already contains the required next
+action; insert no explanation, ledger summary, or other prose between those two
+blocks.
 
 ## Confirm invocation authority
 
@@ -63,7 +73,8 @@ reason: explicit-orchestration-entrypoint-required
 Do not edit product files until read-only preflight is complete and exactly one
 goal owner has been activated on a verified route. Preflight includes preparing
 repository evidence, selecting workflow/risk/profile/route, and proving any
-selected independent-review capability is already available. Direct
+selected implementation-readiness and independent-review capabilities are
+already available. Direct
 implementation in the classifier turn is invalid. Same-thread implementation
 is valid only after concrete active-route metadata matches selection and the
 native goal is accepted. If no boundary can prove those conditions, preserve
@@ -83,6 +94,25 @@ launch guide; it runs no repository or verification command itself.
 Treat imperative implementation, check, and review steps in the originating
 request as owner instructions to compile into the contract. Their imperative
 wording never authorizes the classifier to execute them before activation.
+
+Implementation-readiness availability is a hard part of the barrier when the
+readiness gate is selected. Before any goal-owner launch, identify a
+host-advertised skill or tool whose description explicitly matches assessing
+whether an authoritative ticket, specification, plan, or request is ready for
+implementation. Mere skill installation does not select the gate, but a
+selected gate requires a matching installed capability. If none exists, do not
+spawn, edit, or run implementation checks. Record and render the gap:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step launch-stop \
+  --ledger <absolute-ledger> --reason readiness-unavailable
+/bin/bash <absolute-plugin-bin>/goal-loop step report \
+  --ledger <absolute-ledger> --status launch-required \
+  --human-interruptions 0
+```
+
+The helper includes `Implementation readiness availability: unavailable.` When
+readiness is omitted, this availability check does not apply.
 
 Review availability is a hard part of that barrier when review is selected.
 Before any goal-owner spawn for such a contract, identify a host-advertised
@@ -117,8 +147,9 @@ route-confirmation evidence.
 
 The helper ledger enforces the evidence sequence: start, prepare, route,
 optional Claude runner resolution, private staging, digest binding,
-materialization, staging release, owner activation, route observation, review
-evidence, objective release, and terminal report. It rejects missing,
+materialization, staging release, owner activation, route observation,
+implementation-readiness selection and verdict, review evidence, objective
+release, and terminal report. It rejects missing,
 duplicate, out-of-order, or mismatched evidence. This is a protocol ledger, not
 a phase scheduler: it does not create agents, assign stage roles, continue a
 goal, or decide what engineering work runs next.
@@ -182,7 +213,7 @@ record it, and render the stop through the helper:
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step route --ledger <absolute-ledger> \
   --workflow decision-gated --risk high --profile none \
-  --verification-gate not-applicable --review omitted
+  --verification-gate not-applicable --readiness omitted --review omitted
 /bin/bash <absolute-plugin-bin>/goal-loop step report --ledger <absolute-ledger> \
   --status launch-required --human-interruptions 1
 ```
@@ -261,6 +292,57 @@ that contract change, select at least `elevated` even if the edit is localized.
 
 Reasoning difficulty never changes risk. A difficult diagnosis can be
 `routine`; a simple security change is `high`.
+
+Select implementation readiness separately from workflow, risk, and review:
+
+| Situation | Readiness selection |
+| --- | --- |
+| authoritative ticket, specification, plan, or accepted conversational plan not yet assessed for this exact scope | select |
+| bounded request fully stated in the preserved conversation | omit by default |
+| same scope already assessed semantically and every finding resolved | omit |
+| material scope, acceptance, or constraint change where reassessment adds value | select again |
+| explicit user request to skip the default gate | omit unless repository or delegating-orchestration policy requires it |
+| explicit user, repository, or delegating-orchestration requirement | select |
+
+“Already assessed” is semantic, not document-shaped. A preserved conversation
+that walked every readiness finding and resolved it counts even if no formal
+gate block was rendered. An accepted conversational plan is authoritative, but
+the shaping discussion that produced and settled it normally also establishes
+the prior same-scope assessment. Mere availability of a readiness capability
+does not select it. Re-run only after a material scope, acceptance, or
+constraint change and only when another assessment adds actual value. A user
+may skip the default gate, but cannot override a repository or explicitly
+delegated orchestration requirement.
+
+The prepared classifier may know that an authoritative artifact exists without
+opening its contents. That absence from prepared evidence is not itself a known
+missing decision or authority. Select the task-level workflow from the stated
+implementation intent and let a selected readiness capability assess the
+artifact's completeness before mutation. Use `decision-gated` only when the
+preserved request or prepared evidence actually establishes the missing choice
+or authority.
+
+Represent the decision with one unambiguous `Readiness gate: selected —` or
+`Readiness gate: omitted —` line and a concise reason. When selected, name only
+the capability intent—not a plugin implementation—and include the concrete
+absolute bundled `goal-loop` executable solely for the required readiness
+ledger transition. The owner invokes the available implementation-readiness
+capability before repository or external mutation, requests its complete
+human-readable result without requiring JSON, interprets the verdict
+semantically as `ready`, `needs-discovery`, `needs-decision`, or `blocked`, and
+records only that verdict:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step readiness \
+  --ledger <absolute-ledger> \
+  --verdict <ready|needs-discovery|needs-decision|blocked>
+```
+
+Only `ready` unlocks mutation. Every other verdict stops the goal without
+mutation, preserves the complete readiness result and its smallest useful next
+action, settles the native goal as blocked, and places the outer adaptive-goal
+report after that result. The protocol ledger stores selection and verdict,
+never the capability's complete result.
 
 Select independent code review separately from implementation discipline:
 
@@ -545,6 +627,7 @@ An explicit user model or effort wins. Resolve the concrete route:
   --workflow <workflow> --risk <routine|elevated|high> \
   --profile <routine|routine-plus|scaled|repo-wide|judgment> \
   --verification-gate <routine|elevated|high> \
+  --readiness <selected|omitted> \
   --review <selected|omitted> \
   [--review-round-limit <positive-integer>] \
   [--route 'harness|provider|model|effort']
@@ -553,7 +636,8 @@ An explicit user model or effort wins. Resolve the concrete route:
 Pass `--route` only when the engineering request explicitly pins it. Pass
 `--review-round-limit` only when the originating request explicitly supplies
 that limit and review is selected. The helper enforces `verification-gate ==
-risk`, selected review for high risk, and the fixed decision-gated tuple. The
+risk`, an explicit readiness selection, selected review for high risk, and the
+fixed decision-gated tuple. The
 classifier route, host defaults, and enclosing evaluator are metadata, not user
 overrides. `inherit`, `current`, `default`, or an unresolved alias is not an
 auditable model identifier. An explicit tuple is accepted only when it exists
@@ -575,7 +659,8 @@ Write one complete goal contract containing the outcome, acceptance criteria,
 scope and non-goals, preserved work, permissions, the selected workflow and its
 sequence, risk gate, profile and concrete route, applicable feedback checks and
 final-tree checks, whether independent review is selected and why, its portable
-continuation clause when selected, any user-specified stopping budget including
+continuation clause when selected, whether implementation readiness is selected
+and why, its portable pre-mutation clause when selected, any user-specified stopping budget including
 an explicit review-round limit, the human-feedback rule above, the Section 4
 human-readable completion-report rule, and the absolute helper ledger path.
 The ledger owns route, launch, digest, review, and reporting evidence; do not
@@ -583,7 +668,7 @@ copy a tab-separated internal launch record into the contract. Write each
 contract component once, in this order, using these
 exact nonempty one-line labels: `Outcome:`, `Acceptance criteria:`, `Scope:`,
 `Non-goals:`, `Preserved work:`, `Permissions:`, `Workflow sequence:`,
-`Feedback checks:`, `Final-tree checks:`, `Independent review:`,
+`Feedback checks:`, `Final-tree checks:`, `Readiness gate:`, `Independent review:`,
 `Stopping budget:`, `Human feedback:`, and `Completion report:`. Then reference
 the ledger once as `Protocol ledger: <absolute-ledger>`. Reference
 longer repository-owned details by path. Use an explicit `none` explanation
@@ -592,13 +677,18 @@ When selected review may run in a filesystem-sharing delegated owner, the
 `Independent review:` value also names the concrete absolute bundled
 `goal-loop` executable for `step review` recording. The owner must not have to
 search for or infer that protocol helper.
+When readiness is selected, the `Readiness gate:` value likewise names the
+concrete absolute bundled `goal-loop` executable for `step readiness` verdict
+recording. The owner must not search for or infer the helper, and the clause
+must not name or constrain the matching assessment capability.
 When the selected boundary may be the observable Codex runner, put these fixed
 ownership rules in `Workflow sequence:` or `Completion report:` before
 materialization: the accepted runner task is already the sole goal boundary;
 the runner does not invoke `adaptive-goal`, call `create_goal`, record
 activation, release the objective, or render the ledger report. It executes the
 contract directly, records only its own selected-review evidence through the
-ledger, and returns terminal semantic facts and status to its creator. The
+ledger, records its selected readiness verdict before mutation, and returns
+terminal semantic facts and status to its creator. The
 creator ensures the accepted native-subagent activation is recorded by trusted
 hook evidence or, only at the `helper` tier, the exact manual step before waiting, then
 performs exact objective cleanup and helper report rendering after collecting
@@ -630,11 +720,15 @@ Return exactly one object and stop that turn:
 
 ```json
 {
-  "format": "darrow-native-goal-handoff-v3",
+  "format": "darrow-native-goal-handoff-v4",
   "workflow": "<workflow>",
   "risk": "<routine|elevated|high>",
   "profile": "<routine|routine-plus|scaled|repo-wide|judgment>",
   "routeSource": "<policy|user>",
+  "readinessGate": {
+    "selection": "<selected|omitted>",
+    "reason": "<concise non-empty reason>"
+  },
   "independentReview": {
     "selection": "<selected|omitted>",
     "reason": "<concise non-empty reason>"
@@ -645,19 +739,20 @@ Return exactly one object and stop that turn:
     "model": "<concrete-model>",
     "effort": "<concrete-effort>"
   },
-  "goalContract": "<complete contract without the review clause; target 4,000 bytes without dropping requirements>"
+  "goalContract": "<complete contract without the readiness or review clauses; target 4,000 bytes without dropping requirements>"
 }
 ```
 
-Leave the `Independent review:` line out of `goalContract` in this host-API
-handoff. The enclosing launcher validates the structured decision and compiles
-the canonical portable clause, replacing any redundant line if one is present;
+Leave the `Readiness gate:` and `Independent review:` lines out of
+`goalContract` in this host-API handoff. The enclosing launcher validates both
+structured decisions and compiles their canonical portable clauses, replacing
+any redundant lines if present;
 high-risk handoffs that omit review are invalid. Add `roundLimit` as a positive
 integer only when the originating request explicitly supplies that exact
 review-round limit. Omit it for selected progress-bounded convergence and when
 review is omitted. The launcher validates it against the originating request
 and fails closed on a missing, mismatched, ambiguous, or unauthorized limit. It
-compiles the review clause without dropping requirements and
+compiles both clauses without dropping requirements and
 uses the verified file-backed objective path when the complete contract exceeds
 the native inline limit.
 
@@ -703,6 +798,17 @@ contract directly. Do not invoke this skill again, repeat preflight, spawn a
 replacement owner, or return `launch_required` because `create_goal` is absent.
 Do not call `create_goal`; the accepted runner task remains the one ownership
 boundary.
+
+If that contract selects `Readiness gate:`, invoke the matching available
+implementation-readiness capability and record its semantic verdict through
+the exact absolute `step readiness` command before any repository or external
+mutation. Continue only after the ledger accepts `ready`. For
+`needs-discovery`, `needs-decision`, or `blocked`, do not mutate, settle the
+native goal as blocked, and return the capability's complete human-readable
+result with its smallest useful next action before the outer report. This is a
+terminal readiness-gate result, not a newly emerged feedback question; never
+convert it into the generic resumable human-feedback pause. If the contract
+omits readiness, do not invoke or record it.
 
 For a Codex native runner, the guard-attested accepted spawn with its concrete
 model and effort is the route confirmation. Trusted Codex hooks record the
@@ -759,6 +865,16 @@ owner's changed-file, verification, review-detail, and risk prose alongside it.
 The helper validates terminal state and renders applicable canonical review
 sentences. This collection grants no authority to inspect or revalidate the
 repository.
+For a selected readiness verdict other than `ready`, invert only this ordering:
+the complete implementation-readiness result comes first, followed immediately
+by the exact terminal helper report with no Markdown code fence before or around
+it. The result already contains the smallest useful next action; insert no
+explanation, ledger summary, or other prose between the two blocks. Use
+`blocked` only when the owner route was verified;
+an unavailable or rejected route still requires the truthful `launch-required`
+report. Do not summarize, replace, or store the readiness result in the ledger.
+This is the only terminal path on which the canonical outer report does not
+begin the response.
 On Codex, every agent creator collects the child's terminal result. When the
 host exposes a close control, close the subagent after its goal has been
 fulfilled and its terminal result has been collected. The goal runner applies
@@ -777,7 +893,7 @@ template below. Render its fixed report through the helper command in Section
 or goal was activated, never replace its `none`, `false`, `launch_required`,
 `not-applicable`, zero-child, or one-interruption values with selected-route or
 ordinary launch values.
-Every terminal final response must begin with the exact helper-rendered
+Except for that non-ready implementation-readiness result, every terminal final response must begin with the exact helper-rendered
 human-readable report and canonical terminal sentence. Its `format:` line is the first
 non-whitespace line; do not put prose, a heading, a bullet, or a Markdown code
 fence before or around it. Use one `key: value` per line, combine the effective
@@ -826,6 +942,10 @@ separate line.
 When an invoked capability terminates the goal with its own structured result,
 preserve that result alongside the mandatory human-readable report rather than
 replacing either contract.
+When implementation readiness is selected, ensure its semantic verdict was
+recorded with `step readiness`. A `ready` verdict is the sole transition that
+permits implementation; a non-ready verdict requires a blocked goal and the
+ordering exception above.
 Preserve terminal independent review evidence in the enclosing response by
 using the standalone canonical outcome sentences from Section 3 and reporting
 any blocking findings separately; do not require or reproduce the provider's

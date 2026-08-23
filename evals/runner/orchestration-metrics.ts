@@ -1,7 +1,7 @@
 import type { CheckResult, GoalRoute, GoalRouteApplication } from "./types";
 import {
   parsePausedGoalReport,
-  parseGoalReport,
+  parseTerminalGoalReport,
   validGoalReportValues,
   type GoalReport,
 } from "./goal-report";
@@ -415,7 +415,7 @@ function goalPreflightBase(resultText: string): GoalPreflight | undefined {
 
 function goalReportV1Base(resultText: string): GoalPreflight | undefined {
   const report =
-    parseGoalReport(resultText) ?? parsePausedGoalReport(resultText);
+    parseTerminalGoalReport(resultText) ?? parsePausedGoalReport(resultText);
   if (!validGoalReportValues(report)) return undefined;
   const route = parseGoalReportRoute(report!);
   const appliedBy = memberOf(APPLIED_BY_VALUES, report!.route_applied_by);

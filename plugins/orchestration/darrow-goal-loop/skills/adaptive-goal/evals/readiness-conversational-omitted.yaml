@@ -1,0 +1,33 @@
+id: goal-readiness-conversational-omitted
+invariant: AGL-P13,AGL-E10,AGL-L14
+prompt: >-
+  /adaptive-goal Add the exact line "Conversational request completed." beneath
+  the heading in NOTES.md. On Codex, invoke the $adaptive-goal skill. This is a
+  bounded conversational request with a complete oracle and no authoritative
+  ticket, specification, or accepted plan. Acceptance is that `bash check.sh`
+  passes. Select and apply the policy route. Keep the result local; commits,
+  pushes, pull requests, and other publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Conversational request completed.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: conversational request reaches its exact outcome
+    run: bash check.sh
+  - name: mere capability installation does not select readiness
+    run: test ! -e .git/implementation-readiness-invocations
+output_checks:
+  - name: conversational request completes normally
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*Native goal completed\\."

@@ -1,0 +1,33 @@
+id: goal-readiness-user-skip
+invariant: AGL-P13,AGL-S6
+prompt: >-
+  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
+  Codex, invoke the $adaptive-goal skill. Explicitly skip the default readiness
+  gate for this request; no repository or delegating-orchestration policy
+  requires it. Acceptance is that `bash check.sh` passes. Select and apply the
+  policy route. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        REQUEST.md: |
+          # Authoritative request
+
+          Add `User skipped readiness.` beneath the heading in NOTES.md.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'User skipped readiness.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: explicitly skipped request is implemented
+    run: bash check.sh
+  - name: user skip omits the default gate
+    run: test ! -e .git/implementation-readiness-invocations

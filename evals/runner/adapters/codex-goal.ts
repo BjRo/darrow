@@ -13,7 +13,10 @@ import type { GoalRoute, HarnessAdapter, HarnessResult } from "../types";
 import { isolatedHarnessEnvironment } from "../environment";
 import { sandboxedAgentCommand } from "../sandbox";
 import { goalContractRecordIssues } from "../codex-spawn-guard";
-import { GOAL_REPORT_KEYS } from "../goal-report";
+import {
+  GOAL_REPORT_KEYS,
+  parseImplementationReadinessResult,
+} from "../goal-report";
 
 interface CatalogRoute {
   model: string;
@@ -34,11 +37,15 @@ type GoalRisk = "routine" | "elevated" | "high";
 export type GoalDimensionStage = "workflow" | "workflow-risk";
 
 interface GoalHandoff {
-  format: "darrow-native-goal-handoff-v3";
+  format: "darrow-native-goal-handoff-v4";
   workflow: GoalWorkflow;
   risk: GoalRisk;
   profile: string;
   routeSource: "policy" | "user" | "none";
+  readinessGate: {
+    selection: "selected" | "omitted";
+    reason: string;
+  };
   independentReview: {
     selection: "selected" | "omitted";
     reason: string;
@@ -52,6 +59,7 @@ interface ExplicitGoalControls {
   route?: GoalRoute;
   reviewRoundLimit?: number;
   ledger?: string;
+  goalLoop?: string;
 }
 
 interface WorkflowEntry {
@@ -340,13 +348,15 @@ export function buildPreparedGoalPrompt(
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
     "Return independentReview.roundLimit as the exact positive integer only when the engineering request explicitly supplies a review-round limit. Return null for progress-bounded review without a user limit and whenever review is omitted. Never infer a numeric limit on the user's behalf.",
-    "When workflow is decision-gated, return the fixed terminal tuple: risk high, profile none, routeSource none, independentReview omitted with roundLimit null, and selectedRoute {harness: none, provider: none, model: none, effort: none}. Put the missing decision or authority in goalContract. This terminal handoff is reported without native-goal activation.",
+    "Select readinessGate before implementation. Select it for an authoritative ticket, specification, plan, or accepted conversational plan whose exact current scope has not already completed an implementation-readiness assessment, and whenever the user, repository, or delegating orchestration explicitly requires readiness. A completed same-scope semantic discussion that resolved the findings counts as already assessed even without a separately rendered gate result. Re-select after a material scope, acceptance, or constraint change only when reassessment adds actual value. Omit it for a bounded request fully stated in the preserved conversation, for an already-assessed unchanged scope, and when the user explicitly skips the default gate. A user skip does not override a repository or delegating-orchestration requirement. Mere capability installation never selects the gate. Return a concise reason for either selection.",
+    "When the engineering request names an authoritative artifact that this one-response classifier has not opened, do not treat the artifact contents being absent from prepared evidence as a known missing decision or authority. Select the task-level workflow from the stated implementation intent and let a selected implementation-readiness capability assess that artifact's completeness before mutation. Use decision-gated only for a missing choice or authority actually established by the preserved request or prepared evidence.",
+    "When workflow is decision-gated, return the fixed terminal tuple: risk high, profile none, routeSource none, readinessGate omitted, independentReview omitted with roundLimit null, and selectedRoute {harness: none, provider: none, model: none, effort: none}. Put the missing decision or authority in goalContract. This terminal handoff is reported without native-goal activation.",
     "",
     "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. Include the exact prepared ledger once as `Protocol ledger: <absolute-ledger>`. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
-    "Return independentReview with selection selected or omitted, a concise non-empty reason, and only the optional roundLimit described above. High risk must select independent review except for the fixed decision-gated terminal tuple. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
+    "Return readinessGate and independentReview as parallel structured decisions with selection selected or omitted and a concise non-empty reason. Return only the optional independentReview.roundLimit described above. High risk must select independent review except for the fixed decision-gated terminal tuple. Do not write Readiness gate or Independent review lines in goalContract; the host compiles both canonical portable clauses from these structured decisions.",
     "Do not copy a tab-separated launch record into goalContract; the prepared ledger owns route, launch, digest, review, and reporting evidence.",
     "",
-    "Return only a darrow-native-goal-handoff-v3 object with workflow, risk, profile, routeSource, independentReview, selectedRoute, and goalContract.",
+    "Return only a darrow-native-goal-handoff-v4 object with workflow, risk, profile, routeSource, readinessGate, independentReview, selectedRoute, and goalContract.",
     "",
     "Prepared evidence:",
     preparedEvidence,
@@ -371,12 +381,28 @@ export function buildGoalExecutionPrompt(
     "Use this canonical workflow, risk, and verification guidance:",
     intentRoutingGuidance,
     `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
+    handoff.readinessGate.selection === "selected"
+      ? "Before repository or external mutation, invoke the environment capability matching implementation-readiness assessment of the authoritative request. Preserve its complete human-readable result. Record its semantic verdict with the exact `goal-loop step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>` transition. Continue implementation only on `ready`. For any other verdict, perform no mutation, settle the native goal as blocked, and return the complete readiness result followed by its smallest useful next action; the enclosing launcher appends the outer adaptive-goal report after it. A non-ready readiness verdict is already a terminal gate result: it takes precedence over the generic human-feedback rule, so do not convert `needs-discovery`, `needs-decision`, or `blocked` into a feedback question or resumable pause."
+      : "Implementation readiness is omitted for this goal; do not invoke or record a readiness assessment.",
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
     "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
     "When independent review is selected, record each returned semantic result against its exact target fingerprint with `goal-loop step review --ledger <Protocol ledger>`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.",
     "Do not hand-author a darrow-native-goal-report-v1 block. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
     "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied. A human-feedback pause is nonterminal and must not settle the goal.",
     "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
+  ].join("\n");
+}
+
+export function readinessStatusSettlementPrompt(verdict: string): string {
+  if (!isNonReadyReadinessVerdict(verdict))
+    throw new Error(`cannot settle ready readiness verdict: ${verdict}`);
+  return [
+    "- phase: readiness-status-settlement",
+    `The implementation-readiness capability already returned and the protocol ledger recorded the terminal \`${verdict}\` verdict.`,
+    "This is not a request for human feedback and must not become a resumable pause.",
+    "Perform only native-goal status settlement: use the native goal control to mark this existing goal blocked.",
+    "Do not inspect or mutate the repository, invoke another capability, run verification, ask a question, or resume implementation.",
+    "Return only a short status confirmation after the goal is blocked. The enclosing launcher preserves the earlier complete readiness result and appends its canonical report.",
   ].join("\n");
 }
 
@@ -423,10 +449,29 @@ function isValidGoalContract(contract: unknown): contract is string {
   return typeof contract === "string" && contract.length > 0;
 }
 
+function hasExactKeys(value: unknown, keys: string[]): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return (
+    actual.length === expected.length &&
+    actual.every((key, index) => key === expected[index])
+  );
+}
+
 function isValidIndependentReview(
   review: GoalHandoff["independentReview"] | undefined,
 ): boolean {
   if (!review) return false;
+  if (
+    !hasExactKeys(
+      review,
+      review.roundLimit === undefined
+        ? ["selection", "reason"]
+        : ["selection", "reason", "roundLimit"],
+    )
+  )
+    return false;
   if (!["selected", "omitted"].includes(review.selection)) return false;
   if (typeof review.reason !== "string") return false;
   return (
@@ -435,11 +480,23 @@ function isValidIndependentReview(
   );
 }
 
+function isValidReadinessGate(
+  readiness: GoalHandoff["readinessGate"] | undefined,
+): boolean {
+  return (
+    !!readiness &&
+    hasExactKeys(readiness, ["selection", "reason"]) &&
+    ["selected", "omitted"].includes(readiness.selection) &&
+    typeof readiness.reason === "string"
+  );
+}
+
 function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
   return (
     typeof handoff.workflow === "string" &&
     ["routine", "elevated", "high"].includes(handoff.risk ?? "") &&
     ["policy", "user", "none"].includes(handoff.routeSource ?? "") &&
+    isValidReadinessGate(handoff.readinessGate) &&
     isValidIndependentReview(handoff.independentReview)
   );
 }
@@ -447,9 +504,11 @@ function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
 function isDecisionGatedHandoff(handoff: Partial<GoalHandoff>): boolean {
   const route = handoff.selectedRoute;
   return [
+    hasExactKeys(route, ["harness", "provider", "model", "effort"]),
     handoff.workflow === "decision-gated" && handoff.risk === "high",
     handoff.profile === "none",
     handoff.routeSource === "none",
+    handoff.readinessGate?.selection === "omitted",
     handoff.independentReview?.selection === "omitted",
     handoff.independentReview?.roundLimit === undefined,
     route?.harness === "none",
@@ -478,11 +537,28 @@ function assertHandoffShape(
   dimensions: PreparedGoalDimensions,
 ): asserts handoff is GoalHandoff {
   const valid =
-    handoff.format === "darrow-native-goal-handoff-v3" &&
+    hasExactKeys(handoff, [
+      "format",
+      "workflow",
+      "risk",
+      "profile",
+      "routeSource",
+      "readinessGate",
+      "independentReview",
+      "selectedRoute",
+      "goalContract",
+    ]) &&
+    handoff.format === "darrow-native-goal-handoff-v4" &&
     hasSelectableDimensions(handoff) &&
     (isDecisionGatedHandoff(handoff) ||
       (hasPreparedProfile(handoff, dimensions) &&
-        isValidGoalRoute(handoff.selectedRoute))) &&
+        isValidGoalRoute(handoff.selectedRoute) &&
+        hasExactKeys(handoff.selectedRoute, [
+          "harness",
+          "provider",
+          "model",
+          "effort",
+        ]))) &&
     isValidGoalContract(handoff.goalContract);
   if (!valid) throw new Error("preflight handoff has an invalid shape");
 }
@@ -532,6 +608,15 @@ function assertIndependentReviewReason(reviewReason: string): void {
     throw new Error("independent-review reason must be one bounded text line");
 }
 
+function assertReadinessGateReason(reason: string): void {
+  if (
+    !reason.trim() ||
+    Buffer.byteLength(reason) > 240 ||
+    hasTextControl(reason)
+  )
+    throw new Error("readiness-gate reason must be one bounded text line");
+}
+
 function assertIndependentReviewPolicy(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
@@ -567,6 +652,7 @@ function assertGoalContractProtocol(
   explicitReviewRoundLimit?: number,
   ledger?: string,
 ): void {
+  assertReadinessGateReason(handoff.readinessGate.reason);
   assertIndependentReviewPolicy(handoff, explicitReviewRoundLimit);
   if (/format\tdarrow-native-goal-preflight-v\d+/.test(handoff.goalContract))
     throw new Error("goal contract duplicates internal launch state");
@@ -578,7 +664,11 @@ function assertGoalContractProtocol(
 }
 
 function assertNoDuplicateCompiledLabels(contract: string): void {
-  for (const label of ["Independent review", "Protocol ledger"]) {
+  for (const label of [
+    "Readiness gate",
+    "Independent review",
+    "Protocol ledger",
+  ]) {
     const count = contract
       .split(/\r?\n/)
       .filter((line) => line.startsWith(`${label}:`)).length;
@@ -612,6 +702,34 @@ function canonicalIndependentReviewClause(
   return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
 }
 
+function canonicalReadinessGateClause(
+  handoff: GoalHandoff,
+  goalLoop?: string,
+): string {
+  const reason = handoff.readinessGate.reason.trim();
+  if (handoff.readinessGate.selection === "omitted")
+    return `Readiness gate: omitted — ${reason}.`;
+  const transition = goalLoop
+    ? `/bin/bash '${goalLoop.replaceAll("'", `'"'"'`)}' step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>`
+    : "goal-loop step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>";
+  return `Readiness gate: selected — ${reason}; before repository or external mutation invoke the available environment capability matching implementation-readiness assessment of the authoritative request; request and preserve its complete human-readable result without requiring JSON; interpret the semantic verdict as ready, needs-discovery, needs-decision, or blocked and record only that verdict in the protocol ledger with \`${transition}\`; Continue only on \`ready\`; for every other verdict stop without mutation, preserve the complete readiness result and its smallest useful next action, settle the native goal as blocked, and place the outer adaptive-goal report after that result.`;
+}
+
+function compileReadinessGateClause(
+  handoff: GoalHandoff,
+  goalLoop?: string,
+): void {
+  const lines = handoff.goalContract
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("Readiness gate:"));
+  const finalTreeIndex = lines.findIndex((line) =>
+    line.startsWith("Final-tree checks:"),
+  );
+  const insertAt = finalTreeIndex >= 0 ? finalTreeIndex + 1 : lines.length;
+  lines.splice(insertAt, 0, canonicalReadinessGateClause(handoff, goalLoop));
+  handoff.goalContract = lines.join("\n");
+}
+
 function compileIndependentReviewClause(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
@@ -622,7 +740,15 @@ function compileIndependentReviewClause(
   const finalTreeIndex = lines.findIndex((line) =>
     line.startsWith("Final-tree checks:"),
   );
-  const insertAt = finalTreeIndex >= 0 ? finalTreeIndex + 1 : lines.length;
+  const readinessIndex = lines.findIndex((line) =>
+    line.startsWith("Readiness gate:"),
+  );
+  const insertAt =
+    readinessIndex >= 0
+      ? readinessIndex + 1
+      : finalTreeIndex >= 0
+        ? finalTreeIndex + 1
+        : lines.length;
   lines.splice(
     insertAt,
     0,
@@ -654,6 +780,7 @@ export function parseCodexGoalHandoff(
   if (!dimensions.workflows.has(handoff.workflow))
     throw new Error(`unknown workflow: ${handoff.workflow}`);
   if (isDecisionGatedHandoff(handoff)) {
+    assertReadinessGateReason(handoff.readinessGate.reason);
     assertIndependentReviewPolicy(handoff, explicitControls.reviewRoundLimit);
     return handoff;
   }
@@ -666,6 +793,7 @@ export function parseCodexGoalHandoff(
     explicitControls.reviewRoundLimit,
     explicitControls.ledger,
   );
+  compileReadinessGateClause(handoff, explicitControls.goalLoop);
   compileIndependentReviewClause(handoff, explicitControls.reviewRoundLimit);
   const contractIssues = goalContractRecordIssues(handoff.goalContract);
   if (contractIssues.length)
@@ -688,6 +816,18 @@ function independentReviewSchema() {
   };
 }
 
+function readinessGateSchema() {
+  return {
+    type: "object",
+    properties: {
+      selection: { type: "string", enum: ["selected", "omitted"] },
+      reason: { type: "string", minLength: 1, maxLength: 240 },
+    },
+    required: ["selection", "reason"],
+    additionalProperties: false,
+  };
+}
+
 function selectedRouteSchema() {
   return {
     type: "object",
@@ -706,7 +846,7 @@ function handoffSchema(profiles: string[]) {
   return {
     type: "object",
     properties: {
-      format: { type: "string", const: "darrow-native-goal-handoff-v3" },
+      format: { type: "string", const: "darrow-native-goal-handoff-v4" },
       workflow: {
         type: "string",
         enum: [
@@ -722,6 +862,7 @@ function handoffSchema(profiles: string[]) {
       risk: { type: "string", enum: ["routine", "elevated", "high"] },
       profile: { type: "string", enum: [...profiles, "none"] },
       routeSource: { type: "string", enum: ["policy", "user", "none"] },
+      readinessGate: readinessGateSchema(),
       independentReview: independentReviewSchema(),
       selectedRoute: selectedRouteSchema(),
       goalContract: { type: "string", minLength: 1 },
@@ -732,6 +873,7 @@ function handoffSchema(profiles: string[]) {
       "risk",
       "profile",
       "routeSource",
+      "readinessGate",
       "independentReview",
       "selectedRoute",
       "goalContract",
@@ -750,6 +892,7 @@ interface AppServerItem {
   phase?: string;
   text?: string;
   aggregatedOutput?: string;
+  exitCode?: number;
 }
 
 interface AppServerTurn {
@@ -813,7 +956,23 @@ interface TurnStartResult {
 }
 
 interface GoalGetResult {
-  goal?: { status?: string };
+  goal?: { objective?: string; status?: string };
+}
+
+function implementationReadinessResult(
+  message: AppServerMessage,
+  threadId: string,
+): string | undefined {
+  if (message.method !== "item/completed") return undefined;
+  const params = message.params;
+  if (!params || params.threadId !== threadId) return undefined;
+  const item = params.item;
+  if (!item || !["agentMessage", "commandExecution"].includes(item.type ?? ""))
+    return undefined;
+  const result = item.text ?? item.aggregatedOutput;
+  return result && parseImplementationReadinessResult(result)
+    ? result
+    : undefined;
 }
 
 class AppServerClient {
@@ -986,6 +1145,13 @@ class AppServerClient {
       .find((id) => id !== undefined);
   }
 
+  latestImplementationReadinessResult(threadId: string): string | undefined {
+    return this.messages
+      .toReversed()
+      .map((message) => implementationReadinessResult(message, threadId))
+      .find((result) => result !== undefined);
+  }
+
   raw(): string {
     return this.rawLines.join("\n") + (this.stderr ? `\n${this.stderr}` : "");
   }
@@ -1085,6 +1251,22 @@ function isFailedGoalTurn(
   );
 }
 
+export function isRecordedReadinessStep(
+  message: AppServerMessage,
+  threadId: string,
+): boolean {
+  const item = message.params?.item;
+  const output = item?.aggregatedOutput ?? "";
+  return [
+    message.method === "item/completed",
+    message.params?.threadId === threadId,
+    item?.type === "commandExecution",
+    item?.exitCode === 0,
+    /(?:^|\n)step\treadiness(?:\n|$)/.test(output),
+    /(?:^|\n)status\trecorded(?:\n|$)/.test(output),
+  ].every(Boolean);
+}
+
 export function isHumanFeedbackPauseText(text: unknown): boolean {
   if (typeof text !== "string") return false;
   const marker = text.match(/^- phase: human-feedback-request\r?\n/);
@@ -1160,19 +1342,38 @@ async function collectHumanFeedbackPause(
   return result;
 }
 
+interface NativeGoalRunContext {
+  threadId: string;
+  turnId: string;
+  eventCursor: number;
+  readinessLedger?: string;
+}
+
 async function runNativeGoal(
   client: AppServerClient,
-  threadId: string,
-  eventCursor: number,
+  context: NativeGoalRunContext,
   confirmTerminal: () => void,
 ): Promise<TurnOutcome> {
-  const terminal = await client.waitForAfter(
-    eventCursor,
-    (message) =>
-      isSettledGoalUpdate(message, threadId) ||
-      isFailedGoalTurn(message, threadId) ||
-      isHumanFeedbackPauseForThread(message, threadId),
-  );
+  const { threadId, turnId } = context;
+  let cursor = context.eventCursor;
+  let pendingReadinessLedger = context.readinessLedger;
+  let terminal: AppServerMessage;
+  while (true) {
+    terminal = await client.waitForAfter(
+      cursor,
+      (message) =>
+        isSettledGoalUpdate(message, threadId) ||
+        isFailedGoalTurn(message, threadId) ||
+        isHumanFeedbackPauseForThread(message, threadId) ||
+        (!!pendingReadinessLedger &&
+          isRecordedReadinessStep(message, threadId)),
+    );
+    if (!isRecordedReadinessStep(terminal, threadId)) break;
+    const settlementCursor = client.cursor();
+    await settleRecordedReadiness(client, threadId, pendingReadinessLedger!);
+    pendingReadinessLedger = undefined;
+    cursor = settlementCursor;
+  }
   if (isFailedGoalTurn(terminal, threadId))
     throw new Error(
       `Codex goal turn failed: ${JSON.stringify(terminal.params!.turn!.error)}`,
@@ -1187,9 +1388,7 @@ async function runNativeGoal(
   if (!isReportableGoalStatus(terminal.params!.goal!.status))
     throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
   confirmTerminal();
-  const terminalTurnId = terminal.params!.turnId;
-  if (typeof terminalTurnId !== "string")
-    throw new Error("native goal completion did not name its terminal turn");
+  const terminalTurnId = terminal.params!.turnId ?? turnId;
   return runTurn(client, terminalTurnId);
 }
 
@@ -1768,6 +1967,62 @@ function requiredStepRecord(stdout: string, key: string): string {
   return values[0];
 }
 
+async function ledgerReadinessVerdict(ledger: string): Promise<string> {
+  const state = await readFile(join(ledger, "state"), "utf8");
+  const values = state.split(/\r?\n/).flatMap((line) => {
+    const fields = line.split("\t");
+    return fields.length === 2 && fields[0] === "readiness_verdict"
+      ? [fields[1]!]
+      : [];
+  });
+  if (values.length !== 1 || !values[0])
+    throw new Error("goal ledger has missing or duplicate readiness verdict");
+  return values[0];
+}
+
+function isNonReadyReadinessVerdict(verdict: string): boolean {
+  return ["needs-discovery", "needs-decision", "blocked"].includes(verdict);
+}
+
+async function settleRecordedReadiness(
+  client: AppServerClient,
+  threadId: string,
+  ledger: string,
+): Promise<void> {
+  const verdict = await ledgerReadinessVerdict(ledger);
+  if (!isNonReadyReadinessVerdict(verdict)) return;
+  const current = await client.request<GoalGetResult>("thread/goal/get", {
+    threadId,
+  });
+  const goal = current.goal;
+  if (!goal)
+    throw new Error("cannot settle non-ready native goal from missing");
+  if (goal.status === "complete")
+    throw new Error(
+      "non-ready readiness verdict settled the native goal complete",
+    );
+  if (goal.status === "blocked") return;
+  if (!isResumableGoalStatus(goal.status))
+    throw new Error(
+      `cannot settle non-ready native goal from ${goal.status ?? "missing"}`,
+    );
+  if (typeof goal.objective !== "string")
+    throw new Error(
+      "cannot settle non-ready native goal without its objective",
+    );
+  await client.request("thread/goal/set", {
+    threadId,
+    objective: goal.objective,
+    status: "blocked",
+  });
+  client.record({
+    type: "darrow.readiness_status_settlement",
+    verdict,
+    thread_id: threadId,
+    applied_by: "host-api",
+  });
+}
+
 interface GoalPreparation {
   evidence: string;
   ledger: string;
@@ -2022,6 +2277,8 @@ async function recordLedgerRoute(
     handoff.profile,
     "--verification-gate",
     handoff.workflow === "decision-gated" ? "not-applicable" : handoff.risk,
+    "--readiness",
+    handoff.readinessGate.selection,
     "--review",
     handoff.independentReview.selection,
   ];
@@ -2050,12 +2307,11 @@ interface PreflightPhase {
   handoff: GoalHandoff;
   result: TurnOutcome;
   modelCalls: number;
+  readinessAvailable: boolean;
   reviewAvailable: boolean;
 }
 
-export async function independentReviewCapabilityAvailable(
-  repoDir: string,
-): Promise<boolean> {
+async function installedSkillDescriptions(repoDir: string): Promise<string[]> {
   const root = join(repoDir, ".agents", "skills");
   let names: string[];
   try {
@@ -2064,7 +2320,7 @@ export async function independentReviewCapabilityAvailable(
       .filter((entry) => entry.isDirectory() && entry.name !== "adaptive-goal")
       .map((entry) => entry.name);
   } catch {
-    return false;
+    return [];
   }
   const descriptions = await Promise.all(
     names.map(async (name) => {
@@ -2078,11 +2334,31 @@ export async function independentReviewCapabilityAvailable(
       return frontmatter.match(/^description:\s*(.+)$/m)?.[1]?.trim() ?? "";
     }),
   );
+  return descriptions;
+}
+
+export async function independentReviewCapabilityAvailable(
+  repoDir: string,
+): Promise<boolean> {
+  const descriptions = await installedSkillDescriptions(repoDir);
   return descriptions.some((description) =>
     [
       /\bindependent(?:ly)?\b/i,
       /\breview\b/i,
       /\b(?:code|change|fix)\b/i,
+    ].every((pattern) => pattern.test(description)),
+  );
+}
+
+export async function implementationReadinessCapabilityAvailable(
+  repoDir: string,
+): Promise<boolean> {
+  const descriptions = await installedSkillDescriptions(repoDir);
+  return descriptions.some((description) =>
+    [
+      /\bimplementation[- ]readiness\b/i,
+      /\b(?:assess|assessment|ready)\b/i,
+      /\b(?:ticket|specification|plan|request)\b/i,
     ].every((pattern) => pattern.test(description)),
   );
 }
@@ -2112,15 +2388,26 @@ async function runGoalPreflightPhase(
       route: parseExplicitUserRoute(run.prompt),
       reviewRoundLimit: parseExplicitReviewRoundLimit(run.prompt),
       ledger: prepared.ledger,
+      goalLoop: join(run.repoDir, ".agents", "bin", "goal-loop"),
     },
   );
   if (handoff.workflow !== "decision-gated")
     assertControlRoute(handoff.selectedRoute, run.control?.expectedGoalRoute);
   await recordLedgerRoute(run.repoDir, prepared.ledger, handoff);
+  const readinessAvailable =
+    handoff.readinessGate.selection !== "selected" ||
+    (await implementationReadinessCapabilityAvailable(run.repoDir));
   const reviewAvailable =
     handoff.independentReview.selection !== "selected" ||
     (await independentReviewCapabilityAvailable(run.repoDir));
-  return { threadId, prepared, handoff, reviewAvailable, ...preflight };
+  return {
+    threadId,
+    prepared,
+    handoff,
+    readinessAvailable,
+    reviewAvailable,
+    ...preflight,
+  };
 }
 
 interface ExecutionTurnOptions {
@@ -2278,7 +2565,7 @@ async function renderLedgerReport(
 async function recordPreActivationStop(
   repoDir: string,
   ledger: string,
-  reason: "review-unavailable" | "launch-unavailable",
+  reason: "readiness-unavailable" | "review-unavailable" | "launch-unavailable",
 ): Promise<void> {
   const helper = join(repoDir, ".agents", "bin", "goal-loop");
   const result = await captureProcess(
@@ -2319,6 +2606,27 @@ export function stripModelAuthoredGoalReports(text: string): string {
     retained.push(lines[index]!);
   }
   return retained.join("\n").trim();
+}
+
+export function composeGoalExecutionResult(
+  report: string,
+  ownerText: string,
+  readinessVerdict: string,
+): string {
+  const ownerResult = stripModelAuthoredGoalReports(ownerText);
+  const nonReady = isNonReadyReadinessVerdict(readinessVerdict);
+  const readinessResult = parseImplementationReadinessResult(ownerResult);
+  if (
+    nonReady &&
+    (!readinessResult || readinessResult.verdict !== readinessVerdict)
+  )
+    throw new Error(
+      "non-ready owner result omitted a complete matching implementation-readiness result",
+    );
+  const orderedResult = nonReady
+    ? [ownerResult, report]
+    : [report, ownerResult];
+  return orderedResult.filter(Boolean).join("\n\n");
 }
 
 function recordObjectiveEvidence(
@@ -2438,6 +2746,87 @@ interface GoalOwnerTurnState {
   humanInterruptions: number;
 }
 
+interface GoalOwnerTurnOutcome extends GoalOwnerTurnState {
+  durationMs: number;
+}
+
+function completeNonReadyResult(
+  client: AppServerClient,
+  threadId: string,
+  current: GoalOwnerTurnState,
+): string {
+  const result = current.result.text
+    .trimStart()
+    .startsWith("## Implementation readiness")
+    ? current.result.text
+    : client.latestImplementationReadinessResult(threadId);
+  if (!result)
+    throw new Error(
+      "non-ready owner result omitted the complete implementation-readiness result",
+    );
+  return result;
+}
+
+function goalOwnerPrompt(context: GoalOwnerTurnContext): string {
+  return buildGoalExecutionPrompt(
+    context.phase.handoff,
+    context.workflow.content,
+    context.phase.prepared.intentRoutingGuidance,
+  );
+}
+
+async function settleNonReadyReadiness(
+  context: GoalOwnerTurnContext,
+  confirmTerminal: () => void,
+  current: GoalOwnerTurnState,
+): Promise<GoalOwnerTurnState> {
+  const { client, repoDir, phase } = context;
+  const { threadId, handoff, prepared } = phase;
+  const verdict = await ledgerReadinessVerdict(prepared.ledger);
+  if (!isNonReadyReadinessVerdict(verdict)) return current;
+  const readinessResult = completeNonReadyResult(client, threadId, current);
+  if (current.status === "complete")
+    throw new Error(
+      "non-ready readiness verdict settled the native goal complete",
+    );
+  if (current.status === "blocked")
+    return {
+      ...current,
+      result: { ...current.result, text: readinessResult },
+    };
+
+  const settlement = await startExecutionTurn({
+    client,
+    threadId,
+    repoDir,
+    prompt: readinessStatusSettlementPrompt(verdict),
+    route: handoff.selectedRoute,
+  });
+  client.record({
+    type: "darrow.readiness_status_settlement",
+    verdict,
+    thread_id: threadId,
+    same_owner: true,
+  });
+  const result = await runNativeGoal(
+    client,
+    {
+      threadId,
+      turnId: settlement.turnId,
+      eventCursor: settlement.eventCursor,
+    },
+    confirmTerminal,
+  );
+  const status = await assertGoalOutcome(client, threadId);
+  if (status !== "blocked")
+    throw new Error(`non-ready readiness settlement ended as ${status}`);
+  return {
+    result: { ...result, text: readinessResult },
+    status,
+    humanInterruptions: current.humanInterruptions,
+  };
+}
+
 async function relayGoalFeedback(
   context: GoalOwnerTurnContext,
   confirmTerminal: () => void,
@@ -2473,8 +2862,7 @@ async function relayGoalFeedback(
   });
   const result = await runNativeGoal(
     client,
-    threadId,
-    resumed.eventCursor,
+    { threadId, turnId: resumed.turnId, eventCursor: resumed.eventCursor },
     confirmTerminal,
   );
   const status = await assertGoalOutcome(client, threadId);
@@ -2486,25 +2874,15 @@ async function relayGoalFeedback(
 async function runGoalOwnerTurn(
   context: GoalOwnerTurnContext,
   confirmTerminal: () => void,
-): Promise<{
-  result: TurnOutcome;
-  durationMs: number;
-  status: "complete" | "blocked" | "active" | "paused";
-  humanInterruptions: number;
-}> {
+): Promise<GoalOwnerTurnOutcome> {
   const { client, repoDir, phase, workflow } = context;
   const { threadId, handoff, prepared } = phase;
-  const prompt = buildGoalExecutionPrompt(
-    handoff,
-    workflow.content,
-    prepared.intentRoutingGuidance,
-  );
   const started = performance.now();
   const execution = await startExecutionTurn({
     client,
     threadId,
     repoDir,
-    prompt,
+    prompt: goalOwnerPrompt(context),
     route: handoff.selectedRoute,
   });
   await recordLedgerActivation(repoDir, prepared.ledger, handoff.selectedRoute);
@@ -2518,16 +2896,25 @@ async function runGoalOwnerTurn(
   });
   const result = await runNativeGoal(
     client,
-    threadId,
-    execution.eventCursor,
+    {
+      threadId,
+      turnId: execution.turnId,
+      eventCursor: execution.eventCursor,
+      readinessLedger: prepared.ledger,
+    },
     confirmTerminal,
   );
   const status = await assertGoalOutcome(client, threadId);
-  const final = await relayGoalFeedback(context, confirmTerminal, {
-    result,
-    status,
-    humanInterruptions: 0,
-  });
+  const settledReadiness = await settleNonReadyReadiness(
+    context,
+    confirmTerminal,
+    { result, status, humanInterruptions: 0 },
+  );
+  const final = await relayGoalFeedback(
+    context,
+    confirmTerminal,
+    settledReadiness,
+  );
   const durationMs = performance.now() - started;
   return { ...final, durationMs };
 }
@@ -2566,17 +2953,22 @@ async function runGoalExecutionPhase(
       status: execution.status,
       enforcement: "helper",
     });
+    const readinessVerdict = await ledgerReadinessVerdict(prepared.ledger);
     execution.result = {
       ...execution.result,
-      text: [report, stripModelAuthoredGoalReports(execution.result.text)]
-        .filter(Boolean)
-        .join("\n\n"),
+      text: composeGoalExecutionResult(
+        report,
+        execution.result.text,
+        readinessVerdict,
+      ),
     };
   }
   return { result: execution.result, durationMs: execution.durationMs };
 }
 
 type CodexGoalOutcome = Omit<HarnessResult, "ok" | "durationMs">;
+type PreflightStopReason =
+  "decision-gated" | "readiness-unavailable" | "review-unavailable";
 
 function preflightOnlyMetrics(
   preflight: PreflightPhase,
@@ -2603,15 +2995,11 @@ async function preflightStopOutcome(
   client: AppServerClient,
   repoDir: string,
   preflight: PreflightPhase,
-  reason: "decision-gated" | "review-unavailable",
+  reason: PreflightStopReason,
 ): Promise<CodexGoalOutcome> {
   const started = performance.now();
-  if (reason === "review-unavailable")
-    await recordPreActivationStop(
-      repoDir,
-      preflight.prepared.ledger,
-      "review-unavailable",
-    );
+  if (reason !== "decision-gated")
+    await recordPreActivationStop(repoDir, preflight.prepared.ledger, reason);
   const report = await renderLedgerReport(
     repoDir,
     preflight.prepared.ledger,
@@ -2644,25 +3032,23 @@ async function preflightStopOutcome(
   };
 }
 
+function preflightStopReason(
+  preflight: PreflightPhase,
+): PreflightStopReason | undefined {
+  if (preflight.handoff.workflow === "decision-gated") return "decision-gated";
+  if (!preflight.readinessAvailable) return "readiness-unavailable";
+  if (!preflight.reviewAvailable) return "review-unavailable";
+  return undefined;
+}
+
 async function executeCodexGoal(
   client: AppServerClient,
   run: CodexGoalRunOptions,
 ): Promise<CodexGoalOutcome> {
   const preflight = await runGoalPreflightPhase(client, run);
-  if (preflight.handoff.workflow === "decision-gated")
-    return preflightStopOutcome(
-      client,
-      run.repoDir,
-      preflight,
-      "decision-gated",
-    );
-  if (!preflight.reviewAvailable)
-    return preflightStopOutcome(
-      client,
-      run.repoDir,
-      preflight,
-      "review-unavailable",
-    );
+  const stopReason = preflightStopReason(preflight);
+  if (stopReason)
+    return preflightStopOutcome(client, run.repoDir, preflight, stopReason);
   const execution = await runGoalExecutionPhase(client, run.repoDir, preflight);
   // This adapter creates a fresh thread per trial. The final cumulative
   // total therefore covers every model call in both turns without double

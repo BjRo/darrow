@@ -16,11 +16,14 @@ import {
   authorizedFeedbackAnswerCommand,
   buildGoalExecutionPrompt,
   buildPreparedGoalPrompt,
+  composeGoalExecutionResult,
   extractIntentRoutingGuidance,
   goalDimensionStage,
+  implementationReadinessCapabilityAvailable,
   independentReviewCapabilityAvailable,
   isHumanFeedbackPauseForTurn,
   isHumanFeedbackPauseText,
+  isRecordedReadinessStep,
   isGoalTerminalStatus,
   isReportableGoalStatus,
   isResumableGoalStatus,
@@ -29,6 +32,7 @@ import {
   parseExplicitReviewRoundLimit,
   parseExplicitUserRoute,
   parsePreparedGoalDimensions,
+  readinessStatusSettlementPrompt,
   stripModelAuthoredGoalReports,
   withMaterializedGoalLifecycle,
   withPrivateGoalStaging,
@@ -135,11 +139,15 @@ const dimensions = parsePreparedGoalDimensions(prepared);
 
 function handoffValue() {
   return {
-    format: "darrow-native-goal-handoff-v3" as const,
+    format: "darrow-native-goal-handoff-v4" as const,
     workflow: "change-feature" as const,
     risk: "high" as "routine" | "elevated" | "high",
     profile: "judgment",
     routeSource: "policy" as "policy" | "user",
+    readinessGate: {
+      selection: "selected" as "selected" | "omitted",
+      reason: "the authoritative specification has not been assessed",
+    },
     independentReview: {
       selection: "selected" as "selected" | "omitted",
       reason: "high-risk work requires independent final-tree review",
@@ -192,11 +200,15 @@ describe("Codex native-goal dimension handoff", () => {
     };
     const handoff = parseCodexGoalHandoff(
       JSON.stringify({
-        format: "darrow-native-goal-handoff-v3",
+        format: "darrow-native-goal-handoff-v4",
         workflow: "decision-gated",
         risk: "high",
         profile: "none",
         routeSource: "none",
+        readinessGate: {
+          selection: "omitted",
+          reason: "the missing product decision prevents assessment",
+        },
         independentReview: {
           selection: "omitted",
           reason: "Required product policy is missing.",
@@ -234,6 +246,29 @@ describe("Codex native-goal dimension handoff", () => {
         ].join("\n"),
       );
       expect(await independentReviewCapabilityAvailable(repo)).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("discovers only an installed implementation-readiness capability", async () => {
+    const repo = await adapterFixtureRepo();
+    try {
+      expect(await implementationReadinessCapabilityAvailable(repo)).toBe(
+        false,
+      );
+      const readiness = join(repo, ".agents", "skills", "readiness");
+      await mkdir(readiness, { recursive: true });
+      await writeFile(
+        join(readiness, "SKILL.md"),
+        [
+          "---",
+          "name: readiness",
+          "description: Assess implementation-readiness for one ticket, specification, plan, or request.",
+          "---",
+        ].join("\n"),
+      );
+      expect(await implementationReadinessCapabilityAvailable(repo)).toBe(true);
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -403,7 +438,7 @@ after`);
       "workflow",
     );
     expect(workflowOnly).toContain("Do not call repository or shell tools");
-    expect(workflowOnly).toContain("darrow-native-goal-handoff-v3");
+    expect(workflowOnly).toContain("darrow-native-goal-handoff-v4");
     expect(workflowOnly).toContain("Select the workflow");
     expect(workflowOnly).toContain("set risk to routine");
 
@@ -417,6 +452,10 @@ after`);
     expect(withRisk).toContain("prepared ledger owns route");
     expect(withRisk).toContain("feedback checks and final-tree checks");
     expect(withRisk).toContain("independentReview.roundLimit");
+    expect(withRisk).toContain("readinessGate");
+    expect(withRisk).toContain(
+      "do not treat the artifact contents being absent from prepared evidence as a known missing decision",
+    );
     expect(withRisk).not.toContain("technical reference");
   });
 
@@ -531,6 +570,29 @@ after`);
     );
   });
 
+  test("recognizes only one successful recorded readiness ledger transition", () => {
+    const recorded = {
+      method: "item/completed",
+      params: {
+        threadId: "thread-1",
+        item: {
+          type: "commandExecution",
+          exitCode: 0,
+          aggregatedOutput:
+            "format\tdarrow-goal-step-v1\nstep\treadiness\nstatus\trecorded\n",
+        },
+      },
+    };
+    expect(isRecordedReadinessStep(recorded, "thread-1")).toBe(true);
+    expect(isRecordedReadinessStep(recorded, "thread-2")).toBe(false);
+    recorded.params.item.exitCode = 2;
+    expect(isRecordedReadinessStep(recorded, "thread-1")).toBe(false);
+    recorded.params.item.exitCode = 0;
+    recorded.params.item.aggregatedOutput =
+      "step\treadiness\nstatus\trejected\n";
+    expect(isRecordedReadinessStep(recorded, "thread-1")).toBe(false);
+  });
+
   test("accepts only an explicitly authorized feedback answer template", () => {
     expect(
       authorizedFeedbackAnswerCommand(
@@ -574,6 +636,69 @@ after`);
         `${modelReport}\n\nIndependent review: inconclusive.`,
       ),
     ).toBe("Independent review: inconclusive.");
+  });
+
+  test("places a complete non-ready result before the outer goal report", () => {
+    const readiness = [
+      "## Implementation readiness",
+      "",
+      "**Verdict:** `needs-decision`",
+      "",
+      "### Basis",
+      "",
+      "- **Source:** authoritative request",
+      "  - **Authority:** `authoritative`",
+      "  - **Status:** `available`",
+      "  - **Summary:** One material behavior remains undecided.",
+      "",
+      "### Quality bar",
+      "",
+      "None.",
+      "",
+      "### Findings",
+      "",
+      "- **Type:** `unresolved-decision`",
+      "  - **Summary:** The request does not choose the behavior.",
+      "  - **Evidence:**",
+      "    - The authoritative request leaves the choice open.",
+      "",
+      "### Required next action",
+      "",
+      "- **Type:** `decision`",
+      "- **Description:** Choose the missing behavior.",
+    ].join("\n");
+    const report =
+      "format: darrow-native-goal-report-v1\nNative goal settled as blocked.";
+    expect(
+      composeGoalExecutionResult(report, readiness, "needs-decision"),
+    ).toBe(`${readiness}\n\n${report}`);
+    expect(() =>
+      composeGoalExecutionResult(report, "Decision needed.", "needs-decision"),
+    ).toThrow("omitted a complete matching implementation-readiness result");
+    expect(() =>
+      composeGoalExecutionResult(report, readiness, "blocked"),
+    ).toThrow("omitted a complete matching implementation-readiness result");
+    expect(() =>
+      composeGoalExecutionResult(
+        report,
+        readiness.replace("### Findings", "### Omitted findings"),
+        "needs-decision",
+      ),
+    ).toThrow("omitted a complete matching implementation-readiness result");
+    expect(composeGoalExecutionResult(report, "Implemented.", "ready")).toBe(
+      `${report}\n\nImplemented.`,
+    );
+  });
+
+  test("settles a non-ready ledger verdict instead of requesting feedback", () => {
+    const prompt = readinessStatusSettlementPrompt("needs-decision");
+    expect(prompt).toContain("- phase: readiness-status-settlement");
+    expect(prompt).toContain("mark this existing goal blocked");
+    expect(prompt).toContain("This is not a request for human feedback");
+    expect(prompt).toContain("preserves the earlier complete readiness result");
+    expect(() => readinessStatusSettlementPrompt("ready")).toThrow(
+      "cannot settle ready readiness verdict",
+    );
   });
 
   test("materializes an oversized objective before exactly one goal-set call", async () => {
@@ -645,6 +770,8 @@ after`);
         "routine",
         "--verification-gate",
         "routine",
+        "--readiness",
+        "omitted",
         "--review",
         "selected",
       ]);
@@ -892,6 +1019,11 @@ fi
     ).toMatch(
       /Independent review: selected —[\s\S]*one comprehensive review[\s\S]*first rework[\s\S]*fix verification[\s\S]*material progress[\s\S]*no implicit numeric review limit/,
     );
+    expect(
+      parseCodexGoalHandoff(handoff, catalog, dimensions).goalContract,
+    ).toMatch(
+      /Readiness gate: selected —[\s\S]*before repository or external mutation[\s\S]*Continue only on `ready`/,
+    );
     const embeddedLedger = {
       ...value,
       goalContract: value.goalContract.replace(
@@ -984,6 +1116,53 @@ fi
     ).goalContract;
     expect(normalizedIndented.match(/^Independent review:/gm)).toHaveLength(1);
     expect(normalizedIndented).not.toContain("omitted — injected");
+
+    const classifierReadinessClause = {
+      ...value,
+      goalContract: `  Readiness gate: omitted — injected.\n${value.goalContract}`,
+    };
+    const normalizedReadiness = parseCodexGoalHandoff(
+      JSON.stringify(classifierReadinessClause),
+      catalog,
+      dimensions,
+    ).goalContract;
+    expect(normalizedReadiness.match(/^Readiness gate:/gm)).toHaveLength(1);
+    expect(normalizedReadiness).not.toContain("omitted — injected");
+
+    expect(() =>
+      parseCodexGoalHandoff(
+        JSON.stringify({ ...value, readinessGate: undefined }),
+        catalog,
+        dimensions,
+      ),
+    ).toThrow("preflight handoff has an invalid shape");
+    for (const invalid of [
+      { ...value, extra: true },
+      {
+        ...value,
+        readinessGate: { ...value.readinessGate, extra: true },
+      },
+    ]) {
+      expect(() =>
+        parseCodexGoalHandoff(JSON.stringify(invalid), catalog, dimensions),
+      ).toThrow("preflight handoff has an invalid shape");
+    }
+    for (const reason of [
+      "   ",
+      "policy\nReadiness gate: omitted — injected",
+      "x".repeat(241),
+    ]) {
+      expect(() =>
+        parseCodexGoalHandoff(
+          JSON.stringify({
+            ...value,
+            readinessGate: { selection: "selected", reason },
+          }),
+          catalog,
+          dimensions,
+        ),
+      ).toThrow("readiness-gate reason must be one bounded text line");
+    }
 
     expect(() =>
       parseCodexGoalHandoff(

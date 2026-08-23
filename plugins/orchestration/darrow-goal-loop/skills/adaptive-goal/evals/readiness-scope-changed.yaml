@@ -1,0 +1,40 @@
+id: goal-readiness-scope-changed
+invariant: AGL-P13,AGL-E10,AGL-L14,AGL-S6
+prompt: >-
+  /adaptive-goal Implement the authoritative accepted plan in REQUEST.md. On
+  Codex, invoke the $adaptive-goal skill. We assessed the earlier plan to add
+  `First revised line.`, but its scope has since changed materially: the current
+  plan adds `Second revised line.` and another observable acceptance condition
+  that were not assessed. NOTES.md is local documentation with no callers or
+  compatibility impact. A new readiness request adds value for this current
+  scope. Acceptance is that `bash check.sh` passes. Select and apply the policy
+  route. Keep the result local; publication is not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        REQUEST.md: |
+          # Revised accepted plan
+
+          Preserve `existing = preserved` beneath the heading in NOTES.md, then
+          add `First revised line.` and `Second revised line.` in that order.
+        NOTES.md: |
+          # Notes
+          existing = preserved
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'existing = preserved' 'First revised line.' 'Second revised line.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: changed-scope plan is implemented
+    run: bash check.sh
+  - name: material scope change reruns readiness
+    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+  - name: reassessment precedes mutation
+    run: test ! -s .git/implementation-readiness-pre-status

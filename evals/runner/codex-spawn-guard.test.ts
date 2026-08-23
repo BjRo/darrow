@@ -20,6 +20,7 @@ const contract = [
   "Workflow sequence: Change feature, focused checks, then final checks.",
   "Feedback checks: Run the focused behavior check after each edit.",
   "Final-tree checks: Run the repository test script after implementation.",
+  "Readiness gate: selected — assess the authoritative request before mutation.",
   "Independent review: selected — high-risk final-tree review is required.",
   "Stopping budget: No user-specified numeric limit.",
   "Human feedback: Pause mutation and ask one smallest material question.",
@@ -428,6 +429,28 @@ describe("Codex adaptive-goal spawn guard", () => {
         },
       );
       expect(JSON.stringify(markerOnly)).toContain(
+        "invalid fields: contract_labels",
+      );
+
+      const missingReadiness = await guardCodexSpawn(
+        hookInput(
+          repo,
+          contract
+            .split("\n")
+            .filter((line) => !line.startsWith("Readiness gate:"))
+            .join("\n"),
+        ),
+        {
+          secret: "secret",
+          baselineSha256: current,
+          fixtureStateSha256: fixtureState,
+          requestSha256: "4".repeat(64),
+          objectiveRoot,
+          goalLoopPath: "/plugin/bin/goal-loop",
+          statePath: join(repo, ".git", "guard-state"),
+        },
+      );
+      expect(JSON.stringify(missingReadiness)).toContain(
         "invalid fields: contract_labels",
       );
 

@@ -29,6 +29,7 @@ const COMPLETE_CONTRACT = [
   "Workflow sequence: Change feature, feedback, then final checks.",
   "Feedback checks: Run the focused behavior check after edits.",
   "Final-tree checks: Run the repository test script.",
+  "Readiness gate: omitted — bounded conversational request needs no gate.",
   "Independent review: omitted — routine local work needs no review.",
   "Stopping budget: No user-specified numeric limit.",
   "Human feedback: Pause for the smallest material question.",

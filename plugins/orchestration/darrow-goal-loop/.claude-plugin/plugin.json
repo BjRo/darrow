@@ -1,7 +1,7 @@
 {
   "name": "darrow-goal-loop",
   "description": "Adaptive Goal Loop: compile bounded engineering requests and activate host-native goals on verified routes",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

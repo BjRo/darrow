@@ -1,0 +1,42 @@
+id: goal-readiness-needs-discovery-stops
+invariant: AGL-E7,AGL-E10,AGL-L14,AGL-S6
+prompt: >-
+  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
+  Codex, invoke the $adaptive-goal skill. The specification has not previously
+  been assessed for implementation readiness. Acceptance would be that `bash
+  check.sh` passes, but implementation must stop on any non-ready verdict.
+  Select and apply the policy route. Keep the result local; publication is not
+  authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          needs-discovery
+        REQUEST.md: |
+          # Authoritative request
+
+          Add the exact line `Discovery-gated request completed.` beneath the
+          heading in NOTES.md.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'Discovery-gated request completed.' NOTES.md >/dev/null
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: discovery verdict stops before mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: discovery readiness runs exactly once
+    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+  - name: discovery readiness sees the original tree
+    run: test ! -s .git/implementation-readiness-pre-status
+output_checks:
+  - name: discovery result precedes the blocked outer report
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-discovery`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal settled as blocked\\."
+  - name: discovery result does not claim implementation
+    not_regex: "Native goal completed\\.|Discovery-gated request completed\\."

@@ -47,7 +47,7 @@ validate_ledger_activation() {
     die "ledger state is unavailable"
   ledger_phase=$(ledger_value phase)
   case "$ledger_phase" in
-    active|reviewed) ;;
+    readiness-pending|readiness-stopped|active|reviewed) ;;
     *) die "ledger is not ready for route observation: $ledger_phase" ;;
   esac
   test "$(ledger_value route_applied_by)" = native-subagent &&

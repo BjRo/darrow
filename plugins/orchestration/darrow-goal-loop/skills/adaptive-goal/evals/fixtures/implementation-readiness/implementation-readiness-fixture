@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -eu
+
+repo=$1
+mode=${2:-record}
+case "$mode" in record|render-only) ;; *) exit 2 ;; esac
+verdict_file="$repo/.readiness-verdict"
+test -r "$verdict_file" || {
+  printf '%s\n' 'implementation-readiness-fixture: missing .readiness-verdict' >&2
+  exit 2
+}
+IFS= read -r verdict <"$verdict_file"
+if test "$mode" = record; then
+  git -C "$repo" status --porcelain --untracked-files=all \
+    >"$repo/.git/implementation-readiness-pre-status"
+  printf '%s\n' "$verdict" >>"$repo/.git/implementation-readiness-invocations"
+fi
+
+case "$verdict" in
+  ready)
+    cat <<'EOF'
+## Implementation readiness
+
+**Verdict:** `ready`
+
+### Basis
+
+- **Source:** authoritative fixture specification
+  - **Authority:** `authoritative`
+  - **Status:** `available`
+  - **Summary:** The requested outcome and exact verification command are defined.
+
+### Quality bar
+
+- **Criterion:** The requested fixture behavior is observable.
+  - **Oracle:** The fixture's check script exits zero for the requested content.
+  - **Verification:** Run the repository-provided check script after implementation.
+
+### Findings
+
+None.
+
+### Required next action
+
+- **Type:** `none`
+- **Description:** Begin the bounded implementation under the existing goal authority.
+EOF
+    ;;
+  needs-decision)
+    cat <<'EOF'
+## Implementation readiness
+
+**Verdict:** `needs-decision`
+
+### Basis
+
+- **Source:** authoritative fixture specification
+  - **Authority:** `authoritative`
+  - **Status:** `available`
+  - **Summary:** The request deliberately leaves one product choice unresolved.
+
+### Quality bar
+
+None.
+
+### Findings
+
+- **Type:** `unresolved-decision`
+  - **Summary:** The authoritative request does not select the required behavior.
+  - **Evidence:**
+    - The fixture marks the request as requiring a decision before implementation.
+
+### Required next action
+
+- **Type:** `decision`
+- **Description:** Select the required behavior before implementation starts.
+EOF
+    ;;
+  needs-discovery)
+    cat <<'EOF'
+## Implementation readiness
+
+**Verdict:** `needs-discovery`
+
+### Basis
+
+- **Source:** authoritative fixture specification
+  - **Authority:** `authoritative`
+  - **Status:** `available`
+  - **Summary:** A required behavior boundary has not yet been discovered.
+
+### Quality bar
+
+None.
+
+### Findings
+
+- **Type:** `missing-information`
+  - **Summary:** The request depends on an unverified behavior boundary.
+  - **Evidence:**
+    - The fixture marks the request as requiring discovery before implementation.
+
+### Required next action
+
+- **Type:** `discovery`
+- **Description:** Discover and settle the required behavior boundary before implementation starts.
+EOF
+    ;;
+  blocked)
+    cat <<'EOF'
+## Implementation readiness
+
+**Verdict:** `blocked`
+
+### Basis
+
+- **Source:** authoritative fixture specification
+  - **Authority:** `authoritative`
+  - **Status:** `available`
+  - **Summary:** A required external prerequisite is unavailable.
+
+### Quality bar
+
+None.
+
+### Findings
+
+- **Type:** `dependency`
+  - **Summary:** Implementation cannot begin while the prerequisite is unavailable.
+  - **Evidence:**
+    - The fixture marks the request as externally blocked.
+
+### Required next action
+
+- **Type:** `unblock`
+- **Description:** Restore the required prerequisite before implementation starts.
+EOF
+    ;;
+  *)
+    printf 'implementation-readiness-fixture: unsupported verdict: %s\n' "$verdict" >&2
+    exit 2
+    ;;
+esac
