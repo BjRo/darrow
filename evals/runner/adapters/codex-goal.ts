@@ -370,8 +370,12 @@ export function buildGoalExecutionPrompt(
   handoff: GoalHandoff,
   workflowContent: string,
   intentRoutingGuidance: string,
+  goalLoop?: string,
 ): string {
   const selected = handoff.selectedRoute;
+  const reviewTransition = goalLoop
+    ? `/bin/bash '${goalLoop.replaceAll("'", `'"'"'`)}' step review --ledger <Protocol ledger>`
+    : "goal-loop step review --ledger <Protocol ledger>";
   return [
     "The enclosing app-server launcher set the compiled contract as this thread's active native goal.",
     "Do not call create_goal; this same thread already has the active goal.",
@@ -386,7 +390,7 @@ export function buildGoalExecutionPrompt(
       : "Implementation readiness is omitted for this goal; do not invoke or record a readiness assessment.",
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
     "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
-    "When independent review is selected, record each returned semantic result against its exact target fingerprint with `goal-loop step review --ledger <Protocol ledger>`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.",
+    `When independent review is selected, record each returned semantic result against its exact target fingerprint with \`${reviewTransition}\`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.`,
     "Do not hand-author a darrow-native-goal-report-v1 block. Do not run `goal-loop step release-objective` or `goal-loop step report`; those are enclosing-launcher operations. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
     "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied. A human-feedback pause is nonterminal and must not settle the goal.",
     "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
@@ -691,15 +695,19 @@ function hasTextControl(value: string): boolean {
 function canonicalIndependentReviewClause(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
+  goalLoop?: string,
 ): string {
   const reason = handoff.independentReview.reason.trim();
   if (handoff.independentReview.selection === "omitted")
     return `Independent review: omitted — ${reason}.`;
+  const transition = goalLoop
+    ? `/bin/bash '${goalLoop.replaceAll("'", `'"'"'`)}' step review --ledger <Protocol ledger>`
+    : "goal-loop step review --ledger <Protocol ledger>";
   const limitClause =
     explicitReviewRoundLimit === undefined
       ? "use progress-bounded convergence with no implicit numeric review limit"
       : `use the originating explicit hard cap of at most ${explicitReviewRoundLimit} independent-review capability invocations, including the initial comprehensive review`;
-  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
+  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; record each returned semantic result against its exact target fingerprint with \`${transition}\`; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
 }
 
 function canonicalReadinessGateClause(
@@ -733,6 +741,7 @@ function compileReadinessGateClause(
 function compileIndependentReviewClause(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
+  goalLoop?: string,
 ): void {
   const lines = handoff.goalContract
     .split("\n")
@@ -752,7 +761,11 @@ function compileIndependentReviewClause(
   lines.splice(
     insertAt,
     0,
-    canonicalIndependentReviewClause(handoff, explicitReviewRoundLimit),
+    canonicalIndependentReviewClause(
+      handoff,
+      explicitReviewRoundLimit,
+      goalLoop,
+    ),
   );
   handoff.goalContract = lines.join("\n");
 }
@@ -794,7 +807,11 @@ export function parseCodexGoalHandoff(
     explicitControls.ledger,
   );
   compileReadinessGateClause(handoff, explicitControls.goalLoop);
-  compileIndependentReviewClause(handoff, explicitControls.reviewRoundLimit);
+  compileIndependentReviewClause(
+    handoff,
+    explicitControls.reviewRoundLimit,
+    explicitControls.goalLoop,
+  );
   const contractIssues = goalContractRecordIssues(handoff.goalContract);
   if (contractIssues.length)
     throw new Error(
@@ -2772,6 +2789,7 @@ function goalOwnerPrompt(context: GoalOwnerTurnContext): string {
     context.phase.handoff,
     context.workflow.content,
     context.phase.prepared.intentRoutingGuidance,
+    join(context.repoDir, ".agents", "bin", "goal-loop"),
   );
 }
 
