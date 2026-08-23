@@ -318,7 +318,11 @@ after`);
       "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/SKILL.md",
       "utf8",
     );
-    expect(parentSkill).toContain("roundLimit");
+    const handoffGuidance = readFileSync(
+      "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/references/handoff.md",
+      "utf8",
+    );
+    expect(handoffGuidance).toContain("roundLimit");
     expect(parentSkill).toContain("file-backed objective");
     const canonicalGuidance = extractIntentRoutingGuidance(parentSkill);
     for (const gate of [

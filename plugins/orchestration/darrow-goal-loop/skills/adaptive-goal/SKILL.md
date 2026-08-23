@@ -105,26 +105,6 @@ record it, and render the stop through the helper:
   --status launch-required --human-interruptions 1
 ```
 
-That helper output is:
-
-```text
-format: darrow-native-goal-report-v1
-workflow: decision-gated
-risk: high
-profile: none
-harness: none
-model: none > none
-effort: none
-route_applied_by: none
-route_verified: false
-launch_boundary: launch_required
-verification_gate: not-applicable
-evaluation_child_invocations: 0
-evaluation_human_interruptions: 1
-enforcement: <helper|helper+claude-hooks|helper+codex-hooks>
-Native goal requires host launch.
-```
-
 Name the smallest missing decision and do not activate implementation work.
 
 ## 2. Compile workflow, risk, and route
@@ -603,55 +583,8 @@ authority.
 
 When an enclosing host API requests a preflight handoff, do not edit product
 files, call `create_goal`, or launch a nested session in the classifier turn.
-Return exactly one object and stop that turn:
-
-```json
-{
-  "format": "darrow-native-goal-handoff-v4",
-  "workflow": "<workflow>",
-  "risk": "<routine|elevated|high>",
-  "profile": "<routine|routine-plus|scaled|repo-wide|judgment>",
-  "routeSource": "<policy|user>",
-  "readinessGate": {
-    "selection": "<selected|omitted>",
-    "reason": "<concise non-empty reason>"
-  },
-  "independentReview": {
-    "selection": "<selected|omitted>",
-    "reason": "<concise non-empty reason>"
-  },
-  "selectedRoute": {
-    "harness": "<harness>",
-    "provider": "<provider>",
-    "model": "<concrete-model>",
-    "effort": "<concrete-effort>"
-  },
-  "goalContract": "<complete contract without the readiness or review clauses; target 4,000 bytes without dropping requirements>"
-}
-```
-
-Leave the `Readiness gate:` and `Independent review:` lines out of
-`goalContract` in this host-API handoff. The enclosing launcher validates both
-structured decisions and compiles their canonical portable clauses, replacing
-any redundant lines if present;
-high-risk handoffs that omit review are invalid. Add `roundLimit` as a positive
-integer only when the originating request explicitly supplies that exact
-review-round limit. Omit it for selected progress-bounded convergence and when
-review is omitted. The launcher validates it against the originating request
-and fails closed on a missing, mismatched, ambiguous, or unauthorized limit. It
-compiles both clauses without dropping requirements and
-uses the verified file-backed objective path when the complete contract exceeds
-the native inline limit.
-
-The enclosing launcher validates the selected route against the live host
-catalog and policy profile, loads the exact selected workflow document,
-materializes a bounded inline or file-backed native objective before its first
-goal-set call, sets the native goal exactly once, and starts the execution turn
-with that document plus the selected model and effort. It keeps any file-backed
-contract readable until the goal terminates. Its accepted turn request is
-route-application evidence; a workflow identifier, path, and content hash on
-the same receiving turn is workflow-loading evidence. The handoff alone proves
-neither.
+Read [`references/handoff.md`](references/handoff.md) completely, return its one
+structured handoff object, and stop that turn.
 
 For an interactive invocation, read exactly one host launch guide completely:
 
@@ -695,34 +628,11 @@ template below. Render its fixed report through the helper command in Section
 or goal was activated, never replace its `none`, `false`, `launch_required`,
 `not-applicable`, zero-child, or one-interruption values with selected-route or
 ordinary launch values.
-Except for that non-ready implementation-readiness result, every terminal final response must begin with the exact helper-rendered
-human-readable report and canonical terminal sentence. Its `format:` line is the first
-non-whitespace line; do not put prose, a heading, a bullet, or a Markdown code
-fence before or around it. Use one `key: value` per line, combine the effective
-provider and model with ` > `, and keep effort separate:
-
-```text
-format: darrow-native-goal-report-v1
-workflow: <workflow>
-risk: <routine|elevated|high>
-profile: <routine|routine-plus|scaled|repo-wide|judgment|none>
-harness: <harness|none>
-model: <provider|none> > <model|none>
-effort: <effort|none>
-route_applied_by: <current-thread|host-api|native-subagent|nested-session|none>
-route_verified: <true|false>
-launch_boundary: <same_thread|host_api|native_subagent|nested_session|launch_required>
-verification_gate: <routine|elevated|high|not-applicable>
-evaluation_child_invocations: <integer>
-evaluation_human_interruptions: <integer>
-enforcement: <helper|helper+claude-hooks|helper+codex-hooks>
-```
-
-Copy the first line with its `format:` key and colon; a bare
-`darrow-native-goal-report-v1` heading is not the report format. For a delegated
-owner, attribute changed-file and verification evidence to the collected
-terminal result. Do not claim that the parent inspected, reran, rechecked, or
-independently verified repository work after the owner returned.
+Except for that non-ready implementation-readiness result, every terminal final
+response begins with the exact helper-rendered report and canonical terminal
+sentence. Put no prose, heading, bullet, or Markdown fence before or around it.
+For a delegated owner, attribute changed-file and verification evidence to the
+collected result; do not claim parent-thread inspection or revalidation.
 
 Do not reproduce the tab-separated ledger in the final response. Never copy
 the selected route into `harness`, `model`, or `effort` without effective-route
