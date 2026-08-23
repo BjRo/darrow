@@ -25,6 +25,14 @@ workflow loading, and route application are separate: completion succeeds only
 when host or launcher evidence proves the selected workflow was supplied and
 provider, model, and effort are identical.
 
+For authoritative tickets, specifications, or plans that have not already been
+assessed at the same scope, the contract can select an installed
+implementation-readiness capability before mutation. A prior semantic
+discussion counts as assessment, material scope changes may justify another
+gate, and users may skip the default gate unless repository or delegating
+orchestration policy requires it. The ledger records the selection and semantic
+verdict; only `ready` unlocks implementation.
+
 The goal owner returns its launch evidence as readable `key: value` lines. The
 model field combines provider and model as `provider > model`, while effort is
 reported separately.
@@ -72,7 +80,7 @@ Interactive activation uses a private `TMPDIR` step ledger and a separate
 mode-0700 per-run staging directory. The helper
 validates ordered preparation, catalog-backed route selection, objective
 digests and releases, host-observed owner activation, independent-review
-target history, closed review transitions and limits, pre-activation launch
+target history, readiness selection and verdict, closed review transitions and limits, pre-activation launch
 stops, and terminal reporting. It persists and renders the canonical report,
 review sentences, and terminal sentence from validated state. This ledger is evidence protocol, not
 pipeline orchestration: it schedules no stages, assigns no agent roles, and

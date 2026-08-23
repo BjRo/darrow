@@ -1,0 +1,41 @@
+id: goal-readiness-nonready-stops
+invariant: AGL-E7,AGL-E10,AGL-L14,AGL-S6
+prompt: >-
+  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
+  Codex, invoke the $adaptive-goal skill. The specification has not previously
+  been assessed for implementation readiness. Acceptance would be that `bash
+  check.sh` passes, but implementation must stop on any non-ready verdict.
+  Select and apply the policy route. Keep the result local; commits, pushes,
+  pull requests, and other publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          needs-decision
+        REQUEST.md: |
+          # Authoritative request
+
+          Choose and write either `mode = safe` or `mode = fast` to policy.txt.
+        policy.txt: |
+          mode = undecided
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -E '^mode = (safe|fast)$' policy.txt >/dev/null
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: non-ready verdict stops before mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: non-ready readiness runs exactly once
+    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+  - name: readiness sees the original product tree
+    run: test ! -s .git/implementation-readiness-pre-status
+output_checks:
+  - name: complete readiness result precedes outer report
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal settled as blocked\\."
+  - name: non-ready result does not claim implementation
+    not_regex: "Native goal completed\\.|Implemented policy|mode = safe|mode = fast"

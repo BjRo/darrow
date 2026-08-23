@@ -15,9 +15,10 @@ enclosing-harness comparison control, not a user override. Select one workflow
 and proportional risk, then choose the semantic profile and matching concrete
 policy route from the prepared evidence.
 
-Return only the requested `darrow-native-goal-handoff-v3` object. Set
+Return only the requested `darrow-native-goal-handoff-v4` object. Set
 `routeSource` to `policy` unless the engineering request explicitly pins a
-route. Put the bounded engineering contract in `goalContract`. It must require
+route. Return the structured readiness decision requested by the prepared
+prompt and leave its prose clause to the adapter. Put the bounded engineering contract in `goalContract`. It must require
 the execution turn to follow the selected workflow, satisfy the risk gate,
 implement and verify the task, complete the active native goal, avoid commits
 and publication, preserve the adapter-supplied protocol-ledger reference, and

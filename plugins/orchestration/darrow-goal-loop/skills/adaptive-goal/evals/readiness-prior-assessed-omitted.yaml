@@ -1,0 +1,37 @@
+id: goal-readiness-prior-assessed-omitted
+invariant: AGL-P13,AGL-E10
+prompt: >-
+  /adaptive-goal Implement the authoritative accepted plan in REQUEST.md. On
+  Codex, invoke the $adaptive-goal skill. In this preserved conversation we
+  already assessed this exact current plan: REQUEST.md is authoritative, the
+  insertion text and location remove product ambiguity, `check.sh` is an
+  independent feasible oracle, and there are no unresolved dependencies or
+  permissions. We resolved every readiness finding, confirmed it ready, and
+  have not changed its scope, acceptance criteria, or constraints. Do not
+  repeat work that adds no value. Acceptance is that `bash check.sh` passes.
+  Select and apply the policy route. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        REQUEST.md: |
+          # Accepted plan
+
+          Add `Previously assessed.` beneath the heading in NOTES.md.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Previously assessed.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: previously assessed plan is implemented
+    run: bash check.sh
+  - name: prior assessment suppresses redundant readiness
+    run: test ! -e .git/implementation-readiness-invocations

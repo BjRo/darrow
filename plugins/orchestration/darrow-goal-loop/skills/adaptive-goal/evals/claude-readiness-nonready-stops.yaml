@@ -1,0 +1,69 @@
+id: claude-readiness-nonready-stops
+invariant: AGL-E7,AGL-E10,AGL-L9,AGL-L14,AGL-S6
+prompt: >-
+  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
+  Claude, invoke the $adaptive-goal skill. Repository policy requires an
+  implementation-readiness assessment before mutation, and implementation must
+  stop on any non-ready verdict. Acceptance would be that bash check.sh passes.
+  Select and apply the policy route. Keep the result local; publication is not
+  authorized. Follow the skill's numbered Claude launch sequence literally.
+  Before its one Agent starts, use only native Read, Glob, or Grep for
+  inspection. The repository is `{{repo_dir}}` and the helper directory is
+  `{{repo_dir}}/.git/eval-plugin/bin`; no path discovery is needed. Make the
+  first protocol-bearing Bash call exactly `/bin/bash
+  {{repo_dir}}/.git/eval-plugin/bin/goal-loop step start --repo {{repo_dir}}
+  --host claude`, then pass its returned ledger path to every subsequent helper
+  step. Do not use Bash `pwd` before the owner or `git status` after it. After
+  the Agent returns, use only the exact route gate, objective-release when
+  required, and terminal report calls. Never invoke a skill, send a message,
+  schedule a wakeup, or retry readiness after the Agent returns. If route
+  observation is unavailable, render the truthful `launch-required` report and
+  stop. For the non-ready ordering exception, begin the final response with the
+  complete implementation-readiness result and place the raw terminal `format:`
+  report after it. Paste the helper output verbatim with no Markdown code fence
+  before or around it, and make no further tool call after the report succeeds.
+  The readiness result already contains the next action; put no explanation,
+  ledger summary, or other prose between that result and the `format:` report.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Readiness policy
+
+          Every adaptive-goal implementation must assess implementation
+          readiness before repository mutation.
+        .readiness-verdict: |
+          needs-decision
+        REQUEST.md: |
+          # Authoritative request
+
+          Add the exact line `Claude non-ready request completed.` beneath the
+          heading in NOTES.md.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'Claude non-ready request completed.' NOTES.md >/dev/null
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" claude
+checks:
+  - name: Claude non-ready verdict stops before mutation
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: Claude complete readiness result precedes outer report
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal (?:settled as blocked|requires host launch)\\."
+  - name: Claude non-ready result does not claim implementation
+    not_regex: "Native goal completed\\.|Claude non-ready request completed\\."
+transcript_checks:
+  - name: Claude non-ready readiness invokes the capability exactly once
+    expect_regex: '"name":"Skill"[^\r\n]*"skill":"assess-implementation-readiness"'
+  - name: Claude non-ready readiness does not retry the capability
+    not_regex: '"name":"Skill"[^\r\n]*"skill":"assess-implementation-readiness"[\s\S]*"name":"Skill"[^\r\n]*"skill":"assess-implementation-readiness"'
+  - name: Claude non-ready readiness uses one foreground goal owner
+    expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"\}[\s\S]*"type":"darrow.goal_agent_completion","tool_use_id":"\1"'
+  - name: Claude non-ready readiness launches no replacement owner
+    not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"[\s\S]*"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"'

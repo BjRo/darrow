@@ -92,7 +92,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
     ),
     ...exchange(
       "toolu_route",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow change-feature --risk routine --profile routine --verification-gate routine --review omitted`,
+      `/bin/bash ${context.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow change-feature --risk routine --profile routine --verification-gate routine --readiness omitted --review omitted`,
       [
         "format\tdarrow-goal-step-v1",
         "run_id\tfixture",
@@ -103,6 +103,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         "risk\troutine",
         "profile\troutine",
         "verification_gate\troutine",
+        "readiness_selection\tomitted",
         "review_selection\tomitted",
         "selected_route\tclaude|anthropic|claude-sonnet-5|low",
         "route_source\tpolicy",
@@ -1398,7 +1399,7 @@ describe("Claude skill activation observation", () => {
             name: "Bash",
             id: routeId,
             input: {
-              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow decision-gated --risk high --profile none --verification-gate not-applicable --review omitted`,
+              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow decision-gated --risk high --profile none --verification-gate not-applicable --readiness omitted --review omitted`,
             },
           },
         ],

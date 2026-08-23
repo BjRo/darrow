@@ -70,8 +70,9 @@ Stop before activation if this exact release fails. The inline objective is
 already held in memory for the native call; the file-backed copy remains in its
 helper-owned attachment until terminal cleanup.
 
-If selected review, the exact launch boundary, or a required enforcement
-boundary is unavailable before activation, record `goal-loop step launch-stop`
+If selected readiness, selected review, the exact launch boundary, or a
+required enforcement boundary is unavailable before activation, record
+`goal-loop step launch-stop`
 with the matching reason, release any materialized attachment, and render the
 helper's `launch_required` report. Do not activate or implement first.
 
@@ -92,6 +93,13 @@ bash "$goal_loop" step activate --ledger <absolute-ledger> \
 ```
 
 Do not create a child agent or shell process around this boundary.
+
+When the compiled contract selects implementation readiness, invoke the
+matching installed capability and record its semantic verdict with the exact
+absolute `goal-loop step readiness` transition before any repository or
+external mutation. Only `ready` unlocks implementation. A non-ready verdict
+settles the goal as blocked and preserves the complete readiness result before
+the outer report.
 
 If a material decision first emerges after activation, leave the goal active,
 pause repository and external mutation, and ask the user the smallest concrete
@@ -125,8 +133,12 @@ application boundary. Confirm that exact route with `--applied-by host-api`,
 record `host_api`, and count zero children. Do not try to discover or connect to
 an enclosing app-server socket from a repository shell.
 
-Before setting the goal, if independent review is selected, the enclosing
-client confirms that its installed capability catalog already exposes a
+Before setting the goal, if implementation readiness is selected, the
+enclosing client confirms that its installed capability catalog already
+exposes a matching implementation-readiness assessment capability. If not, it
+records `goal-loop step launch-stop --reason readiness-unavailable`, renders
+the `launch-required` report, and performs no product mutation. It performs the
+equivalent check when independent review is selected: the catalog must expose a
 matching independent code-change review capability. If not, it records
 `goal-loop step launch-stop --reason review-unavailable`, renders the
 `launch-required` report, and performs no product mutation.
@@ -178,8 +190,9 @@ accepted task already makes the runner the sole goal owner: it executes the
 contract directly without repeating adaptive-goal preflight, seeking another
 Darrow owner, or calling `create_goal`. It MUST NOT call `goal-loop step
 activate`, release the objective, or render the terminal ledger report; those
-are creator-owned lifecycle operations. It may record its own selected-review
-outcomes through `goal-loop step review`. It reads and verifies a file-backed
+are creator-owned lifecycle operations. It may record its own selected-readiness
+verdict through `goal-loop step readiness` and selected-review outcomes through
+`goal-loop step review`. It reads and verifies a file-backed
 contract before work, owns it through completion or a material-feedback pause,
 runs the workflow and risk gates, and returns terminal status plus changed-file,
 verification, review, risk, and publication facts to its creator. If a material decision
@@ -210,6 +223,12 @@ each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe
 planner, executor, verifier, or repair roles, and do not create another Darrow
 runner beneath it.
+
+For a selected readiness gate, the runner invokes the matching capability
+before mutation, preserves its complete human-readable result, and records the
+semantic verdict in the ledger. It continues only on `ready`. Any other
+verdict returns `blocked` without mutation and places the complete readiness
+result plus smallest useful next action before the creator's outer report.
 
 For a selected review gate, tell the runner to preserve the compiled lifecycle:
 one comprehensive initial review, one all-eligible first rework, then
@@ -294,7 +313,9 @@ exactly once:
 ```
 
 Return that exact helper output first, followed by the runner's collected
-changed-file, verification, review, risk, feedback, and publication facts.
+changed-file, verification, review, risk, feedback, and publication facts. For
+a non-ready implementation-readiness verdict only, preserve the complete
+readiness result first and place that exact blocked helper output after it.
 Ignore any child-authored report block; only the creator's helper call is the
 terminal report authority.
 

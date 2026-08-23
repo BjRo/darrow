@@ -28,7 +28,7 @@ request + repository -> preflight -> host goal owner -> native completion
 The bundled helper maintains a private, temporary protocol-evidence ledger for
 one explicitly invoked run. That ledger authenticates the ordering and inputs
 of preflight, route selection, objective materialization, activation evidence,
-review outcomes, cleanup, and terminal reporting. It is not an execution
+readiness verdicts, review outcomes, cleanup, and terminal reporting. It is not an execution
 controller: it never schedules work, invokes a model or capability, selects a
 repair, retries a failed phase, or decides whether semantic work should
 continue. The one host-native goal owner retains all implementation,
@@ -109,6 +109,8 @@ native goal. It contains:
 - preserved local-work and permission boundaries;
 - the selected workflow, risk, semantic profile, model, effort, and any
   user-specified stopping budget;
+- whether the implementation-readiness gate is selected and why, plus its
+  portable pre-mutation continuation clause when selected;
 - the selected independent-review gate, when risk, repository policy, or the
   user requires one, including any explicit user-supplied review limit;
 - the final evaluation records required by this capability.
@@ -172,6 +174,76 @@ publication effects only when each effect was explicitly authorized by the
 originating request and current host policy. Preflight preserves and enumerates
 that authority; it never derives publication authority from successful
 implementation or goal completion.
+
+### Implementation-readiness composition
+
+Implementation readiness is an optional intent-matched capability gate, not a
+planning or assessment phase owned by adaptive-goal. Preflight selects it by
+this policy:
+
+| Situation                                                                                                      | Readiness selection                                                         |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| The request derives its authority from an unassessed ticket, specification, or explicitly accepted plan        | Select by default                                                           |
+| Repository policy, the user, or a delegating orchestration explicitly requires readiness                       | Select                                                                      |
+| The request is a bounded conversational request without an authoritative artifact                              | Omit                                                                        |
+| Preserved context establishes that the same current authority and scope already completed readiness assessment | Omit                                                                        |
+| The user explicitly skips the default gate                                                                     | Omit unless repository policy or delegating orchestration still requires it |
+
+An explicitly accepted plan is authoritative whether it is persisted in a file
+or accepted in the preserved conversation. Prior assessment is contextual and
+semantic: it exists when preserved context records that readiness was completed
+and every blocking finding was resolved for the same authority and scope. A
+mere assertion that assessment happened is not evidence. Material changes to
+scope, acceptance criteria, the authoritative source, or applicable constraints
+invalidate that evidence when another readiness assessment can change whether
+implementation should start. Irrelevant edits do not force a redundant gate.
+
+The compiled contract MUST state exactly one `Readiness gate: selected —
+<reason>` or `Readiness gate: omitted — <reason>` line. For a structured
+host-API handoff, `darrow-native-goal-handoff-v4` carries the authoritative
+selection and reason in a separate `readinessGate` object. The classifier omits
+the prose line from `goalContract`; the enclosing launcher validates the
+structured decision, removes any redundant classifier-written line, and
+compiles the canonical clause. Missing, empty, contradictory, or extra
+readiness fields fail closed.
+
+When selected, the clause requests an available environment capability matching
+the intent **assess implementation readiness of this authoritative request**.
+It MUST NOT name or assume a plugin, sibling path, readiness-capability command, or result
+serialization, and composition alone MUST NOT request JSON. The read-only
+classifier or enclosing launcher proves before activation that the host exposes
+a compatible capability. Generic delegation, an ad hoc assessment prompt, or a
+capability created during the run is not availability evidence. When the gate
+is unavailable, preflight records `readiness-unavailable`, performs no product
+mutation, and stops as `launch_required` with `Implementation readiness
+availability: unavailable.`
+
+The goal owner invokes the proven capability after activation and before any
+repository or external mutation. The portable clause matches the composition
+contract in `implementation-readiness.md`: continue only on an explicit
+`ready`; otherwise stop and preserve the complete readiness result and smallest
+next action. A ready result returns its concrete quality bar to the goal owner
+without adding implementation or publication authority. A non-ready result
+settles the enclosing goal as blocked and permits no product mutation. It is a
+terminal gate result, not a newly emerged human-feedback question; the generic
+feedback-pause rule MUST NOT convert it into a resumable pause.
+
+Readiness selection and outcome are protocol-ledger evidence. Routing records
+`selected` or `omitted`. A selected gate activates into a readiness-pending
+state, and the owner records exactly one semantic verdict through the bundled
+helper before work. Only `ready` unlocks the ordinary active state;
+`needs-discovery`, `needs-decision`, or `blocked` closes the mutation gate and
+allows only terminal collection, cleanup, and reporting. For a
+filesystem-sharing delegated owner, the selected clause identifies the
+launcher's absolute bundled `goal-loop` executable solely for that evidence
+call against `Protocol ledger:`. The ledger stores the semantic selection and
+verdict, not the capability's complete result, and never invokes or parses the
+capability itself.
+
+When a selected readiness gate returns non-ready, the complete human-readable
+readiness result is the first response content. The exact helper-rendered native
+goal report follows it as the required outer record. This narrow ordering
+exception preserves both contracts; `darrow-readiness-gate` remains unchanged.
 
 ### Independent review composition
 
@@ -532,8 +604,9 @@ before starting work.
 
 ### Launch record and completion report
 
-Preparation, routing, materialization, activation, review, cleanup, and terminal
-reporting produce `darrow-goal-step-v1` evidence records in prerequisite order.
+Preparation, routing, materialization, activation, readiness, review, cleanup,
+and terminal reporting produce `darrow-goal-step-v1` evidence records in
+prerequisite order.
 The helper-owned protocol ledger MUST carry the internal workflow, risk,
 profile, selected and effective routes, application boundary, verification,
 counters, enforcement tier, and cleanup values. The compiled goal contract
@@ -556,9 +629,13 @@ response-only validation that exactly one contiguous report block begins with
 If it is absent or malformed, the sender uses the exact helper-persisted output;
 it never reconstructs fields. This validation reads no repository state.
 
-Every terminal response MUST begin with the human-readable completion record.
-The first non-whitespace line is the `format:` line: no prose, heading, bullet,
-or Markdown code fence precedes or wraps the record.
+Except for the selected non-ready readiness outcome below, every terminal
+response MUST begin with the human-readable completion record. The first
+non-whitespace line is the `format:` line: no prose, heading, bullet, or
+Markdown code fence precedes or wraps the record. When selected readiness
+returns `needs-discovery`, `needs-decision`, or `blocked`, the complete
+human-readable readiness result MUST precede the exact helper report, and no
+other content may precede that result.
 The native goal carries the values forward and reports them to its caller. Each
 field uses `key: value`; the effective provider and model form one `model` value
 separated by `>`, while effort remains its own field:
@@ -677,12 +754,18 @@ the least launch machinery the host supports.
     exactly one nonempty value for each of these canonical labels before its
     internal launch record: `Outcome`, `Acceptance criteria`, `Scope`,
     `Non-goals`, `Preserved work`, `Permissions`, `Workflow sequence`,
-    `Feedback checks`, `Final-tree checks`, `Independent review`,
+    `Feedback checks`, `Final-tree checks`, `Readiness gate`, `Independent review`,
     `Stopping budget`, `Human feedback`, and `Completion report`. A label may
     reference repository facts or state that no optional authority or budget
     exists, but it MUST NOT be omitted. The launch boundary authenticates one
     digest for this complete contract; caller-facing evals do not reconstruct
     completeness from duplicated report-field regexes.
+13. **AGL-P13 — Canonical readiness selection.** Preflight applies the
+    authoritative-artifact, preserved-assessment, explicit-requirement, and
+    user-skip policy. A structured handoff carries exactly one validated
+    `readinessGate` decision, and the launcher compiles its portable intent and
+    semantic continuation without naming a capability implementation or
+    requesting JSON.
 
 ### Routing invariants
 
@@ -743,9 +826,10 @@ the least launch machinery the host supports.
    terminates that step; it MUST NOT release exclusivity and then continue.
 3. **AGL-E3 — Evidence, not execution control.** The ledger records
    caller-chosen workflow, risk, profile, routes, objective identity, owner and
-   review evidence, counters, cleanup, and report fields. It MUST NOT select or
-   invoke a workflow, model, goal owner, reviewer, repair, retry, continuation,
-   publication effect, or terminal goal status.
+   readiness and review evidence, counters, cleanup, and report fields. It MUST
+   NOT select or invoke a workflow, model, goal owner, readiness assessor,
+   reviewer, repair, retry, continuation, publication effect, or terminal goal
+   status.
 4. **AGL-E4 — Bound objective identity.** Materialization verifies a
    caller-supplied SHA-256 digest. A Claude run mechanically requires the
    Claude host and file-backed materialization; another host cannot claim that
@@ -796,12 +880,14 @@ the least launch machinery the host supports.
    delegated owner only while the ledger retains its provisional activation,
    the persistent launch claim is present, and the hook's `agent_type` exactly
    matches the resolved runner (with or without its plugin qualification). That
-   owner may read the helper-owned objective attachment and use repository
-   tools while active; unrelated descendants and direct protocol-state access
-   remain denied. An exact verified `current-thread`/`same_thread` activation
-   makes that session the owner and permits its repository tools while the
-   owner is active, but direct protocol-state access and terminal-phase
-   mutation remain denied.
+   owner may read the helper-owned objective attachment and use read-only
+   repository tools while readiness is pending. Covered product writes and
+   patches remain denied until selected readiness records `ready`; omitted
+   readiness enters the ordinary active state immediately. Unrelated
+   descendants and direct protocol-state access remain denied. An exact
+   verified `current-thread`/`same_thread` activation makes that session the
+   owner under the same readiness mutation barrier, while direct protocol-state
+   access and terminal-phase mutation remain denied.
    A failed Agent call reconciles the provisional activation to a zero-child
    launch-unavailable stop before cleanup and reporting. After an accepted
    terminal Stop, per-run hook bindings and sidecars are removed so later
@@ -812,7 +898,9 @@ the least launch machinery the host supports.
    model MUST NOT hand-author or translate those records. The helper persists
    the exact report together with its canonical terminal sentence; a trusted
    Stop hook requires the final response to begin with that exact output and
-   contain exactly one report. The final
+   contain exactly one report, except that a selected non-ready readiness result
+   precedes the exact report as the companion capability contract requires. The
+   final
    `enforcement` field truthfully discloses whether only the helper or helper
    plus trusted host hooks supplied evidence. Both `complete` and `blocked`
    reports after activation require a resolved owner identity and verified
@@ -824,11 +912,20 @@ the least launch machinery the host supports.
    observation exits zero as a bounded observation
    result, records no confirmation, and can only produce an unverified
    `launch_required` report.
-9. **AGL-E9 — Pre-activation terminal evidence.** A selected reviewer that is
-   unavailable, an unavailable exact launch boundary, or an unavailable
-   required enforcement boundary is recorded before activation as a terminal
-   launch stop. Any materialized objective is released, no product work starts,
-   and only the helper-rendered `launch_required` report may follow.
+9. **AGL-E9 — Pre-activation terminal evidence.** A selected readiness or
+   review capability that is unavailable, an unavailable exact launch boundary,
+   or an unavailable required enforcement boundary is recorded before
+   activation as a terminal launch stop. Any materialized objective is
+   released, no product work starts, and only the helper-rendered
+   `launch_required` report may follow.
+10. **AGL-E10 — Readiness-state evidence.** Routing records readiness as
+    `selected` or `omitted`. Selected readiness activation enters exactly one
+    pending state and accepts exactly one semantic verdict. Only `ready`
+    unlocks product mutation and ordinary active work. `needs-discovery`,
+    `needs-decision`, or `blocked` terminalizes the mutation gate and prevents
+    a complete report. Omitted readiness rejects outcome evidence. The ledger
+    neither stores the complete readiness result nor parses or invokes the
+    matching capability.
 
 ### Launch invariants
 
@@ -905,8 +1002,9 @@ the least launch machinery the host supports.
    out-of-root candidates remain launch failures.
    When trusted hooks do not record it, the creator records that accepted
    native-subagent activation with the host-reported agent id immediately
-   after spawn acceptance and before waiting. The runner may then record review
-   evidence but never activation, objective release, or the terminal report.
+   after spawn acceptance and before waiting. The runner may then record
+   readiness and review evidence but never activation, objective release, or
+   the terminal report.
    After collecting the terminal result, the creator performs exact helper
    cleanup and renders the helper-owned report without repository inspection.
    Host-native delegation beneath the runner remains visible and is not
@@ -936,7 +1034,7 @@ the least launch machinery the host supports.
    route, and `route_verified: false`; trusted hook enforcement validates that
    transition before accepting Agent. No other unverified activation shape is
    valid, and every non-provisional activation requires route verification.
-   This makes the ledger available to the sole owner for selected review
+   This makes the ledger available to the sole owner for selected readiness and review
    without claiming post-run route evidence. No terminal report may be rendered
    while the id is pending or the route is unverified. A trusted hook validates
    and reuses the already-valid helper activation rather than recording a
@@ -1020,6 +1118,13 @@ the least launch machinery the host supports.
     the explicit answer, and start the continuation on that same thread and
     selected route. This is a zero-child host-API relay, not a replacement goal
     owner; the resumed owner still performs any acknowledgement itself.
+14. **AGL-L14 — Readiness-gated continuation.** A selected readiness gate runs
+    after owner activation and before repository or external mutation. The
+    owner preserves the capability's complete ordinary result, records exactly
+    one semantic verdict through the protocol ledger, and continues only after
+    `ready` returns a concrete quality bar. Every non-ready verdict prevents
+    mutation, settles the goal as blocked, and returns the complete readiness
+    result before the outer native-goal report.
 
 ### Safety invariants
 
@@ -1045,6 +1150,11 @@ the least launch machinery the host supports.
    may occur after blocking findings or an unavailable or inconclusive review,
    or against content changed after review. A clear review grants no new
    publication authority.
+6. **AGL-S6 — Readiness before mutation.** When readiness is selected, no
+   repository or external mutation may occur until the matching capability
+   returns `ready` and that verdict is recorded. A user may explicitly skip the
+   default artifact-derived gate, but cannot silently override a repository or
+   delegating-orchestration requirement.
 
 ## Packaging and portability
 
@@ -1075,8 +1185,8 @@ the least launch machinery the host supports.
    the plugin.
 5. **AGL-X5 — Portable shell.** Bundled shell mechanics support Bash 5 and
    `/bin/bash` 3.2 and refuse unreadable configuration.
-6. **AGL-X6 — Environment capability mapping.** Review composition depends only
-   on the independent-review intent and semantic outcome, allowing the
+6. **AGL-X6 — Environment capability mapping.** Readiness and review
+   composition depend only on their intent and semantic outcomes, allowing the
    environment to provide implementations with ordinary prose, native command,
    or structured responses.
 7. **AGL-X7 — Inert eval skills.** A checked-in eval fixture MUST NOT use the
@@ -1170,6 +1280,19 @@ the least launch machinery the host supports.
     and continuation preserves the original scope and authority. An unavailable
     feedback relay stops honestly; a pending answer is never reported as
     completion or blockage while relay remains available.
+15. Evaluate readiness composition with an unassessed artifact-derived request
+    that selects and invokes the gate before mutation, a bounded conversational
+    request that omits it, preserved prior-assessment context that omits a
+    redundant gate, a material scope change that makes reassessment valuable,
+    an explicit user skip, a higher-authority requirement that
+    survives that skip, a selected unavailable capability that stops before
+    activation and mutation, a `ready` verdict that unlocks work, and each
+    non-ready verdict that blocks without mutation. Exercise strict v4 handoff
+    validation, duplicate-label rejection, readiness ledger ordering, covered
+    hook mutation denial, and companion-result-before-outer-report ordering on
+    Codex and Claude. Compare candidate and control trials under the same
+    fixtures, prompts, checks, harness, model, and effort, reporting trial count
+    and limitations.
 
 ## Non-goals
 
@@ -1188,3 +1311,5 @@ the least launch machinery the host supports.
   capabilities for those effects.
 - Implementing code-review judgment, fresh reviewer fan-out, or review result
   validation inside adaptive-goal.
+- Implementing readiness judgment or assuming a particular readiness plugin,
+  command, result serialization, or sibling-plugin installation.

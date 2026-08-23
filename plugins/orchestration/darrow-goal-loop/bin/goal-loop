@@ -12,15 +12,16 @@ usage() {
 usage:
   goal-loop step start --repo <path> --host <codex|claude>
   goal-loop step prepare --ledger <absolute-path>
-  goal-loop step route --ledger <absolute-path> --workflow <id> --risk <level> --profile <profile> --verification-gate <gate> --review <selected|omitted> [--review-round-limit <integer>] [--route <harness|provider|model|effort>]
+  goal-loop step route --ledger <absolute-path> --workflow <id> --risk <level> --profile <profile> --verification-gate <gate> --readiness <selected|omitted> --review <selected|omitted> [--review-round-limit <integer>] [--route <harness|provider|model|effort>]
   goal-loop step runner --ledger <absolute-path> --provider <id> --model <id> --effort <level>
   goal-loop step stage --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step materialize --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step release-staging --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> --agent-id <id|none> --effective-route <route> --route-verified <true|false> [--enforcement <tier>]
   goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable> [--enforcement <tier>]
+  goal-loop step readiness --ledger <absolute-path> --verdict <ready|needs-discovery|needs-decision|blocked>
   goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> <--target-fingerprint <literal>|--target-sha256 <digest>> --outcome <enum> [--finding <text>]
-  goal-loop step launch-stop --ledger <absolute-path> --reason <review-unavailable|launch-unavailable|enforcement-unavailable>
+  goal-loop step launch-stop --ledger <absolute-path> --reason <readiness-unavailable|review-unavailable|launch-unavailable|enforcement-unavailable>
   goal-loop step release-objective --ledger <absolute-path> --attachment-dir <path> --expected-sha256 <digest>
   goal-loop step report --ledger <absolute-path> --status <complete|blocked|launch-required> --human-interruptions <integer>
   goal-loop prepare --repo <path> --host <codex|claude>
@@ -1060,6 +1061,8 @@ step_start() {
     printf 'risk\tnone\n'
     printf 'profile\tnone\n'
     printf 'verification_gate\tnot-applicable\n'
+    printf 'readiness_selection\tnone\n'
+    printf 'readiness_verdict\tnone\n'
     printf 'review_selection\tnone\n'
     printf 'review_round_limit\tnone\n'
     printf 'review_count\t0\n'
@@ -1120,6 +1123,7 @@ step_route() {
   step_risk=
   step_profile=
   step_verification_gate=
+  step_readiness_selection=
   step_review_selection=
   step_review_round_limit=none
   step_explicit_route=
@@ -1150,6 +1154,11 @@ step_route() {
         step_verification_gate=$2
         shift 2
         ;;
+      --readiness)
+        require_value "$@"
+        step_readiness_selection=$2
+        shift 2
+        ;;
       --review)
         require_value "$@"
         step_review_selection=$2
@@ -1170,15 +1179,18 @@ step_route() {
   done
   test -n "$step_ledger" && test -n "$step_workflow" &&
     test -n "$step_risk" && test -n "$step_profile" &&
-    test -n "$step_verification_gate" && test -n "$step_review_selection" ||
-    die "step route requires --ledger, --workflow, --risk, --profile, --verification-gate, and --review"
+    test -n "$step_verification_gate" && test -n "$step_readiness_selection" &&
+    test -n "$step_review_selection" ||
+    die "step route requires --ledger, --workflow, --risk, --profile, --verification-gate, --readiness, and --review"
   validate_workflow "$step_workflow"
   validate_risk "$step_risk"
   validate_verification_gate "$step_verification_gate"
+  case "$step_readiness_selection" in selected|omitted) ;; *) die "step route requires --readiness selected or omitted" ;; esac
   case "$step_review_selection" in selected|omitted) ;; *) die "step route requires --review selected or omitted" ;; esac
   if test "$step_workflow" = decision-gated; then
-    test "$step_risk" = high && test "$step_review_selection" = omitted ||
-      die "decision-gated requires risk high and omitted review"
+    test "$step_risk" = high && test "$step_readiness_selection" = omitted &&
+      test "$step_review_selection" = omitted ||
+      die "decision-gated requires risk high with omitted readiness and review"
     test "$step_profile" = none && test "$step_verification_gate" = not-applicable ||
       die "decision-gated requires profile none and verification gate not-applicable"
     test -z "$step_explicit_route" || die "decision-gated cannot select a route"
@@ -1240,6 +1252,7 @@ EOF
   set_ledger_value risk "$step_risk"
   set_ledger_value profile "$step_profile"
   set_ledger_value verification_gate "$step_verification_gate"
+  set_ledger_value readiness_selection "$step_readiness_selection"
   set_ledger_value review_selection "$step_review_selection"
   set_ledger_value review_round_limit "$step_review_round_limit"
   set_ledger_value selected_route "$selected_pipe"
@@ -1252,6 +1265,7 @@ EOF
   printf 'risk\t%s\n' "$step_risk"
   printf 'profile\t%s\n' "$step_profile"
   printf 'verification_gate\t%s\n' "$step_verification_gate"
+  printf 'readiness_selection\t%s\n' "$step_readiness_selection"
   printf 'review_selection\t%s\n' "$step_review_selection"
   printf 'selected_route\t%s\n' "$selected_pipe"
   printf 'route_source\t%s\n' "$route_source"
@@ -1486,7 +1500,7 @@ step_release_objective() {
   load_ledger "$step_ledger"
   lock_ledger
   case "$ledger_phase" in
-    active|reviewed)
+    active|reviewed|readiness-stopped)
       test "$(ledger_state_value "$ledger_state" agent_id)" != pending &&
         test "$(ledger_state_value "$ledger_state" route_verified)" = true ||
         die "objective release requires a resolved, route-verified owner"
@@ -1504,7 +1518,7 @@ step_release_objective() {
     --expected-sha256 "$step_expected_sha256")
   set_ledger_value objective_released true
   case "$ledger_phase" in
-    route-rejected|route-unavailable|launch-unavailable) release_phase=$ledger_phase ;;
+    route-rejected|route-unavailable|launch-unavailable|readiness-stopped) release_phase=$ledger_phase ;;
     *) release_phase=released ;;
   esac
   set_ledger_value phase "$release_phase"
@@ -1606,7 +1620,13 @@ step_activate() {
   set_ledger_value agent_id "$step_agent_id"
   set_ledger_value child_invocations "$step_child_invocations"
   set_ledger_value enforcement "$step_enforcement"
-  set_ledger_value phase active
+  readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
+  if test "$readiness_selection" = selected; then
+    activation_phase=readiness-pending
+  else
+    activation_phase=active
+  fi
+  set_ledger_value phase "$activation_phase"
   append_ledger_event activate "$step_agent_id"
   unlock_ledger
   emit_step_record activate
@@ -1646,8 +1666,8 @@ step_observe_route() {
   load_ledger "$step_ledger"
   lock_ledger
   case "$ledger_phase" in
-    active|reviewed) ;;
-    *) die "route observation requires an active or reviewed owner, found $ledger_phase" ;;
+    readiness-pending|readiness-stopped|active|reviewed) ;;
+    *) die "route observation requires an activated owner, found $ledger_phase" ;;
   esac
   test "$ledger_host" = claude || die "route observation is only valid for Claude"
   activated_agent_id=$(ledger_state_value "$ledger_state" agent_id)
@@ -1694,6 +1714,42 @@ step_observe_route() {
   fi
 }
 
+step_readiness() {
+  step_ledger=
+  step_verdict=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
+      --verdict) require_value "$@"; step_verdict=$2; shift 2 ;;
+      *) die "unknown step readiness option: $1" ;;
+    esac
+  done
+  test -n "$step_ledger" && test -n "$step_verdict" ||
+    die "step readiness requires --ledger and --verdict"
+  case "$step_verdict" in
+    ready|needs-discovery|needs-decision|blocked) ;;
+    *) die "unsupported implementation-readiness verdict: $step_verdict" ;;
+  esac
+  load_ledger "$step_ledger"
+  lock_ledger
+  require_ledger_phase readiness-pending
+  test "$(ledger_state_value "$ledger_state" readiness_selection)" = selected ||
+    die "readiness evidence was not selected for this goal"
+  test "$(ledger_state_value "$ledger_state" readiness_verdict)" = none ||
+    die "implementation-readiness verdict was already recorded"
+  set_ledger_value readiness_verdict "$step_verdict"
+  if test "$step_verdict" = ready; then
+    readiness_phase=active
+  else
+    readiness_phase=readiness-stopped
+  fi
+  set_ledger_value phase "$readiness_phase"
+  append_ledger_event readiness "$step_verdict"
+  unlock_ledger
+  emit_step_record readiness
+  printf 'verdict\t%s\n' "$step_verdict"
+}
+
 step_launch_stop() {
   step_ledger=
   step_reason=
@@ -1707,7 +1763,7 @@ step_launch_stop() {
   test -n "$step_ledger" && test -n "$step_reason" ||
     die "step launch-stop requires --ledger and --reason"
   case "$step_reason" in
-    review-unavailable|launch-unavailable|enforcement-unavailable) ;;
+    readiness-unavailable|review-unavailable|launch-unavailable|enforcement-unavailable) ;;
     *) die "unsupported pre-activation stop reason: $step_reason" ;;
   esac
   load_ledger "$step_ledger"
@@ -1715,7 +1771,7 @@ step_launch_stop() {
   failed_provisional_activation=false
   case "$ledger_phase" in
     routed|runner-resolved|materialized|staging-released|released) ;;
-    active)
+    active|readiness-pending)
       test "$ledger_host" = claude && test "$step_reason" = launch-unavailable &&
         test "$(ledger_state_value "$ledger_state" agent_id)" = pending &&
         test "$(ledger_state_value "$ledger_state" route_verified)" = false &&
@@ -1739,6 +1795,10 @@ step_launch_stop() {
   if test "$step_reason" = review-unavailable; then
     test "$(ledger_state_value "$ledger_state" review_selection)" = selected ||
       die "review-unavailable stop requires selected independent review"
+  fi
+  if test "$step_reason" = readiness-unavailable; then
+    test "$(ledger_state_value "$ledger_state" readiness_selection)" = selected ||
+      die "readiness-unavailable stop requires selected implementation readiness"
   fi
   set_ledger_value terminal_reason "$step_reason"
   set_ledger_value phase launch-unavailable
@@ -1897,6 +1957,8 @@ step_report() {
   last_outcome=$(ledger_state_value "$ledger_state" review_last_outcome)
   review_stop_reason=$(ledger_state_value "$ledger_state" review_stop_reason)
   review_selection=$(ledger_state_value "$ledger_state" review_selection)
+  readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
+  readiness_verdict=$(ledger_state_value "$ledger_state" readiness_verdict)
   terminal_reason=$(ledger_state_value "$ledger_state" terminal_reason)
   validate_enforcement "$enforcement"
 
@@ -1907,7 +1969,7 @@ step_report() {
       die "decision-gated report requires at least one human interruption"
   else
     case "$ledger_phase" in
-      active|reviewed|released|route-rejected|route-unavailable|launch-unavailable) ;;
+      active|reviewed|released|readiness-stopped|route-rejected|route-unavailable|launch-unavailable) ;;
       *) die "terminal report requires owner activation, found $ledger_phase" ;;
     esac
     test "$objective_released" = true ||
@@ -1923,6 +1985,13 @@ step_report() {
         test "$agent_id" != pending ||
           die "complete report requires a resolved goal owner"
         test "$route_verified" = true || die "complete report requires a verified route"
+        if test "$readiness_selection" = selected; then
+          test "$readiness_verdict" = ready ||
+            die "complete report requires a ready implementation-readiness verdict"
+        else
+          test "$readiness_verdict" = none ||
+            die "omitted implementation readiness has unexpected evidence"
+        fi
         if test "$review_selection" = selected; then
           test "$last_outcome" = clear ||
             die "complete report requires a terminal clear independent-review outcome"
@@ -1946,6 +2015,15 @@ step_report() {
           die "blocked report requires a resolved goal owner"
         test "$route_verified" = true ||
           die "blocked report requires a verified route"
+        if test "$readiness_selection" = selected; then
+          case "$readiness_verdict" in
+            ready|needs-discovery|needs-decision|blocked) ;;
+            *) die "blocked report requires a recorded implementation-readiness verdict" ;;
+          esac
+        else
+          test "$readiness_verdict" = none ||
+            die "omitted implementation readiness has unexpected evidence"
+        fi
         ;;
     esac
   fi
@@ -2005,6 +2083,9 @@ EOF
     if test "$terminal_reason" = review-unavailable && test "$initial_outcome" = none; then
       printf 'Independent review availability: unavailable.\n'
     fi
+    if test "$terminal_reason" = readiness-unavailable; then
+      printf 'Implementation readiness availability: unavailable.\n'
+    fi
     if test "$review_stop_reason" = explicit-limit-reached; then
       printf 'Review gate: blocked — explicit limit reached.\n'
     fi
@@ -2047,6 +2128,7 @@ step_dispatch() {
     release-staging) step_release_staging "$@" ;;
     activate) step_activate "$@" ;;
     observe-route) step_observe_route "$@" ;;
+    readiness) step_readiness "$@" ;;
     review) step_review "$@" ;;
     launch-stop) step_launch_stop "$@" ;;
     release-objective) step_release_objective "$@" ;;

@@ -107,13 +107,13 @@ claude_session=claude-session
 claude_ledger=$(bind_session "$claude_session" claude)
 claude_staging=$(record_value "$(cat "$claude_ledger/state")" staging_dir)
 bash "$goal_loop" step prepare --ledger "$claude_ledger" >/dev/null
-run_hook "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step route --ledger $claude_ledger --workflow implement-feature --risk routine --profile routine --verification-gate routine --review omitted --route 'claude|anthropic|claude-sonnet-5|low'\"}}" >/dev/null
-run_hook "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step route --ledger $claude_ledger --workflow implement-feature --risk routine --profile routine --verification-gate routine --review selected --review-round-limit 2 --route 'claude|anthropic|claude-sonnet-5|low'\"}}" >/dev/null
+run_hook "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step route --ledger $claude_ledger --workflow implement-feature --risk routine --profile routine --verification-gate routine --readiness omitted --review omitted --route 'claude|anthropic|claude-sonnet-5|low'\"}}" >/dev/null
+run_hook "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step route --ledger $claude_ledger --workflow implement-feature --risk routine --profile routine --verification-gate routine --readiness omitted --review selected --review-round-limit 2 --route 'claude|anthropic|claude-sonnet-5|low'\"}}" >/dev/null
 expect_denied 'route helper for another ledger' \
-  "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step route --ledger $tmp_root/darrow-goal-run.foreign --workflow implement-feature --risk routine --profile routine --verification-gate routine --review omitted\"}}"
+  "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step route --ledger $tmp_root/darrow-goal-run.foreign --workflow implement-feature --risk routine --profile routine --verification-gate routine --readiness omitted --review omitted\"}}"
 bash "$goal_loop" step route --ledger "$claude_ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review omitted >/dev/null
+  --verification-gate routine --readiness omitted --review omitted >/dev/null
 expect_denied 'launch-stop helper for another ledger' \
   "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"/bin/bash $goal_loop step launch-stop --ledger $tmp_root/darrow-goal-run.foreign --reason launch-unavailable\"}}"
 runner_command="/bin/bash $goal_loop step runner --ledger $claude_ledger --provider anthropic --model claude-sonnet-5 --effort low"
@@ -272,7 +272,7 @@ same_staging=$(record_value "$(cat "$second_claude_ledger/state")" staging_dir)
 bash "$goal_loop" step prepare --ledger "$second_claude_ledger" >/dev/null
 bash "$goal_loop" step route --ledger "$second_claude_ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review omitted >/dev/null
+  --verification-gate routine --readiness omitted --review omitted >/dev/null
 bash "$goal_loop" step runner --ledger "$second_claude_ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
 same_goal="$same_staging/same-thread-goal.md"
@@ -305,13 +305,59 @@ same_report=$(bash "$goal_loop" step report --ledger "$second_claude_ledger" \
   --status complete --human-interruptions 1)
 run_hook "{\"session_id\":\"$claude_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"last_assistant_message\":\"$same_report\"}" >/dev/null
 
+readiness_session=readiness-session
+readiness_ledger=$(bind_session "$readiness_session" claude)
+readiness_staging=$(record_value "$(cat "$readiness_ledger/state")" staging_dir)
+bash "$goal_loop" step prepare --ledger "$readiness_ledger" >/dev/null
+bash "$goal_loop" step route --ledger "$readiness_ledger" \
+  --workflow implement-feature --risk routine --profile routine \
+  --verification-gate routine --readiness selected --review omitted >/dev/null
+bash "$goal_loop" step runner --ledger "$readiness_ledger" \
+  --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
+readiness_goal="$readiness_staging/readiness-goal.md"
+printf '%s\n' 'Outcome: enforce readiness before mutation' >"$readiness_goal"
+readiness_digest=$(shasum -a 256 "$readiness_goal")
+readiness_digest=${readiness_digest%% *}
+bash "$goal_loop" step stage --ledger "$readiness_ledger" \
+  --goal-file "$readiness_goal" >/dev/null
+readiness_materialized=$(bash "$goal_loop" step materialize \
+  --ledger "$readiness_ledger" --goal-file "$readiness_goal" \
+  --expected-sha256 "$readiness_digest")
+readiness_attachment=$(record_value "$readiness_materialized" attachment_dir)
+bash "$goal_loop" step release-staging --ledger "$readiness_ledger" \
+  --goal-file "$readiness_goal" --expected-sha256 "$readiness_digest" >/dev/null
+bash "$goal_loop" step activate --ledger "$readiness_ledger" \
+  --applied-by current-thread --boundary same_thread --agent-id none \
+  --effective-route 'claude|anthropic|claude-sonnet-5|low' \
+  --route-verified true --enforcement helper+claude-hooks >/dev/null
+run_hook "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"$repo/base.txt\"}}" >/dev/null
+expect_denied 'current-thread write before readiness' \
+  "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$repo/readiness.txt\",\"content\":\"too early\"}}"
+expect_denied 'current-thread patch before readiness' \
+  "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"apply_patch\",\"tool_input\":{\"patch\":\"*** Begin Patch\\n*** End Patch\"}}"
+expect_denied 'current-thread shell mutation before readiness' \
+  "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"touch $repo/readiness-shell-escape\"}}"
+expect_denied 'current-thread external shell call before readiness' \
+  "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"curl https://example.invalid/readiness\"}}"
+readiness_command="/bin/bash $goal_loop step readiness --ledger $readiness_ledger --verdict ready"
+run_hook "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$readiness_command\"}}" >/dev/null
+bash "$goal_loop" step readiness --ledger "$readiness_ledger" \
+  --verdict ready >/dev/null
+run_hook "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$repo/readiness.txt\",\"content\":\"ready\"}}" >/dev/null
+bash "$goal_loop" step release-objective --ledger "$readiness_ledger" \
+  --attachment-dir "$readiness_attachment" \
+  --expected-sha256 "$readiness_digest" >/dev/null
+readiness_report=$(bash "$goal_loop" step report --ledger "$readiness_ledger" \
+  --status complete --human-interruptions 0)
+run_hook "{\"session_id\":\"$readiness_session\",\"cwd\":\"$repo\",\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"last_assistant_message\":\"$readiness_report\"}" >/dev/null
+
 codex_session=codex-session
 codex_ledger=$(bind_session "$codex_session" codex)
 codex_staging=$(record_value "$(cat "$codex_ledger/state")" staging_dir)
 bash "$goal_loop" step prepare --ledger "$codex_ledger" >/dev/null
 bash "$goal_loop" step route --ledger "$codex_ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review omitted >/dev/null
+  --verification-gate routine --readiness omitted --review omitted >/dev/null
 codex_goal="$codex_staging/codex-goal.md"
 printf '%s\n' 'Outcome: Codex hook test' >"$codex_goal"
 codex_digest=$(shasum -a 256 "$codex_goal")
@@ -350,7 +396,7 @@ failure_staging=$(record_value "$(cat "$failure_ledger/state")" staging_dir)
 bash "$goal_loop" step prepare --ledger "$failure_ledger" >/dev/null
 bash "$goal_loop" step route --ledger "$failure_ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review omitted >/dev/null
+  --verification-gate routine --readiness omitted --review omitted >/dev/null
 bash "$goal_loop" step runner --ledger "$failure_ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
 failure_goal="$failure_staging/failure-goal.md"

@@ -55,7 +55,7 @@ activate_codex_review_ledger() {
   bash "$goal_loop" step prepare --ledger "$fixture_ledger" >/dev/null
   fixture_route_out=$(bash "$goal_loop" step route --ledger "$fixture_ledger" \
     --workflow implement-feature --risk routine --profile routine \
-    --verification-gate routine --review selected "$@")
+    --verification-gate routine --readiness omitted --review selected "$@")
   fixture_route=$(record_value "$fixture_route_out" selected_route)
   fixture_goal="$fixture_staging/goal.md"
   printf '%s\n' 'Outcome: exercise review transitions' >"$fixture_goal"
@@ -121,7 +121,7 @@ esac
 
 expect_refusal 'route before prepare' bash "$goal_loop" step route \
   --ledger "$ledger" --workflow implement-feature --risk routine \
-  --profile routine --verification-gate routine --review selected
+  --profile routine --verification-gate routine --readiness omitted --review selected
 
 prepare_out=$(bash "$goal_loop" step prepare --ledger "$ledger")
 test "$(record_value "$prepare_out" step)" = prepare || fail 'prepare step'
@@ -137,29 +137,29 @@ rules_ledger=$(record_value "$rules_start" ledger)
 bash "$goal_loop" step prepare --ledger "$rules_ledger" >/dev/null
 expect_refusal 'high risk omitted review' bash "$goal_loop" step route \
   --ledger "$rules_ledger" --workflow implement-feature --risk high \
-  --profile routine --verification-gate high --review omitted
+  --profile routine --verification-gate high --readiness omitted --review omitted
 expect_refusal 'mismatched verification gate' bash "$goal_loop" step route \
   --ledger "$rules_ledger" --workflow implement-feature --risk elevated \
-  --profile routine --verification-gate routine --review selected
+  --profile routine --verification-gate routine --readiness omitted --review selected
 expect_refusal 'noncanonical decision route' bash "$goal_loop" step route \
   --ledger "$rules_ledger" --workflow decision-gated --risk routine \
-  --profile none --verification-gate not-applicable --review omitted
+  --profile none --verification-gate not-applicable --readiness omitted --review omitted
 
 expect_refusal 'foreign explicit route' bash "$goal_loop" step route \
   --ledger "$ledger" --workflow implement-feature --risk routine \
-  --profile routine --verification-gate routine --review selected \
+  --profile routine --verification-gate routine --readiness omitted --review selected \
   --route 'claude|anthropic|claude-invented-9|low'
 
 route_out=$(bash "$goal_loop" step route --ledger "$ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review selected)
+  --verification-gate routine --readiness omitted --review selected)
 test "$(record_value "$route_out" step)" = route || fail 'route step'
 selected_route=$(record_value "$route_out" selected_route)
 test "$selected_route" = 'claude|anthropic|claude-sonnet-5|low' ||
   fail 'selected route record'
 expect_refusal 'duplicate route' bash "$goal_loop" step route \
   --ledger "$ledger" --workflow implement-feature --risk routine \
-  --profile routine --verification-gate routine --review selected
+  --profile routine --verification-gate routine --readiness omitted --review selected
 
 runner_out=$(bash "$goal_loop" step runner --ledger "$ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low)
@@ -334,7 +334,7 @@ unavailable_staging=$(record_value "$unavailable_start" staging_dir)
 bash "$goal_loop" step prepare --ledger "$unavailable_ledger" >/dev/null
 unavailable_route_out=$(bash "$goal_loop" step route --ledger "$unavailable_ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review omitted)
+  --verification-gate routine --readiness omitted --review omitted)
 unavailable_route=$(record_value "$unavailable_route_out" selected_route)
 bash "$goal_loop" step runner --ledger "$unavailable_ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
@@ -379,7 +379,7 @@ review_stop_ledger=$(record_value "$review_stop_start" ledger)
 bash "$goal_loop" step prepare --ledger "$review_stop_ledger" >/dev/null
 bash "$goal_loop" step route --ledger "$review_stop_ledger" \
   --workflow implement-feature --risk high --profile routine \
-  --verification-gate high --review selected >/dev/null
+  --verification-gate high --readiness omitted --review selected >/dev/null
 bash "$goal_loop" step launch-stop --ledger "$review_stop_ledger" \
   --reason review-unavailable >/dev/null
 review_stop_report=$(bash "$goal_loop" step report --ledger "$review_stop_ledger" \
@@ -398,7 +398,7 @@ cleanup_staging=$(record_value "$cleanup_start" staging_dir)
 bash "$goal_loop" step prepare --ledger "$cleanup_ledger" >/dev/null
 bash "$goal_loop" step route --ledger "$cleanup_ledger" \
   --workflow implement-feature --risk routine --profile routine \
-  --verification-gate routine --review omitted >/dev/null
+  --verification-gate routine --readiness omitted --review omitted >/dev/null
 bash "$goal_loop" step runner --ledger "$cleanup_ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
 cleanup_goal="$cleanup_staging/cleanup-goal.md"
@@ -447,13 +447,107 @@ grep -F 'evaluation_child_invocations: 0' <<EOF >/dev/null || fail 'failed provi
 $cleanup_report
 EOF
 
-decision_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+readiness_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
   --repo "$repo" --host codex)
-decision_ledger=$(record_value "$decision_start" ledger)
+readiness_ledger=$(record_value "$readiness_start" ledger)
+readiness_staging=$(record_value "$readiness_start" staging_dir)
+bash "$goal_loop" step prepare --ledger "$readiness_ledger" >/dev/null
+readiness_route_out=$(bash "$goal_loop" step route --ledger "$readiness_ledger" \
+  --workflow implement-feature --risk routine --profile routine \
+  --verification-gate routine --readiness selected --review omitted)
+test "$(record_value "$readiness_route_out" readiness_selection)" = selected ||
+  fail 'selected readiness route record'
+readiness_route=$(record_value "$readiness_route_out" selected_route)
+readiness_goal="$readiness_staging/readiness-goal.md"
+printf '%s\n' 'Outcome: exercise readiness transitions' >"$readiness_goal"
+readiness_digest=$(shasum -a 256 "$readiness_goal")
+readiness_digest=${readiness_digest%% *}
+bash "$goal_loop" step stage --ledger "$readiness_ledger" \
+  --goal-file "$readiness_goal" >/dev/null
+bash "$goal_loop" step materialize --ledger "$readiness_ledger" \
+  --goal-file "$readiness_goal" --expected-sha256 "$readiness_digest" >/dev/null
+bash "$goal_loop" step release-staging --ledger "$readiness_ledger" \
+  --goal-file "$readiness_goal" --expected-sha256 "$readiness_digest" >/dev/null
+bash "$goal_loop" step activate --ledger "$readiness_ledger" \
+  --applied-by host-api --boundary host_api --agent-id none \
+  --effective-route "$readiness_route" --route-verified true >/dev/null
+grep -F $'phase\treadiness-pending' "$readiness_ledger/state" >/dev/null ||
+  fail 'selected readiness did not enter pending state'
+expect_refusal 'completion before readiness verdict' bash "$goal_loop" \
+  step report --ledger "$readiness_ledger" --status complete \
+  --human-interruptions 0
+readiness_out=$(bash "$goal_loop" step readiness --ledger "$readiness_ledger" \
+  --verdict ready)
+test "$(record_value "$readiness_out" verdict)" = ready ||
+  fail 'ready verdict record'
+grep -F $'phase\tactive' "$readiness_ledger/state" >/dev/null ||
+  fail 'ready verdict did not unlock active work'
+expect_refusal 'duplicate readiness verdict' bash "$goal_loop" step readiness \
+  --ledger "$readiness_ledger" --verdict ready
+bash "$goal_loop" step report --ledger "$readiness_ledger" \
+  --status complete --human-interruptions 0 >/dev/null
+
+nonready_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+  --repo "$repo" --host codex)
+nonready_ledger=$(record_value "$nonready_start" ledger)
+nonready_staging=$(record_value "$nonready_start" staging_dir)
+bash "$goal_loop" step prepare --ledger "$nonready_ledger" >/dev/null
+nonready_route_out=$(bash "$goal_loop" step route --ledger "$nonready_ledger" \
+  --workflow implement-feature --risk routine --profile routine \
+  --verification-gate routine --readiness selected --review omitted)
+nonready_route=$(record_value "$nonready_route_out" selected_route)
+nonready_goal="$nonready_staging/nonready-goal.md"
+printf '%s\n' 'Outcome: stop on non-ready readiness' >"$nonready_goal"
+nonready_digest=$(shasum -a 256 "$nonready_goal")
+nonready_digest=${nonready_digest%% *}
+bash "$goal_loop" step stage --ledger "$nonready_ledger" \
+  --goal-file "$nonready_goal" >/dev/null
+bash "$goal_loop" step materialize --ledger "$nonready_ledger" \
+  --goal-file "$nonready_goal" --expected-sha256 "$nonready_digest" >/dev/null
+bash "$goal_loop" step release-staging --ledger "$nonready_ledger" \
+  --goal-file "$nonready_goal" --expected-sha256 "$nonready_digest" >/dev/null
+bash "$goal_loop" step activate --ledger "$nonready_ledger" \
+  --applied-by host-api --boundary host_api --agent-id none \
+  --effective-route "$nonready_route" --route-verified true >/dev/null
+bash "$goal_loop" step readiness --ledger "$nonready_ledger" \
+  --verdict needs-decision >/dev/null
+grep -F $'phase\treadiness-stopped' "$nonready_ledger/state" >/dev/null ||
+  fail 'non-ready verdict did not close the mutation gate'
+grep -F $'readiness_verdict\tneeds-decision' "$nonready_ledger/state" >/dev/null ||
+  fail 'non-ready verdict was not recorded'
+expect_refusal 'non-ready completion' bash "$goal_loop" step report \
+  --ledger "$nonready_ledger" --status complete --human-interruptions 0
+nonready_report=$(bash "$goal_loop" step report --ledger "$nonready_ledger" \
+  --status blocked --human-interruptions 0)
+case "$nonready_report" in
+  *'Native goal settled as blocked.'*) ;;
+  *) fail 'non-ready verdict did not permit blocked reporting' ;;
+esac
+
+readiness_stop_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+  --repo "$repo" --host codex)
+readiness_stop_ledger=$(record_value "$readiness_stop_start" ledger)
+bash "$goal_loop" step prepare --ledger "$readiness_stop_ledger" >/dev/null
+bash "$goal_loop" step route --ledger "$readiness_stop_ledger" \
+  --workflow implement-feature --risk routine --profile routine \
+  --verification-gate routine --readiness selected --review omitted >/dev/null
+bash "$goal_loop" step launch-stop --ledger "$readiness_stop_ledger" \
+  --reason readiness-unavailable >/dev/null
+readiness_stop_report=$(bash "$goal_loop" step report \
+  --ledger "$readiness_stop_ledger" --status launch-required \
+  --human-interruptions 0)
+case "$readiness_stop_report" in
+  *'Implementation readiness availability: unavailable.'*) ;;
+  *) fail 'pre-activation readiness availability report' ;;
+esac
+
+decision_gate_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+  --repo "$repo" --host codex)
+decision_ledger=$(record_value "$decision_gate_start" ledger)
 bash "$goal_loop" step prepare --ledger "$decision_ledger" >/dev/null
 bash "$goal_loop" step route --ledger "$decision_ledger" \
   --workflow decision-gated --risk high --profile none \
-  --verification-gate not-applicable --review omitted >/dev/null
+  --verification-gate not-applicable --readiness omitted --review omitted >/dev/null
 decision_report=$(bash "$goal_loop" step report --ledger "$decision_ledger" \
   --status launch-required --human-interruptions 1)
 grep -F 'workflow: decision-gated' <<EOF >/dev/null || fail 'decision report workflow'

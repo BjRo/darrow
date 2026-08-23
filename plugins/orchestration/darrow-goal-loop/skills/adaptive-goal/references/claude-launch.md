@@ -4,7 +4,8 @@ Use the first boundary that can honor the compiled route.
 
 Use the one ledger started by the parent skill. The `goal-loop step` helper
 validates preparation, route selection, runner resolution, staging,
-materialization, release, activation, route observation, review, cleanup, and
+materialization, release, activation, route observation, readiness, review,
+cleanup, and
 terminal reporting. Stop when it rejects a missing, duplicate, out-of-order, or
 mismatched transition. The ledger validates protocol evidence; it does not
 schedule agents or own continuation.
@@ -40,7 +41,8 @@ Then run the route helper as its own tool call:
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step route --ledger <absolute-ledger> \
   --workflow <workflow> --risk <risk> --profile <profile> \
-  --verification-gate <verification-gate> --review <selected|omitted> \
+  --verification-gate <verification-gate> \
+  --readiness <selected|omitted> --review <selected|omitted> \
   [--review-round-limit <explicit-positive-integer>]
 ```
 
@@ -210,7 +212,8 @@ or explanations. The routed Agent reads the bounded objective and verifies the
 complete contract before work. The exact file-backed reference is the sole task
 authority; any appended task text invalidates the launch. The
 compiled contract already contains the
-workflow, risk gates, feedback protocol, review clause, reporting contract, and
+workflow, risk gates, feedback protocol, readiness and review clauses,
+reporting contract, and
 sole-owner instructions. Do not restate or append them in the Agent task. A
 marker-only task is not an executable goal.
 
@@ -230,7 +233,7 @@ When trusted Claude hooks are active, append exactly
 `--enforcement helper+claude-hooks` to that command. The hooks validate this
 already-recorded transition and refuse an Agent when it is missing; they never
 backfill it after the Agent returns. Never duplicate activation. This provisional record lets the
-foreground owner append selected-review evidence to the ledger; it does not
+foreground owner append selected-readiness and selected-review evidence to the ledger; it does not
 prove the effective route and cannot authorize a terminal report.
 
 Wait for that same foreground Agent call to return, then verify what actually
@@ -253,6 +256,10 @@ route verification and attachment cleanup neither authorize parent
 revalidation nor invalidate those collected facts.
 
 Before interpreting the child as terminally successful, also reconcile its
+result against the compiled readiness clause. A selected gate requires one
+semantic verdict recorded through the exact ledger transition before mutation;
+only `ready` permits implementation. Preserve a non-ready capability result in
+full, keep the tree unmodified, and report the goal blocked. Then reconcile the
 result against the compiled independent-review clause. A selected gate requires
 evidence of one comprehensive initial review and, after any repair, a closed-set
 fix-verification chain whose prior artifacts and pinned repair deltas remain
@@ -310,6 +317,14 @@ Agent result immediately. Begin with the raw `format:` report line, never a
 Markdown code fence. Do not call another tool. If the Agent omitted a
 changed-file, check, review, risk, or publication fact, report that omission;
 never fill it by inspecting the repository.
+For a non-ready implementation-readiness verdict only, begin with the complete
+readiness result, then place the exact terminal helper report immediately after
+it. The result already contains the smallest useful next action; insert no
+explanation, ledger summary, or other prose between the two blocks. Use
+`blocked` only after verified route evidence; when route observation is
+unavailable or rejected, use the truthful `launch-required` report required by
+that route state. Paste the helper output verbatim; do not put it in a Markdown
+code fence.
 
 Only once `claude-route-gate` reports an explicitly confirmed,
 transcript-derived effective route equal to the selected route may you record:

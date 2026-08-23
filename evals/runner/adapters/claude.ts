@@ -866,11 +866,13 @@ function validClaudeDecisionRouteWords(
     "none",
     "--verification-gate",
     "not-applicable",
+    "--readiness",
+    "omitted",
     "--review",
     "omitted",
   ];
   return (
-    words.length === 16 &&
+    words.length === 18 &&
     words.slice(2).every((word, index) => word === expected[index])
   );
 }
@@ -908,7 +910,7 @@ function validClaudeRouteWords(
   ledger: string | undefined,
 ): boolean {
   return [
-    [16, 18, 20].includes(words.length),
+    [18, 20, 22].includes(words.length),
     words[2] === "step",
     words[3] === "route",
     words[4] === "--ledger",
@@ -925,9 +927,11 @@ function validClaudeRouteWords(
     ),
     words[12] === "--verification-gate",
     words[13] === words[9],
-    words[14] === "--review",
+    words[14] === "--readiness",
     /^(?:selected|omitted)$/.test(words[15] ?? ""),
-    words[9] !== "high" || words[15] === "selected",
+    words[16] === "--review",
+    /^(?:selected|omitted)$/.test(words[17] ?? ""),
+    words[9] !== "high" || words[17] === "selected",
     exactOptionalClaudeRoute(words),
   ].every(Boolean);
 }
@@ -972,9 +976,9 @@ function tempRootProbeCall(block: unknown): { id: string } | undefined {
 }
 
 function exactOptionalClaudeRoute(words: string[]): boolean {
-  let index = 16;
+  let index = 18;
   if (words[index] === "--review-round-limit") {
-    if (words[15] !== "selected" || !/^[1-9]\d*$/.test(words[index + 1] ?? ""))
+    if (words[17] !== "selected" || !/^[1-9]\d*$/.test(words[index + 1] ?? ""))
       return false;
     index += 2;
   }

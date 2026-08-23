@@ -27,6 +27,21 @@ relay is available, return the question and resumable state without choosing a
 default or making further changes. Count each distinct user question once in
 the final record.
 
+When the contract says `Readiness gate: selected —`, invoke the proven
+implementation-readiness capability before repository or external mutation.
+Request and preserve its complete human-readable result without requiring JSON,
+interpret its semantic verdict as `ready`, `needs-discovery`,
+`needs-decision`, or `blocked`, and immediately record only that verdict
+using the absolute bundled helper named in the clause with `step readiness`
+and the contract's `Protocol ledger:` path. Do not search for or infer either
+path. Continue work only after the helper accepts `ready`. For every other
+verdict, make no mutation, settle the goal as blocked, and return the complete
+readiness result verbatim before the parent's outer report. The result already
+contains its smallest useful next action; append no explanation or ledger prose
+between the result and the outer report. Treat that non-ready verdict as a terminal gate result, not a newly
+emerged feedback question, and never convert it into a resumable human-feedback
+pause. When the contract says readiness is omitted, do not invoke or record it.
+
 When the contract says `Independent review: selected —`, its matching
 environment capability was proven available during pre-activation. If that
 proof is absent, do not edit; return the evidence gap so the parent can record a

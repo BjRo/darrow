@@ -64,6 +64,7 @@ const CONTRACT_LABELS = [
   "Workflow sequence",
   "Feedback checks",
   "Final-tree checks",
+  "Readiness gate",
   "Independent review",
   "Stopping budget",
   "Human feedback",
@@ -75,7 +76,7 @@ const INTERNAL_GOAL_RECORD =
   /^format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|route-gate|verify-route))-[^\t\r\n]+$/m;
 
 const FIXTURE_STATE_ENTRY =
-  /^(?:fixture-|independent-review-|review-|human-feedback-|verification-|gh-|pricing-|version-|ticketctl\.log$)/;
+  /^(?:fixture-|implementation-readiness-|independent-review-|review-|human-feedback-|verification-|gh-|pricing-|version-|ticketctl\.log$)/;
 
 function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
