@@ -41,13 +41,7 @@ printf 'base\n' >"$repo/value.txt"
 git -C "$repo" add value.txt
 git -C "$repo" commit -qm initial
 
-out=$(bash "$goal_loop" preflight --repo "$repo")
-contains "$out" $'format\tdarrow-native-goal-preflight-evidence-v1'
-contains "$out" $'working_tree\tclean'
 printf 'changed\n' >"$repo/value.txt"
-out=$(bash "$goal_loop" preflight --repo "$repo")
-contains "$out" $'working_tree\tdirty'
-contains "$out" $'preexisting_change\t M value.txt'
 
 printf 'Root guidance.\n' >"$repo/AGENTS.md"
 out=$(bash "$goal_loop" prepare --repo "$repo" --host codex)
@@ -125,8 +119,8 @@ contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\tmedium'
 contains "$out" $'policy_route_source\tbundled'
 
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine \
-  --route 'codex|openai|gpt-5.6-terra|low')
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tlow'
+  --route 'codex|openai|gpt-5.6-terra|medium')
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route_source\tuser'
 case "$out" in
   *$'policy_route_source\t'*) fail "user route disclosed a policy provenance" ;;
@@ -309,8 +303,8 @@ if bash "$goal_loop" confirm-route \
 fi
 
 out=$(bash "$goal_loop" route --repo "$repo" --host claude --profile judgment \
-  --route 'claude|anthropic|claude-test|high')
-contains "$out" $'selected_route\tclaude\tanthropic\tclaude-test\thigh'
+  --route 'claude|anthropic|claude-opus-5|high')
+contains "$out" $'selected_route\tclaude\tanthropic\tclaude-opus-5\thigh'
 contains "$out" $'route_source\tuser'
 
 if bash "$goal_loop" route --repo "$repo" --host codex --profile tiny >/dev/null 2>&1; then

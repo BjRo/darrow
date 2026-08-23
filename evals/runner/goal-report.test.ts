@@ -20,6 +20,7 @@ const report = [
   "verification_gate: routine",
   "evaluation_child_invocations: 1",
   "evaluation_human_interruptions: 0",
+  "enforcement: helper",
 ].join("\n");
 
 describe("adaptive-goal completion reports", () => {
@@ -38,6 +39,7 @@ describe("adaptive-goal completion reports", () => {
       verification_gate: "routine",
       evaluation_child_invocations: "1",
       evaluation_human_interruptions: "0",
+      enforcement: "helper",
     });
     expect(parseGoalReport(`Done.\n\n${report}`)).toBeUndefined();
     expect(parseGoalReport(`\`\`\`text\n${report}\n\`\`\``)).toBeUndefined();
@@ -73,10 +75,28 @@ describe("adaptive-goal completion reports", () => {
       ["harness: codex", "harness: native-subagent"],
       ["effort: medium", "effort: extreme"],
       ["launch_boundary: native_subagent", "launch_boundary: invalid"],
+      ["enforcement: helper", "enforcement: invented"],
     ]) {
       const invalid = parseGoalReport(report.replace(current!, replacement!));
       expect(invalid).toBeDefined();
       expect(validGoalReportValues(invalid)).toBe(false);
+    }
+  });
+
+  test("rejects cross-field route and risk contradictions", () => {
+    for (const [current, replacement] of [
+      ["verification_gate: routine", "verification_gate: elevated"],
+      ["launch_boundary: native_subagent", "launch_boundary: launch_required"],
+      ["launch_boundary: native_subagent", "launch_boundary: host_api"],
+      ["harness: codex", "harness: none"],
+      ["route_applied_by: native-subagent", "route_applied_by: none"],
+      ["route_verified: true", "route_verified: false"],
+    ]) {
+      expect(
+        validGoalReportValues(
+          parseGoalReport(report.replace(current!, replacement!)),
+        ),
+      ).toBe(false);
     }
   });
 
@@ -153,5 +173,23 @@ describe("adaptive-goal completion reports", () => {
         `${report}\n- format\tdarrow-native-goal-route-application-v1`,
       ),
     ).toBe(true);
+  });
+
+  test.each([
+    "darrow-native-goal-prepared-v1",
+    "darrow-native-goal-route-v2",
+    "darrow-native-goal-route-application-v1",
+    "darrow-native-goal-objective-v1",
+    "darrow-native-goal-staging-release-v1",
+    "darrow-native-goal-objective-release-v1",
+    "darrow-goal-step-v1",
+    "darrow-goal-step-ledger-v1",
+    "darrow-claude-agent-route-v1",
+    "darrow-claude-route-gate-v1",
+    "darrow-claude-verify-route-v1",
+  ])("detects current internal TSV marker %s", (marker) => {
+    expect(exposesInternalGoalRecord(`${report}\nformat\t${marker}`)).toBe(
+      true,
+    );
   });
 });

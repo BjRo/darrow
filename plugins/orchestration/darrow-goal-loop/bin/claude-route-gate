@@ -10,7 +10,7 @@ tab=$(printf '\t')
 
 usage() {
   cat <<'EOF'
-usage: claude-route-gate --repo <path> --agent-id <id> --selected <harness|provider|model|effort>
+usage: claude-route-gate --repo <path> --agent-id <id> --selected <harness|provider|model|effort> [--ledger <absolute-path>]
 
 Observes one completed Claude Agent's effective route and confirms it against
 the selected route. An unavailable observation is a bounded, successful gate
@@ -23,10 +23,56 @@ die() {
   exit 2
 }
 
+ledger_value() {
+  wanted_ledger_key=$1
+  found_ledger_value=
+  found_ledger_count=0
+  while IFS="$tab" read -r ledger_key ledger_value_field ledger_extra; do
+    if test "$ledger_key" = "$wanted_ledger_key"; then
+      test -n "$ledger_value_field" && test -z "${ledger_extra:-}" ||
+        die "ledger $wanted_ledger_key is malformed"
+      found_ledger_count=$((found_ledger_count + 1))
+      found_ledger_value=$ledger_value_field
+    fi
+  done <"$ledger_state"
+  test "$found_ledger_count" -eq 1 ||
+    die "ledger $wanted_ledger_key is missing or duplicated"
+  printf '%s\n' "$found_ledger_value"
+}
+
+validate_ledger_activation() {
+  test -n "$ledger" || return 0
+  ledger_state="$ledger/state"
+  test -f "$ledger_state" && test ! -L "$ledger_state" ||
+    die "ledger state is unavailable"
+  ledger_phase=$(ledger_value phase)
+  case "$ledger_phase" in
+    active|reviewed) ;;
+    *) die "ledger is not ready for route observation: $ledger_phase" ;;
+  esac
+  test "$(ledger_value route_applied_by)" = native-subagent &&
+    test "$(ledger_value launch_boundary)" = native_subagent &&
+    test "$(ledger_value agent_id)" = pending &&
+    test "$(ledger_value effective_route)" = "$selected" &&
+    test "$(ledger_value route_verified)" = false ||
+    die "ledger is missing the exact provisional Agent activation"
+}
+
+record_ledger_observation() {
+  effective_for_ledger=$1
+  confirmation_for_ledger=$2
+  test -n "$ledger" || return 0
+  bash "$goal_loop" step observe-route --ledger "$ledger" \
+    --agent-id "$agent_id" --effective-route "$effective_for_ledger" \
+    --confirmation "$confirmation_for_ledger" >/dev/null
+}
+
 unavailable() {
+  unavailable_route='claude|anthropic|unknown|unknown'
   printf 'format\tdarrow-claude-route-gate-v1\n'
   printf 'agent_id\t%s\n' "$agent_id"
   printf 'observation\tunavailable\n'
+  record_ledger_observation "$unavailable_route" unavailable
 }
 
 require_value() {
@@ -36,6 +82,7 @@ require_value() {
 repo=
 agent_id=
 selected=
+ledger=
 while test "$#" -gt 0; do
   case "$1" in
     --repo)
@@ -51,6 +98,11 @@ while test "$#" -gt 0; do
     --selected)
       require_value "$@"
       selected=$2
+      shift 2
+      ;;
+    --ledger)
+      require_value "$@"
+      ledger=$2
       shift 2
       ;;
     -h|--help)
@@ -87,6 +139,7 @@ esac
 repo=$(CDPATH='' cd -- "$repo" && pwd) || die "unreadable repo: $repo"
 test -r "$claude_verify_route" || die "route verifier is unreadable"
 test -r "$goal_loop" || die "goal-loop helper is unreadable"
+validate_ledger_activation
 
 if test "${DARROW_CLAUDE_ROUTE_TELEMETRY:-}" = untrusted; then
   unavailable
@@ -157,3 +210,5 @@ printf 'agent_id\t%s\n' "$agent_id"
 printf 'observed_route\t%s\t%s\t%s\t%s\n' \
   "$observed_harness" "$observed_provider" "$observed_model" "$observed_effort"
 printf 'confirmation\t%s\n' "$confirmation"
+record_ledger_observation "$effective" "$confirmation"
+test "$confirmation" != rejected || exit 3

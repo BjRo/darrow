@@ -1,6 +1,7 @@
 import {
   chmod,
   mkdtemp,
+  readdir,
   readFile,
   realpath,
   rm,
@@ -11,6 +12,8 @@ import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import type { GoalRoute, HarnessAdapter, HarnessResult } from "../types";
 import { isolatedHarnessEnvironment } from "../environment";
 import { sandboxedAgentCommand } from "../sandbox";
+import { goalContractRecordIssues } from "../codex-spawn-guard";
+import { GOAL_REPORT_KEYS } from "../goal-report";
 
 interface CatalogRoute {
   model: string;
@@ -35,7 +38,7 @@ interface GoalHandoff {
   workflow: GoalWorkflow;
   risk: GoalRisk;
   profile: string;
-  routeSource: "policy" | "user";
+  routeSource: "policy" | "user" | "none";
   independentReview: {
     selection: "selected" | "omitted";
     reason: string;
@@ -48,6 +51,7 @@ interface GoalHandoff {
 interface ExplicitGoalControls {
   route?: GoalRoute;
   reviewRoundLimit?: number;
+  ledger?: string;
 }
 
 interface WorkflowEntry {
@@ -336,22 +340,11 @@ export function buildPreparedGoalPrompt(
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
     "Return independentReview.roundLimit as the exact positive integer only when the engineering request explicitly supplies a review-round limit. Return null for progress-bounded review without a user limit and whenever review is omitted. Never infer a numeric limit on the user's behalf.",
+    "When workflow is decision-gated, return the fixed terminal tuple: risk high, profile none, routeSource none, independentReview omitted with roundLimit null, and selectedRoute {harness: none, provider: none, model: none, effort: none}. Put the missing decision or authority in goalContract. This terminal handoff is reported without native-goal activation.",
     "",
-    "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
-    "Return independentReview with selection selected or omitted, a concise non-empty reason, and only the optional roundLimit described above. High risk must select independent review. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
-    "Finish with this record:",
-    "format\tdarrow-native-goal-preflight-v4",
-    "workflow\t<selected-workflow>",
-    "risk\t<selected-risk>",
-    "profile\t<selected-profile>",
-    "selected_route\t<harness>\t<provider>\t<model>\t<effort>",
-    "effective_route\t<harness>\t<provider>\t<model>\t<effort>",
-    "route_applied_by\thost-api",
-    "route_verified\ttrue",
-    "launch_boundary\thost_api",
-    "verification_gate\t<selected-risk>",
-    "evaluation_child_invocations\t0",
-    "evaluation_human_interruptions\t0",
+    "Keep goalContract concise and target 4,000 bytes, but preserve the outcome, acceptance criteria, scope, repository instructions, local work, publication boundary, selected workflow, risk gate, profile, route, feedback checks, and final-tree checks completely. Include the exact prepared ledger once as `Protocol ledger: <absolute-ledger>`. The enclosing host will materialize a file-backed native objective if the complete contract exceeds the inline limit; do not truncate or omit requirements to fit it.",
+    "Return independentReview with selection selected or omitted, a concise non-empty reason, and only the optional roundLimit described above. High risk must select independent review except for the fixed decision-gated terminal tuple. Do not write an Independent review line in goalContract; the host compiles the canonical portable clause from this structured decision.",
+    "Do not copy a tab-separated launch record into goalContract; the prepared ledger owns route, launch, digest, review, and reporting evidence.",
     "",
     "Return only a darrow-native-goal-handoff-v3 object with workflow, risk, profile, routeSource, independentReview, selectedRoute, and goalContract.",
     "",
@@ -380,22 +373,10 @@ export function buildGoalExecutionPrompt(
     `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
     "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
-    "Preserve the exact human-readable report below in every terminal final response, including a terminal blocked turn; an automatic continuation must not replace it with a summary. Do not reproduce the tab-separated v4 record from the internal goal contract.",
-    "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied; include this exact evidence in the human-readable report. A human-feedback pause is nonterminal and must not settle the goal.",
+    "When independent review is selected, record each returned semantic result against its exact target fingerprint with `goal-loop step review --ledger <Protocol ledger>`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.",
+    "Do not hand-author a darrow-native-goal-report-v1 block. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
+    "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied. A human-feedback pause is nonterminal and must not settle the goal.",
     "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
-    "format: darrow-native-goal-report-v1",
-    `workflow: ${handoff.workflow}`,
-    `risk: ${handoff.risk}`,
-    `profile: ${handoff.profile}`,
-    `harness: ${selected.harness}`,
-    `model: ${selected.provider} > ${selected.model}`,
-    `effort: ${selected.effort}`,
-    "route_applied_by: host-api",
-    "route_verified: true",
-    "launch_boundary: host_api",
-    `verification_gate: ${handoff.risk}`,
-    "evaluation_child_invocations: 0",
-    "evaluation_human_interruptions: 0",
   ].join("\n");
 }
 
@@ -458,9 +439,28 @@ function hasSelectableDimensions(handoff: Partial<GoalHandoff>): boolean {
   return (
     typeof handoff.workflow === "string" &&
     ["routine", "elevated", "high"].includes(handoff.risk ?? "") &&
-    ["policy", "user"].includes(handoff.routeSource ?? "") &&
+    ["policy", "user", "none"].includes(handoff.routeSource ?? "") &&
     isValidIndependentReview(handoff.independentReview)
   );
+}
+
+function isDecisionGatedHandoff(handoff: Partial<GoalHandoff>): boolean {
+  const route = handoff.selectedRoute;
+  return [
+    handoff.workflow === "decision-gated" && handoff.risk === "high",
+    handoff.profile === "none",
+    handoff.routeSource === "none",
+    handoff.independentReview?.selection === "omitted",
+    handoff.independentReview?.roundLimit === undefined,
+    route?.harness === "none",
+    route?.provider === "none",
+    route?.model === "none",
+    route?.effort === "none",
+  ].every(Boolean);
+}
+
+function highRiskRequiresReview(handoff: GoalHandoff): boolean {
+  return handoff.risk === "high" && handoff.workflow !== "decision-gated";
 }
 
 function hasPreparedProfile(
@@ -480,8 +480,9 @@ function assertHandoffShape(
   const valid =
     handoff.format === "darrow-native-goal-handoff-v3" &&
     hasSelectableDimensions(handoff) &&
-    hasPreparedProfile(handoff, dimensions) &&
-    isValidGoalRoute(handoff.selectedRoute) &&
+    (isDecisionGatedHandoff(handoff) ||
+      (hasPreparedProfile(handoff, dimensions) &&
+        isValidGoalRoute(handoff.selectedRoute))) &&
     isValidGoalContract(handoff.goalContract);
   if (!valid) throw new Error("preflight handoff has an invalid shape");
 }
@@ -537,7 +538,7 @@ function assertIndependentReviewPolicy(
 ): void {
   const review = handoff.independentReview;
   assertIndependentReviewReason(review.reason);
-  if (handoff.risk === "high" && review.selection !== "selected")
+  if (highRiskRequiresReview(handoff) && review.selection !== "selected")
     throw new Error("high-risk goal contract must select independent review");
   if (review.selection === "omitted") {
     if (review.roundLimit !== undefined)
@@ -561,35 +562,28 @@ function assertIndependentReviewPolicy(
     );
 }
 
-function assertGoalContractRecord(
+function assertGoalContractProtocol(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
+  ledger?: string,
 ): void {
-  const route = handoff.selectedRoute;
-  const routeRecord = [
-    route.harness,
-    route.provider,
-    route.model,
-    route.effort,
-  ].join("\t");
-  const requiredContractLines = [
-    "format\tdarrow-native-goal-preflight-v4",
-    `workflow\t${handoff.workflow}`,
-    `risk\t${handoff.risk}`,
-    `profile\t${handoff.profile}`,
-    `selected_route\t${routeRecord}`,
-    `effective_route\t${routeRecord}`,
-    "route_applied_by\thost-api",
-    "route_verified\ttrue",
-    "launch_boundary\thost_api",
-    `verification_gate\t${handoff.risk}`,
-    "evaluation_child_invocations\t0",
-    "evaluation_human_interruptions\t0",
-  ];
-  const contractLines = handoff.goalContract.split("\n");
   assertIndependentReviewPolicy(handoff, explicitReviewRoundLimit);
-  if (!requiredContractLines.every((line) => contractLines.includes(line)))
-    throw new Error("goal contract does not preserve handoff and final record");
+  if (/format\tdarrow-native-goal-preflight-v\d+/.test(handoff.goalContract))
+    throw new Error("goal contract duplicates internal launch state");
+  if (
+    ledger &&
+    !handoff.goalContract.split("\n").includes(`Protocol ledger: ${ledger}`)
+  )
+    throw new Error("goal contract does not preserve the prepared ledger");
+}
+
+function assertNoDuplicateCompiledLabels(contract: string): void {
+  for (const label of ["Independent review", "Protocol ledger"]) {
+    const count = contract
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith(`${label}:`)).length;
+    if (count > 1) throw new Error(`goal contract duplicates ${label}`);
+  }
 }
 
 function hasTextControl(value: string): boolean {
@@ -622,16 +616,31 @@ function compileIndependentReviewClause(
   handoff: GoalHandoff,
   explicitReviewRoundLimit?: number,
 ): void {
-  const marker = "format\tdarrow-native-goal-preflight-v4";
-  const normalizedContract = handoff.goalContract
+  const lines = handoff.goalContract
     .split("\n")
-    .filter((line) => !line.trimStart().startsWith("Independent review:"))
-    .join("\n");
-  const contract = normalizedContract.replace(
-    marker,
-    `${canonicalIndependentReviewClause(handoff, explicitReviewRoundLimit)}\n${marker}`,
+    .filter((line) => !line.trimStart().startsWith("Independent review:"));
+  const finalTreeIndex = lines.findIndex((line) =>
+    line.startsWith("Final-tree checks:"),
   );
-  handoff.goalContract = contract;
+  const insertAt = finalTreeIndex >= 0 ? finalTreeIndex + 1 : lines.length;
+  lines.splice(
+    insertAt,
+    0,
+    canonicalIndependentReviewClause(handoff, explicitReviewRoundLimit),
+  );
+  handoff.goalContract = lines.join("\n");
+}
+
+function compileProtocolLedgerClause(
+  handoff: GoalHandoff,
+  ledger: string | undefined,
+): void {
+  if (!ledger) return;
+  const lines = handoff.goalContract
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("Protocol ledger:"));
+  lines.push(`Protocol ledger: ${ledger}`);
+  handoff.goalContract = lines.join("\n");
 }
 
 export function parseCodexGoalHandoff(
@@ -644,10 +653,25 @@ export function parseCodexGoalHandoff(
   assertHandoffShape(handoff, dimensions);
   if (!dimensions.workflows.has(handoff.workflow))
     throw new Error(`unknown workflow: ${handoff.workflow}`);
+  if (isDecisionGatedHandoff(handoff)) {
+    assertIndependentReviewPolicy(handoff, explicitControls.reviewRoundLimit);
+    return handoff;
+  }
   assertCatalogRoute(catalog, handoff.selectedRoute);
   assertRouteProvenance(handoff, dimensions, explicitControls.route);
-  assertGoalContractRecord(handoff, explicitControls.reviewRoundLimit);
+  assertNoDuplicateCompiledLabels(handoff.goalContract);
+  compileProtocolLedgerClause(handoff, explicitControls.ledger);
+  assertGoalContractProtocol(
+    handoff,
+    explicitControls.reviewRoundLimit,
+    explicitControls.ledger,
+  );
   compileIndependentReviewClause(handoff, explicitControls.reviewRoundLimit);
+  const contractIssues = goalContractRecordIssues(handoff.goalContract);
+  if (contractIssues.length)
+    throw new Error(
+      `goal contract is incomplete: ${contractIssues.join(", ")}`,
+    );
   return handoff;
 }
 
@@ -668,8 +692,8 @@ function selectedRouteSchema() {
   return {
     type: "object",
     properties: {
-      harness: { type: "string", const: "codex" },
-      provider: { type: "string", const: "openai" },
+      harness: { type: "string", enum: ["codex", "none"] },
+      provider: { type: "string", enum: ["openai", "none"] },
       model: { type: "string", minLength: 1 },
       effort: { type: "string", minLength: 1 },
     },
@@ -696,8 +720,8 @@ function handoffSchema(profiles: string[]) {
         ],
       },
       risk: { type: "string", enum: ["routine", "elevated", "high"] },
-      profile: { type: "string", enum: profiles },
-      routeSource: { type: "string", enum: ["policy", "user"] },
+      profile: { type: "string", enum: [...profiles, "none"] },
+      routeSource: { type: "string", enum: ["policy", "user", "none"] },
       independentReview: independentReviewSchema(),
       selectedRoute: selectedRouteSchema(),
       goalContract: { type: "string", minLength: 1 },
@@ -725,6 +749,7 @@ interface AppServerItem {
   type?: string;
   phase?: string;
   text?: string;
+  aggregatedOutput?: string;
 }
 
 interface AppServerTurn {
@@ -753,6 +778,24 @@ interface AppServerMessage {
 }
 
 type AppServerPredicate = (message: AppServerMessage) => boolean;
+
+function messageFeedbackRequestId(
+  message: AppServerMessage,
+  threadId: string,
+): string | undefined {
+  const item = message.params?.item;
+  if (
+    ![
+      message.method === "item/completed",
+      message.params?.threadId === threadId,
+      item?.type === "commandExecution",
+    ].every(Boolean)
+  )
+    return undefined;
+  const output = item?.aggregatedOutput ?? "";
+  if (!/(?:^|\n)feedback_required(?:\n|$)/.test(output)) return undefined;
+  return output.match(/(?:^|\n)id:\s*([A-Za-z0-9._-]+)(?:\n|$)/)?.[1];
+}
 
 interface ModelListResult {
   data: Array<{
@@ -899,6 +942,31 @@ class AppServerClient {
     });
   }
 
+  cursor(): number {
+    return this.messages.length;
+  }
+
+  waitForAfter(
+    cursor: number,
+    predicate: AppServerPredicate,
+    timeoutMs = 30 * 60 * 1000,
+  ): Promise<AppServerMessage> {
+    const existing = this.messages.slice(cursor).find(predicate);
+    if (existing) return Promise.resolve(existing);
+    return new Promise((resolve, reject) => {
+      const waiter = {
+        predicate,
+        resolve,
+        reject,
+        timer: setTimeout(() => {
+          this.waiters.splice(this.waiters.indexOf(waiter), 1);
+          reject(new Error("timed out waiting for Codex app-server event"));
+        }, timeoutMs),
+      };
+      this.waiters.push(waiter);
+    });
+  }
+
   latest(predicate: AppServerPredicate): AppServerMessage | undefined {
     return this.messages.findLast(predicate);
   }
@@ -909,6 +977,13 @@ class AppServerClient {
 
   record(message: unknown): void {
     this.rawLines.push(JSON.stringify(message));
+  }
+
+  latestFeedbackRequestId(threadId: string): string | undefined {
+    return this.messages
+      .toReversed()
+      .map((message) => messageFeedbackRequestId(message, threadId))
+      .find((id) => id !== undefined);
   }
 
   raw(): string {
@@ -955,15 +1030,6 @@ function turnTokenTotals(outcome: TurnOutcome): TokenUsageTotals {
   return outcome.usage.params!.tokenUsage!.total;
 }
 
-function finalMessage(
-  client: AppServerClient,
-  turnId: string,
-): Promise<string> {
-  return client
-    .waitFor((message) => isFinalAgentMessage(message, turnId))
-    .then((message) => message.params!.item!.text as string);
-}
-
 async function completedTurn(
   client: AppServerClient,
   turnId: string,
@@ -978,26 +1044,20 @@ async function completedTurn(
   return message;
 }
 
-function turnUsage(
-  client: AppServerClient,
-  turnId: string,
-): Promise<AppServerMessage> {
-  return client.waitFor((message) => isTokenUsageUpdate(message, turnId));
-}
-
 async function runTurn(
   client: AppServerClient,
   turnId: string,
 ): Promise<TurnOutcome> {
-  const [text, , completed] = await Promise.all([
-    finalMessage(client, turnId),
-    turnUsage(client, turnId),
-    completedTurn(client, turnId),
-  ]);
+  const completed = await completedTurn(client, turnId);
+  const final = client.latest((message) =>
+    isFinalAgentMessage(message, turnId),
+  );
+  if (!final)
+    throw new Error(`Codex turn ${turnId} reported no final agent message`);
   const usage = client.latest((message) => isTokenUsageUpdate(message, turnId));
   if (!usage) throw new Error(`Codex turn ${turnId} reported no token usage`);
   return {
-    text,
+    text: final.params!.item!.text as string,
     usage,
     durationMs: completed.params!.turn!.durationMs ?? 0,
   };
@@ -1032,9 +1092,24 @@ export function isHumanFeedbackPauseText(text: unknown): boolean {
   return text.slice(marker[0].length).trim().length > 0;
 }
 
-function isHumanFeedbackPause(message: AppServerMessage): boolean {
+export function isHumanFeedbackPauseForTurn(
+  message: AppServerMessage,
+  threadId: string,
+  turnId: string,
+): boolean {
+  return (
+    isHumanFeedbackPauseForThread(message, threadId) &&
+    message.params?.turnId === turnId
+  );
+}
+
+function isHumanFeedbackPauseForThread(
+  message: AppServerMessage,
+  threadId: string,
+): boolean {
   return (
     message.method === "item/completed" &&
+    message.params?.threadId === threadId &&
     message.params?.item?.type === "agentMessage" &&
     message.params.item.phase === "final_answer" &&
     isHumanFeedbackPauseText(message.params.item.text)
@@ -1065,6 +1140,7 @@ async function collectHumanFeedbackPause(
   client: AppServerClient,
   threadId: string,
   message: AppServerMessage,
+  confirmTerminal: () => void,
 ): Promise<TurnOutcome> {
   const turnId = message.params?.turnId;
   if (typeof turnId !== "string")
@@ -1073,6 +1149,10 @@ async function collectHumanFeedbackPause(
   const goal = await client.request<GoalGetResult>("thread/goal/get", {
     threadId,
   });
+  if (isReportableGoalStatus(goal.goal?.status)) {
+    confirmTerminal();
+    return result;
+  }
   if (!isResumableGoalStatus(goal.goal?.status))
     throw new Error(
       `native goal feedback pause ended as ${goal.goal?.status ?? "missing"}`,
@@ -1083,20 +1163,27 @@ async function collectHumanFeedbackPause(
 async function runNativeGoal(
   client: AppServerClient,
   threadId: string,
+  eventCursor: number,
   confirmTerminal: () => void,
 ): Promise<TurnOutcome> {
-  const terminal = await client.waitFor(
+  const terminal = await client.waitForAfter(
+    eventCursor,
     (message) =>
       isSettledGoalUpdate(message, threadId) ||
       isFailedGoalTurn(message, threadId) ||
-      isHumanFeedbackPause(message),
+      isHumanFeedbackPauseForThread(message, threadId),
   );
   if (isFailedGoalTurn(terminal, threadId))
     throw new Error(
       `Codex goal turn failed: ${JSON.stringify(terminal.params!.turn!.error)}`,
     );
-  if (isHumanFeedbackPause(terminal))
-    return collectHumanFeedbackPause(client, threadId, terminal);
+  if (isHumanFeedbackPauseForThread(terminal, threadId))
+    return collectHumanFeedbackPause(
+      client,
+      threadId,
+      terminal,
+      confirmTerminal,
+    );
   if (!isReportableGoalStatus(terminal.params!.goal!.status))
     throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
   confirmTerminal();
@@ -1140,6 +1227,11 @@ export interface GoalAttachmentRelease {
 type GoalObjectiveMode = "inline" | "file-backed";
 
 function parseObjectiveRecords(stdout: string): Map<string, string> {
+  const marker = "format\tdarrow-native-goal-objective-v1";
+  const markerIndex = stdout.indexOf(marker);
+  if (markerIndex < 0)
+    throw new Error("goal objective output omitted its canonical record");
+  stdout = stdout.slice(markerIndex);
   const records = new Map<string, string>();
   for (const line of stdout.trimEnd().split("\n")) {
     const fields = line.split("\t");
@@ -1258,6 +1350,7 @@ function assertObjectiveByteCount(
 async function readGoalObjective(
   records: Map<string, string>,
   goalContract: string,
+  stagedInlineObjective?: string,
 ): Promise<
   Omit<MaterializedGoalObjective, "cleanup"> & { attachmentDir?: string }
 > {
@@ -1271,53 +1364,182 @@ async function readGoalObjective(
       ? await validateGoalAttachment(records, objectiveFile, goalContract)
       : undefined;
   if (mode === "inline") assertInlineObjectiveRecords(records, objectiveFile);
-  const objective = await readFile(objectiveFile, "utf8");
+  const objective =
+    mode === "inline" && stagedInlineObjective !== undefined
+      ? stagedInlineObjective
+      : await readFile(objectiveFile, "utf8");
   assertObjectiveByteCount(records, objective);
   if (mode === "inline" && objective !== goalContract)
     throw new Error("inline native objective changed the goal contract");
   return { objective, mode, attachmentDir };
 }
 
+interface ObjectiveMaterializerContext {
+  repoDir: string;
+  helper: string;
+  stagingFile: string;
+  ledger?: string;
+}
+
+async function stageLedgerObjective(
+  context: ObjectiveMaterializerContext,
+): Promise<string | undefined> {
+  if (!context.ledger) return undefined;
+  const staged = await captureProcess(
+    [
+      "bash",
+      context.helper,
+      "step",
+      "stage",
+      "--ledger",
+      context.ledger,
+      "--goal-file",
+      context.stagingFile,
+    ],
+    context.repoDir,
+  );
+  if (staged.code !== 0)
+    throw new Error(`goal objective staging failed: ${staged.stderr.trim()}`);
+  return requiredStepRecord(staged.stdout, "contract_sha256");
+}
+
+function materializerArgv(
+  context: ObjectiveMaterializerContext,
+  expectedDigest: string | undefined,
+): string[] {
+  return context.ledger
+    ? [
+        "bash",
+        context.helper,
+        "step",
+        "materialize",
+        "--ledger",
+        context.ledger,
+        "--goal-file",
+        context.stagingFile,
+        "--expected-sha256",
+        expectedDigest!,
+      ]
+    : [
+        "bash",
+        context.helper,
+        "materialize-objective",
+        "--repo",
+        context.repoDir,
+        "--goal-file",
+        context.stagingFile,
+      ];
+}
+
+async function releaseLedgerStaging(
+  context: ObjectiveMaterializerContext,
+  expectedDigest: string,
+  records: Map<string, string>,
+): Promise<void> {
+  const released = await captureProcess(
+    [
+      "bash",
+      context.helper,
+      "step",
+      "release-staging",
+      "--ledger",
+      context.ledger!,
+      "--goal-file",
+      context.stagingFile,
+      "--expected-sha256",
+      expectedDigest,
+    ],
+    context.repoDir,
+  );
+  if (released.code === 0) return;
+  const releaseError = `goal staging release failed: ${released.stderr.trim()}`;
+  const attachmentDir = records.get("attachment_dir");
+  try {
+    if (attachmentDir && attachmentDir !== "none")
+      await releaseGoalAttachment(
+        context.repoDir,
+        attachmentDir,
+        expectedDigest,
+        context.ledger,
+      );
+  } catch (cleanupError) {
+    throw new Error(`${releaseError}; ${errorText(cleanupError)}`, {
+      cause: cleanupError,
+    });
+  }
+  throw new Error(releaseError);
+}
+
 async function runObjectiveMaterializer(
   repoDir: string,
   stagingFile: string,
-): Promise<Map<string, string>> {
-  const helper = join(repoDir, ".agents", "bin", "goal-loop");
-  const { stdout, stderr, code } = await captureProcess(
-    [
-      "bash",
-      helper,
-      "materialize-objective",
-      "--repo",
-      repoDir,
-      "--goal-file",
-      stagingFile,
-    ],
+  goalContract: string,
+  ledger?: string,
+): Promise<{
+  records: Map<string, string>;
+  stagedInlineObjective?: string;
+}> {
+  const context = {
+    repoDir,
+    stagingFile,
+    ledger,
+    helper: join(repoDir, ".agents", "bin", "goal-loop"),
+  };
+  const expectedDigest = await stageLedgerObjective(context);
+  const materialized = await captureProcess(
+    materializerArgv(context, expectedDigest),
     repoDir,
   );
-  if (code !== 0)
-    throw new Error(`goal objective materialization failed: ${stderr.trim()}`);
-  return parseObjectiveRecords(stdout);
+  if (materialized.code !== 0)
+    throw new Error(
+      `goal objective materialization failed: ${materialized.stderr.trim()}`,
+    );
+  const records = parseObjectiveRecords(materialized.stdout);
+  let stagedInlineObjective: string | undefined;
+  if (ledger && goalObjectiveMode(records) === "inline") {
+    assertContractByteCount(records, goalContract);
+    const objectiveFile = requiredObjectiveRecord(records, "objective_file");
+    if (!isAbsolute(objectiveFile))
+      throw new Error(
+        "goal objective materialization returned a relative path",
+      );
+    assertInlineObjectiveRecords(records, objectiveFile);
+    stagedInlineObjective = await readFile(objectiveFile, "utf8");
+  }
+  if (ledger) await releaseLedgerStaging(context, expectedDigest!, records);
+  return { records, stagedInlineObjective };
 }
 
 async function releaseGoalAttachment(
   repoDir: string,
   attachmentDir: string,
   expectedDigest: string,
+  ledger?: string,
 ): Promise<void> {
   const helper = join(repoDir, ".agents", "bin", "goal-loop");
-  const { stderr, code } = await captureProcess(
-    [
-      "bash",
-      helper,
-      "release-objective",
-      "--attachment-dir",
-      attachmentDir,
-      "--expected-sha256",
-      expectedDigest,
-    ],
-    repoDir,
-  );
+  const argv = ledger
+    ? [
+        "bash",
+        helper,
+        "step",
+        "release-objective",
+        "--ledger",
+        ledger,
+        "--attachment-dir",
+        attachmentDir,
+        "--expected-sha256",
+        expectedDigest,
+      ]
+    : [
+        "bash",
+        helper,
+        "release-objective",
+        "--attachment-dir",
+        attachmentDir,
+        "--expected-sha256",
+        expectedDigest,
+      ];
+  const { stderr, code } = await captureProcess(argv, repoDir);
   if (code !== 0)
     throw new Error(`goal attachment release failed: ${stderr.trim()}`);
 }
@@ -1358,44 +1580,142 @@ export async function withPrivateGoalStaging<T>(
   }
 }
 
+interface GoalAttachmentCleanupContext {
+  repoDir: string;
+  attachmentDir: string;
+  expectedDigest: string;
+  ledger?: string;
+}
+
+function materializedGoalLifecycle(
+  materialized: Omit<MaterializedGoalObjective, "cleanup"> & {
+    attachmentDir?: string;
+  },
+  cleanupContext: GoalAttachmentCleanupContext | undefined,
+): MaterializedGoalObjective {
+  let released = false;
+  return {
+    objective: materialized.objective,
+    mode: materialized.mode,
+    attachment: cleanupContext
+      ? {
+          attachmentDir: cleanupContext.attachmentDir,
+          contractSha256: cleanupContext.expectedDigest,
+        }
+      : undefined,
+    async cleanup() {
+      if (!cleanupContext || released) return;
+      await releaseGoalAttachment(
+        cleanupContext.repoDir,
+        cleanupContext.attachmentDir,
+        cleanupContext.expectedDigest,
+        cleanupContext.ledger,
+      );
+      released = true;
+    },
+  };
+}
+
+async function cleanupGoalAttachmentAfterFailure(
+  context: GoalAttachmentCleanupContext,
+  error: unknown,
+): Promise<never> {
+  try {
+    await releaseGoalAttachment(
+      context.repoDir,
+      context.attachmentDir,
+      context.expectedDigest,
+      context.ledger,
+    );
+  } catch (cleanupError) {
+    throw new Error(`${errorText(error)}; ${errorText(cleanupError)}`, {
+      cause: cleanupError,
+    });
+  }
+  throw error;
+}
+
+function goalAttachmentCleanupContext(
+  repoDir: string,
+  expectedDigest: string,
+  ledger: string | undefined,
+  attachmentDir: string | undefined,
+): GoalAttachmentCleanupContext | undefined {
+  if (!attachmentDir || attachmentDir === "none") return undefined;
+  return { repoDir, attachmentDir, expectedDigest, ledger };
+}
+
+interface GoalObjectiveConsumption {
+  repoDir: string;
+  stagingFile: string;
+  goalContract: string;
+  expectedDigest: string;
+  ledger?: string;
+}
+
+async function consumeGoalObjective(options: GoalObjectiveConsumption) {
+  const { repoDir, stagingFile, goalContract, expectedDigest, ledger } =
+    options;
+  const { records, stagedInlineObjective } = await runObjectiveMaterializer(
+    repoDir,
+    stagingFile,
+    goalContract,
+    ledger,
+  );
+  let cleanupContext = goalAttachmentCleanupContext(
+    repoDir,
+    expectedDigest,
+    ledger,
+    records.get("attachment_dir"),
+  );
+  const materialized = await readGoalObjective(
+    records,
+    goalContract,
+    stagedInlineObjective,
+  );
+  cleanupContext =
+    goalAttachmentCleanupContext(
+      repoDir,
+      expectedDigest,
+      ledger,
+      materialized.attachmentDir,
+    ) ?? cleanupContext;
+  return { materialized, cleanupContext };
+}
+
 async function materializeGoalObjective(
   repoDir: string,
   goalContract: string,
+  ledger?: string,
+  ledgerStagingDir?: string,
 ): Promise<MaterializedGoalObjective> {
   const expectedDigest = goalContractSha256(goalContract);
-  let attachmentDir: string | undefined;
+  let cleanupContext: GoalAttachmentCleanupContext | undefined;
   try {
-    return await withPrivateGoalStaging(goalContract, async (stagingFile) => {
-      const records = await runObjectiveMaterializer(repoDir, stagingFile);
-      const emittedAttachment = records.get("attachment_dir");
-      if (emittedAttachment && emittedAttachment !== "none")
-        attachmentDir = emittedAttachment;
-      const materialized = await readGoalObjective(records, goalContract);
-      attachmentDir = materialized.attachmentDir;
-      let released = false;
-      return {
-        objective: materialized.objective,
-        mode: materialized.mode,
-        attachment: attachmentDir
-          ? { attachmentDir, contractSha256: expectedDigest }
-          : undefined,
-        async cleanup() {
-          if (!attachmentDir || released) return;
-          await releaseGoalAttachment(repoDir, attachmentDir, expectedDigest);
-          released = true;
-        },
-      };
-    });
-  } catch (error) {
-    if (attachmentDir) {
-      try {
-        await releaseGoalAttachment(repoDir, attachmentDir, expectedDigest);
-      } catch (cleanupError) {
-        throw new Error(`${errorText(error)}; ${errorText(cleanupError)}`, {
-          cause: cleanupError,
-        });
-      }
+    const consume = async (stagingFile: string) => {
+      const consumed = await consumeGoalObjective({
+        repoDir,
+        stagingFile,
+        goalContract,
+        expectedDigest,
+        ledger,
+      });
+      cleanupContext = consumed.cleanupContext;
+      return materializedGoalLifecycle(consumed.materialized, cleanupContext);
+    };
+    if (!ledgerStagingDir)
+      return await withPrivateGoalStaging(goalContract, consume);
+    const stagingFile = join(ledgerStagingDir, "goal-contract.md");
+    await writePrivateGoalStaging(stagingFile, goalContract);
+    try {
+      return await consume(stagingFile);
+    } catch (error) {
+      await rm(ledgerStagingDir, { recursive: true, force: true });
+      throw error;
     }
+  } catch (error) {
+    if (cleanupContext)
+      return cleanupGoalAttachmentAfterFailure(cleanupContext, error);
     throw error;
   }
 }
@@ -1404,16 +1724,27 @@ interface NativeGoalSetter {
   request<T = unknown>(method: string, params: unknown): Promise<T>;
 }
 
+interface MaterializedGoalActivation {
+  repoDir: string;
+  threadId: string;
+  goalContract: string;
+  ledger?: string;
+  stagingDir?: string;
+}
+
 export async function activateMaterializedGoal(
   client: NativeGoalSetter,
-  repoDir: string,
-  threadId: string,
-  goalContract: string,
+  activation: MaterializedGoalActivation,
 ): Promise<MaterializedGoalObjective> {
-  const materialized = await materializeGoalObjective(repoDir, goalContract);
+  const materialized = await materializeGoalObjective(
+    activation.repoDir,
+    activation.goalContract,
+    activation.ledger,
+    activation.stagingDir,
+  );
   try {
     await client.request("thread/goal/set", {
-      threadId,
+      threadId: activation.threadId,
       objective: materialized.objective,
       status: "active",
     });
@@ -1424,17 +1755,50 @@ export async function activateMaterializedGoal(
   }
 }
 
-async function runGoalPreparation(repoDir: string): Promise<string> {
+function requiredStepRecord(stdout: string, key: string): string {
+  const values = stdout
+    .trimEnd()
+    .split("\n")
+    .flatMap((line) => {
+      const fields = line.split("\t");
+      return fields.length === 2 && fields[0] === key ? [fields[1]!] : [];
+    });
+  if (values.length !== 1 || !values[0])
+    throw new Error(`goal step returned missing or duplicate ${key}`);
+  return values[0];
+}
+
+interface GoalPreparation {
+  evidence: string;
+  ledger: string;
+  stagingDir: string;
+}
+
+async function runGoalPreparation(repoDir: string): Promise<GoalPreparation> {
   const helper = join(repoDir, ".agents", "bin", "goal-loop");
-  const { stdout, stderr, code } = await captureProcess(
-    ["bash", helper, "prepare", "--repo", repoDir, "--host", "codex"],
+  const start = await captureProcess(
+    ["bash", helper, "step", "start", "--repo", repoDir, "--host", "codex"],
     repoDir,
   );
-  if (code !== 0)
-    throw new Error(`goal preflight preparation failed: ${stderr.trim()}`);
-  if (!/^format\tdarrow-native-goal-prepared-v1$/m.test(stdout))
+  if (start.code !== 0)
+    throw new Error(`goal ledger start failed: ${start.stderr.trim()}`);
+  const ledger = requiredStepRecord(start.stdout, "ledger");
+  const stagingDir = requiredStepRecord(start.stdout, "staging_dir");
+  const prepared = await captureProcess(
+    ["bash", helper, "step", "prepare", "--ledger", ledger],
+    repoDir,
+  );
+  if (prepared.code !== 0)
+    throw new Error(
+      `goal preflight preparation failed: ${prepared.stderr.trim()}`,
+    );
+  if (!/^format\tdarrow-native-goal-prepared-v1$/m.test(prepared.stdout))
     throw new Error("goal preflight preparation returned an unknown format");
-  return stdout;
+  return {
+    evidence: `${start.stdout.trimEnd()}\n${prepared.stdout.trimEnd()}`,
+    ledger,
+    stagingDir,
+  };
 }
 
 function readWorkflowDocuments(
@@ -1453,7 +1817,10 @@ function readWorkflowDocuments(
 }
 
 interface PreparedGoalPreflight {
+  engineeringRequest: string;
   prompt: string;
+  ledger: string;
+  stagingDir: string;
   dimensions: PreparedGoalDimensions;
   intentRoutingGuidance: string;
   stage: GoalDimensionStage;
@@ -1465,17 +1832,22 @@ async function prepareGoalPreflight(
   engineeringRequest: string,
 ): Promise<PreparedGoalPreflight> {
   const started = performance.now();
-  const stdout = await runGoalPreparation(repoDir);
+  const preparation = await runGoalPreparation(repoDir);
   const stage = goalDimensionStage(engineeringRequest);
-  const dimensions = parsePreparedGoalDimensions(stdout);
+  const dimensions = parsePreparedGoalDimensions(preparation.evidence);
   const skill = await readFile(
     join(repoDir, ".agents", "skills", "adaptive-goal", "SKILL.md"),
     "utf8",
   );
   const intentRoutingGuidance = extractIntentRoutingGuidance(skill);
   const workflowDocuments = await readWorkflowDocuments(dimensions);
-  const preparedEvidence = [stdout.trim(), ...workflowDocuments].join("\n");
+  const preparedEvidence = [preparation.evidence, ...workflowDocuments].join(
+    "\n",
+  );
   return {
+    engineeringRequest,
+    ledger: preparation.ledger,
+    stagingDir: preparation.stagingDir,
     prompt: buildPreparedGoalPrompt(
       engineeringRequest,
       preparedEvidence,
@@ -1625,12 +1997,94 @@ function assertControlRoute(selected: GoalRoute, expected?: GoalRoute): void {
     );
 }
 
+function ledgerRoute(route: GoalRoute): string {
+  return [route.harness, route.provider, route.model, route.effort].join("|");
+}
+
+async function recordLedgerRoute(
+  repoDir: string,
+  ledger: string,
+  handoff: GoalHandoff,
+): Promise<void> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const argv = [
+    "bash",
+    helper,
+    "step",
+    "route",
+    "--ledger",
+    ledger,
+    "--workflow",
+    handoff.workflow,
+    "--risk",
+    handoff.risk,
+    "--profile",
+    handoff.profile,
+    "--verification-gate",
+    handoff.workflow === "decision-gated" ? "not-applicable" : handoff.risk,
+    "--review",
+    handoff.independentReview.selection,
+  ];
+  if (handoff.independentReview.roundLimit !== undefined)
+    argv.push(
+      "--review-round-limit",
+      String(handoff.independentReview.roundLimit),
+    );
+  if (handoff.routeSource === "user")
+    argv.push("--route", ledgerRoute(handoff.selectedRoute));
+  const result = await captureProcess(argv, repoDir);
+  if (result.code !== 0)
+    throw new Error(`goal route recording failed: ${result.stderr.trim()}`);
+  const selected = requiredStepRecord(result.stdout, "selected_route");
+  const expected =
+    handoff.workflow === "decision-gated"
+      ? "none"
+      : ledgerRoute(handoff.selectedRoute);
+  if (selected !== expected)
+    throw new Error("goal ledger route does not match the handoff");
+}
+
 interface PreflightPhase {
   threadId: string;
   prepared: PreparedGoalPreflight;
   handoff: GoalHandoff;
   result: TurnOutcome;
   modelCalls: number;
+  reviewAvailable: boolean;
+}
+
+export async function independentReviewCapabilityAvailable(
+  repoDir: string,
+): Promise<boolean> {
+  const root = join(repoDir, ".agents", "skills");
+  let names: string[];
+  try {
+    const entries = await readdir(root, { withFileTypes: true });
+    names = entries
+      .filter((entry) => entry.isDirectory() && entry.name !== "adaptive-goal")
+      .map((entry) => entry.name);
+  } catch {
+    return false;
+  }
+  const descriptions = await Promise.all(
+    names.map(async (name) => {
+      let skill: string;
+      try {
+        skill = await readFile(join(root, name, "SKILL.md"), "utf8");
+      } catch {
+        return "";
+      }
+      const frontmatter = skill.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "";
+      return frontmatter.match(/^description:\s*(.+)$/m)?.[1]?.trim() ?? "";
+    }),
+  );
+  return descriptions.some((description) =>
+    [
+      /\bindependent(?:ly)?\b/i,
+      /\breview\b/i,
+      /\b(?:code|change|fix)\b/i,
+    ].every((pattern) => pattern.test(description)),
+  );
 }
 
 async function runGoalPreflightPhase(
@@ -1657,10 +2111,16 @@ async function runGoalPreflightPhase(
     {
       route: parseExplicitUserRoute(run.prompt),
       reviewRoundLimit: parseExplicitReviewRoundLimit(run.prompt),
+      ledger: prepared.ledger,
     },
   );
-  assertControlRoute(handoff.selectedRoute, run.control?.expectedGoalRoute);
-  return { threadId, prepared, handoff, ...preflight };
+  if (handoff.workflow !== "decision-gated")
+    assertControlRoute(handoff.selectedRoute, run.control?.expectedGoalRoute);
+  await recordLedgerRoute(run.repoDir, prepared.ledger, handoff);
+  const reviewAvailable =
+    handoff.independentReview.selection !== "selected" ||
+    (await independentReviewCapabilityAvailable(run.repoDir));
+  return { threadId, prepared, handoff, reviewAvailable, ...preflight };
 }
 
 interface ExecutionTurnOptions {
@@ -1671,9 +2131,15 @@ interface ExecutionTurnOptions {
   route: GoalRoute;
 }
 
+interface ExecutionTurnStart {
+  turnId: string;
+  eventCursor: number;
+}
+
 async function startExecutionTurn(
   options: ExecutionTurnOptions,
-): Promise<string> {
+): Promise<ExecutionTurnStart> {
+  const eventCursor = options.client.cursor();
   const execution = await options.client.request<TurnStartResult>(
     "turn/start",
     {
@@ -1686,7 +2152,7 @@ async function startExecutionTurn(
       effort: options.route.effort,
     },
   );
-  return execution.turn.id;
+  return { turnId: execution.turn.id, eventCursor };
 }
 
 interface GoalEvidenceOptions {
@@ -1733,15 +2199,126 @@ function recordGoalEvidence(options: GoalEvidenceOptions): void {
 async function assertGoalOutcome(
   client: AppServerClient,
   threadId: string,
-): Promise<void> {
+): Promise<"complete" | "blocked" | "active" | "paused"> {
   const goal = await client.request<GoalGetResult>("thread/goal/get", {
     threadId,
   });
-  if (
-    !isReportableGoalStatus(goal.goal?.status) &&
-    !isResumableGoalStatus(goal.goal?.status)
-  )
-    throw new Error(`native goal ended as ${goal.goal?.status ?? "missing"}`);
+  const status = goal.goal?.status;
+  if (!isReportableGoalStatus(status) && !isResumableGoalStatus(status))
+    throw new Error(`native goal ended as ${status ?? "missing"}`);
+  return status;
+}
+
+async function recordLedgerActivation(
+  repoDir: string,
+  ledger: string,
+  route: GoalRoute,
+): Promise<void> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const effective = [
+    route.harness,
+    route.provider,
+    route.model,
+    route.effort,
+  ].join("|");
+  const result = await captureProcess(
+    [
+      "bash",
+      helper,
+      "step",
+      "activate",
+      "--ledger",
+      ledger,
+      "--applied-by",
+      "host-api",
+      "--boundary",
+      "host_api",
+      "--agent-id",
+      "none",
+      "--effective-route",
+      effective,
+      "--route-verified",
+      "true",
+    ],
+    repoDir,
+  );
+  if (result.code !== 0)
+    throw new Error(
+      `goal activation recording failed: ${result.stderr.trim()}`,
+    );
+}
+
+async function renderLedgerReport(
+  repoDir: string,
+  ledger: string,
+  status: "complete" | "blocked" | "launch-required",
+  humanInterruptions = 0,
+): Promise<string> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const result = await captureProcess(
+    [
+      "bash",
+      helper,
+      "step",
+      "report",
+      "--ledger",
+      ledger,
+      "--status",
+      status,
+      "--human-interruptions",
+      String(humanInterruptions),
+    ],
+    repoDir,
+  );
+  if (result.code !== 0)
+    throw new Error(`goal report rendering failed: ${result.stderr.trim()}`);
+  return result.stdout.trimEnd();
+}
+
+async function recordPreActivationStop(
+  repoDir: string,
+  ledger: string,
+  reason: "review-unavailable" | "launch-unavailable",
+): Promise<void> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const result = await captureProcess(
+    [
+      "bash",
+      helper,
+      "step",
+      "launch-stop",
+      "--ledger",
+      ledger,
+      "--reason",
+      reason,
+    ],
+    repoDir,
+  );
+  if (result.code !== 0)
+    throw new Error(
+      `goal launch stop recording failed: ${result.stderr.trim()}`,
+    );
+}
+
+export function stripModelAuthoredGoalReports(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const retained: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const report = GOAL_REPORT_KEYS.every((key, offset) => {
+      const line = lines[index + offset]?.trim();
+      const prefix = `${key}: `;
+      return line?.startsWith(prefix) && line.length > prefix.length;
+    });
+    if (
+      report &&
+      lines[index]!.trim() === "format: darrow-native-goal-report-v1"
+    ) {
+      index += GOAL_REPORT_KEYS.length - 1;
+      continue;
+    }
+    retained.push(lines[index]!);
+  }
+  return retained.join("\n").trim();
 }
 
 function recordObjectiveEvidence(
@@ -1794,64 +2371,298 @@ export async function withMaterializedGoalLifecycle<T>(
   return result;
 }
 
+interface GoalWorkflowEvidence {
+  workflow: WorkflowEntry;
+  content: string;
+  sha256: string;
+}
+
+async function loadGoalWorkflowEvidence(
+  phase: PreflightPhase,
+): Promise<GoalWorkflowEvidence> {
+  const workflow = phase.prepared.dimensions.workflows.get(
+    phase.handoff.workflow,
+  )!;
+  const content = await readFile(workflow.file, "utf8");
+  const sha256 = new Bun.CryptoHasher("sha256").update(content).digest("hex");
+  return { workflow, content, sha256 };
+}
+
+export function authorizedFeedbackAnswerCommand(
+  engineeringRequest: string,
+  feedbackId: string,
+): string[] | undefined {
+  if (!/^[A-Za-z0-9._-]+$/.test(feedbackId)) return undefined;
+  const match = engineeringRequest.match(
+    /(?:`|\b)([A-Za-z0-9_./-]+)\s+answer\s+<reported-id>(?:`|\b)/,
+  );
+  return match ? [match[1]!, "answer", feedbackId] : undefined;
+}
+
+async function runAuthorizedFeedbackAnswer(
+  repoDir: string,
+  argv: string[],
+): Promise<string> {
+  const env = await isolatedHarnessEnvironment("codex", repoDir);
+  env.PATH = `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`;
+  env.CODEX_THREAD_ID = "darrow-goal-host-parent";
+  const process = Bun.spawn(argv, {
+    cwd: repoDir,
+    env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(process.stdout).text(),
+    new Response(process.stderr).text(),
+    process.exited,
+  ]);
+  const answer = stdout.trim();
+  if (code !== 0)
+    throw new Error(`authorized feedback answer failed: ${stderr.trim()}`);
+  if (!answer || /[\r\n]/.test(answer))
+    throw new Error("authorized feedback answer must be one non-empty line");
+  return answer;
+}
+
+interface GoalOwnerTurnContext {
+  client: AppServerClient;
+  repoDir: string;
+  phase: PreflightPhase;
+  workflow: GoalWorkflowEvidence;
+}
+
+interface GoalOwnerTurnState {
+  result: TurnOutcome;
+  status: "complete" | "blocked" | "active" | "paused";
+  humanInterruptions: number;
+}
+
+async function relayGoalFeedback(
+  context: GoalOwnerTurnContext,
+  confirmTerminal: () => void,
+  current: GoalOwnerTurnState,
+): Promise<GoalOwnerTurnState> {
+  if (!isResumableGoalStatus(current.status)) return current;
+  const { client, repoDir, phase } = context;
+  const { threadId, handoff, prepared } = phase;
+  const feedbackId = client.latestFeedbackRequestId(threadId);
+  const argv = feedbackId
+    ? authorizedFeedbackAnswerCommand(prepared.engineeringRequest, feedbackId)
+    : undefined;
+  if (!argv || !feedbackId) return current;
+  const answer = await runAuthorizedFeedbackAnswer(repoDir, argv);
+  client.record({
+    type: "darrow.human_feedback_answer",
+    feedback_id: feedbackId,
+    answer,
+    status: "completed",
+  });
+  const resumed = await startExecutionTurn({
+    client,
+    threadId,
+    repoDir,
+    prompt: `- phase: human-feedback-response\n${answer}`,
+    route: handoff.selectedRoute,
+  });
+  client.record({
+    type: "darrow.human_feedback_relay",
+    feedback_id: feedbackId,
+    thread_id: threadId,
+    same_owner: true,
+  });
+  const result = await runNativeGoal(
+    client,
+    threadId,
+    resumed.eventCursor,
+    confirmTerminal,
+  );
+  const status = await assertGoalOutcome(client, threadId);
+  if (!isReportableGoalStatus(status))
+    throw new Error("native goal requested unresolved feedback twice");
+  return { result, status, humanInterruptions: 1 };
+}
+
+async function runGoalOwnerTurn(
+  context: GoalOwnerTurnContext,
+  confirmTerminal: () => void,
+): Promise<{
+  result: TurnOutcome;
+  durationMs: number;
+  status: "complete" | "blocked" | "active" | "paused";
+  humanInterruptions: number;
+}> {
+  const { client, repoDir, phase, workflow } = context;
+  const { threadId, handoff, prepared } = phase;
+  const prompt = buildGoalExecutionPrompt(
+    handoff,
+    workflow.content,
+    prepared.intentRoutingGuidance,
+  );
+  const started = performance.now();
+  const execution = await startExecutionTurn({
+    client,
+    threadId,
+    repoDir,
+    prompt,
+    route: handoff.selectedRoute,
+  });
+  await recordLedgerActivation(repoDir, prepared.ledger, handoff.selectedRoute);
+  recordGoalEvidence({
+    client,
+    threadId,
+    turnId: execution.turnId,
+    phase,
+    workflow: workflow.workflow,
+    workflowSha256: workflow.sha256,
+  });
+  const result = await runNativeGoal(
+    client,
+    threadId,
+    execution.eventCursor,
+    confirmTerminal,
+  );
+  const status = await assertGoalOutcome(client, threadId);
+  const final = await relayGoalFeedback(context, confirmTerminal, {
+    result,
+    status,
+    humanInterruptions: 0,
+  });
+  const durationMs = performance.now() - started;
+  return { ...final, durationMs };
+}
+
 async function runGoalExecutionPhase(
   client: AppServerClient,
   repoDir: string,
   phase: PreflightPhase,
 ): Promise<{ result: TurnOutcome; durationMs: number }> {
   const { threadId, handoff, prepared } = phase;
-  const workflow = prepared.dimensions.workflows.get(handoff.workflow)!;
-  const workflowContent = await readFile(workflow.file, "utf8");
-  const workflowSha256 = new Bun.CryptoHasher("sha256")
-    .update(workflowContent)
-    .digest("hex");
-  const materialized = await activateMaterializedGoal(
-    client,
+  const workflow = await loadGoalWorkflowEvidence(phase);
+  const materialized = await activateMaterializedGoal(client, {
     repoDir,
     threadId,
-    handoff.goalContract,
-  );
+    goalContract: handoff.goalContract,
+    ledger: prepared.ledger,
+    stagingDir: prepared.stagingDir,
+  });
   recordObjectiveEvidence(client, handoff, materialized);
-  return withMaterializedGoalLifecycle(
+  const execution = await withMaterializedGoalLifecycle(
     materialized,
-    async (confirmTerminal) => {
-      const prompt = buildGoalExecutionPrompt(
-        handoff,
-        workflowContent,
-        prepared.intentRoutingGuidance,
-      );
-      const started = performance.now();
-      const turnId = await startExecutionTurn({
-        client,
-        threadId,
-        repoDir,
-        prompt,
-        route: handoff.selectedRoute,
-      });
-      recordGoalEvidence({
-        client,
-        threadId,
-        turnId,
-        phase,
-        workflow,
-        workflowSha256,
-      });
-      const result = await runNativeGoal(client, threadId, confirmTerminal);
-      const durationMs = performance.now() - started;
-      await assertGoalOutcome(client, threadId);
-      return { result, durationMs };
-    },
+    (confirmTerminal) =>
+      runGoalOwnerTurn({ client, repoDir, phase, workflow }, confirmTerminal),
     (attachment) => recordRetainedObjective(client, threadId, attachment),
   );
+  if (isReportableGoalStatus(execution.status)) {
+    const report = await renderLedgerReport(
+      repoDir,
+      prepared.ledger,
+      execution.status,
+      execution.humanInterruptions,
+    );
+    client.record({
+      type: "darrow.goal_report_rendered",
+      ledger: prepared.ledger,
+      status: execution.status,
+      enforcement: "helper",
+    });
+    execution.result = {
+      ...execution.result,
+      text: [report, stripModelAuthoredGoalReports(execution.result.text)]
+        .filter(Boolean)
+        .join("\n\n"),
+    };
+  }
+  return { result: execution.result, durationMs: execution.durationMs };
 }
 
 type CodexGoalOutcome = Omit<HarnessResult, "ok" | "durationMs">;
+
+function preflightOnlyMetrics(
+  preflight: PreflightPhase,
+  usage: TokenUsageTotals,
+  executionDurationMs: number,
+) {
+  return {
+    preparation: { durationMs: preflight.prepared.durationMs },
+    classifier: {
+      durationMs: preflight.result.durationMs,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      modelCalls: preflight.modelCalls,
+    },
+    execution: {
+      durationMs: executionDurationMs,
+      inputTokens: 0,
+      outputTokens: 0,
+    },
+  };
+}
+
+async function preflightStopOutcome(
+  client: AppServerClient,
+  repoDir: string,
+  preflight: PreflightPhase,
+  reason: "decision-gated" | "review-unavailable",
+): Promise<CodexGoalOutcome> {
+  const started = performance.now();
+  if (reason === "review-unavailable")
+    await recordPreActivationStop(
+      repoDir,
+      preflight.prepared.ledger,
+      "review-unavailable",
+    );
+  const report = await renderLedgerReport(
+    repoDir,
+    preflight.prepared.ledger,
+    "launch-required",
+    reason === "decision-gated" ? 1 : 0,
+  );
+  client.record({
+    type: "darrow.goal_report_rendered",
+    ledger: preflight.prepared.ledger,
+    status: "launch-required",
+    enforcement: "helper",
+  });
+  const usage = turnTokenTotals(preflight.result);
+  return {
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    costUsd: null,
+    resultText: [
+      report,
+      reason === "decision-gated" ? preflight.handoff.goalContract : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    raw: client.raw(),
+    phaseMetrics: preflightOnlyMetrics(
+      preflight,
+      usage,
+      performance.now() - started,
+    ),
+  };
+}
 
 async function executeCodexGoal(
   client: AppServerClient,
   run: CodexGoalRunOptions,
 ): Promise<CodexGoalOutcome> {
   const preflight = await runGoalPreflightPhase(client, run);
+  if (preflight.handoff.workflow === "decision-gated")
+    return preflightStopOutcome(
+      client,
+      run.repoDir,
+      preflight,
+      "decision-gated",
+    );
+  if (!preflight.reviewAvailable)
+    return preflightStopOutcome(
+      client,
+      run.repoDir,
+      preflight,
+      "review-unavailable",
+    );
   const execution = await runGoalExecutionPhase(client, run.repoDir, preflight);
   // This adapter creates a fresh thread per trial. The final cumulative
   // total therefore covers every model call in both turns without double

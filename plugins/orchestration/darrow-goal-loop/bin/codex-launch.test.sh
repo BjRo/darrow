@@ -30,7 +30,10 @@ reject_text() {
 require_text "$guide" 'Close the subagent when the goal has been fulfilled'
 require_text "$guide" 'Absence or failure of a close'
 require_text "$guide" 'control does not invalidate'
-require_text "$guide" 'materialize-objective'
+require_text "$guide" 'step materialize'
+require_text "$guide" 'step activate'
+require_text "$skill" 'step report'
+require_text "$readme" 'helper+codex-hooks'
 # shellcheck disable=SC2016 # literal Markdown code span
 require_text "$guide" 'before the first `create_goal` call'
 # shellcheck disable=SC2016 # literal Markdown code span

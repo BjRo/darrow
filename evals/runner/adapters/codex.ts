@@ -8,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
@@ -298,12 +298,24 @@ function retainedPostGoalToolEvent(
   if (id && context.seen.has(id)) return undefined;
   if (id) context.seen.add(id);
   if (retainedHumanFeedbackEvent(event)) return undefined;
+  const activation = retainedGoalActivationEvent(
+    event,
+    context.attestation,
+    context.goalLoopPath,
+  );
+  if (activation) return activation;
   const release = retainedObjectiveReleaseEvent(
     event,
     context.attestation,
     context.goalLoopPath,
   );
   if (release) return release;
+  const report = retainedGoalReportEvent(
+    event,
+    context.attestation,
+    context.goalLoopPath,
+  );
+  if (report) return report;
   return {
     type: "darrow.parent_tool_after_goal",
     operation: postGoalToolOperation(item, context.repoDir),
@@ -367,6 +379,143 @@ function retainedObjectiveReleaseEvent(
   };
 }
 
+function retainedGoalActivationEvent(
+  event: CodexEvent,
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
+  goalLoopPath?: string,
+): unknown | undefined {
+  const command = completedCommand(event);
+  if (!command || !attestation || !goalLoopPath) return undefined;
+  const evidence = goalActivationCommandEvidence(
+    command,
+    attestation,
+    goalLoopPath,
+  );
+  if (!evidence || !goalActivationOutputMatches(event, evidence))
+    return undefined;
+  return {
+    type: "darrow.goal_activation",
+    status: "completed",
+    boundary: "native_subagent",
+    agent_id: evidence.agentId,
+    effective_route: evidence.route,
+  };
+}
+
+function goalActivationCommandEvidence(
+  command: string,
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+  goalLoopPath: string,
+): { agentId: string; route: string } | undefined {
+  const words = literalShellWords(command);
+  const route = `codex|openai|${attestation.model}|${attestation.effort}`;
+  if (!words || words.length !== 16) return undefined;
+  const prefix = [
+    "/bin/bash",
+    goalLoopPath,
+    "step",
+    "activate",
+    "--ledger",
+    attestation.ledger,
+    "--applied-by",
+    "native-subagent",
+    "--boundary",
+    "native_subagent",
+    "--agent-id",
+  ];
+  if (JSON.stringify(words.slice(0, 11)) !== JSON.stringify(prefix))
+    return undefined;
+  const agentId = words[11]!;
+  if (!/^[A-Za-z0-9._-]+$/.test(agentId) || agentId === "none")
+    return undefined;
+  const suffix = ["--effective-route", route, "--route-verified", "true"];
+  if (JSON.stringify(words.slice(12)) !== JSON.stringify(suffix))
+    return undefined;
+  return { agentId, route };
+}
+
+function goalActivationOutputMatches(
+  event: CodexEvent,
+  evidence: { agentId: string; route: string },
+): boolean {
+  const output = event.item?.aggregated_output;
+  return !(
+    typeof output !== "string" ||
+    !/^format\tdarrow-goal-step-v1$/m.test(output) ||
+    !/^step\tactivate$/m.test(output) ||
+    !/^status\trecorded$/m.test(output) ||
+    !new RegExp(`^agent_id\\t${escapeRegExp(evidence.agentId)}$`, "m").test(
+      output,
+    ) ||
+    !new RegExp(
+      `^effective_route\\t${escapeRegExp(evidence.route)}$`,
+      "m",
+    ).test(output) ||
+    !/^route_verified\ttrue$/m.test(output)
+  );
+}
+
+function retainedGoalReportEvent(
+  event: CodexEvent,
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
+  goalLoopPath?: string,
+): unknown | undefined {
+  const command = completedCommand(event);
+  if (!command || !attestation || !goalLoopPath) return undefined;
+  const evidence = goalReportCommandEvidence(
+    command,
+    attestation,
+    goalLoopPath,
+  );
+  if (!evidence || !goalReportOutputMatches(event, evidence.status))
+    return undefined;
+  return {
+    type: "darrow.goal_report",
+    status: evidence.status,
+    human_interruptions: evidence.humanInterruptions,
+  };
+}
+
+function goalReportCommandEvidence(
+  command: string,
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+  goalLoopPath: string,
+): { status: string; humanInterruptions: number } | undefined {
+  const words = literalShellWords(command);
+  if (!words || words.length !== 10) return undefined;
+  const prefix = [
+    "/bin/bash",
+    goalLoopPath,
+    "step",
+    "report",
+    "--ledger",
+    attestation.ledger,
+    "--status",
+  ];
+  if (JSON.stringify(words.slice(0, 7)) !== JSON.stringify(prefix))
+    return undefined;
+  const status = words[7]!;
+  if (!["complete", "blocked", "launch-required"].includes(status))
+    return undefined;
+  if (words[8] !== "--human-interruptions" || !/^\d+$/.test(words[9]!))
+    return undefined;
+  return { status, humanInterruptions: Number(words[9]) };
+}
+
+function goalReportOutputMatches(event: CodexEvent, status: string): boolean {
+  const terminal = {
+    complete: "Native goal completed.",
+    blocked: "Native goal settled as blocked.",
+    "launch-required": "Native goal requires host launch.",
+  }[status];
+  const output = event.item?.aggregated_output;
+  return !(
+    typeof output !== "string" ||
+    !/^format: darrow-native-goal-report-v1$/m.test(output) ||
+    !new RegExp(`^${escapeRegExp(terminal!)}$`, "m").test(output)
+  );
+}
+
 function objectiveReleaseCommandMatches(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
@@ -377,7 +526,10 @@ function objectiveReleaseCommandMatches(
   const expected = [
     "/bin/bash",
     goalLoopPath,
+    "step",
     "release-objective",
+    "--ledger",
+    attestation.ledger,
     "--attachment-dir",
     attestation.attachmentDir,
     "--expected-sha256",
@@ -848,8 +1000,8 @@ interface CodexExecution {
   err: string;
   code: number;
   durationMs: number;
-  spawnGuardSecret: string;
-  goalLoopPath: string;
+  spawnGuardSecret?: string;
+  goalLoopPath?: string;
 }
 
 interface CodexSpawnGuard {
@@ -966,6 +1118,18 @@ async function writeCodexSpawnHook(
             },
           ],
         })),
+        PostToolUse: [
+          {
+            matcher: "Agent",
+            hooks: [
+              {
+                type: "command",
+                command: shellSingleQuote(executablePath),
+                timeout: 30,
+              },
+            ],
+          },
+        ],
       },
     })}\n`,
     { mode: 0o400 },
@@ -975,11 +1139,11 @@ async function writeCodexSpawnHook(
 interface CodexProcessContext {
   canonicalRepoDir: string;
   installedSkillsRoot: string;
-  installedPluginRoot: string;
-  goalLoopPath: string;
+  installedPluginRoot?: string;
+  goalLoopPath?: string;
   objectiveRoot: string;
   env: Record<string, string>;
-  spawnGuard: CodexSpawnGuard;
+  spawnGuard?: CodexSpawnGuard;
 }
 
 async function codexProcessContext(
@@ -995,15 +1159,24 @@ async function codexProcessContext(
   );
   env.TMPDIR = objectiveRoot;
   const installedSkillsRoot = await codexEvalSkillsRoot(repoDir, env);
-  const installedPluginRoot = await realpath(join(installedSkillsRoot, ".."));
-  const goalLoopPath = await realpath(
-    join(installedPluginRoot, "bin", "goal-loop"),
-  );
-  const spawnGuard = await installCodexSpawnGuard(canonicalRepoDir, env, {
-    prompt,
-    objectiveRoot,
-    goalLoopPath,
-  });
+  const installedPluginRoot =
+    basename(installedSkillsRoot) === "skills"
+      ? await realpath(join(installedSkillsRoot, ".."))
+      : undefined;
+  const goalLoopCandidate = installedPluginRoot
+    ? join(installedPluginRoot, "bin", "goal-loop")
+    : undefined;
+  const goalLoopPath =
+    goalLoopCandidate && existsSync(goalLoopCandidate)
+      ? await realpath(goalLoopCandidate)
+      : undefined;
+  const spawnGuard = goalLoopPath
+    ? await installCodexSpawnGuard(canonicalRepoDir, env, {
+        prompt,
+        objectiveRoot,
+        goalLoopPath,
+      })
+    : undefined;
   return {
     canonicalRepoDir,
     installedSkillsRoot,
@@ -1028,11 +1201,11 @@ async function executeCodex(
     codexArgv(repoDir, prompt, model, effort),
     repoDir,
     [
-      ...spawnGuard.writeDeniedPaths,
+      ...(spawnGuard?.writeDeniedPaths ?? []),
       join(context.canonicalRepoDir, ".git", "fixture-bin"),
-      context.installedPluginRoot,
+      ...(context.installedPluginRoot ? [context.installedPluginRoot] : []),
     ],
-    [spawnGuard.executablePath],
+    spawnGuard ? [spawnGuard.executablePath] : [],
   );
   try {
     const proc = Bun.spawn(argv, {
@@ -1059,7 +1232,7 @@ async function executeCodex(
       err,
       code,
       durationMs: performance.now() - start,
-      spawnGuardSecret: spawnGuard.secret,
+      spawnGuardSecret: spawnGuard?.secret,
       goalLoopPath: context.goalLoopPath,
     };
   } finally {

@@ -68,6 +68,26 @@ mismatches; and provides an injection-safe nested compatibility launcher. It
 requires explicit `--allow-nested` authorization and does not implement or
 supervise the goal.
 
+Interactive activation uses a private `TMPDIR` step ledger and a separate
+mode-0700 per-run staging directory. The helper
+validates ordered preparation, catalog-backed route selection, objective
+digests and releases, host-observed owner activation, independent-review
+target history, closed review transitions and limits, pre-activation launch
+stops, and terminal reporting. It persists and renders the canonical report,
+review sentences, and terminal sentence from validated state. This ledger is evidence protocol, not
+pipeline orchestration: it schedules no stages, assigns no agent roles, and
+owns no continuation.
+
+Optional shared Claude/Codex hooks bind a ledger to the active host session and
+harden covered tool boundaries. They deny direct protocol-state writes,
+pre-owner compound commands or implementation, staging-path escapes, duplicate
+or non-exact Agent launches, and a successful parent turn whose leading output
+does not equal the helper-persisted report. Hooks are trust- and configuration-dependent; the
+portable helper remains the correctness layer. Reports disclose `helper`,
+`helper+claude-hooks`, or `helper+codex-hooks` as the actual enforcement
+tier. A rejected Claude route exits nonzero, while unavailable telemetry exits
+successfully with explicit unverified evidence.
+
 The compiled contract separates narrow feedback checks used after coherent
 implementation slices from final-tree repository and risk gates. Workflows that
 add acceptance or regression evidence run it before the corresponding behavior
@@ -133,6 +153,13 @@ route confirmation check. It emits one bounded record: either an observed route
 with an explicit confirmation result or an unavailable observation. The
 launcher invokes it as one standalone command so route attribution cannot be
 assembled from unrelated child or compound-command evidence.
+
+### `hooks/hooks.json`
+
+Registers the shared lifecycle hook for supported Claude and Codex hook events.
+The hook is inert outside a session explicitly started through
+`goal-loop step start`. Codex may skip plugin hooks until the plugin is
+trusted; Claude hook availability likewise depends on host configuration.
 
 ## Design boundaries
 

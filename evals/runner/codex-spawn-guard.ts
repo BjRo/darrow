@@ -6,7 +6,16 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { createHash, createHmac } from "node:crypto";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  relative,
+  resolve,
+} from "node:path";
 import { parseArgs } from "node:util";
 
 const OWNER_MARKER = "- phase: adaptive-goal-runner";
@@ -22,6 +31,7 @@ export interface CodexSpawnAttestation {
   baselineSha256: string;
   fixtureStateSha256: string;
   objectiveMode: "inline" | "file-backed";
+  ledger: string;
   attachmentDir?: string;
 }
 
@@ -37,7 +47,11 @@ export interface CodexSpawnGuardPolicy {
 
 interface CodexSpawnGuardState {
   parentTurnId: string;
+  acceptedInputSha256: string;
+  acceptedUpdatedInputSha256: string;
+  toolUseId?: string;
   attestation: CodexSpawnAttestation;
+  activationAgentId?: string;
 }
 
 const CONTRACT_LABELS = [
@@ -54,7 +68,11 @@ const CONTRACT_LABELS = [
   "Stopping budget",
   "Human feedback",
   "Completion report",
+  "Protocol ledger",
 ] as const;
+
+const INTERNAL_GOAL_RECORD =
+  /^format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|route-gate|verify-route))-[^\t\r\n]+$/m;
 
 const FIXTURE_STATE_ENTRY =
   /^(?:fixture-|independent-review-|review-|human-feedback-|verification-|gh-|pricing-|version-|ticketctl\.log$)/;
@@ -123,96 +141,55 @@ export async function fixtureStateFingerprint(
   return sha256(records.join(""));
 }
 
-function recordValue(contract: string, key: string): string | undefined {
-  const matches = contract
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith(`${key}\t`));
-  return matches.length === 1 ? matches[0]!.slice(key.length + 1) : undefined;
-}
-
 function completeContractLabels(contract: string): boolean {
-  return CONTRACT_LABELS.every((label) => {
-    const matches = contract
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith(`${label}: `));
-    return matches.length === 1 && !!matches[0]!.slice(label.length + 2).trim();
-  });
+  const lines = contract.split(/\r?\n/);
+  const indexes = CONTRACT_LABELS.map((label) =>
+    lines.flatMap((line, index) =>
+      line.startsWith(`${label}:`) ? [index] : [],
+    ),
+  );
+  return (
+    indexes.every((matches, index) => {
+      if (matches.length !== 1) return false;
+      const label = CONTRACT_LABELS[index]!;
+      const line = lines[matches[0]!]!;
+      return (
+        line.startsWith(`${label}: `) && !!line.slice(label.length + 2).trim()
+      );
+    }) &&
+    indexes.every((matches, index) =>
+      index === 0 ? true : matches[0]! > indexes[index - 1]![0]!,
+    )
+  );
 }
 
-function contractDimensionChecks(
-  contract: string,
-  route: string,
-): Array<[string, boolean]> {
-  return [
-    [
-      "format",
-      recordValue(contract, "format") === "darrow-native-goal-preflight-v4",
-    ],
-    [
-      "workflow",
-      /^(?:fix-bug|implement-feature|change-feature|refactor|migration|mechanical)$/.test(
-        recordValue(contract, "workflow") ?? "",
-      ),
-    ],
-    [
-      "risk",
-      /^(?:routine|elevated|high)$/.test(recordValue(contract, "risk") ?? ""),
-    ],
-    [
-      "profile",
-      /^(?:routine|routine-plus|scaled|repo-wide|judgment)$/.test(
-        recordValue(contract, "profile") ?? "",
-      ),
-    ],
-    ["selected_route", recordValue(contract, "selected_route") === route],
-    ["effective_route", recordValue(contract, "effective_route") === route],
-  ];
-}
-
-function contractBoundaryChecks(contract: string): Array<[string, boolean]> {
-  return [
-    [
-      "route_applied_by",
-      recordValue(contract, "route_applied_by") === "native-subagent",
-    ],
-    ["route_verified", recordValue(contract, "route_verified") === "true"],
-    [
-      "launch_boundary",
-      recordValue(contract, "launch_boundary") === "native_subagent",
-    ],
-    [
-      "verification_gate",
-      recordValue(contract, "verification_gate") ===
-        recordValue(contract, "risk"),
-    ],
-    [
-      "evaluation_child_invocations",
-      recordValue(contract, "evaluation_child_invocations") === "1",
-    ],
-    [
-      "evaluation_human_interruptions",
-      recordValue(contract, "evaluation_human_interruptions") === "0",
-    ],
-    [
-      "record_order",
-      contract.indexOf("format\tdarrow-native-goal-preflight-v4") >
-        contract.indexOf("Completion report: "),
-    ],
-  ];
-}
-
-function contractRecordIssues(
-  contract: string,
-  model: string,
-  effort: string,
-): string[] {
-  const route = `codex\topenai\t${model}\t${effort}`;
+export function goalContractRecordIssues(contract: string): string[] {
+  const ledger = contractLabelValue(contract, "Protocol ledger");
   const checks: Array<[string, boolean]> = [
     ["contract_labels", completeContractLabels(contract)],
-    ...contractDimensionChecks(contract, route),
-    ...contractBoundaryChecks(contract),
+    [
+      "protocol_ledger",
+      !!ledger &&
+        isAbsolute(ledger) &&
+        normalize(ledger) === ledger &&
+        basename(ledger).startsWith("darrow-goal-run."),
+    ],
+    ["internal_goal_record", !INTERNAL_GOAL_RECORD.test(contract)],
   ];
   return checks.filter(([, valid]) => !valid).map(([name]) => name);
+}
+
+function contractLabelValue(
+  contract: string,
+  label: string,
+): string | undefined {
+  const prefix = `${label}: `;
+  const matches = contract
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith(prefix));
+  return matches.length === 1
+    ? matches[0]!.slice(prefix.length).trim()
+    : undefined;
 }
 
 function fileBackedContractReference(
@@ -239,7 +216,7 @@ function fileBackedContractReference(
 }
 
 function fileBackedObjectivePath(body: string): string | undefined {
-  const match = body.match(/^- objective_file: (\/[^\r\n]+)$/);
+  const match = body.match(/^- objective_file: (\/[^\r\n]+)(?:\r?\n|$)/);
   return match?.[1];
 }
 
@@ -247,6 +224,7 @@ interface ResolvedContract {
   contract: string;
   objectiveMode: "inline" | "file-backed";
   attachmentDir?: string;
+  objectiveFile?: string;
 }
 
 async function validFileBackedContract(
@@ -270,8 +248,34 @@ async function validFileBackedContract(
   if (!valid) return undefined;
   const contract = await readFile(reference.path, "utf8");
   return sha256(contract) === reference.sha256
-    ? { contract, objectiveMode: "file-backed", attachmentDir }
+    ? {
+        contract,
+        objectiveMode: "file-backed",
+        attachmentDir,
+        objectiveFile: join(attachmentDir, "goal-objective.txt"),
+      }
     : undefined;
+}
+
+async function soleFileBackedContract(
+  objectiveRoot: string,
+): Promise<ResolvedContract | undefined> {
+  try {
+    const entries = await readdir(objectiveRoot);
+    if (entries.length !== 1) return undefined;
+    const attachmentDir = join(resolve(objectiveRoot), entries[0]!);
+    const objectiveFile = join(attachmentDir, "goal-objective.txt");
+    const objective = await readFile(objectiveFile, "utf8");
+    const reference = fileBackedContractReference(objective);
+    if (
+      !reference ||
+      reference.path !== join(attachmentDir, "goal-contract.md")
+    )
+      return undefined;
+    return await validFileBackedContract(reference, objectiveRoot);
+  } catch {
+    return undefined;
+  }
 }
 
 async function resolvedContract(
@@ -279,23 +283,29 @@ async function resolvedContract(
   objectiveRoot: string,
 ): Promise<ResolvedContract | undefined> {
   const objectivePath = fileBackedObjectivePath(body);
-  if (!objectivePath) {
-    return (await readdir(objectiveRoot)).length === 0
-      ? { contract: body, objectiveMode: "inline" }
-      : undefined;
+  if (objectivePath) {
+    try {
+      const objective = await readFile(objectivePath, "utf8");
+      const reference = fileBackedContractReference(objective);
+      if (
+        reference &&
+        objectivePath === join(dirname(reference.path), "goal-objective.txt")
+      ) {
+        const resolved = await validFileBackedContract(
+          reference,
+          objectiveRoot,
+        );
+        if (resolved) return resolved;
+      }
+    } catch {
+      // Fall through to the sole ledger-owned objective below.
+    }
   }
-  try {
-    const objective = await readFile(objectivePath, "utf8");
-    const reference = fileBackedContractReference(objective);
-    if (
-      !reference ||
-      objectivePath !== join(dirname(reference.path), "goal-objective.txt")
-    )
-      return undefined;
-    return await validFileBackedContract(reference, objectiveRoot);
-  } catch {
-    return undefined;
-  }
+  const materialized = await soleFileBackedContract(objectiveRoot);
+  if (materialized) return materialized;
+  return (await readdir(objectiveRoot)).length === 0
+    ? { contract: body, objectiveMode: "inline" }
+    : undefined;
 }
 
 function ownerInput(input: unknown): Record<string, unknown> | undefined {
@@ -308,10 +318,13 @@ function ownerInput(input: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function denied(reason: string): Record<string, unknown> {
+function denied(
+  reason: string,
+  hookEventName = "PreToolUse",
+): Record<string, unknown> {
   return {
     hookSpecificOutput: {
-      hookEventName: "PreToolUse",
+      hookEventName,
       permissionDecision: "deny",
       permissionDecisionReason: reason,
     },
@@ -349,6 +362,29 @@ function hookTurnId(hook: Record<string, unknown>): string | undefined {
   return typeof hook.turn_id === "string" && hook.turn_id
     ? hook.turn_id
     : undefined;
+}
+
+function hookToolUseId(hook: Record<string, unknown>): string | undefined {
+  return typeof hook.tool_use_id === "string" && hook.tool_use_id
+    ? hook.tool_use_id
+    : undefined;
+}
+
+function ownerInputIdentity(input: unknown): string | undefined {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    return undefined;
+  const record = input as Record<string, unknown>;
+  const route = concreteSpawnRoute(record);
+  if (!route || typeof record.message !== "string") return undefined;
+  return sha256(
+    JSON.stringify([
+      typeof record.task_name === "string" ? record.task_name : null,
+      record.message,
+      route.model,
+      route.effort,
+      record.fork_turns ?? null,
+    ]),
+  );
 }
 
 function concreteSpawnRoute(
@@ -390,6 +426,9 @@ function spawnAttestation(
   resolved: ResolvedContract,
   policy: CodexSpawnGuardPolicy,
 ): CodexSpawnAttestation {
+  const ledger = contractLabelValue(resolved.contract, "Protocol ledger");
+  if (!ledger)
+    throw new Error("validated goal contract lost its protocol ledger");
   return {
     model: route.model,
     effort: route.effort,
@@ -400,6 +439,7 @@ function spawnAttestation(
     baselineSha256: policy.baselineSha256,
     fixtureStateSha256: policy.fixtureStateSha256,
     objectiveMode: resolved.objectiveMode,
+    ledger,
     ...(resolved.attachmentDir
       ? { attachmentDir: resolved.attachmentDir }
       : {}),
@@ -416,12 +456,21 @@ function allowedSpawn(
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "allow",
-      updatedInput: {
-        ...input,
-        fork_turns: "none",
-        message: `${message}\n${attestationLine(attestation, secret)}`,
-      },
+      updatedInput: updatedOwnerInput(input, message, attestation, secret),
     },
+  };
+}
+
+function updatedOwnerInput(
+  input: Record<string, unknown>,
+  message: string,
+  attestation: CodexSpawnAttestation,
+  hmacKey: string,
+): Record<string, unknown> {
+  return {
+    ...input,
+    fork_turns: "none",
+    message: `${message}\n${attestationLine(attestation, hmacKey)}`,
   };
 }
 
@@ -434,11 +483,205 @@ export async function guardCodexSpawn(
   const hook = hookInput as Record<string, unknown>;
   const toolName =
     typeof hook.tool_name === "string" ? hook.tool_name : "Agent";
+  if (hook.hook_event_name === "PostToolUse" && toolName === "Agent")
+    return recordOwnerActivation(hook, policy);
   if (toolName === "Bash") return guardParentShell(hook, policy);
   if (toolName === "apply_patch") return guardParentPatch(hook, policy);
   const input = ownerInput(hook.tool_input);
   if (!input) return guardUnmarkedAgent(hook, policy);
   return guardOwnerAgent(hook, input, policy);
+}
+
+function postToolAgentId(hook: Record<string, unknown>): string | undefined {
+  const response = hook.tool_response;
+  if (!response || typeof response !== "object" || Array.isArray(response))
+    return undefined;
+  const agentId = (response as Record<string, unknown>).agent_id;
+  return typeof agentId === "string" && /^[A-Za-z0-9._-]+$/.test(agentId)
+    ? agentId
+    : undefined;
+}
+
+function activationRecordedOutput(agentId: string): Record<string, unknown> {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PostToolUse",
+      additionalContext:
+        `Darrow recorded native-subagent activation for ${agentId}. ` +
+        "Do not repeat step activate; wait for the owner, then perform only exact cleanup and report lifecycle calls.",
+    },
+  };
+}
+
+function ownerActivationArgv(
+  state: CodexSpawnGuardState,
+  policy: CodexSpawnGuardPolicy,
+  agentId: string,
+): string[] {
+  return [
+    policy.goalLoopPath,
+    "step",
+    "activate",
+    "--ledger",
+    state.attestation.ledger,
+    "--applied-by",
+    "native-subagent",
+    "--boundary",
+    "native_subagent",
+    "--agent-id",
+    agentId,
+    "--effective-route",
+    `codex|openai|${state.attestation.model}|${state.attestation.effort}`,
+    "--route-verified",
+    "true",
+    "--enforcement",
+    "helper+codex-hooks",
+  ];
+}
+
+function deniedPostToolUse(message: string): Record<string, unknown> {
+  return denied(message, "PostToolUse");
+}
+
+function ownerCompletionBindingIssue(
+  hook: Record<string, unknown>,
+  state: CodexSpawnGuardState,
+): string | undefined {
+  const parentTurnId = hookTurnId(hook);
+  const postToolUseId = hookToolUseId(hook);
+  const inputIdentity = ownerInputIdentity(hook.tool_input);
+  const inputMatches = inputIdentity
+    ? [state.acceptedInputSha256, state.acceptedUpdatedInputSha256].includes(
+        inputIdentity,
+      )
+    : false;
+  const checks: Array<[boolean, string]> = [
+    [
+      !parentTurnId || parentTurnId !== state.parentTurnId,
+      "Codex owner completion is not bound to the accepted parent turn",
+    ],
+    [
+      state.toolUseId !== undefined && postToolUseId !== state.toolUseId,
+      "Codex owner completion tool identity changed",
+    ],
+    [
+      !inputMatches,
+      "Codex owner completion input does not match the accepted spawn",
+    ],
+  ];
+  return checks.find(([invalid]) => invalid)?.[1];
+}
+
+async function recordOwnerActivation(
+  hook: Record<string, unknown>,
+  policy: CodexSpawnGuardPolicy,
+): Promise<Record<string, unknown>> {
+  const state = await readGuardState(policy);
+  if (!state)
+    return deniedPostToolUse("Codex owner activation has no accepted spawn");
+  const bindingIssue = ownerCompletionBindingIssue(hook, state);
+  if (bindingIssue) return deniedPostToolUse(bindingIssue);
+  const agentId = postToolAgentId(hook);
+  if (!agentId)
+    return deniedPostToolUse("Codex owner response omitted a safe agent id");
+  if (state.activationAgentId)
+    return state.activationAgentId === agentId
+      ? activationRecordedOutput(agentId)
+      : deniedPostToolUse("Codex owner activation agent id changed");
+  const result = spawnSync(
+    "/bin/bash",
+    ownerActivationArgv(state, policy, agentId),
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0)
+    return deniedPostToolUse("could not record Codex owner activation");
+  await writeFile(
+    policy.statePath,
+    signedState({ ...state, activationAgentId: agentId }, policy.secret),
+    { mode: 0o600 },
+  );
+  return activationRecordedOutput(agentId);
+}
+
+interface CanonicalOwnerContract {
+  canonicalBody: string;
+  canonicalMessage: string;
+  resolved: ResolvedContract;
+}
+
+async function canonicalOwnerContract(
+  body: string,
+  objectiveRoot: string,
+): Promise<CanonicalOwnerContract | string> {
+  const resolved = await resolvedContract(body, objectiveRoot);
+  if (!resolved)
+    return "adaptive goal owner objective was not a valid inline or file-backed contract";
+  const contractIssues = goalContractRecordIssues(resolved.contract);
+  if (contractIssues.length)
+    return `adaptive goal owner contract has invalid fields: ${contractIssues.join(", ")}`;
+  const canonicalBody = resolved.objectiveFile
+    ? `- objective_file: ${resolved.objectiveFile}`
+    : body;
+  return {
+    canonicalBody,
+    canonicalMessage: `${OWNER_MARKER}\n${canonicalBody}`,
+    resolved,
+  };
+}
+
+async function persistOwnerGuardState(
+  state: CodexSpawnGuardState,
+  policy: CodexSpawnGuardPolicy,
+): Promise<boolean> {
+  try {
+    await writeFile(policy.statePath, signedState(state, policy.secret), {
+      mode: 0o600,
+      flag: "wx",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+interface OwnerGuardStateInput {
+  hook: Record<string, unknown>;
+  input: Record<string, unknown>;
+  attestation: CodexSpawnAttestation;
+  canonicalMessage: string;
+  policy: CodexSpawnGuardPolicy;
+}
+
+async function establishOwnerGuardState({
+  hook,
+  input,
+  attestation,
+  canonicalMessage,
+  policy,
+}: OwnerGuardStateInput): Promise<string | undefined> {
+  const parentTurnId = hookTurnId(hook);
+  if (!parentTurnId)
+    return "adaptive goal owner spawn has no host turn identity";
+  const acceptedInputSha256 = ownerInputIdentity(input);
+  const updatedInputSha256 = ownerInputIdentity(
+    updatedOwnerInput(input, canonicalMessage, attestation, policy.secret),
+  );
+  if (!acceptedInputSha256 || !updatedInputSha256)
+    return "adaptive goal owner spawn identity could not be bound";
+  const toolUseId = hookToolUseId(hook);
+  const persisted = await persistOwnerGuardState(
+    {
+      parentTurnId,
+      acceptedInputSha256,
+      acceptedUpdatedInputSha256: updatedInputSha256,
+      ...(toolUseId ? { toolUseId } : {}),
+      attestation,
+    },
+    policy,
+  );
+  return persisted
+    ? undefined
+    : "adaptive goal owner activation state could not be established; retry is forbidden";
 }
 
 async function guardOwnerAgent(
@@ -460,36 +703,28 @@ async function guardOwnerAgent(
   const boundaryIssue = await ownerBoundaryIssue(cwd, policy);
   if (boundaryIssue) return denied(boundaryIssue);
   const body = message.slice(OWNER_MARKER.length + 1);
-  const resolved = await resolvedContract(body, policy.objectiveRoot);
-  if (!resolved)
-    return denied(
-      "adaptive goal owner objective was not a valid inline or file-backed contract",
-    );
-  const contractIssues = contractRecordIssues(
-    resolved.contract,
-    route.model,
-    route.effort,
+  const contract = await canonicalOwnerContract(body, policy.objectiveRoot);
+  if (typeof contract === "string") return denied(contract);
+  const attestation = spawnAttestation(
+    route,
+    contract.canonicalBody,
+    contract.resolved,
+    policy,
   );
-  if (contractIssues.length)
-    return denied(
-      `adaptive goal owner contract has invalid fields: ${contractIssues.join(", ")}`,
-    );
-  const attestation = spawnAttestation(route, body, resolved, policy);
-  const parentTurnId = hookTurnId(hook);
-  if (!parentTurnId)
-    return denied("adaptive goal owner spawn has no host turn identity");
-  try {
-    await writeFile(
-      policy.statePath,
-      signedState({ parentTurnId, attestation }, policy.secret),
-      { mode: 0o600, flag: "wx" },
-    );
-  } catch {
-    return denied(
-      "adaptive goal owner activation state could not be established; retry is forbidden",
-    );
-  }
-  return allowedSpawn(input, message, attestation, policy.secret);
+  const stateIssue = await establishOwnerGuardState({
+    hook,
+    input,
+    attestation,
+    canonicalMessage: contract.canonicalMessage,
+    policy,
+  });
+  if (stateIssue) return denied(stateIssue);
+  return allowedSpawn(
+    input,
+    contract.canonicalMessage,
+    attestation,
+    policy.secret,
+  );
 }
 
 async function guardUnmarkedAgent(
@@ -519,11 +754,45 @@ function parentLifecycleShellAllowed(
 ): boolean {
   if (/^(?:[^\s/]+\/)*feedbackctl answer [A-Za-z0-9._-]+$/.test(command))
     return true;
+  if (parentActivationCommand(command, state, policy)) return true;
+  if (parentReportCommand(command, state, policy)) return true;
   const attachment = state.attestation.attachmentDir;
   if (!attachment) return false;
   return (
     command ===
-    `/bin/bash ${policy.goalLoopPath} release-objective --attachment-dir ${attachment} --expected-sha256 ${state.attestation.contractSha256}`
+    `/bin/bash ${policy.goalLoopPath} step release-objective --ledger ${state.attestation.ledger} --attachment-dir ${attachment} --expected-sha256 ${state.attestation.contractSha256}`
+  );
+}
+
+function parentActivationCommand(
+  command: string,
+  state: CodexSpawnGuardState,
+  policy: CodexSpawnGuardPolicy,
+): boolean {
+  const prefix =
+    `/bin/bash ${policy.goalLoopPath} step activate ` +
+    `--ledger ${state.attestation.ledger} ` +
+    "--applied-by native-subagent --boundary native_subagent --agent-id ";
+  const suffix =
+    " --effective-route " +
+    `'codex|openai|${state.attestation.model}|${state.attestation.effort}' ` +
+    "--route-verified true";
+  if (!command.startsWith(prefix) || !command.endsWith(suffix)) return false;
+  const agentId = command.slice(prefix.length, -suffix.length);
+  return /^[A-Za-z0-9._-]+$/.test(agentId) && agentId !== "none";
+}
+
+function parentReportCommand(
+  command: string,
+  state: CodexSpawnGuardState,
+  policy: CodexSpawnGuardPolicy,
+): boolean {
+  const prefix =
+    `/bin/bash ${policy.goalLoopPath} step report ` +
+    `--ledger ${state.attestation.ledger} --status `;
+  if (!command.startsWith(prefix)) return false;
+  return /^(?:complete|blocked|launch-required) --human-interruptions \d+$/.test(
+    command.slice(prefix.length),
   );
 }
 
@@ -536,6 +805,11 @@ async function guardParentShell(
   const state = await readGuardState(policy);
   const turn = hookTurnId(hook);
   if (state && turn !== state.parentTurnId) return undefined;
+  if (
+    state?.activationAgentId &&
+    parentActivationCommand(command, state, policy)
+  )
+    return denied("activation was already recorded by the trusted hook");
   if (state)
     return parentLifecycleShellAllowed(command, state, policy)
       ? undefined
@@ -628,6 +902,9 @@ function validAttestation(
     /^[0-9a-f]{64}$/.test(String(record.baselineSha256 ?? "")),
     /^[0-9a-f]{64}$/.test(String(record.fixtureStateSha256 ?? "")),
     record.objectiveMode === "inline" || record.objectiveMode === "file-backed",
+    typeof record.ledger === "string" &&
+      isAbsolute(record.ledger) &&
+      normalize(record.ledger) === record.ledger,
     record.objectiveMode !== "file-backed" ||
       (typeof record.attachmentDir === "string" &&
         record.attachmentDir.startsWith("/")),

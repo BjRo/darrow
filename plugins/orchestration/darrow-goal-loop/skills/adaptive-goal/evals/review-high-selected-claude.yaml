@@ -1,5 +1,5 @@
 id: goal-review-high-selected-claude
-invariant: AGL-P4,AGL-P7,AGL-P11,AGL-R7,AGL-L9,AGL-L10,AGL-L11,AGL-S5,AGL-X6
+invariant: AGL-P4,AGL-P7,AGL-P11,AGL-R7,AGL-E1,AGL-E2,AGL-E3,AGL-E4,AGL-E5,AGL-E6,AGL-E7,AGL-E8,AGL-L9,AGL-L10,AGL-L11,AGL-S5,AGL-X6
 prompt: >-
   /adaptive-goal Change the exported sessionCookieOptions in auth-config.js so
   sameSite is exactly "strict" instead of "lax". On Claude, invoke the
@@ -17,14 +17,16 @@ prompt: >-
   `ls`, `find`, another placeholder/no-op, a redirect, or a command list. An
   exact standalone `true` is tolerated only as an inert no-op and supplies no
   evidence; do not combine it with anything. Make the literal standalone
-  prepare helper the first protocol-bearing Bash call.
+  ledger-start helper the first protocol-bearing Bash call.
   The repository is `{{repo_dir}}` and the helper directory is
   `{{repo_dir}}/.git/eval-plugin/bin`; no additional inspection, listing, or
-  path discovery is needed before the owner. Make the first protocol-bearing Bash call exactly `/bin/bash
-  {{repo_dir}}/.git/eval-plugin/bin/goal-loop prepare --repo {{repo_dir}}
-  --host claude`.
+  path discovery is needed before the owner. Make the first protocol-bearing
+  Bash call exactly `/bin/bash {{repo_dir}}/.git/eval-plugin/bin/goal-loop step
+  start --repo {{repo_dir}} --host claude`, then pass its returned ledger path
+  to every subsequent helper step.
   Do not use Bash `pwd` before the owner or `git status` after it. After the
-  Agent returns, use only the exact route gate and objective-release calls.
+  Agent returns, use only the exact route gate, objective-release, and terminal
+  report calls.
   Begin the final response directly with the raw `format:` report line, with no
   prose or Markdown fence before or around the report.
 fixture:

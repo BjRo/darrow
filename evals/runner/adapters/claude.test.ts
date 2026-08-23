@@ -37,8 +37,13 @@ const fileBackedContract = "private file-backed objective";
 const fileBackedDigest = new Bun.CryptoHasher("sha256")
   .update(fileBackedContract)
   .digest("hex");
+const goalLedger = "/tmp/darrow-goal-run.fixture";
 
 function validClaudePreflightEvents(context = routeEvidenceContext) {
+  const ledger =
+    context.stagingRoot === "/tmp"
+      ? goalLedger
+      : `${context.stagingRoot}/darrow-goal-run.fixture`;
   const exchange = (id: string, command: string, content: string) => [
     JSON.stringify({
       type: "assistant",
@@ -53,9 +58,29 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
   ];
   return [
     ...exchange(
-      "toolu_prepare",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop prepare --repo ${context.repoDir} --host claude`,
+      "toolu_start",
+      `/bin/bash ${context.pluginDir}/bin/goal-loop step start --repo ${context.repoDir} --host claude`,
       [
+        "format\tdarrow-goal-step-v1",
+        "run_id\tfixture",
+        `ledger\t${ledger}`,
+        `staging_dir\t${context.stagingRoot}/darrow-goal-stage.fixture`,
+        "step\tstart",
+        "status\trecorded",
+        `repo\t${context.repoDir}`,
+        "host\tclaude",
+        "enforcement\thelper",
+      ].join("\n"),
+    ),
+    ...exchange(
+      "toolu_prepare",
+      `/bin/bash ${context.pluginDir}/bin/goal-loop step prepare --ledger ${ledger}`,
+      [
+        "format\tdarrow-goal-step-v1",
+        "run_id\tfixture",
+        `ledger\t${ledger}`,
+        "step\tprepare",
+        "status\trecorded",
         "format\tdarrow-native-goal-prepared-v1",
         `repo\t${context.repoDir}`,
         "base_revision\tfixture",
@@ -67,20 +92,31 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
     ),
     ...exchange(
       "toolu_route",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop route --repo ${context.repoDir} --host claude --profile routine`,
+      `/bin/bash ${context.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow change-feature --risk routine --profile routine --verification-gate routine --review omitted`,
       [
-        "format\tdarrow-native-goal-route-v2",
+        "format\tdarrow-goal-step-v1",
+        "run_id\tfixture",
+        `ledger\t${ledger}`,
+        "step\troute",
+        "status\trecorded",
+        "workflow\tchange-feature",
+        "risk\troutine",
         "profile\troutine",
-        "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+        "verification_gate\troutine",
+        "review_selection\tomitted",
+        "selected_route\tclaude|anthropic|claude-sonnet-5|low",
         "route_source\tpolicy",
-        "policy_route_source\tbundled",
-        "fallback\tnone\tnone",
       ].join("\n"),
     ),
     ...exchange(
       "toolu_agent_route",
-      `/bin/bash ${context.pluginDir}/bin/claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low`,
+      `/bin/bash ${context.pluginDir}/bin/goal-loop step runner --ledger ${ledger} --provider anthropic --model claude-sonnet-5 --effort low`,
       [
+        "format\tdarrow-goal-step-v1",
+        "run_id\tfixture",
+        `ledger\t${ledger}`,
+        "step\trunner",
+        "status\trecorded",
         "format\tdarrow-claude-agent-route-v1",
         "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
         "subagent_type\tdarrow-goal-loop:adaptive-goal-sonnet-5-low",
@@ -91,7 +127,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
 }
 
 function boundGoalPrompt(
-  objectiveFile = "/tmp/goal.md",
+  objectiveFile = "/tmp/darrow-goal-stage.fixture/goal.md",
   mode: "inline" | "file-backed" = "inline",
 ) {
   const body =
@@ -101,7 +137,53 @@ function boundGoalPrompt(
   return ["- phase: adaptive-goal-runner", body].join("\n");
 }
 
-function inlineMaterializationEvents() {
+function provisionalActivationEvents() {
+  const command =
+    `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step activate --ledger ${goalLedger} ` +
+    "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
+    "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false " +
+    "--enforcement helper+claude-hooks";
+  const content = [
+    "format\tdarrow-goal-step-v1",
+    "run_id\tfixture",
+    `ledger\t${goalLedger}`,
+    "step\tactivate",
+    "status\trecorded",
+    "agent_id\tpending",
+    "effective_route\tclaude|anthropic|claude-sonnet-5|low",
+    "route_verified\tfalse",
+    "enforcement\thelper+claude-hooks",
+  ].join("\n");
+  return [
+    JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: "toolu_activate",
+            input: { command },
+          },
+        ],
+      },
+    }),
+    JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_activate",
+            content,
+          },
+        ],
+      },
+    }),
+  ];
+}
+
+function inlineMaterializationEvents(includeActivation = true) {
   return [
     JSON.stringify({
       type: "assistant",
@@ -136,7 +218,45 @@ function inlineMaterializationEvents() {
             type: "tool_use",
             name: "Write",
             id: "toolu_stage",
-            input: { file_path: "/tmp/goal.md", content: objectiveContract },
+            input: {
+              file_path: "/tmp/darrow-goal-stage.fixture/goal.md",
+              content: objectiveContract,
+            },
+          },
+        ],
+      },
+    }),
+    JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: "toolu_register_stage",
+            input: {
+              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+            },
+          },
+        ],
+      },
+    }),
+    JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_register_stage",
+            content: [
+              "format\tdarrow-goal-step-v1",
+              "run_id\tfixture",
+              `ledger\t${goalLedger}`,
+              "step\tstage",
+              "status\trecorded",
+              "goal_file\t/tmp/darrow-goal-stage.fixture/goal.md",
+              `contract_sha256\t${objectiveDigest}`,
+            ].join("\n"),
           },
         ],
       },
@@ -150,8 +270,7 @@ function inlineMaterializationEvents() {
             name: "Bash",
             id: "toolu_materialize",
             input: {
-              command:
-                "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop materialize-objective --force-file-backed --repo /fixture --goal-file /tmp/goal.md",
+              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
             },
           },
         ],
@@ -164,7 +283,7 @@ function inlineMaterializationEvents() {
           {
             type: "tool_result",
             tool_use_id: "toolu_materialize",
-            content: `format\tdarrow-native-goal-objective-v1\nmode\tinline\ncontract_bytes\t100\ncontract_sha256\t${objectiveDigest}\ncontract_file\t/tmp/goal.md\nobjective_bytes\t100\nobjective_file\t/tmp/goal.md\nattachment_dir\tnone`,
+            content: `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tmaterialize\nstatus\trecorded\nformat\tdarrow-native-goal-objective-v1\nmode\tinline\ncontract_bytes\t100\ncontract_sha256\t${objectiveDigest}\ncontract_file\t/tmp/darrow-goal-stage.fixture/goal.md\nobjective_bytes\t100\nobjective_file\t/tmp/darrow-goal-stage.fixture/goal.md\nattachment_dir\tnone`,
           },
         ],
       },
@@ -178,7 +297,7 @@ function inlineMaterializationEvents() {
             name: "Bash",
             id: "toolu_release_staging",
             input: {
-              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-staging --goal-file /tmp/goal.md --expected-sha256 ${objectiveDigest}`,
+              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
             },
           },
         ],
@@ -191,8 +310,55 @@ function inlineMaterializationEvents() {
           {
             type: "tool_result",
             tool_use_id: "toolu_release_staging",
-            content:
-              "format\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/goal.md",
+            content: `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\trelease-staging\nstatus\trecorded\nformat\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md`,
+          },
+        ],
+      },
+    }),
+    ...(includeActivation ? provisionalActivationEvents() : []),
+  ];
+}
+
+function goalReportEvents(enforcement = "helper") {
+  return [
+    JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: "toolu_report",
+            input: {
+              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step report --ledger ${goalLedger} --status complete --human-interruptions 0`,
+            },
+          },
+        ],
+      },
+    }),
+    JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_report",
+            content: [
+              "format: darrow-native-goal-report-v1",
+              "workflow: change-feature",
+              "risk: routine",
+              "profile: routine",
+              "harness: claude",
+              "model: anthropic > claude-sonnet-5",
+              "effort: low",
+              "route_applied_by: native-subagent",
+              "route_verified: true",
+              "launch_boundary: native_subagent",
+              "verification_gate: routine",
+              "evaluation_child_invocations: 1",
+              "evaluation_human_interruptions: 0",
+              `enforcement: ${enforcement}`,
+            ].join("\n"),
           },
         ],
       },
@@ -288,6 +454,7 @@ test("loads the eval-only source plugin when one is mounted", () => {
     ),
   ).toEqual(["--output-format", "stream-json"]);
   expect(argv).toContain("--verbose");
+  expect(argv).not.toContain("--no-session-persistence");
 });
 
 describe("Claude token accounting", () => {
@@ -710,8 +877,44 @@ describe("Claude skill activation observation", () => {
     expect(retained).not.toContain("private objective");
     expect(retained).not.toContain("private child result");
     expect(claudeGoalRouteEvidenceSummary(retained)).toBe(
-      "materializations=1; goal_completions=1; route_observations=0; parent_operations=none",
+      "materializations=1; goal_completions=1; route_observations=0; parent_operations=after:report-missing",
     );
+  });
+
+  test("retains only helper-rendered goal report provenance", () => {
+    const stream = [
+      ...validClaudePreflightEvents(),
+      ...inlineMaterializationEvents(),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_goal",
+              input: {
+                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                run_in_background: false,
+                prompt: boundGoalPrompt(),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(goalResult("toolu_goal", "agentgoal")),
+      ...goalReportEvents("helper+claude-hooks"),
+    ].join("\n");
+    const retained = retainedClaudeEvidence(
+      stream,
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(retained).toContain(
+      '"type":"darrow.goal_report_rendered","status":"complete","enforcement":"helper+claude-hooks"',
+    );
+    expect(retained).not.toContain('"operation":"report-missing"');
+    expect(retained).not.toContain("darrow-native-goal-report-v1");
   });
 
   test("rejects parent inspection in the same turn that starts the goal owner", () => {
@@ -818,8 +1021,9 @@ describe("Claude skill activation observation", () => {
     expect(retained).toContain("darrow.goal_agent_completion");
     expect(retained).toContain('"skill":"independent-code-review"');
     expect(retained).not.toContain("darrow.parent_repository_tool_before_goal");
-    expect(retained).not.toContain("darrow.parent_repository_tool_after_goal");
-    expect(claudeParentLifecycleOperations(retained)).toEqual([]);
+    expect(claudeParentLifecycleOperations(retained)).toEqual([
+      "after:report-missing",
+    ]);
   });
 
   test("does not accept an unmarked call as an adaptive-goal completion", () => {
@@ -876,18 +1080,20 @@ describe("Claude skill activation observation", () => {
       materialization[0]!,
       materialization[1]!,
       materialization[2]!,
+      materialization[3]!,
+      materialization[4]!,
       JSON.stringify({
         type: "assistant",
         message: {
           content: [
-            JSON.parse(materialization[3]!).message.content[0],
+            JSON.parse(materialization[5]!).message.content[0],
             JSON.parse(goalCall(boundGoalPrompt())).message.content[0],
           ],
         },
       }),
-      materialization[4]!,
-      materialization[5]!,
       materialization[6]!,
+      materialization[7]!,
+      materialization[8]!,
       completion,
     ].join("\n");
     const wrongProof = [
@@ -904,13 +1110,9 @@ describe("Claude skill activation observation", () => {
     ].join("\n");
     const wrongStagedDigest = [
       ...preflight,
-      materialization[0]!,
-      materialization[1]!,
-      materialization[2]!,
-      materialization[3]!,
-      materialization[4]!.replace(objectiveDigest, fileBackedDigest),
-      materialization[5]!,
-      materialization[6]!,
+      ...materialization.map((event, index) =>
+        index === 4 ? event.replace(objectiveDigest, fileBackedDigest) : event,
+      ),
       goalCall(boundGoalPrompt()),
       completion,
     ].join("\n");
@@ -964,11 +1166,12 @@ describe("Claude skill activation observation", () => {
     expect(claudeParentLifecycleOperations(parentWorkEvidence)).toEqual([
       "before:edit",
       "before:test-bash",
+      "after:report-missing",
     ]);
-    const wrongMaterialization = materialization[3]!
+    const wrongMaterialization = materialization[5]!
       .replace("toolu_materialize", "toolu_wrong_materialize")
-      .replace("/tmp/goal.md", "/tmp/other.md");
-    const duplicateMaterialization = materialization[3]!.replace(
+      .replace("/tmp/darrow-goal-stage.fixture/goal.md", "/tmp/other.md");
+    const duplicateMaterialization = materialization[5]!.replace(
       "toolu_materialize",
       "toolu_duplicate_materialize",
     );
@@ -977,12 +1180,16 @@ describe("Claude skill activation observation", () => {
       materialization[0]!,
       materialization[1]!,
       materialization[2]!,
-      wrongMaterialization,
       materialization[3]!,
       materialization[4]!,
+      wrongMaterialization,
       materialization[5]!,
       materialization[6]!,
+      materialization[7]!,
+      materialization[8]!,
       duplicateMaterialization,
+      materialization[9]!,
+      materialization[10]!,
       goalCall(boundGoalPrompt()),
       completion,
     ].join("\n");
@@ -1001,16 +1208,16 @@ describe("Claude skill activation observation", () => {
     ).toHaveLength(2);
     const missingStagingCleanup = [
       ...preflight,
-      ...materialization.slice(0, 5),
+      ...materialization.slice(0, 7),
       goalCall(boundGoalPrompt()),
       completion,
     ].join("\n");
     const failedCleanupResult = JSON.stringify({
-      ...JSON.parse(materialization[6]!),
+      ...JSON.parse(materialization[8]!),
       message: {
         content: [
           {
-            ...JSON.parse(materialization[6]!).message.content[0],
+            ...JSON.parse(materialization[8]!).message.content[0],
             is_error: true,
           },
         ],
@@ -1018,7 +1225,7 @@ describe("Claude skill activation observation", () => {
     });
     const failedStagingCleanup = [
       ...preflight,
-      ...materialization.slice(0, 6),
+      ...materialization.slice(0, 8),
       failedCleanupResult,
       goalCall(boundGoalPrompt()),
       completion,
@@ -1027,7 +1234,7 @@ describe("Claude skill activation observation", () => {
       expect(
         retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
       ).not.toContain("darrow.goal_agent_completion");
-    const duplicateCleanup = materialization[5]!.replace(
+    const duplicateCleanup = materialization[7]!.replace(
       "toolu_release_staging",
       "toolu_duplicate_release_staging",
     );
@@ -1067,7 +1274,10 @@ describe("Claude skill activation observation", () => {
         type: "tool_use",
         name: "Write",
         id: "toolu_stage",
-        input: { file_path: "/tmp/goal.md", content: objectiveContract },
+        input: {
+          file_path: "/tmp/darrow-goal-stage.fixture/goal.md",
+          content: objectiveContract,
+        },
       },
       {
         type: "tool_use",
@@ -1175,7 +1385,107 @@ describe("Claude skill activation observation", () => {
     ).toContain("darrow.parent_repository_tool_before_goal");
   });
 
-  test("permits runner resolution after materialization but before Agent", () => {
+  test("accepts the exact decision-gated route and terminal helper report", () => {
+    const ledger = "/tmp/darrow-goal-run.fixture";
+    const routeId = "toolu_decision_route";
+    const reportId = "toolu_decision_report";
+    const route = JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: routeId,
+            input: {
+              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow decision-gated --risk high --profile none --verification-gate not-applicable --review omitted`,
+            },
+          },
+        ],
+      },
+    });
+    const routeResult = JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: routeId,
+            content: [
+              "format\tdarrow-goal-step-v1",
+              `ledger\t${ledger}`,
+              "step\troute",
+              "status\trecorded",
+              "workflow\tdecision-gated",
+              "risk\thigh",
+              "profile\tnone",
+              "verification_gate\tnot-applicable",
+              "review_selection\tomitted",
+              "selected_route\tnone",
+              "route_source\tnone",
+            ].join("\n"),
+          },
+        ],
+      },
+    });
+    const report = JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: reportId,
+            input: {
+              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/goal-loop step report --ledger ${ledger} --status launch-required --human-interruptions 1`,
+            },
+          },
+        ],
+      },
+    });
+    const reportResult = JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: reportId,
+            content: [
+              "format: darrow-native-goal-report-v1",
+              "workflow: decision-gated",
+              "risk: high",
+              "profile: none",
+              "harness: none",
+              "model: none > none",
+              "effort: none",
+              "route_applied_by: none",
+              "route_verified: false",
+              "launch_boundary: launch_required",
+              "verification_gate: not-applicable",
+              "evaluation_child_invocations: 0",
+              "evaluation_human_interruptions: 1",
+              "enforcement: helper",
+            ].join("\n"),
+          },
+        ],
+      },
+    });
+    const retained = retainedClaudeEvidence(
+      [
+        ...validClaudePreflightEvents().slice(0, 4),
+        route,
+        routeResult,
+        report,
+        reportResult,
+      ].join("\n"),
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(claudeParentLifecycleOperations(retained)).toEqual([]);
+    expect(retained).toContain('"type":"darrow.goal_report_rendered"');
+  });
+
+  test("rejects materialization before runner resolution", () => {
     const preflight = validClaudePreflightEvents();
     const stream = [
       ...preflight.slice(0, 4),
@@ -1200,9 +1510,13 @@ describe("Claude skill activation observation", () => {
       }),
       JSON.stringify(goalResult("toolu_goal", "agentgoal")),
     ].join("\n");
-    expect(
-      retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
-    ).toContain("darrow.goal_agent_completion");
+    const retained = retainedClaudeEvidence(
+      stream,
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(retained).not.toContain("darrow.goal_agent_completion");
+    expect(retained).toContain("darrow.parent_repository_tool_before_goal");
   });
 
   test("rejects Bash inspection while ignoring an exact inert true", () => {
@@ -1392,7 +1706,55 @@ describe("Claude skill activation observation", () => {
     ]);
   });
 
-  test("requires one successful temporary-root probe before staging", () => {
+  test("does not report hook-denied tool attempts as performed parent work", () => {
+    const call = JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: "toolu_denied",
+            input: { command: "git status --short" },
+          },
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: "toolu_failed",
+            input: { command: "git diff --stat" },
+          },
+        ],
+      },
+    });
+    const results = JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_denied",
+            is_error: false,
+            content:
+              "PreToolUse:Bash hook error: darrow goal hook: tool use is reserved for the routed goal owner",
+          },
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_failed",
+            is_error: true,
+            content: "fatal: ordinary command failure",
+          },
+        ],
+      },
+    });
+    expect(retainedClaudeEvidence([call, results].join("\n"))).not.toContain(
+      '"operation":"git-status"',
+    );
+    expect(retainedClaudeEvidence([call, results].join("\n"))).toContain(
+      '"operation":"git-diff"',
+    );
+  });
+
+  test("accepts helper-owned staging without the optional temporary-root probe", () => {
     const probe = (id = "toolu_tmpdir", command = "/usr/bin/printenv TMPDIR") =>
       JSON.stringify({
         type: "assistant",
@@ -1429,38 +1791,165 @@ describe("Claude skill activation observation", () => {
             type: "tool_use",
             name: "Write",
             id: "toolu_stage",
-            input: { file_path: "/tmp/goal.md", content: objectiveContract },
+            input: {
+              file_path: "/tmp/darrow-goal-stage.fixture/goal.md",
+              content: objectiveContract,
+            },
           },
         ],
       },
     });
-    const streams = [
-      write,
-      [probe(), result(true), write].join("\n"),
-      [probe(), result(), probe("toolu_duplicate_probe"), write].join("\n"),
-      [probe("toolu_tmpdir", "printenv HOME"), result(), write].join("\n"),
-    ];
-    for (const stream of streams)
+    const preflight = validClaudePreflightEvents().join("\n");
+    for (const stream of [
+      [preflight, write].join("\n"),
+      [preflight, probe(), result(), write].join("\n"),
+      [preflight, probe(), result(true), write].join("\n"),
+    ])
+      expect(
+        retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
+      ).not.toContain("darrow.parent_repository_tool_before_goal");
+
+    for (const stream of [
+      [
+        preflight,
+        probe(),
+        result(),
+        probe("toolu_duplicate_probe"),
+        write,
+      ].join("\n"),
+      [preflight, probe("toolu_tmpdir", "printenv HOME"), result(), write].join(
+        "\n",
+      ),
+    ])
       expect(
         retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
       ).toContain("darrow.parent_repository_tool_before_goal");
   });
 
-  test("canonicalizes staging paths and permits one runner-controlled Write", () => {
+  test("permits one exact provisional activation before the foreground owner", () => {
+    const activation = JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Bash",
+            id: "toolu_activate",
+            input: {
+              command:
+                `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step activate --ledger ${goalLedger} ` +
+                "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
+                "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false",
+            },
+          },
+        ],
+      },
+    });
+    const activationResult = JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_activate",
+            content: [
+              "format\tdarrow-goal-step-v1",
+              "run_id\tfixture",
+              `ledger\t${goalLedger}`,
+              "step\tactivate",
+              "status\trecorded",
+              "agent_id\tpending",
+              "effective_route\tclaude|anthropic|claude-sonnet-5|low",
+              "route_verified\tfalse",
+              "enforcement\thelper",
+            ].join("\n"),
+          },
+        ],
+      },
+    });
+    const stream = [
+      ...validClaudePreflightEvents(),
+      ...inlineMaterializationEvents(false),
+      activation,
+      activationResult,
+      activation,
+    ].join("\n");
+    const retained = retainedClaudeEvidence(
+      stream,
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(
+      retained
+        .split("\n")
+        .filter((line) =>
+          line.includes("darrow.parent_repository_tool_before_goal"),
+        ),
+    ).toHaveLength(1);
+
+    const goalCall = JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "Agent",
+            id: "toolu_goal",
+            input: {
+              subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+              run_in_background: false,
+              prompt: boundGoalPrompt(),
+            },
+          },
+        ],
+      },
+    });
+    const failedActivation = JSON.parse(activationResult);
+    failedActivation.message.content[0].is_error = true;
+    const completion = JSON.stringify(goalResult("toolu_goal", "agentgoal"));
+    for (const rejected of [
+      [
+        ...validClaudePreflightEvents(),
+        ...inlineMaterializationEvents(false),
+        goalCall,
+        completion,
+      ],
+      [
+        ...validClaudePreflightEvents(),
+        ...inlineMaterializationEvents(false),
+        activation,
+        JSON.stringify(failedActivation),
+        goalCall,
+        completion,
+      ],
+    ])
+      expect(
+        retainedClaudeEvidence(
+          rejected.join("\n"),
+          undefined,
+          routeEvidenceContext,
+        ),
+      ).not.toContain("darrow.goal_agent_completion");
+  });
+
+  test("binds one Write to the helper-owned path after staging release", () => {
     const root = mkdtempSync(join(tmpdir(), "darrow-claude-staging-"));
     const repo = join(root, "repo");
     const staging = join(root, "staging");
     const alias = join(root, "repo-alias");
     mkdirSync(repo);
     mkdirSync(staging);
-    symlinkSync(repo, alias, "dir");
     const canonicalStaging = realpathSync(staging);
+    const goalStaging = join(canonicalStaging, "darrow-goal-stage.fixture");
+    mkdirSync(goalStaging);
+    symlinkSync(repo, alias, "dir");
     try {
       const context = {
         ...routeEvidenceContext,
         repoDir: repo,
         stagingRoot: canonicalStaging,
       };
+      const aliasGoalStaging = goalStaging.replace(/^\/private/, "");
       const stream = [
         ...validClaudePreflightEvents(context),
         JSON.stringify({
@@ -1497,7 +1986,7 @@ describe("Claude skill activation observation", () => {
                 name: "Write",
                 id: "toolu_stage",
                 input: {
-                  file_path: join(canonicalStaging, "goal.md"),
+                  file_path: join(aliasGoalStaging, "goal.md"),
                   content: objectiveContract,
                 },
               },
@@ -1506,7 +1995,7 @@ describe("Claude skill activation observation", () => {
                 name: "Write",
                 id: "toolu_extra_stage",
                 input: {
-                  file_path: join(staging, "extra.md"),
+                  file_path: join(aliasGoalStaging, "extra.md"),
                   content: "extra",
                 },
               },
@@ -1522,7 +2011,43 @@ describe("Claude skill activation observation", () => {
             ],
           },
         }),
+        JSON.stringify({
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                name: "Bash",
+                id: "toolu_register_alias_stage",
+                input: {
+                  command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${context.stagingRoot}/darrow-goal-run.fixture --goal-file ${join(aliasGoalStaging, "goal.md")}`,
+                },
+              },
+            ],
+          },
+        }),
+        JSON.stringify({
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "toolu_register_alias_stage",
+                content: [
+                  "format\tdarrow-goal-step-v1",
+                  "run_id\tfixture",
+                  `ledger\t${context.stagingRoot}/darrow-goal-run.fixture`,
+                  "step\tstage",
+                  "status\trecorded",
+                  `goal_file\t${join(aliasGoalStaging, "goal.md")}`,
+                  `contract_sha256\t${objectiveDigest}`,
+                ].join("\n"),
+              },
+            ],
+          },
+        }),
       ].join("\n");
+      rmSync(goalStaging, { recursive: true, force: true });
       const retained = retainedClaudeEvidence(stream, undefined, context);
       expect(
         retained
@@ -1562,24 +2087,31 @@ describe("Claude skill activation observation", () => {
       }),
       toolResult("toolu_tmpdir", "/tmp"),
       assistantTool("toolu_stage", "Write", {
-        file_path: "/tmp/goal.md",
+        file_path: "/tmp/darrow-goal-stage.fixture/goal.md",
         content: fileBackedContract,
       }),
+      assistantTool("toolu_register_stage", "Bash", {
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+      }),
+      toolResult(
+        "toolu_register_stage",
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tstage\nstatus\trecorded\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md\ncontract_sha256\t${fileBackedDigest}`,
+      ),
       assistantTool("toolu_materialize", "Bash", {
-        command:
-          "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop materialize-objective --force-file-backed --repo /fixture --goal-file /tmp/goal.md",
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult(
         "toolu_materialize",
-        `format\tdarrow-native-goal-objective-v1\nmode\tfile-backed\ncontract_bytes\t5000\ncontract_sha256\t${fileBackedDigest}\ncontract_file\t/private/darrow-goal-contract.fixture/goal-contract.md\nobjective_bytes\t300\nobjective_file\t/private/darrow-goal-contract.fixture/goal-objective.txt\nattachment_dir\t/private/darrow-goal-contract.fixture`,
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tmaterialize\nstatus\trecorded\nformat\tdarrow-native-goal-objective-v1\nmode\tfile-backed\ncontract_bytes\t5000\ncontract_sha256\t${fileBackedDigest}\ncontract_file\t/private/darrow-goal-contract.fixture/goal-contract.md\nobjective_bytes\t300\nobjective_file\t/private/darrow-goal-contract.fixture/goal-objective.txt\nattachment_dir\t/private/darrow-goal-contract.fixture`,
       ),
       assistantTool("toolu_release_staging", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-staging --goal-file /tmp/goal.md --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult(
         "toolu_release_staging",
-        "format\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/goal.md",
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\trelease-staging\nstatus\trecorded\nformat\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md`,
       ),
+      ...provisionalActivationEvents(),
       assistantTool("toolu_goal", "Agent", {
         subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
         run_in_background: false,
@@ -1590,22 +2122,21 @@ describe("Claude skill activation observation", () => {
       }),
       JSON.stringify(goalResult("toolu_goal", "agentgoal")),
       assistantTool("toolu_gate", "Bash", {
-        command:
-          "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low'",
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       }),
       toolResult(
         "toolu_gate",
         "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed",
       ),
       assistantTool("toolu_release", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-objective --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult(
         "toolu_release",
-        "format\tdarrow-native-goal-objective-release-v1\nstatus\treleased\nattachment_dir\t/private/darrow-goal-contract.fixture",
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\trelease-objective\nstatus\trecorded\nformat\tdarrow-native-goal-objective-release-v1\nstatus\treleased\nattachment_dir\t/private/darrow-goal-contract.fixture`,
       ),
       assistantTool("toolu_release_again", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-objective --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult("toolu_release_again", "private duplicate cleanup result"),
       assistantTool("toolu_search", "ToolSearch", { query: "route gate" }),
@@ -1664,7 +2195,7 @@ describe("Claude skill activation observation", () => {
         .filter((line) =>
           line.includes("darrow.parent_repository_tool_after_goal"),
         ),
-    ).toHaveLength(9);
+    ).toHaveLength(10);
     expect(hasClaudeGoalAgentEvidence(retained)).toBe(true);
     expect(claudeGoalRouteEvidence(retained)).toEqual({
       goalToolUseId: "toolu_goal",
@@ -1716,7 +2247,8 @@ describe("Claude skill activation observation", () => {
       undefined,
       routeEvidenceContext,
     );
-    expect(appendedTextEvidence).toContain("darrow.goal_agent_completion");
+    expect(appendedTextEvidence).not.toContain("darrow.goal_agent_completion");
+    expect(appendedTextEvidence).toContain("agent-contract-body-mismatch");
     const displacedReferenceEvidence = retainedClaudeEvidence(
       stream.replace(
         JSON.stringify(boundedPrompt).slice(1, -1),
@@ -1785,7 +2317,7 @@ describe("Claude skill activation observation", () => {
               name: "Write",
               id: "toolu_stage",
               input: {
-                file_path: "/tmp/goal.md",
+                file_path: "/tmp/darrow-goal-stage.fixture/goal.md",
                 content: objectiveContract,
               },
             },
@@ -1799,10 +2331,36 @@ describe("Claude skill activation observation", () => {
             {
               type: "tool_use",
               name: "Bash",
+              id: "toolu_register_stage",
+              input: {
+                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_register_stage",
+              content: `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tstage\nstatus\trecorded\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md\ncontract_sha256\t${objectiveDigest}`,
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Bash",
               id: "toolu_materialize",
               input: {
-                command:
-                  "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop materialize-objective --force-file-backed --repo /fixture --goal-file /tmp/goal.md",
+                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
               },
             },
           ],
@@ -1815,7 +2373,7 @@ describe("Claude skill activation observation", () => {
             {
               type: "tool_result",
               tool_use_id: "toolu_materialize",
-              content: `format\tdarrow-native-goal-objective-v1\nmode\tinline\ncontract_bytes\t100\ncontract_sha256\t${objectiveDigest}\ncontract_file\t/tmp/goal.md\nobjective_bytes\t100\nobjective_file\t/tmp/goal.md\nattachment_dir\tnone`,
+              content: `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tmaterialize\nstatus\trecorded\nformat\tdarrow-native-goal-objective-v1\nmode\tinline\ncontract_bytes\t100\ncontract_sha256\t${objectiveDigest}\ncontract_file\t/tmp/darrow-goal-stage.fixture/goal.md\nobjective_bytes\t100\nobjective_file\t/tmp/darrow-goal-stage.fixture/goal.md\nattachment_dir\tnone`,
             },
           ],
         },
@@ -1829,7 +2387,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_release_staging",
               input: {
-                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-staging --goal-file /tmp/goal.md --expected-sha256 ${objectiveDigest}`,
+                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
               },
             },
           ],
@@ -1842,12 +2400,12 @@ describe("Claude skill activation observation", () => {
             {
               type: "tool_result",
               tool_use_id: "toolu_release_staging",
-              content:
-                "format\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/goal.md",
+              content: `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\trelease-staging\nstatus\trecorded\nformat\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md`,
             },
           ],
         },
       }),
+      ...provisionalActivationEvents(),
       JSON.stringify({
         type: "assistant",
         message: {
@@ -1875,8 +2433,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_gate",
               input: {
-                command:
-                  "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low'",
+                command: `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
               },
             },
           ],
@@ -1993,24 +2550,31 @@ describe("Claude skill activation observation", () => {
       }),
       toolResult("toolu_tmpdir", "/tmp"),
       toolCall("toolu_stage", "Write", {
-        file_path: "/tmp/goal.md",
+        file_path: "/tmp/darrow-goal-stage.fixture/goal.md",
         content: fileBackedContract,
       }),
+      toolCall("toolu_register_stage", "Bash", {
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+      }),
+      toolResult(
+        "toolu_register_stage",
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tstage\nstatus\trecorded\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md\ncontract_sha256\t${digest}`,
+      ),
       toolCall("toolu_materialize", "Bash", {
-        command:
-          "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop materialize-objective --force-file-backed --repo /fixture --goal-file /tmp/goal.md",
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${digest}`,
       }),
       toolResult(
         "toolu_materialize",
-        `format\tdarrow-native-goal-objective-v1\nmode\tfile-backed\ncontract_bytes\t5000\ncontract_sha256\t${digest}\ncontract_file\t${attachment}/goal-contract.md\nobjective_bytes\t300\nobjective_file\t${attachment}/goal-objective.txt\nattachment_dir\t${attachment}`,
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tmaterialize\nstatus\trecorded\nformat\tdarrow-native-goal-objective-v1\nmode\tfile-backed\ncontract_bytes\t5000\ncontract_sha256\t${digest}\ncontract_file\t${attachment}/goal-contract.md\nobjective_bytes\t300\nobjective_file\t${attachment}/goal-objective.txt\nattachment_dir\t${attachment}`,
       ),
       toolCall("toolu_release_staging", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-staging --goal-file /tmp/goal.md --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${digest}`,
       }),
       toolResult(
         "toolu_release_staging",
-        "format\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/goal.md",
+        `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\trelease-staging\nstatus\trecorded\nformat\tdarrow-native-goal-staging-release-v1\nstatus\treleased\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md`,
       ),
+      ...provisionalActivationEvents().map((line) => JSON.parse(line)),
       toolCall("toolu_goal", "Agent", {
         subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
         run_in_background: false,
@@ -2021,11 +2585,11 @@ describe("Claude skill activation observation", () => {
       }),
       goalResult("toolu_goal", "agentgoal"),
       toolCall("toolu_wrong_release", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-objective --attachment-dir /private/darrow-goal-contract.wrong --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.wrong --expected-sha256 ${digest}`,
       }),
       toolResult("toolu_wrong_release", "private wrong release"),
       toolCall("toolu_failed_release", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-objective --attachment-dir ${attachment} --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir ${attachment} --expected-sha256 ${digest}`,
       }),
       toolResult("toolu_failed_release", "private failed release", true),
     ]
@@ -2037,7 +2601,9 @@ describe("Claude skill activation observation", () => {
       undefined,
       routeEvidenceContext,
     );
-    expect(retained).toContain('"operation":"goal-loop-unbound"');
+    expect(retained).toContain(
+      '"operation":"goal-loop-unbound-release-objective"',
+    );
     expect(retained).toContain('"operation":"release-failed"');
     expect(retained).toContain('"operation":"release-missing"');
     expect(retained).not.toContain("private failed release");
@@ -2080,7 +2646,7 @@ describe("Claude skill activation observation", () => {
       goalResult("toolu_goal", "agentgoal"),
       bashCall(
         "toolu_wrong_agent",
-        "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id otheragent --selected 'claude|anthropic|claude-sonnet-5|low'",
+        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id otheragent --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_agent",
@@ -2088,7 +2654,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_route",
-        "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-opus-5|high'",
+        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-opus-5|high' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_route",
@@ -2096,7 +2662,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_output",
-        "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low'",
+        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_output",
@@ -2114,7 +2680,7 @@ describe("Claude skill activation observation", () => {
       result("toolu_compound_release", "private compound result"),
       bashCall(
         "toolu_fake_path",
-        "/bin/bash /tmp/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low'",
+        `/bin/bash /tmp/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_fake_path",
@@ -2122,7 +2688,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_repo",
-        "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /other --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low'",
+        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /other --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_repo",
@@ -2130,7 +2696,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_retry",
-        "/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low'",
+        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_retry",
@@ -2154,7 +2720,7 @@ describe("Claude skill activation observation", () => {
         .filter((line) =>
           line.includes("darrow.parent_repository_tool_after_goal"),
         ),
-    ).toHaveLength(7);
+    ).toHaveLength(8);
     expect(retained).not.toContain("private spoof result");
     expect(retained).not.toContain("private compound result");
   });

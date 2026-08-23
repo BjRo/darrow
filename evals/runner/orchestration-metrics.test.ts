@@ -333,6 +333,7 @@ describe("orchestration outcome metrics", () => {
       "verification_gate: elevated",
       "evaluation_child_invocations: 0",
       "evaluation_human_interruptions: 0",
+      "enforcement: helper",
     ].join("\n");
     const hostRaw = [
       JSON.stringify({
@@ -447,6 +448,7 @@ describe("orchestration outcome metrics", () => {
       "verification_gate: routine",
       "evaluation_child_invocations: 1",
       "evaluation_human_interruptions: 0",
+      "enforcement: helper",
     ].join("\n");
 
     expect(observeCodexGoalRouteApplication(result, "")).toEqual({

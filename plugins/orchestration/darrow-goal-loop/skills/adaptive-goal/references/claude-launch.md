@@ -2,15 +2,14 @@
 
 Use the first boundary that can honor the compiled route.
 
-Follow this numbered order without skipping, retrying, or reordering: (1)
-prepare, (2) route, (3) runner resolution, (4) `TMPDIR` probe, (5) one staging
-Write, (6) materialize, (7) release staging, (8) one foreground Agent, (9)
-route gate after its terminal result, and (10) file-backed objective release
-when applicable. The sections below explain those steps; their document order
-does not authorize entering a later step early. Stop before Agent activation
-on any missing, failed, out-of-order, duplicate, or retried step.
+Use the one ledger started by the parent skill. The `goal-loop step` helper
+validates preparation, route selection, runner resolution, staging,
+materialization, release, activation, route observation, review, cleanup, and
+terminal reporting. Stop when it rejects a missing, duplicate, out-of-order, or
+mismatched transition. The ledger validates protocol evidence; it does not
+schedule agents or own continuation.
 
-The first protocol-bearing Bash call is the literal standalone `prepare`
+The first protocol-bearing Bash call is the literal standalone `step start`
 command below. Resolve the absolute repository and plugin paths with Claude's
 native `Read`, `Glob`, or `Grep` before calling Bash, using `ToolSearch` only to
 load those native tools when needed. Never use Bash `find`, `ls`, or a
@@ -21,8 +20,8 @@ supplies no evidence. Do not use any other placeholder/no-op command or combine
 scratchpad.
 
 The classifier does not run repository tests or implementation commands. Apart
-from the exact inert `true` exception, its only Bash calls before the Agent are the literal standalone prepare, route,
-runner-resolution, temporary-root probe, materialization, and staging-release
+from the exact inert `true` exception, its only Bash calls before the Agent are
+the literal standalone step-ledger, temporary-root probe, and runner
 commands shown here. Replace placeholders with concrete values directly; do
 not introduce assignments or shell expansions. Use Claude's native `Read`,
 `Glob`, and `Grep` tools for permitted repository inspection. Never use Bash
@@ -32,13 +31,17 @@ contract only with the one native `Write`; never use `>`, `>>`, a heredoc,
 `tee`, or another shell file-creation command.
 
 ```sh
-/bin/bash <absolute-plugin-bin>/goal-loop prepare --repo <absolute-repo> --host claude
+/bin/bash <absolute-plugin-bin>/goal-loop step start --repo <absolute-repo> --host claude
+/bin/bash <absolute-plugin-bin>/goal-loop step prepare --ledger <absolute-ledger>
 ```
 
 Then run the route helper as its own tool call:
 
 ```sh
-/bin/bash <absolute-plugin-bin>/goal-loop route --repo <absolute-repo> --host claude --profile <profile>
+/bin/bash <absolute-plugin-bin>/goal-loop step route --ledger <absolute-ledger> \
+  --workflow <workflow> --risk <risk> --profile <profile> \
+  --verification-gate <verification-gate> --review <selected|omitted> \
+  [--review-round-limit <explicit-positive-integer>]
 ```
 
 Only an explicit user route override adds the literal option
@@ -46,21 +49,32 @@ Only an explicit user route override adds the literal option
 
 ## Materialize the native objective
 
-For a boundary whose goal owner shares this filesystem, resolve the runner's
-isolated temporary root with the one standalone command
-`/usr/bin/printenv TMPDIR`. Use the host's file-write tool once to put the
-complete contract at an absolute path inside that canonical root, then run:
+For a boundary whose goal owner shares this filesystem, use the host's
+file-write tool once to put the complete contract at a direct child path inside
+the exact mode-0700 `staging_dir` returned by `step start`. The standalone
+`/usr/bin/printenv TMPDIR` probe may confirm its temporary-root parent but never
+substitutes a broader directory for the returned staging path. Then run:
+
+The native Write contains the contract itself and its first line is `Outcome:`.
+Never write the helper-generated objective wrapper, `Before doing any work`, or
+an `Expected SHA-256:` line into staging. `step materialize` alone creates that
+wrapper after it verifies the staged contract.
 
 ```sh
-/bin/bash <absolute-plugin-bin>/goal-loop materialize-objective --force-file-backed --repo <absolute-repo> --goal-file <absolute-contract-file>
+/bin/bash <absolute-plugin-bin>/goal-loop step stage --ledger <absolute-ledger> \
+  --goal-file <absolute-contract-file>
+/bin/bash <absolute-plugin-bin>/goal-loop step materialize --ledger <absolute-ledger> \
+  --goal-file <absolute-contract-file> \
+  --expected-sha256 <step-stage-contract-sha256>
 ```
 
 Use that one staging Write's exact absolute path as `--goal-file`. The helper's
-returned `contract_sha256` must equal the digest of those exact staged bytes;
-stop before activation on any path or digest mismatch. Canonical path aliases
-and locations outside that runner-controlled root are not private staging.
+stage call hashes those exact bytes and returns `contract_sha256`; use that
+value in every later expected-digest option. Stop before activation on any path
+or digest mismatch. Canonical path aliases and locations outside the
+ledger-owned staging directory are not private staging.
 
-Claude always uses `--force-file-backed` so the Agent call has one stable
+Claude step materialization always uses file-backed mode so the Agent call has one stable
 objective field regardless of contract size. Pass only the exact returned
 `objective_file` path in the one-line Agent body specified below. The
 classifier does not read, hash, copy, or reproduce that file; the file-backed
@@ -72,7 +86,9 @@ After successful materialization and before Agent activation, release the
 caller-created staging file exactly once with:
 
 ```sh
-/bin/bash <absolute-plugin-bin>/goal-loop release-staging --goal-file <exact-staging-path> --expected-sha256 <exact-helper-returned-contract-sha256>
+/bin/bash <absolute-plugin-bin>/goal-loop step release-staging \
+  --ledger <absolute-ledger> --goal-file <exact-staging-path> \
+  --expected-sha256 <exact-helper-returned-contract-sha256>
 ```
 
 Only a successful exact release record permits activation. Keep any returned
@@ -80,7 +96,10 @@ file-backed attachment readable through paused states and the terminal result,
 then release it only with:
 
 ```sh
-/bin/bash <absolute-plugin-bin>/goal-loop release-objective --attachment-dir <exact-helper-returned-attachment-dir> --expected-sha256 <exact-helper-returned-contract-sha256>
+/bin/bash <absolute-plugin-bin>/goal-loop step release-objective \
+  --ledger <absolute-ledger> \
+  --attachment-dir <exact-helper-returned-attachment-dir> \
+  --expected-sha256 <exact-helper-returned-contract-sha256>
 ```
 
 On Claude, invoke all helpers as standalone Bash commands with the concrete
@@ -102,11 +121,17 @@ the attachment even if later result collection fails.
 ## Same thread
 
 When the current Claude surface exposes native goal control to the agent, read
-its concrete active route and require `confirm-route` to accept the selected and
-effective routes before setting the compiled contract as the current thread's
-goal. Set the exact materialized objective rather than an oversized inline
-contract. Record `same_thread`, `current-thread`, verified true, and zero
-children.
+its concrete active route and require it to equal the selected route before
+setting the compiled contract as the current thread's goal. Set the exact
+materialized objective rather than an oversized inline contract. After the
+native goal call is accepted, record the boundary:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step activate --ledger <absolute-ledger> \
+  --applied-by current-thread --boundary same_thread --agent-id none \
+  --effective-route 'claude|anthropic|<model>|<effort>' \
+  --route-verified true
+```
 
 If a material decision first emerges after activation, leave the goal active,
 pause repository and external mutation, and ask the user the smallest concrete
@@ -145,7 +170,9 @@ Resolve the runner and validate those environment boundaries before invoking
 Agent:
 
 ```sh
-/bin/bash <absolute-plugin-bin>/claude-agent-route --provider anthropic --model <claude-sonnet-5|claude-opus-5> --effort <low|medium|high>
+/bin/bash <absolute-plugin-bin>/goal-loop step runner --ledger <absolute-ledger> \
+  --provider anthropic --model <claude-sonnet-5|claude-opus-5> \
+  --effort <low|medium|high>
 ```
 
 Use the exact `subagent_type` and absolute `agent_file` from that output. A
@@ -180,16 +207,34 @@ digest equals the materialization record or, for file-backed materialization,
 exactly `- objective_file: <helper-returned-absolute-objective_file>`. Do not
 read that file in the classifier turn or add copied proof fields, omitted text,
 or explanations. The routed Agent reads the bounded objective and verifies the
-complete contract before work. When the exact file-backed reference is the
-first body line, the runner treats it as the sole task authority and ignores
-any later task text; appended text is neither contract nor route evidence. The
+complete contract before work. The exact file-backed reference is the sole task
+authority; any appended task text invalidates the launch. The
 compiled contract already contains the
 workflow, risk gates, feedback protocol, review clause, reporting contract, and
 sole-owner instructions. Do not restate or append them in the Agent task. A
 marker-only task is not an executable goal.
 
+Record a provisional native-subagent activation with agent id `pending`, the
+exact selected route, and `route_verified: false` through one exact standalone
+helper call immediately before Agent:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step activate \
+  --ledger <absolute-ledger> --applied-by native-subagent \
+  --boundary native_subagent --agent-id pending \
+  --effective-route 'claude|anthropic|<model>|<effort>' \
+  --route-verified false
+```
+
+When trusted Claude hooks are active, append exactly
+`--enforcement helper+claude-hooks` to that command. The hooks validate this
+already-recorded transition and refuse an Agent when it is missing; they never
+backfill it after the Agent returns. Never duplicate activation. This provisional record lets the
+foreground owner append selected-review evidence to the ledger; it does not
+prove the effective route and cannot authorize a terminal report.
+
 Wait for that same foreground Agent call to return, then verify what actually
-ran before recording anything. Selecting a namespaced `subagent_type` whose
+ran before recording observed route or terminal evidence. Selecting a namespaced `subagent_type` whose
 frontmatter pins a model is necessary but not sufficient evidence that the
 host applied it: the Agent call can be accepted and run to completion on a
 different model than its own frontmatter names, and a misrouted runner will
@@ -223,7 +268,10 @@ shell variables, comments, substitutions, pipelines, command lists, redirects,
 or extra arguments in this call:
 
 ```sh
-/bin/bash <absolute-plugin-bin>/claude-route-gate --repo <absolute-repo> --agent-id <host-reported-agent-id> --selected 'claude|anthropic|<model>|<effort>'
+/bin/bash <absolute-plugin-bin>/claude-route-gate --repo <absolute-repo> \
+  --agent-id <host-reported-agent-id> \
+  --selected 'claude|anthropic|<model>|<effort>' \
+  --ledger <absolute-ledger>
 ```
 
 The gate returns either one observed route with an explicit `confirmed` or
@@ -312,8 +360,10 @@ session and its authentication is proven before product work begins.
 
 When the active Claude surface exposes neither matching same-thread goal
 control nor the required Agent runner, preserve the compiled contract, record
-`launch_required`, name the missing capability, and stop without editing product
-files. Do not probe a recursive `claude` process with a paid model call.
+the stop with `goal-loop step launch-stop --ledger <absolute-ledger> --reason
+launch-unavailable`, release any materialized objective, render
+`launch_required`, name the missing capability, and stop without editing
+product files. Do not probe a recursive `claude` process with a paid model call.
 
 **Complete when:** the user has one exact external launch action rather than a
 simulated or unauthenticated goal run.
