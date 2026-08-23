@@ -8,32 +8,18 @@ description: Compile one bounded engineering request and activate it as a host-n
 Compile the request, activate one host-native goal owner, and let the host own
 the loop.
 
-### Literal terminal report
-
-For every terminal path, return the successful `goal-loop step report` output
-verbatim as the first response bytes. Do not preface it, label it, quote it, or
-put it in a Markdown fence. Append any explanation only after the complete raw
-helper block and its terminal sentence. The sole exception is a selected
-implementation-readiness assessment whose verdict is not `ready`: preserve the
-capability's complete human-readable result first, then place the outer helper
-report immediately after it. The result already contains the required next
-action; insert no explanation, ledger summary, or other prose between those two
-blocks.
-
 ## Confirm invocation authority
 
-Start only when the current context establishes one of these entry conditions:
+Start only when the context establishes either entry condition:
 
 - the user explicitly invoked adaptive goal orchestration; or
 - an orchestration entrypoint the user explicitly invoked delegates one bounded
   request and preserves the originating request and permissions.
 
-A delegated call adds no authority. Treat its originating request as the
-authority source and preserve every scope, permission, publication, and safety
-boundary. Ordinary engineering intent, task complexity, duration, or number of
-steps never authorizes orchestration. If neither entry condition is present,
-stop before running the helper, consuming further orchestration budget, or
-editing the worktree. Return exactly:
+Delegation adds no authority; preserve the originating scope, permissions,
+publication, and safety boundaries. Complexity, duration, and ordinary
+engineering intent do not authorize orchestration. Without either condition,
+run no helper and leave the worktree unchanged. Return exactly:
 
 ```text
 format: darrow-adaptive-goal-authority-stop-v1
@@ -41,7 +27,7 @@ status: invocation_required
 reason: explicit-orchestration-entrypoint-required
 ```
 
-### Enforce the activation barrier
+### Enforce read-only preflight
 
 Keep preflight read-only until exactly one goal owner is active on a verified
 route. Inspection may identify applicable checks but MUST NOT execute a test,
@@ -49,22 +35,15 @@ build, typecheck, lint, review, or verification command. Compile imperative
 implementation and check requests for the owner; they do not authorize work in
 the classifier turn.
 
-Before activation, prove that every selected implementation-readiness or
-independent-review capability is host-advertised and matches the required
-intent. Generic delegation is not capability evidence. If a selected
-capability or exact launch boundary is unavailable, preserve the product tree
-and use the applicable host guide to record the stop and render
-`launch_required`.
-
-### The helper protocol is mandatory
-
 Use one `goal-loop step` ledger for every interactive run, including small
 tasks. Record preparation, route selection, materialization, activation,
 selected readiness and review evidence, cleanup, and terminal reporting in its
-required order. A denied, duplicate, out-of-order, or mismatched transition is
-a stop. The ledger validates evidence; it never schedules work or owns
-continuation. The selected host guide owns the literal command and tool
-protocol.
+required order. Before activation, prove every selected readiness or review
+capability is host-advertised and matches its intent; generic delegation is not
+capability evidence. On an unavailable capability or boundary, or any rejected
+ledger transition, preserve the product tree and follow the host guide's
+`launch_required` stop. The ledger validates evidence without scheduling work;
+the host guide owns literal mechanics.
 
 ## 1. Prepare without writing
 
@@ -81,10 +60,6 @@ Prepare through the ledger:
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step prepare --ledger <absolute-ledger>
 ```
-
-On Claude, do not translate this into assignments, shell expansions, command
-lists, or a preliminary lookup command; `claude-launch.md` owns the exact
-allowed command shape.
 
 Use the prepared repository state, instruction routes, profile mappings,
 workflow paths, and risk gates as evidence. Inspect additional repository files
@@ -465,27 +440,19 @@ perform no repository inspection, edit, check, review, or publication, and
 mark the goal `blocked` as soon as the host permits it.
 <!-- intent-routing-end -->
 
-Read the selected workflow document completely. The workflow document
-determines the execution sequence. Do not combine workflows or substitute a
-domain label for one. Small size alone is not mechanical.
+Read the selected workflow document completely and use only its sequence; small
+size does not make work mechanical. Map reasoning demand to profile
+independently of risk:
 
-Choose risk and profile independently. Risk reflects the cost of an incorrect
-result and changes verification; profile reflects the kind and scale of
-reasoning needed and changes the model route. Do not raise the profile only
-because risk is `high`, and do not lower risk because implementation is simple:
+| Demand | Profile |
+| --- | --- |
+| clear localized or exact mechanical work | `routine` |
+| localized work with materially competing implementations or an explicit first-pass boundary-correctness priority | `routine-plus` |
+| `scaled-coding` | `scaled` |
+| `repo-wide-coding` | `repo-wide` |
+| `judgment` | `judgment` |
 
-- `routine` for `ordinary-localized`, including exact mechanical work and
-  clear, fully specified changes regardless of consequence severity;
-- `routine-plus` only when localized implementation itself needs additional
-  reasoning, including an explicit request that boundary-sensitive first-pass
-  correctness take priority over the cheapest routine route or repository
-  evidence of materially competing implementations;
-- `scaled` for `scaled-coding`;
-- `repo-wide` for `repo-wide-coding`;
-- `judgment` for `judgment` work.
-
-Risk alone, a security boundary, and added verification work never justify
-`routine-plus` when implementation behavior is clear and fully specified.
+Risk and added verification never justify `routine-plus` by themselves.
 
 An explicit user model or effort wins. Resolve the concrete route:
 
@@ -500,84 +467,37 @@ An explicit user model or effort wins. Resolve the concrete route:
   [--route 'harness|provider|model|effort']
 ```
 
-Pass `--route` only when the engineering request explicitly pins it. Pass
-`--review-round-limit` only when the originating request explicitly supplies
-that limit and review is selected. The helper enforces `verification-gate ==
-risk`, an explicit readiness selection, selected review for high risk, and the
-fixed decision-gated tuple. The
-classifier route, host defaults, and enclosing evaluator are metadata, not user
-overrides. `inherit`, `current`, `default`, or an unresolved alias is not an
-auditable model identifier. An explicit tuple is accepted only when it exists
-in the active catalog; the helper rejects foreign or host-incompatible routes.
+Pass `--route` and `--review-round-limit` only for exact originating user
+overrides. The helper validates the risk gate, readiness selection, high-risk
+review, decision-gated tuple, and live catalog membership; metadata values and
+aliases such as `inherit`, `current`, or `default` are not overrides.
 
-The helper resolves policy from the active worktree root. The shared
-`<repo>/.darrow/config.json` object may contain independent `routes` and
-`reviewers` sections. When the file or its `routes` section is absent or empty,
-goal routes come from bundled policy. Otherwise strict `routes` entries replace
-matching bundled `(host, profile)` entries and other profiles inherit bundled
-routes. Goal routing syntax-checks but does not interpret the sibling
-`reviewers` section. A present repository configuration must be readable and
-valid as a whole, and every owned route must validate against the bundled
-host/profile catalog and host/harness relation; any failure is a stop, not a
-fallback. `route_source` remains `policy` or `user` authority; for policy
-routes, `policy_route_source` discloses `repository` or `bundled` provenance.
+Resolve policy from the active worktree's `.darrow/config.json`. Missing or
+empty `routes` uses bundled policy; valid repository entries replace matching
+host/profile routes and other profiles remain bundled. Validate the whole file
+and every owned route, ignore the sibling `reviewers` semantics, and stop on an
+error. Preserve `policy|user` authority and `repository|bundled` provenance.
 
-Write one complete goal contract containing the outcome, acceptance criteria,
-scope and non-goals, preserved work, permissions, the selected workflow and its
-sequence, risk gate, profile and concrete route, applicable feedback checks and
-final-tree checks, whether independent review is selected and why, its portable
-continuation clause when selected, whether implementation readiness is selected
-and why, its portable pre-mutation clause when selected, any user-specified stopping budget including
-an explicit review-round limit, the human-feedback rule above, the Section 4
-human-readable completion-report rule, and the absolute helper ledger path.
-The ledger owns route, launch, digest, review, and reporting evidence; do not
-copy a tab-separated internal launch record into the contract. Write each
-contract component once, in this order, using these
-exact nonempty one-line labels: `Outcome:`, `Acceptance criteria:`, `Scope:`,
-`Non-goals:`, `Preserved work:`, `Permissions:`, `Workflow sequence:`,
-`Feedback checks:`, `Final-tree checks:`, `Readiness gate:`, `Independent review:`,
-`Stopping budget:`, `Human feedback:`, and `Completion report:`. Then reference
-the ledger once as `Protocol ledger: <absolute-ledger>`. Reference
-longer repository-owned details by path. Use an explicit `none` explanation
-when an optional budget or permission is absent; never drop its label.
-When selected review may run in a filesystem-sharing delegated owner, the
-`Independent review:` value also names the concrete absolute bundled
-`goal-loop` executable for `step review` recording. The owner must not have to
-search for or infer that protocol helper.
-When readiness is selected, the `Readiness gate:` value likewise names the
-concrete absolute bundled `goal-loop` executable for `step readiness` verdict
-recording. The owner must not search for or infer the helper, and the clause
-must not name or constrain the matching assessment capability.
-When the selected boundary may be the observable Codex runner, put these fixed
-ownership rules in `Workflow sequence:` or `Completion report:` before
-materialization: the accepted runner task is already the sole goal boundary;
-the runner does not invoke `adaptive-goal`, call `create_goal`, record
-activation, release the objective, or render the ledger report. It executes the
-contract directly, records only its own selected-review evidence through the
-ledger, records its selected readiness verdict before mutation, and returns
-terminal semantic facts and status to its creator. The
-creator ensures the accepted native-subagent activation is recorded by trusted
-hook evidence or, only at the `helper` tier, the exact manual step before waiting, then
-performs exact objective cleanup and helper report rendering after collecting
-that result. These rules belong only in the contract. Never append them,
-explanations, or proof fields to the ownership-marked spawn message.
-Target
-at most 4,000 bytes by referencing repository facts, but never truncate, omit,
-or rewrite a material requirement merely to fit the inline objective limit. A
-filesystem-sharing launch boundary uses a verified file-backed objective when
-the complete contract is larger.
+Write every contract component once with these exact nonempty one-line labels,
+in order: `Outcome:`, `Acceptance criteria:`, `Scope:`, `Non-goals:`,
+`Preserved work:`, `Permissions:`, `Workflow sequence:`, `Feedback checks:`,
+`Final-tree checks:`, `Readiness gate:`, `Independent review:`, `Stopping
+budget:`, `Human feedback:`, and `Completion report:`. End with `Protocol
+ledger: <absolute-ledger>`. Include the selected dimensions and route, workflow
+sequence, risk gate, feedback/final checks, portable readiness and review
+clauses, explicit budgets, the marked human-feedback rule, reporting rule, and
+preserved authority. Use `none` with a reason for absent optional values.
 
-Reference repository facts by path rather than copying them. Leave detailed
-implementation choices to the host-native goal owner.
+For filesystem-sharing delegated owners, selected readiness and review clauses
+name the absolute `goal-loop` executable only for their ledger evidence calls,
+never as the capability implementation. Put boundary-specific ownership rules
+from the selected host guide into the contract before materialization. Refer to
+repository facts by path and target 4,000 bytes without dropping requirements;
+use a verified file-backed objective when larger.
 
-Include branch, commit, push, pull-request, or other publication effects only
-when the originating request explicitly authorized each effect and host policy
-still permits it. Preserve that authority in the contract; never derive it
-from successful implementation or eventual goal completion.
-When independent review is selected, perform no not-yet-completed publication
-effect after blocking findings or an unavailable or inconclusive review, or
-against content changed after review. A clear review grants no publication
-authority.
+Include publication effects only when each was explicitly authorized and host
+policy still permits it. Selected review blocks remaining publication after a
+non-clear result or later content change; clear review adds no authority.
 
 ## 3. Activate exactly one host-native goal owner
 
@@ -600,7 +520,7 @@ runner owns implementation, verification, recovery, and completion.
 Follow the selected host guide until the same owner reaches a terminal state or
 pauses for material feedback. The creator may relay feedback to that owner, but
 must not replace it or inspect, edit, or reverify its repository work after it
-returns. Render the terminal report from the ledger exactly once:
+returns. Render the terminal report from the ledger once:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step report --ledger <absolute-ledger> \
@@ -608,64 +528,19 @@ returns. Render the terminal report from the ledger exactly once:
   --human-interruptions <integer>
 ```
 
-Use that exact helper output, including its canonical terminal sentence, as the
-leading response block, then preserve the owner's collected changed-file,
-verification, review-detail, and risk prose. The helper validates terminal
-state and renders applicable canonical review sentences.
-For a selected readiness verdict other than `ready`, invert only this ordering:
-the complete implementation-readiness result comes first, followed immediately
-by the exact terminal helper report with no Markdown code fence before or around
-it. The result already contains the smallest useful next action; insert no
-explanation, ledger summary, or other prose between the two blocks. Use
-`blocked` only when the owner route was verified;
-an unavailable or rejected route still requires the truthful `launch-required`
-report. Do not summarize, replace, or store the readiness result in the ledger.
-This is the only terminal path on which the canonical outer report does not
-begin the response.
-`decision-gated` is the terminal preflight exception to the general completion
-template below. Render its fixed report through the helper command in Section
-1. Because no route
-or goal was activated, never replace its `none`, `false`, `launch_required`,
-`not-applicable`, zero-child, or one-interruption values with selected-route or
-ordinary launch values.
-Except for that non-ready implementation-readiness result, every terminal final
-response begins with the exact helper-rendered report and canonical terminal
-sentence. Put no prose, heading, bullet, or Markdown fence before or around it.
-For a delegated owner, attribute changed-file and verification evidence to the
-collected result; do not claim parent-thread inspection or revalidation.
+Return the successful helper output verbatim, including its terminal and review
+sentences, before any explanation and without a label, quote, or Markdown
+fence. For selected non-ready readiness only, put the complete capability result
+and next action first, then the helper report immediately with nothing between.
+Use `blocked` only for a verified owner route; unavailable or rejected routes
+remain `launch-required`. The decision-gated report keeps its fixed prelaunch
+values.
 
-Do not reproduce the tab-separated ledger in the final response. Never copy
-the selected route into `harness`, `model`, or `effort` without effective-route
-evidence. `harness` is the effective route harness (`codex` or `claude`), never
-the `route_applied_by` value or `launch_boundary`. Count only sessions or subagents
-created directly by Darrow: same-thread and host-API launches are zero; a
-native goal runner or explicitly authorized nested session is one. Native
-descendants remain host-visible but are not Darrow child invocations.
-When an invoked capability terminates the goal with its own structured result,
-preserve that result alongside the mandatory human-readable report rather than
-replacing either contract.
-When implementation readiness is selected, ensure its semantic verdict was
-recorded with `step readiness`. A `ready` verdict is the sole transition that
-permits implementation; a non-ready verdict requires a blocked goal and the
-ordering exception above.
-Preserve terminal independent review evidence in the enclosing response by
-using the standalone canonical outcome sentences from Section 3 and reporting
-any blocking findings separately; do not require or reproduce the provider's
-serialization. After a repaired failure, report the prior blocking findings
-and the canonical fix-verification outcome against the changed content. Only a
-clear initial review or clear exact-target verification chain satisfies the
-gate; a prose claim by the author, stale evidence, or same-context self-review
-does not. When the host persists native-goal status, a terminal review stop
-also reports that the goal settled as `blocked`.
-
-Before returning, ensure the applicable semantic review result has been
-recorded with `step review`. The terminal helper then renders the canonical
-outcome exactly once. Put provenance, route caveats, and supporting detail
-after the helper block so they cannot qualify that outcome.
-
-From the collected owner's terminal result, state changed files, final
-verification, remaining risks, and every authorized publication effect
-actually performed. If that result omitted a fact, report the omission instead
-of inspecting the repository. Include this exact sentence: `Goal completion
-grants no new or subsequent authority.` It does not itself authorize a commit,
-push, pull request, merge, release, or deploy.
+Report only effective route evidence; never copy selection or the tab-separated
+ledger into human-readable fields. Count only Darrow-created sessions: zero for
+same-thread or host API, one for a native runner or authorized nested session.
+Preserve companion capability results and attribute all repository facts to the
+collected owner result. State changed files, final verification, remaining
+risks, and performed authorized publication effects; report omissions instead
+of inspecting. End with `Goal completion grants no new or subsequent
+authority.`
