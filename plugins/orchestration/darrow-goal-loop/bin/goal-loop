@@ -17,11 +17,11 @@ usage:
   goal-loop step stage --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step materialize --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step release-staging --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
-  goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> --agent-id <id|none> --effective-route <route> --route-verified <true|false> [--enforcement <tier>]
-  goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable> [--enforcement <tier>]
+  goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> --agent-id <id|none> --effective-route <route> --route-verified <true|false>
+  goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable>
   goal-loop step readiness --ledger <absolute-path> --verdict <ready|needs-discovery|needs-decision|blocked>
   goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> <--target-fingerprint <literal>|--target-sha256 <digest>> --outcome <enum> [--finding <text>]
-  goal-loop step launch-stop --ledger <absolute-path> --reason <readiness-unavailable|review-unavailable|launch-unavailable|enforcement-unavailable>
+  goal-loop step launch-stop --ledger <absolute-path> --reason <readiness-unavailable|review-unavailable|launch-unavailable>
   goal-loop step release-objective --ledger <absolute-path> --attachment-dir <path> --expected-sha256 <digest>
   goal-loop step report --ledger <absolute-path> --status <complete|blocked|launch-required> --human-interruptions <integer>
   goal-loop prepare --repo <path> --host <codex|claude>
@@ -167,13 +167,6 @@ validate_verification_gate() {
   case "$1" in
     routine|elevated|high|not-applicable) ;;
     *) die "unsupported verification gate: $1" ;;
-  esac
-}
-
-validate_enforcement() {
-  case "$1" in
-    helper|helper+claude-hooks|helper+codex-hooks) ;;
-    *) die "unsupported enforcement tier: $1" ;;
   esac
 }
 
@@ -1053,7 +1046,6 @@ step_start() {
     printf 'run_id\t%s\n' "$ledger_run_id"
     printf 'repo\t%s\n' "$step_repo"
     printf 'host\t%s\n' "$step_host"
-    printf 'session_id\tnone\n'
     printf 'temp_root\t%s\n' "$step_tmp_root"
     printf 'staging_dir\t%s\n' "$step_staging_dir"
     printf 'phase\tstarted\n'
@@ -1306,47 +1298,6 @@ step_runner() {
   printf '%s\n' "$runner_output"
 }
 
-step_hook_bind() {
-  step_ledger=
-  step_session_id=
-  step_enforcement=
-  while test "$#" -gt 0; do
-    case "$1" in
-      --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
-      --session-id) require_value "$@"; step_session_id=$2; shift 2 ;;
-      --enforcement) require_value "$@"; step_enforcement=$2; shift 2 ;;
-      *) die "unknown step hook-bind option: $1" ;;
-    esac
-  done
-  test -n "$step_ledger" && test -n "$step_session_id" &&
-    test -n "$step_enforcement" ||
-    die "step hook-bind requires --ledger, --session-id, and --enforcement"
-  case "$step_session_id" in
-    *[!a-zA-Z0-9._-]*|'') die "unsafe hook session id: $step_session_id" ;;
-  esac
-  validate_enforcement "$step_enforcement"
-  load_ledger "$step_ledger"
-  lock_ledger
-  test "$ledger_phase" != reported || die "cannot bind hooks after terminal reporting"
-  case "$step_enforcement" in
-    helper+claude-hooks) test "$ledger_host" = claude || die "Claude hook tier requires Claude host" ;;
-    helper+codex-hooks) test "$ledger_host" = codex || die "Codex hook tier requires Codex host" ;;
-    helper) die "hook binding requires an active hook tier" ;;
-  esac
-  bound_session=$(ledger_state_value "$ledger_state" session_id)
-  case "$bound_session" in
-    none|"$step_session_id") ;;
-    *) die "ledger is already bound to another hook session" ;;
-  esac
-  set_ledger_value session_id "$step_session_id"
-  set_ledger_value enforcement "$step_enforcement"
-  append_ledger_event hook-bind "$step_session_id"
-  unlock_ledger
-  emit_step_record hook-bind
-  printf 'session_id\t%s\n' "$step_session_id"
-  printf 'enforcement\t%s\n' "$step_enforcement"
-}
-
 step_stage() {
   step_ledger=
   step_goal_file=
@@ -1554,7 +1505,6 @@ step_activate() {
   step_agent_id=
   step_effective_route=
   step_route_verified=
-  step_enforcement=
   while test "$#" -gt 0; do
     case "$1" in
       --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
@@ -1563,7 +1513,6 @@ step_activate() {
       --agent-id) require_value "$@"; step_agent_id=$2; shift 2 ;;
       --effective-route) require_value "$@"; step_effective_route=$2; shift 2 ;;
       --route-verified) require_value "$@"; step_route_verified=$2; shift 2 ;;
-      --enforcement) require_value "$@"; step_enforcement=$2; shift 2 ;;
       *) die "unknown step activate option: $1" ;;
     esac
   done
@@ -1605,21 +1554,12 @@ step_activate() {
     test "$selected_route" = "$step_effective_route" ||
       die "verified effective route does not match selected route"
   fi
-  if test -z "$step_enforcement"; then
-    step_enforcement=$(ledger_state_value "$ledger_state" enforcement)
-  fi
-  validate_enforcement "$step_enforcement"
-  case "$step_enforcement" in
-    helper+claude-hooks) test "$ledger_host" = claude || die "Claude hook evidence requires a Claude ledger" ;;
-    helper+codex-hooks) test "$ledger_host" = codex || die "Codex hook evidence requires a Codex ledger" ;;
-  esac
   set_ledger_value effective_route "$step_effective_route"
   set_ledger_value route_applied_by "$step_applied_by"
   set_ledger_value route_verified "$step_route_verified"
   set_ledger_value launch_boundary "$step_boundary"
   set_ledger_value agent_id "$step_agent_id"
   set_ledger_value child_invocations "$step_child_invocations"
-  set_ledger_value enforcement "$step_enforcement"
   readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
   if test "$readiness_selection" = selected; then
     activation_phase=readiness-pending
@@ -1633,7 +1573,7 @@ step_activate() {
   printf 'agent_id\t%s\n' "$step_agent_id"
   printf 'effective_route\t%s\n' "$step_effective_route"
   printf 'route_verified\t%s\n' "$step_route_verified"
-  printf 'enforcement\t%s\n' "$step_enforcement"
+  printf 'enforcement\thelper\n'
 }
 
 step_observe_route() {
@@ -1641,14 +1581,12 @@ step_observe_route() {
   step_agent_id=
   step_effective_route=
   step_confirmation=
-  step_enforcement=
   while test "$#" -gt 0; do
     case "$1" in
       --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
       --agent-id) require_value "$@"; step_agent_id=$2; shift 2 ;;
       --effective-route) require_value "$@"; step_effective_route=$2; shift 2 ;;
       --confirmation) require_value "$@"; step_confirmation=$2; shift 2 ;;
-      --enforcement) require_value "$@"; step_enforcement=$2; shift 2 ;;
       *) die "unknown step observe-route option: $1" ;;
     esac
   done
@@ -1690,12 +1628,6 @@ step_observe_route() {
       die "rejected route unexpectedly matches selection"
     observed_verified=false
     observed_phase=route-rejected
-  fi
-  if test -n "$step_enforcement"; then
-    validate_enforcement "$step_enforcement"
-    test "$step_enforcement" = helper+claude-hooks ||
-      die "Claude observation hook evidence has an invalid tier"
-    set_ledger_value enforcement "$step_enforcement"
   fi
   set_ledger_value effective_route "$step_effective_route"
   set_ledger_value route_verified "$observed_verified"
@@ -1763,7 +1695,7 @@ step_launch_stop() {
   test -n "$step_ledger" && test -n "$step_reason" ||
     die "step launch-stop requires --ledger and --reason"
   case "$step_reason" in
-    readiness-unavailable|review-unavailable|launch-unavailable|enforcement-unavailable) ;;
+    readiness-unavailable|review-unavailable|launch-unavailable) ;;
     *) die "unsupported pre-activation stop reason: $step_reason" ;;
   esac
   load_ledger "$step_ledger"
@@ -1960,7 +1892,7 @@ step_report() {
   readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
   readiness_verdict=$(ledger_state_value "$ledger_state" readiness_verdict)
   terminal_reason=$(ledger_state_value "$ledger_state" terminal_reason)
-  validate_enforcement "$enforcement"
+  test "$enforcement" = helper || die "unsupported enforcement mode: $enforcement"
 
   if test "$workflow" = decision-gated; then
     test "$step_status" = launch-required && test "$ledger_phase" = routed ||
@@ -2122,7 +2054,6 @@ step_dispatch() {
     prepare) step_prepare "$@" ;;
     route) step_route "$@" ;;
     runner) step_runner "$@" ;;
-    hook-bind) step_hook_bind "$@" ;;
     stage) step_stage "$@" ;;
     materialize) step_materialize "$@" ;;
     release-staging) step_release_staging "$@" ;;

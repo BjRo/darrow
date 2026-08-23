@@ -142,8 +142,7 @@ function provisionalActivationEvents() {
   const command =
     `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step activate --ledger ${goalLedger} ` +
     "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
-    "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false " +
-    "--enforcement helper+claude-hooks";
+    "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false";
   const content = [
     "format\tdarrow-goal-step-v1",
     "run_id\tfixture",
@@ -153,7 +152,7 @@ function provisionalActivationEvents() {
     "agent_id\tpending",
     "effective_route\tclaude|anthropic|claude-sonnet-5|low",
     "route_verified\tfalse",
-    "enforcement\thelper+claude-hooks",
+    "enforcement\thelper",
   ].join("\n");
   return [
     JSON.stringify({
@@ -904,7 +903,7 @@ describe("Claude skill activation observation", () => {
         },
       }),
       JSON.stringify(goalResult("toolu_goal", "agentgoal")),
-      ...goalReportEvents("helper+claude-hooks"),
+      ...goalReportEvents("helper"),
     ].join("\n");
     const retained = retainedClaudeEvidence(
       stream,
@@ -912,7 +911,7 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"type":"darrow.goal_report_rendered","status":"complete","enforcement":"helper+claude-hooks"',
+      '"type":"darrow.goal_report_rendered","status":"complete","enforcement":"helper"',
     );
     expect(retained).not.toContain('"operation":"report-missing"');
     expect(retained).not.toContain("darrow-native-goal-report-v1");

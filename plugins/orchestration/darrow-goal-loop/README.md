@@ -86,14 +86,11 @@ review sentences, and terminal sentence from validated state. This ledger is evi
 pipeline orchestration: it schedules no stages, assigns no agent roles, and
 owns no continuation.
 
-Optional shared Claude/Codex hooks bind a ledger to the active host session and
-harden covered tool boundaries. They deny direct protocol-state writes,
-pre-owner compound commands or implementation, staging-path escapes, duplicate
-or non-exact Agent launches, and a successful parent turn whose leading output
-does not equal the helper-persisted report. Hooks are trust- and configuration-dependent; the
-portable helper remains the correctness layer. Reports disclose `helper`,
-`helper+claude-hooks`, or `helper+codex-hooks` as the actual enforcement
-tier. A rejected Claude route exits nonzero, while unavailable telemetry exits
+The portable helper is the sole protocol-evidence mechanism. The plugin does
+not register Claude or Codex lifecycle hooks, so ordinary host turns run no
+Darrow goal-loop code. Explicit adaptive-goal runs call the helper at their
+documented transitions and reports use the fixed `enforcement: helper` value.
+A rejected Claude route exits nonzero, while unavailable telemetry exits
 successfully with explicit unverified evidence.
 
 The compiled contract separates narrow feedback checks used after coherent
@@ -161,13 +158,6 @@ route confirmation check. It emits one bounded record: either an observed route
 with an explicit confirmation result or an unavailable observation. The
 launcher invokes it as one standalone command so route attribution cannot be
 assembled from unrelated child or compound-command evidence.
-
-### `hooks/hooks.json`
-
-Registers the shared lifecycle hook for supported Claude and Codex hook events.
-The hook is inert outside a session explicitly started through
-`goal-loop step start`. Codex may skip plugin hooks until the plugin is
-trusted; Claude hook availability likewise depends on host configuration.
 
 ## Design boundaries
 

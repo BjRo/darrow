@@ -113,6 +113,9 @@ ledger=$(record_value "$start_out" ledger)
 staging_dir=$(record_value "$start_out" staging_dir)
 run_id=$(record_value "$start_out" run_id)
 test -n "$run_id" || fail 'step start run id'
+expect_refusal 'legacy hook binding action' bash "$goal_loop" step hook-bind \
+  --ledger "$ledger" --session-id legacy \
+  --enforcement helper+claude-hooks
 test -d "$ledger" && test ! -L "$ledger" || fail 'private ledger directory'
 case "$ledger" in
   "$tmp_root"/darrow-goal-run.*) ;;
@@ -216,10 +219,14 @@ expect_refusal 'Claude route cannot self-verify at activation' bash "$goal_loop"
   step activate --ledger "$ledger" \
   --applied-by native-subagent --boundary native_subagent --agent-id agentone \
   --effective-route "$selected_route" --route-verified true
-activate_out=$(bash "$goal_loop" step activate --ledger "$ledger" \
+expect_refusal 'legacy hook enforcement option' bash "$goal_loop" \
+  step activate --ledger "$ledger" \
   --applied-by native-subagent --boundary native_subagent --agent-id pending \
   --effective-route "$selected_route" --route-verified false \
-  --enforcement helper+claude-hooks)
+  --enforcement helper+claude-hooks
+activate_out=$(bash "$goal_loop" step activate --ledger "$ledger" \
+  --applied-by native-subagent --boundary native_subagent --agent-id pending \
+  --effective-route "$selected_route" --route-verified false)
 test "$(record_value "$activate_out" agent_id)" = pending ||
   fail 'provisional activation agent id'
 expect_refusal 'duplicate activation' bash "$goal_loop" step activate \
@@ -276,7 +283,7 @@ launch_boundary: native_subagent
 verification_gate: routine
 evaluation_child_invocations: 1
 evaluation_human_interruptions: 0
-enforcement: helper+claude-hooks
+enforcement: helper
 Initial independent review: blocking — Ledger report is missing
 Fix verification: clear.
 Native goal completed.

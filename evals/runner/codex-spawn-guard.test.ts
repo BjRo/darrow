@@ -46,7 +46,7 @@ function hookInput(cwd: string, message = contract) {
 }
 
 describe("Codex adaptive-goal spawn guard", () => {
-  test("records the accepted owner activation from the PostToolUse agent id", async () => {
+  test("observes the accepted owner id without recording helper activation", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-codex-guard-"));
     const objectiveRoot = await mkdtemp(
       join(tmpdir(), "darrow-codex-objective-"),
@@ -55,7 +55,7 @@ describe("Codex adaptive-goal spawn guard", () => {
       await writeFile(join(repo, "fixture.txt"), "base\n");
       await mkdir(join(repo, ".git"));
       const goalLoopPath = join(repo, "fake-goal-loop");
-      await writeFile(goalLoopPath, "#!/bin/sh\nexit 0\n");
+      await writeFile(goalLoopPath, "#!/bin/sh\nexit 99\n");
       const policy = {
         secret: "secret",
         baselineSha256: await repositoryFingerprint(repo),
@@ -114,9 +114,12 @@ describe("Codex adaptive-goal spawn guard", () => {
         },
       });
       expect(JSON.stringify(recorded)).toContain(
-        "recorded native-subagent activation",
+        "observed accepted native-subagent id goal-agent-1",
       );
-      const duplicate = await guardCodexSpawn(
+      expect(JSON.stringify(recorded)).toContain(
+        "goal-loop step activate command before waiting",
+      );
+      const activation = await guardCodexSpawn(
         {
           hook_event_name: "PreToolUse",
           tool_name: "Bash",
@@ -134,8 +137,27 @@ describe("Codex adaptive-goal spawn guard", () => {
         },
         policy,
       );
-      expect(JSON.stringify(duplicate)).toContain(
-        "activation was already recorded by the trusted hook",
+      expect(activation).toBeUndefined();
+      const wrongAgent = await guardCodexSpawn(
+        {
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          turn_id: "parent-turn",
+          cwd: repo,
+          tool_input: {
+            command:
+              `/bin/bash ${goalLoopPath} step activate ` +
+              "--ledger /tmp/darrow-goal-run.fixture " +
+              "--applied-by native-subagent --boundary native_subagent " +
+              "--agent-id wrong-agent " +
+              "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
+              "--route-verified true",
+          },
+        },
+        policy,
+      );
+      expect(JSON.stringify(wrongAgent)).toContain(
+        "parent shell commands are forbidden",
       );
     } finally {
       await rm(repo, { recursive: true, force: true });
@@ -286,6 +308,21 @@ describe("Codex adaptive-goal spawn guard", () => {
         ...parentShell,
         tool_input: { command },
       });
+      const observed = await guardCodexSpawn(
+        {
+          hook_event_name: "PostToolUse",
+          tool_name: "Agent",
+          tool_use_id: "owner-tool-use",
+          turn_id: "parent-turn",
+          cwd: repo,
+          tool_input: input.tool_input,
+          tool_response: { agent_id: "goal-agent-1" },
+        },
+        policy,
+      );
+      expect(JSON.stringify(observed)).toContain(
+        "observed accepted native-subagent id goal-agent-1",
+      );
       expect(
         await guardCodexSpawn(
           lifecycleShell(

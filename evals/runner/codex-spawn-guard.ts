@@ -6,7 +6,6 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { createHash, createHmac } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import {
   basename,
   dirname,
@@ -51,7 +50,7 @@ interface CodexSpawnGuardState {
   acceptedUpdatedInputSha256: string;
   toolUseId?: string;
   attestation: CodexSpawnAttestation;
-  activationAgentId?: string;
+  acceptedAgentId?: string;
 }
 
 const CONTRACT_LABELS = [
@@ -485,7 +484,7 @@ export async function guardCodexSpawn(
   const toolName =
     typeof hook.tool_name === "string" ? hook.tool_name : "Agent";
   if (hook.hook_event_name === "PostToolUse" && toolName === "Agent")
-    return recordOwnerActivation(hook, policy);
+    return observeAcceptedOwner(hook, policy);
   if (toolName === "Bash") return guardParentShell(hook, policy);
   if (toolName === "apply_patch") return guardParentPatch(hook, policy);
   const input = ownerInput(hook.tool_input);
@@ -503,41 +502,15 @@ function postToolAgentId(hook: Record<string, unknown>): string | undefined {
     : undefined;
 }
 
-function activationRecordedOutput(agentId: string): Record<string, unknown> {
+function acceptedOwnerOutput(agentId: string): Record<string, unknown> {
   return {
     hookSpecificOutput: {
       hookEventName: "PostToolUse",
       additionalContext:
-        `Darrow recorded native-subagent activation for ${agentId}. ` +
-        "Do not repeat step activate; wait for the owner, then perform only exact cleanup and report lifecycle calls.",
+        `Darrow observed accepted native-subagent id ${agentId}. ` +
+        "Record it now with the exact documented goal-loop step activate command before waiting.",
     },
   };
-}
-
-function ownerActivationArgv(
-  state: CodexSpawnGuardState,
-  policy: CodexSpawnGuardPolicy,
-  agentId: string,
-): string[] {
-  return [
-    policy.goalLoopPath,
-    "step",
-    "activate",
-    "--ledger",
-    state.attestation.ledger,
-    "--applied-by",
-    "native-subagent",
-    "--boundary",
-    "native_subagent",
-    "--agent-id",
-    agentId,
-    "--effective-route",
-    `codex|openai|${state.attestation.model}|${state.attestation.effort}`,
-    "--route-verified",
-    "true",
-    "--enforcement",
-    "helper+codex-hooks",
-  ];
 }
 
 function deniedPostToolUse(message: string): Record<string, unknown> {
@@ -573,7 +546,7 @@ function ownerCompletionBindingIssue(
   return checks.find(([invalid]) => invalid)?.[1];
 }
 
-async function recordOwnerActivation(
+async function observeAcceptedOwner(
   hook: Record<string, unknown>,
   policy: CodexSpawnGuardPolicy,
 ): Promise<Record<string, unknown>> {
@@ -585,23 +558,16 @@ async function recordOwnerActivation(
   const agentId = postToolAgentId(hook);
   if (!agentId)
     return deniedPostToolUse("Codex owner response omitted a safe agent id");
-  if (state.activationAgentId)
-    return state.activationAgentId === agentId
-      ? activationRecordedOutput(agentId)
-      : deniedPostToolUse("Codex owner activation agent id changed");
-  const result = spawnSync(
-    "/bin/bash",
-    ownerActivationArgv(state, policy, agentId),
-    { encoding: "utf8" },
-  );
-  if (result.status !== 0)
-    return deniedPostToolUse("could not record Codex owner activation");
+  if (state.acceptedAgentId)
+    return state.acceptedAgentId === agentId
+      ? acceptedOwnerOutput(agentId)
+      : deniedPostToolUse("Codex accepted owner agent id changed");
   await writeFile(
     policy.statePath,
-    signedState({ ...state, activationAgentId: agentId }, policy.secret),
+    signedState({ ...state, acceptedAgentId: agentId }, policy.secret),
     { mode: 0o600 },
   );
-  return activationRecordedOutput(agentId);
+  return acceptedOwnerOutput(agentId);
 }
 
 interface CanonicalOwnerContract {
@@ -780,7 +746,11 @@ function parentActivationCommand(
     "--route-verified true";
   if (!command.startsWith(prefix) || !command.endsWith(suffix)) return false;
   const agentId = command.slice(prefix.length, -suffix.length);
-  return /^[A-Za-z0-9._-]+$/.test(agentId) && agentId !== "none";
+  return (
+    /^[A-Za-z0-9._-]+$/.test(agentId) &&
+    agentId !== "none" &&
+    agentId === state.acceptedAgentId
+  );
 }
 
 function parentReportCommand(
@@ -806,11 +776,6 @@ async function guardParentShell(
   const state = await readGuardState(policy);
   const turn = hookTurnId(hook);
   if (state && turn !== state.parentTurnId) return undefined;
-  if (
-    state?.activationAgentId &&
-    parentActivationCommand(command, state, policy)
-  )
-    return denied("activation was already recorded by the trusted hook");
   if (state)
     return parentLifecycleShellAllowed(command, state, policy)
       ? undefined

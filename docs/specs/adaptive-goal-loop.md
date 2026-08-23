@@ -609,7 +609,7 @@ and terminal reporting produce `darrow-goal-step-v1` evidence records in
 prerequisite order.
 The helper-owned protocol ledger MUST carry the internal workflow, risk,
 profile, selected and effective routes, application boundary, verification,
-counters, enforcement tier, and cleanup values. The compiled goal contract
+counters, fixed helper evidence mode, and cleanup values. The compiled goal contract
 carries the exact `Protocol ledger: <absolute path>` reference and the
 completion-report requirement but MUST NOT duplicate those internal records.
 Every launch boundary records its evidence through the helper so the terminal
@@ -654,7 +654,7 @@ launch_boundary: <same_thread|host_api|native_subagent|nested_session|launch_req
 verification_gate: <routine|elevated|high|not-applicable>
 evaluation_child_invocations: <integer>
 evaluation_human_interruptions: <integer>
-enforcement: <helper|helper+claude-hooks|helper+codex-hooks>
+enforcement: helper
 ```
 
 The helper appends exactly one canonical terminal sentence: `Native goal
@@ -847,62 +847,25 @@ the least launch machinery the host supports.
    chain without replacing the last semantic outcome.
    A selected review cannot report completion without a clear exact-target
    chain. The helper never parses or invokes another plugin.
-6. **AGL-E6 — Optional host hardening.** Lifecycle hooks may deny covered
-   protocol-violating Bash, write, Agent, and termination calls and may commit
-   host-observed route evidence. Hooks remain trust- or configuration-dependent
-   hardening; the helper ledger is the correctness layer when hooks are absent.
-   Hook state is private plugin data keyed by host session identifier, and
-   covered direct writes to hook or ledger state are denied. A covered
-   explicit Claude adaptive-goal Skill activation arms that session before a
-   ledger exists; until one exact standalone `step start` succeeds and binds
-   the ledger, covered Bash, write, patch, and Agent calls are denied. Native
-   read-only discovery remains available.
-   A covered
-   pre-owner Bash call must be one complete helper command with no compound
-   syntax, substitution, pipe, or redirection. Literal quoted arguments MUST
-   remain usable when plugin, repository, staging, or ledger paths contain
-   spaces, while every accepted lifecycle command remains bound to the active
-   ledger and exact transition. The documented optional route pin and review
-   round limit remain accepted only in their canonical positions and may be
-   combined. A Claude launch body must equal
-   the marker plus the ledger-owned one-line objective reference, and a second
-   launch is denied after one launcher atomically acquires the session's
-   persistent owner reservation; that reservation survives the pending-to-seen
-   completion transition, so concurrent launch checks cannot both succeed.
-   Trusted post-tool
-   hooks may return bounded next-transition guidance from the ledger's current
-   phase, but that guidance neither advances the ledger nor adds authority. The
-   one native staging Write contains the labeled goal contract beginning with
-   `Outcome:`; only the helper creates the file-backed objective wrapper. Once
-   delegated goal ownership begins, covered parent shell, reads, searches,
-   writes, and patches are denied; only state-valid lifecycle helpers remain
-   available. A tool hook carrying a nonempty subagent `agent_id` is the
-   delegated owner only while the ledger retains its provisional activation,
-   the persistent launch claim is present, and the hook's `agent_type` exactly
-   matches the resolved runner (with or without its plugin qualification). That
-   owner may read the helper-owned objective attachment and use read-only
-   repository tools while readiness is pending. Covered product writes and
-   patches remain denied until selected readiness records `ready`; omitted
-   readiness enters the ordinary active state immediately. Unrelated
-   descendants and direct protocol-state access remain denied. An exact
-   verified `current-thread`/`same_thread` activation makes that session the
-   owner under the same readiness mutation barrier, while direct protocol-state
-   access and terminal-phase mutation remain denied.
-   A failed Agent call reconciles the provisional activation to a zero-child
-   launch-unavailable stop before cleanup and reporting. After an accepted
-   terminal Stop, per-run hook bindings and sidecars are removed so later
-   ordinary turns and a second explicit goal do not inherit the old run.
+6. **AGL-E6 — Helper-only protocol evidence.** The plugin MUST NOT package or
+   register Claude or Codex lifecycle hooks, hook sidecars, host-session
+   bindings, or a hook executable. Ordered state transitions are recorded only
+   by explicit `goal-loop step` calls made while an explicitly invoked
+   adaptive goal is running. Ordinary turns therefore execute no Darrow goal
+   lifecycle code. The helper validates every requested transition against its
+   private ledger but does not intercept arbitrary host tool calls or terminal
+   responses. A failed Agent call is explicitly reconciled to a zero-child
+   launch-unavailable stop before cleanup and reporting.
 7. **AGL-E7 — Helper-rendered terminal output.** `goal-loop step report`
    renders the complete ordered `darrow-native-goal-report-v1` block and every
    applicable canonical review sentence from validated ledger values. The
    model MUST NOT hand-author or translate those records. The helper persists
-   the exact report together with its canonical terminal sentence; a trusted
-   Stop hook requires the final response to begin with that exact output and
-   contain exactly one report, except that a selected non-ready readiness result
-   precedes the exact report as the companion capability contract requires. The
-   final
-   `enforcement` field truthfully discloses whether only the helper or helper
-   plus trusted host hooks supplied evidence. Both `complete` and `blocked`
+   the exact report together with its canonical terminal sentence. The sender
+   requires the final response to begin with that exact output and contain
+   exactly one report, except that a selected non-ready readiness result
+   precedes the exact report as the companion capability contract requires.
+   The fixed `enforcement: helper` field truthfully identifies the only
+   packaged evidence mechanism. Both `complete` and `blocked`
    reports after activation require a resolved owner identity and verified
    effective route; pending or unverified activation can only stop through the
    applicable `launch_required` path.
@@ -913,8 +876,8 @@ the least launch machinery the host supports.
    result, records no confirmation, and can only produce an unverified
    `launch_required` report.
 9. **AGL-E9 — Pre-activation terminal evidence.** A selected readiness or
-   review capability that is unavailable, an unavailable exact launch boundary,
-   or an unavailable required enforcement boundary is recorded before
+   review capability that is unavailable or an unavailable exact launch boundary
+   is recorded before
    activation as a terminal launch stop. Any materialized objective is
    released, no product work starts, and only the helper-rendered
    `launch_required` report may follow.
@@ -994,14 +957,11 @@ the least launch machinery the host supports.
    `- objective_file: <helper-returned-absolute-path>` line; the owner reads
    that bounded objective and verifies the complete attached contract. No
    copied contract, digest, workflow proof, or explanatory suffix is added to
-   that one-field boundary. A trusted launch gate MAY canonicalize an
-   ownership-marked Codex request to that exact one-field body only when it can
-   discover exactly one valid, digest-bound objective beneath the current
-   run's private materialization root; it discards all candidate body text
-   rather than forwarding an ambiguous suffix. Zero, multiple, malformed, or
-   out-of-root candidates remain launch failures.
-   When trusted hooks do not record it, the creator records that accepted
-   native-subagent activation with the host-reported agent id immediately
+   that one-field boundary. The creator constructs that exact body from the
+   helper-returned objective path; zero, multiple, malformed, or out-of-root
+   candidates remain launch failures.
+   The creator records the accepted native-subagent activation with the
+   host-reported agent id immediately
    after spawn acceptance and before waiting. The runner may then record
    readiness and review evidence but never activation, objective release, or
    the terminal report.
@@ -1031,14 +991,12 @@ the least launch machinery the host supports.
    runner rather than a `/goal` session. Immediately before an accepted
    foreground Agent starts, the launcher explicitly records a provisional
    native-subagent activation with agent id `pending`, the exact selected
-   route, and `route_verified: false`; trusted hook enforcement validates that
-   transition before accepting Agent. No other unverified activation shape is
+   route, and `route_verified: false`. No other unverified activation shape is
    valid, and every non-provisional activation requires route verification.
    This makes the ledger available to the sole owner for selected readiness and review
    without claiming post-run route evidence. No terminal report may be rendered
-   while the id is pending or the route is unverified. A trusted hook validates
-   and reuses the already-valid helper activation rather than recording a
-   duplicate or rejecting the launch.
+   while the id is pending or the route is unverified. The launcher MUST NOT
+   record a duplicate activation.
    The route gate requires that provisional activation and rejects a
    staging-released or otherwise unactivated ledger; it cannot reconstruct
    missing pre-spawn activation evidence after the Agent returns.
@@ -1289,7 +1247,7 @@ the least launch machinery the host supports.
     activation and mutation, a `ready` verdict that unlocks work, and each
     non-ready verdict that blocks without mutation. Exercise strict v4 handoff
     validation, duplicate-label rejection, readiness ledger ordering, covered
-    hook mutation denial, and companion-result-before-outer-report ordering on
+    helper-only plugin packaging, and companion-result-before-outer-report ordering on
     Codex and Claude. Compare candidate and control trials under the same
     fixtures, prompts, checks, harness, model, and effort, reporting trial count
     and limitations.

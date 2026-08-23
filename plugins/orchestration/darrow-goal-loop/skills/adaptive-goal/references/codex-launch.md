@@ -70,8 +70,8 @@ Stop before activation if this exact release fails. The inline objective is
 already held in memory for the native call; the file-backed copy remains in its
 helper-owned attachment until terminal cleanup.
 
-If selected readiness, selected review, the exact launch boundary, or a
-required enforcement boundary is unavailable before activation, record
+If selected readiness, selected review, or the exact launch boundary is
+unavailable before activation, record
 `goal-loop step launch-stop`
 with the matching reason, release any materialized attachment, and render the
 helper's `launch_required` report. Do not activate or implement first.
@@ -235,13 +235,11 @@ For a selected review gate, read
 lifecycle plus the parent skill's canonical outcome sentences into the runner's
 contract. Do not restate the lifecycle in the launch message.
 
-The guard-attested accepted spawn request with explicit route values is the
+The accepted spawn request with explicit route values is the
 Codex native-runner route-application evidence. Do not run `confirm-route` or
 another shell confirmation before or after that spawn; it adds no independent
-host evidence. Trusted Codex hooks record the accepted Agent id, model, and
-effort automatically. When the `step start` record reported `enforcement` as
-`helper`, recording the accepted host-reported id is mandatory immediately
-after spawn acceptance and before the first wait:
+host evidence. Recording the accepted host-reported id is mandatory
+immediately after spawn acceptance and before the first wait:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step activate --ledger <absolute-ledger> \
@@ -251,9 +249,7 @@ after spawn acceptance and before the first wait:
 ```
 
 Do not ask the runner to make this call and do not substitute `same_thread`.
-When trusted hook enforcement was reported, require its accepted activation
-record instead of duplicating it. Then wait for that same agent to finish and
-collect its result. A feedback request
+Then wait for that same agent to finish and collect its result. A feedback request
 is a pause: relay the answer to that same agent and wait again rather than
 closing or replacing it.
 Once that spawn is accepted, `spawn_agent` is forbidden for the rest of the

@@ -787,7 +787,7 @@ function provisionalClaudeActivationCall(
   const tool = bashToolCommand(block);
   if (!tool || !selected) return undefined;
   const words = literalShellWords(tool.command);
-  if (!words || ![16, 18].includes(words.length)) return undefined;
+  if (!words || words.length !== 16) return undefined;
   const selectedRoute = `claude|anthropic|${selected.model}|${selected.effort}`;
   const exactStep = exactGoalLoopStepWords(words, context, ledger, {
     step: "activate",
@@ -808,12 +808,7 @@ function provisionalClaudeActivationCall(
   const suffixMatches = expectedSuffix.every(
     (word, index) => words[index + 6] === word,
   );
-  const enforcementSuffix = words.slice(16).join("\0");
-  const enforcementMatches = [
-    "",
-    "--enforcement\0helper+claude-hooks",
-  ].includes(enforcementSuffix);
-  return [exactStep, suffixMatches, enforcementMatches].every(Boolean)
+  return [exactStep, suffixMatches].every(Boolean)
     ? { id: tool.id }
     : undefined;
 }
@@ -1721,7 +1716,7 @@ function retainProvisionalClaudeActivationResult(
         `effective_route\t${route}`,
         "route_verified\tfalse",
       ].every((line) => text.includes(line)) &&
-      /(?:^|\n)enforcement\t(?:helper|helper\+claude-hooks)(?:\n|$)/.test(text);
+      /(?:^|\n)enforcement\thelper(?:\n|$)/.test(text);
     return;
   }
 }

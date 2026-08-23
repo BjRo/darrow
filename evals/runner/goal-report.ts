@@ -43,7 +43,7 @@ const GOAL_REPORT_VALUES: Record<keyof GoalReport, RegExp> = {
   verification_gate: /^(?:routine|elevated|high|not-applicable)$/,
   evaluation_child_invocations: /^\d+$/,
   evaluation_human_interruptions: /^\d+$/,
-  enforcement: /^(?:helper|helper\+claude-hooks|helper\+codex-hooks)$/,
+  enforcement: /^helper$/,
 };
 
 const DECISION_GATED_REPORT: Partial<GoalReport> = {

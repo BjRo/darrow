@@ -7,6 +7,9 @@ skill="$plugin_dir/skills/adaptive-goal/SKILL.md"
 guide="$plugin_dir/skills/adaptive-goal/references/codex-launch.md"
 review_lifecycle="$plugin_dir/skills/adaptive-goal/references/review-lifecycle.md"
 readme="$plugin_dir/README.md"
+hook_manifest="$plugin_dir/hooks/hooks.json"
+hook_helper="$plugin_dir/bin/goal-loop-hook"
+hook_test="$plugin_dir/bin/goal-loop-hook.test.sh"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -34,7 +37,11 @@ require_text "$guide" 'control does not invalidate'
 require_text "$guide" 'step materialize'
 require_text "$guide" 'step activate'
 require_text "$skill" 'step report'
-require_text "$readme" 'helper+codex-hooks'
+reject_text "$readme" 'helper+codex-hooks'
+reject_text "$readme" 'helper+claude-hooks'
+test ! -e "$hook_manifest" || fail "$hook_manifest is still packaged"
+test ! -e "$hook_helper" || fail "$hook_helper is still packaged"
+test ! -e "$hook_test" || fail "$hook_test is still packaged"
 # shellcheck disable=SC2016 # literal Markdown code span
 require_text "$guide" 'before the first `create_goal` call'
 # shellcheck disable=SC2016 # literal Markdown code span

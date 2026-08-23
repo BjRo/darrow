@@ -229,10 +229,7 @@ helper call immediately before Agent:
   --route-verified false
 ```
 
-When trusted Claude hooks are active, append exactly
-`--enforcement helper+claude-hooks` to that command. The hooks validate this
-already-recorded transition and refuse an Agent when it is missing; they never
-backfill it after the Agent returns. Never duplicate activation. This provisional record lets the
+Never duplicate activation. This provisional record lets the
 foreground owner append selected-readiness and selected-review evidence to the ledger; it does not
 prove the effective route and cannot authorize a terminal report.
 
