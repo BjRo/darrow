@@ -8,6 +8,35 @@ description: Compile one bounded engineering request and activate it as a host-n
 Compile the request, activate one host-native goal owner, and let the host own
 the loop.
 
+### Claude literal launch path
+
+On an interactive Claude invocation, keep the parent protocol literal. If the
+request supplies absolute repository and helper paths, use them directly and
+perform no path discovery. The first protocol-bearing Bash call is the exact
+standalone `goal-loop step start` command. Copy each returned absolute ledger,
+staging, digest, objective, and attachment value literally into the next
+standalone call; never use a shell variable, assignment, substitution,
+redirect, pipe, heredoc, or command list. Use native `Write` exactly once for
+the complete contract at the returned staging path. That Write's first line is
+`Outcome:`. Never hand-author the file-backed objective wrapper or an
+`Expected SHA-256:` line; `step materialize` creates that wrapper. Then perform, in order,
+`step prepare`, `step route`, `step runner`, `step stage`, `step materialize`,
+and `step release-staging`. At the `helper` enforcement tier, record the
+provisional Claude activation with agent id `pending`. With trusted hooks,
+record the same explicit transition with `--enforcement helper+claude-hooks`;
+the hooks validate it and refuse an Agent without it. Invoke one foreground Agent with only the marker and exact
+returned `objective_file` line. After it returns, call only the exact
+`claude-route-gate`, attachment release, and terminal report commands. A denied
+or malformed lifecycle call is a stop; do not improvise a recovery command or
+hand-author the report.
+
+### Literal terminal report
+
+For every terminal path, return the successful `goal-loop step report` output
+verbatim as the first response bytes. Do not preface it, label it, quote it, or
+put it in a Markdown fence. Append any explanation only after the complete raw
+helper block and its terminal sentence.
+
 ## Confirm invocation authority
 
 Start only when the current context establishes one of these entry conditions:
@@ -113,7 +142,9 @@ limited to the bundled step helper, runner resolution, route gate, and the
 standalone `/usr/bin/printenv TMPDIR` probe. Pass the staging path to
 `step stage`; use its returned `contract_sha256` as the expected digest for
 materialization and release. The helper validates the bytes at every
-transition. Optional host hooks harden this protocol when installed and
+transition. Treat phase-specific trusted-hook context as the next transition
+to perform, not as evidence that it already happened. Optional host hooks
+harden this protocol when installed and
 trusted; their absence does not weaken helper validation and is disclosed by
 the terminal `enforcement` value.
 
@@ -259,6 +290,10 @@ beginning `Independent review: selected —` or
 `Independent review: omitted —`, followed by the reason. High risk MUST use
 `selected` unless an explicit stronger user or repository rule makes
 implementation stop before activation.
+For a filesystem-sharing delegated owner, include the concrete absolute
+bundled `goal-loop` executable in that selected clause solely for the required
+`step review` evidence calls against `Protocol ledger:`. Do not use that helper
+reference to name or constrain the independent-review capability.
 
 Classify reasoning demand independently from workflow and risk:
 
@@ -297,6 +332,11 @@ callers or documentation appear complete, and rerun them only after later edits
 invalidate that result. Do not use broad final-tree gates as routine
 implementation feedback. Follow any different repository-mandated cadence, and
 do not invent a seam, oracle, or command merely to imitate test-first work.
+When the originating request explicitly says to add or update focused evidence,
+include the applicable evidence file in `Scope:` and do not exclude it in
+`Non-goals:`. Updating an existing expectation from the old behavior to the
+explicitly requested new behavior is already authorized evidence work, not a
+new material product decision.
 
 Compile this human-feedback rule into every activated contract. A material
 decision known during preflight still selects `decision-gated` and prevents
@@ -365,10 +405,15 @@ exact target fingerprint:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step review --ledger <absolute-ledger> \
-  --mode <comprehensive|verify> --target-sha256 <target-sha256> \
+  --mode <comprehensive|verify> \
+  <--target-fingerprint <literal-reviewer-target>|--target-sha256 <target-sha256>> \
   --outcome <semantic-outcome> [--finding <bounded-finding>]
 ```
 
+Prefer `--target-fingerprint` when the review capability returns an exact
+non-SHA target identifier; the helper derives the ledger SHA-256 internally.
+Never reconstruct that hash with a shell variable, assignment, substitution,
+command list, redirect, or pipeline.
 The helper permits one comprehensive review, rejects verification before that
 review, and rejects every repeated target fingerprint. These checks validate
 protocol evidence only; they do not choose findings, repairs, or whether
@@ -543,6 +588,22 @@ exact nonempty one-line labels: `Outcome:`, `Acceptance criteria:`, `Scope:`,
 the ledger once as `Protocol ledger: <absolute-ledger>`. Reference
 longer repository-owned details by path. Use an explicit `none` explanation
 when an optional budget or permission is absent; never drop its label.
+When selected review may run in a filesystem-sharing delegated owner, the
+`Independent review:` value also names the concrete absolute bundled
+`goal-loop` executable for `step review` recording. The owner must not have to
+search for or infer that protocol helper.
+When the selected boundary may be the observable Codex runner, put these fixed
+ownership rules in `Workflow sequence:` or `Completion report:` before
+materialization: the accepted runner task is already the sole goal boundary;
+the runner does not invoke `adaptive-goal`, call `create_goal`, record
+activation, release the objective, or render the ledger report. It executes the
+contract directly, records only its own selected-review evidence through the
+ledger, and returns terminal semantic facts and status to its creator. The
+creator ensures the accepted native-subagent activation is recorded by trusted
+hook evidence or, only at the `helper` tier, the exact manual step before waiting, then
+performs exact objective cleanup and helper report rendering after collecting
+that result. These rules belong only in the contract. Never append them,
+explanations, or proof fields to the ownership-marked spawn message.
 Target
 at most 4,000 bytes by referencing repository facts, but never truncate, omit,
 or rewrite a material requirement merely to fit the inline objective limit. A
@@ -640,16 +701,19 @@ If your current task begins with `- phase: adaptive-goal-runner`, the accepted
 spawn already activated you as the sole goal owner. Execute the supplied goal
 contract directly. Do not invoke this skill again, repeat preflight, spawn a
 replacement owner, or return `launch_required` because `create_goal` is absent.
-When native goal-state control is exposed, use it exactly once to persist the
-goal; otherwise the accepted runner task remains the ownership boundary.
+Do not call `create_goal`; the accepted runner task remains the one ownership
+boundary.
 
 For a Codex native runner, the guard-attested accepted spawn with its concrete
-model and effort is the route confirmation. Record the accepted host-reported
-agent id, exact selected route, native-subagent boundary, and verified route
-with `goal-loop step activate`; trusted Codex hooks may record that same
-evidence automatically. The creator never runs the old `confirm-route`
+model and effort is the route confirmation. Trusted Codex hooks record the
+accepted host-reported agent id, exact selected route, native-subagent boundary,
+and verified route immediately after spawn acceptance. Only when `step start`
+reported the `helper` enforcement tier does the creator record that same
+evidence with the exact manual `goal-loop step activate` call before waiting;
+it never duplicates trusted-hook activation. The runner never records
+activation or renders the ledger report. The creator never runs the old `confirm-route`
 self-attestation around that boundary. After activation it only waits,
-performs an authorized feedback relay, records review or cleanup evidence,
+performs an authorized feedback relay, records cleanup and report evidence,
 renders the helper report, and closes the owner when the host exposes that
 control.
 

@@ -21,11 +21,41 @@ afterEach(async () => {
 });
 
 describe("eval fixture skill mounts", () => {
+  test("hides reserved skill roots from setup-time preservation snapshots", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-excludes-"));
+    cleanup.push(root);
+    const skill = join(root, "plugins", "sample", "skills", "primary");
+    await mkdir(skill, { recursive: true });
+    await writeFile(
+      join(skill, "SKILL.md"),
+      "---\nname: primary\ndescription: Primary\n---\n",
+    );
+
+    const fixture = await buildFixture({
+      fixture: {
+        setup: [
+          "mkdir -p .agents/setup",
+          "printf '%s\\n' harness >.agents/setup/state",
+          "git ls-files --others --exclude-standard >.git/setup-untracked",
+        ].join("\n"),
+      },
+      skillDir: skill,
+      skillMounts: [".agents/skills"],
+    });
+    cleanup.push(fixture);
+    expect(
+      await readFile(join(fixture, ".git", "setup-untracked"), "utf8"),
+    ).toBe("");
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
   test("mounts a source Claude plugin without a project skill copy", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-agents-"));
     cleanup.push(root);
     const skill = join(root, "plugins", "sample", "skills", "primary");
     const agents = join(root, "plugins", "sample", "agents");
+    const hooks = join(root, "plugins", "sample", "hooks");
     const manifest = join(
       root,
       "plugins",
@@ -35,6 +65,7 @@ describe("eval fixture skill mounts", () => {
     );
     await mkdir(skill, { recursive: true });
     await mkdir(agents, { recursive: true });
+    await mkdir(hooks, { recursive: true });
     await mkdir(dirname(manifest), { recursive: true });
     await writeFile(
       join(skill, "SKILL.md"),
@@ -48,6 +79,7 @@ describe("eval fixture skill mounts", () => {
       manifest,
       '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
     );
+    await writeFile(join(hooks, "hooks.json"), '{"hooks":{"PreToolUse":[]}}\n');
 
     const fixture = await buildFixture({
       fixture: {},
@@ -75,6 +107,9 @@ describe("eval fixture skill mounts", () => {
     ).toBe(true);
     expect(
       existsSync(join(fixture, ".git", "eval-plugin", "agents", "runner.md")),
+    ).toBe(true);
+    expect(
+      existsSync(join(fixture, ".git", "eval-plugin", "hooks", "hooks.json")),
     ).toBe(true);
     expect(existsSync(join(fixture, ".agents", "agents", "runner.md"))).toBe(
       false,

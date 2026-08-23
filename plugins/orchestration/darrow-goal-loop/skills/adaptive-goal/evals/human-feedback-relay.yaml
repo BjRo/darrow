@@ -116,14 +116,14 @@ checks:
 output_checks:
   - name: completion preserves the outer launch record
     expect_regex: "format: darrow-native-goal-report-v1"
-  - name: one delegated goal owner is reported
-    expect_regex: "route_applied_by: native-subagent[\\s\\S]*launch_boundary: native_subagent[\\s\\S]*evaluation_child_invocations: 1"
+  - name: the host API preserves one current native goal owner
+    expect_regex: "route_applied_by: host-api[\\s\\S]*launch_boundary: host_api[\\s\\S]*evaluation_child_invocations: 0"
   - name: one human feedback pause is counted
     expect_regex: "evaluation_human_interruptions: 1"
   - name: completion reports the explicit relayed decision
     expect_regex: "(?:^[ \\t]*(?:[-*+][ \\t]+)?|[.!?][ \\t]+)Applied relayed decision:[ \\t]*(?:nearest|`nearest`)\\.?[ \\t]*(?:$|\\r?\\n)"
 transcript_checks:
-  - name: parent resumes the same delegated owner after feedback
-    expect_regex: '"tool":"spawn_agent","status":"completed","sender_thread_id":"([^"]+)","receiver_thread_ids":\["([^"]+)"\][\s\S]*"tool":"(?:wait|wait_agent)","status":"completed","sender_thread_id":"\1","receiver_thread_ids":\["\2"\][\s\S]*"type":"darrow.human_feedback_answer","feedback_id":"rounding-mode","status":"completed"[\s\S]*"tool":"(?:send_input|send_message|followup_task)","status":"completed","sender_thread_id":"\1","receiver_thread_ids":\["\2"\],"prompt":"- phase: human-feedback-response[^"]*"[\s\S]*"tool":"(?:wait|wait_agent)","status":"completed","sender_thread_id":"\1","receiver_thread_ids":\["\2"\]'
+  - name: host relays the acquired answer to the same native goal owner
+    expect_regex: '"type":"darrow.human_feedback_answer","feedback_id":"rounding-mode","answer":"nearest","status":"completed"[\s\S]*"type":"darrow.human_feedback_relay","feedback_id":"rounding-mode","thread_id":"([^"]+)","same_owner":true'
   - name: initial runner launch does not masquerade as a feedback exchange
     not_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: human-feedback-(?:request|response)'

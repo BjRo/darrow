@@ -159,8 +159,47 @@ load_active_ledger() {
     deny "hook session does not match goal ledger binding"
   active_phase=$(state_value "$active_state" phase)
   active_host=$(state_value "$active_state" host)
+  active_repo=$(state_value "$active_state" repo)
   active_temp_root=$(state_value "$active_state" temp_root)
   active_staging_dir=$(state_value "$active_state" staging_dir)
+}
+
+is_current_thread_owner() {
+  test "$(state_value "$active_state" route_applied_by)" = current-thread &&
+    test "$(state_value "$active_state" launch_boundary)" = same_thread &&
+    test "$(state_value "$active_state" agent_id)" = none &&
+    test "$(state_value "$active_state" route_verified)" = true || return 1
+  case "$active_phase" in
+    active) return 0 ;;
+    reviewed)
+      case "$(state_value "$active_state" review_last_outcome)" in
+        blocking|continue) return 0 ;;
+      esac
+      ;;
+  esac
+  return 1
+}
+
+is_delegated_owner() {
+  test "$active_host" = claude && test "$active_phase" = active || return 1
+  test -n "$hook_agent_id" && test -n "$hook_agent_type" || return 1
+  test -f "$hook_sessions/$hook_session_id.spawn-claim" &&
+    test -f "$hook_sessions/$hook_session_id.spawn-pending" || return 1
+  test "$(state_value "$active_state" route_applied_by)" = native-subagent &&
+    test "$(state_value "$active_state" launch_boundary)" = native_subagent &&
+    test "$(state_value "$active_state" agent_id)" = pending &&
+    test "$(state_value "$active_state" route_verified)" = false || return 1
+  delegated_runner=$(state_value "$active_state" runner_type 2>/dev/null || true)
+  test -n "$delegated_runner" || return 1
+  delegated_short_runner=${delegated_runner##*:}
+  case "$hook_agent_type" in
+    "$delegated_runner"|"$delegated_short_runner") return 0 ;;
+  esac
+  return 1
+}
+
+is_goal_owner() {
+  is_current_thread_owner || is_delegated_owner
 }
 
 target_path() {
@@ -192,16 +231,63 @@ deny_protected_target() {
   esac
 }
 
+parse_literal_shell_words() {
+  literal_command=$1
+  test -n "$literal_command" || return 1
+  literal_words=()
+  literal_word=
+  literal_word_started=false
+  literal_quote=
+  literal_index=1
+  literal_length=${#literal_command}
+  while test "$literal_index" -le "$literal_length"; do
+    literal_char=${literal_command:$((literal_index - 1)):1}
+    case "$literal_quote" in
+      single)
+        if test "$literal_char" = "'"; then
+          literal_quote=
+        else
+          literal_word=$literal_word$literal_char
+        fi
+        ;;
+      double)
+        case "$literal_char" in
+          '"') literal_quote= ;;
+          \\|'$'|'`'|$'\n'|$'\r') return 1 ;;
+          *) literal_word=$literal_word$literal_char ;;
+        esac
+        ;;
+      '')
+        case "$literal_char" in
+          ' '|$'\t')
+            if test "$literal_word_started" = true; then
+              literal_words[${#literal_words[@]}]=$literal_word
+              literal_word=
+              literal_word_started=false
+            fi
+            ;;
+          "'") literal_quote=single; literal_word_started=true ;;
+          '"') literal_quote=double; literal_word_started=true ;;
+          ';'|'|'|'&'|'<'|'>'|'`'|'$'|'('|')'|'{'|'}'|\\|'*'|'?'|'['|$'\n'|$'\r') return 1 ;;
+          *) literal_word=$literal_word$literal_char; literal_word_started=true ;;
+        esac
+        ;;
+    esac
+    literal_index=$((literal_index + 1))
+  done
+  test -z "$literal_quote" || return 1
+  if test "$literal_word_started" = true; then
+    literal_words[${#literal_words[@]}]=$literal_word
+  fi
+  test "${#literal_words[@]}" -gt 0
+}
+
 allow_helper_command() {
   helper_command=$1
-  case "$helper_command" in
-    ''|*';'*|*'|'*|*'&'*|*'<'*|*'>'*|*'`'*|*'$'*|*'('*|*')'*|*'{'*|*'}'*) return 1 ;;
-    *"'"*|*\\*|*'*'*|*'?'*|*'['*|*$'\n'*|*$'\r'*) return 1 ;;
-  esac
+  parse_literal_shell_words "$helper_command" || return 1
   test "$helper_command" = "/usr/bin/printenv TMPDIR" && return 0
-  read -r -a helper_words <<<"$helper_command"
-  set -- "${helper_words[@]}"
-  case "${1:-}" in /bin/bash|bash) ;; *) return 1 ;; esac
+  set -- "${literal_words[@]}"
+  test "${1:-}" = /bin/bash || return 1
   case "${2:-}|${3:-}" in
     "$goal_loop|step") test "$#" -ge 4 && return 0 ;;
     "$script_dir/claude-route-gate|--repo") test "$#" -ge 8 && return 0 ;;
@@ -212,11 +298,155 @@ allow_helper_command() {
 is_start_command() {
   start_command=$1
   allow_helper_command "$start_command" || return 1
-  read -r -a start_words <<<"$start_command"
-  set -- "${start_words[@]}"
+  parse_literal_shell_words "$start_command" || return 1
+  set -- "${literal_words[@]}"
   test "$#" -eq 8 && test "$2" = "$goal_loop" &&
     test "$3" = step && test "$4" = start &&
     test "$5" = --repo && test "$7" = --host
+}
+
+allow_phase_helper_command() {
+  phase_command=$1
+  if test "$phase_command" = "/usr/bin/printenv TMPDIR"; then
+    case "$active_phase" in
+      started|prepared|routed|runner-resolved) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  parse_literal_shell_words "$phase_command" || return 1
+  set -- "${literal_words[@]}"
+  if test "${2:-}" = "$script_dir/claude-route-gate"; then
+    test "$#" -eq 10 && test "${3:-}" = --repo &&
+      test "${4:-}" = "$active_repo" && test "${5:-}" = --agent-id &&
+      test -n "${6:-}" && test "${7:-}" = --selected &&
+      test "${8:-}" = "$(state_value "$active_state" selected_route)" &&
+      test "${9:-}" = --ledger &&
+      test "${10:-}" = "$active_ledger" || return 1
+    case "$active_phase" in active|reviewed) return 0 ;; *) return 1 ;; esac
+  fi
+  test "${2:-}" = "$goal_loop" && test "${3:-}" = step || return 1
+  phase_step=${4:-}
+  case "$phase_step" in
+    route)
+      case "$#" in 16|18|20) ;; *) return 1 ;; esac
+      test "${5:-}" = --ledger && test "${6:-}" = "$active_ledger" &&
+        test "${7:-}" = --workflow && test -n "${8:-}" &&
+        test "${9:-}" = --risk && test -n "${10:-}" &&
+        test "${11:-}" = --profile && test -n "${12:-}" &&
+        test "${13:-}" = --verification-gate && test -n "${14:-}" &&
+        test "${15:-}" = --review && test -n "${16:-}" || return 1
+      case "$#|${17:-}|${19:-}" in
+        16\|\|) ;;
+        18\|--review-round-limit\|)
+          case "${18:-}" in ''|*[!0-9]*) return 1 ;; esac
+          ;;
+        18\|--route\|) test -n "${18:-}" || return 1 ;;
+        20\|--review-round-limit\|--route)
+          case "${18:-}" in ''|*[!0-9]*) return 1 ;; esac
+          test -n "${20:-}" || return 1
+          ;;
+        *) return 1 ;;
+      esac
+      ;;
+    prepare)
+      test "$#" -eq 6 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" || return 1
+      ;;
+    runner)
+      test "$#" -eq 12 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" && test "${7:-}" = --provider &&
+        test "${8:-}" = anthropic && test "${9:-}" = --model &&
+        test -n "${10:-}" && test "${11:-}" = --effort &&
+        test -n "${12:-}" || return 1
+      ;;
+    stage)
+      test "$#" -eq 8 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" && test "${7:-}" = --goal-file &&
+        test -f "$hook_sessions/$hook_session_id.write-seen" &&
+        test "${8:-}" = "$(cat "$hook_sessions/$hook_session_id.write-seen")" || return 1
+      ;;
+    materialize|release-staging)
+      test "$#" -eq 10 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" && test "${7:-}" = --goal-file &&
+        test "${8:-}" = "$(state_value "$active_state" staging_file)" &&
+        test "${9:-}" = --expected-sha256 &&
+        test "${10:-}" = "$(state_value "$active_state" contract_sha256)" || return 1
+      ;;
+    release-objective)
+      test "$#" -eq 10 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" && test "${7:-}" = --attachment-dir &&
+        test "${8:-}" = "$(state_value "$active_state" attachment_dir)" &&
+        test "${9:-}" = --expected-sha256 &&
+        test "${10:-}" = "$(state_value "$active_state" contract_sha256)" || return 1
+      ;;
+    launch-stop)
+      test "$#" -eq 8 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" && test "${7:-}" = --reason &&
+        test -n "${8:-}" || return 1
+      case "${8:-}" in
+        review-unavailable|launch-unavailable|enforcement-unavailable) ;;
+        *) return 1 ;;
+      esac
+      ;;
+    review)
+      case "$#" in 12|14) ;; *) return 1 ;; esac
+      test "${5:-}" = --ledger && test "${6:-}" = "$active_ledger" &&
+        test "${7:-}" = --mode && test -n "${8:-}" || return 1
+      case "${9:-}" in --target-sha256|--target-fingerprint) ;; *) return 1 ;; esac
+      test -n "${10:-}" && test "${11:-}" = --outcome &&
+        test -n "${12:-}" || return 1
+      if test "$#" -eq 14; then
+        test "${13:-}" = --finding && test -n "${14:-}" || return 1
+      fi
+      ;;
+    report)
+      test "$#" -eq 10 && test "${5:-}" = --ledger &&
+        test "${6:-}" = "$active_ledger" && test "${7:-}" = --status &&
+        test -n "${8:-}" && test "${9:-}" = --human-interruptions &&
+        test -n "${10:-}" || return 1
+      case "$active_phase" in
+        routed|route-rejected|route-unavailable|launch-unavailable)
+          test "${8:-}" = launch-required || return 1
+          ;;
+        released)
+          case "${8:-}" in
+            complete|blocked) ;;
+            *) return 1 ;;
+          esac
+          ;;
+      esac
+      ;;
+    activate)
+      case "$#" in 16|18) ;; *) return 1 ;; esac
+      test "${5:-}" = --ledger && test "${6:-}" = "$active_ledger" &&
+        test "${7:-}" = --applied-by && test "${9:-}" = --boundary &&
+        test "${11:-}" = --agent-id && test "${13:-}" = --effective-route &&
+        test "${14:-}" = "$(state_value "$active_state" selected_route)" &&
+        test "${15:-}" = --route-verified || return 1
+      case "${8:-}|${10:-}|${12:-}|${16:-}|$#" in
+        native-subagent\|native_subagent\|pending\|false\|18)
+          test "${17:-}" = --enforcement &&
+            test "${18:-}" = helper+claude-hooks || return 1
+          ;;
+        current-thread\|same_thread\|none\|true\|16) ;;
+        current-thread\|same_thread\|none\|true\|18)
+          test "${17:-}" = --enforcement &&
+            test "${18:-}" = helper+claude-hooks || return 1
+          ;;
+        *) return 1 ;;
+      esac
+      ;;
+  esac
+  case "$active_phase:$phase_step" in
+    started:prepare|prepared:route|routed:runner|routed:stage|routed:launch-stop|routed:report|runner-resolved:stage|runner-resolved:launch-stop|staged:materialize|staged:launch-stop|materialized:release-staging|materialized:release-objective|materialized:launch-stop|staging-released:activate|staging-released:launch-stop|active:review|active:release-objective|reviewed:review|reviewed:release-objective|route-rejected:release-objective|route-unavailable:release-objective|launch-unavailable:release-objective|released:report)
+      return 0
+      ;;
+    active:report|reviewed:report|route-rejected:report|route-unavailable:report|launch-unavailable:report)
+      test "$(state_value "$active_state" objective_released)" = true
+      return
+      ;;
+  esac
+  return 1
 }
 
 pre_tool_use() {
@@ -225,6 +455,8 @@ pre_tool_use() {
     Bash)
       pre_command=$(json_string_field command <"$hook_input" 2>/dev/null || true)
       if allow_helper_command "$pre_command"; then
+        allow_phase_helper_command "$pre_command" ||
+          deny "helper call does not match the ledger's next transition"
         return 0
       fi
       case "$pre_command" in
@@ -232,9 +464,22 @@ pre_tool_use() {
           deny "direct shell access to goal protocol state is forbidden"
           ;;
       esac
+      is_goal_owner && return 0
+      deny "non-protocol shell use is reserved for the routed goal owner"
+      ;;
+    Read|Glob|Grep)
+      if is_goal_owner; then
+        case "$hook_compact" in
+          *"$active_ledger"*|*"$hook_plugin_data"*)
+            deny "direct access to goal protocol state is forbidden"
+            ;;
+        esac
+        return 0
+      fi
       case "$active_phase" in
-        active|reviewed|route-rejected|route-unavailable|released|reported) return 0 ;;
-        *) deny "tool use is reserved for the routed goal owner" ;;
+        active|reviewed|route-rejected|route-unavailable|launch-unavailable|released|reported)
+          deny "parent repository inspection is forbidden after goal ownership begins"
+          ;;
       esac
       ;;
     Write|Edit)
@@ -242,37 +487,56 @@ pre_tool_use() {
       test -n "$pre_path" || deny "$pre_tool omitted a file path"
       pre_path=$(target_path "$pre_path")
       deny_protected_target "$pre_path"
+      if is_delegated_owner; then
+        case "$pre_path" in
+          "$active_repo"/*) return 0 ;;
+          *) deny "delegated goal owner writes must remain inside the repository" ;;
+        esac
+      fi
+      is_current_thread_owner && return 0
       case "$active_phase" in
         runner-resolved|routed)
           test "$(dirname -- "$pre_path")" = "$active_staging_dir" ||
             deny "goal staging writes must remain in the ledger-owned staging directory"
+          pre_content=$(json_string_field content <"$hook_input" 2>/dev/null || true)
+          case "$pre_content" in
+            'Outcome:'*) ;;
+            *) deny "goal staging content must be the labeled contract beginning with Outcome:"
+          esac
+          case "$pre_content" in
+            *'Before doing any work, read the complete goal contract at:'*|*'Expected SHA-256:'*)
+              deny "goal staging content must not hand-author the objective wrapper"
+              ;;
+          esac
           test ! -e "$hook_sessions/$hook_session_id.write-seen" &&
             test ! -e "$hook_sessions/$hook_session_id.write-pending" ||
             deny "only one goal staging write is allowed"
           printf '%s\n' "$pre_path" >"$hook_sessions/$hook_session_id.write-pending"
           chmod 600 "$hook_sessions/$hook_session_id.write-pending"
           ;;
-        active|reviewed|route-rejected|route-unavailable|released|reported) ;;
+        active|reviewed|route-rejected|route-unavailable|launch-unavailable|released|reported)
+          deny "parent repository mutation is forbidden after goal ownership begins"
+          ;;
         *) deny "write use is reserved for the routed goal owner" ;;
       esac
       ;;
     apply_patch)
-      case "$active_phase" in
-        active|reviewed|route-rejected|route-unavailable|released|reported)
-          case "$hook_raw" in
-            *"$active_ledger"*|*"$hook_plugin_data"*)
-              deny "direct patches to goal protocol state are forbidden"
-              ;;
-          esac
-          ;;
-        *) deny "patch use is reserved for the routed goal owner" ;;
-      esac
+      if is_goal_owner; then
+        case "$hook_compact" in
+          *"$active_ledger"*|*"$hook_plugin_data"*)
+            deny "direct writes to goal protocol state are forbidden"
+            ;;
+        esac
+        return 0
+      fi
+      deny "patch use is reserved for the routed goal owner"
       ;;
     Agent)
-      test "$active_phase" = staging-released ||
-        deny "goal owner launch requires released staging"
-      test ! -e "$hook_sessions/$hook_session_id.spawn-pending" &&
-        test ! -e "$hook_sessions/$hook_session_id.spawn-seen" ||
+      case "$active_host|$active_phase" in
+        claude\|active|codex\|staging-released) ;;
+        *) deny "goal owner launch requires released staging or a valid provisional Claude activation" ;;
+      esac
+      test ! -e "$hook_sessions/$hook_session_id.spawn-seen" ||
         deny "a goal owner was already launched"
       if test "$active_host" = claude; then
         pre_objective_file=$(state_value "$active_state" objective_file)
@@ -292,6 +556,13 @@ pre_tool_use() {
           *'"run_in_background":false'*) ;;
           *) deny "Claude goal owner must run in the foreground" ;;
         esac
+        pre_route=$(state_value "$active_state" selected_route)
+        test "$(state_value "$active_state" route_applied_by)" = native-subagent &&
+          test "$(state_value "$active_state" launch_boundary)" = native_subagent &&
+          test "$(state_value "$active_state" agent_id)" = pending &&
+          test "$(state_value "$active_state" effective_route)" = "$pre_route" &&
+          test "$(state_value "$active_state" route_verified)" = false ||
+          deny "existing Claude activation is not the valid provisional owner state"
       else
         pre_route=$(state_value "$active_state" selected_route)
         old_ifs=$IFS
@@ -312,20 +583,80 @@ EOF
           *) deny "Codex goal owner effort does not match the selected route" ;;
         esac
       fi
-      printf '%s\n' "$active_host" >"$hook_sessions/$hook_session_id.spawn-pending"
-      chmod 600 "$hook_sessions/$hook_session_id.spawn-pending"
+      spawn_claim="$hook_sessions/$hook_session_id.spawn-claim"
+      (set -o noclobber; printf '%s\n' "$active_host" >"$spawn_claim") 2>/dev/null ||
+        deny "a goal owner launch is already reserved"
+      chmod 600 "$spawn_claim" || deny "could not secure goal owner launch reservation"
+      spawn_pending="$hook_sessions/$hook_session_id.spawn-pending"
+      printf '%s\n' "$active_host" >"$spawn_pending" ||
+        deny "could not record pending goal owner launch"
+      chmod 600 "$spawn_pending" || deny "could not secure pending goal owner launch"
       ;;
   esac
 }
 
+emit_post_tool_guidance() {
+  printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"$1\"}}"
+}
+
 post_tool_use() {
   post_tool=$1
+  is_goal_owner && return 0
   case "$post_tool" in
+    Bash)
+      case "$active_host|$active_phase" in
+        claude\|started)
+          emit_post_tool_guidance 'The ledger start is bound. The next protocol transition is one exact standalone goal-loop step prepare command. Do not Write the contract yet.'
+          ;;
+        claude\|prepared)
+          emit_post_tool_guidance 'Preparation is recorded. The next protocol transition is one exact standalone goal-loop step route command with the selected dimensions.'
+          ;;
+        claude\|routed)
+          emit_post_tool_guidance 'Route selection is recorded. The next protocol transition is one exact standalone goal-loop step runner command for the selected Claude model and effort.'
+          ;;
+        claude\|runner-resolved)
+          emit_post_tool_guidance 'Runner resolution is recorded. The next tool is the one native Write into the exact ledger staging directory. Write the labeled contract itself beginning with Outcome:. Never write an objective wrapper or Expected SHA-256 line.'
+          ;;
+        claude\|staged)
+          emit_post_tool_guidance 'The contract digest is staged. The next protocol transition is one exact standalone goal-loop step materialize command using the exact goal path and contract_sha256 returned by step stage.'
+          ;;
+        claude\|materialized)
+          emit_post_tool_guidance 'The helper created the file-backed objective. The next protocol transition is one exact standalone goal-loop step release-staging command using the exact staging path and helper-returned contract_sha256.'
+          ;;
+        claude\|staging-released)
+          emit_post_tool_guidance 'Staging is released. The next protocol transition is one exact standalone goal-loop step activate command with native-subagent/native_subagent, agent id pending, the exact selected route, route-verified false, and enforcement helper+claude-hooks.'
+          ;;
+        claude\|active)
+          if test "$(state_value "$active_state" agent_id)" = pending &&
+            test ! -e "$hook_sessions/$hook_session_id.spawn-seen"; then
+            emit_post_tool_guidance 'Provisional activation is recorded. Invoke exactly one foreground Agent with the resolved subagent_type and only the adaptive-goal-runner marker plus the exact helper-returned objective_file line.'
+          else
+            emit_post_tool_guidance 'The route gate returned with the owner result collected. Do not call Read, Glob, Grep, Write, Edit, or any repository command. The next lifecycle action is the exact release-objective command using the helper-returned attachment and digest.'
+          fi
+          ;;
+        claude\|reviewed)
+          emit_post_tool_guidance 'The route gate returned with the owner result collected. Do not call Read, Glob, Grep, Write, Edit, or any repository command. The next lifecycle action is the exact release-objective command using the helper-returned attachment and digest.'
+          ;;
+        claude\|route-unavailable|claude\|route-rejected)
+          if test "$(state_value "$active_state" objective_released)" = true; then
+            emit_post_tool_guidance 'The route stop and objective release are recorded. Do not call Read, Glob, Grep, Write, Edit, or any repository command. The next and final tool is the exact goal-loop step report command with --status launch-required and a truthful --human-interruptions integer; return that helper output verbatim at the start of the response.'
+          else
+            emit_post_tool_guidance 'The route gate stopped without verified route evidence. Do not call Read, Glob, Grep, Write, Edit, or any repository command. The next lifecycle action is the exact release-objective command using the helper-returned attachment and digest.'
+          fi
+          ;;
+        claude\|released)
+          emit_post_tool_guidance 'The terminal objective attachment is released. The next and final tool is one exact standalone goal-loop step report command; return that helper output verbatim at the start of the response.'
+          ;;
+      esac
+      ;;
     Write|Edit)
       post_pending="$hook_sessions/$hook_session_id.write-pending"
       test -f "$post_pending" || return 0
       mv "$post_pending" "$hook_sessions/$hook_session_id.write-seen" ||
         deny "could not record goal staging write"
+      if test "$active_host" = claude; then
+        emit_post_tool_guidance 'The one staging Write is complete. The file must be the labeled contract beginning with Outcome:, never an objective wrapper. The next transition is one exact standalone goal-loop step stage command for this exact path.'
+      fi
       ;;
     Agent)
       post_pending="$hook_sessions/$hook_session_id.spawn-pending"
@@ -342,8 +673,36 @@ post_tool_use() {
       fi
       mv "$post_pending" "$hook_sessions/$hook_session_id.spawn-seen" ||
         deny "could not record goal owner launch"
+      if test "$active_host" = claude; then
+        printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"The foreground Darrow goal owner has returned. The next lifecycle action is one exact standalone claude-route-gate command from the launch guide, using the host-reported Agent id, selected route, repository, and ledger values literally. Do not call Read, Glob, Grep, Write, Edit, or another repository tool. Do not use a shell variable, assignment, substitution, command list, redirect, pipeline, discovery command, or direct step observe-route call."}}'
+      fi
       ;;
   esac
+}
+
+post_tool_failure() {
+  failed_tool=$1
+  test "$failed_tool" = Agent || return 0
+  failed_pending="$hook_sessions/$hook_session_id.spawn-pending"
+  test -f "$failed_pending" || return 0
+  bash "$goal_loop" step launch-stop --ledger "$active_ledger" \
+    --reason launch-unavailable >/dev/null ||
+    deny "could not reconcile failed goal owner launch"
+  rm -f "$failed_pending" || deny "could not clear failed goal owner launch"
+  emit_post_tool_guidance 'The goal owner launch failed and was reconciled as launch-unavailable with zero accepted children. Do not retry the Agent. Release the exact objective attachment, then render a launch-required report.'
+}
+
+clear_session_binding() {
+  rm -f \
+    "$hook_sessions/$hook_session_id" \
+    "$hook_sessions/$hook_session_id.pending" \
+    "$hook_sessions/$hook_session_id.invoked" \
+    "$hook_sessions/$hook_session_id.write-pending" \
+    "$hook_sessions/$hook_session_id.write-seen" \
+    "$hook_sessions/$hook_session_id.spawn-claim" \
+    "$hook_sessions/$hook_session_id.spawn-pending" \
+    "$hook_sessions/$hook_session_id.spawn-seen" ||
+    deny "could not clear completed adaptive-goal session state"
 }
 
 hook_input=$(mktemp "${TMPDIR:-/tmp}/darrow-goal-hook-input.XXXXXX") || exit 0
@@ -356,6 +715,8 @@ hook_session_id=$(json_string_field session_id <"$hook_input" 2>/dev/null || tru
 hook_event=$(json_string_field hook_event_name <"$hook_input" 2>/dev/null || true)
 hook_tool=$(json_string_field tool_name <"$hook_input" 2>/dev/null || true)
 hook_cwd=$(json_string_field cwd <"$hook_input" 2>/dev/null || true)
+hook_agent_id=$(json_string_field agent_id <"$hook_input" 2>/dev/null || true)
+hook_agent_type=$(json_string_field agent_type <"$hook_input" 2>/dev/null || true)
 hook_plugin_data=${CLAUDE_PLUGIN_DATA:-${PLUGIN_DATA:-}}
 
 case "$hook_session_id" in
@@ -364,6 +725,32 @@ esac
 secure_plugin_data || exit 0
 
 hook_pending="$hook_sessions/$hook_session_id.pending"
+hook_armed="$hook_sessions/$hook_session_id.invoked"
+arm_adaptive_goal() {
+  printf '%s\n' adaptive-goal >"$hook_armed" ||
+    deny "could not arm adaptive-goal invocation"
+  chmod 600 "$hook_armed" || deny "could not secure adaptive-goal invocation"
+}
+if test "$hook_event" = UserPromptSubmit; then
+  hook_prompt=$(json_string_field prompt <"$hook_input" 2>/dev/null || true)
+  # shellcheck disable=SC2016
+  case "$hook_prompt" in
+    '/adaptive-goal'|'/adaptive-goal '*)
+      arm_adaptive_goal
+      printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"Darrow adaptive-goal enforcement is armed. The first protocol-bearing Bash call is the exact standalone /bin/bash goal-loop step start command using the absolute repository and helper paths already supplied or resolved with native Read, Glob, or Grep. Before that call, Bash discovery, listing, inspection, variables, assignments, substitutions, redirects, pipes, heredocs, and command lists are outside the protocol. A denied lifecycle call is a terminal stop, not retry authority."}}'
+      ;;
+  esac
+  exit 0
+fi
+if test "$hook_event" = PostToolUse && test "$hook_tool" = Skill; then
+  hook_skill=$(json_string_field skill <"$hook_input" 2>/dev/null || true)
+  case "$hook_skill" in
+    adaptive-goal|darrow-goal-loop:adaptive-goal)
+      arm_adaptive_goal
+      ;;
+  esac
+  exit 0
+fi
 if test "$hook_event" = PreToolUse && test "$hook_tool" = Bash; then
   hook_command=$(json_string_field command <"$hook_input" 2>/dev/null || true)
   if is_start_command "$hook_command"; then
@@ -374,8 +761,18 @@ if test "$hook_event" = PreToolUse && test "$hook_tool" = Bash; then
   fi
 fi
 
+if test "$hook_event" = PreToolUse && test -f "$hook_armed"; then
+  case "$hook_tool" in
+    Bash|Write|Edit|Agent|apply_patch)
+      deny "adaptive-goal invocation requires one exact standalone ledger start"
+      ;;
+  esac
+fi
+
 if test "$hook_event" = PostToolUse && test "$hook_tool" = Bash && test -f "$hook_pending"; then
   bind_started_ledger "$hook_pending"
+  rm -f "$hook_armed"
+  emit_post_tool_guidance 'The ledger start is bound. The next protocol transition is one exact standalone goal-loop step prepare command. Do not Write the contract yet.'
   exit 0
 fi
 
@@ -384,7 +781,14 @@ load_active_ledger || exit 0
 case "$hook_event" in
   PreToolUse) pre_tool_use "$hook_tool" ;;
   PostToolUse) post_tool_use "$hook_tool" ;;
+  PostToolUseFailure) post_tool_failure "$hook_tool" ;;
   Stop)
+    if is_current_thread_owner; then
+      stop_message=$(json_string_field last_assistant_message <"$hook_input" 2>/dev/null || true)
+      case "$stop_message" in
+        '- phase: human-feedback-request'$'\n'?*) exit 0 ;;
+      esac
+    fi
     test "$active_phase" = reported || deny "goal turn cannot end before the canonical helper report"
     active_report="$active_ledger/report"
     test -f "$active_report" && test ! -L "$active_report" ||
@@ -397,6 +801,7 @@ case "$hook_event" in
     esac
     report_count=$(printf '%s\n' "$stop_message" | awk '$0 == "format: darrow-native-goal-report-v1" { count++ } END { print count + 0 }')
     test "$report_count" -eq 1 || deny "final response must contain exactly one canonical helper report"
+    clear_session_binding
     ;;
   SubagentStop) ;;
 esac

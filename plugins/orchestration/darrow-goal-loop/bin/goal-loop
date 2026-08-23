@@ -19,7 +19,7 @@ usage:
   goal-loop step release-staging --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> --agent-id <id|none> --effective-route <route> --route-verified <true|false> [--enforcement <tier>]
   goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable> [--enforcement <tier>]
-  goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> --target-sha256 <digest> --outcome <enum> [--finding <text>]
+  goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> <--target-fingerprint <literal>|--target-sha256 <digest>> --outcome <enum> [--finding <text>]
   goal-loop step launch-stop --ledger <absolute-path> --reason <review-unavailable|launch-unavailable|enforcement-unavailable>
   goal-loop step release-objective --ledger <absolute-path> --attachment-dir <path> --expected-sha256 <digest>
   goal-loop step report --ledger <absolute-path> --status <complete|blocked|launch-required> --human-interruptions <integer>
@@ -87,6 +87,26 @@ sha256_file() {
   case "$sha_digest" in
     *[!0-9a-f]*) die "invalid SHA-256 digest for: $sha_file" ;;
   esac
+  printf '%s\n' "$sha_digest"
+}
+
+sha256_text() {
+  sha_text=$1
+  test "${#sha_text}" -le 4096 || die "review target fingerprint is too long"
+  case "$sha_text" in
+    ''|*"$tab"*|*$'\n'*|*$'\r'*) die "review target fingerprint is empty or multiline" ;;
+  esac
+  if command -v shasum >/dev/null 2>&1; then
+    sha_output=$(printf '%s' "$sha_text" | shasum -a 256) ||
+      die "could not hash review target fingerprint"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha_output=$(printf '%s' "$sha_text" | sha256sum) ||
+      die "could not hash review target fingerprint"
+  else
+    die "SHA-256 utility is unavailable"
+  fi
+  sha_digest=${sha_output%% *}
+  validate_sha256_digest "$sha_digest"
   printf '%s\n' "$sha_digest"
 }
 
@@ -818,6 +838,10 @@ load_ledger() {
   ledger_state="$ledger/state"
   ledger_events="$ledger/events"
   ledger_targets="$ledger/review-targets"
+  test ! -e "$ledger/.transition-state" &&
+    test ! -e "$ledger/.transition-events" &&
+    test ! -e "$ledger/.transition-targets" ||
+    die "ledger has an incomplete transition snapshot: $ledger"
   test ! -L "$ledger_state" && test -f "$ledger_state" && test -r "$ledger_state" ||
     die "ledger state is unreadable or unsafe: $ledger_state"
   test ! -L "$ledger_events" && test -f "$ledger_events" && test -r "$ledger_events" ||
@@ -837,21 +861,74 @@ load_ledger() {
 
 ledger_unlock_on_exit() {
   test -n "${ledger_lock:-}" || return 0
+  trap '' HUP INT TERM
+  if test -f "${ledger_transition_state:-}"; then
+    mv "$ledger_transition_state" "$ledger_state" 2>/dev/null || true
+  fi
+  if test -f "${ledger_transition_events:-}"; then
+    mv "$ledger_transition_events" "$ledger_events" 2>/dev/null || true
+  fi
+  if test -f "${ledger_transition_targets:-}"; then
+    mv "$ledger_transition_targets" "$ledger_targets" 2>/dev/null || true
+  fi
   rmdir "$ledger_lock" 2>/dev/null || true
+}
+
+ledger_unlock_and_exit() {
+  signal_status=$1
+  ledger_unlock_on_exit
+  ledger_lock=
+  trap - EXIT HUP INT TERM
+  exit "$signal_status"
+}
+
+ledger_defer_signal() {
+  ledger_pending_signal=$1
 }
 
 lock_ledger() {
   ledger_lock="$ledger/.lock"
-  mkdir "$ledger_lock" 2>/dev/null ||
+  ledger_pending_signal=
+  trap 'ledger_defer_signal 129' HUP
+  trap 'ledger_defer_signal 130' INT
+  trap 'ledger_defer_signal 143' TERM
+  mkdir "$ledger_lock" 2>/dev/null || {
+    trap - HUP INT TERM
+    ledger_lock=
     die "ledger is locked by another step: $ledger"
-  trap ledger_unlock_on_exit EXIT HUP INT TERM
+  }
+  trap ledger_unlock_on_exit EXIT
+  trap 'ledger_unlock_and_exit 129' HUP
+  trap 'ledger_unlock_and_exit 130' INT
+  trap 'ledger_unlock_and_exit 143' TERM
+  test -z "$ledger_pending_signal" ||
+    ledger_unlock_and_exit "$ledger_pending_signal"
   load_ledger "$ledger"
+  ledger_transition_state="$ledger/.transition-state"
+  ledger_transition_events="$ledger/.transition-events"
+  ledger_transition_targets="$ledger/.transition-targets"
+  if ! cp "$ledger_state" "$ledger_transition_state" ||
+    ! cp "$ledger_events" "$ledger_transition_events" ||
+    ! cp "$ledger_targets" "$ledger_transition_targets"; then
+    die "could not snapshot ledger transition: $ledger"
+  fi
+  chmod 600 "$ledger_transition_state" "$ledger_transition_events" \
+    "$ledger_transition_targets" ||
+    die "could not secure ledger transition snapshot: $ledger"
 }
 
 unlock_ledger() {
+  trap '' HUP INT TERM
+  rm -f "$ledger_transition_state" "$ledger_transition_events" \
+    "$ledger_transition_targets" ||
+    die "could not commit ledger transition snapshot: $ledger"
   rmdir "$ledger_lock" 2>/dev/null ||
     die "could not release ledger lock: $ledger_lock"
   ledger_lock=
+  ledger_transition_state=
+  ledger_transition_events=
+  ledger_transition_targets=
+  ledger_pending_signal=
   trap - EXIT HUP INT TERM
 }
 
@@ -1409,7 +1486,12 @@ step_release_objective() {
   load_ledger "$step_ledger"
   lock_ledger
   case "$ledger_phase" in
-    materialized|staging-released|active|reviewed|route-rejected|route-unavailable|launch-unavailable) ;;
+    active|reviewed)
+      test "$(ledger_state_value "$ledger_state" agent_id)" != pending &&
+        test "$(ledger_state_value "$ledger_state" route_verified)" = true ||
+        die "objective release requires a resolved, route-verified owner"
+      ;;
+    route-rejected|route-unavailable|launch-unavailable) ;;
     *) die "objective release requires a materialized ledger, found $ledger_phase" ;;
   esac
   test "$(ledger_state_value "$ledger_state" attachment_dir)" = "$step_attachment_dir" ||
@@ -1495,13 +1577,17 @@ step_activate() {
   load_ledger "$step_ledger"
   lock_ledger
   require_ledger_phase staging-released
-  if test "$ledger_host" = claude && test "$step_boundary" = native_subagent; then
-    test "$step_route_verified" = false ||
-      die "Claude native-subagent activation requires transcript observation before route verification"
-  fi
   selected_route=$(ledger_state_value "$ledger_state" selected_route)
   test "$selected_route" != none || die "activation requires a selected route"
-  if test "$step_route_verified" = true; then
+  if test "$step_route_verified" = false; then
+    test "$ledger_host|$step_applied_by|$step_boundary|$step_agent_id" = \
+      'claude|native-subagent|native_subagent|pending' ||
+      die "unverified activation requires the exact provisional Claude owner tuple"
+    test "$selected_route" = "$step_effective_route" ||
+      die "provisional Claude activation must retain the selected route"
+  else
+    test "$ledger_host|$step_boundary" != 'claude|native_subagent' ||
+      die "Claude native-subagent activation requires transcript observation before route verification"
     test "$selected_route" = "$step_effective_route" ||
       die "verified effective route does not match selected route"
   fi
@@ -1549,6 +1635,9 @@ step_observe_route() {
   test -n "$step_ledger" && test -n "$step_agent_id" &&
     test -n "$step_effective_route" && test -n "$step_confirmation" ||
     die "step observe-route requires --ledger, --agent-id, --effective-route, and --confirmation"
+  case "$step_agent_id" in
+    pending|none|*[!a-zA-Z0-9._-]*|'') die "unsafe observed agent id: $step_agent_id" ;;
+  esac
   validate_route_tuple "--effective-route" "$step_effective_route"
   case "$step_confirmation" in
     confirmed|rejected|unavailable) ;;
@@ -1556,16 +1645,23 @@ step_observe_route() {
   esac
   load_ledger "$step_ledger"
   lock_ledger
-  require_ledger_phase active
+  case "$ledger_phase" in
+    active|reviewed) ;;
+    *) die "route observation requires an active or reviewed owner, found $ledger_phase" ;;
+  esac
   test "$ledger_host" = claude || die "route observation is only valid for Claude"
-  test "$(ledger_state_value "$ledger_state" agent_id)" = "$step_agent_id" ||
-    die "observed agent id does not match ledger activation"
+  activated_agent_id=$(ledger_state_value "$ledger_state" agent_id)
+  case "$activated_agent_id" in
+    pending) set_ledger_value agent_id "$step_agent_id" ;;
+    "$step_agent_id") ;;
+    *) die "observed agent id does not match ledger activation" ;;
+  esac
   selected_route=$(ledger_state_value "$ledger_state" selected_route)
   if test "$step_confirmation" = confirmed; then
     test "$selected_route" = "$step_effective_route" ||
       die "confirmed route does not match selection"
     observed_verified=true
-    observed_phase=active
+    observed_phase=$ledger_phase
   elif test "$step_confirmation" = unavailable; then
     observed_verified=false
     observed_phase=route-unavailable
@@ -1616,12 +1712,30 @@ step_launch_stop() {
   esac
   load_ledger "$step_ledger"
   lock_ledger
+  failed_provisional_activation=false
   case "$ledger_phase" in
     routed|runner-resolved|materialized|staging-released|released) ;;
+    active)
+      test "$ledger_host" = claude && test "$step_reason" = launch-unavailable &&
+        test "$(ledger_state_value "$ledger_state" agent_id)" = pending &&
+        test "$(ledger_state_value "$ledger_state" route_verified)" = false &&
+        test "$(ledger_state_value "$ledger_state" launch_boundary)" = native_subagent ||
+        die "launch stop cannot replace an accepted owner"
+      failed_provisional_activation=true
+      ;;
     *) die "launch stop requires routed pre-activation evidence, found $ledger_phase" ;;
   esac
-  test "$(ledger_state_value "$ledger_state" agent_id)" = none ||
-    die "launch stop cannot replace an activated owner"
+  if test "$failed_provisional_activation" = true; then
+    set_ledger_value effective_route none
+    set_ledger_value route_applied_by none
+    set_ledger_value route_verified false
+    set_ledger_value launch_boundary launch_required
+    set_ledger_value agent_id none
+    set_ledger_value child_invocations 0
+  else
+    test "$(ledger_state_value "$ledger_state" agent_id)" = none ||
+      die "launch stop cannot replace an activated owner"
+  fi
   if test "$step_reason" = review-unavailable; then
     test "$(ledger_state_value "$ledger_state" review_selection)" = selected ||
       die "review-unavailable stop requires selected independent review"
@@ -1638,6 +1752,7 @@ step_review() {
   step_ledger=
   step_review_mode=
   step_target_sha256=
+  step_target_fingerprint=
   step_outcome=
   step_finding=none
   while test "$#" -gt 0; do
@@ -1645,14 +1760,22 @@ step_review() {
       --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
       --mode) require_value "$@"; step_review_mode=$2; shift 2 ;;
       --target-sha256) require_value "$@"; step_target_sha256=$2; shift 2 ;;
+      --target-fingerprint) require_value "$@"; step_target_fingerprint=$2; shift 2 ;;
       --outcome) require_value "$@"; step_outcome=$2; shift 2 ;;
       --finding) require_value "$@"; step_finding=$2; shift 2 ;;
       *) die "unknown step review option: $1" ;;
     esac
   done
   test -n "$step_ledger" && test -n "$step_review_mode" &&
-    test -n "$step_target_sha256" && test -n "$step_outcome" ||
-    die "step review requires --ledger, --mode, --target-sha256, and --outcome"
+    test -n "$step_outcome" ||
+    die "step review requires --ledger, --mode, one target input, and --outcome"
+  if test -n "$step_target_sha256" && test -n "$step_target_fingerprint"; then
+    die "step review accepts exactly one target input"
+  fi
+  if test -n "$step_target_fingerprint"; then
+    step_target_sha256=$(sha256_text "$step_target_fingerprint")
+  fi
+  test -n "$step_target_sha256" || die "step review requires one target input"
   validate_sha256_digest "$step_target_sha256"
   validate_scalar "review finding" "$step_finding"
   case "$step_review_mode" in
@@ -1768,6 +1891,7 @@ step_report() {
   child_invocations=$(ledger_state_value "$ledger_state" child_invocations)
   enforcement=$(ledger_state_value "$ledger_state" enforcement)
   objective_released=$(ledger_state_value "$ledger_state" objective_released)
+  agent_id=$(ledger_state_value "$ledger_state" agent_id)
   initial_outcome=$(ledger_state_value "$ledger_state" review_initial_outcome)
   initial_finding=$(ledger_state_value "$ledger_state" review_initial_finding)
   last_outcome=$(ledger_state_value "$ledger_state" review_last_outcome)
@@ -1788,8 +1912,16 @@ step_report() {
     esac
     test "$objective_released" = true ||
       die "file-backed objective must be released before terminal reporting"
+    case "$ledger_phase" in
+      route-rejected|route-unavailable|launch-unavailable)
+        test "$step_status" = launch-required ||
+          die "$ledger_phase requires a launch-required report"
+        ;;
+    esac
     case "$step_status" in
       complete)
+        test "$agent_id" != pending ||
+          die "complete report requires a resolved goal owner"
         test "$route_verified" = true || die "complete report requires a verified route"
         if test "$review_selection" = selected; then
           test "$last_outcome" = clear ||
@@ -1809,7 +1941,12 @@ step_report() {
         launch_boundary=launch_required
         route_verified=false
         ;;
-      blocked) ;;
+      blocked)
+        test "$agent_id" != pending ||
+          die "blocked report requires a resolved goal owner"
+        test "$route_verified" = true ||
+          die "blocked report requires a verified route"
+        ;;
     esac
   fi
 

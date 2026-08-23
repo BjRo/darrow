@@ -13,10 +13,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   activateMaterializedGoal,
+  authorizedFeedbackAnswerCommand,
   buildGoalExecutionPrompt,
   buildPreparedGoalPrompt,
   extractIntentRoutingGuidance,
   goalDimensionStage,
+  independentReviewCapabilityAvailable,
+  isHumanFeedbackPauseForTurn,
   isHumanFeedbackPauseText,
   isGoalTerminalStatus,
   isReportableGoalStatus,
@@ -26,6 +29,7 @@ import {
   parseExplicitReviewRoundLimit,
   parseExplicitUserRoute,
   parsePreparedGoalDimensions,
+  stripModelAuthoredGoalReports,
   withMaterializedGoalLifecycle,
   withPrivateGoalStaging,
 } from "./codex-goal";
@@ -47,6 +51,23 @@ async function adapterFixtureRepo(): Promise<string> {
   const initError = await new Response(init.stderr).text();
   if ((await init.exited) !== 0)
     throw new Error(`could not initialize adapter fixture: ${initError}`);
+  const commit = Bun.spawn(
+    [
+      "git",
+      "-c",
+      "user.name=Darrow Eval",
+      "-c",
+      "user.email=darrow-eval@example.invalid",
+      "commit",
+      "--allow-empty",
+      "-qm",
+      "fixture",
+    ],
+    { cwd: repo, stdout: "ignore", stderr: "pipe" },
+  );
+  const commitError = await new Response(commit.stderr).text();
+  if ((await commit.exited) !== 0)
+    throw new Error(`could not commit adapter fixture: ${commitError}`);
   return repo;
 }
 
@@ -58,6 +79,29 @@ function goalSetter(action: (params: unknown) => void | Promise<void>) {
       return {} as T;
     },
   };
+}
+
+async function goalStep(
+  repo: string,
+  args: string[],
+): Promise<Map<string, string>> {
+  const process = Bun.spawn(
+    ["bash", join(repo, ".agents", "bin", "goal-loop"), "step", ...args],
+    { cwd: repo, stdout: "pipe", stderr: "pipe" },
+  );
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(process.stdout).text(),
+    new Response(process.stderr).text(),
+    process.exited,
+  ]);
+  if (code !== 0) throw new Error(stderr.trim());
+  return new Map(
+    stdout
+      .trimEnd()
+      .split("\n")
+      .map((line) => line.split("\t"))
+      .filter((fields): fields is [string, string] => fields.length === 2),
+  );
 }
 
 function contractPathFromObjective(objective: string): string {
@@ -133,6 +177,66 @@ describe("Codex native-goal dimension handoff", () => {
         prepared.replace("route_policy_source\troutine\tbundled\n", ""),
       ),
     ).toThrow("missing route policy source: routine");
+  });
+
+  test("accepts the fixed decision-gated terminal handoff without a route", () => {
+    const decisionDimensions = {
+      ...dimensions,
+      workflows: new Map([
+        ...dimensions.workflows,
+        [
+          "decision-gated",
+          { file: "/plugin/references/workflows/decision-gated.md" },
+        ],
+      ]),
+    };
+    const handoff = parseCodexGoalHandoff(
+      JSON.stringify({
+        format: "darrow-native-goal-handoff-v3",
+        workflow: "decision-gated",
+        risk: "high",
+        profile: "none",
+        routeSource: "none",
+        independentReview: {
+          selection: "omitted",
+          reason: "Required product policy is missing.",
+          roundLimit: null,
+        },
+        selectedRoute: {
+          harness: "none",
+          provider: "none",
+          model: "none",
+          effort: "none",
+        },
+        goalContract:
+          "Authorization policy and rollout authority are missing; preserve the repository unchanged.",
+      }),
+      catalog,
+      decisionDimensions,
+    );
+    expect(handoff.workflow).toBe("decision-gated");
+    expect(handoff.selectedRoute.model).toBe("none");
+  });
+
+  test("discovers only an installed independent code-review capability", async () => {
+    const repo = await adapterFixtureRepo();
+    try {
+      expect(await independentReviewCapabilityAvailable(repo)).toBe(false);
+      const reviewer = join(repo, ".agents", "skills", "reviewer");
+      await mkdir(reviewer, { recursive: true });
+      await writeFile(
+        join(reviewer, "SKILL.md"),
+        [
+          "---",
+          "name: reviewer",
+          "description: Independently review one exact current code change and report findings.",
+          "---",
+        ].join("\n"),
+      );
+      expect(await independentReviewCapabilityAvailable(repo)).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
   });
 
   test("accepts one explicit user route and never treats evaluator text as one", () => {
@@ -405,6 +509,73 @@ after`);
     ).toBe(false);
   });
 
+  test("binds a feedback pause to its exact goal turn", () => {
+    const pause = {
+      method: "item/completed",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        item: {
+          type: "agentMessage",
+          phase: "final_answer",
+          text: "- phase: human-feedback-request\nWhich behavior should apply?",
+        },
+      },
+    };
+    expect(isHumanFeedbackPauseForTurn(pause, "thread-1", "turn-1")).toBe(true);
+    expect(isHumanFeedbackPauseForTurn(pause, "thread-1", "turn-2")).toBe(
+      false,
+    );
+    expect(isHumanFeedbackPauseForTurn(pause, "thread-2", "turn-1")).toBe(
+      false,
+    );
+  });
+
+  test("accepts only an explicitly authorized feedback answer template", () => {
+    expect(
+      authorizedFeedbackAnswerCommand(
+        "Run `feedbackctl answer <reported-id>` only after the question.",
+        "rounding-mode",
+      ),
+    ).toEqual(["feedbackctl", "answer", "rounding-mode"]);
+    expect(
+      authorizedFeedbackAnswerCommand(
+        "Ask the caller for an answer.",
+        "rounding-mode",
+      ),
+    ).toBeUndefined();
+    expect(
+      authorizedFeedbackAnswerCommand(
+        "Run `feedbackctl answer <reported-id>`.",
+        "bad/id",
+      ),
+    ).toBeUndefined();
+  });
+
+  test("removes model-authored reports before helper report composition", () => {
+    const modelReport = [
+      "format: darrow-native-goal-report-v1",
+      "workflow: mechanical",
+      "risk: routine",
+      "profile: routine",
+      "harness: codex",
+      "model: openai > gpt-5.6-luna",
+      "effort: medium",
+      "route_applied_by: host-api",
+      "route_verified: true",
+      "launch_boundary: host_api",
+      "verification_gate: routine",
+      "evaluation_child_invocations: 0",
+      "evaluation_human_interruptions: 0",
+      "enforcement: helper",
+    ].join("\n");
+    expect(
+      stripModelAuthoredGoalReports(
+        `${modelReport}\n\nIndependent review: inconclusive.`,
+      ),
+    ).toBe("Independent review: inconclusive.");
+  });
+
   test("materializes an oversized objective before exactly one goal-set call", async () => {
     const repo = await adapterFixtureRepo();
     let calls = 0;
@@ -428,6 +599,74 @@ after`);
       await materialized.cleanup();
       expect(await Bun.file(contractFile).exists()).toBe(false);
     } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("reads a ledger-backed inline objective before releasing staging", async () => {
+    const repo = await adapterFixtureRepo();
+    await cp(
+      "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/references",
+      join(repo, ".agents", "skills", "adaptive-goal", "references"),
+      { recursive: true },
+    );
+    await cp(
+      "plugins/orchestration/darrow-goal-loop/config",
+      join(repo, ".agents", "config"),
+      { recursive: true },
+    );
+    await cp(
+      "plugins/orchestration/darrow-goal-loop/bin/routes-json.awk",
+      join(repo, ".agents", "bin", "routes-json.awk"),
+    );
+    let ledger = "";
+    try {
+      const started = await goalStep(repo, [
+        "start",
+        "--repo",
+        repo,
+        "--host",
+        "codex",
+      ]);
+      ledger = started.get("ledger") ?? "";
+      const stagingDir = started.get("staging_dir") ?? "";
+      expect(ledger).not.toBe("");
+      expect(stagingDir).not.toBe("");
+      await goalStep(repo, ["prepare", "--ledger", ledger]);
+      await goalStep(repo, [
+        "route",
+        "--ledger",
+        ledger,
+        "--workflow",
+        "implement-feature",
+        "--risk",
+        "routine",
+        "--profile",
+        "routine",
+        "--verification-gate",
+        "routine",
+        "--review",
+        "selected",
+      ]);
+      const goalContract = "Outcome: keep this inline objective readable";
+      let objective = "";
+      const materialized = await activateMaterializedGoal(
+        goalSetter((params) => {
+          objective = (params as { objective: string }).objective;
+        }),
+        {
+          repoDir: repo,
+          threadId: "thread-ledger-inline",
+          goalContract,
+          ledger,
+          stagingDir,
+        },
+      );
+      expect(objective).toBe(goalContract);
+      expect(materialized.mode).toBe("inline");
+      expect(await Bun.file(stagingDir).exists()).toBe(false);
+    } finally {
+      if (ledger) await rm(ledger, { recursive: true, force: true });
       await rm(repo, { recursive: true, force: true });
     }
   });

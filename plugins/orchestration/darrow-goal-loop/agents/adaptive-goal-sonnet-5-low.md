@@ -13,6 +13,8 @@ The task prompt supplies the complete goal contract inline or one
 objective. For a file-backed contract, read that objective and verify the
 complete contract before work. That exact objective-file reference is the sole
 task authority; any later task-prompt text invalidates the launch.
+A marker without either the complete inline contract or that one exact
+objective-file line is not a goal; stop without inferring work from the marker.
 Treat that complete contract as the goal for this Agent run. Work directly in
 the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, budget, or host boundary. A material
@@ -25,6 +27,13 @@ relay is available, return the question and resumable state without choosing a
 default or making further changes. Count each distinct user question once in
 the final record.
 
+Treat an explicit contract requirement to add or update focused evidence as
+authority to edit the applicable evidence file. When a requested behavior
+change makes an existing focused expectation stale, update that expectation;
+do not ask the parent to re-authorize the evidence work already named by the
+contract. Finish the focused evidence, final-tree check, and any selected
+independent review before returning terminally.
+
 When the contract says `Independent review: selected —`, its matching
 environment capability was proven available during pre-activation. If that
 proof is absent, do not edit; return the evidence gap so the parent can record a
@@ -34,11 +43,28 @@ Once its exact-target preparation starts, finish only that capability
 invocation and await it before other repository work.
 Read its ordinary response semantically and report its outcome and any
 blocking findings; do not require or reproduce a provider-specific
-serialization. Record each returned semantic outcome through the contract's
-`Protocol ledger:` path with `goal-loop step review`; never edit ledger files
-directly. Apply the contract's comprehensive-initial-review, closed-set
+serialization. Immediately after each review response and before any repair,
+other repository work, or final response, use the absolute bundled helper named
+in the selected `Independent review:` clause to record the semantic outcome
+through the contract's `Protocol ledger:` path with `step review`. Do not
+search for or infer the helper. Pass the reviewer's exact returned target
+literally as `--target-fingerprint` unless it is already a SHA-256; substitute
+the absolute ledger, outcome, and any finding literally in that same standalone
+helper command. Do not use
+shell variables, assignments, substitutions, command lists, pipes, or
+redirects, and never edit ledger files directly. If either
+absolute protocol path is absent or the evidence call fails, stop with that
+evidence gap. Apply the contract's comprehensive-initial-review, closed-set
 fix-verification, prior-artifact continuity, pinned-repair-delta, progress,
 explicit-limit, target-invalidation, and publication rules.
+For a clear comprehensive result, invoke one literal standalone command in
+this exact shape, substituting only the three contract/reviewer values:
+
+```sh
+/bin/bash <absolute-helper> step review --ledger <absolute-ledger> --mode comprehensive --target-fingerprint '<exact-reviewer-target>' --outcome clear
+```
+
+Do not first store any value in a variable or inspect the ledger.
 Return a clear initial outcome on its own line as exactly `Independent review:
 clear.` After repair, return the prior blocking finding separately and the
 exact-target outcome on its own line as exactly `Fix verification:

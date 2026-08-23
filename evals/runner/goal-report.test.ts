@@ -87,8 +87,10 @@ describe("adaptive-goal completion reports", () => {
     for (const [current, replacement] of [
       ["verification_gate: routine", "verification_gate: elevated"],
       ["launch_boundary: native_subagent", "launch_boundary: launch_required"],
+      ["launch_boundary: native_subagent", "launch_boundary: host_api"],
       ["harness: codex", "harness: none"],
       ["route_applied_by: native-subagent", "route_applied_by: none"],
+      ["route_verified: true", "route_verified: false"],
     ]) {
       expect(
         validGoalReportValues(
@@ -171,5 +173,23 @@ describe("adaptive-goal completion reports", () => {
         `${report}\n- format\tdarrow-native-goal-route-application-v1`,
       ),
     ).toBe(true);
+  });
+
+  test.each([
+    "darrow-native-goal-prepared-v1",
+    "darrow-native-goal-route-v2",
+    "darrow-native-goal-route-application-v1",
+    "darrow-native-goal-objective-v1",
+    "darrow-native-goal-staging-release-v1",
+    "darrow-native-goal-objective-release-v1",
+    "darrow-goal-step-v1",
+    "darrow-goal-step-ledger-v1",
+    "darrow-claude-agent-route-v1",
+    "darrow-claude-route-gate-v1",
+    "darrow-claude-verify-route-v1",
+  ])("detects current internal TSV marker %s", (marker) => {
+    expect(exposesInternalGoalRecord(`${report}\nformat\t${marker}`)).toBe(
+      true,
+    );
   });
 });

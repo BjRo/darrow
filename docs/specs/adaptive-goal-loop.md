@@ -63,9 +63,8 @@ The launch boundary is selected in this order:
 
 This order is normative. A native goal runner is an observable host agent
 thread, not a shell process or Darrow role controller. A first-class Codex
-runner is itself the host-native owner boundary for the compiled contract; when
-that runner exposes native goal-state control it uses the control once for
-persistence, but it does not require or simulate an inner goal boundary.
+runner is itself the host-native owner boundary for the compiled contract and
+does not start or simulate an inner goal boundary.
 Claude does not expose its session-scoped `/goal` command to Agent-tool
 children, so a Claude runner owns the compiled contract as its single
 foreground delegated task and MUST NOT claim `/goal` evaluator turns or
@@ -195,6 +194,13 @@ The compiled contract MUST state `selected` or `omitted` with its reason in
 one unambiguous independent-review clause. A selected clause carries the
 portable intent, timing, semantic continuation, target invalidation, and
 publication block into the native goal owner.
+For a filesystem-sharing delegated owner, that selected clause also identifies
+the launcher's absolute bundled `goal-loop` executable solely so the owner can
+record each returned semantic review outcome against the contract's
+`Protocol ledger:` path. This protocol-helper reference does not select, name,
+or prescribe the independent-review capability itself. A delegated owner MUST
+stop before mutation when selected review is required but either protocol path
+is absent.
 For a structured host-API handoff, selection and reason MUST be separate
 validated fields, an explicit user-supplied round limit MUST be the optional
 positive-integer `roundLimit` field, and the host launcher MUST generate the
@@ -240,6 +246,10 @@ envelope. The first invocation is one comprehensive review of the exact
 current change and establishes a closed finding set. A result with no blocking
 findings satisfies the gate for that content. Blocking findings prevent
 completion and every not-yet-performed publication effect.
+For ledger evidence, the owner passes either the reviewer's exact literal
+target fingerprint for helper-side SHA-256 derivation or an already-derived
+SHA-256. It MUST NOT recreate that hashing through shell variables,
+substitutions, command lists, redirects, or pipelines.
 
 A preexisting candidate described as review-ready is not already-verified
 evidence. Before the initial comprehensive review, the owner MUST run every
@@ -655,7 +665,9 @@ the least launch machinery the host supports.
     feedback checks separately from final-tree checks. It preserves applicable
     repository cadence, workflow-specific evidence ordering, and the honest
     limitation when no stable seam, independent oracle, or focused command
-    exists.
+    exists. When the originating request explicitly requires adding or
+    updating focused evidence, that evidence file is inside compiled scope and
+    MUST NOT be contradicted by a narrower non-goal.
 11. **AGL-P11 — Canonical review selection.** Preflight applies the normative
     risk, policy, and user-intent selection policy and, when selected, compiles
     the portable independent-review intent, target binding, and semantic
@@ -726,7 +738,9 @@ the least launch machinery the host supports.
 2. **AGL-E2 — Monotonic helper protocol.** Protocol-bearing helper operations
    are invoked through `goal-loop step`. The helper refuses missing
    prerequisites, skipped steps, duplicate steps, concurrent mutation, and a
-   call after terminal reporting. A refusal never advances state.
+   call after terminal reporting. A refusal never advances state. A process
+   signal received while a step owns the ledger lock releases the lock and
+   terminates that step; it MUST NOT release exclusivity and then continue.
 3. **AGL-E3 — Evidence, not execution control.** The ledger records
    caller-chosen workflow, risk, profile, routes, objective identity, owner and
    review evidence, counters, cleanup, and report fields. It MUST NOT select or
@@ -755,10 +769,43 @@ the least launch machinery the host supports.
    hardening; the helper ledger is the correctness layer when hooks are absent.
    Hook state is private plugin data keyed by host session identifier, and
    covered direct writes to hook or ledger state are denied. A covered
+   explicit Claude adaptive-goal Skill activation arms that session before a
+   ledger exists; until one exact standalone `step start` succeeds and binds
+   the ledger, covered Bash, write, patch, and Agent calls are denied. Native
+   read-only discovery remains available.
+   A covered
    pre-owner Bash call must be one complete helper command with no compound
-   syntax, substitution, pipe, or redirection. A Claude launch body must equal
+   syntax, substitution, pipe, or redirection. Literal quoted arguments MUST
+   remain usable when plugin, repository, staging, or ledger paths contain
+   spaces, while every accepted lifecycle command remains bound to the active
+   ledger and exact transition. The documented optional route pin and review
+   round limit remain accepted only in their canonical positions and may be
+   combined. A Claude launch body must equal
    the marker plus the ledger-owned one-line objective reference, and a second
-   launch is denied after the first accepted Agent call.
+   launch is denied after one launcher atomically acquires the session's
+   persistent owner reservation; that reservation survives the pending-to-seen
+   completion transition, so concurrent launch checks cannot both succeed.
+   Trusted post-tool
+   hooks may return bounded next-transition guidance from the ledger's current
+   phase, but that guidance neither advances the ledger nor adds authority. The
+   one native staging Write contains the labeled goal contract beginning with
+   `Outcome:`; only the helper creates the file-backed objective wrapper. Once
+   delegated goal ownership begins, covered parent shell, reads, searches,
+   writes, and patches are denied; only state-valid lifecycle helpers remain
+   available. A tool hook carrying a nonempty subagent `agent_id` is the
+   delegated owner only while the ledger retains its provisional activation,
+   the persistent launch claim is present, and the hook's `agent_type` exactly
+   matches the resolved runner (with or without its plugin qualification). That
+   owner may read the helper-owned objective attachment and use repository
+   tools while active; unrelated descendants and direct protocol-state access
+   remain denied. An exact verified `current-thread`/`same_thread` activation
+   makes that session the owner and permits its repository tools while the
+   owner is active, but direct protocol-state access and terminal-phase
+   mutation remain denied.
+   A failed Agent call reconciles the provisional activation to a zero-child
+   launch-unavailable stop before cleanup and reporting. After an accepted
+   terminal Stop, per-run hook bindings and sidecars are removed so later
+   ordinary turns and a second explicit goal do not inherit the old run.
 7. **AGL-E7 — Helper-rendered terminal output.** `goal-loop step report`
    renders the complete ordered `darrow-native-goal-report-v1` block and every
    applicable canonical review sentence from validated ledger values. The
@@ -767,7 +814,10 @@ the least launch machinery the host supports.
    Stop hook requires the final response to begin with that exact output and
    contain exactly one report. The final
    `enforcement` field truthfully discloses whether only the helper or helper
-   plus trusted host hooks supplied evidence.
+   plus trusted host hooks supplied evidence. Both `complete` and `blocked`
+   reports after activation require a resolved owner identity and verified
+   effective route; pending or unverified activation can only stop through the
+   applicable `launch_required` path.
 8. **AGL-E8 — Deliberate route-gate exits.** A confirmed Claude observation
    succeeds. A rejected observed route exits nonzero, records the rejection,
    and cannot mark the route verified or continue the goal. An unavailable
@@ -839,18 +889,28 @@ the least launch machinery the host supports.
 8. **AGL-L8 — Observable goal runner.** When in-place Codex activation cannot
    apply the selected route, Darrow MAY create exactly one first-class native
    agent thread with explicit model and effort. The accepted task is the one
-   native owner boundary and the runner owns the compiled contract directly.
+   native owner boundary and the runner owns the compiled contract directly;
+   it MUST NOT repeat adaptive preflight, create an inner Darrow goal, or
+   relabel that accepted boundary as `same_thread`.
    An inline contract follows the ownership marker byte-for-byte. For a
    file-backed materialization, the remaining task body is exactly one
    `- objective_file: <helper-returned-absolute-path>` line; the owner reads
    that bounded objective and verifies the complete attached contract. No
    copied contract, digest, workflow proof, or explanatory suffix is added to
-   that one-field boundary.
-   It uses native goal-state control once when that control is exposed inside
-   the runner, but absence of an inner control does not invalidate the accepted
-   boundary or authorize another owner. Host-native delegation beneath it
-   remains visible and is not Darrow-defined planner, executor, verifier, or
-   repair fan-out.
+   that one-field boundary. A trusted launch gate MAY canonicalize an
+   ownership-marked Codex request to that exact one-field body only when it can
+   discover exactly one valid, digest-bound objective beneath the current
+   run's private materialization root; it discards all candidate body text
+   rather than forwarding an ambiguous suffix. Zero, multiple, malformed, or
+   out-of-root candidates remain launch failures.
+   When trusted hooks do not record it, the creator records that accepted
+   native-subagent activation with the host-reported agent id immediately
+   after spawn acceptance and before waiting. The runner may then record review
+   evidence but never activation, objective release, or the terminal report.
+   After collecting the terminal result, the creator performs exact helper
+   cleanup and renders the helper-owned report without repository inspection.
+   Host-native delegation beneath the runner remains visible and is not
+   Darrow-defined planner, executor, verifier, or repair fan-out.
 9. **AGL-L9 — Observable Claude goal runner.** When in-place Claude activation
    cannot apply the selected route, Darrow MAY invoke exactly one foreground
    plugin subagent. Its route-specific definition MUST pin both the selected
@@ -870,10 +930,25 @@ the least launch machinery the host supports.
    accepted Agent call is the terminal
    boundary and counts as one Darrow child. Because the Agent tool exposes no
    child `/goal` API, this boundary MUST be reported as a native Agent contract
-   runner rather than a `/goal` session. After it returns, the parent MUST
+   runner rather than a `/goal` session. Immediately before an accepted
+   foreground Agent starts, the launcher explicitly records a provisional
+   native-subagent activation with agent id `pending`, the exact selected
+   route, and `route_verified: false`; trusted hook enforcement validates that
+   transition before accepting Agent. No other unverified activation shape is
+   valid, and every non-provisional activation requires route verification.
+   This makes the ledger available to the sole owner for selected review
+   without claiming post-run route evidence. No terminal report may be rendered
+   while the id is pending or the route is unverified. A trusted hook validates
+   and reuses the already-valid helper activation rather than recording a
+   duplicate or rejecting the launch.
+   The route gate requires that provisional activation and rejects a
+   staging-released or otherwise unactivated ledger; it cannot reconstruct
+   missing pre-spawn activation evidence after the Agent returns.
+   After the Agent
+   returns, the parent MUST
    use one standalone lifecycle gate to bind the Agent result's host-reported
-   id to the child's transcript-derived model and effort and reconcile that
-   observation with the selected route. An observed route requires an explicit
+   id, replace that provisional id, bind it to the child's transcript-derived
+   model and effort, and reconcile that observation with the selected route. An observed route requires an explicit
    confirmation result; an unavailable observation has none. Missing or
    mismatched transcript evidence records `route_verified=false` and
    `launch_required` instead of successful route application.
@@ -939,6 +1014,12 @@ the least launch machinery the host supports.
     `Applied relayed decision: <exact answer>`. The creator preserves each such
     line in the caller-facing completion. An optional Markdown bullet, inline
     code around the answer, or terminal period is presentation only.
+    An enclosing host API that owns a current-thread goal's continuation MAY
+    perform the one explicitly authorized named answer-acquisition command only
+    after observing the valid pause, record its successful one-line output as
+    the explicit answer, and start the continuation on that same thread and
+    selected route. This is a zero-child host-API relay, not a replacement goal
+    owner; the resumed owner still performs any acknowledgement itself.
 
 ### Safety invariants
 
@@ -955,7 +1036,10 @@ the least launch machinery the host supports.
    no additional or subsequent authority. Merge, release, deployment, and
    unrelated external mutation remain unauthorized unless separately explicit.
 4. **AGL-S4 — Honest blockage.** An unavailable applicable check or launch
-   surface is blocked or `launch_required`, never passed by assertion.
+   surface is blocked or `launch_required`, never passed by assertion. Once
+   route observation is unavailable or rejected, or launch has been recorded
+   unavailable, the canonical terminal report MUST use `launch_required`; it
+   MUST NOT recast that launch-evidence failure as ordinary blocked work.
 5. **AGL-S5 — Review before publication.** When independent review is selected,
    no not-yet-performed commit, push, pull request, or other publication effect
    may occur after blocking findings or an unavailable or inconclusive review,

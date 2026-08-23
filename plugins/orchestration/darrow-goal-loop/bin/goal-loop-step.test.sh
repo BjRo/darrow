@@ -72,6 +72,38 @@ activate_codex_review_ledger() {
     --effective-route "$fixture_route" --route-verified true >/dev/null
 }
 
+signal_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+  --repo "$repo" --host codex)
+signal_ledger=$(record_value "$signal_start" ledger)
+awk 'BEGIN { for (i = 1; i <= 2000; i++) print "padding" i "\tvalue" }' \
+  >>"$signal_ledger/state"
+signal_state_before=$(shasum -a 256 "$signal_ledger/state")
+signal_events_before=$(shasum -a 256 "$signal_ledger/events")
+bash "$goal_loop" step prepare --ledger "$signal_ledger" \
+  >"$tmp_root/signal.out" 2>"$tmp_root/signal.err" &
+signal_pid=$!
+while test ! -f "$signal_ledger/.transition-state" ||
+  test ! -f "$signal_ledger/.transition-events" ||
+  test ! -f "$signal_ledger/.transition-targets"; do
+  kill -0 "$signal_pid" 2>/dev/null || fail 'signal probe exited before snapshotting'
+done
+kill -STOP "$signal_pid"
+kill -TERM "$signal_pid"
+kill -CONT "$signal_pid"
+signal_status=0
+wait "$signal_pid" || signal_status=$?
+test "$signal_status" -eq 143 || fail 'TERM did not terminate the locked step'
+test ! -e "$signal_ledger/.lock" &&
+  test ! -e "$signal_ledger/.transition-state" &&
+  test ! -e "$signal_ledger/.transition-events" &&
+  test ! -e "$signal_ledger/.transition-targets" ||
+  fail 'interrupted ledger left lock or transition state'
+test "$(shasum -a 256 "$signal_ledger/state")" = "$signal_state_before" ||
+  fail 'interrupted ledger did not restore state'
+test "$(shasum -a 256 "$signal_ledger/events")" = "$signal_events_before" ||
+  fail 'interrupted ledger did not restore events'
+bash "$goal_loop" step prepare --ledger "$signal_ledger" >/dev/null
+
 start_out=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
   --repo "$repo" --host claude)
 test "$(record_value "$start_out" format)" = darrow-goal-step-v1 ||
@@ -185,24 +217,30 @@ expect_refusal 'Claude route cannot self-verify at activation' bash "$goal_loop"
   --applied-by native-subagent --boundary native_subagent --agent-id agentone \
   --effective-route "$selected_route" --route-verified true
 activate_out=$(bash "$goal_loop" step activate --ledger "$ledger" \
-  --applied-by native-subagent --boundary native_subagent --agent-id agentone \
+  --applied-by native-subagent --boundary native_subagent --agent-id pending \
   --effective-route "$selected_route" --route-verified false \
   --enforcement helper+claude-hooks)
-test "$(record_value "$activate_out" agent_id)" = agentone ||
-  fail 'activation agent id'
+test "$(record_value "$activate_out" agent_id)" = pending ||
+  fail 'provisional activation agent id'
 expect_refusal 'duplicate activation' bash "$goal_loop" step activate \
   --ledger "$ledger" --applied-by native-subagent \
   --boundary native_subagent --agent-id agenttwo \
   --effective-route "$selected_route" --route-verified true
-bash "$goal_loop" step observe-route --ledger "$ledger" --agent-id agentone \
-  --effective-route "$selected_route" --confirmation confirmed >/dev/null
 
-review_target=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+review_fingerprint='WORKTREE@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+review_hash_output=$(printf '%s' "$review_fingerprint" | shasum -a 256)
+review_target=${review_hash_output%% *}
 review_out=$(bash "$goal_loop" step review --ledger "$ledger" \
-  --mode comprehensive --target-sha256 "$review_target" --outcome blocking \
+  --mode comprehensive --target-fingerprint "$review_fingerprint" --outcome blocking \
   --finding 'Ledger report is missing')
 test "$(record_value "$review_out" outcome)" = blocking ||
   fail 'comprehensive review outcome'
+test "$(record_value "$review_out" target_sha256)" = "$review_target" ||
+  fail 'review fingerprint digest'
+bash "$goal_loop" step observe-route --ledger "$ledger" --agent-id agentone \
+  --effective-route "$selected_route" --confirmation confirmed >/dev/null
+test "$(record_value "$(cat "$ledger/state")" agent_id)" = agentone ||
+  fail 'observed route did not bind the actual agent id'
 expect_refusal 'second comprehensive review' bash "$goal_loop" step review \
   --ledger "$ledger" --mode comprehensive --target-sha256 "$goal_digest" \
   --outcome clear
@@ -314,7 +352,7 @@ bash "$goal_loop" step release-staging --ledger "$unavailable_ledger" \
   --goal-file "$unavailable_goal" --expected-sha256 "$unavailable_digest" >/dev/null
 bash "$goal_loop" step activate --ledger "$unavailable_ledger" \
   --applied-by native-subagent --boundary native_subagent \
-  --agent-id agentunavailable --effective-route "$unavailable_route" \
+  --agent-id pending --effective-route "$unavailable_route" \
   --route-verified false >/dev/null
 bash "$goal_loop" step observe-route --ledger "$unavailable_ledger" \
   --agent-id agentunavailable \
@@ -323,6 +361,9 @@ bash "$goal_loop" step observe-route --ledger "$unavailable_ledger" \
 bash "$goal_loop" step release-objective --ledger "$unavailable_ledger" \
   --attachment-dir "$unavailable_attachment" \
   --expected-sha256 "$unavailable_digest" >/dev/null
+expect_refusal 'unavailable route reported as blocked' bash "$goal_loop" \
+  step report --ledger "$unavailable_ledger" --status blocked \
+  --human-interruptions 0
 unavailable_report=$(bash "$goal_loop" step report --ledger "$unavailable_ledger" \
   --status launch-required --human-interruptions 0)
 grep -F 'route_verified: false' <<EOF >/dev/null || fail 'unavailable route verification'
@@ -371,6 +412,27 @@ cleanup_materialized=$(bash "$goal_loop" step materialize --ledger "$cleanup_led
 cleanup_attachment=$(record_value "$cleanup_materialized" attachment_dir)
 bash "$goal_loop" step release-staging --ledger "$cleanup_ledger" \
   --goal-file "$cleanup_goal" --expected-sha256 "$cleanup_digest" >/dev/null
+expect_refusal 'unverified Claude activation with resolved id' bash "$goal_loop" \
+  step activate --ledger "$cleanup_ledger" --applied-by native-subagent \
+  --boundary native_subagent --agent-id premature \
+  --effective-route 'claude|anthropic|claude-sonnet-5|low' \
+  --route-verified false
+expect_refusal 'unverified Claude activation with mismatched route' bash "$goal_loop" \
+  step activate --ledger "$cleanup_ledger" --applied-by native-subagent \
+  --boundary native_subagent --agent-id pending \
+  --effective-route 'claude|anthropic|claude-opus-5|high' \
+  --route-verified false
+bash "$goal_loop" step activate --ledger "$cleanup_ledger" \
+  --applied-by native-subagent --boundary native_subagent \
+  --agent-id pending --effective-route 'claude|anthropic|claude-sonnet-5|low' \
+  --route-verified false >/dev/null
+expect_refusal 'pending owner objective release' bash "$goal_loop" \
+  step release-objective --ledger "$cleanup_ledger" \
+  --attachment-dir "$cleanup_attachment" --expected-sha256 "$cleanup_digest"
+bash "$goal_loop" step launch-stop --ledger "$cleanup_ledger" \
+  --reason launch-unavailable >/dev/null
+grep -F $'child_invocations\t0' "$cleanup_ledger/state" >/dev/null ||
+  fail 'failed provisional launch retained a child invocation'
 cleanup_release=$(bash "$goal_loop" step release-objective --ledger "$cleanup_ledger" \
   --attachment-dir "$cleanup_attachment" --expected-sha256 "$cleanup_digest")
 grep -F $'status\treleased' <<EOF >/dev/null || fail 'pre-activation objective release'
@@ -379,6 +441,11 @@ EOF
 expect_refusal 'duplicate pre-activation objective release' bash "$goal_loop" \
   step release-objective --ledger "$cleanup_ledger" \
   --attachment-dir "$cleanup_attachment" --expected-sha256 "$cleanup_digest"
+cleanup_report=$(bash "$goal_loop" step report --ledger "$cleanup_ledger" \
+  --status launch-required --human-interruptions 0)
+grep -F 'evaluation_child_invocations: 0' <<EOF >/dev/null || fail 'failed provisional launch report retained a child'
+$cleanup_report
+EOF
 
 decision_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
   --repo "$repo" --host codex)

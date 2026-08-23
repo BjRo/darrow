@@ -1,9 +1,20 @@
 {
   "description": "Optional lifecycle enforcement for active adaptive goals",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/goal-loop-hook\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit|Agent|apply_patch",
+        "matcher": "Bash|Read|Glob|Grep|Write|Edit|Agent|apply_patch",
         "hooks": [
           {
             "type": "command",
@@ -15,7 +26,19 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Write|Edit|Agent",
+        "matcher": "Bash|Write|Edit|Agent|Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/goal-loop-hook\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Agent",
         "hooks": [
           {
             "type": "command",

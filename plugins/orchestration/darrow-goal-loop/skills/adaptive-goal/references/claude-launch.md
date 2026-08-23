@@ -55,6 +55,11 @@ the exact mode-0700 `staging_dir` returned by `step start`. The standalone
 `/usr/bin/printenv TMPDIR` probe may confirm its temporary-root parent but never
 substitutes a broader directory for the returned staging path. Then run:
 
+The native Write contains the contract itself and its first line is `Outcome:`.
+Never write the helper-generated objective wrapper, `Before doing any work`, or
+an `Expected SHA-256:` line into staging. `step materialize` alone creates that
+wrapper after it verifies the staged contract.
+
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step stage --ledger <absolute-ledger> \
   --goal-file <absolute-contract-file>
@@ -209,8 +214,27 @@ workflow, risk gates, feedback protocol, review clause, reporting contract, and
 sole-owner instructions. Do not restate or append them in the Agent task. A
 marker-only task is not an executable goal.
 
+Record a provisional native-subagent activation with agent id `pending`, the
+exact selected route, and `route_verified: false` through one exact standalone
+helper call immediately before Agent:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step activate \
+  --ledger <absolute-ledger> --applied-by native-subagent \
+  --boundary native_subagent --agent-id pending \
+  --effective-route 'claude|anthropic|<model>|<effort>' \
+  --route-verified false
+```
+
+When trusted Claude hooks are active, append exactly
+`--enforcement helper+claude-hooks` to that command. The hooks validate this
+already-recorded transition and refuse an Agent when it is missing; they never
+backfill it after the Agent returns. Never duplicate activation. This provisional record lets the
+foreground owner append selected-review evidence to the ledger; it does not
+prove the effective route and cannot authorize a terminal report.
+
 Wait for that same foreground Agent call to return, then verify what actually
-ran before recording anything. Selecting a namespaced `subagent_type` whose
+ran before recording observed route or terminal evidence. Selecting a namespaced `subagent_type` whose
 frontmatter pins a model is necessary but not sufficient evidence that the
 host applied it: the Agent call can be accepted and run to completion on a
 different model than its own frontmatter names, and a misrouted runner will

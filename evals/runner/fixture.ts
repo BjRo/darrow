@@ -214,6 +214,7 @@ interface PluginMountPaths {
   agents: string;
   bin: string;
   config: string;
+  hooks: string;
 }
 
 async function mountPluginMechanics(
@@ -254,6 +255,8 @@ async function mountSourceClaudePlugin(
     await cp(paths.bin, join(evalPlugin, "bin"), { recursive: true });
   if (existsSync(paths.config))
     await cp(paths.config, join(evalPlugin, "config"), { recursive: true });
+  if (existsSync(paths.hooks))
+    await cp(paths.hooks, join(evalPlugin, "hooks"), { recursive: true });
 }
 
 async function mountSourceCodexPlugin(
@@ -297,6 +300,8 @@ async function mountSourceCodexPlugin(
     await cp(paths.bin, join(plugin, "bin"), { recursive: true });
   if (existsSync(paths.config))
     await cp(paths.config, join(plugin, "config"), { recursive: true });
+  if (existsSync(paths.hooks))
+    await cp(paths.hooks, join(plugin, "hooks"), { recursive: true });
 }
 
 function pluginMountPaths(skillDir: string): PluginMountPaths {
@@ -307,6 +312,7 @@ function pluginMountPaths(skillDir: string): PluginMountPaths {
     agents: join(pluginRoot, "agents"),
     manifest: join(pluginRoot, ".claude-plugin", "plugin.json"),
     codexManifest: join(pluginRoot, ".codex-plugin", "plugin.json"),
+    hooks: join(pluginRoot, "hooks"),
   };
 }
 
@@ -363,8 +369,15 @@ async function mountSkills(
     sourceClaudePlugin,
     sourceCodexPlugin,
   });
-  // Keep mounts invisible to git: they are eval infrastructure, not repo
-  // state (a model told "commit my changes" would otherwise commit them).
+}
+
+async function writeSkillMountExcludes(
+  repoDir: string,
+  skillMounts: string[],
+): Promise<void> {
+  // Setup scripts may snapshot preserved work before the mounts are copied.
+  // Hide their reserved roots first so harness infrastructure never becomes
+  // part of a user-work baseline.
   const excludes = skillMounts.map((m) => `/${m.split("/")[0]}/`).join("\n");
   await writeFile(join(repoDir, ".git", "info", "exclude"), excludes + "\n");
 }
@@ -394,6 +407,7 @@ export async function buildFixture(
   await initFixtureRepo(repoDir, fixture);
   await applyFixtureContent(repoDir, fixture);
   if (fixture.ticket) await provisionFixtureTicket(repoDir, fixture.ticket);
+  if (skillDir) await writeSkillMountExcludes(repoDir, options.skillMounts);
   if (fixture.setup) await runFixtureSetup(repoDir, fixture.setup, caseDir);
 
   // Skill-less cases (experiments) mount nothing.

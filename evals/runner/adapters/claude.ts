@@ -354,6 +354,7 @@ interface StagedGoalObjective {
   toolUseId: string;
   path: string;
   sha256: string;
+  pathBound: boolean;
 }
 
 interface StagingRegistrationCall {
@@ -370,13 +371,14 @@ type ClaudePreflightStage =
   | "route-pending"
   | "runner"
   | "runner-pending"
+  | "decision"
   | "complete"
   | "failed";
 
 type PendingClaudePreflight =
   | { id: string; kind: "start" }
   | { id: string; kind: "prepare" }
-  | { id: string; kind: "route"; profile: string }
+  | { id: string; kind: "route"; profile: string; decisionGated?: true }
   | { id: string; kind: "runner"; model: string; effort: string };
 
 interface SelectedClaudeRoute {
@@ -397,6 +399,7 @@ function retainGoalAgentStarts(
     !state.stagingReleased ||
     state.preflightStage !== "complete" ||
     !state.resolvedGoalRunner ||
+    !state.provisionalActivationRecorded ||
     state.goalAgentStarted
   )
     return;
@@ -775,6 +778,46 @@ function stagingReleaseCall(
   };
 }
 
+function provisionalClaudeActivationCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+  ledger: string | undefined,
+  selected: SelectedClaudeRoute | undefined,
+): { id: string } | undefined {
+  const tool = bashToolCommand(block);
+  if (!tool || !selected) return undefined;
+  const words = literalShellWords(tool.command);
+  if (!words || ![16, 18].includes(words.length)) return undefined;
+  const selectedRoute = `claude|anthropic|${selected.model}|${selected.effort}`;
+  const exactStep = exactGoalLoopStepWords(words, context, ledger, {
+    step: "activate",
+    length: words.length,
+  });
+  const expectedSuffix = [
+    "--applied-by",
+    "native-subagent",
+    "--boundary",
+    "native_subagent",
+    "--agent-id",
+    "pending",
+    "--effective-route",
+    selectedRoute,
+    "--route-verified",
+    "false",
+  ];
+  const suffixMatches = expectedSuffix.every(
+    (word, index) => words[index + 6] === word,
+  );
+  const enforcementSuffix = words.slice(16).join("\0");
+  const enforcementMatches = [
+    "",
+    "--enforcement\0helper+claude-hooks",
+  ].includes(enforcementSuffix);
+  return [exactStep, suffixMatches, enforcementMatches].every(Boolean)
+    ? { id: tool.id }
+    : undefined;
+}
+
 function claudePreflightCall(
   block: unknown,
   context: ClaudeEvidenceContext | undefined,
@@ -799,9 +842,37 @@ function goalLoopPreflightCall(
     return undefined;
   if (validClaudeStartWords(words, context)) return { id, kind: "start" };
   if (validClaudePrepareWords(words, ledger)) return { id, kind: "prepare" };
+  if (validClaudeDecisionRouteWords(words, ledger))
+    return { id, kind: "route", profile: "none", decisionGated: true };
   return validClaudeRouteWords(words, ledger)
     ? { id, kind: "route", profile: words[11]! }
     : undefined;
+}
+
+function validClaudeDecisionRouteWords(
+  words: string[],
+  ledger: string | undefined,
+): boolean {
+  const expected = [
+    "step",
+    "route",
+    "--ledger",
+    ledger,
+    "--workflow",
+    "decision-gated",
+    "--risk",
+    "high",
+    "--profile",
+    "none",
+    "--verification-gate",
+    "not-applicable",
+    "--review",
+    "omitted",
+  ];
+  return (
+    words.length === 16 &&
+    words.slice(2).every((word, index) => word === expected[index])
+  );
 }
 
 function validClaudeStartWords(
@@ -1112,11 +1183,47 @@ function acceptSelectedRoute(
   text: string,
   state: ClaudeEvidenceState,
 ): boolean {
+  if (pending.decisionGated) {
+    const lines = text.trim().split(/\r?\n/);
+    const expected = [
+      "workflow\tdecision-gated",
+      "risk\thigh",
+      "profile\tnone",
+      "verification_gate\tnot-applicable",
+      "review_selection\tomitted",
+      "selected_route\tnone",
+      "route_source\tnone",
+    ];
+    if (!expected.every((line) => lines.includes(line))) return false;
+    state.preflightStage = "decision";
+    return true;
+  }
   const route = selectedRouteResult(text, pending.profile);
   if (!route || !goalRunnerForRoute(route.model, route.effort)) return false;
   state.selectedClaudeRoute = route;
   state.preflightStage = "runner";
   return true;
+}
+
+function retainDecisionGoalReportStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (
+    event.type !== "assistant" ||
+    state.preflightStage !== "decision" ||
+    state.pendingGoalReport ||
+    state.reportRendered
+  )
+    return;
+  for (const block of claudeContent(event)) {
+    if (!isRecord(block)) continue;
+    const report = goalReportCall(block, state.context, state.ledger);
+    if (report?.status !== "launch-required") continue;
+    state.pendingGoalReport = report;
+    state.acceptedPreflightBlocks.add(block);
+    return;
+  }
 }
 
 function acceptResolvedRunner(
@@ -1133,27 +1240,6 @@ function acceptResolvedRunner(
   state.resolvedGoalRunner = runner;
   state.preflightStage = "complete";
   return true;
-}
-
-function pathDirectlyWithinCanonicalRoot(
-  path: string,
-  root: string | undefined,
-): boolean {
-  if (!root || !concreteAbsolutePath(path)) return false;
-  const canonicalRoot = canonicalProspectiveFile(root);
-  const canonicalParent = canonicalProspectiveFile(dirname(path));
-  return !!canonicalRoot && canonicalParent === canonicalRoot;
-}
-
-function canonicalProspectiveFile(path: string): string | undefined {
-  if (!concreteAbsolutePath(path)) return undefined;
-  try {
-    return existsSync(path)
-      ? realpathSync(path)
-      : join(realpathSync(dirname(path)), basename(path));
-  } catch {
-    return undefined;
-  }
 }
 
 function retainTempRootProbeStart(
@@ -1208,7 +1294,7 @@ function acceptPreGoalStagingWrite(
   state: ClaudeEvidenceState,
 ): boolean {
   if (
-    !state.tempRootObserved ||
+    state.preflightStage !== "complete" ||
     state.stagedGoalObjective ||
     block.name !== "Write" ||
     typeof block.id !== "string" ||
@@ -1220,7 +1306,7 @@ function acceptPreGoalStagingWrite(
   if (
     typeof path !== "string" ||
     typeof content !== "string" ||
-    !pathDirectlyWithinCanonicalRoot(path, state.stagingDir)
+    !concreteAbsolutePath(path)
   )
     return false;
   state.stagedGoalObjective = {
@@ -1228,6 +1314,7 @@ function acceptPreGoalStagingWrite(
     toolUseId: block.id,
     path,
     sha256: sha256Text(content),
+    pathBound: dirname(path) === state.stagingDir,
   };
   return true;
 }
@@ -1295,6 +1382,15 @@ function permittedPreGoalBash(
     return registration.id === state.pendingStagingRegistration?.id;
   if (stagingReleaseCall(block, state.context, state.ledger))
     return block === state.stagingReleaseBlock;
+  if (
+    provisionalClaudeActivationCall(
+      block,
+      state.context,
+      state.ledger,
+      state.selectedClaudeRoute,
+    )
+  )
+    return block === state.provisionalActivationBlock;
   const materialization = materializeObjectiveCall(
     block,
     state.context,
@@ -1569,6 +1665,63 @@ function retainStagingReleaseResult(
   }
 }
 
+function retainProvisionalClaudeActivationStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (
+    event.type !== "assistant" ||
+    !state.stagingReleased ||
+    state.provisionalActivationStarted
+  )
+    return;
+  for (const block of claudeContent(event)) {
+    const activation = provisionalClaudeActivationCall(
+      block,
+      state.context,
+      state.ledger,
+      state.selectedClaudeRoute,
+    );
+    if (!activation) continue;
+    state.provisionalActivationStarted = true;
+    state.pendingProvisionalActivation = activation.id;
+    state.provisionalActivationBlock = isRecord(block) ? block : undefined;
+    return;
+  }
+}
+
+function retainProvisionalClaudeActivationResult(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  const pending = state.pendingProvisionalActivation;
+  if (event.type !== "user" || !pending || !state.selectedClaudeRoute) return;
+  for (const block of claudeContent(event)) {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      block.tool_use_id !== pending
+    )
+      continue;
+    state.pendingProvisionalActivation = undefined;
+    const text = toolResultText(block);
+    const route = `claude|anthropic|${state.selectedClaudeRoute.model}|${state.selectedClaudeRoute.effort}`;
+    state.provisionalActivationRecorded =
+      block.is_error !== true &&
+      [
+        "format\tdarrow-goal-step-v1",
+        `ledger\t${state.ledger}`,
+        "step\tactivate",
+        "status\trecorded",
+        "agent_id\tpending",
+        `effective_route\t${route}`,
+        "route_verified\tfalse",
+      ].every((line) => text.includes(line)) &&
+      /(?:^|\n)enforcement\t(?:helper|helper\+claude-hooks)(?:\n|$)/.test(text);
+    return;
+  }
+}
+
 function retainRouteGateStarts(
   event: ClaudeResultEnvelope,
   state: ClaudeEvidenceState,
@@ -1753,10 +1906,17 @@ function knownBashOperation(
     )
   )
     return `inspect-${commandShape}`;
-  if (command.includes("goal-loop")) return "goal-loop-unbound";
+  const unboundGoalLoop = unboundGoalLoopOperation(command);
+  if (unboundGoalLoop) return unboundGoalLoop;
   if (command.includes("claude-agent-route")) return "agent-route-unbound";
   if (command.includes("claude-route-gate")) return "route-gate-unbound";
   return undefined;
+}
+
+function unboundGoalLoopOperation(command: string): string | undefined {
+  if (!command.includes("goal-loop")) return undefined;
+  const step = command.match(/goal-loop[ \t]+step[ \t]+([a-z-]+)/)?.[1];
+  return step ? `goal-loop-unbound-${step}` : "goal-loop-unbound";
 }
 
 function diagnosticShellExecutables(command: string): string[] {
@@ -2372,6 +2532,10 @@ interface ClaudeEvidenceState {
   stagingReleaseBlock?: Record<string, unknown>;
   pendingStagingRelease?: StagingReleaseCall;
   stagingReleased: boolean;
+  provisionalActivationStarted: boolean;
+  pendingProvisionalActivation?: string;
+  provisionalActivationRecorded: boolean;
+  provisionalActivationBlock?: Record<string, unknown>;
   expectedAttachment?: GoalAttachment | null;
   materializedObjective?: MaterializedGoalObjective;
   objectiveReleaseStarted: boolean;
@@ -2404,11 +2568,55 @@ function newClaudeEvidenceState(
     pendingMaterializations: new Map(),
     stagingReleaseStarted: false,
     stagingReleased: false,
+    provisionalActivationStarted: false,
+    provisionalActivationRecorded: false,
     objectiveReleaseStarted: false,
     pendingObjectiveReleases: new Map(),
     objectiveReleased: false,
     reportRendered: false,
   };
+}
+
+function retainTopLevelClaudeStarts(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+  retained: unknown[],
+) {
+  retainClaudePreflightStart(event, state);
+  retainClaudePreflightResult(event, state);
+  retainTempRootProbeStart(event, state);
+  retainTempRootProbeResult(event, state);
+  retainPreGoalStagingWrite(event, state);
+  retainStagingRegistrationStart(event, state);
+  retainStagingRegistrationResult(event, state);
+  retainObjectiveMaterializationStarts(event, state);
+  retained.push(...retainObjectiveMaterializationResults(event, state));
+  retainStagingReleaseStart(event, state);
+  retainStagingReleaseResult(event, state);
+  retainProvisionalClaudeActivationStart(event, state);
+  retainProvisionalClaudeActivationResult(event, state);
+  retainGoalAgentStarts(event, state);
+  retainDecisionGoalReportStart(event, state);
+  retained.push(...retainedPreGoalRepositoryTools(event, state));
+  retainRouteGateStarts(event, state);
+  retained.push(...retainedPostGoalRepositoryTools(event, state));
+}
+
+function retainTopLevelClaudeResults(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+  retained: unknown[],
+) {
+  retained.push(
+    ...retainedGoalAgentCompletions(
+      event,
+      state.pendingGoalAgents,
+      state.completedGoalAgents,
+    ),
+  );
+  retained.push(...retainedRouteGateResults(event, state.pendingRouteGates));
+  retained.push(...retainedObjectiveReleaseResults(event, state));
+  retained.push(...retainedGoalReportResult(event, state));
 }
 
 function retainedNonResultEvent(
@@ -2420,23 +2628,7 @@ function retainedNonResultEvent(
   if (skills.length)
     retained.push({ type: "assistant", message: { content: skills } });
   const topLevel = isTopLevelClaudeEvent(event);
-  if (topLevel) {
-    retainClaudePreflightStart(event, state);
-    retainClaudePreflightResult(event, state);
-    retainTempRootProbeStart(event, state);
-    retainTempRootProbeResult(event, state);
-    retainPreGoalStagingWrite(event, state);
-    retainStagingRegistrationStart(event, state);
-    retainStagingRegistrationResult(event, state);
-    retainObjectiveMaterializationStarts(event, state);
-    retained.push(...retainObjectiveMaterializationResults(event, state));
-    retainStagingReleaseStart(event, state);
-    retainStagingReleaseResult(event, state);
-    retainGoalAgentStarts(event, state);
-    retained.push(...retainedPreGoalRepositoryTools(event, state));
-    retainRouteGateStarts(event, state);
-    retained.push(...retainedPostGoalRepositoryTools(event, state));
-  }
+  if (topLevel) retainTopLevelClaudeStarts(event, state, retained);
   const reviewEvidence = retainedReviewAgentEvidence(
     event,
     state.pendingReviewAgents,
@@ -2444,24 +2636,23 @@ function retainedNonResultEvent(
     state.reviewAgentBatch,
   );
   retained.push(...reviewEvidence.retained);
-  if (topLevel) {
-    retained.push(
-      ...retainedGoalAgentCompletions(
-        event,
-        state.pendingGoalAgents,
-        state.completedGoalAgents,
-      ),
-    );
-    retained.push(...retainedRouteGateResults(event, state.pendingRouteGates));
-    retained.push(...retainedObjectiveReleaseResults(event, state));
-    retained.push(...retainedGoalReportResult(event, state));
-  }
+  if (topLevel) retainTopLevelClaudeResults(event, state, retained);
   state.reviewAgentBatch = reviewEvidence.batch;
   return retained;
 }
 
 function retainedGoalTerminalViolations(state: ClaudeEvidenceState): unknown[] {
   const violations: unknown[] = [];
+  if (
+    state.stagedGoalObjective &&
+    !state.stagedGoalObjective.pathBound &&
+    !state.stagingRegistered
+  )
+    violations.push({
+      type: "darrow.parent_repository_tool_before_goal",
+      tool: "Write",
+      operation: "write",
+    });
   if (
     state.completedGoalAgents.size === 1 &&
     state.expectedAttachment &&
@@ -2488,6 +2679,40 @@ function retainedHarnessFailure(status: {
       ];
 }
 
+function hookDeniedToolUseIds(events: ClaudeResultEnvelope[]): Set<string> {
+  const denied = new Set<string>();
+  for (const event of events) {
+    if (event.type !== "user") continue;
+    for (const block of claudeContent(event)) {
+      if (
+        block.type === "tool_result" &&
+        typeof block.tool_use_id === "string" &&
+        toolResultText(block).includes("darrow goal hook:")
+      )
+        denied.add(block.tool_use_id);
+    }
+  }
+  return denied;
+}
+
+function withoutHookDeniedToolUses(
+  event: ClaudeResultEnvelope,
+  denied: Set<string>,
+): ClaudeResultEnvelope {
+  if (event.type !== "assistant" || !isRecord(event.message)) return event;
+  const content = claudeContent(event);
+  const retained = content.filter(
+    (block) =>
+      !(
+        block.type === "tool_use" &&
+        typeof block.id === "string" &&
+        denied.has(block.id)
+      ),
+  );
+  if (retained.length === content.length) return event;
+  return { ...event, message: { ...event.message, content: retained } };
+}
+
 /** Retain bounded accounting and reduced Skill events, not result text. */
 export function retainedClaudeEvidence(
   stream: string,
@@ -2497,7 +2722,9 @@ export function retainedClaudeEvidence(
   const parsed = claudeStream(stream);
   const retained: unknown[] = [];
   const state = newClaudeEvidenceState(context);
-  for (const event of parsed.events) {
+  const hookDenied = hookDeniedToolUseIds(parsed.events);
+  for (const originalEvent of parsed.events) {
+    const event = withoutHookDeniedToolUses(originalEvent, hookDenied);
     if (event.type === "result") {
       retained.push(retainedResultEnvelope(event));
       continue;
@@ -2533,7 +2760,6 @@ export function claudeArgv(
     "--mcp-config",
     '{"mcpServers":{}}',
     "--no-chrome",
-    "--no-session-persistence",
     "--dangerously-skip-permissions",
   ];
   if (pluginDir) argv.push("--plugin-dir", pluginDir);
@@ -2592,10 +2818,18 @@ function claudeProcessEnvironment(
 ) {
   return {
     ...env,
-    DARROW_CLAUDE_ROUTE_TELEMETRY: "untrusted",
     DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
     PATH: `${claudeSafeInspectionBin(repoDir)}:${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
   };
+}
+
+function configureClaudePluginData(
+  env: Record<string, string>,
+  repoDir: string,
+): void {
+  const pluginData = join(repoDir, ".git", "darrow-eval", "plugin-data");
+  env.CLAUDE_PLUGIN_DATA = pluginData;
+  env.PLUGIN_DATA = pluginData;
 }
 
 function protectedClaudeRuntimePaths(
@@ -2609,6 +2843,7 @@ function protectedClaudeRuntimePaths(
   return [
     pluginDir,
     env.ZDOTDIR,
+    env.CLAUDE_PLUGIN_DATA,
     claudeSafeInspectionBin(repoDir),
     join(repoDir, ".git", "fixture-bin"),
     ...searchPaths,
@@ -2705,11 +2940,12 @@ export const claudeAdapter: HarnessAdapter = {
     );
     env.TMPDIR = stagingRoot;
     const evalPlugin = join(repo, ".git", "eval-plugin");
+    configureClaudePluginData(env, repo);
     const evidenceContext = {
       repoDir: repo,
       pluginDir: evalPlugin,
       stagingRoot,
-      observedRouteTrusted: false,
+      observedRouteTrusted: true,
     };
     try {
       const argv = await sandboxedAgentCommand(

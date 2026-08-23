@@ -56,7 +56,7 @@ output_checks:
   - name: output preserves the continuing verification outcome
     expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Fix verification:[ \\t]*continue\\.[ \\t]*$"
   - name: output identifies the repeated target
-    expect_regex: "oscillat|earlier target|repeated target"
+    expect_regex: "oscillat|earlier (?:target|fingerprint)|repeated (?:target|fingerprint)|repeat(?:ed|ing)? (?:the )?(?:original|prior|earlier) (?:target|fingerprint)"
     flags: i
   - name: output reports the terminal stop
     expect_regex: "no[ _-]?progress|stop|blocked"

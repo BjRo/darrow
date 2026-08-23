@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -29,6 +30,7 @@ const contract = [
 function hookInput(cwd: string, message = contract) {
   return {
     hook_event_name: "PreToolUse",
+    tool_use_id: "owner-tool-use",
     turn_id: "parent-turn",
     cwd,
     tool_name: "Agent",
@@ -43,6 +45,166 @@ function hookInput(cwd: string, message = contract) {
 }
 
 describe("Codex adaptive-goal spawn guard", () => {
+  test("records the accepted owner activation from the PostToolUse agent id", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-codex-guard-"));
+    const objectiveRoot = await mkdtemp(
+      join(tmpdir(), "darrow-codex-objective-"),
+    );
+    try {
+      await writeFile(join(repo, "fixture.txt"), "base\n");
+      await mkdir(join(repo, ".git"));
+      const goalLoopPath = join(repo, "fake-goal-loop");
+      await writeFile(goalLoopPath, "#!/bin/sh\nexit 0\n");
+      const policy = {
+        secret: "secret",
+        baselineSha256: await repositoryFingerprint(repo),
+        fixtureStateSha256: await fixtureStateFingerprint(repo),
+        requestSha256: "4".repeat(64),
+        objectiveRoot,
+        goalLoopPath,
+        statePath: join(repo, ".git", "guard-state"),
+      };
+      expect(await guardCodexSpawn(hookInput(repo), policy)).toBeDefined();
+      const descendant = await guardCodexSpawn(
+        {
+          hook_event_name: "PostToolUse",
+          tool_name: "Agent",
+          tool_use_id: "descendant-tool-use",
+          turn_id: "descendant-turn",
+          cwd: repo,
+          tool_input: hookInput(repo).tool_input,
+          tool_response: { agent_id: "descendant-agent" },
+        },
+        policy,
+      );
+      expect(JSON.stringify(descendant)).toContain(
+        "not bound to the accepted parent turn",
+      );
+      const changedInput = await guardCodexSpawn(
+        {
+          hook_event_name: "PostToolUse",
+          tool_name: "Agent",
+          tool_use_id: "owner-tool-use",
+          turn_id: "parent-turn",
+          cwd: repo,
+          tool_input: { ...hookInput(repo).tool_input, message: "changed" },
+          tool_response: { agent_id: "wrong-agent" },
+        },
+        policy,
+      );
+      expect(JSON.stringify(changedInput)).toContain(
+        "input does not match the accepted spawn",
+      );
+      const recorded = await guardCodexSpawn(
+        {
+          hook_event_name: "PostToolUse",
+          tool_name: "Agent",
+          tool_use_id: "owner-tool-use",
+          turn_id: "parent-turn",
+          cwd: repo,
+          tool_input: hookInput(repo).tool_input,
+          tool_response: { agent_id: "goal-agent-1" },
+        },
+        policy,
+      );
+      expect(recorded).toMatchObject({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+        },
+      });
+      expect(JSON.stringify(recorded)).toContain(
+        "recorded native-subagent activation",
+      );
+      const duplicate = await guardCodexSpawn(
+        {
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          turn_id: "parent-turn",
+          cwd: repo,
+          tool_input: {
+            command:
+              `/bin/bash ${goalLoopPath} step activate ` +
+              "--ledger /tmp/darrow-goal-run.fixture " +
+              "--applied-by native-subagent --boundary native_subagent " +
+              "--agent-id goal-agent-1 " +
+              "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
+              "--route-verified true",
+          },
+        },
+        policy,
+      );
+      expect(JSON.stringify(duplicate)).toContain(
+        "activation was already recorded by the trusted hook",
+      );
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(objectiveRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("canonicalizes an ownership-marked request to the sole materialized objective", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-codex-guard-"));
+    const objectiveRoot = await mkdtemp(
+      join(tmpdir(), "darrow-codex-objective-"),
+    );
+    try {
+      await writeFile(join(repo, "fixture.txt"), "base\n");
+      await mkdir(join(repo, ".git"));
+      const attachmentDir = join(objectiveRoot, "darrow-goal-contract.bound");
+      await mkdir(attachmentDir);
+      const contractPath = join(attachmentDir, "goal-contract.md");
+      const objectivePath = join(attachmentDir, "goal-objective.txt");
+      const digest = createHash("sha256").update(contract).digest("hex");
+      await writeFile(contractPath, contract);
+      await writeFile(
+        objectivePath,
+        [
+          "Before doing any work, read the complete goal contract at:",
+          contractPath,
+          `Expected SHA-256: ${digest}`,
+          "Verify the file digest before following the contract.",
+          "If the file is missing, unreadable, or does not match, stop and report the evidence gap.",
+          "This accepted ownership-marked task already makes you the sole goal owner; execute the contract directly even when no inner goal-control tool exists.",
+          "Follow that complete contract through terminal completion.",
+          "",
+        ].join("\n"),
+      );
+      const guarded = await guardCodexSpawn(
+        hookInput(
+          repo,
+          "improvised owner prose that must not reach the runner",
+        ),
+        {
+          secret: "secret",
+          baselineSha256: await repositoryFingerprint(repo),
+          fixtureStateSha256: await fixtureStateFingerprint(repo),
+          requestSha256: "4".repeat(64),
+          objectiveRoot,
+          goalLoopPath: "/plugin/bin/goal-loop",
+          statePath: join(repo, ".git", "guard-state"),
+        },
+      );
+      const message = (
+        guarded?.hookSpecificOutput as {
+          updatedInput?: { message?: string };
+        }
+      )?.updatedInput?.message;
+      expect(message?.split("\n").slice(0, 2)).toEqual([
+        "- phase: adaptive-goal-runner",
+        `- objective_file: ${objectivePath}`,
+      ]);
+      expect(message).not.toContain("improvised owner prose");
+      expect(verifiedCodexSpawnAttestation(message!, "secret")).toMatchObject({
+        objectiveMode: "file-backed",
+        attachmentDir,
+        contractSha256: digest,
+      });
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(objectiveRoot, { recursive: true, force: true });
+    }
+  });
+
   test("attests the route, objective, and unchanged owner boundary", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-codex-guard-"));
     try {
@@ -119,6 +281,48 @@ describe("Codex adaptive-goal spawn guard", () => {
           policy,
         ),
       ).toBeUndefined();
+      const lifecycleShell = (command: string) => ({
+        ...parentShell,
+        tool_input: { command },
+      });
+      expect(
+        await guardCodexSpawn(
+          lifecycleShell(
+            "/bin/bash /plugin/bin/goal-loop step activate " +
+              "--ledger /tmp/darrow-goal-run.fixture " +
+              "--applied-by native-subagent --boundary native_subagent " +
+              "--agent-id goal-agent-1 " +
+              "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
+              "--route-verified true",
+          ),
+          policy,
+        ),
+      ).toBeUndefined();
+      expect(
+        await guardCodexSpawn(
+          lifecycleShell(
+            "/bin/bash /plugin/bin/goal-loop step report " +
+              "--ledger /tmp/darrow-goal-run.fixture --status complete " +
+              "--human-interruptions 0",
+          ),
+          policy,
+        ),
+      ).toBeUndefined();
+      expect(
+        JSON.stringify(
+          await guardCodexSpawn(
+            lifecycleShell(
+              "/bin/bash /plugin/bin/goal-loop step activate " +
+                "--ledger /tmp/darrow-goal-run.fixture " +
+                "--applied-by native-subagent --boundary native_subagent " +
+                "--agent-id goal-agent-1 " +
+                "--effective-route 'codex|openai|gpt-5.6-sol|high' " +
+                "--route-verified true",
+            ),
+            policy,
+          ),
+        ),
+      ).toContain("forbidden after goal owner activation");
       expect(
         JSON.stringify(
           await guardCodexSpawn(
@@ -225,6 +429,22 @@ describe("Codex adaptive-goal spawn guard", () => {
       );
       expect(JSON.stringify(markerOnly)).toContain(
         "invalid fields: contract_labels",
+      );
+
+      const internalRecord = await guardCodexSpawn(
+        hookInput(repo, `${contract}\nformat\tdarrow-goal-step-v1`),
+        {
+          secret: "secret",
+          baselineSha256: current,
+          fixtureStateSha256: fixtureState,
+          requestSha256: "4".repeat(64),
+          objectiveRoot,
+          goalLoopPath: "/plugin/bin/goal-loop",
+          statePath: join(repo, ".git", "guard-state"),
+        },
+      );
+      expect(JSON.stringify(internalRecord)).toContain(
+        "invalid fields: internal_goal_record",
       );
 
       const missingEffort = hookInput(repo);

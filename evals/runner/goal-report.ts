@@ -19,7 +19,7 @@ export type GoalReport = Record<(typeof GOAL_REPORT_KEYS)[number], string>;
 
 const GOAL_REPORT_FORMAT = "darrow-native-goal-report-v1";
 const INTERNAL_GOAL_FORMAT =
-  /format\tdarrow-native-goal-(?:preflight-v(?:2|4)|route-application-v1)/;
+  /format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|route-gate|verify-route))-[^\s]+/;
 const GOAL_REPORT_VALUES: Record<keyof GoalReport, RegExp> = {
   format: /^darrow-native-goal-report-v1$/,
   workflow:
@@ -113,8 +113,15 @@ function decisionReportIsConsistent(report: GoalReport): boolean {
 function routeReportIsConsistent(report: GoalReport): boolean {
   if (report.launch_boundary === "launch_required")
     return report.route_verified === "false";
-  if (report.route_verified !== "true") return true;
-  return report.harness !== "none" && report.route_applied_by !== "none";
+  if (report.route_verified !== "true" || report.harness === "none")
+    return false;
+  const appliedByBoundary: Record<string, string> = {
+    same_thread: "current-thread",
+    host_api: "host-api",
+    native_subagent: "native-subagent",
+    nested_session: "nested-session",
+  };
+  return appliedByBoundary[report.launch_boundary] === report.route_applied_by;
 }
 
 /** Detect an internal Darrow launch record regardless of Markdown prefixes. */

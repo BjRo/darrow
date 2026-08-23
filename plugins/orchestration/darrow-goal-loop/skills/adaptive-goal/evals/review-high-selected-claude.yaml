@@ -87,7 +87,7 @@ output_checks:
   - name: completion preserves the selected workflow dimensions
     expect_regex: "^workflow: change-feature$[\\s\\S]*^risk: high$[\\s\\S]*^profile: routine$"
   - name: completion reports the clear independent-review outcome
-    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Initial independent review:[ \\t]*clear\\.[ \\t]*$"
+    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?(?:(?:Independent review:|\\*\\*Independent review:\\*\\*)[ \\t]*clear\\.|\\*\\*Independent review:[ \\t]*clear\\.\\*\\*)[ \\t]*$"
 transcript_checks:
   - name: one marked selected foreground runner is id-bound to route observation
     expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"\}[\s\S]*"type":"darrow.goal_agent_completion","tool_use_id":"\1","subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","status":"completed","agent_id":"([A-Za-z0-9]+)"[\s\S]*"type":"darrow.claude_route_observation"[^\r\n]*"goal_tool_use_id":"\1","agent_id":"\2"'

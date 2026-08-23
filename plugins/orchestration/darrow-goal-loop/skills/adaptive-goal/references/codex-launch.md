@@ -125,6 +125,20 @@ application boundary. Confirm that exact route with `--applied-by host-api`,
 record `host_api`, and count zero children. Do not try to discover or connect to
 an enclosing app-server socket from a repository shell.
 
+Before setting the goal, if independent review is selected, the enclosing
+client confirms that its installed capability catalog already exposes a
+matching independent code-change review capability. If not, it records
+`goal-loop step launch-stop --reason review-unavailable`, renders the
+`launch-required` report, and performs no product mutation.
+
+When this current-thread owner returns a valid human-feedback pause and the
+originating request explicitly authorized one named answer-acquisition command,
+the enclosing client may run that exact command outside the owner, treat its
+successful one-line output as the explicit answer, and start a continuation on
+the same thread with `- phase: human-feedback-response` and that answer. Keep
+the selected model and effort, count one interruption and zero children, and
+leave any repository-mandated acknowledgement to the resumed owner.
+
 **Complete when:** the existing thread owns the persisted goal and the work turn
 reports the selected model and effort.
 
@@ -149,20 +163,26 @@ Materialize the objective before spawning, then spawn exactly one agent with:
   copied contract, digest, workflow proof, explanation, or other task text;
   those complete requirements are already behind the authenticated objective.
 
-Tell the runner that the accepted ownership-marked task already makes it the
-sole goal owner and it must execute the supplied contract directly without
-repeating adaptive-goal preflight or seeking another owner. When `create_goal`
-is exposed inside the runner, call it exactly once with the materialized
-objective; when it is absent, continue because the accepted runner task is the
-ownership boundary. Read and verify a file-backed complete contract before
-work, own that goal through completion or a material-feedback pause, run the
-workflow and risk gates, and return the contract's human-readable final report
-without reproducing its internal tab-separated record. In that report,
-`harness` is the effective route harness `codex`, not `native-subagent` or
-another launch-boundary label. For every terminal result, begin the response
-with the complete canonical report and helper-owned terminal sentence before changed-file, verification, review,
-risk, or blockage prose. A blocked result never omits or postpones this leading
-block. If a material decision
+For a file-backed materialization, the spawn tool's `message` value is exactly
+these two lines, with the helper-returned path substituted literally and no
+leading or trailing prose:
+
+```text
+- phase: adaptive-goal-runner
+- objective_file: <helper-returned-absolute-objective_file>
+```
+
+Do not use the message to tell the runner anything else. Before materializing,
+compile every runner requirement below into the complete contract. The
+accepted task already makes the runner the sole goal owner: it executes the
+contract directly without repeating adaptive-goal preflight, seeking another
+Darrow owner, or calling `create_goal`. It MUST NOT call `goal-loop step
+activate`, release the objective, or render the terminal ledger report; those
+are creator-owned lifecycle operations. It may record its own selected-review
+outcomes through `goal-loop step review`. It reads and verifies a file-backed
+contract before work, owns it through completion or a material-feedback pause,
+runs the workflow and risk gates, and returns terminal status plus changed-file,
+verification, review, risk, and publication facts to its creator. If a material decision
 first emerges after activation, tell it to pause mutation and return the
 smallest concrete question to its creator without completing or blocking the
 goal. Its actual feedback request begins with the exact marker
@@ -182,13 +202,9 @@ preserve each line in the caller-facing completion. The creator never performs
 the runner's acknowledgement. An optional Markdown bullet, inline code around
 the answer, or terminal period is presentation only. If the host cannot relay an answer,
 preserve the runner and objective as resumable state and return the pending
-question honestly. A terminal independent-review stop reports `blocked` before
-the runner returns and, when native goal-state control is exposed inside that
-runner, settles the created goal to that status. If the native goal surface
-requires a repeated-blocker audit, automatic continuations are status-settlement
-only: they preserve the same blocker and use only the goal status surface until
-`blocked` is accepted, without resuming repository work, checks, review, or
-publication. The runner may use native Codex subagents for
+question honestly. A terminal independent-review stop returns `blocked` to the
+creator without starting another goal or resuming repository work, checks,
+review, or publication. The runner may use native Codex subagents for
 bounded work when useful, but remains the sole goal owner. Tell it to collect
 each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe
@@ -231,17 +247,21 @@ The guard-attested accepted spawn request with explicit route values is the
 Codex native-runner route-application evidence. Do not run `confirm-route` or
 another shell confirmation before or after that spawn; it adds no independent
 host evidence. Trusted Codex hooks record the accepted Agent id, model, and
-effort automatically. Otherwise record the accepted host-reported id
-immediately:
+effort automatically. When the `step start` record reported `enforcement` as
+`helper`, recording the accepted host-reported id is mandatory immediately
+after spawn acceptance and before the first wait:
 
 ```sh
-bash "$goal_loop" step activate --ledger <absolute-ledger> \
+/bin/bash <absolute-plugin-bin>/goal-loop step activate --ledger <absolute-ledger> \
   --applied-by native-subagent --boundary native_subagent \
   --agent-id <host-reported-agent-id> \
   --effective-route '<selected-route>' --route-verified true
 ```
 
-Wait for that same agent to finish and collect its result. A feedback request
+Do not ask the runner to make this call and do not substitute `same_thread`.
+When trusted hook enforcement was reported, require its accepted activation
+record instead of duplicating it. Then wait for that same agent to finish and
+collect its result. A feedback request
 is a pause: relay the answer to that same agent and wait again rather than
 closing or replacing it.
 Once that spawn is accepted, `spawn_agent` is forbidden for the rest of the
@@ -261,6 +281,22 @@ exposes the runner and any native descendants for inspection while they are
 needed. Descendants are native goal delegation, not additional Darrow child
 invocations. Do not run a shell process around the agent or substitute its
 prompt self-report for accepted spawn evidence.
+
+After collecting a terminal result, release any file-backed objective through
+the exact helper call above. Interpret only the runner's terminal semantic
+status and review facts; do not inspect the repository. Then call the helper
+exactly once:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step report \
+  --ledger <absolute-ledger> --status <complete|blocked> \
+  --human-interruptions <nonnegative-integer>
+```
+
+Return that exact helper output first, followed by the runner's collected
+changed-file, verification, review, risk, feedback, and publication facts.
+Ignore any child-authored report block; only the creator's helper call is the
+terminal report authority.
 
 **Complete when:** the accepted spawn matches the selected route, the visible
 runner owns the one persisted goal, and its terminal result proves the contract

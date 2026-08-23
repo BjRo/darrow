@@ -669,12 +669,14 @@ describe("Codex skill activation observation", () => {
       const prompt = (
         guarded?.hookSpecificOutput as { updatedInput: { message: string } }
       ).updatedInput.message;
-      expect(verifiedCodexSpawnAttestation(prompt, "secret")).toMatchObject({
+      const attestation = verifiedCodexSpawnAttestation(prompt, "secret");
+      expect(attestation).toMatchObject({
         objectiveMode: "file-backed",
         attachmentDir,
         contractSha256: digest,
         forkTurns: "none",
       });
+      if (!attestation) throw new Error("expected verified spawn attestation");
       const spawn = (type: "item.started" | "item.completed") =>
         JSON.stringify({
           type,
@@ -689,6 +691,29 @@ describe("Codex skill activation observation", () => {
           },
         });
       const goalLoopPath = "/plugin/bin/goal-loop";
+      const activation = JSON.stringify({
+        type: "item.completed",
+        item: {
+          id: "activate-1",
+          type: "command_execution",
+          command:
+            `/bin/bash ${goalLoopPath} step activate --ledger ${attestation.ledger} ` +
+            "--applied-by native-subagent --boundary native_subagent " +
+            "--agent-id goal-thread " +
+            "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
+            "--route-verified true",
+          exit_code: 0,
+          status: "completed",
+          aggregated_output: [
+            "format\tdarrow-goal-step-v1",
+            "step\tactivate",
+            "status\trecorded",
+            "agent_id\tgoal-thread",
+            "effective_route\tcodex|openai|gpt-5.6-luna|low",
+            "route_verified\ttrue",
+          ].join("\n"),
+        },
+      });
       const release = JSON.stringify({
         type: "item.completed",
         item: {
@@ -707,8 +732,31 @@ describe("Codex skill activation observation", () => {
           ].join("\n"),
         },
       });
+      const report = JSON.stringify({
+        type: "item.completed",
+        item: {
+          id: "report-1",
+          type: "command_execution",
+          command:
+            `/bin/bash ${goalLoopPath} step report --ledger ${attestation.ledger} ` +
+            "--status complete --human-interruptions 0",
+          exit_code: 0,
+          status: "completed",
+          aggregated_output: [
+            "format: darrow-native-goal-report-v1",
+            "launch_boundary: native_subagent",
+            "Native goal completed.",
+          ].join("\n"),
+        },
+      });
       const retained = retainedCodexEvidence(
-        [spawn("item.started"), spawn("item.completed"), release].join("\n"),
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          activation,
+          release,
+          report,
+        ].join("\n"),
         repo,
         {
           exitCode: 0,
@@ -717,7 +765,9 @@ describe("Codex skill activation observation", () => {
           goalLoopPath,
         },
       );
+      expect(retained).toContain('"type":"darrow.goal_activation"');
       expect(retained).toContain('"type":"darrow.objective_release"');
+      expect(retained).toContain('"type":"darrow.goal_report"');
       expect(retained).not.toContain("darrow.parent_tool_after_goal");
       const wrong = retainedCodexEvidence(
         [
@@ -737,6 +787,24 @@ describe("Codex skill activation observation", () => {
         },
       );
       expect(wrong).toContain("darrow.parent_tool_after_goal");
+      const forgedRoute = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          activation.replace(
+            /codex\|openai\|gpt-5\.6-luna\|low/g,
+            "codex|openai|gpt-5.6-sol|high",
+          ),
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(forgedRoute).toContain("darrow.parent_tool_after_goal");
     } finally {
       await rm(repo, { recursive: true, force: true });
       await rm(objectiveRoot, { recursive: true, force: true });
