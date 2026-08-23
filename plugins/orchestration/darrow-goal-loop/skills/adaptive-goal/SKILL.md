@@ -332,9 +332,9 @@ SHA-256. The helper permits one comprehensive review and rejects out-of-order or
 repeated-target evidence without choosing findings or repairs.
 
 Use standalone, unquoted canonical outcomes. A clear initial result is
-`Independent review: clear.` An unrepaired initial blocker is `Independent
-review: blocking — <finding>`. After repair, preserve `Initial independent
-review: blocking — <finding>` and report the exact-target result as
+`Independent review: clear.` An unrepaired initial blocker is
+`Independent review: blocking — <finding>`. After repair, preserve
+`Initial independent review: blocking — <finding>` and report the exact-target result as
 `Fix verification: <clear|continue|no_progress|blocked|unavailable|inconclusive>.`
 Preserve the returned outcome verbatim; a separate gate sentence reports any
 overall stop. The lifecycle reference owns rework, fix-verify, target history,
@@ -427,6 +427,7 @@ For an interactive invocation, read exactly one host launch guide completely:
 - Codex: [`references/codex-launch.md`](references/codex-launch.md)
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
 
+The helper protocol is mandatory on Claude; never implement directly in the classifier turn.
 Activate exactly one goal owner. Darrow adds no planner, verifier, repair agent,
 retry loop, or cross-vendor route. The native goal or allowed Claude Agent
 runner owns implementation, verification, recovery, and completion.
