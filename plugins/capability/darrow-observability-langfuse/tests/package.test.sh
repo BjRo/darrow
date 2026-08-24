@@ -47,8 +47,8 @@ const command = stop?.[0]?.hooks?.[0]?.command;
 if (stop?.[0]?.hooks?.[0]?.type !== "command" || typeof command !== "string") {
   throw new Error("Stop command hook is not registered");
 }
-if (!command.includes("${CODEX_PLUGIN_ROOT}") || !command.includes("hooks/stop.sh")) {
-  throw new Error("Stop hook does not resolve its packaged launcher through CODEX_PLUGIN_ROOT");
+if (!command.includes("${PLUGIN_ROOT}") || !command.includes("hooks/stop.sh")) {
+  throw new Error("Stop hook does not resolve its packaged launcher through PLUGIN_ROOT");
 }
 
 const entry = marketplace.plugins.find((plugin) => plugin.name === expectedName);
@@ -57,5 +57,17 @@ if (entry.source !== "./plugins/capability/darrow-observability-langfuse") {
   throw new Error("marketplace entry has the wrong source");
 }
 NODE
+
+hook_command=$(node --input-type=module - "$hook_manifest" <<'NODE'
+import fs from "node:fs";
+
+const hooks = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+process.stdout.write(hooks.hooks.Stop[0].hooks[0].command);
+NODE
+)
+
+PLUGIN_ROOT="$plugin_dir" \
+  DARROW_LANGFUSE_ENABLED=false \
+  /bin/sh -c "$hook_command" <<< '{}'
 
 printf 'observability plugin package tests passed\n'

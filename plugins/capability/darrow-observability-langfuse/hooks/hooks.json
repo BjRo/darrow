@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CODEX_PLUGIN_ROOT}/hooks/stop.sh\"",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
             "timeout": 45,
             "statusMessage": "Exporting Codex trace to Langfuse"
           }

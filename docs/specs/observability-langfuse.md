@@ -88,8 +88,10 @@ plugin.
 Installation documentation names the required Codex plugin-hook feature, UV,
 supported Python version, Langfuse server/SDK compatibility, configuration
 files and variables, first-run dependency behavior, and verification command.
-The launcher resolves its own plugin root and uses the committed UV lock. It
-must not assume the source checkout location or another plugin installation.
+The hook registration resolves the packaged launcher through Codex's
+`PLUGIN_ROOT` environment variable. The launcher then resolves its own plugin
+root and uses the committed UV lock. It must not assume the source checkout
+location or another plugin installation.
 
 The hook exits successfully without export when tracing is disabled. Missing
 UV, missing credentials, malformed hook input, unreadable transcript, invalid
