@@ -1,0 +1,17 @@
+id: ticket-to-pr-ready-delegation
+invariant: TPR-C2,TPR-C4,TPR-C5,TPR-C9,TPR-C10,TPR-E1,TPR-E2,TPR-E3,TPR-E4,TPR-E5,TPR-E6,TPR-E7,TPR-E8,TPR-P1,TPR-P2,TPR-P3,TPR-P4,TPR-P5
+prompt: >-
+  Use $ticket-to-pr to deliver ticket #42. The authoritative request says to
+  change greeting.txt to hello and requires `grep -x hello greeting.txt`.
+  Readiness is available and returns ready. Delegate the bounded delivery once.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        greeting.txt: "old\n"
+checks:
+  - name: intended behavior is delivered
+    run: grep -x hello greeting.txt
+output_checks:
+  - name: completion identifies one pull request
+    expect_regex: "pull request|PR"

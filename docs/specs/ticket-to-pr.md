@@ -64,16 +64,15 @@ Useful input consists of a stable identifier when one exists, the desired
 outcome, description, observable acceptance criteria, and canonical link when
 available. Tracker-management metadata is not required.
 
-Before delivery mutation, the recipe:
+Before adaptive delegation, the recipe:
 
 1. resolves exactly one non-contradictory authoritative request;
-2. confirms the current repository and identifies pre-existing work;
-3. discovers required capability availability and applicable repository
-   constraints;
-4. confirms the invocation's exact authority; and
-5. invokes an available implementation-readiness capability.
+2. confirms the invocation's exact authority; and
+3. invokes an available implementation-readiness capability through a composed,
+   human-readable contract.
 
-Only `ready` permits product, repository, or publication mutation. A
+Only `ready` permits delegation that can cause product, repository, or
+publication mutation. A
 `needs-decision` result causes the parent conversation to ask the smallest
 concrete question and rerun readiness after the user's answer. This is a pause,
 not a terminal recipe outcome. A `needs-discovery` result may offer a separate
@@ -88,10 +87,10 @@ host-native goal through a compatible environment capability. Delegation is a
 continuation of the explicitly invoked recipe and does not require a second
 user invocation or grant additional authority.
 
-The goal contract carries:
+The delegated request carries:
 
 - the authoritative ticket and readiness quality bar;
-- the current repository and identified pre-existing work;
+- the requirement that adaptive-goal inspect and preserve pre-existing work;
 - acceptance criteria, scope, and explicit non-goals;
 - the authorized branch, commit, push, and one-pull-request effects; and
 - the requirement to return one verified pull request.
@@ -109,10 +108,11 @@ private retry loop, durable phase state, or background supervisor.
 ## Local work and Git safety
 
 Pre-existing work belongs to the user and is never discarded, reset, stashed,
-or absorbed merely to make delivery proceed. A dirty checkout may be used only
-when its changes are unambiguously part of the same ticket. Unrelated or
-ambiguous work stops mutation. An explicitly requested worktree leaves the
-original checkout untouched.
+or absorbed merely to make delivery proceed. Adaptive-goal observes the actual
+checkout and judges whether overlap is ticket-owned, unrelated, or ambiguous;
+the recipe does not duplicate repository preflight. Ticket-owned overlap may
+proceed as preserved work, while unrelated or ambiguous work stops mutation.
+An explicitly requested worktree leaves the original checkout untouched.
 
 Branch, commit, push, and pull-request mechanics follow the available canonical
 Git capabilities. At the recipe boundary:
@@ -205,6 +205,9 @@ the ticket is fulfilled.
    or recovery record.
 9. **TPR-C9 — Cross-host semantics.** Claude Code and Codex expose the same
    inputs, effects, human gates, publication guarantees, and completion meaning.
+10. **TPR-C10 — Thin delegation.** The recipe owns no workflow/risk/route
+    selection, native-goal contract, protocol ledger, runner, Git/forge
+    implementation, or post-goal inspection.
 
 ## Packaging and portability
 

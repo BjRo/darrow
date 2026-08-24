@@ -1,0 +1,16 @@
+id: ticket-to-pr-ambiguous-publication
+invariant: TPR-C6,TPR-C8
+goal_report: forbidden
+prompt: >-
+  Use $ticket-to-pr to deliver ticket #42. Pull-request creation returned an
+  ambiguous result and correlation cannot be established. Observe state and
+  stop without retrying or creating a duplicate.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: reports ambiguity and avoids retry
+    expect_regex: "ambiguous|cannot.*correlat|stop"
