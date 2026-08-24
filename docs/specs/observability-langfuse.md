@@ -33,6 +33,8 @@ Codex rollout JSONL file. It reads that file without modifying it and
 reconstructs:
 
 - one trace for each observed turn;
+- one native Langfuse session for the Codex conversation, grouping all of its
+  turn traces by the Codex session/thread identifier;
 - model generations and their model name, reasoning summary, output, and valid
   token counts;
 - tool observations with inputs, outputs, timing, and error state; and
@@ -68,8 +70,9 @@ redaction.
 
 ## Work-item attribution
 
-Each exported root trace may carry one `darrow.work_item_id` metadata value.
-Resolution is deterministic:
+Each exported trace may carry one `darrow.work_item_id` trace-metadata value,
+propagated to every observation so all traces in the native Langfuse session
+remain associated with the work item. Resolution is deterministic:
 
 1. a non-empty identifier supplied explicitly by environment or configuration;
 2. an identifier inferred from the current Git branch; or
@@ -102,11 +105,11 @@ nonzero exit for deterministic testing.
 ## Verification
 
 Deterministic tests cover installation paths, configuration precedence,
-work-item precedence and branch-only inference, detached and non-ticket Git
-state, rollout reconstruction, deduplication, content privacy, malformed input,
-missing runtime or configuration, and exporter failure. Backend checks run
-through UV. Portable hook-launcher tests run with both supported Bash
-executables.
+work-item precedence and branch-only inference, native session grouping and
+session work-item association, detached and non-ticket Git state, rollout
+reconstruction, deduplication, content privacy, malformed input, missing
+runtime or configuration, and exporter failure. Backend checks run through UV.
+Portable hook-launcher tests run with both supported Bash executables.
 
 Participant-visible colocated evals cover configuration/help intent, refusal to
 claim tracing without prerequisites, privacy disclosure, work-item precedence,
@@ -120,10 +123,12 @@ exports a fixture turn, and retrieves the ingested trace and work-item metadata.
    no reference to, another Darrow plugin or skill.
 2. **OLF-P2 — Host lifecycle seam.** A Codex Stop payload naming a rollout is
    sufficient to invoke reconstruction and export.
-3. **OLF-P3 — Coherent trace.** Turn, generation, tool, token, and subagent
-   evidence is represented in one correctly nested trace tree.
+3. **OLF-P3 — Coherent session and trace.** Each Codex conversation is one
+   native Langfuse session whose turn, generation, tool, token, and subagent
+   evidence is represented as correctly nested per-turn trace trees.
 4. **OLF-P4 — Deterministic attribution.** Explicit work-item configuration
-   wins over branch inference; absent or malformed evidence produces no ID.
+   wins over branch inference; the resolved value propagates across the
+   session's observations, while absent or malformed evidence produces no ID.
 5. **OLF-P5 — Privacy by opt-in.** Export and raw-content capture are separate
    explicit choices, and credential values never become trace metadata.
 6. **OLF-P6 — Safe failure.** Runtime and exporter failures fail open by

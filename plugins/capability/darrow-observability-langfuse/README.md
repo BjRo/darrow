@@ -5,7 +5,8 @@ rollout transcript supplied to Codex's `Stop` hook and exports them as Langfuse
 traces. Its trace model is explicitly oriented on
 [`langfuse/codex-observability-plugin`](https://github.com/langfuse/codex-observability-plugin):
 one trace per turn, nested model generations and tool calls, token usage, and
-spawned subagent turns.
+spawned subagent turns. All turn traces from one Codex conversation are grouped
+under a native Langfuse session keyed by the Codex session/thread identifier.
 
 It adds Darrow-specific work-item attribution without depending on another
 plugin. The hook never contacts or mutates a tracker.
@@ -82,7 +83,10 @@ commit API keys to the repository file.
 
 ## Work-item attribution
 
-Root traces carry `darrow.work_item_id` when an identifier is available:
+Every trace in the native Langfuse session carries `darrow.work_item_id` as
+trace metadata when an identifier is available. Langfuse propagates it to the
+trace's observations so the complete session remains associated with the work
+item:
 
 1. explicit environment or configuration-file value;
 2. a bounded token inferred from the current Git branch; or

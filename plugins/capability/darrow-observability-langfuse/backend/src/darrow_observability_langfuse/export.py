@@ -87,6 +87,8 @@ def export_document(
     *,
     client: Any | None = None,
 ) -> int:
+    from langfuse import propagate_attributes
+
     recording_exporter = None
     if client is None:
         client, recording_exporter = _new_recording_client(config)
@@ -106,9 +108,20 @@ def export_document(
                 "codex.session_id": trace.get("session_id"),
             },
         }
-        root = client.start_observation(**_observation_attributes(root_value))
-        _export_children(root, trace.get("observations") or [])
-        root.end()
+        with client.start_as_current_observation(
+            **_observation_attributes(root_value)
+        ) as root:
+            work_item_id = (trace.get("metadata") or {}).get(
+                "darrow.work_item_id"
+            )
+            trace_metadata = (
+                {"darrow.work_item_id": work_item_id} if work_item_id else None
+            )
+            with propagate_attributes(
+                session_id=trace.get("session_id"),
+                metadata=trace_metadata,
+            ):
+                _export_children(root, trace.get("observations") or [])
 
     client.flush()
     if recording_exporter is not None and recording_exporter.failed():

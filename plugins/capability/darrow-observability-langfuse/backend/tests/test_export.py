@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
+
+from langfuse import Langfuse
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
 from darrow_observability_langfuse.config import Config
 from darrow_observability_langfuse.export import export_document
@@ -10,6 +14,18 @@ from darrow_observability_langfuse.rollout import trace_document
 
 PLUGIN_DIR = Path(__file__).resolve().parents[2]
 ROLLOUT = PLUGIN_DIR / "tests" / "fixtures" / "main-rollout.jsonl"
+
+
+class CollectingSpanExporter(SpanExporter):
+    def __init__(self):
+        self.spans = []
+
+    def export(self, spans):
+        self.spans.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self):
+        pass
 
 
 class FakeObservation:
@@ -37,11 +53,67 @@ class FakeClient:
         self.roots.append(root)
         return root
 
+    @contextmanager
+    def start_as_current_observation(self, **attributes):
+        root = self.start_observation(**attributes)
+        try:
+            yield root
+        finally:
+            root.end()
+
     def flush(self):
         self.flushed = True
 
 
 class ExportDocumentTest(unittest.TestCase):
+    def _exported_spans(self, *, public_key, work_item_id=None):
+        config = Config(
+            enabled=True,
+            capture_content=False,
+            public_key=public_key,
+            secret_key="sk-test",
+            base_url="http://langfuse.example",
+            work_item_id=work_item_id,
+        )
+        document = trace_document(ROLLOUT, config, str(PLUGIN_DIR))
+        exporter = CollectingSpanExporter()
+        client = Langfuse(
+            public_key=config.public_key,
+            secret_key=config.secret_key,
+            base_url=config.base_url,
+            flush_at=1,
+            span_exporter=exporter,
+        )
+
+        export_document(document, config, client=client)
+        return exporter.spans
+
+    def test_associates_session_observations_with_work_item(self):
+        spans = self._exported_spans(
+            public_key="pk-work-item-test",
+            work_item_id="EXT-7",
+        )
+
+        self.assertGreater(len(spans), 1)
+        self.assertEqual(
+            {
+                span.attributes.get(
+                    "langfuse.trace.metadata.darrow.work_item_id"
+                )
+                for span in spans
+            },
+            {"EXT-7"},
+        )
+
+    def test_exports_codex_thread_as_native_langfuse_session(self):
+        spans = self._exported_spans(public_key="pk-session-test")
+
+        self.assertGreater(len(spans), 1)
+        self.assertEqual(
+            {span.attributes.get("session.id") for span in spans},
+            {"session-main"},
+        )
+
     def test_exports_nested_trace_tree_through_langfuse_client(self):
         config = Config(
             enabled=True,
