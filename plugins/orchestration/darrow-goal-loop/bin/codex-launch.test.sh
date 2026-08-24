@@ -36,6 +36,13 @@ require_text "$guide" 'Absence or failure of a close'
 require_text "$guide" 'control does not invalidate'
 require_text "$guide" 'step materialize'
 require_text "$guide" 'step activate'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'exact `task_name` value'
+require_text "$guide" '--agent-ref <host-returned-canonical-task-name>'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" '`goal-loop step launch-stop --reason launch-unavailable`'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" '`evaluation_child_invocations: 1`'
 require_text "$skill" 'step report'
 reject_text "$readme" 'helper+codex-hooks'
 reject_text "$readme" 'helper+claude-hooks'
@@ -62,5 +69,6 @@ reject_text "$skill" 'A spawn-only surface is unavailable.'
 reject_text "$skill" 'A missing or failed close is incomplete cleanup, not successful completion.'
 reject_text "$guide" "exposes both \`spawn_agent\` and \`close_agent\`"
 reject_text "$guide" 'If closing fails, report the cleanup failure and do not claim complete.'
+reject_text "$guide" '<host-reported-agent-id>'
 
 printf 'codex launch contract tests passed\n'

@@ -174,7 +174,9 @@ assembled from unrelated child or compound-command evidence.
   response semantically.
 - A first-class Codex goal runner is visible in the host, owns the one native
   goal boundary directly, and may use Codex's own visible subagents for bounded
-  work. Inner goal-state control adds persistence when exposed but is not a
+  work. Its exact canonical `/root/...` `task_name` is retained as the agent
+  reference for activation, lifecycle controls, cleanup, and evaluation
+  evidence. Inner goal-state control adds persistence when exposed but is not a
   second required boundary. Each Codex agent creator collects its children's
   terminal results and, when the host exposes a close control, closes each child
   after its goal has been fulfilled. Missing close support does not disable this

@@ -686,8 +686,9 @@ serializations.
 
 `evaluation_child_invocations` counts sessions or subagents created by Darrow,
 not internal continuation turns or helper subagents created by native goal
-mode. A same-thread launch therefore reports zero and a native goal runner
-reports one. Native descendants remain visible through host telemetry. A
+mode. A same-thread launch therefore reports zero and an accepted native goal
+runner reports one, including when a later activation-evidence transition is
+rejected and the accepted runner must be interrupted. Native descendants remain visible through host telemetry. A
 `decision-gated` stop reports one human interruption. After launch, each
 distinct material question presented for user decision also reports one,
 including a question answered and relayed during the same run. Ordinary native
@@ -825,7 +826,8 @@ the least launch machinery the host supports.
    signal received while a step owns the ledger lock releases the lock and
    terminates that step; it MUST NOT release exclusivity and then continue.
 3. **AGL-E3 — Evidence, not execution control.** The ledger records
-   caller-chosen workflow, risk, profile, routes, objective identity, owner and
+   caller-chosen workflow, risk, profile, routes, objective identity, owner
+   identity and
    readiness and review evidence, counters, cleanup, and report fields. It MUST
    NOT select or invoke a workflow, model, goal owner, readiness assessor,
    reviewer, repair, retry, continuation, publication effect, or terminal goal
@@ -868,7 +870,9 @@ the least launch machinery the host supports.
    packaged evidence mechanism. Both `complete` and `blocked`
    reports after activation require a resolved owner identity and verified
    effective route; pending or unverified activation can only stop through the
-   applicable `launch_required` path.
+   applicable `launch_required` path. A Codex runner accepted before its
+   activation transition is rejected retains its exact canonical agent
+   reference and one child invocation in that launch-required evidence.
 8. **AGL-E8 — Deliberate route-gate exits.** A confirmed Claude observation
    succeeds. A rejected observed route exits nonzero, records the rejection,
    and cannot mark the route verified or continue the goal. An unavailable
@@ -880,7 +884,11 @@ the least launch machinery the host supports.
    is recorded before
    activation as a terminal launch stop. Any materialized objective is
    released, no product work starts, and only the helper-rendered
-   `launch_required` report may follow.
+   `launch_required` report may follow. A Codex spawn accepted immediately
+   before a rejected activation-evidence transition is not a pre-activation
+   zero-child stop: `launch-unavailable` records the exact accepted canonical
+   agent reference and preserves one child invocation through interruption,
+   objective cleanup, and terminal reporting.
 10. **AGL-E10 — Readiness-state evidence.** Routing records readiness as
     `selected` or `omitted`. Selected readiness activation enters exactly one
     pending state and accepts exactly one semantic verdict. Only `ready`
@@ -960,12 +968,26 @@ the least launch machinery the host supports.
    that one-field boundary. The creator constructs that exact body from the
    helper-returned objective path; zero, multiple, malformed, or out-of-root
    candidates remain launch failures.
-   The creator records the accepted native-subagent activation with the
-   host-reported agent id immediately
-   after spawn acceptance and before waiting. The runner may then record
+   The public collaboration result's exact `task_name` is the Codex runner's
+   canonical agent reference. It MUST match
+   `/root(?:/[a-z0-9_]+)+` without normalization; foreign roots, empty or
+   traversal segments, whitespace, control characters, shell metacharacters,
+   and unrelated safe-looking references fail closed. The creator MUST NOT
+   strip `/root/` or derive the reference from the requested short task name.
+   It records the accepted native-subagent activation with that exact
+   `agent_ref` immediately after spawn acceptance and before waiting. The same
+   reference MUST identify every later wait, message, interrupt, and cleanup
+   control for this runner. The Codex evidence adapter accepts activation only
+   when that reference equals the accepted spawn output or a retained
+   host-reported receiver identity from the same spawn; an echoed helper value
+   or syntactically valid different child is insufficient. The runner may then record
    readiness and review evidence but never activation, objective release, or
    the terminal report.
-   After collecting the terminal result, the creator performs exact helper
+   If the post-spawn activation transition is rejected, the creator interrupts
+   that exact accepted reference, records `launch-unavailable` with the same
+   reference, preserves one child invocation and the observed cleanup state,
+   and renders `launch_required`; it MUST NOT retry, substitute another stop
+   reason, or claim that no child was invoked. After collecting the terminal result, the creator performs exact helper
    cleanup and renders the helper-owned report without repository inspection.
    Host-native delegation beneath the runner remains visible and is not
    Darrow-defined planner, executor, verifier, or repair fan-out.
@@ -1172,7 +1194,13 @@ the least launch machinery the host supports.
    are redacted, distinguish accepted-boundary evidence from independently
    observed route identity instead of requiring fields the host does not emit.
    Internal native continuation turns and native descendants are not Darrow
-   child invocations.
+   child invocations. Codex native-runner coverage MUST use the public
+   `{"task_name":"/root/<task>"}` response shape and prove one correlated
+   reference across accepted spawn, activation ledger evidence, wait target,
+   cleanup target, and terminal child count. It MUST cover nested canonical
+   paths, a different safe-looking child, traversal, foreign-root, whitespace,
+   tab/newline, and shell-metacharacter references, plus a spawned-then-
+   interrupted activation failure that still reports one child invocation.
 5. Use at least three trials per evidence-bearing default decision. An explicit
    product decision MAY accept N=1 uncertainty to simplify or change policy,
    but its rationale, limitations, and follow-up calibration requirement MUST

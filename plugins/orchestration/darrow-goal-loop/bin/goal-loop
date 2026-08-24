@@ -17,11 +17,11 @@ usage:
   goal-loop step stage --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step materialize --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step release-staging --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
-  goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> --agent-id <id|none> --effective-route <route> --route-verified <true|false>
+  goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> <--agent-id <id|none>|--agent-ref <canonical-task-path>> --effective-route <route> --route-verified <true|false>
   goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable>
   goal-loop step readiness --ledger <absolute-path> --verdict <ready|needs-discovery|needs-decision|blocked>
   goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> <--target-fingerprint <literal>|--target-sha256 <digest>> --outcome <enum> [--finding <text>]
-  goal-loop step launch-stop --ledger <absolute-path> --reason <readiness-unavailable|review-unavailable|launch-unavailable>
+  goal-loop step launch-stop --ledger <absolute-path> --reason <readiness-unavailable|review-unavailable|launch-unavailable> [--agent-ref <canonical-task-path>]
   goal-loop step release-objective --ledger <absolute-path> --attachment-dir <path> --expected-sha256 <digest>
   goal-loop step report --ledger <absolute-path> --status <complete|blocked|launch-required> --human-interruptions <integer>
   goal-loop prepare --repo <path> --host <codex|claude>
@@ -128,6 +128,57 @@ validate_scalar() {
   case "$scalar_value" in
     *'
 '*) die "$scalar_label contains a newline" ;;
+  esac
+}
+
+validate_agent_id() {
+  case "$1" in
+    *[!a-zA-Z0-9._-]*|'') die "unsafe agent id: $1" ;;
+  esac
+}
+
+validate_codex_agent_ref() {
+  codex_agent_ref=$1
+  case "$codex_agent_ref" in
+    /root/*) ;;
+    *) die "unsafe Codex agent reference: $codex_agent_ref" ;;
+  esac
+  codex_agent_path=${codex_agent_ref#/root/}
+  case "$codex_agent_path" in
+    ''|/*|*//*|*/|*[!a-z0-9_/]*)
+      die "unsafe Codex agent reference: $codex_agent_ref"
+      ;;
+  esac
+}
+
+validate_resolved_owner_identity() {
+  owner_host=$1
+  owner_boundary=$2
+  owner_agent_id=$3
+  owner_agent_ref=$4
+  case "$owner_host|$owner_boundary" in
+    codex\|native_subagent)
+      test "$owner_agent_id" = none && test "$owner_agent_ref" != none ||
+        die "Codex native-subagent owner reference is unresolved"
+      validate_codex_agent_ref "$owner_agent_ref"
+      ;;
+    claude\|native_subagent)
+      test "$owner_agent_ref" = none &&
+        test "$owner_agent_id" != none && test "$owner_agent_id" != pending ||
+        die "Claude native-subagent owner id is unresolved"
+      validate_agent_id "$owner_agent_id"
+      ;;
+    codex\|nested_session|claude\|nested_session)
+      test "$owner_agent_ref" = none &&
+        test "$owner_agent_id" != none && test "$owner_agent_id" != pending ||
+        die "nested-session owner id is unresolved"
+      validate_agent_id "$owner_agent_id"
+      ;;
+    codex\|same_thread|codex\|host_api|claude\|same_thread|claude\|host_api)
+      test "$owner_agent_id" = none && test "$owner_agent_ref" = none ||
+        die "same-thread and host-api owner identity must be none"
+      ;;
+    *) die "unsupported owner identity boundary: $owner_host/$owner_boundary" ;;
   esac
 }
 
@@ -1066,6 +1117,7 @@ step_start() {
     printf 'route_verified\tfalse\n'
     printf 'launch_boundary\tlaunch_required\n'
     printf 'agent_id\tnone\n'
+    printf 'agent_ref\tnone\n'
     printf 'runner_type\tnone\n'
     printf 'child_invocations\t0\n'
     printf 'enforcement\thelper\n'
@@ -1503,6 +1555,7 @@ step_activate() {
   step_applied_by=
   step_boundary=
   step_agent_id=
+  step_agent_ref=
   step_effective_route=
   step_route_verified=
   while test "$#" -gt 0; do
@@ -1511,39 +1564,57 @@ step_activate() {
       --applied-by) require_value "$@"; step_applied_by=$2; shift 2 ;;
       --boundary) require_value "$@"; step_boundary=$2; shift 2 ;;
       --agent-id) require_value "$@"; step_agent_id=$2; shift 2 ;;
+      --agent-ref) require_value "$@"; step_agent_ref=$2; shift 2 ;;
       --effective-route) require_value "$@"; step_effective_route=$2; shift 2 ;;
       --route-verified) require_value "$@"; step_route_verified=$2; shift 2 ;;
       *) die "unknown step activate option: $1" ;;
     esac
   done
   test -n "$step_ledger" && test -n "$step_applied_by" &&
-    test -n "$step_boundary" && test -n "$step_agent_id" &&
+    test -n "$step_boundary" &&
     test -n "$step_effective_route" && test -n "$step_route_verified" ||
-    die "step activate requires --ledger, --applied-by, --boundary, --agent-id, --effective-route, and --route-verified"
+    die "step activate requires --ledger, --applied-by, --boundary, one owner identity, --effective-route, and --route-verified"
+  test -z "$step_agent_id" || test -z "$step_agent_ref" ||
+    die "step activate accepts only one owner identity"
   validate_boolean "$step_route_verified"
   validate_route_tuple "--effective-route" "$step_effective_route"
-  case "$step_agent_id" in
-    none) ;;
-    *[!a-zA-Z0-9._-]*|'') die "unsafe agent id: $step_agent_id" ;;
-  esac
+  load_ledger "$step_ledger"
   case "$step_applied_by|$step_boundary" in
     current-thread\|same_thread|host-api\|host_api)
-      test "$step_agent_id" = none || die "same-thread and host-api activation require agent id none"
+      test "$step_agent_id" = none && test -z "$step_agent_ref" ||
+        die "same-thread and host-api activation require agent id none"
       step_child_invocations=0
       ;;
-    native-subagent\|native_subagent|nested-session\|nested_session)
+    native-subagent\|native_subagent)
+      if test "$ledger_host" = codex; then
+        test -z "$step_agent_id" && test -n "$step_agent_ref" ||
+          die "Codex native-subagent activation requires --agent-ref"
+        validate_codex_agent_ref "$step_agent_ref"
+      else
+        test -n "$step_agent_id" && test -z "$step_agent_ref" ||
+          die "Claude native-subagent activation requires --agent-id"
+        validate_agent_id "$step_agent_id"
+        test "$step_agent_id" != none ||
+          die "$step_boundary activation requires an agent id"
+      fi
+      step_child_invocations=1
+      ;;
+    nested-session\|nested_session)
+      test -n "$step_agent_id" && test -z "$step_agent_ref" ||
+        die "nested-session activation requires --agent-id"
+      validate_agent_id "$step_agent_id"
       test "$step_agent_id" != none || die "$step_boundary activation requires an agent id"
       step_child_invocations=1
       ;;
     *) die "inconsistent route application and launch boundary: $step_applied_by/$step_boundary" ;;
   esac
-  load_ledger "$step_ledger"
   lock_ledger
   require_ledger_phase staging-released
   selected_route=$(ledger_state_value "$ledger_state" selected_route)
   test "$selected_route" != none || die "activation requires a selected route"
   if test "$step_route_verified" = false; then
-    test "$ledger_host|$step_applied_by|$step_boundary|$step_agent_id" = \
+    test -z "$step_agent_ref" &&
+      test "$ledger_host|$step_applied_by|$step_boundary|$step_agent_id" = \
       'claude|native-subagent|native_subagent|pending' ||
       die "unverified activation requires the exact provisional Claude owner tuple"
     test "$selected_route" = "$step_effective_route" ||
@@ -1558,7 +1629,8 @@ step_activate() {
   set_ledger_value route_applied_by "$step_applied_by"
   set_ledger_value route_verified "$step_route_verified"
   set_ledger_value launch_boundary "$step_boundary"
-  set_ledger_value agent_id "$step_agent_id"
+  set_ledger_value agent_id "${step_agent_id:-none}"
+  set_ledger_value agent_ref "${step_agent_ref:-none}"
   set_ledger_value child_invocations "$step_child_invocations"
   readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
   if test "$readiness_selection" = selected; then
@@ -1567,10 +1639,15 @@ step_activate() {
     activation_phase=active
   fi
   set_ledger_value phase "$activation_phase"
-  append_ledger_event activate "$step_agent_id"
+  step_agent_identity=${step_agent_ref:-$step_agent_id}
+  append_ledger_event activate "$step_agent_identity"
   unlock_ledger
   emit_step_record activate
-  printf 'agent_id\t%s\n' "$step_agent_id"
+  if test -n "$step_agent_ref"; then
+    printf 'agent_ref\t%s\n' "$step_agent_ref"
+  else
+    printf 'agent_id\t%s\n' "$step_agent_id"
+  fi
   printf 'effective_route\t%s\n' "$step_effective_route"
   printf 'route_verified\t%s\n' "$step_route_verified"
   printf 'enforcement\thelper\n'
@@ -1685,10 +1762,12 @@ step_readiness() {
 step_launch_stop() {
   step_ledger=
   step_reason=
+  step_agent_ref=
   while test "$#" -gt 0; do
     case "$1" in
       --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
       --reason) require_value "$@"; step_reason=$2; shift 2 ;;
+      --agent-ref) require_value "$@"; step_agent_ref=$2; shift 2 ;;
       *) die "unknown step launch-stop option: $1" ;;
     esac
   done
@@ -1699,6 +1778,15 @@ step_launch_stop() {
     *) die "unsupported pre-activation stop reason: $step_reason" ;;
   esac
   load_ledger "$step_ledger"
+  failed_codex_activation=false
+  if test -n "$step_agent_ref"; then
+    test "$ledger_host" = codex && test "$step_reason" = launch-unavailable ||
+      die "--agent-ref is only valid for an accepted Codex launch-unavailable stop"
+    validate_codex_agent_ref "$step_agent_ref"
+    test "$ledger_phase" = staging-released ||
+      die "accepted Codex launch stop requires staging-released evidence"
+    failed_codex_activation=true
+  fi
   lock_ledger
   failed_provisional_activation=false
   case "$ledger_phase" in
@@ -1713,15 +1801,23 @@ step_launch_stop() {
       ;;
     *) die "launch stop requires routed pre-activation evidence, found $ledger_phase" ;;
   esac
-  if test "$failed_provisional_activation" = true; then
+  if test "$failed_codex_activation" = true; then
+    test "$(ledger_state_value "$ledger_state" agent_id)" = none &&
+      test "$(ledger_state_value "$ledger_state" agent_ref)" = none ||
+      die "accepted Codex launch stop cannot replace owner evidence"
+    set_ledger_value agent_ref "$step_agent_ref"
+    set_ledger_value child_invocations 1
+  elif test "$failed_provisional_activation" = true; then
     set_ledger_value effective_route none
     set_ledger_value route_applied_by none
     set_ledger_value route_verified false
     set_ledger_value launch_boundary launch_required
     set_ledger_value agent_id none
+    set_ledger_value agent_ref none
     set_ledger_value child_invocations 0
   else
-    test "$(ledger_state_value "$ledger_state" agent_id)" = none ||
+    test "$(ledger_state_value "$ledger_state" agent_id)" = none &&
+      test "$(ledger_state_value "$ledger_state" agent_ref)" = none ||
       die "launch stop cannot replace an activated owner"
   fi
   if test "$step_reason" = review-unavailable; then
@@ -1738,6 +1834,9 @@ step_launch_stop() {
   unlock_ledger
   emit_step_record launch-stop
   printf 'reason\t%s\n' "$step_reason"
+  if test "$failed_codex_activation" = true; then
+    printf 'agent_ref\t%s\n' "$step_agent_ref"
+  fi
 }
 
 step_review() {
@@ -1884,6 +1983,7 @@ step_report() {
   enforcement=$(ledger_state_value "$ledger_state" enforcement)
   objective_released=$(ledger_state_value "$ledger_state" objective_released)
   agent_id=$(ledger_state_value "$ledger_state" agent_id)
+  agent_ref=$(ledger_state_value "$ledger_state" agent_ref)
   initial_outcome=$(ledger_state_value "$ledger_state" review_initial_outcome)
   initial_finding=$(ledger_state_value "$ledger_state" review_initial_finding)
   last_outcome=$(ledger_state_value "$ledger_state" review_last_outcome)
@@ -1917,6 +2017,8 @@ step_report() {
         test "$agent_id" != pending ||
           die "complete report requires a resolved goal owner"
         test "$route_verified" = true || die "complete report requires a verified route"
+        validate_resolved_owner_identity "$ledger_host" "$launch_boundary" \
+          "$agent_id" "$agent_ref"
         if test "$readiness_selection" = selected; then
           test "$readiness_verdict" = ready ||
             die "complete report requires a ready implementation-readiness verdict"
@@ -1941,12 +2043,20 @@ step_report() {
         esac
         launch_boundary=launch_required
         route_verified=false
+        if test "$agent_ref" != none; then
+          test "$ledger_host" = codex && test "$child_invocations" = 1 &&
+            test "$terminal_reason" = launch-unavailable ||
+            die "launch-required agent reference is not an accepted Codex stop"
+          validate_codex_agent_ref "$agent_ref"
+        fi
         ;;
       blocked)
         test "$agent_id" != pending ||
           die "blocked report requires a resolved goal owner"
         test "$route_verified" = true ||
           die "blocked report requires a verified route"
+        validate_resolved_owner_identity "$ledger_host" "$launch_boundary" \
+          "$agent_id" "$agent_ref"
         if test "$readiness_selection" = selected; then
           case "$readiness_verdict" in
             ready|needs-discovery|needs-decision|blocked) ;;

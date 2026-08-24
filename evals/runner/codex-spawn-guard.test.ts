@@ -7,6 +7,7 @@ import {
   guardCodexSpawn,
   fixtureStateFingerprint,
   repositoryFingerprint,
+  verifiedCodexAcceptedAgentRef,
   verifiedCodexSpawnAttestation,
 } from "./codex-spawn-guard";
 
@@ -34,7 +35,7 @@ function hookInput(cwd: string, message = contract) {
     tool_use_id: "owner-tool-use",
     turn_id: "parent-turn",
     cwd,
-    tool_name: "Agent",
+    tool_name: "spawn_agent",
     tool_input: {
       task_name: "adaptive_goal_runner",
       message: `- phase: adaptive-goal-runner\n${message}`,
@@ -46,7 +47,7 @@ function hookInput(cwd: string, message = contract) {
 }
 
 describe("Codex adaptive-goal spawn guard", () => {
-  test("observes the accepted owner id without recording helper activation", async () => {
+  test("binds the accepted canonical owner reference without recording helper activation", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-codex-guard-"));
     const objectiveRoot = await mkdtemp(
       join(tmpdir(), "darrow-codex-objective-"),
@@ -69,12 +70,12 @@ describe("Codex adaptive-goal spawn guard", () => {
       const descendant = await guardCodexSpawn(
         {
           hook_event_name: "PostToolUse",
-          tool_name: "Agent",
+          tool_name: "spawn_agent",
           tool_use_id: "descendant-tool-use",
           turn_id: "descendant-turn",
           cwd: repo,
           tool_input: hookInput(repo).tool_input,
-          tool_response: { agent_id: "descendant-agent" },
+          tool_response: { task_name: "/root/descendant_agent" },
         },
         policy,
       );
@@ -84,27 +85,54 @@ describe("Codex adaptive-goal spawn guard", () => {
       const changedInput = await guardCodexSpawn(
         {
           hook_event_name: "PostToolUse",
-          tool_name: "Agent",
+          tool_name: "spawn_agent",
           tool_use_id: "owner-tool-use",
           turn_id: "parent-turn",
           cwd: repo,
           tool_input: { ...hookInput(repo).tool_input, message: "changed" },
-          tool_response: { agent_id: "wrong-agent" },
+          tool_response: { task_name: "/root/wrong_agent" },
         },
         policy,
       );
       expect(JSON.stringify(changedInput)).toContain(
         "input does not match the accepted spawn",
       );
+      for (const taskName of [
+        "adaptive_goal_runner",
+        "/other/adaptive_goal_runner",
+        "/root/../adaptive_goal_runner",
+        "/root//adaptive_goal_runner",
+        "/root/adaptive-goal-runner",
+        "/root/adaptive goal runner",
+        "/root/adaptive\tgoal_runner",
+        "/root/adaptive\ngoal_runner",
+        "/root/adaptive_goal_runner;bad",
+      ]) {
+        const invalid = await guardCodexSpawn(
+          {
+            hook_event_name: "PostToolUse",
+            tool_name: "spawn_agent",
+            tool_use_id: "owner-tool-use",
+            turn_id: "parent-turn",
+            cwd: repo,
+            tool_input: hookInput(repo).tool_input,
+            tool_response: { task_name: taskName },
+          },
+          policy,
+        );
+        expect(JSON.stringify(invalid)).toContain(
+          "response omitted a canonical task_name",
+        );
+      }
       const recorded = await guardCodexSpawn(
         {
           hook_event_name: "PostToolUse",
-          tool_name: "Agent",
+          tool_name: "spawn_agent",
           tool_use_id: "owner-tool-use",
           turn_id: "parent-turn",
           cwd: repo,
           tool_input: hookInput(repo).tool_input,
-          tool_response: { agent_id: "goal-agent-1" },
+          tool_response: { task_name: "/root/adaptive_goal_runner" },
         },
         policy,
       );
@@ -114,11 +142,14 @@ describe("Codex adaptive-goal spawn guard", () => {
         },
       });
       expect(JSON.stringify(recorded)).toContain(
-        "observed accepted native-subagent id goal-agent-1",
+        "observed accepted native-subagent reference /root/adaptive_goal_runner",
       );
       expect(JSON.stringify(recorded)).toContain(
         "goal-loop step activate command before waiting",
       );
+      expect(
+        await verifiedCodexAcceptedAgentRef(policy.statePath, policy.secret),
+      ).toBe("/root/adaptive_goal_runner");
       const activation = await guardCodexSpawn(
         {
           hook_event_name: "PreToolUse",
@@ -130,7 +161,7 @@ describe("Codex adaptive-goal spawn guard", () => {
               `/bin/bash ${goalLoopPath} step activate ` +
               "--ledger /tmp/darrow-goal-run.fixture " +
               "--applied-by native-subagent --boundary native_subagent " +
-              "--agent-id goal-agent-1 " +
+              "--agent-ref /root/adaptive_goal_runner " +
               "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
               "--route-verified true",
           },
@@ -149,7 +180,7 @@ describe("Codex adaptive-goal spawn guard", () => {
               `/bin/bash ${goalLoopPath} step activate ` +
               "--ledger /tmp/darrow-goal-run.fixture " +
               "--applied-by native-subagent --boundary native_subagent " +
-              "--agent-id wrong-agent " +
+              "--agent-ref /root/other_goal_runner " +
               "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
               "--route-verified true",
           },
@@ -159,6 +190,23 @@ describe("Codex adaptive-goal spawn guard", () => {
       expect(JSON.stringify(wrongAgent)).toContain(
         "parent shell commands are forbidden",
       );
+      const failedActivationStop = await guardCodexSpawn(
+        {
+          hook_event_name: "PreToolUse",
+          tool_name: "Bash",
+          turn_id: "parent-turn",
+          cwd: repo,
+          tool_input: {
+            command:
+              `/bin/bash ${goalLoopPath} step launch-stop ` +
+              "--ledger /tmp/darrow-goal-run.fixture " +
+              "--reason launch-unavailable " +
+              "--agent-ref /root/adaptive_goal_runner",
+          },
+        },
+        policy,
+      );
+      expect(failedActivationStop).toBeUndefined();
     } finally {
       await rm(repo, { recursive: true, force: true });
       await rm(objectiveRoot, { recursive: true, force: true });
@@ -311,17 +359,17 @@ describe("Codex adaptive-goal spawn guard", () => {
       const observed = await guardCodexSpawn(
         {
           hook_event_name: "PostToolUse",
-          tool_name: "Agent",
+          tool_name: "spawn_agent",
           tool_use_id: "owner-tool-use",
           turn_id: "parent-turn",
           cwd: repo,
           tool_input: input.tool_input,
-          tool_response: { agent_id: "goal-agent-1" },
+          tool_response: { task_name: "/root/adaptive_goal_runner" },
         },
         policy,
       );
       expect(JSON.stringify(observed)).toContain(
-        "observed accepted native-subagent id goal-agent-1",
+        "observed accepted native-subagent reference /root/adaptive_goal_runner",
       );
       expect(
         await guardCodexSpawn(
@@ -329,7 +377,7 @@ describe("Codex adaptive-goal spawn guard", () => {
             "/bin/bash /plugin/bin/goal-loop step activate " +
               "--ledger /tmp/darrow-goal-run.fixture " +
               "--applied-by native-subagent --boundary native_subagent " +
-              "--agent-id goal-agent-1 " +
+              "--agent-ref /root/adaptive_goal_runner " +
               "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
               "--route-verified true",
           ),
@@ -353,7 +401,7 @@ describe("Codex adaptive-goal spawn guard", () => {
               "/bin/bash /plugin/bin/goal-loop step activate " +
                 "--ledger /tmp/darrow-goal-run.fixture " +
                 "--applied-by native-subagent --boundary native_subagent " +
-                "--agent-id goal-agent-1 " +
+                "--agent-ref /root/adaptive_goal_runner " +
                 "--effective-route 'codex|openai|gpt-5.6-sol|high' " +
                 "--route-verified true",
             ),
@@ -366,7 +414,7 @@ describe("Codex adaptive-goal spawn guard", () => {
           await guardCodexSpawn(
             {
               ...parentShell,
-              tool_name: "Agent",
+              tool_name: "spawn_agent",
               tool_input: { message: "unmarked helper" },
             },
             policy,
