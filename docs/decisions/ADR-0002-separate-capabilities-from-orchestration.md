@@ -33,9 +33,12 @@ Separate intent-matched capabilities from explicitly invoked orchestration.
 - Orchestration may use compatible installed capabilities, but it does not make
   every capability a mandatory phase or transfer its own activation model to
   them.
-- `foundation`, `capability`, and `orchestration` are marketplace and repository
-  ownership roles. `foundation` is not a third activation model; foundation
-  skills remain intent-matched capabilities.
+- `foundation`, `capability`, `orchestration`, and `task-recipe` are marketplace
+  and repository ownership roles. `foundation` is not a third activation model;
+  foundation skills remain intent-matched capabilities. A task recipe uses the
+  explicit-orchestration activation model: an explicit recipe invocation may
+  delegate one bounded request to an orchestration helper while preserving the
+  originating request and permissions.
 
 Normative behavior remains in the applicable capability specification. This
 ADR owns the cross-cutting product-architecture rationale for the activation
@@ -52,3 +55,5 @@ and ownership split.
   enough that orchestration might help.
 - New Darrow surfaces must be classified by the ownership they assume and use
   the corresponding activation model.
+- A task recipe is a thin authority and ergonomics boundary, not a controller,
+  lifecycle runtime, or an implicit activation path.

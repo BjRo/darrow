@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ticket to PR"
+  short_description: "Deliver one ready ticket as one pull request"
+  default_prompt: "Use $ticket-to-pr to deliver this ticket as one verified pull request."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,15 @@
+id: ticket-to-pr-readiness-decisions
+invariant: TPR-C2,TPR-C3
+goal_report: forbidden
+prompt: >-
+  Use $ticket-to-pr for ticket #42. The available implementation-readiness
+  capability returns needs-decision because the default branch is not selected.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: asks the smallest decision
+    expect_regex: "base branch|which branch|decision"

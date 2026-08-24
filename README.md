@@ -67,6 +67,13 @@ is retained as a reference implementation of Darrow's earlier static
 phase-controller approach and as an executable benchmark baseline. It is not a
 second recommended orchestration path.
 
+### Task recipes
+
+[`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md)
+turns one explicitly invoked, ready authoritative ticket into one verified pull
+request. It owns ticket-specific authority and publication safety, then
+delegates execution to adaptive-goal.
+
 ## How Darrow works
 
 Capabilities teach an agent how to perform a focused kind of work. The model

@@ -59,6 +59,15 @@ This boundary preserves genuine choice: users can adopt one focused capability,
 several complementary capabilities, or an orchestration helper without
 accepting the rest of the marketplace.
 
+## Task recipes are explicit delivery envelopes
+
+A task recipe packages one repeatable, explicitly invoked delivery outcome. It
+uses the orchestration activation model, but owns only the outcome-specific
+authority, intake, and publication envelope. A recipe can delegate its one
+bounded request to adaptive-goal without another user invocation, preserving
+the original request and permissions. It is not a controller, phase graph,
+ledger, queue, or durable workflow runtime.
+
 ## Scripts hide tool mechanics from the model
 
 Skills should expose the intent, decisions, and evidence that require model

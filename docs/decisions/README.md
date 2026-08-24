@@ -26,7 +26,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 | [ADR-0008: Allow Python and UV for Langfuse observability](ADR-0008-allow-python-and-uv-for-langfuse-observability.md) | Accepted | 2026-08-24 | Permit the independently installable Langfuse observability plugin to use a locked Python backend managed by UV while retaining a portable Bash hook launcher and keeping the exception scoped to that plugin. | Revisit when: Codex exposes equivalent native Langfuse export, the Langfuse SDK no longer requires Python, or the plugin can meet its rollout-reconstruction and export contract with the portable Bash baseline alone. |
 
 <!-- darrow-source: 1a57cf608fb4cfa4b770abebf34ca450e79c0160 2711262332 330 ADR-0001-eval-runner.md -->
-<!-- darrow-source: b8346bf6dea217b83281a3b89c28450cfa541b2d 1110521106 370 ADR-0002-separate-capabilities-from-orchestration.md -->
+<!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
 <!-- darrow-source: 1c02ab29c8e15ad25065f0101c93d3993f9d8d25 4172682685 381 ADR-0003-treat-plugins-as-optionality-boundaries.md -->
 <!-- darrow-source: 411231edf4382e54bd667397c0440094f2fac0e0 3587772795 628 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
 <!-- darrow-source: 1547f5ee3b6edabb688fcaa834900ad001ca56c4 718689032 590 ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md -->

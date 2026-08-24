@@ -1,0 +1,15 @@
+id: ticket-to-pr-no-post-goal-reinspection
+invariant: TPR-C8,TPR-C10
+prompt: >-
+  Use $ticket-to-pr to deliver ticket #42. Adaptive-goal returns a verified PR
+  URL and completion evidence. Preserve that evidence without inspecting,
+  repairing, re-verifying, or retrying publication.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: reports delegated completion
+    expect_regex: "verified|pull request"

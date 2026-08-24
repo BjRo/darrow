@@ -1,0 +1,15 @@
+id: ticket-to-pr-feedback-relay
+invariant: TPR-C3,TPR-C4
+prompt: >-
+  Use $ticket-to-pr to deliver ticket #42. The active adaptive goal asks which
+  migration policy to use. Relay its question verbatim and keep the same owner
+  active until the user's answer returns.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: preserves the feedback question
+    expect_regex: "human-feedback-request|which migration policy"

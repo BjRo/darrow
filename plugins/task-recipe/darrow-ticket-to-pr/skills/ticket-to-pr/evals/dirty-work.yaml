@@ -1,0 +1,15 @@
+id: ticket-to-pr-dirty-work
+invariant: TPR-C5
+goal_report: forbidden
+prompt: >-
+  Use $ticket-to-pr to deliver ticket #42. There is unrelated dirty work in
+  unrelated.txt. Preserve it and stop rather than publishing it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        unrelated.txt: "base\n"
+checks: []
+output_checks:
+  - name: preserves unrelated work
+    expect_regex: "unrelated|preserv"

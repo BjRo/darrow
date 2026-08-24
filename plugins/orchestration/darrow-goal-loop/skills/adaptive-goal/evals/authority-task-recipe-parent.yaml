@@ -1,0 +1,17 @@
+id: goal-preflight-authority-task-recipe-parent
+invariant: AGL-X3
+prompt: >-
+  The user explicitly invoked $ticket-to-pr for ticket #42. The task recipe has
+  a ready authoritative request and delegates one bounded delivery request to
+  adaptive-goal, preserving the original invocation and branch, commit,
+  non-force push, and exactly-one-pull-request permissions. Continue with the
+  adaptive-goal preflight; no private caller metadata fields are required.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: explicit task recipe delegation is accepted
+    not_regex: "darrow-adaptive-goal-authority-stop-v1"
