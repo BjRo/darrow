@@ -1,0 +1,13 @@
+id: ticket-to-pr-authority-stop
+invariant: TPR-C1
+goal_report: forbidden
+prompt: "Read ticket #42 and implement it, then open a pull request."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: exact authority stop
+    expect_exact: "format: darrow-ticket-to-pr-authority-stop-v1\nstatus: invocation_required\nreason: explicit-ticket-to-pr-invocation-required"
