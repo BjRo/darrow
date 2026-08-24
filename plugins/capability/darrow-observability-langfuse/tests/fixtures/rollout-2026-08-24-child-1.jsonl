@@ -1,0 +1,8 @@
+{"timestamp":"2026-08-24T10:00:02.700Z","type":"session_meta","payload":{"id":"child-1","parent_thread_id":"session-main","thread_source":"subagent","cli_version":"0.140.0","model_provider":"openai"}}
+{"timestamp":"2026-08-24T10:00:02.710Z","type":"event_msg","payload":{"type":"task_started","turn_id":"child-turn-1"}}
+{"timestamp":"2026-08-24T10:00:02.720Z","type":"turn_context","payload":{"model":"gpt-5.6-luna"}}
+{"timestamp":"2026-08-24T10:00:02.730Z","type":"event_msg","payload":{"type":"user_message","message":"List the package files"}}
+{"timestamp":"2026-08-24T10:00:02.740Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"README.md and package.json"}]}}
+{"timestamp":"2026-08-24T10:00:02.750Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":20,"output_tokens":6,"total_tokens":26},"total_token_usage":{"input_tokens":20,"output_tokens":6,"total_tokens":26}}}}
+{"timestamp":"2026-08-24T10:00:02.760Z","type":"event_msg","payload":{"type":"agent_message","message":"README.md and package.json"}}
+{"timestamp":"2026-08-24T10:00:02.770Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"child-turn-1"}}

@@ -1,0 +1,30 @@
+id: langfuse-observability-missing-prerequisites
+activation: positive
+invariant: OLF-P6,OLF-P7
+mount_plugin_skills: true
+prompt: >-
+  Turn on the Langfuse tracing plugin for this Codex project. I have not said
+  whether UV is installed and I have not provided a Langfuse endpoint or API
+  keys. Do not invent or test credentials.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# sample repository"
+checks:
+  - name: incomplete request does not mutate configuration
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: answer names the UV prerequisite
+    expect_regex: "UV"
+    flags: i
+  - name: answer names the endpoint prerequisite
+    expect_regex: "endpoint|base URL|LANGFUSE_BASE_URL"
+    flags: i
+  - name: answer names the credential prerequisite
+    expect_regex: "public|secret|API key|credentials"
+    flags: i
+  - name: answer does not claim tracing is enabled
+    not_regex: "(configured|enabled|installed|working|connected) successfully"
+    flags: i
