@@ -33,6 +33,24 @@ def _read_hook_input() -> dict[str, Any]:
     return value
 
 
+def _complete_stop_turn(document: dict[str, Any], turn_id: Any) -> None:
+    if not isinstance(turn_id, str) or not turn_id:
+        raise ValueError("hook input is missing turn_id")
+    traces = document.get("traces")
+    if not isinstance(traces, list):
+        raise ValueError("trace document is missing traces")
+    matches = [
+        trace
+        for trace in traces
+        if isinstance(trace, dict)
+        and isinstance(trace.get("metadata"), dict)
+        and trace["metadata"].get("codex.turn_id") == turn_id
+    ]
+    if len(matches) != 1:
+        raise ValueError("hook turn_id does not identify exactly one rollout turn")
+    matches[0]["metadata"]["codex.completed"] = True
+
+
 def run() -> int:
     config: Config | None = None
     try:
@@ -46,6 +64,7 @@ def run() -> int:
         if not isinstance(transcript_path, str) or not transcript_path:
             raise ValueError("hook input is missing transcript_path")
         document = trace_document(Path(transcript_path), config, cwd)
+        _complete_stop_turn(document, hook_input.get("turn_id"))
         if config.dry_run:
             json.dump(document, sys.stdout, separators=(",", ":"), sort_keys=True)
             sys.stdout.write("\n")

@@ -33,7 +33,9 @@ def pending_document(document: dict[str, Any], rollout: Path) -> dict[str, Any]:
     pending = []
     for trace in traces:
         metadata = trace.get("metadata") if isinstance(trace, dict) else None
-        turn_id = metadata.get("codex.turn_id") if isinstance(metadata, dict) else None
+        if not isinstance(metadata, dict) or metadata.get("codex.completed") is not True:
+            continue
+        turn_id = metadata.get("codex.turn_id")
         if isinstance(turn_id, str) and turn_id in uploaded:
             continue
         pending.append(trace)

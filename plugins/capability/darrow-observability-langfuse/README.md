@@ -122,10 +122,13 @@ refusals. Normal hook operation fails open so observability cannot block the
 Codex turn. Strict mode makes the same condition nonzero for deterministic
 installation and failure testing.
 
-Completed turn IDs are written atomically with mode `0600` to
+The Stop payload's `turn_id` identifies the turn being completed, including
+when the rollout does not yet contain its trailing `task_complete` record.
+Only that turn and other rollout-completed turns are eligible for export.
+Their IDs are written atomically with mode `0600` to
 `<rollout>.darrow-langfuse` only after the exporter returns successfully.
-Repeated Stop hooks filter those IDs. In-progress turns are not marked and may
-be reconstructed again when Codex later records completion.
+Repeated Stop hooks filter those IDs, and unrelated in-progress turns are not
+exported.
 
 ## Verify
 

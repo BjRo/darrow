@@ -41,10 +41,14 @@ reconstructs:
 - subagent turns nested below the turn that spawned them when the referenced
   rollout is readable.
 
-Completed turn identifiers are recorded in a plugin-owned sidecar next to the
-rollout so repeated Stop events do not export the same completed turn twice.
-Malformed JSONL records are ignored, but an unreadable transcript or a payload
-without `transcript_path` is a refusal rather than a fabricated success.
+The Stop payload's non-empty `turn_id` identifies the turn being completed and
+is authoritative even when the rollout writer has not appended its trailing
+`task_complete` record yet. Only rollout-completed turns and the current Stop
+turn are eligible for export. Their identifiers are recorded in a plugin-owned
+sidecar next to the rollout after successful ingestion so repeated Stop events
+do not export the same completed turn twice. Malformed JSONL records are
+ignored, but an unreadable `transcript_path` or a `turn_id` that does not match
+exactly one reconstructed turn is a refusal rather than a fabricated success.
 
 The hook fails open by default: configuration, parsing, dependency, network, or
 export failures do not block the Codex turn. An explicit strict test/debug
