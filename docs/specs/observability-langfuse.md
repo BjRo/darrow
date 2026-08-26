@@ -37,7 +37,9 @@ reconstructs:
   turn traces by the Codex session/thread identifier;
 - model generations and their model name, reasoning summary, output, and valid
   token counts;
-- tool observations with inputs, outputs, timing, and error state; and
+- tool observations with inputs, outputs, timing, error state, and concise
+  invocation labels derived from their parameters when content capture is
+  enabled; and
 - subagent turns nested below the turn that spawned them when the referenced
   rollout is readable.
 
@@ -66,11 +68,14 @@ then environment.
 Raw prompts, reasoning, tool inputs, tool outputs, and assistant text are not
 exported unless content capture is separately enabled. When content capture is
 disabled, observation structure, names, status, timing, model identity, and
-token counts remain observable. Credential values and configuration secrets
-must never be copied into trace metadata or diagnostic output. Content capture
-is an explicit data-export decision; documentation must describe the data sent,
-the destination's retention boundary, truncation, and the limits of automatic
-redaction.
+token counts remain observable, but tool names stay generic and contain no
+parameters. When content capture is enabled, tool observation names may include
+concise command lines or parameter summaries while the complete captured input
+remains available on the observation. Credential values and configuration
+secrets must never be copied into trace metadata or diagnostic output. Content
+capture is an explicit data-export decision; documentation must describe the
+data sent, the destination's retention boundary, truncation, and the limits of
+automatic redaction.
 
 ## Work-item attribution
 

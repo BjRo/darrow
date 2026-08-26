@@ -44,7 +44,7 @@ if (generation.usage_details.total_tokens !== 120) {
   throw new Error("generation token usage is missing");
 }
 const tool = generation.children.find((item) => item.type === "tool");
-if (!tool || tool.name !== "exec_command" || tool.output !== "README.md\npackage.json") {
+if (!tool || tool.name !== "rg --files" || tool.output !== "README.md\npackage.json") {
   throw new Error("tool activity was not reconstructed");
 }
 const subagent = trace.observations.find(

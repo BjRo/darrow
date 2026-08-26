@@ -11,6 +11,13 @@ from .config import Config, resolve_work_item_id
 _SENSITIVE_KEY = re.compile(
     r"(?:authorization|api[-_]?key|secret|password|token|credential)", re.I
 )
+_TOOL_CALL = re.compile(r"\btools\.([A-Za-z_$][A-Za-z0-9_$]*)\s*\(")
+_COMMAND_ARGUMENT = re.compile(
+    r'''(?:"(?:cmd|command)"|'(?:cmd|command)'|\b(?:cmd|command)\b)\s*:\s*'''
+    r'''(?P<value>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)''',
+    re.S,
+)
+_TOOL_NAME_MAX_CHARS = 512
 
 
 def _clip(value: Any, limit: int, redactions: tuple[str, ...] = ()) -> Any:
@@ -80,6 +87,138 @@ def _parse_arguments(raw: Any) -> Any:
         return json.loads(raw)
     except json.JSONDecodeError:
         return raw
+
+
+def _single_line(value: str) -> str:
+    return re.sub(r"[\r\n\t]+", " ", value).strip()
+
+
+def _compact_source(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _decode_js_string(value: str) -> str:
+    if value.startswith('"'):
+        try:
+            decoded = json.loads(value)
+            if isinstance(decoded, str):
+                return decoded
+        except json.JSONDecodeError:
+            pass
+    quote = value[0]
+    body = value[1:-1]
+    escapes = {
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "b": "\b",
+        "f": "\f",
+        "v": "\v",
+        quote: quote,
+        "\\": "\\",
+    }
+    decoded = []
+    index = 0
+    while index < len(body):
+        char = body[index]
+        if char != "\\" or index + 1 >= len(body):
+            decoded.append(char)
+            index += 1
+            continue
+        next_char = body[index + 1]
+        decoded.append(escapes.get(next_char, next_char))
+        index += 2
+    return "".join(decoded)
+
+
+def _call_arguments(source: str, start: int) -> str | None:
+    depth = 1
+    quote: str | None = None
+    escaped = False
+    for index in range(start, len(source)):
+        char = source[index]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in {'"', "'", "`"}:
+            quote = char
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return source[start:index]
+    return None
+
+
+def _short_tool_name(name: str) -> str:
+    return name.rsplit("__", 1)[-1]
+
+
+def _command_from_arguments(arguments: Any) -> str | None:
+    if isinstance(arguments, dict):
+        for key in ("cmd", "command"):
+            value = arguments.get(key)
+            if isinstance(value, str) and value:
+                return _single_line(value)
+        return None
+    if not isinstance(arguments, str):
+        return None
+    match = _COMMAND_ARGUMENT.search(arguments)
+    if match is None:
+        return None
+    return _single_line(_decode_js_string(match.group("value")))
+
+
+def _invocation_label(name: str, arguments: Any) -> str:
+    short_name = _short_tool_name(name)
+    if short_name in {"exec_command", "ctx_shell"}:
+        command = _command_from_arguments(arguments)
+        if command:
+            return command
+    if arguments is None:
+        return short_name
+    if isinstance(arguments, str):
+        serialized = _compact_source(arguments)
+    else:
+        serialized = json.dumps(
+            arguments,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    return f"{short_name} {serialized}" if serialized else short_name
+
+
+def _nested_invocation_labels(source: str) -> list[str]:
+    labels = []
+    for match in _TOOL_CALL.finditer(source):
+        arguments = _call_arguments(source, match.end())
+        if arguments is not None:
+            labels.append(_invocation_label(match.group(1), arguments))
+    return labels
+
+
+def _tool_observation_name(tool: dict[str, Any], config: Config) -> str:
+    name = str(tool.get("name") or "tool")
+    if not config.capture_content:
+        return name
+    captured_input = _captured(tool.get("input"), config)
+    labels = (
+        _nested_invocation_labels(captured_input)
+        if name == "exec" and isinstance(captured_input, str)
+        else []
+    )
+    value = "; ".join(labels) if labels else _invocation_label(name, captured_input)
+    value = _single_line(value)
+    if len(value) <= _TOOL_NAME_MAX_CHARS:
+        return value
+    return f"{value[: _TOOL_NAME_MAX_CHARS - 1]}…"
 
 
 def _valid_usage(value: Any) -> dict[str, int] | None:
@@ -332,7 +471,7 @@ def _turn_observations(
             error = tool.get("error")
             child = {
                 "type": "tool",
-                "name": tool["name"],
+                "name": _tool_observation_name(tool, config),
                 "start_time": tool["start_time"],
                 "end_time": tool["end_time"],
                 "error": (

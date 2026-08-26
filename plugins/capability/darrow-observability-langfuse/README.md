@@ -53,18 +53,18 @@ Langfuse and should be checked before connecting an older self-hosted server.
 Tracing is disabled until explicitly enabled. Environment variables override
 the repository file, which overrides the user file, which overrides defaults.
 
-| Environment variable              | File key          | Default                      | Purpose                                                   |
-| --------------------------------- | ----------------- | ---------------------------- | --------------------------------------------------------- |
-| `DARROW_LANGFUSE_ENABLED`         | `enabled`         | `false`                      | Opt into network export                                   |
-| `DARROW_LANGFUSE_CAPTURE_CONTENT` | `capture_content` | `false`                      | Include prompt/reasoning/message/tool content             |
-| `DARROW_LANGFUSE_WORK_ITEM_ID`    | `work_item_id`    | branch inference             | Explicit external ticket or work-item identifier          |
-| `DARROW_LANGFUSE_MAX_CHARS`       | `max_chars`       | `20000`                      | Maximum captured characters per string                    |
-| `DARROW_LANGFUSE_DRY_RUN`         | `dry_run`         | `false`                      | Print reconstructed JSON without export or sidecar writes |
-| `DARROW_LANGFUSE_DEBUG`           | `debug`           | `false`                      | Emit bounded diagnostics to stderr                        |
-| `DARROW_LANGFUSE_STRICT`          | `strict`          | `false`                      | Make refusals/export failures nonzero for tests           |
-| `LANGFUSE_BASE_URL`               | `base_url`        | `https://cloud.langfuse.com` | Langfuse Cloud or self-hosted base URL                    |
-| `LANGFUSE_PUBLIC_KEY`             | `public_key`      | none                         | Project-scoped public key                                 |
-| `LANGFUSE_SECRET_KEY`             | `secret_key`      | none                         | Project-scoped secret key                                 |
+| Environment variable              | File key          | Default                      | Purpose                                                                      |
+| --------------------------------- | ----------------- | ---------------------------- | ---------------------------------------------------------------------------- |
+| `DARROW_LANGFUSE_ENABLED`         | `enabled`         | `false`                      | Opt into network export                                                      |
+| `DARROW_LANGFUSE_CAPTURE_CONTENT` | `capture_content` | `false`                      | Include prompt/reasoning/message/tool content and detailed invocation labels |
+| `DARROW_LANGFUSE_WORK_ITEM_ID`    | `work_item_id`    | branch inference             | Explicit external ticket or work-item identifier                             |
+| `DARROW_LANGFUSE_MAX_CHARS`       | `max_chars`       | `20000`                      | Maximum captured characters per string                                       |
+| `DARROW_LANGFUSE_DRY_RUN`         | `dry_run`         | `false`                      | Print reconstructed JSON without export or sidecar writes                    |
+| `DARROW_LANGFUSE_DEBUG`           | `debug`           | `false`                      | Emit bounded diagnostics to stderr                                           |
+| `DARROW_LANGFUSE_STRICT`          | `strict`          | `false`                      | Make refusals/export failures nonzero for tests                              |
+| `LANGFUSE_BASE_URL`               | `base_url`        | `https://cloud.langfuse.com` | Langfuse Cloud or self-hosted base URL                                       |
+| `LANGFUSE_PUBLIC_KEY`             | `public_key`      | none                         | Project-scoped public key                                                    |
+| `LANGFUSE_SECRET_KEY`             | `secret_key`      | none                         | Project-scoped secret key                                                    |
 
 Configuration files are JSON objects at
 `~/.codex/darrow-langfuse.json` and `<project>/.codex/darrow-langfuse.json`:
@@ -102,7 +102,10 @@ Export and raw-content capture are separate opt-ins. With content capture off,
 the plugin sends observation structure, names, status, model identity, token
 counts, timing metadata, session/turn IDs, and optional work-item attribution.
 With it on, prompts, reasoning summaries, assistant text, and tool inputs and
-outputs are also eligible for export.
+outputs are also eligible for export. Tool observation names then use concise
+invocation labels such as `git status` or `ctx_read {path:"README.md"}`, while
+the complete captured parameters remain in the observation input. With content
+capture off, tool names remain generic and contain no parameters.
 
 Configured credential strings and values under sensitive keys such as
 `authorization`, `token`, `secret`, `password`, and `api_key` are redacted

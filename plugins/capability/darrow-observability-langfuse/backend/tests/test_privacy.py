@@ -58,7 +58,75 @@ class PrivacyTest(unittest.TestCase):
         serialized = json.dumps(document)
         self.assertNotIn("raw tool output SECRET", serialized)
         tool = document["traces"][0]["observations"][0]["children"][0]
+        self.assertEqual(tool["name"], "exec_command")
+        self.assertNotIn("input", tool)
         self.assertEqual(tool["error"], "tool failed")
+
+    def test_capture_on_labels_nested_tool_invocations_with_parameters(self):
+        source = "\n".join(
+            (
+                "const values = await Promise.all([",
+                '  tools.mcp__lean_ctx__ctx_shell({command:"git status"}),',
+                '  tools.exec_command({cmd:"lean-ctx -c \'jq --help\'"}),',
+                '  tools.mcp__lean_ctx__ctx_read({path:"/repo/README.md",mode:"full"}),',
+                "]);",
+            )
+        )
+        records = [
+            {
+                "timestamp": "2026-08-24T10:00:00Z",
+                "type": "session_meta",
+                "payload": {"id": "privacy-session"},
+            },
+            {
+                "timestamp": "2026-08-24T10:00:01Z",
+                "type": "event_msg",
+                "payload": {"type": "task_started", "turn_id": "privacy-turn"},
+            },
+            {
+                "timestamp": "2026-08-24T10:00:02Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "custom_tool_call",
+                    "name": "exec",
+                    "call_id": "privacy-call",
+                    "input": source,
+                },
+            },
+            {
+                "timestamp": "2026-08-24T10:00:03Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "custom_tool_call_output",
+                    "call_id": "privacy-call",
+                    "output": "completed",
+                },
+            },
+            {
+                "timestamp": "2026-08-24T10:00:04Z",
+                "type": "event_msg",
+                "payload": {"type": "task_complete", "turn_id": "privacy-turn"},
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            rollout = Path(directory) / "rollout.jsonl"
+            rollout.write_text(
+                "\n".join(json.dumps(record) for record in records),
+                encoding="utf-8",
+            )
+            document = trace_document(
+                rollout,
+                Config(enabled=True, capture_content=True),
+                directory,
+            )
+
+        tool = document["traces"][0]["observations"][0]["children"][0]
+        self.assertEqual(
+            tool["name"],
+            "git status; lean-ctx -c 'jq --help'; "
+            'ctx_read {path:"/repo/README.md",mode:"full"}',
+        )
+        self.assertEqual(tool["input"], source)
 
     def test_relative_transcript_path_is_rejected_before_resolution(self):
         previous = Path.cwd()

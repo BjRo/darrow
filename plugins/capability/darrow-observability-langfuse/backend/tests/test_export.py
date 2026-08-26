@@ -138,7 +138,7 @@ class ExportDocumentTest(unittest.TestCase):
         self.assertEqual(generation.attributes["model"], "gpt-5.6-sol")
         self.assertEqual(generation.attributes["usage_details"]["total_tokens"], 120)
         tool = next(child for child in generation.children if child.attributes["as_type"] == "tool")
-        self.assertEqual(tool.attributes["name"], "exec_command")
+        self.assertEqual(tool.attributes["name"], "rg --files")
         subagent = next(child for child in root.children if child.attributes["name"] == "Codex Subagent Turn")
         self.assertEqual(subagent.attributes["as_type"], "agent")
         self.assertTrue(root.ended and generation.ended and tool.ended and subagent.ended)
