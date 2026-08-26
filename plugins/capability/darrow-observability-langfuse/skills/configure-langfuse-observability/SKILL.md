@@ -1,6 +1,6 @@
 ---
 name: configure-langfuse-observability
-description: Configure or explain Darrow's Langfuse observability for Codex, including setup, privacy, work-item attribution, dry-run verification, and failure diagnosis. Use for requests about enabling, inspecting, or troubleshooting this plugin. Do not use for generic application monitoring, deploying Langfuse itself, or tracker operations.
+description: Configure or explain Darrow's Langfuse observability for Codex, including setup, privacy, in-session work-item attribution, verification, and failure diagnosis. Use for requests about enabling, inspecting, controlling attribution, or troubleshooting this plugin. Do not use for generic application monitoring, deploying Langfuse itself, or tracker operations.
 ---
 
 # Configure Langfuse observability
@@ -17,8 +17,8 @@ rollout path are both supplied or already verified in the current environment.
 
 ## 1. Establish the requested outcome
 
-Distinguish configuration, privacy explanation, verification, and diagnosis.
-For a configuration request, establish:
+Distinguish configuration, in-session attribution control, privacy explanation,
+verification, and diagnosis. For a configuration request, establish:
 
 - whether UV is installed and usable;
 - the Langfuse base URL, public key, and secret key source;
@@ -68,12 +68,44 @@ named `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`. Never fill those placeholders
 
 ## 3. Resolve attribution explicitly
 
-`DARROW_LANGFUSE_WORK_ITEM_ID` or the corresponding `work_item_id` file value
-always wins over Git-branch inference. Without an explicit value, a bounded
-token such as `DAR-123`, `issue-45`, or a leading numeric branch token may be
-inferred. Detached HEAD, a non-ticket branch, unreadable Git state, or malformed
-input produces no `darrow.work_item_id`. Never query or mutate a tracker to fill
-the gap.
+Use a rollout directive when the user wants to start, change, clear, or restore
+automatic attribution without restarting Codex. The directive must be the
+first non-empty line of the user's prompt. Give the applicable line exactly,
+without a shell wrapper, environment assignment, Markdown prefix, or invented
+identifier:
+
+```text
+@darrow.attribution set ISSUE-60
+@darrow.attribution clear
+@darrow.attribution auto
+```
+
+Replace `ISSUE-60` only with the bounded identifier the user supplied. Never
+infer an identifier from a title or contact a tracker to fill one in. If the
+user asks to set attribution but supplies no identifier, ask for it. Distinguish
+`clear`, which explicitly keeps the current and subsequent turns unattributed,
+from `auto`, which returns the current and subsequent turns to configuration and
+then Git-branch fallback. Do not claim that natural-language prose or a
+directive shown later in a prompt changes attribution.
+
+For automatic attribution, `DARROW_LANGFUSE_WORK_ITEM_ID` or the corresponding
+`work_item_id` file value wins over Git-branch inference. Without a configured
+value, a bounded token such as `DAR-123`, `issue-45`, or a leading numeric branch
+token may be inferred. Detached HEAD, a non-ticket branch, unreadable Git state,
+or malformed input produces no `darrow.work_item_id`.
+
+Every valid directive starts a new attribution epoch. Explain that Langfuse
+uses the epoch as its native session segment and that `codex.thread_id` remains
+the stable conversation key across segments. Each trace records the attribution
+source and epoch plus branch and HEAD provenance when available.
+
+An in-session attribution-control answer is incomplete unless it includes the
+applicable exact directive lines, their current-and-subsequent-turn scope, the
+epoch-to-Langfuse-session mapping, and `codex.thread_id` as the conversation key
+across those session segments. End that answer with a concise `Session policy`
+statement that uses both field names literally: `darrow.attribution_epoch` is
+the Langfuse session segment, while `codex.thread_id` is the conversation key
+across segments. Do not replace either field name with a prose-only synonym.
 
 ## 4. Verify without overstating success
 
@@ -100,5 +132,6 @@ from that same project.
 
 Return the exact configuration or explanation requested, distinguish verified
 facts from untested prerequisites, state the content-capture decision and
-attribution source, and name the next safe verification. Do not imply that the
-plugin, UV, credentials, network, or ingestion works unless directly observed.
+attribution source or directive mode, and name the next safe verification. Do
+not imply that the plugin, UV, credentials, network, or ingestion works unless
+directly observed.

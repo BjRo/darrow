@@ -8,8 +8,13 @@ from typing import Any
 
 from .config import Config, load_config
 from .export import export_document
-from .rollout import trace_document
-from .sidecar import mark_exported_turns, pending_document
+from .rollout import attribution_snapshot, trace_document
+from .sidecar import (
+    load_attribution_snapshots,
+    mark_exported_turns,
+    pending_document,
+    record_attribution_snapshot,
+)
 
 
 def _environment_true(name: str) -> bool:
@@ -63,15 +68,31 @@ def run() -> int:
         transcript_path = hook_input.get("transcript_path")
         if not isinstance(transcript_path, str) or not transcript_path:
             raise ValueError("hook input is missing transcript_path")
-        document = trace_document(Path(transcript_path), config, cwd)
-        _complete_stop_turn(document, hook_input.get("turn_id"))
+        rollout = Path(transcript_path)
+        turn_id = hook_input.get("turn_id")
+        snapshots = load_attribution_snapshots(rollout)
+        if isinstance(turn_id, str) and turn_id in snapshots:
+            current_snapshot = snapshots[turn_id]
+        else:
+            current_snapshot = attribution_snapshot(config, cwd)
+        effective_snapshots = dict(snapshots)
+        if isinstance(turn_id, str):
+            effective_snapshots[turn_id] = current_snapshot
+        document = trace_document(
+            rollout,
+            config,
+            cwd,
+            attribution_snapshots=effective_snapshots,
+        )
+        _complete_stop_turn(document, turn_id)
         if config.dry_run:
             json.dump(document, sys.stdout, separators=(",", ":"), sort_keys=True)
             sys.stdout.write("\n")
             return 0
         if not config.public_key or not config.secret_key:
             raise ValueError("Langfuse credentials are missing")
-        rollout = Path(transcript_path)
+        assert isinstance(turn_id, str)
+        record_attribution_snapshot(rollout, turn_id, current_snapshot)
         pending = pending_document(document, rollout)
         if not pending["traces"]:
             return 0

@@ -62,7 +62,7 @@ def _nonempty(value: Any) -> str | None:
     return value or None
 
 
-def _validate_work_item(value: Any) -> str | None:
+def validate_work_item_id(value: Any) -> str | None:
     normalized = _nonempty(value)
     if normalized is None:
         return None
@@ -119,15 +119,15 @@ def load_config(
         public_key=_nonempty(merged.get("public_key")),
         secret_key=_nonempty(merged.get("secret_key")),
         base_url=_nonempty(merged.get("base_url")) or "https://cloud.langfuse.com",
-        work_item_id=_validate_work_item(merged.get("work_item_id")),
+        work_item_id=validate_work_item_id(merged.get("work_item_id")),
         max_chars=max_chars,
     )
 
 
-def infer_work_item_id(cwd: str) -> str | None:
+def _git_output(cwd: str, *arguments: str) -> str | None:
     try:
         completed = subprocess.run(
-            ["git", "-C", cwd, "symbolic-ref", "--quiet", "--short", "HEAD"],
+            ["git", "-C", cwd, *arguments],
             check=False,
             capture_output=True,
             text=True,
@@ -137,12 +137,28 @@ def infer_work_item_id(cwd: str) -> str | None:
         return None
     if completed.returncode != 0:
         return None
-    branch = completed.stdout.strip()
+    return completed.stdout.strip() or None
+
+
+def git_provenance(cwd: str) -> tuple[str | None, str | None]:
+    branch = _git_output(cwd, "symbolic-ref", "--quiet", "--short", "HEAD")
+    head = _git_output(cwd, "rev-parse", "--verify", "HEAD")
+    return branch, head
+
+
+def infer_work_item_id_from_branch(branch: str | None) -> str | None:
+    if branch is None:
+        return None
     for pattern in (_ISSUE_TOKEN, _JIRA_TOKEN, _NUMERIC_BRANCH_TOKEN):
         match = pattern.search(branch)
         if match:
             return match.group(1)
     return None
+
+
+def infer_work_item_id(cwd: str) -> str | None:
+    branch, _head = git_provenance(cwd)
+    return infer_work_item_id_from_branch(branch)
 
 
 def resolve_work_item_id(config: Config, cwd: str) -> str | None:

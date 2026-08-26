@@ -27,11 +27,21 @@ if (result.status !== "dry-run" || result.traces.length !== 1) {
   throw new Error("Stop hook did not reconstruct exactly one dry-run trace");
 }
 const trace = result.traces[0];
-if (trace.name !== "Codex Turn" || trace.session_id !== "session-main") {
+if (
+  trace.name !== "Codex Turn" ||
+  trace.session_id !== "session-main:attribution:0" ||
+  trace.metadata["codex.thread_id"] !== "session-main"
+) {
   throw new Error("turn trace identity is incorrect");
 }
 if (trace.metadata["darrow.work_item_id"] !== "EXT-7") {
   throw new Error("explicit work-item configuration did not win");
+}
+if (
+  trace.metadata["darrow.attribution_source"] !== "configuration" ||
+  trace.metadata["darrow.attribution_epoch"] !== trace.session_id
+) {
+  throw new Error("attribution epoch metadata is incorrect");
 }
 if (trace.input !== "Inspect the repository" || !trace.output.includes("README.md")) {
   throw new Error("turn content was not reconstructed");

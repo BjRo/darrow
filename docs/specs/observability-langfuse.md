@@ -33,8 +33,9 @@ Codex rollout JSONL file. It reads that file without modifying it and
 reconstructs:
 
 - one trace for each observed turn;
-- one native Langfuse session for the Codex conversation, grouping all of its
-  turn traces by the Codex session/thread identifier;
+- one native Langfuse session segment for each attribution epoch in a Codex
+  conversation, while preserving the Codex session/thread identifier on every
+  trace as the cross-segment conversation key;
 - model generations and their model name, reasoning summary, output, and valid
   token counts;
 - tool observations with inputs, outputs, timing, error state, and concise
@@ -46,11 +47,15 @@ reconstructs:
 The Stop payload's non-empty `turn_id` identifies the turn being completed and
 is authoritative even when the rollout writer has not appended its trailing
 `task_complete` record yet. Only rollout-completed turns and the current Stop
-turn are eligible for export. Their identifiers are recorded in a plugin-owned
-sidecar next to the rollout after successful ingestion so repeated Stop events
-do not export the same completed turn twice. Malformed JSONL records are
-ignored, but an unreadable `transcript_path` or a `turn_id` that does not match
-exactly one reconstructed turn is a refusal rather than a fabricated success.
+turn are eligible for export. Before export, the hook records the current
+turn's fallback attribution and Git provenance atomically in a plugin-owned
+sidecar next to the rollout. Successful ingestion adds the completed turn
+identifier to the same sidecar so repeated Stop events do not export it twice.
+The attribution snapshot survives a failed export and makes a later retry
+independent of subsequent configuration, branch, or HEAD changes. Malformed
+JSONL records are ignored, but an unreadable `transcript_path`, missing original
+Codex thread ID, invalid sidecar, or a `turn_id` that does not match exactly one
+reconstructed turn is a refusal rather than a fabricated success.
 
 The hook fails open by default: configuration, parsing, dependency, network, or
 export failures do not block the Codex turn. An explicit strict test/debug
@@ -79,21 +84,50 @@ automatic redaction.
 
 ## Work-item attribution
 
-Each exported trace may carry one `darrow.work_item_id` trace-metadata value,
-propagated to every observation so all traces in the native Langfuse session
-remain associated with the work item. Resolution is deterministic:
+Attribution is an ordered timeline reconstructed from the rollout and its
+sidecar snapshots. A user starts an explicit epoch by making the first non-empty
+line of a prompt exactly one of:
 
-1. a non-empty identifier supplied explicitly by environment or configuration;
-2. an identifier inferred from the current Git branch; or
-3. no attribution.
+```text
+@darrow.attribution set <work-item-id>
+@darrow.attribution clear
+@darrow.attribution auto
+```
 
-Explicit configuration always wins, including when it conflicts with branch
-inference. Branch inference recognizes a bounded ticket token such as
-`DAR-123`, `ABC_42`, `issue-45`, or `45` when the token is delimited within a
-conventional branch name. Detached HEAD, unreadable Git state, malformed
-identifiers, and branches without a bounded token yield no inferred value.
-Inference is local mechanics and does not call a tracker or require a ticket
-plugin.
+`set` applies the bounded identifier to the current and subsequent turns,
+`clear` makes the current and subsequent turns explicitly unattributed, and
+`auto` returns the current and subsequent turns to fallback resolution. A valid
+directive starts a new epoch even when it repeats the previous mode or value.
+Text elsewhere in a prompt is not a directive. A malformed namespaced first
+line is refused instead of being guessed.
+
+For each turn, resolution follows this precedence:
+
+1. a directive on the current turn;
+2. the active explicit epoch reconstructed from earlier directives;
+3. a non-empty identifier supplied by environment or configuration and
+   snapshotted when the turn stops;
+4. an identifier inferred from the Git branch snapshotted when the turn stops;
+5. no attribution.
+
+Every trace records `darrow.attribution_source`,
+`darrow.attribution_epoch`, and `codex.thread_id`; it records
+`darrow.work_item_id`, `git.branch`, and `git.head` when those values are
+available. Explicit attribution, including an explicit unattributed gap, wins
+over configuration and branch inference. Branch inference recognizes a bounded
+ticket token such as `DAR-123`, `ABC_42`, `issue-45`, or `45` when the token is
+delimited within a conventional branch name. Detached HEAD, unreadable Git
+state, malformed identifiers, and branches without a bounded token yield no
+inferred value. Inference is local mechanics and does not call a tracker or
+require a ticket plugin.
+
+Each epoch has a deterministic identifier derived from the original Codex
+thread ID and its ordered position. That identifier is both the
+`darrow.attribution_epoch` metadata value and the native Langfuse `session.id`.
+Consequently one Codex conversation may span several ticket-coherent Langfuse
+session segments, while `codex.thread_id` provides the stable conversation key
+across all of them. A change in effective automatic attribution also starts a
+new segment so branch fallback cannot group different work items together.
 
 ## Installation and refusal behavior
 
@@ -114,11 +148,13 @@ nonzero exit for deterministic testing.
 ## Verification
 
 Deterministic tests cover installation paths, configuration precedence,
-work-item precedence and branch-only inference, native session grouping and
-session work-item association, detached and non-ticket Git state, rollout
-reconstruction, deduplication, content privacy, malformed input, missing
-runtime or configuration, and exporter failure. Backend checks run through UV.
-Portable hook-launcher tests run with both supported Bash executables.
+same-session topic changes, explicit clearing and unattributed gaps, return to
+automatic attribution, branch-only fallback, mid-session branch changes,
+export retry snapshots, epoch session segmentation, detached and non-ticket
+Git state, rollout reconstruction, deduplication, content privacy, malformed
+input, missing runtime or configuration, and exporter failure. Backend checks
+run through UV. Portable hook-launcher tests run with both supported Bash
+executables.
 
 Participant-visible colocated evals cover configuration/help intent, refusal to
 claim tracing without prerequisites, privacy disclosure, work-item precedence,
@@ -132,12 +168,15 @@ exports a fixture turn, and retrieves the ingested trace and work-item metadata.
    no reference to, another Darrow plugin or skill.
 2. **OLF-P2 — Host lifecycle seam.** A Codex Stop payload naming a rollout is
    sufficient to invoke reconstruction and export.
-3. **OLF-P3 — Coherent session and trace.** Each Codex conversation is one
-   native Langfuse session whose turn, generation, tool, token, and subagent
-   evidence is represented as correctly nested per-turn trace trees.
-4. **OLF-P4 — Deterministic attribution.** Explicit work-item configuration
-   wins over branch inference; the resolved value propagates across the
-   session's observations, while absent or malformed evidence produces no ID.
+3. **OLF-P3 — Coherent session and trace.** Each attribution epoch is one native
+   Langfuse session segment whose turn, generation, tool, token, and subagent
+   evidence is represented as correctly nested per-turn trace trees; every
+   segment retains the original Codex thread ID.
+4. **OLF-P4 — Deterministic attribution.** Ordered rollout directives start,
+   change, clear, or restore automatic attribution without retroactively
+   changing earlier epochs. Snapshotted configuration and Git provenance keep
+   branch fallback and export retries stable, while absent evidence produces no
+   ID.
 5. **OLF-P5 — Privacy by opt-in.** Export and raw-content capture are separate
    explicit choices, and credential values never become trace metadata.
 6. **OLF-P6 — Safe failure.** Runtime and exporter failures fail open by

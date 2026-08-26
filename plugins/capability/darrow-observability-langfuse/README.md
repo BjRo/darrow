@@ -5,8 +5,10 @@ rollout transcript supplied to Codex's `Stop` hook and exports them as Langfuse
 traces. Its trace model is explicitly oriented on
 [`langfuse/codex-observability-plugin`](https://github.com/langfuse/codex-observability-plugin):
 one trace per turn, nested model generations and tool calls, token usage, and
-spawned subagent turns. All turn traces from one Codex conversation are grouped
-under a native Langfuse session keyed by the Codex session/thread identifier.
+spawned subagent turns. Turn traces are grouped into ticket-coherent native
+Langfuse session segments, one per attribution epoch. Every trace retains the
+original Codex session/thread identifier as the conversation key across those
+segments.
 
 It adds Darrow-specific work-item attribution without depending on another
 plugin. The hook never contacts or mutates a tracker.
@@ -57,7 +59,7 @@ the repository file, which overrides the user file, which overrides defaults.
 | --------------------------------- | ----------------- | ---------------------------- | ---------------------------------------------------------------------------- |
 | `DARROW_LANGFUSE_ENABLED`         | `enabled`         | `false`                      | Opt into network export                                                      |
 | `DARROW_LANGFUSE_CAPTURE_CONTENT` | `capture_content` | `false`                      | Include prompt/reasoning/message/tool content and detailed invocation labels |
-| `DARROW_LANGFUSE_WORK_ITEM_ID`    | `work_item_id`    | branch inference             | Explicit external ticket or work-item identifier                             |
+| `DARROW_LANGFUSE_WORK_ITEM_ID`    | `work_item_id`    | branch inference             | Automatic-mode default external ticket or work-item identifier               |
 | `DARROW_LANGFUSE_MAX_CHARS`       | `max_chars`       | `20000`                      | Maximum captured characters per string                                       |
 | `DARROW_LANGFUSE_DRY_RUN`         | `dry_run`         | `false`                      | Print reconstructed JSON without export or sidecar writes                    |
 | `DARROW_LANGFUSE_DEBUG`           | `debug`           | `false`                      | Emit bounded diagnostics to stderr                                           |
@@ -83,18 +85,43 @@ commit API keys to the repository file.
 
 ## Work-item attribution
 
-Every trace in the native Langfuse session carries `darrow.work_item_id` as
-trace metadata when an identifier is available. Langfuse propagates it to the
-trace's observations so the complete session remains associated with the work
-item:
+Start an attribution epoch by putting one directive on the first non-empty line
+of a Codex prompt. The rest of that prompt may contain the task:
 
-1. explicit environment or configuration-file value;
-2. a bounded token inferred from the current Git branch; or
-3. no attribution.
+```text
+@darrow.attribution set ISSUE-60
+@darrow.attribution clear
+@darrow.attribution auto
+```
 
-Explicit configuration always wins. Conventional tokens such as `DAR-123`,
-`ABC_42`, `issue-45`, and a leading numeric branch token are supported.
-Detached HEAD, malformed tokens, and non-ticket branches yield no identifier.
+- `set` attributes the current and subsequent turns to the supplied bounded
+  work-item ID.
+- `clear` makes the current and subsequent turns explicitly unattributed.
+- `auto` returns the current and subsequent turns to configuration and then Git
+  branch inference.
+
+A directive later in a prompt is ordinary text and does not change attribution.
+Every valid directive starts a new epoch, including one that repeats the active
+mode or value. In automatic mode, `DARROW_LANGFUSE_WORK_ITEM_ID` or the
+configuration-file `work_item_id` wins over branch inference. Conventional
+branch tokens such as `DAR-123`, `ABC_42`, `issue-45`, and a leading numeric
+token are supported. Detached HEAD, malformed tokens, and non-ticket branches
+yield no identifier.
+
+Every trace records `darrow.attribution_source`,
+`darrow.attribution_epoch`, and `codex.thread_id`. It also records
+`darrow.work_item_id`, `git.branch`, and `git.head` when available. The epoch ID
+is the trace's native Langfuse `session.id`, so a conversation that moves from
+one work item to another becomes multiple ticket-coherent session segments.
+Use `codex.thread_id` to query or correlate the complete conversation across
+segments.
+
+At each live Stop, the plugin snapshots the current turn's automatic fallback,
+branch, and HEAD in `<rollout>.darrow-langfuse` before export. A failed export
+therefore retries with the original evidence even if the configuration, branch,
+or HEAD changes afterward. Explicit directives remain in the rollout itself,
+so replay reconstructs the same ordered timeline. This state is entirely local;
+the plugin never contacts a tracker.
 
 ## Privacy and security
 
@@ -127,11 +154,11 @@ installation and failure testing.
 
 The Stop payload's `turn_id` identifies the turn being completed, including
 when the rollout does not yet contain its trailing `task_complete` record.
-Only that turn and other rollout-completed turns are eligible for export.
-Their IDs are written atomically with mode `0600` to
-`<rollout>.darrow-langfuse` only after the exporter returns successfully.
-Repeated Stop hooks filter those IDs, and unrelated in-progress turns are not
-exported.
+Only that turn and other rollout-completed turns are eligible for export. The
+current attribution snapshot is written atomically with mode `0600` to
+`<rollout>.darrow-langfuse` before export; the completed turn ID is added only
+after the exporter returns successfully. Repeated Stop hooks filter successful
+IDs, preserve retry attribution, and do not export unrelated in-progress turns.
 
 ## Verify
 

@@ -105,13 +105,41 @@ class ExportDocumentTest(unittest.TestCase):
             {"EXT-7"},
         )
 
-    def test_exports_codex_thread_as_native_langfuse_session(self):
-        spans = self._exported_spans(public_key="pk-session-test")
+    def test_exports_epoch_as_session_and_thread_as_conversation_metadata(self):
+        spans = self._exported_spans(
+            public_key="pk-session-test",
+            work_item_id="EXT-7",
+        )
 
         self.assertGreater(len(spans), 1)
         self.assertEqual(
             {span.attributes.get("session.id") for span in spans},
+            {"session-main:attribution:0"},
+        )
+        self.assertEqual(
+            {
+                span.attributes.get("langfuse.trace.metadata.codex.thread_id")
+                for span in spans
+            },
             {"session-main"},
+        )
+        self.assertEqual(
+            {
+                span.attributes.get(
+                    "langfuse.trace.metadata.darrow.attribution_epoch"
+                )
+                for span in spans
+            },
+            {"session-main:attribution:0"},
+        )
+        self.assertEqual(
+            {
+                span.attributes.get(
+                    "langfuse.trace.metadata.darrow.attribution_source"
+                )
+                for span in spans
+            },
+            {"configuration"},
         )
 
     def test_exports_nested_trace_tree_through_langfuse_client(self):

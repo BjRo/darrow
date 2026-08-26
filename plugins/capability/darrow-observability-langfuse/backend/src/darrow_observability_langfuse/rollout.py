@@ -5,7 +5,12 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .config import Config, resolve_work_item_id
+from .config import (
+    Config,
+    git_provenance,
+    infer_work_item_id_from_branch,
+    validate_work_item_id,
+)
 
 
 _SENSITIVE_KEY = re.compile(
@@ -18,6 +23,7 @@ _COMMAND_ARGUMENT = re.compile(
     re.S,
 )
 _TOOL_NAME_MAX_CHARS = 512
+_ATTRIBUTION_DIRECTIVE = "@darrow.attribution"
 
 
 def _clip(value: Any, limit: int, redactions: tuple[str, ...] = ()) -> Any:
@@ -46,6 +52,25 @@ def _captured(value: Any, config: Config) -> Any:
         config.max_chars,
         tuple(item for item in (config.public_key, config.secret_key) if item),
     )
+
+
+def _contains_credential(value: str | None, config: Config) -> bool:
+    return bool(
+        value
+        and any(
+            credential and credential in value
+            for credential in (config.public_key, config.secret_key)
+        )
+    )
+
+
+def _redacted_metadata_string(value: str | None, config: Config) -> str | None:
+    if value is None:
+        return None
+    for credential in (config.public_key, config.secret_key):
+        if credential:
+            value = value.replace(credential, "[REDACTED]")
+    return value
 
 
 def _message_text(content: Any) -> str | None:
@@ -221,6 +246,47 @@ def _tool_observation_name(tool: dict[str, Any], config: Config) -> str:
     return f"{value[: _TOOL_NAME_MAX_CHARS - 1]}…"
 
 
+def _attribution_directive(value: Any) -> tuple[str, str | None] | None:
+    if not isinstance(value, str):
+        return None
+    line = next((line.strip() for line in value.splitlines() if line.strip()), "")
+    if not line.startswith(_ATTRIBUTION_DIRECTIVE):
+        return None
+    parts = line.split()
+    if parts == [_ATTRIBUTION_DIRECTIVE, "clear"]:
+        return "clear", None
+    if parts == [_ATTRIBUTION_DIRECTIVE, "auto"]:
+        return "auto", None
+    if len(parts) == 3 and parts[:2] == [_ATTRIBUTION_DIRECTIVE, "set"]:
+        work_item_id = validate_work_item_id(parts[2])
+        if work_item_id is not None:
+            return "set", work_item_id
+    raise ValueError("invalid @darrow.attribution directive")
+
+
+def attribution_snapshot(config: Config, cwd: str) -> dict[str, Any]:
+    raw_branch, raw_head = git_provenance(cwd)
+    if config.work_item_id:
+        work_item_id = config.work_item_id
+        source = "configuration"
+    else:
+        work_item_id = infer_work_item_id_from_branch(raw_branch)
+        source = "git_branch" if work_item_id else "none"
+    if _contains_credential(work_item_id, config):
+        work_item_id = None
+        source = "none"
+    return {
+        "work_item_id": work_item_id,
+        "source": source,
+        "branch": _redacted_metadata_string(raw_branch, config),
+        "head": (
+            None
+            if _contains_credential(raw_head, config)
+            else _redacted_metadata_string(raw_head, config)
+        ),
+    }
+
+
 def _valid_usage(value: Any) -> dict[str, int] | None:
     if not isinstance(value, dict):
         return None
@@ -261,7 +327,7 @@ def load_rollout(path: Path) -> list[dict[str, Any]]:
 
 
 def parse_rollout(records: list[dict[str, Any]]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    session = {"session_id": "unknown", "is_subagent": False}
+    session = {"session_id": None, "is_subagent": False}
     turns: list[dict[str, Any]] = []
     turn: dict[str, Any] | None = None
     step: dict[str, Any] | None = None
@@ -321,7 +387,7 @@ def parse_rollout(records: list[dict[str, Any]]) -> tuple[dict[str, Any], list[d
         kind = record.get("type")
         payload = record["payload"]
         if kind == "session_meta":
-            if isinstance(payload.get("id"), str):
+            if isinstance(payload.get("id"), str) and payload["id"].strip():
                 session["session_id"] = payload["id"]
             session["cli_version"] = payload.get("cli_version")
             session["model_provider"] = payload.get("model_provider")
@@ -416,7 +482,10 @@ def parse_rollout(records: list[dict[str, Any]]) -> tuple[dict[str, Any], list[d
 
 
 def _metadata(
-    turn: dict[str, Any], session: dict[str, Any], work_item_id: str | None
+    turn: dict[str, Any],
+    session: dict[str, Any],
+    attribution: dict[str, Any],
+    config: Config,
 ) -> dict[str, Any]:
     value = {
         "codex.turn_id": turn.get("turn_id"),
@@ -426,10 +495,22 @@ def _metadata(
         "codex.cli_version": session.get("cli_version"),
         "codex.aborted": turn.get("aborted", False),
         "codex.completed": turn.get("completed", False),
+        "darrow.attribution_source": attribution["source"],
+        "darrow.attribution_epoch": attribution["epoch"],
     }
+    work_item_id = attribution.get("work_item_id")
     if work_item_id:
         value["darrow.work_item_id"] = work_item_id
-    return value
+    if attribution.get("branch"):
+        value["git.branch"] = attribution["branch"]
+    if attribution.get("head"):
+        value["git.head"] = attribution["head"]
+    return {
+        key: _redacted_metadata_string(item, config)
+        if isinstance(item, str)
+        else item
+        for key, item in value.items()
+    }
 
 
 def _find_subagent_rollout(parent: Path, thread_id: str) -> Path | None:
@@ -448,7 +529,7 @@ def _turn_observations(
     turn: dict[str, Any],
     session: dict[str, Any],
     config: Config,
-    work_item_id: str | None,
+    attribution: dict[str, Any],
     visited: set[Path],
 ) -> list[dict[str, Any]]:
     observations = []
@@ -492,20 +573,28 @@ def _turn_observations(
             continue
         visited.add(child_path)
         child_session, child_turns = parse_rollout(load_rollout(child_path))
+        if child_session.get("session_id") != thread_id:
+            raise ValueError(
+                "subagent rollout thread ID does not match the spawned thread"
+            )
         for child_turn in child_turns:
             child_observation: dict[str, Any] = {
                 "type": "agent",
                 "name": "Codex Subagent Turn",
-                "session_id": child_session["session_id"],
+                "session_id": _redacted_metadata_string(
+                    child_session["session_id"], config
+                ),
                 "start_time": child_turn["start_time"],
                 "end_time": child_turn["end_time"],
-                "metadata": _metadata(child_turn, child_session, work_item_id),
+                "metadata": _metadata(
+                    child_turn, child_session, attribution, config
+                ),
                 "children": _turn_observations(
                     child_path,
                     child_turn,
                     child_session,
                     config,
-                    work_item_id,
+                    attribution,
                     visited,
                 ),
             }
@@ -516,23 +605,81 @@ def _turn_observations(
     return observations
 
 
-def trace_document(path: Path, config: Config, cwd: str) -> dict[str, Any]:
+def trace_document(
+    path: Path,
+    config: Config,
+    cwd: str,
+    *,
+    attribution_snapshots: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     if not path.is_absolute():
         raise ValueError("transcript_path must name a readable absolute file")
     path = path.resolve()
     session, turns = parse_rollout(load_rollout(path))
-    work_item_id = resolve_work_item_id(config, cwd)
+    if not isinstance(session.get("session_id"), str):
+        raise ValueError("rollout is missing a valid Codex thread ID")
+    thread_id = _redacted_metadata_string(session["session_id"], config)
+    assert thread_id is not None
     traces = []
     visited = {path}
+    automatic = (
+        attribution_snapshot(config, cwd)
+        if attribution_snapshots is None
+        else None
+    )
+    mode = "auto"
+    explicit_work_item_id: str | None = None
+    epoch = 0
+    previous_key: tuple[str, str | None] | None = None
     for turn in turns:
+        directive = _attribution_directive(turn.get("input"))
+        if directive is not None:
+            mode, explicit_work_item_id = directive
+            epoch += 1
+        turn_id = turn.get("turn_id")
+        if attribution_snapshots is None:
+            assert automatic is not None
+            fallback = automatic
+        elif isinstance(turn_id, str) and turn_id in attribution_snapshots:
+            fallback = attribution_snapshots[turn_id]
+        else:
+            fallback = {
+                "work_item_id": None,
+                "source": "none",
+                "branch": None,
+                "head": None,
+            }
+        if mode == "set":
+            attribution = {
+                "work_item_id": (
+                    None
+                    if _contains_credential(explicit_work_item_id, config)
+                    else explicit_work_item_id
+                ),
+                "source": "explicit",
+            }
+        elif mode == "clear":
+            attribution = {"work_item_id": None, "source": "explicit"}
+        else:
+            attribution = {
+                "work_item_id": fallback.get("work_item_id"),
+                "source": fallback["source"],
+            }
+        attribution["branch"] = fallback.get("branch")
+        attribution["head"] = fallback.get("head")
+        effective_key = (attribution["source"], attribution.get("work_item_id"))
+        if directive is None and previous_key is not None and effective_key != previous_key:
+            epoch += 1
+        attribution["epoch"] = f"{thread_id}:attribution:{epoch}"
+        previous_key = effective_key
         trace: dict[str, Any] = {
             "name": "Codex Subagent Turn" if session["is_subagent"] else "Codex Turn",
-            "session_id": session["session_id"],
+            "session_id": attribution["epoch"],
             "start_time": turn["start_time"],
             "end_time": turn["end_time"],
-            "metadata": _metadata(turn, session, work_item_id),
+            "metadata": _metadata(turn, session, attribution, config),
             "observations": _turn_observations(
-                path, turn, session, config, work_item_id, visited
+                path, turn, session, config, attribution, visited
             ),
         }
         if config.capture_content:

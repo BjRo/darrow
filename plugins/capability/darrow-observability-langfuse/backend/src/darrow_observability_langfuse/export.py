@@ -111,15 +111,22 @@ def export_document(
         with client.start_as_current_observation(
             **_observation_attributes(root_value)
         ) as root:
-            work_item_id = (trace.get("metadata") or {}).get(
-                "darrow.work_item_id"
-            )
-            trace_metadata = (
-                {"darrow.work_item_id": work_item_id} if work_item_id else None
-            )
+            metadata = trace.get("metadata") or {}
+            trace_metadata = {
+                key: metadata[key]
+                for key in (
+                    "codex.thread_id",
+                    "darrow.attribution_epoch",
+                    "darrow.attribution_source",
+                    "darrow.work_item_id",
+                    "git.branch",
+                    "git.head",
+                )
+                if metadata.get(key) is not None
+            }
             with propagate_attributes(
                 session_id=trace.get("session_id"),
-                metadata=trace_metadata,
+                metadata=trace_metadata or None,
             ):
                 _export_children(root, trace.get("observations") or [])
 
