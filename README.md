@@ -27,14 +27,12 @@ to another orchestration helper while preserving your original authority.
 ## Plugin catalog
 
 <p align="center">
-  <img src="docs/assets/darrow-plugin-layers.svg" alt="Darrow's four plugin layers: task recipes add an ergonomic interface over orchestration; orchestration executes work packages with cost and risk proportionate to the task; capabilities teach software-engineering skills; foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.">
+  <img src="docs/assets/darrow-plugin-layers.svg" alt="Darrow's five plugin layers: automations invoke task recipes from a scheduler; task recipes add an ergonomic interface over orchestration; orchestration executes work packages with cost and risk proportionate to the task; capabilities teach software-engineering skills; foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.">
 </p>
 
 ### Foundations
 
-Foundation plugins maintain the durable context and reusable agent surfaces
-that other work builds on. They remain intent-matched capabilities and do not
-start orchestration.
+Skills for building and maintaining a healthy agent harness. Set up repository guidance, preserve decisions, and create high-quality skills.
 
 | Plugin                                                                                            | Use it to                                                                    |
 | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -43,6 +41,11 @@ start orchestration.
 | [`darrow-skill-authoring`](plugins/foundation/darrow-skill-authoring/README.md)                   | Create, revise, and validate focused agent skills for Claude Code and Codex. |
 
 ### Capabilities
+
+Going beyond the basic harness. These skills teach the agent software-engineering kung fu. All of them are opinions, but are optional.
+If you've got different opinions, bring your own implementation.
+
+What the skills share: They bet on intent matching for repeatable work such as reading and updating tickets, writting code TDD-style, typical git-workflows, performing code reviews, explaining code, etc.
 
 | Plugin                                                                                        | Use it to                                                                                         |
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -55,32 +58,39 @@ start orchestration.
 | [`darrow-review`](plugins/capability/darrow-review/README.md)                                 | Review a pinned change for repository standards and specification fulfillment without editing it. |
 | [`darrow-observability-langfuse`](plugins/capability/darrow-observability-langfuse/README.md) | Export Codex turns to Langfuse with privacy controls and work-item attribution.                   |
 
-Each plugin README describes its skills, example requests, and safety
-boundaries.
+Coming soon:
+
+- `darrow-troubleshooting` -> debugging and figuring out what's going on
+- `darrow-domain-modelling` -> better management of the core domain
+- `darrow-evidence` -> similar to `code-review` and `readiness-gate` will be pulled by `adaptive-goal` when extra evidence needs to be presented for the PR
 
 ### Orchestration
 
-[`darrow-goal-loop`](plugins/orchestration/darrow-goal-loop/README.md) is
-Darrow's core orchestration helper. When explicitly invoked, it prepares
-repository evidence, compiles a bounded completion contract, selects a
-proportionate workflow and risk gate, and hands the work to one host-native goal
-owner. It does not build a second agent runtime around that owner.
+`adaptive-goal` is the work-package primitive in this layer. Give it a bounded
+engineering task and it sizes up the cost and risk, picks the workflow, checks,
+model, and effort, then hands a properly packed brief to the host's native goal
+loop. It improves the handoff instead of bringing its own agent runtime.
 
-#### Deprecated reference: `darrow-ticket-pipeline`
-
-[`darrow-ticket-pipeline`](plugins/orchestration/darrow-ticket-pipeline/README.md)
-is a deprecated, still-installable reference implementation of Darrow's earlier
-static phase-controller approach and executable benchmark baseline. For new
-orchestration work, use `darrow-goal-loop`; deliberate installation and explicit
-`deliver-ticket` invocation remain available without an additional confirmation
-step.
+| Plugin                                                                                          | Use it to                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`darrow-goal-loop`](plugins/orchestration/darrow-goal-loop/README.md)                          | Run Darrow's core orchestration helper. It prepares repository evidence, compiles a bounded completion contract, selects a proportionate workflow and risk gate, and hands the work to one host-native goal owner without building a second agent runtime. |
+| [`darrow-ticket-pipeline`](plugins/orchestration/darrow-ticket-pipeline/README.md) (deprecated) | An earlier static orchestrator implementation kept for comparison and executable benchmark baseline. For new orchestration work, use `darrow-goal-loop`.                                                                                                   |
 
 ### Task recipes
 
-[`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md)
-turns one explicitly invoked, ready authoritative ticket into one verified pull
-request. It owns ticket-specific authority and publication safety, then
-delegates execution to adaptive-goal.
+`adaptive-goal` is more like a swiss army knife primitive. This layer packages up common tasks in a one liner skill invokation. Pure DX ergonomy
+
+| Plugin                                                                     | Use it to                                                                                         |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md) | Own ticket-specific authority and publication safety, then delegate execution to `adaptive-goal`. |
+
+### Automation
+
+This layer sits on top of the `Task Recipes` and implements the outermost loop. The idea here is that automations are invoked by a scheduler and do work. There can be as many automations that glue different parts of lower layers together.
+
+Coming soon:
+
+- `darrow-artificer` - sits on top of `darrow-ticket-to-pr` and `darrow-tickets`. Planned to be run by a scheduler will pull tickets and work on them but respect Work-in-Progress limits.
 
 ## How Darrow works
 

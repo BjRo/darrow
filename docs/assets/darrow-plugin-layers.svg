@@ -1,22 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" role="img" aria-labelledby="title description">
-  <title id="title">The four layers of Darrow plugins</title>
-  <desc id="description">Task recipes add an ergonomic interface over orchestration. Orchestration executes work packages with cost and risk proportionate to the task. Capabilities teach the agent software-engineering skills. Foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1134" viewBox="0 0 1600 1134" role="img" aria-labelledby="title description">
+  <title id="title">The five layers of Darrow plugins</title>
+  <desc id="description">Automations invoke task recipes from a scheduler. Task recipes add an ergonomic interface over orchestration. Orchestration executes work packages with cost and risk proportionate to the task. Capabilities teach the agent software-engineering skills. Foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.</desc>
   <defs>
-    <linearGradient id="recipe" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#e40022"/>
-      <stop offset="1" stop-color="#b9001c"/>
-    </linearGradient>
-    <linearGradient id="orchestration" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="automation" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#252527"/>
       <stop offset="1" stop-color="#111113"/>
+    </linearGradient>
+    <linearGradient id="recipe" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#780012"/>
+      <stop offset="1" stop-color="#1b1b1d"/>
+    </linearGradient>
+    <linearGradient id="orchestration" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e40022"/>
+      <stop offset="1" stop-color="#b9001c"/>
     </linearGradient>
     <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
       <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#111113" flood-opacity="0.09"/>
     </filter>
   </defs>
 
-  <rect width="1600" height="960" rx="28" fill="#fafafa"/>
-  <path d="M0 0h1600v10H0z" fill="url(#recipe)"/>
+  <rect width="1600" height="1134" rx="28" fill="#fafafa"/>
+  <path d="M0 0h1600v10H0z" fill="url(#orchestration)"/>
 
   <g font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
     <g transform="translate(88 66)">
@@ -27,7 +31,20 @@
     </g>
 
     <g transform="translate(88 162)" filter="url(#shadow)">
+      <rect width="1424" height="156" rx="22" fill="url(#automation)"/>
+      <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#1b1b1d"/>
+      <text x="34" y="95" fill="#ffffff" fill-opacity="0.2" font-size="86" font-weight="800">05</text>
+      <path d="M156 26v104" stroke="#ffffff" stroke-opacity="0.28"/>
+      <text x="194" y="57" fill="#f06a7e" font-size="19" font-weight="750" letter-spacing="2.2">SCHEDULED OUTER LOOP</text>
+      <text x="194" y="108" fill="#ffffff" font-size="42" font-weight="780">Automations</text>
+      <text x="570" y="57" fill="#ffffff" font-size="26" font-weight="650">Run task recipes from a scheduler.</text>
+      <text x="570" y="96" fill="#ffffff" fill-opacity="0.8" font-size="21">Pull ready work, respect work-in-progress limits, and invoke</text>
+      <text x="570" y="125" fill="#ffffff" fill-opacity="0.8" font-size="21">the right delivery recipe.</text>
+    </g>
+
+    <g transform="translate(88 336)" filter="url(#shadow)">
       <rect width="1424" height="156" rx="22" fill="url(#recipe)"/>
+      <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#1b1b1d"/>
       <text x="34" y="95" fill="#ffffff" fill-opacity="0.24" font-size="86" font-weight="800">04</text>
       <path d="M156 26v104" stroke="#ffffff" stroke-opacity="0.34"/>
       <text x="194" y="57" fill="#ffffff" font-size="19" font-weight="750" letter-spacing="2.2">OUTCOME ENVELOPE</text>
@@ -37,20 +54,20 @@
       <text x="570" y="125" fill="#ffffff" fill-opacity="0.86" font-size="21">delivery goal like “ticket to PR.”</text>
     </g>
 
-    <g transform="translate(88 336)" filter="url(#shadow)">
+    <g transform="translate(88 510)" filter="url(#shadow)">
       <rect width="1424" height="156" rx="22" fill="url(#orchestration)"/>
-      <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#e40022"/>
+      <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#1b1b1d"/>
       <text x="34" y="95" fill="#ffffff" fill-opacity="0.18" font-size="86" font-weight="800">03</text>
       <path d="M156 26v104" stroke="#ffffff" stroke-opacity="0.24"/>
-      <text x="194" y="57" fill="#f06a7e" font-size="19" font-weight="750" letter-spacing="2.2">CONTINUATION CONTRACT</text>
+      <text x="194" y="57" fill="#ffffff" fill-opacity="0.82" font-size="19" font-weight="750" letter-spacing="2.2">CONTINUATION CONTRACT</text>
       <text x="194" y="108" fill="#ffffff" font-size="42" font-weight="780">Orchestration</text>
       <text x="570" y="57" fill="#ffffff" font-size="26" font-weight="650">Execute work packages with cost and risk proportionate to the task.</text>
       <text x="570" y="96" fill="#ffffff" fill-opacity="0.74" font-size="21">The native goal loop—properly briefed with a bounded outcome,</text>
       <text x="570" y="125" fill="#ffffff" fill-opacity="0.74" font-size="21">workflow, risk gate, model, and effort.</text>
     </g>
 
-    <g transform="translate(88 510)" filter="url(#shadow)">
-      <rect width="1424" height="156" rx="22" fill="#ffffff" stroke="#d8d8dc" stroke-width="2"/>
+    <g transform="translate(88 684)" filter="url(#shadow)">
+      <rect width="1424" height="156" rx="22" fill="#ededf0" stroke="#d3d3d7" stroke-width="2"/>
       <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#1b1b1d"/>
       <text x="34" y="95" fill="#1b1b1d" fill-opacity="0.12" font-size="86" font-weight="800">02</text>
       <path d="M156 26v104" stroke="#1b1b1d" stroke-opacity="0.15"/>
@@ -61,9 +78,9 @@
       <text x="570" y="125" fill="#66666c" font-size="21">handling, TDD, Git operations, and code review.</text>
     </g>
 
-    <g transform="translate(88 684)" filter="url(#shadow)">
-      <rect width="1424" height="156" rx="22" fill="#ededf0" stroke="#d3d3d7" stroke-width="2"/>
-      <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#e40022"/>
+    <g transform="translate(88 858)" filter="url(#shadow)">
+      <rect width="1424" height="156" rx="22" fill="#ffffff" stroke="#d8d8dc" stroke-width="2"/>
+      <path d="M0 22a22 22 0 0 1 22-22h6v156h-6a22 22 0 0 1-22-22z" fill="#1b1b1d"/>
       <text x="34" y="95" fill="#1b1b1d" fill-opacity="0.12" font-size="86" font-weight="800">01</text>
       <path d="M156 26v104" stroke="#1b1b1d" stroke-opacity="0.15"/>
       <text x="194" y="57" fill="#c0001d" font-size="19" font-weight="750" letter-spacing="2.2">CAPABILITY INFRASTRUCTURE</text>
@@ -73,7 +90,7 @@
       <text x="570" y="125" fill="#66666c" font-size="21">high-quality skills.</text>
     </g>
 
-    <g transform="translate(88 885)">
+    <g transform="translate(88 1059)">
       <circle cx="9" cy="-5" r="9" fill="#e40022"/>
       <text x="34" y="3" fill="#1b1b1d" font-size="23" font-weight="760">Independent by design.</text>
       <text x="328" y="3" fill="#66666c" font-size="23">Adopt any plugin on its own; composition happens through public intent and contracts.</text>
