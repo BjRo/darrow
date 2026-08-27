@@ -1,5 +1,11 @@
 # Darrow Ticket Pipeline
 
+> **Deprecated reference.** This plugin remains installable and its explicitly
+> invoked `deliver-ticket` workflow remains available for reproducible
+> comparison. Use Darrow Goal Loop for new orchestration work. This is
+> informational only: deliberately invoking
+> `deliver-ticket` does not add a warning or confirmation gate.
+
 This plugin delivers one existing engineering ticket through a deliberately
 static sequence of fresh phase agents. Unlike the adaptive goal loop, the route
 is known in advance: refine and challenge the plan, implement it, review and
@@ -14,11 +20,12 @@ controller can resume without a separate workflow service.
 
 ### `deliver-ticket`
 
-The explicitly invoked controller for exactly one ticket. It discovers a
+The deprecated-reference controller for exactly one ticket. It remains
+available only through deliberate explicit invocation: it discovers a
 compatible installed ticket capability, records each child launch before
 starting it, delegates every phase to a fresh agent with the matching skill,
 and advances only according to the bundled state machine. The controller never
-does phase work itself.
+does phase work itself or adds a deprecation confirmation step.
 
 Example: _“Use deliver-ticket for DAR-123.”_
 

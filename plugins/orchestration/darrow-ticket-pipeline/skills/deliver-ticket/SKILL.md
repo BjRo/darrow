@@ -1,9 +1,14 @@
 ---
 name: deliver-ticket
-description: Deliver one existing engineering ticket through a durable static pipeline of fresh refine, challenge, implementation, review, rework, QA, and codify agents. Use only when the user explicitly invokes deliver-ticket with exactly one ticket identifier; this capability edits the local working tree and pipeline-owned sections of that ticket description but does not publish the result.
+description: Deliver one existing engineering ticket through a deprecated static reference pipeline of fresh refine, challenge, implementation, review, rework, QA, and codify agents. For new orchestration work, use darrow-goal-loop instead. Use this only when the user deliberately and explicitly invokes deliver-ticket with exactly one ticket identifier; it edits the local working tree and pipeline-owned ticket-description sections but does not publish the result or require a deprecation confirmation.
 ---
 
 # Deliver a ticket
+
+> **Deprecated reference.** For new orchestration work, use
+> `darrow-goal-loop`. This skill remains installable and executes when
+> deliberately invoked by its host-visible `deliver-ticket` skill name; the
+> notice adds no warning or confirmation gate.
 
 Control one ticket-backed delivery run. Never perform phase work in the parent
 context: every phase belongs to a fresh child that explicitly invokes its

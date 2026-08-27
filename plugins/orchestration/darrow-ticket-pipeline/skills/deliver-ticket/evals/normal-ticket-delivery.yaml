@@ -1,8 +1,8 @@
 id: ticket-pipeline-normal-ticket-delivery
-invariant: TP-A1,TP-T1,TP-P1,TP-E1,TP-V1,TP-C1
+invariant: TP-D1,TP-A1,TP-T1,TP-P1,TP-E1,TP-V1,TP-C1
 mount_plugin_skills: true
 prompt: >-
-  Explicitly invoke $deliver-ticket for ticket 7 in the current repository.
+  Explicitly invoke {{skill_invocation}} for ticket 7 in the current repository.
   A backend-neutral ticket capability is installed as `ticketctl`; discover
   its exact read and description-replacement interface with `ticketctl help`.
   Deliver the ticket through fresh phase agents, keep publication outside the

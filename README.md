@@ -62,10 +62,14 @@ repository evidence, compiles a bounded completion contract, selects a
 proportionate workflow and risk gate, and hands the work to one host-native goal
 owner. It does not build a second agent runtime around that owner.
 
+#### Deprecated reference: `darrow-ticket-pipeline`
+
 [`darrow-ticket-pipeline`](plugins/orchestration/darrow-ticket-pipeline/README.md)
-is retained as a reference implementation of Darrow's earlier static
-phase-controller approach and as an executable benchmark baseline. It is not a
-second recommended orchestration path.
+is a deprecated, still-installable reference implementation of Darrow's earlier
+static phase-controller approach and executable benchmark baseline. For new
+orchestration work, use `darrow-goal-loop`; deliberate installation and explicit
+`deliver-ticket` invocation remain available without an additional confirmation
+step.
 
 ### Task recipes
 

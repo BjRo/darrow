@@ -224,7 +224,7 @@ describe("orchestration outcome metrics", () => {
       "- phase: qa",
       "- iteration: 2",
       "- stable_child_id: qa-2-run",
-      "- required skill: $qa-ticket",
+      "- required skill: $darrow-ticket-pipeline:qa-ticket",
     ].join("\n");
     const raw = JSON.stringify({
       type: "item.completed",
@@ -250,6 +250,11 @@ describe("orchestration outcome metrics", () => {
         threadId: "thread-qa-2",
       },
     ]);
+    expect(
+      observeCodexTicketPipelineRoutes(
+        raw.replace("darrow-ticket-pipeline:", "foreign-plugin:"),
+      ),
+    ).toEqual([]);
     expect(reconcileObservedTicketPipelineRoutes(result, raw)?.passed).toBe(
       true,
     );

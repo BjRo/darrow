@@ -1,0 +1,27 @@
+id: ticket-pipeline-no-trigger-new-orchestration
+invariant: TP-D1,TP-A1
+activation: negative
+mount_plugin_skills: true
+prompt: >-
+  Set up a bounded engineering task to add configurable request timeouts to
+  this service. Use Darrow Goal Loop for the new orchestration work, identify
+  the likely verification seam, and do not modify this repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Do not modify product files for planning requests.
+        src/client.js: |
+          export function request() {}
+checks:
+  - name: planning leaves the product tree untouched
+    run: git diff --exit-code && test -z "$(git status --porcelain --untracked-files=all)"
+  - name: no publication occurs
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: new work is directed to the supported orchestration option
+    expect_regex: "(goal loop|darrow-goal-loop)"
+    flags: i

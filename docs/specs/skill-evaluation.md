@@ -100,6 +100,18 @@ skill-loading protocol, such as the first completed read of a mounted
 and ordered observed skills. Final-answer resemblance, hidden reasoning, and
 unbounded transcript capture are not activation evidence.
 
+Participant prompts that explicitly invoke the colocated skill use the shared
+`{{skill_invocation}}` placeholder. The runner resolves it only at trial time
+to the host-native public token: the unqualified skill name on Claude Code and
+the installed plugin-qualified skill name on Codex. The source case therefore
+stays host-portable while each harness receives an invocation it can actually
+resolve.
+
+Codex orchestration evidence may repeat the owning installed plugin
+qualification in child skill tokens. Reconciliation treats that exact
+qualification as host transport syntax and compares the declared phase
+capability by its leaf skill name; another plugin namespace is not equivalent.
+
 An unavailable, malformed, or incomplete observation is `unknown`, never a
 pass or failure. Activation grades do not change task checks or task pass rate.
 The runner gates a declared activation case independently at the suite
@@ -161,6 +173,14 @@ trials for their risk and must not rely on one convenient green run.
   per-class activation results and compute recall and precision only from a
   complete measured set, so task success cannot hide routing failure and one
   observable trial cannot hide another unknown trial.
+- **SE-C12 — Host-native explicit invocation.** A colocated case that uses the
+  shared skill-invocation placeholder receives the owning skill's public
+  host-native invocation token without changing its participant-visible intent,
+  fixture, hidden checks, model, effort, or trial count.
+- **SE-C13 — Namespace-tolerant Codex reconciliation.** Codex child-route
+  evidence accepts owning-plugin-qualified skill tokens while preserving the
+  exact plugin, phase, iteration, stable child ID, thread ID, and leaf-skill
+  checks.
 
 ## Evaluation requirements
 
@@ -183,6 +203,12 @@ trials for their risk and must not rely on one convenient green run.
 7. Activation reports cover recall, precision, per-class results, routing
    failure alongside task success, unknown evidence, and mixed known/unknown
    trials without silently dropping the unknown trial.
+8. Prompt-rendering tests cover Claude Code and Codex invocation tokens,
+   unchanged prompts without the placeholder, and invalid placeholder use by a
+   case without a colocated owning skill.
+9. Codex orchestration reconciliation fixtures include installed
+   owning-plugin-qualified child skill tokens, reject a foreign namespace, and
+   retain their phase-to-skill checks.
 
 ## Non-goals
 
