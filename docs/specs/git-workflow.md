@@ -80,8 +80,12 @@ new linked worktree instead and the current checkout stays where it is.
 ### Invariants
 
 - **GW-B1 — Traceable naming.** `<type>/<kebab-slug>` with the same types as
-  commits. The slug names the work; a known ticket id is included verbatim
-  (e.g. `feat/DAR-123-retry-logic`). Segments lowercase except ticket ids.
+  commits. When an active ticket provider supplies an opaque canonical token,
+  the slug begins with that exact token and contains it exactly once (e.g.
+  `feat/DAR-123-retry-logic`, `fix/issue-64-preserve-identifiers`). Generic Git
+  neither maps nor normalizes provider tokens; a ticket-linked request without
+  the token asks one smallest question and performs no Git mutation. Segments
+  lowercase except opaque ticket-token segments.
 - **GW-B2 — No work lost.** Uncommitted changes are never stashed, reset,
   discarded, or committed to make the operation work. Switching in place
   they travel to the new branch untouched; in worktree mode they stay in

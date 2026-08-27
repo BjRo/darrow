@@ -60,6 +60,10 @@ quality bar, and this envelope. The delegated request must include:
 
 - authoritative ticket and canonical link when available; outcome, acceptance
   criteria, scope, non-goals, and concrete readiness quality bar;
+- the exact opaque canonical token supplied by the active ticket provider. A
+  derived branch must use a Conventional Commit type and lead with that token
+  once (`<type>/<token>-…`); do not map it to another provider's format. If it
+  is absent, ask one smallest question before Git mutation;
 - pre-existing work is user-owned: ticket-owned overlap may proceed as
   preserved work; unrelated or ambiguous overlap stops;
 - authority to create or reuse one task branch, create intended Conventional
@@ -89,4 +93,5 @@ reverification, replacement goal, or publication retry.
 
 Completion is one verified pull request or the exact blocker. Never infer a
 missing decision, create duplicate remote state, or claim a branch, commit, or
-URL alone proves ticket fulfillment.
+URL alone proves ticket fulfillment. On completion, explicitly identify the
+one pull request in the user-visible result.

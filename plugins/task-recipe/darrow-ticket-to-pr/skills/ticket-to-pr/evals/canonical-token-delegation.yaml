@@ -1,0 +1,22 @@
+id: ticket-to-pr-canonical-token-delegation
+invariant: TPR-C2,TPR-C4,TPR-C5,TPR-C10
+expect_head_change: true
+prompt: >-
+  Use $ticket-to-pr to deliver the ready authoritative ticket whose active
+  provider supplies canonical token DAR-123. The change is greeting.txt to
+  hello and requires `grep -x hello greeting.txt`. Preserve DAR-123 exactly in
+  the derived `fix/DAR-123-…` branch and delegate the bounded delivery once.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        greeting.txt: "old\n"
+checks:
+  - name: intended behavior is delivered
+    run: grep -x hello greeting.txt
+  - name: provider token begins the branch slug unchanged
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^(feat|fix)/DAR-123-"
+output_checks:
+  - name: completion identifies one pull request
+    expect_regex: "pull request|PR"

@@ -43,6 +43,22 @@ check "lowercased ticket accepted" 0 $?
 name60="feat/$(printf 'a%.0s' $(seq 1 55))"
 bash "$SCRIPT" create "$name60" > /dev/null 2>&1
 check "exactly 60 chars accepted" 0 $?
+fresh_repo
+out=$(bash "$SCRIPT" create fix/issue-64-preserve-ticket-identifiers --ticket-token issue-64)
+check "issue token preserved at slug start" 0 $?
+check "issue token branch exact" "fix/issue-64-preserve-ticket-identifiers (from main)" "$out"
+fresh_repo
+out=$(bash "$SCRIPT" create feat/DAR-123-retry-logic --ticket-token DAR-123)
+check "opaque provider token preserved" 0 $?
+check "opaque provider token branch exact" "feat/DAR-123-retry-logic (from main)" "$out"
+fresh_repo
+bash "$SCRIPT" create fix/preserve-issue-64 --ticket-token issue-64 > /dev/null 2>&1
+check "refuse non-leading token" 5 $?
+check "refusal creates no branch" 1 "$(git for-each-ref refs/heads | wc -l | tr -d ' ')"
+fresh_repo
+bash "$SCRIPT" create fix/issue-64-preserve-issue-64 --ticket-token issue-64 > /dev/null 2>&1
+check "refuse repeated token" 5 $?
+check "repeat refusal creates no branch" 1 "$(git for-each-ref refs/heads | wc -l | tr -d ' ')"
 
 echo "# N2: invalid names rejected (exit 5)"
 fresh_repo

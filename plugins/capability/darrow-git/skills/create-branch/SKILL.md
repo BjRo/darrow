@@ -35,8 +35,11 @@ Use `<type>/<kebab-slug>`:
 - Choose the eventual Conventional Commit type: `feat`, `fix`, `refactor`,
   `perf`, `docs`, `test`, `chore`, `build`, `ci`, `style`, or `revert`.
 - Use 2–5 short lowercase words that name the work.
-- Lead with a known ticket identifier verbatim, such as
-  `feat/DAR-123-retry-logic`.
+- When an active ticket provider supplies its opaque canonical token, lead with
+  that exact token once, such as `feat/DAR-123-retry-logic` or
+  `fix/issue-64-preserve-identifiers`. Do not normalize, map, or derive a
+  provider token. If the work is ticket-linked but no token was supplied, ask
+  one smallest question for it and make no Git mutation.
 - Follow a clear recent repository convention when one exists.
 
 Honor an explicit valid name exactly. If that name already exists, stop with
@@ -50,17 +53,20 @@ ticket, and satisfies the script's format.
 Default—in the current checkout:
 
 ```sh
-bash <skill-dir>/scripts/branch.sh create <type>/<slug> [--from <base>]
+bash <skill-dir>/scripts/branch.sh create <type>/<slug> \
+  [--ticket-token <opaque-provider-token>] [--from <base>]
 ```
 
 Worktree—only on explicit request:
 
 ```sh
 bash <skill-dir>/scripts/branch.sh create <type>/<slug> --worktree \
-  [--at <path>] [--from <base>]
+  [--at <path>] [--ticket-token <opaque-provider-token>] [--from <base>]
 ```
 
-Pass `--from` only for a user-named base; otherwise use current `HEAD`. Pass
+Pass `--ticket-token` only when an active provider supplied the token; it makes
+the portable script enforce its exact leading, single occurrence. Pass `--from`
+only for a user-named base; otherwise use current `HEAD`. Pass
 `--at` only for a user-named worktree path; if rejected, preserve that refusal
 rather than choosing another path. The default worktree location is script
 owned.

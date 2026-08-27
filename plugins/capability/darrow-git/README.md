@@ -13,9 +13,11 @@ run Git commands automatically.
 
 ### `create-branch`
 
-Creates one conventionally named branch for the current work. It can switch the
-current checkout or, only when requested, create a linked worktree. Existing
-changes are preserved and existing branch names are never clobbered.
+Creates one conventionally named branch for the current work. A ticket token
+supplied by an active provider stays opaque and leads the slug exactly once. It
+can switch the current checkout or, only when requested, create a linked
+worktree. Existing changes are preserved and existing branch names are never
+clobbered.
 
 Example: _“Create a branch for DAR-123 retry handling.”_
 
