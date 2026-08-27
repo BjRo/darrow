@@ -27,10 +27,11 @@ plugin and does not change the default boundary for other plugins.
 
 ## Runtime contract
 
-Codex invokes the plugin on the `Stop` hook and supplies a JSON object on
-standard input. The hook accepts a readable absolute `transcript_path` to a
-Codex rollout JSONL file. It reads that file without modifying it and
-reconstructs:
+Codex invokes the plugin on `UserPromptSubmit` to capture provisional
+attribution and on `Stop` to finalize attribution and export. Both hooks supply
+a JSON object on standard input. The Stop hook accepts a readable absolute
+`transcript_path` to a Codex rollout JSONL file. It reads that file without
+modifying it and reconstructs:
 
 - one trace for each observed turn;
 - one native Langfuse session segment for each attribution epoch in a Codex
@@ -44,18 +45,30 @@ reconstructs:
 - subagent turns nested below the turn that spawned them when the referenced
   rollout is readable.
 
-The Stop payload's non-empty `turn_id` identifies the turn being completed and
-is authoritative even when the rollout writer has not appended its trailing
-`task_complete` record yet. Only rollout-completed turns and the current Stop
-turn are eligible for export. Before export, the hook records the current
-turn's fallback attribution and Git provenance atomically in a plugin-owned
-sidecar next to the rollout. Successful ingestion adds the completed turn
-identifier to the same sidecar so repeated Stop events do not export it twice.
-The attribution snapshot survives a failed export and makes a later retry
-independent of subsequent configuration, branch, or HEAD changes. Malformed
-JSONL records are ignored, but an unreadable `transcript_path`, missing original
-Codex thread ID, invalid sidecar, or a `turn_id` that does not match exactly one
-reconstructed turn is a refusal rather than a fabricated success.
+The UserPromptSubmit payload's non-empty `turn_id` identifies the turn about to
+start. The hook records only its provisional fallback attribution and Git
+provenance in the plugin's writable data directory; it never persists the
+submitted prompt. The Stop payload's non-empty `turn_id` identifies the turn
+being completed and is authoritative even when the rollout writer has not
+appended its trailing `task_complete` record yet. Only rollout-completed turns
+and the current Stop turn are eligible for export. Before export, Stop records
+the current turn's final fallback attribution and Git provenance atomically in
+a plugin-owned sidecar next to the rollout, replacing its provisional evidence
+for reconstruction. A rollout-aborted turn that never reaches Stop uses its
+provisional snapshot. Before exporting that completed turn, Stop promotes the
+provisional snapshot into the rollout sidecar so later reconstruction cannot
+renumber an already-exported epoch. If neither snapshot exists, the trace
+retains its Codex thread identifier but receives no attribution epoch or native
+Langfuse session association; missing evidence never creates an epoch
+transition.
+
+Successful ingestion adds the completed turn identifier to the rollout
+sidecar so repeated Stop events do not export it twice. Attribution evidence
+survives a failed export and makes a later retry independent of subsequent
+configuration, branch, or HEAD changes. Malformed JSONL records are ignored,
+but an unreadable `transcript_path`, missing original Codex thread ID, invalid
+plugin state, or a `turn_id` that does not match exactly one reconstructed turn
+is a refusal rather than a fabricated success.
 
 The hook fails open by default: configuration, parsing, dependency, network, or
 export failures do not block the Codex turn. An explicit strict test/debug
@@ -106,12 +119,16 @@ For each turn, resolution follows this precedence:
 1. a directive on the current turn;
 2. the active explicit epoch reconstructed from earlier directives;
 3. a non-empty identifier supplied by environment or configuration and
-   snapshotted when the turn stops;
-4. an identifier inferred from the Git branch snapshotted when the turn stops;
+   snapshotted when the turn stops, or provisionally when it starts if Stop
+   never occurs;
+4. an identifier inferred from the Git branch at the same final or provisional
+   snapshot boundary;
 5. no attribution.
 
-Every trace records `darrow.attribution_source`,
-`darrow.attribution_epoch`, and `codex.thread_id`; it records
+Every trace records `darrow.attribution_source` and `codex.thread_id`.
+Session-grouped traces also record `darrow.attribution_epoch`; traces lacking
+both final and provisional automatic-attribution evidence remain ungrouped and
+omit that field. A trace records
 `darrow.work_item_id`, `git.branch`, and `git.head` when those values are
 available. Explicit attribution, including an explicit unattributed gap, wins
 over configuration and branch inference. Branch inference recognizes a bounded
@@ -131,7 +148,7 @@ new segment so branch fallback cannot group different work items together.
 
 ## Installation and refusal behavior
 
-Installation documentation names the required Codex plugin-hook feature, UV,
+Installation documentation names the required Codex hook support, UV,
 supported Python version, Langfuse server/SDK compatibility, configuration
 files and variables, first-run dependency behavior, and verification command.
 The hook registration resolves the packaged launcher through Codex's
@@ -150,33 +167,38 @@ nonzero exit for deterministic testing.
 Deterministic tests cover installation paths, configuration precedence,
 same-session topic changes, explicit clearing and unattributed gaps, return to
 automatic attribution, branch-only fallback, mid-session branch changes,
-export retry snapshots, epoch session segmentation, detached and non-ticket
-Git state, rollout reconstruction, deduplication, content privacy, malformed
-input, missing runtime or configuration, and exporter failure. Backend checks
-run through UV. Portable hook-launcher tests run with both supported Bash
-executables.
+export retry snapshots, prompt-time provisional attribution, interrupted-turn
+continuity, missing-snapshot quarantine, epoch session segmentation, detached
+and non-ticket Git state, rollout reconstruction, deduplication, content
+privacy, malformed input, missing runtime or configuration, and exporter
+failure. Backend checks run through UV. Portable hook-launcher tests run with
+both supported Bash executables.
 
 Participant-visible colocated evals cover configuration/help intent, refusal to
 claim tracing without prerequisites, privacy disclosure, work-item precedence,
-and the boundary against unrelated monitoring or ticket mutation. A real local
-smoke test uses Langfuse's official self-hosted Docker Compose deployment,
-exports a fixture turn, and retrieves the ingested trace and work-item metadata.
+interrupted-turn attribution, and the boundary against unrelated monitoring or
+ticket mutation. A real local smoke test uses Langfuse's official self-hosted
+Docker Compose deployment, exports a fixture turn, and retrieves the ingested
+trace and work-item metadata.
 
 ## Proof obligations
 
 1. **OLF-P1 — Independent plugin.** The plugin installs without, and contains
    no reference to, another Darrow plugin or skill.
-2. **OLF-P2 — Host lifecycle seam.** A Codex Stop payload naming a rollout is
-   sufficient to invoke reconstruction and export.
+2. **OLF-P2 — Host lifecycle seam.** Codex UserPromptSubmit captures
+   provisional turn attribution, and a Stop payload naming a rollout is
+   sufficient to finalize the current turn, reconstruct, and export.
 3. **OLF-P3 — Coherent session and trace.** Each attribution epoch is one native
    Langfuse session segment whose turn, generation, tool, token, and subagent
    evidence is represented as correctly nested per-turn trace trees; every
    segment retains the original Codex thread ID.
 4. **OLF-P4 — Deterministic attribution.** Ordered rollout directives start,
    change, clear, or restore automatic attribution without retroactively
-   changing earlier epochs. Snapshotted configuration and Git provenance keep
-   branch fallback and export retries stable, while absent evidence produces no
-   ID.
+   changing earlier epochs. Final Stop evidence supersedes provisional
+   prompt-time evidence; provisional evidence covers interrupted turns that
+   never stop. Snapshotted configuration and Git provenance keep branch
+   fallback and export retries stable, while absent evidence produces no ID or
+   session segment.
 5. **OLF-P5 — Privacy by opt-in.** Export and raw-content capture are separate
    explicit choices, and credential values never become trace metadata.
 6. **OLF-P6 — Safe failure.** Runtime and exporter failures fail open by

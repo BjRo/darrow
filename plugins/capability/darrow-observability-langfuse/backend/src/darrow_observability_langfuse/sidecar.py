@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -18,8 +19,22 @@ def sidecar_path(rollout: Path) -> Path:
     return Path(f"{rollout}.darrow-langfuse")
 
 
+def _provisional_path(plugin_data: Path, session_id: str) -> Path:
+    if (
+        not session_id
+        or len(session_id) > 256
+        or _CONTROL_CHARACTER.search(session_id)
+    ):
+        raise ValueError("Langfuse provisional attribution has an invalid session ID")
+    digest = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+    return plugin_data / "attribution-snapshots" / f"{digest}.json"
+
+
 def _load_state(rollout: Path) -> dict[str, Any]:
-    path = sidecar_path(rollout)
+    return _load_state_path(sidecar_path(rollout))
+
+
+def _load_state_path(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {"uploaded_turn_ids": [], "attribution_snapshots": {}}
     try:
@@ -91,7 +106,11 @@ def _load_state(rollout: Path) -> dict[str, Any]:
 
 
 def _write_state(rollout: Path, state: dict[str, Any]) -> None:
-    path = sidecar_path(rollout)
+    _write_state_path(sidecar_path(rollout), state)
+
+
+def _write_state_path(path: Path, state: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     temporary: str | None = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -128,6 +147,14 @@ def load_attribution_snapshots(rollout: Path) -> dict[str, dict[str, Any]]:
     return _load_state(rollout)["attribution_snapshots"]
 
 
+def load_provisional_attribution_snapshots(
+    plugin_data: Path, session_id: str
+) -> dict[str, dict[str, Any]]:
+    return _load_state_path(_provisional_path(plugin_data, session_id))[
+        "attribution_snapshots"
+    ]
+
+
 def record_attribution_snapshot(
     rollout: Path, turn_id: str, snapshot: dict[str, Any]
 ) -> None:
@@ -139,6 +166,39 @@ def record_attribution_snapshot(
         return
     state["attribution_snapshots"][turn_id] = snapshot
     _write_state(rollout, state)
+
+
+def record_provisional_attribution_snapshot(
+    plugin_data: Path,
+    session_id: str,
+    turn_id: str,
+    snapshot: dict[str, Any],
+) -> None:
+    path = _provisional_path(plugin_data, session_id)
+    state = _load_state_path(path)
+    existing = state["attribution_snapshots"].get(turn_id)
+    if existing is not None:
+        if existing != snapshot:
+            raise ValueError("Langfuse provisional attribution snapshot is immutable")
+        return
+    state["attribution_snapshots"][turn_id] = snapshot
+    _write_state_path(path, state)
+
+
+def discard_provisional_attribution_snapshots(
+    plugin_data: Path, session_id: str, turn_ids: set[str]
+) -> None:
+    if not turn_ids:
+        return
+    path = _provisional_path(plugin_data, session_id)
+    state = _load_state_path(path)
+    snapshots = state["attribution_snapshots"]
+    for turn_id in turn_ids:
+        snapshots.pop(turn_id, None)
+    if snapshots:
+        _write_state_path(path, state)
+    elif path.exists():
+        path.unlink()
 
 
 def pending_document(document: dict[str, Any], rollout: Path) -> dict[str, Any]:

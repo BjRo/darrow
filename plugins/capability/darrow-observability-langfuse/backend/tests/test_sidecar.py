@@ -7,14 +7,61 @@ import unittest
 from pathlib import Path
 
 from darrow_observability_langfuse.sidecar import (
+    discard_provisional_attribution_snapshots,
     load_attribution_snapshots,
+    load_provisional_attribution_snapshots,
     mark_exported_turns,
     pending_document,
     record_attribution_snapshot,
+    record_provisional_attribution_snapshot,
 )
 
 
 class SidecarTest(unittest.TestCase):
+    def test_provisional_snapshot_is_private_immutable_and_discardable(self):
+        snapshot = {
+            "work_item_id": "issue-45",
+            "source": "git_branch",
+            "branch": "feat/issue-45-first",
+            "head": "a" * 40,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            plugin_data = Path(directory) / "plugin-data"
+
+            record_provisional_attribution_snapshot(
+                plugin_data, "session-main", "turn-1", snapshot
+            )
+            record_provisional_attribution_snapshot(
+                plugin_data, "session-main", "turn-1", snapshot
+            )
+
+            self.assertEqual(
+                load_provisional_attribution_snapshots(plugin_data, "session-main"),
+                {"turn-1": snapshot},
+            )
+            files = list((plugin_data / "attribution-snapshots").glob("*.json"))
+            self.assertEqual(len(files), 1)
+            self.assertEqual(os.stat(files[0]).st_mode & 0o777, 0o600)
+            with self.assertRaisesRegex(ValueError, "immutable"):
+                record_provisional_attribution_snapshot(
+                    plugin_data,
+                    "session-main",
+                    "turn-1",
+                    {**snapshot, "work_item_id": "issue-60"},
+                )
+
+            discard_provisional_attribution_snapshots(
+                plugin_data, "session-main", {"turn-1"}
+            )
+
+            self.assertEqual(
+                load_provisional_attribution_snapshots(plugin_data, "session-main"),
+                {},
+            )
+            self.assertEqual(
+                list((plugin_data / "attribution-snapshots").glob("*.json")), []
+            )
+
     def test_semantically_invalid_attribution_snapshots_are_refused(self):
         valid = {
             "work_item_id": "issue-45",

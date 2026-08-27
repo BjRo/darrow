@@ -1,0 +1,33 @@
+id: langfuse-observability-interrupted-attribution
+activation: positive
+invariant: OLF-P3,OLF-P4
+mount_plugin_skills: true
+prompt: >-
+  Explain how Darrow Langfuse attribution should handle a Codex turn that was
+  interrupted before Stop. The branch stayed on feat/issue-45-observability,
+  no attribution directive was used, and the turns before and after the
+  interruption belong to issue-45. Also explain what happens if the interrupted
+  turn has neither provisional nor final attribution evidence. Keep this
+  read-only: do not run a hook or edit configuration.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# sample repository"
+checks:
+  - name: interruption diagnosis stays read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: answer uses provisional evidence for an interrupted turn
+    expect_regex: "interrupt[\\s\\S]{0,240}(provisional|prompt-time)[\\s\\S]{0,240}(snapshot|attribution|evidence)"
+    flags: i
+  - name: answer preserves one issue epoch when evidence exists
+    expect_regex: "((same|one|single|existing|original|continu)[\\s\\S]{0,220}(epoch|Langfuse session|session segment|group)|(epoch|Langfuse session|session segment|group)[\\s\\S]{0,220}(same|one|single|existing|original|continu))"
+    flags: i
+  - name: answer leaves a genuinely unknown turn ungrouped
+    expect_regex: "(neither|missing|no)[\\s\\S]{0,220}(snapshot|evidence)[\\s\\S]{0,220}(ungrouped|not attached|no Langfuse session)"
+    flags: i
+  - name: answer preserves the conversation correlation key
+    expect_regex: "codex\\.thread_id[\\s\\S]{0,180}(conversation|correlat|across|discover)"
+    flags: i

@@ -96,8 +96,12 @@ or malformed input produces no `darrow.work_item_id`.
 
 Every valid directive starts a new attribution epoch. Explain that Langfuse
 uses the epoch as its native session segment and that `codex.thread_id` remains
-the stable conversation key across segments. Each trace records the attribution
-source and epoch plus branch and HEAD provenance when available.
+the stable conversation key across segments. Session-grouped traces record the
+attribution source and epoch plus branch and HEAD provenance when available. An
+interrupted turn uses its prompt-time provisional snapshot when no final Stop
+snapshot exists. If neither snapshot exists, the trace remains discoverable by
+`codex.thread_id` but is not attached to a Langfuse session and does not create
+an attribution epoch.
 
 An in-session attribution-control answer is incomplete unless it includes the
 applicable exact directive lines, their current-and-subsequent-turn scope, the

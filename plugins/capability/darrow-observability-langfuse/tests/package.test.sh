@@ -42,13 +42,20 @@ if (codex.hooks !== "./hooks/hooks.json") {
   throw new Error("Codex manifest does not register the packaged hooks file");
 }
 
-const stop = hooks?.hooks?.Stop;
-const command = stop?.[0]?.hooks?.[0]?.command;
-if (stop?.[0]?.hooks?.[0]?.type !== "command" || typeof command !== "string") {
-  throw new Error("Stop command hook is not registered");
-}
-if (!command.includes("${PLUGIN_ROOT}") || !command.includes("hooks/stop.sh")) {
-  throw new Error("Stop hook does not resolve its packaged launcher through PLUGIN_ROOT");
+for (const event of ["UserPromptSubmit", "Stop"]) {
+  const registration = hooks?.hooks?.[event];
+  const command = registration?.[0]?.hooks?.[0]?.command;
+  if (
+    registration?.[0]?.hooks?.[0]?.type !== "command" ||
+    typeof command !== "string"
+  ) {
+    throw new Error(`${event} command hook is not registered`);
+  }
+  if (!command.includes("${PLUGIN_ROOT}") || !command.includes("hooks/stop.sh")) {
+    throw new Error(
+      `${event} hook does not resolve its packaged launcher through PLUGIN_ROOT`,
+    );
+  }
 }
 
 const entry = marketplace.plugins.find((plugin) => plugin.name === expectedName);

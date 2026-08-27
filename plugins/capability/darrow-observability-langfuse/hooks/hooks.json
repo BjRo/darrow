@@ -1,5 +1,17 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "timeout": 45,
+            "statusMessage": "Capturing Codex attribution"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

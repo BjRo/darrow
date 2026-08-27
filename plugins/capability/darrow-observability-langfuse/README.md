@@ -1,8 +1,8 @@
 # Darrow Langfuse Observability
 
 This independently installable plugin reconstructs OpenAI Codex turns from the
-rollout transcript supplied to Codex's `Stop` hook and exports them as Langfuse
-traces. Its trace model is explicitly oriented on
+rollout transcript supplied to Codex's lifecycle hooks and exports them as
+Langfuse traces. Its trace model is explicitly oriented on
 [`langfuse/codex-observability-plugin`](https://github.com/langfuse/codex-observability-plugin):
 one trace per turn, nested model generations and tool calls, token usage, and
 spawned subagent turns. Turn traces are grouped into ticket-coherent native
@@ -38,14 +38,9 @@ codex plugin marketplace add BjRo/darrow
 codex plugin add darrow-observability-langfuse@darrow
 ```
 
-Enable plugin hooks in `~/.codex/config.toml` or a project `.codex/config.toml`:
-
-```toml
-[features]
-plugin_hooks = true
-```
-
-Start a new Codex session after installation. UV and a UV-managed Python
+Review and trust the plugin's hooks when Codex prompts you, then start a new
+Codex session after installation. You can inspect the registered hooks with
+`/hooks`. UV and a UV-managed Python
 `>=3.10,<3.14` are required. The locked Langfuse Python SDK requires a
 compatible Langfuse server; current SDK compatibility is documented by
 Langfuse and should be checked before connecting an older self-hosted server.
@@ -108,20 +103,27 @@ branch tokens such as `DAR-123`, `ABC_42`, `issue-45`, and a leading numeric
 token are supported. Detached HEAD, malformed tokens, and non-ticket branches
 yield no identifier.
 
-Every trace records `darrow.attribution_source`,
-`darrow.attribution_epoch`, and `codex.thread_id`. It also records
+Every trace records `darrow.attribution_source` and `codex.thread_id`.
+Session-grouped traces also record `darrow.attribution_epoch`. Traces record
 `darrow.work_item_id`, `git.branch`, and `git.head` when available. The epoch ID
 is the trace's native Langfuse `session.id`, so a conversation that moves from
 one work item to another becomes multiple ticket-coherent session segments.
 Use `codex.thread_id` to query or correlate the complete conversation across
 segments.
 
-At each live Stop, the plugin snapshots the current turn's automatic fallback,
-branch, and HEAD in `<rollout>.darrow-langfuse` before export. A failed export
-therefore retries with the original evidence even if the configuration, branch,
-or HEAD changes afterward. Explicit directives remain in the rollout itself,
-so replay reconstructs the same ordered timeline. This state is entirely local;
-the plugin never contacts a tracker.
+At UserPromptSubmit, the plugin records the current turn's provisional
+automatic fallback, branch, and HEAD under Codex's plugin data directory. It
+does not persist the submitted prompt. At live Stop, the plugin records final
+evidence in `<rollout>.darrow-langfuse`; that final snapshot supersedes the
+current turn's provisional evidence. A failed export therefore retries with
+the original evidence even if the configuration, branch, or HEAD changes
+afterward. An interrupted turn that never reaches Stop uses its provisional
+snapshot. Before export, that evidence is promoted into the rollout sidecar so
+later turns retain the same epoch numbering. If no snapshot exists, the trace
+remains available by `codex.thread_id` but is not attached to a Langfuse
+session and does not create a false attribution epoch. Explicit directives
+remain in the rollout itself, so replay reconstructs the same ordered timeline.
+This state is entirely local; the plugin never contacts a tracker.
 
 ## Privacy and security
 
@@ -142,7 +144,8 @@ appropriate Langfuse project access and retention controls before enabling raw
 content capture.
 
 The secret key is used only for Langfuse authentication. It is not included in
-trace metadata, dry-run output, the deduplication sidecar, or plugin diagnostics.
+trace metadata, dry-run output, provisional attribution state, the
+deduplication sidecar, or plugin diagnostics.
 
 ## Trace and failure behavior
 
@@ -152,10 +155,12 @@ refusals. Normal hook operation fails open so observability cannot block the
 Codex turn. Strict mode makes the same condition nonzero for deterministic
 installation and failure testing.
 
-The Stop payload's `turn_id` identifies the turn being completed, including
-when the rollout does not yet contain its trailing `task_complete` record.
-Only that turn and other rollout-completed turns are eligible for export. The
-current attribution snapshot is written atomically with mode `0600` to
+The UserPromptSubmit payload's `turn_id` identifies the turn about to start and
+records a mode-`0600` provisional snapshot under `PLUGIN_DATA`. The Stop
+payload's `turn_id` identifies the turn being completed, including when the
+rollout does not yet contain its trailing `task_complete` record. Only that
+turn and other rollout-completed turns are eligible for export. The final
+current-turn snapshot is written atomically with mode `0600` to
 `<rollout>.darrow-langfuse` before export; the completed turn ID is added only
 after the exporter returns successfully. Repeated Stop hooks filter successful
 IDs, preserve retry attribution, and do not export unrelated in-progress turns.

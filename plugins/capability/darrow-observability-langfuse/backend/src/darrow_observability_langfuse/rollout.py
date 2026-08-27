@@ -496,8 +496,9 @@ def _metadata(
         "codex.aborted": turn.get("aborted", False),
         "codex.completed": turn.get("completed", False),
         "darrow.attribution_source": attribution["source"],
-        "darrow.attribution_epoch": attribution["epoch"],
     }
+    if attribution.get("epoch") is not None:
+        value["darrow.attribution_epoch"] = attribution["epoch"]
     work_item_id = attribution.get("work_item_id")
     if work_item_id:
         value["darrow.work_item_id"] = work_item_id
@@ -637,12 +638,14 @@ def trace_document(
             mode, explicit_work_item_id = directive
             epoch += 1
         turn_id = turn.get("turn_id")
+        missing_snapshot = False
         if attribution_snapshots is None:
             assert automatic is not None
             fallback = automatic
         elif isinstance(turn_id, str) and turn_id in attribution_snapshots:
             fallback = attribution_snapshots[turn_id]
         else:
+            missing_snapshot = True
             fallback = {
                 "work_item_id": None,
                 "source": "none",
@@ -667,11 +670,18 @@ def trace_document(
             }
         attribution["branch"] = fallback.get("branch")
         attribution["head"] = fallback.get("head")
-        effective_key = (attribution["source"], attribution.get("work_item_id"))
-        if directive is None and previous_key is not None and effective_key != previous_key:
-            epoch += 1
-        attribution["epoch"] = f"{thread_id}:attribution:{epoch}"
-        previous_key = effective_key
+        if mode == "auto" and missing_snapshot:
+            attribution["epoch"] = None
+        else:
+            effective_key = (attribution["source"], attribution.get("work_item_id"))
+            if (
+                directive is None
+                and previous_key is not None
+                and effective_key != previous_key
+            ):
+                epoch += 1
+            attribution["epoch"] = f"{thread_id}:attribution:{epoch}"
+            previous_key = effective_key
         trace: dict[str, Any] = {
             "name": "Codex Subagent Turn" if session["is_subagent"] else "Codex Turn",
             "session_id": attribution["epoch"],

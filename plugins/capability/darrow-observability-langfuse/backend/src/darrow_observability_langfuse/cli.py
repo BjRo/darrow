@@ -10,10 +10,13 @@ from .config import Config, load_config
 from .export import export_document
 from .rollout import attribution_snapshot, trace_document
 from .sidecar import (
+    discard_provisional_attribution_snapshots,
     load_attribution_snapshots,
+    load_provisional_attribution_snapshots,
     mark_exported_turns,
     pending_document,
     record_attribution_snapshot,
+    record_provisional_attribution_snapshot,
 )
 
 
@@ -56,6 +59,30 @@ def _complete_stop_turn(document: dict[str, Any], turn_id: Any) -> None:
     matches[0]["metadata"]["codex.completed"] = True
 
 
+def _required_identifier(value: Any, name: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"hook input is missing {name}")
+    return value
+
+
+def _plugin_data() -> Path | None:
+    value = os.environ.get("PLUGIN_DATA")
+    return Path(value) if value else None
+
+
+def _completed_turn_ids(document: dict[str, Any]) -> set[str]:
+    result = set()
+    traces = document.get("traces")
+    if not isinstance(traces, list):
+        return result
+    for trace in traces:
+        metadata = trace.get("metadata") if isinstance(trace, dict) else None
+        turn_id = metadata.get("codex.turn_id") if isinstance(metadata, dict) else None
+        if metadata and metadata.get("codex.completed") is True and isinstance(turn_id, str):
+            result.add(turn_id)
+    return result
+
+
 def run() -> int:
     config: Config | None = None
     try:
@@ -65,19 +92,41 @@ def run() -> int:
         if not config.enabled:
             _diagnose("tracing is disabled", config=config)
             return 0
+        hook_event_name = hook_input.get("hook_event_name")
+        session_id = _required_identifier(hook_input.get("session_id"), "session_id")
+        turn_id = _required_identifier(hook_input.get("turn_id"), "turn_id")
+        plugin_data = _plugin_data()
+        if hook_event_name == "UserPromptSubmit":
+            if config.dry_run:
+                return 0
+            if plugin_data is None:
+                raise ValueError("PLUGIN_DATA is unavailable for provisional attribution")
+            record_provisional_attribution_snapshot(
+                plugin_data,
+                session_id,
+                turn_id,
+                attribution_snapshot(config, cwd),
+            )
+            return 0
+        if hook_event_name != "Stop":
+            raise ValueError("hook input has an unsupported hook_event_name")
         transcript_path = hook_input.get("transcript_path")
         if not isinstance(transcript_path, str) or not transcript_path:
             raise ValueError("hook input is missing transcript_path")
         rollout = Path(transcript_path)
-        turn_id = hook_input.get("turn_id")
         snapshots = load_attribution_snapshots(rollout)
-        if isinstance(turn_id, str) and turn_id in snapshots:
+        provisional = (
+            load_provisional_attribution_snapshots(plugin_data, session_id)
+            if plugin_data is not None
+            else {}
+        )
+        if turn_id in snapshots:
             current_snapshot = snapshots[turn_id]
         else:
             current_snapshot = attribution_snapshot(config, cwd)
-        effective_snapshots = dict(snapshots)
-        if isinstance(turn_id, str):
-            effective_snapshots[turn_id] = current_snapshot
+        effective_snapshots = dict(provisional)
+        effective_snapshots.update(snapshots)
+        effective_snapshots[turn_id] = current_snapshot
         document = trace_document(
             rollout,
             config,
@@ -91,13 +140,25 @@ def run() -> int:
             return 0
         if not config.public_key or not config.secret_key:
             raise ValueError("Langfuse credentials are missing")
-        assert isinstance(turn_id, str)
         record_attribution_snapshot(rollout, turn_id, current_snapshot)
+        if plugin_data is not None:
+            discard_provisional_attribution_snapshots(
+                plugin_data, session_id, {turn_id}
+            )
         pending = pending_document(document, rollout)
         if not pending["traces"]:
             return 0
+        pending_turn_ids = _completed_turn_ids(pending)
+        for pending_turn_id in sorted(pending_turn_ids):
+            snapshot = effective_snapshots.get(pending_turn_id)
+            if snapshot is not None:
+                record_attribution_snapshot(rollout, pending_turn_id, snapshot)
         export_document(pending, config)
         mark_exported_turns(rollout, pending)
+        if plugin_data is not None:
+            discard_provisional_attribution_snapshots(
+                plugin_data, session_id, pending_turn_ids
+            )
         return 0
     except Exception as error:  # The hook is fail-open unless strict mode is explicit.
         _diagnose(str(error), config=config)
