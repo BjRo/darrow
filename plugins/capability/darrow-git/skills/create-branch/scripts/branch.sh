@@ -157,12 +157,11 @@ case "$cmd" in
       echo "error: repository has no commits yet — make the first commit before branching" >&2
       exit 3
     fi
-    if ! [[ "$name" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/[A-Za-z0-9]+(-[A-Za-z0-9]+)*$ ]]; then
+    if ! [[ "$name" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/.+$ ]] ||
+      ! git check-ref-format --branch "$name" >/dev/null 2>&1; then
       echo "error: branch name must be <type>/<kebab-slug>: $name" >&2
       exit 5
     fi
-    # Segments lowercase; all-caps only as a ticket id, i.e. a CAPS segment
-    # immediately followed by its number (DAR-123).
     slug=${name#*/}
     if [[ -n "$ticket_token" ]]; then
       if [[ "$slug" != "$ticket_token"-* ]]; then
@@ -174,20 +173,26 @@ case "$cmd" in
         echo "error: supplied ticket token must occur exactly once: $name" >&2
         exit 5
       fi
+      suffix=${slug#"$ticket_token"-}
+      if ! [[ "$suffix" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo "error: branch suffix must be lowercase kebab-case: $name" >&2
+        exit 5
+      fi
+    else
+      IFS='-' read -ra segs <<< "$slug"
+      for i in "${!segs[@]}"; do
+        s=${segs[$i]}
+        if [[ "$s" =~ ^[a-z0-9]+$ ]]; then
+          continue
+        fi
+        next=${segs[$((i + 1))]:-}
+        if [[ "$s" =~ ^[A-Z]+$ ]] && [[ "$next" =~ ^[0-9]+$ ]]; then
+          continue
+        fi
+        echo "error: slug segments must be lowercase (ticket ids like DAR-123 may be caps): $name" >&2
+        exit 5
+      done
     fi
-    IFS='-' read -ra segs <<< "$slug"
-    for i in "${!segs[@]}"; do
-      s=${segs[$i]}
-      if [[ "$s" =~ ^[a-z0-9]+$ ]]; then
-        continue
-      fi
-      next=${segs[$((i + 1))]:-}
-      if [[ "$s" =~ ^[A-Z]+$ ]] && [[ "$next" =~ ^[0-9]+$ ]]; then
-        continue
-      fi
-      echo "error: slug segments must be lowercase (ticket ids like DAR-123 may be caps): $name" >&2
-      exit 5
-    done
     if [[ ${#name} -gt 60 ]]; then
       echo "error: branch name exceeds 60 chars (${#name})" >&2
       exit 5

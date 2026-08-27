@@ -52,6 +52,14 @@ out=$(bash "$SCRIPT" create feat/DAR-123-retry-logic --ticket-token DAR-123)
 check "opaque provider token preserved" 0 $?
 check "opaque provider token branch exact" "feat/DAR-123-retry-logic (from main)" "$out"
 fresh_repo
+out=$(bash "$SCRIPT" create feat/ABC_42-retry-logic --ticket-token ABC_42)
+check "underscore provider token preserved" 0 $?
+check "underscore provider token branch exact" "feat/ABC_42-retry-logic (from main)" "$out"
+fresh_repo
+out=$(bash "$SCRIPT" create feat/Dar-123-retry-logic --ticket-token Dar-123)
+check "mixed-case provider token preserved" 0 $?
+check "mixed-case provider token branch exact" "feat/Dar-123-retry-logic (from main)" "$out"
+fresh_repo
 bash "$SCRIPT" create fix/preserve-issue-64 --ticket-token issue-64 > /dev/null 2>&1
 check "refuse non-leading token" 5 $?
 check "refusal creates no branch" 1 "$(git for-each-ref refs/heads | wc -l | tr -d ' ')"
