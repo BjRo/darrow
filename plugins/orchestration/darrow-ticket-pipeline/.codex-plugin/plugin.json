@@ -1,21 +1,21 @@
 {
   "name": "darrow-ticket-pipeline",
-  "version": "0.1.0",
-  "description": "Deliver engineering tickets through a durable static pipeline with bounded revision branches",
+  "version": "0.2.0",
+  "description": "Deprecated reference static ticket pipeline; use darrow-goal-loop for new work",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Darrow -> Ticket Pipeline",
-    "shortDescription": "Deliver tickets through a durable static pipeline",
-    "longDescription": "Deliver one engineering ticket through predefined refine, challenge, implementation, review, repair, QA, and codification phases with bounded revision branches and durable ticket evidence.",
+    "displayName": "Darrow -> Deprecated Ticket Pipeline",
+    "shortDescription": "Deprecated reference; use Darrow Goal Loop for new work",
+    "longDescription": "Deprecated but installable reference implementation of a static ticket pipeline. Use Darrow Goal Loop for new orchestration work; explicit deliver-ticket invocation remains available for deliberate comparison runs.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Deliver this ticket through the static multi-agent pipeline."
+      "Deliberately use $darrow-ticket-pipeline:deliver-ticket to run this ticket through the deprecated static reference pipeline."
     ]
   }
 }

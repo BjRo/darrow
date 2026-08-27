@@ -68,7 +68,7 @@
     {
       "name": "darrow-ticket-pipeline",
       "source": "./plugins/orchestration/darrow-ticket-pipeline",
-      "description": "Deliver tickets through a durable static pipeline with bounded revision branches"
+      "description": "Deprecated reference static ticket pipeline; use darrow-goal-loop for new work"
     },
     {
       "name": "darrow-ticket-to-pr",

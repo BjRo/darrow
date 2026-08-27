@@ -5,6 +5,7 @@ import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
+import { renderParticipantPrompt } from "./prompt";
 import {
   runChecks,
   runOutputChecks,
@@ -262,7 +263,7 @@ function trialPrompt(options: RunCaseOptions, repoDir: string): string {
   const template = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
-  return template
+  return renderParticipantPrompt(template, adapter.name, evalCase)
     .replaceAll("{{repo_dir}}", repoDir)
     .replaceAll("{{harness}}", adapter.name)
     .replaceAll("{{model}}", model)
@@ -325,10 +326,15 @@ function requiresStandaloneEvaluationRecords(options: RunCaseOptions) {
 }
 
 function evaluationDigest(options: RunCaseOptions): string {
-  const { evalCase, condition, judge } = options;
-  const participantPrompt = condition?.text.trim()
+  const { evalCase, adapter, condition, judge } = options;
+  const participantPromptTemplate = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
+  const participantPrompt = renderParticipantPrompt(
+    participantPromptTemplate,
+    adapter.name,
+    evalCase,
+  );
   const evidence = stableEvidence({
     participantPrompt,
     fixture: evalCase.fixture,
@@ -675,7 +681,7 @@ async function evaluateTrial(
     ? await runQualityJudge({
         adapter: judge.adapter,
         repoDir,
-        task: evalCase.prompt,
+        task: renderParticipantPrompt(evalCase.prompt, adapter.name, evalCase),
         checks,
         model: judge.model,
         effort: judge.effort,

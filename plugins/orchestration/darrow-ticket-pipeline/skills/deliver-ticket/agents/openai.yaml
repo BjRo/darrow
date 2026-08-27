@@ -1,6 +1,6 @@
 interface:
-  display_name: "Deliver Ticket"
-  short_description: "Deliver a ticket through a static multi-agent pipeline"
-  default_prompt: "Use $deliver-ticket to deliver this ticket through isolated phase agents."
+  display_name: "Deliver Ticket (Deprecated Reference)"
+  short_description: "Deprecated reference pipeline; use Darrow Goal Loop for new work"
+  default_prompt: "Deliberately use $darrow-ticket-pipeline:deliver-ticket to run this ticket through the deprecated static reference pipeline."
 policy:
   allow_implicit_invocation: false

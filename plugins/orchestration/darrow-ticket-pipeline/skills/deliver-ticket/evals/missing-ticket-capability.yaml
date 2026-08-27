@@ -1,7 +1,8 @@
 id: ticket-pipeline-missing-ticket-capability
-invariant: TP-A1,TP-T1,TP-S1,TP-C1
+invariant: TP-D1,TP-A1,TP-T1,TP-S1,TP-C1
+mount_plugin_skills: true
 prompt: >-
-  Explicitly invoke $deliver-ticket for ticket 17 in this repository. No
+  Explicitly invoke {{skill_invocation}} for ticket 17 in this repository. No
   ticket connector or backend-neutral ticket capability has been installed in
   this fixture. Keep all work local and do not substitute raw tracker commands.
 fixture:

@@ -1182,7 +1182,7 @@ function ticketPipelineRoute(
   const childId = matchField(prompt, /^- stable_child_id: (.+)$/m);
   const skill = matchField(
     prompt,
-    /^- (?:required skill|phase_skill): \$([a-z-]+)$/m,
+    /^- (?:required skill|phase_skill): \$(?:darrow-ticket-pipeline:)?([a-z0-9-]+)$/m,
   );
   if (!threadId || !phase || !iteration || !childId || !skill) return undefined;
   return { phase, iteration: Number(iteration), childId, skill, threadId };

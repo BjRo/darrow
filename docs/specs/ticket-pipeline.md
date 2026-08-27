@@ -1,9 +1,10 @@
 # Capability: Ticket Pipeline
 
-Darrow should provide a static, explicitly invoked ticket pipeline whose
-orchestration state and phase artifacts live in one existing tracker ticket.
-The top-level controller should delegate each predefined phase to a fresh child
-agent that explicitly runs the phase's skill, then use bounded
+Darrow retains a deprecated but installable static, explicitly invoked ticket
+pipeline reference whose orchestration state and phase artifacts live in one
+existing tracker ticket. New orchestration work should use `darrow-goal-loop`.
+The top-level controller continues to delegate each predefined phase to a fresh
+child agent that explicitly runs the phase's skill, then uses bounded
 refine/challenge, review/rework, and QA/fix branches to converge or escalate.
 
 Plugin: `darrow-ticket-pipeline`  
@@ -36,6 +37,13 @@ This is a native, skill-driven orchestrator, not a daemon or workflow runtime.
 
 ## Capability invariants
 
+- **TP-D1 — Deprecated reference availability.** The pipeline remains listed
+  and installable as a deprecated reference implementation, directs new
+  orchestration work to `darrow-goal-loop`, and preserves deliberate explicit
+  `deliver-ticket` invocation without a deprecation warning or confirmation
+  gate. Codex-facing defaults use the installed plugin-qualified invocation
+  token; shared skill prose names the capability without prescribing one
+  host's transport syntax.
 - **TP-A1 — Explicit controller.** Only explicit `deliver-ticket` invocation
   starts a run; its parent context controls but never performs a phase.
 - **TP-T1 — Durable ticket.** One existing ticket retains the run metadata,
