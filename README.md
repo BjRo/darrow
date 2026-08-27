@@ -26,6 +26,10 @@ to another orchestration helper while preserving your original authority.
 
 ## Plugin catalog
 
+<p align="center">
+  <img src="docs/assets/darrow-plugin-layers.svg" alt="Darrow's four plugin layers: task recipes add an ergonomic interface over orchestration; orchestration executes work packages with cost and risk proportionate to the task; capabilities teach software-engineering skills; foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.">
+</p>
+
 ### Foundations
 
 Foundation plugins maintain the durable context and reusable agent surfaces
