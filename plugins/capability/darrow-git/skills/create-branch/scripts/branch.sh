@@ -82,6 +82,7 @@ case "$cmd" in
     # create <name> [--from <base>] [--worktree [--at <path>]]
     name=""
     base=""
+    ticket_token=""
     worktree=0
     at_path=""
     at_set=0
@@ -93,6 +94,14 @@ case "$cmd" in
             exit 2
           fi
           base=$2
+          shift 2
+          ;;
+        --ticket-token)
+          if [[ $# -lt 2 || -z "$2" ]]; then
+            echo "error: --ticket-token needs a non-empty opaque value" >&2
+            exit 2
+          fi
+          ticket_token=$2
           shift 2
           ;;
         --worktree)
@@ -126,6 +135,10 @@ case "$cmd" in
       echo "error: no branch name given" >&2
       exit 2
     fi
+    if [[ -n "$ticket_token" ]] && ! [[ "$ticket_token" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]*$ ]]; then
+      echo "error: ticket token contains unsupported branch characters: $ticket_token" >&2
+      exit 5
+    fi
     if [[ $at_set -eq 1 && $worktree -eq 0 ]]; then
       echo "error: --at requires --worktree" >&2
       exit 2
@@ -144,26 +157,42 @@ case "$cmd" in
       echo "error: repository has no commits yet — make the first commit before branching" >&2
       exit 3
     fi
-    if ! [[ "$name" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/[A-Za-z0-9]+(-[A-Za-z0-9]+)*$ ]]; then
+    if ! [[ "$name" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/.+$ ]] ||
+      ! git check-ref-format --branch "$name" >/dev/null 2>&1; then
       echo "error: branch name must be <type>/<kebab-slug>: $name" >&2
       exit 5
     fi
-    # Segments lowercase; all-caps only as a ticket id, i.e. a CAPS segment
-    # immediately followed by its number (DAR-123).
     slug=${name#*/}
-    IFS='-' read -ra segs <<< "$slug"
-    for i in "${!segs[@]}"; do
-      s=${segs[$i]}
-      if [[ "$s" =~ ^[a-z0-9]+$ ]]; then
-        continue
+    if [[ -n "$ticket_token" ]]; then
+      if [[ "$slug" != "$ticket_token"-* ]]; then
+        echo "error: branch must lead with the supplied ticket token exactly: $name" >&2
+        exit 5
       fi
-      next=${segs[$((i + 1))]:-}
-      if [[ "$s" =~ ^[A-Z]+$ ]] && [[ "$next" =~ ^[0-9]+$ ]]; then
-        continue
+      token_count=$(printf '%s\n' "$slug" | grep -oF -- "$ticket_token" | wc -l | tr -d '[:space:]')
+      if [[ "$token_count" != 1 ]]; then
+        echo "error: supplied ticket token must occur exactly once: $name" >&2
+        exit 5
       fi
-      echo "error: slug segments must be lowercase (ticket ids like DAR-123 may be caps): $name" >&2
-      exit 5
-    done
+      suffix=${slug#"$ticket_token"-}
+      if ! [[ "$suffix" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo "error: branch suffix must be lowercase kebab-case: $name" >&2
+        exit 5
+      fi
+    else
+      IFS='-' read -ra segs <<< "$slug"
+      for i in "${!segs[@]}"; do
+        s=${segs[$i]}
+        if [[ "$s" =~ ^[a-z0-9]+$ ]]; then
+          continue
+        fi
+        next=${segs[$((i + 1))]:-}
+        if [[ "$s" =~ ^[A-Z]+$ ]] && [[ "$next" =~ ^[0-9]+$ ]]; then
+          continue
+        fi
+        echo "error: slug segments must be lowercase (ticket ids like DAR-123 may be caps): $name" >&2
+        exit 5
+      done
+    fi
     if [[ ${#name} -gt 60 ]]; then
       echo "error: branch name exceeds 60 chars (${#name})" >&2
       exit 5
@@ -259,7 +288,7 @@ case "$cmd" in
     fi
     ;;
   *)
-    echo "usage: branch.sh inspect | create <name> [--from <base>] [--worktree [--at <path>]]" >&2
+    echo "usage: branch.sh inspect | create <name> [--ticket-token <opaque-token>] [--from <base>] [--worktree [--at <path>]]" >&2
     exit 64
     ;;
 esac

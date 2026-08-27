@@ -99,9 +99,10 @@ A directive later in a prompt is ordinary text and does not change attribution.
 Every valid directive starts a new epoch, including one that repeats the active
 mode or value. In automatic mode, `DARROW_LANGFUSE_WORK_ITEM_ID` or the
 configuration-file `work_item_id` wins over branch inference. Conventional
-branch tokens such as `DAR-123`, `ABC_42`, `issue-45`, and a leading numeric
-token are supported. Detached HEAD, malformed tokens, and non-ticket branches
-yield no identifier.
+leading tokens such as `DAR-123`, `ABC_42`, `issue-45`, and a numeric token are
+supported only immediately after the conventional branch type. Later
+ticket-like text is ignored. Detached HEAD, malformed tokens, and non-ticket
+branches yield no identifier.
 
 Every trace records `darrow.attribution_source` and `codex.thread_id`.
 Session-grouped traces also record `darrow.attribution_epoch`. Traces record

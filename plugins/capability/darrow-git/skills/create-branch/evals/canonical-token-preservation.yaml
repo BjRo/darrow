@@ -1,0 +1,15 @@
+id: create-branch-canonical-token-preservation
+invariant: GW-B1
+prompt: "Start the fix for the active ticket provider's canonical token issue-64: preserve ticket identifiers. Create the branch with token issue-64 exactly as supplied."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+checks:
+  - name: canonical token is the one leading slug token
+    run: git rev-parse --abbrev-ref HEAD
+    expect_regex: "^fix/issue-64-[a-z0-9]+(-[a-z0-9]+)*$"
+  - name: canonical token occurs once
+    run: git rev-parse --abbrev-ref HEAD | grep -oF issue-64 | wc -l | tr -d ' '
+    expect_regex: "^1$"

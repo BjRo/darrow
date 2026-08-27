@@ -10,11 +10,11 @@ from typing import Any, Mapping
 
 
 _WORK_ITEM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_JIRA_TOKEN = re.compile(
-    r"(?<![A-Za-z0-9])([A-Za-z][A-Za-z0-9]*[-_]\d+)(?![A-Za-z0-9])"
+_LEADING_BRANCH_TOKEN = re.compile(
+    r"^(?:feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/"
+    r"(issue[-_]\d+|[A-Za-z][A-Za-z0-9]*[-_]\d+|\d+)(?=$|[-_])",
+    re.I,
 )
-_ISSUE_TOKEN = re.compile(r"(?<![A-Za-z0-9])(issue[-_]\d+)(?![A-Za-z0-9])", re.I)
-_NUMERIC_BRANCH_TOKEN = re.compile(r"(?:^|/)(\d+)(?=$|[-_/])")
 
 
 @dataclass(frozen=True)
@@ -149,11 +149,8 @@ def git_provenance(cwd: str) -> tuple[str | None, str | None]:
 def infer_work_item_id_from_branch(branch: str | None) -> str | None:
     if branch is None:
         return None
-    for pattern in (_ISSUE_TOKEN, _JIRA_TOKEN, _NUMERIC_BRANCH_TOKEN):
-        match = pattern.search(branch)
-        if match:
-            return match.group(1)
-    return None
+    match = _LEADING_BRANCH_TOKEN.search(branch)
+    return match.group(1) if match else None
 
 
 def infer_work_item_id(cwd: str) -> str | None:

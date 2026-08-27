@@ -6,7 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from darrow_observability_langfuse.config import infer_work_item_id, load_config
+from darrow_observability_langfuse.config import (
+    infer_work_item_id,
+    infer_work_item_id_from_branch,
+    load_config,
+)
 
 
 class ConfigTest(unittest.TestCase):
@@ -65,6 +69,21 @@ class ConfigTest(unittest.TestCase):
             subprocess.run(["git", "-C", str(repo), "checkout", "-q", "--detach", "HEAD"], check=True)
             self.assertIsNone(infer_work_item_id(str(repo)))
 
+    def test_branch_inference_uses_only_the_exact_leading_token(self):
+        self.assertEqual(
+            infer_work_item_id_from_branch("fix/issue-64-preserve-ticket-identifiers"),
+            "issue-64",
+        )
+        self.assertEqual(
+            infer_work_item_id_from_branch("feat/DAR-123-retry-logic"), "DAR-123"
+        )
+        self.assertIsNone(
+            infer_work_item_id_from_branch("fix/preserve-ticket-identifiers-issue-64")
+        )
+        self.assertEqual(
+            infer_work_item_id_from_branch("fix/issue-64-preserve-DAR-123"),
+            "issue-64",
+        )
 
 if __name__ == "__main__":
     unittest.main()

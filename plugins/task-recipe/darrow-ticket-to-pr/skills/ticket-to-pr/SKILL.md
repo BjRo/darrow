@@ -93,4 +93,5 @@ reverification, replacement goal, or publication retry.
 
 Completion is one verified pull request or the exact blocker. Never infer a
 missing decision, create duplicate remote state, or claim a branch, commit, or
-URL alone proves ticket fulfillment.
+URL alone proves ticket fulfillment. On completion, explicitly identify the
+one pull request in the user-visible result.
