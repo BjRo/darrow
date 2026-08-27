@@ -56,6 +56,11 @@
       "description": "Review pinned changes independently for repository standards and specification fulfillment"
     },
     {
+      "name": "darrow-observability-langfuse",
+      "source": "./plugins/capability/darrow-observability-langfuse",
+      "description": "Export Codex rollout turns to Langfuse with work-item attribution"
+    },
+    {
       "name": "darrow-goal-loop",
       "source": "./plugins/orchestration/darrow-goal-loop",
       "description": "Compile bounded engineering work into task-informed host-native goals"

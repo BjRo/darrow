@@ -1,0 +1,4 @@
+interface:
+  display_name: "Langfuse Observability"
+  short_description: "Configure private Codex trace export"
+  default_prompt: "Use $configure-langfuse-observability to help me configure Codex tracing safely."

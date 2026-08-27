@@ -1,0 +1,37 @@
+id: langfuse-observability-in-session-attribution
+activation: positive
+invariant: OLF-P3,OLF-P4
+mount_plugin_skills: true
+prompt: >-
+  I use one Codex conversation for several topics. Without restarting Codex or
+  editing configuration, show me how to attribute the current and following
+  turns to ISSUE-60, later make a run of turns explicitly unattributed, and
+  finally return to automatic branch inference. Do not contact a tracker.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# sample repository"
+checks:
+  - name: attribution guidance has no repository effects
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: answer gives the exact set directive
+    expect_regex: "(?:^|\\n)@darrow\\.attribution set ISSUE-60(?:\\r?\\n|$)"
+  - name: answer gives the exact clear directive
+    expect_regex: "(?:^|\\n)@darrow\\.attribution clear(?:\\r?\\n|$)"
+  - name: answer gives the exact automatic directive
+    expect_regex: "(?:^|\\n)@darrow\\.attribution auto(?:\\r?\\n|$)"
+  - name: answer explains current and subsequent turn scope
+    expect_regex: "current[\\s\\S]{0,180}subsequent|current[\\s\\S]{0,180}following"
+    flags: i
+  - name: answer explains epoch session segmentation
+    expect_regex: "(epoch[\\s\\S]{0,180}Langfuse[\\s\\S]{0,120}session|Langfuse[\\s\\S]{0,180}session[\\s\\S]{0,120}epoch)"
+    flags: i
+  - name: answer preserves the conversation correlation key
+    expect_regex: "codex\\.thread_id[\\s\\S]{0,180}(conversation|across|segment)"
+    flags: i
+  - name: answer preserves the tracker boundary
+    not_regex: "(gh|jira|ticket) (issue |api |get |edit |comment |close |create )"
+    flags: i

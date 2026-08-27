@@ -1,0 +1,25 @@
+{
+  "name": "darrow-observability-langfuse",
+  "version": "0.3.1",
+  "description": "Export Codex rollout turns to Langfuse with attribution epochs",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "license": "BUSL-1.1",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Darrow -> Langfuse Observability",
+    "shortDescription": "Trace Codex turns in Langfuse",
+    "longDescription": "Reconstruct Codex rollout turns, model activity, tool calls, token usage, and subagents as Langfuse traces with replayable work-item attribution epochs.",
+    "developerName": "Björn Rochel",
+    "category": "Coding",
+    "capabilities": ["Read"],
+    "defaultPrompt": [
+      "Help me configure Langfuse observability for Codex.",
+      "Explain what Codex data this plugin exports.",
+      "Show me how to change work-item attribution without restarting Codex."
+    ]
+  }
+}

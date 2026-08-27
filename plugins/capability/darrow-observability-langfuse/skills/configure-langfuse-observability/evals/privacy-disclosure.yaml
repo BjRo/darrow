@@ -1,0 +1,30 @@
+id: langfuse-observability-privacy-disclosure
+activation: positive
+invariant: OLF-P5
+mount_plugin_skills: true
+prompt: >-
+  Before I enable Codex observability, what data can this plugin send outside
+  my machine, and what privacy controls are on by default? Do not change files
+  or configure anything yet.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# private project"
+checks:
+  - name: privacy explanation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: answer says tracing or export defaults off
+    expect_regex: "((tracing|export)[\\s\\S]{0,300}(disabled|off|opt.?in|false)|(disabled|off|false)[\\s\\S]{0,300}(tracing|export))"
+    flags: i
+  - name: answer says raw-content capture defaults off separately
+    expect_regex: "((content|prompt|tool)[\\s\\S]{0,300}(disabled|off|opt.?in|false)|(disabled|off|false)[\\s\\S]{0,300}(content|prompt|tool))"
+    flags: i
+  - name: answer names sensitive captured categories
+    expect_regex: "prompt[\\s\\S]{0,260}(reasoning|assistant)[\\s\\S]{0,260}tool[\\s\\S]{0,260}(input|output)"
+    flags: i
+  - name: answer warns about destination retention
+    expect_regex: "retention|stored|storage"
+    flags: i

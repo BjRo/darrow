@@ -40,15 +40,16 @@ start orchestration.
 
 ### Capabilities
 
-| Plugin                                                                        | Use it to                                                                                         |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [`darrow-git`](plugins/capability/darrow-git/README.md)                       | Create branches, commits, and pull requests through bounded Git workflows.                        |
-| [`darrow-tickets`](plugins/capability/darrow-tickets/README.md)               | Create, list, and update tracker work items through a backend-neutral interface.                  |
-| [`darrow-readiness-gate`](plugins/capability/darrow-readiness-gate/README.md) | Check whether a request, ticket, specification, or plan is ready to implement.                    |
-| [`darrow-discovery`](plugins/capability/darrow-discovery/README.md)           | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
-| [`darrow-explanation`](plugins/capability/darrow-explanation/README.md)       | Explain technical structure through compact, source-grounded visual forms.                        |
-| [`darrow-tdd`](plugins/capability/darrow-tdd/README.md)                       | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |
-| [`darrow-review`](plugins/capability/darrow-review/README.md)                 | Review a pinned change for repository standards and specification fulfillment without editing it. |
+| Plugin                                                                                        | Use it to                                                                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [`darrow-git`](plugins/capability/darrow-git/README.md)                                       | Create branches, commits, and pull requests through bounded Git workflows.                        |
+| [`darrow-tickets`](plugins/capability/darrow-tickets/README.md)                               | Create, list, and update tracker work items through a backend-neutral interface.                  |
+| [`darrow-readiness-gate`](plugins/capability/darrow-readiness-gate/README.md)                 | Check whether a request, ticket, specification, or plan is ready to implement.                    |
+| [`darrow-discovery`](plugins/capability/darrow-discovery/README.md)                           | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
+| [`darrow-explanation`](plugins/capability/darrow-explanation/README.md)                       | Explain technical structure through compact, source-grounded visual forms.                        |
+| [`darrow-tdd`](plugins/capability/darrow-tdd/README.md)                                       | Implement behavior changes and reproducible fixes through a red-to-green test slice.              |
+| [`darrow-review`](plugins/capability/darrow-review/README.md)                                 | Review a pinned change for repository standards and specification fulfillment without editing it. |
+| [`darrow-observability-langfuse`](plugins/capability/darrow-observability-langfuse/README.md) | Export Codex turns to Langfuse with privacy controls and work-item attribution.                   |
 
 Each plugin README describes its skills, example requests, and safety
 boundaries.

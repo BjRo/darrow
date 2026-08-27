@@ -1,1 +1,3 @@
 plugins/*/*/skills/*/SKILL.md
+**/.venv/**
+**/__pycache__/**

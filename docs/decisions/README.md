@@ -23,6 +23,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 | [ADR-0005: Use portable Bash facades for plugin mechanics](ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md) | Accepted | 2026-08-13 | Put deterministic plugin mechanics behind narrow portable Bash facades while keeping authority and contextual judgment in skills. | Revisit when: Every supported Claude Code and Codex host provides a common, independently installable runtime that is more portable than Bash 3.2 plus baseline Unix utilities, or the supported macOS boundary no longer includes Bash 3.2. |
 | [ADR-0006: Keep decisions with their authoritative owners](ADR-0006-keep-decisions-with-their-authoritative-owners.md) | Accepted | 2026-08-13 | Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners. | None |
 | [ADR-0007: Separate skill evaluation evidence dimensions](ADR-0007-separate-skill-evaluation-evidence-dimensions.md) | Accepted | 2026-08-13 | Represent invariant coverage, task outcomes, matched skill ablation, and skill activation as separate evaluation evidence dimensions. | None |
+| [ADR-0008: Allow Python and UV for Langfuse observability](ADR-0008-allow-python-and-uv-for-langfuse-observability.md) | Accepted | 2026-08-24 | Permit the independently installable Langfuse observability plugin to use a locked Python backend managed by UV while retaining a portable Bash hook launcher and keeping the exception scoped to that plugin. | Revisit when: Codex exposes equivalent native Langfuse export, the Langfuse SDK no longer requires Python, or the plugin can meet its rollout-reconstruction and export contract with the portable Bash baseline alone. |
 
 <!-- darrow-source: 1a57cf608fb4cfa4b770abebf34ca450e79c0160 2711262332 330 ADR-0001-eval-runner.md -->
 <!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
@@ -31,6 +32,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 <!-- darrow-source: 1547f5ee3b6edabb688fcaa834900ad001ca56c4 718689032 590 ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md -->
 <!-- darrow-source: 739b2fa46ad8b0ed220c4d341317bf670d3d7a41 243106577 398 ADR-0006-keep-decisions-with-their-authoritative-owners.md -->
 <!-- darrow-source: ae5948d48fa4b0b0ce2c80ea76e23a71d582aa71 4074249863 369 ADR-0007-separate-skill-evaluation-evidence-dimensions.md -->
+<!-- darrow-source: aab600b869cf357f81f4424f1813a75596d0a64c 2479862079 646 ADR-0008-allow-python-and-uv-for-langfuse-observability.md -->
 
 ## Rejected
 

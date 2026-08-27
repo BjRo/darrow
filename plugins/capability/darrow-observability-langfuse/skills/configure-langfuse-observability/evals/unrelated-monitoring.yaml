@@ -1,0 +1,24 @@
+id: langfuse-observability-unrelated-monitoring
+activation: negative
+invariant: OLF-P1
+mount_plugin_skills: true
+prompt: >-
+  Add Datadog host CPU metrics to this service. Do not use Langfuse and do not
+  change any Codex plugin configuration. First tell me whether the requested
+  repository has enough implementation context.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# empty service shell"
+checks:
+  - name: unrelated monitoring request stays read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: response does not redirect to Codex Langfuse tracing
+    not_regex: "DARROW_LANGFUSE|darrow-observability-langfuse|Codex Stop hook"
+    flags: i
+  - name: response identifies missing service context
+    expect_regex: "(not[\\s*]{0,16}(have )?enough|insufficient|missing|need|no service)[\\s\\S]{0,240}(service|runtime|deployment|code|stack)"
+    flags: i

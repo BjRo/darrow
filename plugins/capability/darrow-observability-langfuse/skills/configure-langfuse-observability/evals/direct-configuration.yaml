@@ -1,0 +1,29 @@
+id: langfuse-observability-direct-configuration
+activation: positive
+invariant: OLF-P1,OLF-P2,OLF-P5,OLF-P7
+mount_plugin_skills: true
+prompt: >-
+  Help me configure this Darrow plugin to export Codex turns to a self-hosted
+  Langfuse instance at http://localhost:3000. Keep raw prompts and tool payloads
+  private for now, attribute traces to OPS-42 explicitly, and tell me how to
+  verify the hook safely without claiming that my credentials work.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# sample repository"
+checks:
+  - name: configuration guidance is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: answer names the required opt-in and endpoint variables
+    expect_regex: "DARROW_LANGFUSE_ENABLED[\\s\\S]{0,500}LANGFUSE_BASE_URL"
+  - name: answer keeps content capture disabled
+    expect_regex: "DARROW_LANGFUSE_CAPTURE_CONTENT[\\s\\S]{0,120}(false|disabled|off)"
+    flags: i
+  - name: answer configures the explicit work item
+    expect_regex: "DARROW_LANGFUSE_WORK_ITEM_ID[\\s\\S]{0,100}OPS-42"
+  - name: answer uses dry-run verification without a success claim
+    expect_regex: "DRY_RUN[\\s\\S]{0,300}(inspect|verify|dry|without|does not)"
+    flags: i

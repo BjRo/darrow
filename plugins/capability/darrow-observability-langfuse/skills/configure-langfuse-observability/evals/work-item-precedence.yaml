@@ -1,0 +1,24 @@
+id: langfuse-observability-work-item-precedence
+activation: positive
+invariant: OLF-P4
+mount_plugin_skills: true
+prompt: >-
+  My branch is feat/issue-45-langfuse, but DARROW_LANGFUSE_WORK_ITEM_ID is set
+  to TEAM-7. Which work-item value will the trace contain? Explain the fallback
+  for a detached HEAD and do not contact or mutate any tracker.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# sample repository"
+checks:
+  - name: precedence explanation has no repository effects
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: explicit value wins over inferred branch value
+    expect_regex: "TEAM-7[\\s\\S]{0,240}(wins|precedence|explicit|instead of|rather than)[\\s\\S]{0,180}(issue-45|branch)"
+    flags: i
+  - name: detached head produces no inferred value
+    expect_regex: "detached[\\s\\S]{0,200}(no|none|absent|without)[\\s\\S]{0,120}(work-item|attribution|identifier|ID)"
+    flags: i

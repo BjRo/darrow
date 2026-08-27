@@ -1,0 +1,202 @@
+# Darrow Langfuse Observability
+
+This independently installable plugin reconstructs OpenAI Codex turns from the
+rollout transcript supplied to Codex's lifecycle hooks and exports them as
+Langfuse traces. Its trace model is explicitly oriented on
+[`langfuse/codex-observability-plugin`](https://github.com/langfuse/codex-observability-plugin):
+one trace per turn, nested model generations and tool calls, token usage, and
+spawned subagent turns. Turn traces are grouped into ticket-coherent native
+Langfuse session segments, one per attribution epoch. Every trace retains the
+original Codex session/thread identifier as the conversation key across those
+segments.
+
+It adds Darrow-specific work-item attribution without depending on another
+plugin. The hook never contacts or mutates a tracker.
+
+## Runtime exception
+
+Darrow plugin mechanics normally use portable Bash only. ADR-0008 records the
+contained exception here: `hooks/stop.sh` is a portable launcher, while
+transcript reconstruction and Langfuse export run in Python managed by UV. The
+plugin commits `backend/pyproject.toml` and `backend/uv.lock`; no sibling plugin
+or repository runtime is required.
+
+First execution may let UV download the locked Python runtime dependencies and
+create `backend/.venv` inside the installed plugin. Pre-warm it from the plugin
+root with:
+
+```sh
+uv sync --frozen --project backend
+```
+
+## Install for Codex
+
+Add the Darrow marketplace and install only this plugin:
+
+```sh
+codex plugin marketplace add BjRo/darrow
+codex plugin add darrow-observability-langfuse@darrow
+```
+
+Review and trust the plugin's hooks when Codex prompts you, then start a new
+Codex session after installation. You can inspect the registered hooks with
+`/hooks`. UV and a UV-managed Python
+`>=3.10,<3.14` are required. The locked Langfuse Python SDK requires a
+compatible Langfuse server; current SDK compatibility is documented by
+Langfuse and should be checked before connecting an older self-hosted server.
+
+## Configure
+
+Tracing is disabled until explicitly enabled. Environment variables override
+the repository file, which overrides the user file, which overrides defaults.
+
+| Environment variable              | File key          | Default                      | Purpose                                                                      |
+| --------------------------------- | ----------------- | ---------------------------- | ---------------------------------------------------------------------------- |
+| `DARROW_LANGFUSE_ENABLED`         | `enabled`         | `false`                      | Opt into network export                                                      |
+| `DARROW_LANGFUSE_CAPTURE_CONTENT` | `capture_content` | `false`                      | Include prompt/reasoning/message/tool content and detailed invocation labels |
+| `DARROW_LANGFUSE_WORK_ITEM_ID`    | `work_item_id`    | branch inference             | Automatic-mode default external ticket or work-item identifier               |
+| `DARROW_LANGFUSE_MAX_CHARS`       | `max_chars`       | `20000`                      | Maximum captured characters per string                                       |
+| `DARROW_LANGFUSE_DRY_RUN`         | `dry_run`         | `false`                      | Print reconstructed JSON without export or sidecar writes                    |
+| `DARROW_LANGFUSE_DEBUG`           | `debug`           | `false`                      | Emit bounded diagnostics to stderr                                           |
+| `DARROW_LANGFUSE_STRICT`          | `strict`          | `false`                      | Make refusals/export failures nonzero for tests                              |
+| `LANGFUSE_BASE_URL`               | `base_url`        | `https://cloud.langfuse.com` | Langfuse Cloud or self-hosted base URL                                       |
+| `LANGFUSE_PUBLIC_KEY`             | `public_key`      | none                         | Project-scoped public key                                                    |
+| `LANGFUSE_SECRET_KEY`             | `secret_key`      | none                         | Project-scoped secret key                                                    |
+
+Configuration files are JSON objects at
+`~/.codex/darrow-langfuse.json` and `<project>/.codex/darrow-langfuse.json`:
+
+```json
+{
+  "enabled": true,
+  "capture_content": false,
+  "base_url": "http://localhost:3000",
+  "work_item_id": "OPS-42"
+}
+```
+
+Prefer environment variables or an OS secret manager for credentials. Do not
+commit API keys to the repository file.
+
+## Work-item attribution
+
+Start an attribution epoch by putting one directive on the first non-empty line
+of a Codex prompt. The rest of that prompt may contain the task:
+
+```text
+@darrow.attribution set ISSUE-60
+@darrow.attribution clear
+@darrow.attribution auto
+```
+
+- `set` attributes the current and subsequent turns to the supplied bounded
+  work-item ID.
+- `clear` makes the current and subsequent turns explicitly unattributed.
+- `auto` returns the current and subsequent turns to configuration and then Git
+  branch inference.
+
+A directive later in a prompt is ordinary text and does not change attribution.
+Every valid directive starts a new epoch, including one that repeats the active
+mode or value. In automatic mode, `DARROW_LANGFUSE_WORK_ITEM_ID` or the
+configuration-file `work_item_id` wins over branch inference. Conventional
+branch tokens such as `DAR-123`, `ABC_42`, `issue-45`, and a leading numeric
+token are supported. Detached HEAD, malformed tokens, and non-ticket branches
+yield no identifier.
+
+Every trace records `darrow.attribution_source` and `codex.thread_id`.
+Session-grouped traces also record `darrow.attribution_epoch`. Traces record
+`darrow.work_item_id`, `git.branch`, and `git.head` when available. The epoch ID
+is the trace's native Langfuse `session.id`, so a conversation that moves from
+one work item to another becomes multiple ticket-coherent session segments.
+Use `codex.thread_id` to query or correlate the complete conversation across
+segments.
+
+At UserPromptSubmit, the plugin records the current turn's provisional
+automatic fallback, branch, and HEAD under Codex's plugin data directory. It
+does not persist the submitted prompt. At live Stop, the plugin records final
+evidence in `<rollout>.darrow-langfuse`; that final snapshot supersedes the
+current turn's provisional evidence. A failed export therefore retries with
+the original evidence even if the configuration, branch, or HEAD changes
+afterward. An interrupted turn that never reaches Stop uses its provisional
+snapshot. Before export, that evidence is promoted into the rollout sidecar so
+later turns retain the same epoch numbering. If no snapshot exists, the trace
+remains available by `codex.thread_id` but is not attached to a Langfuse
+session and does not create a false attribution epoch. Explicit directives
+remain in the rollout itself, so replay reconstructs the same ordered timeline.
+This state is entirely local; the plugin never contacts a tracker.
+
+## Privacy and security
+
+Export and raw-content capture are separate opt-ins. With content capture off,
+the plugin sends observation structure, names, status, model identity, token
+counts, timing metadata, session/turn IDs, and optional work-item attribution.
+With it on, prompts, reasoning summaries, assistant text, and tool inputs and
+outputs are also eligible for export. Tool observation names then use concise
+invocation labels such as `git status` or `ctx_read {path:"README.md"}`, while
+the complete captured parameters remain in the observation input. With content
+capture off, tool names remain generic and contain no parameters.
+
+Configured credential strings and values under sensitive keys such as
+`authorization`, `token`, `secret`, `password`, and `api_key` are redacted
+before export. This is best-effort protection, not a data-loss-prevention
+system. Review transcript content, use `DARROW_LANGFUSE_MAX_CHARS`, and apply
+appropriate Langfuse project access and retention controls before enabling raw
+content capture.
+
+The secret key is used only for Langfuse authentication. It is not included in
+trace metadata, dry-run output, provisional attribution state, the
+deduplication sidecar, or plugin diagnostics.
+
+## Trace and failure behavior
+
+Malformed JSONL records are skipped. A missing/unreadable transcript, invalid
+hook JSON or configuration, missing UV/credentials, and export failure are safe
+refusals. Normal hook operation fails open so observability cannot block the
+Codex turn. Strict mode makes the same condition nonzero for deterministic
+installation and failure testing.
+
+The UserPromptSubmit payload's `turn_id` identifies the turn about to start and
+records a mode-`0600` provisional snapshot under `PLUGIN_DATA`. The Stop
+payload's `turn_id` identifies the turn being completed, including when the
+rollout does not yet contain its trailing `task_complete` record. Only that
+turn and other rollout-completed turns are eligible for export. The final
+current-turn snapshot is written atomically with mode `0600` to
+`<rollout>.darrow-langfuse` before export; the completed turn ID is added only
+after the exporter returns successfully. Repeated Stop hooks filter successful
+IDs, preserve retry attribution, and do not export unrelated in-progress turns.
+
+## Verify
+
+For a network-free inspection, set `DARROW_LANGFUSE_ENABLED=true` and
+`DARROW_LANGFUSE_DRY_RUN=true`, then invoke the installed hook with a real
+absolute rollout path. Dry run prints the trace JSON, needs no credentials, and
+does not write the sidecar. It proves reconstruction only—not authentication or
+ingestion.
+
+For live verification, use valid keys from the same Langfuse project, run a
+Codex turn, and retrieve the resulting trace from that project. Local testing
+follows Langfuse's official
+[Docker Compose deployment guide](https://langfuse.com/self-hosting/deployment/docker-compose).
+The release smoke procedure starts an isolated Compose project, provisions a
+project/key pair, exports a fixture turn, verifies the trace and work-item
+metadata in Langfuse, and stops only that project. Langfuse v4 deployments use
+the events-only storage model, so verify the exported events rather than the
+legacy trace-list API.
+
+## Development checks
+
+```sh
+bash tests/package.test.sh
+bash hooks/stop.test.sh
+bash hooks/export-failure.test.sh
+bash hooks/refusal.test.sh
+uv run --frozen --project backend python -m unittest discover -s backend/tests
+```
+
+Run each shell test with both `bash` and `/bin/bash` in repository development.
+
+## License
+
+Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0 two
+years after each release. Part of the
+[Darrow](https://github.com/BjRo/darrow) marketplace.
