@@ -643,7 +643,9 @@ describe("Codex skill activation observation", () => {
         `Expected SHA-256: ${digest}`,
         "Verify the file digest before following the contract.",
         "If the file is missing, unreadable, or does not match, stop and report the evidence gap.",
-        "This accepted ownership-marked task already makes you the sole goal owner; execute the contract directly even when no inner goal-control tool exists.",
+        "This accepted ownership-marked task makes you the sole work owner.",
+        "The applicable launch contract says whether the launcher already persisted this contract in that thread or you must persist this contract in that thread before work.",
+        "Goal persistence belongs to the existing work owner; it does not create another owner.",
         "Follow that complete contract through terminal completion.",
         "",
       ].join("\n");
@@ -741,6 +743,26 @@ describe("Codex skill activation observation", () => {
           ].join("\n"),
         },
       });
+      const persistence = (status: "active" | "unavailable") =>
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            id: `goal-state-${status}`,
+            type: "command_execution",
+            sender_thread_id: "/root/adaptive_goal_runner",
+            command:
+              `/bin/bash ${goalLoopPath} step goal-state ` +
+              `--ledger ${attestation.ledger} --status ${status}`,
+            exit_code: 0,
+            status: "completed",
+            aggregated_output: [
+              "format\tdarrow-goal-step-v1",
+              "step\tgoal-state",
+              "status\trecorded",
+              `goal_state\t${status}`,
+            ].join("\n"),
+          },
+        });
       const lifecycle = (
         tool: "wait_agent" | "interrupt_agent" | "close_agent",
         agentRef = "/root/adaptive_goal_runner",
@@ -781,6 +803,7 @@ describe("Codex skill activation observation", () => {
           spawn("item.started"),
           spawn("item.completed"),
           activation,
+          persistence("active"),
           lifecycle("wait_agent"),
           release,
           lifecycle("close_agent"),
@@ -795,11 +818,14 @@ describe("Codex skill activation observation", () => {
         },
       );
       expect(retained).toContain('"type":"darrow.goal_activation"');
+      expect(retained).toContain(
+        '"type":"darrow.goal_persistence","status":"confirmed"',
+      );
       expect(retained).toContain('"type":"darrow.objective_release"');
       expect(retained).toContain('"type":"darrow.goal_report"');
       expect(
         retained.match(/"agent_ref":"\/root\/adaptive_goal_runner"/g),
-      ).toHaveLength(4);
+      ).toHaveLength(5);
       expect(retained).toContain('"tool":"wait_agent"');
       expect(retained).toContain('"tool":"close_agent"');
       expect(retained).not.toContain("darrow.parent_tool_after_goal");
@@ -856,6 +882,40 @@ describe("Codex skill activation observation", () => {
         },
       );
       expect(targetlessLifecycle).toContain("darrow.parent_tool_after_goal");
+      const unavailableReport = report
+        .replace("--status complete", "--status launch-required")
+        .replace(
+          "launch_boundary: native_subagent",
+          "launch_boundary: launch_required",
+        )
+        .replace(
+          "Native goal completed.",
+          "Native goal persistence: unavailable.\\nNative goal requires host launch.",
+        );
+      const unavailable = retainedCodexEvidence(
+        [
+          spawn("item.started"),
+          spawn("item.completed"),
+          activation,
+          persistence("unavailable"),
+          lifecycle("wait_agent"),
+          release,
+          unavailableReport,
+        ].join("\n"),
+        repo,
+        {
+          exitCode: 0,
+          stderrPresent: false,
+          spawnGuardSecret: "secret",
+          goalLoopPath,
+        },
+      );
+      expect(unavailable).toContain(
+        '"type":"darrow.goal_persistence","status":"unavailable"',
+      );
+      expect(unavailable).toContain(
+        '"type":"darrow.goal_report","status":"launch-required"',
+      );
       const wrong = retainedCodexEvidence(
         [
           spawn("item.started"),

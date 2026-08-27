@@ -48,6 +48,97 @@ describe("orchestration outcome metrics", () => {
     expect(reconcileGoalRoute(stopped, spawn).passed).toBe(false);
   });
 
+  test("accepts one activated child whose native goal persistence is unavailable", () => {
+    const agentRef = "/root/adaptive_goal_runner";
+    const attestation = {
+      model: "gpt-5.6-terra",
+      effort: "low",
+      forkTurns: "none",
+      requestSha256: "0".repeat(64),
+      objectiveSha256: "1".repeat(64),
+      contractSha256: "2".repeat(64),
+      baselineSha256: "3".repeat(64),
+      fixtureStateSha256: "4".repeat(64),
+      objectiveMode: "inline",
+    };
+    const collab = (tool: string, prompt?: string) =>
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "collab_tool_call",
+          tool,
+          status: "completed",
+          agent_ref: agentRef,
+          receiver_thread_ids: [agentRef],
+          prompt,
+        },
+      });
+    const raw = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          sender_thread_id: "parent-thread",
+          prompt: "- phase: adaptive-goal-runner\nexact goal contract",
+          goal_spawn_attestation: attestation,
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "completed",
+          sender_thread_id: "parent-thread",
+          agent_ref: agentRef,
+          receiver_thread_ids: [agentRef],
+          goal_spawn_attestation: attestation,
+        },
+      }),
+      JSON.stringify({
+        type: "darrow.goal_activation",
+        status: "completed",
+        agent_ref: agentRef,
+      }),
+      collab("send_message", "- phase: goal-owner-activated"),
+      JSON.stringify({
+        type: "darrow.goal_persistence",
+        status: "unavailable",
+        agent_ref: agentRef,
+      }),
+      collab("wait_agent"),
+      JSON.stringify({
+        type: "darrow.goal_report",
+        status: "launch-required",
+      }),
+    ].join("\n");
+    const stopped = [
+      "format: darrow-native-goal-report-v1",
+      "workflow: change-feature",
+      "risk: routine",
+      "profile: routine",
+      "harness: none",
+      "model: none > none",
+      "effort: none",
+      "route_applied_by: none",
+      "route_verified: false",
+      "launch_boundary: launch_required",
+      "verification_gate: routine",
+      "evaluation_child_invocations: 1",
+      "evaluation_human_interruptions: 0",
+      "enforcement: helper",
+      "Native goal persistence: unavailable.",
+      "Native goal requires host launch.",
+    ].join("\n");
+    expect(reconcileGoalRoute(stopped, raw).passed).toBe(true);
+    expect(
+      reconcileGoalRoute(stopped, raw.replace("wait_agent", "send_message"))
+        .passed,
+    ).toBe(false);
+  });
+
   test("counts child routes, interruptions, and failed quality oracles", () => {
     const result = [
       "format\tdarrow-goal-loop-result-v1",

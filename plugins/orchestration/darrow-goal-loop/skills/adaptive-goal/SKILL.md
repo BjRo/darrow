@@ -431,6 +431,12 @@ The helper protocol is mandatory on Claude; never implement directly in the clas
 Activate exactly one goal owner. Darrow adds no planner, verifier, repair agent,
 retry loop, or cross-vendor route. The native goal or allowed Claude Agent
 runner owns implementation, verification, recovery, and completion.
+For the Codex native-subagent boundary, distinguish work ownership from native
+goal persistence: the accepted thread is the sole work owner, creates and
+confirms its goal in that same thread, and records the `goal-state` transition
+before readiness or mutation. Follow the Codex guide's distinct rejected-create
+and accepted-but-unconfirmed paths; never release an accepted goal's attachment
+while its state is unknown, and never substitute another owner.
 
 ## 4. Return host-native completion
 

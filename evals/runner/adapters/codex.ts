@@ -405,6 +405,8 @@ interface PostGoalEvidenceContext {
   goalLoopPath?: string;
   agentRef?: string;
   activationState: "pending" | "recorded" | "rejected";
+  goalPersistence: "none" | "confirmed" | "unavailable";
+  waited: boolean;
   interrupted: boolean;
   closed: boolean;
   launchStopRecorded: boolean;
@@ -447,6 +449,8 @@ function retainedGoalLifecycleEvent(
     context.agentRef,
   );
   if (rejected) return rejected;
+  const goalPersistence = retainedGoalPersistenceForState(event, context);
+  if (goalPersistence) return goalPersistence;
   const launchStop =
     context.activationState === "rejected" && context.interrupted
       ? retainedGoalLaunchStopEvent(
@@ -471,6 +475,20 @@ function retainedGoalLifecycleEvent(
   return goalReportFollowsLifecycle(report, context) ? report : undefined;
 }
 
+function retainedGoalPersistenceForState(
+  event: CodexEvent,
+  context: PostGoalEvidenceContext,
+): unknown | undefined {
+  return context.activationState === "recorded"
+    ? retainedGoalPersistenceEvent(
+        event,
+        context.attestation,
+        context.goalLoopPath,
+        context.agentRef,
+      )
+    : undefined;
+}
+
 function goalReportFollowsLifecycle(
   report: unknown,
   context: PostGoalEvidenceContext,
@@ -479,8 +497,28 @@ function goalReportFollowsLifecycle(
     return false;
   const status = (report as { status?: unknown }).status;
   if (status !== "launch-required")
-    return context.activationState === "recorded";
-  return acceptedLaunchFailureLifecycle(context);
+    return (
+      context.activationState === "recorded" &&
+      context.goalPersistence === "confirmed"
+    );
+  return (
+    acceptedLaunchFailureLifecycle(context) ||
+    acceptedGoalPersistenceFailureLifecycle(context)
+  );
+}
+
+function acceptedGoalPersistenceFailureLifecycle(
+  context: PostGoalEvidenceContext,
+): boolean {
+  const objectiveClean =
+    context.attestation?.objectiveMode !== "file-backed" ||
+    context.objectiveReleased;
+  return [
+    context.activationState === "recorded",
+    context.goalPersistence === "unavailable",
+    context.waited,
+    objectiveClean,
+  ].every(Boolean);
 }
 
 function acceptedLaunchFailureLifecycle(
@@ -603,6 +641,68 @@ function retainedGoalActivationRejectedEvent(
         agent_ref: evidence.agentRef,
       }
     : undefined;
+}
+
+function retainedGoalPersistenceEvent(
+  event: CodexEvent,
+  attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
+  goalLoopPath?: string,
+  acceptedAgentRef?: string,
+): unknown | undefined {
+  if (!attestation || !goalLoopPath || !acceptedAgentRef) return undefined;
+  const status = goalPersistenceCommandStatus(
+    event,
+    attestation,
+    goalLoopPath,
+    acceptedAgentRef,
+  );
+  if (!status || !goalPersistenceOutputMatches(event, status)) return undefined;
+  return {
+    type: "darrow.goal_persistence",
+    status: status === "active" ? "confirmed" : "unavailable",
+    agent_ref: acceptedAgentRef,
+  };
+}
+
+function goalPersistenceCommandStatus(
+  event: CodexEvent,
+  attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
+  goalLoopPath: string,
+  acceptedAgentRef: string,
+): "active" | "unavailable" | undefined {
+  const command = completedCommand(event);
+  const sender = event.item?.sender_thread_id ?? event.item?.senderThreadId;
+  if (!command || sender !== acceptedAgentRef) return undefined;
+  const words = literalShellWords(command);
+  const status = words?.[7];
+  if (status !== "active" && status !== "unavailable") return undefined;
+  const expected = [
+    "/bin/bash",
+    goalLoopPath,
+    "step",
+    "goal-state",
+    "--ledger",
+    attestation.ledger,
+    "--status",
+    status,
+  ];
+  return JSON.stringify(words) === JSON.stringify(expected)
+    ? status
+    : undefined;
+}
+
+function goalPersistenceOutputMatches(
+  event: CodexEvent,
+  status: "active" | "unavailable",
+): boolean {
+  const output = event.item?.aggregated_output;
+  return !(
+    typeof output !== "string" ||
+    !/^format\tdarrow-goal-step-v1$/m.test(output) ||
+    !/^step\tgoal-state$/m.test(output) ||
+    !/^status\trecorded$/m.test(output) ||
+    !new RegExp(`^goal_state\\t${status}$`, "m").test(output)
+  );
 }
 
 function rejectedCommand(event: CodexEvent): string | undefined {
@@ -1022,6 +1122,8 @@ interface CodexRetentionState {
   pendingPostGoalCommands: Set<string>;
   goalOwnerReference?: string;
   activationState: "pending" | "recorded" | "rejected";
+  goalPersistence: "none" | "confirmed" | "unavailable";
+  waited: boolean;
   interrupted: boolean;
   closed: boolean;
   launchStopRecorded: boolean;
@@ -1047,6 +1149,8 @@ function retainCodexEvent(
         goalLoopPath: status?.goalLoopPath,
         agentRef: state.goalOwnerReference,
         activationState: state.activationState,
+        goalPersistence: state.goalPersistence,
+        waited: state.waited,
         interrupted: state.interrupted,
         closed: state.closed,
         launchStopRecorded: state.launchStopRecorded,
@@ -1118,14 +1222,33 @@ function updateGoalLifecycleState(
   lifecycle: unknown,
   state: CodexRetentionState,
 ): void {
+  updateLedgerLifecycleState(lifecycle, state);
+  if (collaboration) updateCollaborationLifecycleState(event, state);
+}
+
+function updateLedgerLifecycleState(
+  lifecycle: unknown,
+  state: CodexRetentionState,
+): void {
   const type = retainedEventType(lifecycle);
   if (type === "darrow.goal_activation") state.activationState = "recorded";
   if (type === "darrow.goal_activation_rejected")
     state.activationState = "rejected";
   if (type === "darrow.goal_launch_stop") state.launchStopRecorded = true;
+  if (type === "darrow.goal_persistence") {
+    const status = (lifecycle as { status?: unknown }).status;
+    if (status === "confirmed" || status === "unavailable")
+      state.goalPersistence = status;
+  }
   if (type === "darrow.objective_release") state.objectiveReleased = true;
-  if (!collaboration) return;
+}
+
+function updateCollaborationLifecycleState(
+  event: CodexEvent,
+  state: CodexRetentionState,
+): void {
   const tool = runnerControlKind(event);
+  if (tool === "wait" || tool === "wait_agent") state.waited = true;
   if (tool === "interrupt_agent") state.interrupted = true;
   if (tool === "close_agent") state.closed = true;
 }
@@ -1197,6 +1320,8 @@ export function retainedCodexEvidence(
     pendingPostGoalCommands: new Set<string>(),
     goalOwnerReference: status?.acceptedAgentRef,
     activationState: "pending",
+    goalPersistence: "none",
+    waited: false,
     interrupted: false,
     closed: false,
     launchStopRecorded: false,

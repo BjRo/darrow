@@ -66,9 +66,13 @@ bash "$goal_loop" step release-staging --ledger <absolute-ledger> \
   --expected-sha256 <exact-materialization-contract-sha256>
 ```
 
-Stop before activation if this exact release fails. The inline objective is
-already held in memory for the native call; the file-backed copy remains in its
-helper-owned attachment until terminal cleanup.
+Stop before activation if this exact release fails. For `mode=inline`, read and
+retain the exact `objective_file` bytes before the staging release, then place
+those bytes after the ownership marker in the native call. Never convert an
+inline objective into an `objective_file` launch line, because the staging
+release deliberately removes that file. For `mode=file-backed`, use only the
+helper-returned persistent objective path in the one allowed launch line; that
+copy remains readable until terminal cleanup.
 
 If selected readiness, selected review, or the exact launch boundary is
 unavailable before activation, record
@@ -186,11 +190,12 @@ leading or trailing prose:
 
 Do not use the message to tell the runner anything else. Before materializing,
 compile every runner requirement below into the complete contract. The
-accepted task already makes the runner the sole goal owner: it executes the
-contract directly without repeating adaptive-goal preflight, seeking another
-Darrow owner, or calling `create_goal`. It MUST NOT call `goal-loop step
-activate`, release the objective, or render the terminal ledger report; those
-are creator-owned lifecycle operations. It may record its own selected-readiness
+accepted task already makes the runner the sole work owner: it executes the
+contract directly without repeating adaptive-goal preflight or seeking another
+Darrow owner. Goal persistence attaches to that same thread; it does not create
+another work owner. The runner MUST NOT call `goal-loop step activate`, release
+the objective, or render the terminal ledger report; those are creator-owned
+lifecycle operations. It records its own goal persistence, selected-readiness
 verdict through `goal-loop step readiness` and selected-review outcomes through
 `goal-loop step review`. It reads and verifies a file-backed
 contract before work, owns it through completion or a material-feedback pause,
@@ -218,11 +223,44 @@ preserve the runner and objective as resumable state and return the pending
 question honestly. A terminal independent-review stop returns `blocked` to the
 creator without starting another goal or resuming repository work, checks,
 review, or publication. The runner may use native Codex subagents for
-bounded work when useful, but remains the sole goal owner. Tell it to collect
+bounded work when useful, but remains the sole work owner. Tell it to collect
 each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe
 planner, executor, verifier, or repair roles, and do not create another Darrow
 runner beneath it.
+
+The runner waits for the creator's exact `- phase: goal-owner-activated`
+message before goal persistence or mutation. After that signal, the runner must
+call `create_goal` exactly once. It supplies the exact materialized objective as
+its `objective` and a token budget only when the user specified one. It then
+calls `get_goal` in its own thread. Only when `get_goal` confirms the exact
+objective is active does the runner record the semantic confirmation:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step goal-state \
+  --ledger <absolute-ledger> --status active
+```
+
+The runner may then perform readiness and repository work. It owns the native
+goal's terminal `update_goal` call: use `complete` only after the full contract
+is fulfilled, and use `blocked` only under the native blocked threshold. The
+creator never calls `create_goal`, `get_goal`, or `update_goal` for this
+runner-owned goal.
+
+If `create_goal` is unavailable or rejects the request, the runner performs no
+mutation, records `goal-loop step goal-state --ledger <absolute-ledger>
+--status unavailable`, and returns the failure honestly. The creator then
+releases the objective and renders `launch-required`; it does not replace the
+runner or claim native persistence.
+
+If `create_goal` returns acceptance but `get_goal` is unavailable or does not
+confirm the exact objective active, the runner performs no mutation and leaves
+the ledger in `goal-pending`; it does not record unavailable persistence. The
+creator must not release the objective, close or replace the runner, or render
+a terminal helper report while the native goal's state is unknown. It returns
+the accepted thread reference plus the validated attachment path and expected
+digest as resumable lifecycle evidence so a later invocation can confirm the
+goal's terminal state before releasing the attachment.
 
 For a selected readiness gate, the runner invokes the matching capability
 before mutation, preserves its complete human-readable result, and records the
@@ -256,7 +294,9 @@ before the first wait:
 ```
 
 Do not ask the runner to make this call and do not substitute `same_thread`.
-Then use that exact agent reference as every wait, message, interrupt, and
+After the activation call succeeds, send the runner exactly
+`- phase: goal-owner-activated` through the matching message control. Then use
+that exact agent reference as every wait, message, interrupt, and
 cleanup target for the runner. A feedback request is a pause: relay the answer
 to that same reference and wait again rather than closing or replacing it.
 Never accept an activation merely because the helper echoes its argument; the
@@ -296,7 +336,7 @@ exactly once:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step report \
-  --ledger <absolute-ledger> --status <complete|blocked> \
+  --ledger <absolute-ledger> --status <complete|blocked|launch-required> \
   --human-interruptions <nonnegative-integer>
 ```
 
@@ -308,8 +348,9 @@ Ignore any child-authored report block; only the creator's helper call is the
 terminal report authority.
 
 **Complete when:** the accepted spawn matches the selected route, the visible
-runner owns the one persisted goal, and its terminal result proves the contract
-and final-tree checks complete.
+runner is the sole work owner, that thread owns the one confirmed persisted
+goal, and its terminal result proves the contract and final-tree checks
+complete.
 
 ## Explicit nested compatibility session
 

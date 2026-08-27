@@ -63,8 +63,10 @@ The launch boundary is selected in this order:
 
 This order is normative. A native goal runner is an observable host agent
 thread, not a shell process or Darrow role controller. A first-class Codex
-runner is itself the host-native owner boundary for the compiled contract and
-does not start or simulate an inner goal boundary.
+runner is itself the host-native owner boundary for the compiled contract. It
+attaches the exact materialized objective to itself once for native persistence
+before mutation; unavailable persistence stops the run. That persisted state
+belongs to the existing owner and is not a second owner boundary.
 Claude does not expose its session-scoped `/goal` command to Agent-tool
 children, so a Claude runner owns the compiled contract as its single
 foreground delegated task and MUST NOT claim `/goal` evaluator turns or
@@ -131,8 +133,8 @@ before its first goal-set call:
    the repository, with an absolute path and restrictive permissions;
 2. calculate its SHA-256 digest and produce an inline objective of at most
    4,000 bytes that tells the goal owner to read and verify that exact file
-   before doing any work, and that the accepted ownership-marked task already
-   makes it the sole goal owner even when no inner goal-control tool exists;
+   before doing any work, and that the accepted ownership-marked task makes it
+   the sole work owner while native goal control persists that same contract;
 3. stop before goal activation if the file cannot be materialized or the
    bounded objective cannot be produced; and
 4. keep the attachment readable across active and paused states until the goal
@@ -586,12 +588,13 @@ an accepted spawn whose observable prompt begins with the canonical
 not goal-owner evidence. It MUST NOT pretend that unavailable `model`,
 `reasoning_effort`, or `fork_turns` event fields were observed.
 
-The receiver of that first-line marker is already the activated sole goal
+The receiver of that first-line marker is already the activated sole work
 owner. It executes the supplied contract directly and MUST NOT recursively run
-adaptive-goal preflight or seek another owner. Native goal-state control may
-persist that ownership when the receiver exposes it; absence of that optional
-control inside the accepted runner does not turn the established boundary into
-`launch_required`.
+adaptive-goal preflight or seek another owner. Before mutation, that receiver
+MUST persist the exact contract through its native goal control and confirm the
+same objective active in its thread. This persistence does not introduce a
+second work owner. Missing or unconfirmed native goal control leaves the work
+owner visible but requires an honest `launch_required` result without mutation.
 
 An enclosing host API MAY split activation into a read-only preflight turn and
 a native-goal execution turn. The preflight handoff names its route source as
@@ -659,8 +662,11 @@ enforcement: helper
 
 The helper appends exactly one canonical terminal sentence: `Native goal
 completed.`, `Native goal settled as blocked.`, or `Native goal requires host
-launch.` Applicable canonical review sentences precede that terminal sentence.
-The 14 report fields remain the fixed parseable block.
+launch.` A confirmed Codex native runner also emits `Native goal persistence:
+confirmed.`; an accepted runner that cannot confirm its native goal emits
+`Native goal persistence: unavailable.` Applicable persistence and review
+sentences precede the terminal sentence. The 14 report fields remain the fixed
+parseable block.
 
 For every activated workflow, `verification_gate` equals `risk`; high risk
 requires selected independent review in the ledger. `route_verified: true`
@@ -827,8 +833,8 @@ the least launch machinery the host supports.
    terminates that step; it MUST NOT release exclusivity and then continue.
 3. **AGL-E3 — Evidence, not execution control.** The ledger records
    caller-chosen workflow, risk, profile, routes, objective identity, owner
-   identity and
-   readiness and review evidence, counters, cleanup, and report fields. It MUST
+   identity, native-goal persistence, readiness and review evidence, counters,
+   cleanup, and report fields. It MUST
    NOT select or invoke a workflow, model, goal owner, readiness assessor,
    reviewer, repair, retry, continuation, publication effect, or terminal goal
    status.
@@ -958,8 +964,26 @@ the least launch machinery the host supports.
    apply the selected route, Darrow MAY create exactly one first-class native
    agent thread with explicit model and effort. The accepted task is the one
    native owner boundary and the runner owns the compiled contract directly;
-   it MUST NOT repeat adaptive preflight, create an inner Darrow goal, or
-   relabel that accepted boundary as `same_thread`.
+   it MUST NOT repeat adaptive preflight, create another owner, or relabel that
+   accepted boundary as `same_thread`. Before repository or external mutation,
+   the runner MUST call the available native `create_goal` control exactly once
+   with the exact materialized objective, omit a token budget unless the user
+   supplied one, and require `get_goal` to confirm that objective active on its
+   own thread. This is persistence for the accepted owner, not an inner Darrow
+   owner. The runner records that confirmation through the ledger's goal-state
+   transition before readiness or active work. If `create_goal` is unavailable
+   or rejects the request, it records unavailable persistence, performs no
+   product mutation, and returns the exact evidence gap so the creator can
+   release the objective and report `launch_required` honestly. That report
+   preserves the accepted child count and persistence sentence but clears the
+   route fields: an applied child route is not an effective native-goal route
+   without the required persistence. If `create_goal` returns acceptance but
+   `get_goal` is unavailable or does not confirm the exact objective active,
+   the runner performs no product mutation and MUST leave persistence pending.
+   The creator MUST NOT release the objective, close or replace the runner, or
+   render a terminal helper report while the native goal's state is unknown;
+   it returns the accepted thread reference, attachment path, and digest as
+   resumable lifecycle evidence.
    An inline contract follows the ownership marker byte-for-byte. For a
    file-backed materialization, the remaining task body is exactly one
    `- objective_file: <helper-returned-absolute-path>` line; the owner reads

@@ -110,8 +110,10 @@ lossy recompaction or a second activation attempt. The attachment remains
 available through active and paused states. Complete or blocked goals release
 it through the helper's validated cleanup operation; pre-activation rejection
 and materialization failures release it without retrying activation. A failure
-after activation retains it unless the launcher confirms a terminal goal, and
-records the thread, attachment path, and digest needed for later release.
+after an accepted goal creation retains it unless the launcher confirms a
+terminal goal, and records the thread, attachment path, and digest needed for
+later release. An unavailable or rejected goal-creation call can instead record
+unavailable persistence and release the attachment before `launch_required`.
 
 The contract also selects independent code review proportionally: routine work
 omits it by default, elevated work selects it when compatibility, caller, or
@@ -172,15 +174,17 @@ assembled from unrelated child or compound-command evidence.
 - Darrow does not implement review judgment or fresh-context fan-out inside the
   goal loop; it interprets the selected environment capability's ordinary
   response semantically.
-- A first-class Codex goal runner is visible in the host, owns the one native
-  goal boundary directly, and may use Codex's own visible subagents for bounded
+- A first-class Codex goal runner is visible in the host, is the sole work
+  owner, persists the compiled contract as a native goal in that same thread,
+  and may use Codex's own visible subagents for bounded
   work. Its exact canonical `/root/...` `task_name` is retained as the agent
   reference for activation, lifecycle controls, cleanup, and evaluation
-  evidence. Inner goal-state control adds persistence when exposed but is not a
-  second required boundary. Each Codex agent creator collects its children's
-  terminal results and, when the host exposes a close control, closes each child
-  after its goal has been fulfilled. Missing close support does not disable this
-  launch boundary.
+  evidence. The child-thread goal state is persistence for that owner, not a
+  second owner boundary. If it cannot be confirmed, no mutation begins and the
+  run reports that native launch is still required. Each Codex agent creator
+  collects its children's terminal results and, when the host exposes a close
+  control, closes each child after its goal has been fulfilled. Missing close
+  support does not disable this launch boundary.
 - A first-class Claude runner is visible in the host, runs in the foreground,
   and receives the full contract and workflow; the selected plugin-agent
   definition pins its concrete model and effort together.
