@@ -154,10 +154,48 @@ test "$(record_value "$codex_activate" agent_ref)" = \
   /root/parent/adaptive_goal_runner || fail 'canonical Codex agent reference'
 grep -F $'agent_ref\t/root/parent/adaptive_goal_runner' \
   "$codex_ledger/state" >/dev/null || fail 'Codex agent reference ledger binding'
+grep -F $'phase\tgoal-pending' "$codex_ledger/state" >/dev/null ||
+  fail 'Codex native runner did not enter goal-pending state'
+expect_refusal 'Codex completion before native goal persistence' bash "$goal_loop" \
+  step report --ledger "$codex_ledger" --status complete --human-interruptions 0
+codex_goal_state=$(bash "$goal_loop" step goal-state --ledger "$codex_ledger" \
+  --status active)
+test "$(record_value "$codex_goal_state" goal_state)" = active ||
+  fail 'Codex native goal active evidence'
+grep -F $'phase\tactive' "$codex_ledger/state" >/dev/null ||
+  fail 'Codex native goal persistence did not unlock active work'
+expect_refusal 'duplicate Codex native goal persistence' bash "$goal_loop" \
+  step goal-state --ledger "$codex_ledger" --status active
 codex_report=$(bash "$goal_loop" step report --ledger "$codex_ledger" \
   --status complete --human-interruptions 0)
 grep -F 'evaluation_child_invocations: 1' <<<"$codex_report" >/dev/null ||
   fail 'canonical Codex owner did not count one child'
+grep -F 'Native goal persistence: confirmed.' <<<"$codex_report" >/dev/null ||
+  fail 'canonical Codex owner did not report native goal persistence'
+
+stage_codex_native_ledger
+bash "$goal_loop" step activate --ledger "$codex_ledger" \
+  --applied-by native-subagent --boundary native_subagent \
+  --agent-ref /root/adaptive_goal_runner \
+  --effective-route "$codex_route" --route-verified true >/dev/null
+codex_goal_unavailable=$(bash "$goal_loop" step goal-state \
+  --ledger "$codex_ledger" --status unavailable)
+test "$(record_value "$codex_goal_unavailable" goal_state)" = unavailable ||
+  fail 'Codex native goal unavailable evidence'
+codex_goal_unavailable_report=$(bash "$goal_loop" step report \
+  --ledger "$codex_ledger" --status launch-required --human-interruptions 0)
+grep -F 'model: none > none' <<<"$codex_goal_unavailable_report" >/dev/null ||
+  fail 'unavailable Codex native goal persistence retained an applied route'
+grep -F 'route_applied_by: none' <<<"$codex_goal_unavailable_report" >/dev/null ||
+  fail 'unavailable Codex native goal persistence retained an applied route'
+grep -F 'route_verified: false' <<<"$codex_goal_unavailable_report" >/dev/null ||
+  fail 'unavailable Codex native goal persistence retained an applied route'
+grep -F 'launch_boundary: launch_required' <<<"$codex_goal_unavailable_report" >/dev/null ||
+  fail 'unavailable Codex native goal persistence retained an applied route'
+grep -F 'Native goal persistence: unavailable.' <<<"$codex_goal_unavailable_report" >/dev/null ||
+  fail 'unavailable Codex native goal persistence was not reported'
+grep -F 'evaluation_child_invocations: 1' <<<"$codex_goal_unavailable_report" >/dev/null ||
+  fail 'unavailable Codex native goal persistence lost its child invocation'
 
 stage_codex_native_ledger
 codex_failed_stop=$(bash "$goal_loop" step launch-stop \

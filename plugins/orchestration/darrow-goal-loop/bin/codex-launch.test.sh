@@ -53,6 +53,17 @@ test ! -e "$hook_test" || fail "$hook_test is still packaged"
 require_text "$guide" 'before the first `create_goal` call'
 # shellcheck disable=SC2016 # literal Markdown code span
 require_text "$guide" 'Do not retry `create_goal`'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'call `create_goal` exactly once'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" '`get_goal` confirms'
+require_text "$guide" 'step goal-state'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'ledger in `goal-pending`'
+require_text "$guide" 'must not release the objective, close or replace the runner'
+require_text "$guide" 'validated attachment path and expected'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'inline objective into an `objective_file` launch line'
 require_text "$guide" 'review-lifecycle.md'
 require_text "$skill" 'Initial independent review: blocking —'
 require_text "$skill" 'Fix verification: <clear|continue|no_progress|blocked|unavailable|inconclusive>.'
@@ -63,12 +74,15 @@ require_text "$guide" 'Absence or failure of a close'
 require_text "$guide" 'control does not invalidate'
 require_text "$guide" 'The creator never performs'
 require_text "$skill" 'file-backed objective'
-require_text "$readme" 'exposes a close control, closes each child'
+require_text "$readme" 'exposes a close'
+require_text "$readme" 'control, closes each child'
 
 reject_text "$skill" 'A spawn-only surface is unavailable.'
 reject_text "$skill" 'A missing or failed close is incomplete cleanup, not successful completion.'
 reject_text "$guide" "exposes both \`spawn_agent\` and \`close_agent\`"
 reject_text "$guide" 'If closing fails, report the cleanup failure and do not claim complete.'
 reject_text "$guide" '<host-reported-agent-id>'
+# shellcheck disable=SC2016 # literal Markdown code span
+reject_text "$guide" 'or calling `create_goal`'
 
 printf 'codex launch contract tests passed\n'

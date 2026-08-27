@@ -18,6 +18,7 @@ usage:
   goal-loop step materialize --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step release-staging --ledger <absolute-path> --goal-file <path> --expected-sha256 <digest>
   goal-loop step activate --ledger <absolute-path> --applied-by <boundary> --boundary <boundary> <--agent-id <id|none>|--agent-ref <canonical-task-path>> --effective-route <route> --route-verified <true|false>
+  goal-loop step goal-state --ledger <absolute-path> --status <active|unavailable>
   goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable>
   goal-loop step readiness --ledger <absolute-path> --verdict <ready|needs-discovery|needs-decision|blocked>
   goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> <--target-fingerprint <literal>|--target-sha256 <digest>> --outcome <enum> [--finding <text>]
@@ -697,7 +698,9 @@ materialize_objective() {
     "Expected SHA-256: $contract_digest" \
     'Verify the file digest before following the contract.' \
     'If the file is missing, unreadable, or does not match, stop and report the evidence gap.' \
-    'This accepted ownership-marked task already makes you the sole goal owner; execute the contract directly even when no inner goal-control tool exists.' \
+    'This accepted ownership-marked task makes you the sole work owner.' \
+    'The applicable launch contract says whether the launcher already persisted this contract in that thread or you must persist this contract in that thread before work.' \
+    'Goal persistence belongs to the existing work owner; it does not create another owner.' \
     'Follow that complete contract through terminal completion.' >"$objective_file"; then
     rm -f "$objective_file" "$contract_file"
     rmdir "$attachment_dir" 2>/dev/null || true
@@ -1120,6 +1123,7 @@ step_start() {
     printf 'agent_ref\tnone\n'
     printf 'runner_type\tnone\n'
     printf 'child_invocations\t0\n'
+    printf 'goal_persistence\tnone\n'
     printf 'enforcement\thelper\n'
     printf 'staging_file\tnone\n'
     printf 'contract_sha256\tnone\n'
@@ -1508,7 +1512,7 @@ step_release_objective() {
         test "$(ledger_state_value "$ledger_state" route_verified)" = true ||
         die "objective release requires a resolved, route-verified owner"
       ;;
-    route-rejected|route-unavailable|launch-unavailable) ;;
+    route-rejected|route-unavailable|launch-unavailable|goal-unavailable) ;;
     *) die "objective release requires a materialized ledger, found $ledger_phase" ;;
   esac
   test "$(ledger_state_value "$ledger_state" attachment_dir)" = "$step_attachment_dir" ||
@@ -1521,7 +1525,7 @@ step_release_objective() {
     --expected-sha256 "$step_expected_sha256")
   set_ledger_value objective_released true
   case "$ledger_phase" in
-    route-rejected|route-unavailable|launch-unavailable|readiness-stopped) release_phase=$ledger_phase ;;
+    route-rejected|route-unavailable|launch-unavailable|goal-unavailable|readiness-stopped) release_phase=$ledger_phase ;;
     *) release_phase=released ;;
   esac
   set_ledger_value phase "$release_phase"
@@ -1633,7 +1637,11 @@ step_activate() {
   set_ledger_value agent_ref "${step_agent_ref:-none}"
   set_ledger_value child_invocations "$step_child_invocations"
   readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
-  if test "$readiness_selection" = selected; then
+  if test "$ledger_host|$step_applied_by|$step_boundary" = \
+    'codex|native-subagent|native_subagent'; then
+    set_ledger_value goal_persistence pending
+    activation_phase='goal-pending'
+  elif test "$readiness_selection" = selected; then
     activation_phase=readiness-pending
   else
     activation_phase=active
@@ -1651,6 +1659,54 @@ step_activate() {
   printf 'effective_route\t%s\n' "$step_effective_route"
   printf 'route_verified\t%s\n' "$step_route_verified"
   printf 'enforcement\thelper\n'
+}
+
+step_goal_state() {
+  step_ledger=
+  step_status=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
+      --status) require_value "$@"; step_status=$2; shift 2 ;;
+      *) die "unknown step goal-state option: $1" ;;
+    esac
+  done
+  test -n "$step_ledger" && test -n "$step_status" ||
+    die "step goal-state requires --ledger and --status"
+  case "$step_status" in
+    active|unavailable) ;;
+    *) die "unsupported native goal persistence status: $step_status" ;;
+  esac
+  load_ledger "$step_ledger"
+  lock_ledger
+  require_ledger_phase goal-pending
+  test "$ledger_host" = codex &&
+    test "$(ledger_state_value "$ledger_state" route_applied_by)" = native-subagent &&
+    test "$(ledger_state_value "$ledger_state" launch_boundary)" = native_subagent &&
+    test "$(ledger_state_value "$ledger_state" agent_ref)" != none &&
+    test "$(ledger_state_value "$ledger_state" goal_persistence)" = pending ||
+    die "goal-state requires a pending Codex native-subagent owner"
+  if test "$step_status" = active; then
+    set_ledger_value goal_persistence confirmed
+    if test "$(ledger_state_value "$ledger_state" readiness_selection)" = selected; then
+      goal_state_phase=readiness-pending
+    else
+      goal_state_phase=active
+    fi
+  else
+    set_ledger_value goal_persistence unavailable
+    set_ledger_value effective_route none
+    set_ledger_value route_applied_by none
+    set_ledger_value route_verified false
+    set_ledger_value launch_boundary launch_required
+    set_ledger_value terminal_reason goal-persistence-unavailable
+    goal_state_phase='goal-unavailable'
+  fi
+  set_ledger_value phase "$goal_state_phase"
+  append_ledger_event goal-state "$step_status"
+  unlock_ledger
+  emit_step_record goal-state
+  printf 'goal_state\t%s\n' "$step_status"
 }
 
 step_observe_route() {
@@ -2001,13 +2057,13 @@ step_report() {
       die "decision-gated report requires at least one human interruption"
   else
     case "$ledger_phase" in
-      active|reviewed|released|readiness-stopped|route-rejected|route-unavailable|launch-unavailable) ;;
+      active|reviewed|released|readiness-stopped|route-rejected|route-unavailable|launch-unavailable|goal-unavailable) ;;
       *) die "terminal report requires owner activation, found $ledger_phase" ;;
     esac
     test "$objective_released" = true ||
       die "file-backed objective must be released before terminal reporting"
     case "$ledger_phase" in
-      route-rejected|route-unavailable|launch-unavailable)
+      route-rejected|route-unavailable|launch-unavailable|goal-unavailable)
         test "$step_status" = launch-required ||
           die "$ledger_phase requires a launch-required report"
         ;;
@@ -2038,15 +2094,20 @@ step_report() {
         ;;
       launch-required)
         case "$ledger_phase" in
-          route-rejected|route-unavailable|launch-unavailable) ;;
+          route-rejected|route-unavailable|launch-unavailable|goal-unavailable) ;;
           *) die "launch-required report requires unavailable or rejected launch evidence" ;;
         esac
         launch_boundary=launch_required
         route_verified=false
         if test "$agent_ref" != none; then
-          test "$ledger_host" = codex && test "$child_invocations" = 1 &&
-            test "$terminal_reason" = launch-unavailable ||
+          test "$ledger_host" = codex ||
             die "launch-required agent reference is not an accepted Codex stop"
+          test "$child_invocations" = 1 ||
+            die "launch-required agent reference is not an accepted Codex stop"
+          case "$terminal_reason" in
+            launch-unavailable|goal-persistence-unavailable) ;;
+            *) die "launch-required agent reference is not an accepted Codex stop" ;;
+          esac
           validate_codex_agent_ref "$agent_ref"
         fi
         ;;
@@ -2103,6 +2164,10 @@ EOF
     printf 'evaluation_child_invocations: %s\n' "$child_invocations"
     printf 'evaluation_human_interruptions: %s\n' "$step_human_interruptions"
     printf 'enforcement: %s\n' "$enforcement"
+    case "$(ledger_state_value "$ledger_state" goal_persistence)" in
+      confirmed) printf 'Native goal persistence: confirmed.\n' ;;
+      unavailable) printf 'Native goal persistence: unavailable.\n' ;;
+    esac
     case "$initial_outcome" in
       clear)
         printf 'Independent review: clear.\n'
@@ -2168,6 +2233,7 @@ step_dispatch() {
     materialize) step_materialize "$@" ;;
     release-staging) step_release_staging "$@" ;;
     activate) step_activate "$@" ;;
+    goal-state) step_goal_state "$@" ;;
     observe-route) step_observe_route "$@" ;;
     readiness) step_readiness "$@" ;;
     review) step_review "$@" ;;

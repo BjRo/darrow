@@ -585,24 +585,133 @@ function goalLaunchRequiredCheck(
   raw: string,
 ): CheckResult | undefined {
   if (!LAUNCH_REQUIRED.test(resultText)) return undefined;
-  const stoppedWithoutRoute =
-    !observedGoalSpawn(raw) &&
-    UNAPPLIED_ROUTE_MARKERS.every((marker) => marker.test(resultText)) &&
-    ZERO_CHILDREN.test(resultText);
-  const stoppedAfterAcceptedChild =
-    UNAPPLIED_ROUTE_MARKERS.every((marker) => marker.test(resultText)) &&
-    ONE_CHILD.test(resultText) &&
-    acceptedCodexLaunchFailure(raw);
-  const passed = stoppedWithoutRoute || stoppedAfterAcceptedChild;
+  const kind = launchRequiredStopKind(resultText, raw);
   return {
     name: "goal stopped without claiming an unapplied route",
-    passed,
-    detail: passed
-      ? stoppedAfterAcceptedChild
-        ? "launch_required after one interrupted accepted Codex child"
-        : "launch_required with no effective route"
-      : "launch_required must report an unapplied route and exact child lifecycle",
+    passed: kind !== undefined,
+    detail: launchRequiredStopDetail(kind),
   };
+}
+
+function launchRequiredStopKind(
+  resultText: string,
+  raw: string,
+): "unlaunched" | "rejected-child" | "unpersisted-child" | undefined {
+  if (
+    unappliedRouteReport(resultText, ZERO_CHILDREN) &&
+    !observedGoalSpawn(raw)
+  )
+    return "unlaunched";
+  if (
+    unappliedRouteReport(resultText, ONE_CHILD) &&
+    acceptedCodexLaunchFailure(raw)
+  )
+    return "rejected-child";
+  if (
+    unappliedRouteReport(resultText, ONE_CHILD) &&
+    /Native goal persistence: unavailable\./.test(resultText) &&
+    acceptedCodexGoalPersistenceFailure(raw)
+  )
+    return "unpersisted-child";
+  return undefined;
+}
+
+function unappliedRouteReport(resultText: string, childCount: RegExp): boolean {
+  return (
+    UNAPPLIED_ROUTE_MARKERS.every((marker) => marker.test(resultText)) &&
+    childCount.test(resultText)
+  );
+}
+
+function launchRequiredStopDetail(
+  kind: ReturnType<typeof launchRequiredStopKind>,
+): string {
+  if (kind === "unlaunched") return "launch_required with no effective route";
+  if (kind === "rejected-child")
+    return "launch_required after one interrupted accepted Codex child";
+  if (kind === "unpersisted-child")
+    return "launch_required after unavailable child-thread goal persistence";
+  return "launch_required must report an unapplied route and exact child lifecycle";
+}
+
+function acceptedCodexGoalPersistenceFailure(raw: string): boolean {
+  const events = Array.from(jsonlEvents(raw));
+  const spawnRefs = events
+    .map(spawnedChildThreadId)
+    .filter((value): value is string => value !== undefined);
+  const agentRef = spawnRefs.length === 1 ? spawnRefs[0] : undefined;
+  if (!agentRef || !CODEX_AGENT_REF.test(agentRef)) return false;
+  const attestation = nativeGoalAgentAttestation(raw);
+  const stages = goalPersistenceFailureStages(
+    events,
+    agentRef,
+    attestation?.objectiveMode === "file-backed",
+  );
+  return [
+    !!attestation,
+    stages.every((stage) => stage >= 0),
+    stages.every((stage, index) => index === 0 || stages[index - 1]! < stage),
+  ].every(Boolean);
+}
+
+function goalPersistenceFailureStages(
+  events: Record<string, unknown>[],
+  agentRef: string,
+  releaseRequired: boolean,
+): number[] {
+  const stages = [
+    singleMatchingEvent(
+      events,
+      (event) => spawnedChildThreadId(event) === agentRef,
+    ),
+    singleMatchingEvent(events, (event) =>
+      retainedEventMatches(event, "darrow.goal_activation", agentRef),
+    ),
+    singleMatchingEvent(events, (event) =>
+      completedOwnerActivationSignal(event, agentRef),
+    ),
+    singleMatchingEvent(events, (event) =>
+      retainedEventMatches(
+        event,
+        "darrow.goal_persistence",
+        agentRef,
+        "unavailable",
+      ),
+    ),
+    singleMatchingEvent(
+      events,
+      (event) =>
+        completedCollabThreadId(event, ["wait", "wait_agent"]) === agentRef,
+    ),
+  ];
+  if (releaseRequired)
+    stages.push(
+      singleMatchingEvent(events, (event) =>
+        retainedEventMatches(event, "darrow.objective_release"),
+      ),
+    );
+  stages.push(
+    singleMatchingEvent(events, (event) =>
+      retainedEventMatches(
+        event,
+        "darrow.goal_report",
+        undefined,
+        "launch-required",
+      ),
+    ),
+  );
+  return stages;
+}
+
+function completedOwnerActivationSignal(
+  event: Record<string, unknown>,
+  agentRef: string,
+): boolean {
+  const item = recordOf(event.item);
+  return (
+    completedCollabThreadId(event, ["send_message"]) === agentRef &&
+    item?.prompt === "- phase: goal-owner-activated"
+  );
 }
 
 function acceptedCodexLaunchFailure(raw: string): boolean {

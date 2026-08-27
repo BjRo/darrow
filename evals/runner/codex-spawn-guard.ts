@@ -200,15 +200,19 @@ function fileBackedContractReference(
   const expected =
     lines[2]?.match(/^Expected SHA-256: ([0-9a-f]{64})$/)?.[1] ?? "";
   const valid = [
-    lines.length === 8,
+    lines.length === 10,
     lines[0] === "Before doing any work, read the complete goal contract at:",
     lines[3] === "Verify the file digest before following the contract.",
     lines[4] ===
       "If the file is missing, unreadable, or does not match, stop and report the evidence gap.",
     lines[5] ===
-      "This accepted ownership-marked task already makes you the sole goal owner; execute the contract directly even when no inner goal-control tool exists.",
-    lines[6] === "Follow that complete contract through terminal completion.",
-    lines[7] === "",
+      "This accepted ownership-marked task makes you the sole work owner.",
+    lines[6] ===
+      "The applicable launch contract says whether the launcher already persisted this contract in that thread or you must persist this contract in that thread before work.",
+    lines[7] ===
+      "Goal persistence belongs to the existing work owner; it does not create another owner.",
+    lines[8] === "Follow that complete contract through terminal completion.",
+    lines[9] === "",
     path.startsWith("/"),
     !!expected,
   ].every(Boolean);
@@ -303,9 +307,36 @@ async function resolvedContract(
   }
   const materialized = await soleFileBackedContract(objectiveRoot);
   if (materialized) return materialized;
-  return (await readdir(objectiveRoot)).length === 0
+  const root = resolve(objectiveRoot);
+  const entries = await readdir(root);
+  if (entries.length === 0) return { contract: body, objectiveMode: "inline" };
+  return (await inlineLedgerMatches(body, root, entries))
     ? { contract: body, objectiveMode: "inline" }
     : undefined;
+}
+
+async function inlineLedgerMatches(
+  body: string,
+  root: string,
+  entries: string[],
+): Promise<boolean> {
+  const ledger = contractLabelValue(body, "Protocol ledger");
+  if (!ledger) return false;
+  let ledgerIsDirectory: boolean;
+  try {
+    const ledgerStat = await lstat(ledger);
+    ledgerIsDirectory =
+      ledgerStat.isDirectory() && !ledgerStat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+  return [
+    dirname(ledger) === root,
+    basename(ledger).startsWith("darrow-goal-run."),
+    entries.length === 1,
+    entries[0] === basename(ledger),
+    ledgerIsDirectory,
+  ].every(Boolean);
 }
 
 function ownerInput(input: unknown): Record<string, unknown> | undefined {

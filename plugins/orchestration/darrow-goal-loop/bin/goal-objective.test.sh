@@ -133,8 +133,10 @@ grep -F -- "$large_digest" "$large_objective" >/dev/null ||
   fail "native objective did not contain the expected digest"
 grep -F -- 'Before doing any work' "$large_objective" >/dev/null ||
   fail "native objective did not require pre-work loading"
-grep -F -- 'already makes you the sole goal owner' "$large_objective" >/dev/null ||
+grep -F -- 'makes you the sole work owner' "$large_objective" >/dev/null ||
   fail "native objective did not establish direct receiver ownership"
+grep -F -- 'persist this contract in that thread' "$large_objective" >/dev/null ||
+  fail "native objective did not require child-thread goal persistence"
 grep -F -- 'stop and report the evidence gap' "$large_objective" >/dev/null ||
   fail "native objective did not fail closed"
 bash "$goal_loop" release-objective --attachment-dir "$large_attachment" \

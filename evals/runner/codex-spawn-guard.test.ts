@@ -235,7 +235,9 @@ describe("Codex adaptive-goal spawn guard", () => {
           `Expected SHA-256: ${digest}`,
           "Verify the file digest before following the contract.",
           "If the file is missing, unreadable, or does not match, stop and report the evidence gap.",
-          "This accepted ownership-marked task already makes you the sole goal owner; execute the contract directly even when no inner goal-control tool exists.",
+          "This accepted ownership-marked task makes you the sole work owner.",
+          "The applicable launch contract says whether the launcher already persisted this contract in that thread or you must persist this contract in that thread before work.",
+          "Goal persistence belongs to the existing work owner; it does not create another owner.",
           "Follow that complete contract through terminal completion.",
           "",
         ].join("\n"),
@@ -284,9 +286,14 @@ describe("Codex adaptive-goal spawn guard", () => {
       const objectiveRoot = await mkdtemp(
         join(tmpdir(), "darrow-codex-objective-"),
       );
+      const ledger = join(objectiveRoot, "darrow-goal-run.fixture");
+      await mkdir(ledger);
       const baseline = await repositoryFingerprint(repo);
       const fixtureState = await fixtureStateFingerprint(repo);
-      const input = hookInput(repo);
+      const input = hookInput(
+        repo,
+        contract.replace("/tmp/darrow-goal-run.fixture", ledger),
+      );
       delete (input.tool_input as { fork_turns?: string }).fork_turns;
       const guarded = await guardCodexSpawn(input, {
         secret: "secret",
@@ -313,7 +320,7 @@ describe("Codex adaptive-goal spawn guard", () => {
         baselineSha256: baseline,
         fixtureStateSha256: fixtureState,
         objectiveMode: "inline",
-        ledger: "/tmp/darrow-goal-run.fixture",
+        ledger,
       });
       expect(
         verifiedCodexSpawnAttestation(message!, "wrong-secret"),
@@ -375,7 +382,7 @@ describe("Codex adaptive-goal spawn guard", () => {
         await guardCodexSpawn(
           lifecycleShell(
             "/bin/bash /plugin/bin/goal-loop step activate " +
-              "--ledger /tmp/darrow-goal-run.fixture " +
+              `--ledger ${ledger} ` +
               "--applied-by native-subagent --boundary native_subagent " +
               "--agent-ref /root/adaptive_goal_runner " +
               "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
@@ -388,7 +395,7 @@ describe("Codex adaptive-goal spawn guard", () => {
         await guardCodexSpawn(
           lifecycleShell(
             "/bin/bash /plugin/bin/goal-loop step report " +
-              "--ledger /tmp/darrow-goal-run.fixture --status complete " +
+              `--ledger ${ledger} --status complete ` +
               "--human-interruptions 0",
           ),
           policy,
@@ -399,7 +406,7 @@ describe("Codex adaptive-goal spawn guard", () => {
           await guardCodexSpawn(
             lifecycleShell(
               "/bin/bash /plugin/bin/goal-loop step activate " +
-                "--ledger /tmp/darrow-goal-run.fixture " +
+                `--ledger ${ledger} ` +
                 "--applied-by native-subagent --boundary native_subagent " +
                 "--agent-ref /root/adaptive_goal_runner " +
                 "--effective-route 'codex|openai|gpt-5.6-sol|high' " +
