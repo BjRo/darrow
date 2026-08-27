@@ -125,7 +125,7 @@ export interface EvalCase {
   /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
   mount_plugin_skills?: boolean;
   /** Require HEAD to advance linearly when the public behavior explicitly commits. */
-  expect_head_change?: boolean;
+  expect_head_change?: boolean | null;
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];

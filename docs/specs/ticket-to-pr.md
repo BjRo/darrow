@@ -194,7 +194,10 @@ the ticket is fulfilled.
    a Darrow workflow runtime.
 5. **TPR-C5 — Bounded authority and preserved work.** The recipe preserves
    pre-existing work and performs only the authorized task branch, intended
-   commits, non-force push, and one pull request.
+   commits, non-force push, and one pull request. When the active ticket
+   provider supplies an opaque canonical token, a derived task branch preserves
+   it exactly once after its Conventional Commit type (`<type>/<token>-…`);
+   missing tokens require the smallest question before Git mutation.
 6. **TPR-C6 — Idempotent publication.** Correlated branches and pull requests
    are reused, and ambiguous external results are inspected before retrying.
 7. **TPR-C7 — Current-content evidence.** Success requires the ticket quality
@@ -233,6 +236,13 @@ fixtures, prompts, hidden checks, model, and effort. Any comparative claim uses
 at least three trials per condition and reports trial count, outcome
 correctness, escaped defects, human interventions, duplicate or unintended
 mutations, tokens, cost, wall time, and limitations.
+
+The shared evaluator persists an active-run record before an equivalent case
+can be rerun, checkpoints every completed trial, and atomically finalizes that
+record only after process exit. A terminal run writes either its complete
+result artifact or a diagnostic artifact. Recipe or goal orchestration must not
+declare that artifact missing, rerun the same case, settle, or clean up while
+the active-run record remains active.
 
 Required cases are:
 
