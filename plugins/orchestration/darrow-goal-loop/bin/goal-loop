@@ -6,6 +6,7 @@ routes_file="$script_dir/../config/routes.json"
 routes_parser="$script_dir/routes-json.awk"
 workflows_dir="$script_dir/../skills/adaptive-goal/references/workflows"
 tab=$(printf '\t')
+capability_routing_clause='Capability routing: For each exact contract operation with a host-advertised matching capability, invoke and follow that capability before the operation; direct commands are not a substitute, and inability or refusal stops that operation without expanding authority.'
 
 usage() {
   cat <<'EOF'
@@ -118,6 +119,23 @@ validate_sha256_digest() {
   case "$digest" in
     *[!0-9a-f]*) die "invalid expected SHA-256 digest" ;;
   esac
+}
+
+validate_capability_routing_contract() {
+  capability_contract_file=$1
+  capability_clause_count=$(awk -v clause="$capability_routing_clause" '
+    /^Workflow sequence:/ {
+      remaining = $0
+      while ((position = index(remaining, clause)) > 0) {
+        count++
+        remaining = substr(remaining, position + length(clause))
+      }
+    }
+    END { print count + 0 }
+  ' "$capability_contract_file") ||
+    die "could not inspect capability routing in goal contract: $capability_contract_file"
+  test "$capability_clause_count" -eq 1 ||
+    die "goal contract must contain capability routing exactly once in Workflow sequence: $capability_contract_file"
 }
 
 validate_scalar() {
@@ -1386,6 +1404,7 @@ step_stage() {
     die "goal staging file is outside the ledger-owned staging directory: $step_goal_file"
   test "$(absolute_dir "$(dirname -- "$ledger_staging_dir")")" = "$ledger_tmp_root" ||
     die "ledger staging directory is outside its temporary root"
+  validate_capability_routing_contract "$step_goal_file"
   staged_digest=$(sha256_file "$step_goal_file")
   if test -n "$step_expected_sha256"; then
     test "$staged_digest" = "$step_expected_sha256" ||
@@ -2303,6 +2322,8 @@ launch() {
     die "launch requires explicit --allow-nested"
   validate_host "$host"
   repo=$(absolute_dir "$repo")
+  goal_file=$(absolute_regular_file "$goal_file")
+  validate_capability_routing_contract "$goal_file"
   command -v "$host" >/dev/null 2>&1 || die "$host CLI is unavailable"
 
   materialized_records=$(materialize_objective --repo "$repo" --goal-file "$goal_file")

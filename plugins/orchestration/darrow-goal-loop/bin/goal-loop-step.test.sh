@@ -47,6 +47,15 @@ expect_refusal() {
     fail "$label omitted helper refusal"
 }
 
+capability_routing_clause='Capability routing: For each exact contract operation with a host-advertised matching capability, invoke and follow that capability before the operation; direct commands are not a substitute, and inability or refusal stops that operation without expanding authority.'
+
+write_goal_contract() {
+  contract_file=$1
+  contract_outcome=$2
+  printf 'Outcome: %s\nWorkflow sequence: %s\n' \
+    "$contract_outcome" "$capability_routing_clause" >"$contract_file"
+}
+
 activate_codex_review_ledger() {
   fixture_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
     --repo "$repo" --host codex)
@@ -58,7 +67,7 @@ activate_codex_review_ledger() {
     --verification-gate routine --readiness omitted --review selected "$@")
   fixture_route=$(record_value "$fixture_route_out" selected_route)
   fixture_goal="$fixture_staging/goal.md"
-  printf '%s\n' 'Outcome: exercise review transitions' >"$fixture_goal"
+  write_goal_contract "$fixture_goal" 'exercise review transitions'
   fixture_digest=$(shasum -a 256 "$fixture_goal")
   fixture_digest=${fixture_digest%% *}
   bash "$goal_loop" step stage --ledger "$fixture_ledger" \
@@ -83,7 +92,7 @@ stage_codex_native_ledger() {
     --verification-gate routine --readiness omitted --review omitted)
   codex_route=$(record_value "$codex_route_out" selected_route)
   codex_goal="$codex_staging/goal.md"
-  printf '%s\n' 'Outcome: exercise Codex native owner identity' >"$codex_goal"
+  write_goal_contract "$codex_goal" 'exercise Codex native owner identity'
   codex_digest=$(shasum -a 256 "$codex_goal")
   codex_digest=${codex_digest%% *}
   bash "$goal_loop" step stage --ledger "$codex_ledger" \
@@ -278,6 +287,17 @@ expect_refusal 'duplicate runner resolution' bash "$goal_loop" step runner \
 
 goal_file="$staging_dir/goal.md"
 printf '%s\n' 'Outcome: implement ledger test' >"$goal_file"
+expect_refusal 'stage without capability routing' bash "$goal_loop" step stage \
+  --ledger "$ledger" --goal-file "$goal_file"
+printf 'Outcome: implement ledger test\nPermissions: %s\n' \
+  "$capability_routing_clause" >"$goal_file"
+expect_refusal 'stage with capability routing outside workflow sequence' \
+  bash "$goal_loop" step stage --ledger "$ledger" --goal-file "$goal_file"
+printf 'Outcome: implement ledger test\nWorkflow sequence: %s %s\n' \
+  "$capability_routing_clause" "$capability_routing_clause" >"$goal_file"
+expect_refusal 'stage with duplicate capability routing' bash "$goal_loop" \
+  step stage --ledger "$ledger" --goal-file "$goal_file"
+write_goal_contract "$goal_file" 'implement ledger test'
 goal_digest=$(shasum -a 256 "$goal_file")
 goal_digest=${goal_digest%% *}
 wrong_digest=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -452,7 +472,7 @@ unavailable_route=$(record_value "$unavailable_route_out" selected_route)
 bash "$goal_loop" step runner --ledger "$unavailable_ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
 unavailable_goal="$unavailable_staging/unavailable-goal.md"
-printf '%s\n' 'Outcome: preserve unavailable route evidence' >"$unavailable_goal"
+write_goal_contract "$unavailable_goal" 'preserve unavailable route evidence'
 unavailable_digest=$(shasum -a 256 "$unavailable_goal")
 unavailable_digest=${unavailable_digest%% *}
 bash "$goal_loop" step stage --ledger "$unavailable_ledger" \
@@ -515,7 +535,7 @@ bash "$goal_loop" step route --ledger "$cleanup_ledger" \
 bash "$goal_loop" step runner --ledger "$cleanup_ledger" \
   --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
 cleanup_goal="$cleanup_staging/cleanup-goal.md"
-printf '%s\n' 'Outcome: clean up before activation' >"$cleanup_goal"
+write_goal_contract "$cleanup_goal" 'clean up before activation'
 cleanup_digest=$(shasum -a 256 "$cleanup_goal")
 cleanup_digest=${cleanup_digest%% *}
 bash "$goal_loop" step stage --ledger "$cleanup_ledger" \
@@ -572,7 +592,7 @@ test "$(record_value "$readiness_route_out" readiness_selection)" = selected ||
   fail 'selected readiness route record'
 readiness_route=$(record_value "$readiness_route_out" selected_route)
 readiness_goal="$readiness_staging/readiness-goal.md"
-printf '%s\n' 'Outcome: exercise readiness transitions' >"$readiness_goal"
+write_goal_contract "$readiness_goal" 'exercise readiness transitions'
 readiness_digest=$(shasum -a 256 "$readiness_goal")
 readiness_digest=${readiness_digest%% *}
 bash "$goal_loop" step stage --ledger "$readiness_ledger" \
@@ -610,7 +630,7 @@ nonready_route_out=$(bash "$goal_loop" step route --ledger "$nonready_ledger" \
   --verification-gate routine --readiness selected --review omitted)
 nonready_route=$(record_value "$nonready_route_out" selected_route)
 nonready_goal="$nonready_staging/nonready-goal.md"
-printf '%s\n' 'Outcome: stop on non-ready readiness' >"$nonready_goal"
+write_goal_contract "$nonready_goal" 'stop on non-ready readiness'
 nonready_digest=$(shasum -a 256 "$nonready_goal")
 nonready_digest=${nonready_digest%% *}
 bash "$goal_loop" step stage --ledger "$nonready_ledger" \
