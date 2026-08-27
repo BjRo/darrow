@@ -2,33 +2,93 @@
   <img src="docs/assets/darrow-logo.png" alt="Darrow logo" width="420">
 </p>
 
-Darrow is a marketplace of focused, independently adoptable plugins for coding
-agents. Each plugin adds one bounded capability or one explicitly invoked
-orchestration helper. Claude Code and Codex can use the same plugin packages
-directly.
+**Focused, eval-tested plugins for Codex and Claude Code. Adopt one plugin at
+a time. Nothing starts unless you ask.**
 
-Install only the plugins you want. Installing a capability does not start work
-automatically, and no plugin assumes that another Darrow plugin is present.
+Agent skills are usually bundles of untested prompt prose: install everything,
+hope the model picks well, and watch a "workflow" occasionally take over your
+session. Darrow makes the opposite bet. It is a marketplace of small plugins —
+Git workflows, TDD, code review, ticket handling, readiness checks — where
+each plugin adds exactly one bounded capability, ships with evals that
+exercise it in the real agent harness, and installs the same way into Codex
+and Claude Code.
+
+## Why Darrow
+
+- **Tested, not vibes.** Every skill carries colocated evals for its behavior
+  and trigger boundaries, and behavior changes are compared against controls
+  before Darrow claims an improvement.
+- **One package, two hosts.** The same plugin installs into Codex and Claude
+  Code.
+- **You stay in charge.** Capabilities respond to your intent but never start
+  longer-running work on their own. Orchestration begins only when you
+  explicitly invoke it — and it hands work to your host's native goal loop
+  instead of running a second agent runtime.
+- **True à la carte.** No plugin assumes a sibling is installed. Take one,
+  take five, skip the rest.
+
+> **A note on hosts:** I currently develop and use Darrow primarily with
+> Codex, so that is where the plugins get the most day-to-day exercise.
+> Claude Code support is best-effort for now: the same packages install and
+> carry evals, but expect rougher edges — and please open an issue for
+> anything you hit.
+
+## See it in action
+
+```text
+You:   Assess whether this implementation request is ready before any code
+       is changed: add a --json flag to the main CLI command, keep the text
+       output as default, and add tests for both output modes.
+
+Agent: [selects assess-implementation-readiness from darrow-readiness-gate]
+       Verdict: needs-decision — the JSON object shape is unspecified.
+       Quality bar and required evidence: …
+```
+
+No skill was named: the installed capability matched the request on its own.
+You can also invoke any skill explicitly, and orchestration helpers only ever
+start explicitly.
 
 ## Get started
 
-1. [Install one Darrow plugin](docs/installing-plugins.md) for Claude Code or
-   Codex.
-2. Follow the [first-workflow tutorial](docs/getting-started.md) to run a safe,
-   read-only readiness assessment.
-3. Choose other plugins from the catalog below as you need them.
+Codex, from your shell:
 
-Most Darrow capabilities are intent-matched: ask for the outcome in ordinary
-language and the agent can select the installed skill. You can also name a
-skill explicitly. Orchestration is different and starts only through an
-entrypoint you explicitly invoke. That entrypoint may delegate a bounded phase
-to another orchestration helper while preserving your original authority.
+```sh
+codex plugin marketplace add BjRo/darrow
+codex plugin add darrow-readiness-gate@darrow
+```
 
-## Plugin catalog
+Claude Code, inside a session:
+
+```text
+/plugin marketplace add BjRo/darrow
+/plugin install darrow-readiness-gate@darrow
+```
+
+Start a new session in a repository and follow the
+[first-workflow tutorial](docs/getting-started.md) to run a safe, read-only
+readiness assessment. [Install a Darrow plugin](docs/installing-plugins.md)
+covers scopes, verification, and troubleshooting. Then choose other plugins
+from the catalog below as you need them.
+
+## The five layers
+
+- **Foundations** keep the agent harness itself healthy: repository guidance,
+  decision records, and skill authoring.
+- **Capabilities** teach the agent focused software-engineering procedures —
+  branching, TDD, review, tickets. Intent-matched, never self-starting.
+- **Orchestration** packs one bounded task into a goal the host's native loop
+  executes, with proportionate workflow, checks, model, and effort.
+- **Task recipes** wrap common outcomes in a one-line invocation, owning
+  authority and publication safety while delegating execution.
+- **Automations** (coming soon) are the scheduler-driven outer loop that pulls
+  work through everything below.
 
 <p align="center">
   <img src="docs/assets/darrow-plugin-layers.svg" alt="Darrow's five plugin layers: automations invoke task recipes from a scheduler; task recipes add an ergonomic interface over orchestration; orchestration executes work packages with cost and risk proportionate to the task; capabilities teach software-engineering skills; foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.">
 </p>
+
+## Plugin catalog
 
 ### Foundations
 
@@ -42,10 +102,11 @@ Skills for building and maintaining a healthy agent harness. Set up repository g
 
 ### Capabilities
 
-Going beyond the basic harness. These skills teach the agent software-engineering kung fu. All of them are opinions, but are optional.
-If you've got different opinions, bring your own implementation.
-
-What the skills share: They bet on intent matching for repeatable work such as reading and updating tickets, writting code TDD-style, typical git-workflows, performing code reviews, explaining code, etc.
+Skills that teach the agent focused software-engineering procedures for
+repeatable work: reading and updating tickets, writing code TDD-style,
+everyday Git workflows, code review, and code explanation. All of them are
+opinionated defaults, and all of them are optional — if you hold different
+opinions, bring your own implementation and nothing else breaks.
 
 | Plugin                                                                                        | Use it to                                                                                         |
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -60,16 +121,18 @@ What the skills share: They bet on intent matching for repeatable work such as r
 
 Coming soon:
 
-- `darrow-troubleshooting` -> debugging and figuring out what's going on
-- `darrow-domain-modelling` -> better management of the core domain
-- `darrow-evidence` -> similar to `code-review` and `readiness-gate` will be pulled by `adaptive-goal` when extra evidence needs to be presented for the PR
+- `darrow-troubleshooting` — debugging and figuring out what is going on.
+- `darrow-domain-modelling` — better management of the core domain.
+- `darrow-evidence` — like `darrow-review` and `darrow-readiness-gate`, pulled
+  by `adaptive-goal` when extra evidence needs to be presented for the PR.
 
 ### Orchestration
 
-`adaptive-goal` is the work-package primitive in this layer. Give it a bounded
-engineering task and it sizes up the cost and risk, picks the workflow, checks,
-model, and effort, then hands a properly packed brief to the host's native goal
-loop. It improves the handoff instead of bringing its own agent runtime.
+The work-package primitive in this layer is the `adaptive-goal` skill inside
+`darrow-goal-loop`. Give it a bounded engineering task and it sizes up the
+cost and risk, picks the workflow, checks, model, and effort, then hands a
+properly packed brief to the host's native goal loop. It improves the handoff
+instead of bringing its own agent runtime.
 
 | Plugin                                                                                          | Use it to                                                                                                                                                                                                                                                  |
 | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -78,7 +141,10 @@ loop. It improves the handoff instead of bringing its own agent runtime.
 
 ### Task recipes
 
-`adaptive-goal` is more like a swiss army knife primitive. This layer packages up common tasks in a one liner skill invokation. Pure DX ergonomy
+Where `adaptive-goal` is a general-purpose primitive, task recipes package one
+common outcome behind a one-line skill invocation — pure ergonomics. A recipe
+owns the outcome-specific authority and publication safety, then delegates
+execution.
 
 | Plugin                                                                     | Use it to                                                                                         |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -86,38 +152,55 @@ loop. It improves the handoff instead of bringing its own agent runtime.
 
 ### Automation
 
-This layer sits on top of the `Task Recipes` and implements the outermost loop. The idea here is that automations are invoked by a scheduler and do work. There can be as many automations that glue different parts of lower layers together.
+The outermost loop, sitting on top of task recipes: automations are invoked
+by a scheduler and work unattended, gluing lower layers together. There can be
+as many automations as there are useful combinations.
 
 Coming soon:
 
-- `darrow-artificer` - sits on top of `darrow-ticket-to-pr` and `darrow-tickets`. Planned to be run by a scheduler will pull tickets and work on them but respect Work-in-Progress limits.
+- `darrow-artificer` — runs on a scheduler on top of `darrow-ticket-to-pr` and
+  `darrow-tickets`: pulls tickets and works on them while respecting
+  work-in-progress limits.
 
 ## How Darrow works
 
-Capabilities teach an agent how to perform a focused kind of work. The model
-can select them from a matching request, and users can invoke them explicitly.
-They remain useful without orchestration and compose through host-visible
-intent and capability contracts.
+Capabilities teach the agent one focused kind of work. Each skill advertises
+the intent it serves, so the model can select it when a matching request
+appears, and you can always name it explicitly. Capabilities stay useful
+without any orchestration installed and never take ownership of work you did
+not ask for.
 
-Orchestration owns a different concern: framing and continuing longer-running
-work until an observable completion condition is reached. It starts only
-through an explicitly invoked entrypoint, which may delegate a bounded phase to
-another orchestration helper. It never starts merely because a task is complex
-or multi-step.
+Orchestration owns the continuation of longer-running work: how the outcome is
+framed, what must remain true, and what counts as complete. It starts only
+through an entrypoint you explicitly invoke — never merely because a task
+looks complex or multi-step — though an invoked entrypoint may delegate a
+bounded phase to another orchestration helper while preserving your original
+authority. The core helper is the `adaptive-goal` skill in `darrow-goal-loop`:
 
-Across both layers, skills retain contextual judgment while narrow bundled
-scripts own repeatable command construction, validation, parsing, and compact
-result reporting. Plugin-shipped mechanics use portable Bash. The shared
-TypeScript/Bun eval runner is repository development infrastructure, not a
-plugin runtime dependency.
+```text
+request + repository -> read-only preflight -> goal contract -> host-native goal owner
+```
+
+Preflight turns the request into observable acceptance criteria, selects a
+proportionate workflow, risk gate, model, and effort, then activates the
+narrowest host-native goal boundary available. From that point the host owns
+implementation, adaptation, recovery, and completion — Darrow does not run a
+second agent runtime.
 
 Every skill carries colocated evals for its public behavior and intent
-boundaries. Behavior-changing variants are compared with relevant controls
-under matched fixtures, prompts, routes, and checks before Darrow attributes an
-advantage to the variant.
+boundaries, and behavior-changing variants are compared with relevant controls
+under matched fixtures, prompts, routes, and checks before Darrow attributes
+an advantage to the variant. See [Design principles](docs/design.md) for the
+full rationale and architectural boundaries.
 
-See [Design principles](docs/design.md) for the rationale and architectural
-boundaries.
+## Status and compatibility
+
+Darrow is under active development, and plugin interfaces may change between
+versions; every plugin is semantically versioned in both host manifests. It
+requires Codex CLI or Codex in the ChatGPT desktop app (the Codex IDE
+extension does not support plugins), or Claude Code with plugin support. Codex
+is the primary development host; Claude Code support is best-effort as
+described above.
 
 ## Repository reference
 
@@ -172,6 +255,10 @@ Darrow is source-available under the
 [Business Source License 1.1](LICENSE), with the Mozilla Public License 2.0 as
 the Change License. **Each released version becomes MPL-2.0 two years after it
 is published.**
+
+**In short:** free for internal use, client work, research, personal projects,
+and teaching without commercial interest. Commercial education and offering
+Darrow's functionality as a product or service require a commercial license.
 
 The standard BSL terms permit copying, modification, redistribution, and all
 non-production use.
