@@ -1,4 +1,4 @@
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile, mkdir, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
@@ -90,6 +90,8 @@ interface RunCaseOptions {
   /** Route the case asserts the harness actually applied. */
   assertedGoalRoute?: GoalRouteExpectation;
   assertedGoalDimensions?: GoalDimensionsExpectation;
+  /** Persisted immediately after each completed trial. */
+  checkpoint?: (trial: TrialResult) => Promise<void>;
 }
 
 /** One trial's inputs, shared by the check builder and the trial evaluator. */
@@ -128,6 +130,66 @@ const DEFAULT_CORPUS_MANIFEST = join(
   "orchestration",
   "manifest.yaml",
 );
+
+interface ActiveRunRecord {
+  format: "darrow-eval-active-run-v1";
+  status: "active" | "complete" | "diagnostic";
+  startedAt: string;
+  finalizedAt?: string;
+  artifactPath: string;
+  diagnosticPath?: string;
+  completedTrials: Array<{ caseId: string; trial: number; passed: boolean }>;
+  failure?: string;
+}
+
+async function atomicWriteJson(path: string, value: unknown): Promise<void> {
+  const temporary = `${path}.tmp-${process.pid}`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`);
+  await rename(temporary, path);
+}
+
+async function startActiveRun(
+  path: string,
+  artifactPath: string,
+): Promise<ActiveRunRecord> {
+  const record: ActiveRunRecord = {
+    format: "darrow-eval-active-run-v1",
+    status: "active",
+    startedAt: new Date().toISOString(),
+    artifactPath,
+    completedTrials: [],
+  };
+  try {
+    await writeFile(path, `${JSON.stringify(record, null, 2)}\n`, {
+      flag: "wx",
+    });
+    return record;
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !("code" in error) ||
+      error.code !== "EEXIST"
+    )
+      throw error;
+    const prior = JSON.parse(await readFile(path, "utf8")) as ActiveRunRecord;
+    if (prior.status === "active") {
+      throw new Error(
+        `an equivalent evaluation is still active: ${path}; wait for its confirmed exit or finalized active-run record`,
+        { cause: error },
+      );
+    }
+    await atomicWriteJson(path, record);
+    return record;
+  }
+}
+
+async function finalizeActiveRun(
+  path: string,
+  record: ActiveRunRecord,
+): Promise<void> {
+  record.finalizedAt = new Date().toISOString();
+  await atomicWriteJson(path, record);
+}
 
 function p95(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -200,6 +262,7 @@ async function scanCases(
 function validateCaseConfiguration(evalCase: EvalCase): void {
   if (
     evalCase.expect_head_change !== undefined &&
+    evalCase.expect_head_change !== null &&
     typeof evalCase.expect_head_change !== "boolean"
   ) {
     throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
@@ -449,6 +512,8 @@ function routeChecks(
   ];
 }
 
+// Head, output, and orchestration evidence are intentionally assembled together.
+// eslint-disable-next-line max-lines-per-function
 async function trialChecks(
   options: RunCaseOptions,
   context: TrialContext,
@@ -457,30 +522,33 @@ async function trialChecks(
   const { evalCase } = options;
   const { repoDir, baseRevision, harness } = context;
   const currentRevision = await repositoryHead(repoDir);
-  const headChecks: CheckResult[] = evalCase.expect_head_change
-    ? [
-        {
-          name: "head advanced from the base revision",
-          passed: currentRevision !== baseRevision,
-          detail: "candidate did not create the expected commit",
-        },
-        {
-          name: "base revision remains in the published lineage",
-          passed: await repositoryHasAncestor(
-            repoDir,
-            baseRevision,
-            currentRevision,
-          ),
-          detail: "candidate replaced or diverged from the fixture history",
-        },
-      ]
-    : [
-        {
-          name: "base revision remains unchanged",
-          passed: currentRevision === baseRevision,
-          detail: "candidate created or switched to a different commit",
-        },
-      ];
+  const headChecks: CheckResult[] =
+    evalCase.expect_head_change === null
+      ? []
+      : evalCase.expect_head_change
+        ? [
+            {
+              name: "head advanced from the base revision",
+              passed: currentRevision !== baseRevision,
+              detail: "candidate did not create the expected commit",
+            },
+            {
+              name: "base revision remains in the published lineage",
+              passed: await repositoryHasAncestor(
+                repoDir,
+                baseRevision,
+                currentRevision,
+              ),
+              detail: "candidate replaced or diverged from the fixture history",
+            },
+          ]
+        : [
+            {
+              name: "base revision remains unchanged",
+              passed: currentRevision === baseRevision,
+              detail: "candidate created or switched to a different commit",
+            },
+          ];
   const orchestrationChecks = await orchestrationContractChecks(
     evalCase,
     harness,
@@ -1026,7 +1094,9 @@ function summarizeCase(
 async function runCase(options: RunCaseOptions): Promise<CaseResult> {
   const trialResults: TrialResult[] = [];
   for (let trial = 1; trial <= options.trials; trial++) {
-    trialResults.push(await runTrial(options, trial));
+    const result = await runTrial(options, trial);
+    trialResults.push(result);
+    await options.checkpoint?.(result);
   }
   return summarizeCase(options, trialResults);
 }
@@ -1279,68 +1349,6 @@ console.log(
     (values.dry ? " [dry run — no harness calls]" : ""),
 );
 
-const results: CaseResult[] = [];
-for (const evalCase of cases) {
-  const caseRoute = caseRoutes[evalCase.id];
-  const caseModel = caseRoute?.model ?? model;
-  const caseEffort = caseRoute?.effort ?? values.effort!;
-  console.log(`\n${evalCase.id} (${evalCase.invariant})`);
-  const result = await runCase({
-    evalCase,
-    adapter,
-    model: caseModel,
-    effort: caseEffort,
-    trials,
-    threshold,
-    dry: values.dry!,
-    condition,
-    withoutSkill: values["without-skill"],
-    humanReviewMinutes,
-    requireEvaluationRecords: values["require-evaluation-records"],
-    judge: judgeAdapter
-      ? {
-          adapter: judgeAdapter,
-          model: values["judge-model"] ?? judgeAdapter.defaultModel,
-          effort: values["judge-effort"]!,
-        }
-      : undefined,
-    expectedGoalRoute: expectedGoalRoutes[evalCase.id],
-    assertedGoalRoute: assertedGoalRoutes[evalCase.id],
-    assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
-  });
-  result.harnessVersion = harnessVersion || undefined;
-  results.push(result);
-}
-
-console.log("\n── Summary ──");
-let failed = 0;
-for (const r of results) {
-  const taskOk = r.passRate >= threshold;
-  const activationOk = activationPassesThreshold(
-    r.activationPassRate,
-    threshold,
-  );
-  const ok = taskOk && activationOk;
-  if (!ok) failed++;
-  console.log(
-    `${ok ? "✓" : "✗"} ${r.caseId} [${r.invariant}] pass ${(r.passRate * 100).toFixed(0)}% ` +
-      `| ${(r.meanDurationMs / 1000).toFixed(1)}s mean, ${(r.p95DurationMs / 1000).toFixed(1)}s p95 ` +
-      `| ${r.meanTokens === null ? "tokens unknown" : `${Math.round(r.meanTokens)} tok mean`} | ${r.totalCostUsd === null ? "cost unknown" : `$${r.totalCostUsd.toFixed(4)}`}`,
-  );
-  if (r.activationClass) {
-    console.log(
-      `  activation: ${r.activationClass} target ${r.activationTargetSkill} | ${r.activationPassRate === null ? "unknown" : `${(r.activationPassRate! * 100).toFixed(0)}%`}`,
-    );
-  }
-  if (r.meanChildInvocationCount !== undefined) {
-    console.log(
-      `  orchestration: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +
-        `${r.totalHumanInterruptions} interruptions | ${r.escapedDefects} escaped defects | ` +
-        `${r.falsePositiveVerifierFindings} false-positive findings`,
-    );
-  }
-}
-
 await mkdir(RESULTS_ROOT, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const condSuffix = condition ? `-${condition.label}` : "";
@@ -1351,7 +1359,136 @@ const outPath = values.output
       `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`,
     );
 await mkdir(dirname(outPath), { recursive: true });
-await writeFile(outPath, JSON.stringify(results, null, 2));
-console.log(`\nResults: ${outPath}`);
+const runIdentity = new Bun.CryptoHasher("sha256")
+  .update(
+    stableEvidence({
+      cases: cases.map((evalCase) =>
+        evaluationDigest({
+          evalCase,
+          adapter,
+          model: caseRoutes[evalCase.id]?.model ?? model,
+          effort: caseRoutes[evalCase.id]?.effort ?? values.effort!,
+          trials,
+          threshold,
+          dry: values.dry!,
+          condition,
+          withoutSkill: values["without-skill"],
+          humanReviewMinutes,
+          requireEvaluationRecords: values["require-evaluation-records"],
+          judge: judgeAdapter
+            ? {
+                adapter: judgeAdapter,
+                model: values["judge-model"] ?? judgeAdapter.defaultModel,
+                effort: values["judge-effort"]!,
+              }
+            : undefined,
+          expectedGoalRoute: expectedGoalRoutes[evalCase.id],
+          assertedGoalRoute: assertedGoalRoutes[evalCase.id],
+          assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
+        }),
+      ),
+      harness: adapter.name,
+      applyGoalRoute: values["apply-goal-route"],
+      trials,
+      threshold,
+      dry: values.dry,
+    }),
+  )
+  .digest("hex");
+const activeRunPath = join(RESULTS_ROOT, "active", `${runIdentity}.json`);
+await mkdir(dirname(activeRunPath), { recursive: true });
+const activeRun = await startActiveRun(activeRunPath, outPath);
+const results: CaseResult[] = [];
 
-process.exit(values.dry ? 0 : failed ? 1 : 0);
+try {
+  for (const evalCase of cases) {
+    const caseRoute = caseRoutes[evalCase.id];
+    const caseModel = caseRoute?.model ?? model;
+    const caseEffort = caseRoute?.effort ?? values.effort!;
+    console.log(`\n${evalCase.id} (${evalCase.invariant})`);
+    const result = await runCase({
+      evalCase,
+      adapter,
+      model: caseModel,
+      effort: caseEffort,
+      trials,
+      threshold,
+      dry: values.dry!,
+      condition,
+      withoutSkill: values["without-skill"],
+      humanReviewMinutes,
+      requireEvaluationRecords: values["require-evaluation-records"],
+      judge: judgeAdapter
+        ? {
+            adapter: judgeAdapter,
+            model: values["judge-model"] ?? judgeAdapter.defaultModel,
+            effort: values["judge-effort"]!,
+          }
+        : undefined,
+      expectedGoalRoute: expectedGoalRoutes[evalCase.id],
+      assertedGoalRoute: assertedGoalRoutes[evalCase.id],
+      assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
+      checkpoint: async (trial) => {
+        activeRun.completedTrials.push({
+          caseId: evalCase.id,
+          trial: trial.trial,
+          passed: trial.passed,
+        });
+        await atomicWriteJson(activeRunPath, activeRun);
+      },
+    });
+    result.harnessVersion = harnessVersion || undefined;
+    results.push(result);
+  }
+
+  console.log("\n── Summary ──");
+  let failed = 0;
+  for (const r of results) {
+    const taskOk = r.passRate >= threshold;
+    const activationOk = activationPassesThreshold(
+      r.activationPassRate,
+      threshold,
+    );
+    const ok = taskOk && activationOk;
+    if (!ok) failed++;
+    console.log(
+      `${ok ? "✓" : "✗"} ${r.caseId} [${r.invariant}] pass ${(r.passRate * 100).toFixed(0)}% ` +
+        `| ${(r.meanDurationMs / 1000).toFixed(1)}s mean, ${(r.p95DurationMs / 1000).toFixed(1)}s p95 ` +
+        `| ${r.meanTokens === null ? "tokens unknown" : `${Math.round(r.meanTokens)} tok mean`} | ${r.totalCostUsd === null ? "cost unknown" : `$${r.totalCostUsd.toFixed(4)}`}`,
+    );
+    if (r.activationClass) {
+      console.log(
+        `  activation: ${r.activationClass} target ${r.activationTargetSkill} | ${r.activationPassRate === null ? "unknown" : `${(r.activationPassRate! * 100).toFixed(0)}%`}`,
+      );
+    }
+    if (r.meanChildInvocationCount !== undefined) {
+      console.log(
+        `  orchestration: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +
+          `${r.totalHumanInterruptions} interruptions | ${r.escapedDefects} escaped defects | ` +
+          `${r.falsePositiveVerifierFindings} false-positive findings`,
+      );
+    }
+  }
+
+  await writeFile(outPath, JSON.stringify(results, null, 2));
+  activeRun.status = "complete";
+  await finalizeActiveRun(activeRunPath, activeRun);
+  console.log(`\nResults: ${outPath}`);
+  process.exitCode = values.dry ? 0 : failed ? 1 : 0;
+} catch (error) {
+  const diagnosticPath = `${outPath}.diagnostic.json`;
+  const failure =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
+  await atomicWriteJson(diagnosticPath, {
+    format: "darrow-eval-diagnostic-v1",
+    artifactPath: outPath,
+    activeRunPath,
+    completedTrials: activeRun.completedTrials,
+    failure,
+  });
+  activeRun.status = "diagnostic";
+  activeRun.diagnosticPath = diagnosticPath;
+  activeRun.failure = failure;
+  await finalizeActiveRun(activeRunPath, activeRun);
+  throw error;
+}
