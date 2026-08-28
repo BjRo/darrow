@@ -80,11 +80,12 @@ Interactive activation uses a private `TMPDIR` step ledger and a separate
 mode-0700 per-run staging directory. The helper
 validates ordered preparation, catalog-backed route selection, objective
 digests and releases, host-observed owner activation, independent-review
-target history, readiness selection and verdict, closed review transitions and limits, pre-activation launch
-stops, and terminal reporting. It persists and renders the canonical report,
-review sentences, and terminal sentence from validated state. This ledger is evidence protocol, not
-pipeline orchestration: it schedules no stages, assigns no agent roles, and
-owns no continuation.
+target history, readiness selection and verdict, closed review transitions and
+limits, pre-activation launch stops, resumable blocker and continuation
+transitions, and reporting. It persists and renders the canonical report,
+review sentences, and outcome sentence from validated state. This ledger is
+evidence protocol, not pipeline orchestration: it schedules no stages, assigns
+no agent roles, and performs no retry or continuation on its own.
 
 The portable helper is the sole protocol-evidence mechanism. The plugin does
 not register Claude or Codex lifecycle hooks, so ordinary host turns run no
@@ -107,13 +108,22 @@ repository, hashed with SHA-256, and represented by a bounded objective that
 requires the goal owner to read and verify it before work. Materialization
 happens before the first goal-set call, so a size rejection never triggers
 lossy recompaction or a second activation attempt. The attachment remains
-available through active and paused states. Complete or blocked goals release
-it through the helper's validated cleanup operation; pre-activation rejection
-and materialization failures release it without retrying activation. A failure
-after an accepted goal creation retains it unless the launcher confirms a
-terminal goal, and records the thread, attachment path, and digest needed for
-later release. An unavailable or rejected goal-creation call can instead record
-unavailable persistence and release the attachment before `launch_required`.
+available through active, paused, and blocked states. Completion, explicit
+abandonment or supersession, and host-thread destruction release it through the
+helper's validated cleanup operation; pre-activation rejection and
+materialization failures release it without retrying activation. A failure
+after an accepted goal creation retains it unless the launcher confirms one of
+those lifecycle ends, and records the thread, attachment path, and digest
+needed for later release. An unavailable or rejected goal-creation call can
+instead record unavailable persistence and release the attachment before
+`launch_required`.
+
+A blocked owner retains the same objective and can consume one explicit answer,
+qualifying continue, authorized exact-operation retry, or discretionary Darrow
+gate waiver. Ambiguous external publication is observed before retry, unchanged
+deterministic evidence cannot be retried, and repository policy, safety,
+authorization, and truthful completion are never waivable. The helper records
+these transitions but has no timeout, scheduler, daemon, or automatic retry.
 
 The contract also selects independent code review proportionally: routine work
 omits it by default, elevated work selects it when compatibility, caller, or

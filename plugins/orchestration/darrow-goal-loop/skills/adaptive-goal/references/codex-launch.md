@@ -41,8 +41,9 @@ the helper fails, any returned file is unreadable, or the objective exceeds
 Perform this materialization before the first `create_goal` call. Call the goal
 surface exactly once with the materialized objective. Do not retry `create_goal`
 after a size rejection, recompact the contract after rejection, or truncate it.
-Keep a returned attachment directory readable until the goal reaches a
-terminal state, including paused and native continuation turns; then run:
+Keep a returned attachment directory readable through active, paused, blocked,
+and native continuation turns. Release it only after verified completion or an
+explicit `step end` for abandonment, supersession, or thread destruction:
 
 ```sh
 bash "$goal_loop" step release-objective --ledger <absolute-ledger> \
@@ -52,11 +53,12 @@ bash "$goal_loop" step release-objective --ledger <absolute-ledger> \
 
 Do not reconstruct deletion commands. The receiving goal owner must share this
 filesystem. If it does not, use a complete inline contract or stop honestly.
-If the launcher fails after activation without confirming `complete` or
-`blocked`, retain the attachment and report the thread identifier, exact
-attachment path, and expected digest as resumable lifecycle evidence; do not
-remove the contract from a still-active or paused goal. Once terminal status is
-confirmed, release the attachment even if later result collection fails.
+If the launcher fails after activation without confirming completion or an
+explicit lifecycle end, retain the attachment and report the thread identifier,
+exact attachment path, and expected digest as resumable lifecycle evidence; do
+not remove the contract from an active, paused, or blocked goal. Once completion
+or an explicit lifecycle end is confirmed, release the attachment even if
+later result collection fails.
 Release the caller-created staging file immediately after successful
 materialization and before activation, in both modes, with the bundled helper:
 
@@ -102,8 +104,11 @@ When the compiled contract selects implementation readiness, invoke the
 matching installed capability and record its semantic verdict with the exact
 absolute `goal-loop step readiness` transition before any repository or
 external mutation. Only `ready` unlocks implementation. A non-ready verdict
-settles the goal as blocked and preserves the complete readiness result before
-the outer report.
+records a non-waivable readiness blocker, settles the goal as blocked, and
+preserves the complete readiness result before the resumable outer snapshot.
+After a later resolving answer, reactivate this same goal, record `step resume
+--mode answer` or qualifying `continue`, and run readiness again before
+mutation.
 
 If a material decision first emerges after activation, leave the goal active,
 pause repository and external mutation, and ask the user the smallest concrete
@@ -117,8 +122,9 @@ The prompt, route table, and model defaults are not active-route metadata.
 routes differ, do not use this boundary.
 
 **Complete when:** `get_goal` shows the materialized objective active on the
-current thread and its concrete route is the selected route. A later paused
-state retains the attachment; complete or blocked releases it.
+current thread and its concrete route is the selected route. A later paused or
+blocked state retains the attachment; only completion or an explicit lifecycle
+end releases it.
 
 ## Supported host API
 
@@ -154,6 +160,14 @@ successful one-line output as the explicit answer, and start a continuation on
 the same thread with `- phase: human-feedback-response` and that answer. Keep
 the selected model and effort, count one interruption and zero children, and
 leave any repository-mandated acknowledgement to the resumed owner.
+
+When the same thread's persisted goal is `blocked`, retain its exact objective
+and ledger. A later unambiguous user response reactivates that same goal with
+`thread/goal/set` using the unchanged objective and status `active`, records the
+applicable `goal-loop step resume` transition, and starts one continuation turn
+on the same thread, model, and effort. Do not call `thread/goal/set` with a new
+objective, create a replacement thread, or repeat the enclosing recipe. A
+blocked snapshot is reportable but not objective-cleanup evidence.
 
 **Complete when:** the existing thread owns the persisted goal and the work turn
 reports the selected model and effort.
@@ -220,9 +234,18 @@ preserve each line in the caller-facing completion. The creator never performs
 the runner's acknowledgement. An optional Markdown bullet, inline code around
 the answer, or terminal period is presentation only. If the host cannot relay an answer,
 preserve the runner and objective as resumable state and return the pending
-question honestly. A terminal independent-review stop returns `blocked` to the
+question honestly. Keep an active feedback pause distinct from a recorded
+blocker: after any successful `step block`, settle that same goal `blocked` and
+return ordinary blocked evidence without a `human-feedback-request` marker so
+the creator can render the snapshot before relaying a later response. An
+independent-review stop records its review blocker and
+evidence digest, settles `blocked`, and returns that resumable state to the
 creator without starting another goal or resuming repository work, checks,
-review, or publication. The runner may use native Codex subagents for
+review, or publication. The creator retains the runner and objective. A later
+qualifying response is sent to that exact runner reference with first line
+`- phase: blocked-goal-response`; the runner records `step resume`, then
+continues the same goal without calling `create_goal` again. The runner may use
+native Codex subagents for
 bounded work when useful, but remains the sole work owner. Tell it to collect
 each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe
@@ -241,11 +264,13 @@ objective is active does the runner record the semantic confirmation:
   --ledger <absolute-ledger> --status active
 ```
 
-The runner may then perform readiness and repository work. It owns the native
-goal's terminal `update_goal` call: use `complete` only after the full contract
-is fulfilled, and use `blocked` only under the native blocked threshold. The
-creator never calls `create_goal`, `get_goal`, or `update_goal` for this
-runner-owned goal.
+The runner may then perform readiness and repository work. It owns native goal
+status: use `complete` only after the full contract is fulfilled, and use
+`blocked` only under the native blocked threshold after recording the blocker
+and resumable snapshot. A later response delivered to this same thread resumes
+the existing goal; confirm the objective is unchanged, record `step resume`,
+and continue without another `create_goal` call. The creator never calls
+`create_goal`, `get_goal`, or `update_goal` for this runner-owned goal.
 
 If `create_goal` is unavailable or rejects the request, the runner performs no
 mutation, records `goal-loop step goal-state --ledger <absolute-ledger>
@@ -265,8 +290,10 @@ goal's terminal state before releasing the attachment.
 For a selected readiness gate, the runner invokes the matching capability
 before mutation, preserves its complete human-readable result, and records the
 semantic verdict in the ledger. It continues only on `ready`. Any other
-verdict returns `blocked` without mutation and places the complete readiness
-result plus smallest useful next action before the creator's outer report.
+verdict records a non-waivable readiness blocker, returns `blocked` without
+mutation, and places the complete readiness result plus smallest useful next
+action before the creator's resumable outer snapshot. A later resolving answer
+resumes the same runner and reruns readiness before mutation.
 
 For a selected review gate, read
 [`review-lifecycle.md`](review-lifecycle.md) completely and compile that
@@ -329,10 +356,17 @@ needed. Descendants are native goal delegation, not additional Darrow child
 invocations. Do not run a shell process around the agent or substitute its
 prompt self-report for accepted spawn evidence.
 
-After collecting a terminal result, release any file-backed objective through
-the exact helper call above. Interpret only the runner's terminal semantic
-status and review facts; do not inspect the repository. Then call the helper
-exactly once:
+Do not close, interrupt, or release the objective merely because this owner is
+blocked. Keep the exact agent reference and objective through every resumable
+blocked turn. Before cleanup without completion, record `step end` for explicit
+abandonment, supersession, or thread destruction; then target that same owner
+with the available close or interrupt control and release the objective once.
+
+After collecting a completed result, release any file-backed objective through
+the exact helper call above. After collecting a blocked result, retain it and
+record the exact blocker instead. Interpret only the runner's semantic status
+and review facts; do not inspect the repository. Then call the helper exactly
+once for that turn:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step report \
@@ -343,9 +377,10 @@ exactly once:
 Return that exact helper output first, followed by the runner's collected
 changed-file, verification, review, risk, feedback, and publication facts. For
 a non-ready implementation-readiness verdict only, preserve the complete
-readiness result first and place that exact blocked helper output after it.
-Ignore any child-authored report block; only the creator's helper call is the
-terminal report authority.
+readiness result first and place that exact blocked snapshot after it. A
+blocked helper output leaves the ledger and objective resumable; a complete or
+launch-required output is terminal. Ignore any child-authored report block;
+only the creator's helper call is report authority.
 
 **Complete when:** the accepted spawn matches the selected route, the visible
 runner is the sole work owner, that thread owns the one confirmed persisted

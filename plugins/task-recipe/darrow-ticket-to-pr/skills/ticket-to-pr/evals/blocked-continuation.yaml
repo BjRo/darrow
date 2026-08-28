@@ -1,0 +1,24 @@
+id: ticket-to-pr-blocked-continuation-contract
+invariant: TPR-C11,TPR-E9
+goal_report: forbidden
+prompt: >-
+  Use $ticket-to-pr to explain its continuation contract without treating this
+  fresh eval fixture as live blocked state or executing a delivery. In the
+  hypothetical same host thread, ticket #42 already has an active Ticket-to-PR
+  delivery whose adaptive owner retained its objective while blocked on a
+  product decision, and the user then supplies the exact decision. Explain
+  which owner, goal, and recipe run would continue and whether intake,
+  readiness, or branch setup would repeat.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: resumes the same bounded delivery
+    expect_regex: "same[^.!?]{0,120}(owner|goal|delivery)|existing[^.!?]{0,120}(owner|goal|delivery)"
+    flags: i
+  - name: skips repeated recipe setup
+    expect_regex: "(do not|does not|without|no)[^.!?]{0,120}(repeat|rerun|re-run|new)[^.!?]{0,100}(intake|readiness|branch|recipe)"
+    flags: i

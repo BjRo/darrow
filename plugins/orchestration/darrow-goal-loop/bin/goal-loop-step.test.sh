@@ -454,6 +454,9 @@ bash "$goal_loop" step review --ledger "$fixture_ledger" \
 expect_refusal 'explicit review limit blocks another invocation' bash "$goal_loop" \
   step review --ledger "$fixture_ledger" --mode verify \
   --target-sha256 "$fixed_target" --outcome clear
+bash "$goal_loop" step block --ledger "$fixture_ledger" \
+  --kind review --operation independent-review --retry evidence-change \
+  --waiver forbidden --evidence-sha256 "$review_target" >/dev/null
 limit_report=$(bash "$goal_loop" step report --ledger "$fixture_ledger" \
   --status blocked --human-interruptions 0)
 grep -F 'Review gate: blocked — explicit limit reached.' <<EOF >/dev/null || fail 'explicit review limit report'
@@ -650,12 +653,31 @@ grep -F $'readiness_verdict\tneeds-decision' "$nonready_ledger/state" >/dev/null
   fail 'non-ready verdict was not recorded'
 expect_refusal 'non-ready completion' bash "$goal_loop" step report \
   --ledger "$nonready_ledger" --status complete --human-interruptions 0
+bash "$goal_loop" step block --ledger "$nonready_ledger" \
+  --kind decision --operation implementation-readiness \
+  --retry one-attempt --waiver forbidden >/dev/null
 nonready_report=$(bash "$goal_loop" step report --ledger "$nonready_ledger" \
   --status blocked --human-interruptions 0)
 case "$nonready_report" in
-  *'Native goal settled as blocked.'*) ;;
+  *'Native goal blocked; continuation remains available.'*) ;;
   *) fail 'non-ready verdict did not permit blocked reporting' ;;
 esac
+expect_refusal 'non-ready retry cannot bypass readiness' bash "$goal_loop" \
+  step resume --ledger "$nonready_ledger" --mode retry
+grep -F $'phase\tblocked' "$nonready_ledger/state" >/dev/null ||
+  fail 'refused non-ready retry changed the blocked phase'
+grep -F $'continuation_count\t0' "$nonready_ledger/state" >/dev/null ||
+  fail 'refused non-ready retry incremented the continuation count'
+grep -F $'retry_count\t0' "$nonready_ledger/state" >/dev/null ||
+  fail 'refused non-ready retry incremented the retry count'
+nonready_resume=$(bash "$goal_loop" step resume --ledger "$nonready_ledger" \
+  --mode answer)
+test "$(record_value "$nonready_resume" operation)" = implementation-readiness ||
+  fail 'non-ready answer did not target readiness'
+grep -F $'phase\treadiness-pending' "$nonready_ledger/state" >/dev/null ||
+  fail 'non-ready answer did not restore readiness-pending phase'
+grep -F $'readiness_verdict\tnone' "$nonready_ledger/state" >/dev/null ||
+  fail 'non-ready answer did not require a fresh readiness verdict'
 
 readiness_stop_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
   --repo "$repo" --host codex)
@@ -689,5 +711,159 @@ EOF
 grep -F 'enforcement: helper' <<EOF >/dev/null || fail 'decision report enforcement'
 $decision_report
 EOF
+
+new_resumable_ledger() {
+  resumable_start=$(TMPDIR="$tmp_root" bash "$goal_loop" step start \
+    --repo "$repo" --host claude)
+  resumable_ledger=$(record_value "$resumable_start" ledger)
+  resumable_staging=$(record_value "$resumable_start" staging_dir)
+  bash "$goal_loop" step prepare --ledger "$resumable_ledger" >/dev/null
+  resumable_route_out=$(bash "$goal_loop" step route --ledger "$resumable_ledger" \
+    --workflow fix-bug --risk routine --profile routine \
+    --verification-gate routine --readiness omitted --review selected)
+  resumable_route=$(record_value "$resumable_route_out" selected_route)
+  bash "$goal_loop" step runner --ledger "$resumable_ledger" \
+    --provider anthropic --model claude-sonnet-5 --effort low >/dev/null
+  resumable_goal="$resumable_staging/resumable-goal.md"
+  write_goal_contract "$resumable_goal" 'resume the same blocked owner'
+  resumable_digest=$(shasum -a 256 "$resumable_goal")
+  resumable_digest=${resumable_digest%% *}
+  bash "$goal_loop" step stage --ledger "$resumable_ledger" \
+    --goal-file "$resumable_goal" >/dev/null
+  resumable_materialized=$(bash "$goal_loop" step materialize \
+    --ledger "$resumable_ledger" --goal-file "$resumable_goal" \
+    --expected-sha256 "$resumable_digest")
+  resumable_attachment=$(record_value "$resumable_materialized" attachment_dir)
+  resumable_objective=$(record_value "$resumable_materialized" objective_file)
+  bash "$goal_loop" step release-staging --ledger "$resumable_ledger" \
+    --goal-file "$resumable_goal" --expected-sha256 "$resumable_digest" >/dev/null
+  bash "$goal_loop" step activate --ledger "$resumable_ledger" \
+    --applied-by host-api --boundary host_api --agent-id none \
+    --effective-route "$resumable_route" --route-verified true >/dev/null
+}
+
+evidence_a=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+evidence_b=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+
+new_resumable_ledger
+block_out=$(bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind permission --operation docker-smoke-test \
+  --retry one-attempt --waiver forbidden)
+test "$(record_value "$block_out" operation)" = docker-smoke-test ||
+  fail 'resumable blocker operation record'
+expect_refusal 'blocked objective released before lifecycle end' bash "$goal_loop" \
+  step release-objective --ledger "$resumable_ledger" \
+  --attachment-dir "$resumable_attachment" --expected-sha256 "$resumable_digest"
+blocked_report=$(bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1)
+grep -F 'Native goal blocked; continuation remains available.' \
+  <<EOF >/dev/null || fail 'resumable blocked report'
+$blocked_report
+EOF
+grep -F $'phase\tblocked' "$resumable_ledger/state" >/dev/null ||
+  fail 'blocked report terminalized the resumable ledger'
+grep -F $'reported\tfalse' "$resumable_ledger/state" >/dev/null ||
+  fail 'blocked report marked the ledger terminally reported'
+test -r "$resumable_objective" || fail 'blocked report released the objective'
+expect_refusal 'duplicate blocked snapshot' bash "$goal_loop" step report \
+  --ledger "$resumable_ledger" --status blocked --human-interruptions 1
+resume_answer=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
+  --mode answer)
+test "$(record_value "$resume_answer" mode)" = answer ||
+  fail 'answer continuation record'
+grep -F $'phase\tactive' "$resumable_ledger/state" >/dev/null ||
+  fail 'answer did not resume active work'
+test -r "$resumable_objective" || fail 'answer continuation released the objective'
+
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind operation --operation create-pull-request \
+  --retry observe-first --waiver forbidden >/dev/null
+bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1 >/dev/null
+expect_refusal 'ambiguous publication retry without observation' bash "$goal_loop" \
+  step resume --ledger "$resumable_ledger" --mode retry
+expect_refusal 'completed publication retried' bash "$goal_loop" step resume \
+  --ledger "$resumable_ledger" --mode retry --observation completed
+resume_observed=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
+  --mode continue --observation completed)
+test "$(record_value "$resume_observed" observation)" = completed ||
+  fail 'completed publication observation record'
+
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind operation --operation docker-smoke-test \
+  --retry one-attempt --waiver forbidden >/dev/null
+bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1 >/dev/null
+resume_retry=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
+  --mode retry)
+test "$(record_value "$resume_retry" operation)" = docker-smoke-test ||
+  fail 'retry changed the failed operation'
+expect_refusal 'second attempt without a new blocked turn' bash "$goal_loop" \
+  step resume --ledger "$resumable_ledger" --mode retry
+
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind review --operation independent-review \
+  --retry evidence-change --waiver forbidden --evidence-sha256 "$evidence_a" >/dev/null
+bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1 >/dev/null
+expect_refusal 'unchanged deterministic review retry' bash "$goal_loop" \
+  step resume --ledger "$resumable_ledger" --mode retry \
+  --evidence-sha256 "$evidence_a"
+expect_refusal 'unchanged deterministic review continue' bash "$goal_loop" \
+  step resume --ledger "$resumable_ledger" --mode continue
+bash "$goal_loop" step resume --ledger "$resumable_ledger" --mode retry \
+  --evidence-sha256 "$evidence_b" >/dev/null
+
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind review --operation independent-review \
+  --retry evidence-change --waiver discretionary \
+  --evidence-sha256 "$evidence_b" >/dev/null
+bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1 >/dev/null
+resume_waive=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
+  --mode waive)
+test "$(record_value "$resume_waive" mode)" = waive ||
+  fail 'discretionary waiver continuation record'
+grep -F $'review_waived\ttrue' "$resumable_ledger/state" >/dev/null ||
+  fail 'review waiver was not recorded'
+
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind gate --operation repository-policy \
+  --retry forbidden --waiver forbidden >/dev/null
+bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1 >/dev/null
+expect_refusal 'non-waivable policy bypass' bash "$goal_loop" step resume \
+  --ledger "$resumable_ledger" --mode waive
+expect_refusal 'non-waivable policy answer bypass' bash "$goal_loop" step resume \
+  --ledger "$resumable_ledger" --mode answer
+bash "$goal_loop" step end --ledger "$resumable_ledger" --reason superseded >/dev/null
+bash "$goal_loop" step release-objective --ledger "$resumable_ledger" \
+  --attachment-dir "$resumable_attachment" \
+  --expected-sha256 "$resumable_digest" >/dev/null
+
+new_resumable_ledger
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind dependency --operation external-service \
+  --retry evidence-change --waiver forbidden --evidence-sha256 "$evidence_a" >/dev/null
+bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1 >/dev/null
+bash "$goal_loop" step end --ledger "$resumable_ledger" --reason abandoned >/dev/null
+expect_refusal 'ended lifecycle resumed' bash "$goal_loop" step resume \
+  --ledger "$resumable_ledger" --mode answer
+bash "$goal_loop" step release-objective --ledger "$resumable_ledger" \
+  --attachment-dir "$resumable_attachment" \
+  --expected-sha256 "$resumable_digest" >/dev/null
+test ! -e "$resumable_attachment" || fail 'abandoned objective was not cleaned up'
+grep -F $'phase\tlifecycle-ended' "$resumable_ledger/state" >/dev/null ||
+  fail 'abandoned lifecycle lost its terminal state during cleanup'
+
+new_resumable_ledger
+bash "$goal_loop" step end --ledger "$resumable_ledger" \
+  --reason thread-destroyed >/dev/null
+bash "$goal_loop" step release-objective --ledger "$resumable_ledger" \
+  --attachment-dir "$resumable_attachment" \
+  --expected-sha256 "$resumable_digest" >/dev/null
+test ! -e "$resumable_attachment" ||
+  fail 'thread-destroyed objective was not cleaned up'
 
 printf '%s\n' 'ok - portable goal-loop step ledger'

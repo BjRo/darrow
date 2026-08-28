@@ -77,6 +77,31 @@ grep -F -- 'no per-invocation `model` override' "$guide" >/dev/null ||
 # shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
 grep -F -- '`run_in_background` set to `false`' "$guide" >/dev/null ||
   fail 'Claude launch guide does not require foreground execution'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- 'no `resume` on the initial call' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not distinguish initial launch from resume'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- '`SendMessage` once with `to` set to that exact host-reported agent id' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not resume the same blocked Agent'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- '`task_notification` with the same task id' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not bind the resumed completion to the same Agent'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- 'wraps the delivered payload in fixed coordinator-message text' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not account for SendMessage transport framing'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- 'without calling `ScheduleWakeup`' "$guide" >/dev/null ||
+  fail 'Claude launch guide adds a continuation scheduler'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- '`- phase: blocked-goal-response`' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not bind the blocked response turn'
+# shellcheck disable=SC2016 # literal grep -F needle; the backticks are Markdown code spans
+grep -F -- '`SendMessage` does not create' "$guide" >/dev/null ||
+  fail 'Claude resume incorrectly counts a replacement owner'
+grep -F -- 'Do not release or close' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not retain blocked lifecycle state'
+grep -F -- 'goal-loop step report' "$guide" >/dev/null ||
+  fail 'Claude launch guide does not render resumable blocked snapshots'
 grep -F -- 'Do not launch a second' "$guide" >/dev/null ||
   fail 'Claude launch guide does not preserve the single-runner boundary'
 grep -F -- 'do not parse or reproduce its output' "$guide" >/dev/null ||
@@ -130,9 +155,8 @@ trap 'rm -rf "$verify_tmp"' EXIT
 fixture_repo="$verify_tmp/repo"
 mkdir -p "$fixture_repo"
 projects_root="$verify_tmp/projects"
-fixture_repo_real=$(CDPATH='' cd -- "$fixture_repo" && pwd)
-slug=$(printf '%s' "$fixture_repo_real" | sed 's#^/##; s#/#-#g')
-slug="-$slug"
+fixture_repo_real=$(CDPATH='' cd -- "$fixture_repo" && pwd -P)
+slug=$(printf '%s' "$fixture_repo_real" | sed 's#[^A-Za-z0-9]#-#g')
 session_dir="$projects_root/$slug"
 mkdir -p "$session_dir"
 
@@ -140,6 +164,12 @@ write_turn() {
   # write_turn <file> <agent-id> <model> <effort>
   printf '{"parentUuid":null,"isSidechain":true,"message":{"model":"%s","id":"msg_x","type":"message","role":"assistant","content":[]},"requestId":"req_x","type":"assistant","uuid":"u1","timestamp":"t","effort":"%s","session_id":"%s","userType":"agent"}\n' \
     "$3" "$4" "$2" >>"$1"
+}
+
+write_current_turn() {
+  # write_current_turn <file> <agent-id> <model> <effort>
+  printf '{"parentUuid":null,"isSidechain":true,"agentId":"%s","message":{"model":"%s","id":"msg_x","type":"message","role":"assistant","content":[]},"requestId":"req_x","type":"assistant","uuid":"u1","timestamp":"t","effort":"%s","userType":"external"}\n' \
+    "$2" "$3" "$4" >>"$1"
 }
 
 good_transcript="$session_dir/good.jsonl"
@@ -151,6 +181,18 @@ resolved=$(bash "$claude_verify_route" --repo "$fixture_repo" --agent-id agentgo
 case "$resolved" in
   *$'observed_route\tclaude\tanthropic\tclaude-sonnet-5\tlow'*) ;;
   *) fail 'claude-verify-route did not derive the consistent observed route' ;;
+esac
+
+current_subagents="$session_dir/current-session/subagents"
+mkdir -p "$current_subagents"
+current_transcript="$current_subagents/agent-agentcurrent.jsonl"
+write_current_turn "$current_transcript" agentcurrent claude-sonnet-5 low
+write_current_turn "$current_transcript" agentcurrent claude-sonnet-5 low
+current_resolved=$(bash "$claude_verify_route" --repo "$fixture_repo" \
+  --agent-id agentcurrent --projects-dir "$projects_root")
+case "$current_resolved" in
+  *$'observed_route\tclaude\tanthropic\tclaude-sonnet-5\tlow'*) ;;
+  *) fail 'claude-verify-route did not accept the current Agent transcript schema' ;;
 esac
 
 gate_record=$(CLAUDE_CONFIG_DIR="$verify_tmp" bash "$claude_route_gate" \

@@ -150,6 +150,20 @@ goal and revalidates the current repository revision and forge state before
 publication. A fresh explicit invocation may reuse an unambiguously correlated
 branch or open pull request; it does not restore workflow stages.
 
+When that owner has settled as blocked, an unambiguous answer or `continue`
+resumes the same goal, objective, owner, and Ticket-to-PR delivery only when it
+resolves or authorizes the recorded blocker. An unqualified `retry` authorizes
+one additional attempt at the exact failed operation. Ambiguous push or pull-
+request creation is observed before retry, and an observed matching effect is
+reused instead of duplicated. Deterministic unchanged failure or review
+evidence is not rerun merely to seek a different result.
+
+`ignore this and continue` may waive only a discretionary Darrow-selected gate
+and records that waiver. Repository policy, safety and authorization
+boundaries, and truthful verified-PR completion remain non-waivable. Skipping
+an essential ticket acceptance condition requires an explicitly revised
+authoritative outcome rather than a false completion claim.
+
 An existing pull request counts as success only after its exact current content
 satisfies the ticket's verification and selected-review gates. Evidence made
 stale by changed or unknown content is rerun.
@@ -159,8 +173,9 @@ queries current remote and forge state. It reuses an observed matching proposal
 and never creates a duplicate. Ambiguous correlation stops honestly.
 
 The recipe does not persist a phase store, attempt ledger, status file, retry
-counter, or recovery handoff. Repository and forge facts remain the durable
-publication evidence.
+counter, or recovery handoff. The adaptive owner may retain its private
+protocol evidence and file-backed objective while blocked, but the recipe owns
+neither. Repository and forge facts remain the durable publication evidence.
 
 ## Verification and pull-request contract
 
@@ -235,6 +250,13 @@ the ticket is fulfilled.
 10. **TPR-C10 — Thin delegation.** The recipe owns no workflow/risk/route
     selection, native-goal contract, protocol ledger, runner, Git/forge
     implementation, or post-goal inspection.
+11. **TPR-C11 — Same-delivery blocked continuation.** A resolving answer,
+    qualifying `continue`, authorized one-attempt retry, or valid discretionary
+    waiver resumes the same adaptive owner and enclosing delivery in the same
+    host thread. It never invokes the recipe again, replaces the owner, weakens
+    ticket acceptance or publication gates, or creates a second pull request.
+    The owner and objective remain available until completion, explicit
+    abandonment or supersession, or host-thread destruction.
 
 ## Packaging and portability
 
@@ -295,6 +317,11 @@ Required cases are:
 8. **TPR-E8 — Cross-host behavior.** Fresh Claude Code and Codex contexts
    satisfy the same public assertions despite host-specific feedback and resume
    mechanisms.
+9. **TPR-E9 — Blocked continuation controls.** Same-thread answer, `continue`,
+   one-attempt retry, ambiguous-publication observation, discretionary waiver,
+   non-waivable refusal, unchanged failure, objective retention and cleanup,
+   fresh-conversation invocation, and Ticket-to-PR continuation preserve one
+   owner and exactly one pull request on both native host harnesses.
 
 Every required case permits zero unintended or duplicate external mutations.
 Relevant deterministic script tests pass under both `bash` and `/bin/bash`.

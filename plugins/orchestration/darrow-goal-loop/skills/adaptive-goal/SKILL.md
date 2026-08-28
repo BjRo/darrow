@@ -1,6 +1,6 @@
 ---
 name: adaptive-goal
-description: Compile one bounded engineering request and activate it as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use when the user explicitly requests adaptive goal orchestration or an already explicitly invoked orchestration delegates one bounded request; do not select merely because ordinary work is complex or long-running.
+description: Compile or resume one bounded engineering request as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use when the user explicitly requests adaptive goal orchestration, an invoked orchestration delegates one bounded request, or an unambiguous answer, continue, retry, or ignore response targets this thread's recorded adaptive-goal blocker; do not select merely because ordinary work is complex or long-running.
 ---
 
 # Adaptive Goal Loop
@@ -14,7 +14,10 @@ Start only when the context establishes either entry condition:
 
 - the user explicitly invoked adaptive goal orchestration; or
 - an orchestration entrypoint the user explicitly invoked delegates one bounded
-  request and preserves the originating request and permissions.
+  request and preserves the originating request and permissions; or
+- this host thread already contains exactly one resumable adaptive owner and
+  the user's unambiguous answer, `continue`, `retry`, or `ignore this and
+  continue` response targets its recorded blocker.
 
 Delegation adds no authority; preserve the originating scope, permissions,
 publication, and safety boundaries. Complexity, duration, and ordinary
@@ -26,6 +29,18 @@ format: darrow-adaptive-goal-authority-stop-v1
 status: invocation_required
 reason: explicit-orchestration-entrypoint-required
 ```
+
+For continuation, follow **Resume one blocked owner** with the retained ledger,
+objective, route, owner, and authority. Do not repeat preflight, recipe
+invocation, or goal creation. A fresh conversation requires explicit invocation.
+
+## Resume one blocked owner
+
+Read [`references/resume-lifecycle.md`](references/resume-lifecycle.md)
+completely whenever an activated owner must settle blocked or the user responds
+to this thread's recorded blocker. It owns blocker classification, the exact
+`goal-loop step block`, `goal-loop step resume`, and `goal-loop step end` transitions, retry observation,
+waiver boundaries, same-owner continuation, retention, and cleanup. For observe-first, map completed to `--mode continue --observation completed` and not-completed to `--mode retry --observation not-completed`; never combine retry with a completed effect or placeholder both observations under one mode. Compile its portable rule into every activated contract. Darrow adds no timeout, daemon, scheduler, replacement owner, or automatic retry.
 
 ### Enforce read-only preflight
 
@@ -180,11 +195,10 @@ records only that verdict:
   --verdict <ready|needs-discovery|needs-decision|blocked>
 ```
 
-Only `ready` unlocks mutation. Every other verdict stops the goal without
-mutation, preserves the complete readiness result and its smallest useful next
-action, settles the native goal as blocked, and places the outer adaptive-goal
-report after that result. The protocol ledger stores selection and verdict,
-never the capability's complete result.
+Only `ready` unlocks mutation. Every other verdict preserves the complete result
+and next action, records a non-waivable blocker, settles blocked, and returns the
+resumable outer snapshot. A resolving response resumes the same owner and reruns
+readiness before mutation. The ledger stores only selection and verdict.
 
 Select independent code review separately from implementation discipline:
 
@@ -310,6 +324,11 @@ exact answer was applied on one line as
 line in the caller-facing completion. An optional Markdown bullet, inline code
 around the answer, or terminal period is presentation only.
 
+Also compile **Resume one blocked owner** completely: record before blockage,
+retain owner and objective, preserve every gate, and accept only same-thread
+continuation without replacement orchestration. After `step block`, settle that
+owner blocked without a feedback marker; the launcher owns snapshot and relay.
+
 Apply the selected proportional risk gate:
 
 | Risk | Required verification |
@@ -366,8 +385,9 @@ exact-target evidence. A terminal stop caused by that limit reports the
 standalone canonical sentence `Review gate: blocked — explicit limit reached.`
 Any later content-changing edit invalidates the chain.
 
-Settle every terminal unsatisfied review as `blocked`; any host-required
-continuation is status settlement only and performs no repository work.
+Record every unsatisfied review stop and evidence digest before `blocked`.
+Resume only under the linked lifecycle's changed-evidence or discretionary-
+waiver rules; automatic status settlement performs no repository work.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely and use only its sequence; small
@@ -452,12 +472,10 @@ before readiness or mutation. Follow the Codex guide's distinct rejected-create
 and accepted-but-unconfirmed paths; never release an accepted goal's attachment
 while its state is unknown, and never substitute another owner.
 
-## 4. Return host-native completion
+## 4. Return host-native completion or blockage
 
-Follow the selected host guide until the same owner reaches a terminal state or
-pauses for material feedback. The creator may relay feedback to that owner, but
-must not replace it or inspect, edit, or reverify its repository work after it
-returns. Render the terminal report from the ledger once:
+Follow the host guide until the same owner completes, requires launch, pauses, or blocks. Relay responses without replacing or reinspecting the owner. Render
+completion or launch-required once and blocked as a resumable snapshot:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step report --ledger <absolute-ledger> \
@@ -465,14 +483,12 @@ returns. Render the terminal report from the ledger once:
   --human-interruptions <integer>
 ```
 
-Return the successful helper output verbatim, including its terminal and review
-sentences, before any explanation and without a label, quote, or Markdown
-fence. For selected non-ready readiness only, put the complete capability result
-and next action first, then the helper report immediately with nothing between.
-Use `blocked` only for a verified owner route; unavailable or rejected routes
-remain `launch-required`. The decision-gated report keeps its fixed prelaunch
-values.
-
+Return the helper output verbatim before explanation, labels, quotes, or fences.
+For non-ready readiness, put its complete result and action before the blocked
+snapshot with nothing between. Use `blocked` only after `step block` on a
+verified route; retain its objective and unreported ledger.
+Unavailable or rejected routes remain `launch-required`. The decision-gated
+report keeps its fixed prelaunch values.
 Report only effective route evidence; never copy selection or the tab-separated
 ledger into human-readable fields. Count only Darrow-created sessions: zero for
 same-thread or host API, one for a native runner or authorized nested session.

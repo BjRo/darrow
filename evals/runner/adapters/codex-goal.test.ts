@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   activateMaterializedGoal,
+  authorizedBlockedGoalResponseCommand,
   authorizedFeedbackAnswerCommand,
   buildGoalExecutionPrompt,
   buildPreparedGoalPrompt,
@@ -33,6 +34,7 @@ import {
   parseExplicitUserRoute,
   parsePreparedGoalDimensions,
   readinessStatusSettlementPrompt,
+  reactivateBlockedGoal,
   stripModelAuthoredGoalReports,
   withMaterializedGoalLifecycle,
   withPrivateGoalStaging,
@@ -517,6 +519,12 @@ after`);
     expect(prompt).toMatch(
       /terminal human-readable report is optional[^.]*nonterminal pause/i,
     );
+    expect(prompt).toMatch(
+      /step block[^.]*settle this same native goal blocked/i,
+    );
+    expect(prompt).toMatch(
+      /ordinary blocked evidence[^.]*without the human-feedback marker/i,
+    );
     expect(prompt).toContain("# Change feature");
   });
 
@@ -543,9 +551,10 @@ after`);
 
   test("keeps resumable goal statuses nonterminal", () => {
     expect(isGoalTerminalStatus("complete")).toBe(true);
-    expect(isGoalTerminalStatus("blocked")).toBe(true);
+    expect(isGoalTerminalStatus("blocked")).toBe(false);
     expect(isGoalTerminalStatus("paused")).toBe(false);
     expect(isGoalTerminalStatus("active")).toBe(false);
+    expect(isResumableGoalStatus("blocked")).toBe(true);
     expect(isResumableGoalStatus("paused")).toBe(true);
     expect(isResumableGoalStatus("active")).toBe(true);
     expect(isResumableGoalStatus("complete")).toBe(false);
@@ -637,6 +646,85 @@ after`);
     ).toBeUndefined();
   });
 
+  test("accepts only an explicitly authorized blocked-goal response template", () => {
+    expect(
+      authorizedBlockedGoalResponseCommand(
+        "After the snapshot run `resumectl answer <blocked-operation>`.",
+        "migration-policy",
+      ),
+    ).toEqual({
+      argv: ["resumectl", "answer", "migration-policy"],
+      mode: "answer",
+    });
+    expect(
+      authorizedBlockedGoalResponseCommand(
+        "After the snapshot run `resumectl retry <blocked-operation>`.",
+        "publish-pr",
+      ),
+    ).toEqual({
+      argv: ["resumectl", "retry", "publish-pr"],
+      mode: "retry",
+    });
+    expect(
+      authorizedBlockedGoalResponseCommand(
+        "Resume when the user responds.",
+        "migration-policy",
+      ),
+    ).toBeUndefined();
+    expect(
+      authorizedBlockedGoalResponseCommand(
+        "Run `resumectl answer <blocked-operation>`.",
+        "bad/operation",
+      ),
+    ).toBeUndefined();
+  });
+
+  test("reactivates the exact blocked thread and retained objective", async () => {
+    const calls: Array<{ method: string; params: unknown }> = [];
+    const client = {
+      async request<T = unknown>(method: string, params: unknown): Promise<T> {
+        calls.push({ method, params });
+        if (method === "thread/goal/get")
+          return {
+            goal: { status: "blocked", objective: "retained objective" },
+          } as T;
+        if (method === "thread/goal/set") return {} as T;
+        throw new Error(`unexpected request: ${method}`);
+      },
+    };
+
+    await reactivateBlockedGoal(
+      client as never,
+      "thread-1",
+      "retained objective",
+    );
+
+    expect(calls).toEqual([
+      { method: "thread/goal/get", params: { threadId: "thread-1" } },
+      {
+        method: "thread/goal/set",
+        params: {
+          threadId: "thread-1",
+          objective: "retained objective",
+          status: "active",
+        },
+      },
+    ]);
+  });
+
+  test("refuses to reactivate a blocked thread after objective drift", async () => {
+    const client = {
+      async request<T = unknown>(method: string): Promise<T> {
+        expect(method).toBe("thread/goal/get");
+        return { goal: { status: "blocked", objective: "changed" } } as T;
+      },
+    };
+
+    await expect(
+      reactivateBlockedGoal(client as never, "thread-1", "expected"),
+    ).rejects.toThrow("objective drift");
+  });
+
   test("removes model-authored reports before helper report composition", () => {
     const modelReport = [
       "format: darrow-native-goal-report-v1",
@@ -717,7 +805,8 @@ after`);
     const prompt = readinessStatusSettlementPrompt("needs-decision");
     expect(prompt).toContain("- phase: readiness-status-settlement");
     expect(prompt).toContain("mark this existing goal blocked");
-    expect(prompt).toContain("This is not a request for human feedback");
+    expect(prompt).toContain("not the generic active human-feedback pause");
+    expect(prompt).toContain("retaining its objective");
     expect(prompt).toContain("preserves the earlier complete readiness result");
     expect(() => readinessStatusSettlementPrompt("ready")).toThrow(
       "cannot settle ready readiness verdict",
@@ -1323,7 +1412,7 @@ fi
     ).toThrow("goal contract duplicates Protocol ledger");
   });
 
-  test("settles a terminal review stop without resuming engineering", () => {
+  test("settles a resumable review stop without automatic continuation", () => {
     const handoff = handoffValue();
     const contract = parseCodexGoalHandoff(
       JSON.stringify(handoff),
@@ -1332,10 +1421,10 @@ fi
     ).goalContract;
 
     expect(contract).toMatch(
-      /terminal[^.;]*review[^.;]*(settle|mark)[^.;]*native goal[^.;]*blocked/i,
+      /unsatisfied review stop[^.;]*records[^.;]*review blocker[^.;]*settles[^.;]*native goal blocked/i,
     );
     expect(contract).toMatch(
-      /automatic continuation[^.;]*status[^.;]*(must not|never)[^.;]*(repository|engineering)[^.;]*(verification|review)/i,
+      /remains resumable[^.;]*same owner[^.;]*(changed evidence|explicit recorded waiver)/i,
     );
 
     const executionPrompt = buildGoalExecutionPrompt(
@@ -1344,7 +1433,13 @@ fi
       "Canonical selection and verification guidance.",
     );
     expect(executionPrompt).toMatch(
-      /before returning[^.]*settle[^.]*complete only[^.]*gates[^.]*blocked[^.]*terminal/i,
+      /before returning a completed result[^.]*complete only[^.]*gates pass/i,
+    );
+    expect(executionPrompt).toMatch(
+      /before settling blocked[^.]*record one exact blocker/i,
+    );
+    expect(executionPrompt).toContain(
+      "A blocked goal remains resumable on this same owner and objective.",
     );
     expect(executionPrompt).not.toContain(
       "Before returning, complete the native goal",

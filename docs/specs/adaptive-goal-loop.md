@@ -28,11 +28,12 @@ request + repository -> preflight -> host goal owner -> native completion
 The bundled helper maintains a private, temporary protocol-evidence ledger for
 one explicitly invoked run. That ledger authenticates the ordering and inputs
 of preflight, route selection, objective materialization, activation evidence,
-readiness verdicts, review outcomes, cleanup, and terminal reporting. It is not an execution
-controller: it never schedules work, invokes a model or capability, selects a
-repair, retries a failed phase, or decides whether semantic work should
-continue. The one host-native goal owner retains all implementation,
-adaptation, recovery, review-invocation, and completion judgment.
+readiness verdicts, review outcomes, resumable blockers, explicit continuation
+authority, cleanup, and terminal reporting. It is not an execution controller:
+it never schedules work, invokes a model or capability, selects a repair,
+retries a failed operation, or decides whether semantic work should continue.
+The one host-native goal owner retains all implementation, adaptation,
+recovery, review-invocation, and completion judgment.
 
 Preflight can improve the native run by making completion explicit, discovering
 repository constraints and checks, selecting a suitable workflow and risk
@@ -1144,6 +1145,33 @@ the least launch machinery the host supports.
     authority, does not require unrelated capabilities, and does not weaken the
     stricter availability and continuation rules for selected readiness or
     review gates.
+16. **AGL-L16 — Resumable blocked lifecycle.** A verified owner that settles as
+    `blocked` records one current blocker and returns a resumable blocked
+    snapshot without terminally reporting the ledger, releasing a file-backed
+    objective, closing or replacing the owner, or discarding the enclosing
+    orchestration context. Within the same host thread, an unambiguous answer
+    or `continue` resumes that same owner only when it resolves or authorizes
+    the recorded blocker. An unqualified `retry` authorizes one additional
+    attempt at the exact recorded failed operation while preserving scope,
+    permissions, readiness, review, and publication gates. Before retrying an
+    ambiguous external effect, the owner observes current external state and
+    continues without repeating an effect already completed; ambiguous
+    correlation remains blocked. A deterministic unchanged failure or review
+    finding requires changed evidence or conditions before another attempt.
+    `ignore this and continue` records a waiver only for a discretionary gate
+    selected by Darrow. Repository policy, safety and authorization boundaries,
+    and truthful completion requirements are non-waivable; skipping an
+    essential acceptance condition requires an explicitly revised outcome.
+    Each accepted continuation is a new host turn on the same owner, never a
+    replacement goal, recipe invocation, background loop, or automatic retry.
+17. **AGL-L17 — Retention and explicit cleanup.** A resumable blocked owner and
+    its exact objective remain available for the lifetime of the host thread.
+    Objective release and owner cleanup occur only after verified completion,
+    explicit abandonment or supersession, or destruction of that host thread.
+    Darrow adds no timeout, daemon, scheduler, replacement owner, or automatic
+    retry loop. A fresh conversation has no implicit continuation authority;
+    an explicitly invoked enclosing orchestration may correlate repository and
+    external state without reconstructing a prior owner.
 
 ### Safety invariants
 
@@ -1327,12 +1355,26 @@ the least launch machinery the host supports.
     Compare candidate and control on the same native host harness, fixture,
     prompt, checks, model, and effort; run another host only when making a
     cross-host claim.
+17. Exercise a verified owner that settles blocked and then receives, in the
+    same host thread, a resolving answer, qualifying `continue`, one-attempt
+    `retry`, an ambiguous-publication retry, a discretionary waiver, and a
+    non-waivable waiver request. Cover unchanged deterministic failure and
+    review evidence, objective retention across repeated blocked turns, and
+    cleanup after completion, explicit abandonment, supersession, and host-
+    thread destruction. Prove the same owner, objective, scope, gates, and
+    enclosing orchestration continue; no replacement goal or duplicate
+    external effect occurs. Run the public assertions on native Codex and
+    Claude harnesses with matched fixtures, prompts, checks, model, and effort,
+    and report trial count, outcomes, interruptions, duplicate effects, tokens,
+    wall time, and limitations.
 
 ## Non-goals
 
 - Supervising planner, executor, verifier, or repair agents. Native goal mode
   may delegate bounded work through host-visible subagents.
-- Reimplementing native goal persistence, retry, recovery, or completion.
+- Reimplementing native goal persistence, automatic retry, recovery, or
+  completion. Recording and validating one caller-authorized continuation on
+  the existing host owner is protocol evidence, not a Darrow execution loop.
 - Building a daemon, queue, task manager, or phase ledger that schedules work,
   owns continuation, or coordinates execution roles. A private helper ledger
   that only validates caller-chosen protocol evidence is explicitly in scope.

@@ -45,6 +45,15 @@ require_text "$guide" '`goal-loop step launch-stop --reason launch-unavailable`'
 # shellcheck disable=SC2016 # literal Markdown code span
 require_text "$guide" '`evaluation_child_invocations: 1`'
 require_text "$skill" 'step report'
+require_text "$skill" 'goal-loop step block'
+require_text "$skill" 'goal-loop step resume'
+require_text "$skill" 'goal-loop step end'
+require_text "$guide" 'blocked state retains the attachment'
+require_text "$guide" 'same goal with'
+# shellcheck disable=SC2016 # literal Markdown code span
+require_text "$guide" 'without another `create_goal` call'
+require_text "$guide" 'Do not close, interrupt, or release the objective merely because this owner is'
+reject_text "$guide" 'complete or blocked releases it'
 reject_text "$readme" 'helper+codex-hooks'
 reject_text "$readme" 'helper+claude-hooks'
 test ! -e "$hook_manifest" || fail "$hook_manifest is still packaged"
