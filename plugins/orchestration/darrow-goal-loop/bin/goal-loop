@@ -23,6 +23,9 @@ usage:
   goal-loop step observe-route --ledger <absolute-path> --agent-id <id> --effective-route <route> --confirmation <confirmed|rejected|unavailable>
   goal-loop step readiness --ledger <absolute-path> --verdict <ready|needs-discovery|needs-decision|blocked>
   goal-loop step review --ledger <absolute-path> --mode <comprehensive|verify> <--target-fingerprint <literal>|--target-sha256 <digest>> --outcome <enum> [--finding <text>]
+  goal-loop step block --ledger <absolute-path> --kind <decision|permission|operation|review|gate|dependency> --operation <id> --retry <one-attempt|observe-first|evidence-change|forbidden> --waiver <discretionary|forbidden> [--evidence-sha256 <digest>]
+  goal-loop step resume --ledger <absolute-path> --mode <answer|continue|retry|waive> [--observation <completed|not-completed>] [--evidence-sha256 <digest>]
+  goal-loop step end --ledger <absolute-path> --reason <abandoned|superseded|thread-destroyed>
   goal-loop step launch-stop --ledger <absolute-path> --reason <readiness-unavailable|review-unavailable|launch-unavailable> [--agent-ref <canonical-task-path>]
   goal-loop step release-objective --ledger <absolute-path> --attachment-dir <path> --expected-sha256 <digest>
   goal-loop step report --ledger <absolute-path> --status <complete|blocked|launch-required> --human-interruptions <integer>
@@ -1151,6 +1154,18 @@ step_start() {
     printf 'review_initial_outcome\tnone\n'
     printf 'review_initial_finding\tnone\n'
     printf 'review_last_outcome\tnone\n'
+    printf 'review_waived\tfalse\n'
+    printf 'blocker_kind\tnone\n'
+    printf 'blocker_operation\tnone\n'
+    printf 'blocker_retry_policy\tnone\n'
+    printf 'blocker_waiver_policy\tnone\n'
+    printf 'blocker_evidence_sha256\tnone\n'
+    printf 'blocked_from_phase\tnone\n'
+    printf 'blocked_reported\tfalse\n'
+    printf 'continuation_count\t0\n'
+    printf 'retry_count\t0\n'
+    printf 'waiver_count\t0\n'
+    printf 'lifecycle_end\tnone\n'
     printf 'terminal_reason\tnone\n'
     printf 'reported\tfalse\n'
   } >"$ledger_state"
@@ -1526,7 +1541,7 @@ step_release_objective() {
   load_ledger "$step_ledger"
   lock_ledger
   case "$ledger_phase" in
-    active|reviewed|readiness-stopped)
+    active|reviewed|readiness-stopped|lifecycle-ended)
       test "$(ledger_state_value "$ledger_state" agent_id)" != pending &&
         test "$(ledger_state_value "$ledger_state" route_verified)" = true ||
         die "objective release requires a resolved, route-verified owner"
@@ -1544,7 +1559,7 @@ step_release_objective() {
     --expected-sha256 "$step_expected_sha256")
   set_ledger_value objective_released true
   case "$ledger_phase" in
-    route-rejected|route-unavailable|launch-unavailable|goal-unavailable|readiness-stopped) release_phase=$ledger_phase ;;
+    route-rejected|route-unavailable|launch-unavailable|goal-unavailable|readiness-stopped|lifecycle-ended) release_phase=$ledger_phase ;;
     *) release_phase=released ;;
   esac
   set_ledger_value phase "$release_phase"
@@ -1914,6 +1929,274 @@ step_launch_stop() {
   fi
 }
 
+step_block() {
+  step_ledger=
+  step_blocker_kind=
+  step_blocker_operation=
+  step_retry_policy=
+  step_waiver_policy=
+  step_evidence_sha256=none
+  while test "$#" -gt 0; do
+    case "$1" in
+      --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
+      --kind) require_value "$@"; step_blocker_kind=$2; shift 2 ;;
+      --operation) require_value "$@"; step_blocker_operation=$2; shift 2 ;;
+      --retry) require_value "$@"; step_retry_policy=$2; shift 2 ;;
+      --waiver) require_value "$@"; step_waiver_policy=$2; shift 2 ;;
+      --evidence-sha256) require_value "$@"; step_evidence_sha256=$2; shift 2 ;;
+      *) die "unknown step block option: $1" ;;
+    esac
+  done
+  test -n "$step_ledger" && test -n "$step_blocker_kind" &&
+    test -n "$step_blocker_operation" && test -n "$step_retry_policy" &&
+    test -n "$step_waiver_policy" ||
+    die "step block requires --ledger, --kind, --operation, --retry, and --waiver"
+  validate_scalar "blocker operation" "$step_blocker_operation"
+  test "$step_blocker_operation" != none ||
+    die "blocker operation cannot use the reserved value none"
+  case "$step_blocker_kind" in
+    decision|permission|operation|review|gate|dependency) ;;
+    *) die "unsupported blocker kind: $step_blocker_kind" ;;
+  esac
+  case "$step_retry_policy" in
+    one-attempt|observe-first|evidence-change|forbidden) ;;
+    *) die "unsupported blocker retry policy: $step_retry_policy" ;;
+  esac
+  case "$step_waiver_policy" in
+    discretionary|forbidden) ;;
+    *) die "unsupported blocker waiver policy: $step_waiver_policy" ;;
+  esac
+  if test "$step_retry_policy" = evidence-change; then
+    test "$step_evidence_sha256" != none ||
+      die "evidence-change blocker requires --evidence-sha256"
+    validate_sha256_digest "$step_evidence_sha256"
+  elif test "$step_evidence_sha256" != none; then
+    die "--evidence-sha256 requires retry policy evidence-change"
+  fi
+  if test "$step_waiver_policy" = discretionary; then
+    case "$step_blocker_kind" in
+      gate|review) ;;
+      *) die "only a gate or review blocker can be discretionary" ;;
+    esac
+  fi
+
+  load_ledger "$step_ledger"
+  lock_ledger
+  case "$ledger_phase" in
+    active|reviewed|readiness-stopped) ;;
+    *) die "blocker evidence requires an active or stopped owner, found $ledger_phase" ;;
+  esac
+  test "$(ledger_state_value "$ledger_state" route_verified)" = true ||
+    die "resumable blockage requires a verified owner route"
+  validate_resolved_owner_identity "$ledger_host" \
+    "$(ledger_state_value "$ledger_state" launch_boundary)" \
+    "$(ledger_state_value "$ledger_state" agent_id)" \
+    "$(ledger_state_value "$ledger_state" agent_ref)"
+  attachment_dir=$(ledger_state_value "$ledger_state" attachment_dir)
+  if test "$attachment_dir" != none; then
+    test "$(ledger_state_value "$ledger_state" objective_released)" = false ||
+      die "resumable blockage requires the file-backed objective to remain attached"
+  fi
+  test "$(ledger_state_value "$ledger_state" reported)" = false ||
+    die "terminally reported ledger cannot become resumable"
+  set_ledger_value blocked_from_phase "$ledger_phase"
+  set_ledger_value blocker_kind "$step_blocker_kind"
+  set_ledger_value blocker_operation "$step_blocker_operation"
+  set_ledger_value blocker_retry_policy "$step_retry_policy"
+  set_ledger_value blocker_waiver_policy "$step_waiver_policy"
+  set_ledger_value blocker_evidence_sha256 "$step_evidence_sha256"
+  set_ledger_value blocked_reported false
+  set_ledger_value phase blocked
+  append_ledger_event block "$step_blocker_kind:$step_blocker_operation"
+  unlock_ledger
+  emit_step_record block
+  printf 'kind\t%s\n' "$step_blocker_kind"
+  printf 'operation\t%s\n' "$step_blocker_operation"
+  printf 'retry_policy\t%s\n' "$step_retry_policy"
+  printf 'waiver_policy\t%s\n' "$step_waiver_policy"
+}
+
+step_resume() {
+  step_ledger=
+  step_resume_mode=
+  step_observation=none
+  step_evidence_sha256=none
+  while test "$#" -gt 0; do
+    case "$1" in
+      --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
+      --mode) require_value "$@"; step_resume_mode=$2; shift 2 ;;
+      --observation) require_value "$@"; step_observation=$2; shift 2 ;;
+      --evidence-sha256) require_value "$@"; step_evidence_sha256=$2; shift 2 ;;
+      *) die "unknown step resume option: $1" ;;
+    esac
+  done
+  test -n "$step_ledger" && test -n "$step_resume_mode" ||
+    die "step resume requires --ledger and --mode"
+  case "$step_resume_mode" in
+    answer|continue|retry|waive) ;;
+    *) die "unsupported continuation mode: $step_resume_mode" ;;
+  esac
+  if test "$step_observation" != none; then
+    case "$step_observation" in
+      completed|not-completed) ;;
+      *) die "unsupported external observation: $step_observation" ;;
+    esac
+  fi
+  if test "$step_evidence_sha256" != none; then
+    validate_sha256_digest "$step_evidence_sha256"
+  fi
+
+  load_ledger "$step_ledger"
+  lock_ledger
+  require_ledger_phase blocked
+  test "$(ledger_state_value "$ledger_state" blocked_reported)" = true ||
+    die "resumable blocker must be reported before continuation"
+  blocker_kind=$(ledger_state_value "$ledger_state" blocker_kind)
+  blocker_operation=$(ledger_state_value "$ledger_state" blocker_operation)
+  retry_policy=$(ledger_state_value "$ledger_state" blocker_retry_policy)
+  waiver_policy=$(ledger_state_value "$ledger_state" blocker_waiver_policy)
+  blocker_evidence=$(ledger_state_value "$ledger_state" blocker_evidence_sha256)
+  blocked_from_phase=$(ledger_state_value "$ledger_state" blocked_from_phase)
+  case "$step_resume_mode" in
+    answer)
+      test "$step_observation" = none && test "$step_evidence_sha256" = none ||
+        die "answer continuation accepts no observation or evidence digest"
+      case "$blocker_kind" in
+        decision|permission|dependency) ;;
+        *) die "recorded blocker cannot be resolved by an answer" ;;
+      esac
+      test "$retry_policy" != evidence-change ||
+        die "deterministic failure requires changed evidence before retry"
+      ;;
+    continue)
+      test "$step_evidence_sha256" = none ||
+        die "continue accepts no evidence digest"
+      if test "$retry_policy" = observe-first; then
+        test "$step_observation" = completed ||
+          die "ambiguous external operation requires a completed observation before continue"
+      elif test "$retry_policy" = evidence-change; then
+        die "deterministic failure requires changed evidence before retry"
+      else
+        test "$step_observation" = none ||
+          die "external observation is valid only for an observe-first blocker"
+        if test "$retry_policy" = forbidden; then
+          case "$blocker_kind" in
+            decision|permission|dependency) ;;
+            *) die "recorded blocker cannot be resolved by continue" ;;
+          esac
+        fi
+      fi
+      ;;
+    retry)
+      case "$retry_policy" in
+        one-attempt)
+          test "$step_observation" = none && test "$step_evidence_sha256" = none ||
+            die "one-attempt retry accepts no observation or evidence digest"
+          ;;
+        observe-first)
+          test "$step_observation" = not-completed ||
+            die "ambiguous external operation must be observed not completed before retry"
+          test "$step_evidence_sha256" = none ||
+            die "observe-first retry accepts no evidence digest"
+          ;;
+        evidence-change)
+          test "$step_observation" = none ||
+            die "evidence-change retry accepts no external observation"
+          test "$step_evidence_sha256" != none ||
+            die "evidence-change retry requires --evidence-sha256"
+          test "$step_evidence_sha256" != "$blocker_evidence" ||
+            die "deterministic failure evidence is unchanged"
+          ;;
+        forbidden) die "recorded blocker does not permit retry" ;;
+      esac
+      ;;
+    waive)
+      test "$step_observation" = none && test "$step_evidence_sha256" = none ||
+        die "waiver continuation accepts no observation or evidence digest"
+      test "$waiver_policy" = discretionary ||
+        die "recorded blocker is not waivable"
+      ;;
+  esac
+
+  if test "$blocked_from_phase" = readiness-stopped; then
+    case "$step_resume_mode" in
+      answer|continue) ;;
+      *) die "non-ready implementation readiness resumes only from a resolving answer or continue" ;;
+    esac
+    resumed_phase=readiness-pending
+  else
+    resumed_phase=active
+  fi
+
+  continuation_count=$(ledger_state_value "$ledger_state" continuation_count)
+  set_ledger_value continuation_count "$((continuation_count + 1))"
+  if test "$step_resume_mode" = retry; then
+    retry_count=$(ledger_state_value "$ledger_state" retry_count)
+    set_ledger_value retry_count "$((retry_count + 1))"
+  fi
+  if test "$step_resume_mode" = waive; then
+    waiver_count=$(ledger_state_value "$ledger_state" waiver_count)
+    set_ledger_value waiver_count "$((waiver_count + 1))"
+    if test "$blocker_kind" = review; then
+      set_ledger_value review_waived true
+    fi
+  fi
+  if test "$blocked_from_phase" = readiness-stopped; then
+    set_ledger_value readiness_verdict none
+  fi
+  set_ledger_value blocker_kind none
+  set_ledger_value blocker_operation none
+  set_ledger_value blocker_retry_policy none
+  set_ledger_value blocker_waiver_policy none
+  set_ledger_value blocker_evidence_sha256 none
+  set_ledger_value blocked_from_phase none
+  set_ledger_value blocked_reported false
+  set_ledger_value phase "$resumed_phase"
+  append_ledger_event "resume-$step_resume_mode" "$blocker_operation"
+  unlock_ledger
+  emit_step_record resume
+  printf 'mode\t%s\n' "$step_resume_mode"
+  printf 'operation\t%s\n' "$blocker_operation"
+  printf 'observation\t%s\n' "$step_observation"
+}
+
+step_end() {
+  step_ledger=
+  step_end_reason=
+  while test "$#" -gt 0; do
+    case "$1" in
+      --ledger) require_value "$@"; step_ledger=$2; shift 2 ;;
+      --reason) require_value "$@"; step_end_reason=$2; shift 2 ;;
+      *) die "unknown step end option: $1" ;;
+    esac
+  done
+  test -n "$step_ledger" && test -n "$step_end_reason" ||
+    die "step end requires --ledger and --reason"
+  case "$step_end_reason" in
+    abandoned|superseded|thread-destroyed) ;;
+    *) die "unsupported lifecycle end reason: $step_end_reason" ;;
+  esac
+  load_ledger "$step_ledger"
+  lock_ledger
+  case "$ledger_phase" in
+    active|reviewed|readiness-stopped|blocked) ;;
+    *) die "lifecycle end requires an existing owner, found $ledger_phase" ;;
+  esac
+  test "$(ledger_state_value "$ledger_state" route_verified)" = true ||
+    die "lifecycle end requires a verified owner route"
+  validate_resolved_owner_identity "$ledger_host" \
+    "$(ledger_state_value "$ledger_state" launch_boundary)" \
+    "$(ledger_state_value "$ledger_state" agent_id)" \
+    "$(ledger_state_value "$ledger_state" agent_ref)"
+  set_ledger_value lifecycle_end "$step_end_reason"
+  set_ledger_value terminal_reason "$step_end_reason"
+  set_ledger_value phase lifecycle-ended
+  append_ledger_event lifecycle-end "$step_end_reason"
+  unlock_ledger
+  emit_step_record end
+  printf 'reason\t%s\n' "$step_end_reason"
+}
+
 step_review() {
   step_ledger=
   step_review_mode=
@@ -2064,8 +2347,14 @@ step_report() {
   last_outcome=$(ledger_state_value "$ledger_state" review_last_outcome)
   review_stop_reason=$(ledger_state_value "$ledger_state" review_stop_reason)
   review_selection=$(ledger_state_value "$ledger_state" review_selection)
+  review_waived=$(ledger_state_value "$ledger_state" review_waived)
   readiness_selection=$(ledger_state_value "$ledger_state" readiness_selection)
   readiness_verdict=$(ledger_state_value "$ledger_state" readiness_verdict)
+  blocker_kind=$(ledger_state_value "$ledger_state" blocker_kind)
+  blocker_operation=$(ledger_state_value "$ledger_state" blocker_operation)
+  blocker_retry_policy=$(ledger_state_value "$ledger_state" blocker_retry_policy)
+  blocker_waiver_policy=$(ledger_state_value "$ledger_state" blocker_waiver_policy)
+  blocked_reported=$(ledger_state_value "$ledger_state" blocked_reported)
   terminal_reason=$(ledger_state_value "$ledger_state" terminal_reason)
   test "$enforcement" = helper || die "unsupported enforcement mode: $enforcement"
 
@@ -2075,12 +2364,19 @@ step_report() {
     test "$step_human_interruptions" -ge 1 ||
       die "decision-gated report requires at least one human interruption"
   else
-    case "$ledger_phase" in
-      active|reviewed|released|readiness-stopped|route-rejected|route-unavailable|launch-unavailable|goal-unavailable) ;;
-      *) die "terminal report requires owner activation, found $ledger_phase" ;;
-    esac
-    test "$objective_released" = true ||
-      die "file-backed objective must be released before terminal reporting"
+    if test "$step_status" = blocked; then
+      test "$ledger_phase" = blocked ||
+        die "blocked snapshot requires recorded blocker evidence, found $ledger_phase"
+      test "$blocked_reported" = false ||
+        die "blocked snapshot was already rendered"
+    else
+      case "$ledger_phase" in
+        active|reviewed|released|readiness-stopped|route-rejected|route-unavailable|launch-unavailable|goal-unavailable) ;;
+        *) die "terminal report requires owner activation, found $ledger_phase" ;;
+      esac
+      test "$objective_released" = true ||
+        die "file-backed objective must be released before terminal reporting"
+    fi
     case "$ledger_phase" in
       route-rejected|route-unavailable|launch-unavailable|goal-unavailable)
         test "$step_status" = launch-required ||
@@ -2102,10 +2398,15 @@ step_report() {
             die "omitted implementation readiness has unexpected evidence"
         fi
         if test "$review_selection" = selected; then
-          test "$last_outcome" = clear ||
-            die "complete report requires a terminal clear independent-review outcome"
-          test "$review_stop_reason" = none ||
-            die "complete report cannot follow a stopped review chain"
+          if test "$review_waived" = true; then
+            test "$(ledger_state_value "$ledger_state" waiver_count)" -gt 0 ||
+              die "review waiver lacks a recorded continuation"
+          else
+            test "$last_outcome" = clear ||
+              die "complete report requires a terminal clear independent-review outcome"
+            test "$review_stop_reason" = none ||
+              die "complete report cannot follow a stopped review chain"
+          fi
         else
           test "$initial_outcome" = none ||
             die "omitted independent review has unexpected review evidence"
@@ -2137,6 +2438,10 @@ step_report() {
           die "blocked report requires a verified route"
         validate_resolved_owner_identity "$ledger_host" "$launch_boundary" \
           "$agent_id" "$agent_ref"
+        test "$blocker_kind" != none && test "$blocker_operation" != none &&
+          test "$blocker_retry_policy" != none &&
+          test "$blocker_waiver_policy" != none ||
+          die "blocked snapshot requires a complete recorded blocker"
         if test "$readiness_selection" = selected; then
           case "$readiness_verdict" in
             ready|needs-discovery|needs-decision|blocked) ;;
@@ -2215,9 +2520,17 @@ EOF
     if test "$review_stop_reason" = explicit-limit-reached; then
       printf 'Review gate: blocked — explicit limit reached.\n'
     fi
+    if test "$review_waived" = true; then
+      printf 'Discretionary independent-review gate waived.\n'
+    fi
+    if test "$step_status" = blocked; then
+      printf 'Blocked operation: %s.\n' "$blocker_operation"
+      printf 'Retry policy: %s.\n' "$blocker_retry_policy"
+      printf 'Waiver policy: %s.\n' "$blocker_waiver_policy"
+    fi
     case "$step_status" in
       complete) printf 'Native goal completed.\n' ;;
-      blocked) printf 'Native goal settled as blocked.\n' ;;
+      blocked) printf 'Native goal blocked; continuation remains available.\n' ;;
       launch-required) printf 'Native goal requires host launch.\n' ;;
     esac
   } >"$report_tmp" || {
@@ -2232,9 +2545,14 @@ EOF
     rm -f "$report_tmp"
     die "could not commit canonical report"
   }
-  set_ledger_value reported true
-  set_ledger_value phase reported
-  append_ledger_event report "$step_status"
+  if test "$step_status" = blocked; then
+    set_ledger_value blocked_reported true
+    append_ledger_event blocked-report "$blocker_operation"
+  else
+    set_ledger_value reported true
+    set_ledger_value phase reported
+    append_ledger_event report "$step_status"
+  fi
   unlock_ledger
   cat "$ledger/report"
 }
@@ -2256,6 +2574,9 @@ step_dispatch() {
     observe-route) step_observe_route "$@" ;;
     readiness) step_readiness "$@" ;;
     review) step_review "$@" ;;
+    block) step_block "$@" ;;
+    resume) step_resume "$@" ;;
+    end) step_end "$@" ;;
     launch-stop) step_launch_stop "$@" ;;
     release-objective) step_release_objective "$@" ;;
     report) step_report "$@" ;;

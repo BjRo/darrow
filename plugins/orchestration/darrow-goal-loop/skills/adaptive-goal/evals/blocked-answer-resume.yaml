@@ -1,0 +1,172 @@
+id: goal-blocked-answer-resumes-owner
+invariant: AGL-L16,AGL-L17
+prompt: >-
+  /adaptive-goal Add an exported migrationMode() function to src/migration.js
+  that returns the product-approved migration mode. On Codex, invoke the
+  $adaptive-goal skill and select the routine policy route. During
+  implementation the owner must run `decisionctl discover`. If it reports a
+  product decision, record its exact stable operation as a decision blocker,
+  settle this goal blocked, and render the resumable blocked snapshot. Only
+  after that snapshot, the host is authorized to run
+  `decisionctl answer <blocked-operation>` and relay its successful one-line
+  output to the same owner. The resumed owner must acknowledge the exact answer
+  through decisionctl before mutation, then finish the same goal locally. Do
+  not create a replacement goal or publish anything. On Claude, follow the
+  skill's numbered Claude launch sequence literally. The repository is
+  `{{repo_dir}}` and the helper directory is
+  `{{repo_dir}}/.git/eval-plugin/bin`; no path discovery is needed. Before the
+  first Agent, use only native Read, Glob, or Grep for inspection and make one
+  standalone helper call per protocol step—no shell variables, redirects,
+  command lists, or derived paths. The supplied paths are authoritative: do
+  not call Bash `ls`, `pwd`, `find`, `command`, or `which`, and do not inspect
+  or probe `decisionctl`. Make the first protocol-bearing Bash call
+  exactly `/bin/bash {{repo_dir}}/.git/eval-plugin/bin/goal-loop step start
+  --repo {{repo_dir}} --host claude`, then use its returned ledger in the exact
+  ordered prepare, route, runner, stage, materialize, release-staging, and
+  activate calls. Launch one foreground Agent with the exact selected runner
+  and materialized objective. After it returns blocked, use only the exact
+  route gate, then run exactly `/bin/bash
+  {{repo_dir}}/.git/eval-plugin/bin/goal-loop step block --ledger
+  <returned-ledger> --kind decision --operation migration-policy --retry
+  forbidden --waiver forbidden`, followed by the exact blocked report call.
+  Then run the authorized
+  standalone `decisionctl answer migration-policy`. Its Bash command field
+  must contain exactly those three literal words—no path prefix, description,
+  environment, probe, or additional command. Resume with one
+  `SendMessage` call whose `to` is the first Agent's exact reported id, whose
+  summary is exactly `Resume blocked adaptive goal with user response`, and
+  whose message is exactly the blocked-response marker plus that command's
+  one-line output. Do not invoke Agent again, call ScheduleWakeup, repeat the
+  route gate, or start another launch sequence. After SendMessage, emit a brief
+  waiting text and no tool call; the CLI stays alive until the native
+  task-notification with that same id arrives. After that resumed owner completes, use
+  only objective release when applicable and the exact complete report call.
+  Begin the final response directly with the raw `format:` report line, without
+  a Markdown fence or preceding prose.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash test.sh` for migration behavior changes. During
+          implementation run `decisionctl discover` before editing production
+          code. A reported migration policy is product-owned: record operation
+          `migration-policy` as a decision blocker with retry and waiver both
+          forbidden, and do not mutate until the same owner receives and
+          acknowledges the explicit answer with
+          `decisionctl acknowledge migration-policy strict`.
+        package.json: '{"type":"module"}'
+        src/migration.js: |
+          export const identity = (value) => value;
+        test/migration.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identity, migrationMode } from "../src/migration.js";
+
+          test("identity", () => assert.equal(identity("v"), "v"));
+          test("uses the strict migration mode", () => {
+            assert.equal(migrationMode(), "strict");
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/migration.test.js
+  bin:
+    decisionctl: |
+      #!/usr/bin/env bash
+      set -eu
+      tab=$(printf '\t')
+      git_dir=$(git rev-parse --git-dir)
+      trace="$git_dir/blocked-resume-trace"
+      state="$git_dir/blocked-resume-state"
+      case "${1-}" in
+        discover)
+          test ! -e "$state"
+          git hash-object src/migration.js >"$state"
+          printf 'discover\tmigration-policy\t%s\n' \
+            "$(cat "$state")" >>"$trace"
+          printf '%s\n' \
+            'decision_required' \
+            'operation: migration-policy' \
+            'question: Which migration policy should this product use?'
+          ;;
+        answer)
+          test "${2-}" = migration-policy
+          test -s "$state"
+          test "$(git hash-object src/migration.js)" = "$(cat "$state")"
+          test "$(grep -c '^answer.' "$trace" 2>/dev/null || true)" -eq 0
+          printf 'answer\tmigration-policy\tstrict\t%s\n' \
+            "$(git hash-object src/migration.js)" >>"$trace"
+          printf '%s\n' 'Use the strict migration policy.'
+          ;;
+        acknowledge)
+          test "${2-}" = migration-policy
+          test "${3-}" = strict
+          test "$(git hash-object src/migration.js)" = "$(cat "$state")"
+          test "$(grep -c '^answer.migration-policy.strict.' "$trace")" -eq 1
+          repo_root=$(git rev-parse --show-toplevel)
+          ledger_count=0
+          resume_count=0
+          for event_file in "${TMPDIR:-/tmp}"/darrow-goal-run.*/events; do
+            test -r "$event_file" || continue
+            ledger_state=${event_file%/events}/state
+            test -r "$ledger_state" || continue
+            grep -F "repo${tab}$repo_root" "$ledger_state" >/dev/null 2>&1 ||
+              continue
+            ledger_count=$((ledger_count + 1))
+            current_resume_count=$(grep -F -c \
+              "resume-answer${tab}migration-policy" \
+              "$event_file" 2>/dev/null || true)
+            resume_count=$((resume_count + current_resume_count))
+          done
+          test "$ledger_count" -eq 1
+          test "$resume_count" -eq 1
+          printf 'resume\tmigration-policy\tstrict\t%s\n' \
+            "$(git hash-object src/migration.js)" >>"$trace"
+          printf 'acknowledge\tmigration-policy\tstrict\t%s\n' \
+            "$(git hash-object src/migration.js)" >>"$trace"
+          ;;
+        *)
+          printf '%s\n' \
+            'usage: decisionctl discover|answer <operation>|acknowledge <operation> <mode>' >&2
+          exit 64
+          ;;
+      esac
+checks:
+  - name: resumed owner implements the approved migration behavior
+    run: bash test.sh
+  - name: blocked snapshot precedes answer and same-owner acknowledgement
+    run: |
+      awk -F '\t' '
+        NR == 1 && $1 == "discover" && $2 == "migration-policy" {
+          before = $3; next
+        }
+        NR == 2 && $1 == "answer" && $2 == "migration-policy" &&
+          $3 == "strict" && $4 == before {
+          next
+        }
+        NR == 3 && $1 == "resume" && $2 == "migration-policy" &&
+          $3 == "strict" && $4 == before {
+          next
+        }
+        NR == 4 && $1 == "acknowledge" && $2 == "migration-policy" &&
+          $3 == "strict" && $4 == before {
+          ok = 1
+        }
+        END { exit ok && NR == 4 ? 0 : 1 }
+      ' .git/blocked-resume-trace
+  - name: no replacement publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: final completion uses one native goal owner
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*route_applied_by: (?:host-api|native-subagent)[\\s\\S]*evaluation_child_invocations: (?:0|1)"
+  - name: one blocked response is counted as one interruption
+    expect_regex: "evaluation_human_interruptions: 1"
+transcript_checks:
+  - name: blocked snapshot is rendered before same-thread response relay
+    expect_regex: '"type":"darrow.goal_report_rendered"[^\n]*"status":"blocked"[^\n]*[\s\S]*(?:"type":"darrow.blocked_goal_response_relay","mode":"answer","operation":"migration-policy","thread_id":"[^"]+","same_owner":true,"objective_retained":true|"type":"darrow.blocked_goal_response_acquired","mode":"answer","operation":"migration-policy","status":"completed"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"same_owner":true)'
+  - name: completed continuation is not torn down as blocked
+    not_regex: '"type":"darrow.goal_blocked_cleanup"'
+  - name: continuation uses no scheduler or replacement owner
+    not_regex: '"tool":"(?:ScheduleWakeup|Agent)"'

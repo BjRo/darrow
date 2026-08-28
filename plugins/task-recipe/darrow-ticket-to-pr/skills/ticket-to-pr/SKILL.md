@@ -1,6 +1,6 @@
 ---
 name: ticket-to-pr
-description: Deliver one ready authoritative ticket as exactly one verified pull request when the user explicitly invokes ticket-to-pr. Use for explicit `$ticket-to-pr <ticket>` delivery requests; do not use for ordinary ticket discussion, implementation, planning, or pull-request requests without explicit recipe authority.
+description: Deliver one ready authoritative ticket as exactly one verified pull request or resume its recorded blocker. Use for explicit `$ticket-to-pr <ticket>` delivery requests and unambiguous answer, continue, retry, or ignore responses targeting this thread's existing Ticket-to-PR delivery; do not use for ordinary ticket discussion, implementation, planning, or unrelated pull-request requests.
 ---
 
 # Ticket to PR
@@ -13,16 +13,24 @@ implementation, or post-goal inspection.
 
 ## 1. Confirm authority
 
-Continue only when the user explicitly invoked `ticket-to-pr`. Ordinary ticket
-intent, a request to implement, a named ticket, or a parent that is not an
-explicitly invoked task recipe is insufficient. Before helper calls or mutation,
-return exactly:
+Continue only when the user explicitly invoked `ticket-to-pr`, or when this
+same host thread already contains exactly one blocked Ticket-to-PR adaptive
+owner and the user's unambiguous answer, `continue`, `retry`, or `ignore this
+and continue` response targets its recorded blocker. Ordinary ticket intent, a
+request to implement, a named ticket, a fresh conversation without explicit
+recipe invocation, or a parent that is not an explicitly invoked task recipe
+is insufficient. Before helper calls or mutation, return exactly:
 
 ```text
 format: darrow-ticket-to-pr-authority-stop-v1
 status: invocation_required
 reason: explicit-ticket-to-pr-invocation-required
 ```
+
+For a valid same-thread continuation, preserve the original explicit recipe
+authority but do not invoke this recipe again, reread the ticket, rerun intake,
+prepare another branch, repeat delegation, or create a replacement goal. Go
+directly to **Relay and report** with the retained owner and objective.
 
 ## 2. Resolve one authoritative request
 
@@ -117,6 +125,29 @@ verbatim to the same active owner. After it returns, preserve its ticket,
 repository, PR URL, created-versus-reused state, current-content verification,
 and selected-review evidence without repository/forge reinspection, repair,
 reverification, replacement goal, or publication retry.
+
+When the same adaptive owner has settled blocked, relay an unambiguous answer
+or qualifying `continue` to that owner only when it resolves or authorizes the
+recorded blocker. Relay unqualified `retry` as authority for one attempt at the
+exact failed operation. For ambiguous push or pull-request creation, require
+the owner to observe current remote or forge state first; reuse a matching
+effect, retry only when it is observed not completed, and remain blocked on
+ambiguous correlation. Do not retry deterministic unchanged failure or review
+evidence.
+
+Relay `ignore this and continue` only as a waiver request. The adaptive owner
+may record it for a discretionary Darrow-selected gate, but must refuse it for
+repository policy, safety, authorization, selected-review requirements owned by
+the user or repository, and truthful verified-PR completion. Skipping an
+essential ticket condition requires an explicitly revised authoritative
+outcome.
+
+Keep the same owner, objective, task branch, ticket authority, gates, and one-PR
+envelope through every blocked continuation. Do not close it or release its
+objective merely because it is blocked. Cleanup occurs only on completion,
+explicit abandonment or supersession, or host-thread destruction. A fresh
+conversation requires explicit Ticket-to-PR invocation and may reuse only
+unambiguously correlated repository and pull-request facts.
 
 Completion is one verified pull request or the exact blocker. Never infer a
 missing decision, create duplicate remote state, or claim a branch, commit, or

@@ -1,0 +1,21 @@
+id: goal-blocked-waiver-boundary
+invariant: AGL-L16,AGL-L17
+goal_report: forbidden
+prompt: >-
+  Use $adaptive-goal to decide the next lifecycle action only. The retained
+  owner is blocked because repository policy requires an independent review
+  that is unavailable. The user responds "ignore this and continue." Explain
+  whether that response can waive this blocker and what must happen next.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: refuses a repository-policy waiver
+    expect_regex: "(cannot|must not|not)[^.!?]{0,100}waiv|repository policy[^.!?]{0,100}(remains|required|cannot)"
+    flags: i
+  - name: keeps essential acceptance blocked pending revision
+    expect_regex: "(remain|stay|keeps?)[^.!?]{0,80}blocked|revis(e|ed|ion)[^.!?]{0,100}(outcome|acceptance|scope|policy)"
+    flags: i

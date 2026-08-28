@@ -94,8 +94,9 @@ caller-created staging file exactly once with:
 ```
 
 Only a successful exact release record permits activation. Keep any returned
-file-backed attachment readable through paused states and the terminal result,
-then release it only with:
+file-backed attachment readable through active, paused, blocked, and resumed
+states. Release it only after verified completion or an explicit `step end`
+for abandonment, supersession, or thread destruction:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop step release-objective \
@@ -114,11 +115,12 @@ must not be retried.
 
 Do not reconstruct deletion commands or retry a staging release, goal, or Agent
 call after one begins.
-If the launcher fails after activation without confirming a terminal result,
-retain the attachment and report the goal identifier, exact attachment path,
-and expected digest as resumable lifecycle evidence; do not remove the contract
-from a still-active or paused goal. Once terminal status is confirmed, release
-the attachment even if later result collection fails.
+If the launcher fails after activation without confirming completion or an
+explicit lifecycle end, retain the attachment and report the goal identifier,
+exact attachment path, and expected digest as resumable lifecycle evidence; do
+not remove the contract from an active, paused, or blocked goal. Once
+completion or an explicit lifecycle end is confirmed, release the attachment
+even if later result collection fails.
 
 ## Same thread
 
@@ -140,6 +142,13 @@ pause repository and external mutation, and ask the user the smallest concrete
 question. Pending feedback is neither completion nor blockage. Continue the
 same goal after the explicit answer arrives, count the question once, and keep
 any file-backed objective attached while paused.
+
+If this same-thread goal later settles blocked, record its exact blocker and
+render the blocked snapshot before settlement. A later unambiguous response
+reactivates that same goal and unchanged objective through the host's native
+same-thread continuation, records `step resume`, and continues on the selected
+route. Do not set another goal or repeat preflight. Blocked status is not
+objective-cleanup evidence.
 
 Do not treat a `claude` executable on `PATH` as evidence of same-thread control.
 
@@ -201,7 +210,7 @@ Materialize the objective before invoking the `Agent` tool exactly once with:
 - `run_in_background` set to `false`;
 - no per-invocation `model` override, because the selected full model ID and
   effort are pinned together in the runner definition;
-- no `resume` or worktree isolation; and
+- no `resume` on the initial call and no worktree isolation; and
 - a task body bound only to the successful materialization as described below.
 
 After the ownership marker, put either the exact complete contract bytes whose
@@ -216,6 +225,29 @@ workflow, risk gates, feedback protocol, readiness and review clauses,
 reporting contract, and
 sole-owner instructions. Do not restate or append them in the Agent task. A
 marker-only task is not an executable goal.
+
+If this exact Agent later returns blocked, first verify its route and record its
+blocker and blocked snapshot without releasing the objective. On a later
+unambiguous user response in the same Claude conversation, invoke
+`SendMessage` once with `to` set to that exact host-reported agent id,
+`summary` set exactly to `Resume blocked adaptive goal with user response`, and
+`message` whose first line is exactly `- phase: blocked-goal-response`
+followed only by the exact response. Do not invoke `Agent` again. Claude Code
+resumes that existing Agent session in the background and emits a
+`task_notification` with the same task id when it stops; yield for that native
+notification without calling `ScheduleWakeup`. `SendMessage` does not create
+another Darrow child invocation. The resumed runner validates the response
+against the recorded blocker and calls `goal-loop step resume` before mutation.
+Claude Code wraps the delivered payload in fixed coordinator-message text; the
+runner treats only the embedded marker and response as continuation authority.
+Do not repeat route selection, materialization, activation, or preflight, and
+do not invoke the enclosing recipe again.
+
+When the originating request explicitly authorizes one exact named response-
+acquisition command, the creator may run only that command after the blocked
+snapshot. Treat its successful one-line output as the exact response and bind
+the `SendMessage` body to those bytes. This acquisition is not repository
+work, verification, or authority for any other parent operation.
 
 Record a provisional native-subagent activation with agent id `pending`, the
 exact selected route, and `route_verified: false` through one exact standalone
@@ -242,10 +274,12 @@ still confidently self-report the selected model. Prompt text and runner
 self-report prove neither model nor effort. Derive the effective route from
 the child's own transcript instead:
 
-After the Agent returns, do not call `Bash`, `Read`, `Edit`, `Write`, `Glob`,
-`Grep`, or another repository tool to inspect, test, or restate its work. The
-only permitted post-return tools are one exact `claude-route-gate` call and the
-exact `release-objective` cleanup above when an attachment exists. The gate
+After the Agent returns, do not call `Read`, `Edit`, `Write`, `Glob`, `Grep`, or
+another repository tool to inspect, test, or restate its work. The only
+permitted post-return Bash calls are the first return's exact
+`claude-route-gate`, the state-bound `goal-loop step block`, `step report`, or
+`step end` required by the collected result, and `release-objective` after
+completion or explicit lifecycle end. The gate
 binds the Agent tool result's host-reported id to transcript observation and
 route confirmation in one deterministic operation. Changed-file, check,
 review, and remaining-risk statements come from the collected Agent result;
@@ -265,6 +299,16 @@ but report the run incomplete or blocked when verification was unavailable,
 inconclusive, no-progress, explicitly capped, or left blockers or regressions,
 even if deterministic checks passed or route verification separately failed.
 Interpret the capability's ordinary response; do not parse or reproduce its output format.
+
+For every blocked result, require the Agent to return one stable blocker kind,
+operation id, retry policy, waiver policy, and an evidence SHA-256 when the
+policy is `evidence-change`. After the first return's route gate confirms the
+owner, record those exact values with `goal-loop step block`, render `step
+report --status blocked`, retain the Agent id and objective, and end the parent
+turn. Do not release or close. On the same-id completion notification after
+`SendMessage`, the already verified Agent id remains the route and owner
+evidence; do not repeat the route gate. Record and render a new blocker only if
+the resumed owner blocks again.
 
 Invoke the gate as exactly one standalone Bash command after the Agent result,
 replacing every placeholder with a concrete literal. Do not use assignments,
@@ -309,16 +353,18 @@ succeeded. In that case:
   failed verification is a stop, not a retry loop — do not launch a second
   runner or substitute a nested process to try again.
 
-After the route gate and required attachment cleanup, render the collected
-Agent result immediately. Begin with the raw `format:` report line, never a
-Markdown code fence. Do not call another tool. If the Agent omitted a
+After the route gate and the applicable blocked snapshot or completion cleanup,
+render the collected Agent result immediately. Begin with the raw `format:`
+report line, never a Markdown code fence. Do not call another tool. If the Agent omitted a
 changed-file, check, review, risk, or publication fact, report that omission;
 never fill it by inspecting the repository.
 For a non-ready implementation-readiness verdict only, begin with the complete
-readiness result, then place the exact terminal helper report immediately after
+readiness result, then place the exact blocked helper snapshot immediately after
 it. The result already contains the smallest useful next action; insert no
 explanation, ledger summary, or other prose between the two blocks. Use
-`blocked` only after verified route evidence; when route observation is
+the Agent's readiness result as opaque bytes: do not summarize, reflow, relabel,
+fence, or omit its quality-bar, finding, evidence, or action lines. Use
+`blocked` only after verified route and blocker evidence; when route observation is
 unavailable or rejected, use the truthful `launch-required` report required by
 that route state. Paste the helper output verbatim; do not put it in a Markdown
 code fence.
@@ -333,6 +379,19 @@ route_verified\ttrue
 evaluation_child_invocations\t1
 ```
 
+After recording any required blocker, render exactly one report for the
+current turn:
+
+```sh
+/bin/bash <absolute-plugin-bin>/goal-loop step report \
+  --ledger <absolute-ledger> --status <complete|blocked|launch-required> \
+  --human-interruptions <nonnegative-integer>
+```
+
+Release the objective before `complete` or `launch-required` reporting when its
+lifecycle permits cleanup. For `blocked`, report first and retain the objective;
+the ledger remains resumable and unreported terminally.
+
 Do not launch a second runner or substitute a nested process after the child
 has started.
 
@@ -345,6 +404,13 @@ persistence, evaluator turns, or status telemetry for this boundary.
 runner, the visible runner returns terminally, `claude-route-gate` proves the
 host-reported Agent id and observed transcript route equal the selected route,
 and the result proves the contract and final-tree checks complete.
+
+A blocked Agent is not complete and is not cleaned up. Retain its exact id and
+objective until it completes or the user explicitly abandons or supersedes the
+goal, or the host destroys the conversation. For those non-completion ends,
+record `step end`, stop the exact Agent if the host still exposes it, and
+release the objective once. A fresh Claude conversation cannot resume that
+Agent implicitly and requires a new explicit orchestration invocation.
 
 ## Enclosing launcher
 

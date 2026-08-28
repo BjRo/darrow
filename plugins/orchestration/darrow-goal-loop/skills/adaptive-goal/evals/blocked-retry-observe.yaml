@@ -1,0 +1,28 @@
+id: goal-blocked-retry-observes-publication
+invariant: AGL-L16,AGL-L17
+goal_report: forbidden
+prompt: >-
+  Use $adaptive-goal to decide the next lifecycle action only. The retained
+  owner in this same thread is blocked because pull-request creation returned
+  an ambiguous result. The user says "retry" without qualification. Explain
+  the permitted retry behavior and how duplicate publication is prevented.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: observes ambiguous publication before retry
+    expect_regex: "observe-first|(observe|check|query|inspect)[\\s\\S]{0,160}(external[\\s\\S]{0,40}state|pull request|publication|remote)"
+    flags: i
+  - name: maps observed completion without duplicating the effect
+    expect_regex: "(--mode[ =]continue[\\s\\S]{0,120}--observation[ =]completed|completed[\\s\\S]{0,160}--mode[ =]continue)"
+    not_regex: "--mode[ =]retry[\\s\\S]{0,80}--observation[ =](completed|<completed)"
+    flags: i
+  - name: maps observed absence to one retry
+    expect_regex: "(--mode[ =]retry[\\s\\S]{0,120}--observation[ =]not-completed|not-completed[\\s\\S]{0,160}--mode[ =]retry)"
+    flags: i
+  - name: limits retry to the exact failed operation
+    expect_regex: "(one|single)[\\s\\S]{0,40}(attempt|retry)|exact failed operation"
+    flags: i

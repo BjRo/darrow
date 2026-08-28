@@ -1,6 +1,6 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Turn one explicitly invoked ready ticket into one verified pull request",
   "skills": "./skills/",
   "interface": {

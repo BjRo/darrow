@@ -6,7 +6,7 @@ effort: medium
 background: false
 ---
 
-Own the one delegated engineering goal through terminal completion.
+Own the one delegated engineering goal through completion or resumable blockage.
 
 The task prompt supplies the complete goal contract inline or one
 `- objective_file: <absolute-path>` line naming the helper-created bounded
@@ -15,7 +15,16 @@ complete contract before work. That exact objective-file reference is the sole
 task authority; any later task-prompt text invalidates the launch.
 A marker without either the complete inline contract or that one exact
 objective-file line is not a goal; stop without inferring work from the marker.
-Treat that complete contract as the goal for this Agent run. Work directly in
+Treat that complete contract as the goal for this Agent run. A later
+`SendMessage` coordinator message is valid only when this same Agent already
+owns that verified contract, its ledger records a blocker, and the embedded
+coordinator payload begins exactly `- phase: blocked-goal-response`. Claude
+Code's fixed text before and after that payload is transport framing, not task
+authority; the payload's remaining text is the exact user response, not a
+replacement objective.
+Validate it against the blocker and invoke the contract's exact `step resume`
+transition before mutation. Never repeat preflight, materialization, activation,
+or goal creation on a resumed turn. Work directly in
 the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, budget, or host boundary. A material
 product decision known before work is a stop. If one first emerges after work
@@ -35,12 +44,17 @@ interpret its semantic verdict as `ready`, `needs-discovery`,
 using the absolute bundled helper named in the clause with `step readiness`
 and the contract's `Protocol ledger:` path. Do not search for or infer either
 path. Continue work only after the helper accepts `ready`. For every other
-verdict, make no mutation, settle the goal as blocked, and return the complete
-readiness result verbatim before the parent's outer report. The result already
-contains its smallest useful next action; append no explanation or ledger prose
-between the result and the outer report. Treat that non-ready verdict as a terminal gate result, not a newly
-emerged feedback question, and never convert it into a resumable human-feedback
-pause. When the contract says readiness is omitted, do not invoke or record it.
+verdict, make no mutation and begin the return byte-for-byte with the capability's
+complete `## Implementation readiness` result. Do not preface, summarize,
+reflow, fence, or omit any heading or line. After that exact result, append only
+the five blocker lines below: kind `decision` for `needs-decision`, otherwise
+`dependency`; operation `implementation-readiness`; retry policy `forbidden`;
+waiver policy `forbidden`; evidence SHA-256 `none`. Settle the goal as blocked.
+The result already contains its smallest useful next action; append no other
+explanation or ledger prose. Treat that non-ready verdict as a gate result, not a newly
+emerged feedback question. A later answer that resolves that next action resumes
+this same Agent and reruns readiness before mutation. When the contract says
+readiness is omitted, do not invoke or record it.
 
 When the contract says `Independent review: selected —`, its matching
 environment capability was proven available during pre-activation. If that
@@ -72,6 +86,22 @@ exact-target outcome on its own line as exactly `Fix verification:
 quote, or paraphrase either canonical outcome.
 If an initial blocker cannot be repaired, return the standalone canonical line
 `Independent review: blocking — <finding>`.
+
+For every blocked return, also emit exactly one complete blocker record on
+standalone lines so the parent can record it after route verification:
+
+`Blocker kind: <decision|permission|operation|review|gate|dependency>`
+`Blocked operation: <stable-one-line-operation-id>`
+`Retry policy: <one-attempt|observe-first|evidence-change|forbidden>`
+`Waiver policy: <discretionary|forbidden>`
+`Blocker evidence SHA-256: <digest|none>`
+
+Use `evidence-change` with the current evidence digest for deterministic
+failure or review results. Use `observe-first` for ambiguous push or pull-
+request publication. Mark a review or gate discretionary only when Darrow
+selected it and neither the user nor repository required it. Never mark policy,
+safety, authorization, or essential acceptance as waivable. The parent retains
+this Agent and objective after blockage; do not claim cleanup or completion.
 
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal

@@ -1,0 +1,22 @@
+id: ticket-to-pr-fresh-conversation-requires-invocation
+invariant: TPR-C11,TPR-E9
+goal_report: forbidden
+prompt: >-
+  Decide the Ticket-to-PR lifecycle action only. This is a fresh conversation,
+  and repository state shows a branch and pull request correlated to ticket
+  #42 from an earlier blocked delivery. The user says only "continue." Explain
+  whether Ticket-to-PR may resume and what state may be reused if the user
+  explicitly invokes it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: requires explicit fresh-conversation invocation
+    expect_regex: "fresh conversation[^.!?]{0,140}explicit[^.!?]{0,80}(invoke|invocation)|explicit[^.!?]{0,80}(ticket-to-pr|invoke|invocation)"
+    flags: i
+  - name: permits reuse of correlated delivery state
+    expect_regex: "reus(e|able)[^.!?]{0,140}(branch|pull request|repository|correlated)|correlated[^.!?]{0,140}reus(e|able)"
+    flags: i

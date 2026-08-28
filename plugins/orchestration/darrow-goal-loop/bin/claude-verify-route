@@ -61,33 +61,50 @@ case "$agent_id" in
  *[!a-zA-Z0-9]*) die "unsafe agent id: $agent_id" ;;
 esac
 
-repo=$(CDPATH='' cd -- "$repo" && pwd) || die "unreadable repo: $repo"
+repo=$(CDPATH='' cd -- "$repo" && pwd -P) || die "unreadable repo: $repo"
 
 config_dir=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
 test -n "$projects_dir" || projects_dir="$config_dir/projects"
 test -d "$projects_dir" || die "no Claude projects directory: $projects_dir"
 
-# Best-effort slug: Claude Code stores per-repo transcripts under a directory
-# name derived from the absolute repo path with '/' replaced by '-'. If this
-# derivation is ever wrong for a given install, the directory lookup below
-# fails closed rather than silently verifying against the wrong session.
-slug=$(printf '%s' "$repo" | sed 's#^/##; s#/#-#g')
-slug="-$slug"
+# Claude Code replaces every non-alphanumeric path byte with '-' in its
+# per-repository projects directory name. Preserve repeated separators: '/_b'
+# and '/.worktrees' intentionally become '--b' and '--worktrees'.
+slug=$(printf '%s' "$repo" | sed 's#[^A-Za-z0-9]#-#g')
 session_dir="$projects_dir/$slug"
 test -d "$session_dir" || die "no session transcripts for repo: $session_dir"
 
 transcript=
-session_owner="\"session_id\":\"$agent_id\",\"userType\":\"agent\"}$"
-for candidate in "$session_dir"/*/subagents/*.jsonl "$session_dir"/*.jsonl; do
+ownership=current
+current_transcript_name="agent-$agent_id.jsonl"
+for candidate in "$session_dir"/*/subagents/"$current_transcript_name"; do
  test -r "$candidate" || continue
- if grep -q -E -- "$session_owner" "$candidate" 2>/dev/null; then
+ candidate_assistant=$(grep -F -- '"type":"assistant"' "$candidate" 2>/dev/null || true)
+ if grep -q -F -- "\"agentId\":\"$agent_id\"" <<<"$candidate_assistant"; then
   transcript=$candidate
   break
  fi
 done
+if test -z "$transcript"; then
+ ownership=legacy
+ session_owner="\"session_id\":\"$agent_id\",\"userType\":\"agent\"}$"
+ for candidate in "$session_dir"/*/subagents/*.jsonl "$session_dir"/*.jsonl; do
+  test -r "$candidate" || continue
+  if grep -q -E -- "$session_owner" "$candidate" 2>/dev/null; then
+   transcript=$candidate
+   break
+  fi
+ done
+fi
 test -n "$transcript" || die "no transcript evidence found for agent $agent_id under $session_dir"
 
-matches=$(grep -E -- "$session_owner" "$transcript" | grep -F -- '"type":"assistant"') || true
+if test "$ownership" = current; then
+ owned_turns=$(grep -F -- "\"agentId\":\"$agent_id\"" "$transcript" || true)
+ matches=$(grep -F -- '"type":"assistant"' <<<"$owned_turns" || true)
+else
+ matches=$(grep -E -- "$session_owner" "$transcript" |
+  grep -F -- '"type":"assistant"') || true
+fi
 test -n "$matches" || die "no assistant turns recorded for agent $agent_id in $transcript"
 
 models=$(printf '%s\n' "$matches" | grep -E -o '"message":\{"model":"[^"]*"' | sed -E 's/.*"model":"([^"]*)"/\1/' | sort -u) || true

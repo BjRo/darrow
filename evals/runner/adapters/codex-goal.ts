@@ -386,14 +386,15 @@ export function buildGoalExecutionPrompt(
     intentRoutingGuidance,
     `Apply the selected ${handoff.risk} verification gate defined in the canonical guidance above.`,
     handoff.readinessGate.selection === "selected"
-      ? "Before repository or external mutation, invoke the environment capability matching implementation-readiness assessment of the authoritative request. Preserve its complete human-readable result. Record its semantic verdict with the exact `goal-loop step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>` transition. Continue implementation only on `ready`. For any other verdict, perform no mutation, settle the native goal as blocked, and return the complete readiness result followed by its smallest useful next action; the enclosing launcher appends the outer adaptive-goal report after it. A non-ready readiness verdict is already a terminal gate result: it takes precedence over the generic human-feedback rule, so do not convert `needs-discovery`, `needs-decision`, or `blocked` into a feedback question or resumable pause."
+      ? "Before repository or external mutation, invoke the environment capability matching implementation-readiness assessment of the authoritative request. Preserve its complete human-readable result. Record its semantic verdict with the exact `goal-loop step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>` transition. Continue implementation only on `ready`. For any other verdict, perform no mutation, record a non-waivable `decision` or `dependency` blocker for operation `implementation-readiness` with `goal-loop step block`, settle the native goal as blocked, and return the complete readiness result followed by its smallest useful next action; the enclosing launcher appends the resumable adaptive-goal snapshot after it. A later answer that resolves that action resumes this same goal and reruns readiness before mutation; do not convert the non-ready result into the generic active human-feedback pause."
       : "Implementation readiness is omitted for this goal; do not invoke or record a readiness assessment.",
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
+    "Distinguish an active human-feedback pause from recorded blockage. The `- phase: human-feedback-request` marker is valid only while no `goal-loop step block` transition has been recorded and the native goal remains active. When the contract or repository instead requires `step block`, record the blocker with only arguments permitted by its retry policy, settle this same native goal blocked, and return ordinary blocked evidence without the human-feedback marker; the enclosing launcher renders the snapshot and may later relay an authorized response.",
     "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
     `When independent review is selected, record each returned semantic result against its exact target fingerprint with \`${reviewTransition}\`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.`,
     "Do not hand-author a darrow-native-goal-report-v1 block. Do not run `goal-loop step release-objective` or `goal-loop step report`; those are enclosing-launcher operations. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
-    "Before returning a terminal result, settle the native goal: mark it complete only when all required gates pass, or blocked when a terminal gate remains unsatisfied. A human-feedback pause is nonterminal and must not settle the goal.",
-    "After a terminal block, any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.",
+    "Before returning a completed result, settle the native goal complete only when all required gates pass. Before settling blocked, record one exact blocker with `goal-loop step block`, including its stable operation, retry policy, waiver policy, and evidence digest when required. A human-feedback pause is nonterminal and must not settle the goal.",
+    "A blocked goal remains resumable on this same owner and objective. Do not release it, recreate it, or resume work until an explicit answer, qualifying continue, authorized one-attempt retry, or valid discretionary waiver is received and recorded with `goal-loop step resume`.",
   ].join("\n");
 }
 
@@ -402,11 +403,11 @@ export function readinessStatusSettlementPrompt(verdict: string): string {
     throw new Error(`cannot settle ready readiness verdict: ${verdict}`);
   return [
     "- phase: readiness-status-settlement",
-    `The implementation-readiness capability already returned and the protocol ledger recorded the terminal \`${verdict}\` verdict.`,
-    "This is not a request for human feedback and must not become a resumable pause.",
-    "Perform only native-goal status settlement: use the native goal control to mark this existing goal blocked.",
+    `The implementation-readiness capability already returned and the protocol ledger recorded the non-ready \`${verdict}\` verdict and its blocker.`,
+    "This is not the generic active human-feedback pause. The same goal remains resumable only after a later user response resolves the readiness next action.",
+    "Perform only native-goal status settlement: use the native goal control to mark this existing goal blocked while retaining its objective.",
     "Do not inspect or mutate the repository, invoke another capability, run verification, ask a question, or resume implementation.",
-    "Return only a short status confirmation after the goal is blocked. The enclosing launcher preserves the earlier complete readiness result and appends its canonical report.",
+    "Return only a short status confirmation after the goal is blocked. The enclosing launcher preserves the earlier complete readiness result and appends its resumable snapshot.",
   ].join("\n");
 }
 
@@ -707,7 +708,7 @@ function canonicalIndependentReviewClause(
     explicitReviewRoundLimit === undefined
       ? "use progress-bounded convergence with no implicit numeric review limit"
       : `use the originating explicit hard cap of at most ${explicitReviewRoundLimit} independent-review capability invocations, including the initial comprehensive review`;
-  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; record each returned semantic result against its exact target fingerprint with \`${transition}\`; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; a terminal unsatisfied review stop settles the persisted native goal as blocked before the goal owner returns; any host-required automatic continuation is status settlement only and must not resume repository work, verification, review, or publication.`;
+  return `Independent review: selected — ${reason}; after implementation and applicable final-tree checks invoke the environment capability matching independent review of the exact current code change; target preparation starts the review boundary, so finish only that capability invocation and await its ordinary response before any other repository investigation, command, edit, check, or publication; interpret the response semantically without requiring an output format; the first invocation is one comprehensive review of the exact current content and establishes a closed finding set; no blocking findings satisfy the gate for that content, while blocking findings block completion and publication; record each returned semantic result against its exact target fingerprint with \`${transition}\`; first rework attempts together every eligible blocker and advisory already authorized, clearly in scope, low risk, and neither expanding requested behavior nor materially expanding verification; after rework rerun invalidated checks and request exact-target fix verification limited to the original findings, a mechanically pinned prior-to-current repair delta whose manifests share the same effective base, and direct repair-caused regressions, supplying the original and prior targets, canonical finding order, target history, attempted set, prior scope manifest, any immediately prior verification artifact with its checksum and carried regressions, and current check evidence; caller prose does not establish repair causality; targeted verification must exclude unrelated observations and advisories never keep the gate open; later rework addresses unresolved blockers and repair-caused regressions only; continue only while verification reports material progress, treating a newly detected direct regression as progressing for one repair attempt and unchanged evidence after that attempt as no progress; when continue names an authorized unresolved blocker or direct regression, perform that later rework, rerun invalidated checks, and request fix verification again rather than treating the first regression or an earlier repair round as terminal; clear satisfies the exact-content gate, while repetition, oscillation, unchanged failure evidence, no_progress, blocked, unavailable or inconclusive evidence, exhausted authority, or a reached explicit limit stops with no further repair or publication; ${limitClause}; any later content change invalidates the verification chain; an unsatisfied review stop records a review blocker with the current evidence digest and settles the persisted native goal blocked; it remains resumable only on the same owner after changed evidence or, when this review was a discretionary Darrow selection, an explicit recorded waiver. No automatic continuation resumes repository work, verification, review, or publication.`;
 }
 
 function canonicalReadinessGateClause(
@@ -720,7 +721,7 @@ function canonicalReadinessGateClause(
   const transition = goalLoop
     ? `/bin/bash '${goalLoop.replaceAll("'", `'"'"'`)}' step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>`
     : "goal-loop step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>";
-  return `Readiness gate: selected — ${reason}; before repository or external mutation invoke the available environment capability matching implementation-readiness assessment of the authoritative request; request and preserve its complete human-readable result without requiring JSON; interpret the semantic verdict as ready, needs-discovery, needs-decision, or blocked and record only that verdict in the protocol ledger with \`${transition}\`; Continue only on \`ready\`; for every other verdict stop without mutation, preserve the complete readiness result and its smallest useful next action, settle the native goal as blocked, and place the outer adaptive-goal report after that result.`;
+  return `Readiness gate: selected — ${reason}; before repository or external mutation invoke the available environment capability matching implementation-readiness assessment of the authoritative request; request and preserve its complete human-readable result without requiring JSON; interpret the semantic verdict as ready, needs-discovery, needs-decision, or blocked and record only that verdict in the protocol ledger with \`${transition}\`; Continue only on \`ready\`; for every other verdict stop without mutation, preserve the complete readiness result and its smallest useful next action, record a non-waivable readiness blocker, settle the native goal as blocked, and place the resumable outer adaptive-goal snapshot after that result. A later resolving answer resumes this same owner and reruns readiness before mutation.`;
 }
 
 function compileReadinessGateClause(
@@ -1253,7 +1254,7 @@ function isSettledGoalUpdate(
   return (
     message.method === "thread/goal/updated" &&
     message.params?.threadId === threadId &&
-    isGoalTerminalStatus(message.params?.goal?.status)
+    isReportableGoalStatus(message.params?.goal?.status)
   );
 }
 
@@ -1315,24 +1316,31 @@ function isHumanFeedbackPauseForThread(
   );
 }
 
-/** Complete and blocked are both observable native-goal outcomes. The eval's
- * repository and output checks decide whether either is correct for the case. */
+/** Complete and blocked are both observable native-goal outcomes. Blocked is
+ * reportable but remains resumable until this host thread is destroyed. */
 export function isReportableGoalStatus(
-  status: string | undefined,
-): status is "complete" | "blocked" {
-  return isGoalTerminalStatus(status);
-}
-
-export function isGoalTerminalStatus(
   status: string | undefined,
 ): status is "complete" | "blocked" {
   return status === "complete" || status === "blocked";
 }
 
+export function isGoalTerminalStatus(
+  status: string | undefined,
+): status is "complete" {
+  return status === "complete";
+}
+
 export function isResumableGoalStatus(
   status: string | undefined,
-): status is "active" | "paused" {
-  return status === "active" || status === "paused";
+): status is "active" | "paused" | "blocked" {
+  return status === "active" || status === "paused" || status === "blocked";
+}
+
+function confirmCompletedGoal(
+  status: string | undefined,
+  confirmTerminal: () => void,
+): void {
+  if (isGoalTerminalStatus(status)) confirmTerminal();
 }
 
 async function collectHumanFeedbackPause(
@@ -1349,7 +1357,7 @@ async function collectHumanFeedbackPause(
     threadId,
   });
   if (isReportableGoalStatus(goal.goal?.status)) {
-    confirmTerminal();
+    confirmCompletedGoal(goal.goal?.status, confirmTerminal);
     return result;
   }
   if (!isResumableGoalStatus(goal.goal?.status))
@@ -1404,7 +1412,7 @@ async function runNativeGoal(
     );
   if (!isReportableGoalStatus(terminal.params!.goal!.status))
     throw new Error(`native goal ended as ${terminal.params!.goal!.status}`);
-  confirmTerminal();
+  if (isGoalTerminalStatus(terminal.params!.goal!.status)) confirmTerminal();
   const terminalTurnId = terminal.params!.turnId ?? turnId;
   return runTurn(client, terminalTurnId);
 }
@@ -1984,21 +1992,57 @@ function requiredStepRecord(stdout: string, key: string): string {
   return values[0];
 }
 
-async function ledgerReadinessVerdict(ledger: string): Promise<string> {
+async function ledgerStateValue(
+  ledger: string,
+  wanted: string,
+): Promise<string> {
   const state = await readFile(join(ledger, "state"), "utf8");
   const values = state.split(/\r?\n/).flatMap((line) => {
     const fields = line.split("\t");
-    return fields.length === 2 && fields[0] === "readiness_verdict"
-      ? [fields[1]!]
-      : [];
+    return fields.length === 2 && fields[0] === wanted ? [fields[1]!] : [];
   });
   if (values.length !== 1 || !values[0])
-    throw new Error("goal ledger has missing or duplicate readiness verdict");
+    throw new Error(`goal ledger has missing or duplicate ${wanted}`);
   return values[0];
+}
+
+function ledgerReadinessVerdict(ledger: string): Promise<string> {
+  return ledgerStateValue(ledger, "readiness_verdict");
 }
 
 function isNonReadyReadinessVerdict(verdict: string): boolean {
   return ["needs-discovery", "needs-decision", "blocked"].includes(verdict);
+}
+
+async function recordReadinessBlocker(
+  ledger: string,
+  verdict: string,
+): Promise<void> {
+  const repoDir = await ledgerStateValue(ledger, "repo");
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const blocker = await captureProcess(
+    [
+      "bash",
+      helper,
+      "step",
+      "block",
+      "--ledger",
+      ledger,
+      "--kind",
+      verdict === "needs-decision" ? "decision" : "dependency",
+      "--operation",
+      "implementation-readiness",
+      "--retry",
+      "forbidden",
+      "--waiver",
+      "forbidden",
+    ],
+    repoDir,
+  );
+  if (blocker.code !== 0)
+    throw new Error(
+      `readiness blocker recording failed: ${blocker.stderr.trim()}`,
+    );
 }
 
 async function settleRecordedReadiness(
@@ -2027,6 +2071,7 @@ async function settleRecordedReadiness(
     throw new Error(
       "cannot settle non-ready native goal without its objective",
     );
+  await recordReadinessBlocker(ledger, verdict);
   await client.request("thread/goal/set", {
     threadId,
     objective: goal.objective,
@@ -2579,6 +2624,22 @@ async function renderLedgerReport(
   return result.stdout.trimEnd();
 }
 
+async function recordLedgerLifecycleEnd(
+  repoDir: string,
+  ledger: string,
+  reason: "abandoned" | "superseded" | "thread-destroyed",
+): Promise<void> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const result = await captureProcess(
+    ["bash", helper, "step", "end", "--ledger", ledger, "--reason", reason],
+    repoDir,
+  );
+  if (result.code !== 0)
+    throw new Error(
+      `goal lifecycle end recording failed: ${result.stderr.trim()}`,
+    );
+}
+
 async function recordPreActivationStop(
   repoDir: string,
   ledger: string,
@@ -2724,6 +2785,28 @@ export function authorizedFeedbackAnswerCommand(
   return match ? [match[1]!, "answer", feedbackId] : undefined;
 }
 
+type BlockedGoalResponseMode = "answer" | "continue" | "retry" | "waive";
+
+interface AuthorizedBlockedGoalResponse {
+  argv: string[];
+  mode: BlockedGoalResponseMode;
+}
+
+export function authorizedBlockedGoalResponseCommand(
+  engineeringRequest: string,
+  operation: string,
+): AuthorizedBlockedGoalResponse | undefined {
+  if (!/^[A-Za-z0-9._-]+$/.test(operation)) return undefined;
+  const match = engineeringRequest.match(
+    /(?:`|\b)([A-Za-z0-9_./-]+)\s+(answer|continue|retry|waive)\s+<blocked-operation>(?:`|\b)/,
+  );
+  if (!match) return undefined;
+  return {
+    argv: [match[1]!, match[2]!, operation],
+    mode: match[2]! as BlockedGoalResponseMode,
+  };
+}
+
 async function runAuthorizedFeedbackAnswer(
   repoDir: string,
   argv: string[],
@@ -2755,6 +2838,7 @@ interface GoalOwnerTurnContext {
   repoDir: string;
   phase: PreflightPhase;
   workflow: GoalWorkflowEvidence;
+  objective: string;
 }
 
 interface GoalOwnerTurnState {
@@ -2889,6 +2973,107 @@ async function relayGoalFeedback(
   return { result, status, humanInterruptions: 1 };
 }
 
+export async function reactivateBlockedGoal(
+  client: AppServerClient,
+  threadId: string,
+  expectedObjective: string,
+): Promise<void> {
+  const current = await client.request<GoalGetResult>("thread/goal/get", {
+    threadId,
+  });
+  if (current.goal?.status !== "blocked")
+    throw new Error(
+      `cannot resume native goal from ${current.goal?.status ?? "missing"}`,
+    );
+  if (typeof current.goal.objective !== "string")
+    throw new Error("cannot resume native goal without its retained objective");
+  if (current.goal.objective !== expectedObjective)
+    throw new Error("cannot resume native goal after objective drift");
+  await client.request("thread/goal/set", {
+    threadId,
+    objective: current.goal.objective,
+    status: "active",
+  });
+}
+
+async function relayBlockedGoalResponse(
+  context: GoalOwnerTurnContext,
+  confirmTerminal: () => void,
+  current: GoalOwnerTurnState,
+): Promise<GoalOwnerTurnState> {
+  if (current.status !== "blocked") return current;
+  const { client, repoDir, phase } = context;
+  const { threadId, handoff, prepared } = phase;
+  const operation = await ledgerStateValue(
+    prepared.ledger,
+    "blocker_operation",
+  );
+  const authorized = authorizedBlockedGoalResponseCommand(
+    prepared.engineeringRequest,
+    operation,
+  );
+  if (!authorized) return current;
+
+  await renderLedgerReport(repoDir, prepared.ledger, "blocked");
+  client.record({
+    type: "darrow.goal_report_rendered",
+    ledger: prepared.ledger,
+    status: "blocked",
+    enforcement: "helper",
+    continuation: "pending",
+  });
+  const response = await runAuthorizedFeedbackAnswer(repoDir, authorized.argv);
+  await reactivateBlockedGoal(client, threadId, context.objective);
+  const resumed = await startExecutionTurn({
+    client,
+    threadId,
+    repoDir,
+    prompt: `- phase: blocked-goal-response\n${response}`,
+    route: handoff.selectedRoute,
+  });
+  recordBlockedGoalResponseRelay(client, authorized.mode, operation, threadId);
+  const result = await runNativeGoal(
+    client,
+    { threadId, turnId: resumed.turnId, eventCursor: resumed.eventCursor },
+    confirmTerminal,
+  );
+  const status = await assertGoalOutcome(client, threadId);
+  return {
+    result,
+    status,
+    humanInterruptions: current.humanInterruptions + 1,
+  };
+}
+
+function recordBlockedGoalResponseRelay(
+  client: AppServerClient,
+  mode: BlockedGoalResponseMode,
+  operation: string,
+  threadId: string,
+): void {
+  client.record({
+    type: "darrow.blocked_goal_response_relay",
+    mode,
+    operation,
+    thread_id: threadId,
+    same_owner: true,
+    objective_retained: true,
+  });
+}
+
+async function settleGoalOwnerContinuation(
+  context: GoalOwnerTurnContext,
+  confirmTerminal: () => void,
+  current: GoalOwnerTurnState,
+): Promise<GoalOwnerTurnState> {
+  const feedbackSettled = await relayGoalFeedback(
+    context,
+    confirmTerminal,
+    current,
+  );
+  return relayBlockedGoalResponse(context, confirmTerminal, feedbackSettled);
+}
+
 async function runGoalOwnerTurn(
   context: GoalOwnerTurnContext,
   confirmTerminal: () => void,
@@ -2928,13 +3113,104 @@ async function runGoalOwnerTurn(
     confirmTerminal,
     { result, status, humanInterruptions: 0 },
   );
-  const final = await relayGoalFeedback(
+  const final = await settleGoalOwnerContinuation(
     context,
     confirmTerminal,
     settledReadiness,
   );
   const durationMs = performance.now() - started;
   return { ...final, durationMs };
+}
+
+async function renderGoalExecutionOutcome(options: {
+  client: AppServerClient;
+  repoDir: string;
+  phase: PreflightPhase;
+  execution: GoalOwnerTurnOutcome;
+}): Promise<void> {
+  const { client, repoDir, phase, execution } = options;
+  if (!isReportableGoalStatus(execution.status)) return;
+  const { prepared } = phase;
+  const report = await renderLedgerReport(
+    repoDir,
+    prepared.ledger,
+    execution.status,
+    execution.humanInterruptions,
+  );
+  client.record({
+    type: "darrow.goal_report_rendered",
+    ledger: prepared.ledger,
+    status: execution.status,
+    enforcement: "helper",
+  });
+  const readinessVerdict = await ledgerReadinessVerdict(prepared.ledger);
+  execution.result = {
+    ...execution.result,
+    text: composeGoalExecutionResult(
+      report,
+      execution.result.text,
+      readinessVerdict,
+    ),
+  };
+}
+
+interface BlockedGoalTrialTeardown {
+  client: AppServerClient;
+  repoDir: string;
+  prepared: PreparedGoalPreflight;
+  materialized: MaterializedGoalObjective;
+  status: GoalOwnerTurnOutcome["status"];
+}
+
+async function teardownBlockedGoalTrial(
+  teardown: BlockedGoalTrialTeardown,
+): Promise<void> {
+  if (teardown.status !== "blocked") return;
+  await recordLedgerLifecycleEnd(
+    teardown.repoDir,
+    teardown.prepared.ledger,
+    "thread-destroyed",
+  );
+  await teardown.materialized.cleanup();
+  teardown.client.record({
+    type: "darrow.goal_blocked_cleanup",
+    ledger: teardown.prepared.ledger,
+    reason: "thread-destroyed",
+    boundary: "adapter-trial-teardown",
+    same_owner: true,
+  });
+}
+
+async function teardownFailedGoalTrial(
+  teardown: Omit<BlockedGoalTrialTeardown, "status">,
+  failure: unknown,
+): Promise<never> {
+  const cleanupFailures: string[] = [];
+  try {
+    await recordLedgerLifecycleEnd(
+      teardown.repoDir,
+      teardown.prepared.ledger,
+      "thread-destroyed",
+    );
+  } catch (error) {
+    cleanupFailures.push(errorText(error));
+  }
+  try {
+    await teardown.materialized.cleanup();
+  } catch (error) {
+    cleanupFailures.push(errorText(error));
+  }
+  teardown.client.record({
+    type: "darrow.goal_failed_cleanup",
+    ledger: teardown.prepared.ledger,
+    reason: "thread-destroyed",
+    cleanup_complete: cleanupFailures.length === 0,
+  });
+  if (cleanupFailures.length)
+    throw new Error(`${errorText(failure)}; ${cleanupFailures.join("; ")}`, {
+      cause: failure,
+    });
+  throw failure;
 }
 
 async function runGoalExecutionPhase(
@@ -2952,36 +3228,37 @@ async function runGoalExecutionPhase(
     stagingDir: prepared.stagingDir,
   });
   recordObjectiveEvidence(client, handoff, materialized);
-  const execution = await withMaterializedGoalLifecycle(
-    materialized,
-    (confirmTerminal) =>
-      runGoalOwnerTurn({ client, repoDir, phase, workflow }, confirmTerminal),
-    (attachment) => recordRetainedObjective(client, threadId, attachment),
-  );
-  if (isReportableGoalStatus(execution.status)) {
-    const report = await renderLedgerReport(
-      repoDir,
-      prepared.ledger,
-      execution.status,
-      execution.humanInterruptions,
+  try {
+    const execution = await withMaterializedGoalLifecycle(
+      materialized,
+      (confirmTerminal) =>
+        runGoalOwnerTurn(
+          {
+            client,
+            repoDir,
+            phase,
+            workflow,
+            objective: materialized.objective,
+          },
+          confirmTerminal,
+        ),
+      (attachment) => recordRetainedObjective(client, threadId, attachment),
     );
-    client.record({
-      type: "darrow.goal_report_rendered",
-      ledger: prepared.ledger,
+    await renderGoalExecutionOutcome({ client, repoDir, phase, execution });
+    await teardownBlockedGoalTrial({
+      client,
+      repoDir,
+      prepared,
+      materialized,
       status: execution.status,
-      enforcement: "helper",
     });
-    const readinessVerdict = await ledgerReadinessVerdict(prepared.ledger);
-    execution.result = {
-      ...execution.result,
-      text: composeGoalExecutionResult(
-        report,
-        execution.result.text,
-        readinessVerdict,
-      ),
-    };
+    return { result: execution.result, durationMs: execution.durationMs };
+  } catch (error) {
+    return teardownFailedGoalTrial(
+      { client, repoDir, prepared, materialized },
+      error,
+    );
   }
-  return { result: execution.result, durationMs: execution.durationMs };
 }
 
 type CodexGoalOutcome = Omit<HarnessResult, "ok" | "durationMs">;

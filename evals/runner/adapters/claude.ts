@@ -36,6 +36,9 @@ export function claudeRunSucceeded(
 
 interface ClaudeResultEnvelope {
   type?: unknown;
+  task_id?: unknown;
+  tool_use_id?: unknown;
+  status?: unknown;
   parent_tool_use_id?: unknown;
   subtype?: string;
   is_error?: boolean;
@@ -220,7 +223,7 @@ function retainedAgentPromptMarker(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const first = prompt.split("\n", 1)[0];
   return first &&
-    /^(?:- review_axis: (?:standards|spec)|- phase: adaptive-goal-runner)$/.test(
+    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-goal-runner|blocked-goal-response))$/.test(
       first,
     )
     ? first
@@ -242,6 +245,8 @@ function normalizedReviewAgentInput(block: Record<string, unknown>) {
     prompt,
     runInBackground: input.run_in_background,
     model: input.model,
+    resume: input.resume,
+    isolation: input.isolation,
   };
 }
 
@@ -261,6 +266,10 @@ function retainedReviewAgentBlocks(event: ClaudeResultEnvelope) {
             ? { run_in_background: input.runInBackground }
             : {}),
           ...(typeof input.model === "string" ? { model: input.model } : {}),
+          ...(typeof input.resume === "string" ? { resume: input.resume } : {}),
+          ...(typeof input.isolation === "string"
+            ? { isolation: input.isolation }
+            : {}),
           ...(input.prompt
             ? { prompt: input.prompt }
             : { prompt_marker: "invalid" }),
@@ -323,6 +332,17 @@ interface CompletedGoalAgent extends PendingGoalAgent {
   agentId: string;
 }
 
+interface PendingGoalAgentResume extends CompletedGoalAgent {
+  goalToolUseId: string;
+  dispatched: boolean;
+  response: string;
+}
+
+interface PendingBlockedResponseAcquisition {
+  mode: "answer" | "continue" | "retry" | "waive";
+  operation: string;
+}
+
 interface PendingRouteGate {
   goalToolUseId: string;
   agentId: string;
@@ -334,6 +354,12 @@ interface PendingRouteGate {
 interface PendingGoalReport {
   id: string;
   status: "complete" | "blocked" | "launch-required";
+}
+
+export function goalReportRequiresObjectiveRelease(
+  status: PendingGoalReport["status"] | undefined,
+): boolean {
+  return status !== "blocked";
 }
 
 interface GoalAttachment {
@@ -410,6 +436,84 @@ function retainGoalAgentStarts(
     state.goalAgentStarted = true;
     return;
   }
+}
+
+function retainGoalAgentResumeStarts(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (!canResumeGoalAgent(event, state)) return;
+  const [goalToolUseId, goal] = [...state.completedGoalAgents.entries()][0]!;
+  const response = state.blockedGoalResponse!;
+  for (const block of claudeContent(event)) {
+    const input = normalizedSendMessageInput(block);
+    if (!input || blockedGoalSendIssue(input, goal, response)) continue;
+    state.pendingGoalResumes.set(input.id, {
+      ...goal,
+      goalToolUseId,
+      dispatched: false,
+      response,
+    });
+    state.blockedGoalResponse = undefined;
+    state.reportRendered = false;
+    state.renderedGoalStatus = undefined;
+    return;
+  }
+}
+
+function canResumeGoalAgent(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+): boolean {
+  return [
+    event.type === "assistant",
+    state.completedGoalAgents.size === 1,
+    state.reportRendered,
+    state.renderedGoalStatus === "blocked",
+    state.pendingGoalResumes.size === 0,
+    state.blockedGoalResponse !== undefined,
+  ].every(Boolean);
+}
+
+const blockedGoalResumeSummary =
+  "Resume blocked adaptive goal with user response";
+
+function blockedGoalResponsePromptIssue(prompt: string): string | undefined {
+  const marker = "- phase: blocked-goal-response";
+  if (!prompt.startsWith(`${marker}\n`)) return "marker";
+  return prompt.slice(marker.length + 1).trim().length > 0
+    ? undefined
+    : "response-missing";
+}
+
+function normalizedSendMessageInput(block: unknown) {
+  if (!isRecord(block) || block.type !== "tool_use") return undefined;
+  if (block.name !== "SendMessage" || typeof block.id !== "string")
+    return undefined;
+  if (!isRecord(block.input)) return undefined;
+  const { to, summary, message } = block.input;
+  if (
+    typeof to !== "string" ||
+    typeof summary !== "string" ||
+    typeof message !== "string"
+  )
+    return undefined;
+  return { id: block.id, to, summary, message };
+}
+
+function blockedGoalSendIssue(
+  input: NonNullable<ReturnType<typeof normalizedSendMessageInput>>,
+  goal: CompletedGoalAgent,
+  expectedResponse: string,
+): string | undefined {
+  if (input.to !== goal.agentId) return "agent-id-invalid";
+  if (input.summary !== blockedGoalResumeSummary) return "summary-invalid";
+  const promptIssue = blockedGoalResponsePromptIssue(input.message);
+  if (promptIssue) return promptIssue;
+  const marker = "- phase: blocked-goal-response\n";
+  return input.message.slice(marker.length) === expectedResponse
+    ? undefined
+    : "response-mismatch";
 }
 
 function goalAgentStart(block: unknown, objective: MaterializedGoalObjective) {
@@ -495,6 +599,114 @@ function retainedGoalAgentCompletions(
   });
 }
 
+function retainedGoalAgentResumeResults(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) => {
+    if (
+      !isRecord(block) ||
+      block.type !== "tool_result" ||
+      typeof block.tool_use_id !== "string"
+    )
+      return [];
+    const call = state.pendingGoalResumes.get(block.tool_use_id);
+    if (!call || call.dispatched) return [];
+    const resumedAgentId = hostReportedResumedAgentId(block);
+    const dispatched =
+      block.is_error !== true && resumedAgentId === call.agentId;
+    if (dispatched) {
+      call.dispatched = true;
+      return [
+        {
+          type: "darrow.goal_agent_resume_dispatched",
+          tool_use_id: block.tool_use_id,
+          goal_tool_use_id: call.goalToolUseId,
+          agent_id: call.agentId,
+          same_owner: true,
+        },
+      ];
+    }
+    state.pendingGoalResumes.delete(block.tool_use_id);
+    restoreBlockedGoalResume(state, call);
+    return [
+      {
+        type: "darrow.goal_agent_resumption",
+        tool_use_id: block.tool_use_id,
+        goal_tool_use_id: call.goalToolUseId,
+        subagent_type: call.subagentType,
+        agent_id: call.agentId,
+        ...(resumedAgentId ? { observed_agent_id: resumedAgentId } : {}),
+        status: "failed",
+        same_owner: false,
+      },
+    ];
+  });
+}
+
+function hostReportedResumedAgentId(block: Record<string, unknown>) {
+  const text = toolResultText(block).trim();
+  if (!text) return undefined;
+  try {
+    const result: unknown = JSON.parse(text);
+    return isRecord(result) &&
+      result.success === true &&
+      typeof result.resumedAgentId === "string"
+      ? result.resumedAgentId
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function retainedGoalAgentResumeNotifications(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (
+    event.type !== "system" ||
+    event.subtype !== "task_notification" ||
+    typeof event.tool_use_id !== "string"
+  )
+    return [];
+  const call = state.pendingGoalResumes.get(event.tool_use_id);
+  if (!call || !call.dispatched) return [];
+  state.pendingGoalResumes.delete(event.tool_use_id);
+  const observedAgentId =
+    typeof event.task_id === "string" ? event.task_id : undefined;
+  const completed = completedGoalResumeNotification(event, call);
+  if (!completed) restoreBlockedGoalResume(state, call);
+  return [
+    {
+      type: "darrow.goal_agent_resumption",
+      tool_use_id: event.tool_use_id,
+      goal_tool_use_id: call.goalToolUseId,
+      subagent_type: call.subagentType,
+      agent_id: call.agentId,
+      ...(observedAgentId ? { observed_agent_id: observedAgentId } : {}),
+      status: completed ? "completed" : "failed",
+      same_owner: completed,
+    },
+  ];
+}
+
+function completedGoalResumeNotification(
+  event: ClaudeResultEnvelope,
+  call: PendingGoalAgentResume,
+): boolean {
+  return event.status === "completed" && event.task_id === call.agentId;
+}
+
+function restoreBlockedGoalResume(
+  state: ClaudeEvidenceState,
+  call: PendingGoalAgentResume,
+): void {
+  state.blockedGoalResponse = call.response;
+  state.reportRendered = true;
+  state.renderedGoalStatus = "blocked";
+}
+
 function bashToolCommand(block: unknown) {
   if (!isRecord(block)) return undefined;
   if (block.type !== "tool_use" || block.name !== "Bash") return undefined;
@@ -535,6 +747,7 @@ interface ClaudeEvidenceContext {
   pluginDir: string;
   stagingRoot: string;
   observedRouteTrusted: boolean;
+  engineeringRequest?: string;
 }
 
 function trustedRouteObservation(
@@ -746,6 +959,70 @@ function goalReportCall(
   )
     return undefined;
   return { id: tool.id, status: words[7]! as PendingGoalReport["status"] };
+}
+
+function goalBlockCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+  ledger: string | undefined,
+): { operation: string } | undefined {
+  const tool = bashToolCommand(block);
+  if (!tool) return undefined;
+  const words = literalShellWords(tool.command) ?? [];
+  const baseValid = exactGoalLoopStepWords(
+    words.slice(0, 14),
+    context,
+    ledger,
+    {
+      step: "block",
+      length: 14,
+    },
+  );
+  const valid = [
+    [14, 16].includes(words.length),
+    baseValid,
+    words[6] === "--kind",
+    /^(?:decision|permission|operation|review|gate|dependency)$/.test(
+      words[7] ?? "",
+    ),
+    words[8] === "--operation",
+    !!words[9] && words[9] !== "none",
+    words[10] === "--retry",
+    /^(?:one-attempt|observe-first|evidence-change|forbidden)$/.test(
+      words[11] ?? "",
+    ),
+    words[12] === "--waiver",
+    /^(?:discretionary|forbidden)$/.test(words[13] ?? ""),
+    validGoalBlockEvidence(words),
+  ].every(Boolean);
+  return valid ? { operation: words[9]! } : undefined;
+}
+
+function validGoalBlockEvidence(words: string[]): boolean {
+  if (words.length === 14) return words[11] !== "evidence-change";
+  return [
+    words[14] === "--evidence-sha256",
+    words[11] === "evidence-change",
+    /^[0-9a-f]{64}$/.test(words[15] ?? ""),
+  ].every(Boolean);
+}
+
+function goalEndCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+  ledger: string | undefined,
+): boolean {
+  const tool = bashToolCommand(block);
+  if (!tool) return false;
+  const words = literalShellWords(tool.command);
+  return (
+    exactGoalLoopStepWords(words, context, ledger, {
+      step: "end",
+      length: 8,
+    }) &&
+    words[6] === "--reason" &&
+    /^(?:abandoned|superseded|thread-destroyed)$/.test(words[7] ?? "")
+  );
 }
 
 function stagingReleaseCall(
@@ -1985,19 +2262,165 @@ function retainedPostGoalBlock(
 ): unknown[] {
   if (!isRecord(block) || block.type !== "tool_use") return [];
   if (typeof block.name !== "string") return [];
-  const gate = routeGateCall(block, state.context, state.ledger);
-  if (gate && state.pendingRouteGates.has(gate.id)) return [];
-  if (acceptObjectiveRelease(block, state)) return [];
-  if (acceptGoalReportCall(block, state)) return [];
-  if (block.name === "ToolSearch") return [];
+  if (acceptedPostGoalBlock(block, state)) return [];
   return [
     {
       type: "darrow.parent_repository_tool_after_goal",
       goal_tool_use_id: goalToolUseId,
       tool: block.name,
-      operation: postGoalRepositoryOperation(block),
+      operation:
+        rejectedGoalSendOperation(block, state) ??
+        rejectedBlockedAcquisitionOperation(block, state) ??
+        postGoalRepositoryOperation(block),
     },
   ];
+}
+
+function rejectedBlockedAcquisitionOperation(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): string | undefined {
+  const tool = bashToolCommand(block);
+  if (!tool || !tool.command.includes("decisionctl")) return undefined;
+  if (
+    !state.reportRendered ||
+    state.renderedGoalStatus !== "blocked" ||
+    state.blockedGoalResponse !== undefined ||
+    state.pendingBlockedResponseAcquisitions.size !== 0
+  )
+    return "blocked-acquisition-state";
+  const words = literalShellWords(tool.command);
+  const expected = authorizedBlockedResponseWords(state);
+  if (!words) return "blocked-acquisition-command-shape";
+  if (!expected) return "blocked-acquisition-unauthorized";
+  return words.join("\0") === expected.join("\0")
+    ? "blocked-acquisition-order"
+    : "blocked-acquisition-command-mismatch";
+}
+
+function rejectedGoalSendOperation(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): string | undefined {
+  if (block.name !== "SendMessage") return undefined;
+  const input = normalizedSendMessageInput(block);
+  const goal = [...state.completedGoalAgents.values()][0];
+  if (!input) return "sendmessage-shape";
+  if (!goal || !state.blockedGoalResponse) return "sendmessage-state";
+  const issue = blockedGoalSendIssue(input, goal, state.blockedGoalResponse);
+  return issue ? `sendmessage-${issue}` : "sendmessage-order";
+}
+
+function acceptedPostGoalBlock(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  const gate = routeGateCall(block, state.context, state.ledger);
+  const acceptedGate = !!gate && state.pendingRouteGates.has(gate.id);
+  const acceptedResume =
+    typeof block.id === "string" && state.pendingGoalResumes.has(block.id);
+  return (
+    acceptedGate ||
+    acceptedResume ||
+    acceptedGoalLifecycleCall(block, state) ||
+    acceptBlockedResponseAcquisition(block, state) ||
+    acceptObjectiveRelease(block, state) ||
+    acceptGoalReportCall(block, state) ||
+    block.name === "ToolSearch"
+  );
+}
+
+function acceptedGoalLifecycleCall(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  const blocker = goalBlockCall(block, state.context, state.ledger);
+  if (blocker) {
+    state.blockedOperation = blocker.operation;
+    return true;
+  }
+  return goalEndCall(block, state.context, state.ledger);
+}
+
+function authorizedBlockedResponseWords(
+  state: ClaudeEvidenceState,
+): string[] | undefined {
+  const operation = state.blockedOperation;
+  const request = state.context?.engineeringRequest;
+  if (!operation || !request) return undefined;
+  const match = request.match(
+    /(?:`|\b)([A-Za-z0-9_./-]+)\s+(answer|continue|retry|waive)\s+<blocked-operation>(?:`|\b)/,
+  );
+  return match ? [match[1]!, match[2]!, operation] : undefined;
+}
+
+function acceptBlockedResponseAcquisition(
+  block: Record<string, unknown>,
+  state: ClaudeEvidenceState,
+): boolean {
+  if (
+    !state.reportRendered ||
+    state.renderedGoalStatus !== "blocked" ||
+    state.blockedGoalResponse !== undefined ||
+    state.pendingBlockedResponseAcquisitions.size !== 0
+  )
+    return false;
+  const tool = bashToolCommand(block);
+  const words = tool ? literalShellWords(tool.command) : undefined;
+  const expected = authorizedBlockedResponseWords(state);
+  if (!tool || !words || !expected || words.join("\0") !== expected.join("\0"))
+    return false;
+  state.pendingBlockedResponseAcquisitions.set(tool.id, {
+    mode: expected[1]! as PendingBlockedResponseAcquisition["mode"],
+    operation: expected[2]!,
+  });
+  return true;
+}
+
+function retainBlockedGoalUserResponse(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+): void {
+  if (
+    event.type !== "user" ||
+    !state.reportRendered ||
+    state.renderedGoalStatus !== "blocked" ||
+    state.blockedGoalResponse !== undefined
+  )
+    return;
+  const responses = claudeContent(event).flatMap((block) =>
+    block.type === "text" && typeof block.text === "string" && block.text
+      ? [block.text]
+      : [],
+  );
+  if (responses.length === 1) state.blockedGoalResponse = responses[0]!;
+}
+
+function retainedBlockedResponseAcquisitionResults(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+) {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) => {
+    if (!isRecord(block) || typeof block.tool_use_id !== "string") return [];
+    const pending = state.pendingBlockedResponseAcquisitions.get(
+      block.tool_use_id,
+    );
+    if (!pending || block.type !== "tool_result") return [];
+    state.pendingBlockedResponseAcquisitions.delete(block.tool_use_id);
+    const response = toolResultText(block).trim();
+    const completed =
+      block.is_error !== true && !!response && !/[\r\n]/.test(response);
+    if (completed) state.blockedGoalResponse = response;
+    return [
+      {
+        type: "darrow.blocked_goal_response_acquired",
+        mode: pending.mode,
+        operation: pending.operation,
+        status: completed ? "completed" : "failed",
+      },
+    ];
+  });
 }
 
 function acceptGoalReportCall(
@@ -2005,7 +2428,13 @@ function acceptGoalReportCall(
   state: ClaudeEvidenceState,
 ): boolean {
   const report = goalReportCall(block, state.context, state.ledger);
-  if (!report || state.pendingGoalReport || state.reportRendered) return false;
+  if (
+    !report ||
+    state.pendingGoalReport ||
+    state.reportRendered ||
+    state.pendingGoalResumes.size !== 0
+  )
+    return false;
   state.pendingGoalReport = report;
   return true;
 }
@@ -2062,6 +2491,7 @@ function retainedGoalReportResult(
     if (!validGoalReportValues(report))
       return [postGoalLifecycleViolation(state, "report-failed")];
     state.reportRendered = true;
+    state.renderedGoalStatus = pending.status;
     return [
       {
         type: "darrow.goal_report_rendered",
@@ -2503,6 +2933,13 @@ interface ClaudeEvidenceState {
   pendingReviewAgents: Map<string, PendingReviewAgent>;
   pendingGoalAgents: Map<string, PendingGoalAgent>;
   completedGoalAgents: Map<string, CompletedGoalAgent>;
+  pendingGoalResumes: Map<string, PendingGoalAgentResume>;
+  pendingBlockedResponseAcquisitions: Map<
+    string,
+    PendingBlockedResponseAcquisition
+  >;
+  blockedOperation?: string;
+  blockedGoalResponse?: string;
   pendingRouteGates: Map<string, PendingRouteGate>;
   retainedReviewAgentTurns: Map<string, RetainedReviewAgentTurn>;
   reviewAgentBatch: number;
@@ -2542,6 +2979,7 @@ interface ClaudeEvidenceState {
   objectiveReleased: boolean;
   pendingGoalReport?: PendingGoalReport;
   reportRendered: boolean;
+  renderedGoalStatus?: PendingGoalReport["status"];
 }
 
 function newClaudeEvidenceState(
@@ -2551,6 +2989,8 @@ function newClaudeEvidenceState(
     pendingReviewAgents: new Map(),
     pendingGoalAgents: new Map(),
     completedGoalAgents: new Map(),
+    pendingGoalResumes: new Map(),
+    pendingBlockedResponseAcquisitions: new Map(),
     pendingRouteGates: new Map(),
     retainedReviewAgentTurns: new Map(),
     reviewAgentBatch: 0,
@@ -2581,6 +3021,7 @@ function retainTopLevelClaudeStarts(
   state: ClaudeEvidenceState,
   retained: unknown[],
 ) {
+  retainBlockedGoalUserResponse(event, state);
   retainClaudePreflightStart(event, state);
   retainClaudePreflightResult(event, state);
   retainTempRootProbeStart(event, state);
@@ -2595,6 +3036,7 @@ function retainTopLevelClaudeStarts(
   retainProvisionalClaudeActivationStart(event, state);
   retainProvisionalClaudeActivationResult(event, state);
   retainGoalAgentStarts(event, state);
+  retainGoalAgentResumeStarts(event, state);
   retainDecisionGoalReportStart(event, state);
   retained.push(...retainedPreGoalRepositoryTools(event, state));
   retainRouteGateStarts(event, state);
@@ -2613,6 +3055,9 @@ function retainTopLevelClaudeResults(
       state.completedGoalAgents,
     ),
   );
+  retained.push(...retainedGoalAgentResumeResults(event, state));
+  retained.push(...retainedGoalAgentResumeNotifications(event, state));
+  retained.push(...retainedBlockedResponseAcquisitionResults(event, state));
   retained.push(...retainedRouteGateResults(event, state.pendingRouteGates));
   retained.push(...retainedObjectiveReleaseResults(event, state));
   retained.push(...retainedGoalReportResult(event, state));
@@ -2655,6 +3100,7 @@ function retainedGoalTerminalViolations(state: ClaudeEvidenceState): unknown[] {
   if (
     state.completedGoalAgents.size === 1 &&
     state.expectedAttachment &&
+    goalReportRequiresObjectiveRelease(state.renderedGoalStatus) &&
     !state.objectiveReleased
   )
     violations.push(postGoalLifecycleViolation(state, "release-missing"));
@@ -2761,6 +3207,9 @@ export function claudeArgv(
     "--no-chrome",
     "--dangerously-skip-permissions",
   ];
+  if (/(?:^|\s)(?:\/adaptive-goal|\$adaptive-goal)(?:\s|$)/.test(prompt)) {
+    argv.push("--disallowed-tools", "ScheduleWakeup");
+  }
   if (pluginDir) argv.push("--plugin-dir", pluginDir);
   return argv;
 }
@@ -2940,12 +3389,12 @@ export const claudeAdapter: HarnessAdapter = {
     env.TMPDIR = stagingRoot;
     const evalPlugin = join(repo, ".git", "eval-plugin");
     configureClaudePluginData(env, repo);
-    const evidenceContext = {
-      repoDir: repo,
-      pluginDir: evalPlugin,
+    const evidenceContext = claudeEvidenceContext(
+      repo,
+      evalPlugin,
       stagingRoot,
-      observedRouteTrusted: true,
-    };
+      prompt,
+    );
     try {
       const argv = await sandboxedAgentCommand(
         claudeArgv(
@@ -2981,3 +3430,18 @@ export const claudeAdapter: HarnessAdapter = {
     }
   },
 };
+
+function claudeEvidenceContext(
+  repoDir: string,
+  pluginDir: string,
+  stagingRoot: string,
+  engineeringRequest: string,
+): ClaudeEvidenceContext {
+  return {
+    repoDir,
+    pluginDir,
+    stagingRoot,
+    engineeringRequest,
+    observedRouteTrusted: true,
+  };
+}
