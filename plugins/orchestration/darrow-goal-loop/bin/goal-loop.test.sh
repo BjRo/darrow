@@ -23,6 +23,27 @@ contains() {
   esac
 }
 
+capability_routing_clause='Capability routing: For each exact contract operation with a host-advertised matching capability, invoke and follow that capability before the operation; direct commands are not a substitute, and inability or refusal stops that operation without expanding authority.'
+
+write_goal_contract() {
+  contract_file=$1
+  contract_outcome=$2
+  printf 'Outcome: %s\nWorkflow sequence: %s\n' \
+    "$contract_outcome" "$capability_routing_clause" >"$contract_file"
+}
+
+pad_goal_contract() {
+  contract_file=$1
+  contract_size=$2
+  pad_character=$3
+  current_size=$(wc -c <"$contract_file" | tr -d ' ')
+  test "$current_size" -le "$contract_size" ||
+    fail "goal contract prefix exceeds requested size"
+  remaining_size=$((contract_size - current_size))
+  dd if=/dev/zero bs=1 count="$remaining_size" 2>/dev/null |
+    tr '\000' "$pad_character" >>"$contract_file"
+}
+
 test ! -e "$script_dir/../config/routes.gpt-5.6-candidate.tsv" ||
   fail "candidate route configuration still exists"
 test ! -e "$script_dir/../config/routes.tsv" ||
@@ -344,7 +365,8 @@ EOF
 chmod +x "$fake_bin/codex" "$fake_bin/claude"
 
 goal_file="$tmp_root/goal.txt"
-printf 'Implement the bounded change and run the focused test.\n' >"$goal_file"
+write_goal_contract "$goal_file" \
+  'Implement the bounded change and run the focused test.'
 codex_args="$tmp_root/codex-args.txt"
 if launch_error=$(FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \
   bash "$goal_loop" launch --host codex --repo "$repo" \
@@ -392,7 +414,7 @@ out=$(FAKE_CLAUDE_ARGS="$claude_args" PATH="$fake_bin:$PATH" \
   --goal-file "$goal_file" --provider anthropic --model claude-test --effort high \
   --allow-nested)
 contains "$out" 'claude-call'
-contains "$out" '/goal Implement the bounded change'
+contains "$out" '/goal Outcome: Implement the bounded change'
 contains "$out" '--model claude-test --effort high'
 contains "$out" $'selected_route\tclaude\tanthropic\tclaude-test\thigh'
 contains "$out" $'effective_route\tclaude\tanthropic\tclaude-test\thigh'
@@ -410,7 +432,8 @@ case "$failed_launch" in
 esac
 
 large_goal="$tmp_root/large.txt"
-dd if=/dev/zero bs=4001 count=1 2>/dev/null | tr '\000' x >"$large_goal"
+write_goal_contract "$large_goal" 'Exercise oversized contract handling.'
+pad_goal_contract "$large_goal" 4001 x
 attachment_tmp="$tmp_root/attachment-tmp"
 mkdir -p "$attachment_tmp"
 out=$(TMPDIR="$attachment_tmp" FAKE_CODEX_ARGS="$codex_args" PATH="$fake_bin:$PATH" \

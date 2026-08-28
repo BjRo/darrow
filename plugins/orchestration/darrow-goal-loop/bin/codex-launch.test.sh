@@ -3,6 +3,7 @@ set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
+goal_loop="$plugin_dir/bin/goal-loop"
 skill="$plugin_dir/skills/adaptive-goal/SKILL.md"
 guide="$plugin_dir/skills/adaptive-goal/references/codex-launch.md"
 review_lifecycle="$plugin_dir/skills/adaptive-goal/references/review-lifecycle.md"
@@ -84,5 +85,14 @@ reject_text "$guide" 'If closing fails, report the cleanup failure and do not cl
 reject_text "$guide" '<host-reported-agent-id>'
 # shellcheck disable=SC2016 # literal Markdown code span
 reject_text "$guide" 'or calling `create_goal`'
+
+capability_routing_clause='Capability routing: For each exact contract operation with a host-advertised matching capability, invoke and follow that capability before the operation; direct commands are not a substitute, and inability or refusal stops that operation without expanding authority.'
+# shellcheck disable=SC2016 # literal Markdown code span delimiters
+skill_capability_routing_clause=$(sed -n \
+  '/^`Capability routing:/,/authority\.`$/p' "$skill" | tr '\n' ' ' |
+  sed 's/^`//; s/` $//; s/[[:space:]][[:space:]]*/ /g')
+test "$skill_capability_routing_clause" = "$capability_routing_clause" ||
+  fail 'skill and helper capability-routing clauses drifted'
+require_text "$goal_loop" "capability_routing_clause='$capability_routing_clause'"
 
 printf 'codex launch contract tests passed\n'

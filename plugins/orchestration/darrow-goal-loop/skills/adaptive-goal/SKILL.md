@@ -262,6 +262,20 @@ include the applicable evidence file in `Scope:` and do not exclude it in
 explicitly requested new behavior is already authorized evidence work, not a
 new material product decision.
 
+Compile capability routing into every activated contract. Put this exact
+sentence once in `Workflow sequence:`:
+
+`Capability routing: For each exact contract operation with a host-advertised
+matching capability, invoke and follow that capability before the operation;
+direct commands are not a substitute, and inability or refusal stops that
+operation without expanding authority.`
+
+This applies after the owner receives the full inline contract or reads and
+verifies its file-backed form. It does not select unrelated capabilities, turn
+optional capabilities into workflow phases, or authorize an operation that the
+originating request did not already permit. Selected readiness and review keep
+their stricter availability, timing, evidence, and continuation rules.
+
 Compile this human-feedback rule into every activated contract. A material
 decision known during preflight still selects `decision-gated` and prevents
 launch. When a material decision first emerges after activation, pause

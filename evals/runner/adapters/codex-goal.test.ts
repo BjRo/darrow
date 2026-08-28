@@ -136,6 +136,8 @@ const prepared = [
   "workflow\tmechanical\t/plugin/references/workflows/mechanical.md",
 ].join("\n");
 const dimensions = parsePreparedGoalDimensions(prepared);
+const capabilityRoutingClause =
+  "Capability routing: For each exact contract operation with a host-advertised matching capability, invoke and follow that capability before the operation; direct commands are not a substitute, and inability or refusal stops that operation without expanding authority.";
 
 function handoffValue() {
   return {
@@ -166,7 +168,7 @@ function handoffValue() {
       "Non-goals: Unrelated behavior.",
       "Preserved work: Existing fixture changes.",
       "Permissions: Repository-local implementation only.",
-      "Workflow sequence: Follow change-feature guidance.",
+      `Workflow sequence: Follow change-feature guidance. ${capabilityRoutingClause}`,
       "Feedback checks: Run the focused stream test.",
       "Final-tree checks: Run the scoped repository gate.",
       "Stopping budget: No numeric review limit.",
@@ -796,7 +798,10 @@ after`);
         "--review",
         "selected",
       ]);
-      const goalContract = "Outcome: keep this inline objective readable";
+      const goalContract = [
+        "Outcome: keep this inline objective readable",
+        `Workflow sequence: ${capabilityRoutingClause}`,
+      ].join("\n");
       let objective = "";
       const materialized = await activateMaterializedGoal(
         goalSetter((params) => {

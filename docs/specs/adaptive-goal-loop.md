@@ -115,6 +115,8 @@ native goal. It contains:
   portable pre-mutation continuation clause when selected;
 - the selected independent-review gate, when risk, repository policy, or the
   user requires one, including any explicit user-supplied review limit;
+- intent-matched capability routing for every exact operational intent
+  preserved from the originating request; and
 - the final evaluation records required by this capability.
 
 The contract MUST remain concise. Repository detail already present in the
@@ -1129,6 +1131,19 @@ the least launch machinery the host supports.
     `ready` returns a concrete quality bar. Every non-ready verdict prevents
     mutation, settles the goal as blocked, and returns the complete readiness
     result before the outer native-goal report.
+15. **AGL-L15 — Intent-matched capability routing.** After receiving the full
+    inline contract or reading and verifying its file-backed form, the goal
+    owner reassesses the host-advertised capability catalog against every exact
+    operational intent preserved from the originating request. When a matching
+    capability is advertised, the owner MUST invoke and follow that capability
+    before performing the operation; a direct shell, tracker, Git, forge, or
+    generic tool call is not a substitute for the capability's protocol. If the
+    capability cannot be invoked or its protocol refuses the operation, the
+    owner stops before that operation and reports the evidence gap honestly.
+    This rule is identical for inline and file-backed objectives, grants no new
+    authority, does not require unrelated capabilities, and does not weaken the
+    stricter availability and continuation rules for selected readiness or
+    review gates.
 
 ### Safety invariants
 
@@ -1303,6 +1318,15 @@ the least launch machinery the host supports.
     Codex and Claude. Compare candidate and control trials under the same
     fixtures, prompts, checks, harness, model, and effort, reporting trial count
     and limitations.
+16. Exercise a file-backed objective that preserves exact ticket-read, commit,
+    push, and pull-request intents while matching capabilities are advertised
+    to the native owner. Verify that the owner invokes each matching capability
+    before its operation, does not substitute direct tracker, Git, or forge
+    commands, and preserves any separately selected review invocation. Include
+    an unavailable-capability variant that stops before the affected operation.
+    Compare candidate and control on the same native host harness, fixture,
+    prompt, checks, model, and effort; run another host only when making a
+    cross-host claim.
 
 ## Non-goals
 
