@@ -1,0 +1,23 @@
+id: prepare-task-branch-reuse-existing
+invariant: GW-TB1,GW-TB2,GW-TB3,GW-TB5,GW-TB6
+expect_head_change: false
+prompt: >-
+  Use {{skill_invocation}} to prepare the exact existing branch
+  `fix/DAR-123-attribution` for the active provider's canonical token DAR-123.
+  Reuse it without moving its tip.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: git branch fix/DAR-123-attribution
+checks:
+  - name: exact existing branch is active
+    run: git branch --show-current
+    expect_exact: "fix/DAR-123-attribution"
+  - name: existing branch tip is unchanged
+    run: git rev-list --count fix/DAR-123-attribution
+    expect_exact: "1"
+output_checks:
+  - name: reports reuse
+    expect_regex: "reused|existing"

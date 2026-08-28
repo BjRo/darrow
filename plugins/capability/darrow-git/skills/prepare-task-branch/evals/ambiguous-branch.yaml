@@ -1,0 +1,18 @@
+id: prepare-task-branch-ambiguous-branch
+invariant: GW-TB1,GW-TB3
+expect_head_change: false
+prompt: >-
+  Prepare either `fix/DAR-123-attribution` or `feat/DAR-123-observability` for
+  canonical token DAR-123, whichever seems better.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: ambiguous name causes no branch mutation
+    run: git branch --show-current
+    expect_exact: "main"
+output_checks:
+  - name: asks for one exact branch
+    expect_regex: "which|exact|choose|ambiguous"

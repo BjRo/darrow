@@ -1,0 +1,21 @@
+id: prepare-task-branch-create-missing
+invariant: GW-TB1,GW-TB2,GW-TB3,GW-TB5
+expect_head_change: false
+prompt: >-
+  Prepare the exact task branch `fix/DAR-123-attribution` for the active
+  provider's canonical token DAR-123. It does not exist yet; create it from
+  main without committing anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: missing task branch is created and active
+    run: git branch --show-current
+    expect_exact: "fix/DAR-123-attribution"
+  - name: task branch starts at deliberate base
+    run: test "$(git rev-parse HEAD)" = "$(git rev-parse main)"
+output_checks:
+  - name: reports creation and base
+    expect_regex: "created|from main"

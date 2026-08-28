@@ -1,0 +1,24 @@
+id: prepare-task-branch-no-trigger-branch-listing
+invariant: GW-TB1,GW-TB6
+activation: negative
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Show me the local Git branches in this repository. Do not create, switch, or
+  prepare any branch.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: git branch feat/existing
+checks:
+  - name: ordinary listing leaves current branch unchanged
+    run: git branch --show-current
+    expect_exact: "main"
+  - name: response lists the existing branch
+    run: cat .git/last-message.md
+    expect_regex: "feat/existing"
+  - name: skill preparation protocol was not invoked
+    run: cat .git/last-message.md
+    not_regex: "## mode: (current|reused|created|worktree-)"

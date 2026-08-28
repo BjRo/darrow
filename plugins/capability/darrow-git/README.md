@@ -21,6 +21,17 @@ clobbered.
 
 Example: _“Create a branch for DAR-123 retry handling.”_
 
+### `prepare-task-branch`
+
+Creates or reuses one exact ticket-linked task branch in the current checkout
+or, only on explicit request, in a linked worktree. Existing branch tips stay
+fixed, the active provider's opaque token is required, and compatible
+uncommitted work is preserved without stashing or committing it. A worktree
+result returns the attributed execution path while leaving the caller's
+checkout untouched.
+
+Example: _“Prepare the existing branch for DAR-123 before continuing.”_
+
 ### `create-commit`
 
 Creates one new Conventional Commit. An existing staged set is treated as the
@@ -45,16 +56,16 @@ Example: _“Push this branch and open a draft PR.”_
 
 ### Bundled workflow scripts
 
-Each skill includes its own Bash script under `skills/<skill>/scripts/`. The
-scripts inspect and validate repository state, perform only the authorized Git
-or GitHub operation, and return structured evidence for the skill to interpret.
-They are implementation details of the workflows rather than a general Git
-wrapper.
+Each skill uses its own bundled Bash script under `skills/<skill>/scripts/`.
+The scripts inspect and validate repository state, perform only the authorized
+Git or GitHub operation, and return structured evidence for the skill to
+interpret. They are implementation details of the workflows rather than a
+general Git wrapper.
 
 ## Design boundaries
 
-- The three skills do not chain implicitly: creating a commit does not push,
-  and creating a branch does not commit.
+- The four skills do not chain implicitly: creating a commit does not push, and
+  creating or preparing a branch does not commit.
 - Commit and pull-request text follows Conventional Commits and contains no AI
   attribution.
 - Hooks and repository safety checks are respected rather than bypassed.

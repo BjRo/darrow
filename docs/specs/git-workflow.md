@@ -4,7 +4,8 @@ Consolidates the git workflow into intent-triggered skills so that branching,
 committing, and PR creation are consistent, traceable, and safe regardless of
 which agent runtime executes them.
 
-Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`, `create-pr`.
+Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`,
+`prepare-task-branch`, `create-pr`.
 
 GW-B6 applies only when the caller explicitly asks the `create-branch`
 capability to allocate an additional linked worktree.
@@ -113,6 +114,56 @@ new linked worktree instead and the current checkout stays where it is.
 Pushing, upstream setup, fetch/pull before branching, deleting or renaming
 branches, removing/moving/pruning worktrees, checking out an existing
 branch into a worktree, PR creation (see create-pr).
+
+## prepare-task-branch
+
+### Intent triggers
+
+"prepare the task branch", "switch to the existing ticket branch", "create or
+reuse the branch for this ticket", or a composed request from an explicitly
+authorized delivery workflow that needs its exact task branch active before
+downstream work.
+
+### Contract
+
+Prepare exactly one conventional ticket-linked task branch. By default, do so
+in the current checkout: switch to an exact existing local branch without
+moving it, create a missing branch from a deliberate base, or report an already
+active branch without mutation. Only when the caller explicitly requests a
+worktree, prepare the branch in a linked worktree and return its execution path
+while leaving the caller's checkout untouched.
+
+### Invariants
+
+- **GW-TB1 — Exact correlation.** The caller supplies one exact conventional
+  branch name and the active ticket provider's opaque canonical token. The slug
+  begins with that token exactly once. Generic Git never searches for, derives,
+  normalizes, or guesses a correlated name.
+- **GW-TB2 — Additive preparation.** An existing branch is switched to or
+  attached to a worktree without resetting or moving it; a missing branch is
+  created from the named base or current `HEAD`. The result reports `current`,
+  `reused`, or `created` (with a `worktree-` prefix when applicable) plus the
+  exact branch, base or fully qualified existing branch tip, and worktree path
+  when applicable.
+- **GW-TB3 — No work lost.** Uncommitted changes are never stashed, reset,
+  discarded, or committed. A refused switch relays Git's failure and leaves the
+  original branch, refs, worktree, index, and stash intact.
+- **GW-TB4 — Conflicts stop.** Merge, rebase, cherry-pick, revert, or unmerged
+  index state prevents preparation before any branch mutation.
+- **GW-TB5 — Explicit worktree context.** Worktree preparation occurs only on
+  an explicit caller request. It reuses an exact branch's existing worktree or
+  adds a new linked worktree without switching or changing the caller's
+  checkout, and reports the absolute execution path. It never moves or removes
+  a linked worktree and never fetches or changes a remote ref.
+- **GW-TB6 — Composable capability.** The skill advertises one focused public
+  intent that an authorized task recipe can request before its readiness gate,
+  without assuming that recipe or any observability plugin is installed.
+
+### Non-goals
+
+Choosing among several plausible branches, determining ticket identity,
+classifying dirty-work ownership, committing, pushing, pull-request creation,
+implicit worktree allocation, or changing an existing branch tip.
 
 ## create-pr
 

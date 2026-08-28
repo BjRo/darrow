@@ -62,23 +62,40 @@ The recipe accepts either:
 
 Useful input consists of a stable identifier when one exists, the desired
 outcome, description, observable acceptance criteria, and canonical link when
-available. Tracker-management metadata is not required.
+available. Before Git mutation, the active ticket provider must also supply its
+exact opaque canonical token. Tracker-management metadata is not required.
 
 Before adaptive delegation, the recipe:
 
 1. resolves exactly one non-contradictory authoritative request;
 2. confirms the invocation's exact authority; and
-3. invokes an available implementation-readiness capability through a composed,
+3. requests an available compatible Git capability to create or reuse and
+   switch to the ticket-linked task branch, or to prepare it in a linked
+   worktree only when the user explicitly requested one; and
+4. invokes an available implementation-readiness capability through a composed,
    human-readable contract.
 
-Only `ready` permits delegation that can cause product, repository, or
-publication mutation. A
+Task-branch preparation is the sole repository effect permitted before the
+readiness verdict. It is intake already authorized by explicit recipe
+invocation, occurs immediately after the ticket and canonical token are known,
+and exists so branch-inferred observability attributes readiness and later
+delivery turns to the authoritative ticket. The branch operation remains
+additive: it never resets, stashes, discards, or commits work. If safe branch
+preparation is unavailable, conflicting, or ambiguous, the recipe stops before
+readiness rather than guessing. For an explicit worktree request, the recipe
+leaves the caller's checkout untouched and performs readiness and all later
+delegation from the attributed worktree path returned by the Git capability.
+
+Only `ready` permits implementation, commit, publication, or adaptive delegation
+that can cause further product, repository, or external mutation. A
 `needs-decision` result causes the parent conversation to ask the smallest
 concrete question and rerun readiness after the user's answer. This is a pause,
 not a terminal recipe outcome. A `needs-discovery` result may offer a separate
 discovery capability but MUST NOT invoke it without matching authority. Missing,
 ambiguous, contradictory, blocked, or declined input stops before delivery
-mutation and reports the smallest next action.
+mutation beyond the already prepared task branch and reports the smallest next
+action. The recipe preserves that additive branch state instead of rolling it
+back.
 
 ## Adaptive execution and human feedback
 
@@ -108,11 +125,13 @@ private retry loop, durable phase state, or background supervisor.
 ## Local work and Git safety
 
 Pre-existing work belongs to the user and is never discarded, reset, stashed,
-or absorbed merely to make delivery proceed. Adaptive-goal observes the actual
-checkout and judges whether overlap is ticket-owned, unrelated, or ambiguous;
-the recipe does not duplicate repository preflight. Ticket-owned overlap may
-proceed as preserved work, while unrelated or ambiguous work stops mutation.
-An explicitly requested worktree leaves the original checkout untouched.
+or absorbed merely to make delivery proceed. The compatible Git capability
+owns the safety of the early additive branch operation and preserves any
+uncommitted work. Adaptive-goal later observes the actual checkout and judges
+whether overlap is ticket-owned, unrelated, or ambiguous; the recipe does not
+duplicate that repository preflight. Ticket-owned overlap may proceed as
+preserved work, while unrelated or ambiguous work stops further mutation. An
+explicitly requested worktree leaves the original checkout untouched.
 
 Branch, commit, push, and pull-request mechanics follow the available canonical
 Git capabilities. At the recipe boundary:
@@ -184,20 +203,25 @@ the ticket is fulfilled.
 
 1. **TPR-C1 — Explicit activation.** Only explicit ticket-to-PR invocation
    activates the recipe and its publication authority.
-2. **TPR-C2 — Ready authoritative request.** Delivery mutation uses exactly one
-   resolved, non-contradictory request with a `ready` verdict.
+2. **TPR-C2 — Ready authoritative request.** Pre-readiness mutation is limited
+   to safely preparing the resolved ticket's additive task branch; every other
+   delivery mutation uses exactly one resolved, non-contradictory request with
+   a `ready` verdict.
 3. **TPR-C3 — Human decisions remain human.** A missing decision is asked as
    the smallest concrete question, never inferred; feedback grants only what it
    explicitly states.
 4. **TPR-C4 — One native goal owner.** One adaptive host-native goal owns
    implementation, feedback continuation, verification, and completion without
    a Darrow workflow runtime.
-5. **TPR-C5 — Bounded authority and preserved work.** The recipe preserves
-   pre-existing work and performs only the authorized task branch, intended
-   commits, non-force push, and one pull request. When the active ticket
-   provider supplies an opaque canonical token, a derived task branch preserves
-   it exactly once after its Conventional Commit type (`<type>/<token>-…`);
-   missing tokens require the smallest question before Git mutation.
+5. **TPR-C5 — Bounded authority and preserved work.** Immediately after ticket
+   resolution, the recipe safely prepares the task branch so automatic
+   branch-inferred observability sees the authoritative ticket before readiness.
+   It preserves pre-existing work and performs only the authorized task branch,
+   intended commits, non-force push, and one pull request. When the active
+   ticket provider supplies an opaque canonical token, a derived task branch
+   preserves it exactly once after its Conventional Commit type
+   (`<type>/<token>-…`); missing tokens require the smallest question before Git
+   mutation.
 6. **TPR-C6 — Idempotent publication.** Correlated branches and pull requests
    are reused, and ambiguous external results are inspected before retrying.
 7. **TPR-C7 — Current-content evidence.** Success requires the ticket quality
@@ -248,9 +272,11 @@ Required cases are:
 
 1. **TPR-E1 — Ready delivery.** A ready ticket produces exactly one verified,
    review-ready pull request with the intended committed scope.
-2. **TPR-E2 — Intake and readiness.** Resolved ready input proceeds; missing,
-   ambiguous, contradictory, blocked, or declined input causes no delivery
-   mutation.
+2. **TPR-E2 — Intake and readiness.** Resolved input safely prepares or reuses
+   its ticket branch before readiness so branch-inferred observability records
+   the authoritative ticket. Ready input proceeds; missing, ambiguous,
+   contradictory, blocked, or declined input causes no mutation beyond the
+   preserved additive task branch.
 3. **TPR-E3 — Human feedback.** `needs-decision` and an implementation-time
    material question reach the user through the parent, then the same delivery
    continues only from the explicit answer.
