@@ -33,26 +33,54 @@ plugin, serialization, or agent type. Missing, ambiguous, contradictory,
 blocked, or declined authority stops before mutation with the smallest useful
 next action.
 
-Preserve the exact ticket, canonical link when available, desired outcome, and
-acceptance criteria. The recipe does not inspect repository state: adaptive-goal
-owns preparation and decides whether pre-existing work is ticket-owned,
-unrelated, or ambiguous.
+Preserve the exact ticket, canonical link when available, desired outcome,
+acceptance criteria, and exact opaque canonical token supplied by the active
+ticket provider. Do not normalize, map, or derive that token. If it is absent,
+ask one smallest question and perform no Git mutation.
 
-## 3. Compose readiness before delegation
+## 3. Prepare the attribution branch
+
+Immediately after resolving the ticket and token, before readiness, request an
+available compatible Git capability to create or reuse and switch to the exact
+ticket-linked task branch. When the user explicitly requested a worktree,
+request preparation there instead, leave the caller's checkout untouched, and
+use the returned absolute worktree path as the execution context for readiness
+and every later capability. This additive branch-only effect is already
+authorized by the explicit recipe invocation and makes automatic branch-inferred
+observability attribute readiness and later delivery turns to the authoritative
+ticket.
+
+The branch must use a Conventional Commit type and lead with the opaque token
+exactly once (`<type>/<token>-…`). Reuse only an unambiguously correlated branch;
+otherwise create one from a deliberate base through the matching capability. If
+the current branch already satisfies that exact correlation, keep it. Preserve
+uncommitted work and every existing ref. Refuse conflicts, ambiguous correlation,
+an unsafe base, or any operation requiring reset, stash, discard, force, or
+commit. If no compatible capability is available, stop with the smallest useful
+next action.
+
+The recipe requests the branch outcome by public intent and does not implement
+Git mechanics or duplicate adaptive-goal's later ownership judgment. Keep the
+prepared branch or worktree active across a non-ready result; never roll it back
+or delete it merely because delivery pauses or stops.
+
+## 4. Compose readiness before delegation
 
 Request an available implementation-readiness capability using the resolved
-ticket and this composed contract. Request a human-readable result. Do not
+ticket and this composed contract, from the prepared execution context. Request
+a human-readable result. Do not
 write a native-goal contract, select workflow/risk/model/effort/route/reviewer,
 or assess readiness again inside the goal.
 
 - `ready`: preserve its concrete quality bar as same-scope evidence and continue.
 - `needs-decision`: ask the smallest question verbatim, relay the explicit answer,
-  then rerun readiness before any delivery mutation.
+  then rerun readiness before implementation or further delivery mutation.
 - `needs-discovery`: offer discovery but do not invoke it without matching
   authority.
-- `blocked`, unavailable, or declined: stop with zero delivery mutation.
+- `blocked`, unavailable, or declined: stop with no mutation beyond the
+  preserved additive task branch.
 
-## 4. Delegate once with bounded authority
+## 5. Delegate once with bounded authority
 
 Delegate exactly once to an available adaptive native-goal capability. Preserve
 the explicit recipe invocation, originating request, ticket authority, ready
@@ -60,13 +88,12 @@ quality bar, and this envelope. The delegated request must include:
 
 - authoritative ticket and canonical link when available; outcome, acceptance
   criteria, scope, non-goals, and concrete readiness quality bar;
-- the exact opaque canonical token supplied by the active ticket provider. A
-  derived branch must use a Conventional Commit type and lead with that token
-  once (`<type>/<token>-…`); do not map it to another provider's format. If it
-  is absent, ask one smallest question before Git mutation;
+- the exact opaque canonical token supplied by the active ticket provider and
+  the already active, unambiguously correlated task branch that leads with it,
+  plus the returned worktree path when one was explicitly requested;
 - pre-existing work is user-owned: ticket-owned overlap may proceed as
   preserved work; unrelated or ambiguous overlap stops;
-- authority to create or reuse one task branch, create intended Conventional
+- authority to use the prepared task branch, create intended Conventional
   Commits, non-force push, and create or reuse exactly one pull request; and
 - prohibition of merge, auto-merge, deployment, release, ticket mutation,
   reviewer assignment, labels, milestones, force operations, and unrelated
@@ -83,7 +110,7 @@ Do not include a workflow, risk, model, effort, route, reviewer, native-goal
 contract, ledger path, or runner choice. Do not invent metadata fields such as
 `caller_kind` or require special child invocation syntax.
 
-## 5. Relay and report
+## 6. Relay and report
 
 Relay an adaptive-goal human-feedback question and the user's explicit answer
 verbatim to the same active owner. After it returns, preserve its ticket,

@@ -1,15 +1,36 @@
 id: ticket-to-pr-dirty-work
 invariant: TPR-C5
 goal_report: forbidden
+expect_head_change: false
 prompt: >-
-  Use $ticket-to-pr to deliver ticket #42. There is unrelated dirty work in
+  Use {{skill_invocation}} to deliver the authoritative ticket whose active
+  provider supplies canonical token DAR-123. There is unrelated dirty work in
   unrelated.txt. Preserve it and stop rather than publishing it.
 fixture:
   commits:
     - message: "chore: init"
       files:
         unrelated.txt: "base\n"
-checks: []
+        .claude/skills/prepare-task-branch/SKILL.md: &branch_skill |
+          ---
+          name: prepare-task-branch
+          description: Safely prepare the exact ticket branch before downstream delivery. Use when an authorized task recipe needs to create or switch its task branch without losing local work.
+          ---
+
+          # Prepare a task branch
+
+          Inspect the working tree before switching. When `unrelated.txt` has
+          uncommitted changes, make no Git mutation and return exactly:
+          `blocked: unrelated dirty work is preserved`. Never stash, reset,
+          discard, commit, or move that work.
+        .agents/skills/prepare-task-branch/SKILL.md: *branch_skill
+  setup: printf '%s\n' local >>unrelated.txt
+checks:
+  - name: unrelated work remains uncommitted and unchanged
+    run: test "$(tail -n 1 unrelated.txt)" = local && test -n "$(git status --short -- unrelated.txt)"
+  - name: refused preparation leaves the original branch active
+    run: git branch --show-current
+    expect_exact: "main"
 output_checks:
   - name: preserves unrelated work
-    expect_regex: "unrelated|preserv"
+    expect_regex: "unrelated.*preserv"

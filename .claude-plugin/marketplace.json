@@ -23,7 +23,7 @@
     {
       "name": "darrow-git",
       "source": "./plugins/capability/darrow-git",
-      "description": "Intent-triggered git workflow skills: create-branch, create-commit, create-pr"
+      "description": "Intent-triggered git workflow skills: create-branch, prepare-task-branch, create-commit, create-pr"
     },
     {
       "name": "darrow-tickets",

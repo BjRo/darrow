@@ -1,0 +1,18 @@
+id: prepare-task-branch-missing-token
+invariant: GW-TB1,GW-TB3
+expect_head_change: false
+prompt: >-
+  Prepare `fix/request-attribution` for the active ticket, but the ticket
+  provider did not supply its canonical token.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: missing token causes no branch mutation
+    run: git branch --show-current
+    expect_exact: "main"
+output_checks:
+  - name: asks for the provider token
+    expect_regex: "token|identifier"

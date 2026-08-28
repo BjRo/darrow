@@ -1,0 +1,27 @@
+id: prepare-task-branch-worktree
+invariant: GW-TB1,GW-TB2,GW-TB3,GW-TB5,GW-TB6
+expect_head_change: false
+prompt: >-
+  Use {{skill_invocation}} to prepare `fix/DAR-123-attribution` for the active
+  provider's canonical token DAR-123 in a linked worktree. I explicitly want a
+  worktree and did not name a custom path. Leave this checkout and its dirty
+  change untouched, and report the execution path.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: printf 'dirty\n' >> README.md
+checks:
+  - name: original checkout remains on main
+    run: git branch --show-current
+    expect_exact: "main"
+  - name: original dirty change remains
+    run: tail -n 1 README.md
+    expect_exact: "dirty"
+  - name: attributed branch is active in returned default worktree
+    run: git -C .worktrees/fix/DAR-123-attribution branch --show-current
+    expect_exact: "fix/DAR-123-attribution"
+output_checks:
+  - name: reports worktree execution context
+    expect_regex: "worktree-created|\\.worktrees/fix/DAR-123-attribution"

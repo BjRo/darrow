@@ -1,0 +1,31 @@
+id: ticket-to-pr-pre-readiness-branch
+invariant: TPR-C2,TPR-C3,TPR-C5,TPR-C9,TPR-E2,TPR-E3
+goal_report: forbidden
+expect_head_change: false
+prompt: >-
+  Use {{skill_invocation}} to deliver the authoritative ticket whose active
+  provider supplies canonical token DAR-123. The existing branch
+  `fix/DAR-123-attribution` is unambiguously correlated with that ticket. The
+  available implementation-readiness capability will ask which migration
+  policy to use. Follow the recipe and ask the smallest question; do not
+  implement anything until the decision is supplied.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-pre-readiness-branch.sh" "$PWD"
+    "{{case_dir}}/fixtures"
+checks:
+  - name: readiness observes the ticket branch
+    run: cat .git/ticket-to-pr-readiness-branch
+    expect_exact: "fix/DAR-123-attribution"
+  - name: non-ready interaction preserves the ticket branch
+    run: git branch --show-current
+    expect_exact: "fix/DAR-123-attribution"
+  - name: readiness runs exactly once
+    run: test "$(wc -l <.git/ticket-to-pr-readiness-invocations | tr -d ' ')" -eq 1
+output_checks:
+  - name: asks the smallest readiness decision
+    expect_regex: "migration policy|which.*policy|decision"
