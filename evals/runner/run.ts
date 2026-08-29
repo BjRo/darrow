@@ -1,5 +1,12 @@
 import { readFile, mkdir, rename, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -51,6 +58,7 @@ import type {
   EvalCase,
   GoalRouteApplication,
   HarnessAdapter,
+  HarnessRunRequest,
   HarnessResult,
   TrialResult,
 } from "./types";
@@ -259,14 +267,52 @@ async function scanCases(
   return cases;
 }
 
-function validateCaseConfiguration(evalCase: EvalCase): void {
+function validateOptionalBoolean(
+  evalCase: EvalCase,
+  field: "goal_route_checks" | "expect_head_change",
+): void {
+  const value = evalCase[field];
+  if (value !== undefined && value !== null && typeof value !== "boolean")
+    throw new Error(`${evalCase.id}: ${field} must be a boolean`);
+}
+
+function validateFollowUpPrompt(evalCase: EvalCase): void {
   if (
-    evalCase.expect_head_change !== undefined &&
-    evalCase.expect_head_change !== null &&
-    typeof evalCase.expect_head_change !== "boolean"
+    evalCase.follow_up_prompt !== undefined &&
+    (typeof evalCase.follow_up_prompt !== "string" ||
+      !evalCase.follow_up_prompt.trim())
   ) {
-    throw new Error(`${evalCase.id}: expect_head_change must be a boolean`);
+    throw new Error(
+      `${evalCase.id}: follow_up_prompt must be a non-empty string`,
+    );
   }
+}
+
+function validateCompositionPaths(evalCase: EvalCase): void {
+  for (const [field, paths] of [
+    ["source_plugin", evalCase.source_plugin ? [evalCase.source_plugin] : []],
+    ["additional_skills", evalCase.additional_skills ?? []],
+  ] as const) {
+    for (const path of paths) {
+      if (
+        typeof path !== "string" ||
+        !path.trim() ||
+        isAbsolute(path) ||
+        relative(ROOT, resolve(ROOT, path)).startsWith("..")
+      ) {
+        throw new Error(
+          `${evalCase.id}: ${field} entries must be non-empty repository-relative paths`,
+        );
+      }
+    }
+  }
+}
+
+function validateCaseConfiguration(evalCase: EvalCase): void {
+  validateOptionalBoolean(evalCase, "goal_route_checks");
+  validateOptionalBoolean(evalCase, "expect_head_change");
+  validateFollowUpPrompt(evalCase);
+  validateCompositionPaths(evalCase);
   const activationErrors = validateActivationCase(evalCase);
   if (activationErrors.length) throw new Error(activationErrors.join("; "));
   const regexErrors = [
@@ -333,6 +379,23 @@ function trialPrompt(options: RunCaseOptions, repoDir: string): string {
     .replaceAll("{{effort}}", effort);
 }
 
+function trialFollowUpPrompt(
+  options: RunCaseOptions,
+  repoDir: string,
+): string | undefined {
+  const template = options.evalCase.follow_up_prompt;
+  if (!template) return undefined;
+  return renderParticipantPrompt(
+    template,
+    options.adapter.name,
+    options.evalCase,
+  )
+    .replaceAll("{{repo_dir}}", repoDir)
+    .replaceAll("{{harness}}", options.adapter.name)
+    .replaceAll("{{model}}", options.model)
+    .replaceAll("{{effort}}", options.effort);
+}
+
 function trialCheckEnvironment(
   options: RunCaseOptions,
 ): Record<string, string> {
@@ -388,8 +451,19 @@ function requiresStandaloneEvaluationRecords(options: RunCaseOptions) {
   return standaloneEvaluationRecordEvidence(options) === true;
 }
 
+// The digest deliberately includes every optional case-control dimension.
+// eslint-disable-next-line complexity
 function evaluationDigest(options: RunCaseOptions): string {
   const { evalCase, adapter, condition, judge } = options;
+  const {
+    follow_up_prompt: followUpPrompt = null,
+    source_plugin: sourcePlugin = null,
+    additional_skills: additionalSkills = [],
+    output_checks: outputChecks = [],
+    transcript_checks: transcriptChecks = [],
+    goal_route_checks: goalRouteChecks = true,
+    expect_head_change: expectHeadChange = null,
+  } = evalCase;
   const participantPromptTemplate = condition?.text.trim()
     ? `${condition.text.trim()}\n\n${evalCase.prompt}`
     : evalCase.prompt;
@@ -400,13 +474,17 @@ function evaluationDigest(options: RunCaseOptions): string {
   );
   const evidence = stableEvidence({
     participantPrompt,
+    followUpPrompt,
+    sourcePlugin,
+    additionalSkills,
     fixture: evalCase.fixture,
     checks: evalCase.checks,
-    outputChecks: evalCase.output_checks ?? [],
-    transcriptChecks: evalCase.transcript_checks ?? [],
+    outputChecks,
+    transcriptChecks,
     activation: activationEvidence(evalCase),
     goalReport: goalReportEvidence(evalCase),
-    expectHeadChange: evalCase.expect_head_change ?? null,
+    goalRouteChecks,
+    expectHeadChange,
     requireEvaluationRecords: standaloneEvaluationRecordEvidence(options),
     expectedGoalRoute: options.expectedGoalRoute ?? null,
     assertedGoalRoute: options.assertedGoalRoute ?? null,
@@ -418,15 +496,21 @@ function evaluationDigest(options: RunCaseOptions): string {
 
 function goalRouteControl(
   expectedGoalRoute: GoalRouteExpectation | undefined,
-): Parameters<HarnessAdapter["run"]>[4] {
-  if (!expectedGoalRoute) return undefined;
+  followUpPrompt: string | undefined,
+): HarnessRunRequest["control"] {
+  if (!expectedGoalRoute && !followUpPrompt) return undefined;
   return {
-    expectedGoalRoute: {
-      harness: "codex",
-      provider: "openai",
-      model: expectedGoalRoute.model,
-      effort: expectedGoalRoute.effort,
-    },
+    ...(expectedGoalRoute
+      ? {
+          expectedGoalRoute: {
+            harness: "codex",
+            provider: "openai",
+            model: expectedGoalRoute.model,
+            effort: expectedGoalRoute.effort,
+          },
+        }
+      : {}),
+    ...(followUpPrompt ? { followUpPrompt } : {}),
   };
 }
 
@@ -591,6 +675,8 @@ function adaptiveGoalReportChecks(
   adapterName: string,
 ): CheckResult[] {
   if (!evalCase.skillDir.endsWith("/adaptive-goal")) return [];
+  if (evalCase.goal_route_checks === false)
+    return [internalGoalRecordCheck(harness.resultText)];
   const reportPolicy = evalCase.goal_report ?? "required";
   const hasReport =
     /^[ \t]*format: darrow-native-goal-report-v1[ \t]*\r?$/m.test(
@@ -821,38 +907,45 @@ async function evaluateDryTrial(
   );
 }
 
-async function runTrial(
+function trialFixtureOptions(
   options: RunCaseOptions,
-  trial: number,
-): Promise<TrialResult> {
-  const {
-    evalCase,
-    adapter,
-    model,
-    effort,
-    dry,
-    withoutSkill = false,
-  } = options;
-  const repoDir = await buildFixture({
+): Parameters<typeof buildFixture>[0] {
+  const { evalCase, adapter, withoutSkill = false } = options;
+  return {
     fixture: evalCase.fixture,
     skillDir: withoutSkill ? "" : evalCase.skillDir,
     skillMounts: adapter.skillMounts,
     mountPluginSkills: evalCase.mount_plugin_skills ?? false,
+    sourcePluginRoot: evalCase.source_plugin
+      ? resolve(ROOT, evalCase.source_plugin)
+      : undefined,
+    additionalSkillDirs: (evalCase.additional_skills ?? []).map((path) =>
+      resolve(ROOT, path),
+    ),
     sourceClaudePlugin: adapter.sourceClaudePlugin,
     sourceCodexPlugin: adapter.sourceCodexPlugin,
     caseDir: evalCase.caseDir,
-  });
+  };
+}
+
+async function runTrial(
+  options: RunCaseOptions,
+  trial: number,
+): Promise<TrialResult> {
+  const { adapter, model, effort, dry } = options;
+  const repoDir = await buildFixture(trialFixtureOptions(options));
   try {
     const baseRevision = await repositoryHead(repoDir);
     const prompt = trialPrompt(options, repoDir);
+    const followUpPrompt = trialFollowUpPrompt(options, repoDir);
     if (dry) return await evaluateDryTrial(options, trial, repoDir);
-    const harness: HarnessResult = await adapter.run(
+    const harness: HarnessResult = await adapter.run({
       repoDir,
       prompt,
       model,
       effort,
-      goalRouteControl(options.expectedGoalRoute),
-    );
+      control: goalRouteControl(options.expectedGoalRoute, followUpPrompt),
+    });
     const result = await evaluateTrial(options, {
       trial,
       repoDir,

@@ -5,6 +5,7 @@ const SKILL_INVOCATION_PLACEHOLDER = "{{skill_invocation}}";
 interface ColocatedSkill {
   skillDir: string;
   owningSkillName?: string;
+  source_plugin?: string;
 }
 
 /** Render only host-facing prompt syntax; outcome intent stays in the case YAML. */
@@ -29,9 +30,11 @@ export function renderParticipantPrompt(
 
   let invocation: string;
   if (harness === "claude") {
-    invocation = `$${owningSkillName}`;
+    invocation = `/${owningSkillName}`;
   } else if (harness === "codex") {
-    const pluginName = basename(dirname(dirname(skill.skillDir)));
+    const pluginName = skill.source_plugin
+      ? basename(skill.source_plugin)
+      : basename(dirname(dirname(skill.skillDir)));
     if (!pluginName) {
       throw new Error(
         "skill_invocation requires a colocated owning skill under a named plugin",

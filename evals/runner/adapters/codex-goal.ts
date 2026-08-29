@@ -3622,13 +3622,7 @@ export const codexGoalAdapter: HarnessAdapter = {
     return out.trim();
   },
 
-  // `HarnessAdapter.run` fixes the positional arity for every adapter, so this
-  // adapter accepts the shared tuple and forwards it as one named options
-  // object instead of threading five positional parameters through the run.
-  run(
-    ...positional: Parameters<HarnessAdapter["run"]>
-  ): Promise<HarnessResult> {
-    const [repoDir, prompt, model, effort, control] = positional;
-    return runCodexGoalTrial({ repoDir, prompt, model, effort, control });
+  run(request): Promise<HarnessResult> {
+    return runCodexGoalTrial(request);
   },
 };

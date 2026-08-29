@@ -121,9 +121,15 @@ export interface EvalCase {
   /** Absolute directory containing the case YAML, derived by the loader. */
   caseDir: string;
   prompt: string;
+  /** Optional second user turn delivered by resuming the first host session. */
+  follow_up_prompt?: string;
   fixture: Fixture;
   /** Mount every sibling skill from the plugin for orchestrator/composition evals. */
   mount_plugin_skills?: boolean;
+  /** Repository-relative plugin root whose mechanics package this composition case. */
+  source_plugin?: string;
+  /** Repository-relative skill directories additionally mounted for composition. */
+  additional_skills?: string[];
   /** Require HEAD to advance linearly when the public behavior explicitly commits. */
   expect_head_change?: boolean | null;
   checks: Check[];
@@ -135,6 +141,8 @@ export interface EvalCase {
   activation?: ActivationClass;
   /** Override the owning adaptive-goal skill's default required completion report. */
   goal_report?: "required" | "optional" | "forbidden";
+  /** Grade the full native route in addition to focused case checks. */
+  goal_route_checks?: boolean;
 }
 
 export interface HarnessResult {
@@ -206,13 +214,15 @@ export interface HarnessAdapter {
   sourceCodexPlugin?: boolean;
   /** CLI version string, recorded per run (versions have drifted mid-experiment before). */
   version(): Promise<string>;
-  run(
-    repoDir: string,
-    prompt: string,
-    model: string,
-    effort: string,
-    control?: { expectedGoalRoute?: GoalRoute },
-  ): Promise<HarnessResult>;
+  run(request: HarnessRunRequest): Promise<HarnessResult>;
+}
+
+export interface HarnessRunRequest {
+  repoDir: string;
+  prompt: string;
+  model: string;
+  effort: string;
+  control?: { expectedGoalRoute?: GoalRoute; followUpPrompt?: string };
 }
 
 export interface CheckResult {

@@ -1123,7 +1123,12 @@ the least launch machinery the host supports.
     After feedback is relayed, the same owner completes any
     repository- or contract-mandated acknowledgement handshake with that exact
     answer before resuming mutation; the creator does not acknowledge on the
-    owner's behalf. For each resolved question, the owner's terminal result
+    owner's behalf. A later unambiguous answer in the same host thread is
+    continuation authority for exactly one retained owner whose pending
+    recorded human-feedback question it answers. That lane does not require a
+    blocker transition, does not turn the pause into blockage, and does not
+    extend to a fresh conversation or an ambiguous answer. For each resolved
+    question, the owner's terminal result
     states that the exact answer was applied on one line as
     `Applied relayed decision: <exact answer>`. The creator preserves each such
     line in the caller-facing completion. An optional Markdown bullet, inline
@@ -1230,13 +1235,17 @@ the least launch machinery the host supports.
    only after the host is known; the main skill carries the shared sequence.
 3. **AGL-X3 — Authorized invocation.** The skill accepts direct explicit user
    invocation or one delegated call from an orchestration entrypoint the user
-   explicitly invoked. Host metadata permits model invocation so that delegated
-   composition can load the skill. An ordinary engineering request, task
-   complexity, duration, or number of steps is not invocation authority. A
-   delegated call preserves the originating request and authority without
-   expanding either; absent direct or delegated authority, the skill stops
-   before preflight helper calls, native-goal activation, or worktree mutation
-   and returns exactly:
+   explicitly invoked. It also accepts one unambiguous answer in the same host
+   thread when exactly one retained owner has a pending recorded human-feedback
+   question that the answer targets, or a qualifying response to that owner's
+   recorded blocker. Host metadata permits model invocation so those
+   continuation and delegated-composition lanes can load the skill. An ordinary
+   engineering request, task complexity, duration, number of steps, ambiguous
+   answer, or fresh-conversation answer is not invocation authority. A delegated
+   or resumed call preserves the originating request and authority without
+   expanding either; absent one of those authority lanes, the skill stops before
+   preflight helper calls, native-goal activation, or worktree mutation and
+   returns exactly:
 
    ```text
    format: darrow-adaptive-goal-authority-stop-v1
@@ -1346,10 +1355,12 @@ the least launch machinery the host supports.
     lifecycles, including exact-once goal activation and attachment release.
 14. Exercise an after-launch material decision with both a current-thread owner
     and a delegated owner. Verify that mutation pauses, the smallest concrete
-    question reaches the user, the explicit answer returns to the same owner,
-    and continuation preserves the original scope and authority. An unavailable
-    feedback relay stops honestly; a pending answer is never reported as
-    completion or blockage while relay remains available.
+    question reaches the user, an explicit answer arriving in a later host turn
+    on Claude and Codex returns to the same owner, and continuation preserves the
+    original scope and authority. Include a fresh-conversation answer that still
+    requires explicit orchestration invocation. An unavailable feedback relay
+    stops honestly; a pending answer is never reported as completion or blockage
+    while relay remains available.
 15. Evaluate readiness composition with an unassessed artifact-derived request
     that selects and invokes the gate before mutation, a bounded conversational
     request that omits it, preserved prior-assessment context that omits a

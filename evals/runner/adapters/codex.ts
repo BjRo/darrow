@@ -13,6 +13,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
   HarnessResult,
+  HarnessRunRequest,
   SkillActivationObservation,
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
@@ -31,6 +32,7 @@ interface CodexUsage {
 
 interface CodexEvent {
   type?: unknown;
+  thread_id?: unknown;
   usage?: CodexUsage;
   msg?: { type?: unknown; info?: { total_token_usage?: CodexUsage } };
   info?: { total_token_usage?: CodexUsage };
@@ -68,6 +70,19 @@ function codexEvents(stream: string): CodexEvent[] {
     }
   }
   return events;
+}
+
+export function codexThreadId(stream: string): string | undefined {
+  const ids = [
+    ...new Set(
+      codexEvents(stream).flatMap((event) =>
+        event.type === "thread.started" && typeof event.thread_id === "string"
+          ? [event.thread_id]
+          : [],
+      ),
+    ),
+  ];
+  return ids.length === 1 ? ids[0] : undefined;
 }
 
 function codexStreamMalformed(stream: string): boolean {
@@ -1136,6 +1151,7 @@ function retainCodexEvent(
   repoDir: string,
   status?: CodexRetentionStatus,
 ): object[] {
+  if (event.type === "darrow.eval.follow_up_turn") return [event];
   const collaboration = retainedCollaborationEvent(
     event,
     status?.spawnGuardSecret,
@@ -1404,13 +1420,17 @@ export function codexTokenUsage(stream: string): CodexTokenUsage {
   };
 }
 
-function codexArgv(
-  repoDir: string,
-  prompt: string,
-  model: string,
-  effort: string,
-): string[] {
-  return [
+interface CodexArgvOptions {
+  repoDir: string;
+  prompt: string;
+  model: string;
+  effort: string;
+  persistent?: boolean;
+}
+
+export function codexArgv(options: CodexArgvOptions): string[] {
+  const { repoDir, prompt, model, effort, persistent = false } = options;
+  const argv = [
     "codex",
     "exec",
     prompt,
@@ -1420,12 +1440,39 @@ function codexArgv(
     "-c",
     `model_reasoning_effort="${effort}"`,
     "--skip-git-repo-check",
-    "--ephemeral",
     "--ignore-rules",
     "--dangerously-bypass-hook-trust",
     "--dangerously-bypass-approvals-and-sandbox",
     // Final agent message lands under .git/ so checks can read it without
     // it ever appearing in the model's worktree (same trick as fixture-bin).
+    "-o",
+    join(repoDir, ".git", "last-message.md"),
+  ];
+  if (!persistent) argv.push("--ephemeral");
+  return argv;
+}
+
+interface CodexResumeArgvOptions extends Omit<CodexArgvOptions, "persistent"> {
+  threadId: string;
+}
+
+export function codexResumeArgv(options: CodexResumeArgvOptions): string[] {
+  const { repoDir, threadId, prompt, model, effort } = options;
+  return [
+    "codex",
+    "exec",
+    "resume",
+    threadId,
+    prompt,
+    "--json",
+    "-m",
+    model,
+    "-c",
+    `model_reasoning_effort="${effort}"`,
+    "--skip-git-repo-check",
+    "--ignore-rules",
+    "--dangerously-bypass-hook-trust",
+    "--dangerously-bypass-approvals-and-sandbox",
     "-o",
     join(repoDir, ".git", "last-message.md"),
   ];
@@ -1698,27 +1745,88 @@ async function codexProcessContext(
   };
 }
 
-async function executeCodex(
+interface CodexProcessOutput {
+  out: string;
+  err: string;
+  code: number;
+}
+
+async function codexTurnOutput(options: {
+  request: HarnessRunRequest;
+  initial: CodexProcessOutput;
+  sandboxed: (argv: string[]) => Promise<string[]>;
+  env: Record<string, string>;
+}): Promise<CodexProcessOutput> {
+  const { request, initial, sandboxed, env } = options;
+  const followUpPrompt = request.control?.followUpPrompt;
+  if (!followUpPrompt || !codexRunSucceeded(initial.code, initial.out))
+    return initial;
+  const threadId = codexThreadId(initial.out);
+  if (!threadId)
+    throw new Error(
+      "Codex follow-up eval could not identify exactly one initial thread",
+    );
+  const resumed = await runCodexProcess(
+    await sandboxed(
+      codexResumeArgv({ ...request, threadId, prompt: followUpPrompt }),
+    ),
+    request.repoDir,
+    env,
+  );
+  const boundary = JSON.stringify({
+    type: "darrow.eval.follow_up_turn",
+    thread_id: threadId,
+  });
+  return {
+    out: [initial.out.trimEnd(), boundary, resumed.out.trimStart()].join("\n"),
+    err: [initial.err.trimEnd(), resumed.err.trimStart()]
+      .filter(Boolean)
+      .join("\n"),
+    code: resumed.code,
+  };
+}
+
+function codexSandboxedCommand(
+  context: Awaited<ReturnType<typeof codexProcessContext>>,
   repoDir: string,
-  prompt: string,
-  model: string,
-  effort: string,
+): (argv: string[]) => Promise<string[]> {
+  const deniedPaths = [
+    ...(context.spawnGuard?.writeDeniedPaths ?? []),
+    join(context.canonicalRepoDir, ".git", "fixture-bin"),
+    ...(context.installedPluginRoot ? [context.installedPluginRoot] : []),
+  ];
+  const allowedExecutables = context.spawnGuard
+    ? [context.spawnGuard.executablePath]
+    : [];
+  return (argv) =>
+    sandboxedAgentCommand(argv, repoDir, deniedPaths, allowedExecutables);
+}
+
+async function executeCodex(
+  request: HarnessRunRequest,
 ): Promise<CodexExecution> {
   const start = performance.now();
+  const { repoDir, prompt } = request;
   const context = await codexProcessContext(repoDir, prompt);
   const { env, spawnGuard } = context;
-  const argv = await sandboxedAgentCommand(
-    codexArgv(repoDir, prompt, model, effort),
-    repoDir,
-    [
-      ...(spawnGuard?.writeDeniedPaths ?? []),
-      join(context.canonicalRepoDir, ".git", "fixture-bin"),
-      ...(context.installedPluginRoot ? [context.installedPluginRoot] : []),
-    ],
-    spawnGuard ? [spawnGuard.executablePath] : [],
-  );
+  const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
-    const { out, err, code } = await runCodexProcess(argv, repoDir, env);
+    const initial = await runCodexProcess(
+      await sandboxed(
+        codexArgv({
+          ...request,
+          persistent: !!request.control?.followUpPrompt,
+        }),
+      ),
+      repoDir,
+      env,
+    );
+    const { out, err, code } = await codexTurnOutput({
+      request,
+      initial,
+      sandboxed,
+      env,
+    });
     const acceptedAgentRef = spawnGuard
       ? await verifiedCodexAcceptedAgentRef(
           spawnGuard.statePath,
@@ -1836,10 +1944,7 @@ export const codexAdapter: HarnessAdapter = {
     return out.trim();
   },
 
-  async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
-    return codexHarnessResult(
-      repoDir,
-      await executeCodex(repoDir, prompt, model, effort),
-    );
+  async run(request): Promise<HarnessResult> {
+    return codexHarnessResult(request.repoDir, await executeCodex(request));
   },
 };

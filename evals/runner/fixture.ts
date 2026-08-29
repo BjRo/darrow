@@ -187,13 +187,14 @@ async function runFixtureSetup(
 async function resolveMountedSkillDirs(
   skillDir: string,
   mountPluginSkills: boolean,
+  additionalSkillDirs: string[] = [],
 ): Promise<string[]> {
-  if (!mountPluginSkills) return [skillDir];
-  const skillsRoot = dirname(skillDir);
-  const entries = await readdir(skillsRoot, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(skillsRoot, entry.name));
+  const primary = mountPluginSkills
+    ? (await readdir(dirname(skillDir), { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(dirname(skillDir), entry.name))
+    : [skillDir];
+  return [...new Set([...primary, ...additionalSkillDirs])];
 }
 
 async function copySkillWithoutEvals(
@@ -304,8 +305,11 @@ async function mountSourceCodexPlugin(
     await cp(paths.hooks, join(plugin, "hooks"), { recursive: true });
 }
 
-function pluginMountPaths(skillDir: string): PluginMountPaths {
-  const pluginRoot = dirname(dirname(skillDir));
+function pluginMountPaths(
+  skillDir: string,
+  sourcePluginRoot?: string,
+): PluginMountPaths {
+  const pluginRoot = sourcePluginRoot ?? dirname(dirname(skillDir));
   return {
     bin: join(pluginRoot, "bin"),
     config: join(pluginRoot, "config"),
@@ -339,6 +343,8 @@ async function mountSkills(
     | "skillDir"
     | "skillMounts"
     | "mountPluginSkills"
+    | "sourcePluginRoot"
+    | "additionalSkillDirs"
     | "sourceClaudePlugin"
     | "sourceCodexPlugin"
   >,
@@ -347,11 +353,17 @@ async function mountSkills(
     skillDir,
     skillMounts,
     mountPluginSkills = false,
+    sourcePluginRoot,
+    additionalSkillDirs = [],
     sourceClaudePlugin = false,
     sourceCodexPlugin = false,
   } = options;
-  const paths = pluginMountPaths(skillDir);
-  const skillDirs = await resolveMountedSkillDirs(skillDir, mountPluginSkills);
+  const paths = pluginMountPaths(skillDir, sourcePluginRoot);
+  const skillDirs = await resolveMountedSkillDirs(
+    skillDir,
+    mountPluginSkills,
+    additionalSkillDirs,
+  );
   for (const mount of skillMounts) {
     for (const mountedSkillDir of skillDirs) {
       const mountedSkillName = mountedSkillDir
@@ -390,6 +402,10 @@ export interface BuildFixtureOptions {
   skillMounts: string[];
   /** Mount every sibling skill of the plugin, not just `skillDir`. */
   mountPluginSkills?: boolean;
+  /** Optional plugin root supplying manifests, agents, and executable mechanics. */
+  sourcePluginRoot?: string;
+  /** Extra skill directories mounted into the filtered source plugin. */
+  additionalSkillDirs?: string[];
   /** Build a Claude plugin from the source plugin instead of project discovery. */
   sourceClaudePlugin?: boolean;
   /** Build a local marketplace for an isolated installed Codex plugin. */

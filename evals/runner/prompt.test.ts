@@ -12,11 +12,22 @@ describe("participant prompt rendering", () => {
     const template = "Explicitly invoke {{skill_invocation}} for ticket 7.";
 
     expect(renderParticipantPrompt(template, "claude", colocatedSkill)).toBe(
-      "Explicitly invoke $sample-skill for ticket 7.",
+      "Explicitly invoke /sample-skill for ticket 7.",
     );
     expect(renderParticipantPrompt(template, "codex", colocatedSkill)).toBe(
       "Explicitly invoke $sample-plugin:sample-skill for ticket 7.",
     );
+  });
+
+  test("renders a composition case through its packaged source plugin", () => {
+    expect(
+      renderParticipantPrompt("Use {{skill_invocation}}.", "codex", {
+        skillDir:
+          "/repo/plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr",
+        owningSkillName: "ticket-to-pr",
+        source_plugin: "plugins/orchestration/darrow-goal-loop",
+      }),
+    ).toBe("Use $darrow-goal-loop:ticket-to-pr.");
   });
 
   test("leaves prompts without the placeholder unchanged", () => {

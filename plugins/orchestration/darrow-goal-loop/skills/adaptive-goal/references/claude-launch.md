@@ -229,6 +229,24 @@ reporting contract, and
 sole-owner instructions. Do not restate or append them in the Agent task. A
 marker-only task is not an executable goal.
 
+If this exact Agent returns a valid `- phase: human-feedback-request`, retain
+its host-reported agent id and objective, surface the complete question to the
+user, and end the parent turn without recording a blocker, releasing the
+objective, or invoking `Agent` again. When the user's unambiguous answer arrives
+in a later turn of the same Claude conversation, invoke `SendMessage` exactly
+once with `to` set to that retained agent id, `summary` set exactly to `Resume
+adaptive goal with human feedback`, and `message` whose first line is exactly
+`- phase: human-feedback-response` followed only by the exact answer. Do not
+call `goal-loop step resume`: an active feedback pause has no blocker
+transition. Claude Code resumes that existing Agent session in the background
+and emits a `task_notification` with the same task id when it stops; yield for
+that notification without calling `ScheduleWakeup`. Count the question once
+and do not repeat route selection, materialization, activation, preflight, or
+the enclosing recipe. The resumed runner performs any required acknowledgement
+before mutation. Preserve its terminal
+`Applied relayed decision: <exact answer>` line verbatim in the caller-facing
+completion.
+
 If this exact Agent later returns blocked, first verify its route and record its
 blocker and blocked snapshot without releasing the objective. On a later
 unambiguous user response in the same Claude conversation, invoke

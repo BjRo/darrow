@@ -453,7 +453,11 @@ function reviewResult(axis: "standards" | "spec") {
   };
 }
 
-function goalResult(toolUseId: string, agentId: string) {
+function goalResult(
+  toolUseId: string,
+  agentId: string,
+  childResult = "private child result",
+) {
   return {
     type: "user",
     message: {
@@ -462,7 +466,7 @@ function goalResult(toolUseId: string, agentId: string) {
           type: "tool_result",
           tool_use_id: toolUseId,
           content: [
-            { type: "text", text: "private child result" },
+            { type: "text", text: childResult },
             {
               type: "text",
               text: `agentId: ${agentId} (use SendMessage with to: '${agentId}', summary: '<5-10 word recap>' to continue this agent)\n<usage>subagent_tokens: 10</usage>`,
@@ -478,6 +482,20 @@ test("uses Sonnet 5 as the default Claude eval model", () => {
   expect(claudeAdapter.defaultModel).toBe("claude-sonnet-5");
 });
 
+test("builds one named Claude session and one exact resume", () => {
+  const initial = claudeArgv("first", "claude-sonnet-5", "medium", {
+    session: { mode: "start", id: "session-123" },
+  });
+  expect(initial).toContain("--session-id");
+  expect(initial).toContain("session-123");
+  const resumed = claudeArgv("answer", "claude-sonnet-5", "medium", {
+    session: { mode: "resume", id: "session-123" },
+  });
+  expect(resumed).toContain("--resume");
+  expect(resumed).toContain("session-123");
+  expect(resumed).not.toContain("--session-id");
+});
+
 test("retains file-backed goal evidence while a blocked report is resumable", () => {
   expect(goalReportRequiresObjectiveRelease("blocked")).toBe(false);
   expect(goalReportRequiresObjectiveRelease("complete")).toBe(true);
@@ -486,12 +504,9 @@ test("retains file-backed goal evidence while a blocked report is resumable", ()
 });
 
 test("loads the eval-only source plugin when one is mounted", () => {
-  const argv = claudeArgv(
-    "Run the case.",
-    "claude-sonnet-5",
-    "medium",
-    "/tmp/eval-plugin",
-  );
+  const argv = claudeArgv("Run the case.", "claude-sonnet-5", "medium", {
+    pluginDir: "/tmp/eval-plugin",
+  });
   expect(argv).toContain("--plugin-dir");
   expect(argv[argv.indexOf("--plugin-dir") + 1]).toBe("/tmp/eval-plugin");
   expect(
@@ -1259,6 +1274,227 @@ describe("Claude skill activation observation", () => {
     expect(directResponse).not.toContain(
       '"type":"darrow.blocked_goal_response_acquired"',
     );
+  });
+
+  test("relays a later human-feedback answer to the retained Agent", () => {
+    const feedbackResult = [
+      "- phase: human-feedback-request",
+      "Which migration policy should this delivery use?",
+    ].join("\n");
+    const stream = [
+      ...validClaudePreflightEvents(),
+      ...inlineMaterializationEvents(),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_goal",
+              input: {
+                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                run_in_background: false,
+                prompt: boundGoalPrompt(),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(goalResult("toolu_goal", "agentgoal", feedbackResult)),
+      JSON.stringify({
+        type: "darrow.eval.follow_up_turn",
+        thread_id: "session-123",
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [{ type: "text", text: "Use the strict migration policy." }],
+        },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "SendMessage",
+              id: "toolu_goal_feedback",
+              input: {
+                to: "agentgoal",
+                summary: "Resume adaptive goal with human feedback",
+                message:
+                  "- phase: human-feedback-response\nUse the strict migration policy.",
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_goal_feedback",
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: true,
+                    resumedAgentId: "agentgoal",
+                  }),
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "system",
+        subtype: "task_notification",
+        task_id: "agentgoal",
+        tool_use_id: "toolu_goal_feedback",
+        status: "completed",
+      }),
+      ...goalReportEvents("helper", "complete", "toolu_complete_report"),
+    ].join("\n");
+    const retained = retainedClaudeEvidence(
+      stream,
+      undefined,
+      routeEvidenceContext,
+    );
+    const records = retained.split("\n").map((line) => JSON.parse(line));
+
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        type: "darrow.eval.follow_up_turn",
+        thread_id: "session-123",
+      }),
+    );
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        type: "darrow.human_feedback_relay",
+        answer: "Use the strict migration policy.",
+        agent_id: "agentgoal",
+        same_owner: true,
+      }),
+    );
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        type: "darrow.goal_agent_resumption",
+        status: "completed",
+        same_owner: true,
+      }),
+    );
+    const noEchoStream = stream
+      .split("\n")
+      .filter((line) => {
+        const event = JSON.parse(line);
+        return !(
+          event.type === "user" &&
+          event.message?.content?.length === 1 &&
+          event.message.content[0]?.type === "text" &&
+          event.message.content[0]?.text === "Use the strict migration policy."
+        );
+      })
+      .join("\n");
+    const contextBoundAnswer = retainedClaudeEvidence(noEchoStream, undefined, {
+      ...routeEvidenceContext,
+      followUpPrompt: "Use the strict migration policy.",
+    });
+    expect(contextBoundAnswer).toContain(
+      '"type":"darrow.human_feedback_relay"',
+    );
+    expect(contextBoundAnswer).toContain(
+      '"type":"darrow.goal_agent_resumption"',
+    );
+    expect(claudeParentLifecycleOperations(retained)).toEqual([]);
+    expect(retained).not.toContain('"operation":"report-missing"');
+
+    const wrongSummary = retainedClaudeEvidence(
+      stream.replace(
+        "Resume adaptive goal with human feedback",
+        "Resume blocked adaptive goal with user response",
+      ),
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(wrongSummary).not.toContain('"type":"darrow.human_feedback_relay"');
+    expect(claudeParentLifecycleOperations(wrongSummary)).toContain(
+      "after:sendmessage-summary-invalid",
+    );
+
+    const duplicateRelay = retainedClaudeEvidence(
+      [
+        stream,
+        JSON.stringify({
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                name: "SendMessage",
+                id: "toolu_duplicate_feedback",
+                input: {
+                  to: "agentgoal",
+                  summary: "Resume adaptive goal with human feedback",
+                  message:
+                    "- phase: human-feedback-response\nUse the strict migration policy.",
+                },
+              },
+            ],
+          },
+        }),
+      ].join("\n"),
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(claudeParentLifecycleOperations(duplicateRelay)).toContain(
+      "after:sendmessage-state",
+    );
+
+    for (const malformed of [
+      "Context first\n- phase: human-feedback-request\nWhich policy?",
+      "- phase: human-feedback-request",
+      "- phase: human-feedback-request\n   \n",
+    ]) {
+      const malformedEvents = stream.split("\n").map(
+        (line) =>
+          JSON.parse(line) as {
+            message?: {
+              content?: Array<{ content?: Array<{ text?: string }> }>;
+            };
+          },
+      );
+      const malformedGoalBlock = malformedEvents
+        .flatMap((event) => event.message?.content ?? [])
+        .find((block) =>
+          Array.isArray(block.content)
+            ? block.content.some((item) => item.text === feedbackResult)
+            : false,
+        );
+      const malformedGoalText = malformedGoalBlock?.content?.find(
+        (item) => item.text === feedbackResult,
+      );
+      if (!malformedGoalText)
+        throw new Error("missing feedback result fixture");
+      malformedGoalText.text = malformed;
+      const malformedStream = malformedEvents
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const malformedEvidence = retainedClaudeEvidence(
+        malformedStream,
+        undefined,
+        routeEvidenceContext,
+      );
+      expect(malformedEvidence).not.toContain(
+        '"type":"darrow.human_feedback_relay"',
+      );
+      expect(claudeParentLifecycleOperations(malformedEvidence)).toContain(
+        "after:sendmessage-state",
+      );
+    }
   });
 
   test("rejects parent inspection in the same turn that starts the goal owner", () => {
