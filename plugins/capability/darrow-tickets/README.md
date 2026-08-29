@@ -32,7 +32,7 @@ Example: _“Which open bugs are in the next milestone?”_
 ### `read-ticket`
 
 Retrieves one exact current-project ticket by ID or canonical URL. It returns
-the authoritative metadata, tracker-native relations, and full description
+the authoritative metadata, a provider-owned `ticket-token: N`, tracker-native relations, and full description
 without summarizing, interpreting, or changing tracker state.
 
 Example: _“What does ticket #42 say?”_

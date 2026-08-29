@@ -40,6 +40,10 @@ fixture:
           json=$(find_flag --json "$@")
           case "$json" in
             number,state,title,url,labels)
+              jq=$(find_flag --jq "$@")
+              case "$jq" in
+                *ticket-token*) printf 'ticket-token: 12\n' ;;
+              esac
               printf '#12 open — Preserve exact ticket bodies\n'
               printf 'https://github.test/o/r/issues/12\n'
               printf 'labels: enhancement, area: tickets\n'
@@ -59,6 +63,7 @@ checks:
     run: cat .git/last-message.md
     expect_exact: |-
       backend: github
+      ticket-token: 12
       #12 open — Preserve exact ticket bodies
       https://github.test/o/r/issues/12
       labels: enhancement, area: tickets
@@ -74,7 +79,7 @@ checks:
       - Preserve TOKEN-BETA exactly.
   - name: exact ticket metadata and body are returned
     run: cat .git/last-message.md
-    expect_regex: "#12 open.*Preserve exact ticket bodies[\\s\\S]*https://github.test/o/r/issues/12[\\s\\S]*TOKEN-ALPHA[\\s\\S]*TOKEN-BETA"
+    expect_regex: "ticket-token: 12[\\s\\S]*#12 open.*Preserve exact ticket bodies[\\s\\S]*https://github.test/o/r/issues/12[\\s\\S]*TOKEN-ALPHA[\\s\\S]*TOKEN-BETA"
   - name: native relations are returned
     run: cat .git/last-message.md
     expect_regex: "parent: #7[\\s\\S]*depends-on: #3"
