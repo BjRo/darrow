@@ -546,7 +546,7 @@ case "$cmd" in
     [[ $# -eq 1 ]] || { echo "error: get accepts exactly one ticket reference" >&2; exit 2; }
     resolve_backend
     id=$(read_ticket_id "$1")
-    meta=$(run_gh issue view "$id" --json number,state,title,url,labels --jq '"#\(.number) \(.state|ascii_downcase) — \(.title)\n\(.url)\nlabels: " + (if (.labels|length) > 0 then ([.labels[].name]|join(", ")) else "(none)" end)')
+    meta=$(run_gh issue view "$id" --json number,state,title,url,labels --jq '"ticket-token: \(.number)\n#\(.number) \(.state|ascii_downcase) — \(.title)\n\(.url)\nlabels: " + (if (.labels|length) > 0 then ([.labels[].name]|join(", ")) else "(none)" end)')
     body=$(fetch_body "$id")
     relations=$(report_relations "$id") || { rc=$?; exit "$rc"; }
     echo "backend: $BACKEND"

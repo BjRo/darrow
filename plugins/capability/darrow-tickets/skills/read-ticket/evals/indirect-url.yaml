@@ -38,6 +38,10 @@ fixture:
           json=$(find_flag --json "$@")
           case "$json" in
             number,state,title,url,labels)
+              jq=$(find_flag --jq "$@")
+              case "$jq" in
+                *ticket-token*) printf 'ticket-token: 21\n' ;;
+              esac
               printf '#21 closed — Canonical URL intake\nhttps://github.test/o/r/issues/21\nlabels: (none)\n'
               ;;
             body) printf 'The exact URL ticket body contains URL-TOKEN-21.\n' ;;
@@ -53,6 +57,7 @@ checks:
     run: cat .git/last-message.md
     expect_exact: |-
       backend: github
+      ticket-token: 21
       #21 closed — Canonical URL intake
       https://github.test/o/r/issues/21
       labels: (none)
@@ -65,7 +70,7 @@ checks:
     expect_regex: "repo view --json url"
   - name: URL resolves to the exact ticket body
     run: cat .git/last-message.md
-    expect_regex: "#21 closed.*Canonical URL intake[\\s\\S]*URL-TOKEN-21"
+    expect_regex: "ticket-token: 21[\\s\\S]*#21 closed.*Canonical URL intake[\\s\\S]*URL-TOKEN-21"
   - name: URL retrieval is read-only
     run: cat .git/fixture-gh/calls
     not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

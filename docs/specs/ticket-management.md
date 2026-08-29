@@ -186,9 +186,13 @@ then relay its authoritative metadata, relations, and body.
 - **TM-R2 — Read-only.** Reading never mutates tracker state and never becomes
   permission to comment, edit, label, relate, close, reopen, assign, or start
   the tracked work.
-- **TM-R3 — Authoritative complete output.** Return the backend, ID, state,
+- **TM-R3 — Authoritative complete output.** Return the backend, provider-owned
+  `ticket-token: N` sourced from the authoritative ticket number, ID, state,
   title, canonical URL, labels, parent and dependency relations, and full
-  description exactly as normalized by the bundled CLI. Do not summarize,
+  description exactly as normalized by the bundled CLI. The token is identical
+  whether the accepted input was `N`, `#N`, or the current-project canonical
+  URL; it is absent from every refusal or retrieval failure. Consumers preserve
+  it verbatim rather than deriving a token from an input reference or URL. Do not summarize,
   rerank, enrich, interpret, assess readiness, or omit inconvenient content.
 - **TM-R4 — Honest retrieval failure.** A missing ticket, unusable backend,
   unreadable relation, or tracker error stops with the CLI's complete diagnostic.

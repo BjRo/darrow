@@ -201,6 +201,10 @@ case "$1 $2" in
         cat "$d/issue-$id-labels" 2>/dev/null || :
         ;;
       number,state,title,url,labels)
+        jq=$(find_flag --jq "$@")
+        case "$jq" in
+          *ticket-token*) printf 'ticket-token: %s\n' "$id" ;;
+        esac
         printf '#%s %s — %s\n' "$id" "$state" "$title"
         printf 'https://github.test/o/r/issues/%s\n' "$id"
         if [ -s "$d/issue-$id-labels" ]; then
@@ -429,9 +433,12 @@ echo 7 > "$MOCK/issue-12-parent"
 echo 3 > "$MOCK/issue-12-blockedby"
 OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
 check "get exits 0" 0 "$RC"
+grep -qF -- 'ticket-token: \(.number)' "$MOCK/calls"
+check "token comes from authoritative GitHub number" 0 "$?"
 check "numeric get is bound to origin despite ambient GH_REPO" "github.test/o/r" "$(tail -n 1 "$MOCK/repo-env")"
-EXPECTED=$'backend: github\n#12 open — List dies\nhttps://github.test/o/r/issues/12\nlabels: (none)\nparent: #7\ndepends-on: #3\n## body\nSome body.'
+EXPECTED=$'backend: github\nticket-token: 12\n#12 open — List dies\nhttps://github.test/o/r/issues/12\nlabels: (none)\nparent: #7\ndepends-on: #3\n## body\nSome body.'
 check "get emits the complete authoritative record exactly" "$EXPECTED" "$OUT"
+check_contains "numeric get emits provider-owned canonical token" "ticket-token: 12" "$OUT"
 check_contains "meta line" "#12 open — List dies" "$OUT"
 check_contains "native dependency reported" "depends-on: #3" "$OUT"
 check_contains "native parent reported" "parent: #7" "$OUT"
@@ -450,19 +457,23 @@ check_not_contains "relation failure emits no partial ticket" "#12 open — List
 rm "$MOCK/parent-fail"
 OUT=$(bash "$SCRIPT" get "#12" 2>&1); RC=$?
 check "accepts #-prefixed ids" 0 "$RC"
+check "hash-prefixed get preserves the authoritative token" "$EXPECTED" "$OUT"
 OUT=$(GH_REPO=github.test/other/repo bash "$SCRIPT" get 12 2>&1); RC=$?
 check "ambient GH_REPO cannot redirect a numeric get" 0 "$RC"
 check_contains "ambient override still reads origin ticket" "#12 open — List dies" "$OUT"
 check "gh receives the origin repository binding" "github.test/o/r" "$(tail -n 1 "$MOCK/repo-env")"
 OUT=$(bash "$SCRIPT" get "https://github.test/o/r/issues/12" 2>&1); RC=$?
 check "accepts a canonical current-project URL" 0 "$RC"
+check "canonical URL preserves the authoritative token" "$EXPECTED" "$OUT"
 check_contains "URL resolves to the exact ticket" "#12 open — List dies" "$OUT"
 OUT=$(bash "$SCRIPT" get "https://github.test/other/repo/issues/12" 2>&1); RC=$?
 check "foreign-project URL exits 2" 2 "$RC"
 check_contains "foreign-project refusal is explicit" "does not belong to the current project" "$OUT"
+check_not_contains "foreign-project refusal emits no token" "ticket-token:" "$OUT"
 OUT=$(bash "$SCRIPT" get "https://github.test/o/r/issues/12?view=1" 2>&1); RC=$?
 check "non-canonical current-project URL exits 2" 2 "$RC"
 check_contains "non-canonical URL refusal is explicit" "is not canonical" "$OUT"
+check_not_contains "non-canonical refusal emits no token" "ticket-token:" "$OUT"
 printf 'not-a-number\n' > "$MOCK/parent-malformed"
 OUT=$(bash "$SCRIPT" get 12 2>&1); RC=$?
 check "malformed parent response exits 4" 4 "$RC"

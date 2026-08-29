@@ -18,8 +18,9 @@ ticket="$skill_dir/../../bin/ticket"
 
 Run it with Bash. The CLI resolves the backend, verifies that a canonical URL
 belongs to the current project, fetches tracker-native relations, and emits the
-authoritative ticket. Never pre-validate, browse, resolve, rewrite, or classify
-a supplied URL yourself; the CLI exclusively owns that decision. Never use raw
+authoritative ticket, including its provider-owned `ticket-token: N` field.
+Never pre-validate, browse, resolve, rewrite, classify, or derive that token
+from a supplied URL yourself; the CLI exclusively owns that decision. Never use raw
 tracker commands, web search, repository files, or another plugin as a
 fallback. Relay a backend refusal or tracker error verbatim and stop.
 
@@ -89,7 +90,8 @@ summarize, interpret, assess, rerank, trim, enrich, or add implementation advice
 Preserve empty labels or relations exactly as reported.
 
 Treat the chosen stream as opaque text, not ticket prose to reconstruct from its
-fields. Copy directly from the command result. Before sending, compare the first
+fields. Copy directly from the command result, including `ticket-token: N` when
+present. Before sending, compare the first
 and last visible characters and preserve every punctuation mark, including
 punctuation at the end of the final body or error line.
 

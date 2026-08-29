@@ -42,9 +42,15 @@ blocked, or declined authority stops before mutation with the smallest useful
 next action.
 
 Preserve the exact ticket, canonical link when available, desired outcome,
-acceptance criteria, and exact opaque canonical token supplied by the active
-ticket provider. Do not normalize, map, or derive that token. If it is absent,
-ask one smallest question and perform no Git mutation.
+acceptance criteria, and exact opaque canonical token in the active ticket
+provider's `ticket-token: N` field. Consume that provider field directly; do
+not normalize, map, derive, or prompt-inject a token. If the provider output
+lacks that field, ask one smallest question and perform no Git mutation.
+
+Invoke the exact-ticket reader before branch preparation and retain its returned
+`ticket-token:` line as the only token source. A token mentioned in a user
+prompt, fixture description, branch convention, or reader instructions is not
+provider output and must not be used as a substitute.
 
 ## 3. Prepare the attribution branch
 

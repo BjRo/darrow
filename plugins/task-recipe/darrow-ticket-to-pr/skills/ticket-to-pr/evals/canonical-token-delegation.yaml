@@ -2,10 +2,11 @@ id: ticket-to-pr-canonical-token-delegation
 invariant: TPR-C2,TPR-C4,TPR-C5,TPR-C10
 expect_head_change: true
 prompt: >-
-  Use {{skill_invocation}} to deliver the ready authoritative ticket whose
-  active provider supplies canonical token DAR-123. The change is greeting.txt
-  to hello and requires `grep -x hello greeting.txt`. Preserve DAR-123 exactly
-  in the derived `fix/DAR-123-…` branch and delegate the bounded delivery once.
+  Use {{skill_invocation}} to deliver ready authoritative ticket #42. An
+  available exact-ticket reader owns its canonical token. The change is
+  greeting.txt to hello and requires `grep -x hello greeting.txt`. Consume the
+  reader's provider field for the derived ticket branch and delegate the
+  bounded delivery once; do not ask me to supply or restate a token.
   This local evaluation grades only the change, branch token, and commit; do
   not attempt remote publication or report a pull-request outcome.
 fixture:
@@ -13,9 +14,49 @@ fixture:
     - message: "chore: init"
       files:
         greeting.txt: "old\n"
+  files:
+    .agents/skills/read-ticket/SKILL.md: |
+      ---
+      name: read-ticket
+      description: Read fixture ticket #42 and return its provider-owned canonical token without mutation.
+      ---
+
+      # Fixture ticket reader
+
+      For exact ticket `#42`, run exactly:
+
+      ```sh
+      bin/fixture-read-ticket
+      ```
+    .claude/skills/read-ticket/SKILL.md: |
+      ---
+      name: read-ticket
+      description: Read fixture ticket #42 and return its provider-owned canonical token without mutation.
+      ---
+
+      # Fixture ticket reader
+
+      For exact ticket `#42`, run exactly:
+
+      ```sh
+      bin/fixture-read-ticket
+      ```
+  bin:
+    fixture-read-ticket: |
+      #!/usr/bin/env bash
+      set -eu
+      printf '%s\n' invoked >>.git/read-ticket-invocations
+      printf '%s\n' \
+        'backend: fixture' \
+        'ticket-token: DAR-123' \
+        '#42 open — Update greeting' \
+        '## body' \
+        'Change greeting.txt to hello.'
 checks:
   - name: intended behavior is delivered
     run: grep -x hello greeting.txt
   - name: provider token begins the branch slug unchanged
     run: git rev-parse --abbrev-ref HEAD
     expect_regex: "^(feat|fix)/DAR-123-"
+  - name: exact-ticket reader supplies the branch token
+    run: test "$(wc -l <.git/read-ticket-invocations | tr -d ' ')" -eq 1
