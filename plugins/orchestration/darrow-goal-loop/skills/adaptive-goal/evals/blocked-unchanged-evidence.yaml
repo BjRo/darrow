@@ -14,8 +14,8 @@ fixture:
 checks: []
 output_checks:
   - name: does not retry unchanged deterministic failure
-    expect_regex: "(do not|does not|must not|cannot)[^.!?]{0,100}(retry|run again)|unchanged[^.!?]{0,100}(no retry|not retried|cannot retry)"
+    expect_regex: "((do|does|must)(?:\\s|\\*){1,8}not|cannot)[^.!?]{0,100}(retry|run again)|unchanged[^.!?]{0,100}(no retry|not retried|cannot retry)"
     flags: i
   - name: requires changed evidence or conditions
-    expect_regex: "changed (evidence|conditions)|evidence or conditions (change|changed)"
+    expect_regex: "changed (evidence|conditions)|evidence(?: digest)? (change|changes|changed)|conditions (change|changes|changed)|evidence or conditions (change|changed)"
     flags: i

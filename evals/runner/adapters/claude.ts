@@ -969,42 +969,50 @@ function goalBlockCall(
   const tool = bashToolCommand(block);
   if (!tool) return undefined;
   const words = literalShellWords(tool.command) ?? [];
-  const baseValid = exactGoalLoopStepWords(
-    words.slice(0, 14),
-    context,
-    ledger,
-    {
+  if (
+    ![14, 16].includes(words.length) ||
+    !exactGoalLoopStepWords(words.slice(0, 6), context, ledger, {
       step: "block",
-      length: 14,
-    },
-  );
-  const valid = [
-    [14, 16].includes(words.length),
-    baseValid,
-    words[6] === "--kind",
-    /^(?:decision|permission|operation|review|gate|dependency)$/.test(
-      words[7] ?? "",
-    ),
-    words[8] === "--operation",
-    !!words[9] && words[9] !== "none",
-    words[10] === "--retry",
-    /^(?:one-attempt|observe-first|evidence-change|forbidden)$/.test(
-      words[11] ?? "",
-    ),
-    words[12] === "--waiver",
-    /^(?:discretionary|forbidden)$/.test(words[13] ?? ""),
-    validGoalBlockEvidence(words),
-  ].every(Boolean);
-  return valid ? { operation: words[9]! } : undefined;
+      length: 6,
+    })
+  )
+    return undefined;
+  const options = parseGoalBlockOptions(words);
+  if (!options || !validGoalBlockOptions(options)) return undefined;
+  return { operation: options.get("--operation")! };
 }
 
-function validGoalBlockEvidence(words: string[]): boolean {
-  if (words.length === 14) return words[11] !== "evidence-change";
-  return [
-    words[14] === "--evidence-sha256",
-    words[11] === "evidence-change",
-    /^[0-9a-f]{64}$/.test(words[15] ?? ""),
+function parseGoalBlockOptions(
+  words: string[],
+): Map<string, string> | undefined {
+  const options = new Map<string, string>();
+  for (let index = 6; index < words.length; index += 2) {
+    const name = words[index];
+    const value = words[index + 1];
+    if (!name || !value || options.has(name)) return undefined;
+    options.set(name, value);
+  }
+  return options;
+}
+
+function validGoalBlockOptions(options: Map<string, string>): boolean {
+  const kind = options.get("--kind") ?? "";
+  const operation = options.get("--operation") ?? "";
+  const retry = options.get("--retry") ?? "";
+  const waiver = options.get("--waiver") ?? "";
+  const evidence = options.get("--evidence-sha256");
+  const expectedOptionCount = retry === "evidence-change" ? 5 : 4;
+  const valid = [
+    options.size === expectedOptionCount,
+    /^(?:decision|permission|operation|review|gate|dependency)$/.test(kind),
+    operation !== "" && operation !== "none",
+    /^(?:one-attempt|observe-first|evidence-change|forbidden)$/.test(retry),
+    /^(?:discretionary|forbidden)$/.test(waiver),
+    retry === "evidence-change"
+      ? /^[0-9a-f]{64}$/.test(evidence ?? "")
+      : evidence === undefined,
   ].every(Boolean);
+  return valid;
 }
 
 function goalEndCall(

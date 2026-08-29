@@ -145,9 +145,12 @@ any file-backed objective attached while paused.
 
 If this same-thread goal later settles blocked, record its exact blocker and
 render the blocked snapshot before settlement. A later unambiguous response
-reactivates that same goal and unchanged objective through the host's native
-same-thread continuation, records `step resume`, and continues on the selected
-route. Do not set another goal or repeat preflight. Blocked status is not
+first records `step resume`. Only when that transition succeeds, reactivate the
+same goal and unchanged objective through the host's native same-thread
+continuation and continue on the selected route. If it refuses the response,
+relay its stderr verbatim and idempotently render the unchanged blocked
+snapshot; do not reactivate the goal or perform repository or external
+mutation. Do not set another goal or repeat preflight. Blocked status is not
 objective-cleanup evidence.
 
 Do not treat a `claude` executable on `PATH` as evidence of same-thread control.
@@ -242,6 +245,11 @@ Claude Code wraps the delivered payload in fixed coordinator-message text; the
 runner treats only the embedded marker and response as continuation authority.
 Do not repeat route selection, materialization, activation, or preflight, and
 do not invoke the enclosing recipe again.
+
+If the resumed runner reports that `step resume` refused the response, preserve
+its stderr byte-for-byte, take no other runner or repository action, and
+idempotently render the unchanged blocked snapshot. Do not replace the refusal
+with explanatory prose or send a second response.
 
 When the originating request explicitly authorizes one exact named response-
 acquisition command, the creator may run only that command after the blocked

@@ -36,6 +36,6 @@ checks:
     run: test ! -s .git/implementation-readiness-pre-status
 output_checks:
   - name: complete readiness result precedes outer report
-    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal blocked; continuation remains available\\."
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal blocked; valid continuation responses are listed above\\."
   - name: non-ready result does not claim implementation
     not_regex: "Native goal completed\\.|Implemented policy|mode = safe|mode = fast"

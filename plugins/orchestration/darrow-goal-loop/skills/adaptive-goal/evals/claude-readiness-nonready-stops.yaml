@@ -64,7 +64,7 @@ checks:
     expect_exact: ""
 output_checks:
   - name: Claude complete readiness result precedes outer report
-    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal (?:blocked; continuation remains available|requires host launch)\\."
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal (?:blocked; valid continuation responses are listed above|requires host launch)\\."
   - name: Claude non-ready result does not claim implementation
     not_regex: "Native goal completed\\.|Claude non-ready request completed\\."
 transcript_checks:

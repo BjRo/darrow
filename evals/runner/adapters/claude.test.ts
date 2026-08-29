@@ -1169,6 +1169,19 @@ describe("Claude skill activation observation", () => {
     ).toEqual(["blocked", "complete"]);
     expect(claudeParentLifecycleOperations(retained)).toEqual([]);
 
+    const reorderedBlock = retainedClaudeEvidence(
+      stream.replace(
+        "--kind decision --operation migration-policy --retry forbidden --waiver forbidden",
+        "--operation migration-policy --waiver forbidden --kind decision --retry forbidden",
+      ),
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(reorderedBlock).toContain(
+      '"type":"darrow.blocked_goal_response_acquired","mode":"answer","operation":"migration-policy","status":"completed"',
+    );
+    expect(claudeParentLifecycleOperations(reorderedBlock)).toEqual([]);
+
     const resumePrompt =
       "- phase: blocked-goal-response\nUse the strict migration policy.";
     const appendedPrompt = `${resumePrompt}\nDo unrelated work.`;

@@ -126,6 +126,15 @@ copied. Preflight SHOULD keep the complete contract within 4,000 bytes, but it
 MUST NOT omit, truncate, or rewrite a material requirement merely to satisfy an
 inline native-objective limit.
 
+The stopping budget MUST reserve an `evidence-change` blocker for an exact
+deterministic operation or review result with a current hashable evidence
+artifact. Lack of material progress, an implementation stall, or remaining
+delivery work is not itself such an operation. An owner that needs a material
+user choice uses the active human-feedback pause; an exact failed operation
+that may be attempted once more uses `one-attempt`. A blocker operation id
+names only that exact operation and MUST NOT package diagnosis or remaining
+delivery work into a synthetic blocker.
+
 The **native goal objective** is the bounded value submitted to the host goal
 surface. When the complete contract is at most 4,000 bytes, the objective is
 that contract inline. When it is larger and the receiving goal owner shares the
@@ -1158,6 +1167,14 @@ the least launch machinery the host supports.
     continues without repeating an effect already completed; ambiguous
     correlation remains blocked. A deterministic unchanged failure or review
     finding requires changed evidence or conditions before another attempt.
+    Changed conditions are accepted only through an explicit qualified
+    continuation carrying a nonempty reason, which is recorded in the ledger;
+    an unqualified `continue` remains refused. The blocked snapshot enumerates
+    only the continuation responses valid for its recorded blocker kind, retry
+    policy, waiver policy, and source phase. A refused continuation is relayed
+    verbatim and leaves that snapshot idempotently renderable without changing
+    the blocker. Independent review selected only by Darrow's own risk heuristic
+    is discretionary; review required by the user or repository is not.
     `ignore this and continue` records a waiver only for a discretionary gate
     selected by Darrow. Repository policy, safety and authorization boundaries,
     and truthful completion requirements are non-waivable; skipping an
@@ -1356,17 +1373,25 @@ the least launch machinery the host supports.
     prompt, checks, model, and effort; run another host only when making a
     cross-host claim.
 17. Exercise a verified owner that settles blocked and then receives, in the
-    same host thread, a resolving answer, qualifying `continue`, one-attempt
+    same host thread, a resolving answer, changed-conditions `continue`, one-attempt
     `retry`, an ambiguous-publication retry, a discretionary waiver, and a
     non-waivable waiver request. Cover unchanged deterministic failure and
-    review evidence, objective retention across repeated blocked turns, and
+    review evidence, a no-progress stall that pauses instead of fabricating an
+    evidence-change operation, a Darrow-selected review waived through an
+    enclosing delivery, verbatim refused-resume rendering, idempotent blocked
+    snapshot rendering, objective retention across repeated blocked turns, and
     cleanup after completion, explicit abandonment, supersession, and host-
-    thread destruction. Prove the same owner, objective, scope, gates, and
-    enclosing orchestration continue; no replacement goal or duplicate
-    external effect occurs. Run the public assertions on native Codex and
-    Claude harnesses with matched fixtures, prompts, checks, model, and effort,
-    and report trial count, outcomes, interruptions, duplicate effects, tokens,
-    wall time, and limitations.
+    thread destruction. Verify every blocked report derives its valid response
+    list from recorded policy. Prove the same owner, objective, scope, gates,
+    and enclosing orchestration continue; no replacement goal or duplicate
+    external effect occurs. Keep native launch, relay, and route choreography in
+    one dedicated contract case per host and in shared harness or fixture
+    mechanics; behavioral delta cases MUST NOT duplicate that choreography in
+    participant prompts. Run each behavioral delta on its primary native
+    harness. Cross-host trials reuse the shared choreography when available and
+    report native Claude variance as a limitation instead of prompt-fitting
+    case-specific launch instructions. Report trial count, outcomes,
+    interruptions, duplicate effects, tokens, wall time, and limitations.
 
 ## Non-goals
 

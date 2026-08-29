@@ -1,0 +1,101 @@
+id: goal-blocked-conditions-changed-resume
+invariant: AGL-L16,AGL-L17
+prompt: >-
+  /adaptive-goal Add an exported dockerReady() function to src/docker.js that
+  returns true after the local Docker daemon is running. This localized fixture
+  has no security, authorization, compatibility, or external-consumer impact.
+  Use the routine policy route. During implementation the retained owner must
+  run `daemonctl discover`. Its deterministic failure names operation
+  docker-smoke and an evidence digest. Record that exact dependency blocker
+  with retry policy evidence-change and waiver forbidden, settle the native
+  goal blocked, and render its snapshot without editing production code. Only
+  after that snapshot, the host is authorized to run
+  `daemonctl continue <blocked-operation>` and treat its successful
+  one-line output as the explicit changed-conditions response. Record the
+  resume transition before reactivating the same native goal. The resumed
+  owner must run `daemonctl acknowledge docker-smoke` before mutation, then
+  implement and test the same bounded request. Do not create a replacement
+  goal, change branches, commit, or publish.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          Run `bash test.sh` for access behavior changes.
+        src/docker.js: |
+          export const identity = (value) => value;
+        test/docker.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { dockerReady } from "../src/docker.js";
+
+          test("reports the running daemon", () => {
+            assert.equal(dockerReady(), true);
+          });
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/docker.test.js
+  bin:
+    daemonctl: |
+      #!/usr/bin/env bash
+      set -eu
+      tab=$(printf '\t')
+      git_dir=$(git rev-parse --git-dir)
+      trace="$git_dir/conditions-resume-trace"
+      case "${1-}" in
+        discover)
+          test ! -e "$trace"
+          printf 'discover\tdocker-smoke\n' >"$trace"
+          printf '%s\n' \
+            'denied' \
+            'operation: docker-smoke' \
+            'evidence_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+          ;;
+        continue)
+          test "${2-}" = docker-smoke
+          test "$(cat "$trace")" = "discover${tab}docker-smoke"
+          printf 'response\tdocker-smoke\tdaemon-started\n' >>"$trace"
+          printf '%s\n' 'conditions-changed: Docker daemon started'
+          ;;
+        acknowledge)
+          test "${2-}" = docker-smoke
+          repo_root=$(git rev-parse --show-toplevel)
+          resume_count=0
+          reason_count=0
+          for event_file in "${TMPDIR:-/tmp}"/darrow-goal-run.*/events; do
+            test -r "$event_file" || continue
+            state=${event_file%/events}/state
+            test -r "$state" || continue
+            grep -F "repo${tab}$repo_root" "$state" >/dev/null 2>&1 || continue
+            resume_count=$((resume_count + $(grep -F -c \
+              "resume-continue${tab}docker-smoke" "$event_file" 2>/dev/null || true)))
+            reason_count=$((reason_count + $(grep -F -c \
+              "resume-conditions-changed${tab}Docker daemon started" \
+              "$event_file" 2>/dev/null || true)))
+          done
+          test "$resume_count" -eq 1
+          test "$reason_count" -eq 1
+          printf 'acknowledge\tdocker-smoke\n' >>"$trace"
+          ;;
+        *) exit 64 ;;
+      esac
+checks:
+  - name: resumed owner implements the daemon-dependent behavior
+    run: bash test.sh
+  - name: changed conditions are recorded before same-owner mutation
+    run: |
+      test "$(sed -n '1p' .git/conditions-resume-trace)" = "discover	docker-smoke"
+      test "$(sed -n '2p' .git/conditions-resume-trace)" = "response	docker-smoke	daemon-started"
+      test "$(sed -n '3p' .git/conditions-resume-trace)" = "acknowledge	docker-smoke"
+      test "$(wc -l <.git/conditions-resume-trace | tr -d ' ')" -eq 3
+  - name: continuation stays on the original uncommitted branch
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: completion counts one blocked-response interruption
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*evaluation_human_interruptions: 1"
+transcript_checks:
+  - name: helper resume precedes same-thread response relay
+    expect_regex: '"type":"darrow.blocked_goal_response_relay","mode":"continue","operation":"docker-smoke","thread_id":"[^"]+","same_owner":true,"objective_retained":true'
+  - name: no replacement owner is launched
+    not_regex: '"tool":"(?:ScheduleWakeup|Agent)"'
