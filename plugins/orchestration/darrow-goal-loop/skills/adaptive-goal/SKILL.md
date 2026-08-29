@@ -30,14 +30,9 @@ status: invocation_required
 reason: explicit-orchestration-entrypoint-required
 ```
 
-For continuation, follow **Resume one blocked owner** with the retained ledger,
-objective, route, owner, and authority. Do not repeat preflight, recipe
-invocation, or goal creation. A fresh conversation requires explicit invocation.
-
 ## Resume one blocked owner
 
-Read [`references/resume-lifecycle.md`](references/resume-lifecycle.md)
-completely whenever an activated owner must settle blocked or the user responds
+Read [`references/resume-lifecycle.md`](references/resume-lifecycle.md) completely whenever an activated owner must settle blocked or the user responds
 to this thread's recorded blocker. It owns blocker classification, the exact
 `goal-loop step block`, `goal-loop step resume`, and `goal-loop step end` transitions, retry observation,
 waiver boundaries, same-owner continuation, retention, and cleanup. For observe-first, map completed to `--mode continue --observation completed` and not-completed to `--mode retry --observation not-completed`; never combine retry with a completed effect or placeholder both observations under one mode. Compile its portable rule into every activated contract. Darrow adds no timeout, daemon, scheduler, replacement owner, or automatic retry.
@@ -324,10 +319,10 @@ exact answer was applied on one line as
 line in the caller-facing completion. An optional Markdown bullet, inline code
 around the answer, or terminal period is presentation only.
 
-Also compile **Resume one blocked owner** completely: record before blockage,
-retain owner and objective, preserve every gate, and accept only same-thread
-continuation without replacement orchestration. After `step block`, settle that
-owner blocked without a feedback marker; the launcher owns snapshot and relay.
+Compile **Resume one blocked owner** with the same owner, objective, gates, and thread. Use `evidence-change` only for an exact
+hashable failure or review result; a stall uses human feedback for a user choice
+or `one-attempt` for one exact operation. Compile changed conditions, unchanged-
+evidence refusal, verbatim refusal relay, valid responses, and idempotent render.
 
 Apply the selected proportional risk gate:
 
@@ -386,8 +381,10 @@ standalone canonical sentence `Review gate: blocked — explicit limit reached.`
 Any later content-changing edit invalidates the chain.
 
 Record every unsatisfied review stop and evidence digest before `blocked`.
-Resume only under the linked lifecycle's changed-evidence or discretionary-
-waiver rules; automatic status settlement performs no repository work.
+Heuristic-only review is discretionary; a request that reports an already
+selected review as solely Darrow-heuristic does not make it user-required.
+User- or repository-required review is `forbidden`. Resume only under the linked changed-evidence,
+changed-conditions, or discretionary-waiver rules.
 <!-- intent-routing-end -->
 
 Read the selected workflow document completely and use only its sequence; small
@@ -487,6 +484,9 @@ Return the helper output verbatim before explanation, labels, quotes, or fences.
 For non-ready readiness, put its complete result and action before the blocked
 snapshot with nothing between. Use `blocked` only after `step block` on a
 verified route; retain its objective and unreported ledger.
+On refusal, perform no mutation, relay helper stderr verbatim, and re-render the
+unchanged snapshot idempotently. Its policy-derived valid-response list is
+authoritative; never claim unconditionally that continuation is available.
 Unavailable or rejected routes remain `launch-required`. The decision-gated
 report keeps its fixed prelaunch values.
 Report only effective route evidence; never copy selection or the tab-separated

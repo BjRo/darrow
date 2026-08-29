@@ -659,9 +659,13 @@ bash "$goal_loop" step block --ledger "$nonready_ledger" \
 nonready_report=$(bash "$goal_loop" step report --ledger "$nonready_ledger" \
   --status blocked --human-interruptions 0)
 case "$nonready_report" in
-  *'Native goal blocked; continuation remains available.'*) ;;
+  *'Native goal blocked; valid continuation responses are listed above.'*) ;;
   *) fail 'non-ready verdict did not permit blocked reporting' ;;
 esac
+grep -F 'Valid continuation responses: answer; continue.' <<EOF >/dev/null ||
+  fail 'non-ready continuation choices'
+$nonready_report
+EOF
 expect_refusal 'non-ready retry cannot bypass readiness' bash "$goal_loop" \
   step resume --ledger "$nonready_ledger" --mode retry
 grep -F $'phase\tblocked' "$nonready_ledger/state" >/dev/null ||
@@ -756,17 +760,26 @@ expect_refusal 'blocked objective released before lifecycle end' bash "$goal_loo
   --attachment-dir "$resumable_attachment" --expected-sha256 "$resumable_digest"
 blocked_report=$(bash "$goal_loop" step report --ledger "$resumable_ledger" \
   --status blocked --human-interruptions 1)
-grep -F 'Native goal blocked; continuation remains available.' \
+grep -F 'Native goal blocked; valid continuation responses are listed above.' \
   <<EOF >/dev/null || fail 'resumable blocked report'
 $blocked_report
 EOF
+grep -F 'Valid continuation responses: answer; continue; retry.' \
+  <<EOF >/dev/null || fail 'one-attempt continuation choices'
+$blocked_report
+EOF
+expect_refusal 'changed conditions on one-attempt blocker' bash "$goal_loop" \
+  step resume --ledger "$resumable_ledger" --mode continue \
+  --conditions-changed 'unrelated condition'
 grep -F $'phase\tblocked' "$resumable_ledger/state" >/dev/null ||
   fail 'blocked report terminalized the resumable ledger'
 grep -F $'reported\tfalse' "$resumable_ledger/state" >/dev/null ||
   fail 'blocked report marked the ledger terminally reported'
 test -r "$resumable_objective" || fail 'blocked report released the objective'
-expect_refusal 'duplicate blocked snapshot' bash "$goal_loop" step report \
-  --ledger "$resumable_ledger" --status blocked --human-interruptions 1
+duplicate_blocked_report=$(bash "$goal_loop" step report \
+  --ledger "$resumable_ledger" --status blocked --human-interruptions 1)
+test "$duplicate_blocked_report" = "$blocked_report" ||
+  fail 'duplicate blocked snapshot changed canonical output'
 resume_answer=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
   --mode answer)
 test "$(record_value "$resume_answer" mode)" = answer ||
@@ -778,8 +791,12 @@ test -r "$resumable_objective" || fail 'answer continuation released the objecti
 bash "$goal_loop" step block --ledger "$resumable_ledger" \
   --kind operation --operation create-pull-request \
   --retry observe-first --waiver forbidden >/dev/null
-bash "$goal_loop" step report --ledger "$resumable_ledger" \
-  --status blocked --human-interruptions 1 >/dev/null
+observe_report=$(bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1)
+grep -F 'Valid continuation responses: continue with completed observation; retry after not-completed observation.' \
+  <<EOF >/dev/null || fail 'observe-first continuation choices'
+$observe_report
+EOF
 expect_refusal 'ambiguous publication retry without observation' bash "$goal_loop" \
   step resume --ledger "$resumable_ledger" --mode retry
 expect_refusal 'completed publication retried' bash "$goal_loop" step resume \
@@ -792,8 +809,12 @@ test "$(record_value "$resume_observed" observation)" = completed ||
 bash "$goal_loop" step block --ledger "$resumable_ledger" \
   --kind operation --operation docker-smoke-test \
   --retry one-attempt --waiver forbidden >/dev/null
-bash "$goal_loop" step report --ledger "$resumable_ledger" \
-  --status blocked --human-interruptions 1 >/dev/null
+one_attempt_report=$(bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1)
+grep -F 'Valid continuation responses: continue; retry.' \
+  <<EOF >/dev/null || fail 'operation one-attempt continuation choices'
+$one_attempt_report
+EOF
 resume_retry=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
   --mode retry)
 test "$(record_value "$resume_retry" operation)" = docker-smoke-test ||
@@ -804,8 +825,12 @@ expect_refusal 'second attempt without a new blocked turn' bash "$goal_loop" \
 bash "$goal_loop" step block --ledger "$resumable_ledger" \
   --kind review --operation independent-review \
   --retry evidence-change --waiver forbidden --evidence-sha256 "$evidence_a" >/dev/null
-bash "$goal_loop" step report --ledger "$resumable_ledger" \
-  --status blocked --human-interruptions 1 >/dev/null
+review_report=$(bash "$goal_loop" step report \
+  --ledger "$resumable_ledger" --status blocked --human-interruptions 1)
+grep -F 'Valid continuation responses: continue with changed conditions; retry with changed evidence.' \
+  <<EOF >/dev/null || fail 'review evidence-change continuation choices'
+$review_report
+EOF
 expect_refusal 'unchanged deterministic review retry' bash "$goal_loop" \
   step resume --ledger "$resumable_ledger" --mode retry \
   --evidence-sha256 "$evidence_a"
@@ -815,11 +840,49 @@ bash "$goal_loop" step resume --ledger "$resumable_ledger" --mode retry \
   --evidence-sha256 "$evidence_b" >/dev/null
 
 bash "$goal_loop" step block --ledger "$resumable_ledger" \
+  --kind dependency --operation external-condition \
+  --retry evidence-change --waiver forbidden \
+  --evidence-sha256 "$evidence_b" >/dev/null
+conditions_report=$(bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1)
+grep -F 'Valid continuation responses: continue with changed conditions; retry with changed evidence.' \
+  <<EOF >/dev/null || fail 'evidence-change continuation choices'
+$conditions_report
+EOF
+if bash "$goal_loop" step resume --ledger "$resumable_ledger" \
+  --mode continue >"$tmp_root/conditions-refusal.out" \
+  2>"$tmp_root/conditions-refusal.err"; then
+  fail 'unqualified evidence-change continue'
+fi
+test ! -s "$tmp_root/conditions-refusal.out" ||
+  fail 'unqualified evidence-change continue wrote stdout'
+test "$(cat "$tmp_root/conditions-refusal.err")" = \
+  'goal-loop: deterministic failure requires changed evidence or conditions before retry' ||
+  fail 'unqualified evidence-change refusal changed'
+rerendered_conditions_report=$(bash "$goal_loop" step report \
+  --ledger "$resumable_ledger" --status blocked --human-interruptions 1)
+test "$rerendered_conditions_report" = "$conditions_report" ||
+  fail 'blocked snapshot did not re-render idempotently'
+resume_conditions=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
+  --mode continue --conditions-changed 'service access was provisioned')
+test "$(record_value "$resume_conditions" conditions_changed)" = \
+  'service access was provisioned' || fail 'changed conditions continuation record'
+grep -F $'resume-conditions-changed\tservice access was provisioned' \
+  "$resumable_ledger/events" >/dev/null ||
+  fail 'changed conditions were not recorded in the ledger'
+grep -F $'phase\tactive' "$resumable_ledger/state" >/dev/null ||
+  fail 'changed conditions did not resume active work'
+
+bash "$goal_loop" step block --ledger "$resumable_ledger" \
   --kind review --operation independent-review \
   --retry evidence-change --waiver discretionary \
   --evidence-sha256 "$evidence_b" >/dev/null
-bash "$goal_loop" step report --ledger "$resumable_ledger" \
-  --status blocked --human-interruptions 1 >/dev/null
+waivable_review_report=$(bash "$goal_loop" step report \
+  --ledger "$resumable_ledger" --status blocked --human-interruptions 1)
+grep -F 'Valid continuation responses: continue with changed conditions; retry with changed evidence; waive.' \
+  <<EOF >/dev/null || fail 'discretionary review continuation choices'
+$waivable_review_report
+EOF
 resume_waive=$(bash "$goal_loop" step resume --ledger "$resumable_ledger" \
   --mode waive)
 test "$(record_value "$resume_waive" mode)" = waive ||
@@ -830,8 +893,16 @@ grep -F $'review_waived\ttrue' "$resumable_ledger/state" >/dev/null ||
 bash "$goal_loop" step block --ledger "$resumable_ledger" \
   --kind gate --operation repository-policy \
   --retry forbidden --waiver forbidden >/dev/null
-bash "$goal_loop" step report --ledger "$resumable_ledger" \
-  --status blocked --human-interruptions 1 >/dev/null
+policy_report=$(bash "$goal_loop" step report --ledger "$resumable_ledger" \
+  --status blocked --human-interruptions 1)
+grep -F 'Valid continuation responses: none.' <<EOF >/dev/null ||
+  fail 'non-waivable policy continuation choices'
+$policy_report
+EOF
+grep -F 'Native goal blocked; no continuation response is currently valid.' \
+  <<EOF >/dev/null || fail 'non-waivable policy blocked report'
+$policy_report
+EOF
 expect_refusal 'non-waivable policy bypass' bash "$goal_loop" step resume \
   --ledger "$resumable_ledger" --mode waive
 expect_refusal 'non-waivable policy answer bypass' bash "$goal_loop" step resume \

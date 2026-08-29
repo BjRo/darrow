@@ -347,6 +347,7 @@ export function buildPreparedGoalPrompt(
     "Select risk and profile independently: risk reflects the cost of an incorrect result, while routing reflects the kind and scale of reasoning required. Risk alone and a workflow label alone do not determine profile.",
     "Map ordinary-localized to routine, scaled-coding to scaled, repo-wide-coding to repo-wide, and judgment to judgment. Use routine-plus only when the request specifically makes its additional quality worthwhile. Focused boundary evidence and compatibility verification do not by themselves justify routine-plus. Resolve the concrete model and effort from the prepared route rows.",
     "Compile feedback checks and final-tree checks from the canonical guidance and prepared repository evidence. Preserve their commands and ordering in the goal contract.",
+    "In `Stopping budget:`, reserve evidence-change for an exact deterministic operation or review result with a current hashable evidence artifact. A no-progress stall or remaining delivery work uses the active human-feedback pause when a material user choice is needed, or one-attempt for one more exact authorized operation; never package diagnosis or remaining delivery into a blocker operation id. Preserve the explicit changed-conditions continuation and refused-resume rendering rules in the contract.",
     "Return independentReview.roundLimit as the exact positive integer only when the engineering request explicitly supplies a review-round limit. Return null for progress-bounded review without a user limit and whenever review is omitted. Never infer a numeric limit on the user's behalf.",
     "Select readinessGate before implementation. Select it for an authoritative ticket, specification, plan, or accepted conversational plan whose exact current scope has not already completed an implementation-readiness assessment, and whenever the user, repository, or delegating orchestration explicitly requires readiness. A completed same-scope semantic discussion that resolved the findings counts as already assessed even without a separately rendered gate result. Re-select after a material scope, acceptance, or constraint change only when reassessment adds actual value. Omit it for a bounded request fully stated in the preserved conversation, for an already-assessed unchanged scope, and when the user explicitly skips the default gate. A user skip does not override a repository or delegating-orchestration requirement. Mere capability installation never selects the gate. Return a concise reason for either selection.",
     "When the engineering request names an authoritative artifact that this one-response classifier has not opened, do not treat the artifact contents being absent from prepared evidence as a known missing decision or authority. Select the task-level workflow from the stated implementation intent and let a selected implementation-readiness capability assess that artifact's completeness before mutation. Use decision-gated only for a missing choice or authority actually established by the preserved request or prepared evidence.",
@@ -389,12 +390,12 @@ export function buildGoalExecutionPrompt(
       ? "Before repository or external mutation, invoke the environment capability matching implementation-readiness assessment of the authoritative request. Preserve its complete human-readable result. Record its semantic verdict with the exact `goal-loop step readiness --ledger <Protocol ledger> --verdict <ready|needs-discovery|needs-decision|blocked>` transition. Continue implementation only on `ready`. For any other verdict, perform no mutation, record a non-waivable `decision` or `dependency` blocker for operation `implementation-readiness` with `goal-loop step block`, settle the native goal as blocked, and return the complete readiness result followed by its smallest useful next action; the enclosing launcher appends the resumable adaptive-goal snapshot after it. A later answer that resolves that action resumes this same goal and reruns readiness before mutation; do not convert the non-ready result into the generic active human-feedback pause."
       : "Implementation readiness is omitted for this goal; do not invoke or record a readiness assessment.",
     "Pursue the active goal through implementation using focused feedback checks. When the tree appears complete, run the final-tree commands once. Do not rerun a passing broad gate unless an intervening edit invalidated it. After all required final-tree and selected review gates pass, complete the native goal and return.",
-    "Distinguish an active human-feedback pause from recorded blockage. The `- phase: human-feedback-request` marker is valid only while no `goal-loop step block` transition has been recorded and the native goal remains active. When the contract or repository instead requires `step block`, record the blocker with only arguments permitted by its retry policy, settle this same native goal blocked, and return ordinary blocked evidence without the human-feedback marker; the enclosing launcher renders the snapshot and may later relay an authorized response.",
+    "Distinguish an active human-feedback pause from recorded blockage. The `- phase: human-feedback-request` marker is valid only while no `goal-loop step block` transition has been recorded and the native goal remains active. A no-progress stall or remaining delivery work is not an evidence-change operation: use active human feedback when a material user choice is needed, or one-attempt for one more exact authorized operation. When the contract or repository instead requires `step block`, record the blocker with only arguments permitted by its retry policy, settle this same native goal blocked, and return ordinary blocked evidence without the human-feedback marker; the enclosing launcher renders the policy-derived snapshot and may later relay an authorized response.",
     "When the contract's human-feedback rule requires a material decision after activation, pause mutation, ask only its smallest concrete question, begin the final response with `- phase: human-feedback-request`, and leave the native goal active for a later resumed turn. The marker and complete question are sufficient; the terminal human-readable report is optional on this nonterminal pause and, if included, must preserve its truthful current values.",
     `When independent review is selected, record each returned semantic result against its exact target fingerprint with \`${reviewTransition}\`. The helper rejects omitted, duplicate, out-of-order, and repeated-target evidence.`,
     "Do not hand-author a darrow-native-goal-report-v1 block. Do not run `goal-loop step release-objective` or `goal-loop step report`; those are enclosing-launcher operations. Return terminal engineering evidence; the enclosing launcher renders the canonical report from the ledger after route and objective cleanup are known.",
     "Before returning a completed result, settle the native goal complete only when all required gates pass. Before settling blocked, record one exact blocker with `goal-loop step block`, including its stable operation, retry policy, waiver policy, and evidence digest when required. A human-feedback pause is nonterminal and must not settle the goal.",
-    "A blocked goal remains resumable on this same owner and objective. Do not release it, recreate it, or resume work until an explicit answer, qualifying continue, authorized one-attempt retry, or valid discretionary waiver is received and recorded with `goal-loop step resume`.",
+    "A blocked goal remains resumable on this same owner and objective. Do not release it, recreate it, or resume work until an explicit answer, qualified `continue --conditions-changed <reason>`, changed-evidence retry, authorized one-attempt retry, or valid discretionary waiver is received and recorded with `goal-loop step resume`. A continuation carrying `- resume-transition: recorded` has already passed that helper transition in the enclosing launcher: verify the retained objective and continue without recording it again. When evidence and conditions are both unchanged, do not retry or run the operation again; remain blocked. If the helper refuses a response, return its stderr verbatim and perform no mutation so the enclosing launcher can idempotently re-render the unchanged snapshot.",
   ].join("\n");
 }
 
@@ -2792,6 +2793,52 @@ interface AuthorizedBlockedGoalResponse {
   mode: BlockedGoalResponseMode;
 }
 
+export function blockedGoalResumeArguments(
+  ledger: string,
+  mode: BlockedGoalResponseMode,
+  response: string,
+  retryPolicy: string,
+): string[] {
+  const argv = ["step", "resume", "--ledger", ledger, "--mode", mode];
+  return [...argv, ...blockedGoalResumeQualifier(mode, response, retryPolicy)];
+}
+
+function blockedGoalResumeQualifier(
+  mode: BlockedGoalResponseMode,
+  response: string,
+  retryPolicy: string,
+): string[] {
+  if (retryPolicy === "evidence-change")
+    return evidenceChangeResumeQualifier(mode, response);
+  if (retryPolicy === "observe-first")
+    return observeFirstResumeQualifier(mode, response);
+  return [];
+}
+
+function evidenceChangeResumeQualifier(
+  mode: BlockedGoalResponseMode,
+  response: string,
+): string[] {
+  const changed = response.match(/^conditions-changed:\s+(.+)$/);
+  if (mode === "continue" && changed)
+    return ["--conditions-changed", changed[1]!];
+  const evidence = response.match(/^evidence-sha256:\s+([0-9a-f]{64})$/);
+  return mode === "retry" && evidence
+    ? ["--evidence-sha256", evidence[1]!]
+    : [];
+}
+
+function observeFirstResumeQualifier(
+  mode: BlockedGoalResponseMode,
+  response: string,
+): string[] {
+  if (mode === "continue" && response === "completed")
+    return ["--observation", response];
+  if (mode === "retry" && response === "not-completed")
+    return ["--observation", response];
+  return [];
+}
+
 export function authorizedBlockedGoalResponseCommand(
   engineeringRequest: string,
   operation: string,
@@ -2977,7 +3024,32 @@ export async function reactivateBlockedGoal(
   client: AppServerClient,
   threadId: string,
   expectedObjective: string,
+  recordedResume: string,
 ): Promise<void> {
+  if (
+    !/(?:^|\n)step\tresume(?:\n|$)/.test(recordedResume) ||
+    !/(?:^|\n)status\trecorded(?:\n|$)/.test(recordedResume)
+  )
+    throw new Error(
+      "cannot reactivate native goal without a successful recorded resume transition",
+    );
+  const retainedObjective = await validateBlockedGoalIdentity(
+    client,
+    threadId,
+    expectedObjective,
+  );
+  await client.request("thread/goal/set", {
+    threadId,
+    objective: retainedObjective,
+    status: "active",
+  });
+}
+
+export async function validateBlockedGoalIdentity(
+  client: AppServerClient,
+  threadId: string,
+  expectedObjective: string,
+): Promise<string> {
   const current = await client.request<GoalGetResult>("thread/goal/get", {
     threadId,
   });
@@ -2989,11 +3061,46 @@ export async function reactivateBlockedGoal(
     throw new Error("cannot resume native goal without its retained objective");
   if (current.goal.objective !== expectedObjective)
     throw new Error("cannot resume native goal after objective drift");
-  await client.request("thread/goal/set", {
+  return current.goal.objective;
+}
+
+export async function captureActivatedGoalObjective(
+  client: AppServerClient,
+  threadId: string,
+  materializedObjective: string,
+): Promise<string> {
+  const current = await client.request<GoalGetResult>("thread/goal/get", {
     threadId,
-    objective: current.goal.objective,
-    status: "active",
   });
+  if (current.goal?.status !== "active")
+    throw new Error(
+      `cannot capture native goal objective from ${current.goal?.status ?? "missing"}`,
+    );
+  if (typeof current.goal.objective !== "string")
+    throw new Error(
+      "cannot capture native goal without its retained objective",
+    );
+  if (current.goal.objective.trimEnd() !== materializedObjective.trimEnd())
+    throw new Error("native goal changed the objective during activation");
+  return current.goal.objective;
+}
+
+async function recordBlockedGoalResume(
+  repoDir: string,
+  ledger: string,
+  mode: BlockedGoalResponseMode,
+  response: string,
+): Promise<CapturedProcess> {
+  const helper = join(repoDir, ".agents", "bin", "goal-loop");
+  const retryPolicy = await ledgerStateValue(ledger, "blocker_retry_policy");
+  return captureProcess(
+    [
+      "bash",
+      helper,
+      ...blockedGoalResumeArguments(ledger, mode, response, retryPolicy),
+    ],
+    repoDir,
+  );
 }
 
 async function relayBlockedGoalResponse(
@@ -3002,8 +3109,49 @@ async function relayBlockedGoalResponse(
   current: GoalOwnerTurnState,
 ): Promise<GoalOwnerTurnState> {
   if (current.status !== "blocked") return current;
+  const attempt = await acquireBlockedGoalResponse(context);
+  if (!attempt) return current;
   const { client, repoDir, phase } = context;
-  const { threadId, handoff, prepared } = phase;
+  const { threadId, handoff } = phase;
+  const { operation, authorized, response, resumedLedger } = attempt;
+  if (resumedLedger.code !== 0)
+    return refusedBlockedGoalResponse({
+      client,
+      current,
+      mode: authorized.mode,
+      operation,
+      threadId,
+      stderr: resumedLedger.stderr,
+    });
+  await reactivateBlockedGoal(
+    client,
+    threadId,
+    context.objective,
+    resumedLedger.stdout,
+  );
+  const resumed = await startExecutionTurn({
+    client,
+    threadId,
+    repoDir,
+    prompt: `- phase: blocked-goal-response\n- resume-transition: recorded\n${response}`,
+    route: handoff.selectedRoute,
+  });
+  recordBlockedGoalResponseRelay(client, authorized.mode, operation, threadId);
+  const result = await runNativeGoal(
+    client,
+    { threadId, turnId: resumed.turnId, eventCursor: resumed.eventCursor },
+    confirmTerminal,
+  );
+  return {
+    result,
+    status: await assertGoalOutcome(client, threadId),
+    humanInterruptions: current.humanInterruptions + 1,
+  };
+}
+
+async function acquireBlockedGoalResponse(context: GoalOwnerTurnContext) {
+  const { client, repoDir, phase } = context;
+  const { threadId, prepared } = phase;
   const operation = await ledgerStateValue(
     prepared.ledger,
     "blocker_operation",
@@ -3012,8 +3160,8 @@ async function relayBlockedGoalResponse(
     prepared.engineeringRequest,
     operation,
   );
-  if (!authorized) return current;
-
+  if (!authorized) return undefined;
+  await validateBlockedGoalIdentity(client, threadId, context.objective);
   await renderLedgerReport(repoDir, prepared.ledger, "blocked");
   client.record({
     type: "darrow.goal_report_rendered",
@@ -3023,24 +3171,35 @@ async function relayBlockedGoalResponse(
     continuation: "pending",
   });
   const response = await runAuthorizedFeedbackAnswer(repoDir, authorized.argv);
-  await reactivateBlockedGoal(client, threadId, context.objective);
-  const resumed = await startExecutionTurn({
-    client,
-    threadId,
+  const resumedLedger = await recordBlockedGoalResume(
     repoDir,
-    prompt: `- phase: blocked-goal-response\n${response}`,
-    route: handoff.selectedRoute,
-  });
-  recordBlockedGoalResponseRelay(client, authorized.mode, operation, threadId);
-  const result = await runNativeGoal(
-    client,
-    { threadId, turnId: resumed.turnId, eventCursor: resumed.eventCursor },
-    confirmTerminal,
+    prepared.ledger,
+    authorized.mode,
+    response,
   );
-  const status = await assertGoalOutcome(client, threadId);
+  return { operation, authorized, response, resumedLedger };
+}
+
+function refusedBlockedGoalResponse(input: {
+  client: AppServerClient;
+  current: GoalOwnerTurnState;
+  mode: BlockedGoalResponseMode;
+  operation: string;
+  threadId: string;
+  stderr: string;
+}): GoalOwnerTurnState {
+  const { client, current, mode, operation, threadId, stderr } = input;
+  client.record({
+    type: "darrow.blocked_goal_response_refused",
+    mode,
+    operation,
+    thread_id: threadId,
+    same_owner: true,
+    objective_retained: true,
+  });
   return {
-    result,
-    status,
+    ...current,
+    result: { ...current.result, text: stderr },
     humanInterruptions: current.humanInterruptions + 1,
   };
 }
@@ -3228,22 +3387,21 @@ async function runGoalExecutionPhase(
     stagingDir: prepared.stagingDir,
   });
   recordObjectiveEvidence(client, handoff, materialized);
+  const objective = await captureActivatedGoalObjectiveForExecution(
+    client,
+    threadId,
+    prepared.ledger,
+    materialized,
+  );
   try {
-    const execution = await withMaterializedGoalLifecycle(
+    const execution = await executeMaterializedGoal({
+      client,
+      repoDir,
+      phase,
+      workflow,
       materialized,
-      (confirmTerminal) =>
-        runGoalOwnerTurn(
-          {
-            client,
-            repoDir,
-            phase,
-            workflow,
-            objective: materialized.objective,
-          },
-          confirmTerminal,
-        ),
-      (attachment) => recordRetainedObjective(client, threadId, attachment),
-    );
+      objective,
+    });
     await renderGoalExecutionOutcome({ client, repoDir, phase, execution });
     await teardownBlockedGoalTrial({
       client,
@@ -3259,6 +3417,59 @@ async function runGoalExecutionPhase(
       error,
     );
   }
+}
+
+export async function captureActivatedGoalObjectiveForExecution(
+  client: AppServerClient,
+  threadId: string,
+  ledger: string,
+  materialized: MaterializedGoalObjective,
+): Promise<string> {
+  try {
+    return await captureActivatedGoalObjective(
+      client,
+      threadId,
+      materialized.objective,
+    );
+  } catch (failure) {
+    let cleanupFailure: unknown;
+    try {
+      await materialized.cleanup();
+    } catch (error) {
+      cleanupFailure = error;
+    }
+    client.record({
+      type: "darrow.goal_failed_cleanup",
+      ledger,
+      reason: "objective-identity-rejected",
+      cleanup_complete: cleanupFailure === undefined,
+    });
+    if (cleanupFailure)
+      throw new Error(`${errorText(failure)}; ${errorText(cleanupFailure)}`, {
+        cause: failure,
+      });
+    throw failure;
+  }
+}
+
+async function executeMaterializedGoal(input: {
+  client: AppServerClient;
+  repoDir: string;
+  phase: PreflightPhase;
+  workflow: GoalWorkflowEvidence;
+  materialized: MaterializedGoalObjective;
+  objective: string;
+}) {
+  const { client, repoDir, phase, workflow, materialized, objective } = input;
+  return withMaterializedGoalLifecycle(
+    materialized,
+    (confirmTerminal) =>
+      runGoalOwnerTurn(
+        { client, repoDir, phase, workflow, objective },
+        confirmTerminal,
+      ),
+    (attachment) => recordRetainedObjective(client, phase.threadId, attachment),
+  );
 }
 
 type CodexGoalOutcome = Omit<HarnessResult, "ok" | "durationMs">;

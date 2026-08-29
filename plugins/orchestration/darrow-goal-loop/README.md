@@ -119,11 +119,14 @@ instead record unavailable persistence and release the attachment before
 `launch_required`.
 
 A blocked owner retains the same objective and can consume one explicit answer,
-qualifying continue, authorized exact-operation retry, or discretionary Darrow
-gate waiver. Ambiguous external publication is observed before retry, unchanged
-deterministic evidence cannot be retried, and repository policy, safety,
-authorization, and truthful completion are never waivable. The helper records
-these transitions but has no timeout, scheduler, daemon, or automatic retry.
+qualified changed-conditions continue, authorized exact-operation retry, or
+discretionary Darrow gate waiver. Ambiguous external publication is observed
+before retry, unchanged deterministic evidence cannot be retried, and
+repository policy, safety, authorization, and truthful completion are never
+waivable. Each blocked snapshot lists only responses valid for its recorded
+policies and can be rendered idempotently after a refused resume. The helper
+records these transitions but has no timeout, scheduler, daemon, or automatic
+retry.
 
 The contract also selects independent code review proportionally: routine work
 omits it by default, elevated work selects it when compatibility, caller, or

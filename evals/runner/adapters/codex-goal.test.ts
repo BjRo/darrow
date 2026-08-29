@@ -15,8 +15,11 @@ import {
   activateMaterializedGoal,
   authorizedBlockedGoalResponseCommand,
   authorizedFeedbackAnswerCommand,
+  blockedGoalResumeArguments,
   buildGoalExecutionPrompt,
   buildPreparedGoalPrompt,
+  captureActivatedGoalObjective,
+  captureActivatedGoalObjectiveForExecution,
   composeGoalExecutionResult,
   extractIntentRoutingGuidance,
   goalDimensionStage,
@@ -679,6 +682,41 @@ after`);
     ).toBeUndefined();
   });
 
+  test("qualifies deterministic continuation only from explicit changed conditions", () => {
+    expect(
+      blockedGoalResumeArguments(
+        "/tmp/ledger",
+        "continue",
+        "conditions-changed: entitlement granted",
+        "evidence-change",
+      ),
+    ).toEqual([
+      "step",
+      "resume",
+      "--ledger",
+      "/tmp/ledger",
+      "--mode",
+      "continue",
+      "--conditions-changed",
+      "entitlement granted",
+    ]);
+    expect(
+      blockedGoalResumeArguments(
+        "/tmp/ledger",
+        "continue",
+        "continue",
+        "evidence-change",
+      ),
+    ).toEqual([
+      "step",
+      "resume",
+      "--ledger",
+      "/tmp/ledger",
+      "--mode",
+      "continue",
+    ]);
+  });
+
   test("reactivates the exact blocked thread and retained objective", async () => {
     const calls: Array<{ method: string; params: unknown }> = [];
     const client = {
@@ -697,6 +735,7 @@ after`);
       client as never,
       "thread-1",
       "retained objective",
+      "format\tdarrow-goal-step-v1\nstep\tresume\nstatus\trecorded\n",
     );
 
     expect(calls).toEqual([
@@ -712,6 +751,96 @@ after`);
     ]);
   });
 
+  test("captures the exact host-retained objective after activation", async () => {
+    const client = {
+      async request<T = unknown>(method: string, params: unknown): Promise<T> {
+        expect(method).toBe("thread/goal/get");
+        expect(params).toEqual({ threadId: "thread-1" });
+        return {
+          goal: { status: "active", objective: "materialized objective" },
+        } as T;
+      },
+    };
+
+    expect(
+      await captureActivatedGoalObjective(
+        client as never,
+        "thread-1",
+        "materialized objective\n",
+      ),
+    ).toBe("materialized objective");
+  });
+
+  test("rejects objective drift during initial activation", async () => {
+    const client = {
+      async request<T = unknown>(): Promise<T> {
+        return {
+          goal: { status: "active", objective: "changed objective" },
+        } as T;
+      },
+    };
+
+    await expect(
+      captureActivatedGoalObjective(
+        client as never,
+        "thread-1",
+        "materialized objective",
+      ),
+    ).rejects.toThrow("changed the objective during activation");
+  });
+
+  test("cleans up an objective rejected before owner activation", async () => {
+    const repo = await adapterFixtureRepo();
+    const calls: string[] = [];
+    const records: Array<Record<string, unknown>> = [];
+    let contractFile = "";
+    const client = {
+      async request<T = unknown>(method: string, params: unknown): Promise<T> {
+        calls.push(method);
+        if (method === "thread/goal/set") {
+          contractFile = contractPathFromObjective(
+            (params as { objective: string }).objective,
+          );
+          return {} as T;
+        }
+        if (method === "thread/goal/get")
+          return {
+            goal: { status: "active", objective: "substantively changed" },
+          } as T;
+        throw new Error(`unexpected request: ${method}`);
+      },
+      record(event: Record<string, unknown>) {
+        records.push(event);
+      },
+    };
+    try {
+      const materialized = await activateMaterializedGoal(client, {
+        repoDir: repo,
+        threadId: "thread-1",
+        goalContract: "identity".repeat(701),
+      });
+      await expect(
+        captureActivatedGoalObjectiveForExecution(
+          client as never,
+          "thread-1",
+          "/tmp/ledger",
+          materialized,
+        ),
+      ).rejects.toThrow("changed the objective during activation");
+      expect(calls).toEqual(["thread/goal/set", "thread/goal/get"]);
+      expect(await Bun.file(contractFile).exists()).toBe(false);
+      expect(records).toEqual([
+        expect.objectContaining({
+          type: "darrow.goal_failed_cleanup",
+          reason: "objective-identity-rejected",
+          cleanup_complete: true,
+        }),
+      ]);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   test("refuses to reactivate a blocked thread after objective drift", async () => {
     const client = {
       async request<T = unknown>(method: string): Promise<T> {
@@ -721,8 +850,33 @@ after`);
     };
 
     await expect(
-      reactivateBlockedGoal(client as never, "thread-1", "expected"),
+      reactivateBlockedGoal(
+        client as never,
+        "thread-1",
+        "expected",
+        "format\tdarrow-goal-step-v1\nstep\tresume\nstatus\trecorded\n",
+      ),
     ).rejects.toThrow("objective drift");
+  });
+
+  test("refuses to reactivate before the resume transition is recorded", async () => {
+    const calls: string[] = [];
+    const client = {
+      async request<T = unknown>(method: string): Promise<T> {
+        calls.push(method);
+        throw new Error(`unexpected request: ${method}`);
+      },
+    };
+
+    await expect(
+      reactivateBlockedGoal(
+        client as never,
+        "thread-1",
+        "retained objective",
+        "goal-loop: deterministic failure requires changed evidence or conditions before retry\n",
+      ),
+    ).rejects.toThrow("successful recorded resume transition");
+    expect(calls).toEqual([]);
   });
 
   test("removes model-authored reports before helper report composition", () => {

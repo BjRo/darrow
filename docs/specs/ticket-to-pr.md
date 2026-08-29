@@ -156,10 +156,14 @@ resolves or authorizes the recorded blocker. An unqualified `retry` authorizes
 one additional attempt at the exact failed operation. Ambiguous push or pull-
 request creation is observed before retry, and an observed matching effect is
 reused instead of duplicated. Deterministic unchanged failure or review
-evidence is not rerun merely to seek a different result.
+evidence is not rerun merely to seek a different result. A qualifying
+`continue` may instead record a concrete changed condition through the adaptive
+owner before another attempt.
 
 `ignore this and continue` may waive only a discretionary Darrow-selected gate
-and records that waiver. Repository policy, safety and authorization
+and records that waiver. Independent review selected only by Darrow's risk
+heuristic is discretionary; user- or repository-required review is not.
+Repository policy, safety and authorization
 boundaries, and truthful verified-PR completion remain non-waivable. Skipping
 an essential ticket acceptance condition requires an explicitly revised
 authoritative outcome rather than a false completion claim.

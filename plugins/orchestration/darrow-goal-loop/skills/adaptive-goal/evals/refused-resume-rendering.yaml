@@ -1,0 +1,61 @@
+id: goal-refused-resume-renders-unchanged-snapshot
+invariant: AGL-L16,AGL-L17
+prompt: >-
+  /adaptive-goal Add an exported releaseAccess() function to src/access.js only
+  after a deterministic access check can resume. Use the routine policy route.
+  The retained owner must first run `resumectl discover`, record its operation
+  access-check as a dependency blocker with retry policy evidence-change,
+  waiver forbidden, and the reported evidence digest, settle blocked, and
+  render the snapshot without mutation. Only after the snapshot, the host is
+  authorized to run `resumectl continue <blocked-operation>` and pass its
+  successful one-line output through `goal-loop step resume`. That output is
+  intentionally an unqualified continue. Relay any helper refusal verbatim,
+  idempotently render the unchanged snapshot, and do not reactivate the goal,
+  resume the owner, edit files, commit, or publish.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/access.js: |
+          export const identity = (value) => value;
+  bin:
+    resumectl: |
+      #!/usr/bin/env bash
+      set -eu
+      git_dir=$(git rev-parse --git-dir)
+      trace="$git_dir/refused-resume-trace"
+      case "${1-}" in
+        discover)
+          test ! -e "$trace"
+          printf '%s\n' discover >"$trace"
+          printf '%s\n' \
+            'denied' \
+            'operation: access-check' \
+            'evidence_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+          ;;
+        continue)
+          test "${2-}" = access-check
+          test "$(cat "$trace")" = discover
+          printf '%s\n' response >>"$trace"
+          printf '%s\n' continue
+          ;;
+        *) exit 64 ;;
+      esac
+checks:
+  - name: refused continuation performs no product mutation
+    run: |
+      test "$(cat src/access.js)" = 'export const identity = (value) => value;'
+      test "$(cat .git/refused-resume-trace)" = "discover
+      response"
+  - name: no replacement publication occurred
+    run: test "$(git status --porcelain)" = "" && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+output_checks:
+  - name: relays the exact helper refusal
+    expect_regex: "goal-loop: deterministic failure requires changed evidence or conditions before retry"
+  - name: returns the unchanged blocked report
+    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*Blocked operation: access-check\\.[\\s\\S]*Valid continuation responses: continue with changed conditions; retry with changed evidence\\.[\\s\\S]*Native goal blocked; valid continuation responses are listed above\\."
+transcript_checks:
+  - name: refusal retains the same owner without response relay
+    expect_regex: '"type":"darrow.blocked_goal_response_refused","mode":"continue","operation":"access-check","thread_id":"[^"]+","same_owner":true,"objective_retained":true'
+  - name: refused response does not resume an execution turn
+    not_regex: '"type":"darrow.blocked_goal_response_relay"'

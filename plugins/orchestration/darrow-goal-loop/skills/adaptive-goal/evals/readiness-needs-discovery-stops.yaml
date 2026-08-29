@@ -37,6 +37,6 @@ checks:
     run: test ! -s .git/implementation-readiness-pre-status
 output_checks:
   - name: discovery result precedes the blocked outer report
-    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-discovery`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal blocked; continuation remains available\\."
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-discovery`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal blocked; valid continuation responses are listed above\\."
   - name: discovery result does not claim implementation
     not_regex: "Native goal completed\\.|Discovery-gated request completed\\."

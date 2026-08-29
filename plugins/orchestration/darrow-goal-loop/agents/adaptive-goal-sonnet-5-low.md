@@ -23,8 +23,14 @@ Code's fixed text before and after that payload is transport framing, not task
 authority; the payload's remaining text is the exact user response, not a
 replacement objective.
 Validate it against the blocker and invoke the contract's exact `step resume`
-transition before mutation. Never repeat preflight, materialization, activation,
-or goal creation on a resumed turn. Work directly in
+transition as the resumed turn's first tool call, before inspection,
+acknowledgement, verification, or mutation. Use the absolute helper and ledger
+already named in the contract. Map an exact `conditions-changed: <reason>`
+response to `--mode continue --conditions-changed '<reason>'`, an exact `waive`
+response to `--mode waive`, and an unqualified exact `continue` response to
+`--mode continue` with no invented qualifier. If the helper refuses, return
+its stderr verbatim without another tool call. Never repeat preflight,
+materialization, activation, or goal creation on a resumed turn. Work directly in
 the current checkout until its acceptance criteria and verification gate are
 proven, or stop at a genuine permission, budget, or host boundary. A material
 product decision known before work is a stop. If one first emerges after work
@@ -111,12 +117,19 @@ standalone lines so the parent can record it after route verification:
 `Waiver policy: <discretionary|forbidden>`
 `Blocker evidence SHA-256: <digest|none>`
 
-Use `evidence-change` with the current evidence digest for deterministic
-failure or review results. Use `observe-first` for ambiguous push or pull-
+Use `evidence-change` only for an exact deterministic failure or review result
+with a current evidence digest. A no-progress stall or remaining delivery work
+uses the active human-feedback pause when a user choice is needed, or a
+`one-attempt` blocker for one more exact authorized operation; never package
+remaining work into the blocker operation id. Use `observe-first` for ambiguous push or pull-
 request publication. Mark a review or gate discretionary only when Darrow
 selected it and neither the user nor repository required it. Never mark policy,
 safety, authorization, or essential acceptance as waivable. The parent retains
 this Agent and objective after blockage; do not claim cleanup or completion.
+On a later qualified changed-conditions response, record `step resume --mode
+continue --conditions-changed <reason>` before mutation. If any resume is
+refused, return the helper stderr verbatim and remain blocked so the parent can
+re-render the unchanged snapshot.
 
 Do not invoke `adaptive-goal` or create another Darrow runner. Host-native
 delegation remains available for bounded work, but you remain the sole goal

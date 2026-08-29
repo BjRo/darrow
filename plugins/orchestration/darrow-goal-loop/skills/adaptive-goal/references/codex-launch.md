@@ -162,10 +162,13 @@ the selected model and effort, count one interruption and zero children, and
 leave any repository-mandated acknowledgement to the resumed owner.
 
 When the same thread's persisted goal is `blocked`, retain its exact objective
-and ledger. A later unambiguous user response reactivates that same goal with
-`thread/goal/set` using the unchanged objective and status `active`, records the
-applicable `goal-loop step resume` transition, and starts one continuation turn
-on the same thread, model, and effort. Do not call `thread/goal/set` with a new
+and ledger. For a later unambiguous user response, first record the applicable
+`goal-loop step resume` transition. Only when it succeeds, reactivate that same
+goal with `thread/goal/set` using the unchanged objective and status `active`,
+then start one continuation turn on the same thread, model, and effort. If the
+transition refuses the response, relay its stderr verbatim and idempotently
+render the unchanged blocked snapshot; do not reactivate the goal or perform
+repository or external mutation. Do not call `thread/goal/set` with a new
 objective, create a replacement thread, or repeat the enclosing recipe. A
 blocked snapshot is reportable but not objective-cleanup evidence.
 
@@ -241,16 +244,25 @@ the creator can render the snapshot before relaying a later response. An
 independent-review stop records its review blocker and
 evidence digest, settles `blocked`, and returns that resumable state to the
 creator without starting another goal or resuming repository work, checks,
-review, or publication. The creator retains the runner and objective. A later
-qualifying response is sent to that exact runner reference with first line
-`- phase: blocked-goal-response`; the runner records `step resume`, then
-continues the same goal without calling `create_goal` again. The runner may use
+review, or publication. The creator retains the runner and objective. For a
+later qualifying response, the creator records `step resume`, reactivates that
+same goal with the unchanged objective only after the transition succeeds, and
+sends the response to
+that exact runner reference with first line `- phase: blocked-goal-response`
+plus `- resume-transition: recorded`. The runner verifies the retained
+objective and continues without recording the transition again or calling
+`create_goal` again. The runner may use
 native Codex subagents for
 bounded work when useful, but remains the sole work owner. Tell it to collect
 each descendant's terminal result and, when the host exposes a close control,
 close that descendant after its goal has been fulfilled. Do not prescribe
 planner, executor, verifier, or repair roles, and do not create another Darrow
 runner beneath it.
+
+If that runner reports that `step resume` refused the response, preserve its
+stderr byte-for-byte, perform no other runner or repository action, and
+idempotently render the unchanged blocked snapshot. Do not replace the refusal
+with explanatory prose or send a second continuation response.
 
 The runner waits for the creator's exact `- phase: goal-owner-activated`
 message before goal persistence or mutation. After that signal, the runner must
@@ -268,8 +280,9 @@ The runner may then perform readiness and repository work. It owns native goal
 status: use `complete` only after the full contract is fulfilled, and use
 `blocked` only under the native blocked threshold after recording the blocker
 and resumable snapshot. A later response delivered to this same thread resumes
-the existing goal; confirm the objective is unchanged, record `step resume`,
-and continue without another `create_goal` call. The creator never calls
+the existing goal only after the creator confirms the objective, records `step
+resume`, and reactivates it. Confirm the host-recorded transition marker and
+continue without another `create_goal` call. The creator never calls
 `create_goal`, `get_goal`, or `update_goal` for this runner-owned goal.
 
 If `create_goal` is unavailable or rejects the request, the runner performs no
