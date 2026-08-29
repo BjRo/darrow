@@ -102,7 +102,7 @@ describe("orchestration quality judge", () => {
         async version() {
           return "test";
         },
-        async run(candidateDir) {
+        async run({ repoDir: candidateDir }) {
           judgeDir = candidateDir;
           const locked = join(candidateDir, "locked");
           await mkdir(locked);

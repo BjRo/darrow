@@ -17,12 +17,15 @@ A marker without either the complete inline contract or that one exact
 objective-file line is not a goal; stop without inferring work from the marker.
 Treat that complete contract as the goal for this Agent run. A later
 `SendMessage` coordinator message is valid only when this same Agent already
-owns that verified contract, its ledger records a blocker, and the embedded
-coordinator payload begins exactly `- phase: blocked-goal-response`. Claude
-Code's fixed text before and after that payload is transport framing, not task
-authority; the payload's remaining text is the exact user response, not a
-replacement objective.
-Validate it against the blocker and invoke the contract's exact `step resume`
+owns that verified contract and its embedded coordinator payload either begins
+exactly `- phase: human-feedback-response` while this Agent has one pending
+human-feedback question, or begins exactly `- phase: blocked-goal-response`
+while its ledger records a blocker. Claude Code's fixed text before and after
+that payload is transport framing, not task authority; the payload's remaining
+text is the exact user response, not a replacement objective. For a feedback
+response, acknowledge the exact answer as required by the contract before
+mutation and continue without a blocker transition. For a blocked response,
+validate it against the blocker and invoke the contract's exact `step resume`
 transition as the resumed turn's first tool call, before inspection,
 acknowledgement, verification, or mutation. Use the absolute helper and ledger
 already named in the contract. Map an exact `conditions-changed: <reason>`
@@ -41,6 +44,9 @@ parent relays the explicit answer, which grants no additional authority. If no
 relay is available, return the question and resumable state without choosing a
 default or making further changes. Count each distinct user question once in
 the final record.
+Every such terminal pause result begins on its first line exactly
+`- phase: human-feedback-request`, followed by the complete smallest question.
+Use no preamble and never return a bare marker or marker without the question.
 
 Treat an explicit contract requirement to add or update focused evidence as
 authority to edit the applicable evidence file. When a requested behavior

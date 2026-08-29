@@ -208,6 +208,57 @@ describe("eval fixture skill mounts", () => {
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });
 
+  test("packages composition skills with explicitly selected plugin mechanics", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-composition-"));
+    cleanup.push(root);
+    const recipe = join(root, "plugins", "recipe", "skills", "recipe");
+    const orchestration = join(root, "plugins", "orchestration");
+    const adaptive = join(orchestration, "skills", "adaptive");
+    await mkdir(recipe, { recursive: true });
+    await mkdir(adaptive, { recursive: true });
+    await mkdir(join(orchestration, ".claude-plugin"), { recursive: true });
+    await mkdir(join(orchestration, ".codex-plugin"), { recursive: true });
+    await mkdir(join(orchestration, "bin"), { recursive: true });
+    await writeFile(
+      join(recipe, "SKILL.md"),
+      "---\nname: recipe\ndescription: Recipe\n---\n",
+    );
+    await writeFile(
+      join(adaptive, "SKILL.md"),
+      "---\nname: adaptive\ndescription: Adaptive\n---\n",
+    );
+    await writeFile(
+      join(orchestration, ".claude-plugin", "plugin.json"),
+      '{"name":"orchestration","version":"0.1.0","description":"Orchestration"}\n',
+    );
+    await writeFile(
+      join(orchestration, ".codex-plugin", "plugin.json"),
+      '{"name":"orchestration","version":"0.1.0","description":"Orchestration","skills":"./skills/"}\n',
+    );
+    await writeFile(join(orchestration, "bin", "runner"), "fixture runner\n");
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: recipe,
+      skillMounts: [],
+      sourceClaudePlugin: true,
+      sourcePluginRoot: orchestration,
+      additionalSkillDirs: [adaptive],
+    });
+    cleanup.push(fixture);
+    const plugin = join(fixture, ".git", "eval-plugin");
+    expect(
+      await readFile(join(plugin, ".claude-plugin", "plugin.json"), "utf8"),
+    ).toContain('"name":"orchestration"');
+    expect(existsSync(join(plugin, "skills", "recipe", "SKILL.md"))).toBe(true);
+    expect(existsSync(join(plugin, "skills", "adaptive", "SKILL.md"))).toBe(
+      true,
+    );
+    expect(existsSync(join(plugin, "bin", "runner"))).toBe(true);
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
   test("commits case scaffolding and provisions a local ticket", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-case-"));
     cleanup.push(root);

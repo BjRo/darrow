@@ -1,6 +1,6 @@
 ---
 name: ticket-to-pr
-description: Deliver one ready authoritative ticket as exactly one verified pull request or resume its recorded blocker. Use for explicit `$ticket-to-pr <ticket>` delivery requests and unambiguous answer, continue, retry, or ignore responses targeting this thread's existing Ticket-to-PR delivery; do not use for ordinary ticket discussion, implementation, planning, or unrelated pull-request requests.
+description: Deliver one ready authoritative ticket as exactly one verified pull request or resume its retained owner. Use for explicit `$ticket-to-pr <ticket>` delivery requests and unambiguous answers targeting this thread's pending recorded human-feedback question or recorded Ticket-to-PR blocker; do not use for ordinary ticket discussion, implementation, planning, or unrelated pull-request requests.
 ---
 
 # Ticket to PR
@@ -14,12 +14,14 @@ implementation, or post-goal inspection.
 ## 1. Confirm authority
 
 Continue only when the user explicitly invoked `ticket-to-pr`, or when this
-same host thread already contains exactly one blocked Ticket-to-PR adaptive
-owner and the user's unambiguous answer, `continue`, `retry`, or `ignore this
-and continue` response targets its recorded blocker. Ordinary ticket intent, a
-request to implement, a named ticket, a fresh conversation without explicit
-recipe invocation, or a parent that is not an explicitly invoked task recipe
-is insufficient. Before helper calls or mutation, return exactly:
+same host thread already contains exactly one retained Ticket-to-PR adaptive
+owner and either the user's unambiguous answer targets its pending recorded
+human-feedback question, or the user's unambiguous answer, `continue`, `retry`,
+or `ignore this and continue` response targets its recorded blocker. Ordinary
+ticket intent, a request to implement, a named ticket, an ambiguous answer, a
+fresh conversation without explicit recipe invocation, or a parent that is not
+an explicitly invoked task recipe is insufficient. Before helper calls or
+mutation, return exactly:
 
 ```text
 format: darrow-ticket-to-pr-authority-stop-v1
@@ -131,6 +133,22 @@ verbatim to the same active owner. After it returns, preserve its ticket,
 repository, PR URL, created-versus-reused state, current-content verification,
 and selected-review evidence without repository/forge reinspection, repair,
 reverification, replacement goal, or publication retry.
+
+Treat the answer as opaque continuation input: preserve its complete exact text
+in the relay and in any caller-visible relay acknowledgement. Do not shorten,
+normalize, reinterpret, restate as a key/value choice, or replace it with a
+summary even when its meaning appears obvious.
+Preserve the owner's exact `Applied relayed decision: <exact answer>` as its own
+unformatted line. Do not insert Markdown delimiters inside that label or between
+the colon and answer.
+
+When the answer arrives in a later turn of this same host thread, use the
+pending recorded question as continuation authority, go directly to this
+section, and relay the exact answer to the retained adaptive owner. Do not
+invoke this recipe again, reread the ticket, rerun intake or readiness, prepare
+another branch, repeat delegation, or classify the active feedback pause as a
+recorded blocker. Count the question once; the adaptive owner performs any
+required acknowledgement before mutation.
 
 When the same adaptive owner has settled blocked, relay an unambiguous answer
 or qualifying `continue` to that owner only when it resolves or authorizes the

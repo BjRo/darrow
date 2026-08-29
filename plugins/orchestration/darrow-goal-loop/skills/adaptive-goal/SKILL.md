@@ -1,6 +1,6 @@
 ---
 name: adaptive-goal
-description: Compile or resume one bounded engineering request as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use when the user explicitly requests adaptive goal orchestration, an invoked orchestration delegates one bounded request, or an unambiguous answer, continue, retry, or ignore response targets this thread's recorded adaptive-goal blocker; do not select merely because ordinary work is complex or long-running.
+description: Compile or resume one bounded engineering request as a host-native goal with a proportionate workflow, risk gate, model, and effort. Use when the user explicitly requests adaptive goal orchestration, an invoked orchestration delegates one bounded request, or an unambiguous answer targets this thread's pending recorded human-feedback question or recorded adaptive-goal blocker; do not select merely because ordinary work is complex or long-running.
 ---
 
 # Adaptive Goal Loop
@@ -16,13 +16,13 @@ Start only when the context establishes either entry condition:
 - an orchestration entrypoint the user explicitly invoked delegates one bounded
   request and preserves the originating request and permissions; or
 - this host thread already contains exactly one resumable adaptive owner and
-  the user's unambiguous answer, `continue`, `retry`, or `ignore this and
-  continue` response targets its recorded blocker.
+  the user's unambiguous answer targets its pending recorded human-feedback
+  question or its answer, `continue`, `retry`, or `ignore this and continue`
+  response targets its recorded blocker.
 
-Delegation adds no authority; preserve the originating scope, permissions,
-publication, and safety boundaries. Complexity, duration, and ordinary
-engineering intent do not authorize orchestration. Without either condition,
-run no helper and leave the worktree unchanged. Return exactly:
+Delegation adds no authority; preserve the originating scope, permissions, publication, and safety boundaries. Complexity, duration, and ordinary
+engineering intent do not authorize orchestration. A pending question in another conversation, multiple plausible owners or questions, or an ambiguous answer grants no continuation authority.
+Without one of the conditions above, run no helper and leave the worktree unchanged. Return exactly:
 
 ```text
 format: darrow-adaptive-goal-authority-stop-v1
@@ -30,12 +30,10 @@ status: invocation_required
 reason: explicit-orchestration-entrypoint-required
 ```
 
-## Resume one blocked owner
+## Resume one retained owner
 
-Read [`references/resume-lifecycle.md`](references/resume-lifecycle.md) completely whenever an activated owner must settle blocked or the user responds
-to this thread's recorded blocker. It owns blocker classification, the exact
-`goal-loop step block`, `goal-loop step resume`, and `goal-loop step end` transitions, retry observation,
-waiver boundaries, same-owner continuation, retention, and cleanup. For observe-first, map completed to `--mode continue --observation completed` and not-completed to `--mode retry --observation not-completed`; never combine retry with a completed effect or placeholder both observations under one mode. Compile its portable rule into every activated contract. Darrow adds no timeout, daemon, scheduler, replacement owner, or automatic retry.
+For an answer to this thread's pending human-feedback question, go directly to the selected host guide's feedback relay with the retained owner and objective. Do not repeat preflight, create a ledger or owner, invoke an enclosing recipe, or reinterpret the active pause as a blocker.
+For a recorded blocker, read [`references/resume-lifecycle.md`](references/resume-lifecycle.md) completely. It owns blocker classification, the exact `goal-loop step block`, `goal-loop step resume`, and `goal-loop step end` transitions, retry observation, waiver boundaries, same-owner continuation, retention, and cleanup. For observe-first, map completed to `--mode continue --observation completed` and not-completed to `--mode retry --observation not-completed`; never combine retry with a completed effect or placeholder both observations under one mode. Compile its portable rule into every activated contract. Darrow adds no timeout, daemon, scheduler, replacement owner, or automatic retry.
 
 ### Enforce read-only preflight
 
@@ -319,7 +317,7 @@ exact answer was applied on one line as
 line in the caller-facing completion. An optional Markdown bullet, inline code
 around the answer, or terminal period is presentation only.
 
-Compile **Resume one blocked owner** with the same owner, objective, gates, and thread. Use `evidence-change` only for an exact
+Compile the recorded-blocker rules from **Resume one retained owner** with the same owner, objective, gates, and thread. Use `evidence-change` only for an exact
 hashable failure or review result; a stall uses human feedback for a user choice
 or `one-attempt` for one exact operation. Compile changed conditions, unchanged-
 evidence refusal, verbatim refusal relay, valid responses, and idempotent render.

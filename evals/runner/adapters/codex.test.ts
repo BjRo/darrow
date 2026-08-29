@@ -4,9 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import {
+  codexArgv,
   codexEvalSkillsRoot,
+  codexResumeArgv,
   codexRunSucceeded,
   codexSkillActivation,
+  codexThreadId,
   codexTokenUsage,
   retainedCodexEvidence,
 } from "./codex";
@@ -39,6 +42,51 @@ const COMPLETE_CONTRACT = [
   "Completion report: Begin with the canonical report.",
   "Protocol ledger: /tmp/darrow-goal-run.fixture",
 ].join("\n");
+
+test("builds one persistent Codex session and one exact follow-up resume", () => {
+  const initial = codexArgv({
+    repoDir: REPO,
+    prompt: "first",
+    model: "gpt-5.5",
+    effort: "medium",
+    persistent: true,
+  });
+  expect(initial).not.toContain("--ephemeral");
+  const resumed = codexResumeArgv({
+    repoDir: REPO,
+    threadId: "thread-123",
+    prompt: "answer",
+    model: "gpt-5.5",
+    effort: "medium",
+  });
+  expect(resumed.slice(0, 5)).toEqual([
+    "codex",
+    "exec",
+    "resume",
+    "thread-123",
+    "answer",
+  ]);
+  expect(resumed).not.toContain("--ephemeral");
+});
+
+test("requires exactly one Codex thread id before resuming", () => {
+  expect(
+    codexThreadId(
+      [
+        JSON.stringify({ type: "thread.started", thread_id: "thread-123" }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n"),
+    ),
+  ).toBe("thread-123");
+  expect(
+    codexThreadId(
+      [
+        JSON.stringify({ type: "thread.started", thread_id: "one" }),
+        JSON.stringify({ type: "thread.started", thread_id: "two" }),
+      ].join("\n"),
+    ),
+  ).toBeUndefined();
+});
 
 test("Codex no-skill control does not require a plugin package", async () => {
   expect(await codexEvalSkillsRoot(REPO, {})).toBe(

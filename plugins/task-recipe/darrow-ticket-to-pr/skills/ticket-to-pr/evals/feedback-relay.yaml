@@ -1,15 +1,152 @@
 id: ticket-to-pr-feedback-relay
-invariant: TPR-C3,TPR-C4
+invariant: TPR-C3,TPR-C4,TPR-C11
+expect_head_change: true
+source_plugin: plugins/orchestration/darrow-goal-loop
+additional_skills:
+  - plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
 prompt: >-
-  Use $ticket-to-pr to deliver ticket #42. The active adaptive goal asks which
-  migration policy to use. Relay its question verbatim and keep the same owner
-  active until the user's answer returns.
+  {{skill_invocation}} Deliver ticket #42. This leading command is the explicit
+  recipe invocation. Its exact-ticket reader,
+  branch-preparation capability, and implementation-readiness capability are
+  available in this fixture. The authoritative ticket requires an exported
+  migrationMode() function in src/migration.js and `bash test.sh`; readiness is
+  ready. Delegate once to the available adaptive-goal capability. On Codex,
+  adaptive-goal must use the routine policy route through one observable native
+  goal runner; on Claude it must use one foreground Agent. The recipe parent
+  never owns implementation and never invokes Agent directly: invoke the
+  adaptive-goal Skill exactly once and let that capability alone launch the
+  exact marked owner. During implementation its owner must run `decisionctl
+  discover` before production
+  mutation. When that reports a material question, surface the complete
+  human-feedback request and end the turn with the same recipe delivery,
+  adaptive owner, and objective retained without a blocker. When the user's
+  answer arrives in a later turn of this same host thread, go directly to relay,
+  preserve its exact text, and continue that owner without invoking this recipe
+  again, rereading the ticket, rerunning readiness, preparing another branch,
+  repeating delegation, or starting a replacement goal. Keep publication local
+  when the fixture's missing remote prevents it. Preserve the owner's exact
+  `Applied relayed decision: Use the strict migration policy.` as its own
+  unformatted line.
+follow_up_prompt: "Use the strict migration policy."
 fixture:
   commits:
     - message: "chore: init"
       files:
-        README.md: "base\n"
-checks: []
+        AGENTS.md: |
+          # Repository instructions
+
+          Run `bash test.sh` for migration behavior changes. During
+          implementation run `decisionctl discover` before editing production
+          code. Its migration-policy question is product-owned. Pause without
+          mutating or blocking until the same owner receives the exact user
+          answer. Then run `decisionctl acknowledge migration-policy
+          "Use the strict migration policy."` before editing production code.
+        package.json: '{"type":"module"}'
+        src/migration.js: |
+          export const identity = (value) => value;
+        test/migration.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { identity, migrationMode } from "../src/migration.js";
+
+          test("identity", () => assert.equal(identity("v"), "v"));
+          test("uses the strict migration mode", () => {
+            assert.equal(migrationMode(), "strict");
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/migration.test.js
+        .claude/skills/read-ticket/SKILL.md: &reader |
+          ---
+          name: read-ticket
+          description: Read the exact fixture ticket by ID without mutation. Use when Ticket-to-PR requests its authoritative ticket.
+          ---
+
+          Return exactly this authoritative request:
+
+          ticket-token: DAR-42
+          ticket: #42
+          outcome: Export migrationMode() from src/migration.js and return strict.
+          acceptance: bash test.sh passes.
+        .agents/skills/read-ticket/SKILL.md: *reader
+        .claude/skills/prepare-task-branch/SKILL.md: &branch |
+          ---
+          name: prepare-task-branch
+          description: Prepare the exact additive fixture branch. Use when Ticket-to-PR requests branch preparation for DAR-42.
+          ---
+
+          Run `git switch -c fix/DAR-42-feedback` exactly once, then return the
+          current absolute repository path and branch name.
+        .agents/skills/prepare-task-branch/SKILL.md: *branch
+        .claude/skills/assess-implementation-readiness/SKILL.md: &readiness |
+          ---
+          name: assess-implementation-readiness
+          description: Assess the fixture ticket as implementation-ready. Use when Ticket-to-PR requests readiness after branch preparation.
+          ---
+
+          Return a human-readable ready verdict with quality bar `bash test.sh`.
+          Do not mutate files or ask a question.
+        .agents/skills/assess-implementation-readiness/SKILL.md: *readiness
+  bin:
+    decisionctl: |
+      #!/usr/bin/env bash
+      set -eu
+      git_dir=$(git rev-parse --git-dir)
+      trace="$git_dir/ticket-feedback-trace"
+      state="$git_dir/ticket-feedback-state"
+      case "${1-}" in
+        discover)
+          test "$#" -eq 1
+          test ! -e "$state"
+          git hash-object src/migration.js >"$state"
+          printf 'discover\tmigration-policy\t%s\n' "$(cat "$state")" >>"$trace"
+          printf '%s\n' \
+            'feedback_required' \
+            'id: migration-policy' \
+            'question: Which migration policy should this delivery use?'
+          ;;
+        acknowledge)
+          test "$#" -eq 3
+          test "${2-}" = migration-policy
+          test "${3-}" = 'Use the strict migration policy.'
+          test -s "$state"
+          test "$(git hash-object src/migration.js)" = "$(cat "$state")"
+          test "$(grep -c '^acknowledge.' "$trace" 2>/dev/null || true)" -eq 0
+          printf 'acknowledge\tmigration-policy\t%s\t%s\n' \
+            "${3-}" "$(git hash-object src/migration.js)" >>"$trace"
+          ;;
+        *)
+          printf '%s\n' \
+            'usage: decisionctl discover|acknowledge <id> <exact-answer>' >&2
+          exit 64
+          ;;
+      esac
+checks:
+  - name: composed owner implements the approved migration behavior
+    run: bash test.sh
+  - name: ticket branch remains the sole prepared delivery branch
+    run: test "$(git branch --show-current)" = fix/DAR-42-feedback
+  - name: discovery precedes exact acknowledgement and mutation
+    run: |
+      awk -F '\t' '
+        NR == 1 && $1 == "discover" && $2 == "migration-policy" {
+          before = $3; next
+        }
+        NR == 2 && $1 == "acknowledge" && $2 == "migration-policy" &&
+          $3 == "Use the strict migration policy." && $4 == before {
+          ok = 1
+        }
+        END { exit ok && NR == 2 ? 0 : 1 }
+      ' .git/ticket-feedback-trace
 output_checks:
-  - name: preserves the feedback question
-    expect_regex: "human-feedback-request|which migration policy"
+  - name: exact answer is preserved through the composed recipe
+    expect_regex: "Applied relayed decision:[ \\t]*(?:`)?Use the strict migration policy\\.(?:`)?"
+transcript_checks:
+  - name: composed delivery creates a real paused owner before the later turn
+    expect_regex: '(?:"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[^\n]*"feedback_pending":true|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*"receiver_thread_ids":\["([^"]+)"\])[\s\S]*"type":"darrow.eval.follow_up_turn"'
+  - name: composed answer relays to the retained owner
+    expect_regex: '(?:"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[^\n]*"feedback_pending":true[\s\S]*"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"darrow.human_feedback_relay"[^\n]*"answer":"Use the strict migration policy\."[^\n]*"agent_id":"\1"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\1"[^\n]*"status":"completed"[^\n]*"same_owner":true|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*"receiver_thread_ids":\["([^"]+)"\][\s\S]*"type":"darrow.eval.follow_up_turn"[\s\S]*"tool":"send_input"[^\n]*"receiver_thread_ids":\["\2"\][^\n]*"prompt":"- phase: human-feedback-response")'
+  - name: continuation repeats neither recipe nor delegation
+    not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"tool":"spawn_agent"|"name":"Agent"|step\\tblock)'
+  - name: continuation issues exactly one relay call
+    not_regex: '(?:"type":"darrow.human_feedback_relay"[^\n]*[\s\S]*"type":"darrow.human_feedback_relay"|"type":"darrow.parent_repository_tool_after_goal"[^\n]*"tool":"SendMessage"|"type":"darrow.eval.follow_up_turn"[\s\S]*"tool":"send_input"[^\n]*[\s\S]*"tool":"send_input")'

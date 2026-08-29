@@ -161,6 +161,17 @@ the same thread with `- phase: human-feedback-response` and that answer. Keep
 the selected model and effort, count one interruption and zero children, and
 leave any repository-mandated acknowledgement to the resumed owner.
 
+When no answer-acquisition command was authorized, retain the exact collaboration
+agent reference and objective, surface the complete question, and end the parent
+turn without calling `close_agent`, `interrupt_agent`, a blocker transition, or
+another `spawn_agent`. When the user's unambiguous answer arrives in a later turn
+of the same Codex thread, call `followup_task` exactly once for that retained
+agent reference. Its message begins exactly `- phase: human-feedback-response`
+and continues with only the exact answer. Do not invoke this skill again or
+repeat preflight, route selection, materialization, activation, or an enclosing
+recipe. Use `wait_agent` for the resumed result, count the question once, and
+leave any required acknowledgement to that same owner.
+
 When the same thread's persisted goal is `blocked`, retain its exact objective
 and ledger. For a later unambiguous user response, first record the applicable
 `goal-loop step resume` transition. Only when it succeeds, reactivate that same

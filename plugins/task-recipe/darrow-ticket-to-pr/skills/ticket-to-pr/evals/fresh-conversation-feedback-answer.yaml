@@ -1,0 +1,52 @@
+id: ticket-to-pr-fresh-feedback-answer-requires-invocation
+invariant: TPR-C1,TPR-C11,TPR-E9
+goal_report: forbidden
+prompt: >-
+  /fresh-feedback-parent A Ticket-to-PR delivery in a different, already
+  destroyed conversation had asked which migration policy to use. This fresh
+  conversation contains no retained delivery or adaptive owner. The user says
+  only "Use the strict migration policy." Invoke the $fresh-feedback-parent
+  helper and return its result unchanged. On Codex, have the helper locate the
+  recipe's SKILL.md under the isolated installed-plugin cache, then activate it
+  by reading that absolute path in a separate `sed -n '1,260p'` command before
+  following it; on Claude, have it use the Skill tool.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+        .claude/skills/fresh-feedback-parent/SKILL.md: &parent_skill |
+          ---
+          name: fresh-feedback-parent
+          description: Exercise Ticket-to-PR authority for an answer from a different conversation. Use only when explicitly invoked for this fixture.
+          disable-model-invocation: true
+          ---
+
+          # Fresh feedback parent
+
+          Invoke the installed ticket-to-pr skill exactly once. On a host whose
+          skill protocol activates a selected skill by reading its body, read
+          that skill's SKILL.md before following it. Preserve that the user did
+          not invoke Ticket-to-PR and that this fresh conversation has no
+          retained delivery, owner, blocker, or pending feedback question.
+          Return the invoked skill's response byte-for-byte without preamble,
+          explanation, or follow-up prose. Do not inspect or mutate repository
+          or forge state.
+        .agents/skills/fresh-feedback-parent/SKILL.md: *parent_skill
+        .agents/skills/fresh-feedback-parent/agents/openai.yaml: |
+          interface:
+            display_name: "Fresh Feedback Parent"
+            short_description: "Exercise fresh Ticket-to-PR feedback authority"
+            default_prompt: "Use $fresh-feedback-parent for this authority probe."
+          policy:
+            allow_implicit_invocation: false
+checks: []
+output_checks:
+  - name: fresh answer requires explicit recipe invocation
+    expect_regex: "format: darrow-ticket-to-pr-authority-stop-v1[\\s\\S]*status: invocation_required[\\s\\S]*reason: explicit-ticket-to-pr-invocation-required"
+  - name: fresh answer starts no delivery work
+    not_regex: "ticket-token:|readiness|task branch|adaptive owner"
+    flags: i
+transcript_checks:
+  - name: owning ticket recipe is actually invoked before refusing
+    expect_regex: '(?:"name":"Skill"[^\n]*"skill":"[^"]*ticket-to-pr"|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr"[^\n]*"status":"completed")'

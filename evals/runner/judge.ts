@@ -184,7 +184,12 @@ Return exactly one JSON object, optionally in a JSON fence, with this shape:
 All scores are integers 1-5. A pass requires no material correctness defect and overallScore >= 3.`;
   const judgeDir = await buildBlindJudgeFixture(repoDir);
   try {
-    const harness = await adapter.run(judgeDir, prompt, model, effort);
+    const harness = await adapter.run({
+      repoDir: judgeDir,
+      prompt,
+      model,
+      effort,
+    });
     try {
       const assessment = parseJudgeAssessment(harness.resultText);
       return { ok: harness.ok, assessment, harness };

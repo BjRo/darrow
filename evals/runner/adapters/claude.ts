@@ -1,15 +1,18 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, normalize } from "node:path";
 import type {
   HarnessAdapter,
   HarnessResult,
+  HarnessRunRequest,
   SkillActivationObservation,
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 import { parseGoalReport, validGoalReportValues } from "../goal-report";
+import { isHumanFeedbackPauseText } from "./codex-goal";
 
 export interface ClaudeUsage {
   input_tokens?: number;
@@ -36,6 +39,7 @@ export function claudeRunSucceeded(
 
 interface ClaudeResultEnvelope {
   type?: unknown;
+  thread_id?: unknown;
   task_id?: unknown;
   tool_use_id?: unknown;
   status?: unknown;
@@ -330,12 +334,14 @@ interface PendingGoalAgent {
 
 interface CompletedGoalAgent extends PendingGoalAgent {
   agentId: string;
+  feedbackPending: boolean;
 }
 
 interface PendingGoalAgentResume extends CompletedGoalAgent {
   goalToolUseId: string;
   dispatched: boolean;
   response: string;
+  mode: "blocked" | "feedback";
 }
 
 interface PendingBlockedResponseAcquisition {
@@ -442,41 +448,61 @@ function retainGoalAgentResumeStarts(
   event: ClaudeResultEnvelope,
   state: ClaudeEvidenceState,
 ) {
-  if (!canResumeGoalAgent(event, state)) return;
+  const continuation = resumableGoalAgentResponse(event, state);
+  if (!continuation) return;
   const [goalToolUseId, goal] = [...state.completedGoalAgents.entries()][0]!;
-  const response = state.blockedGoalResponse!;
+  const { mode, response } = continuation;
   for (const block of claudeContent(event)) {
     const input = normalizedSendMessageInput(block);
-    if (!input || blockedGoalSendIssue(input, goal, response)) continue;
+    if (!input) continue;
+    const issue =
+      mode === "blocked"
+        ? blockedGoalSendIssue(input, goal, response)
+        : feedbackGoalSendIssue(input, goal, response);
+    if (issue) continue;
     state.pendingGoalResumes.set(input.id, {
       ...goal,
       goalToolUseId,
       dispatched: false,
       response,
+      mode,
     });
-    state.blockedGoalResponse = undefined;
-    state.reportRendered = false;
-    state.renderedGoalStatus = undefined;
+    if (mode === "blocked") {
+      state.blockedGoalResponse = undefined;
+      state.reportRendered = false;
+      state.renderedGoalStatus = undefined;
+    } else {
+      state.humanFeedbackResponse = undefined;
+    }
     return;
   }
 }
 
-function canResumeGoalAgent(
+function resumableGoalAgentResponse(
   event: ClaudeResultEnvelope,
   state: ClaudeEvidenceState,
-): boolean {
-  return [
-    event.type === "assistant",
-    state.completedGoalAgents.size === 1,
-    state.reportRendered,
-    state.renderedGoalStatus === "blocked",
-    state.pendingGoalResumes.size === 0,
-    state.blockedGoalResponse !== undefined,
-  ].every(Boolean);
+): { mode: "blocked" | "feedback"; response: string } | undefined {
+  if (
+    event.type !== "assistant" ||
+    state.completedGoalAgents.size !== 1 ||
+    state.pendingGoalResumes.size !== 0
+  )
+    return undefined;
+  const goal = [...state.completedGoalAgents.values()][0]!;
+  if (goal.feedbackPending && state.humanFeedbackResponse)
+    return { mode: "feedback", response: state.humanFeedbackResponse };
+  if (
+    state.reportRendered &&
+    state.renderedGoalStatus === "blocked" &&
+    state.blockedGoalResponse
+  )
+    return { mode: "blocked", response: state.blockedGoalResponse };
+  return undefined;
 }
 
 const blockedGoalResumeSummary =
   "Resume blocked adaptive goal with user response";
+const feedbackGoalResumeSummary = "Resume adaptive goal with human feedback";
 
 function blockedGoalResponsePromptIssue(prompt: string): string | undefined {
   const marker = "- phase: blocked-goal-response";
@@ -511,6 +537,20 @@ function blockedGoalSendIssue(
   const promptIssue = blockedGoalResponsePromptIssue(input.message);
   if (promptIssue) return promptIssue;
   const marker = "- phase: blocked-goal-response\n";
+  return input.message.slice(marker.length) === expectedResponse
+    ? undefined
+    : "response-mismatch";
+}
+
+function feedbackGoalSendIssue(
+  input: NonNullable<ReturnType<typeof normalizedSendMessageInput>>,
+  goal: CompletedGoalAgent,
+  expectedResponse: string,
+): string | undefined {
+  if (input.to !== goal.agentId) return "agent-id-invalid";
+  if (input.summary !== feedbackGoalResumeSummary) return "summary-invalid";
+  const marker = "- phase: human-feedback-response\n";
+  if (!input.message.startsWith(marker)) return "marker";
   return input.message.slice(marker.length) === expectedResponse
     ? undefined
     : "response-mismatch";
@@ -582,10 +622,14 @@ function retainedGoalAgentCompletions(
     if (!call) return [];
     pending.delete(block.tool_use_id);
     const result = hostReportedAgentId(block);
+    const feedbackPending = isHumanFeedbackPauseText(
+      goalAgentChildResultText(block),
+    );
     if (block.is_error !== true && result)
       completed.set(block.tool_use_id, {
         subagentType: call.subagentType,
         agentId: result.agentId,
+        feedbackPending,
       });
     return [
       {
@@ -594,9 +638,54 @@ function retainedGoalAgentCompletions(
         subagent_type: call.subagentType,
         status: block.is_error === true ? "failed" : "completed",
         ...(result ? { agent_id: result.agentId } : {}),
+        ...(feedbackPending ? { feedback_pending: true } : {}),
       },
     ];
   });
+}
+
+function dispatchedGoalResumeEvidence(
+  toolUseId: string,
+  call: PendingGoalAgentResume,
+): unknown[] {
+  return [
+    {
+      type: "darrow.goal_agent_resume_dispatched",
+      tool_use_id: toolUseId,
+      goal_tool_use_id: call.goalToolUseId,
+      agent_id: call.agentId,
+      same_owner: true,
+    },
+    ...(call.mode === "feedback"
+      ? [
+          {
+            type: "darrow.human_feedback_relay",
+            answer: call.response,
+            agent_id: call.agentId,
+            same_owner: true,
+          },
+        ]
+      : []),
+  ];
+}
+
+function failedGoalResumeEvidence(
+  toolUseId: string,
+  call: PendingGoalAgentResume,
+  resumedAgentId?: string,
+): unknown[] {
+  return [
+    {
+      type: "darrow.goal_agent_resumption",
+      tool_use_id: toolUseId,
+      goal_tool_use_id: call.goalToolUseId,
+      subagent_type: call.subagentType,
+      agent_id: call.agentId,
+      ...(resumedAgentId ? { observed_agent_id: resumedAgentId } : {}),
+      status: "failed",
+      same_owner: false,
+    },
+  ];
 }
 
 function retainedGoalAgentResumeResults(
@@ -618,30 +707,11 @@ function retainedGoalAgentResumeResults(
       block.is_error !== true && resumedAgentId === call.agentId;
     if (dispatched) {
       call.dispatched = true;
-      return [
-        {
-          type: "darrow.goal_agent_resume_dispatched",
-          tool_use_id: block.tool_use_id,
-          goal_tool_use_id: call.goalToolUseId,
-          agent_id: call.agentId,
-          same_owner: true,
-        },
-      ];
+      return dispatchedGoalResumeEvidence(block.tool_use_id, call);
     }
     state.pendingGoalResumes.delete(block.tool_use_id);
-    restoreBlockedGoalResume(state, call);
-    return [
-      {
-        type: "darrow.goal_agent_resumption",
-        tool_use_id: block.tool_use_id,
-        goal_tool_use_id: call.goalToolUseId,
-        subagent_type: call.subagentType,
-        agent_id: call.agentId,
-        ...(resumedAgentId ? { observed_agent_id: resumedAgentId } : {}),
-        status: "failed",
-        same_owner: false,
-      },
-    ];
+    restoreGoalResume(state, call);
+    return failedGoalResumeEvidence(block.tool_use_id, call, resumedAgentId);
   });
 }
 
@@ -673,10 +743,8 @@ function retainedGoalAgentResumeNotifications(
   const call = state.pendingGoalResumes.get(event.tool_use_id);
   if (!call || !call.dispatched) return [];
   state.pendingGoalResumes.delete(event.tool_use_id);
-  const observedAgentId =
-    typeof event.task_id === "string" ? event.task_id : undefined;
   const completed = completedGoalResumeNotification(event, call);
-  if (!completed) restoreBlockedGoalResume(state, call);
+  applyGoalResumeNotification(state, call, completed);
   return [
     {
       type: "darrow.goal_agent_resumption",
@@ -684,11 +752,26 @@ function retainedGoalAgentResumeNotifications(
       goal_tool_use_id: call.goalToolUseId,
       subagent_type: call.subagentType,
       agent_id: call.agentId,
-      ...(observedAgentId ? { observed_agent_id: observedAgentId } : {}),
+      ...(typeof event.task_id === "string"
+        ? { observed_agent_id: event.task_id }
+        : {}),
       status: completed ? "completed" : "failed",
       same_owner: completed,
     },
   ];
+}
+
+function applyGoalResumeNotification(
+  state: ClaudeEvidenceState,
+  call: PendingGoalAgentResume,
+  completed: boolean,
+): void {
+  if (!completed) {
+    restoreGoalResume(state, call);
+    return;
+  }
+  const goal = state.completedGoalAgents.get(call.goalToolUseId);
+  if (goal && call.mode === "feedback") goal.feedbackPending = false;
 }
 
 function completedGoalResumeNotification(
@@ -698,13 +781,17 @@ function completedGoalResumeNotification(
   return event.status === "completed" && event.task_id === call.agentId;
 }
 
-function restoreBlockedGoalResume(
+function restoreGoalResume(
   state: ClaudeEvidenceState,
   call: PendingGoalAgentResume,
 ): void {
-  state.blockedGoalResponse = call.response;
-  state.reportRendered = true;
-  state.renderedGoalStatus = "blocked";
+  if (call.mode === "feedback") {
+    state.humanFeedbackResponse = call.response;
+  } else {
+    state.blockedGoalResponse = call.response;
+    state.reportRendered = true;
+    state.renderedGoalStatus = "blocked";
+  }
 }
 
 function bashToolCommand(block: unknown) {
@@ -748,6 +835,7 @@ interface ClaudeEvidenceContext {
   stagingRoot: string;
   observedRouteTrusted: boolean;
   engineeringRequest?: string;
+  followUpPrompt?: string;
 }
 
 function trustedRouteObservation(
@@ -2048,6 +2136,18 @@ function toolResultText(block: Record<string, unknown>): string {
     .join("\n");
 }
 
+function goalAgentChildResultText(block: Record<string, unknown>): string {
+  if (typeof block.content === "string") return block.content;
+  if (!successfulToolResult(block)) return "";
+  return block.content
+    .slice(0, -1)
+    .flatMap((item) => {
+      const text = textContent(item);
+      return text === undefined ? [] : [text];
+    })
+    .join("\n");
+}
+
 function claudeRouteGateRecord(
   text: string,
   agentId: string,
@@ -2314,8 +2414,14 @@ function rejectedGoalSendOperation(
   const input = normalizedSendMessageInput(block);
   const goal = [...state.completedGoalAgents.values()][0];
   if (!input) return "sendmessage-shape";
-  if (!goal || !state.blockedGoalResponse) return "sendmessage-state";
-  const issue = blockedGoalSendIssue(input, goal, state.blockedGoalResponse);
+  if (!goal) return "sendmessage-state";
+  const issue = goal.feedbackPending
+    ? state.humanFeedbackResponse
+      ? feedbackGoalSendIssue(input, goal, state.humanFeedbackResponse)
+      : "feedback-response-missing"
+    : state.blockedGoalResponse
+      ? blockedGoalSendIssue(input, goal, state.blockedGoalResponse)
+      : "state";
   return issue ? `sendmessage-${issue}` : "sendmessage-order";
 }
 
@@ -2389,19 +2495,25 @@ function retainBlockedGoalUserResponse(
   event: ClaudeResultEnvelope,
   state: ClaudeEvidenceState,
 ): void {
-  if (
-    event.type !== "user" ||
-    !state.reportRendered ||
-    state.renderedGoalStatus !== "blocked" ||
-    state.blockedGoalResponse !== undefined
-  )
-    return;
+  if (event.type !== "user" || state.pendingGoalResumes.size !== 0) return;
   const responses = claudeContent(event).flatMap((block) =>
     block.type === "text" && typeof block.text === "string" && block.text
       ? [block.text]
       : [],
   );
-  if (responses.length === 1) state.blockedGoalResponse = responses[0]!;
+  if (responses.length !== 1) return;
+  const goal = [...state.completedGoalAgents.values()][0];
+  if (goal?.feedbackPending && state.humanFeedbackResponse === undefined) {
+    state.humanFeedbackResponse = responses[0]!;
+    return;
+  }
+  if (
+    state.reportRendered &&
+    state.renderedGoalStatus === "blocked" &&
+    state.blockedGoalResponse === undefined
+  ) {
+    state.blockedGoalResponse = responses[0]!;
+  }
 }
 
 function retainedBlockedResponseAcquisitionResults(
@@ -2948,6 +3060,7 @@ interface ClaudeEvidenceState {
   >;
   blockedOperation?: string;
   blockedGoalResponse?: string;
+  humanFeedbackResponse?: string;
   pendingRouteGates: Map<string, PendingRouteGate>;
   retainedReviewAgentTurns: Map<string, RetainedReviewAgentTurn>;
   reviewAgentBatch: number;
@@ -3076,6 +3189,14 @@ function retainedNonResultEvent(
   state: ClaudeEvidenceState,
 ) {
   const retained: unknown[] = [];
+  if (event.type === "darrow.eval.follow_up_turn") {
+    retained.push(event);
+    if (
+      state.humanFeedbackResponse === undefined &&
+      state.context?.followUpPrompt
+    )
+      state.humanFeedbackResponse = state.context.followUpPrompt;
+  }
   const skills = retainedSkillBlocks(event);
   if (skills.length)
     retained.push({ type: "assistant", message: { content: skills } });
@@ -3093,26 +3214,44 @@ function retainedNonResultEvent(
   return retained;
 }
 
-function retainedGoalTerminalViolations(state: ClaudeEvidenceState): unknown[] {
-  const violations: unknown[] = [];
-  if (
+function hasUnboundStagedObjective(state: ClaudeEvidenceState): boolean {
+  return !!(
     state.stagedGoalObjective &&
     !state.stagedGoalObjective.pathBound &&
     !state.stagingRegistered
-  )
+  );
+}
+
+function hasMissingObjectiveRelease(
+  state: ClaudeEvidenceState,
+  feedbackPending: boolean,
+): boolean {
+  return !!(
+    state.completedGoalAgents.size === 1 &&
+    !feedbackPending &&
+    state.expectedAttachment &&
+    goalReportRequiresObjectiveRelease(state.renderedGoalStatus) &&
+    !state.objectiveReleased
+  );
+}
+
+function retainedGoalTerminalViolations(state: ClaudeEvidenceState): unknown[] {
+  const retainedGoal = [...state.completedGoalAgents.values()][0];
+  const feedbackPending = retainedGoal?.feedbackPending === true;
+  const violations: unknown[] = [];
+  if (hasUnboundStagedObjective(state))
     violations.push({
       type: "darrow.parent_repository_tool_before_goal",
       tool: "Write",
       operation: "write",
     });
+  if (hasMissingObjectiveRelease(state, feedbackPending))
+    violations.push(postGoalLifecycleViolation(state, "release-missing"));
   if (
     state.completedGoalAgents.size === 1 &&
-    state.expectedAttachment &&
-    goalReportRequiresObjectiveRelease(state.renderedGoalStatus) &&
-    !state.objectiveReleased
+    !feedbackPending &&
+    !state.reportRendered
   )
-    violations.push(postGoalLifecycleViolation(state, "release-missing"));
-  if (state.completedGoalAgents.size === 1 && !state.reportRendered)
     violations.push(postGoalLifecycleViolation(state, "report-missing"));
   return violations;
 }
@@ -3190,12 +3329,18 @@ export function retainedClaudeEvidence(
   return retained.map((event) => JSON.stringify(event)).join("\n");
 }
 
+interface ClaudeArgvOptions {
+  pluginDir?: string;
+  session?: { mode: "start" | "resume"; id: string };
+}
+
 export function claudeArgv(
   prompt: string,
   model: string,
   effort: string,
-  pluginDir?: string,
+  options: ClaudeArgvOptions = {},
 ): string[] {
+  const { pluginDir, session } = options;
   const argv = [
     "claude",
     "-p",
@@ -3218,6 +3363,8 @@ export function claudeArgv(
   if (/(?:^|\s)(?:\/adaptive-goal|\$adaptive-goal)(?:\s|$)/.test(prompt)) {
     argv.push("--disallowed-tools", "ScheduleWakeup");
   }
+  if (session?.mode === "start") argv.push("--session-id", session.id);
+  if (session?.mode === "resume") argv.push("--resume", session.id);
   if (pluginDir) argv.push("--plugin-dir", pluginDir);
   return argv;
 }
@@ -3364,6 +3511,134 @@ async function spawnClaudeEvaluation(
   ]);
 }
 
+interface ClaudeTurnOutput {
+  out: string;
+  err: string;
+  code: number;
+}
+
+async function sandboxedClaudeCommand(options: {
+  request: HarnessRunRequest;
+  repo: string;
+  evalPlugin: string;
+  env: Record<string, string>;
+  prompt: string;
+  session?: { mode: "start" | "resume"; id: string };
+}): Promise<string[]> {
+  const { request, repo, evalPlugin, env, prompt, session } = options;
+  return sandboxedAgentCommand(
+    claudeArgv(prompt, request.model, request.effort, {
+      pluginDir: existsSync(evalPlugin) ? evalPlugin : undefined,
+      session,
+    }),
+    repo,
+    protectedClaudeRuntimePaths(repo, evalPlugin, env),
+  );
+}
+
+async function claudeTurnOutput(options: {
+  request: HarnessRunRequest;
+  repo: string;
+  evalPlugin: string;
+  env: Record<string, string>;
+}): Promise<ClaudeTurnOutput> {
+  const { request, repo, env } = options;
+  const followUpPrompt = request.control?.followUpPrompt;
+  const sessionId = followUpPrompt ? randomUUID() : undefined;
+  const initial = await spawnClaudeEvaluation(
+    await sandboxedClaudeCommand({
+      ...options,
+      prompt: request.prompt,
+      session: sessionId ? { mode: "start", id: sessionId } : undefined,
+    }),
+    repo,
+    env,
+  );
+  const [initialOut, initialErr, initialCode] = initial;
+  if (
+    !followUpPrompt ||
+    !sessionId ||
+    !claudeResultAccounting(initialOut, initialCode).ok
+  )
+    return { out: initialOut, err: initialErr, code: initialCode };
+  const [out, err, code] = await spawnClaudeEvaluation(
+    await sandboxedClaudeCommand({
+      ...options,
+      prompt: followUpPrompt,
+      session: { mode: "resume", id: sessionId },
+    }),
+    repo,
+    env,
+  );
+  const boundary = JSON.stringify({
+    type: "darrow.eval.follow_up_turn",
+    thread_id: sessionId,
+  });
+  return {
+    out: [initialOut.trimEnd(), boundary, out.trimStart()].join("\n"),
+    err: [initialErr.trimEnd(), err.trimStart()].filter(Boolean).join("\n"),
+    code,
+  };
+}
+
+async function claudeHarnessResult(options: {
+  repo: string;
+  turn: ClaudeTurnOutput;
+  start: number;
+  evidenceContext: ClaudeEvidenceContext;
+}): Promise<HarnessResult> {
+  const { repo, turn, start, evidenceContext } = options;
+  const outcome = await claudeOutcome(repo, turn.out, turn.code);
+  const skillActivation = claudeSkillActivation(turn.out);
+  return {
+    ok: outcome.ok,
+    durationMs: performance.now() - start,
+    tokenUsageComplete: outcome.tokenUsageComplete,
+    inputTokens: outcome.inputTokens,
+    outputTokens: outcome.outputTokens,
+    costUsd: outcome.costUsd,
+    resultText: outcome.resultText,
+    raw: retainedClaudeRunEvidence(
+      turn.out,
+      turn.code,
+      turn.err,
+      evidenceContext,
+    ),
+    skillActivation: {
+      ...skillActivation,
+      complete: outcome.ok && skillActivation.complete,
+    },
+  };
+}
+
+async function executeClaude(
+  request: HarnessRunRequest,
+): Promise<HarnessResult> {
+  const start = performance.now();
+  const repo = realpathSync(request.repoDir);
+  const env = await isolatedHarnessEnvironment("claude", repo);
+  await installClaudeSafeInspectionWrappers(repo);
+  const stagingRoot = realpathSync(
+    await mkdtemp(join(tmpdir(), "darrow-claude-objective-")),
+  );
+  env.TMPDIR = stagingRoot;
+  const evalPlugin = join(repo, ".git", "eval-plugin");
+  configureClaudePluginData(env, repo);
+  const evidenceContext = claudeEvidenceContext({
+    repoDir: repo,
+    pluginDir: evalPlugin,
+    stagingRoot,
+    engineeringRequest: request.prompt,
+    followUpPrompt: request.control?.followUpPrompt,
+  });
+  try {
+    const turn = await claudeTurnOutput({ request, repo, evalPlugin, env });
+    return await claudeHarnessResult({ repo, turn, start, evidenceContext });
+  } finally {
+    await rm(stagingRoot, { recursive: true, force: true });
+  }
+}
+
 /**
  * Runs the skill via headless Claude Code (`claude -p`). The fixture exposes
  * the source plugin through `--plugin-dir`, matching installed-plugin resource
@@ -3386,70 +3661,16 @@ export const claudeAdapter: HarnessAdapter = {
     return out.trim();
   },
 
-  async run(repoDir, prompt, model, effort): Promise<HarnessResult> {
-    const start = performance.now();
-    const repo = realpathSync(repoDir);
-    const env = await isolatedHarnessEnvironment("claude", repo);
-    await installClaudeSafeInspectionWrappers(repo);
-    const stagingRoot = realpathSync(
-      await mkdtemp(join(tmpdir(), "darrow-claude-objective-")),
-    );
-    env.TMPDIR = stagingRoot;
-    const evalPlugin = join(repo, ".git", "eval-plugin");
-    configureClaudePluginData(env, repo);
-    const evidenceContext = claudeEvidenceContext(
-      repo,
-      evalPlugin,
-      stagingRoot,
-      prompt,
-    );
-    try {
-      const argv = await sandboxedAgentCommand(
-        claudeArgv(
-          prompt,
-          model,
-          effort,
-          existsSync(evalPlugin) ? evalPlugin : undefined,
-        ),
-        repo,
-        protectedClaudeRuntimePaths(repo, evalPlugin, env),
-      );
-      const [out, err, code] = await spawnClaudeEvaluation(argv, repo, env);
-      const durationMs = performance.now() - start;
-      const outcome = await claudeOutcome(repo, out, code);
-      const skillActivation = claudeSkillActivation(out);
-
-      return {
-        ok: outcome.ok,
-        durationMs,
-        tokenUsageComplete: outcome.tokenUsageComplete,
-        inputTokens: outcome.inputTokens,
-        outputTokens: outcome.outputTokens,
-        costUsd: outcome.costUsd,
-        resultText: outcome.resultText,
-        raw: retainedClaudeRunEvidence(out, code, err, evidenceContext),
-        skillActivation: {
-          ...skillActivation,
-          complete: outcome.ok && skillActivation.complete,
-        },
-      };
-    } finally {
-      await rm(stagingRoot, { recursive: true, force: true });
-    }
+  async run(request): Promise<HarnessResult> {
+    return executeClaude(request);
   },
 };
 
 function claudeEvidenceContext(
-  repoDir: string,
-  pluginDir: string,
-  stagingRoot: string,
-  engineeringRequest: string,
+  context: Omit<ClaudeEvidenceContext, "observedRouteTrusted">,
 ): ClaudeEvidenceContext {
   return {
-    repoDir,
-    pluginDir,
-    stagingRoot,
-    engineeringRequest,
+    ...context,
     observedRouteTrusted: true,
   };
 }

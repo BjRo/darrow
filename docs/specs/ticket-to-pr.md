@@ -221,7 +221,11 @@ the ticket is fulfilled.
 ## Invariants
 
 1. **TPR-C1 — Explicit activation.** Only explicit ticket-to-PR invocation
-   activates the recipe and its publication authority.
+   activates the recipe and its publication authority. After activation, one
+   unambiguous answer in the same host thread may continue exactly one retained
+   delivery whose adaptive owner has a pending recorded human-feedback question
+   that the answer targets; a fresh-conversation answer still requires explicit
+   invocation.
 2. **TPR-C2 — Ready authoritative request.** Pre-readiness mutation is limited
    to safely preparing the resolved ticket's additive task branch; every other
    delivery mutation uses exactly one resolved, non-contradictory request with
@@ -260,7 +264,10 @@ the ticket is fulfilled.
     host thread. It never invokes the recipe again, replaces the owner, weakens
     ticket acceptance or publication gates, or creates a second pull request.
     The owner and objective remain available until completion, explicit
-    abandonment or supersession, or host-thread destruction.
+    abandonment or supersession, or host-thread destruction. The same-owner
+    rule also covers an active human-feedback pause without classifying it as
+    blocked: a later same-thread answer is relayed directly to the retained
+    adaptive owner and never repeats the recipe.
 
 ## Packaging and portability
 
@@ -305,7 +312,8 @@ Required cases are:
    preserved additive task branch.
 3. **TPR-E3 — Human feedback.** `needs-decision` and an implementation-time
    material question reach the user through the parent, then the same delivery
-   continues only from the explicit answer.
+   continues only from the explicit answer, including when that answer arrives
+   in a later Claude or Codex host turn.
 4. **TPR-E4 — Local-work safety.** Ticket-owned dirty work can proceed;
    unrelated or ambiguous work stops; an explicitly requested worktree leaves
    original changes untouched.
