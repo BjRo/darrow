@@ -34,19 +34,15 @@ evidence at a stable seam, add or update that evidence before the production
 change and confirm the intended failure. Repository-mandated cadence wins.
 
 When a material decision first emerges during work, stop repository and
-external mutation and return exactly this shape with the smallest complete
-question:
+external mutation and return the smallest complete question as the paused
+result. No lifecycle marker is required.
 
-```text
-- phase: human-feedback-request
-Question: <question>
-```
-
-A later coordinator message is continuation authority only when its embedded
-payload begins `- phase: human-feedback-response` and this owner has one pending
-question. Treat the remaining payload as the exact user answer. Apply no broader
-authority, perform any required acknowledgement yourself, and then continue
-the same contract.
+A later coordinator message is continuation authority only when this owner has
+one pending question and the message unambiguously answers it. Treat the whole
+message as the exact user answer. Apply no broader authority, perform any
+required acknowledgement yourself, and then continue the remaining contract
+in that same resumed turn. Do not return after acknowledgement unless another
+material question or genuine blocker prevents completion.
 
 When independent review is selected, invoke the bound review skill only after
 the final candidate and checks are ready. Preserve its result. Clear review

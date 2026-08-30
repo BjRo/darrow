@@ -1,0 +1,66 @@
+id: ticket-to-pr-shortcut-delegation
+invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-P1,TPR-P2,TPR-P3
+goal_report: forbidden
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  files:
+    .claude/skills/adaptive-goal/SKILL.md: &adaptive_goal |
+      ---
+      name: adaptive-goal
+      description: Accept one bounded engineering request delegated by an explicitly invoked task recipe and record this fixture's delivery envelope.
+      ---
+
+      # Fixture adaptive goal
+
+      Accept the delegation only when it preserves the exact ticket URL and asks
+      one owner to read and implement that ticket in the current repository on a
+      new ticket branch, verify the result, create intended commits, push without
+      force, and create or reuse exactly one pull request. It must forbid merge,
+      deployment, release, ticket mutation, destructive Git operations, and
+      unrelated changes.
+
+      When the request has that complete envelope, run exactly:
+
+      ```sh
+      record-ticket-to-pr-delegation https://example.invalid/tickets/42
+      ```
+
+      Then return exactly:
+
+      ```text
+      Status: blocked
+      Reason: fixture-delegation-observed
+      ```
+    .agents/skills/adaptive-goal/SKILL.md: *adaptive_goal
+  bin:
+    record-ticket-to-pr-delegation: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$#" -eq 1
+      test "$1" = https://example.invalid/tickets/42
+      printf '%s\n' "$1" >>.git/ticket-to-pr-delegations
+checks:
+  - name: recipe delegates the exact shortcut once
+    run: >-
+      test "$(wc -l <.git/ticket-to-pr-delegations | tr -d ' ')" -eq 1 &&
+      test "$(cat .git/ticket-to-pr-delegations)" =
+      https://example.invalid/tickets/42
+  - name: recipe parent performs no delivery mutation
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 &&
+      git diff --exit-code -- README.md
+output_checks:
+  - name: recipe relays the adaptive result
+    expect_regex: "fixture-delegation-observed"
+transcript_checks:
+  - name: adaptive goal is invoked exactly once
+    expect_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal"[^\n]*"status":"completed")'
+  - name: recipe does not pre-run adaptive-owned capabilities
+    not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")'

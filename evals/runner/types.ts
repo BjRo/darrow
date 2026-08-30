@@ -130,6 +130,10 @@ export interface EvalCase {
   source_plugin?: string;
   /** Repository-relative skill directories additionally mounted for composition. */
   additional_skills?: string[];
+  /** Repository-relative plugin roots installed independently beside the owning plugin. */
+  additional_plugins?: string[];
+  /** Apply adaptive-goal ownership guards to a recipe-to-goal composition case. */
+  adaptive_goal_composition?: boolean;
   /** Require HEAD to advance linearly when the public behavior explicitly commits. */
   expect_head_change?: boolean | null;
   checks: Check[];
@@ -222,7 +226,11 @@ export interface HarnessRunRequest {
   prompt: string;
   model: string;
   effort: string;
-  control?: { expectedGoalRoute?: GoalRoute; followUpPrompt?: string };
+  control?: {
+    expectedGoalRoute?: GoalRoute;
+    followUpPrompt?: string;
+    expectGoalOwner?: boolean;
+  };
 }
 
 export interface CheckResult {

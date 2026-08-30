@@ -8,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join, resolve } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
@@ -207,11 +207,14 @@ function observedSkillReads(
 export function codexSkillActivation(
   stream: string,
   repoDir: string,
-  installedSkillsRoot = join(repoDir, ".agents", "skills"),
+  installedSkillsRoot: string | string[] = join(repoDir, ".agents", "skills"),
 ): SkillActivationObservation {
   const events = codexEvents(stream);
+  const installedSkillsRoots = Array.isArray(installedSkillsRoot)
+    ? installedSkillsRoot
+    : [installedSkillsRoot];
   const observedSkills = observedSkillReads(events, [
-    ...new Set([installedSkillsRoot, join(repoDir, ".agents", "skills")]),
+    ...new Set([...installedSkillsRoots, join(repoDir, ".agents", "skills")]),
   ]);
   let completed = false;
   let failed = false;
@@ -1402,17 +1405,42 @@ function appendCodexRetentionState(
 }
 
 /** Retain only bounded activation, orchestration, and terminal accounting evidence. */
-function codexEvidenceSkillRoots(repoDir: string, installedSkillsRoot: string) {
+function codexEvidenceSkillRoots(
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+) {
+  const installedSkillsRoots = Array.isArray(installedSkillsRoot)
+    ? installedSkillsRoot
+    : [installedSkillsRoot];
   return [
-    ...new Set([installedSkillsRoot, join(repoDir, ".agents", "skills")]),
+    ...new Set([...installedSkillsRoots, join(repoDir, ".agents", "skills")]),
   ];
+}
+
+function retainedCodexSkillReads(
+  event: CodexEvent,
+  skillsRoots: string[],
+  retainedSkills: Set<string>,
+): Record<string, unknown>[] {
+  return observedSkillReads([event], skillsRoots).flatMap((skill) => {
+    if (retainedSkills.has(skill)) return [];
+    retainedSkills.add(skill);
+    return [
+      {
+        type: "darrow.skill_read_probe",
+        source: "skill_file_read_probe",
+        skill,
+        status: "completed",
+      },
+    ];
+  });
 }
 
 export function retainedCodexEvidence(
   stream: string,
   repoDir: string,
   status?: CodexRetentionStatus,
-  installedSkillsRoot = join(repoDir, ".agents", "skills"),
+  installedSkillsRoot: string | string[] = join(repoDir, ".agents", "skills"),
 ): string {
   const events = codexEvents(stream);
   const skillsRoots = codexEvidenceSkillRoots(repoDir, installedSkillsRoot);
@@ -1432,18 +1460,10 @@ export function retainedCodexEvidence(
     objectiveReleased: false,
   };
   const retained = events.flatMap((event) => {
-    const records = retainCodexEvent(event, state, repoDir, status);
-    for (const skill of observedSkillReads([event], skillsRoots)) {
-      if (retainedSkills.has(skill)) continue;
-      retainedSkills.add(skill);
-      records.push({
-        type: "darrow.skill_read_probe",
-        source: "skill_file_read_probe",
-        skill,
-        status: "completed",
-      });
-    }
-    return records;
+    return [
+      ...retainCodexEvent(event, state, repoDir, status),
+      ...retainedCodexSkillReads(event, skillsRoots, retainedSkills),
+    ];
   });
   appendCodexRetentionState(retained, state, {
     acceptedOwner: status?.acceptedOwner,
@@ -1594,49 +1614,69 @@ async function runCodexPluginCommand(
   return out;
 }
 
-async function installCodexEvalPlugin(
+interface InstalledCodexEvalPlugins {
+  pluginRoots: string[];
+  skillsRoots: string[];
+}
+
+async function installCodexEvalPlugins(
   repoDir: string,
   env: Record<string, string>,
-): Promise<string> {
+): Promise<InstalledCodexEvalPlugins> {
   const marketplace = join(repoDir, ".git", "eval-marketplace");
-  const manifest = JSON.parse(
+  const catalog = JSON.parse(
     await readFile(
-      join(marketplace, "plugin", ".codex-plugin", "plugin.json"),
+      join(marketplace, ".claude-plugin", "marketplace.json"),
       "utf8",
     ),
-  ) as { name?: unknown };
-  if (typeof manifest.name !== "string" || !manifest.name)
-    throw new Error("Codex eval plugin manifest has no name");
+  ) as { plugins?: unknown };
+  if (!Array.isArray(catalog.plugins) || !catalog.plugins.length)
+    throw new Error("Codex eval marketplace has no plugins");
   await runCodexPluginCommand(
     ["codex", "plugin", "marketplace", "add", marketplace, "--json"],
     env,
   );
-  const installed = JSON.parse(
-    await runCodexPluginCommand(
-      ["codex", "plugin", "add", `${manifest.name}@darrow-eval`, "--json"],
-      env,
-    ),
-  ) as { installedPath?: unknown };
-  if (typeof installed.installedPath !== "string" || !installed.installedPath)
-    throw new Error("Codex eval plugin install returned no installed path");
-  return realpath(join(installed.installedPath, "skills"));
+  const pluginRoots: string[] = [];
+  const skillsRoots: string[] = [];
+  for (const entry of catalog.plugins) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      typeof (entry as { name?: unknown }).name !== "string" ||
+      !(entry as { name: string }).name
+    ) {
+      throw new Error("Codex eval marketplace has an invalid plugin entry");
+    }
+    const name = (entry as { name: string }).name;
+    const installed = JSON.parse(
+      await runCodexPluginCommand(
+        ["codex", "plugin", "add", `${name}@darrow-eval`, "--json"],
+        env,
+      ),
+    ) as { installedPath?: unknown };
+    if (typeof installed.installedPath !== "string" || !installed.installedPath)
+      throw new Error(`Codex eval plugin install returned no path for ${name}`);
+    const pluginRoot = await realpath(resolve(installed.installedPath));
+    pluginRoots.push(pluginRoot);
+    skillsRoots.push(await realpath(join(pluginRoot, "skills")));
+  }
+  return { pluginRoots, skillsRoots };
 }
 
 export async function codexEvalSkillsRoot(
   repoDir: string,
   env: Record<string, string>,
 ): Promise<string> {
-  const manifest = join(
+  const catalog = join(
     repoDir,
     ".git",
     "eval-marketplace",
-    "plugin",
-    ".codex-plugin",
-    "plugin.json",
+    ".claude-plugin",
+    "marketplace.json",
   );
-  return existsSync(manifest)
-    ? installCodexEvalPlugin(repoDir, env)
-    : join(repoDir, ".git", "eval-no-skills");
+  if (!existsSync(catalog)) return join(repoDir, ".git", "eval-no-skills");
+  const installed = await installCodexEvalPlugins(repoDir, env);
+  return installed.skillsRoots[0] ?? join(repoDir, ".git", "eval-no-skills");
 }
 
 async function codexFinalMessage(repoDir: string): Promise<string> {
@@ -1650,7 +1690,7 @@ async function codexFinalMessage(repoDir: string): Promise<string> {
 
 interface CodexExecution {
   canonicalRepoDir: string;
-  installedSkillsRoot: string;
+  installedSkillsRoots: string[];
   out: string;
   err: string;
   code: number;
@@ -1785,8 +1825,8 @@ async function writeCodexSpawnHook(
 
 interface CodexProcessContext {
   canonicalRepoDir: string;
-  installedSkillsRoot: string;
-  installedPluginRoot?: string;
+  installedSkillsRoots: string[];
+  installedPluginRoots: string[];
   goalLoopPath?: string;
   objectiveRoot: string;
   env: Record<string, string>;
@@ -1802,6 +1842,28 @@ export function codexSpawnGuardRequested(
   );
 }
 
+async function installedCodexPluginContext(
+  repoDir: string,
+  env: Record<string, string>,
+) {
+  const catalog = join(
+    repoDir,
+    ".git",
+    "eval-marketplace",
+    ".claude-plugin",
+    "marketplace.json",
+  );
+  const installed = existsSync(catalog)
+    ? await installCodexEvalPlugins(repoDir, env)
+    : { pluginRoots: [], skillsRoots: [] };
+  return {
+    installedSkillsRoots: installed.skillsRoots.length
+      ? installed.skillsRoots
+      : [join(repoDir, ".git", "eval-no-skills")],
+    installedPluginRoots: installed.pluginRoots,
+  };
+}
+
 async function codexProcessContext(
   repoDir: string,
   prompt: string,
@@ -1815,14 +1877,11 @@ async function codexProcessContext(
     ),
   );
   env.TMPDIR = objectiveRoot;
-  const installedSkillsRoot = await codexEvalSkillsRoot(repoDir, env);
-  const installedPluginRoot =
-    basename(installedSkillsRoot) === "skills"
-      ? await realpath(join(installedSkillsRoot, ".."))
-      : undefined;
-  const goalLoopCandidate = installedPluginRoot
-    ? join(installedPluginRoot, "bin", "goal-loop")
-    : undefined;
+  const { installedSkillsRoots, installedPluginRoots } =
+    await installedCodexPluginContext(repoDir, env);
+  const goalLoopCandidate = installedPluginRoots
+    .map((pluginRoot) => join(pluginRoot, "bin", "goal-loop"))
+    .find((path) => existsSync(path));
   const goalLoopPath =
     goalLoopCandidate && existsSync(goalLoopCandidate)
       ? await realpath(goalLoopCandidate)
@@ -1837,8 +1896,8 @@ async function codexProcessContext(
       : undefined;
   return {
     canonicalRepoDir,
-    installedSkillsRoot,
-    installedPluginRoot,
+    installedSkillsRoots,
+    installedPluginRoots,
     goalLoopPath,
     objectiveRoot,
     env,
@@ -1894,7 +1953,7 @@ function codexSandboxedCommand(
   const deniedPaths = [
     ...(context.spawnGuard?.writeDeniedPaths ?? []),
     join(context.canonicalRepoDir, ".git", "fixture-bin"),
-    ...(context.installedPluginRoot ? [context.installedPluginRoot] : []),
+    ...context.installedPluginRoots,
   ];
   const allowedExecutables = context.spawnGuard
     ? [context.spawnGuard.executablePath]
@@ -1907,7 +1966,8 @@ function codexProcessContextForRequest(request: HarnessRunRequest) {
   return codexProcessContext(
     request.repoDir,
     request.prompt,
-    codexSpawnGuardRequested(request.prompt, request.control?.followUpPrompt),
+    request.control?.expectGoalOwner === true ||
+      codexSpawnGuardRequested(request.prompt, request.control?.followUpPrompt),
   );
 }
 
@@ -1945,7 +2005,7 @@ async function executeCodex(
       : undefined;
     return {
       canonicalRepoDir: context.canonicalRepoDir,
-      installedSkillsRoot: context.installedSkillsRoot,
+      installedSkillsRoots: context.installedSkillsRoots,
       out,
       err,
       code,
@@ -1990,7 +2050,7 @@ async function codexHarnessResult(
 ): Promise<HarnessResult> {
   const {
     canonicalRepoDir,
-    installedSkillsRoot,
+    installedSkillsRoots,
     out,
     err,
     code,
@@ -2006,7 +2066,7 @@ async function codexHarnessResult(
   const activation = codexSkillActivation(
     out,
     canonicalRepoDir,
-    installedSkillsRoot,
+    installedSkillsRoots,
   );
   return {
     ok,
@@ -2027,7 +2087,7 @@ async function codexHarnessResult(
         acceptedAgentRef,
         acceptedOwner,
       },
-      installedSkillsRoot,
+      installedSkillsRoots,
     ),
     skillActivation: { ...activation, complete: ok && activation.complete },
   };

@@ -37,22 +37,18 @@ them; those are not replacement adaptive owners. It must not invoke
 
 ## Feedback and continuation
 
-When the owner returns a result beginning `- phase: human-feedback-request`,
-surface its complete question and retain the exact owner. Do not treat the pause
-as completion or start another owner.
+When the owner returns a material-decision question as its paused result,
+surface the complete question and retain the exact owner. The question needs no
+lifecycle marker. Do not treat the pause as completion or start another owner.
 
 On the user's later unambiguous answer in this thread, call `followup_task` once
-for the retained canonical task name with exactly:
-
-```text
-- phase: human-feedback-response
-<exact user answer>
-```
+for the retained canonical task name with the exact user answer and no wrapper
+or lifecycle marker.
 
 Then wait for that same owner. Do not repeat preflight, readiness, routing, or
 spawn. The same transport may resume a semantically blocked owner when the
 answer clearly resolves its stated blocker; preserve the original contract and
-send only the exact user response after the marker.
+send only the exact user response.
 
 If the host cannot retain or resume the owner, report that limitation. Do not
 claim that a replacement is the same goal.

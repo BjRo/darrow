@@ -1,0 +1,22 @@
+id: ticket-to-pr-missing-ticket
+invariant: TPR-C1,TPR-C2
+goal_report: forbidden
+expect_head_change: false
+prompt: "{{skill_invocation}}"
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: missing input causes no mutation
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 &&
+      git diff --exit-code
+output_checks:
+  - name: asks only for one exact ticket reference
+    expect_regex: "ticket (?:ID|id)|canonical URL|ticket URL"
+transcript_checks:
+  - name: missing input is not delegated
+    not_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")'

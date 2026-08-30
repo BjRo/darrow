@@ -113,19 +113,18 @@ current bundled routes are:
 - Claude Sonnet 5, medium effort; and
 - Claude Opus 5, high effort.
 
-Agent acceptance establishes the sole owner but does not prove the effective
-route. After each foreground return, `bin/claude-owner-route` binds the returned
-agent id to exactly one child transcript and requires every assistant turn to
-match the selected model and effort. A missing, ambiguous, or substituted route
-stops honestly instead of being reported as applied.
+The resolver verifies the scoped agent's model and effort frontmatter and
+rejects higher-priority environment overrides. The foreground Agent call omits
+a per-call model override, so native host precedence applies that route while
+the returned agent id establishes the sole owner. Eval infrastructure may audit
+the resulting child transcript without adding a live parent workflow step.
 
 ## Design boundaries
 
 - Preflight is read-only.
 - Readiness completes before owner launch when selected.
 - Exactly one separate route-selected subagent owns the run.
-- The parent does no repository work after launch acceptance; Claude permits
-  only its exact read-only effective-route observation.
+- The parent does no repository or external work after launch acceptance.
 - Intent-matched advertised skills are mandatory at their bound operations.
 - Darrow adds no lifecycle ledger, planner/executor/verifier controller, daemon,
   queue, scheduler, nested host process, or canonical telemetry report.

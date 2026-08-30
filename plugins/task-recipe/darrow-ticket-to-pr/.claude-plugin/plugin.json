@@ -1,6 +1,10 @@
 {
   "name": "darrow-ticket-to-pr",
-  "description": "Turn one explicitly invoked ready ticket into one verified pull request",
-  "version": "0.2.2",
-  "license": "BUSL-1.1"
+  "description": "Delegate one explicit ticket-to-PR shortcut to adaptive-goal",
+  "version": "0.3.0",
+  "license": "BUSL-1.1",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  }
 }

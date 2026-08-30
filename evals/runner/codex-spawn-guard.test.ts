@@ -14,14 +14,9 @@ const contract = [
   "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
   "Outcome: Implement the requested fixture behavior.",
   "Acceptance criteria: The requested behavior and checks pass.",
-  "Scope: fixture implementation and focused tests.",
-  "Permissions: local edits and checks only; no publication.",
-  "Workflow: implement-feature.",
-  "Risk: routine.",
-  "Profile: routine.",
-  "Selected route: codex|openai|gpt-5.6-luna|low.",
-  "Capability bindings: none are advertised for this fixture.",
-  "Verification: run the focused test and repository gate.",
+  "Scope and authority: included=fixture implementation and focused tests; authorized=local edits and checks only; forbidden=publication; preserve=unrelated repository state",
+  "Execution: workflow=implement-feature; risk=routine; profile=routine; route=codex|openai|gpt-5.6-luna|low; capabilities=none",
+  "Verification and gates: readiness=not required; review=not required; focused=run the focused test; final=run the repository gate; feedback=return the smallest complete question; blockers=return concrete evidence and the smallest next action",
   "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");
 const ownerId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
@@ -138,6 +133,35 @@ describe("Codex adaptive-goal spawn guard", () => {
         await rm(repo, { recursive: true, force: true });
         await rm(objectiveRoot, { recursive: true, force: true });
       }
+    }
+  });
+
+  test("accepts descriptive dimensions while normalizing the risk", async () => {
+    const { repo, objectiveRoot, policy } = await fixture();
+    try {
+      const descriptive = contract.replace(
+        "workflow=implement-feature; risk=routine; profile=routine;",
+        "workflow=custom-delivery; risk=Elevated migration; profile=focused;",
+      );
+      expect(
+        await guardCodexSpawn(ownerHook(repo, descriptive), policy),
+      ).toMatchObject({
+        hookSpecificOutput: { permissionDecision: "allow" },
+      });
+      expect(
+        await verifiedCodexAcceptedOwner(
+          policy.statePath,
+          policy.secret,
+          ownerId,
+        ),
+      ).toMatchObject({
+        workflow: "custom-delivery",
+        risk: "elevated",
+        profile: "focused",
+      });
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(objectiveRoot, { recursive: true, force: true });
     }
   });
 

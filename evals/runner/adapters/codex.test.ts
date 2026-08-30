@@ -26,14 +26,9 @@ const COMPLETE_CONTRACT = [
   "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
   "Outcome: Implement the requested fixture behavior.",
   "Acceptance criteria: The requested behavior and checks pass.",
-  "Scope: The fixture implementation and tests.",
-  "Permissions: Local edits and checks only.",
-  "Workflow: implement-feature.",
-  "Risk: routine.",
-  "Profile: routine.",
-  "Selected route: codex|openai|gpt-5.6-luna|low.",
-  "Capability bindings: none are advertised for this fixture.",
-  "Verification: run the focused test and repository gate.",
+  "Scope and authority: included=fixture implementation and tests; authorized=local edits and checks only; forbidden=publication; preserve=unrelated repository state",
+  "Execution: workflow=implement-feature; risk=routine; profile=routine; route=codex|openai|gpt-5.6-luna|low; capabilities=none",
+  "Verification and gates: readiness=not required; review=not required; focused=run the focused test; final=run the repository gate; feedback=return the smallest complete question; blockers=return concrete evidence and the smallest next action",
   "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");
 
@@ -318,6 +313,43 @@ describe("Codex skill activation observation", () => {
     expect(
       retainedCodexEvidence(stream, REPO, undefined, installedSkillsRoot),
     ).toContain('"skill":"assess-implementation-readiness"');
+  });
+
+  test("observes skills from independently installed composition plugins", () => {
+    const recipeRoot =
+      "/tmp/eval-home/plugins/cache/darrow/recipe/0.3.0/skills";
+    const goalRoot =
+      "/tmp/eval-home/plugins/cache/darrow/darrow-goal-loop/0.13.1/skills";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${recipeRoot}/ticket-to-pr/SKILL.md`,
+          aggregated_output: "---\nname: ticket-to-pr\ndescription: Recipe\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${goalRoot}/adaptive-goal/SKILL.md`,
+          aggregated_output: "---\nname: adaptive-goal\ndescription: Goal\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, [recipeRoot, goalRoot])).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "ticket-to-pr",
+      observedSkills: ["ticket-to-pr", "adaptive-goal"],
+    });
   });
 
   test("observes every installed skill read in one compound command", () => {

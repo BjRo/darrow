@@ -1,0 +1,17 @@
+id: ticket-to-pr-ordinary-engineering-nonactivation
+invariant: TPR-C1
+goal_report: forbidden
+prompt: >-
+  Read and implement https://example.invalid/tickets/42 in this repository on
+  a new branch, then open a pull request when it is ready.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: fixture remains inspectable after the adjacent request
+    run: git rev-parse --verify HEAD
+transcript_checks:
+  - name: ticket recipe and adaptive goal remain inactive
+    not_regex: '"skill":"ticket-to-pr"|"skill":"adaptive-goal"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-goal)|"tool":"spawn_agent"'

@@ -36,7 +36,19 @@ reason: explicit-orchestration-entrypoint-required
 
 ## 2. Prepare read-only
 
-Resolve the repository and bundled helper to absolute paths, then run:
+Resolve the repository, then bind the bundled helper without searching:
+
+- Claude: use `${CLAUDE_PLUGIN_ROOT}/bin`; Claude substitutes the active
+  plugin's absolute root in skill content.
+- Codex: use the `bin` directory two levels above the absolute `SKILL.md` path
+  that Codex activated for this skill.
+
+Require the resulting `goal-loop` path to be an executable regular file. Do not
+scan the repository, plugin caches, home directory, `PATH`, or machine for an
+alternative. If the host does not expose the active plugin path or the exact
+helper is unavailable, return `Status: launch_required` and make no mutation.
+
+Then run:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop prepare \
@@ -194,30 +206,17 @@ launch a separate owner is consumed by this preflight and launch. Do not copy
 that clause into the engineering outcome, acceptance criteria, or workflow
 sequence; the launched subagent must understand that it is already the owner.
 
-Use these exact top-level labels so the host boundary can validate that no
-critical field was dropped:
+Use these seven exact top-level fields so the host boundary can validate the
+contract without requiring a long heading checklist. Keep each structured
+field on one line and preserve every key shown:
 
 ```text
 Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.
 Outcome: <bounded result>
 Acceptance criteria: <observable outcomes>
-Scope: <included files and operations>
-Non-goals: <excluded work>
-Preserved work: <user-owned state to retain>
-Permissions: <local and external-effect authority>
-Workflow: <workflow>
-Risk: <routine, elevated, or high>
-Profile: <selected profile>
-Selected route: <host|provider|model|effort>
-Workflow sequence: <ordered semantic work>
-Verification: <focused and final verification policy>
-Focused checks: <feedback checks>
-Final-tree checks: <final checks>
-Readiness: <ready evidence or omitted reason>
-Independent review: <selected with exact skill, or omitted reason>
-Capability bindings: <operation -> exact advertised skill; or none>
-Human feedback: <same-owner pause and relay rule>
-Blocker: <semantic blocker and observe-before-retry rule>
+Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
+Execution: workflow=<workflow>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
+Verification and gates: readiness=<evidence or omitted reason>; review=<selected skill or omitted reason>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same-owner pause and relay rule>; blockers=<semantic blocker and observe-before-retry rule>
 Completion evidence: <required owner result fields>
 ```
 
@@ -236,11 +235,11 @@ expected failure. Repository-mandated cadence wins.
 
 Compile this human-feedback rule: a material decision first discovered after
 launch pauses repository and external mutation. The owner returns the smallest
-complete question beginning with `- phase: human-feedback-request`. The parent
-relays the explicit answer to the same owner beginning with
-`- phase: human-feedback-response`. The answer grants no broader authority, and
-the owner performs any required acknowledgement before mutation. Never choose a
-default or launch a replacement owner.
+complete question as its paused result; no lifecycle marker is required. The
+parent relays the explicit answer verbatim to the same owner, with no lifecycle
+marker or fixed display summary. The answer grants no broader authority, and
+the owner performs any required acknowledgement before mutation. Never choose
+a default or launch a replacement owner.
 
 Compile this blocker rule: when work cannot proceed without an external state
 change, return `Status: blocked` with the specific blocker, current evidence,
@@ -275,16 +274,16 @@ Read exactly one host guide completely:
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
 
 The separate route-selected subagent is the sole Darrow work owner. The
-accepted Codex launch is sufficient route evidence. Claude requires the one
-bounded post-return route check in its host guide because Agent acceptance can
-silently substitute a model. Do not launch in the current thread, create
-another goal inside the owner, inspect child work, start a nested host process,
-retry with another route, or replace an accepted owner.
+accepted Codex launch carries its concrete route. On Claude, the resolver
+validates the scoped agent's model and effort frontmatter and rejects
+higher-priority environment overrides; launch without a per-call model
+override. Do not launch in the current thread, create another goal inside the
+owner, inspect child work, start a nested host process, retry with another
+route, or replace an accepted owner.
 
 After acceptance, the parent performs no repository or external work. It may
-only wait, perform the Claude guide's exact route observation, relay an
-explicit answer to the same owner, or stop that owner after explicit
-abandonment or supersession.
+only wait, relay an explicit answer to the same owner, or stop that owner after
+explicit abandonment or supersession.
 
 If launch is unavailable or rejected, preserve the product tree and return:
 

@@ -1,5 +1,12 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { existsSync, realpathSync } from "node:fs";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, normalize } from "node:path";
@@ -16,7 +23,13 @@ import { parseGoalReport, validGoalReportValues } from "../goal-report";
 function isHumanFeedbackPauseText(text: unknown): boolean {
   if (typeof text !== "string") return false;
   const marker = text.match(/^- phase: human-feedback-request\r?\n/);
-  return !!marker && text.slice(marker[0].length).trim().length > 0;
+  return marker
+    ? text.slice(marker[0].length).trim().length > 0
+    : containsCompleteQuestion(text);
+}
+
+function containsCompleteQuestion(text: unknown): text is string {
+  return typeof text === "string" && /\?\s*(?:$|\n)/.test(text.trim());
 }
 
 export interface ClaudeUsage {
@@ -239,6 +252,19 @@ function retainedAgentPromptMarker(prompt: unknown): string | undefined {
     : undefined;
 }
 
+function retainedInlineContractIssue(
+  prompt: unknown,
+  subagentType: string,
+): string | undefined {
+  if (
+    typeof prompt !== "string" ||
+    !prompt.startsWith("- phase: adaptive-goal-owner\n") ||
+    !adaptiveGoalRunner.test(subagentType)
+  )
+    return undefined;
+  return inlineOwnerContractIssue(prompt, subagentType);
+}
+
 function normalizedReviewAgentInput(block: Record<string, unknown>) {
   if (block.type !== "tool_use" || block.name !== "Agent") return undefined;
   if (typeof block.id !== "string") return undefined;
@@ -247,11 +273,14 @@ function normalizedReviewAgentInput(block: Record<string, unknown>) {
   const rawSubagentType = input.subagent_type ?? input.subagentType;
   const subagentType =
     typeof rawSubagentType === "string" ? rawSubagentType : "unknown";
-  const prompt = retainedAgentPromptMarker(input.prompt);
+  const rawPrompt = input.prompt;
+  const prompt = retainedAgentPromptMarker(rawPrompt);
+  const contractIssue = retainedInlineContractIssue(rawPrompt, subagentType);
   return {
     id: block.id,
     subagentType,
     prompt,
+    contractIssue,
     runInBackground: input.run_in_background,
     model: input.model,
     resume: input.resume,
@@ -282,6 +311,9 @@ function retainedReviewAgentBlocks(event: ClaudeResultEnvelope) {
           ...(input.prompt
             ? { prompt: input.prompt }
             : { prompt_marker: "invalid" }),
+          ...(input.contractIssue
+            ? { contract_issue: input.contractIssue }
+            : {}),
         },
       },
     ];
@@ -493,14 +525,9 @@ const REQUIRED_INLINE_OWNER_LABELS = [
   "Role",
   "Outcome",
   "Acceptance criteria",
-  "Scope",
-  "Permissions",
-  "Workflow",
-  "Risk",
-  "Profile",
-  "Selected route",
-  "Capability bindings",
-  "Verification",
+  "Scope and authority",
+  "Execution",
+  "Verification and gates",
   "Completion evidence",
 ] as const;
 
@@ -513,8 +540,22 @@ function inlineOwnerField(prompt: string, label: string): string | undefined {
   return values.length === 1 && values[0] ? values[0] : undefined;
 }
 
-function inlineOwnerToken(value: string | undefined): string | undefined {
-  return value?.match(/^`?([a-z][a-z-]*)`?(?:[. ]|$)/)?.[1];
+function structuredOwnerValue(value: string | undefined, key: string) {
+  const match = value?.match(new RegExp(`(?:^|;\\s*)${key}=([^;]+)`));
+  return match?.[1]?.trim() || undefined;
+}
+
+function normalizedInlineOwnerRisk(
+  value: string | undefined,
+): "routine" | "elevated" | "high" | undefined {
+  const risk = value
+    ?.trim()
+    .replace(/^`/, "")
+    .match(/^(routine|elevated|high)(?:`|[\s.,:]|$)/i)?.[1]
+    ?.toLowerCase();
+  return risk === "routine" || risk === "elevated" || risk === "high"
+    ? risk
+    : undefined;
 }
 
 function matchingInlineOwnerRoute(
@@ -535,44 +576,91 @@ function matchingInlineOwnerRoute(
 function validInlineOwnerDimensions(
   fields: Record<string, string | undefined>,
 ): boolean {
-  return (
-    [
-      "fix-bug",
-      "implement-feature",
-      "change-feature",
-      "refactor",
-      "migration",
-      "mechanical",
-    ].includes(inlineOwnerToken(fields.Workflow) ?? "") &&
-    ["routine", "elevated", "high"].includes(
-      inlineOwnerToken(fields.Risk) ?? "",
-    ) &&
-    ["routine", "routine-plus", "scaled", "repo-wide", "judgment"].includes(
-      inlineOwnerToken(fields.Profile) ?? "",
-    )
+  const execution = fields.Execution;
+  return !!(
+    structuredOwnerValue(execution, "workflow") &&
+    normalizedInlineOwnerRisk(structuredOwnerValue(execution, "risk")) &&
+    structuredOwnerValue(execution, "profile")
   );
+}
+
+function completeStructuredOwnerField(
+  value: string | undefined,
+  keys: string[],
+): boolean {
+  return keys.every((key) => structuredOwnerValue(value, key));
 }
 
 function completeInlineOwnerContract(
   prompt: string,
   subagentType: string,
 ): boolean {
+  return inlineOwnerContractIssue(prompt, subagentType) === undefined;
+}
+
+function inlineOwnerPolicyIssue(
+  fields: Record<string, string | undefined>,
+  subagentType: string,
+): string | undefined {
+  if (
+    !completeStructuredOwnerField(fields["Scope and authority"], [
+      "included",
+      "authorized",
+      "forbidden",
+      "preserve",
+    ])
+  )
+    return "scope-authority";
+  if (
+    !completeStructuredOwnerField(fields.Execution, [
+      "workflow",
+      "risk",
+      "profile",
+      "route",
+      "capabilities",
+    ])
+  )
+    return "execution";
+  if (
+    !matchingInlineOwnerRoute(
+      structuredOwnerValue(fields.Execution, "route"),
+      subagentType,
+    )
+  )
+    return "selected-route";
+  if (!validInlineOwnerDimensions(fields)) return "dimensions";
+  return completeStructuredOwnerField(fields["Verification and gates"], [
+    "readiness",
+    "review",
+    "focused",
+    "final",
+    "feedback",
+    "blockers",
+  ])
+    ? undefined
+    : "verification-gates";
+}
+
+function inlineOwnerContractIssue(
+  prompt: string,
+  subagentType: string,
+): string | undefined {
   const fields = Object.fromEntries(
     REQUIRED_INLINE_OWNER_LABELS.map((label) => [
       label,
       inlineOwnerField(prompt, label),
     ]),
   );
-  if (Object.values(fields).some((value) => value === undefined)) return false;
+  const missing = Object.entries(fields).flatMap(([label, value]) =>
+    value === undefined ? [label.toLowerCase().replaceAll(" ", "-")] : [],
+  );
+  if (missing.length) return `missing-${missing.join("+")}`;
   if (
     fields.Role !==
     "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner."
   )
-    return false;
-  return (
-    matchingInlineOwnerRoute(fields["Selected route"], subagentType) &&
-    validInlineOwnerDimensions(fields)
-  );
+    return "role";
+  return inlineOwnerPolicyIssue(fields, subagentType);
 }
 
 function retainGoalAgentResumeStarts(
@@ -631,16 +719,16 @@ function resumableGoalAgentResponse(
   return undefined;
 }
 
-const blockedGoalResumeSummary =
-  "Resume blocked adaptive goal with user response";
-const feedbackGoalResumeSummary = "Resume adaptive goal with human feedback";
-
-function blockedGoalResponsePromptIssue(prompt: string): string | undefined {
+function blockedGoalResponsePromptIssue(
+  prompt: string,
+  expectedResponse: string,
+): string | undefined {
+  if (prompt === expectedResponse) return undefined;
   const marker = "- phase: blocked-goal-response";
   if (!prompt.startsWith(`${marker}\n`)) return "marker";
-  return prompt.slice(marker.length + 1).trim().length > 0
+  return prompt.slice(marker.length + 1) === expectedResponse
     ? undefined
-    : "response-missing";
+    : "response-mismatch";
 }
 
 function normalizedSendMessageInput(block: unknown) {
@@ -664,13 +752,7 @@ function blockedGoalSendIssue(
   expectedResponse: string,
 ): string | undefined {
   if (input.to !== goal.agentId) return "agent-id-invalid";
-  if (input.summary !== blockedGoalResumeSummary) return "summary-invalid";
-  const promptIssue = blockedGoalResponsePromptIssue(input.message);
-  if (promptIssue) return promptIssue;
-  const marker = "- phase: blocked-goal-response\n";
-  return input.message.slice(marker.length) === expectedResponse
-    ? undefined
-    : "response-mismatch";
+  return blockedGoalResponsePromptIssue(input.message, expectedResponse);
 }
 
 function feedbackGoalSendIssue(
@@ -679,12 +761,7 @@ function feedbackGoalSendIssue(
   expectedResponse: string,
 ): string | undefined {
   if (input.to !== goal.agentId) return "agent-id-invalid";
-  if (input.summary !== feedbackGoalResumeSummary) return "summary-invalid";
-  const marker = "- phase: human-feedback-response\n";
-  if (!input.message.startsWith(marker)) return "marker";
-  return input.message.slice(marker.length) === expectedResponse
-    ? undefined
-    : "response-mismatch";
+  return input.message === expectedResponse ? undefined : "response-mismatch";
 }
 
 function goalAgentStart(block: unknown, objective: MaterializedGoalObjective) {
@@ -736,43 +813,78 @@ function sha256Text(value: string): string {
   return new Bun.CryptoHasher("sha256").update(value).digest("hex");
 }
 
+function goalAgentCompletionRecord(
+  block: Record<string, unknown>,
+  call: PendingGoalAgent,
+  result: ReturnType<typeof hostReportedAgentId>,
+  feedbackPending: boolean,
+): Record<string, unknown> {
+  return {
+    type: "darrow.goal_agent_completion",
+    tool_use_id: block.tool_use_id,
+    subagent_type: call.subagentType,
+    status: block.is_error === true ? "failed" : "completed",
+    ...(result ? { agent_id: result.agentId } : {}),
+    ...(feedbackPending ? { feedback_pending: true } : {}),
+  };
+}
+
+function humanFeedbackRequestEvidence(
+  succeeded: boolean,
+  feedbackPending: boolean,
+  result: ReturnType<typeof hostReportedAgentId>,
+): Record<string, unknown>[] {
+  return succeeded && feedbackPending && result
+    ? [
+        {
+          type: "darrow.human_feedback_request",
+          agent_id: result.agentId,
+          question_present: true,
+        },
+      ]
+    : [];
+}
+
+function retainedGoalAgentCompletion(
+  block: unknown,
+  pending: Map<string, PendingGoalAgent>,
+  completed: Map<string, CompletedGoalAgent>,
+): Record<string, unknown>[] {
+  if (
+    !isRecord(block) ||
+    block.type !== "tool_result" ||
+    typeof block.tool_use_id !== "string"
+  )
+    return [];
+  const call = pending.get(block.tool_use_id);
+  if (!call) return [];
+  pending.delete(block.tool_use_id);
+  const result = hostReportedAgentId(block);
+  const feedbackPending = isHumanFeedbackPauseText(
+    goalAgentChildResultText(block),
+  );
+  const succeeded = block.is_error !== true && !!result;
+  if (succeeded)
+    completed.set(block.tool_use_id, {
+      subagentType: call.subagentType,
+      agentId: result!.agentId,
+      feedbackPending,
+    });
+  return [
+    goalAgentCompletionRecord(block, call, result, feedbackPending),
+    ...humanFeedbackRequestEvidence(succeeded, feedbackPending, result),
+  ];
+}
+
 function retainedGoalAgentCompletions(
   event: ClaudeResultEnvelope,
   pending: Map<string, PendingGoalAgent>,
   completed: Map<string, CompletedGoalAgent>,
 ) {
   if (event.type !== "user") return [];
-  return claudeContent(event).flatMap((block) => {
-    if (
-      !isRecord(block) ||
-      block.type !== "tool_result" ||
-      typeof block.tool_use_id !== "string"
-    )
-      return [];
-    const call = pending.get(block.tool_use_id);
-    if (!call) return [];
-    pending.delete(block.tool_use_id);
-    const result = hostReportedAgentId(block);
-    const feedbackPending = isHumanFeedbackPauseText(
-      goalAgentChildResultText(block),
-    );
-    if (block.is_error !== true && result)
-      completed.set(block.tool_use_id, {
-        subagentType: call.subagentType,
-        agentId: result.agentId,
-        feedbackPending,
-      });
-    return [
-      {
-        type: "darrow.goal_agent_completion",
-        tool_use_id: block.tool_use_id,
-        subagent_type: call.subagentType,
-        status: block.is_error === true ? "failed" : "completed",
-        ...(result ? { agent_id: result.agentId } : {}),
-        ...(feedbackPending ? { feedback_pending: true } : {}),
-      },
-    ];
-  });
+  return claudeContent(event).flatMap((block) =>
+    retainedGoalAgentCompletion(block, pending, completed),
+  );
 }
 
 function dispatchedGoalResumeEvidence(
@@ -2526,11 +2638,11 @@ function knownBashOperation(
     )
   )
     return `inspect-${commandShape}`;
-  const unboundGoalLoop = unboundGoalLoopOperation(command);
-  if (unboundGoalLoop) return unboundGoalLoop;
   if (command.includes("claude-agent-route")) return "agent-route-unbound";
   if (command.includes("claude-route-gate")) return "route-gate-unbound";
   if (command.includes("claude-owner-route")) return "owner-route-unbound";
+  const unboundGoalLoop = unboundGoalLoopOperation(command);
+  if (unboundGoalLoop) return unboundGoalLoop;
   return undefined;
 }
 
@@ -2608,6 +2720,8 @@ function retainedPostGoalBlock(
   if (!isRecord(block) || block.type !== "tool_use") return [];
   if (typeof block.name !== "string") return [];
   if (acceptedPostGoalBlock(block, state)) return [];
+  if (block.name === "Agent" && typeof block.id === "string")
+    state.pendingParentAgentCalls.add(block.id);
   return [
     {
       type: "darrow.parent_repository_tool_after_goal",
@@ -2619,6 +2733,32 @@ function retainedPostGoalBlock(
         postGoalRepositoryOperation(block),
     },
   ];
+}
+
+function retainedParentAgentResults(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+): Record<string, unknown>[] {
+  if (event.type !== "user") return [];
+  return claudeContent(event).flatMap((block) => {
+    if (
+      !isRecord(block) ||
+      typeof block.tool_use_id !== "string" ||
+      !state.pendingParentAgentCalls.has(block.tool_use_id)
+    )
+      return [];
+    state.pendingParentAgentCalls.delete(block.tool_use_id);
+    const result = hostReportedAgentId(block);
+    const owner = [...state.completedGoalAgents.values()][0];
+    if (!result || !owner || result.agentId === owner.agentId) return [];
+    return [
+      {
+        type: "darrow.parent_spawn_after_goal",
+        accepted_owner_id: owner.agentId,
+        agent_ref: result.agentId,
+      },
+    ];
+  });
 }
 
 function rejectedBlockedAcquisitionOperation(
@@ -2666,12 +2806,9 @@ function acceptedPostGoalBlock(
   block: Record<string, unknown>,
   state: ClaudeEvidenceState,
 ): boolean {
-  const gate = routeObservationCall(block, state.context, state.ledger);
-  const acceptedGate = !!gate && state.pendingRouteGates.has(gate.id);
   const acceptedResume =
     typeof block.id === "string" && state.pendingGoalResumes.has(block.id);
   return (
-    acceptedGate ||
     acceptedResume ||
     acceptedGoalLifecycleCall(block, state) ||
     acceptBlockedResponseAcquisition(block, state) ||
@@ -2906,6 +3043,158 @@ function retainedRecords(raw: string): Record<string, unknown>[] {
   });
 }
 
+interface RetainedClaudeOwner {
+  goalToolUseId: string;
+  agentId: string;
+  subagentType: string;
+  selected: SelectedClaudeRoute;
+}
+
+function soleRetainedClaudeOwner(raw: string): RetainedClaudeOwner | undefined {
+  const owners = retainedRecords(raw).flatMap((event) => {
+    const selected =
+      typeof event.subagent_type === "string"
+        ? routeForGoalRunner(event.subagent_type)
+        : undefined;
+    return event.type === "darrow.goal_agent_completion" &&
+      event.status === "completed" &&
+      typeof event.tool_use_id === "string" &&
+      typeof event.agent_id === "string" &&
+      typeof event.subagent_type === "string" &&
+      selected
+      ? [
+          {
+            goalToolUseId: event.tool_use_id,
+            agentId: event.agent_id,
+            subagentType: event.subagent_type,
+            selected,
+          },
+        ]
+      : [];
+  });
+  return owners.length === 1 ? owners[0] : undefined;
+}
+
+async function matchingTranscriptPaths(
+  directory: string,
+  filename: string,
+): Promise<string[]> {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const nested = await Promise.all(
+    entries.map((entry) => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) return matchingTranscriptPaths(path, filename);
+      return entry.isFile() && entry.name === filename ? [path] : [];
+    }),
+  );
+  return nested.flat();
+}
+
+function transcriptAssistantRoute(
+  value: unknown,
+  agentId: string,
+): SelectedClaudeRoute | null | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.type !== "assistant") return null;
+  const message = value.message;
+  const valid = [
+    value.agentId === agentId,
+    typeof value.effort === "string" && !!value.effort,
+    isRecord(message),
+    isRecord(message) && message.role === "assistant",
+    isRecord(message) && typeof message.model === "string" && !!message.model,
+  ].every(Boolean);
+  return valid && isRecord(message)
+    ? { model: String(message.model), effort: String(value.effort) }
+    : undefined;
+}
+
+async function observedTranscriptRoute(
+  path: string,
+  agentId: string,
+): Promise<SelectedClaudeRoute | undefined> {
+  const observations: SelectedClaudeRoute[] = [];
+  for (const line of (await readFile(path, "utf8")).split(/\r?\n/)) {
+    if (!line) continue;
+    let value: unknown;
+    try {
+      value = JSON.parse(line);
+    } catch {
+      return undefined;
+    }
+    const observation = transcriptAssistantRoute(value, agentId);
+    if (observation === undefined) return undefined;
+    if (observation) observations.push(observation);
+  }
+  const models = new Set(observations.map((route) => route.model));
+  const efforts = new Set(observations.map((route) => route.effort));
+  return models.size === 1 && efforts.size === 1
+    ? { model: [...models][0]!, effort: [...efforts][0]! }
+    : undefined;
+}
+
+function evaluatorRouteRecord(
+  observed: SelectedClaudeRoute | undefined,
+  selected: SelectedClaudeRoute,
+) {
+  if (!observed) return { status: "unavailable" as const };
+  return {
+    status: "observed" as const,
+    harness: "claude",
+    provider: "anthropic",
+    model: observed.model,
+    effort: observed.effort,
+    confirmation:
+      observed.model === selected.model && observed.effort === selected.effort
+        ? ("confirmed" as const)
+        : ("rejected" as const),
+  };
+}
+
+export async function evaluatorObservedClaudeRoute(
+  raw: string,
+  repoDir: string,
+  configRoot: string,
+): Promise<string> {
+  if (
+    retainedRecords(raw).some(
+      (event) => event.type === "darrow.claude_route_observation",
+    )
+  )
+    return raw;
+  const owner = soleRetainedClaudeOwner(raw);
+  if (!owner) return raw;
+  const projectKey = repoDir.replace(/[^A-Za-z0-9]/g, "-");
+  const transcripts = await matchingTranscriptPaths(
+    join(configRoot, "projects", projectKey),
+    `agent-${owner.agentId}.jsonl`,
+  );
+  const observed =
+    transcripts.length === 1
+      ? await observedTranscriptRoute(transcripts[0]!, owner.agentId)
+      : undefined;
+  const call: PendingRouteGate = {
+    goalToolUseId: owner.goalToolUseId,
+    agentId: owner.agentId,
+    selectedModel: owner.selected.model,
+    selectedEffort: owner.selected.effort,
+    observedRouteTrusted: true,
+  };
+  const evidence = retainedRouteRecord(
+    `darrow-eval-route-${owner.agentId}`,
+    call,
+    evaluatorRouteRecord(observed, owner.selected),
+  );
+  return [raw, ...evidence.map((event) => JSON.stringify(event))]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** Summarize only normalized lifecycle facts when Claude route evidence fails. */
 export function claudeGoalRouteEvidenceSummary(raw: string): string {
   const events = retainedRecords(raw);
@@ -2954,21 +3243,6 @@ function goalCompletion(events: Record<string, unknown>[]) {
   ].every(Boolean)
     ? completion
     : undefined;
-}
-
-function hasPriorGoalMaterialization(
-  events: Record<string, unknown>[],
-  completion: Record<string, unknown>,
-) {
-  const completionIndex = events.indexOf(completion);
-  const materializations = events.flatMap((event, index) =>
-    event.type === "darrow.goal_objective_materialization" &&
-    (event.status === "inline" || event.status === "file-backed") &&
-    index < completionIndex
-      ? [event]
-      : [],
-  );
-  return materializations.length === 1;
 }
 
 function routeObservation(
@@ -3035,8 +3309,7 @@ export function claudeGoalRouteEvidence(
 ): ClaudeGoalRouteEvidence | undefined {
   const events = retainedRecords(raw);
   const completion = goalCompletion(events);
-  if (!completion || !hasPriorGoalMaterialization(events, completion))
-    return undefined;
+  if (!completion) return undefined;
   const goalToolUseId = completion.tool_use_id as string;
   const agentId = completion.agent_id as string;
   const observation = routeObservation(events, goalToolUseId, agentId);
@@ -3084,6 +3357,14 @@ function confirmedClaudeGoalRoute(
     confirmation?.selectedEffort === selected.effort,
     observationMatchesConfirmation(observed, confirmation),
   ].every(Boolean);
+}
+
+/** Require the evaluator-observed Claude owner route to match its selected runner. */
+export function claudeGoalRouteMatchesSelection(
+  evidence: ClaudeGoalRouteEvidence,
+  selected: { model: string; effort: string },
+): boolean {
+  return confirmedClaudeGoalRoute(evidence, selected);
 }
 
 function observationMatchesConfirmation(
@@ -3290,6 +3571,7 @@ interface ClaudeEvidenceState {
   pendingReviewAgents: Map<string, PendingReviewAgent>;
   pendingGoalAgents: Map<string, PendingGoalAgent>;
   completedGoalAgents: Map<string, CompletedGoalAgent>;
+  pendingParentAgentCalls: Set<string>;
   pendingGoalResumes: Map<string, PendingGoalAgentResume>;
   pendingBlockedResponseAcquisitions: Map<
     string,
@@ -3298,6 +3580,7 @@ interface ClaudeEvidenceState {
   blockedOperation?: string;
   blockedGoalResponse?: string;
   humanFeedbackResponse?: string;
+  followUpStarted: boolean;
   pendingRouteGates: Map<string, PendingRouteGate>;
   retainedReviewAgentTurns: Map<string, RetainedReviewAgentTurn>;
   reviewAgentBatch: number;
@@ -3348,12 +3631,14 @@ function newClaudeEvidenceState(
     pendingReviewAgents: new Map(),
     pendingGoalAgents: new Map(),
     completedGoalAgents: new Map(),
+    pendingParentAgentCalls: new Set(),
     pendingGoalResumes: new Map(),
     pendingBlockedResponseAcquisitions: new Map(),
     pendingRouteGates: new Map(),
     retainedReviewAgentTurns: new Map(),
     reviewAgentBatch: 0,
     context,
+    followUpStarted: false,
     preflightStage: "start",
     acceptedPreflightBlocks: new Set(),
     goalAgentStarted: false,
@@ -3374,6 +3659,47 @@ function newClaudeEvidenceState(
     objectiveReleased: false,
     reportRendered: false,
   };
+}
+
+function retainedHumanFeedbackRequest(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+): Record<string, unknown>[] {
+  if (
+    state.followUpStarted ||
+    !state.context?.followUpPrompt ||
+    !isTopLevelClaudeEvent(event) ||
+    !containsCompleteQuestion(event.result) ||
+    state.completedGoalAgents.size !== 1
+  )
+    return [];
+  const [goal] = state.completedGoalAgents.values();
+  if (!goal || goal.feedbackPending) return [];
+  goal.feedbackPending = true;
+  return [
+    {
+      type: "darrow.human_feedback_request",
+      agent_id: goal.agentId,
+      question_present: true,
+    },
+  ];
+}
+
+function retainedConfiguredFollowUpRequest(
+  state: ClaudeEvidenceState,
+): Record<string, unknown>[] {
+  if (!state.context?.followUpPrompt || state.completedGoalAgents.size !== 1)
+    return [];
+  const [goal] = state.completedGoalAgents.values();
+  if (!goal || goal.feedbackPending) return [];
+  goal.feedbackPending = true;
+  return [
+    {
+      type: "darrow.human_feedback_request",
+      agent_id: goal.agentId,
+      question_present: true,
+    },
+  ];
 }
 
 function retainTopLevelClaudeStarts(
@@ -3415,6 +3741,7 @@ function retainTopLevelClaudeResults(
       state.completedGoalAgents,
     ),
   );
+  retained.push(...retainedParentAgentResults(event, state));
   retained.push(...retainedGoalAgentResumeResults(event, state));
   retained.push(...retainedGoalAgentResumeNotifications(event, state));
   retained.push(...retainedBlockedResponseAcquisitionResults(event, state));
@@ -3429,7 +3756,8 @@ function retainedNonResultEvent(
 ) {
   const retained: unknown[] = [];
   if (event.type === "darrow.eval.follow_up_turn") {
-    retained.push(event);
+    retained.push(...retainedConfiguredFollowUpRequest(state), event);
+    state.followUpStarted = true;
     if (
       state.humanFeedbackResponse === undefined &&
       state.context?.followUpPrompt
@@ -3558,6 +3886,7 @@ export function retainedClaudeEvidence(
   for (const originalEvent of parsed.events) {
     const event = withoutHookDeniedToolUses(originalEvent, hookDenied);
     if (event.type === "result") {
+      retained.push(...retainedHumanFeedbackRequest(event, state));
       retained.push(retainedResultEnvelope(event));
       continue;
     }
@@ -3571,7 +3900,16 @@ export function retainedClaudeEvidence(
 
 interface ClaudeArgvOptions {
   pluginDir?: string;
+  pluginDirs?: string[];
+  expectGoalOwner?: boolean;
   session?: { mode: "start" | "resume"; id: string };
+}
+
+function disallowScheduler(prompt: string, expectGoalOwner?: boolean): boolean {
+  return (
+    expectGoalOwner === true ||
+    /(?:^|\s)(?:\/adaptive-goal|\$adaptive-goal)(?:\s|$)/.test(prompt)
+  );
 }
 
 export function claudeArgv(
@@ -3581,6 +3919,7 @@ export function claudeArgv(
   options: ClaudeArgvOptions = {},
 ): string[] {
   const { pluginDir, session } = options;
+  const pluginDirs = options.pluginDirs ?? (pluginDir ? [pluginDir] : []);
   const argv = [
     "claude",
     "-p",
@@ -3600,12 +3939,12 @@ export function claudeArgv(
     "--no-chrome",
     "--dangerously-skip-permissions",
   ];
-  if (/(?:^|\s)(?:\/adaptive-goal|\$adaptive-goal)(?:\s|$)/.test(prompt)) {
+  if (disallowScheduler(prompt, options.expectGoalOwner)) {
     argv.push("--disallowed-tools", "ScheduleWakeup");
   }
   if (session?.mode === "start") argv.push("--session-id", session.id);
   if (session?.mode === "resume") argv.push("--resume", session.id);
-  if (pluginDir) argv.push("--plugin-dir", pluginDir);
+  for (const path of pluginDirs) argv.push("--plugin-dir", path);
   return argv;
 }
 
@@ -3675,16 +4014,28 @@ function configureClaudePluginData(
   env.PLUGIN_DATA = pluginData;
 }
 
+function claudeEvalPluginDirs(repoDir: string): string[] {
+  const primary = join(repoDir, ".git", "eval-plugin");
+  const additionalRoot = join(repoDir, ".git", "eval-plugins");
+  const additional = existsSync(additionalRoot)
+    ? readdirSync(additionalRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(additionalRoot, entry.name))
+        .sort()
+    : [];
+  return [...(existsSync(primary) ? [primary] : []), ...additional];
+}
+
 function protectedClaudeRuntimePaths(
   repoDir: string,
-  pluginDir: string,
+  pluginDirs: string[],
   env: Record<string, string>,
 ) {
   const searchPaths = (env.PATH ?? "")
     .split(":")
     .filter((path) => concreteAbsolutePath(path));
   return [
-    pluginDir,
+    ...pluginDirs,
     env.ZDOTDIR,
     env.CLAUDE_PLUGIN_DATA,
     claudeSafeInspectionBin(repoDir),
@@ -3760,26 +4111,27 @@ interface ClaudeTurnOutput {
 async function sandboxedClaudeCommand(options: {
   request: HarnessRunRequest;
   repo: string;
-  evalPlugin: string;
+  evalPlugins: string[];
   env: Record<string, string>;
   prompt: string;
   session?: { mode: "start" | "resume"; id: string };
 }): Promise<string[]> {
-  const { request, repo, evalPlugin, env, prompt, session } = options;
+  const { request, repo, evalPlugins, env, prompt, session } = options;
   return sandboxedAgentCommand(
     claudeArgv(prompt, request.model, request.effort, {
-      pluginDir: existsSync(evalPlugin) ? evalPlugin : undefined,
+      pluginDirs: evalPlugins,
+      expectGoalOwner: request.control?.expectGoalOwner,
       session,
     }),
     repo,
-    protectedClaudeRuntimePaths(repo, evalPlugin, env),
+    protectedClaudeRuntimePaths(repo, evalPlugins, env),
   );
 }
 
 async function claudeTurnOutput(options: {
   request: HarnessRunRequest;
   repo: string;
-  evalPlugin: string;
+  evalPlugins: string[];
   env: Record<string, string>;
 }): Promise<ClaudeTurnOutput> {
   const { request, repo, env } = options;
@@ -3826,10 +4178,17 @@ async function claudeHarnessResult(options: {
   turn: ClaudeTurnOutput;
   start: number;
   evidenceContext: ClaudeEvidenceContext;
+  configRoot: string;
 }): Promise<HarnessResult> {
-  const { repo, turn, start, evidenceContext } = options;
+  const { repo, turn, start, evidenceContext, configRoot } = options;
   const outcome = await claudeOutcome(repo, turn.out, turn.code);
   const skillActivation = claudeSkillActivation(turn.out);
+  const retained = retainedClaudeRunEvidence(
+    turn.out,
+    turn.code,
+    turn.err,
+    evidenceContext,
+  );
   return {
     ok: outcome.ok,
     durationMs: performance.now() - start,
@@ -3838,12 +4197,7 @@ async function claudeHarnessResult(options: {
     outputTokens: outcome.outputTokens,
     costUsd: outcome.costUsd,
     resultText: outcome.resultText,
-    raw: retainedClaudeRunEvidence(
-      turn.out,
-      turn.code,
-      turn.err,
-      evidenceContext,
-    ),
+    raw: await evaluatorObservedClaudeRoute(retained, repo, configRoot),
     skillActivation: {
       ...skillActivation,
       complete: outcome.ok && skillActivation.complete,
@@ -3862,18 +4216,28 @@ async function executeClaude(
     await mkdtemp(join(tmpdir(), "darrow-claude-objective-")),
   );
   env.TMPDIR = stagingRoot;
-  const evalPlugin = join(repo, ".git", "eval-plugin");
+  const evalPlugins = claudeEvalPluginDirs(repo);
+  const goalPlugin =
+    evalPlugins.find((path) => existsSync(join(path, "bin", "goal-loop"))) ??
+    evalPlugins[0] ??
+    join(repo, ".git", "eval-plugin");
   configureClaudePluginData(env, repo);
   const evidenceContext = claudeEvidenceContext({
     repoDir: repo,
-    pluginDir: evalPlugin,
+    pluginDir: goalPlugin,
     stagingRoot,
     engineeringRequest: request.prompt,
     followUpPrompt: request.control?.followUpPrompt,
   });
   try {
-    const turn = await claudeTurnOutput({ request, repo, evalPlugin, env });
-    return await claudeHarnessResult({ repo, turn, start, evidenceContext });
+    const turn = await claudeTurnOutput({ request, repo, evalPlugins, env });
+    return await claudeHarnessResult({
+      repo,
+      turn,
+      start,
+      evidenceContext,
+      configRoot: env.CLAUDE_CONFIG_DIR!,
+    });
   } finally {
     await rm(stagingRoot, { recursive: true, force: true });
   }

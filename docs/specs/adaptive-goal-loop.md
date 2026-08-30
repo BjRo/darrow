@@ -25,10 +25,12 @@ request + repository -> read-only preflight -> compact contract -> one subagent 
 Darrow does not maintain a second execution state machine. In particular, it
 does not require the parent or owner to mirror launch, readiness, review,
 blockage, continuation, cleanup, or completion into a Darrow ledger. Host
-acceptance establishes the owner. Codex acceptance also establishes the
-concrete route; Claude requires one bounded transcript-derived model/effort
-check because Agent may substitute a route after accepting it. Semantic owner
-results establish readiness, review, feedback, blockage, and completion.
+acceptance establishes the owner and its host-native route. Codex receives the
+concrete route on the spawn call. Claude resolves a scoped agent whose
+frontmatter pins model and effort, rejects higher-priority environment
+overrides, and omits a per-call model override. Semantic owner results
+establish readiness, review, feedback, blockage, and completion. Transcript
+auditing belongs to evaluation and diagnostics, not the live parent workflow.
 
 ## Selected design
 
@@ -43,9 +45,9 @@ results establish readiness, review, feedback, blockage, and completion.
 5. It starts exactly one host-visible subagent on that route.
 6. That subagent becomes the sole Darrow work owner and follows the contract to
    completion, a user-feedback pause, or a genuine blocker.
-7. The parent only waits, performs the required bounded Claude route check,
-   relays feedback to the same owner, and returns the owner's result. It does
-   not implement, verify, or reconstruct the engineering result.
+7. The parent only waits, relays feedback to the same owner, and returns the
+   owner's result. It does not run post-launch shell checks, implement, verify,
+   or reconstruct the engineering result.
 
 The accepted subagent task is the native goal boundary. A Codex subagent does
 not create another nested goal, and a Claude Agent does not claim session-level
@@ -121,13 +123,19 @@ The contract is self-contained and concise. It contains, in plain language:
 - publication limits and the completion evidence to return; and
 - the selected model route and any explicit stopping budget.
 
-The launch representation uses stable, human-readable labels. At minimum it
-contains `Role:`, `Outcome:`, `Acceptance criteria:`, `Scope:`, `Permissions:`,
-`Workflow:`, `Risk:`, `Profile:`, `Selected route:`, `Capability bindings:`,
-`Verification:`, and `Completion evidence:` exactly once. This is a launch
-completeness guard, not a serialized lifecycle or completion-report protocol.
-The Codex boundary also rejects a contract whose selected route disagrees with
-the concrete spawn model and effort.
+The launch representation uses seven stable, human-readable fields exactly
+once: `Role:`, `Outcome:`, `Acceptance criteria:`, `Scope and authority:`,
+`Execution:`, `Verification and gates:`, and `Completion evidence:`. Scope and
+authority names included work, authorized effects, forbidden effects, and work
+to preserve. Execution names workflow, risk, profile, selected route, and exact
+capability bindings. Verification and gates names readiness, review, focused
+checks, final checks, feedback, and blockers. This is a launch completeness
+guard, not a serialized lifecycle or completion-report protocol. The Codex
+and Claude boundaries require nonempty workflow and profile values and
+normalize risk semantically to `routine`, `elevated`, or `high`; they do not
+require those human-readable dimensions to match a serialization vocabulary.
+Both boundaries reject a contract whose selected route disagrees with the
+concrete spawn model and effort.
 
 The contract must be understandable without another Darrow file except the
 selected workflow document, which the parent reads and incorporates before
@@ -218,21 +226,19 @@ Repository route overrides apply only through the documented
 `.darrow/config.json` surface. Invalid or unreadable owned configuration stops
 launch rather than falling back silently.
 
-Route evidence is host-specific:
+Route binding is host-specific:
 
 - Codex: one accepted subagent spawn with the selected concrete model and
   reasoning effort.
-- Claude: one accepted foreground Agent call establishes the owner; after it
-  returns, the bundled observer must bind the host-reported id to exactly one
-  child transcript and confirm that every assistant turn used the selected
-  model and effort.
+- Claude: the bundled resolver validates one scoped agent whose frontmatter
+  pins the selected model and effort and rejects higher-priority environment
+  overrides. The foreground Agent call omits a per-call model override, so
+  native host precedence applies that definition.
 
-Claude route observation is a narrow host-adapter check, not a lifecycle
-ledger or engineering review. If launch is rejected, evidence is unavailable,
-or the observed route differs, stop as `launch_required`. A post-return Claude
-mismatch can be known only after the owner ran, so disclose that local changes
-may exist and perform no further mutation. Do not retry with a different owner
-or silently downgrade the route.
+If route resolution or launch is rejected or unavailable, stop as
+`launch_required`; do not retry with a different owner or silently downgrade.
+An eval harness may independently audit the child's transcript to detect a host
+regression, but that observation does not add a post-launch product step.
 
 ## Readiness
 
@@ -326,20 +332,12 @@ owner after explicit abandonment or supersession.
 ### Human feedback
 
 When a material decision first emerges after launch, the owner pauses mutation
-and returns:
-
-```text
-- phase: human-feedback-request
-Question: <smallest complete question>
-```
+and returns the smallest complete question as its paused result. The question
+needs no lifecycle marker or canonical serialization.
 
 The parent surfaces the question and retains the same owner. A later explicit
-answer is relayed to that owner with:
-
-```text
-- phase: human-feedback-response
-<exact user answer>
-```
+answer is relayed verbatim to that owner. No lifecycle marker or fixed display
+summary is required.
 
 The answer grants no broader authority. The same owner performs any required
 acknowledgement before resuming mutation. Pending feedback is neither
@@ -407,10 +405,10 @@ spawn a replacement after acceptance.
 Resolve one route-specific plugin agent whose frontmatter pins the selected
 model and effort, then invoke it once in the foreground with the complete
 ownership-marked contract. Use the returned agent id for feedback continuation.
-Do not invoke Agent again for the same goal. After every foreground return, run
-the bundled route observer for that exact id and selected tuple. It reads only
-route metadata from the exact child transcript; the parent must not inspect or
-reconstruct the child's engineering work.
+The resolver rejects conflicting environment overrides and the Agent call
+omits a per-call model override, leaving the scoped agent frontmatter as the
+native route binding. Do not invoke Agent again for the same goal. A later
+continuation targets the returned owner id.
 
 ### Unavailable launch
 
@@ -439,10 +437,11 @@ Nested host processes are not an adaptive-goal fallback.
    tie-breakers and consequence model.
 6. **AGL-R1 — Concrete selected route.** Policy or an explicit user override
    resolves to one host/provider/model/effort tuple before launch.
-7. **AGL-R2 — Honest route evidence.** Codex acceptance proves its explicit
-   spawn tuple. Claude completion is relayable only after the exact owner's
-   transcript confirms the selected model and effort; unavailable or
-   substituted evidence stops honestly.
+7. **AGL-R2 — Native route binding.** Codex launches with an explicit spawn
+   tuple. Claude resolves a scoped agent with the selected model and effort,
+   rejects higher-priority environment overrides, and launches without a
+   per-call model override. Transcript auditing is evaluator-owned and never a
+   parent workflow step.
 8. **AGL-L1 — One Darrow owner.** Exactly one route-selected subagent owns the
    complete run. It creates no replacement adaptive owner or nested goal for
    the same contract.
@@ -476,9 +475,12 @@ lifecycle, render completion, or supervise work. Plugin-shipped scripts remain
 portable across Bash 5 and macOS Bash 3.2 and use only baseline Unix utilities
 plus the host CLIs they explicitly wrap.
 
-Every required runtime file remains inside the plugin. Optional capabilities
-are selected through host-visible intent and are never accessed through sibling
-plugin paths.
+Every required runtime file remains inside the plugin. Bundled helpers are
+resolved without filesystem search: Claude uses its host-substituted plugin
+root, and Codex uses the absolute path of the SKILL.md it activated. An
+unavailable or non-executable helper stops honestly instead of falling back to
+a similarly named binary. Optional capabilities are selected through
+host-visible intent and are never accessed through sibling plugin paths.
 
 ## Evaluation requirements
 

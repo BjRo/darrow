@@ -13,7 +13,7 @@ test("checkpoints completed trials and atomically finalizes the active-run recor
         process.execPath,
         "runner/run.ts",
         "--case",
-        "ticket-to-pr-canonical-token-delegation",
+        "ticket-to-pr-shortcut-delegation",
         "--harness",
         "codex",
         "--dry",
@@ -39,7 +39,7 @@ test("checkpoints completed trials and atomically finalizes the active-run recor
       artifactPath: output,
       completedTrials: [
         {
-          caseId: "ticket-to-pr-canonical-token-delegation",
+          caseId: "ticket-to-pr-shortcut-delegation",
           trial: 1,
         },
       ],

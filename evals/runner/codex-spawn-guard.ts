@@ -17,14 +17,9 @@ const REQUIRED_CONTRACT_LABELS = [
   "Role",
   "Outcome",
   "Acceptance criteria",
-  "Scope",
-  "Permissions",
-  "Workflow",
-  "Risk",
-  "Profile",
-  "Selected route",
-  "Capability bindings",
-  "Verification",
+  "Scope and authority",
+  "Execution",
+  "Verification and gates",
   "Completion evidence",
 ] as const;
 const FIXTURE_STATE_ENTRY =
@@ -297,22 +292,87 @@ function semanticSelectedRoute(value: string | undefined): string | undefined {
     .join("|");
 }
 
+function structuredContractValue(value: string | undefined, key: string) {
+  const match = value?.match(new RegExp(`(?:^|;\\s*)${key}=([^;]+)`));
+  return match?.[1]?.trim() || undefined;
+}
+
+function completeStructuredContractField(
+  value: string | undefined,
+  keys: string[],
+) {
+  return keys.every((key) => structuredContractValue(value, key));
+}
+
+function normalizedContractRisk(
+  value: string | undefined,
+): "routine" | "elevated" | "high" | undefined {
+  const risk = value
+    ?.trim()
+    .replace(/^`/, "")
+    .match(/^(routine|elevated|high)(?:`|[\s.,:]|$)/i)?.[1]
+    ?.toLowerCase();
+  return risk === "routine" || risk === "elevated" || risk === "high"
+    ? risk
+    : undefined;
+}
+
 function ownerDimensions(input: Record<string, unknown>) {
   const contract = String(input.message)
     .slice(OWNER_MARKER.length + 1)
     .trim();
-  const risk = contractLabelValue(contract, "Risk")?.replace(/\.$/, "");
-  const workflow = contractLabelValue(contract, "Workflow")?.replace(/\.$/, "");
-  const profile = contractLabelValue(contract, "Profile")?.replace(/\.$/, "");
-  return workflow &&
-    profile &&
-    ["routine", "elevated", "high"].includes(risk ?? "")
+  const execution = contractLabelValue(contract, "Execution");
+  const risk = normalizedContractRisk(
+    structuredContractValue(execution, "risk"),
+  );
+  const workflow = structuredContractValue(execution, "workflow");
+  const profile = structuredContractValue(execution, "profile");
+  return workflow && profile && risk
     ? {
         workflow,
         profile,
-        risk: risk as "routine" | "elevated" | "high",
+        risk,
       }
     : undefined;
+}
+
+function structuredOwnerContractIssue(
+  contract: string,
+  input: Record<string, unknown>,
+  route: Omit<AcceptedRoute, "forkTurns">,
+): string | undefined {
+  if (
+    !completeStructuredContractField(
+      contractLabelValue(contract, "Scope and authority"),
+      ["included", "authorized", "forbidden", "preserve"],
+    )
+  )
+    return "adaptive goal owner contract has incomplete scope or authority";
+  const execution = contractLabelValue(contract, "Execution");
+  if (
+    !completeStructuredContractField(execution, [
+      "workflow",
+      "risk",
+      "profile",
+      "route",
+      "capabilities",
+    ])
+  )
+    return "adaptive goal owner contract has incomplete execution policy";
+  if (!ownerDimensions(input))
+    return "adaptive goal owner contract has invalid workflow, risk, or profile";
+  if (
+    !completeStructuredContractField(
+      contractLabelValue(contract, "Verification and gates"),
+      ["readiness", "review", "focused", "final", "feedback", "blockers"],
+    )
+  )
+    return "adaptive goal owner contract has incomplete verification or gates";
+  const expectedRoute = `codex|openai|${route.model}|${route.effort}`;
+  return semanticSelectedRoute(structuredContractValue(execution, "route")) ===
+    expectedRoute
+    ? undefined
+    : "adaptive goal owner contract route does not match the host spawn";
 }
 
 function ownerContractIssue(
@@ -334,15 +394,12 @@ function ownerContractIssue(
   );
   if (missing.length)
     return `adaptive goal owner contract is missing fields: ${missing.join(", ")}`;
-  if (!ownerDimensions(input))
-    return "adaptive goal owner contract has invalid workflow, risk, or profile";
-  const expectedRoute = `codex|openai|${route.model}|${route.effort}`;
   if (
-    semanticSelectedRoute(contractLabelValue(contract, "Selected route")) !==
-    expectedRoute
+    contractLabelValue(contract, "Role") !==
+    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner."
   )
-    return "adaptive goal owner contract route does not match the host spawn";
-  return undefined;
+    return "adaptive goal owner contract has an invalid role";
+  return structuredOwnerContractIssue(contract, input, route);
 }
 
 async function ownerBoundaryIssue(

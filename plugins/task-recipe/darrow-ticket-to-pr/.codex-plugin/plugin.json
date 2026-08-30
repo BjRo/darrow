@@ -1,12 +1,12 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.2.2",
-  "description": "Turn one explicitly invoked ready ticket into one verified pull request",
+  "version": "0.3.0",
+  "description": "Delegate one explicit ticket-to-PR shortcut to adaptive-goal",
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Ticket to PR",
     "shortDescription": "Deliver one ticket as one pull request",
-    "longDescription": "Ticket to PR establishes ticket-specific authority, prepares its attribution branch before readiness, then delegates one bounded delivery request to an adaptive native goal.",
+    "longDescription": "Ticket to PR preserves one ticket-delivery authority envelope and delegates it once to adaptive-goal, which owns readiness, execution, feedback, verification, and publication.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

@@ -1,4 +1,12 @@
-import { mkdtemp, writeFile, mkdir, cp, rm, readdir } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  mkdir,
+  cp,
+  rm,
+  readdir,
+  readFile,
+} from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -239,8 +247,8 @@ async function mountSourceClaudePlugin(
   repoDir: string,
   skillDirs: string[],
   paths: PluginMountPaths,
+  evalPlugin = join(repoDir, ".git", "eval-plugin"),
 ): Promise<void> {
-  const evalPlugin = join(repoDir, ".git", "eval-plugin");
   await mkdir(join(evalPlugin, ".claude-plugin"), { recursive: true });
   await cp(paths.manifest, join(evalPlugin, ".claude-plugin", "plugin.json"));
   for (const mountedSkillDir of skillDirs) {
@@ -261,34 +269,12 @@ async function mountSourceClaudePlugin(
 }
 
 async function mountSourceCodexPlugin(
-  repoDir: string,
   skillDirs: string[],
   paths: PluginMountPaths,
-): Promise<void> {
-  const marketplace = join(repoDir, ".git", "eval-marketplace");
-  const plugin = join(marketplace, "plugin");
-  const pluginName = basename(dirname(dirname(paths.codexManifest)));
-  await mkdir(join(marketplace, ".claude-plugin"), { recursive: true });
+  plugin: string,
+): Promise<string> {
   await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
   await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
-  await writeFile(
-    join(marketplace, ".claude-plugin", "marketplace.json"),
-    JSON.stringify(
-      {
-        name: "darrow-eval",
-        owner: { name: "Darrow eval" },
-        plugins: [
-          {
-            name: pluginName,
-            source: "./plugin",
-            description: "Filtered source plugin for evaluation",
-          },
-        ],
-      },
-      null,
-      2,
-    ) + "\n",
-  );
   await cp(paths.manifest, join(plugin, ".claude-plugin", "plugin.json"));
   await cp(paths.codexManifest, join(plugin, ".codex-plugin", "plugin.json"));
   for (const mountedSkillDir of skillDirs) {
@@ -303,6 +289,69 @@ async function mountSourceCodexPlugin(
     await cp(paths.config, join(plugin, "config"), { recursive: true });
   if (existsSync(paths.hooks))
     await cp(paths.hooks, join(plugin, "hooks"), { recursive: true });
+  const manifest = JSON.parse(await readFile(paths.codexManifest, "utf8")) as {
+    name?: unknown;
+  };
+  if (typeof manifest.name !== "string" || !manifest.name)
+    throw new Error(
+      `source plugin manifest has no name: ${paths.codexManifest}`,
+    );
+  return manifest.name;
+}
+
+async function pluginSkillDirs(pluginRoot: string): Promise<string[]> {
+  const skillsRoot = join(pluginRoot, "skills");
+  if (!existsSync(skillsRoot)) return [];
+  return (await readdir(skillsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(skillsRoot, entry.name));
+}
+
+interface SourcePluginPackage {
+  key: string;
+  paths: PluginMountPaths;
+  skillDirs: string[];
+}
+
+async function sourcePluginPackages(
+  primarySkillDirs: string[],
+  primaryPaths: PluginMountPaths,
+  additionalPluginRoots: string[],
+): Promise<SourcePluginPackage[]> {
+  const packages: SourcePluginPackage[] = [
+    { key: "primary", paths: primaryPaths, skillDirs: primarySkillDirs },
+  ];
+  for (const [index, pluginRoot] of additionalPluginRoots.entries()) {
+    packages.push({
+      key: `${index}-${basename(pluginRoot)}`,
+      paths: pluginMountPaths("", pluginRoot),
+      skillDirs: await pluginSkillDirs(pluginRoot),
+    });
+  }
+  return packages;
+}
+
+async function writeCodexMarketplace(
+  marketplace: string,
+  plugins: Array<{ name: string; source: string }>,
+): Promise<void> {
+  await mkdir(join(marketplace, ".claude-plugin"), { recursive: true });
+  await writeFile(
+    join(marketplace, ".claude-plugin", "marketplace.json"),
+    JSON.stringify(
+      {
+        name: "darrow-eval",
+        owner: { name: "Darrow eval" },
+        plugins: plugins.map(({ name, source }) => ({
+          name,
+          source,
+          description: "Filtered source plugin for evaluation",
+        })),
+      },
+      null,
+      2,
+    ) + "\n",
+  );
 }
 
 function pluginMountPaths(
@@ -320,20 +369,73 @@ function pluginMountPaths(
   };
 }
 
-async function mountSourcePlugins(
+async function mountClaudeSourcePlugins(
   repoDir: string,
+  packages: SourcePluginPackage[],
+): Promise<void> {
+  for (const [index, source] of packages.entries()) {
+    if (!existsSync(source.paths.manifest)) {
+      if (index === 0) continue;
+      throw new Error(
+        `additional source plugin has no Claude manifest: ${source.paths.manifest}`,
+      );
+    }
+    const destination =
+      index === 0
+        ? join(repoDir, ".git", "eval-plugin")
+        : join(repoDir, ".git", "eval-plugins", source.key);
+    await mountSourceClaudePlugin(
+      repoDir,
+      source.skillDirs,
+      source.paths,
+      destination,
+    );
+  }
+}
+
+async function mountCodexSourcePlugins(
+  repoDir: string,
+  packages: SourcePluginPackage[],
+): Promise<void> {
+  const marketplace = join(repoDir, ".git", "eval-marketplace");
+  const entries: Array<{ name: string; source: string }> = [];
+  for (const [index, source] of packages.entries()) {
+    if (
+      !existsSync(source.paths.manifest) ||
+      !existsSync(source.paths.codexManifest)
+    ) {
+      if (index === 0) continue;
+      throw new Error(
+        `additional source plugin has incomplete manifests: ${source.paths.codexManifest}`,
+      );
+    }
+    const relativePlugin = index === 0 ? "plugin" : join("plugins", source.key);
+    const name = await mountSourceCodexPlugin(
+      source.skillDirs,
+      source.paths,
+      join(marketplace, relativePlugin),
+    );
+    entries.push({ name, source: `./${relativePlugin}` });
+  }
+  if (entries.length) await writeCodexMarketplace(marketplace, entries);
+}
+
+async function mountProjectSkills(
+  repoDir: string,
+  skillMounts: string[],
   skillDirs: string[],
   paths: PluginMountPaths,
-  options: { sourceClaudePlugin: boolean; sourceCodexPlugin: boolean },
 ): Promise<void> {
-  if (options.sourceClaudePlugin && existsSync(paths.manifest))
-    await mountSourceClaudePlugin(repoDir, skillDirs, paths);
-  if (
-    options.sourceCodexPlugin &&
-    existsSync(paths.manifest) &&
-    existsSync(paths.codexManifest)
-  )
-    await mountSourceCodexPlugin(repoDir, skillDirs, paths);
+  for (const mount of skillMounts) {
+    for (const mountedSkillDir of skillDirs) {
+      const mountedSkillName = basename(mountedSkillDir);
+      await copySkillWithoutEvals(
+        mountedSkillDir,
+        join(repoDir, mount, mountedSkillName),
+      );
+    }
+    await mountPluginMechanics(repoDir, mount, paths);
+  }
 }
 
 async function mountSkills(
@@ -345,6 +447,7 @@ async function mountSkills(
     | "mountPluginSkills"
     | "sourcePluginRoot"
     | "additionalSkillDirs"
+    | "additionalPluginRoots"
     | "sourceClaudePlugin"
     | "sourceCodexPlugin"
   >,
@@ -355,6 +458,7 @@ async function mountSkills(
     mountPluginSkills = false,
     sourcePluginRoot,
     additionalSkillDirs = [],
+    additionalPluginRoots = [],
     sourceClaudePlugin = false,
     sourceCodexPlugin = false,
   } = options;
@@ -364,23 +468,14 @@ async function mountSkills(
     mountPluginSkills,
     additionalSkillDirs,
   );
-  for (const mount of skillMounts) {
-    for (const mountedSkillDir of skillDirs) {
-      const mountedSkillName = mountedSkillDir
-        .split("/")
-        .filter(Boolean)
-        .pop()!;
-      await copySkillWithoutEvals(
-        mountedSkillDir,
-        join(repoDir, mount, mountedSkillName),
-      );
-    }
-    await mountPluginMechanics(repoDir, mount, paths);
-  }
-  await mountSourcePlugins(repoDir, skillDirs, paths, {
-    sourceClaudePlugin,
-    sourceCodexPlugin,
-  });
+  await mountProjectSkills(repoDir, skillMounts, skillDirs, paths);
+  const packages = await sourcePluginPackages(
+    skillDirs,
+    paths,
+    additionalPluginRoots,
+  );
+  if (sourceClaudePlugin) await mountClaudeSourcePlugins(repoDir, packages);
+  if (sourceCodexPlugin) await mountCodexSourcePlugins(repoDir, packages);
 }
 
 async function writeSkillMountExcludes(
@@ -406,6 +501,8 @@ export interface BuildFixtureOptions {
   sourcePluginRoot?: string;
   /** Extra skill directories mounted into the filtered source plugin. */
   additionalSkillDirs?: string[];
+  /** Extra plugin roots mounted as independent source plugins. */
+  additionalPluginRoots?: string[];
   /** Build a Claude plugin from the source plugin instead of project discovery. */
   sourceClaudePlugin?: boolean;
   /** Build a local marketplace for an isolated installed Codex plugin. */
