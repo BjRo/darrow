@@ -32,15 +32,19 @@ not as a second execution runtime.
 
 - `adaptive-goal` performs read-only preflight in the current context and emits
   one compact goal contract.
-- It activates the narrowest supported host-native boundary that can honestly
-  apply the selected route. Exactly one host-native goal owner then owns
+- It activates exactly one host-visible subagent that can honestly apply the
+  selected model and effort. That subagent task is the goal boundary and owns
   implementation, adaptation, recovery, verification, and completion.
+- Codex proves the route in its accepted spawn tuple. Claude binds the returned
+  owner id to one narrow transcript-derived model/effort observation before the
+  parent relays completion, because Agent acceptance alone can substitute a
+  route.
 - Darrow does not supervise planner, executor, verifier, or repair roles and
   does not implement a daemon, queue, workflow database, phase ledger, or
   general workflow runtime.
-- A nested host process is a disclosed compatibility boundary requiring
-  explicit user authorization, never an automatic substitute for native
-  activation.
+- Readiness completes conversationally before launch when required, and exact
+  intent-matched capabilities are bound into the owner contract.
+- A nested host process is not an adaptive-goal compatibility fallback.
 - `darrow-ticket-pipeline` remains an executable reference and comparative
   benchmark for the former static, controller-owned approach. It is not a
   second recommended orchestration path or a template for new runtime features.
@@ -54,8 +58,8 @@ comparison surface remains in
 
 - Darrow concentrates its orchestration value before execution and delegates
   continuation mechanics to the host.
-- Native execution remains observable through host-owned threads rather than a
-  Darrow-defined role hierarchy.
+- Native execution remains observable through one route-selected host-owned
+  subagent rather than a Darrow-defined role hierarchy.
 - Unsupported route application or goal activation must stop honestly instead
   of masquerading as the selected boundary.
 - Host differences require explicit launch adapters and compatibility behavior,

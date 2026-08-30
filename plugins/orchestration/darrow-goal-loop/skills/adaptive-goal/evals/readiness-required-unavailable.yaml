@@ -1,8 +1,10 @@
 id: goal-readiness-required-unavailable
-invariant: AGL-P13,AGL-E9,AGL-L14,AGL-S4,AGL-S6
+invariant: AGL-L2,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
-  Codex, invoke the $adaptive-goal skill. The specification has not previously
+  {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
+  The specification has not previously
   been assessed for implementation readiness. Acceptance is that `bash
   check.sh` passes. Select and apply the policy route. Keep the result local;
   commits, pushes, pull requests, and other publication are not authorized.
@@ -28,10 +30,10 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: stop identifies unavailable readiness
-    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Implementation readiness availability: unavailable\\.[ \\t]*$"
+    expect_regex: "Status:[ \\t]*launch_required[\\s\\S]*readiness"
     flags: i
-  - name: unavailable gate preserves launch-required report
-    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*launch_boundary: launch_required"
 transcript_checks:
   - name: unavailable readiness stops before generic delegation
     not_regex: '"tool":"spawn_agent"'
+  - name: unavailable readiness uses no lifecycle ledger
+    not_regex: "goal-loop step|darrow-native-goal-report"

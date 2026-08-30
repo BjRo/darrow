@@ -9,7 +9,6 @@ import {
 } from "./ablation";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import { codexGoalAdapter } from "./adapters/codex-goal";
 
 interface ModeConfig {
   condition?: string;
@@ -17,7 +16,6 @@ interface ModeConfig {
   skill_dir?: string;
   mount_plugin_skills?: boolean;
   require_evaluation_records?: boolean;
-  apply_goal_route?: boolean;
   apply_expected_goal_routes?: boolean;
   apply_case_routes?: boolean;
   effort?: string;
@@ -244,10 +242,7 @@ for (const { harness, modeName } of cellPlan) {
   const model =
     harness === "claude"
       ? (values["claude-model"] ?? claudeAdapter.defaultModel)
-      : (values["codex-model"] ??
-        (mode.apply_goal_route
-          ? codexGoalAdapter.defaultModel
-          : codexAdapter.defaultModel));
+      : (values["codex-model"] ?? codexAdapter.defaultModel);
   const effort = mode.effort ?? values.effort!;
   const args = [
     "bun",
@@ -286,7 +281,6 @@ for (const { harness, modeName } of cellPlan) {
   if (mode.without_skill) args.push("--without-skill");
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
-  if (mode.apply_goal_route) args.push("--apply-goal-route");
   if (mode.apply_expected_goal_routes) {
     const routes = suite.case_routes?.[harness];
     if (!routes)

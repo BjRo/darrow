@@ -21,9 +21,16 @@ import { isolatedHarnessEnvironment } from "../environment";
 import {
   fixtureStateFingerprint,
   repositoryFingerprint,
-  verifiedCodexAcceptedAgentRef,
+  verifiedCodexAcceptedOwner,
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
+
+type AcceptedCodexOwner = NonNullable<
+  Awaited<ReturnType<typeof verifiedCodexAcceptedOwner>>
+>;
+
+const CODEX_AGENT_REF =
+  /^(?:\/root(?:\/[a-z0-9_]+)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 interface CodexUsage {
   input_tokens?: number;
@@ -168,13 +175,16 @@ function malformedCompletedCommand(event: CodexEvent): boolean {
 
 function observedSkillReads(
   events: CodexEvent[],
-  skillsRoot: string,
+  skillsRoots: string | string[],
 ): string[] {
+  const roots = Array.isArray(skillsRoots) ? skillsRoots : [skillsRoots];
   const observedSkills: string[] = [];
   for (const event of events) {
     const command = completedCommand(event);
     const output = event.item?.aggregated_output;
-    const skills = command ? skillReads(command, skillsRoot) : [];
+    const skills = command
+      ? roots.flatMap((skillsRoot) => skillReads(command, skillsRoot))
+      : [];
     for (const skill of skills) {
       if (
         typeof output === "string" &&
@@ -200,7 +210,9 @@ export function codexSkillActivation(
   installedSkillsRoot = join(repoDir, ".agents", "skills"),
 ): SkillActivationObservation {
   const events = codexEvents(stream);
-  const observedSkills = observedSkillReads(events, installedSkillsRoot);
+  const observedSkills = observedSkillReads(events, [
+    ...new Set([installedSkillsRoot, join(repoDir, ".agents", "skills")]),
+  ]);
   let completed = false;
   let failed = false;
   for (const event of events) {
@@ -244,7 +256,7 @@ function acceptedCollaborationEvent(event: CodexEvent): boolean {
 }
 
 function canonicalCodexAgentRef(value: unknown): string | undefined {
-  return typeof value === "string" && /^\/root(?:\/[a-z0-9_]+)+$/.test(value)
+  return typeof value === "string" && CODEX_AGENT_REF.test(value)
     ? value
     : undefined;
 }
@@ -302,6 +314,26 @@ function acceptedCollaborationAgentRef(event: CodexEvent): string | undefined {
   return new Set(candidates).size === 1 ? candidates[0] : undefined;
 }
 
+function completedGoalOwnerAgentRef(stream: string): string | undefined {
+  const references = codexEvents(stream).flatMap((event) => {
+    const item = event.item;
+    const markedOwner =
+      typeof item?.prompt === "string" &&
+      item.prompt.startsWith("- phase: adaptive-goal-owner\n");
+    if (
+      event.type !== "item.completed" ||
+      item?.type !== "collab_tool_call" ||
+      item.tool !== "spawn_agent" ||
+      item.status !== "completed" ||
+      !markedOwner
+    )
+      return [];
+    const reference = acceptedCollaborationAgentRef(event);
+    return reference ? [reference] : [];
+  });
+  return references.length === 1 ? references[0] : undefined;
+}
+
 function collaborationAgentRefConflicts(
   event: CodexEvent,
   acceptedAgentRef?: string,
@@ -321,10 +353,11 @@ function collaborationAgentRefConflicts(
 function retainedCollaborationPrompt(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const lines = prompt.split("\n");
-  if (lines[0] === "- phase: adaptive-goal-runner") return lines[0];
+  if (/^- phase: adaptive-goal-(?:owner|runner)$/.test(lines[0] ?? ""))
+    return lines[0];
   const retained = lines
     .filter((line, index) => {
-      if (line === "- phase: adaptive-goal-runner") return false;
+      if (/^- phase: adaptive-goal-(?:owner|runner)$/.test(line)) return false;
       return (
         /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
           line,
@@ -345,10 +378,11 @@ function retainedCollaborationEvent(
   const item = event.item!;
   const prompt = retainedCollaborationPrompt(item.prompt);
   const attestation = collaborationSpawnAttestation(item, spawnGuardSecret);
+  const isGoalOwner = prompt === "- phase: adaptive-goal-owner";
   if (collaborationAgentRefConflicts(event, acceptedAgentRef)) return undefined;
   const agentRef =
     acceptedCollaborationAgentRef(event) ||
-    (attestation && acceptedAgentRef) ||
+    ((attestation || isGoalOwner) && acceptedAgentRef) ||
     undefined;
   if (
     acceptedAgentRef &&
@@ -569,6 +603,7 @@ function postGoalToolIgnored(type: string): boolean {
   return [
     "agent_message",
     "reasoning",
+    "error",
     "collab_tool_call",
     "collabAgentToolCall",
   ].includes(type);
@@ -1022,7 +1057,7 @@ function retainedPreGoalToolEvent(
   return undefined;
 }
 
-function attestedGoalSpawn(value: unknown): boolean {
+function acceptedGoalOwnerSpawn(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const event = value as {
     type?: unknown;
@@ -1030,6 +1065,7 @@ function attestedGoalSpawn(value: unknown): boolean {
       tool?: unknown;
       status?: unknown;
       agent_ref?: unknown;
+      prompt?: unknown;
       goal_spawn_attestation?: unknown;
     };
   };
@@ -1038,7 +1074,8 @@ function attestedGoalSpawn(value: unknown): boolean {
     event.item?.tool === "spawn_agent" &&
     event.item.status === "completed" &&
     canonicalCodexAgentRef(event.item.agent_ref) === event.item.agent_ref &&
-    !!event.item.goal_spawn_attestation
+    (!!event.item.goal_spawn_attestation ||
+      event.item.prompt === "- phase: adaptive-goal-owner")
   );
 }
 
@@ -1128,6 +1165,7 @@ interface CodexRetentionStatus {
   spawnGuardSecret?: string;
   goalLoopPath?: string;
   acceptedAgentRef?: string;
+  acceptedOwner?: AcceptedCodexOwner;
 }
 
 interface CodexRetentionState {
@@ -1178,6 +1216,7 @@ function retainCodexEvent(
     collaboration,
     state,
   );
+  const postOwnerSpawn = retainedPostOwnerSpawnObservation(event, state);
   const values = [
     retainedTerminalEvent(event),
     retainedHostProtocolEvent(event),
@@ -1186,6 +1225,7 @@ function retainCodexEvent(
     retainedNestedApplication(event),
     lifecycle,
     collaborationViolation,
+    postOwnerSpawn,
   ].filter((value): value is object => value !== undefined);
   trackPostGoalCommand(event, state);
   acceptAttestedGoalSpawn(event, collaboration, state, status);
@@ -1200,6 +1240,7 @@ function runnerControlKind(event: CodexEvent): string | undefined {
     [
       "wait",
       "wait_agent",
+      "followup_task",
       "send_message",
       "interrupt_agent",
       "close_agent",
@@ -1224,6 +1265,28 @@ function retainedCollaborationViolation(
   return !collaboration || invalidOrder
     ? { type: "darrow.parent_tool_after_goal", operation: tool }
     : undefined;
+}
+
+function retainedPostOwnerSpawnObservation(
+  event: CodexEvent,
+  state: CodexRetentionState,
+): object | undefined {
+  if (
+    !state.goalOwnerAccepted ||
+    !acceptedCollaborationEvent(event) ||
+    event.item?.tool !== "spawn_agent"
+  )
+    return undefined;
+  const senderRef = canonicalCodexAgentRef(event.item.sender_thread_id);
+  if (senderRef === state.goalOwnerReference) return undefined;
+  const agentRef = acceptedCollaborationAgentRef(event);
+  return {
+    type: "darrow.parent_spawn_after_goal",
+    tool: "spawn_agent",
+    status: event.item.status,
+    ...(senderRef ? { sender_thread_id: senderRef } : {}),
+    ...(agentRef ? { agent_ref: agentRef } : {}),
+  };
 }
 
 function retainedEventType(value: unknown): string | undefined {
@@ -1286,12 +1349,15 @@ function acceptAttestedGoalSpawn(
   state: CodexRetentionState,
   status?: CodexRetentionStatus,
 ): void {
-  if (!attestedGoalSpawn(collaboration)) return;
+  if (!acceptedGoalOwnerSpawn(collaboration)) return;
   const record = collaboration as { item?: { agent_ref?: unknown } };
   const acceptedReference = canonicalCodexAgentRef(record.item?.agent_ref);
   if (!acceptedReference) return;
   state.goalOwnerAccepted = true;
   state.goalOwnerReference = acceptedReference;
+  // The accepted host spawn is the route-application boundary. There is no
+  // separate lifecycle activation step in the simplified protocol.
+  state.activationState = "recorded";
   if (!status?.spawnGuardSecret || typeof event.item?.prompt !== "string")
     return;
   state.goalAttestation = verifiedCodexSpawnAttestation(
@@ -1303,25 +1369,45 @@ function acceptAttestedGoalSpawn(
 function appendCodexRetentionState(
   retained: object[],
   state: CodexRetentionState,
-  events: CodexEvent[],
-  installedSkillsRoot: string,
+  options: {
+    acceptedOwner?: AcceptedCodexOwner;
+  },
 ): void {
   for (let index = 0; index < state.pendingPostGoalCommands.size; index++)
     retained.push({
       type: "darrow.parent_tool_after_goal",
       operation: "incomplete-command",
     });
-  for (const skill of observedSkillReads(events, installedSkillsRoot)) {
+  if (options.acceptedOwner) {
+    const owner = options.acceptedOwner;
+    const route = {
+      harness: "codex",
+      provider: "openai",
+      model: owner.model,
+      effort: owner.effort,
+    };
     retained.push({
-      type: "darrow.skill_read_probe",
-      source: "skill_file_read_probe",
-      skill,
-      status: "completed",
+      type: "darrow.goal_owner_accepted",
+      agent_ref: owner.agentRef,
+      workflow: owner.workflow,
+      risk: owner.risk,
+      profile: owner.profile,
+      selected: route,
+      effective: route,
+      applied_by: "native-subagent",
+      launch_boundary: "native_subagent",
+      child_invocations: 1,
     });
   }
 }
 
 /** Retain only bounded activation, orchestration, and terminal accounting evidence. */
+function codexEvidenceSkillRoots(repoDir: string, installedSkillsRoot: string) {
+  return [
+    ...new Set([installedSkillsRoot, join(repoDir, ".agents", "skills")]),
+  ];
+}
+
 export function retainedCodexEvidence(
   stream: string,
   repoDir: string,
@@ -1329,6 +1415,8 @@ export function retainedCodexEvidence(
   installedSkillsRoot = join(repoDir, ".agents", "skills"),
 ): string {
   const events = codexEvents(stream);
+  const skillsRoots = codexEvidenceSkillRoots(repoDir, installedSkillsRoot);
+  const retainedSkills = new Set<string>();
   const state: CodexRetentionState = {
     goalOwnerAccepted: false,
     goalAttestation: undefined,
@@ -1343,10 +1431,23 @@ export function retainedCodexEvidence(
     launchStopRecorded: false,
     objectiveReleased: false,
   };
-  const retained = events.flatMap((event) =>
-    retainCodexEvent(event, state, repoDir, status),
-  );
-  appendCodexRetentionState(retained, state, events, installedSkillsRoot);
+  const retained = events.flatMap((event) => {
+    const records = retainCodexEvent(event, state, repoDir, status);
+    for (const skill of observedSkillReads([event], skillsRoots)) {
+      if (retainedSkills.has(skill)) continue;
+      retainedSkills.add(skill);
+      records.push({
+        type: "darrow.skill_read_probe",
+        source: "skill_file_read_probe",
+        skill,
+        status: "completed",
+      });
+    }
+    return records;
+  });
+  appendCodexRetentionState(retained, state, {
+    acceptedOwner: status?.acceptedOwner,
+  });
   if (codexStreamMalformed(stream)) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)
     retained.push({
@@ -1557,6 +1658,7 @@ interface CodexExecution {
   spawnGuardSecret?: string;
   goalLoopPath?: string;
   acceptedAgentRef?: string;
+  acceptedOwner?: AcceptedCodexOwner;
 }
 
 interface CodexSpawnGuard {
@@ -1675,18 +1777,6 @@ async function writeCodexSpawnHook(
             },
           ],
         })),
-        PostToolUse: [
-          {
-            matcher: "Agent",
-            hooks: [
-              {
-                type: "command",
-                command: shellSingleQuote(executablePath),
-                timeout: 30,
-              },
-            ],
-          },
-        ],
       },
     })}\n`,
     { mode: 0o400 },
@@ -1703,9 +1793,19 @@ interface CodexProcessContext {
   spawnGuard?: CodexSpawnGuard;
 }
 
+export function codexSpawnGuardRequested(
+  prompt: string,
+  followUpPrompt?: string,
+): boolean {
+  return [prompt, followUpPrompt].some((value) =>
+    value?.includes("adaptive-goal"),
+  );
+}
+
 async function codexProcessContext(
   repoDir: string,
   prompt: string,
+  enableSpawnGuard: boolean,
 ): Promise<CodexProcessContext> {
   const canonicalRepoDir = await realpath(repoDir);
   const env = await isolatedHarnessEnvironment("codex", repoDir);
@@ -1727,13 +1827,14 @@ async function codexProcessContext(
     goalLoopCandidate && existsSync(goalLoopCandidate)
       ? await realpath(goalLoopCandidate)
       : undefined;
-  const spawnGuard = goalLoopPath
-    ? await installCodexSpawnGuard(canonicalRepoDir, env, {
-        prompt,
-        objectiveRoot,
-        goalLoopPath,
-      })
-    : undefined;
+  const spawnGuard =
+    goalLoopPath && enableSpawnGuard
+      ? await installCodexSpawnGuard(canonicalRepoDir, env, {
+          prompt,
+          objectiveRoot,
+          goalLoopPath,
+        })
+      : undefined;
   return {
     canonicalRepoDir,
     installedSkillsRoot,
@@ -1802,12 +1903,20 @@ function codexSandboxedCommand(
     sandboxedAgentCommand(argv, repoDir, deniedPaths, allowedExecutables);
 }
 
+function codexProcessContextForRequest(request: HarnessRunRequest) {
+  return codexProcessContext(
+    request.repoDir,
+    request.prompt,
+    codexSpawnGuardRequested(request.prompt, request.control?.followUpPrompt),
+  );
+}
+
 async function executeCodex(
   request: HarnessRunRequest,
 ): Promise<CodexExecution> {
   const start = performance.now();
-  const { repoDir, prompt } = request;
-  const context = await codexProcessContext(repoDir, prompt);
+  const { repoDir } = request;
+  const context = await codexProcessContextForRequest(request);
   const { env, spawnGuard } = context;
   const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
@@ -1827,10 +1936,11 @@ async function executeCodex(
       sandboxed,
       env,
     });
-    const acceptedAgentRef = spawnGuard
-      ? await verifiedCodexAcceptedAgentRef(
+    const acceptedOwner = spawnGuard
+      ? await verifiedCodexAcceptedOwner(
           spawnGuard.statePath,
           spawnGuard.secret,
+          completedGoalOwnerAgentRef(out),
         )
       : undefined;
     return {
@@ -1842,7 +1952,8 @@ async function executeCodex(
       durationMs: performance.now() - start,
       spawnGuardSecret: spawnGuard?.secret,
       goalLoopPath: context.goalLoopPath,
-      acceptedAgentRef,
+      acceptedAgentRef: acceptedOwner?.agentRef,
+      acceptedOwner,
     };
   } finally {
     await rm(context.objectiveRoot, { recursive: true, force: true });
@@ -1887,6 +1998,7 @@ async function codexHarnessResult(
     spawnGuardSecret,
     goalLoopPath,
     acceptedAgentRef,
+    acceptedOwner,
   } = execution;
   const usage = codexTokenUsage(out);
   const ok = codexRunSucceeded(code, out);
@@ -1913,6 +2025,7 @@ async function codexHarnessResult(
         spawnGuardSecret,
         goalLoopPath,
         acceptedAgentRef,
+        acceptedOwner,
       },
       installedSkillsRoot,
     ),

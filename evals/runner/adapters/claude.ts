@@ -12,7 +12,12 @@ import type {
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 import { parseGoalReport, validGoalReportValues } from "../goal-report";
-import { isHumanFeedbackPauseText } from "./codex-goal";
+
+function isHumanFeedbackPauseText(text: unknown): boolean {
+  if (typeof text !== "string") return false;
+  const marker = text.match(/^- phase: human-feedback-request\r?\n/);
+  return !!marker && text.slice(marker[0].length).trim().length > 0;
+}
 
 export interface ClaudeUsage {
   input_tokens?: number;
@@ -227,7 +232,7 @@ function retainedAgentPromptMarker(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const first = prompt.split("\n", 1)[0];
   return first &&
-    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-goal-runner|blocked-goal-response))$/.test(
+    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-goal-(?:owner|runner)|blocked-goal-response))$/.test(
       first,
     )
     ? first
@@ -425,14 +430,37 @@ function retainGoalAgentStarts(
   event: ClaudeResultEnvelope,
   state: ClaudeEvidenceState,
 ) {
+  if (state.goalAgentStarted) return;
+  if (retainInlineGoalAgentStart(event, state)) return;
+  retainLegacyGoalAgentStart(event, state);
+}
+
+function retainInlineGoalAgentStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+): boolean {
+  for (const block of claudeContent(event)) {
+    const start = inlineGoalAgentStart(block);
+    if (!start) continue;
+    state.pendingGoalAgents.set(start.id, start.pending);
+    state.goalAgentStarted = true;
+    state.inlineGoalOwner = true;
+    return true;
+  }
+  return false;
+}
+
+function retainLegacyGoalAgentStart(
+  event: ClaudeResultEnvelope,
+  state: ClaudeEvidenceState,
+): void {
   const objective = state.materializedObjective;
   if (
     !objective ||
     !state.stagingReleased ||
     state.preflightStage !== "complete" ||
     !state.resolvedGoalRunner ||
-    !state.provisionalActivationRecorded ||
-    state.goalAgentStarted
+    !state.provisionalActivationRecorded
   )
     return;
   for (const block of claudeContent(event)) {
@@ -442,6 +470,109 @@ function retainGoalAgentStarts(
     state.goalAgentStarted = true;
     return;
   }
+}
+
+function inlineGoalAgentStart(block: unknown) {
+  if (!isRecord(block)) return undefined;
+  const input = normalizedReviewAgentInput(block);
+  const rawPrompt = isRecord(block.input) ? block.input.prompt : undefined;
+  if (
+    !input ||
+    !adaptiveGoalRunner.test(input.subagentType) ||
+    input.runInBackground !== false ||
+    input.model !== undefined ||
+    typeof rawPrompt !== "string" ||
+    !rawPrompt.startsWith("- phase: adaptive-goal-owner\n") ||
+    !completeInlineOwnerContract(rawPrompt, input.subagentType)
+  )
+    return undefined;
+  return { id: input.id, pending: { subagentType: input.subagentType } };
+}
+
+const REQUIRED_INLINE_OWNER_LABELS = [
+  "Role",
+  "Outcome",
+  "Acceptance criteria",
+  "Scope",
+  "Permissions",
+  "Workflow",
+  "Risk",
+  "Profile",
+  "Selected route",
+  "Capability bindings",
+  "Verification",
+  "Completion evidence",
+] as const;
+
+function inlineOwnerField(prompt: string, label: string): string | undefined {
+  const prefix = `${label}:`;
+  const values = prompt
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith(prefix))
+    .map((line) => line.slice(prefix.length).trim());
+  return values.length === 1 && values[0] ? values[0] : undefined;
+}
+
+function inlineOwnerToken(value: string | undefined): string | undefined {
+  return value?.match(/^`?([a-z][a-z-]*)`?(?:[. ]|$)/)?.[1];
+}
+
+function matchingInlineOwnerRoute(
+  selectedRoute: string | undefined,
+  subagentType: string,
+): boolean {
+  const route = routeForGoalRunner(subagentType);
+  const selected = selectedRoute?.match(
+    /^`?claude\s*[|/]\s*anthropic\s*[|/]\s*(claude-[A-Za-z0-9._-]+)\s*[|/]\s*(low|medium|high|xhigh|max)`?\.?$/,
+  );
+  return !!(
+    route &&
+    selected?.[1] === route.model &&
+    selected[2] === route.effort
+  );
+}
+
+function validInlineOwnerDimensions(
+  fields: Record<string, string | undefined>,
+): boolean {
+  return (
+    [
+      "fix-bug",
+      "implement-feature",
+      "change-feature",
+      "refactor",
+      "migration",
+      "mechanical",
+    ].includes(inlineOwnerToken(fields.Workflow) ?? "") &&
+    ["routine", "elevated", "high"].includes(
+      inlineOwnerToken(fields.Risk) ?? "",
+    ) &&
+    ["routine", "routine-plus", "scaled", "repo-wide", "judgment"].includes(
+      inlineOwnerToken(fields.Profile) ?? "",
+    )
+  );
+}
+
+function completeInlineOwnerContract(
+  prompt: string,
+  subagentType: string,
+): boolean {
+  const fields = Object.fromEntries(
+    REQUIRED_INLINE_OWNER_LABELS.map((label) => [
+      label,
+      inlineOwnerField(prompt, label),
+    ]),
+  );
+  if (Object.values(fields).some((value) => value === undefined)) return false;
+  if (
+    fields.Role !==
+    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner."
+  )
+    return false;
+  return (
+    matchingInlineOwnerRoute(fields["Selected route"], subagentType) &&
+    validInlineOwnerDimensions(fields)
+  );
 }
 
 function retainGoalAgentResumeStarts(
@@ -814,14 +945,15 @@ function matchingToolResult(
 }
 
 function literalShellWords(command: string): string[] | undefined {
-  if (command !== command.trim()) return undefined;
+  const normalized = command.replace(/\\\r?\n[ \t]*/g, " ");
+  if (normalized !== normalized.trim()) return undefined;
   const words: string[] = [];
   const token =
     /(?:'([^'\r\n]*)'|"([^"$`\\\r\n]*)"|([A-Za-z0-9_./:@,+%=-]+))(?:[ \t]+|$)/y;
   let index = 0;
-  while (index < command.length) {
+  while (index < normalized.length) {
     token.lastIndex = index;
-    const match = token.exec(command);
+    const match = token.exec(normalized);
     if (!match) return undefined;
     words.push(match[1] ?? match[2] ?? match[3]!);
     index = token.lastIndex;
@@ -898,6 +1030,54 @@ function routeGateCall(
     selectedModel: selected[1]!,
     selectedEffort: selected[2]!,
   };
+}
+
+function ownerRouteCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+) {
+  const tool = bashToolCommand(block);
+  if (!tool) return undefined;
+  const words = literalShellWords(tool.command);
+  if (!validOwnerRouteWords(words, context)) return undefined;
+  return {
+    id: tool.id,
+    agentId: words[5]!,
+    selectedModel: words[7]!,
+    selectedEffort: words[9]!,
+  };
+}
+
+function validOwnerRouteWords(
+  words: string[] | undefined,
+  context: ClaudeEvidenceContext | undefined,
+): words is string[] {
+  return (
+    !!words &&
+    [
+      words.length === 10,
+      words[0] === "/bin/bash",
+      expectedBundledExecutable(words[1] ?? "", "claude-owner-route", context),
+      words[2] === "--repo",
+      words[3] === context?.repoDir,
+      words[4] === "--agent-id",
+      /^[A-Za-z0-9]+$/.test(words[5] ?? ""),
+      words[6] === "--selected-model",
+      /^claude-[A-Za-z0-9._-]+$/.test(words[7] ?? ""),
+      words[8] === "--selected-effort",
+      /^(?:low|medium|high|xhigh|max)$/.test(words[9] ?? ""),
+    ].every(Boolean)
+  );
+}
+
+function routeObservationCall(
+  block: unknown,
+  context: ClaudeEvidenceContext | undefined,
+  ledger: string | undefined,
+) {
+  return (
+    ownerRouteCall(block, context) ?? routeGateCall(block, context, ledger)
+  );
 }
 
 function validRouteGateWords(
@@ -2104,7 +2284,7 @@ function retainRouteGateStarts(
   const selected = routeForGoalRunner(goal.subagentType);
   if (!selected) return;
   for (const block of claudeContent(event)) {
-    const call = routeGateCall(block, state.context, state.ledger);
+    const call = routeObservationCall(block, state.context, state.ledger);
     if (
       !call ||
       state.routeGateStarted ||
@@ -2148,7 +2328,34 @@ function goalAgentChildResultText(block: Record<string, unknown>): string {
     .join("\n");
 }
 
-function claudeRouteGateRecord(
+function claudeOwnerRouteRecord(
+  text: string,
+  agentId: string,
+  observedRouteTrusted: boolean,
+  selected: SelectedClaudeRoute,
+) {
+  const lines = text.trim().split(/\r?\n/);
+  const route = lines[3]?.match(
+    /^observed_route\t(claude)\t(anthropic)\t([^\t\r\n]+)\t([^\t\r\n]+)$/,
+  );
+  const confirmation = lines[5]?.match(/^confirmation\t(confirmed|rejected)$/);
+  const valid = [
+    observedRouteTrusted,
+    lines.length === 6,
+    lines[0] === "format\tdarrow-claude-owner-route-v1",
+    lines[1] === `agent_id\t${agentId}`,
+    /^transcript\t\//.test(lines[2] ?? ""),
+    !!route,
+    lines[4] ===
+      `selected_route\tclaude\tanthropic\t${selected.model}\t${selected.effort}`,
+    !!confirmation,
+  ].every(Boolean);
+  return valid && route && confirmation
+    ? observedRouteRecord(route, confirmation[1]!)
+    : undefined;
+}
+
+function legacyClaudeRouteGateRecord(
   text: string,
   agentId: string,
   observedRouteTrusted: boolean,
@@ -2168,14 +2375,30 @@ function claudeRouteGateRecord(
   );
   const confirmation = lines[3]!.match(/^confirmation\t(confirmed|rejected)$/);
   if (!route || !confirmation) return undefined;
+  return observedRouteRecord(route, confirmation[1]!);
+}
+
+function observedRouteRecord(route: RegExpMatchArray, confirmation: string) {
   return {
     status: "observed" as const,
     harness: route[1]!,
     provider: route[2]!,
     model: route[3]!,
     effort: route[4]!,
-    confirmation: confirmation[1]! as "confirmed" | "rejected",
+    confirmation: confirmation as "confirmed" | "rejected",
   };
+}
+
+function claudeRouteObservationRecord(
+  text: string,
+  agentId: string,
+  observedRouteTrusted: boolean,
+  selected: SelectedClaudeRoute,
+) {
+  return (
+    claudeOwnerRouteRecord(text, agentId, observedRouteTrusted, selected) ??
+    legacyClaudeRouteGateRecord(text, agentId, observedRouteTrusted)
+  );
 }
 
 function retainedRouteGateResults(
@@ -2198,15 +2421,28 @@ function retainedRouteGateResult(
   if (!call) return [];
   pending.delete(block.tool_use_id);
   const text = toolResultText(block);
+  const parsedRecord = claudeRouteObservationRecord(
+    text,
+    call.agentId,
+    call.observedRouteTrusted,
+    { model: call.selectedModel, effort: call.selectedEffort },
+  );
   const record =
-    block.is_error === true
-      ? { status: "unavailable" as const }
-      : claudeRouteGateRecord(text, call.agentId, call.observedRouteTrusted);
+    parsedRecord ??
+    (block.is_error === true ? { status: "unavailable" as const } : undefined);
   if (!record) return [];
+  return retainedRouteRecord(block.tool_use_id, call, record);
+}
+
+function retainedRouteRecord(
+  toolUseId: string,
+  call: PendingRouteGate,
+  record: NonNullable<ReturnType<typeof claudeRouteObservationRecord>>,
+): unknown[] {
   return [
     {
       type: "darrow.claude_route_observation",
-      tool_use_id: block.tool_use_id,
+      tool_use_id: toolUseId,
       goal_tool_use_id: call.goalToolUseId,
       agent_id: call.agentId,
       status: record.status,
@@ -2223,7 +2459,7 @@ function retainedRouteGateResult(
       ? [
           {
             type: "darrow.claude_route_confirmation",
-            tool_use_id: block.tool_use_id,
+            tool_use_id: toolUseId,
             goal_tool_use_id: call.goalToolUseId,
             agent_id: call.agentId,
             status: record.confirmation,
@@ -2294,6 +2530,7 @@ function knownBashOperation(
   if (unboundGoalLoop) return unboundGoalLoop;
   if (command.includes("claude-agent-route")) return "agent-route-unbound";
   if (command.includes("claude-route-gate")) return "route-gate-unbound";
+  if (command.includes("claude-owner-route")) return "owner-route-unbound";
   return undefined;
 }
 
@@ -2429,7 +2666,7 @@ function acceptedPostGoalBlock(
   block: Record<string, unknown>,
   state: ClaudeEvidenceState,
 ): boolean {
-  const gate = routeGateCall(block, state.context, state.ledger);
+  const gate = routeObservationCall(block, state.context, state.ledger);
   const acceptedGate = !!gate && state.pendingRouteGates.has(gate.id);
   const acceptedResume =
     typeof block.id === "string" && state.pendingGoalResumes.has(block.id);
@@ -3073,6 +3310,7 @@ interface ClaudeEvidenceState {
   selectedClaudeRoute?: SelectedClaudeRoute;
   resolvedGoalRunner?: string;
   goalAgentStarted: boolean;
+  inlineGoalOwner: boolean;
   routeGateStarted: boolean;
   tempRootProbeStarted: boolean;
   tempRootProbeBlock?: Record<string, unknown>;
@@ -3119,6 +3357,7 @@ function newClaudeEvidenceState(
     preflightStage: "start",
     acceptedPreflightBlocks: new Set(),
     goalAgentStarted: false,
+    inlineGoalOwner: false,
     routeGateStarted: false,
     tempRootProbeStarted: false,
     tempRootObserved: false,
@@ -3236,6 +3475,7 @@ function hasMissingObjectiveRelease(
 }
 
 function retainedGoalTerminalViolations(state: ClaudeEvidenceState): unknown[] {
+  if (state.inlineGoalOwner) return [];
   const retainedGoal = [...state.completedGoalAgents.values()][0];
   const feedbackPending = retainedGoal?.feedbackPending === true;
   const violations: unknown[] = [];

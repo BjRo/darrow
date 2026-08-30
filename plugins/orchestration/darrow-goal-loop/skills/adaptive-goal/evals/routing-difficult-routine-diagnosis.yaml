@@ -1,9 +1,10 @@
 id: goal-preflight-routing-difficult-routine-diagnosis
-invariant: AGL-P4,AGL-P7,AGL-R1,AGL-S3
+invariant: AGL-C1,AGL-R1,AGL-L5
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Diagnose and fix summarizeSegments intermittently double-counting
-  the final segment when input ends with a delimiter. On Codex, invoke the
-  $adaptive-goal skill. This is a hard diagnosis: the cause is unknown across
+  {{skill_invocation}} Diagnose and fix summarizeSegments intermittently double-counting
+  the final segment when input ends with a delimiter. This is a hard diagnosis: the cause is unknown across
   multiple plausible layers and state transitions in tokenization, iteration,
   and aggregation; establish it before changing behavior. This is an internal
   developer-only reporting utility with a localized, reversible,
@@ -58,7 +59,16 @@ checks:
   - name: focused tests pass
     run: bash test.sh
 output_checks:
-  - name: difficult diagnosis retains routine risk
-    expect_regex: "workflow: fix-bug[\\s\\S]*risk: routine[\\s\\S]*profile: judgment"
-  - name: judgment route is applied
-    expect_regex: "harness: codex[\\s\\S]*model: openai > gpt-5\\.6-sol[\\s\\S]*effort: high[\\s\\S]*route_verified: true"
+  - name: difficult diagnosis retains routine consequence risk
+    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
+    flags: i
+  - name: diagnosis and verification evidence are returned
+    expect_regex: "test\\.sh"
+    flags: i
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+transcript_checks:
+  - name: judgment policy route is applied to the owner
+    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"fix-bug","risk":"routine","profile":"judgment"[^\n]*"selected":\{"harness":"codex","provider":"openai","model":"gpt-5\.6-sol","effort":"high"\}'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

@@ -1,42 +1,20 @@
-id: goal-file-backed-capability-routing
-invariant: AGL-L15,AGL-S3
+id: goal-intent-capability-bindings
+invariant: AGL-C2,AGL-L1,AGL-L2,AGL-S3,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 expect_head_change: true
 prompt: >-
-  /adaptive-goal Read exact ticket 64 from the fixture tracker and implement
-  its requested change on the current feature branch. On Codex, invoke the
-  $adaptive-goal skill and select the policy route. This preserved conversation
-  has already assessed this exact ticket and scope: the ticket specifies one
-  exact documentation insertion, `bash check.sh` is its independent feasible
-  oracle, there are no affected callers or compatibility concerns, all required
-  capabilities and permissions are available, and no readiness finding remains.
-  Nothing about its scope, acceptance criteria, or constraints has changed.
-  Require comprehensive independent review of the exact final change after its
-  checks pass and before commit or publication. No explicit review-round limit
-  is supplied; use the normal convergence lifecycle.
-  Create one Conventional Commit for the completed change, push the current
-  branch, and open exactly one pull request. Keep the explicitly authorized
-  effects limited to the requested file edit, one commit, one push, and one
-  pull request; do not merge, release, deploy, mutate the ticket, force-push,
-  or edit unrelated files. The following execution annex is material and must
-  appear verbatim in the compiled goal contract: `Execution annex: ticket 64
-  remains the sole product authority; the current feature branch remains the
-  sole publication head; NOTES.md remains the sole editable product file;
-  check.sh remains the sole deterministic acceptance command; the requested
-  insertion remains the sole authorized content delta; the existing heading
-  remains byte-for-byte unchanged; unrelated tracked files remain byte-for-byte
-  unchanged; untracked user work remains preserved; the ticket remains
-  read-only; exactly one new Conventional Commit remains authorized; amendment,
-  rebase, history rewriting, and additional commits remain unauthorized;
-  exactly one ordinary non-force push of the current branch remains authorized;
-  pushing another branch or tag remains unauthorized; exactly one pull request
-  from the current branch to the repository default branch remains authorized;
-  draft conversion, reviewer assignment, labeling, milestone changes, merge,
-  release, deployment, and follow-up publication remain unauthorized; the
-  acceptance command must pass against the final committed tree; any failed
-  prerequisite stops its dependent effect; every performed external effect
-  must be reported from observable evidence; every omitted authorized effect
-  must be reported honestly; goal completion grants no new or subsequent
-  authority.`
+  {{skill_invocation}} Read exact ticket 64 from the fixture tracker and
+  implement its requested change on the current feature branch. This preserved
+  conversation already contains a ready assessment for this exact unchanged
+  ticket and scope, so do not run readiness again. Select the policy route and
+  launch one separate owner. Require independent review of the exact final
+  change after checks and before publication. Create one Conventional Commit,
+  push the current branch, and open exactly one pull request. Bind and invoke
+  every advertised intent-matched skill for the ticket read, independent
+  review, commit, and pull request; direct tracker, Git, or forge commands are
+  not substitutes. Do not merge, release, deploy, mutate the ticket,
+  force-push, or edit unrelated files.
 fixture:
   commits:
     - message: "chore: init"
@@ -69,8 +47,10 @@ fixture:
 
       # Read one ticket
 
-      Run exactly `read-ticket-protocol <id>` and return its complete output.
-      Do not use `gh`, `ticketctl`, or another tracker command directly.
+      Run exactly
+      `read-ticket-protocol <id> read-ticket-skill-contract-v1` and return its
+      complete output. Do not use `gh`, `ticketctl`, or another tracker command
+      directly.
     .agents/skills/create-commit/SKILL.md: |
       ---
       name: create-commit
@@ -79,9 +59,10 @@ fixture:
 
       # Create one commit
 
-      Run exactly `create-commit-protocol NOTES.md "<subject>"`, substituting
-      one valid imperative Conventional Commit subject. Do not stage or commit
-      through raw Git commands.
+      Run exactly
+      `create-commit-protocol NOTES.md "<subject>" create-commit-skill-contract-v1`,
+      substituting one valid imperative Conventional Commit subject. Do not
+      stage or commit through raw Git commands.
     .agents/skills/create-pr/SKILL.md: |
       ---
       name: create-pr
@@ -90,7 +71,8 @@ fixture:
 
       # Create one pull request
 
-      Run exactly `create-pr-protocol`. Do not push or invoke `gh` directly.
+      Run exactly `create-pr-protocol create-pr-skill-contract-v1`. Do not push
+      or invoke `gh` directly.
     .agents/skills/independent-code-review/SKILL.md: |
       ---
       name: independent-code-review
@@ -99,9 +81,10 @@ fixture:
 
       # Independently review the current change
 
-      Run exactly `independent-review-protocol` after implementation and final
-      checks. Return its complete ordinary response. Do not edit, commit, push,
-      publish, or invoke another capability.
+      Run exactly
+      `independent-review-protocol independent-review-skill-contract-v1` after
+      implementation and final checks. Return its complete ordinary response.
+      Do not edit, commit, push, publish, or invoke another capability.
   ticket:
     id: "64"
     title: "Add the capability-routing note"
@@ -113,8 +96,9 @@ fixture:
     read-ticket-protocol: |
       #!/usr/bin/env bash
       set -eu
-      test "$#" -eq 1
+      test "$#" -eq 2
       test "$1" = 64
+      test "$(printf '%s' "$2" | git hash-object --stdin)" = 60590c77f8ea6ff0507dfec7d34ad6e044d449ef
       git_dir="$PWD/.git"
       printf '%s\n' 'capability read-ticket start' >>"$git_dir/capability-events"
       printf '%s\n' 'operation read-ticket ticket get' >>"$git_dir/capability-events"
@@ -125,8 +109,9 @@ fixture:
     create-commit-protocol: |
       #!/usr/bin/env bash
       set -eu
-      test "$#" -eq 2
+      test "$#" -eq 3
       test "$1" = NOTES.md
+      test "$(printf '%s' "$3" | git hash-object --stdin)" = e878c39395505de4417dc36b084e76d1cd8dcfbb
       git_dir="$PWD/.git"
       printf '%s\n' 'capability create-commit start' >>"$git_dir/capability-events"
       DARROW_CAPABILITY_PROTOCOL=create-commit git add -- "$1"
@@ -135,7 +120,8 @@ fixture:
     create-pr-protocol: |
       #!/usr/bin/env bash
       set -eu
-      test "$#" -eq 0
+      test "$#" -eq 1
+      test "$(printf '%s' "$1" | git hash-object --stdin)" = f4f149d98627c8c5cbcce07490d84c189070ec03
       git_dir="$PWD/.git"
       printf '%s\n' 'capability create-pr start' >>"$git_dir/capability-events"
       branch=$(DARROW_CAPABILITY_PROTOCOL=create-pr git branch --show-current)
@@ -145,7 +131,8 @@ fixture:
     independent-review-protocol: |
       #!/usr/bin/env bash
       set -eu
-      test "$#" -eq 0
+      test "$#" -eq 1
+      test "$(printf '%s' "$1" | git hash-object --stdin)" = b1d8706dabad37d43795dcba094c36681b029df5
       git_dir="$PWD/.git"
       printf '%s\n' 'capability independent-review start' >>"$git_dir/capability-events"
       head=$(DARROW_CAPABILITY_PROTOCOL=independent-review git rev-parse HEAD)
@@ -281,13 +268,22 @@ checks:
       test ! -e .git/raw-tracker.log &&
       test ! -e .git/raw-git.log &&
       test ! -e .git/raw-gh.log
+  - name: protected capability tokens exist only in skill instructions
+    run: >-
+      test "$(rg -l 'skill-contract-v1' .agents/skills/*/SKILL.md | wc -l | tr -d ' ')" -eq 4 &&
+      ! rg -q 'skill-contract-v1' .agents/bin
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
 output_checks:
+  - name: owner reports completion
+    expect_regex: "Status:[ \\t]*complete"
+    flags: i
   - name: publication authority is not expanded
     expect_regex: "(no new|no additional|no subsequent)[\\s\\S]{0,160}authority"
     flags: i
 transcript_checks:
-  - name: complete goal is file-backed
-    expect_regex: '"(?:objectiveMode|mode)":"file-backed"'
+  - name: one separate owner receives the compiled contract
+    expect_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

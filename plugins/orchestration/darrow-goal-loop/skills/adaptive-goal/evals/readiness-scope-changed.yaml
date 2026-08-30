@@ -1,8 +1,10 @@
 id: goal-readiness-scope-changed
-invariant: AGL-P13,AGL-E10,AGL-L14,AGL-S6
+invariant: AGL-P2,AGL-L2,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Implement the authoritative accepted plan in REQUEST.md. On
-  Codex, invoke the $adaptive-goal skill. We assessed the earlier plan to add
+  {{skill_invocation}} Implement the authoritative accepted plan in REQUEST.md.
+  We assessed the earlier plan to add
   `First revised line.`, but its scope has since changed materially: the current
   plan adds `Second revised line.` and another observable acceptance condition
   that were not assessed. NOTES.md is local documentation with no callers or
@@ -38,3 +40,12 @@ checks:
     run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
   - name: reassessment precedes mutation
     run: test ! -s .git/implementation-readiness-pre-status
+output_checks:
+  - name: changed-scope readiness-gated goal completes
+    expect_regex: "Status:[ \\t]*complete[\\s\\S]*Readiness:[ \\t]*ready"
+    flags: i
+transcript_checks:
+  - name: changed scope invokes readiness before the separate owner
+    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

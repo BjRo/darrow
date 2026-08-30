@@ -4,13 +4,19 @@ set -u
 
 repo=${1:-}
 mode=${2:-}
+contract=${3:-}
 [ -n "$repo" ] || { printf '%s\n' 'repository path is required' >&2; exit 2; }
 case $mode in
   comprehensive | verify | fingerprint) ;;
-  *) printf '%s\n' 'usage: independent-review-fixture REPOSITORY comprehensive|verify|fingerprint' >&2; exit 2 ;;
+  *) printf '%s\n' 'usage: independent-review-fixture REPOSITORY comprehensive|verify|fingerprint [contract]' >&2; exit 2 ;;
 esac
 root=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null) || exit 2
 root=$(cd "$root" && pwd -P) || exit 2
+if [ "$mode" != fingerprint ] &&
+  [ "$(printf '%s' "$contract" | git -C "$root" hash-object --stdin)" != b1d8706dabad37d43795dcba094c36681b029df5 ]; then
+  printf '%s\n' 'review capability contract is required' >&2
+  exit 2
+fi
 git_dir=$(git -C "$root" rev-parse --absolute-git-dir 2>/dev/null) || exit 2
 packet_file=$(mktemp "$git_dir/independent-review-fixture.XXXXXX") || exit 2
 changed_file=$(mktemp "$git_dir/independent-review-changed.XXXXXX") || exit 2

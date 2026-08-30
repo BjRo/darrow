@@ -529,6 +529,60 @@ describe("orchestration outcome metrics", () => {
     ).toBe(false);
   });
 
+  test("records one guard-accepted adaptive goal owner without a ledger report", () => {
+    const event = {
+      type: "darrow.goal_owner_accepted",
+      agent_ref: "/root/adaptive_goal_fixture",
+      workflow: "implement-feature",
+      risk: "routine",
+      profile: "routine",
+      selected: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "high",
+      },
+      effective: {
+        harness: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "high",
+      },
+      applied_by: "native-subagent",
+      launch_boundary: "native_subagent",
+      child_invocations: 1,
+    };
+    const raw = JSON.stringify(event);
+
+    expect(observeCodexGoalRouteApplication("", raw)).toEqual({
+      profile: "routine",
+      workflow: "implement-feature",
+      risk: "routine",
+      selected: event.selected,
+      effective: event.effective,
+      appliedBy: "native-subagent",
+      launchBoundary: "native_subagent",
+      childInvocationCount: 1,
+      childInputTokens: 0,
+      childOutputTokens: 0,
+    });
+    expect(reconcileGoalRoute("", raw).passed).toBe(true);
+    expect(reconcileGoalRoute("", `${raw}\n${raw}`).passed).toBe(false);
+    expect(
+      reconcileGoalRoute("", JSON.stringify({ ...event, child_invocations: 2 }))
+        .passed,
+    ).toBe(false);
+    expect(
+      reconcileGoalRoute(
+        "",
+        JSON.stringify({
+          ...event,
+          effective: { ...event.effective, model: "gpt-5.6-terra" },
+        }),
+      ).passed,
+    ).toBe(false);
+  });
+
   test("records one first-class native goal runner", () => {
     const result = [
       "format: darrow-native-goal-report-v1",

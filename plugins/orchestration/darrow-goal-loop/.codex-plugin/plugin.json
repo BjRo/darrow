@@ -1,7 +1,7 @@
 {
   "name": "darrow-goal-loop",
-  "version": "0.11.1",
-  "description": "Adaptive Goal Loop: compile bounded engineering requests and activate host-native goals on verified routes",
+  "version": "0.13.0",
+  "description": "Adaptive Goal: ready and compile bounded engineering requests, then launch one routed subagent owner",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Adaptive Goal Loop",
-    "shortDescription": "Adaptive Goal Loop for host-native goals",
-    "longDescription": "Adaptive Goal Loop prepares a bounded engineering request, compiles an observable goal contract, loads the selected workflow playbook and risk gate, selects and applies a proportionate model and effort, and activates native goal mode with harness-verifiable workflow and route evidence.",
+    "shortDescription": "One routed owner for bounded engineering goals",
+    "longDescription": "Adaptive Goal prepares a bounded engineering request, reuses or obtains readiness, binds intent-matched skills, selects a workflow, risk, model, and effort, and launches exactly one separate subagent owner without a lifecycle ledger.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Preflight this bounded engineering request and activate it as one host-native goal."
+      "Preflight this bounded engineering request and launch one route-selected subagent owner."
     ]
   }
 }

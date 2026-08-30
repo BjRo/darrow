@@ -144,19 +144,21 @@ wall-time and child-invocation overhead.
 The adaptive goal loop keeps the useful part and removes the duplicate runtime:
 
 ```text
-request + repository -> read-only preflight -> goal contract -> host-native goal owner
+request + repository -> read-only preflight/readiness -> goal contract -> one routed subagent owner
 ```
 
 Preflight discovers applicable repository instructions and checks, turns the
-request into observable acceptance criteria and scope, selects a task workflow
-and risk gate, and chooses proportionate model and effort. It then activates the
-narrowest host-native goal boundary available. The host owns implementation,
-adaptation, recovery, verification, and completion from that point onward.
+request into observable acceptance criteria and scope, reuses or obtains a
+same-scope readiness result when required, binds matching advertised skills,
+selects a task workflow and risk gate, and chooses proportionate model and
+effort. It then activates exactly one route-selected host-visible subagent. That
+owner invokes the bound skills and owns implementation, adaptation, recovery,
+verification, feedback, and completion from that point onward.
 
 The helper therefore improves the initial conditions for an adaptive run; it is
-not a second adaptive loop, a child-agent supervisor, a daemon, a queue, a
-publication mechanism, or a general workflow runtime. The normative contract is
-in [Capability: Native Goal Preflight](specs/adaptive-goal-loop.md).
+not a second adaptive loop, multi-agent controller, lifecycle ledger, daemon,
+queue, publication mechanism, or general workflow runtime. The normative
+contract is in [Capability: Native Goal Preflight](specs/adaptive-goal-loop.md).
 
 ## The ticket pipeline is a reference and benchmark baseline
 

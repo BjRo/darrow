@@ -25,7 +25,7 @@ export interface ImplementationReadinessResult {
 
 const GOAL_REPORT_FORMAT = "darrow-native-goal-report-v1";
 const INTERNAL_GOAL_FORMAT =
-  /format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|route-gate|verify-route))-[^\s]+/;
+  /format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|owner-route|route-gate|verify-route))-[^\s]+/;
 const GOAL_REPORT_VALUES: Record<keyof GoalReport, RegExp> = {
   format: /^darrow-native-goal-report-v1$/,
   workflow:

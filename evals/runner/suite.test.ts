@@ -152,7 +152,7 @@ describe("evaluation suite ablation", () => {
     );
   });
 
-  test("records the goal-routed Codex default used by the cell", async () => {
+  test("uses the standard Codex adapter for a goal-named mode", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-suite-"));
     roots.push(root);
     const suite = join(root, "suite.yaml");
@@ -165,7 +165,7 @@ describe("evaluation suite ablation", () => {
         "case_filter: grilling-incomplete-subject",
         "modes:",
         "  goal:",
-        "    apply_goal_route: true",
+        "    require_evaluation_records: false",
       ].join("\n"),
     );
 
@@ -201,7 +201,7 @@ describe("evaluation suite ablation", () => {
       expect.objectContaining({
         harness: "codex",
         mode: "goal",
-        fallbackModel: "gpt-5.6-terra",
+        fallbackModel: "gpt-5.5",
         fallbackEffort: "medium",
         caseRoutes: null,
       }),

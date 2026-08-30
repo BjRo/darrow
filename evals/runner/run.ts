@@ -28,7 +28,6 @@ import {
   hasClaudeGoalAgentEvidence,
 } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import { codexGoalAdapter } from "./adapters/codex-goal";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
@@ -439,7 +438,7 @@ function activationEvidence(evalCase: EvalCase) {
 
 function goalReportEvidence(evalCase: EvalCase) {
   if (!evalCase.skillDir.endsWith("/adaptive-goal")) return null;
-  return evalCase.goal_report ?? "required";
+  return evalCase.goal_report ?? "forbidden";
 }
 
 function standaloneEvaluationRecordEvidence(options: RunCaseOptions) {
@@ -675,15 +674,20 @@ function adaptiveGoalReportChecks(
   adapterName: string,
 ): CheckResult[] {
   if (!evalCase.skillDir.endsWith("/adaptive-goal")) return [];
+  const ownershipChecks = [
+    adaptiveGoalSingleOwnerCheck(harness.raw),
+    adaptiveGoalParentWorkCheck(harness.raw),
+  ];
   if (evalCase.goal_route_checks === false)
-    return [internalGoalRecordCheck(harness.resultText)];
-  const reportPolicy = evalCase.goal_report ?? "required";
+    return [...ownershipChecks, internalGoalRecordCheck(harness.resultText)];
+  const reportPolicy = evalCase.goal_report ?? "forbidden";
   const hasReport =
     /^[ \t]*format: darrow-native-goal-report-v1[ \t]*\r?$/m.test(
       harness.resultText,
     );
   if (reportPolicy === "optional" && !hasReport)
     return [
+      ...ownershipChecks,
       internalGoalRecordCheck(harness.resultText),
       ...(adapterName === "claude"
         ? claudeNativeSubagentRouteChecks(undefined, harness.raw, false, true)
@@ -695,17 +699,45 @@ function adaptiveGoalReportChecks(
         ? parsePausedGoalReport(harness.resultText)
         : parseTerminalGoalReport(harness.resultText);
     return [
+      ...ownershipChecks,
       ...goalRouteRecordChecks(harness.resultText, report),
       ...claudeNativeSubagentRouteChecks(report, harness.raw),
     ];
   }
   return [
+    ...ownershipChecks,
     {
-      name: "goal completion report is omitted at the non-activation boundary",
+      name: "removed canonical goal report is absent",
       passed: !hasReport,
-      detail: "non-activation output must not contain an adaptive-goal report",
+      detail:
+        "adaptive-goal output must not contain the removed canonical report",
     },
   ];
+}
+
+function adaptiveGoalSingleOwnerCheck(raw: string): CheckResult {
+  return {
+    name: "no parent replacement owner is spawned after acceptance",
+    passed: !raw.includes('"type":"darrow.parent_spawn_after_goal"'),
+    detail:
+      "the parent must retain the accepted owner instead of spawning another agent",
+  };
+}
+
+function adaptiveGoalParentWorkCheck(raw: string): CheckResult {
+  const parentWork = raw
+    .split("\n")
+    .some(
+      (line) =>
+        line.includes('"type":"darrow.parent_tool_after_goal"') &&
+        !line.includes('"operation":"error"'),
+    );
+  return {
+    name: "no parent repository or external work occurs after owner acceptance",
+    passed: !parentWork,
+    detail:
+      "after acceptance the parent may only wait, observe the Claude route, relay feedback, or stop the owner",
+  };
 }
 
 const CLAUDE_GOAL_RUNNERS: Record<string, { model: string; effort: string }> = {
@@ -1256,7 +1288,6 @@ const { values } = parseArgs({
     "mount-plugin-skills": { type: "boolean", default: false },
     "condition-label": { type: "string" },
     "require-evaluation-records": { type: "boolean", default: false },
-    "apply-goal-route": { type: "boolean", default: false },
     "case-routes": { type: "string" },
     "expected-goal-routes": { type: "string" },
     "assert-goal-routes": { type: "string" },
@@ -1293,11 +1324,7 @@ if (!baseAdapter) {
   );
   process.exit(1);
 }
-if (values["apply-goal-route"] && harness !== "codex") {
-  console.error("--apply-goal-route currently requires --harness codex");
-  process.exit(1);
-}
-const adapter = values["apply-goal-route"] ? codexGoalAdapter : baseAdapter;
+const adapter = baseAdapter;
 const judgeAdapter = values["judge-harness"]
   ? ADAPTERS[values["judge-harness"]]
   : undefined;
@@ -1481,7 +1508,6 @@ const runIdentity = new Bun.CryptoHasher("sha256")
         }),
       ),
       harness: adapter.name,
-      applyGoalRoute: values["apply-goal-route"],
       trials,
       threshold,
       dry: values.dry,

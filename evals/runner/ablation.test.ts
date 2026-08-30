@@ -287,7 +287,7 @@ describe("skill ablation", () => {
     expect(
       validateAblationDefinitions(
         {
-          "without-skill": { without_skill: true, apply_goal_route: true },
+          "without-skill": { without_skill: true, apply_case_routes: true },
           candidate: {},
         },
         definitions,

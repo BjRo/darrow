@@ -141,6 +141,24 @@ function boundGoalPrompt(
   return ["- phase: adaptive-goal-runner", body].join("\n");
 }
 
+function inlineOwnerPrompt() {
+  return [
+    "- phase: adaptive-goal-owner",
+    "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
+    "Outcome: Implement the requested fixture behavior.",
+    "Acceptance criteria: The focused behavior and repository checks pass.",
+    "Scope: fixture implementation and focused tests.",
+    "Permissions: local edits and checks only; no publication.",
+    "Workflow: implement-feature.",
+    "Risk: routine.",
+    "Profile: routine.",
+    "Selected route: claude|anthropic|claude-sonnet-5|low.",
+    "Capability bindings: none are advertised for this fixture.",
+    "Verification: run the focused test and repository gate.",
+    "Completion evidence: report status, files, checks, and remaining risks.",
+  ].join("\n");
+}
+
 function provisionalActivationEvents() {
   const command =
     `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step activate --ledger ${goalLedger} ` +
@@ -962,6 +980,129 @@ describe("Claude skill activation observation", () => {
     );
   });
 
+  test("retains the simplified inline adaptive-goal owner without lifecycle setup", () => {
+    const stream = [
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_inline_goal",
+              input: {
+                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                run_in_background: false,
+                prompt: inlineOwnerPrompt(),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(goalResult("toolu_inline_goal", "agentgoal")),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Bash",
+              id: "toolu_owner_route",
+              input: {
+                command: [
+                  "/bin/bash /plugin/darrow-goal-loop/bin/claude-owner-route \\",
+                  "  --repo /fixture --agent-id agentgoal \\",
+                  "  --selected-model claude-sonnet-5 --selected-effort low",
+                ].join("\n"),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_owner_route",
+              content: [
+                "format\tdarrow-claude-owner-route-v1",
+                "agent_id\tagentgoal",
+                "transcript\t/private/agent-agentgoal.jsonl",
+                "observed_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+                "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+                "confirmation\tconfirmed",
+              ].join("\n"),
+            },
+          ],
+        },
+      }),
+      JSON.stringify({ type: "result", subtype: "success", is_error: false }),
+    ].join("\n");
+
+    const retained = retainedClaudeEvidence(
+      stream,
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(retained).toContain(
+      '"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-owner"',
+    );
+    expect(retained).toContain(
+      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
+    );
+    expect(retained).toContain(
+      '"type":"darrow.claude_route_observation","tool_use_id":"toolu_owner_route"',
+    );
+    expect(retained).toContain('"status":"confirmed"');
+    expect(retained).not.toContain("report-missing");
+    expect(retained).not.toContain("private child result");
+  });
+
+  test("rejects incomplete or route-inconsistent inline owner contracts", () => {
+    for (const prompt of [
+      inlineOwnerPrompt()
+        .split("\n")
+        .filter((line) => !line.startsWith("Permissions:"))
+        .join("\n"),
+      inlineOwnerPrompt().replace(
+        "claude|anthropic|claude-sonnet-5|low",
+        "claude|anthropic|claude-opus-5|high",
+      ),
+      `${inlineOwnerPrompt()}\nPermissions:`,
+      inlineOwnerPrompt().replace(
+        "claude|anthropic|claude-sonnet-5|low.",
+        "claude|anthropic|claude-sonnet-5|low; actual claude|anthropic|claude-opus-5|high",
+      ),
+    ]) {
+      const stream = [
+        JSON.stringify({
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                name: "Agent",
+                id: "toolu_incomplete_goal",
+                input: {
+                  subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                  run_in_background: false,
+                  prompt,
+                },
+              },
+            ],
+          },
+        }),
+        JSON.stringify(goalResult("toolu_incomplete_goal", "agentgoal")),
+        JSON.stringify({ type: "result", subtype: "success", is_error: false }),
+      ].join("\n");
+      expect(
+        retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
+      ).not.toContain('"type":"darrow.goal_agent_completion"');
+    }
+  });
+
   test("retains only helper-rendered goal report provenance", () => {
     const stream = [
       ...validClaudePreflightEvents(),
@@ -1282,8 +1423,6 @@ describe("Claude skill activation observation", () => {
       "Which migration policy should this delivery use?",
     ].join("\n");
     const stream = [
-      ...validClaudePreflightEvents(),
-      ...inlineMaterializationEvents(),
       JSON.stringify({
         type: "assistant",
         message: {
@@ -1295,7 +1434,7 @@ describe("Claude skill activation observation", () => {
               input: {
                 subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
                 run_in_background: false,
-                prompt: boundGoalPrompt(),
+                prompt: inlineOwnerPrompt(),
               },
             },
           ],
@@ -1357,7 +1496,6 @@ describe("Claude skill activation observation", () => {
         tool_use_id: "toolu_goal_feedback",
         status: "completed",
       }),
-      ...goalReportEvents("helper", "complete", "toolu_complete_report"),
     ].join("\n");
     const retained = retainedClaudeEvidence(
       stream,

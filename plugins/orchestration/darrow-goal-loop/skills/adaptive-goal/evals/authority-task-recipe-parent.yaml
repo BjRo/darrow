@@ -1,17 +1,37 @@
 id: goal-preflight-authority-task-recipe-parent
-invariant: AGL-X3
+invariant: AGL-P1,AGL-P3,AGL-P4,AGL-L1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  The user explicitly invoked $ticket-to-pr for ticket #42. The task recipe has
-  a ready authoritative request and delegates one bounded delivery request to
-  adaptive-goal, preserving the original invocation and branch, commit,
-  non-force push, and exactly-one-pull-request permissions. Continue with the
-  adaptive-goal preflight; no private caller metadata fields are required.
+  The user explicitly invoked a ticket-to-PR orchestration recipe. That recipe
+  delegates this one bounded request to adaptive-goal: add the exact line
+  `Delegated request completed.` after `base` in README.md, run `bash check.sh`,
+  and keep the result local. The delegating recipe grants local edit and
+  verification authority but no branch, commit, push, pull-request, or other
+  publication authority. Continue through one route-selected subagent owner.
 fixture:
   commits:
     - message: "chore: init"
       files:
-        README.md: "base\n"
-checks: []
+        README.md: |
+          base
+        check.sh: |
+          #!/usr/bin/env bash
+          printf '%s\n' 'base' 'Delegated request completed.' >.git/expected-readme
+          cmp -s .git/expected-readme README.md
+checks:
+  - name: delegated bounded request is implemented
+    run: bash check.sh
+  - name: delegation adds no publication authority
+    run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: explicit task recipe delegation is accepted
+  - name: explicit orchestration delegation is accepted
+    expect_regex: "Status:[ \\t]*complete"
+    flags: i
+  - name: delegation is not mistaken for ordinary intent
     not_regex: "darrow-adaptive-goal-authority-stop-v1"
+transcript_checks:
+  - name: delegated work receives one separate Codex owner
+    expect_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
