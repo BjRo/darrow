@@ -40,6 +40,7 @@ import {
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
+  expectsAdaptiveGoalOwner,
   gradeActivation,
   validateActivationCase,
   validateMountedActivationTarget,
@@ -1028,7 +1029,7 @@ async function runTrial(
       control: goalRouteControl(
         options.expectedGoalRoute,
         followUpPrompt,
-        evalCase.adaptive_goal_composition === true,
+        expectsAdaptiveGoalOwner(evalCase),
       ),
     });
     const result = await evaluateTrial(options, {

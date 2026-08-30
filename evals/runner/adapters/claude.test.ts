@@ -620,6 +620,24 @@ test("disallows scheduler tools for adaptive-goal evaluations", () => {
     "ScheduleWakeup",
   ]);
 
+  const resumedGoalArgv = claudeArgv(
+    "Use the strict migration policy.",
+    "claude-sonnet-5",
+    "medium",
+    {
+      expectGoalOwner: true,
+      session: { mode: "resume", id: "adaptive-goal-session" },
+    },
+  );
+  expect(
+    resumedGoalArgv.slice(resumedGoalArgv.indexOf("--disallowed-tools")),
+  ).toEqual([
+    "--disallowed-tools",
+    "ScheduleWakeup",
+    "--resume",
+    "adaptive-goal-session",
+  ]);
+
   const ordinaryArgv = claudeArgv(
     "Implement the request.",
     "claude-sonnet-5",
