@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   activationPassRate,
   activationPassesThreshold,
+  expectsAdaptiveGoalOwner,
   gradeActivation,
   validateActivationCase,
 } from "./activation";
@@ -21,6 +22,26 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 describe("skill activation grading", () => {
+  test("expects an owner for adaptive-goal cases except negative activation", () => {
+    expect(
+      expectsAdaptiveGoalOwner(
+        evalCase({ skillDir: "/repo/plugins/goal-loop/skills/adaptive-goal" }),
+      ),
+    ).toBe(true);
+    expect(
+      expectsAdaptiveGoalOwner(evalCase({ adaptive_goal_composition: true })),
+    ).toBe(true);
+    expect(
+      expectsAdaptiveGoalOwner(
+        evalCase({
+          skillDir: "/repo/plugins/goal-loop/skills/adaptive-goal",
+          activation: "negative",
+        }),
+      ),
+    ).toBe(false);
+    expect(expectsAdaptiveGoalOwner(evalCase())).toBe(false);
+  });
+
   test("grades a positive primary selection and preserves unavailable evidence as unknown", () => {
     expect(
       gradeActivation("positive", "grilling", {

@@ -1,8 +1,10 @@
 id: goal-preflight-verification-cadence
-invariant: AGL-P10,AGL-L6,AGL-L7,AGL-S3
+invariant: AGL-P4,AGL-L5,AGL-S3
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Add an exported isEven(value) function to src/math.js. On
-  Codex, invoke the $adaptive-goal skill. Acceptance is that it returns true
+  {{skill_invocation}} Add an exported isEven(value) function to src/math.js.
+  Acceptance is that it returns true
   exactly for even integer inputs, focused evidence covers zero, a negative
   even integer, and an odd integer, and bash final.sh passes. Select and apply
   the policy route rather than pinning it. Keep the result local.
@@ -62,7 +64,11 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: verification cadence retains a bounded routine route
-    expect_regex: "workflow: implement-feature[\\s\\S]*risk: routine[\\s\\S]*profile: routine"
-  - name: routine verification gate is reported
-    expect_regex: "verification_gate: routine"
+  - name: owner reports complete focused and final verification
+    expect_regex: "Status:[ \\t]*complete[\\s\\S]*Focused verification:[^\\n]*focused\\.sh[\\s\\S]*Final verification:[^\\n]*final\\.sh"
+    flags: i
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+transcript_checks:
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

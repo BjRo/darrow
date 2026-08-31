@@ -1,11 +1,13 @@
 id: goal-blocked-retry-observes-publication
-invariant: AGL-L16,AGL-L17
+invariant: AGL-S2
 goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  Use $adaptive-goal to decide the next lifecycle action only. The retained
+  Use {{skill_invocation}} to decide the next lifecycle action only. The retained
   owner in this same thread is blocked because pull-request creation returned
-  an ambiguous result. The user says "retry" without qualification. Explain
-  the permitted retry behavior and how duplicate publication is prevented.
+  an ambiguous result, and the current forge state has not yet been observed.
+  The user says "retry" without qualification. What is the retained owner's
+  immediate next action? Answer in one sentence.
 fixture:
   commits:
     - message: "chore: init"
@@ -13,16 +15,12 @@ fixture:
         README.md: "base\n"
 checks: []
 output_checks:
-  - name: observes ambiguous publication before retry
-    expect_regex: "observe-first|(observe|check|query|inspect)[\\s\\S]{0,160}(external[\\s\\S]{0,40}state|pull request|publication|remote)"
+  - name: observes current publication state
+    expect_regex: "(?:observe|check|query|inspect)[^.!?\\n]{0,120}(?:pull[- ]request|PR|publication|forge|remote)"
     flags: i
-  - name: maps observed completion without duplicating the effect
-    expect_regex: "(--mode[ =]continue[\\s\\S]{0,120}--observation[ =]completed|completed[\\s\\S]{0,160}--mode[ =]continue)"
-    not_regex: "--mode[ =]retry[\\s\\S]{0,80}--observation[ =](completed|<completed)"
+  - name: does not repeat the effect before observation
+    not_regex: "(?:(?<!not[ \\t])(?<!never[ \\t])\\b(?:retry|repeat|reissue|create|open)(?:ing)?[^.!?\\n]{0,30}\\b(?:first|immediately)\\b|(?<!not[ \\t])(?<!never[ \\t])\\b(?:first|immediately)\\b[^.!?\\n]{0,30}\\b(?:retry|repeat|reissue|create|open)(?:ing)?\\b|(?<!not[ \\t])(?<!never[ \\t])\\b(?:retry|repeat|reissue|create|open)(?:ing)?\\b[^.!?\\n]{0,50}\\b(?:then|before)\\b[^.!?\\n]{0,50}\\b(?:observe|check|query|inspect)\\b)"
     flags: i
-  - name: maps observed absence to one retry
-    expect_regex: "(--mode[ =]retry[\\s\\S]{0,120}--observation[ =]not-completed|not-completed[\\s\\S]{0,160}--mode[ =]retry)"
-    flags: i
-  - name: limits retry to the exact failed operation
-    expect_regex: "(one|single)[\\s\\S]{0,40}(attempt|retry)|exact failed operation"
-    flags: i
+transcript_checks:
+  - name: advice-only invocation launches no owner or helper
+    not_regex: '"tool":"spawn_agent"|"name":"Agent"|goal-loop (?:prepare|route|step)'

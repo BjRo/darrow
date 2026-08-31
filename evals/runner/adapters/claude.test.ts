@@ -5,6 +5,7 @@ import {
   realpathSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +14,7 @@ import {
   claudeArgv,
   claudeGoalRouteEvidence,
   claudeGoalRouteEvidenceSummary,
+  claudeGoalRouteMatchesSelection,
   claudeGoalRouteReportMatches,
   goalReportRequiresObjectiveRelease,
   hasClaudeGoalAgentEvidence,
@@ -21,6 +23,7 @@ import {
   claudeResultAccounting,
   claudeRunSucceeded,
   claudeSkillActivation,
+  evaluatorObservedClaudeRoute,
   retainedClaudeEvidence,
 } from "./claude";
 
@@ -41,6 +44,67 @@ const fileBackedDigest = new Bun.CryptoHasher("sha256")
   .update(fileBackedContract)
   .digest("hex");
 const goalLedger = "/tmp/darrow-goal-run.fixture";
+
+test("audits the native Claude owner route outside the product stream", async () => {
+  const root = mkdtempSync(join(tmpdir(), "darrow-claude-route-audit-"));
+  try {
+    const repo = join(root, "repo.with_under_score");
+    const configRoot = join(root, "config");
+    const projectKey = repo.replace(/[^A-Za-z0-9]/g, "-");
+    const transcriptDir = join(
+      configRoot,
+      "projects",
+      projectKey,
+      "session",
+      "subagents",
+    );
+    mkdirSync(transcriptDir, { recursive: true });
+    const transcriptPath = join(transcriptDir, "agent-ownerone.jsonl");
+    writeFileSync(
+      transcriptPath,
+      `${JSON.stringify({
+        type: "assistant",
+        agentId: "ownerone",
+        effort: "low",
+        message: { role: "assistant", model: "claude-sonnet-5" },
+      })}\n`,
+    );
+    const raw = JSON.stringify({
+      type: "darrow.goal_agent_completion",
+      tool_use_id: "toolu_goal",
+      subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+      status: "completed",
+      agent_id: "ownerone",
+    });
+
+    const audited = await evaluatorObservedClaudeRoute(raw, repo, configRoot);
+    expect(audited).toContain(
+      '"type":"darrow.claude_route_observation","tool_use_id":"darrow-eval-route-ownerone"',
+    );
+    expect(audited).toContain(
+      '"type":"darrow.claude_route_confirmation","tool_use_id":"darrow-eval-route-ownerone"',
+    );
+    expect(audited).toContain('"status":"confirmed"');
+
+    writeFileSync(
+      transcriptPath,
+      `${JSON.stringify({
+        type: "assistant",
+        agentId: "ownerone",
+        effort: "medium",
+        message: { role: "assistant", model: "claude-opus-5" },
+      })}\n`,
+    );
+    const substituted = await evaluatorObservedClaudeRoute(
+      raw,
+      repo,
+      configRoot,
+    );
+    expect(substituted).toContain('"status":"rejected"');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 function validClaudePreflightEvents(context = routeEvidenceContext) {
   const ledger =
@@ -139,6 +203,19 @@ function boundGoalPrompt(
       ? objectiveContract
       : `- objective_file: ${objectiveFile}`;
   return ["- phase: adaptive-goal-runner", body].join("\n");
+}
+
+function inlineOwnerPrompt() {
+  return [
+    "- phase: adaptive-goal-owner",
+    "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
+    "Outcome: Implement the requested fixture behavior.",
+    "Acceptance criteria: The focused behavior and repository checks pass.",
+    "Scope and authority: included=fixture implementation and focused tests; authorized=local edits and checks; forbidden=publication and unrelated work; preserve=all pre-existing work",
+    "Execution: workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine; route=claude|anthropic|claude-sonnet-5|low; capabilities=none",
+    "Verification and gates: readiness=omitted for complete fixture scope; review=omitted for routine work; focused=run the focused test; final=run the repository gate; feedback=pause and relay to this owner; blockers=report evidence and the smallest next action",
+    "Completion evidence: report status, files, checks, and remaining risks.",
+  ].join("\n");
 }
 
 function provisionalActivationEvents() {
@@ -519,6 +596,19 @@ test("loads the eval-only source plugin when one is mounted", () => {
   expect(argv).not.toContain("--no-session-persistence");
 });
 
+test("loads independently packaged composition plugins", () => {
+  const argv = claudeArgv("/recipe ticket-42", "claude-sonnet-5", "medium", {
+    pluginDirs: ["/tmp/recipe-plugin", "/tmp/adaptive-plugin"],
+    expectGoalOwner: true,
+  });
+  expect(
+    argv.flatMap((value, index) =>
+      value === "--plugin-dir" ? [argv[index + 1]] : [],
+    ),
+  ).toEqual(["/tmp/recipe-plugin", "/tmp/adaptive-plugin"]);
+  expect(argv).toContain("--disallowed-tools");
+});
+
 test("disallows scheduler tools for adaptive-goal evaluations", () => {
   const goalArgv = claudeArgv(
     "/adaptive-goal Implement the request.",
@@ -528,6 +618,24 @@ test("disallows scheduler tools for adaptive-goal evaluations", () => {
   expect(goalArgv.slice(goalArgv.indexOf("--disallowed-tools"))).toEqual([
     "--disallowed-tools",
     "ScheduleWakeup",
+  ]);
+
+  const resumedGoalArgv = claudeArgv(
+    "Use the strict migration policy.",
+    "claude-sonnet-5",
+    "medium",
+    {
+      expectGoalOwner: true,
+      session: { mode: "resume", id: "adaptive-goal-session" },
+    },
+  );
+  expect(
+    resumedGoalArgv.slice(resumedGoalArgv.indexOf("--disallowed-tools")),
+  ).toEqual([
+    "--disallowed-tools",
+    "ScheduleWakeup",
+    "--resume",
+    "adaptive-goal-session",
   ]);
 
   const ordinaryArgv = claudeArgv(
@@ -962,6 +1070,149 @@ describe("Claude skill activation observation", () => {
     );
   });
 
+  test("retains the simplified inline adaptive-goal owner without lifecycle setup", () => {
+    const stream = [
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_inline_goal",
+              input: {
+                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                run_in_background: false,
+                prompt: inlineOwnerPrompt(),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(goalResult("toolu_inline_goal", "agentgoal")),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Bash",
+              id: "toolu_owner_route",
+              input: {
+                command: [
+                  "/bin/bash /plugin/darrow-goal-loop/bin/claude-owner-route \\",
+                  "  --repo /fixture --agent-id agentgoal \\",
+                  "  --selected-model claude-sonnet-5 --selected-effort low",
+                ].join("\n"),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_owner_route",
+              content: [
+                "format\tdarrow-claude-owner-route-v1",
+                "agent_id\tagentgoal",
+                "transcript\t/private/agent-agentgoal.jsonl",
+                "observed_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+                "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+                "confirmation\tconfirmed",
+              ].join("\n"),
+            },
+          ],
+        },
+      }),
+      JSON.stringify({ type: "result", subtype: "success", is_error: false }),
+    ].join("\n");
+
+    const retained = retainedClaudeEvidence(
+      stream,
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(retained).toContain(
+      '"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-owner"',
+    );
+    expect(retained).toContain(
+      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
+    );
+    expect(retained).toContain(
+      '"type":"darrow.claude_route_observation","tool_use_id":"toolu_owner_route"',
+    );
+    expect(retained).toContain('"status":"confirmed"');
+    expect(retained).not.toContain("report-missing");
+    expect(retained).not.toContain("private child result");
+
+    const semanticDimensions = inlineOwnerPrompt().replace(
+      "workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine;",
+      "workflow=custom-delivery; sequence=inspect fixture, implement behavior, run checks; risk=Elevated migration; profile=focused;",
+    );
+    const semanticDimensionEvidence = retainedClaudeEvidence(
+      stream.replace(
+        JSON.stringify(inlineOwnerPrompt()),
+        JSON.stringify(semanticDimensions),
+      ),
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(semanticDimensionEvidence).toContain(
+      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
+    );
+  });
+
+  test("rejects incomplete or route-inconsistent inline owner contracts", () => {
+    for (const prompt of [
+      inlineOwnerPrompt()
+        .split("\n")
+        .filter((line) => !line.startsWith("Scope and authority:"))
+        .join("\n"),
+      inlineOwnerPrompt().replace(
+        "sequence=inspect fixture, implement behavior, run checks; ",
+        "",
+      ),
+      inlineOwnerPrompt().replace(
+        "claude|anthropic|claude-sonnet-5|low",
+        "claude|anthropic|claude-opus-5|high",
+      ),
+      `${inlineOwnerPrompt()}\nExecution: duplicate`,
+      inlineOwnerPrompt().replace(
+        "route=claude|anthropic|claude-sonnet-5|low;",
+        "route=claude|anthropic|claude-sonnet-5|low / claude|anthropic|claude-opus-5|high;",
+      ),
+    ]) {
+      const stream = [
+        JSON.stringify({
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                name: "Agent",
+                id: "toolu_incomplete_goal",
+                input: {
+                  subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                  run_in_background: false,
+                  prompt,
+                },
+              },
+            ],
+          },
+        }),
+        JSON.stringify(goalResult("toolu_incomplete_goal", "agentgoal")),
+        JSON.stringify({ type: "result", subtype: "success", is_error: false }),
+      ].join("\n");
+      expect(
+        retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
+      ).not.toContain('"type":"darrow.goal_agent_completion"');
+    }
+  });
+
   test("retains only helper-rendered goal report provenance", () => {
     const stream = [
       ...validClaudePreflightEvents(),
@@ -1282,8 +1533,6 @@ describe("Claude skill activation observation", () => {
       "Which migration policy should this delivery use?",
     ].join("\n");
     const stream = [
-      ...validClaudePreflightEvents(),
-      ...inlineMaterializationEvents(),
       JSON.stringify({
         type: "assistant",
         message: {
@@ -1295,7 +1544,7 @@ describe("Claude skill activation observation", () => {
               input: {
                 subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
                 run_in_background: false,
-                prompt: boundGoalPrompt(),
+                prompt: inlineOwnerPrompt(),
               },
             },
           ],
@@ -1323,8 +1572,7 @@ describe("Claude skill activation observation", () => {
               input: {
                 to: "agentgoal",
                 summary: "Resume adaptive goal with human feedback",
-                message:
-                  "- phase: human-feedback-response\nUse the strict migration policy.",
+                message: "Use the strict migration policy.",
               },
             },
           ],
@@ -1357,7 +1605,6 @@ describe("Claude skill activation observation", () => {
         tool_use_id: "toolu_goal_feedback",
         status: "completed",
       }),
-      ...goalReportEvents("helper", "complete", "toolu_complete_report"),
     ].join("\n");
     const retained = retainedClaudeEvidence(
       stream,
@@ -1409,10 +1656,55 @@ describe("Claude skill activation observation", () => {
     expect(contextBoundAnswer).toContain(
       '"type":"darrow.goal_agent_resumption"',
     );
+    const plainQuestion = "Which migration policy should this delivery use?";
+    const plainQuestionStream = stream.replace(
+      JSON.stringify(goalResult("toolu_goal", "agentgoal", feedbackResult)),
+      JSON.stringify(goalResult("toolu_goal", "agentgoal", plainQuestion)),
+    );
+    const plainQuestionEvidence = retainedClaudeEvidence(
+      plainQuestionStream,
+      undefined,
+      {
+        ...routeEvidenceContext,
+        followUpPrompt: "Use the strict migration policy.",
+      },
+    );
+    expect(plainQuestionEvidence).toContain(
+      '"type":"darrow.human_feedback_request","agent_id":"agentgoal","question_present":true',
+    );
+    expect(plainQuestionEvidence).toContain(
+      '"type":"darrow.human_feedback_relay"',
+    );
+    expect(plainQuestionEvidence).toContain(
+      '"type":"darrow.goal_agent_resumption"',
+    );
+    const configuredFollowUpEvidence = retainedClaudeEvidence(
+      stream.replace(
+        JSON.stringify(goalResult("toolu_goal", "agentgoal", feedbackResult)),
+        JSON.stringify(
+          goalResult(
+            "toolu_goal",
+            "agentgoal",
+            "Waiting for the migration policy decision.",
+          ),
+        ),
+      ),
+      undefined,
+      {
+        ...routeEvidenceContext,
+        followUpPrompt: "Use the strict migration policy.",
+      },
+    );
+    expect(configuredFollowUpEvidence).toMatch(
+      /"type":"darrow\.human_feedback_request"[^\n]*"agent_id":"agentgoal"[\s\S]*"type":"darrow\.eval\.follow_up_turn"[\s\S]*"type":"darrow\.human_feedback_relay"[^\n]*"agent_id":"agentgoal"/,
+    );
+    expect(claudeParentLifecycleOperations(configuredFollowUpEvidence)).toEqual(
+      [],
+    );
     expect(claudeParentLifecycleOperations(retained)).toEqual([]);
     expect(retained).not.toContain('"operation":"report-missing"');
 
-    const wrongSummary = retainedClaudeEvidence(
+    const alternateSummary = retainedClaudeEvidence(
       stream.replace(
         "Resume adaptive goal with human feedback",
         "Resume blocked adaptive goal with user response",
@@ -1420,10 +1712,21 @@ describe("Claude skill activation observation", () => {
       undefined,
       routeEvidenceContext,
     );
-    expect(wrongSummary).not.toContain('"type":"darrow.human_feedback_relay"');
-    expect(claudeParentLifecycleOperations(wrongSummary)).toContain(
-      "after:sendmessage-summary-invalid",
+    expect(alternateSummary).toContain('"type":"darrow.human_feedback_relay"');
+    expect(claudeParentLifecycleOperations(alternateSummary)).toEqual([]);
+
+    const wrappedAnswer = retainedClaudeEvidence(
+      stream.replace(
+        '"message":"Use the strict migration policy."',
+        '"message":"- phase: human-feedback-response\\nUse the strict migration policy."',
+      ),
+      undefined,
+      routeEvidenceContext,
     );
+    expect(claudeParentLifecycleOperations(wrappedAnswer)).toContain(
+      "after:sendmessage-response-mismatch",
+    );
+    expect(wrappedAnswer).not.toContain('"type":"darrow.human_feedback_relay"');
 
     const duplicateRelay = retainedClaudeEvidence(
       [
@@ -1439,8 +1742,7 @@ describe("Claude skill activation observation", () => {
                 input: {
                   to: "agentgoal",
                   summary: "Resume adaptive goal with human feedback",
-                  message:
-                    "- phase: human-feedback-response\nUse the strict migration policy.",
+                  message: "Use the strict migration policy.",
                 },
               },
             ],
@@ -1455,7 +1757,7 @@ describe("Claude skill activation observation", () => {
     );
 
     for (const malformed of [
-      "Context first\n- phase: human-feedback-request\nWhich policy?",
+      "Context first\n- phase: human-feedback-request\nPolicy needed.",
       "- phase: human-feedback-request",
       "- phase: human-feedback-request\n   \n",
     ]) {
@@ -1495,6 +1797,53 @@ describe("Claude skill activation observation", () => {
         "after:sendmessage-state",
       );
     }
+  });
+
+  test("retains an accepted replacement Agent after goal ownership", () => {
+    const stream = [
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_goal",
+              input: {
+                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                run_in_background: false,
+                prompt: inlineOwnerPrompt(),
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(goalResult("toolu_goal", "agentgoal")),
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Agent",
+              id: "toolu_replacement",
+              input: {
+                subagent_type: "general-purpose",
+                run_in_background: false,
+                prompt: "Continue the work.",
+              },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(goalResult("toolu_replacement", "replacement")),
+    ].join("\n");
+
+    expect(
+      retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
+    ).toContain(
+      '"type":"darrow.parent_spawn_after_goal","accepted_owner_id":"agentgoal","agent_ref":"replacement"',
+    );
   });
 
   test("rejects parent inspection in the same turn that starts the goal owner", () => {
@@ -2755,6 +3104,9 @@ describe("Claude skill activation observation", () => {
     expect(retained).toContain(
       '"type":"darrow.claude_route_confirmation","tool_use_id":"toolu_gate","goal_tool_use_id":"toolu_goal","agent_id":"agentgoal","status":"confirmed","selectedModel":"claude-sonnet-5","selectedEffort":"low","effectiveModel":"claude-sonnet-5","effectiveEffort":"low"',
     );
+    expect(claudeParentLifecycleOperations(retained)).toContain(
+      "after:route-gate-unbound",
+    );
     expect(retained).not.toContain("private/transcript");
     expect(retained).not.toContain("private child result");
     expect(retained).not.toContain("private cleanup result");
@@ -2775,7 +3127,7 @@ describe("Claude skill activation observation", () => {
         .filter((line) =>
           line.includes("darrow.parent_repository_tool_after_goal"),
         ),
-    ).toHaveLength(10);
+    ).toHaveLength(11);
     expect(hasClaudeGoalAgentEvidence(retained)).toBe(true);
     expect(claudeGoalRouteEvidence(retained)).toEqual({
       goalToolUseId: "toolu_goal",
@@ -2843,6 +3195,12 @@ describe("Claude skill activation observation", () => {
       "darrow.goal_agent_completion",
     );
     const routeEvidence = claudeGoalRouteEvidence(retained)!;
+    expect(
+      claudeGoalRouteMatchesSelection(routeEvidence, {
+        model: "claude-sonnet-5",
+        effort: "low",
+      }),
+    ).toBe(true);
     expect(
       claudeGoalRouteReportMatches(
         {
@@ -3056,7 +3414,7 @@ describe("Claude skill activation observation", () => {
           )
           .join("\n"),
       ),
-    ).toBeUndefined();
+    ).toEqual(routeEvidence);
     expect(
       claudeGoalRouteReportMatches(
         {
@@ -3300,7 +3658,7 @@ describe("Claude skill activation observation", () => {
         .filter((line) =>
           line.includes("darrow.parent_repository_tool_after_goal"),
         ),
-    ).toHaveLength(8);
+    ).toHaveLength(9);
     expect(retained).not.toContain("private spoof result");
     expect(retained).not.toContain("private compound result");
   });
@@ -3356,6 +3714,12 @@ describe("Claude skill activation observation", () => {
       launch_boundary: "launch_required",
       evaluation_child_invocations: "1",
     };
+    expect(
+      claudeGoalRouteMatchesSelection(evidence, {
+        model: "claude-sonnet-5",
+        effort: "low",
+      }),
+    ).toBe(false);
     expect(
       claudeGoalRouteReportMatches(
         {

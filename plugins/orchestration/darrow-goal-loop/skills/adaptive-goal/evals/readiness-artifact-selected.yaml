@@ -1,8 +1,10 @@
 id: goal-readiness-artifact-selected
-invariant: AGL-P13,AGL-E10,AGL-L14,AGL-S6
+invariant: AGL-L2,AGL-L1,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
-  Codex, invoke the $adaptive-goal skill. The specification has not previously
+  {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
+  The specification has not previously
   been assessed for implementation readiness. Acceptance is that `bash
   check.sh` passes. Select and apply the policy route. Keep the result local;
   commits, pushes, pull requests, and other publication are not authorized.
@@ -38,6 +40,12 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: completed readiness-gated goal reports success
-    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*Native goal completed\\."
+    expect_regex: "Status:[ \\t]*complete"
+    flags: i
   - name: completed goal does not expose internal readiness records
     not_regex: "readiness_selection\\t|readiness_verdict\\t"
+transcript_checks:
+  - name: readiness is invoked before the separate owner
+    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

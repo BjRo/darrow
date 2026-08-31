@@ -124,7 +124,8 @@ const ZERO_CHILDREN =
   /^(?:evaluation_child_invocations\t0|evaluation_child_invocations: 0)$/m;
 const ONE_CHILD =
   /^(?:evaluation_child_invocations\t1|evaluation_child_invocations: 1)$/m;
-const CODEX_AGENT_REF = /^\/root(?:\/[a-z0-9_]+)+$/;
+const CODEX_AGENT_REF =
+  /^(?:\/root(?:\/[a-z0-9_]+)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 /** Boundary-specific expectations the controller record must satisfy.
  *  `sameTurn` is omitted where the boundary constrains neither answer. */
@@ -546,10 +547,86 @@ function hostGoalRouteApplication(
   return evidence ? { ...application, ...evidence } : undefined;
 }
 
+function nonemptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() === value && value
+    ? value
+    : undefined;
+}
+
+interface AcceptedGoalOwnerFields {
+  selected: GoalRoute;
+  effective: GoalRoute;
+  profile: string;
+  workflow: string;
+  risk: NonNullable<GoalRouteApplication["risk"]>;
+}
+
+function acceptedGoalOwnerFields(
+  event: Record<string, unknown>,
+): AcceptedGoalOwnerFields | undefined {
+  const selected = goalRouteOf(event.selected);
+  const effective = goalRouteOf(event.effective);
+  const profile = nonemptyString(event.profile);
+  const workflow = nonemptyString(event.workflow);
+  const risk = memberOf(RISK_LEVELS, event.risk);
+  return selected && effective && profile && workflow && risk
+    ? { selected, effective, profile, workflow, risk }
+    : undefined;
+}
+
+function validAcceptedGoalOwnerBoundary(
+  event: Record<string, unknown>,
+  fields: AcceptedGoalOwnerFields,
+): boolean {
+  return [
+    sameGoalRoute(fields.selected, fields.effective),
+    fields.selected.harness === "codex",
+    fields.selected.provider === "openai",
+    event.applied_by === "native-subagent",
+    event.launch_boundary === "native_subagent",
+    event.child_invocations === 1,
+    typeof event.agent_ref === "string" &&
+      CODEX_AGENT_REF.test(event.agent_ref),
+  ].every(Boolean);
+}
+
+/** Route evidence emitted by the Codex adapter only after its launch guard has
+ *  accepted and bound one concrete adaptive-goal owner. */
+function acceptedGoalOwnerRouteApplication(
+  raw: string,
+): GoalRouteApplication | undefined {
+  return singleEventMatch(raw, (event) => {
+    if (event.type !== "darrow.goal_owner_accepted") return undefined;
+    const fields = acceptedGoalOwnerFields(event);
+    if (!fields || !validAcceptedGoalOwnerBoundary(event, fields))
+      return undefined;
+    return {
+      profile: fields.profile,
+      workflow: fields.workflow,
+      risk: fields.risk,
+      selected: fields.selected,
+      effective: fields.effective,
+      appliedBy: "native-subagent",
+      launchBoundary: "native_subagent",
+      childInvocationCount: 1,
+      childInputTokens: 0,
+      childOutputTokens: 0,
+    };
+  });
+}
+
+function observedGoalOwnerRecord(raw: string): boolean {
+  return Array.from(jsonlEvents(raw)).some(
+    (event) => event.type === "darrow.goal_owner_accepted",
+  );
+}
+
 export function observeCodexGoalRouteApplication(
   resultText: string,
   raw: string,
 ): GoalRouteApplication | undefined {
+  const acceptedOwner = acceptedGoalOwnerRouteApplication(raw);
+  if (acceptedOwner) return acceptedOwner;
   const preflight = parseGoalPreflight(resultText);
   if (!preflight) return undefined;
   if (preflight.launchBoundary === "nested_session")
@@ -869,8 +946,13 @@ function goalRouteApplicationVerified(
   hostRoute: HostRoute,
 ): boolean {
   if (!observed) return false;
+  const acceptedOwner = acceptedGoalOwnerRouteApplication(raw);
+  const acceptedOwnerMatches =
+    acceptedOwner !== undefined &&
+    sameGoalRoute(acceptedOwner.selected, observed.selected) &&
+    sameGoalRoute(acceptedOwner.effective, observed.effective);
   const checks = [
-    ROUTE_VERIFIED.test(resultText),
+    acceptedOwnerMatches || ROUTE_VERIFIED.test(resultText),
     hostWorkflowVerified(
       GOAL_PREFLIGHT_V4.test(resultText) || GOAL_REPORT_V1.test(resultText),
       observed,
@@ -895,7 +977,11 @@ export function reconcileObservedGoalRouteApplication(
 ): CheckResult | undefined {
   const hasWorkflowReport =
     GOAL_PREFLIGHT_V4.test(resultText) || GOAL_REPORT_V1.test(resultText);
-  if (!hasWorkflowReport && !GOAL_PREFLIGHT_V2.test(resultText))
+  if (
+    !hasWorkflowReport &&
+    !GOAL_PREFLIGHT_V2.test(resultText) &&
+    !observedGoalOwnerRecord(raw)
+  )
     return undefined;
   const launchRequired = goalLaunchRequiredCheck(resultText, raw);
   if (launchRequired) return launchRequired;
@@ -1146,6 +1232,8 @@ function completedNativeGoalAttestation(
 }
 
 function nativeGoalRouteMatches(raw: string, route: GoalRoute): boolean {
+  const acceptedOwner = acceptedGoalOwnerRouteApplication(raw);
+  if (acceptedOwner) return sameGoalRoute(acceptedOwner.effective, route);
   const proof = nativeGoalAgentAttestation(raw);
   return (
     route.harness === "codex" &&

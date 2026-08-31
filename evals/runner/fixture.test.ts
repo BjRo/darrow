@@ -259,6 +259,114 @@ describe("eval fixture skill mounts", () => {
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });
 
+  test("installs composition plugins as separate packages", async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-fixture-multi-plugin-"));
+    cleanup.push(root);
+    const recipeRoot = join(root, "plugins", "recipe");
+    const recipe = join(recipeRoot, "skills", "recipe");
+    const orchestrationRoot = join(root, "plugins", "orchestration");
+    const adaptive = join(orchestrationRoot, "skills", "adaptive");
+    for (const plugin of [recipeRoot, orchestrationRoot]) {
+      await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+      await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+    }
+    await mkdir(recipe, { recursive: true });
+    await mkdir(adaptive, { recursive: true });
+    await mkdir(join(orchestrationRoot, "bin"), { recursive: true });
+    await writeFile(
+      join(recipe, "SKILL.md"),
+      "---\nname: recipe\ndescription: Recipe\n---\n",
+    );
+    await writeFile(
+      join(adaptive, "SKILL.md"),
+      "---\nname: adaptive\ndescription: Adaptive\n---\n",
+    );
+    for (const [plugin, name] of [
+      [recipeRoot, "recipe"],
+      [orchestrationRoot, "orchestration"],
+    ] as const) {
+      await writeFile(
+        join(plugin, ".claude-plugin", "plugin.json"),
+        JSON.stringify({ name, version: "0.1.0", description: name }) + "\n",
+      );
+      await writeFile(
+        join(plugin, ".codex-plugin", "plugin.json"),
+        JSON.stringify({
+          name,
+          version: "0.1.0",
+          description: name,
+          skills: "./skills/",
+        }) + "\n",
+      );
+    }
+    await writeFile(
+      join(orchestrationRoot, "bin", "goal-loop"),
+      "fixture runner\n",
+    );
+
+    const fixture = await buildFixture({
+      fixture: {},
+      skillDir: recipe,
+      skillMounts: [],
+      sourceClaudePlugin: true,
+      sourceCodexPlugin: true,
+      additionalPluginRoots: [orchestrationRoot],
+    });
+    cleanup.push(fixture);
+
+    const claudePrimary = join(fixture, ".git", "eval-plugin");
+    const claudeAdditional = join(
+      fixture,
+      ".git",
+      "eval-plugins",
+      "0-orchestration",
+    );
+    expect(
+      existsSync(join(claudePrimary, "skills", "recipe", "SKILL.md")),
+    ).toBe(true);
+    expect(existsSync(join(claudePrimary, "skills", "adaptive"))).toBe(false);
+    expect(
+      existsSync(join(claudeAdditional, "skills", "adaptive", "SKILL.md")),
+    ).toBe(true);
+    expect(existsSync(join(claudeAdditional, "skills", "recipe"))).toBe(false);
+    expect(existsSync(join(claudeAdditional, "bin", "goal-loop"))).toBe(true);
+
+    const marketplace = join(fixture, ".git", "eval-marketplace");
+    const catalog = JSON.parse(
+      await readFile(
+        join(marketplace, ".claude-plugin", "marketplace.json"),
+        "utf8",
+      ),
+    ) as {
+      plugins: Array<{ name: string; source: string; description: string }>;
+    };
+    expect(catalog.plugins).toEqual([
+      { name: "recipe", source: "./plugin", description: expect.any(String) },
+      {
+        name: "orchestration",
+        source: "./plugins/0-orchestration",
+        description: expect.any(String),
+      },
+    ]);
+    expect(existsSync(join(marketplace, "plugin", "skills", "adaptive"))).toBe(
+      false,
+    );
+    expect(
+      existsSync(
+        join(
+          marketplace,
+          "plugins",
+          "0-orchestration",
+          "skills",
+          "adaptive",
+          "SKILL.md",
+        ),
+      ),
+    ).toBe(true);
+    await destroyFixture(fixture);
+    cleanup.splice(cleanup.indexOf(fixture), 1);
+  });
+
   test("commits case scaffolding and provisions a local ticket", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-case-"));
     cleanup.push(root);

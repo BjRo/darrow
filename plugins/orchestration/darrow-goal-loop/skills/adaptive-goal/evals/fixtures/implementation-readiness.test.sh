@@ -23,6 +23,15 @@ grep -F "**Type:** \`dependency\`" <<<"$codex_result" >/dev/null
 grep -F "**Type:** \`unblock\`" <<<"$codex_result" >/dev/null
 test "$(wc -l <"$codex_repo/.git/implementation-readiness-invocations" | tr -d ' ')" -eq 1
 
+iterative_repo="$test_root/iterative"
+make_repo "$iterative_repo" needs-decision-then-ready
+bash "$installer" "$iterative_repo" "$script_dir" codex
+first_result=$(bash "$iterative_repo/.agents/bin/implementation-readiness-fixture" "$iterative_repo")
+second_result=$(bash "$iterative_repo/.agents/bin/implementation-readiness-fixture" "$iterative_repo")
+grep -F "**Verdict:** \`needs-decision\`" <<<"$first_result" >/dev/null
+grep -F "**Verdict:** \`ready\`" <<<"$second_result" >/dev/null
+test "$(wc -l <"$iterative_repo/.git/implementation-readiness-invocations" | tr -d ' ')" -eq 2
+
 claude_repo="$test_root/claude"
 make_repo "$claude_repo" needs-discovery
 bash "$installer" "$claude_repo" "$script_dir" claude

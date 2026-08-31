@@ -17,6 +17,14 @@ export function activationTargetSkill(evalCase: EvalCase): string {
   return evalCase.owningSkillName ?? basename(evalCase.skillDir);
 }
 
+export function expectsAdaptiveGoalOwner(evalCase: EvalCase): boolean {
+  if (evalCase.activation === "negative") return false;
+  return (
+    evalCase.adaptive_goal_composition === true ||
+    activationTargetSkill(evalCase) === "adaptive-goal"
+  );
+}
+
 export function validateActivationCase(evalCase: EvalCase): string[] {
   if (evalCase.activation === undefined) return [];
   if (!ACTIVATION_CLASSES.includes(evalCase.activation)) {

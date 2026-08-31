@@ -1,107 +1,33 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016
+# The single-quoted backticks below are literal Markdown contract text.
 set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
-goal_loop="$plugin_dir/bin/goal-loop"
 skill="$plugin_dir/skills/adaptive-goal/SKILL.md"
 guide="$plugin_dir/skills/adaptive-goal/references/codex-launch.md"
-review_lifecycle="$plugin_dir/skills/adaptive-goal/references/review-lifecycle.md"
-readme="$plugin_dir/README.md"
-hook_manifest="$plugin_dir/hooks/hooks.json"
-hook_helper="$plugin_dir/bin/goal-loop-hook"
-hook_test="$plugin_dir/bin/goal-loop-hook.test.sh"
 
 fail() {
-  printf 'FAIL: %s\n' "$1" >&2
+  printf 'not ok - %s\n' "$*" >&2
   exit 1
 }
 
-require_text() {
-  file=$1
-  expected=$2
-  grep -F -- "$expected" "$file" >/dev/null ||
-    fail "$file is missing: $expected"
+require_line() {
+  grep -F -- "$2" "$1" >/dev/null || fail "missing contract text: $2"
 }
 
-reject_text() {
-  file=$1
-  rejected=$2
-  if grep -F -- "$rejected" "$file" >/dev/null; then
-    fail "$file still contains: $rejected"
-  fi
-}
+require_line "$skill" 'launch exactly one route-selected subagent owner'
+require_line "$skill" '- phase: adaptive-goal-owner'
+require_line "$skill" 'A direct shell, Git, forge,'
+require_line "$guide" '`fork_turns` set to `none`'
+require_line "$guide" '`model` set to the selected concrete Codex model'
+require_line "$guide" '`reasoning_effort` set to the selected effort'
+require_line "$guide" 'call `followup_task` once'
 
-require_text "$guide" 'Close the subagent when the goal has been fulfilled'
-require_text "$guide" 'Absence or failure of a close'
-require_text "$guide" 'control does not invalidate'
-require_text "$guide" 'step materialize'
-require_text "$guide" 'step activate'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'exact `task_name` value'
-require_text "$guide" '--agent-ref <host-returned-canonical-task-name>'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" '`goal-loop step launch-stop --reason launch-unavailable`'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" '`evaluation_child_invocations: 1`'
-require_text "$skill" 'step report'
-require_text "$skill" 'goal-loop step block'
-require_text "$skill" 'goal-loop step resume'
-require_text "$skill" 'goal-loop step end'
-require_text "$guide" 'blocked state retains the attachment'
-require_text "$guide" 'same goal with'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'without another `create_goal` call'
-require_text "$guide" 'Do not close, interrupt, or release the objective merely because this owner is'
-reject_text "$guide" 'complete or blocked releases it'
-reject_text "$readme" 'helper+codex-hooks'
-reject_text "$readme" 'helper+claude-hooks'
-test ! -e "$hook_manifest" || fail "$hook_manifest is still packaged"
-test ! -e "$hook_helper" || fail "$hook_helper is still packaged"
-test ! -e "$hook_test" || fail "$hook_test is still packaged"
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'before the first `create_goal` call'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'Do not retry `create_goal`'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'call `create_goal` exactly once'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" '`get_goal` confirms'
-require_text "$guide" 'step goal-state'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'ledger in `goal-pending`'
-require_text "$guide" 'must not release the objective, close or replace the runner'
-require_text "$guide" 'validated attachment path and expected'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'inline objective into an `objective_file` launch line'
-require_text "$guide" 'review-lifecycle.md'
-require_text "$skill" 'Initial independent review: blocking —'
-require_text "$skill" 'Fix verification: <clear|continue|no_progress|blocked|unavailable|inconclusive>.'
-require_text "$review_lifecycle" 'materially progresses'
-# shellcheck disable=SC2016 # literal Markdown code span
-require_text "$guide" 'Do not run `confirm-route`'
-require_text "$guide" 'Absence or failure of a close'
-require_text "$guide" 'control does not invalidate'
-require_text "$guide" 'The creator never performs'
-require_text "$skill" 'file-backed objective'
-require_text "$readme" 'exposes a close'
-require_text "$readme" 'control, closes each child'
+if grep -E 'goal-loop step|Protocol ledger|create_goal|materialize-objective|darrow-native-goal-report' \
+  "$skill" "$guide" >/dev/null; then
+  fail "Codex launch surface retained removed lifecycle protocol"
+fi
 
-reject_text "$skill" 'A spawn-only surface is unavailable.'
-reject_text "$skill" 'A missing or failed close is incomplete cleanup, not successful completion.'
-reject_text "$guide" "exposes both \`spawn_agent\` and \`close_agent\`"
-reject_text "$guide" 'If closing fails, report the cleanup failure and do not claim complete.'
-reject_text "$guide" '<host-reported-agent-id>'
-# shellcheck disable=SC2016 # literal Markdown code span
-reject_text "$guide" 'or calling `create_goal`'
-
-capability_routing_clause='Capability routing: For each exact contract operation with a host-advertised matching capability, invoke and follow that capability before the operation; direct commands are not a substitute, and inability or refusal stops that operation without expanding authority.'
-# shellcheck disable=SC2016 # literal Markdown code span delimiters
-skill_capability_routing_clause=$(sed -n \
-  '/^`Capability routing:/,/authority\.`$/p' "$skill" | tr '\n' ' ' |
-  sed 's/^`//; s/` $//; s/[[:space:]][[:space:]]*/ /g')
-test "$skill_capability_routing_clause" = "$capability_routing_clause" ||
-  fail 'skill and helper capability-routing clauses drifted'
-require_text "$goal_loop" "capability_routing_clause='$capability_routing_clause'"
-
-printf 'codex launch contract tests passed\n'
+printf 'ok - Codex separate-owner launch contract\n'

@@ -115,9 +115,9 @@ and effort" — does not hold in general. Acceptance proves the runner
 definition was _selected_; it does not prove the host _applied_ the model that
 definition names.
 
-`claude-launch.md` and `bin/claude-verify-route` were updated so the Claude
-launch boundary derives the effective route from the child's transcript and
-feeds it into `goal-loop confirm-route` before ever recording
-`route_verified: true`. A repository or account without live `claude-opus-5`
-subagent access will now surface as `launch_required` with the observed
-substitute route disclosed, instead of a false `route_verified: true`.
+The simplified product now uses one narrow `bin/claude-owner-route` observation
+after the foreground Agent returns. It binds the host-reported id to the exact
+child transcript and compares every assistant turn's model and effort with the
+selected tuple. A repository or account without live `claude-opus-5` subagent
+access therefore surfaces as `launch_required` with the observed substitute
+route disclosed instead of treating Agent acceptance or self-report as proof.

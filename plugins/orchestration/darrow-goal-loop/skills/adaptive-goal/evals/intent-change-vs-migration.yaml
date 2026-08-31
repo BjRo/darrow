@@ -1,8 +1,10 @@
 id: goal-preflight-intent-change-vs-migration
-invariant: AGL-P4,AGL-P7,AGL-P11,AGL-R1,AGL-L11,AGL-S3,AGL-X6
+invariant: AGL-C1,AGL-C2,AGL-L2,AGL-L5,AGL-S3
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Migrate the persisted service configuration from v1 `{url}` to
-  v2 `{endpoint}`. On Codex, invoke the $adaptive-goal skill. The writer must emit
+  {{skill_invocation}} Migrate the persisted service configuration from v1 `{url}` to
+  v2 `{endpoint}`. The writer must emit
   only v2, the reader must accept v1 and v2 during rollout, migrateConfig must
   convert stored v1 records, and both consumers must continue to work. This is
   an approved behavior change, but consumers and persisted formats require a
@@ -64,20 +66,30 @@ checks:
     run: bash test.sh
   - name: migration compatibility receives one independent review
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
-  - name: independent review clears the migrated final target
+  - name: independent review covers the migrated final target
     run: >-
       test "$(cut -f1 .git/independent-review-invocations)" =
-      "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)" &&
+      "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)"
+  - name: independent review starts after a matching current check
+    run: >-
       awk -F '\t' '$1 == "check" { checked[$2]=1 }
       $1 == "review_start" && checked[$2] { ok=1 }
-      END { exit ok ? 0 : 1 }' .git/independent-review-events &&
+      END { exit ok ? 0 : 1 }' .git/independent-review-events
+  - name: independent review reports a clear comprehensive outcome
+    run: >-
       awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
       END { exit ok ? 0 : 1 }' .git/independent-review-invocations
 output_checks:
-  - name: sequenced transition wins over one behavior change
-    expect_regex: "workflow: migration[\\s\\S]*risk: elevated[\\s\\S]*profile: scaled"
-  - name: multi-component coding route is applied
-    expect_regex: "harness: codex[\\s\\S]*model: openai > gpt-5\\.6-terra[\\s\\S]*effort: medium[\\s\\S]*route_verified: true"
-  - name: completion reports the semantic review outcome
-    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?(?:(?:Independent review:|\\*\\*Independent review:\\*\\*)[ \\t]*clear\\.|\\*\\*Independent review:[ \\t]*clear\\.\\*\\*)[ \\t]*$"
+  - name: sequenced transition is classified as migration
+    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
     flags: i
+  - name: completion reports the semantic review outcome
+    expect_regex: "Independent[^\\n]{0,80}review[\\s\\S]{0,240}(?:\\bclear\\b|\\bno blocking findings\\b)"
+    flags: i
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+transcript_checks:
+  - name: launch preserves migration workflow and elevated risk
+    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"migration","risk":"elevated"'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

@@ -10,7 +10,6 @@ export interface AblationMode {
   condition_by_harness?: Record<string, string>;
   effort?: string;
   require_evaluation_records?: boolean;
-  apply_goal_route?: boolean;
   apply_expected_goal_routes?: boolean;
   apply_case_routes?: boolean;
   goal_expectations?: string;
@@ -76,7 +75,6 @@ function conditionConfiguration(mode: AblationMode): unknown {
 function nonSkillConfiguration(mode: AblationMode): unknown {
   return {
     require_evaluation_records: mode.require_evaluation_records ?? false,
-    apply_goal_route: mode.apply_goal_route ?? false,
     apply_expected_goal_routes: mode.apply_expected_goal_routes ?? false,
     apply_case_routes: mode.apply_case_routes ?? false,
     goal_expectations: mode.goal_expectations ?? null,

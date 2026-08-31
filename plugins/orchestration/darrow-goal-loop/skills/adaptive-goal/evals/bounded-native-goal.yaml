@@ -1,12 +1,12 @@
 id: goal-preflight-bounded-native-goal
-invariant: AGL-P1,AGL-P2,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-L6,AGL-L10,AGL-S3
+invariant: AGL-P1,AGL-P2,AGL-P4,AGL-C1,AGL-R1,AGL-R2,AGL-L1,AGL-L5,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Add an exported double(value) function to src/math.js. On Codex,
-  invoke the $adaptive-goal skill. Add focused tests for zero and a negative
-  number. Acceptance is that double returns exactly two times its numeric input
-  and bash test.sh passes. The evaluation harness reports the active route in
-  its condition; select and apply the policy route rather than pinning it. Keep
-  the result local.
+  {{skill_invocation}} Add an exported double(value) function to src/math.js.
+  Add focused tests for zero and a negative number. Acceptance is that double
+  returns exactly two times its
+  numeric input and bash test.sh passes. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -39,21 +39,19 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: human-readable completion report is emitted
-    expect_regex: "format: darrow-native-goal-report-v1"
-  - name: provider and model are reported readably
-    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"
-  - name: completion report does not expose tab-separated fields
-    not_regex: "format\\tdarrow-native-goal-(?:preflight-v(?:2|4)|route-application-v1)"
-  - name: bounded routine route is selected
-    expect_regex: "workflow: implement-feature[\\s\\S]*risk: routine[\\s\\S]*profile: routine[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium"
-  - name: selected route is effective
-    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: medium[\\s\\S]*route_verified: true"
-  - name: supported host API applies the selected route without a child runner
-    expect_regex: "route_applied_by: host-api[\\s\\S]*launch_boundary: host_api[\\s\\S]*evaluation_child_invocations: 0"
-  - name: no custom role orchestration remains
-    not_regex: "route\\t(planner|executor|verifier|repair)\\t"
-  - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions: 0"
-  - name: routine verification gate is reported
-    expect_regex: "verification_gate: routine"
+  - name: owner reports completion
+    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
+    flags: i
+  - name: verification evidence is returned
+    expect_regex: "bash test\\.sh|test/math\\.test\\.js"
+  - name: no canonical ledger report is required
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified|evaluation_child_invocations"
+transcript_checks:
+  - name: launch preserves selected workflow and risk
+    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"implement-feature","risk":"routine"'
+  - name: exactly one separate Codex owner is accepted
+    expect_regex: '"type":"darrow.goal_owner_accepted"'
+  - name: no replacement Codex owner is launched
+    not_regex: '"type":"darrow.goal_owner_accepted"[\s\S]*"type":"darrow.goal_owner_accepted"'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|"tool":"create_goal"'

@@ -256,6 +256,7 @@ describe("adaptive-goal completion reports", () => {
     "darrow-goal-step-v1",
     "darrow-goal-step-ledger-v1",
     "darrow-claude-agent-route-v1",
+    "darrow-claude-owner-route-v1",
     "darrow-claude-route-gate-v1",
     "darrow-claude-verify-route-v1",
   ])("detects current internal TSV marker %s", (marker) => {

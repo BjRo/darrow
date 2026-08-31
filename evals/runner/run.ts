@@ -23,12 +23,12 @@ import {
   claudeAdapter,
   claudeGoalRouteEvidence,
   claudeGoalRouteEvidenceSummary,
+  claudeGoalRouteMatchesSelection,
   claudeGoalRouteReportMatches,
   claudeParentLifecycleOperations,
   hasClaudeGoalAgentEvidence,
 } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import { codexGoalAdapter } from "./adapters/codex-goal";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
@@ -40,6 +40,7 @@ import {
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
+  expectsAdaptiveGoalOwner,
   gradeActivation,
   validateActivationCase,
   validateMountedActivationTarget,
@@ -269,7 +270,8 @@ async function scanCases(
 
 function validateOptionalBoolean(
   evalCase: EvalCase,
-  field: "goal_route_checks" | "expect_head_change",
+  field:
+    "goal_route_checks" | "expect_head_change" | "adaptive_goal_composition",
 ): void {
   const value = evalCase[field];
   if (value !== undefined && value !== null && typeof value !== "boolean")
@@ -292,6 +294,7 @@ function validateCompositionPaths(evalCase: EvalCase): void {
   for (const [field, paths] of [
     ["source_plugin", evalCase.source_plugin ? [evalCase.source_plugin] : []],
     ["additional_skills", evalCase.additional_skills ?? []],
+    ["additional_plugins", evalCase.additional_plugins ?? []],
   ] as const) {
     for (const path of paths) {
       if (
@@ -311,6 +314,7 @@ function validateCompositionPaths(evalCase: EvalCase): void {
 function validateCaseConfiguration(evalCase: EvalCase): void {
   validateOptionalBoolean(evalCase, "goal_route_checks");
   validateOptionalBoolean(evalCase, "expect_head_change");
+  validateOptionalBoolean(evalCase, "adaptive_goal_composition");
   validateFollowUpPrompt(evalCase);
   validateCompositionPaths(evalCase);
   const activationErrors = validateActivationCase(evalCase);
@@ -439,7 +443,7 @@ function activationEvidence(evalCase: EvalCase) {
 
 function goalReportEvidence(evalCase: EvalCase) {
   if (!evalCase.skillDir.endsWith("/adaptive-goal")) return null;
-  return evalCase.goal_report ?? "required";
+  return evalCase.goal_report ?? "forbidden";
 }
 
 function standaloneEvaluationRecordEvidence(options: RunCaseOptions) {
@@ -459,6 +463,8 @@ function evaluationDigest(options: RunCaseOptions): string {
     follow_up_prompt: followUpPrompt = null,
     source_plugin: sourcePlugin = null,
     additional_skills: additionalSkills = [],
+    additional_plugins: additionalPlugins = [],
+    adaptive_goal_composition: adaptiveGoalComposition = false,
     output_checks: outputChecks = [],
     transcript_checks: transcriptChecks = [],
     goal_route_checks: goalRouteChecks = true,
@@ -477,6 +483,8 @@ function evaluationDigest(options: RunCaseOptions): string {
     followUpPrompt,
     sourcePlugin,
     additionalSkills,
+    additionalPlugins,
+    adaptiveGoalComposition,
     fixture: evalCase.fixture,
     checks: evalCase.checks,
     outputChecks,
@@ -497,8 +505,10 @@ function evaluationDigest(options: RunCaseOptions): string {
 function goalRouteControl(
   expectedGoalRoute: GoalRouteExpectation | undefined,
   followUpPrompt: string | undefined,
+  expectGoalOwner = false,
 ): HarnessRunRequest["control"] {
-  if (!expectedGoalRoute && !followUpPrompt) return undefined;
+  if (!expectedGoalRoute && !followUpPrompt && !expectGoalOwner)
+    return undefined;
   return {
     ...(expectedGoalRoute
       ? {
@@ -511,6 +521,7 @@ function goalRouteControl(
         }
       : {}),
     ...(followUpPrompt ? { followUpPrompt } : {}),
+    ...(expectGoalOwner ? { expectGoalOwner: true } : {}),
   };
 }
 
@@ -674,20 +685,29 @@ function adaptiveGoalReportChecks(
   harness: HarnessResult,
   adapterName: string,
 ): CheckResult[] {
-  if (!evalCase.skillDir.endsWith("/adaptive-goal")) return [];
+  const ownsAdaptiveGoal = evalCase.skillDir.endsWith("/adaptive-goal");
+  const ownershipChecks = adaptiveGoalOwnershipChecks(harness.raw);
+  const nativeClaudeRouteChecks = nativeClaudeRouteChecksFor(
+    adapterName,
+    harness.raw,
+  );
+  if (!ownsAdaptiveGoal)
+    return evalCase.adaptive_goal_composition
+      ? [...ownershipChecks, ...nativeClaudeRouteChecks]
+      : [];
   if (evalCase.goal_route_checks === false)
-    return [internalGoalRecordCheck(harness.resultText)];
-  const reportPolicy = evalCase.goal_report ?? "required";
-  const hasReport =
-    /^[ \t]*format: darrow-native-goal-report-v1[ \t]*\r?$/m.test(
-      harness.resultText,
-    );
+    return [
+      ...ownershipChecks,
+      internalGoalRecordCheck(harness.resultText),
+      ...nativeClaudeRouteChecks,
+    ];
+  const reportPolicy = evalCase.goal_report ?? "forbidden";
+  const hasReport = hasCanonicalGoalReport(harness.resultText);
   if (reportPolicy === "optional" && !hasReport)
     return [
+      ...ownershipChecks,
       internalGoalRecordCheck(harness.resultText),
-      ...(adapterName === "claude"
-        ? claudeNativeSubagentRouteChecks(undefined, harness.raw, false, true)
-        : []),
+      ...nativeClaudeRouteChecks,
     ];
   if (reportPolicy !== "forbidden") {
     const report =
@@ -695,17 +715,71 @@ function adaptiveGoalReportChecks(
         ? parsePausedGoalReport(harness.resultText)
         : parseTerminalGoalReport(harness.resultText);
     return [
+      ...ownershipChecks,
       ...goalRouteRecordChecks(harness.resultText, report),
       ...claudeNativeSubagentRouteChecks(report, harness.raw),
     ];
   }
   return [
-    {
-      name: "goal completion report is omitted at the non-activation boundary",
-      passed: !hasReport,
-      detail: "non-activation output must not contain an adaptive-goal report",
-    },
+    ...ownershipChecks,
+    ...nativeClaudeRouteChecks,
+    removedCanonicalGoalReportCheck(hasReport),
   ];
+}
+
+function removedCanonicalGoalReportCheck(hasReport: boolean): CheckResult {
+  return {
+    name: "removed canonical goal report is absent",
+    passed: !hasReport,
+    detail:
+      "adaptive-goal output must not contain the removed canonical report",
+  };
+}
+
+function adaptiveGoalOwnershipChecks(raw: string): CheckResult[] {
+  return [adaptiveGoalSingleOwnerCheck(raw), adaptiveGoalParentWorkCheck(raw)];
+}
+
+function nativeClaudeRouteChecksFor(
+  adapterName: string,
+  raw: string,
+): CheckResult[] {
+  return adapterName === "claude"
+    ? claudeNativeSubagentRouteChecks(undefined, raw, false)
+    : [];
+}
+
+function hasCanonicalGoalReport(resultText: string): boolean {
+  return /^[ \t]*format: darrow-native-goal-report-v1[ \t]*\r?$/m.test(
+    resultText,
+  );
+}
+
+function adaptiveGoalSingleOwnerCheck(raw: string): CheckResult {
+  return {
+    name: "no parent replacement owner is spawned after acceptance",
+    passed: !raw.includes('"type":"darrow.parent_spawn_after_goal"'),
+    detail:
+      "the parent must retain the accepted owner instead of spawning another agent",
+  };
+}
+
+function adaptiveGoalParentWorkCheck(raw: string): CheckResult {
+  const parentWork = raw
+    .split("\n")
+    .some(
+      (line) =>
+        (line.includes('"type":"darrow.parent_tool_after_goal"') &&
+          !line.includes('"operation":"error"')) ||
+        (line.includes('"type":"darrow.parent_repository_tool_after_goal"') &&
+          !line.includes('"tool":"Agent"')),
+    );
+  return {
+    name: "no parent repository or external work occurs after owner acceptance",
+    passed: !parentWork,
+    detail:
+      "after acceptance the parent may only wait, relay feedback, or stop the owner",
+  };
 }
 
 const CLAUDE_GOAL_RUNNERS: Record<string, { model: string; effort: string }> = {
@@ -731,7 +805,9 @@ function claudeNativeSubagentRouteChecks(
 ): CheckResult[] {
   const evidence = claudeGoalRouteEvidence(raw);
   const evidenceSummary = claudeGoalRouteEvidenceSummary(raw);
-  const parentOperations = claudeParentLifecycleOperations(raw);
+  const parentOperations = claudeParentLifecycleOperations(raw).filter(
+    (operation) => operation.startsWith("after:"),
+  );
   const retainedGoalOwner = hasClaudeGoalAgentEvidence(raw);
   const reportsClaudeOwner = reportsClaudeNativeOwner(report);
   const parentLifecycleCheck = claudeParentLifecycleCheck(parentOperations);
@@ -741,8 +817,11 @@ function claudeNativeSubagentRouteChecks(
   return [
     {
       name: "Claude native-subagent route has retained effective-route evidence",
-      passed: [evidence, selected].every((value) => value !== undefined),
-      detail: `expected one marked completed Claude runner and one transcript-derived route observation (${evidenceSummary})`,
+      passed:
+        evidence !== undefined &&
+        selected !== undefined &&
+        claudeGoalRouteMatchesSelection(evidence, selected),
+      detail: `expected one marked completed Claude runner whose transcript-derived route exactly matches its selected model and effort (${evidenceSummary})`,
     },
     ...(reconcileReport
       ? [
@@ -922,6 +1001,9 @@ function trialFixtureOptions(
     additionalSkillDirs: (evalCase.additional_skills ?? []).map((path) =>
       resolve(ROOT, path),
     ),
+    additionalPluginRoots: (evalCase.additional_plugins ?? []).map((path) =>
+      resolve(ROOT, path),
+    ),
     sourceClaudePlugin: adapter.sourceClaudePlugin,
     sourceCodexPlugin: adapter.sourceCodexPlugin,
     caseDir: evalCase.caseDir,
@@ -932,7 +1014,7 @@ async function runTrial(
   options: RunCaseOptions,
   trial: number,
 ): Promise<TrialResult> {
-  const { adapter, model, effort, dry } = options;
+  const { evalCase, adapter, model, effort, dry } = options;
   const repoDir = await buildFixture(trialFixtureOptions(options));
   try {
     const baseRevision = await repositoryHead(repoDir);
@@ -944,7 +1026,11 @@ async function runTrial(
       prompt,
       model,
       effort,
-      control: goalRouteControl(options.expectedGoalRoute, followUpPrompt),
+      control: goalRouteControl(
+        options.expectedGoalRoute,
+        followUpPrompt,
+        expectsAdaptiveGoalOwner(evalCase),
+      ),
     });
     const result = await evaluateTrial(options, {
       trial,
@@ -1256,7 +1342,6 @@ const { values } = parseArgs({
     "mount-plugin-skills": { type: "boolean", default: false },
     "condition-label": { type: "string" },
     "require-evaluation-records": { type: "boolean", default: false },
-    "apply-goal-route": { type: "boolean", default: false },
     "case-routes": { type: "string" },
     "expected-goal-routes": { type: "string" },
     "assert-goal-routes": { type: "string" },
@@ -1293,11 +1378,7 @@ if (!baseAdapter) {
   );
   process.exit(1);
 }
-if (values["apply-goal-route"] && harness !== "codex") {
-  console.error("--apply-goal-route currently requires --harness codex");
-  process.exit(1);
-}
-const adapter = values["apply-goal-route"] ? codexGoalAdapter : baseAdapter;
+const adapter = baseAdapter;
 const judgeAdapter = values["judge-harness"]
   ? ADAPTERS[values["judge-harness"]]
   : undefined;
@@ -1481,7 +1562,6 @@ const runIdentity = new Bun.CryptoHasher("sha256")
         }),
       ),
       harness: adapter.name,
-      applyGoalRoute: values["apply-goal-route"],
       trials,
       threshold,
       dry: values.dry,

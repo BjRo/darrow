@@ -1,12 +1,14 @@
 id: goal-readiness-nonready-stops
-invariant: AGL-E7,AGL-E10,AGL-L14,AGL-S6
+invariant: AGL-P2,AGL-L2,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Implement the authoritative specification in REQUEST.md. On
-  Codex, invoke the $adaptive-goal skill. The specification has not previously
+  {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
+  The specification has not previously
   been assessed for implementation readiness. Acceptance would be that `bash
-  check.sh` passes, but implementation must stop on any non-ready verdict.
-  Select and apply the policy route. Keep the result local; commits, pushes,
-  pull requests, and other publication are not authorized.
+  check.sh` passes, but implementation and owner launch must stop on any
+  non-ready verdict. Select the policy route only after readiness is ready.
+  Keep the result local; publication is not authorized.
 fixture:
   commits:
     - message: "chore: init"
@@ -35,7 +37,16 @@ checks:
   - name: readiness sees the original product tree
     run: test ! -s .git/implementation-readiness-pre-status
 output_checks:
-  - name: complete readiness result precedes outer report
-    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action[\\s\\S]*format: darrow-native-goal-report-v1[\\s\\S]*Native goal blocked; valid continuation responses are listed above\\."
+  - name: complete readiness result is returned
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action"
   - name: non-ready result does not claim implementation
-    not_regex: "Native goal completed\\.|Implemented policy|mode = safe|mode = fast"
+    not_regex: "Status:[ \\t]*complete|Implemented (?:the )?policy|changed policy\\.txt|wrote mode ="
+transcript_checks:
+  - name: readiness uses its advertised skill exactly once
+    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
+  - name: readiness is not retried without a user resolution
+    not_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
+  - name: no work owner launches before ready
+    not_regex: '"tool":"spawn_agent"|"name":"Agent"'
+  - name: no lifecycle ledger is used
+    not_regex: "goal-loop step|darrow-native-goal-report"

@@ -1,11 +1,13 @@
 id: goal-preflight-quality-sensitive-localized
-invariant: AGL-P1,AGL-P2,AGL-P4,AGL-R1,AGL-L1,AGL-L2,AGL-L6,AGL-L10,AGL-S3
+invariant: AGL-C1,AGL-R1,AGL-L1,AGL-L5
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Add an exported isStableVersion(value) to src/version.js that returns true
+  {{skill_invocation}} Add an exported isStableVersion(value) to src/version.js that returns true
   only for canonical stable semantic versions: three dot-separated non-negative
   integer components with no leading zeroes except the value zero itself. Reject
   prerelease tags, build metadata, omitted components, and surrounding
-  whitespace. On Codex, invoke the $adaptive-goal skill. Add focused tests for
+  whitespace. Add focused tests for
   the accepted and rejected boundaries and run bash test.sh. The implementation
   is localized and fully specified, but the boundary cases make first-pass
   correctness more valuable than the cheapest routine route. Select and apply
@@ -83,13 +85,16 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: localized quality-sensitive route is selected
-    expect_regex: "format: darrow-native-goal-report-v1[\\s\\S]*workflow: implement-feature[\\s\\S]*risk: routine[\\s\\S]*profile: routine-plus[\\s\\S]*harness: codex[\\s\\S]*model: openai > gpt-5\\.6-luna[\\s\\S]*effort: high"
-  - name: selected route is effective
-    expect_regex: "model: openai > gpt-5\\.6-luna[\\s\\S]*effort: high[\\s\\S]*route_verified: true"
-  - name: supported host API applies the quality-sensitive route without a child runner
-    expect_regex: "route_applied_by: host-api[\\s\\S]*launch_boundary: host_api[\\s\\S]*evaluation_child_invocations: 0"
-  - name: no human stop was needed
-    expect_regex: "evaluation_human_interruptions: 0"
-  - name: routine verification gate is reported
-    expect_regex: "verification_gate: routine"
+  - name: quality-sensitive owner reports completion
+    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
+    flags: i
+  - name: verification evidence is returned
+    expect_regex: "test\\.sh"
+    flags: i
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+transcript_checks:
+  - name: routine-plus policy route is applied to the owner
+    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"implement-feature","risk":"routine","profile":"routine-plus"[^\n]*"selected":\{"harness":"codex","provider":"openai","model":"gpt-5\.6-luna","effort":"high"\}'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

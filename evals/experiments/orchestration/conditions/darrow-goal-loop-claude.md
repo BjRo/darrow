@@ -1,3 +1,10 @@
-Explicitly invoke the installed `$adaptive-goal` skill for the engineering task below. Use its read-only preflight to compile the task, then activate Claude native goal mode only when this surface exposes same-thread goal control. For comparability with the prior benchmark, pin the launch route to `claude|anthropic|claude-sonnet-5|medium`. Do not recursively invoke the Claude CLI from inside this Claude session; if same-thread control is unavailable, stop as `launch_required`. Let native goal mode own implementation, verification, recovery, and completion. Do not commit or publish changes.
+Use {{skill_invocation}} for the engineering task below. Run read-only
+preflight, reuse any preserved same-scope readiness result, bind every matching
+advertised capability, and select the fixed comparison route
+`claude|anthropic|claude-sonnet-5|medium`. Launch exactly one separate
+foreground Agent owner on that route. Let that owner implement, verify, recover,
+and report completion. Do not commit or publish changes. Do not use a lifecycle
+ledger, a nested Claude CLI, or a second owner.
 
-The final response must include the skill's exact preflight launch record. A human intervention means a `launch_required` stop for a person's decision or authority. Internal native continuation turns are not child invocations.
+A human intervention is a material question surfaced by the accepted owner.
+Internal owner continuation is not another child invocation.

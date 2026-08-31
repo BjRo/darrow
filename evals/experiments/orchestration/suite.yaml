@@ -17,7 +17,6 @@ modes:
     skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
     mount_plugin_skills: true
     require_evaluation_records: true
-    apply_goal_route: true
   darrow-ticket-pipeline:
     condition: conditions/darrow-ticket-pipeline.md
     skill_dir: ../../../plugins/orchestration/darrow-ticket-pipeline/skills/deliver-ticket

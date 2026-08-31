@@ -1,4 +1,4 @@
 interface:
   display_name: "Adaptive Goal Loop"
-  short_description: "Compile and launch a bounded native goal"
-  default_prompt: "Use $adaptive-goal to preflight this engineering request, select a proportionate route, and activate one host-native goal."
+  short_description: "Compile and launch one routed subagent owner"
+  default_prompt: "Use $darrow-goal-loop:adaptive-goal to preflight this engineering request, select a proportionate route, and launch one separate subagent owner."

@@ -146,9 +146,9 @@ common outcome behind a one-line skill invocation — pure ergonomics. A recipe
 owns the outcome-specific authority and publication safety, then delegates
 execution.
 
-| Plugin                                                                     | Use it to                                                                                         |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md) | Own ticket-specific authority and publication safety, then delegate execution to `adaptive-goal`. |
+| Plugin                                                                     | Use it to                                                                                                                        |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md) | Turn one ticket reference into the usual new-branch implementation and one-PR request, then delegate it once to `adaptive-goal`. |
 
 ### Automation
 

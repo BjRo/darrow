@@ -2,46 +2,50 @@ import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import {
   codexArgv,
   codexEvalSkillsRoot,
   codexResumeArgv,
   codexRunSucceeded,
   codexSkillActivation,
+  codexSpawnGuardRequested,
   codexThreadId,
   codexTokenUsage,
   retainedCodexEvidence,
 } from "./codex";
-import {
-  observeCodexTicketPipelineRoutes,
-  reconcileObservedGoalRouteApplication,
-} from "../orchestration-metrics";
+import { observeCodexTicketPipelineRoutes } from "../orchestration-metrics";
 import {
   fixtureStateFingerprint,
   guardCodexSpawn,
   repositoryFingerprint,
-  verifiedCodexSpawnAttestation,
+  verifiedCodexAcceptedOwner,
 } from "../codex-spawn-guard";
 
 const REPO = "/tmp/eval";
 const COMPLETE_CONTRACT = [
+  "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
   "Outcome: Implement the requested fixture behavior.",
   "Acceptance criteria: The requested behavior and checks pass.",
-  "Scope: The fixture implementation and tests.",
-  "Non-goals: No unrelated refactor.",
-  "Preserved work: Preserve user-owned changes.",
-  "Permissions: Local edits and checks only.",
-  "Workflow sequence: Change feature, feedback, then final checks.",
-  "Feedback checks: Run the focused behavior check after edits.",
-  "Final-tree checks: Run the repository test script.",
-  "Readiness gate: omitted — bounded conversational request needs no gate.",
-  "Independent review: omitted — routine local work needs no review.",
-  "Stopping budget: No user-specified numeric limit.",
-  "Human feedback: Pause for the smallest material question.",
-  "Completion report: Begin with the canonical report.",
-  "Protocol ledger: /tmp/darrow-goal-run.fixture",
+  "Scope and authority: included=fixture implementation and tests; authorized=local edits and checks only; forbidden=publication; preserve=unrelated repository state",
+  "Execution: workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine; route=codex|openai|gpt-5.6-luna|low; capabilities=none",
+  "Verification and gates: readiness=not required; review=not required; focused=run the focused test; final=run the repository gate; feedback=return the smallest complete question; blockers=return concrete evidence and the smallest next action",
+  "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");
+
+test("installs the adaptive-goal spawn guard only for relevant turns", () => {
+  expect(
+    codexSpawnGuardRequested("Implement the bounded refactor."),
+  ).toBeFalse();
+  expect(
+    codexSpawnGuardRequested("Invoke adaptive-goal for this request."),
+  ).toBeTrue();
+  expect(
+    codexSpawnGuardRequested(
+      "Assess the ticket first.",
+      "Now invoke adaptive-goal for the unchanged scope.",
+    ),
+  ).toBeTrue();
+});
 
 test("builds one persistent Codex session and one exact follow-up resume", () => {
   const initial = codexArgv({
@@ -234,6 +238,41 @@ describe("Codex skill activation observation", () => {
     });
   });
 
+  test("observes matching mounted skill bodies across Codex read shapes", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: "sed -n '1,260p' './.agents/skills/adaptive-goal/SKILL.md'",
+          aggregated_output:
+            "---\nname: adaptive-goal\ndescription: Orchestrate\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "/bin/zsh -lc \"lean-ctx -c 'sed -n 1,260p /tmp/eval/.agents/skills/grilling/SKILL.md'\"",
+          aggregated_output: "---\nname: grilling\ndescription: Grill\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal", "grilling"],
+    });
+  });
+
   test("observes canonical skill reads from an installed plugin cache", () => {
     const skillsRoot =
       "/tmp/eval-home/plugins/cache/darrow/darrow-discovery/0.1.0/skills";
@@ -267,6 +306,84 @@ describe("Codex skill activation observation", () => {
       complete: true,
       primarySkill: "plan-implementation",
       observedSkills: ["plan-implementation", "grilling"],
+    });
+  });
+
+  test("observes project capability reads alongside an installed orchestrator", () => {
+    const installedSkillsRoot =
+      "/tmp/eval-home/plugins/cache/darrow/darrow-goal-loop/0.13.0/skills";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${installedSkillsRoot}/adaptive-goal/SKILL.md`,
+          aggregated_output:
+            "---\nname: adaptive-goal\ndescription: Orchestrate\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "cat /tmp/eval/.agents/skills/assess-implementation-readiness/SKILL.md",
+          aggregated_output:
+            "---\nname: assess-implementation-readiness\ndescription: Assess\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, installedSkillsRoot)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal", "assess-implementation-readiness"],
+    });
+    expect(
+      retainedCodexEvidence(stream, REPO, undefined, installedSkillsRoot),
+    ).toContain('"skill":"assess-implementation-readiness"');
+  });
+
+  test("observes skills from independently installed composition plugins", () => {
+    const recipeRoot =
+      "/tmp/eval-home/plugins/cache/darrow/recipe/0.3.0/skills";
+    const goalRoot =
+      "/tmp/eval-home/plugins/cache/darrow/darrow-goal-loop/0.13.1/skills";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${recipeRoot}/ticket-to-pr/SKILL.md`,
+          aggregated_output: "---\nname: ticket-to-pr\ndescription: Recipe\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${goalRoot}/adaptive-goal/SKILL.md`,
+          aggregated_output: "---\nname: adaptive-goal\ndescription: Goal\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, [recipeRoot, goalRoot])).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "ticket-to-pr",
+      observedSkills: ["ticket-to-pr", "adaptive-goal"],
     });
   });
 
@@ -577,66 +694,88 @@ describe("Codex skill activation observation", () => {
     );
   });
 
-  test("retains only verified spawn attestation and later parent-tool evidence", async () => {
+  test("retains one verified inline owner boundary and post-owner evidence", async () => {
     const repo = await mkdtemp(join(tmpdir(), "darrow-codex-adapter-"));
+    const ownerId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
     const objectiveRoot = await mkdtemp(
       join(tmpdir(), "darrow-codex-objective-"),
     );
     try {
       await writeFile(join(repo, "fixture.txt"), "base\n");
       await mkdir(join(repo, ".git"));
-      const guarded = await guardCodexSpawn(
-        {
-          cwd: repo,
-          turn_id: "parent-turn",
-          tool_name: "Agent",
-          tool_input: {
-            message: `- phase: adaptive-goal-runner\n${COMPLETE_CONTRACT}`,
-            model: "gpt-5.6-luna",
-            reasoning_effort: "low",
-            fork_turns: "none",
-          },
+      const policy = {
+        secret: "secret",
+        baselineSha256: await repositoryFingerprint(repo),
+        fixtureStateSha256: await fixtureStateFingerprint(repo),
+        requestSha256: "4".repeat(64),
+        objectiveRoot,
+        goalLoopPath: "/plugin/bin/goal-loop",
+        statePath: join(repo, ".git", "guard-state"),
+      };
+      const hook = {
+        hook_event_name: "PreToolUse",
+        tool_use_id: "owner-tool-use",
+        turn_id: "parent-turn",
+        cwd: repo,
+        tool_name: "Agent",
+        tool_input: {
+          task_name: "adaptive_goal_fixture",
+          message: "- phase: adaptive-goal-owner\n" + COMPLETE_CONTRACT,
+          model: "gpt-5.6-luna",
+          reasoning_effort: "low",
+          fork_turns: "none",
         },
-        {
-          secret: "secret",
-          baselineSha256: await repositoryFingerprint(repo),
-          fixtureStateSha256: await fixtureStateFingerprint(repo),
-          requestSha256: "4".repeat(64),
-          objectiveRoot,
-          goalLoopPath: "/plugin/bin/goal-loop",
-          statePath: join(repo, ".git", "guard-state"),
-        },
-      );
+      };
+      const guarded = await guardCodexSpawn(hook, policy);
       const prompt = (
         guarded?.hookSpecificOutput as {
           updatedInput: { message: string };
         }
       ).updatedInput.message;
+      const acceptedOwner = await verifiedCodexAcceptedOwner(
+        policy.statePath,
+        policy.secret,
+        ownerId,
+      );
+
       const spawnItem = {
         id: "spawn-1",
         type: "collab_tool_call",
         tool: "spawn_agent",
+        status: "completed",
         sender_thread_id: "parent-thread",
-        receiver_thread_ids: ["goal-thread"],
-        task_name: "/root/adaptive_goal_runner",
+        receiver_thread_ids: [ownerId],
         prompt,
       };
       const stream = [
+        JSON.stringify({ type: "item.completed", item: spawnItem }),
         JSON.stringify({
-          type: "item.started",
-          item: { ...spawnItem, status: "in_progress" },
+          type: "item.completed",
+          item: {
+            id: "wait-1",
+            type: "collab_tool_call",
+            tool: "wait_agent",
+            status: "completed",
+            receiver_thread_ids: [ownerId],
+          },
         }),
         JSON.stringify({
           type: "item.completed",
-          item: { ...spawnItem, status: "completed" },
+          item: {
+            id: "non-tool-error",
+            type: "error",
+            message: "transient host notice",
+          },
         }),
         JSON.stringify({
-          type: "item.started",
+          type: "item.completed",
           item: {
             id: "parent-command",
             type: "command_execution",
             command: "bash test.sh",
-            status: "in_progress",
+            exit_code: 0,
+            status: "completed",
+            aggregated_output: "",
           },
         }),
         JSON.stringify({
@@ -655,12 +794,17 @@ describe("Codex skill activation observation", () => {
         exitCode: 0,
         stderrPresent: false,
         spawnGuardSecret: "secret",
+        acceptedAgentRef: ownerId,
+        acceptedOwner,
       });
-      expect(retained).toContain('"goal_spawn_attestation"');
-      expect(retained).toContain('"model":"gpt-5.6-luna"');
+      expect(retained).toContain("- phase: adaptive-goal-owner");
+      expect(retained).toContain('"tool":"wait_agent"');
       expect(retained).toContain('"type":"darrow.parent_tool_after_goal"');
-      expect(retained).toContain('"type":"darrow.human_feedback_answer"');
       expect(retained.match(/darrow\.parent_tool_after_goal/g)).toHaveLength(1);
+      expect(retained).toContain('"type":"darrow.human_feedback_answer"');
+      expect(retained).not.toContain("goal_spawn_attestation");
+      expect(retained).toContain('"type":"darrow.goal_owner_accepted"');
+      expect(retained).toContain('"model":"gpt-5.6-luna"');
       expect(retained).not.toContain(
         "Implement the requested fixture behavior",
       );
@@ -670,536 +814,82 @@ describe("Codex skill activation observation", () => {
     }
   });
 
-  test("exempts only a successful release bound to the attested attachment", async () => {
-    const repo = await mkdtemp(join(tmpdir(), "darrow-codex-adapter-"));
-    const objectiveRoot = await mkdtemp(
-      join(tmpdir(), "darrow-codex-objective-"),
+  test("keeps same-owner feedback bound to the accepted owner", () => {
+    const owner = "/root/adaptive_goal_fixture";
+    const collaboration = (
+      tool: "spawn_agent" | "wait_agent" | "followup_task",
+      receiver: string,
+    ) =>
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          id: tool + "-" + receiver,
+          type: "collab_tool_call",
+          tool,
+          status: "completed",
+          receiver_thread_ids: [receiver],
+          task_name: tool === "spawn_agent" ? receiver : undefined,
+          prompt:
+            tool === "spawn_agent" ? "- phase: adaptive-goal-owner" : undefined,
+        },
+      });
+    const retained = retainedCodexEvidence(
+      [
+        collaboration("spawn_agent", owner),
+        collaboration("wait_agent", owner),
+        collaboration("followup_task", owner),
+        collaboration("followup_task", "/root/replacement_owner"),
+      ].join("\n"),
+      REPO,
+      {
+        exitCode: 0,
+        stderrPresent: false,
+        acceptedAgentRef: owner,
+      },
     );
-    try {
-      await mkdir(join(repo, ".git"));
-      await writeFile(join(repo, "fixture.txt"), "base\n");
-      const attachmentDir = join(objectiveRoot, "darrow-goal-contract.bound");
-      await mkdir(attachmentDir);
-      const contractFile = join(attachmentDir, "goal-contract.md");
-      const digest = createHash("sha256")
-        .update(COMPLETE_CONTRACT)
-        .digest("hex");
-      await writeFile(contractFile, COMPLETE_CONTRACT);
-      const bounded = [
-        "Before doing any work, read the complete goal contract at:",
-        contractFile,
-        `Expected SHA-256: ${digest}`,
-        "Verify the file digest before following the contract.",
-        "If the file is missing, unreadable, or does not match, stop and report the evidence gap.",
-        "This accepted ownership-marked task makes you the sole work owner.",
-        "The applicable launch contract says whether the launcher already persisted this contract in that thread or you must persist this contract in that thread before work.",
-        "Goal persistence belongs to the existing work owner; it does not create another owner.",
-        "Follow that complete contract through terminal completion.",
-        "",
-      ].join("\n");
-      const objectiveFile = join(attachmentDir, "goal-objective.txt");
-      await writeFile(objectiveFile, bounded);
-      const guarded = await guardCodexSpawn(
-        {
-          cwd: repo,
-          turn_id: "parent-turn",
-          tool_name: "Agent",
-          tool_input: {
-            message: `- phase: adaptive-goal-runner\n- objective_file: ${objectiveFile}`,
-            model: "gpt-5.6-luna",
-            reasoning_effort: "low",
-            fork_turns: "none",
-          },
-        },
-        {
-          secret: "secret",
-          baselineSha256: await repositoryFingerprint(repo),
-          fixtureStateSha256: await fixtureStateFingerprint(repo),
-          requestSha256: "4".repeat(64),
-          objectiveRoot,
-          goalLoopPath: "/plugin/bin/goal-loop",
-          statePath: join(repo, ".git", "guard-state"),
-        },
-      );
-      const prompt = (
-        guarded?.hookSpecificOutput as { updatedInput: { message: string } }
-      ).updatedInput.message;
-      const attestation = verifiedCodexSpawnAttestation(prompt, "secret");
-      expect(attestation).toMatchObject({
-        objectiveMode: "file-backed",
-        attachmentDir,
-        contractSha256: digest,
-        forkTurns: "none",
-      });
-      if (!attestation) throw new Error("expected verified spawn attestation");
-      const spawn = (type: "item.started" | "item.completed") =>
-        JSON.stringify({
-          type,
-          item: {
-            id: "spawn-1",
-            type: "collab_tool_call",
-            tool: "spawn_agent",
-            status: type === "item.started" ? "in_progress" : "completed",
-            sender_thread_id: "parent-thread",
-            receiver_thread_ids: type === "item.started" ? [] : ["goal-thread"],
-            task_name:
-              type === "item.started"
-                ? undefined
-                : "/root/adaptive_goal_runner",
-            prompt,
-          },
-        });
-      const goalLoopPath = "/plugin/bin/goal-loop";
-      const activation = JSON.stringify({
+    expect(retained).toContain('"tool":"wait_agent"');
+    expect(retained).toContain('"tool":"followup_task"');
+    expect(retained).not.toContain("/root/replacement_owner");
+    expect(retained.match(/darrow\.parent_tool_after_goal/g)).toHaveLength(1);
+  });
+
+  test("retains an opaque replacement spawn after owner acceptance", () => {
+    const owner = "/root/adaptive_goal_fixture";
+    const replacement = "/root/replacement_owner";
+    const collaboration = (receiver: string, prompt: string, sender: string) =>
+      JSON.stringify({
         type: "item.completed",
         item: {
-          id: "activate-1",
-          type: "command_execution",
-          command:
-            `/bin/bash ${goalLoopPath} step activate --ledger ${attestation.ledger} ` +
-            "--applied-by native-subagent --boundary native_subagent " +
-            "--agent-ref /root/adaptive_goal_runner " +
-            "--effective-route 'codex|openai|gpt-5.6-luna|low' " +
-            "--route-verified true",
-          exit_code: 0,
+          type: "collab_tool_call",
+          tool: "spawn_agent",
           status: "completed",
-          aggregated_output: [
-            "format\tdarrow-goal-step-v1",
-            "step\tactivate",
-            "status\trecorded",
-            "agent_ref\t/root/adaptive_goal_runner",
-            "effective_route\tcodex|openai|gpt-5.6-luna|low",
-            "route_verified\ttrue",
-          ].join("\n"),
+          sender_thread_id: sender,
+          receiver_thread_ids: [receiver],
+          task_name: receiver,
+          prompt,
         },
       });
-      const release = JSON.stringify({
-        type: "item.completed",
-        item: {
-          id: "release-1",
-          type: "command_execution",
-          command:
-            `/bin/bash ${goalLoopPath} step release-objective ` +
-            "--ledger /tmp/darrow-goal-run.fixture " +
-            `--attachment-dir ${attachmentDir} --expected-sha256 ${digest}`,
-          exit_code: 0,
-          status: "completed",
-          aggregated_output: [
-            "format\tdarrow-native-goal-objective-release-v1",
-            "status\treleased",
-            `attachment_dir\t${attachmentDir}`,
-          ].join("\n"),
-        },
-      });
-      const persistence = (status: "active" | "unavailable") =>
-        JSON.stringify({
-          type: "item.completed",
-          item: {
-            id: `goal-state-${status}`,
-            type: "command_execution",
-            sender_thread_id: "/root/adaptive_goal_runner",
-            command:
-              `/bin/bash ${goalLoopPath} step goal-state ` +
-              `--ledger ${attestation.ledger} --status ${status}`,
-            exit_code: 0,
-            status: "completed",
-            aggregated_output: [
-              "format\tdarrow-goal-step-v1",
-              "step\tgoal-state",
-              "status\trecorded",
-              `goal_state\t${status}`,
-            ].join("\n"),
-          },
-        });
-      const lifecycle = (
-        tool: "wait_agent" | "interrupt_agent" | "close_agent",
-        agentRef = "/root/adaptive_goal_runner",
-        replayedPrompt?: string,
-      ) =>
-        JSON.stringify({
-          type: "item.completed",
-          item: {
-            id: `${tool}-1`,
-            type: "collab_tool_call",
-            tool,
-            status: "completed",
-            sender_thread_id: "parent-thread",
-            receiver_thread_ids: [agentRef],
-            prompt: replayedPrompt,
-          },
-        });
-      const report = JSON.stringify({
-        type: "item.completed",
-        item: {
-          id: "report-1",
-          type: "command_execution",
-          command:
-            `/bin/bash ${goalLoopPath} step report --ledger ${attestation.ledger} ` +
-            "--status complete --human-interruptions 0",
-          exit_code: 0,
-          status: "completed",
-          aggregated_output: [
-            "format: darrow-native-goal-report-v1",
-            "launch_boundary: native_subagent",
-            "evaluation_child_invocations: 1",
-            "Native goal completed.",
-          ].join("\n"),
-        },
-      });
-      const retained = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          activation,
-          persistence("active"),
-          lifecycle("wait_agent"),
-          release,
-          lifecycle("close_agent"),
-          report,
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(retained).toContain('"type":"darrow.goal_activation"');
-      expect(retained).toContain(
-        '"type":"darrow.goal_persistence","status":"confirmed"',
-      );
-      expect(retained).toContain('"type":"darrow.objective_release"');
-      expect(retained).toContain('"type":"darrow.goal_report"');
-      expect(
-        retained.match(/"agent_ref":"\/root\/adaptive_goal_runner"/g),
-      ).toHaveLength(5);
-      expect(retained).toContain('"tool":"wait_agent"');
-      expect(retained).toContain('"tool":"close_agent"');
-      expect(retained).not.toContain("darrow.parent_tool_after_goal");
-      const waitBeforeActivation = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          lifecycle("wait_agent"),
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(waitBeforeActivation).toContain("darrow.parent_tool_after_goal");
-      const wrongLifecycleTarget = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          activation,
-          lifecycle("wait_agent", "/root/other_goal_runner"),
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(wrongLifecycleTarget).toContain("darrow.parent_tool_after_goal");
-      expect(wrongLifecycleTarget).not.toContain(
-        '"agent_ref":"/root/other_goal_runner"',
-      );
-      const targetlessLifecycle = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          activation,
-          lifecycle("wait_agent", "/root/adaptive_goal_runner", prompt).replace(
-            ',"receiver_thread_ids":["/root/adaptive_goal_runner"]',
-            "",
-          ),
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(targetlessLifecycle).toContain("darrow.parent_tool_after_goal");
-      const unavailableReport = report
-        .replace("--status complete", "--status launch-required")
-        .replace(
-          "launch_boundary: native_subagent",
-          "launch_boundary: launch_required",
-        )
-        .replace(
-          "Native goal completed.",
-          "Native goal persistence: unavailable.\\nNative goal requires host launch.",
-        );
-      const unavailable = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          activation,
-          persistence("unavailable"),
-          lifecycle("wait_agent"),
-          release,
-          unavailableReport,
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(unavailable).toContain(
-        '"type":"darrow.goal_persistence","status":"unavailable"',
-      );
-      expect(unavailable).toContain(
-        '"type":"darrow.goal_report","status":"launch-required"',
-      );
-      const wrong = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          release.replace(
-            `--expected-sha256 ${digest}`,
-            `--expected-sha256 ${"0".repeat(64)}`,
-          ),
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(wrong).toContain("darrow.parent_tool_after_goal");
-      const forgedRoute = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          activation.replace(
-            /codex\|openai\|gpt-5\.6-luna\|low/g,
-            "codex|openai|gpt-5.6-sol|high",
-          ),
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(forgedRoute).toContain("darrow.parent_tool_after_goal");
-      const differentChild = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          activation.replaceAll(
-            "/root/adaptive_goal_runner",
-            "/root/other_goal_runner",
-          ),
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(differentChild).toContain("darrow.parent_tool_after_goal");
-      expect(differentChild).not.toContain('"type":"darrow.goal_activation"');
-      const conflictingSpawnIdentity = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed").replace(
-            '"receiver_thread_ids":["goal-thread"]',
-            '"receiver_thread_ids":["/root/other_goal_runner"]',
-          ),
-          activation,
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-          acceptedAgentRef: "/root/adaptive_goal_runner",
-        },
-      );
-      expect(conflictingSpawnIdentity).not.toContain(
-        '"type":"darrow.goal_activation"',
-      );
-      for (const unsafeReceivers of [
-        ["/root/../other_goal_runner"],
-        ["/root/adaptive_goal_runner", "/root/other_goal_runner"],
-      ]) {
-        const unsafeSpawnIdentity = retainedCodexEvidence(
-          [
-            spawn("item.started"),
-            spawn("item.completed").replace(
-              '["goal-thread"]',
-              JSON.stringify(unsafeReceivers),
-            ),
-            activation,
-          ].join("\n"),
-          repo,
-          {
-            exitCode: 0,
-            stderrPresent: false,
-            spawnGuardSecret: "secret",
-            goalLoopPath,
-            acceptedAgentRef: "/root/adaptive_goal_runner",
-          },
-        );
-        expect(unsafeSpawnIdentity).not.toContain(
-          '"type":"darrow.goal_activation"',
-        );
-      }
-      const redactedPublicEvent = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed").replace(
-            ',"task_name":"/root/adaptive_goal_runner"',
-            "",
-          ),
-          activation,
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-          acceptedAgentRef: "/root/adaptive_goal_runner",
-        },
-      );
-      expect(redactedPublicEvent).toContain('"type":"darrow.goal_activation"');
-      expect(redactedPublicEvent).toContain(
-        '"agent_ref":"/root/adaptive_goal_runner"',
-      );
-      const launchStop = JSON.stringify({
-        type: "item.completed",
-        item: {
-          id: "launch-stop-1",
-          type: "command_execution",
-          command:
-            `/bin/bash ${goalLoopPath} step launch-stop ` +
-            `--ledger ${attestation.ledger} --reason launch-unavailable ` +
-            "--agent-ref /root/adaptive_goal_runner",
-          exit_code: 0,
-          status: "completed",
-          aggregated_output: [
-            "format\tdarrow-goal-step-v1",
-            "step\tlaunch-stop",
-            "status\trecorded",
-            "reason\tlaunch-unavailable",
-            "agent_ref\t/root/adaptive_goal_runner",
-          ].join("\n"),
-        },
-      });
-      const launchRequiredReport = report
-        .replace("--status complete", "--status launch-required")
-        .replace("Native goal completed.", "Native goal requires host launch.")
-        .replace("harness: codex", "harness: none")
-        .replace("model: openai > gpt-5.6-luna", "model: none > none")
-        .replace("effort: low", "effort: none")
-        .replace("route_applied_by: native-subagent", "route_applied_by: none")
-        .replace("route_verified: true", "route_verified: false")
-        .replace(
-          "launch_boundary: native_subagent",
-          "launch_boundary: launch_required",
-        );
-      const rejectedActivation = activation
-        .replace('"exit_code":0', '"exit_code":1')
-        .replace('"status":"completed"', '"status":"failed"')
-        .replace(
-          /"aggregated_output":"[^"]*(?:\\n[^"]*)*"/,
-          '"aggregated_output":"activation rejected"',
-        );
-      const failedAfterSpawn = retainedCodexEvidence(
-        [
-          spawn("item.started"),
-          spawn("item.completed"),
-          rejectedActivation,
-          lifecycle("interrupt_agent"),
-          launchStop,
-          release,
-          lifecycle("close_agent"),
-          launchRequiredReport,
-        ].join("\n"),
-        repo,
-        {
-          exitCode: 0,
-          stderrPresent: false,
-          spawnGuardSecret: "secret",
-          goalLoopPath,
-        },
-      );
-      expect(failedAfterSpawn).toContain(
-        '"type":"darrow.goal_activation_rejected"',
-      );
-      expect(failedAfterSpawn).toContain('"tool":"interrupt_agent"');
-      expect(failedAfterSpawn).toContain('"tool":"close_agent"');
-      expect(failedAfterSpawn).toContain('"type":"darrow.goal_launch_stop"');
-      expect(failedAfterSpawn).toContain('"child_invocations":1');
-      expect(failedAfterSpawn).toContain(
-        '"type":"darrow.goal_report","status":"launch-required"',
-      );
-      expect(failedAfterSpawn).not.toContain("darrow.parent_tool_after_goal");
-      const failedLaunchResult = [
-        "format: darrow-native-goal-report-v1",
-        "workflow: change-feature",
-        "risk: routine",
-        "profile: routine",
-        "harness: none",
-        "model: none > none",
-        "effort: none",
-        "route_applied_by: none",
-        "route_verified: false",
-        "launch_boundary: launch_required",
-        "verification_gate: routine",
-        "evaluation_child_invocations: 1",
-        "evaluation_human_interruptions: 0",
-        "enforcement: helper",
-        "Native goal requires host launch.",
-      ].join("\n");
-      expect(
-        reconcileObservedGoalRouteApplication(
-          failedLaunchResult,
-          failedAfterSpawn,
-          { harness: "codex", model: "gpt-5.6-luna", effort: "low" },
-        )?.passed,
-      ).toBe(true);
-      const inlineFailedAfterSpawn = failedAfterSpawn
-        .split("\n")
-        .filter((line) => !line.includes('"type":"darrow.objective_release"'))
-        .join("\n")
-        .replaceAll(
-          '"objectiveMode":"file-backed"',
-          '"objectiveMode":"inline"',
-        );
-      expect(
-        reconcileObservedGoalRouteApplication(
-          failedLaunchResult,
-          inlineFailedAfterSpawn,
-          { harness: "codex", model: "gpt-5.6-luna", effort: "low" },
-        )?.passed,
-      ).toBe(true);
-    } finally {
-      await rm(repo, { recursive: true, force: true });
-      await rm(objectiveRoot, { recursive: true, force: true });
-    }
+    const retained = retainedCodexEvidence(
+      [
+        collaboration(owner, "- phase: adaptive-goal-owner", "/root/parent"),
+        collaboration(
+          replacement,
+          "unmarked replacement task",
+          "/root/parent_followup",
+        ),
+      ].join("\n"),
+      REPO,
+      {
+        exitCode: 0,
+        stderrPresent: false,
+        acceptedAgentRef: owner,
+      },
+    );
+    expect(retained).toContain('"type":"darrow.parent_spawn_after_goal"');
+    expect(retained).toContain('"tool":"spawn_agent"');
+    expect(retained).toContain('"sender_thread_id":"/root/parent_followup"');
+    expect(retained).toContain(`"agent_ref":"${replacement}"`);
+    expect(retained).not.toContain("unmarked replacement task");
   });
 
   test("retains a failed native spawn attempt as omission evidence", () => {

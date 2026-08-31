@@ -1,0 +1,24 @@
+id: ticket-to-pr-ambiguous-ticket
+invariant: TPR-C1,TPR-C2
+goal_report: forbidden
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  https://example.invalid/tickets/99
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: competing ticket references cause no mutation
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 &&
+      git diff --exit-code
+output_checks:
+  - name: asks for one exact ticket reference
+    expect_regex: "one (?:exact|single) (?:ticket )?(?:ID|id|URL|reference)|exactly one"
+transcript_checks:
+  - name: ambiguous input is not delegated
+    not_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")'

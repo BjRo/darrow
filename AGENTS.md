@@ -56,32 +56,8 @@ Review agents must not run Git or GitHub commands against this repository.
 
 ## Tests and evals
 
-- Give every skill colocated eval cases that verify its public behavior and
-  intent boundaries. Test deterministic scripts separately when present.
-- When changing `darrow-review`'s externally visible independent-review or
-  fix-verification outcome semantics, also run the affected review-composition
-  evals under `plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/`.
-- Develop behavior-changing variants from comparative evidence. Run the
-  candidate and relevant control against the same fixtures, prompts, checks,
-  harness, model, and effort; report trial count, metrics, and limitations.
-- Evaluate host-specific behavior on its native harness. Never use Claude as a
-  proxy for Codex behavior or Codex as a proxy for Claude behavior. Run both
-  harnesses only when the behavior or comparative claim is explicitly
-  cross-host.
-- During iterative live eval work, run cases sequentially and stop at the first
-  failure. Inspect the evidence and determine whether the cause is product
-  behavior, a harness or fixture defect, or an invalid expectation; fix it or
-  deliberately revise the case before running the next eval. Never continue
-  past an unexplained failure.
-- Run relevant script tests with both `bash` and `/bin/bash`.
-- Run evals with `cd evals && bun runner/run.ts --case <substring> --harness
-<claude|codex> [--dry]`.
-- Keep eval prompts participant-visible and hide their pass criteria.
-- Keep fixture skills inert in the source tree: never name an eval fixture
-  `SKILL.md`. Use a non-discoverable template filename and materialize it as
-  `SKILL.md` only inside the isolated eval repository during setup.
-- Quote YAML prompts containing `#` and make fixture binaries succeed on valid
-  empty state.
+Before creating, changing, or running evals,
+read [`docs/eval-development.md`](docs/eval-development.md).
 
 ## Git
 

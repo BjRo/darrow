@@ -1,8 +1,9 @@
 id: goal-review-repair-verification
-invariant: AGL-P6,AGL-P11,AGL-L11,AGL-S5,AGL-X6
+invariant: AGL-C2,AGL-L2,AGL-L5,AGL-S3
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Continue the existing candidate in src/config.js. On Codex,
-  invoke the $adaptive-goal skill. Treat the existing candidate as ready for its
+  {{skill_invocation}} Continue the existing candidate in src/config.js. Treat the existing candidate as ready for its
   first final review: run `bash check.sh`, then independently review its exact
   current content before changing or completing it. The approved outcome is
   TIMEOUT_MS equal to 2500, while RETRY_COUNT must remain 3. On a blocking
@@ -94,10 +95,17 @@ checks:
   - name: repair and fix verification stay local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: completion reports the clear fix-verification outcome
-    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Fix verification:[ \\t]*clear\\.[ \\t]*$"
-  - name: completion reports the prior failed target and finding
-    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?Initial independent review:[ \\t]*blocking[ \\t]+—[ \\t]+.*(?:RETRY_COUNT|retry[- ]count).*$"
+  - name: owner reports completion after bounded repair verification
+    expect_regex: "Status:[ \\t]*complete"
     flags: i
-  - name: completion preserves the outer launch record
-    expect_regex: "format: darrow-native-goal-report-v1"
+  - name: completion reports the clear fix-verification outcome
+    expect_regex: "Fix[^\\n]{0,120}verification[^\\n]{0,160}\\bclear(?:ed)?\\b"
+    flags: i
+  - name: completion reports the prior blocking finding
+    expect_regex: "(?:Initial[^\\n]{0,80})?(?:Independent|Comprehensive)[^\\n]{0,80}review[^\\n]{0,120}\\bblock(?:ing|ed)\\b[^\\n]{0,160}(?:RETRY_COUNT|retry[- ]count)"
+    flags: i
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+transcript_checks:
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

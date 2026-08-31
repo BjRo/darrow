@@ -1,34 +1,20 @@
 id: goal-review-high-selected-claude
-invariant: AGL-P4,AGL-P7,AGL-P11,AGL-R7,AGL-E1,AGL-E2,AGL-E3,AGL-E4,AGL-E5,AGL-E6,AGL-E7,AGL-E8,AGL-L9,AGL-L10,AGL-L11,AGL-S5,AGL-X6
+invariant: AGL-C1,AGL-C2,AGL-R2,AGL-L1,AGL-L2,AGL-L5,AGL-X1
+goal_report: forbidden
+goal_route_checks: false
 prompt: >-
-  /adaptive-goal Change the exported sessionCookieOptions in auth-config.js so
-  sameSite is exactly "strict" instead of "lax". On Claude, invoke the
-  $adaptive-goal skill. This is a security boundary where the cost of a mistake
-  is high, but the requested implementation is clear, localized, and fully
-  specified. Add focused evidence for the new value and preserve the other
-  cookie options. Acceptance is that bash test.sh passes. Select and apply the
-  policy route rather than pinning it. Keep the result local; commits, pushes,
-  pull requests, and other publication are not authorized. Follow the skill's
-  numbered Claude launch sequence literally. The goal owner must run `bash
-  test.sh` against the final edited target before invoking the comprehensive
-  independent review, and must not rerun it after a clear review response.
-  Before its one Agent starts, use
-  only native Read, Glob, or Grep for inspection; do not call Bash `echo`,
-  `ls`, `find`, another placeholder/no-op, a redirect, or a command list. An
-  exact standalone `true` is tolerated only as an inert no-op and supplies no
-  evidence; do not combine it with anything. Make the literal standalone
-  ledger-start helper the first protocol-bearing Bash call.
-  The repository is `{{repo_dir}}` and the helper directory is
-  `{{repo_dir}}/.git/eval-plugin/bin`; no additional inspection, listing, or
-  path discovery is needed before the owner. Make the first protocol-bearing
-  Bash call exactly `/bin/bash {{repo_dir}}/.git/eval-plugin/bin/goal-loop step
-  start --repo {{repo_dir}} --host claude`, then pass its returned ledger path
-  to every subsequent helper step.
-  Do not use Bash `pwd` before the owner or `git status` after it. After the
-  Agent returns, use only the exact route gate, objective-release, and terminal
-  report calls.
-  Begin the final response directly with the raw `format:` report line, with no
-  prose or Markdown fence before or around the report.
+  {{skill_invocation}} Change the exported sessionCookieOptions in
+  auth-config.js so sameSite is exactly "strict" instead of "lax". This is a
+  security boundary where the cost of a mistake is high, but the requested
+  implementation is clear, localized, and fully specified. Add focused
+  evidence for the new value and preserve the other cookie options. Acceptance
+  is that bash test.sh passes. Select the policy route and launch exactly one
+  separate foreground Agent owner. Keep the result local; commits, pushes,
+  pull requests, and other publication are not authorized. The owner must run
+  bash test.sh against the final target before invoking the advertised
+  independent-review skill and must not rerun it after a clear response. An ad
+  hoc review is not a substitute. The parent must not inspect the repository or
+  child work after Agent returns. Use no lifecycle ledger or nested goal.
 fixture:
   commits:
     - message: "chore: init"
@@ -74,6 +60,12 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: high risk invokes one matching independent review
     run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
+  - name: review token exists only in the advertised skill instruction
+    run: >-
+      grep -F 'independent-review-skill-contract-v1'
+      .claude/skills/independent-code-review/SKILL.md >/dev/null &&
+      ! grep -F 'independent-review-skill-contract-v1'
+      .claude/bin/independent-review-fixture >/dev/null
   - name: independent review clears the final changed target
     run: >-
       test "$(cut -f1 .git/independent-review-invocations)" =
@@ -84,12 +76,20 @@ checks:
       awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
       END { exit ok ? 0 : 1 }' .git/independent-review-invocations
 output_checks:
-  - name: completion preserves the selected workflow dimensions
-    expect_regex: "^workflow: change-feature$[\\s\\S]*^risk: high$[\\s\\S]*^profile: routine$"
-  - name: completion reports the clear independent-review outcome
-    expect_regex: "^[ \\t]*(?:[-*+][ \\t]+)?(?:(?:Independent review:|\\*\\*Independent review:\\*\\*)[ \\t]*clear\\.|\\*\\*Independent review:[ \\t]*clear\\.\\*\\*)[ \\t]*$"
+  - name: owner reports completion
+    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
+    flags: i
+  - name: completion reports clear independent review
+    expect_regex: "Independent[^\\n]{0,80}review[\\s\\S]{0,240}(?:\\bclear\\b|\\bno blocking findings\\b)"
+    flags: i
 transcript_checks:
-  - name: one marked selected foreground runner is id-bound to route observation
-    expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"\}[\s\S]*"type":"darrow.goal_agent_completion","tool_use_id":"\1","subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","status":"completed","agent_id":"([A-Za-z0-9]+)"[\s\S]*"type":"darrow.claude_route_observation"[^\r\n]*"goal_tool_use_id":"\1","agent_id":"\2"'
-  - name: no second adaptive-goal runner is launched
+  - name: one marked selected foreground owner is launched
+    expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-owner"\}'
+  - name: no second adaptive-goal owner is launched
     not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"[\s\S]*"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)"'
+  - name: advertised independent review skill is invoked
+    expect_regex: '"name":"Skill","input":\{"skill":"independent-code-review"\}'
+  - name: owner route is transcript-verified once
+    expect_regex: '"type":"darrow.claude_route_observation"[^\n]*"status":"observed"[^\n]*"model":"claude-sonnet-5","effort":"low"[\s\S]*"type":"darrow.claude_route_confirmation"[^\n]*"status":"confirmed"'
+  - name: no lifecycle ledger or retired route gate is used
+    not_regex: "goal-loop step|Protocol ledger|claude-route-gate"

@@ -1,0 +1,27 @@
+id: goal-blocked-retry-existing-publication
+invariant: AGL-S2
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  Use {{skill_invocation}} to decide the next lifecycle action only. The retained
+  owner in this same thread was blocked because pull-request creation returned
+  an ambiguous result. It has now observed that the matching pull request
+  already exists. The user says "retry" without qualification. May the owner
+  issue another pull-request creation request, and what should it do with the
+  observed pull request? Answer briefly.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+output_checks:
+  - name: rejects another publication attempt
+    expect_regex: "(?:^[ \\t]*No\\b|(?:do not|must not|should not|may not|cannot|can['’]t|never|not[ \\t]+(?:permitted|allowed)[ \\t]+to)[^.!?\\n]{0,100}(?:retry|repeat|reissue|create|open|issue)|(?:retry|repeat|reissue|create|open|issue)[^.!?\\n]{0,80}(?:must not|should not|may not|cannot|can['’]t|is not[ \\t]+(?:permitted|allowed))|(?:avoid|refrain[ \\t]+from)[^.!?\\n]{0,80}(?:retry(?:ing)?|repeat(?:ing)?|reissu(?:e|ing)|creat(?:e|ing)|open(?:ing)?|issu(?:e|ing))|(?:retry(?:ing)?|repeat(?:ing)?|reissu(?:e|ing)|creat(?:e|ing)|open(?:ing)?|issu(?:e|ing))[^.!?\\n]{0,80}(?:unnecessary|not[ \\t]+needed))"
+    flags: i
+  - name: uses the observed publication
+    expect_regex: "(?:report|return|reuse|use|treat|record|complete)[^.!?\\n]{0,100}(?:existing|observed|pull[- ]request|PR|publication|it|its)"
+    flags: i
+transcript_checks:
+  - name: advice-only invocation launches no owner or helper
+    not_regex: '"tool":"spawn_agent"|"name":"Agent"|goal-loop (?:prepare|route|step)'
