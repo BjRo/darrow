@@ -127,15 +127,18 @@ The launch representation uses seven stable, human-readable fields exactly
 once: `Role:`, `Outcome:`, `Acceptance criteria:`, `Scope and authority:`,
 `Execution:`, `Verification and gates:`, and `Completion evidence:`. Scope and
 authority names included work, authorized effects, forbidden effects, and work
-to preserve. Execution names workflow, risk, profile, selected route, and exact
-capability bindings. Verification and gates names readiness, review, focused
-checks, final checks, feedback, and blockers. This is a launch completeness
-guard, not a serialized lifecycle or completion-report protocol. The Codex
-and Claude boundaries require nonempty workflow and profile values and
-normalize risk semantically to `routine`, `elevated`, or `high`; they do not
-require those human-readable dimensions to match a serialization vocabulary.
-Both boundaries reject a contract whose selected route disagrees with the
-concrete spawn model and effort.
+to preserve. Execution names the exact workflow identifier, its compact
+implementation sequence, risk, profile, selected route, and exact capability
+bindings. The workflow value is only one of the documented identifiers; the
+sequence occupies a separate semicolon-delimited field, and its steps contain
+no semicolons. Verification and gates names readiness, review, focused checks,
+final checks, feedback, and blockers. This is a launch completeness guard, not
+a serialized lifecycle or completion-report protocol. The Codex and Claude
+boundaries require nonempty workflow and profile values and normalize risk
+semantically to `routine`, `elevated`, or `high`. They validate structural
+completeness, while behavioral evidence verifies the exact selected workflow
+and its separate sequence. Both boundaries reject a contract whose selected
+route disagrees with the concrete spawn model and effort.
 
 The contract must be understandable without another Darrow file except the
 selected workflow document, which the parent reads and incorporates before
@@ -285,12 +288,22 @@ Select independent review separately:
 | ------------- | ---------------------------------------------------------------------------------------- |
 | Routine risk  | omitted by default                                                                       |
 | Elevated risk | selected when compatibility, caller impact, or counterexamples need independent judgment |
-| High risk     | selected by default                                                                      |
+| High risk     | required; an unavailable matching capability stops before owner launch                   |
 | Any risk      | selected when the user or repository requires it                                         |
 
 The parent binds the exact matching advertised skill before launching an owner
 whose contract requires review. An ad hoc prompt, generic subagent, or
 same-context judgment is not a substitute.
+
+Review availability is a parent preflight gate, not owner work. Before any
+owner launch, the parent must identify the exact advertised skill for every
+selected review. If it cannot, it returns `Status: launch_required` and makes
+no product mutation. It never launches an owner to discover the absence or to
+perform a self-review, separated local review, or generic-agent substitute.
+
+A clear or localized implementation does not make a high-risk change eligible
+to omit review. A stronger user or repository rule may stop implementation
+before launch, but it does not turn the required review into an omission.
 
 The owner invokes the matching capability after implementation and current
 final-tree checks. It supplies the exact current change, originating authority,
@@ -370,9 +383,11 @@ authority.
 
 ### Completion
 
-The owner returns a concise human-readable result containing:
+The owner returns a concise human-readable result beginning with exactly one
+status line:
 
-- `Status: complete` or `Status: blocked`;
+- `Status: complete` when the requested outcome is achieved, or
+  `Status: blocked` when work cannot proceed;
 - changed files or an explicit statement that none changed;
 - focused and final verification evidence;
 - readiness and review outcomes when selected;
@@ -434,7 +449,8 @@ Nested host processes are not an adaptive-goal fallback.
 4. **AGL-P4 — One bounded contract.** The owner receives the complete request,
    acceptance, scope, gates, checks, and authority inline.
 5. **AGL-C1 — One workflow and risk.** Classification follows the documented
-   tie-breakers and consequence model.
+   tie-breakers and consequence model. The launch contract keeps the exact
+   workflow identifier separate from its implementation sequence.
 6. **AGL-R1 — Concrete selected route.** Policy or an explicit user override
    resolves to one host/provider/model/effort tuple before launch.
 7. **AGL-R2 — Native route binding.** Codex launches with an explicit spawn

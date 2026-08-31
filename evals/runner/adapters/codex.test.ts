@@ -27,7 +27,7 @@ const COMPLETE_CONTRACT = [
   "Outcome: Implement the requested fixture behavior.",
   "Acceptance criteria: The requested behavior and checks pass.",
   "Scope and authority: included=fixture implementation and tests; authorized=local edits and checks only; forbidden=publication; preserve=unrelated repository state",
-  "Execution: workflow=implement-feature; risk=routine; profile=routine; route=codex|openai|gpt-5.6-luna|low; capabilities=none",
+  "Execution: workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine; route=codex|openai|gpt-5.6-luna|low; capabilities=none",
   "Verification and gates: readiness=not required; review=not required; focused=run the focused test; final=run the repository gate; feedback=return the smallest complete question; blockers=return concrete evidence and the smallest next action",
   "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");

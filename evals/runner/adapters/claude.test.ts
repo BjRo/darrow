@@ -212,7 +212,7 @@ function inlineOwnerPrompt() {
     "Outcome: Implement the requested fixture behavior.",
     "Acceptance criteria: The focused behavior and repository checks pass.",
     "Scope and authority: included=fixture implementation and focused tests; authorized=local edits and checks; forbidden=publication and unrelated work; preserve=all pre-existing work",
-    "Execution: workflow=implement-feature; risk=routine; profile=routine; route=claude|anthropic|claude-sonnet-5|low; capabilities=none",
+    "Execution: workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine; route=claude|anthropic|claude-sonnet-5|low; capabilities=none",
     "Verification and gates: readiness=omitted for complete fixture scope; review=omitted for routine work; focused=run the focused test; final=run the repository gate; feedback=pause and relay to this owner; blockers=report evidence and the smallest next action",
     "Completion evidence: report status, files, checks, and remaining risks.",
   ].join("\n");
@@ -1150,8 +1150,8 @@ describe("Claude skill activation observation", () => {
     expect(retained).not.toContain("private child result");
 
     const semanticDimensions = inlineOwnerPrompt().replace(
-      "workflow=implement-feature; risk=routine; profile=routine;",
-      "workflow=custom-delivery; risk=Elevated migration; profile=focused;",
+      "workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine;",
+      "workflow=custom-delivery; sequence=inspect fixture, implement behavior, run checks; risk=Elevated migration; profile=focused;",
     );
     const semanticDimensionEvidence = retainedClaudeEvidence(
       stream.replace(
@@ -1172,6 +1172,10 @@ describe("Claude skill activation observation", () => {
         .split("\n")
         .filter((line) => !line.startsWith("Scope and authority:"))
         .join("\n"),
+      inlineOwnerPrompt().replace(
+        "sequence=inspect fixture, implement behavior, run checks; ",
+        "",
+      ),
       inlineOwnerPrompt().replace(
         "claude|anthropic|claude-sonnet-5|low",
         "claude|anthropic|claude-opus-5|high",

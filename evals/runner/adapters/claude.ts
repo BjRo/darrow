@@ -614,6 +614,7 @@ function inlineOwnerPolicyIssue(
   if (
     !completeStructuredOwnerField(fields.Execution, [
       "workflow",
+      "sequence",
       "risk",
       "profile",
       "route",

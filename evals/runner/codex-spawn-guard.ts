@@ -352,6 +352,7 @@ function structuredOwnerContractIssue(
   if (
     !completeStructuredContractField(execution, [
       "workflow",
+      "sequence",
       "risk",
       "profile",
       "route",

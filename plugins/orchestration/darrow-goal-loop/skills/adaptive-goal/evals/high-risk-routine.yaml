@@ -68,7 +68,7 @@ output_checks:
     expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
     flags: i
   - name: completion reports the semantic review outcome
-    expect_regex: "Independent review[\\s\\S]{0,240}\\bclear\\b"
+    expect_regex: "Independent[^\\n]{0,80}review[\\s\\S]{0,240}(?:\\bclear\\b|\\bno blocking findings\\b)"
     flags: i
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"

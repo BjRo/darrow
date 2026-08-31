@@ -18,6 +18,7 @@ export function activationTargetSkill(evalCase: EvalCase): string {
 }
 
 export function expectsAdaptiveGoalOwner(evalCase: EvalCase): boolean {
+  if (evalCase.activation === "negative") return false;
   return (
     evalCase.adaptive_goal_composition === true ||
     activationTargetSkill(evalCase) === "adaptive-goal"

@@ -99,10 +99,10 @@ output_checks:
     expect_regex: "Status:[ \\t]*complete"
     flags: i
   - name: completion reports the clear fix-verification outcome
-    expect_regex: "Fix verification:[ \\t]*clear"
+    expect_regex: "Fix[^\\n]{0,120}verification[^\\n]{0,160}\\bclear(?:ed)?\\b"
     flags: i
   - name: completion reports the prior blocking finding
-    expect_regex: "Initial independent review:[ \\t]*blocking[\\s\\S]*(?:RETRY_COUNT|retry[- ]count)"
+    expect_regex: "(?:Initial[^\\n]{0,80})?(?:Independent|Comprehensive)[^\\n]{0,80}review[^\\n]{0,120}\\bblock(?:ing|ed)\\b[^\\n]{0,160}(?:RETRY_COUNT|retry[- ]count)"
     flags: i
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"

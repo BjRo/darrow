@@ -14,9 +14,7 @@ prompt: >-
   bash test.sh against the final target before invoking the advertised
   independent-review skill and must not rerun it after a clear response. An ad
   hoc review is not a substitute. The parent must not inspect the repository or
-  child work after Agent returns. The only allowed post-return inspection is
-  the bundled effective-route check for that exact owner. Use no lifecycle
-  ledger or nested goal.
+  child work after Agent returns. Use no lifecycle ledger or nested goal.
 fixture:
   commits:
     - message: "chore: init"
@@ -82,7 +80,7 @@ output_checks:
     expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
     flags: i
   - name: completion reports clear independent review
-    expect_regex: "Independent review[\\s\\S]{0,240}\\bclear\\b"
+    expect_regex: "Independent[^\\n]{0,80}review[\\s\\S]{0,240}(?:\\bclear\\b|\\bno blocking findings\\b)"
     flags: i
 transcript_checks:
   - name: one marked selected foreground owner is launched

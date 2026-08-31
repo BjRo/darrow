@@ -22,7 +22,7 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 describe("skill activation grading", () => {
-  test("marks direct and composed adaptive-goal cases as expecting an owner", () => {
+  test("expects an owner for adaptive-goal cases except negative activation", () => {
     expect(
       expectsAdaptiveGoalOwner(
         evalCase({ skillDir: "/repo/plugins/goal-loop/skills/adaptive-goal" }),
@@ -31,6 +31,14 @@ describe("skill activation grading", () => {
     expect(
       expectsAdaptiveGoalOwner(evalCase({ adaptive_goal_composition: true })),
     ).toBe(true);
+    expect(
+      expectsAdaptiveGoalOwner(
+        evalCase({
+          skillDir: "/repo/plugins/goal-loop/skills/adaptive-goal",
+          activation: "negative",
+        }),
+      ),
+    ).toBe(false);
     expect(expectsAdaptiveGoalOwner(evalCase())).toBe(false);
   });
 

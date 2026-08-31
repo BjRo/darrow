@@ -1,5 +1,6 @@
 id: goal-ordinary-engineering-does-not-activate
 invariant: AGL-P1,AGL-P3
+activation: negative
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-

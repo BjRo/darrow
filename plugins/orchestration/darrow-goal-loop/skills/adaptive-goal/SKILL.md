@@ -134,7 +134,7 @@ Select the independent-review gate separately:
 - routine: omit by default;
 - elevated: select when compatibility, caller impact, or counterexamples need
   independent judgment;
-- high: select by default;
+- high: required;
 - any risk: select when the user or repository requires it.
 
 When selected, bind the exact advertised skill matching independent review of
@@ -144,6 +144,17 @@ blocking result permits one authorized closed-set repair and one fix
 verification; only clear verification permits completion. Read
 [`references/review-lifecycle.md`](references/review-lifecycle.md) completely
 when review is selected.
+
+Never omit review for a high-risk change merely because its implementation is
+clear or localized. A stronger user or repository rule may stop implementation
+before launch, but it does not turn the required review into an omission.
+
+Treat review availability as a parent preflight gate. Before any owner launch,
+identify the exact advertised skill for every selected review and bind that
+exact name. If none exists, return `Status: launch_required` with `Reason:
+required independent-review capability unavailable`, make no mutation, and do
+not call a generic subagent. Never launch an owner to discover the absence or
+to substitute self-review, separated local review, or generic-agent review.
 
 Classify reasoning demand independently:
 
@@ -191,8 +202,8 @@ Write a concise, self-contained contract containing:
 
 - outcome and observable acceptance criteria;
 - scope, non-goals, preserved work, permissions, and publication limits;
-- workflow, risk, profile, selected route, and any explicit budget;
-- the selected workflow sequence;
+- the exact workflow identifier, its selected sequence, risk, profile, selected
+  route, and any explicit budget;
 - focused feedback checks and final-tree checks;
 - readiness evidence or the reason it was omitted;
 - independent-review selection and bound skill when selected;
@@ -208,16 +219,20 @@ sequence; the launched subagent must understand that it is already the owner.
 
 Use these seven exact top-level fields so the host boundary can validate the
 contract without requiring a long heading checklist. Keep each structured
-field on one line and preserve every key shown:
+field on one line and preserve every key shown. Set `workflow` to exactly one
+selected identifier: `fix-bug`, `implement-feature`, `change-feature`,
+`refactor`, `migration`, or `mechanical`. Put the compact workflow steps in
+`sequence`, separated by commas rather than semicolons; never append sequence
+text to `workflow`:
 
 ```text
 Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.
 Outcome: <bounded result>
 Acceptance criteria: <observable outcomes>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
-Execution: workflow=<workflow>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
-Verification and gates: readiness=<evidence or omitted reason>; review=<selected skill or omitted reason>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same-owner pause and relay rule>; blockers=<semantic blocker and observe-before-retry rule>
-Completion evidence: <required owner result fields>
+Execution: workflow=<exact workflow identifier>; sequence=<compact workflow steps>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
+Verification and gates: readiness=<evidence or omitted reason>; review=<exact advertised skill when selected; omitted reason only when review is not required>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same-owner pause and relay rule>; blockers=<semantic blocker and observe-before-retry rule>
+Completion evidence: begin with exactly Status: complete when achieved or Status: blocked when unable to proceed; then include=<changed files, focused and final verification, selected readiness and review outcomes, publication effects, and remaining risks or blockers>
 ```
 
 Feedback checks exercise the changed seam after coherent slices. Final-tree
@@ -248,11 +263,12 @@ observe current state and never duplicate an effect that already completed. Do
 not retry an unchanged deterministic failure without changed evidence or
 conditions. There is no Darrow retry or waiver state machine.
 
-The owner result must state status, changed files, focused and final
-verification, readiness and review outcomes when applicable, performed
-publication effects, and remaining risks. Workflow, risk, profile, and route
-are already established at launch and need not be echoed. No canonical
-serialization is required.
+The owner result must begin with exactly `Status: complete` when the requested
+outcome is achieved or `Status: blocked` when work cannot proceed. It must then
+state changed files, focused and final verification, readiness and review
+outcomes when applicable, performed publication effects, and remaining risks.
+Workflow, risk, profile, and route are already established at launch and need
+not be echoed. No other canonical serialization is required.
 
 The complete launch task begins exactly:
 
