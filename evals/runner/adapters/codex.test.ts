@@ -238,6 +238,41 @@ describe("Codex skill activation observation", () => {
     });
   });
 
+  test("observes matching mounted skill bodies across Codex read shapes", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: "sed -n '1,260p' './.agents/skills/adaptive-goal/SKILL.md'",
+          aggregated_output:
+            "---\nname: adaptive-goal\ndescription: Orchestrate\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "/bin/zsh -lc \"lean-ctx -c 'sed -n 1,260p /tmp/eval/.agents/skills/grilling/SKILL.md'\"",
+          aggregated_output: "---\nname: grilling\ndescription: Grill\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal", "grilling"],
+    });
+  });
+
   test("observes canonical skill reads from an installed plugin cache", () => {
     const skillsRoot =
       "/tmp/eval-home/plugins/cache/darrow/darrow-discovery/0.1.0/skills";

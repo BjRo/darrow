@@ -146,18 +146,15 @@ function shellPayload(command: string): string | undefined {
 }
 
 function skillReads(command: string, skillsRoot: string): string[] {
-  const path = `${escapeRegExp(skillsRoot)}/([A-Za-z0-9._-]+)/SKILL\\.md`;
+  const path = new RegExp(
+    `(?:^|[^A-Za-z0-9._/-])(?:\\./)?${escapeRegExp(skillsRoot)}/([A-Za-z0-9._-]+)/SKILL\\.md(?=$|[^A-Za-z0-9._/-])`,
+    "g",
+  );
   const payload = shellPayload(command);
   if (!payload) return [];
-  const reader = new RegExp(
-    `^(?:cat|sed(?:\\s+-n)?(?:\\s+['"]?[0-9,$pn;-]+['"]?)?|awk(?:\\s+['"][^'"]+['"])?|head(?:\\s+-n?\\s*[1-9][0-9]*)?|tail(?:\\s+-n?\\s*[1-9][0-9]*)?|less|more)\\s+${path}$`,
+  return [...payload.matchAll(path)].flatMap((match) =>
+    match[1] ? [match[1]] : [],
   );
-  const reads: string[] = [];
-  for (const segment of payload.split(/\s*(?:&&|;|\n)\s*/)) {
-    const match = segment.match(reader);
-    if (match?.[1]) reads.push(match[1]);
-  }
-  return reads;
 }
 
 function malformedCompletedCommand(event: CodexEvent): boolean {
@@ -214,7 +211,11 @@ export function codexSkillActivation(
     ? installedSkillsRoot
     : [installedSkillsRoot];
   const observedSkills = observedSkillReads(events, [
-    ...new Set([...installedSkillsRoots, join(repoDir, ".agents", "skills")]),
+    ...new Set([
+      ...installedSkillsRoots,
+      join(repoDir, ".agents", "skills"),
+      join(".agents", "skills"),
+    ]),
   ]);
   let completed = false;
   let failed = false;
@@ -1413,7 +1414,11 @@ function codexEvidenceSkillRoots(
     ? installedSkillsRoot
     : [installedSkillsRoot];
   return [
-    ...new Set([...installedSkillsRoots, join(repoDir, ".agents", "skills")]),
+    ...new Set([
+      ...installedSkillsRoots,
+      join(repoDir, ".agents", "skills"),
+      join(".agents", "skills"),
+    ]),
   ];
 }
 
