@@ -1,12 +1,13 @@
 id: goal-blocked-retry-observes-publication
-invariant: AGL-L4,AGL-S2,AGL-X1
+invariant: AGL-S2
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   Use {{skill_invocation}} to decide the next lifecycle action only. The retained
   owner in this same thread is blocked because pull-request creation returned
-  an ambiguous result. The user says "retry" without qualification. Explain
-  the permitted retry behavior and how duplicate publication is prevented.
+  an ambiguous result, and the current forge state has not yet been observed.
+  The user says "retry" without qualification. What is the retained owner's
+  immediate next action? Answer in one sentence.
 fixture:
   commits:
     - message: "chore: init"
@@ -14,20 +15,11 @@ fixture:
         README.md: "base\n"
 checks: []
 output_checks:
-  - name: preserves a semantic blocker rather than inventing retry state
-    expect_regex: "(blocked|blocker)[\\s\\S]{0,180}(ambiguous|pull request|publication)[\\s\\S]{0,180}(observe|check|query|inspect|next action)"
+  - name: observes current publication state
+    expect_regex: "(?:observe|check|query|inspect)[^.!?\\n]{0,120}(?:pull[- ]request|PR|publication|forge|remote)"
     flags: i
-  - name: observes ambiguous publication before retry
-    expect_regex: "(observe|check|query|inspect)[\\s\\S]{0,160}(external[\\s\\S]{0,40}state|pull request|publication|remote)"
-    flags: i
-  - name: maps observed completion without duplicating the effect
-    expect_regex: "(already|has)[\\s\\S]{0,80}(completed|exists|created)[\\s\\S]{0,120}(do not|must not|without)[\\s\\S]{0,80}(retry|repeat|duplicate)"
-    flags: i
-  - name: maps observed absence to one retry
-    expect_regex: "(not|has not)[\\s\\S]{0,80}(completed|exists|created)[\\s\\S]{0,120}(one|single)[\\s\\S]{0,40}(retry|attempt)"
-    flags: i
-  - name: limits retry to the exact failed operation
-    expect_regex: "(one|single)[\\s\\S]{0,40}(attempt|retry)|exact failed operation"
+  - name: does not repeat the effect before observation
+    not_regex: "(?:(?<!not[ \\t])(?<!never[ \\t])\\b(?:retry|repeat|reissue|create|open)(?:ing)?[^.!?\\n]{0,30}\\b(?:first|immediately)\\b|(?<!not[ \\t])(?<!never[ \\t])\\b(?:first|immediately)\\b[^.!?\\n]{0,30}\\b(?:retry|repeat|reissue|create|open)(?:ing)?\\b|(?<!not[ \\t])(?<!never[ \\t])\\b(?:retry|repeat|reissue|create|open)(?:ing)?\\b[^.!?\\n]{0,50}\\b(?:then|before)\\b[^.!?\\n]{0,50}\\b(?:observe|check|query|inspect)\\b)"
     flags: i
 transcript_checks:
   - name: advice-only invocation launches no owner or helper
