@@ -261,7 +261,9 @@ during read-only preflight. It preserves the capability's complete
 human-readable result. Only a semantic `ready` result permits owner launch.
 `needs-discovery`, `needs-decision`, or `blocked` returns the complete result,
 surfaces the smallest unresolved questions, and leaves the product tree
-unchanged.
+unchanged. The returned capability result starts the response unchanged, with
+no preamble or summary; the parent may append the smallest unresolved questions
+after that complete result.
 
 After the user resolves those findings, the same adaptive-goal preflight invokes
 the readiness capability again for the same scope. Repeat only while the result
@@ -436,6 +438,9 @@ Reason: <specific unavailable boundary or capability>
 Selected route: <provider/model/effort>
 ```
 
+The first line is exactly `Status: launch_required`, with no leading or
+trailing whitespace or Markdown hard-break spaces.
+
 Nested host processes are not an adaptive-goal fallback.
 
 ## Invariants
@@ -486,6 +491,9 @@ Nested host processes are not an adaptive-goal fallback.
     repository and external effects with passive fixture event logs under
     `.git/fixture-state/`, exact public tokens with rigid output checks, and
     paraphrasable prose contracts with fail-closed semantic output checks.
+    Owner-boundary guards ignore only the named readiness preflight traces in
+    that ledger; all product-tree and other fixture-state changes remain
+    protected before owner launch.
 
 ## Packaging and portability
 

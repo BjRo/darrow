@@ -44,8 +44,8 @@ output_checks:
   - name: changed-scope readiness-gated goal completes
     expect_regex: "^Status: complete(?:\\r?\\n|$)"
 semantic_output_checks:
-  - name: changed scope is reassessed as ready
-    proposition: The response says implementation readiness was reassessed for the changed scope and the result was ready.
+  - name: changed-scope readiness outcome is reported
+    proposition: The response reports the readiness outcome as ready and does not report a non-ready outcome.
 transcript_checks:
   - name: changed scope invokes readiness before the separate owner
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'

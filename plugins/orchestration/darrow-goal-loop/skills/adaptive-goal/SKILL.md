@@ -47,6 +47,9 @@ Require the resulting `goal-loop` path to be an executable regular file. Do not
 scan the repository, plugin caches, home directory, `PATH`, or machine for an
 alternative. If the host does not expose the active plugin path or the exact
 helper is unavailable, return `Status: launch_required` and make no mutation.
+Every `launch_required` response in this workflow begins with the exact
+plain-text line `Status: launch_required`; add no leading or trailing whitespace
+or Markdown hard-break spaces to that line.
 
 Then run:
 
@@ -92,6 +95,11 @@ complete human-readable result.
 - `ready`: continue preflight and compile the settled result into the contract.
 - `needs-discovery`, `needs-decision`, or `blocked`: return the complete result,
   surface its smallest unresolved questions, and launch no owner.
+
+For a non-ready result, put the complete capability result at the start of the
+response unchanged. Do not add a preamble, summarize it, or paraphrase any
+section. Append only the smallest unresolved questions after the complete
+result when clarification is still needed.
 
 After the user resolves the findings, invoke readiness again for the same scope.
 Repeat only while concrete findings materially change; never infer an answer or

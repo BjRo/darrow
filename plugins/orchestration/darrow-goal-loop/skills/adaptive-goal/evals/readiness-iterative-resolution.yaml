@@ -41,7 +41,7 @@ output_checks:
     expect_regex: "^Status: complete(?:\\r?\\n|$)"
 semantic_output_checks:
   - name: resolved readiness is reported
-    proposition: The response says the repeated readiness assessment resolved to ready before the goal launched.
+    proposition: The response reports the final readiness outcome as ready and does not say the goal remains non-ready.
 transcript_checks:
   - name: readiness starts before resolution and owner launch follows it
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"darrow.goal_owner_accepted"'

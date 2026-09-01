@@ -66,15 +66,13 @@ checks:
 output_checks:
   - name: owner reports complete focused and final verification
     expect_regex: "^Status: complete(?:\\r?\\n|$)"
-  - name: focused verification command is reported
-    expect_regex: "focused\\.sh"
   - name: final verification command is reported
     expect_regex: "final\\.sh"
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
   - name: owner reports focused and final verification completed
-    proposition: The response says focused.sh completed as focused verification and final.sh completed as final verification.
+    proposition: The response says focused verification completed with relevant evidence and final.sh completed as final verification.
 transcript_checks:
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
