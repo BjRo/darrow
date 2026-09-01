@@ -31,8 +31,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: mechanical owner reports completion
-    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: verification evidence is returned
     expect_regex: "check\\.sh"
     flags: i

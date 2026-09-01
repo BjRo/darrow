@@ -75,6 +75,15 @@ export interface OutputCheck {
   flags?: string;
 }
 
+/** A paraphrasable public-response proposition graded outside the candidate
+ * workspace by a separate, fail-closed evaluator call. */
+export interface SemanticOutputCheck {
+  name: string;
+  /** Optional product-value metric represented by this semantic assertion. */
+  metric?: "escaped_defect" | "defect_detection" | "false_positive";
+  proposition: string;
+}
+
 /** Assertions over harness protocol evidence, kept outside the model workspace. */
 export interface TranscriptCheck extends OutputCheck {
   /** Inspect only the suffix after the final matching protocol boundary. */
@@ -139,6 +148,8 @@ export interface EvalCase {
   checks: Check[];
   /** Assertions over the final agent message, kept outside the model workspace. */
   output_checks?: OutputCheck[];
+  /** Gating propositions over the final message, evaluated by a hidden grader. */
+  semantic_output_checks?: SemanticOutputCheck[];
   /** Assertions over the raw harness transcript, kept outside the model workspace. */
   transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
@@ -255,6 +266,8 @@ export interface TrialResult {
     escapedDefects: number;
     falsePositiveVerifierFindings: number;
   };
+  /** Fail-closed semantic public-contract evidence, separate from quality. */
+  semanticOutput?: SemanticOutputResult;
   judge?: JudgeResult;
 }
 
@@ -277,6 +290,24 @@ export interface JudgeResult {
   assessment?: JudgeAssessment;
   parseError?: string;
   harness: HarnessResult;
+}
+
+export interface SemanticOutputAssessment {
+  name: string;
+  verdict: "pass" | "fail";
+  reason: string;
+}
+
+export interface SemanticOutputResult {
+  ok: boolean;
+  route: {
+    harness: string;
+    model: string;
+    effort: string;
+  };
+  assessments?: SemanticOutputAssessment[];
+  parseError?: string;
+  harness?: HarnessResult;
 }
 
 export interface CaseResult {

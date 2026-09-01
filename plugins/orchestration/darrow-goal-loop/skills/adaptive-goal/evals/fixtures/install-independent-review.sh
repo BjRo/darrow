@@ -13,6 +13,7 @@ case "$host" in
     exit 2
     ;;
 esac
+mkdir -p "$repo/.git/fixture-state"
 for host_root in $host_roots; do
   mkdir -p "$repo/$host_root/skills/independent-code-review" "$repo/$host_root/bin"
   cp "$fixture_dir/independent-review/SKILL.fixture.md" "$repo/$host_root/skills/independent-code-review/SKILL.md"

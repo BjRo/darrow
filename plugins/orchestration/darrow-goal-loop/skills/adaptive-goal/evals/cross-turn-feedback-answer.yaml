@@ -46,7 +46,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       git_dir=$(git rev-parse --git-dir)
-      trace="$git_dir/cross-turn-feedback-trace"
+      trace="$git_dir/fixture-state/cross-turn-feedback-trace"
       state="$git_dir/cross-turn-feedback-state"
       case "${1-}" in
         discover)
@@ -89,13 +89,12 @@ checks:
           ok = 1
         }
         END { exit ok && NR == 2 ? 0 : 1 }
-      ' .git/cross-turn-feedback-trace
+      ' .git/fixture-state/cross-turn-feedback-trace
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
 output_checks:
   - name: resumed owner reports completion
-    expect_regex: "\\bcomplete(?:d)?\\b"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
 transcript_checks:
   - name: one accepted owner exists before the later host turn
     expect_regex: '(?:"type":"darrow.goal_agent_completion"[^\n]*"status":"completed"[^\n]*"agent_id":"[^"]+"[\s\S]*"type":"darrow.eval.follow_up_turn"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*"receiver_thread_ids":\["[^"]+"\][^\n]*"prompt":"- phase: adaptive-goal-owner"[\s\S]*"type":"darrow.eval.follow_up_turn")'

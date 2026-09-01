@@ -138,6 +138,12 @@ describe("evaluation suite ablation", () => {
       claude: "claude-sonnet-5",
       codex: "gpt-5.5",
     });
+    expect(manifest.judge).toBeNull();
+    expect(manifest.semanticOutput).toEqual({
+      harness: "codex",
+      model: "gpt-5.5",
+      effort: "low",
+    });
     expect(manifest.cells).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

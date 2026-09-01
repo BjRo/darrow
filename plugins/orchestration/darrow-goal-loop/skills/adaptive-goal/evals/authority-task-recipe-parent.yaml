@@ -26,8 +26,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: explicit orchestration delegation is accepted
-    expect_regex: "Status:[ \\t]*complete"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: delegation is not mistaken for ordinary intent
     not_regex: "darrow-adaptive-goal-authority-stop-v1"
 transcript_checks:

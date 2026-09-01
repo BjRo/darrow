@@ -27,16 +27,15 @@ checks:
   - name: routine change reaches its exact outcome
     run: bash check.sh
   - name: routine work does not automatically invoke independent review
-    run: test ! -e .git/independent-review-invocations
+    run: test ! -e .git/fixture-state/independent-review-invocations
   - name: routine work stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: routine owner reports completion
-    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
+semantic_output_checks:
   - name: completion does not claim a performed review
-    not_regex: "independent review (passed|completed|found no blocking)"
-    flags: i
+    proposition: The response does not claim that an independent review was performed or cleared.
 transcript_checks:
   - name: launch preserves routine risk
     expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"risk":"routine"'

@@ -37,13 +37,15 @@ checks:
   - name: changed-scope plan is implemented
     run: bash check.sh
   - name: material scope change reruns readiness
-    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
   - name: reassessment precedes mutation
-    run: test ! -s .git/implementation-readiness-pre-status
+    run: test ! -s .git/fixture-state/implementation-readiness-pre-status
 output_checks:
   - name: changed-scope readiness-gated goal completes
-    expect_regex: "Status:[ \\t]*complete[\\s\\S]*Readiness:[ \\t]*ready"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
+semantic_output_checks:
+  - name: changed scope is reassessed as ready
+    proposition: The response says implementation readiness was reassessed for the changed scope and the result was ready.
 transcript_checks:
   - name: changed scope invokes readiness before the separate owner
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'

@@ -1,5 +1,5 @@
 id: goal-blocked-retry-observes-publication
-invariant: AGL-S2
+invariant: AGL-S2,AGL-E1,SE-C14,SE-C15
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
@@ -14,13 +14,11 @@ fixture:
       files:
         README.md: "base\n"
 checks: []
-output_checks:
+semantic_output_checks:
   - name: observes current publication state
-    expect_regex: "(?:observe|check|query|inspect)[^.!?\\n]{0,120}(?:pull[- ]request|PR|publication|forge|remote)"
-    flags: i
+    proposition: The response says the ambiguous publication result must be resolved by observing the current remote or pull-request state.
   - name: does not repeat the effect before observation
-    not_regex: "(?:(?<!not[ \\t])(?<!never[ \\t])\\b(?:retry|repeat|reissue|create|open)(?:ing)?[^.!?\\n]{0,30}\\b(?:first|immediately)\\b|(?<!not[ \\t])(?<!never[ \\t])\\b(?:first|immediately)\\b[^.!?\\n]{0,30}\\b(?:retry|repeat|reissue|create|open)(?:ing)?\\b|(?<!not[ \\t])(?<!never[ \\t])\\b(?:retry|repeat|reissue|create|open)(?:ing)?\\b[^.!?\\n]{0,50}\\b(?:then|before)\\b[^.!?\\n]{0,50}\\b(?:observe|check|query|inspect)\\b)"
-    flags: i
+    proposition: The response says another publication attempt must not occur before that observation.
 transcript_checks:
   - name: advice-only invocation launches no owner or helper
     not_regex: '"tool":"spawn_agent"|"name":"Agent"|goal-loop (?:prepare|route|step)'

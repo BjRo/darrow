@@ -28,14 +28,14 @@ fixture:
           test("identity", () => assert.equal(identity(-2), -2));
         focused.sh: |
           #!/usr/bin/env bash
-          trace=.git/verification-trace
+          trace=.git/fixture-state/verification-trace
           status=fail
           if node --test test/math.test.js; then status=pass; fi
           printf 'focused\t%s\n' "$status" >>"$trace"
           [ "$status" = pass ]
         final.sh: |
           #!/usr/bin/env bash
-          trace=.git/verification-trace
+          trace=.git/fixture-state/verification-trace
           status=fail
           if node --test; then status=pass; fi
           printf 'final\t%s\n' "$status" >>"$trace"
@@ -60,15 +60,21 @@ checks:
       $1 == "final" { final_count++; if (green == 0) bad = 1 }
       $1 == "final" && $2 == "pass" && green > 0 && NR > green { final = NR }
       END { exit !(red > 0 && green > red && final > green && final_count == 1 && bad == 0) }
-      ' .git/verification-trace
+      ' .git/fixture-state/verification-trace
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: owner reports complete focused and final verification
-    expect_regex: "Status:[ \\t]*complete[\\s\\S]*Focused verification:[^\\n]*focused\\.sh[\\s\\S]*Final verification:[^\\n]*final\\.sh"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
+  - name: focused verification command is reported
+    expect_regex: "focused\\.sh"
+  - name: final verification command is reported
+    expect_regex: "final\\.sh"
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+semantic_output_checks:
+  - name: owner reports focused and final verification completed
+    proposition: The response says focused.sh completed as focused verification and final.sh completed as final verification.
 transcript_checks:
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

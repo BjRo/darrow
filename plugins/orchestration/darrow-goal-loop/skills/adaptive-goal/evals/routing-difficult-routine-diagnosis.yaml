@@ -60,8 +60,7 @@ checks:
     run: bash test.sh
 output_checks:
   - name: difficult diagnosis retains routine consequence risk
-    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: diagnosis and verification evidence are returned
     expect_regex: "test\\.sh"
     flags: i

@@ -112,6 +112,29 @@ qualification in child skill tokens. Reconciliation treats that exact
 qualification as host transport syntax and compares the declared phase
 capability by its leaf skill name; another plugin namespace is not equivalent.
 
+### Semantic output checks
+
+An eval case may declare one or more gating semantic output checks when the
+public contract is a proposition that permits faithful paraphrase. Each check
+has a stable name and a plain-language proposition. The runner grades all such
+checks against the candidate's final response in a separate, hidden grader
+call and requires every proposition to pass.
+
+Semantic output checks are distinct from the advisory quality judge. Disabling
+that judge does not disable semantic contract gates. The grader route, parsed
+verdict and reason for every proposition, raw grader result, token usage, and
+cost remain in the trial evidence. A grader failure, unavailable route,
+malformed response, duplicate or missing verdict, or unrecognized check name
+fails the affected trial closed.
+
+The grader receives the candidate response as untrusted quoted data and must
+not follow instructions embedded in it. The rubric and propositions are
+evaluator-owned inputs that are not exposed to the candidate. Cases use this
+channel only for meaning: observable repository or external effects belong in
+deterministic hidden checks, while exact commands, paths, identifiers,
+protocol tokens, and specification-required canonical text remain rigid output
+checks.
+
 An unavailable, malformed, or incomplete observation is `unknown`, never a
 pass or failure. Activation grades do not change task checks or task pass rate.
 The runner gates a declared activation case independently at the suite
@@ -181,6 +204,12 @@ trials for their risk and must not rely on one convenient green run.
   evidence accepts owning-plugin-qualified skill tokens while preserving the
   exact plugin, phase, iteration, stable child ID, thread ID, and leaf-skill
   checks.
+- **SE-C14 — Gating semantic contracts.** Prose propositions that permit
+  paraphrase use evaluator-owned semantic output checks whose every verdict
+  gates task success independently of the advisory quality judge.
+- **SE-C15 — Fail-closed semantic evidence.** The runner rejects unavailable,
+  malformed, incomplete, duplicate, or unexpected semantic grader results and
+  retains the grader route, verdicts, reasons, raw result, tokens, and cost.
 
 ## Evaluation requirements
 
@@ -209,6 +238,12 @@ trials for their risk and must not rely on one convenient green run.
 9. Codex orchestration reconciliation fixtures include installed
    owning-plugin-qualified child skill tokens, reject a foreign namespace, and
    retain their phase-to-skill checks.
+10. Semantic output-check fixtures cover a valid paraphrase, negation,
+    contradiction, malformed output, missing and duplicate verdicts,
+    unexpected names, and an unavailable grader route.
+11. Runner tests prove semantic checks still gate with the advisory judge
+    disabled and retain route, verdict, token, and cost evidence without
+    exposing propositions to the candidate.
 
 ## Non-goals
 

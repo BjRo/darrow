@@ -12,6 +12,10 @@ import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
+import {
+  applySemanticOutputGate,
+  validateSemanticOutputChecks,
+} from "./semantic-output";
 import { renderParticipantPrompt } from "./prompt";
 import {
   runChecks,
@@ -81,6 +85,12 @@ interface JudgeConfig {
   effort: string;
 }
 
+interface SemanticOutputConfig {
+  adapter: HarnessAdapter;
+  model: string;
+  effort: string;
+}
+
 interface RunCaseOptions {
   evalCase: EvalCase;
   adapter: HarnessAdapter;
@@ -93,6 +103,7 @@ interface RunCaseOptions {
   withoutSkill?: boolean;
   humanReviewMinutes?: number;
   requireEvaluationRecords?: boolean;
+  semanticOutput: SemanticOutputConfig;
   judge?: JudgeConfig;
   /** Route the harness is told to apply. */
   expectedGoalRoute?: GoalRouteExpectation;
@@ -330,7 +341,12 @@ function validateCaseConfiguration(evalCase: EvalCase): void {
       `${evalCase.id} transcript_checks`,
     ),
   ];
-  if (regexErrors.length) throw new Error(regexErrors.join("; "));
+  const semanticErrors = validateSemanticOutputChecks(
+    evalCase.semantic_output_checks ?? [],
+    `${evalCase.id} semantic_output_checks`,
+  );
+  const errors = [...regexErrors, ...semanticErrors];
+  if (errors.length) throw new Error(errors.join("; "));
 }
 
 /** Point every `fixture.source` case at its prepared corpus checkout. */
@@ -432,6 +448,15 @@ function judgeEvidence(judge: JudgeConfig | undefined) {
     : null;
 }
 
+function semanticOutputEvidence(options: RunCaseOptions) {
+  if (!options.evalCase.semantic_output_checks?.length) return null;
+  return {
+    harness: options.semanticOutput.adapter.name,
+    model: options.semanticOutput.model,
+    effort: options.semanticOutput.effort,
+  };
+}
+
 function activationEvidence(evalCase: EvalCase) {
   return evalCase.activation
     ? {
@@ -466,6 +491,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     additional_plugins: additionalPlugins = [],
     adaptive_goal_composition: adaptiveGoalComposition = false,
     output_checks: outputChecks = [],
+    semantic_output_checks: semanticOutputChecks = [],
     transcript_checks: transcriptChecks = [],
     goal_route_checks: goalRouteChecks = true,
     expect_head_change: expectHeadChange = null,
@@ -488,6 +514,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     fixture: evalCase.fixture,
     checks: evalCase.checks,
     outputChecks,
+    semanticOutputChecks,
     transcriptChecks,
     activation: activationEvidence(evalCase),
     goalReport: goalReportEvidence(evalCase),
@@ -497,6 +524,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     expectedGoalRoute: options.expectedGoalRoute ?? null,
     assertedGoalRoute: options.assertedGoalRoute ?? null,
     assertedGoalDimensions: options.assertedGoalDimensions ?? null,
+    semanticOutput: semanticOutputEvidence(options),
     judge: judgeEvidence(judge),
   });
   return new Bun.CryptoHasher("sha256").update(evidence).digest("hex");
@@ -886,11 +914,54 @@ function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
     : undefined;
 }
 
+async function evaluateSemanticOutput(
+  options: RunCaseOptions,
+  response: string,
+  baseChecks: CheckResult[],
+  harnessOk: boolean,
+) {
+  const semanticChecks = options.evalCase.semantic_output_checks;
+  if (!semanticChecks?.length)
+    return {
+      checks: baseChecks,
+      semanticOutput: undefined,
+      passed: harnessOk && baseChecks.every((check) => check.passed),
+    };
+  return applySemanticOutputGate(
+    {
+      adapter: options.semanticOutput.adapter,
+      response,
+      checks: semanticChecks,
+      model: options.semanticOutput.model,
+      effort: options.semanticOutput.effort,
+    },
+    baseChecks,
+    harnessOk,
+  );
+}
+
+async function evaluateQuality(
+  options: RunCaseOptions,
+  repoDir: string,
+  checks: CheckResult[],
+) {
+  const { judge, evalCase, adapter } = options;
+  if (!judge) return undefined;
+  return runQualityJudge({
+    adapter: judge.adapter,
+    repoDir,
+    task: renderParticipantPrompt(evalCase.prompt, adapter.name, evalCase),
+    checks,
+    model: judge.model,
+    effort: judge.effort,
+  });
+}
+
 async function evaluateTrial(
   options: RunCaseOptions,
   context: TrialContext,
 ): Promise<TrialResult> {
-  const { evalCase, adapter, judge } = options;
+  const { adapter } = options;
   const { harness, repoDir } = context;
   const observedGoalRouteApplication =
     adapter.name === "codex"
@@ -905,34 +976,32 @@ async function evaluateTrial(
     harness.raw,
     { mode: 0o600 },
   );
-  const checks = await trialChecks(
+  const baseChecks = await trialChecks(
     options,
     context,
     observedGoalRouteApplication,
   );
-  const judged = judge
-    ? await runQualityJudge({
-        adapter: judge.adapter,
-        repoDir,
-        task: renderParticipantPrompt(evalCase.prompt, adapter.name, evalCase),
-        checks,
-        model: judge.model,
-        effort: judge.effort,
-      })
-    : undefined;
+  const gate = await evaluateSemanticOutput(
+    options,
+    harness.resultText,
+    baseChecks,
+    harness.ok,
+  );
+  const judged = await evaluateQuality(options, repoDir, gate.checks);
   return {
     trial: context.trial,
-    passed: harness.ok && checks.every((c) => c.passed),
-    checks,
+    passed: gate.passed,
+    checks: gate.checks,
     harness,
     activation: trialActivation(options, harness),
     routeApplication: observedGoalRouteApplication,
     orchestrationMetrics: extractOrchestrationMetrics(
       harness.resultText,
-      checks,
+      gate.checks,
       observedGoalRouteApplication?.childInvocationCount ??
         observedTicketPipelineRoutes?.length,
     ),
+    semanticOutput: gate.semanticOutput,
     judge: judged,
   };
 }
@@ -964,6 +1033,11 @@ function reportTrial(options: RunCaseOptions, result: TrialResult): void {
   if (judgeResult) {
     console.log(
       `      judge: ${judgeResult.assessment ? `${judgeResult.assessment.verdict} ${judgeResult.assessment.overallScore}/5` : `invalid (${judgeResult.parseError})`}`,
+    );
+  }
+  if (result.semanticOutput) {
+    console.log(
+      `      semantic output: ${result.semanticOutput.ok ? "graded" : `invalid (${result.semanticOutput.parseError})`} via ${result.semanticOutput.route.harness}/${result.semanticOutput.route.model}@${result.semanticOutput.route.effort}`,
     );
   }
 }
@@ -1350,6 +1424,9 @@ const { values } = parseArgs({
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
     "judge-effort": { type: "string", default: "low" },
+    "semantic-check-harness": { type: "string", default: "codex" },
+    "semantic-check-model": { type: "string" },
+    "semantic-check-effort": { type: "string", default: "low" },
   },
 });
 
@@ -1388,6 +1465,18 @@ if (values["judge-harness"] && !judgeAdapter) {
   );
   process.exit(1);
 }
+const semanticOutputAdapter = ADAPTERS[values["semantic-check-harness"]!];
+if (!semanticOutputAdapter) {
+  console.error(
+    `Unknown semantic-check harness '${values["semantic-check-harness"]}'. Available: ${Object.keys(ADAPTERS).join(", ")}`,
+  );
+  process.exit(1);
+}
+const semanticOutput = {
+  adapter: semanticOutputAdapter,
+  model: values["semantic-check-model"] ?? semanticOutputAdapter.defaultModel,
+  effort: values["semantic-check-effort"]!,
+};
 
 const model = values.model ?? adapter.defaultModel;
 let caseRoutes: Record<string, { model: string; effort: string }> = {};
@@ -1549,6 +1638,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           withoutSkill: values["without-skill"],
           humanReviewMinutes,
           requireEvaluationRecords: values["require-evaluation-records"],
+          semanticOutput,
           judge: judgeAdapter
             ? {
                 adapter: judgeAdapter,
@@ -1591,6 +1681,7 @@ try {
       withoutSkill: values["without-skill"],
       humanReviewMinutes,
       requireEvaluationRecords: values["require-evaluation-records"],
+      semanticOutput,
       judge: judgeAdapter
         ? {
             adapter: judgeAdapter,

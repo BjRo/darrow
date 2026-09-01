@@ -6,6 +6,7 @@ import {
   rm,
   readdir,
   readFile,
+  symlink,
 } from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +20,7 @@ case "$git_dir" in /*) ;; *) git_dir="$PWD/$git_dir" ;; esac
 ticket_id=$(<"$git_dir/fixture-ticket-id")
 ticket_title=$(<"$git_dir/fixture-ticket-title")
 ticket_body="$git_dir/fixture-ticket.md"
-log="$git_dir/ticketctl.log"
+log="$git_dir/fixture-state/ticketctl.log"
 
 usage() {
   echo "usage: ticketctl get <id> --body-file <path> | describe <id> --body-file <path>" >&2
@@ -125,6 +126,7 @@ async function applyFixtureContent(
     throw new Error("fixture: commit_files requires files");
   }
   if (fixture.staged?.length) await git(repoDir, "add", ...fixture.staged);
+  await mkdir(join(repoDir, ".git", "fixture-state"), { recursive: true });
   await writeFixtureExecutables(repoDir, fixture);
 }
 
@@ -162,7 +164,8 @@ async function provisionFixtureTicket(
     writeFile(join(gitDir, "fixture-ticket-id"), ticket.id + "\n"),
     writeFile(join(gitDir, "fixture-ticket-title"), ticket.title + "\n"),
     writeFile(join(gitDir, "fixture-ticket.md"), ticket.body),
-    writeFile(join(gitDir, "ticketctl.log"), ""),
+    writeFile(join(gitDir, "fixture-state", "ticketctl.log"), ""),
+    symlink("fixture-state/ticketctl.log", join(gitDir, "ticketctl.log")),
   ]);
 }
 

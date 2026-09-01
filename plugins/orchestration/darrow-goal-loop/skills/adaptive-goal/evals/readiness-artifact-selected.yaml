@@ -33,15 +33,14 @@ checks:
   - name: artifact request reaches its exact outcome
     run: bash check.sh
   - name: readiness runs exactly once
-    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
   - name: readiness runs before product mutation
-    run: test ! -s .git/implementation-readiness-pre-status
+    run: test ! -s .git/fixture-state/implementation-readiness-pre-status
   - name: artifact request stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: completed readiness-gated goal reports success
-    expect_regex: "Status:[ \\t]*complete"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: completed goal does not expose internal readiness records
     not_regex: "readiness_selection\\t|readiness_verdict\\t"
 transcript_checks:
