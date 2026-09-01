@@ -43,23 +43,23 @@ printf '%s\n' '0' >"$repo/.git/fixture-review-delay-seconds"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" comprehensive "$review_contract")
 printf '%s\n' "$result" |
   grep -Fx 'Independent review outcome: no blocking findings' >/dev/null
-test "$(wc -l <"$repo/.git/independent-review-invocations" | tr -d ' ')" -eq 1
-test "$(awk -F '\t' 'NF == 3 && $2 == "clear" { print "yes" }' "$repo/.git/independent-review-invocations")" = yes
-test "$(cut -f3 "$repo/.git/independent-review-invocations")" = comprehensive
-test "$(cut -f1 "$repo/.git/independent-review-events")" = review_start
-test "$(cut -f2 "$repo/.git/independent-review-events")" = "$(cut -f1 "$repo/.git/independent-review-invocations")"
-test "$(awk -F '\t' '$1 == "review" && $2 == "clear" && $3 != "" { print "yes" }' "$repo/.git/review-events")" = yes
-test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 == start { print "yes"; exit }' "$repo/.git/review-events")" = yes
+test "$(wc -l <"$repo/.git/fixture-state/independent-review-invocations" | tr -d ' ')" -eq 1
+test "$(awk -F '\t' 'NF == 3 && $2 == "clear" { print "yes" }' "$repo/.git/fixture-state/independent-review-invocations")" = yes
+test "$(cut -f3 "$repo/.git/fixture-state/independent-review-invocations")" = comprehensive
+test "$(cut -f1 "$repo/.git/fixture-state/independent-review-events")" = review_start
+test "$(cut -f2 "$repo/.git/fixture-state/independent-review-events")" = "$(cut -f1 "$repo/.git/fixture-state/independent-review-invocations")"
+test "$(awk -F '\t' '$1 == "review" && $2 == "clear" && $3 != "" { print "yes" }' "$repo/.git/fixture-state/review-events")" = yes
+test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 == start { print "yes"; exit }' "$repo/.git/fixture-state/review-events")" = yes
 first_target=$(printf '%s\n' "$result" | sed -n 's/^Reviewed target: //p')
 test "$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" fingerprint)" = "$first_target"
 
-review_starts=$(grep -c '^review_start' "$repo/.git/review-events")
+review_starts=$(grep -c '^review_start' "$repo/.git/fixture-state/review-events")
 printf '%s\n' '2' >"$repo/.git/fixture-review-delay-seconds"
 concurrent_result=$temporary_root/concurrent-result
 bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$review_contract" >"$concurrent_result" &
 review_pid=$!
 attempts=0
-while [ "$(grep -c '^review_start' "$repo/.git/review-events")" -le "$review_starts" ]; do
+while [ "$(grep -c '^review_start' "$repo/.git/fixture-state/review-events")" -le "$review_starts" ]; do
   attempts=$((attempts + 1))
   if [ "$attempts" -gt 3 ]; then
     printf '%s\n' 'review fixture did not enter its wait boundary' >&2
@@ -70,7 +70,7 @@ done
 printf '%s\n' '# Changed instructions while review was pending' >"$repo/AGENTS.md"
 wait "$review_pid"
 grep -Fx 'Fix verification: inconclusive.' "$concurrent_result" >/dev/null
-test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 != start { print "yes" }' "$repo/.git/review-events")" = yes
+test "$(awk -F '\t' '$1 == "review_start" { start=$2 } $1 == "review_end" && $2 != start { print "yes" }' "$repo/.git/fixture-state/review-events")" = yes
 printf '%s\n' '0' >"$repo/.git/fixture-review-delay-seconds"
 printf '%s\n' '# Instructions' >"$repo/AGENTS.md"
 
@@ -109,7 +109,7 @@ printf '%s\n' "$result" |
 printf '%s\n' "$result" | grep -F 'Evidence gap: ' >/dev/null
 rm "$repo/.git/fixture-review-blocked"
 
-rm -f "$repo/.git/independent-review-invocations"
+rm -f "$repo/.git/fixture-state/independent-review-invocations"
 printf '%s\t%s\t%s\n' \
   blocking 'sequence blocker' 'sequence advisory' \
   clear '' '' >"$repo/.git/fixture-review-sequence"
@@ -124,13 +124,13 @@ printf '%s\n' 'repaired' >"$repo/candidate.txt"
 result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$review_contract")
 printf '%s\n' "$result" |
   grep -Fx 'Fix verification: clear.' >/dev/null
-test "$(wc -l <"$repo/.git/independent-review-invocations" | tr -d ' ')" -eq 2
+test "$(wc -l <"$repo/.git/fixture-state/independent-review-invocations" | tr -d ' ')" -eq 2
 if bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$review_contract" >/dev/null 2>&1; then
   printf '%s\n' 'exhausted review sequence was accepted' >&2
   exit 1
 fi
 
-rm -f "$repo/.git/independent-review-invocations"
+rm -f "$repo/.git/fixture-state/independent-review-invocations"
 printf '%s\t%s\t%s\n' \
   blocking 'unavailable sequence blocker' '' \
   unavailable '' '' >"$repo/.git/fixture-review-sequence"
@@ -142,9 +142,9 @@ result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$re
 printf '%s\n' "$result" |
   grep -Fx 'Fix verification: unavailable.' >/dev/null
 printf '%s\n' "$result" | grep -F 'Evidence gap: ' >/dev/null
-test "$(cut -f3 "$repo/.git/independent-review-invocations" | tr '\n' ' ')" = 'comprehensive verify '
+test "$(cut -f3 "$repo/.git/fixture-state/independent-review-invocations" | tr '\n' ' ')" = 'comprehensive verify '
 
-rm -f "$repo/.git/independent-review-invocations"
+rm -f "$repo/.git/fixture-state/independent-review-invocations"
 printf '%s\t%s\t%s\n' invalid 'bad outcome' '' >"$repo/.git/fixture-review-sequence"
 if bash "$repo/.agents/bin/independent-review-fixture" "$repo" comprehensive "$review_contract" >/dev/null 2>&1; then
   printf '%s\n' 'invalid review sequence outcome was accepted' >&2

@@ -33,7 +33,7 @@ fixture:
           grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
           git_dir=$(git rev-parse --git-dir)
           subject_oid=$(git hash-object src/config.js)
-          printf 'check\t%s\n' "$subject_oid" >>"$git_dir/review-events"
+          printf 'check\t%s\n' "$subject_oid" >>"$git_dir/fixture-state/review-events"
   files:
     src/config.js: |
       export const TIMEOUT_MS = 2500;
@@ -54,11 +54,11 @@ checks:
       cmp -s .git/expected-config.js src/config.js
   - name: blocking target is repaired and fix verified
     run: >-
-      test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 2 &&
-      test "$(cut -f2 .git/independent-review-invocations | sed -n '1p')" = blocking &&
-      test "$(cut -f2 .git/independent-review-invocations | sed -n '2p')" = clear &&
-      test "$(cut -f3 .git/independent-review-invocations | sed -n '1p')" = comprehensive &&
-      test "$(cut -f3 .git/independent-review-invocations | sed -n '2p')" = verify
+      test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 2 &&
+      test "$(cut -f2 .git/fixture-state/independent-review-invocations | sed -n '1p')" = blocking &&
+      test "$(cut -f2 .git/fixture-state/independent-review-invocations | sed -n '2p')" = clear &&
+      test "$(cut -f3 .git/fixture-state/independent-review-invocations | sed -n '1p')" = comprehensive &&
+      test "$(cut -f3 .git/fixture-state/independent-review-invocations | sed -n '2p')" = verify
   - name: invalidated checks run before each review
     run: >-
       awk -F '\t' '
@@ -74,7 +74,7 @@ checks:
         stage = 3
       }
       END { exit stage == 3 && initial != final ? 0 : 1 }
-      ' .git/review-events
+      ' .git/fixture-state/review-events
   - name: goal owner waits for each review response before changing content
     run: >-
       awk -F '\t' '
@@ -83,29 +83,27 @@ checks:
       $1 == "review_end" && active && $2 == start { complete++; active = 0; next }
       $1 == "review_end" { bad = 1 }
       END { exit !bad && !active && complete == 2 ? 0 : 1 }
-      ' .git/review-events
+      ' .git/fixture-state/review-events
   - name: final worktree still matches the clear reviewed target
     run: >-
-      test "$(tail -n 1 .git/independent-review-invocations | cut -f1)" =
+      test "$(tail -n 1 .git/fixture-state/independent-review-invocations | cut -f1)" =
       "$(bash .agents/bin/independent-review-fixture "$PWD" fingerprint)"
   - name: repair changes the reviewed target fingerprint
     run: >-
-      cut -f1 .git/independent-review-invocations | sort -u >.git/review-targets &&
-      test "$(wc -l <.git/review-targets | tr -d ' ')" -eq 2
+      cut -f1 .git/fixture-state/independent-review-invocations | sort -u >.git/fixture-state/review-targets &&
+      test "$(wc -l <.git/fixture-state/review-targets | tr -d ' ')" -eq 2
   - name: repair and fix verification stay local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: owner reports completion after bounded repair verification
-    expect_regex: "Status:[ \\t]*complete"
-    flags: i
-  - name: completion reports the clear fix-verification outcome
-    expect_regex: "Fix[^\\n]{0,120}verification[^\\n]{0,160}\\bclear(?:ed)?\\b"
-    flags: i
-  - name: completion reports the prior blocking finding
-    expect_regex: "(?:Initial[^\\n]{0,80})?(?:Independent|Comprehensive)[^\\n]{0,80}review[^\\n]{0,120}\\bblock(?:ing|ed)\\b[^\\n]{0,160}(?:RETRY_COUNT|retry[- ]count)"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+semantic_output_checks:
+  - name: completion reports the clear fix-verification outcome
+    proposition: The response says the independent fix-verification review cleared the repaired change.
+  - name: completion reports the prior blocking finding
+    proposition: The response reports that the initial independent review found a blocking RETRY_COUNT or retry-count problem before the repair.
 transcript_checks:
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

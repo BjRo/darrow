@@ -12,15 +12,15 @@ test -r "$verdict_file" || {
 IFS= read -r configured_verdict <"$verdict_file"
 if test "$mode" = record; then
   git -C "$repo" status --porcelain --untracked-files=all \
-    >"$repo/.git/implementation-readiness-pre-status"
-  printf '%s\n' "$configured_verdict" >>"$repo/.git/implementation-readiness-invocations"
+    >"$repo/.git/fixture-state/implementation-readiness-pre-status"
+  printf '%s\n' "$configured_verdict" >>"$repo/.git/fixture-state/implementation-readiness-invocations"
 fi
 
 verdict=$configured_verdict
 if test "$configured_verdict" = needs-decision-then-ready; then
   invocation_count=1
   if test "$mode" = record; then
-    invocation_count=$(wc -l <"$repo/.git/implementation-readiness-invocations" | tr -d ' ')
+    invocation_count=$(wc -l <"$repo/.git/fixture-state/implementation-readiness-invocations" | tr -d ' ')
   fi
   if test "$invocation_count" -ge 2; then
     verdict=ready

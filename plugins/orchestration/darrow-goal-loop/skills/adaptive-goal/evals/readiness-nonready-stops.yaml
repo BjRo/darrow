@@ -33,14 +33,15 @@ checks:
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
   - name: non-ready readiness runs exactly once
-    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
   - name: readiness sees the original product tree
-    run: test ! -s .git/implementation-readiness-pre-status
+    run: test ! -s .git/fixture-state/implementation-readiness-pre-status
 output_checks:
   - name: complete readiness result is returned
     expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action"
+semantic_output_checks:
   - name: non-ready result does not claim implementation
-    not_regex: "Status:[ \\t]*complete|Implemented (?:the )?policy|changed policy\\.txt|wrote mode ="
+    proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
   - name: readiness uses its advertised skill exactly once
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'

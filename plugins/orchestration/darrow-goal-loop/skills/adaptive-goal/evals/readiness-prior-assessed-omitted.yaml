@@ -36,11 +36,10 @@ checks:
   - name: previously assessed plan is implemented
     run: bash check.sh
   - name: prior assessment suppresses redundant readiness
-    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 1
+    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
 output_checks:
   - name: previously assessed goal completes
-    expect_regex: "Status:[ \\t]*complete"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
 transcript_checks:
   - name: readiness is invoked exactly once before the goal turn
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"'

@@ -125,6 +125,9 @@ const { values } = parseArgs({
     "judge-model": { type: "string" },
     "judge-effort": { type: "string", default: "low" },
     "no-judge": { type: "boolean", default: false },
+    "semantic-check-harness": { type: "string", default: "codex" },
+    "semantic-check-model": { type: "string" },
+    "semantic-check-effort": { type: "string", default: "low" },
     seed: { type: "string" },
   },
 });
@@ -158,6 +161,14 @@ for (const harness of harnesses) {
   if (harness !== "claude" && harness !== "codex") {
     throw new Error(`unsupported suite harness: ${harness}`);
   }
+}
+if (
+  values["semantic-check-harness"] !== "claude" &&
+  values["semantic-check-harness"] !== "codex"
+) {
+  throw new Error(
+    `unsupported semantic-check harness: ${values["semantic-check-harness"]}`,
+  );
 }
 const modes = values.mode ?? Object.keys(suite.modes);
 for (const mode of modes) {
@@ -218,6 +229,15 @@ const manifest = {
               : codexAdapter.defaultModel),
           effort: values["judge-effort"],
         },
+  semanticOutput: {
+    harness: values["semantic-check-harness"],
+    model:
+      values["semantic-check-model"] ??
+      (values["semantic-check-harness"] === "claude"
+        ? claudeAdapter.defaultModel
+        : codexAdapter.defaultModel),
+    effort: values["semantic-check-effort"],
+  },
   cells: [] as Array<{
     harness: string;
     mode: string;
@@ -323,6 +343,14 @@ for (const { harness, modeName } of cellPlan) {
     args.push("--case-routes", JSON.stringify(routes));
   }
   if (values.dry) args.push("--dry");
+  args.push(
+    "--semantic-check-harness",
+    values["semantic-check-harness"]!,
+    "--semantic-check-effort",
+    values["semantic-check-effort"]!,
+  );
+  if (values["semantic-check-model"])
+    args.push("--semantic-check-model", values["semantic-check-model"]);
   if (!values.dry && !values["no-judge"]) {
     args.push(
       "--judge-harness",

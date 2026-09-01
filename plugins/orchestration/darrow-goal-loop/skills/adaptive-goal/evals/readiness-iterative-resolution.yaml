@@ -35,11 +35,13 @@ checks:
   - name: resolved request is implemented
     run: bash check.sh
   - name: readiness runs once before and once after resolution
-    run: test "$(wc -l <.git/implementation-readiness-invocations | tr -d ' ')" -eq 2
+    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 2
 output_checks:
   - name: resolved same goal completes
-    expect_regex: "Status:[ \\t]*complete[\\s\\S]*Readiness:[^\n]*(?:ready|passed)"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
+semantic_output_checks:
+  - name: resolved readiness is reported
+    proposition: The response reports the final readiness outcome as ready and does not say the goal remains non-ready.
 transcript_checks:
   - name: readiness starts before resolution and owner launch follows it
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"darrow.goal_owner_accepted"'

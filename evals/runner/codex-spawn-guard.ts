@@ -102,6 +102,20 @@ async function fingerprintEntry(
   );
 }
 
+async function fingerprintFixtureStateDirectory(
+  gitDir: string,
+  records: string[],
+): Promise<void> {
+  const directory = join(gitDir, "fixture-state");
+  records.push("dir\0fixture-state\0");
+  const entries = await readdir(directory);
+  entries.sort();
+  for (const entry of entries) {
+    if (PREFLIGHT_TRACE_ENTRY.test(entry)) continue;
+    await fingerprintEntry(gitDir, join(directory, entry), records);
+  }
+}
+
 /** Content identity for the repository worktree, excluding Git-private state. */
 export async function repositoryFingerprint(repoDir: string): Promise<string> {
   const root = resolve(repoDir);
@@ -126,8 +140,11 @@ export async function fixtureStateFingerprint(
         (entry === "fixture-bin" || FIXTURE_STATE_ENTRY.test(entry)),
     )
     .sort();
-  for (const entry of entries)
-    await fingerprintEntry(gitDir, join(gitDir, entry), records);
+  for (const entry of entries) {
+    if (entry === "fixture-state")
+      await fingerprintFixtureStateDirectory(gitDir, records);
+    else await fingerprintEntry(gitDir, join(gitDir, entry), records);
+  }
   return sha256(records.join(""));
 }
 

@@ -13,6 +13,7 @@ case "$host" in
     exit 2
     ;;
 esac
+mkdir -p "$repo/.git/fixture-state"
 for host_root in $host_roots; do
   printf '/%s/\n' "$host_root" >>"$repo/.git/info/exclude"
   mkdir -p "$repo/$host_root/skills/assess-implementation-readiness" \
@@ -22,7 +23,7 @@ for host_root in $host_roots; do
       cp "$fixture_dir/implementation-readiness/SKILL.claude.fixture.md" \
         "$repo/$host_root/skills/assess-implementation-readiness/SKILL.md"
       bash "$fixture_dir/implementation-readiness/implementation-readiness-fixture" \
-        "$repo" render-only >"$repo/.git/implementation-readiness-result"
+        "$repo" render-only >"$repo/.git/fixture-state/implementation-readiness-result"
       ;;
     *)
       cp "$fixture_dir/implementation-readiness/SKILL.fixture.md" \

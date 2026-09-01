@@ -44,7 +44,7 @@ async function fixture() {
     join(tmpdir(), "darrow-codex-objective-"),
   );
   await writeFile(join(repo, "fixture.txt"), "base\n");
-  await mkdir(join(repo, ".git"));
+  await mkdir(join(repo, ".git", "fixture-state"), { recursive: true });
   return {
     repo,
     objectiveRoot,
@@ -337,18 +337,47 @@ describe("Codex adaptive-goal spawn guard", () => {
   test("permits readiness trace output before owner launch", async () => {
     const { repo, objectiveRoot, policy } = await fixture();
     try {
+      await mkdir(join(repo, ".git", "fixture-state"), { recursive: true });
       await writeFile(
-        join(repo, ".git", "implementation-readiness-invocations"),
+        join(
+          repo,
+          ".git",
+          "fixture-state",
+          "implementation-readiness-invocations",
+        ),
         "ready\n",
       );
       await writeFile(
-        join(repo, ".git", "implementation-readiness-pre-status"),
+        join(
+          repo,
+          ".git",
+          "fixture-state",
+          "implementation-readiness-pre-status",
+        ),
         "",
       );
       const result = await guardCodexSpawn(ownerHook(repo), policy);
       expect(result).toMatchObject({
         hookSpecificOutput: { permissionDecision: "allow" },
       });
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(objectiveRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects other fixture-state changes before owner launch", async () => {
+    const { repo, objectiveRoot, policy } = await fixture();
+    try {
+      await mkdir(join(repo, ".git", "fixture-state"), { recursive: true });
+      await writeFile(
+        join(repo, ".git", "fixture-state", "unexpected-operation"),
+        "changed\n",
+      );
+      const result = await guardCodexSpawn(ownerHook(repo), policy);
+      expect(JSON.stringify(result)).toContain(
+        "parent fixture state changed before adaptive goal owner activation",
+      );
     } finally {
       await rm(repo, { recursive: true, force: true });
       await rm(objectiveRoot, { recursive: true, force: true });

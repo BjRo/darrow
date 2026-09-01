@@ -261,7 +261,9 @@ during read-only preflight. It preserves the capability's complete
 human-readable result. Only a semantic `ready` result permits owner launch.
 `needs-discovery`, `needs-decision`, or `blocked` returns the complete result,
 surfaces the smallest unresolved questions, and leaves the product tree
-unchanged.
+unchanged. The returned capability result starts the response unchanged, with
+no preamble or summary; the parent may append the smallest unresolved questions
+after that complete result.
 
 After the user resolves those findings, the same adaptive-goal preflight invokes
 the readiness capability again for the same scope. Repeat only while the result
@@ -436,6 +438,9 @@ Reason: <specific unavailable boundary or capability>
 Selected route: <provider/model/effort>
 ```
 
+The first line is exactly `Status: launch_required`, with no leading or
+trailing whitespace or Markdown hard-break spaces.
+
 Nested host processes are not an adaptive-goal fallback.
 
 ## Invariants
@@ -482,6 +487,13 @@ Nested host processes are not an adaptive-goal fallback.
 17. **AGL-X1 — No lifecycle ledger.** Adaptive-goal ships no required run
     ledger, lifecycle hook, blocker protocol, canonical helper report, or
     model-operated transition sequence.
+18. **AGL-E1 — Evidence-appropriate evaluation.** Adaptive-goal evals prove
+    repository and external effects with passive fixture event logs under
+    `.git/fixture-state/`, exact public tokens with rigid output checks, and
+    paraphrasable prose contracts with fail-closed semantic output checks.
+    Owner-boundary guards ignore only the named readiness preflight traces in
+    that ledger; all product-tree and other fixture-state changes remain
+    protected before owner launch.
 
 ## Packaging and portability
 
@@ -519,6 +531,13 @@ reasoning or bookkeeping. At minimum, cover:
 - semantic blockage and observe-before-retry behavior;
 - preservation of local work and publication authority; and
 - focused versus final verification cadence.
+
+Across the full adaptive-goal suite, sentence-shaped propositions must not be
+encoded as synonym lists, bounded-gap regexes, or lookarounds. Passive fixture
+observations live only under `.git/fixture-state/`; they are test evidence, not
+a product lifecycle ledger. Semantic gates remain active when the advisory
+quality judge is disabled and are exercised against faithful paraphrases,
+negation, contradiction, malformed results, and grader unavailability.
 
 Use the native harness for each host claim. Develop behavior changes from
 matched evidence and report trial count, outcomes, tokens, wall time, and

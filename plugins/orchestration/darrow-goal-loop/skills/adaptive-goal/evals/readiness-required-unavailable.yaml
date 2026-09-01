@@ -29,9 +29,11 @@ checks:
   - name: unavailable readiness creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
+  - name: unavailable readiness stops launch
+    expect_regex: "^Status: launch_required(?:\\r?\\n|$)"
+semantic_output_checks:
   - name: stop identifies unavailable readiness
-    expect_regex: "Status:[ \\t]*launch_required[\\s\\S]*readiness"
-    flags: i
+    proposition: The response identifies the required implementation-readiness capability or boundary as unavailable.
 transcript_checks:
   - name: unavailable readiness stops before generic delegation
     not_regex: '"tool":"spawn_agent"'

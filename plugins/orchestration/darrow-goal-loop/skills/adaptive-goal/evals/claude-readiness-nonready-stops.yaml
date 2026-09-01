@@ -41,8 +41,9 @@ checks:
 output_checks:
   - name: Claude returns the complete readiness result
     expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action"
+semantic_output_checks:
   - name: Claude non-ready result does not claim implementation
-    not_regex: "Status:[ \\t]*complete|(?:^|\\r?\\n)Claude non-ready request completed\\.(?=\\r?\\n|$)"
+    proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
   - name: Claude invokes the readiness skill exactly once
     expect_regex: '"name":"Skill"[^\r\n]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'

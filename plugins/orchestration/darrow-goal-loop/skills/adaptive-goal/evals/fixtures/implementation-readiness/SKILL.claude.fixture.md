@@ -6,7 +6,7 @@ description: Assess whether one authoritative ticket, specification, plan, or re
 # Assess implementation readiness
 
 Use the native Read tool, never Bash, to read the complete file
-`.git/implementation-readiness-result` in the current repository. Treat its
+`.git/fixture-state/implementation-readiness-result` in the current repository. Treat its
 contents as this capability's complete human-readable result and return them
 verbatim to adaptive-goal preflight. Do not invoke another tool, implement the
 request, or perform the result's next action inside this capability. A `ready`

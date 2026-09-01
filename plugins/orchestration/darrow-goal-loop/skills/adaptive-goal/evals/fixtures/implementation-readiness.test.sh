@@ -21,7 +21,7 @@ codex_result=$(bash "$codex_repo/.agents/bin/implementation-readiness-fixture" "
 grep -F "**Verdict:** \`blocked\`" <<<"$codex_result" >/dev/null
 grep -F "**Type:** \`dependency\`" <<<"$codex_result" >/dev/null
 grep -F "**Type:** \`unblock\`" <<<"$codex_result" >/dev/null
-test "$(wc -l <"$codex_repo/.git/implementation-readiness-invocations" | tr -d ' ')" -eq 1
+test "$(wc -l <"$codex_repo/.git/fixture-state/implementation-readiness-invocations" | tr -d ' ')" -eq 1
 
 iterative_repo="$test_root/iterative"
 make_repo "$iterative_repo" needs-decision-then-ready
@@ -30,21 +30,21 @@ first_result=$(bash "$iterative_repo/.agents/bin/implementation-readiness-fixtur
 second_result=$(bash "$iterative_repo/.agents/bin/implementation-readiness-fixture" "$iterative_repo")
 grep -F "**Verdict:** \`needs-decision\`" <<<"$first_result" >/dev/null
 grep -F "**Verdict:** \`ready\`" <<<"$second_result" >/dev/null
-test "$(wc -l <"$iterative_repo/.git/implementation-readiness-invocations" | tr -d ' ')" -eq 2
+test "$(wc -l <"$iterative_repo/.git/fixture-state/implementation-readiness-invocations" | tr -d ' ')" -eq 2
 
 claude_repo="$test_root/claude"
 make_repo "$claude_repo" needs-discovery
 bash "$installer" "$claude_repo" "$script_dir" claude
 test -f "$claude_repo/.claude/skills/assess-implementation-readiness/SKILL.md"
 test ! -e "$claude_repo/.claude/bin/implementation-readiness-fixture"
-test ! -e "$claude_repo/.git/implementation-readiness-invocations"
+test ! -e "$claude_repo/.git/fixture-state/implementation-readiness-invocations"
 grep -F 'Use the native Read tool, never Bash' \
   "$claude_repo/.claude/skills/assess-implementation-readiness/SKILL.md" >/dev/null
 grep -F "**Verdict:** \`needs-discovery\`" \
-  "$claude_repo/.git/implementation-readiness-result" >/dev/null
+  "$claude_repo/.git/fixture-state/implementation-readiness-result" >/dev/null
 grep -F "**Type:** \`missing-information\`" \
-  "$claude_repo/.git/implementation-readiness-result" >/dev/null
+  "$claude_repo/.git/fixture-state/implementation-readiness-result" >/dev/null
 grep -F "**Type:** \`discovery\`" \
-  "$claude_repo/.git/implementation-readiness-result" >/dev/null
+  "$claude_repo/.git/fixture-state/implementation-readiness-result" >/dev/null
 
 printf '%s\n' 'implementation-readiness fixture tests passed'

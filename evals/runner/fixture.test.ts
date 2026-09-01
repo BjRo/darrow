@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   chmod,
+  lstat,
   mkdtemp,
   mkdir,
   readFile,
+  readlink,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -428,6 +430,17 @@ describe("eval fixture skill mounts", () => {
       cwd: fixture,
     });
     expect(await readFile(bodyPath, "utf8")).toBe("Updated ticket body\n");
+    const compatibilityLog = join(fixture, ".git", "ticketctl.log");
+    expect((await lstat(compatibilityLog)).isSymbolicLink()).toBe(true);
+    expect(await readlink(compatibilityLog)).toBe(
+      "fixture-state/ticketctl.log",
+    );
+    expect(
+      await readFile(
+        join(fixture, ".git", "fixture-state", "ticketctl.log"),
+        "utf8",
+      ),
+    ).toBe("get 17\ndescribe 17\nget 17\n");
 
     await destroyFixture(fixture);
     cleanup.splice(cleanup.indexOf(fixture), 1);

@@ -43,7 +43,7 @@ fixture:
           set -eu
           node config.test.js
           review_target=$(.agents/bin/independent-review-fixture "$PWD" fingerprint)
-          printf 'check\t%s\n' "$review_target" >>.git/independent-review-events
+          printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
   setup: >-
     bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
     "{{case_dir}}/fixtures" codex
@@ -65,29 +65,28 @@ checks:
   - name: focused tests pass
     run: bash test.sh
   - name: migration compatibility receives one independent review
-    run: test "$(wc -l <.git/independent-review-invocations | tr -d ' ')" -eq 1
+    run: test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 1
   - name: independent review covers the migrated final target
     run: >-
-      test "$(cut -f1 .git/independent-review-invocations)" =
+      test "$(cut -f1 .git/fixture-state/independent-review-invocations)" =
       "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)"
   - name: independent review starts after a matching current check
     run: >-
       awk -F '\t' '$1 == "check" { checked[$2]=1 }
       $1 == "review_start" && checked[$2] { ok=1 }
-      END { exit ok ? 0 : 1 }' .git/independent-review-events
+      END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-events
   - name: independent review reports a clear comprehensive outcome
     run: >-
       awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
-      END { exit ok ? 0 : 1 }' .git/independent-review-invocations
+      END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-invocations
 output_checks:
   - name: sequenced transition is classified as migration
-    expect_regex: "Status[^A-Za-z0-9]+complete(?:d)?\\b"
-    flags: i
-  - name: completion reports the semantic review outcome
-    expect_regex: "Independent[^\\n]{0,80}review[\\s\\S]{0,240}(?:\\bclear\\b|\\bno blocking findings\\b)"
-    flags: i
+    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+semantic_output_checks:
+  - name: completion reports the semantic review outcome
+    proposition: The response says an independent review of the completed change found no blocking findings.
 transcript_checks:
   - name: launch preserves migration workflow and elevated risk
     expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"migration","risk":"elevated"'
