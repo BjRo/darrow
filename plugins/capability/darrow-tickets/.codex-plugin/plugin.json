@@ -1,6 +1,6 @@
 {
   "name": "darrow-tickets",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, read-ticket, update-ticket, list-tickets",
   "author": {
     "name": "Björn Rochel"

@@ -1,0 +1,62 @@
+id: list-tickets-no-trigger-exact-ticket
+invariant: TM-L1,TM-R1,SE-C9,SE-C10,SE-C11
+activation: negative
+mount_plugin_skills: true
+prompt: Read ticket #21 and show its authoritative body; do not list other tickets.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      find_flag() {
+        want=$1; shift
+        prev=""
+        for arg in "$@"; do
+          if [ "$prev" = "$want" ]; then printf '%s' "$arg"; return 0; fi
+          prev=$arg
+        done
+        return 1
+      }
+      if [ "$1" = "api" ]; then
+        case "$2" in
+          */issues/21/parent) echo "gh: No parent issue found (HTTP 404)" >&2; exit 1 ;;
+          */issues/21/dependencies/blocked_by) exit 0 ;;
+          *) echo "mock gh: unsupported api call: $*" >&2; exit 1 ;;
+        esac
+      fi
+      case "$1 $2" in
+        "repo view") echo "https://github.test/o/r" ;;
+        "issue view")
+          json=$(find_flag --json "$@")
+          case "$json" in
+            number,state,title,url,labels)
+              jq=$(find_flag --jq "$@")
+              case "$jq" in
+                *ticket-token*) printf 'ticket-token: 21\n' ;;
+              esac
+              printf '#21 open — Exact ticket\nhttps://github.test/o/r/issues/21\nlabels: bug\n'
+              ;;
+            body) printf 'EXACT-TICKET-BODY-21\n' ;;
+            *) echo "mock gh: unsupported --json set: $json" >&2; exit 1 ;;
+          esac
+          ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: exact ticket body is retrieved
+    run: cat .git/last-message.md
+    expect_regex: "ticket-token: 21[\\s\\S]*EXACT-TICKET-BODY-21"
+  - name: list operation is not used
+    run: cat .git/fixture-gh/calls
+    not_regex: "issue list"
+  - name: exact-ticket retrieval remains read-only
+    run: cat .git/fixture-gh/calls
+    not_regex: "issue (create|edit|comment|close|reopen)"

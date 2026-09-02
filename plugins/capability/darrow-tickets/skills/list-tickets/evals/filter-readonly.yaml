@@ -1,5 +1,7 @@
 id: list-tickets-filter-readonly
-invariant: TM-L1
+invariant: TM-L1,TM-L2,TM-L3,SE-C9,SE-C10,SE-C11
+activation: competition
+mount_plugin_skills: true
 prompt: Show me the open bug tickets.
 fixture:
   commits:
@@ -155,6 +157,13 @@ fixture:
     printf 'bug\nenhancement\ndocumentation\n' > .git/fixture-gh/labels
     printf '#12 open  ticket list crashes with SIGPIPE on large repos (bug)\n#14 open  Wrong exit code on empty list (bug)\n' > .git/fixture-gh/list
 checks:
+  - name: authoritative list is relayed without semantic changes
+    run: sed 's/[[:blank:]]*$//' .git/last-message.md
+    expect_exact: |-
+      backend: github
+      #12 open  ticket list crashes with SIGPIPE on large repos (bug)
+      #14 open  Wrong exit code on empty list (bug)
+      total: 2 (state=open, type=bug, label=bug)
   - name: filtered by the bug type label
     run: cat .git/fixture-gh/calls
     expect_regex: "issue list.*--label bug"
