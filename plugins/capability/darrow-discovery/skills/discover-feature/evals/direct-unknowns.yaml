@@ -33,11 +33,15 @@ checks:
     run: cat .git/last-message.md
     expect_regex: "Postmark|transactional email|job scheduler|Analyst|Administrator"
     flags: i
-  - name: dependent delivery-channel choice is deferred
-    run: cat .git/last-message.md
-    not_regex: "Q[0-9]+[^\n]*(which|choose|select).{0,80}(delivery )?channel|(which|choose|select).{0,80}(delivery )?channel[^\n]*Q[0-9]+"
-    flags: i
-  - name: unresolved discovery does not emit a final brief
-    run: cat .git/last-message.md
-    not_regex: "Final discovery brief|Discovery complete|confirmed discovery brief"
-    flags: i
+semantic_output_checks:
+  - name: delivery channel remains a dependent choice
+    proposition: >-
+      The response asks the user to decide schedule ownership before delivery
+      channels and does not ask the user to choose, recommend, or settle a
+      delivery channel in this round.
+  - name: unresolved discovery prevents a brief
+    proposition: >-
+      The response asks schedule ownership as the current material
+      product-decision frontier with an advisory recommendation, then stops
+      without producing a discovery brief or claiming discovery is complete or
+      confirmed.

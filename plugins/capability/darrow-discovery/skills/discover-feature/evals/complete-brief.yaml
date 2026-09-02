@@ -1,18 +1,20 @@
 id: discover-feature-complete-brief
-invariant: DF-C1,DF-C2,DG-C5,DC-C1
+invariant: DF-C1,DF-C2,DG-C5,DC-C1,SE-C9,SE-C10,SE-C11
+activation: competition
 mount_plugin_skills: true
 prompt: >-
   Produce the draft discovery brief from these settled feature decisions. The
   feature lets workspace administrators schedule an existing saved report for
-  weekly Monday 09:00 delivery in the workspace timezone to verified workspace
-  members by email. A schedule can be paused or deleted. Generation failures
-  retry once and then email the owning administrator. CSV is the only format.
-  Historical backfill, external recipients, custom cron schedules, and new
-  report authoring are out of scope. Acceptance will be observed through the
-  public scheduling API and a fake-clock integration test covering delivery,
-  pause, one retry plus notification, and deletion. These are my final choices;
-  include the one-sentence restatement for confirmation. Do not write files or
-  produce an implementation plan.
+  weekly Monday 09:00 delivery in the workspace timezone. The scheduling
+  administrator selects one or more recipients from verified workspace members,
+  and delivery uses email. A schedule can be paused or deleted. Generation
+  failures retry once and then email the owning administrator. CSV is the only
+  format. Historical backfill, external recipients, custom cron schedules, and
+  new report authoring are out of scope. Acceptance will be observed through
+  the public scheduling API and a fake-clock integration test covering
+  delivery, pause, one retry plus notification, and deletion. These are my
+  final choices; include the one-sentence restatement for confirmation. Do not
+  write files or produce an implementation plan.
 fixture:
   commits:
     - message: "chore: init"

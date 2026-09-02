@@ -140,10 +140,11 @@ consumer as resolved before confirmation.
 
 ### Intent
 
-Use `discover-feature` when the user wants to explore, shape, or clarify a new
-feature or product behavior before planning or implementation. Do not use it
-for an already-resolved implementation request, implementation planning alone,
-bug diagnosis, or a generic request to be grilled without a feature outcome.
+Use `discover-feature` when the user wants to discover, explore, shape, or
+clarify a new feature or product behavior before planning or implementation.
+Do not use it for an already-resolved implementation request, implementation
+planning alone, bug diagnosis, or a generic request to be grilled without a
+feature outcome.
 
 ### Workflow
 
@@ -262,8 +263,13 @@ subject would you like me to grill?`, and it stops.
    users, scope, constraints, non-goals, and observable acceptance without
    turning into implementation planning.
 8. **DF-C2 — Honest brief.** A discovery brief exposes evidence provenance,
-   assumptions, and deferred questions and is not finalized while a material
-   frontier remains.
+   assumptions, and deferred questions. Material product choices cannot be
+   moved into assumptions or deferrals, and no discovery brief, including a
+   draft, is produced while a material frontier remains. When a named material
+   choice is open, the response accounts for it by asking it on the current
+   frontier or explicitly deferring it under the canonical dependency rule. A
+   blanket request to assume defaults or decide missing details is pressure,
+   not bounded delegation over nearby named choices.
 9. **PI-C1 — Technical outcome.** Implementation planning resolves public
    seams, approach, delivery slices, dependencies, verification, and relevant
    migration or rollout concerns without implementing or publishing tickets.
