@@ -11,11 +11,26 @@ fixture:
       files:
         README.md: "# Fixture\n"
   bin:
+    bash: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)"
+      case "${1:-}" in
+        */darrow-tickets/*/bin/ticket)
+          printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls"
+          ;;
+      esac
+      exec /bin/bash "$@"
     gh: |
       #!/bin/sh
       d="$(git rev-parse --git-dir)/fixture-gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
+      case "$1" in
+        repo) printf 'repo view %s %s\n' "$3" "$4" >> "$d/protocol" ;;
+        issue) printf 'issue view %s %s %s\n' "$3" "$4" "$5" >> "$d/protocol" ;;
+        api) printf 'api %s\n' "$2" >> "$d/protocol" ;;
+        *) printf 'unexpected %s\n' "$1" >> "$d/protocol" ;;
+      esac
       find_flag() {
         want=$1; shift
         prev=""
@@ -71,6 +86,14 @@ checks:
   - name: URL resolves to the exact ticket body
     run: cat .git/last-message.md
     expect_regex: "ticket-token: 21[\\s\\S]*#21 closed.*Canonical URL intake[\\s\\S]*URL-TOKEN-21"
-  - name: URL retrieval is read-only
-    run: cat .git/fixture-gh/calls
-    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"
+  - name: bundled CLI owns the URL retrieval
+    run: cat .git/fixture-ticket-cli-calls
+    expect_regex: "/bin/ticket get https://github.test/o/r/issues/21$"
+  - name: URL retrieval uses only the bundled read protocol
+    run: cat .git/fixture-gh/protocol
+    expect_exact: |-
+      repo view --json url
+      issue view 21 --json number,state,title,url,labels
+      issue view 21 --json body
+      api repos/{owner}/{repo}/issues/21/parent
+      api repos/{owner}/{repo}/issues/21/dependencies/blocked_by
