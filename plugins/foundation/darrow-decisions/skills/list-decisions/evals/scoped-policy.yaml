@@ -1,6 +1,7 @@
 id: list-decisions-scoped-policy
 invariant: DM-L2
-activation: positive
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   What recorded contributor policy governs authentication changes in the API
   service? Follow the repository's policy routing, report the canonical

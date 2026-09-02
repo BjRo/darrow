@@ -1,5 +1,7 @@
 id: capture-decision-accepted-architecture
 invariant: "DM-1,DM-C4,DM-C7"
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   We have decided that production persistence will use PostgreSQL. I am the
   repository maintainer and this is the accepted architecture choice. Capture

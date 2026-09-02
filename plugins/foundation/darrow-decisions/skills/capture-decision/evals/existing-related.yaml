@@ -1,5 +1,7 @@
 id: capture-decision-existing-related
 invariant: DM-3
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Capture the accepted repository architecture decision that local state uses
   SQLite. We already discussed and recorded this choice earlier.

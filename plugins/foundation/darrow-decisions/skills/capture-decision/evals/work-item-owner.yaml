@@ -1,5 +1,7 @@
 id: capture-decision-work-item-owner
 invariant: DM-7
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   In the GitHub issue tracker, capture this ticket-local implementation
   decision on ticket acme/service#42: retry only idempotent requests with exponential

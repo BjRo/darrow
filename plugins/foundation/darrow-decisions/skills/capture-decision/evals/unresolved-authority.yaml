@@ -1,5 +1,7 @@
 id: capture-decision-unresolved-authority
 invariant: DM-1
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Capture our database decision as accepted so work can continue. The team is
   split between SQLite and PostgreSQL, and nobody has selected either option.

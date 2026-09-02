@@ -1,5 +1,7 @@
 id: capture-decision-normative-specification
 invariant: DM-6
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   We have decided that API sessions must use HttpOnly same-site cookies rather
   than bearer tokens. Capture this as normative authentication capability

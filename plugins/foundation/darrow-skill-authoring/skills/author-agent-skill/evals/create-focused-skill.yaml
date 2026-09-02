@@ -1,5 +1,6 @@
 id: author-agent-skill-create-focused-skill
 invariant: SA-C1,SA-C2,SA-C3,SA-C5,SA-C7,SA-C8
+activation: positive
 prompt: >-
   Create one cross-runtime agent skill named validate-release-note in the
   existing plugins/release-helper plugin. It should help when someone asks to

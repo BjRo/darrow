@@ -1,6 +1,7 @@
 id: list-decisions-cross-surface
 invariant: DM-L2
-activation: positive
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   List only recorded decisions whose subject is authentication, considering
   repository architecture, normative capability behavior, and contributor

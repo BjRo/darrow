@@ -1,5 +1,7 @@
 id: capture-decision-no-manufactured-decision
 invariant: DM-2
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Capture our repository database decision. We observed that SQLite was faster
   in one local benchmark, one teammate recommends PostgreSQL, and I currently

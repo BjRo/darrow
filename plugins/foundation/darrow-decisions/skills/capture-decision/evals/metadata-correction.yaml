@@ -1,5 +1,7 @@
 id: capture-decision-metadata-correction
 invariant: DM-10
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Correct the Date metadata on accepted ADR-0001 from 2026-06-01 to
   2026-06-02. This is a non-semantic metadata correction; the accepted

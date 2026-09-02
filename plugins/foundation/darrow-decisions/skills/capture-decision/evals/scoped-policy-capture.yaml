@@ -1,5 +1,7 @@
 id: capture-decision-scoped-policy
 invariant: DM-C1
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   We have decided that authentication changes in the API service require two
   security-reviewer approvals. I am the repository maintainer and authorize

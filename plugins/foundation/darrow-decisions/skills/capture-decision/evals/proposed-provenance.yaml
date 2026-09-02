@@ -1,5 +1,7 @@
 id: capture-decision-proposed-provenance
 invariant: "DM-2,DM-5,DM-8"
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Record a repository architecture proposal to evaluate Redis for shared cache
   state. This is not accepted. User-provided observation: one local load test

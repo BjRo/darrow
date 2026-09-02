@@ -1,5 +1,6 @@
 id: author-agent-skill-repair-skill-boundaries
 invariant: SA-C2,SA-C3,SA-C4,SA-C5,SA-C7
+activation: positive
 prompt: >-
   Improve the existing deploy-checklist skill so it is focused, independently
   installable, and reliable in both Claude Code and Codex. Preserve its actual

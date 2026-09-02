@@ -1,5 +1,7 @@
 id: capture-decision-supersede-accepted
 invariant: DM-10
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   We have decided to replace the repository's accepted REST API architecture
   with GraphQL. Supersede the existing ADR and record the new accepted
