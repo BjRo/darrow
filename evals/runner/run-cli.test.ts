@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 test("requires an explicit harness", async () => {
@@ -19,4 +21,51 @@ test("requires an explicit harness", async () => {
   expect(exitCode).toBe(1);
   expect(stdout).toBe("");
   expect(stderr).toBe("--harness is required; available: claude, codex\n");
+});
+
+test("emits stable plain logs and an absolute result path", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "darrow-eval-cli-"));
+  const resultPath = join(temporary, "result.json");
+  try {
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "runner/run.ts",
+        "--harness",
+        "codex",
+        "--case",
+        "grilling-incomplete-subject",
+        "--trials",
+        "2",
+        "--dry",
+        "--no-color",
+        "--no-emoji",
+        "--no-progress",
+        "--output",
+        resultPath,
+      ],
+      {
+        cwd: join(import.meta.dir, ".."),
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+    expect(stdout).toContain("Darrow Eval");
+    expect(stdout).toContain("RUN 1/2");
+    expect(stdout).toContain("1 prepared · dry run · 1 cases · 2 trials");
+    expect(stdout).toContain(`Results: ${resultPath}`);
+    expect(stdout).not.toContain("\u001B");
+    expect(stdout).not.toMatch(/[✓✕🧪📄✨]/u);
+    expect(JSON.parse(await readFile(resultPath, "utf8"))).toHaveLength(1);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
 });
