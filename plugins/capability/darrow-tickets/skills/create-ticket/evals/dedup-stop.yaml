@@ -1,5 +1,7 @@
 id: create-ticket-dedup-stop
 invariant: TM-C1
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Create a ticket: our ticket list command dies with SIGPIPE when a repo has
   hundreds of open tickets.
@@ -160,9 +162,15 @@ fixture:
     printf 'ticket list crashes with SIGPIPE on repos with many tickets' > .git/fixture-gh/issue-12-title
     printf 'Reported by CI.\n' > .git/fixture-gh/issue-12-body
 checks:
-  - name: searched the tracker first
+  - name: searched the tracker with focused terms
     run: cat .git/fixture-gh/calls
-    expect_regex: "issue list"
-  - name: no duplicate created
-    run: test ! -f .git/fixture-gh/created-title && echo none
-    expect_regex: "^none$"
+    expect_regex: "issue list.*--search"
+  - name: plausible duplicate causes no tracker mutation
+    run: cat .git/fixture-gh/calls
+    not_regex: "(^| )issue (create|edit|comment|close|reopen)( |$)|(^| )api (-X|--method) (POST|PUT|PATCH|DELETE)( |$)"
+semantic_output_checks:
+  - name: plausible duplicate is reported before stopping
+    proposition: >-
+      The response reports issue #12 and its ticket-list SIGPIPE title as a
+      plausible duplicate, briefly explains why it matches the requested
+      problem, and makes clear that no new ticket was created.

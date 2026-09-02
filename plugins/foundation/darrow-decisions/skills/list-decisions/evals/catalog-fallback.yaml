@@ -1,5 +1,6 @@
 id: list-decisions-catalog-fallback
 invariant: "DM-20,DM-L6"
+activation: positive
 prompt: >-
   List the accepted ADR decision about zephyr routing. Use the repository's
   decision tooling, report the canonical absolute record and actual effect, and

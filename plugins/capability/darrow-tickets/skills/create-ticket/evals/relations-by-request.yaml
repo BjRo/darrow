@@ -1,5 +1,7 @@
 id: create-ticket-relations-by-request
 invariant: TM-C9
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Create a task ticket under epic #7: wire the CSV export into the nightly
   reporting job. Outcome: the nightly job attaches the CSV to its report.
@@ -169,7 +171,8 @@ checks:
     not_regex: "[0-9]"
   - name: no marker lines smuggled into the body
     run: cat .git/fixture-gh/created-body
-    not_regex: "^(Parent|Depends-on):"
+    not_regex: "^(parent|depends[- ]?on|blocked[- ]?by)[ \\t]*:"
+    flags: i
   - name: typed as a task
     run: cat .git/fixture-gh/created-labels
     expect_regex: "^task$"

@@ -1,5 +1,7 @@
 id: create-ticket-structure-evidence
 invariant: TM-C3
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   File a ticket: `bun run sync` crashes with `TypeError: undefined is not a
   function at parseAccounts (sync.ts:42)` on accounts imported from CSV. It
@@ -164,12 +166,18 @@ checks:
   - name: no trailing period in the title
     run: cat .git/fixture-gh/created-title
     not_regex: "\\.$"
-  - name: body has the observed section
-    run: cat .git/fixture-gh/created-body
-    expect_regex: "^## Observed$"
-  - name: body has the reproduction section
-    run: cat .git/fixture-gh/created-body
-    expect_regex: "^## Reproduction$"
+  - name: every required bug section has evidence
+    run: >-
+      awk '
+        /^## Observed$/ { section = "observed"; next }
+        /^## Expected$/ { section = "expected"; next }
+        /^## Reproduction$/ { section = "reproduction"; next }
+        /^## / { section = ""; next }
+        NF && section != "" { seen[section] = 1 }
+        END {
+          exit !(seen["observed"] && seen["expected"] && seen["reproduction"])
+        }
+      ' .git/fixture-gh/created-body
   - name: error message quoted verbatim
     run: cat .git/fixture-gh/created-body
     expect_regex: "TypeError: undefined is not a function at parseAccounts"

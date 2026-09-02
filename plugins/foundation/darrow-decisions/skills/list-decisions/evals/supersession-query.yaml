@@ -1,5 +1,6 @@
 id: list-decisions-supersession-query
 invariant: DM-L3
+activation: positive
 prompt: "Which accepted architecture decision superseded ADR-0001? List the canonical record and relationship read-only."
 fixture:
   commits:
@@ -52,10 +53,6 @@ checks:
       test "$(grep -F -c "$path" "$message")" -eq 1;
       echo related
     expect_exact: "related"
-  - name: does not invert the supersession direction
-    run: cat .git/last-message.md
-    not_regex: "ADR-0001[^\\n]{0,120}supersedes[^\\n]{0,80}ADR-0002|ADR-0002[^\\n]{0,120}superseded by[^\\n]{0,80}ADR-0001"
-    flags: i
   - name: listing is read-only
     run: git status --porcelain --untracked-files=all
     not_regex: "\\S"

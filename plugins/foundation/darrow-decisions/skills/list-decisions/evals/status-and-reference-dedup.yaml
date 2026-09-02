@@ -1,5 +1,6 @@
 id: list-decisions-status-and-reference-dedup
 invariant: "DM-L2,DM-L3"
+activation: positive
 prompt: >-
   List recorded authentication decisions and unresolved authentication
   proposals across ADR and specification surfaces. Distinguish actual statuses,
