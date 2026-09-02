@@ -1,8 +1,8 @@
-id: read-ticket-incomplete-reference
+id: read-ticket-implicit-incomplete-reference
 invariant: TM-R1,TM-R2
 activation: positive
 mount_plugin_skills: true
-prompt: "{{skill_invocation}} Show me the ticket."
+prompt: "Show me the ticket."
 fixture:
   commits:
     - message: "chore: init"

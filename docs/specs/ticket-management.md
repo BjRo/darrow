@@ -177,12 +177,14 @@ then relay its authoritative metadata, relations, and body.
 
 ### Invariants
 
-- **TM-R1 — Exact current-project reference.** Read only an explicit ticket ID,
-  a canonical URL belonging to the current project's resolved backend, or an
-  exact reference already bound unambiguously in the conversation. A missing
-  reference asks for an ID or canonical URL. A topic, title fragment, foreign-
-  project URL, ambiguous conversational reference, or numeric suffix extracted
-  from a rejected URL never becomes a guessed ticket.
+- **TM-R1 — Exact current-project reference.** Direct or indirect requests to
+  retrieve one referenced ticket select this capability without requiring the
+  user to name the skill. Read only an explicit ticket ID, a canonical URL
+  belonging to the current project's resolved backend, or an exact reference
+  already bound unambiguously in the conversation. A missing reference asks for
+  an ID or canonical URL. A topic, title fragment, foreign-project URL,
+  ambiguous conversational reference, or numeric suffix extracted from a
+  rejected URL never becomes a guessed ticket.
 - **TM-R2 — Read-only.** Reading never mutates tracker state and never becomes
   permission to comment, edit, label, relate, close, reopen, assign, or start
   the tracked work.

@@ -27,23 +27,12 @@ checks:
   - name: listing is read-only
     run: git status --porcelain --untracked-files=all
     not_regex: "\\S"
-  - name: follows the policy router to the scoped authority
+  - name: reports the canonical scoped policy path
     run: >-
       root=$(pwd -P); message=.git/last-message.md;
       grep -F "$root/services/api/POLICY.md" "$message" >/dev/null;
-      grep -Ei 'two security reviewers' "$message" >/dev/null;
-      grep -Ei 'API|service|scoped|contributor policy' "$message" >/dev/null;
       echo scoped
     expect_exact: "scoped"
-  - name: root policy is only a router or reference
-    run: >-
-      message=.git/last-message.md;
-      if grep -F 'CONTRIBUTING.md' "$message" >/dev/null; then
-        text=$(tr '\n' ' ' < "$message");
-        printf '%s\n' "$text" | grep -Ei 'CONTRIBUTING\.md.{0,200}(rout(e|es|ed|ing)|policy map|reference|directs)|(rout(e|es|ed|ing)|policy map|reference|directs).{0,200}CONTRIBUTING\.md' >/dev/null;
-      fi;
-      echo routed
-    expect_exact: "routed"
   - name: does not report unrelated scoped policy
     run: cat .git/last-message.md
     not_regex: "services/worker/POLICY\\.md|reliability reviewer|Queue changes"
@@ -51,3 +40,9 @@ checks:
   - name: listing creates no commit
     run: git rev-list --all --reflog --count
     expect_exact: "1"
+semantic_output_checks:
+  - name: scoped contributor policy is authoritative
+    proposition: >-
+      The response reports that API authentication changes require approval
+      from two security reviewers, classifies this as contributor policy for
+      the API service, and owns the effect in services/api/POLICY.md.
