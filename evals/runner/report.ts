@@ -1,7 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { CaseResult, JudgeAssessment } from "./types";
+import type {
+  ActivationEvidenceSource,
+  CaseResult,
+  JudgeAssessment,
+} from "./types";
 
 export interface ReportCell {
   harness: string;
@@ -266,13 +270,15 @@ function perTaskSection(cells: ReportCell[]): string[] {
 }
 
 const activationSourceLabel = (
-  source: "harness_event" | "skill_file_read_probe" | null,
+  source: ActivationEvidenceSource | null,
 ): string =>
   source === "harness_event"
     ? "harness event"
-    : source === "skill_file_read_probe"
-      ? "skill-file read probe"
-      : "unknown";
+    : source === "explicit_invocation"
+      ? "explicit invocation"
+      : source === "skill_file_read_probe"
+        ? "skill-file read probe"
+        : "unknown";
 
 function caseActivationRate(result: CaseResult): number | null | undefined {
   if (result.activationClass === undefined) return undefined;
@@ -309,6 +315,22 @@ function caseActivationSources(result: CaseResult): string {
   return [
     ...new Set(sources.map((source) => activationSourceLabel(source))),
   ].join(", ");
+}
+
+function caseActivationObservedSkills(result: CaseResult): string {
+  if (!result.trials.length) return "unknown";
+  const grades = result.trials.map((trial) => trial.activation);
+  if (grades.some((grade) => grade === undefined || grade.passed === null))
+    return "unknown";
+  return [
+    ...new Set(
+      grades.map((grade) =>
+        grade!.observedSkills.length
+          ? grade!.observedSkills.join(" → ")
+          : "none",
+      ),
+    ),
+  ].join("; ");
 }
 
 type ActivationGrade = NonNullable<CaseResult["trials"][number]["activation"]>;
@@ -417,14 +439,14 @@ function activationSection(cells: ReportCell[]): string[] {
     "",
     "### Per-case activation",
     "",
-    "| Harness | Mode | Case | Class | Target | Primary observed | Activation pass | Task pass | Evidence |",
-    "| --- | --- | --- | --- | --- | --- | ---: | ---: | --- |",
+    "| Harness | Mode | Case | Class | Target | Primary observed | Ordered observations | Activation pass | Task pass | Evidence |",
+    "| --- | --- | --- | --- | --- | --- | --- | ---: | ---: | --- |",
     ...cells.flatMap((cell) =>
       cell.results
         .filter((result) => result.activationClass !== undefined)
         .map(
           (result) =>
-            `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${result.activationClass} | ${result.activationTargetSkill} | ${caseActivationPrimary(result)} | ${activationPercent(caseActivationRate(result))} | ${percent(taskPassRate(result))} | ${caseActivationSources(result)} |`,
+            `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${result.activationClass} | ${result.activationTargetSkill} | ${caseActivationPrimary(result)} | ${caseActivationObservedSkills(result)} | ${activationPercent(caseActivationRate(result))} | ${percent(taskPassRate(result))} | ${caseActivationSources(result)} |`,
         ),
     ),
   ];

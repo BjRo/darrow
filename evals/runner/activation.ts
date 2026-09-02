@@ -3,9 +3,11 @@ import { basename, dirname, join } from "node:path";
 import type {
   ActivationClass,
   EvalCase,
+  SkillActivationProbe,
   SkillActivationObservation,
   TrialActivationResult,
 } from "./types";
+import { hasExplicitSkillInvocation, skillInvocationToken } from "./prompt";
 
 const ACTIVATION_CLASSES: ActivationClass[] = [
   "positive",
@@ -15,6 +17,21 @@ const ACTIVATION_CLASSES: ActivationClass[] = [
 
 export function activationTargetSkill(evalCase: EvalCase): string {
   return evalCase.owningSkillName ?? basename(evalCase.skillDir);
+}
+
+export function activationProbeForCase(
+  evalCase: EvalCase,
+  harness: string,
+): SkillActivationProbe {
+  const explicit = [evalCase.prompt, evalCase.follow_up_prompt ?? ""].some(
+    hasExplicitSkillInvocation,
+  );
+  if (!explicit) return { mode: "implicit" };
+  return {
+    mode: "explicit",
+    skill: activationTargetSkill(evalCase),
+    invocation: skillInvocationToken(harness, evalCase),
+  };
 }
 
 export function expectsAdaptiveGoalOwner(evalCase: EvalCase): boolean {

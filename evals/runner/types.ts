@@ -93,7 +93,11 @@ export interface TranscriptCheck extends OutputCheck {
 export type ActivationClass = "positive" | "negative" | "competition";
 
 export type ActivationEvidenceSource =
-  "harness_event" | "skill_file_read_probe";
+  "harness_event" | "explicit_invocation" | "skill_file_read_probe";
+
+export type SkillActivationProbe =
+  | { mode: "implicit" }
+  | { mode: "explicit"; skill: string; invocation: string };
 
 /** Normalized harness-visible evidence about skill selection. */
 export interface SkillActivationObservation {
@@ -241,6 +245,7 @@ export interface HarnessRunRequest {
     expectedGoalRoute?: GoalRoute;
     followUpPrompt?: string;
     expectGoalOwner?: boolean;
+    activationProbe?: SkillActivationProbe;
   };
 }
 

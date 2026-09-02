@@ -50,6 +50,22 @@ constraints for producing and interpreting that evidence.
 - If the failure remains ambiguous, report that limitation and stop instead of
   converting a hypothesis into product policy.
 
+## Activation probes
+
+- Use `{{skill_invocation}}` only when the participant explicitly invokes the
+  owning skill. The runner treats that placeholder as the source of truth for
+  explicit versus implicit activation; do not duplicate the distinction in
+  case metadata.
+- On Codex, an explicit case uses the exact rendered host-native invocation
+  token delivered once to a successfully completed turn. It does not require a
+  transcript-visible `SKILL.md` load.
+- A Codex case without the placeholder remains an implicit-discovery probe and
+  requires a completed mounted-skill body read. Do not use the explicit path to
+  make implicit selection pass.
+- Missing, repeated, malformed, or failed observation evidence stays unknown.
+  Retain the source, primary skill, and ordered observed skills separately from
+  the task outcome.
+
 ## Live-run controls
 
 Codex runs use independent defaults for each eval role:

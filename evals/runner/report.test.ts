@@ -338,7 +338,7 @@ describe("orchestration suite report", () => {
             passed: true,
             source: "harness_event",
             primarySkill: "grilling",
-            observedSkills: ["grilling"],
+            observedSkills: ["grilling", "plan-implementation"],
           },
         },
       ],
@@ -386,7 +386,10 @@ describe("orchestration suite report", () => {
       "| claude | candidate | 100% | 50% | 100% | 0% | n/a | harness event |",
     );
     expect(markdown).toContain(
-      "| claude | candidate | grilling-negative | negative | grilling | grilling | 0% | 100% | harness event |",
+      "| claude | candidate | grilling-negative | negative | grilling | grilling | grilling | 0% | 100% | harness event |",
+    );
+    expect(markdown).toContain(
+      "| claude | candidate | grilling-positive | positive | grilling | grilling | grilling → plan-implementation | 100% | 100% | harness event |",
     );
   });
 
@@ -449,7 +452,45 @@ describe("orchestration suite report", () => {
       "| claude | candidate | unknown | unknown | unknown | unknown | unknown | harness event, unknown |",
     );
     expect(markdown).toContain(
-      "| claude | candidate | oss-sample | positive | grilling | unknown | unknown | 100% | harness event, unknown |",
+      "| claude | candidate | oss-sample | positive | grilling | unknown | unknown | unknown | 100% | harness event, unknown |",
+    );
+  });
+
+  test("retains explicit activation source and ordered observations", () => {
+    const value = result({
+      activationClass: "positive",
+      activationTargetSkill: "grilling",
+      activationPassRate: 1,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "positive",
+            targetSkill: "grilling",
+            passed: true,
+            source: "explicit_invocation",
+            primarySkill: "grilling",
+            observedSkills: ["grilling"],
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [value] },
+    ]);
+    expect(markdown).toContain(
+      "| codex | candidate | oss-sample | positive | grilling | grilling | grilling | 100% | 100% | explicit invocation |",
     );
   });
 

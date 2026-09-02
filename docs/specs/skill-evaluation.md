@@ -93,12 +93,15 @@ suite modes do not receive an activation grade because their target capability
 is absent.
 
 Activation is graded only from a normalized, harness-visible observation. A
-direct host skill-invocation event is preferred. On a host that exposes no such
-event, the runner may use a controlled behavior probe required by that host's
-skill-loading protocol, such as the first completed read of a mounted
-`SKILL.md`. The retained trial identifies the evidence source, primary skill,
-and ordered observed skills. Final-answer resemblance, hidden reasoning, and
-unbounded transcript capture are not activation evidence.
+direct host skill-invocation event is preferred. Codex cases that contain the
+shared explicit-invocation placeholder use the runner-rendered host-native
+invocation token as a controlled dispatch probe: the exact token must occur
+once in a successfully completed turn. Codex cases without that placeholder
+remain implicit-discovery probes and require the first completed read of a
+mounted `SKILL.md`. Missing, duplicated, malformed, or failed probe evidence is
+unavailable rather than a pass. The retained trial identifies the evidence
+source, primary skill, and ordered observed skills. Final-answer resemblance,
+hidden reasoning, and unbounded transcript capture are not activation evidence.
 
 Participant prompts that explicitly invoke the colocated skill use the shared
 `{{skill_invocation}}` placeholder. The runner resolves it only at trial time
@@ -215,6 +218,11 @@ trials for their risk and must not rely on one convenient green run.
   GPT-5.6 model defaults, preserve explicit model and effort overrides, and
   record the exact effective route in manifests, JSON result evidence, and
   generated reports.
+- **SE-C17 — Invocation-aware Codex activation.** Explicit Codex activation
+  cases use one exact runner-controlled host invocation as dispatch evidence,
+  while implicit cases retain the mounted-skill read probe; missing or
+  ambiguous evidence stays unknown and both paths preserve source, primary
+  skill, and ordered observations independently from task success.
 
 ## Evaluation requirements
 
@@ -252,6 +260,9 @@ trials for their risk and must not rely on one convenient green run.
 12. Runner tests cover default and explicitly overridden model and effort
     resolution for the candidate, advisory quality judge, and semantic-output
     grader roles.
+13. Activation fixtures cover an explicit Codex invocation without a visible
+    skill-file read, implicit discovery with a completed mounted-skill read,
+    and missing or ambiguous evidence for both observation paths.
 
 ## Non-goals
 

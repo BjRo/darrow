@@ -6,6 +6,7 @@ import {
   codexAdapter,
   codexArgv,
   codexEvalSkillsRoot,
+  codexExplicitSkillActivation,
   codexResumeArgv,
   codexRunSucceeded,
   codexSkillActivation,
@@ -186,6 +187,58 @@ describe("Codex token accounting", () => {
 });
 
 describe("Codex skill activation observation", () => {
+  test("uses one explicit host invocation without requiring a skill-file read", () => {
+    const stream = JSON.stringify({ type: "turn.completed" });
+    expect(
+      codexExplicitSkillActivation(
+        stream,
+        "Use $sample:grilling for this request.",
+        {
+          mode: "explicit",
+          skill: "grilling",
+          invocation: "$sample:grilling",
+        },
+      ),
+    ).toEqual({
+      source: "explicit_invocation",
+      complete: true,
+      primarySkill: "grilling",
+      observedSkills: ["grilling"],
+    });
+  });
+
+  test.each([
+    [
+      "missing token",
+      "Use the appropriate skill.",
+      '{"type":"turn.completed"}',
+    ],
+    [
+      "duplicated token",
+      "Use $sample:grilling, then $sample:grilling again.",
+      '{"type":"turn.completed"}',
+    ],
+    [
+      "malformed stream",
+      "Use $sample:grilling.",
+      '{"type":"item.completed",broken\n{"type":"turn.completed"}',
+    ],
+    ["failed turn", "Use $sample:grilling.", '{"type":"turn.failed"}'],
+  ])("keeps %s explicit evidence unknown", (_label, prompt, stream) => {
+    expect(
+      codexExplicitSkillActivation(stream, prompt, {
+        mode: "explicit",
+        skill: "grilling",
+        invocation: "$sample:grilling",
+      }),
+    ).toEqual({
+      source: "explicit_invocation",
+      complete: false,
+      primarySkill: null,
+      observedSkills: [],
+    });
+  });
+
   test("keeps a no-plugin control complete without inventing a project skill", () => {
     const stream = JSON.stringify({ type: "turn.completed" });
     expect(
@@ -193,6 +246,15 @@ describe("Codex skill activation observation", () => {
     ).toEqual({
       source: "skill_file_read_probe",
       complete: true,
+      primarySkill: null,
+      observedSkills: [],
+    });
+  });
+
+  test("keeps a missing implicit observation channel unknown", () => {
+    expect(codexSkillActivation("", REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: false,
       primarySkill: null,
       observedSkills: [],
     });
@@ -472,7 +534,7 @@ describe("Codex skill activation observation", () => {
     expect(codexSkillActivation(stream, REPO).complete).toBe(true);
   });
 
-  test("requires structurally complete successful command evidence", () => {
+  test("keeps ambiguous implicit command evidence unknown", () => {
     const stream = [
       JSON.stringify({
         type: "item.completed",

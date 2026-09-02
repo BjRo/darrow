@@ -14,6 +14,7 @@ import type {
   HarnessAdapter,
   HarnessResult,
   HarnessRunRequest,
+  SkillActivationProbe,
   SkillActivationObservation,
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
@@ -197,10 +198,66 @@ function observedSkillReads(
   return observedSkills;
 }
 
+function codexActivationStreamComplete(
+  stream: string,
+  events: CodexEvent[],
+): boolean {
+  let completed = false;
+  let failed = false;
+  for (const event of events) {
+    const types = codexEventTypes(event);
+    if (types.includes("turn.completed")) completed = true;
+    if (types.includes("turn.failed")) failed = true;
+  }
+  return (
+    completed &&
+    !failed &&
+    !codexStreamMalformed(stream) &&
+    !events.some(malformedCompletedCommand)
+  );
+}
+
+function literalOccurrences(value: string, token: string): number {
+  if (!token) return 0;
+  let count = 0;
+  let offset = 0;
+  while ((offset = value.indexOf(token, offset)) !== -1) {
+    count++;
+    offset += token.length;
+  }
+  return count;
+}
+
 /**
- * Codex exposes command events but no native skill-invocation event. Its skill
- * protocol requires the selected skill body to be read, so the first completed
- * mounted SKILL.md read is retained as an explicitly labeled behavior probe.
+ * Codex resolves a runner-rendered explicit skill token before model execution,
+ * so that dispatch is not repeated as a transcript-visible SKILL.md read. The
+ * controlled probe is complete only when one exact expected token was supplied
+ * to a successfully completed turn.
+ */
+export function codexExplicitSkillActivation(
+  stream: string,
+  prompt: string,
+  probe: Extract<SkillActivationProbe, { mode: "explicit" }>,
+): SkillActivationObservation {
+  const events = codexEvents(stream);
+  const unambiguous =
+    /^[A-Za-z0-9._-]+$/.test(probe.skill) &&
+    probe.invocation.length > 0 &&
+    literalOccurrences(prompt, probe.invocation) === 1;
+  const complete = unambiguous && codexActivationStreamComplete(stream, events);
+  const observedSkills = complete ? [probe.skill] : [];
+  return {
+    source: "explicit_invocation",
+    complete,
+    primarySkill: observedSkills[0] ?? null,
+    observedSkills,
+  };
+}
+
+/**
+ * Codex exposes command events but no native skill-invocation event for
+ * implicit discovery. The first completed mounted SKILL.md read is therefore
+ * retained as an explicitly labeled behavior probe for implicit cases.
  */
 export function codexSkillActivation(
   stream: string,
@@ -218,20 +275,9 @@ export function codexSkillActivation(
       join(".agents", "skills"),
     ]),
   ]);
-  let completed = false;
-  let failed = false;
-  for (const event of events) {
-    const types = codexEventTypes(event);
-    if (types.includes("turn.completed")) completed = true;
-    if (types.includes("turn.failed")) failed = true;
-  }
   return {
     source: "skill_file_read_probe",
-    complete:
-      completed &&
-      !failed &&
-      !codexStreamMalformed(stream) &&
-      !events.some(malformedCompletedCommand),
+    complete: codexActivationStreamComplete(stream, events),
     primarySkill: observedSkills[0] ?? null,
     observedSkills,
   };
@@ -2050,8 +2096,29 @@ async function runCodexProcess(
   return { out, err, code };
 }
 
+function codexActivationForRequest(
+  request: HarnessRunRequest,
+  execution: CodexExecution,
+): SkillActivationObservation {
+  const activationProbe = request.control?.activationProbe;
+  if (activationProbe?.mode !== "explicit") {
+    return codexSkillActivation(
+      execution.out,
+      execution.canonicalRepoDir,
+      execution.installedSkillsRoots,
+    );
+  }
+  return codexExplicitSkillActivation(
+    execution.out,
+    [request.prompt, request.control?.followUpPrompt]
+      .filter((value): value is string => value !== undefined)
+      .join("\n"),
+    activationProbe,
+  );
+}
+
 async function codexHarnessResult(
-  repoDir: string,
+  request: HarnessRunRequest,
   execution: CodexExecution,
 ): Promise<HarnessResult> {
   const {
@@ -2068,12 +2135,8 @@ async function codexHarnessResult(
   } = execution;
   const usage = codexTokenUsage(out);
   const ok = codexRunSucceeded(code, out);
-  const resultText = await codexFinalMessage(repoDir);
-  const activation = codexSkillActivation(
-    out,
-    canonicalRepoDir,
-    installedSkillsRoots,
-  );
+  const resultText = await codexFinalMessage(request.repoDir);
+  const activation = codexActivationForRequest(request, execution);
   return {
     ok,
     durationMs,
@@ -2124,6 +2187,6 @@ export const codexAdapter: HarnessAdapter = {
   },
 
   async run(request): Promise<HarnessResult> {
-    return codexHarnessResult(request.repoDir, await executeCodex(request));
+    return codexHarnessResult(request, await executeCodex(request));
   },
 };

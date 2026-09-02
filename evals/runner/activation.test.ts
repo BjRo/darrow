@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  activationProbeForCase,
   activationPassRate,
   activationPassesThreshold,
   expectsAdaptiveGoalOwner,
@@ -22,6 +23,25 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 describe("skill activation grading", () => {
+  test("derives explicit and implicit probes from the shared placeholder", () => {
+    expect(
+      activationProbeForCase(
+        evalCase({
+          owningSkillName: "grilling",
+          prompt: "Use {{skill_invocation}} for this request.",
+        }),
+        "codex",
+      ),
+    ).toEqual({
+      mode: "explicit",
+      skill: "grilling",
+      invocation: "$sample:grilling",
+    });
+    expect(activationProbeForCase(evalCase(), "codex")).toEqual({
+      mode: "implicit",
+    });
+  });
+
   test("expects an owner for adaptive-goal cases except negative activation", () => {
     expect(
       expectsAdaptiveGoalOwner(
@@ -67,6 +87,14 @@ describe("skill activation grading", () => {
       primarySkill: null,
       observedSkills: [],
     });
+    expect(
+      gradeActivation("positive", "grilling", {
+        source: "explicit_invocation",
+        complete: false,
+        primarySkill: null,
+        observedSkills: [],
+      }).passed,
+    ).toBeNull();
   });
 
   test("grades negative avoidance and competition selection against the owning skill", () => {

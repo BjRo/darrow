@@ -42,6 +42,7 @@ import {
   validGoalReportValues,
 } from "./goal-report";
 import {
+  activationProbeForCase,
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
@@ -66,6 +67,7 @@ import type {
   HarnessAdapter,
   HarnessRunRequest,
   HarnessResult,
+  SkillActivationProbe,
   TrialResult,
 } from "./types";
 
@@ -535,8 +537,14 @@ function goalRouteControl(
   expectedGoalRoute: GoalRouteExpectation | undefined,
   followUpPrompt: string | undefined,
   expectGoalOwner = false,
+  activationProbe?: SkillActivationProbe,
 ): HarnessRunRequest["control"] {
-  if (!expectedGoalRoute && !followUpPrompt && !expectGoalOwner)
+  if (
+    !expectedGoalRoute &&
+    !followUpPrompt &&
+    !expectGoalOwner &&
+    !activationProbe
+  )
     return undefined;
   return {
     ...(expectedGoalRoute
@@ -551,6 +559,7 @@ function goalRouteControl(
       : {}),
     ...(followUpPrompt ? { followUpPrompt } : {}),
     ...(expectGoalOwner ? { expectGoalOwner: true } : {}),
+    ...(activationProbe ? { activationProbe } : {}),
   };
 }
 
@@ -1105,6 +1114,9 @@ async function runTrial(
         options.expectedGoalRoute,
         followUpPrompt,
         expectsAdaptiveGoalOwner(evalCase),
+        evalCase.activation && !options.withoutSkill
+          ? activationProbeForCase(evalCase, adapter.name)
+          : undefined,
       ),
     });
     const result = await evaluateTrial(options, {
