@@ -52,6 +52,13 @@ constraints for producing and interpreting that evidence.
 
 ## Live-run controls
 
+The direct runner uses color, status symbols, terminal hyperlinks, and an
+updating progress bar when stdout is an interactive terminal. Use
+`--no-color`, `--no-emoji`, or `--no-progress` to disable those dimensions
+independently; `NO_COLOR` also disables color. Redirected output is stable and
+unanimated. Every completed run prints the absolute raw-result path even when
+terminal hyperlinks are unavailable.
+
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
 

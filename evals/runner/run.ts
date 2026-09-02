@@ -33,6 +33,7 @@ import {
   hasClaudeGoalAgentEvidence,
 } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
+import { EvalCliUi, resolvePresentation, type TrialLine } from "./cli-ui";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
@@ -112,6 +113,7 @@ interface RunCaseOptions {
   assertedGoalDimensions?: GoalDimensionsExpectation;
   /** Persisted immediately after each completed trial. */
   checkpoint?: (trial: TrialResult) => Promise<void>;
+  ui?: EvalCliUi;
 }
 
 /** One trial's inputs, shared by the check builder and the trial evaluator. */
@@ -1006,50 +1008,11 @@ async function evaluateTrial(
   };
 }
 
-function activationGradeLabel(result: TrialResult): string {
-  if (result.activation?.passed === null) return "unknown";
-  return result.activation?.passed ? "pass" : "fail";
-}
-
-function reportTrialActivation(result: TrialResult): void {
-  if (!result.activation) return;
-  console.log(
-    `      activation: ${activationGradeLabel(result)} (${result.activation.class}, target ${result.activation.targetSkill}, primary ${result.activation.primarySkill ?? "none"}, source ${result.activation.source ?? "unavailable"})`,
-  );
-}
-
-function reportTrial(options: RunCaseOptions, result: TrialResult): void {
-  const { evalCase, trials } = options;
-  const { harness } = result;
-  const failed = result.checks.filter((c) => !c.passed);
-  console.log(
-    `  ${result.passed ? "PASS" : "FAIL"} ${evalCase.id} trial ${result.trial}/${trials} ` +
-      `(${(harness.durationMs / 1000).toFixed(1)}s, ${harness.inputTokens + harness.outputTokens} tok)` +
-      (failed.length ? ` — ${failed.map((c) => c.name).join(", ")}` : ""),
-  );
-  for (const c of failed) console.log(`      ${c.name}: ${c.detail}`);
-  reportTrialActivation(result);
-  const judgeResult = result.judge;
-  if (judgeResult) {
-    console.log(
-      `      judge: ${judgeResult.assessment ? `${judgeResult.assessment.verdict} ${judgeResult.assessment.overallScore}/5` : `invalid (${judgeResult.parseError})`}`,
-    );
-  }
-  if (result.semanticOutput) {
-    console.log(
-      `      semantic output: ${result.semanticOutput.ok ? "graded" : `invalid (${result.semanticOutput.parseError})`} via ${result.semanticOutput.route.harness}/${result.semanticOutput.route.model}@${result.semanticOutput.route.effort}`,
-    );
-  }
-}
-
 async function evaluateDryTrial(
   options: RunCaseOptions,
   trial: number,
   repoDir: string,
 ): Promise<TrialResult> {
-  console.log(
-    `  [dry] ${options.evalCase.id} trial ${trial}: fixture at ${repoDir}`,
-  );
   return dryTrialResult(
     trial,
     await runChecks(
@@ -1112,7 +1075,6 @@ async function runTrial(
       baseRevision,
       harness,
     });
-    reportTrial(options, result);
     return result;
   } finally {
     await destroyFixture(repoDir);
@@ -1344,11 +1306,56 @@ function summarizeCase(
   };
 }
 
+function judgeLine(result: TrialResult): string | undefined {
+  if (!result.judge) return undefined;
+  return result.judge.assessment
+    ? `${result.judge.assessment.verdict} · ${result.judge.assessment.overallScore}/5`
+    : `invalid · ${result.judge.parseError}`;
+}
+
+function semanticOutputLine(result: TrialResult): string | undefined {
+  if (!result.semanticOutput) return undefined;
+  const { route } = result.semanticOutput;
+  const grade = result.semanticOutput.ok
+    ? "graded"
+    : `invalid · ${result.semanticOutput.parseError}`;
+  return `${grade} · ${route.harness}/${route.model}@${route.effort}`;
+}
+
+function trialLine(
+  options: RunCaseOptions,
+  result: TrialResult,
+): Omit<TrialLine, "completed" | "total"> {
+  return {
+    passed: result.passed,
+    caseId: options.evalCase.id,
+    trial: result.trial,
+    trials: options.trials,
+    durationMs: result.harness.durationMs,
+    tokens: options.dry ? null : trialTokenTotal(result, options.adapter.name),
+    failedChecks: result.checks.filter((check) => !check.passed),
+    activation: result.activation
+      ? {
+          passed: result.activation.passed,
+          className: result.activation.class,
+          targetSkill: result.activation.targetSkill,
+          primarySkill: result.activation.primarySkill,
+          source: result.activation.source,
+        }
+      : undefined,
+    judge: judgeLine(result),
+    semanticOutput: semanticOutputLine(result),
+    dry: options.dry,
+  };
+}
+
 async function runCase(options: RunCaseOptions): Promise<CaseResult> {
   const trialResults: TrialResult[] = [];
   for (let trial = 1; trial <= options.trials; trial++) {
+    options.ui?.startTrial(options.evalCase.id, trial, options.trials);
     const result = await runTrial(options, trial);
     trialResults.push(result);
+    options.ui?.finishTrial(trialLine(options, result));
     await options.checkpoint?.(result);
   }
   return summarizeCase(options, trialResults);
@@ -1421,6 +1428,9 @@ const { values } = parseArgs({
     "assert-goal-routes": { type: "string" },
     "assert-goal-dimensions": { type: "string" },
     output: { type: "string" },
+    "no-color": { type: "boolean", default: false },
+    "no-emoji": { type: "boolean", default: false },
+    "no-progress": { type: "boolean", default: false },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
     "judge-effort": { type: "string", default: "low" },
@@ -1605,13 +1615,6 @@ if (
   process.exit(1);
 }
 const harnessVersion = values.dry ? "" : await adapter.version();
-console.log(
-  `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${values.effort}` +
-    (harnessVersion ? ` (${harnessVersion})` : "") +
-    (condition ? ` [condition: ${condition.label}]` : "") +
-    (values.dry ? " [dry run — no harness calls]" : ""),
-);
-
 await mkdir(RESULTS_ROOT, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const condSuffix = condition ? `-${condition.label}` : "";
@@ -1622,6 +1625,27 @@ const outPath = values.output
       `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`,
     );
 await mkdir(dirname(outPath), { recursive: true });
+const ui = new EvalCliUi(
+  resolvePresentation({
+    isTTY: process.stdout.isTTY ?? false,
+    env: process.env,
+    noColor: values["no-color"],
+    noEmoji: values["no-emoji"],
+    noProgress: values["no-progress"],
+  }),
+  cases.length * trials,
+);
+ui.heading({
+  harness: adapter.name,
+  model,
+  effort: values.effort!,
+  harnessVersion: harnessVersion || undefined,
+  cases: cases.length,
+  trials,
+  threshold,
+  condition: condition?.label,
+  dry: values.dry!,
+});
 const runIdentity = new Bun.CryptoHasher("sha256")
   .update(
     stableEvidence({
@@ -1668,7 +1692,6 @@ try {
     const caseRoute = caseRoutes[evalCase.id];
     const caseModel = caseRoute?.model ?? model;
     const caseEffort = caseRoute?.effort ?? values.effort!;
-    console.log(`\n${evalCase.id} (${evalCase.invariant})`);
     const result = await runCase({
       evalCase,
       adapter,
@@ -1692,6 +1715,7 @@ try {
       expectedGoalRoute: expectedGoalRoutes[evalCase.id],
       assertedGoalRoute: assertedGoalRoutes[evalCase.id],
       assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
+      ui,
       checkpoint: async (trial) => {
         activeRun.completedTrials.push({
           caseId: evalCase.id,
@@ -1705,41 +1729,43 @@ try {
     results.push(result);
   }
 
-  console.log("\n── Summary ──");
   let failed = 0;
-  for (const r of results) {
-    const taskOk = r.passRate >= threshold;
+  const summaries = results.map((result) => {
+    const taskOk = result.passRate >= threshold;
     const activationOk = activationPassesThreshold(
-      r.activationPassRate,
+      result.activationPassRate,
       threshold,
     );
-    const ok = taskOk && activationOk;
-    if (!ok) failed++;
-    console.log(
-      `${ok ? "✓" : "✗"} ${r.caseId} [${r.invariant}] pass ${(r.passRate * 100).toFixed(0)}% ` +
-        `| ${(r.meanDurationMs / 1000).toFixed(1)}s mean, ${(r.p95DurationMs / 1000).toFixed(1)}s p95 ` +
-        `| ${r.meanTokens === null ? "tokens unknown" : `${Math.round(r.meanTokens)} tok mean`} | ${r.totalCostUsd === null ? "cost unknown" : `$${r.totalCostUsd.toFixed(4)}`}`,
-    );
-    if (r.activationClass) {
-      console.log(
-        `  activation: ${r.activationClass} target ${r.activationTargetSkill} | ${r.activationPassRate === null ? "unknown" : `${(r.activationPassRate! * 100).toFixed(0)}%`}`,
-      );
-    }
-    if (r.meanChildInvocationCount !== undefined) {
-      console.log(
-        `  orchestration: ${r.meanChildInvocationCount.toFixed(1)} reported children mean | ` +
-          `${r.totalHumanInterruptions} interruptions | ${r.escapedDefects} escaped defects | ` +
-          `${r.falsePositiveVerifierFindings} false-positive findings`,
-      );
-    }
-  }
+    const passed = taskOk && activationOk;
+    if (!passed) failed++;
+    return {
+      caseId: result.caseId,
+      invariant: result.invariant,
+      passed,
+      taskPassed: taskOk,
+      passRate: result.passRate,
+      activationPassRate: result.activationClass
+        ? result.activationPassRate
+        : undefined,
+      activationPassed: result.activationClass
+        ? result.activationPassRate === null
+          ? null
+          : activationOk
+        : undefined,
+      trials: result.trials.length,
+      meanDurationMs: result.meanDurationMs,
+      meanTokens: result.meanTokens,
+      dry: values.dry!,
+    };
+  });
 
   await writeFile(outPath, JSON.stringify(results, null, 2));
   activeRun.status = "complete";
   await finalizeActiveRun(activeRunPath, activeRun);
-  console.log(`\nResults: ${outPath}`);
+  ui.finish(summaries, outPath);
   process.exitCode = values.dry ? 0 : failed ? 1 : 0;
 } catch (error) {
+  ui.stop();
   const diagnosticPath = `${outPath}.diagnostic.json`;
   const failure =
     error instanceof Error ? (error.stack ?? error.message) : String(error);
