@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  codexAdapter,
   codexArgv,
   codexEvalSkillsRoot,
   codexResumeArgv,
@@ -31,6 +32,10 @@ const COMPLETE_CONTRACT = [
   "Verification and gates: readiness=not required; review=not required; focused=run the focused test; final=run the repository gate; feedback=return the smallest complete question; blockers=return concrete evidence and the smallest next action",
   "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");
+
+test("uses Terra as the default Codex eval model", () => {
+  expect(codexAdapter.defaultModel).toBe("gpt-5.6-terra");
+});
 
 test("installs the adaptive-goal spawn guard only for relevant turns", () => {
   expect(

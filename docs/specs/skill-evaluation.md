@@ -210,6 +210,11 @@ trials for their risk and must not rely on one convenient green run.
 - **SE-C15 — Fail-closed semantic evidence.** The runner rejects unavailable,
   malformed, incomplete, duplicate, or unexpected semantic grader results and
   retains the grader route, verdicts, reasons, raw result, tokens, and cost.
+- **SE-C16 — Role-specific Codex defaults.** Candidate execution, advisory
+  quality judging, and gating semantic-output grading resolve independent
+  GPT-5.6 model defaults, preserve explicit model and effort overrides, and
+  record the exact effective route in manifests, JSON result evidence, and
+  generated reports.
 
 ## Evaluation requirements
 
@@ -244,6 +249,9 @@ trials for their risk and must not rely on one convenient green run.
 11. Runner tests prove semantic checks still gate with the advisory judge
     disabled and retain route, verdict, token, and cost evidence without
     exposing propositions to the candidate.
+12. Runner tests cover default and explicitly overridden model and effort
+    resolution for the candidate, advisory quality judge, and semantic-output
+    grader roles.
 
 ## Non-goals
 

@@ -205,6 +205,48 @@ function outcomesSection(
   ];
 }
 
+interface RecordedRoute {
+  harness: string;
+  model: string;
+  effort: string;
+}
+
+function routeLabels(routes: RecordedRoute[]): string {
+  const labels = [
+    ...new Set(
+      routes.map(
+        ({ harness, model, effort }) => `${harness}/${model}@${effort}`,
+      ),
+    ),
+  ];
+  return labels.length ? labels.join(", ") : "not used";
+}
+
+function effectiveRoutesSection(cells: ReportCell[]): string[] {
+  return [
+    "",
+    "## Effective routes",
+    "",
+    "Routes are taken from the actual candidate and grader result evidence. Multiple values identify a heterogeneous cell.",
+    "",
+    "| Harness | Mode | Candidate | Quality judge | Semantic-output grader |",
+    "| --- | --- | --- | --- | --- |",
+    ...cells.map((cell) => {
+      const judgeRoutes = cell.results.flatMap((result) =>
+        result.trials.flatMap((trial) =>
+          trial.judge?.route ? [trial.judge.route] : [],
+        ),
+      );
+      const semanticRoutes = cell.results.flatMap((result) =>
+        result.trials.flatMap((trial) =>
+          trial.semanticOutput?.route ? [trial.semanticOutput.route] : [],
+        ),
+      );
+      return `| ${cell.harness} | ${cell.mode} | ${routeLabels(cell.results)} | ${routeLabels(judgeRoutes)} | ${routeLabels(semanticRoutes)} |`;
+    }),
+  ];
+}
+
 function perTaskSection(cells: ReportCell[]): string[] {
   return [
     "",
@@ -492,6 +534,7 @@ export function renderSuiteReport(cells: ReportCell[]): string {
   );
   return [
     ...outcomesSection(rows, orchestrationEvidence),
+    ...effectiveRoutesSection(cells),
     ...perTaskSection(cells),
     ...activationSection(cells),
     ...phaseSection(cells),

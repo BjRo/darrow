@@ -287,6 +287,11 @@ export interface JudgeAssessment {
 
 export interface JudgeResult {
   ok: boolean;
+  route: {
+    harness: string;
+    model: string;
+    effort: string;
+  };
   assessment?: JudgeAssessment;
   parseError?: string;
   harness: HarnessResult;

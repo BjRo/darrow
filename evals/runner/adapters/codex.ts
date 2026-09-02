@@ -24,6 +24,7 @@ import {
   verifiedCodexAcceptedOwner,
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
 
 type AcceptedCodexOwner = NonNullable<
   Awaited<ReturnType<typeof verifiedCodexAcceptedOwner>>
@@ -2108,7 +2109,7 @@ async function codexHarnessResult(
  */
 export const codexAdapter: HarnessAdapter = {
   name: "codex",
-  defaultModel: "gpt-5.5",
+  defaultModel: CODEX_EVAL_ROLE_DEFAULTS.candidate.model,
   skillMounts: [],
   sourceCodexPlugin: true,
 

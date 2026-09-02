@@ -9,6 +9,7 @@ import {
 } from "./ablation";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
+import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
 
 interface ModeConfig {
   condition?: string;
@@ -116,18 +117,27 @@ const { values } = parseArgs({
     case: { type: "string", multiple: true },
     trials: { type: "string", default: "5" },
     threshold: { type: "string", default: "0.8" },
-    effort: { type: "string", default: "medium" },
+    effort: {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.candidate.effort,
+    },
     "claude-model": { type: "string" },
     "codex-model": { type: "string" },
     output: { type: "string" },
     dry: { type: "boolean", default: false },
     "judge-harness": { type: "string", default: "codex" },
     "judge-model": { type: "string" },
-    "judge-effort": { type: "string", default: "low" },
+    "judge-effort": {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.qualityJudge.effort,
+    },
     "no-judge": { type: "boolean", default: false },
     "semantic-check-harness": { type: "string", default: "codex" },
     "semantic-check-model": { type: "string" },
-    "semantic-check-effort": { type: "string", default: "low" },
+    "semantic-check-effort": {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.effort,
+    },
     seed: { type: "string" },
   },
 });
@@ -181,6 +191,33 @@ const ablationErrors = validateAblationDefinitions(
 if (ablationErrors.length)
   throw new Error(`invalid ablation definitions: ${ablationErrors.join("; ")}`);
 
+const candidateRoutes = {
+  claude: resolveEvalRoute(claudeAdapter, "candidate", {
+    model: values["claude-model"],
+    effort: values.effort,
+  }),
+  codex: resolveEvalRoute(codexAdapter, "candidate", {
+    model: values["codex-model"],
+    effort: values.effort,
+  }),
+};
+const judgeAdapter =
+  values["judge-harness"] === "claude" ? claudeAdapter : codexAdapter;
+const judgeRoute = resolveEvalRoute(judgeAdapter, "qualityJudge", {
+  model: values["judge-model"],
+  effort: values["judge-effort"],
+});
+const semanticOutputAdapter =
+  values["semantic-check-harness"] === "claude" ? claudeAdapter : codexAdapter;
+const semanticOutputRoute = resolveEvalRoute(
+  semanticOutputAdapter,
+  "semanticOutputGrader",
+  {
+    model: values["semantic-check-model"],
+    effort: values["semantic-check-effort"],
+  },
+);
+
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const orderSeed = values.seed ?? stamp;
 const outputDir = values.output
@@ -205,8 +242,8 @@ const manifest = {
   harnesses,
   modes,
   models: {
-    claude: values["claude-model"] ?? claudeAdapter.defaultModel,
-    codex: values["codex-model"] ?? codexAdapter.defaultModel,
+    claude: candidateRoutes.claude.model,
+    codex: candidateRoutes.codex.model,
   },
   ablations: suite.ablations ?? [],
   dry: values.dry,
@@ -222,21 +259,11 @@ const manifest = {
       ? null
       : {
           harness: values["judge-harness"],
-          model:
-            values["judge-model"] ??
-            (values["judge-harness"] === "claude"
-              ? claudeAdapter.defaultModel
-              : codexAdapter.defaultModel),
-          effort: values["judge-effort"],
+          ...judgeRoute,
         },
   semanticOutput: {
     harness: values["semantic-check-harness"],
-    model:
-      values["semantic-check-model"] ??
-      (values["semantic-check-harness"] === "claude"
-        ? claudeAdapter.defaultModel
-        : codexAdapter.defaultModel),
-    effort: values["semantic-check-effort"],
+    ...semanticOutputRoute,
   },
   cells: [] as Array<{
     harness: string;
@@ -261,8 +288,8 @@ for (const { harness, modeName } of cellPlan) {
   const resultPath = join(outputDir, `${harness}-${modeName}.json`);
   const model =
     harness === "claude"
-      ? (values["claude-model"] ?? claudeAdapter.defaultModel)
-      : (values["codex-model"] ?? codexAdapter.defaultModel);
+      ? candidateRoutes.claude.model
+      : candidateRoutes.codex.model;
   const effort = mode.effort ?? values.effort!;
   const args = [
     "bun",
@@ -347,19 +374,19 @@ for (const { harness, modeName } of cellPlan) {
     "--semantic-check-harness",
     values["semantic-check-harness"]!,
     "--semantic-check-effort",
-    values["semantic-check-effort"]!,
+    semanticOutputRoute.effort,
+    "--semantic-check-model",
+    semanticOutputRoute.model,
   );
-  if (values["semantic-check-model"])
-    args.push("--semantic-check-model", values["semantic-check-model"]);
   if (!values.dry && !values["no-judge"]) {
     args.push(
       "--judge-harness",
       values["judge-harness"]!,
       "--judge-effort",
-      values["judge-effort"]!,
+      judgeRoute.effort,
+      "--judge-model",
+      judgeRoute.model,
     );
-    if (values["judge-model"])
-      args.push("--judge-model", values["judge-model"]);
   }
 
   console.log(`\n=== ${harness} / ${modeName} ===`);

@@ -33,6 +33,7 @@ import {
   hasClaudeGoalAgentEvidence,
 } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
+import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
@@ -1403,7 +1404,10 @@ const { values } = parseArgs({
   options: {
     harness: { type: "string" },
     model: { type: "string" },
-    effort: { type: "string", default: "medium" },
+    effort: {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.candidate.effort,
+    },
     trials: { type: "string", default: "5" },
     case: { type: "string", multiple: true },
     threshold: { type: "string", default: "0.8" },
@@ -1423,10 +1427,16 @@ const { values } = parseArgs({
     output: { type: "string" },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
-    "judge-effort": { type: "string", default: "low" },
+    "judge-effort": {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.qualityJudge.effort,
+    },
     "semantic-check-harness": { type: "string", default: "codex" },
     "semantic-check-model": { type: "string" },
-    "semantic-check-effort": { type: "string", default: "low" },
+    "semantic-check-effort": {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.effort,
+    },
   },
 });
 
@@ -1472,13 +1482,34 @@ if (!semanticOutputAdapter) {
   );
   process.exit(1);
 }
+const semanticOutputRoute = resolveEvalRoute(
+  semanticOutputAdapter,
+  "semanticOutputGrader",
+  {
+    model: values["semantic-check-model"],
+    effort: values["semantic-check-effort"],
+  },
+);
 const semanticOutput = {
   adapter: semanticOutputAdapter,
-  model: values["semantic-check-model"] ?? semanticOutputAdapter.defaultModel,
-  effort: values["semantic-check-effort"]!,
+  ...semanticOutputRoute,
 };
 
-const model = values.model ?? adapter.defaultModel;
+const candidateRoute = resolveEvalRoute(adapter, "candidate", {
+  model: values.model,
+  effort: values.effort,
+});
+const model = candidateRoute.model;
+const effort = candidateRoute.effort;
+const judge = judgeAdapter
+  ? {
+      adapter: judgeAdapter,
+      ...resolveEvalRoute(judgeAdapter, "qualityJudge", {
+        model: values["judge-model"],
+        effort: values["judge-effort"],
+      }),
+    }
+  : undefined;
 let caseRoutes: Record<string, { model: string; effort: string }> = {};
 if (values["case-routes"]) {
   let parsed: unknown;
@@ -1606,7 +1637,7 @@ if (
 }
 const harnessVersion = values.dry ? "" : await adapter.version();
 console.log(
-  `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${values.effort}` +
+  `Running ${cases.length} case(s) × ${trials} trial(s) on ${adapter.name}/${model}@${effort}` +
     (harnessVersion ? ` (${harnessVersion})` : "") +
     (condition ? ` [condition: ${condition.label}]` : "") +
     (values.dry ? " [dry run — no harness calls]" : ""),
@@ -1619,7 +1650,7 @@ const outPath = values.output
   ? resolve(process.cwd(), values.output)
   : join(
       RESULTS_ROOT,
-      `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`,
+      `${stamp}-${adapter.name}-${model}-${effort}${condSuffix}.json`,
     );
 await mkdir(dirname(outPath), { recursive: true });
 const runIdentity = new Bun.CryptoHasher("sha256")
@@ -1630,7 +1661,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           evalCase,
           adapter,
           model: caseRoutes[evalCase.id]?.model ?? model,
-          effort: caseRoutes[evalCase.id]?.effort ?? values.effort!,
+          effort: caseRoutes[evalCase.id]?.effort ?? effort,
           trials,
           threshold,
           dry: values.dry!,
@@ -1639,13 +1670,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           humanReviewMinutes,
           requireEvaluationRecords: values["require-evaluation-records"],
           semanticOutput,
-          judge: judgeAdapter
-            ? {
-                adapter: judgeAdapter,
-                model: values["judge-model"] ?? judgeAdapter.defaultModel,
-                effort: values["judge-effort"]!,
-              }
-            : undefined,
+          judge,
           expectedGoalRoute: expectedGoalRoutes[evalCase.id],
           assertedGoalRoute: assertedGoalRoutes[evalCase.id],
           assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
@@ -1667,7 +1692,7 @@ try {
   for (const evalCase of cases) {
     const caseRoute = caseRoutes[evalCase.id];
     const caseModel = caseRoute?.model ?? model;
-    const caseEffort = caseRoute?.effort ?? values.effort!;
+    const caseEffort = caseRoute?.effort ?? effort;
     console.log(`\n${evalCase.id} (${evalCase.invariant})`);
     const result = await runCase({
       evalCase,
@@ -1682,13 +1707,7 @@ try {
       humanReviewMinutes,
       requireEvaluationRecords: values["require-evaluation-records"],
       semanticOutput,
-      judge: judgeAdapter
-        ? {
-            adapter: judgeAdapter,
-            model: values["judge-model"] ?? judgeAdapter.defaultModel,
-            effort: values["judge-effort"]!,
-          }
-        : undefined,
+      judge,
       expectedGoalRoute: expectedGoalRoutes[evalCase.id],
       assertedGoalRoute: assertedGoalRoutes[evalCase.id],
       assertedGoalDimensions: assertedGoalDimensions[evalCase.id],

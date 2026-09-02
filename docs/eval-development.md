@@ -52,6 +52,19 @@ constraints for producing and interpreting that evidence.
 
 ## Live-run controls
 
+Codex runs use independent defaults for each eval role:
+
+- candidate: `gpt-5.6-terra` at `medium` effort;
+- advisory quality judge: `gpt-5.6-sol` at `low` effort;
+- gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
+
+Use `--model` and `--effort`, `--judge-model` and `--judge-effort`, or
+`--semantic-check-model` and `--semantic-check-effort` to override the
+corresponding role. Suite runs use `--codex-model` for the candidate and retain
+the same role-specific judge and semantic-check options. The runner records the
+resolved model and effort for every role in suite manifests, JSON result
+evidence, and generated reports.
+
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
 

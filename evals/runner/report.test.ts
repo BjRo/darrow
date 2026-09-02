@@ -60,6 +60,65 @@ describe("orchestration suite report", () => {
     expect(markdown).toContain("$1.2500");
     expect(markdown).toContain("Human interventions");
     expect(markdown).toContain("Per-task outcomes");
+    expect(markdown).toContain("## Effective routes");
+    expect(markdown).toContain(
+      "| codex | vanilla | codex/candidate-model@medium | not used | not used |",
+    );
+  });
+
+  test("reports exact heterogeneous candidate and grader routes", () => {
+    const harness = {
+      ok: true,
+      durationMs: 10,
+      inputTokens: 1,
+      outputTokens: 1,
+      costUsd: null,
+      resultText: "done",
+      raw: "",
+    };
+    const terra = result({
+      model: "gpt-5.6-terra",
+      effort: "medium",
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness,
+          judge: {
+            ok: false,
+            route: {
+              harness: "codex",
+              model: "gpt-5.6-sol",
+              effort: "low",
+            },
+            parseError: "fixture",
+            harness,
+          },
+          semanticOutput: {
+            ok: true,
+            route: {
+              harness: "codex",
+              model: "gpt-5.6-luna",
+              effort: "low",
+            },
+            assessments: [],
+            harness,
+          },
+        },
+      ],
+    });
+    const override = result({
+      caseId: "override",
+      model: "candidate-override",
+      effort: "xhigh",
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [terra, override] },
+    ]);
+    expect(markdown).toContain(
+      "| codex | candidate | codex/gpt-5.6-terra@medium, codex/candidate-override@xhigh | codex/gpt-5.6-sol@low | codex/gpt-5.6-luna@low |",
+    );
   });
 
   test("does not treat missing bookkeeping records as a task failure", () => {
