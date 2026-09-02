@@ -376,6 +376,38 @@ describe("Codex skill activation observation", () => {
     });
   });
 
+  test("observes repository-relative reads from an installed plugin cache", () => {
+    const skillsRoot = join(
+      REPO,
+      ".git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets/0.2.3/skills",
+    );
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "sed -n '1,240p' .git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets/0.2.3/skills/list-tickets/SKILL.md",
+          aggregated_output:
+            "---\nname: list-tickets\ndescription: List tickets\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "list-tickets",
+      observedSkills: ["list-tickets"],
+    });
+    expect(
+      retainedCodexEvidence(stream, REPO, undefined, skillsRoot),
+    ).toContain('"skill":"list-tickets"');
+  });
+
   test("observes project capability reads alongside an installed orchestrator", () => {
     const installedSkillsRoot =
       "/tmp/eval-home/plugins/cache/darrow/darrow-goal-loop/0.13.0/skills";

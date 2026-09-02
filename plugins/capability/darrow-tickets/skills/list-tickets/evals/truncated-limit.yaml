@@ -37,4 +37,4 @@ checks:
       note: list truncated at 2 — narrow the filters or raise --limit
   - name: listing remains read-only
     run: cat .git/fixture-gh/calls
-    not_regex: "issue (create|edit|comment|close|reopen)"
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

@@ -230,12 +230,14 @@ act on.
 - **TM-L2 — Deliberate filters.** Filters (type/label, milestone, text,
   state) are derived from the request and stated in the report. Open
   tickets are the default; closed or all states only when asked.
-- **TM-L3 — Compact, decision-relevant output.** Per ticket: id, title,
-  type/labels (and state, when the query spans states) — no raw tracker
-  dumps.
-- **TM-L4 — Honest truncation.** A capped list states the cap and the
-  total match count; an empty result states which filters produced it.
-  Never present a truncated list as complete.
+- **TM-L3 — Compact, decision-relevant output.** Relay the complete compact CLI
+  response starting with its `backend:` line without changing its visible
+  content or line order. Per ticket: id, title, type/labels (and state, when the
+  query spans states) — no raw tracker dumps.
+- **TM-L4 — Honest truncation.** A capped list states the cap and characterizes
+  the total honestly, including `more than N` when the backend query establishes
+  only a lower bound; an empty result states which filters produced it. Never
+  present a truncated list as complete.
 
 ### Non-goals
 

@@ -8,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
@@ -198,6 +198,37 @@ function observedSkillReads(
   return observedSkills;
 }
 
+function codexTrackedSkillRoots(
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+): string[] {
+  const installedSkillsRoots = Array.isArray(installedSkillsRoot)
+    ? installedSkillsRoot
+    : [installedSkillsRoot];
+  const repoRelativeInstalledRoots = installedSkillsRoots.flatMap(
+    (skillsRoot) => {
+      if (!isAbsolute(skillsRoot)) return [];
+      const repoRelativeRoot = relative(repoDir, skillsRoot);
+      if (
+        !repoRelativeRoot ||
+        repoRelativeRoot === ".." ||
+        repoRelativeRoot.startsWith(`..${sep}`) ||
+        isAbsolute(repoRelativeRoot)
+      )
+        return [];
+      return [repoRelativeRoot];
+    },
+  );
+  return [
+    ...new Set([
+      ...installedSkillsRoots,
+      ...repoRelativeInstalledRoots,
+      join(repoDir, ".agents", "skills"),
+      join(".agents", "skills"),
+    ]),
+  ];
+}
+
 function codexActivationStreamComplete(
   stream: string,
   events: CodexEvent[],
@@ -265,16 +296,10 @@ export function codexSkillActivation(
   installedSkillsRoot: string | string[] = join(repoDir, ".agents", "skills"),
 ): SkillActivationObservation {
   const events = codexEvents(stream);
-  const installedSkillsRoots = Array.isArray(installedSkillsRoot)
-    ? installedSkillsRoot
-    : [installedSkillsRoot];
-  const observedSkills = observedSkillReads(events, [
-    ...new Set([
-      ...installedSkillsRoots,
-      join(repoDir, ".agents", "skills"),
-      join(".agents", "skills"),
-    ]),
-  ]);
+  const observedSkills = observedSkillReads(
+    events,
+    codexTrackedSkillRoots(repoDir, installedSkillsRoot),
+  );
   return {
     source: "skill_file_read_probe",
     complete: codexActivationStreamComplete(stream, events),
@@ -1457,16 +1482,7 @@ function codexEvidenceSkillRoots(
   repoDir: string,
   installedSkillsRoot: string | string[],
 ) {
-  const installedSkillsRoots = Array.isArray(installedSkillsRoot)
-    ? installedSkillsRoot
-    : [installedSkillsRoot];
-  return [
-    ...new Set([
-      ...installedSkillsRoots,
-      join(repoDir, ".agents", "skills"),
-      join(".agents", "skills"),
-    ]),
-  ];
+  return codexTrackedSkillRoots(repoDir, installedSkillsRoot);
 }
 
 function retainedCodexSkillReads(

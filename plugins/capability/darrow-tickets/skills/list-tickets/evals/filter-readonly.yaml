@@ -169,4 +169,4 @@ checks:
     expect_regex: "issue list.*--label bug"
   - name: nothing mutated
     run: cat .git/fixture-gh/calls
-    not_regex: "issue (create|edit|comment|close|reopen)"
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

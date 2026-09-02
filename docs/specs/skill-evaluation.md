@@ -220,9 +220,11 @@ trials for their risk and must not rely on one convenient green run.
   generated reports.
 - **SE-C17 — Invocation-aware Codex activation.** Explicit Codex activation
   cases use one exact runner-controlled host invocation as dispatch evidence,
-  while implicit cases retain the mounted-skill read probe; missing or
-  ambiguous evidence stays unknown and both paths preserve source, primary
-  skill, and ordered observations independently from task success.
+  while implicit cases retain the mounted-skill read probe. Installed skill
+  roots contained by the fixture repository are recognized in both absolute
+  and repository-relative command paths; missing or ambiguous evidence stays
+  unknown and both paths preserve source, primary skill, and ordered
+  observations independently from task success.
 
 ## Evaluation requirements
 
