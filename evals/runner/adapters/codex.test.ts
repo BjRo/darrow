@@ -340,6 +340,135 @@ describe("Codex skill activation observation", () => {
     });
   });
 
+  test("observes mounted skill bodies read through shell indirections", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const skillDirectory = join(skillsRoot, "grilling");
+    const skillBody = [
+      "---",
+      "name: grilling",
+      "description: Help prepare food over direct heat.",
+      "---",
+      "",
+      "# Grilling",
+      "",
+      "Inspect the food before giving advice.",
+      "",
+    ].join("\n");
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(join(skillDirectory, "SKILL.md"), skillBody);
+
+    try {
+      const commands = [
+        `skills_root=${skillsRoot}; skill=grilling; cat "$skills_root/$skill/SKILL.md"`,
+        `cd ${skillDirectory} && sed -n '1,80p' SKILL.md`,
+        `skill_file=$(find ${skillsRoot} -path '*/grilling/SKILL.md' -print -quit); sed -n '1,80p' "$skill_file"`,
+      ];
+      for (const command of commands) {
+        const stream = [
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command,
+              aggregated_output: skillBody,
+              exit_code: 0,
+              status: "completed",
+            },
+          }),
+          JSON.stringify({ type: "turn.completed" }),
+        ].join("\n");
+
+        expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+          source: "skill_file_read_probe",
+          complete: true,
+          primarySkill: "grilling",
+          observedSkills: ["grilling"],
+        });
+        expect(
+          retainedCodexEvidence(stream, REPO, undefined, skillsRoot),
+        ).toContain('"skill":"grilling"');
+      }
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects indirect output that is not a mounted skill body", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const skillDirectory = join(skillsRoot, "grilling");
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(
+      join(skillDirectory, "SKILL.md"),
+      "---\nname: grilling\ndescription: Mounted body.\n---\n",
+    );
+
+    try {
+      const stream = [
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `root=${skillsRoot}; cat "$root/decoy/SKILL.md"`,
+            aggregated_output:
+              "---\nname: decoy\ndescription: Unmounted body.\n---\n",
+            exit_code: 0,
+            status: "completed",
+          },
+        }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+
+      expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+        source: "skill_file_read_probe",
+        complete: true,
+        primarySkill: null,
+        observedSkills: [],
+      });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("does not infer an indirect read from fabricated mounted frontmatter", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const skillDirectory = join(skillsRoot, "grilling");
+    const skillBody = "---\nname: grilling\ndescription: Mounted body.\n---\n";
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(join(skillDirectory, "SKILL.md"), skillBody);
+
+    try {
+      const commands = [
+        `test -f ${skillDirectory}/SKILL.md; printf '%s' fabricated`,
+        `find ${skillsRoot} -name SKILL.md -exec printf '%s' fabricated \\;`,
+        `find ${skillsRoot} -name SKILL.md -print; cat /tmp/decoy/SKILL.md; printf '%s' fabricated`,
+      ];
+      for (const command of commands) {
+        const stream = [
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command,
+              aggregated_output: skillBody,
+              exit_code: 0,
+              status: "completed",
+            },
+          }),
+          JSON.stringify({ type: "turn.completed" }),
+        ].join("\n");
+
+        expect(
+          codexSkillActivation(stream, REPO, skillsRoot).primarySkill,
+        ).toBeNull();
+      }
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
   test("observes canonical skill reads from an installed plugin cache", () => {
     const skillsRoot =
       "/tmp/eval-home/plugins/cache/darrow/darrow-discovery/0.1.0/skills";

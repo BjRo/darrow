@@ -40,9 +40,38 @@ shell test. Apply it to both the implementation and its deterministic tests.
 - Refuse unreadable required inputs and make failure output identify the input
   that could not be processed.
 
+## Interpreter evidence
+
+Run every target shell test through the authoring skill's bundled matrix helper:
+
+```bash
+bash <skill-dir>/scripts/verify-shell-tests -- <test-script>...
+```
+
+The helper discovers actual Bash 3.2 and Bash 5 interpreters, queries their
+versions, deduplicates equivalent candidates, and labels results from observed
+version data. Pass one or more `--shell <executable>` options before `--` only
+when repository evidence supplies additional interpreter paths. Never infer a
+version from an executable name, install a missing shell, or count two command
+names resolving to the same version as two compatibility results.
+
+Interpret its final `matrix_status` and exit status together:
+
+- `complete` / exit `0`: both required versions were observed and all tests
+  passed;
+- `failed` / exit `1`: at least one observed interpreter failed a test;
+- exit `2`: invocation or input evidence was invalid; and
+- `unverified` / exit `3`: at least one required version was unavailable.
+
+Exit `3` is evidence of incomplete coverage, not a successful two-version
+matrix. Continue the remaining non-dependent checks, preserve the helper's
+interpreter paths and versions in the final report, and name each unavailable
+required version explicitly.
+
 ## Tests
 
-- Run every bundled shell test with Bash 5 and `/bin/bash` 3.2.
+- Require support for Bash 5 and `/bin/bash` 3.2, but claim a live result only
+  for versions observed by the matrix helper.
 - When code uses `TMPDIR` or compares paths, run it with `TMPDIR` both with and
   without a trailing separator. Compare canonical paths, not the raw strings
   used to construct them.

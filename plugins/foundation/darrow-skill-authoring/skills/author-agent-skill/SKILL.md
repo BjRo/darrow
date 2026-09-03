@@ -22,6 +22,11 @@ Markdown-linked local resources. Inspect command literals, reference-style
 links, and other path forms separately. It does not replace native runtime
 validators or decide whether the workflow is well designed.
 
+When verifying target shell tests, read
+[`references/portable-shell.md`](references/portable-shell.md) and run the
+version-aware [`scripts/verify-shell-tests`](scripts/verify-shell-tests) helper.
+Base every shell-version claim on its emitted evidence.
+
 ## Workflow
 
 ### Choose the branch
@@ -183,7 +188,8 @@ resources, and packaging changes, with no unrelated capability added.
 
 Run, in order:
 
-1. each bundled script test with Bash 5 and `/bin/bash` 3.2;
+1. each bundled shell test through the version-aware helper, preserving any
+   unavailable required version as unverified;
 2. the bundled inspector on the finished skill and plugin root;
 3. the repository's skill and native plugin-manifest validators;
 4. scoped eval dry validation and live trials on the supported harnesses chosen

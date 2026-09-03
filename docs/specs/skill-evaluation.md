@@ -243,9 +243,12 @@ remains copyable and useful when hyperlinks are unavailable.
   cases use one exact runner-controlled host invocation as dispatch evidence,
   while implicit cases retain the mounted-skill read probe. Installed skill
   roots contained by the fixture repository are recognized in both absolute
-  and repository-relative command paths; missing or ambiguous evidence stays
-  unknown and both paths preserve source, primary skill, and ordered
-  observations independently from task success.
+  and repository-relative command paths. Indirect shell reads through variables,
+  working-directory changes, or discovery commands require a successful
+  read-capable command and frontmatter matching a skill that actually exists
+  under a mounted root. Missing or ambiguous evidence stays unknown and both
+  paths preserve source, primary skill, and ordered observations independently
+  from task success.
 
 ## Evaluation requirements
 
@@ -288,7 +291,9 @@ remains copyable and useful when hyperlinks are unavailable.
     grader roles.
 14. Activation fixtures cover an explicit Codex invocation without a visible
     skill-file read, implicit discovery with a completed mounted-skill read,
-    and missing or ambiguous evidence for both observation paths.
+    indirect mounted-skill reads through shell variables, working-directory
+    changes, and discovery commands, plus missing or ambiguous evidence for both
+    observation paths.
 
 ## Non-goals
 

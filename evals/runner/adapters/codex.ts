@@ -7,7 +7,8 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import type { Dirent } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import type {
@@ -147,6 +148,75 @@ function shellPayload(command: string): string | undefined {
   return wrapper?.[2] ?? command;
 }
 
+const SKILL_BODY_READERS = new Set([
+  "awk",
+  "bat",
+  "cat",
+  "ctx_read",
+  "cut",
+  "dd",
+  "grep",
+  "head",
+  "lean-ctx",
+  "less",
+  "more",
+  "rg",
+  "sed",
+  "tail",
+]);
+
+function shellClauseExecutable(part: string): string | undefined {
+  let clause = part.trim();
+  while (clause) {
+    const assignment = clause.match(
+      /^(?:(?:export|local|readonly)\s+)?[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/,
+    );
+    if (!assignment) break;
+    clause = clause.slice(assignment[0].length).trimStart();
+  }
+  clause = clause.replace(/^(?:command|env)\s+/, "");
+  const token = clause.match(/^["']?([^\s"']+)/)?.[1];
+  return token?.split("/").at(-1);
+}
+
+function replaceShellVariable(
+  value: string,
+  name: string,
+  replacement: string,
+): string {
+  return value.replace(
+    new RegExp(`\\$\\{${name}\\}|\\$${name}(?![A-Za-z0-9_])`, "g"),
+    () => replacement,
+  );
+}
+
+function expandSimpleShellVariables(payload: string): string {
+  const values = new Map<string, string>();
+  const assignments =
+    /(?:^|[;&|\n]\s*)(?:(?:export|local|readonly)\s+)?([A-Za-z_][A-Za-z0-9_]*)=(?:"([^"`]*)"|'([^']*)'|((?!\$\()[^\s;&|)]+))/g;
+  for (const match of payload.matchAll(assignments)) {
+    const name = match[1];
+    const raw = match[2] ?? match[3] ?? match[4];
+    if (!name || raw === undefined) continue;
+    let value = raw;
+    if (match[3] === undefined)
+      for (const [knownName, knownValue] of values)
+        value = replaceShellVariable(value, knownName, knownValue);
+    if (!/[`\r\n]/.test(value)) values.set(name, value);
+  }
+  let expanded = payload;
+  for (const [name, value] of values)
+    expanded = replaceShellVariable(expanded, name, value);
+  return expanded;
+}
+
+function skillBodyReadClauses(payload: string): string[] {
+  return payload.split(/&&|\|\||[;|\n]/).filter((part) => {
+    const executable = shellClauseExecutable(part);
+    return executable ? SKILL_BODY_READERS.has(executable) : false;
+  });
+}
+
 function skillReads(command: string, skillsRoot: string): string[] {
   const path = new RegExp(
     `(?:^|[^A-Za-z0-9._/-])(?:\\./)?${escapeRegExp(skillsRoot)}/([A-Za-z0-9._-]+)/SKILL\\.md(?=$|[^A-Za-z0-9._/-])`,
@@ -157,6 +227,159 @@ function skillReads(command: string, skillsRoot: string): string[] {
   return [...payload.matchAll(path)].flatMap((match) =>
     match[1] ? [match[1]] : [],
   );
+}
+
+interface MountedSkillBody {
+  name: string;
+  frontmatter: string;
+}
+
+function mountedSkillBody(
+  root: string,
+  entry: Dirent,
+): MountedSkillBody | undefined {
+  if (!entry.isDirectory() || !/^[A-Za-z0-9._-]+$/.test(entry.name))
+    return undefined;
+  let body: string;
+  try {
+    body = readFileSync(join(root, entry.name, "SKILL.md"), "utf8");
+  } catch {
+    return undefined;
+  }
+  const frontmatter = body.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)?.[0];
+  if (
+    !frontmatter ||
+    !new RegExp(
+      `(?:^|\\n)name:\\s*${escapeRegExp(entry.name)}\\s*(?:\\n|$)`,
+    ).test(frontmatter)
+  )
+    return undefined;
+  return { name: entry.name, frontmatter };
+}
+
+function mountedSkillBodies(
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+): MountedSkillBody[] {
+  const installedRoots = Array.isArray(installedSkillsRoot)
+    ? installedSkillsRoot
+    : [installedSkillsRoot];
+  const roots = [
+    ...new Set([
+      ...installedRoots.map((root) =>
+        isAbsolute(root) ? root : resolve(repoDir, root),
+      ),
+      join(repoDir, ".agents", "skills"),
+    ]),
+  ];
+  const bodies: MountedSkillBody[] = [];
+  for (const root of roots) {
+    let entries;
+    try {
+      entries = readdirSync(root, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const skill = mountedSkillBody(root, entry);
+      if (skill) bodies.push(skill);
+    }
+  }
+  return bodies;
+}
+
+function commandReferencesPath(command: string, path: string): boolean {
+  return new RegExp(
+    `(?:^|[^A-Za-z0-9._/-])(?:\\./)?${escapeRegExp(path)}(?=$|/|[^A-Za-z0-9._/-])`,
+  ).test(command);
+}
+
+function cdFeedsSkillRead(
+  payload: string,
+  skillsRoots: string[],
+  skill: string,
+): boolean {
+  let inSkillDirectory = false;
+  for (const clause of payload.split(/&&|;|\n/)) {
+    if (shellClauseExecutable(clause) === "cd") {
+      inSkillDirectory = skillsRoots.some((root) =>
+        commandReferencesPath(clause, `${root}/${skill}`),
+      );
+      continue;
+    }
+    if (
+      inSkillDirectory &&
+      skillBodyReadClauses(clause).length > 0 &&
+      /(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(clause)
+    )
+      return true;
+  }
+  return false;
+}
+
+function commandSubstitutionFeedsSkillRead(
+  payload: string,
+  skillsRoots: string[],
+): boolean {
+  const assignment = /([A-Za-z_][A-Za-z0-9_]*)=\$\(([\s\S]*?)\)/g;
+  for (const match of payload.matchAll(assignment)) {
+    const variable = match[1];
+    const discovery = match[2];
+    if (!variable || !discovery) continue;
+    const rooted = skillsRoots.some((root) =>
+      commandReferencesPath(discovery, root),
+    );
+    if (
+      !rooted ||
+      !/(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(discovery)
+    )
+      continue;
+    const tail = payload.slice((match.index ?? 0) + match[0].length);
+    if (
+      skillBodyReadClauses(tail).some((clause) =>
+        new RegExp(
+          `\\$\\{${escapeRegExp(variable)}\\}|\\$${escapeRegExp(variable)}(?![A-Za-z0-9_])`,
+        ).test(clause),
+      )
+    )
+      return true;
+  }
+  return false;
+}
+
+function indirectSkillReads(
+  command: string,
+  output: string,
+  skillsRoots: string[],
+  mountedSkills: MountedSkillBody[],
+): string[] {
+  const payload = shellPayload(command);
+  if (!payload) return [];
+  const expanded = expandSimpleShellVariables(payload);
+  const rootedRead = skillBodyReadClauses(expanded).some(
+    (clause) =>
+      /(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(clause) &&
+      skillsRoots.some((root) => commandReferencesPath(clause, root)),
+  );
+  const substitutionRead = commandSubstitutionFeedsSkillRead(
+    expanded,
+    skillsRoots,
+  );
+  return mountedSkills
+    .flatMap((skill) => {
+      const outputOffset = output.indexOf(skill.frontmatter);
+      const workingDirectoryRead = cdFeedsSkillRead(
+        expanded,
+        skillsRoots,
+        skill.name,
+      );
+      return outputOffset >= 0 &&
+        (rootedRead || substitutionRead || workingDirectoryRead)
+        ? [{ name: skill.name, outputOffset }]
+        : [];
+    })
+    .sort((left, right) => left.outputOffset - right.outputOffset)
+    .map(({ name }) => name);
 }
 
 function malformedCompletedCommand(event: CodexEvent): boolean {
@@ -172,18 +395,43 @@ function malformedCompletedCommand(event: CodexEvent): boolean {
   );
 }
 
+function eventSkillReads(
+  event: CodexEvent,
+  roots: string[],
+  mountedSkills: MountedSkillBody[],
+): string[] {
+  const command = completedCommand(event);
+  if (!command) return [];
+  const output = event.item?.aggregated_output;
+  const payload = shellPayload(command);
+  const directReads = payload
+    ? skillBodyReadClauses(expandSimpleShellVariables(payload)).flatMap(
+        (clause) =>
+          roots.flatMap((skillsRoot) => skillReads(clause, skillsRoot)),
+      )
+    : [];
+  const mountedNames = new Set(mountedSkills.map(({ name }) => name));
+  const verifiedDirectReads = mountedNames.size
+    ? directReads.filter((skill) => mountedNames.has(skill))
+    : directReads;
+  return [
+    ...verifiedDirectReads,
+    ...(typeof output === "string"
+      ? indirectSkillReads(command, output, roots, mountedSkills)
+      : []),
+  ];
+}
+
 function observedSkillReads(
   events: CodexEvent[],
   skillsRoots: string | string[],
+  mountedSkills: MountedSkillBody[] = [],
 ): string[] {
   const roots = Array.isArray(skillsRoots) ? skillsRoots : [skillsRoots];
   const observedSkills: string[] = [];
   for (const event of events) {
-    const command = completedCommand(event);
     const output = event.item?.aggregated_output;
-    const skills = command
-      ? roots.flatMap((skillsRoot) => skillReads(command, skillsRoot))
-      : [];
+    const skills = eventSkillReads(event, roots, mountedSkills);
     for (const skill of skills) {
       if (
         typeof output === "string" &&
@@ -296,9 +544,11 @@ export function codexSkillActivation(
   installedSkillsRoot: string | string[] = join(repoDir, ".agents", "skills"),
 ): SkillActivationObservation {
   const events = codexEvents(stream);
+  const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
   const observedSkills = observedSkillReads(
     events,
     codexTrackedSkillRoots(repoDir, installedSkillsRoot),
+    mountedSkills,
   );
   return {
     source: "skill_file_read_probe",
@@ -1488,20 +1738,23 @@ function codexEvidenceSkillRoots(
 function retainedCodexSkillReads(
   event: CodexEvent,
   skillsRoots: string[],
+  mountedSkills: MountedSkillBody[],
   retainedSkills: Set<string>,
 ): Record<string, unknown>[] {
-  return observedSkillReads([event], skillsRoots).flatMap((skill) => {
-    if (retainedSkills.has(skill)) return [];
-    retainedSkills.add(skill);
-    return [
-      {
-        type: "darrow.skill_read_probe",
-        source: "skill_file_read_probe",
-        skill,
-        status: "completed",
-      },
-    ];
-  });
+  return observedSkillReads([event], skillsRoots, mountedSkills).flatMap(
+    (skill) => {
+      if (retainedSkills.has(skill)) return [];
+      retainedSkills.add(skill);
+      return [
+        {
+          type: "darrow.skill_read_probe",
+          source: "skill_file_read_probe",
+          skill,
+          status: "completed",
+        },
+      ];
+    },
+  );
 }
 
 export function retainedCodexEvidence(
@@ -1512,6 +1765,7 @@ export function retainedCodexEvidence(
 ): string {
   const events = codexEvents(stream);
   const skillsRoots = codexEvidenceSkillRoots(repoDir, installedSkillsRoot);
+  const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
   const retainedSkills = new Set<string>();
   const state: CodexRetentionState = {
     goalOwnerAccepted: false,
@@ -1530,7 +1784,12 @@ export function retainedCodexEvidence(
   const retained = events.flatMap((event) => {
     return [
       ...retainCodexEvent(event, state, repoDir, status),
-      ...retainedCodexSkillReads(event, skillsRoots, retainedSkills),
+      ...retainedCodexSkillReads(
+        event,
+        skillsRoots,
+        mountedSkills,
+        retainedSkills,
+      ),
     ];
   });
   appendCodexRetentionState(retained, state, {
