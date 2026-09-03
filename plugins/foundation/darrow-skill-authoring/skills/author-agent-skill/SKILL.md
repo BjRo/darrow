@@ -167,6 +167,10 @@ arguments, produces stable output, refuses unreadable inputs, and emits absolute
 paths when its output is model-facing. Keep policy choices, trade-offs, and
 contextual judgment in `SKILL.md`.
 
+When the target adds or changes a shell script or shell test, read and apply
+[`references/portable-shell.md`](references/portable-shell.md) to both the
+implementation and its tests. Do not load that reference for prose-only skills.
+
 Keep the skill independently installable. All required files live inside its
 plugin; a reference must not escape the plugin or require a sibling plugin.
 Avoid daemons, queues, hidden side effects, installation changes, and publication

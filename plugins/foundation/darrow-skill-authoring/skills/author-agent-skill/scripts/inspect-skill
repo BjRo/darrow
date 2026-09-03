@@ -134,9 +134,16 @@ esac
   fail 2 "skill name '$name' does not match directory '${skill_directory##*/}': $skill_file"
 [ -n "$description" ] || fail 2 "skill description is empty: $skill_file"
 
-links_file=$(mktemp "${TMPDIR:-/tmp}/darrow-skill-links.XXXXXX") ||
+temp_parent=${TMPDIR:-/tmp}
+case "$temp_parent" in
+  /) temp_prefix=/ ;;
+  */) temp_prefix=$temp_parent ;;
+  *) temp_prefix=$temp_parent/ ;;
+esac
+
+links_file=$(mktemp "${temp_prefix}darrow-skill-links.XXXXXX") ||
   fail 2 "cannot create a temporary link inventory"
-scripts_file=$(mktemp "${TMPDIR:-/tmp}/darrow-skill-scripts.XXXXXX") || {
+scripts_file=$(mktemp "${temp_prefix}darrow-skill-scripts.XXXXXX") || {
   rm -f "$links_file"
   fail 2 "cannot create a temporary script inventory"
 }

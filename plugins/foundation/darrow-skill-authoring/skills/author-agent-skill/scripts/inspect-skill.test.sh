@@ -78,6 +78,35 @@ else
   fail "inspection is read-only"
 fi
 
+printf '%s\n' 'temporary path spelling'
+TEMP_PARENT=$(mktemp -d) || exit 1
+TEMP_PARENT=$(cd "$TEMP_PARENT" 2>/dev/null && pwd -P) || exit 1
+TEMPS[${#TEMPS[@]}]=$TEMP_PARENT
+MOCK_BIN=$TEMP_PARENT/bin
+mkdir "$MOCK_BIN"
+REAL_MKTEMP=$(command -v mktemp) || exit 1
+export REAL_MKTEMP
+printf '%s\n' \
+  '#!/bin/sh' \
+  'template=' \
+  "for argument do template=\$argument; done" \
+  "case \"\$template\" in" \
+  '  *//*) exit 64 ;;' \
+  'esac' \
+  "exec \"\$REAL_MKTEMP\" \"\$@\"" \
+  >"$MOCK_BIN/mktemp"
+chmod +x "$MOCK_BIN/mktemp"
+if PATH="$MOCK_BIN:$PATH" TMPDIR=$TEMP_PARENT bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+  pass "temporary path without trailing separator is accepted"
+else
+  fail "temporary path without trailing separator is accepted"
+fi
+if PATH="$MOCK_BIN:$PATH" TMPDIR=$TEMP_PARENT/ bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+  pass "temporary path with trailing separator is accepted"
+else
+  fail "temporary path with trailing separator is accepted"
+fi
+
 cp "$SKILL/SKILL.md" "$SKILL/SKILL.portable"
 sed '/^description:/a\
 disable-model-invocation: true' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
@@ -172,7 +201,13 @@ printf '\nRead [external](../../../outside-the-plugin.md).\n' >>"$SKILL/SKILL.md
 expect_failure "a local reference cannot escape the plugin" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 
 printf '%s\n' 'space-bearing absolute paths'
-SPACE_PLUGIN=$(mktemp -d "${TMPDIR:-/tmp}/darrow skill.XXXXXX") || exit 1
+temp_parent=${TMPDIR:-/tmp}
+case "$temp_parent" in
+  /) space_template='/darrow skill.XXXXXX' ;;
+  */) space_template="${temp_parent}darrow skill.XXXXXX" ;;
+  *) space_template="${temp_parent}/darrow skill.XXXXXX" ;;
+esac
+SPACE_PLUGIN=$(mktemp -d "$space_template") || exit 1
 SPACE_PLUGIN=$(cd "$SPACE_PLUGIN" 2>/dev/null && pwd -P) || exit 1
 TEMPS[${#TEMPS[@]}]=$SPACE_PLUGIN
 mkdir -p "$SPACE_PLUGIN/skills/space-skill"

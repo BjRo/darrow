@@ -85,9 +85,11 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   successful empty state.
 - **SA-C7 — Portable self-containment.** Bundled shell scripts work in Bash 5
   and `/bin/bash` 3.2, avoid GNU-only assumptions, and never require files from a
-  sibling plugin. A packaged skill remains useful with no MCP server or other
-  Darrow plugin installed unless its own manifest declares and supplies that
-  dependency.
+  sibling plugin. Normalize paths before emitting or comparing them, and handle
+  ordinary environment spelling variants such as `TMPDIR` with or without a
+  trailing separator. A packaged skill remains useful with no MCP server or
+  other Darrow plugin installed unless its own manifest declares and supplies
+  that dependency.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,
