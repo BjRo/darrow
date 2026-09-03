@@ -70,6 +70,7 @@ export interface RunHeading {
   harnessVersion?: string;
   cases: number;
   trials: number;
+  jobs: number;
   threshold: number;
   condition?: string;
   dry: boolean;
@@ -365,7 +366,7 @@ export function headingLines(
     ),
     paint("─".repeat(72), ANSI.dim, presentation),
     `${paint("Target", ANSI.dim, presentation)}   ${target}`,
-    `${paint("Run", ANSI.dim, presentation)}      ${heading.cases} cases × ${heading.trials} trials · ${heading.cases * heading.trials} total · threshold ${(heading.threshold * 100).toFixed(0)}%`,
+    `${paint("Run", ANSI.dim, presentation)}      ${heading.cases} cases × ${heading.trials} trials · ${heading.cases * heading.trials} total · jobs ${heading.jobs} · threshold ${(heading.threshold * 100).toFixed(0)}%`,
     ...(context
       ? [`${paint("Context", ANSI.dim, presentation)}  ${context}`]
       : []),
@@ -378,6 +379,7 @@ export function headingLines(
 
 export class EvalCliUi {
   private completed = 0;
+  private started = 0;
   private readonly startedAt = Date.now();
   private currentCaseId?: string;
   private active?: {
@@ -401,6 +403,7 @@ export class EvalCliUi {
     if (this.currentCaseId && this.currentCaseId !== caseId)
       this.stream.write("\n");
     this.currentCaseId = caseId;
+    this.started++;
     this.active = {
       state: {
         completed: this.completed,
@@ -413,7 +416,7 @@ export class EvalCliUi {
     };
     if (!this.presentation.progress) {
       this.stream.write(
-        `RUN ${this.completed + 1}/${this.total}  ${caseId} · trial ${trial}/${trials}\n`,
+        `RUN ${this.started}/${this.total}  ${caseId} · trial ${trial}/${trials}\n`,
       );
       return;
     }

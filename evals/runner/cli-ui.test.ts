@@ -139,6 +139,25 @@ describe("eval CLI presentation", () => {
     ui.stop();
   });
 
+  test("numbers concurrently started plain-text trials by dispatched work", () => {
+    const chunks: string[] = [];
+    const ui = new EvalCliUi(
+      { color: false, emoji: false, progress: false, hyperlinks: false },
+      3,
+      { write: (chunk: string) => chunks.push(chunk) },
+    );
+
+    ui.startTrial("concurrent-case", 1, 3);
+    ui.startTrial("concurrent-case", 2, 3);
+    ui.startTrial("concurrent-case", 3, 3);
+
+    expect(chunks).toEqual([
+      "RUN 1/3  concurrent-case · trial 1/3\n",
+      "RUN 2/3  concurrent-case · trial 2/3\n",
+      "RUN 3/3  concurrent-case · trial 3/3\n",
+    ]);
+  });
+
   test("colors task and activation outcomes independently", () => {
     const lines = trialLines(
       {

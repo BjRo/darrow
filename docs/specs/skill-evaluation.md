@@ -162,9 +162,13 @@ trials for their risk and must not rely on one convenient green run.
 ### Terminal experience
 
 The direct evaluation command presents long-running work as a bounded run with
-an explicit target, total workload, live trial progress, and a final case-level
-summary. Interactive terminals receive color, status symbols, and an updating
-progress bar by default. Passes are green, failures are red, and unknown or
+an explicit target, total workload, configured worker count, live trial
+progress, and a final case-level summary. The positive `--jobs` option bounds
+simultaneous trials and defaults to three. Use `--jobs 1` when diagnosis or
+rate-limit constraints require serial execution.
+Interactive serial runs receive color, status symbols, and an updating progress
+bar by default. Concurrent runs use per-trial status lines instead of a
+single-trial animation. Passes are green, failures are red, and unknown or
 skipped states remain visually distinct; this applies to activation as well as
 task outcomes. Users may independently disable color, status symbols, and
 animated progress, while `NO_COLOR` and non-interactive output produce stable,
@@ -230,10 +234,12 @@ remains copyable and useful when hyperlinks are unavailable.
   malformed, incomplete, duplicate, or unexpected semantic grader results and
   retains the grader route, verdicts, reasons, raw result, tokens, and cost.
 - **SE-C16 — Legible terminal feedback.** The direct runner shows bounded live
-  progress, visually distinct task and activation outcomes, a repeated-trial
-  case summary, and an absolute result artifact link. Color, symbols, and
-  animation are independently disableable, respect terminal conventions, and
-  degrade to stable outcome-bearing text outside an interactive terminal.
+  progress, its configured positive worker count, visually distinct task and
+  activation outcomes, a repeated-trial case summary, and an absolute result
+  artifact link. `--jobs` bounds simultaneous trials and defaults to three.
+  Color, symbols, and animation are independently disableable, respect terminal
+  conventions, and degrade to stable outcome-bearing text outside an
+  interactive terminal.
 - **SE-C17 — Role-specific Codex defaults.** Candidate execution, advisory
   quality judging, and gating semantic-output grading resolve independent
   GPT-5.6 model defaults, preserve explicit model and effort overrides, and

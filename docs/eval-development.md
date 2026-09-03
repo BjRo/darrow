@@ -86,14 +86,17 @@ updating progress bar when stdout is an interactive terminal. Use
 `--no-color`, `--no-emoji`, or `--no-progress` to disable those dimensions
 independently; `NO_COLOR` also disables color. Redirected output is stable and
 unanimated. Every completed run prints the absolute raw-result path even when
-terminal hyperlinks are unavailable.
+terminal hyperlinks are unavailable. Use `--jobs <positive integer>` to bound
+simultaneous trials within each case; the default is `--jobs 3`. Use `--jobs 1`
+for serial diagnosis or rate-limit-sensitive runs. Runs with more than one job
+use per-trial status lines instead of the single active-trial animation.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
 
   ```sh
   cd evals && bun runner/run.ts --case <substring> \
-    --harness <claude|codex> --trials 1 [--dry]
+    --harness <claude|codex> --trials 1 --jobs 1 [--dry]
   ```
 
   Repeat a single-trial invocation only after the preceding result is

@@ -35,6 +35,7 @@ import {
 import { codexAdapter } from "./adapters/codex";
 import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
 import { EvalCliUi, resolvePresentation, type TrialLine } from "./cli-ui";
+import { mapWithConcurrency } from "./concurrency";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
@@ -101,6 +102,7 @@ interface RunCaseOptions {
   model: string;
   effort: string;
   trials: number;
+  jobs: number;
   threshold: number;
   dry: boolean;
   condition?: { label: string; text: string };
@@ -1363,14 +1365,25 @@ function trialLine(
 }
 
 async function runCase(options: RunCaseOptions): Promise<CaseResult> {
-  const trialResults: TrialResult[] = [];
-  for (let trial = 1; trial <= options.trials; trial++) {
-    options.ui?.startTrial(options.evalCase.id, trial, options.trials);
-    const result = await runTrial(options, trial);
-    trialResults.push(result);
-    options.ui?.finishTrial(trialLine(options, result));
-    await options.checkpoint?.(result);
-  }
+  let completionQueue = Promise.resolve();
+  const recordCompletion = (result: TrialResult): Promise<void> => {
+    const pending = completionQueue.then(async () => {
+      options.ui?.finishTrial(trialLine(options, result));
+      await options.checkpoint?.(result);
+    });
+    completionQueue = pending.catch(() => undefined);
+    return pending;
+  };
+  const trialResults = await mapWithConcurrency(
+    Array.from({ length: options.trials }, (_, index) => index + 1),
+    options.jobs,
+    async (trial) => {
+      options.ui?.startTrial(options.evalCase.id, trial, options.trials);
+      const result = await runTrial(options, trial);
+      await recordCompletion(result);
+      return result;
+    },
+  );
   return summarizeCase(options, trialResults);
 }
 
@@ -1428,6 +1441,7 @@ const { values } = parseArgs({
       default: CODEX_EVAL_ROLE_DEFAULTS.candidate.effort,
     },
     trials: { type: "string", default: "5" },
+    jobs: { type: "string", default: "3" },
     case: { type: "string", multiple: true },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
@@ -1463,9 +1477,14 @@ const { values } = parseArgs({
 });
 
 const trials = Number(values.trials);
+const jobs = Number(values.jobs);
 const threshold = Number(values.threshold);
 if (!Number.isInteger(trials) || trials < 1) {
   console.error("--trials must be a positive integer");
+  process.exit(1);
+}
+if (!Number.isInteger(jobs) || jobs < 1) {
+  console.error("--jobs must be a positive integer");
   process.exit(1);
 }
 if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
@@ -1668,14 +1687,15 @@ const outPath = values.output
       `${stamp}-${adapter.name}-${model}-${effort}${condSuffix}.json`,
     );
 await mkdir(dirname(outPath), { recursive: true });
+const presentation = resolvePresentation({
+  isTTY: process.stdout.isTTY ?? false,
+  env: process.env,
+  noColor: values["no-color"],
+  noEmoji: values["no-emoji"],
+  noProgress: values["no-progress"],
+});
 const ui = new EvalCliUi(
-  resolvePresentation({
-    isTTY: process.stdout.isTTY ?? false,
-    env: process.env,
-    noColor: values["no-color"],
-    noEmoji: values["no-emoji"],
-    noProgress: values["no-progress"],
-  }),
+  jobs > 1 ? { ...presentation, progress: false } : presentation,
   cases.length * trials,
 );
 ui.heading({
@@ -1685,6 +1705,7 @@ ui.heading({
   harnessVersion: harnessVersion || undefined,
   cases: cases.length,
   trials,
+  jobs,
   threshold,
   condition: condition?.label,
   dry: values.dry!,
@@ -1735,6 +1756,7 @@ try {
       model: caseModel,
       effort: caseEffort,
       trials,
+      jobs,
       threshold,
       dry: values.dry!,
       condition,
