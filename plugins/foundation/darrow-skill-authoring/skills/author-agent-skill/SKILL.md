@@ -1,6 +1,6 @@
 ---
 name: author-agent-skill
-description: Create, revise, or validate one agent skill as a focused, self-contained capability for Claude Code and Codex. Use when asked to author or edit SKILL.md, define skill trigger metadata, add colocated resources or deterministic checks, repair an over-broad or unreliable skill, or evaluate skill discovery and workflow behavior. Do not use for general AGENTS.md or CLAUDE.md prose, plugin-only packaging without a skill, or merely running an existing suite.
+description: Create, improve, or validate one reusable agent skill as a focused, self-contained capability for Claude Code and Codex. Use for any request to create or edit a skill, including open-ended requests whose capability, destination, or runtime support must be clarified; also use to define trigger metadata, add colocated resources or deterministic checks, repair an over-broad or unreliable skill, or evaluate discovery and workflow behavior. Do not use for general AGENTS.md or CLAUDE.md prose, plugin-only packaging without a skill, or merely running an existing suite.
 ---
 
 # Author an agent skill
@@ -45,6 +45,25 @@ Use **creation/revision** for a new skill or when the user explicitly asks to
 apply fixes. Follow every phase below. A request to “validate and fix” selects
 revision; validation alone never implies write authority.
 
+For a new skill, make this input gate the first creation action. Classify each
+item as known or unknown before creating a scaffold or changing repository or
+user-level configuration:
+
+1. the recognizable skill goal is supplied or explicitly approved by the user;
+2. the destination is explicit or unambiguous from repository evidence;
+3. the supported runtimes are explicit or unambiguous from repository evidence;
+4. requested side effects and delivery authority are clear.
+
+“Pick whatever capability is useful” leaves the goal unknown. “Put it wherever
+is best” leaves the destination and runtime support unknown. Neither delegates
+permission to invent those inputs.
+
+If any item is unknown, ask one compact group of questions that includes every
+unknown item, then stop. Never ask for only the goal when destination or runtime
+support is also unknown, and never defer another known question to a later turn.
+Leave the repository and user-level configuration unchanged; do not continue to
+inspection or implementation until the user supplies or approves the contract.
+
 ### 1. Establish the contract
 
 Read applicable repository instructions and the target plugin manifests. Name:
@@ -63,11 +82,6 @@ current skill or an uncontaminated no-skill condition when the harness supports
 it. Record observed failure behavior. If an honest baseline is unavailable,
 state that limitation and continue with forward evidence; never invent a red
 result.
-
-If the goal, destination, side effects, or runtime support is materially
-undefined, ask one compact group of questions and leave the repository
-unchanged. Include every material unknown in that group; when both goal and
-destination are missing, ask for both instead of stopping after the goal alone.
 
 **Complete when:** the goal and boundary are unambiguous, the request matrix is
 written, and every success claim has an observable check or an explicit

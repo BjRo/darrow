@@ -36,7 +36,9 @@ package", or an explicit skill invocation.
 
 Missing information is resolved from repository evidence when safe. A choice
 that materially changes the skill's goal, side effects, destination, or runtime
-support is presented to the user rather than guessed.
+support is presented to the user rather than guessed. Asking the agent to pick
+an arbitrary capability or destination does not supply or approve that missing
+input.
 
 ### Output
 
@@ -50,6 +52,8 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   inputs and outputs, stop/question boundaries, supported runtimes, and success
   criteria before implementation. Establish representative direct, indirect,
   incomplete-input, negative-trigger, and plausible counterexample requests.
+  Delegating invention of an unspecified goal or destination does not satisfy
+  the contract and must not authorize a repository or user-level skill change.
   For a behavior-changing revision, capture baseline behavior before relying on
   the revised skill unless the harness cannot provide an uncontaminated
   baseline; disclose that limitation instead of fabricating one.
