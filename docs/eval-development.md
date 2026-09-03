@@ -81,6 +81,13 @@ the same role-specific judge and semantic-check options. The runner records the
 resolved model and effort for every role in suite manifests, JSON result
 evidence, and generated reports.
 
+The direct runner uses color, status symbols, terminal hyperlinks, and an
+updating progress bar when stdout is an interactive terminal. Use
+`--no-color`, `--no-emoji`, or `--no-progress` to disable those dimensions
+independently; `NO_COLOR` also disables color. Redirected output is stable and
+unanimated. Every completed run prints the absolute raw-result path even when
+terminal hyperlinks are unavailable.
+
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
 

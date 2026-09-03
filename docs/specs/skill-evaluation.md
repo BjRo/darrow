@@ -159,6 +159,22 @@ quantitative results, observed failures, limitations, and the exact raw result
 location or digest. Promotion or behavior-value claims require enough fresh
 trials for their risk and must not rely on one convenient green run.
 
+### Terminal experience
+
+The direct evaluation command presents long-running work as a bounded run with
+an explicit target, total workload, live trial progress, and a final case-level
+summary. Interactive terminals receive color, status symbols, and an updating
+progress bar by default. Passes are green, failures are red, and unknown or
+skipped states remain visually distinct; this applies to activation as well as
+task outcomes. Users may independently disable color, status symbols, and
+animated progress, while `NO_COLOR` and non-interactive output produce stable,
+unanimated logs without hiding outcome text.
+
+The completion view summarizes passed and failed cases across repeated trials
+and always prints the absolute raw-result path. On capable interactive
+terminals that path is also an OSC 8 file hyperlink, while its visible text
+remains copyable and useful when hyperlinks are unavailable.
+
 ## Invariants
 
 - **SE-C1 — Complete traceability scan.** Coverage reports every invariant,
@@ -213,12 +229,17 @@ trials for their risk and must not rely on one convenient green run.
 - **SE-C15 — Fail-closed semantic evidence.** The runner rejects unavailable,
   malformed, incomplete, duplicate, or unexpected semantic grader results and
   retains the grader route, verdicts, reasons, raw result, tokens, and cost.
-- **SE-C16 — Role-specific Codex defaults.** Candidate execution, advisory
+- **SE-C16 — Legible terminal feedback.** The direct runner shows bounded live
+  progress, visually distinct task and activation outcomes, a repeated-trial
+  case summary, and an absolute result artifact link. Color, symbols, and
+  animation are independently disableable, respect terminal conventions, and
+  degrade to stable outcome-bearing text outside an interactive terminal.
+- **SE-C17 — Role-specific Codex defaults.** Candidate execution, advisory
   quality judging, and gating semantic-output grading resolve independent
   GPT-5.6 model defaults, preserve explicit model and effort overrides, and
   record the exact effective route in manifests, JSON result evidence, and
   generated reports.
-- **SE-C17 — Invocation-aware Codex activation.** Explicit Codex activation
+- **SE-C18 — Invocation-aware Codex activation.** Explicit Codex activation
   cases use one exact runner-controlled host invocation as dispatch evidence,
   while implicit cases retain the mounted-skill read probe. Installed skill
   roots contained by the fixture repository are recognized in both absolute
@@ -259,10 +280,13 @@ trials for their risk and must not rely on one convenient green run.
 11. Runner tests prove semantic checks still gate with the advisory judge
     disabled and retain route, verdict, token, and cost evidence without
     exposing propositions to the candidate.
-12. Runner tests cover default and explicitly overridden model and effort
+12. CLI rendering tests cover interactive progress, green pass and red failure
+    output (including activation failure), repeated-trial summaries, artifact
+    hyperlinks, explicit style opt-outs, `NO_COLOR`, and non-interactive logs.
+13. Runner tests cover default and explicitly overridden model and effort
     resolution for the candidate, advisory quality judge, and semantic-output
     grader roles.
-13. Activation fixtures cover an explicit Codex invocation without a visible
+14. Activation fixtures cover an explicit Codex invocation without a visible
     skill-file read, implicit discovery with a completed mounted-skill read,
     and missing or ambiguous evidence for both observation paths.
 
