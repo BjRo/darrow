@@ -63,7 +63,9 @@ inside backticks:
 Keep the `Quality bar` and `Findings` headings when their arrays are empty and
 write `None.` beneath the applicable heading. Repeat the item structure for
 each value. Never collapse evidence needed to support the verdict into a prose
-preface or trailing summary.
+preface or trailing summary. In a standalone human-readable result, the
+`Description` value under `Required next action` is the final line. Append no
+summary, disclaimer, mutation note, offer, or other commentary after it.
 
 ## Explicit v1 JSON presentation
 

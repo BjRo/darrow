@@ -1,5 +1,7 @@
 id: readiness-quality-bar-gap
-invariant: IRG-E3
+invariant: IRG-E1,IRG-E2,IRG-E3,SE-C9,SE-C10,SE-C11,SE-C14
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Assess whether docs/request.md is ready for implementation. Return only the
   implementation-readiness result and do not select missing product behavior.
@@ -33,12 +35,6 @@ output_checks:
     expect_regex: "^## Implementation readiness$"
   - name: missing product behavior requires a decision
     expect_regex: "^\\*\\*Verdict:\\*\\* `needs-decision`$"
-  - name: generic tests do not supply the quality bar
-    expect_regex: "findings[\\s\\S]*quality-bar-gap"
-    flags: i
-  - name: missing retry policy remains an unresolved decision
-    expect_regex: "findings[\\s\\S]*unresolved-decision"
-    flags: i
   - name: next action requests an authorized decision
     expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `decision`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
   - name: default result preserves typed basis and finding fields
@@ -47,3 +43,10 @@ output_checks:
     expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
+semantic_output_checks:
+  - name: retry behavior and acceptance remain unresolved
+    proposition: >-
+      The response treats retry eligibility, attempt limits, delay policy, and
+      terminal user behavior as unresolved product choices and recognizes that
+      the generic phrase "all tests pass" does not provide an independent,
+      inspectable acceptance oracle for those behaviors.

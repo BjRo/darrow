@@ -1,5 +1,7 @@
 id: readiness-goal-contract-continue
-invariant: IRG-C8
+invariant: IRG-C8,IRG-E1,IRG-E6,SE-C9,SE-C10,SE-C11
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Execute this bounded goal contract. Outcome: config.json uses a 2500 ms
   timeout. Before any repository mutation, use an available
