@@ -1,14 +1,15 @@
 id: plan-implementation-dependency-frontier-transfer
 invariant: PI-C1,PI-C2,DG-C2,DG-C3,DG-C4,DC-C1,SE-C9,SE-C10,SE-C11
 activation: competition
+activation_sequence: [plan-implementation, grilling]
 mount_plugin_skills: true
 prompt: >-
-  Help me plan tenant-aware audit-log storage. Inspect the repository for the
-  current implementation. We have not decided whether storage should use one
-  shared archive or tenant-isolated stores; encryption-key ownership,
-  partition format, and migration strategy depend on that choice. Discuss the
-  material unknowns with recommendations before producing a plan. Do not
-  modify files or create tickets.
+  Help me produce an implementation plan for tenant-aware audit-log storage.
+  Inspect the repository for the current implementation. We have not decided
+  whether storage should use one shared archive or tenant-isolated stores;
+  encryption-key ownership, partition format, and migration strategy depend on
+  that choice. Discuss the material unknowns with recommendations before
+  producing the implementation plan. Do not modify files or create tickets.
 fixture:
   commits:
     - message: "chore: init"
@@ -27,59 +28,6 @@ checks:
   - name: planning conversation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: storage isolation is the sole frontier root
-    run: |
-      awk '
-        NF { if (paragraph) printf " "; printf "%s", $0; paragraph = 1; next }
-        { if (paragraph) printf "\n"; paragraph = 0 }
-        END { if (paragraph) printf "\n" }
-      ' .git/last-message.md | awk '
-        {
-          line = tolower($0)
-          cleaned = $0
-          gsub(/https?:\/\/[^[:space:]]+/, "", cleaned)
-          questions = gsub(/\?/, "?", cleaned)
-          root = line ~ /^[[:space:]*#>_-]*(q0*1[*_.):[:space:]—-]+|1[.)][[:space:]]+)/ && line ~ /shared[ -]archive/ && line ~ /tenant[- ]isolated/ && line ~ /(audit|stor)/
-          child = line ~ /(encrypt|key owner|partition format|schema|migration|vendor)/
-          mechanics = line ~ /[()]/
-          if (root && questions == 1 && !child && !mechanics) roots++
-          else if (questions != 0) invalid = 1
-        }
-        END {
-          if (roots == 1 && !invalid) print "storage_roots=1"
-          else exit 1
-        }
-      '
-    expect_exact: "storage_roots=1"
-  - name: recommendation selects exactly one storage root
-    run: |
-      awk '
-        NF { if (paragraph) printf " "; printf "%s", $0; paragraph = 1; next }
-        { if (paragraph) printf "\n"; paragraph = 0 }
-        END { if (paragraph) printf "\n" }
-      ' .git/last-message.md | awk '
-        {
-          line = tolower($0)
-          if (line !~ /recommendation:/) next
-          recommendation = line
-          sub(/^.*recommendation:/, "", recommendation)
-          shared = recommendation ~ /shared[ -]archive/
-          isolated = recommendation ~ /tenant[- ]isolated/
-          refuses = recommendation ~ /(cannot|can.t|unable|no recommendation|without your guidance|need your guidance|depends on your)/
-          combined = recommendation ~ /(^|[^[:alnum:]_])(both|combined)([^[:alnum:]_]|$)/
-          child = recommendation ~ /(encrypt|key owner|partition format|schema|migration|vendor)/
-          if (shared + isolated == 1 && !refuses && !combined && !child) concrete++
-        }
-        END {
-          if (concrete == 1) print "storage_recommendations=1"
-          else exit 1
-        }
-      '
-    expect_exact: "storage_recommendations=1"
-  - name: repository facts are used
-    run: cat .git/last-message.md
-    expect_regex: "auditEvents|appendAuditEvent|readAuditEvents|src/audit-store\\.js"
-    flags: i
   - name: repository absence is not promoted to greenfield authority
     run: |
       if grep -Ei "greenfield|no (repository )?evidence[^?]*(requirement|constraint|policy)|absent[^?]*(requirement|constraint|policy)|no [^?]*(architecture|policy)[^?]*(preserve|inherit)" .git/last-message.md >/dev/null; then
@@ -88,30 +36,6 @@ checks:
       fi
       printf 'invented_greenfield_authority=0\n'
     expect_exact: "invented_greenfield_authority=0"
-  - name: storage children remain deferred
-    run: |
-      awk '
-        NF { if (paragraph) printf " "; printf "%s", $0; paragraph = 1; next }
-        { if (paragraph) printf "\n"; paragraph = 0 }
-        END { if (paragraph) printf "\n" }
-      ' .git/last-message.md | awk '
-        {
-          line = tolower($0)
-          if (line !~ /deferred:/) next
-          deferred = line
-          sub(/^.*deferred:/, "", deferred)
-          keys = deferred ~ /(encrypt|key owner)/
-          partition = deferred ~ /(partition|format|schema)/
-          migration = deferred ~ /migration/
-          recomputes = line ~ /(recompute|next frontier)/
-          if (keys && partition && migration && recomputes) valid++
-        }
-        END {
-          if (valid == 1) print "storage_children=deferred"
-          else exit 1
-        }
-      '
-    expect_exact: "storage_children=deferred"
   - name: unresolved storage choices do not become a plan
     run: |
       message=.git/last-message.md
@@ -121,3 +45,17 @@ checks:
       fi
       printf 'premature_plan_markers=0\n'
     expect_exact: "premature_plan_markers=0"
+semantic_output_checks:
+  - name: storage isolation is the sole frontier root
+    proposition: >-
+      The response asks exactly one current-frontier question: whether durable
+      audit storage should use one shared archive or tenant-isolated stores. It
+      gives one concrete advisory recommendation selecting exactly one of those
+      roots, does not ask or answer encryption-key ownership, partition format,
+      or migration strategy, explicitly defers all three, and says the
+      frontier will be recomputed after the user's answer.
+  - name: repository facts inform the frontier
+    proposition: >-
+      The response accurately uses the inspected implementation fact that audit
+      events currently live in process-local or in-memory storage and reads are
+      not tenant-scoped, rather than asking the user to discover those facts.

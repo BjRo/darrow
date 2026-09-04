@@ -62,9 +62,17 @@ constraints for producing and interpreting that evidence.
 - A Codex case without the placeholder remains an implicit-discovery probe and
   requires a completed mounted-skill body read. Do not use the explicit path to
   make implicit selection pass.
-- Missing, repeated, malformed, or failed observation evidence stays unknown.
-  Retain the source, primary skill, and ordered observed skills separately from
-  the task outcome.
+- Missing, repeated, malformed, or unverified observation evidence stays
+  unknown. A failed compound shell command may still prove an earlier skill
+  read only when the command names a mounted skill path and its output contains
+  that mounted skill's frontmatter; a later clause's failure does not erase the
+  completed read. Retain the source, primary skill, and ordered observed skills
+  separately from the task outcome.
+- A composed `activation_sequence` requires the primary owner first and a
+  complete mounted body read for every supporting skill. Use
+  `activation_excludes` when a negative case must prove that a named skill was
+  absent from the entire observed sequence rather than merely absent as the
+  primary selection.
 
 ## Live-run controls
 

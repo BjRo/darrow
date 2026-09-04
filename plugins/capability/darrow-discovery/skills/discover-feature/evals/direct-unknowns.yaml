@@ -1,6 +1,7 @@
 id: discover-feature-direct-unknowns
 invariant: DF-C1,DF-C2,DG-C2,DG-C3,DG-C4,DC-C1,SE-C9,SE-C10,SE-C11
 activation: competition
+activation_sequence: [discover-feature, grilling]
 mount_plugin_skills: true
 prompt: >-
   Help me discover a scheduled-reporting feature for this product. I want to

@@ -394,6 +394,68 @@ describe("Codex skill activation observation", () => {
     }
   });
 
+  test("requires a complete mounted body for a supporting skill read", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-composed-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const planBody = [
+      "---",
+      "name: plan-implementation",
+      "description: Plan an implementation.",
+      "---",
+      "",
+      "# Plan implementation",
+      "",
+      "Inspect the repository before planning.",
+      "",
+    ].join("\n");
+    const grillingBody = [
+      "---",
+      "name: grilling",
+      "description: Resolve material unknowns.",
+      "---",
+      "",
+      "# Grilling",
+      "",
+      "Ask dependency-aware questions.",
+      "",
+    ].join("\n");
+    await mkdir(join(skillsRoot, "plan-implementation"), { recursive: true });
+    await mkdir(join(skillsRoot, "grilling"), { recursive: true });
+    await writeFile(
+      join(skillsRoot, "plan-implementation", "SKILL.md"),
+      planBody,
+    );
+    await writeFile(join(skillsRoot, "grilling", "SKILL.md"), grillingBody);
+
+    try {
+      const event = (skill: string, output: string) =>
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${skillsRoot}/${skill}/SKILL.md`,
+            aggregated_output: output,
+            exit_code: 0,
+            status: "completed",
+          },
+        });
+      const stream = [
+        event("plan-implementation", planBody),
+        event("grilling", grillingBody.split("# Grilling")[0] ?? ""),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+
+      expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+        source: "skill_file_read_probe",
+        complete: true,
+        primarySkill: "plan-implementation",
+        observedSkills: ["plan-implementation"],
+      });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
   test("rejects indirect output that is not a mounted skill body", async () => {
     const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
     const skillsRoot = join(temporary, "skills");
@@ -693,6 +755,31 @@ describe("Codex skill activation observation", () => {
       JSON.stringify({ type: "turn.completed" }),
     ].join("\n");
     expect(codexSkillActivation(stream, REPO).complete).toBe(true);
+  });
+
+  test("observes a verified skill read before a later compound command fails", () => {
+    const skillBody = "---\nname: grilling\ndescription: Grill\n---\n";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "cat /tmp/eval/.agents/skills/grilling/SKILL.md && rg missing",
+          aggregated_output: skillBody,
+          exit_code: 1,
+          status: "failed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "grilling",
+      observedSkills: ["grilling"],
+    });
   });
 
   test("keeps ambiguous implicit command evidence unknown", () => {

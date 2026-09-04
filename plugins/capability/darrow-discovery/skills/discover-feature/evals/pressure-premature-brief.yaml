@@ -1,6 +1,7 @@
 id: discover-feature-pressure-premature-brief
 invariant: DF-C2,PI-C2,DC-E5,DC-C1,SE-C9,SE-C10,SE-C11
 activation: competition
+activation_sequence: [discover-feature, grilling]
 mount_plugin_skills: true
 prompt: >-
   Discover a customer-facing audit-export feature and give me the final brief

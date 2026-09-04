@@ -29,7 +29,10 @@ export interface ActivationLine {
   passed: boolean | null;
   className: string;
   targetSkill: string;
+  expectedSkills?: string[];
+  excludedSkills?: string[];
   primarySkill: string | null;
+  observedSkills?: string[];
   source: string | null;
 }
 
@@ -171,30 +174,51 @@ export function progressFrame(
   return `${styled}  ${truncate(suffix, available)}`;
 }
 
+function activationRoute(activation: ActivationLine): string {
+  if (activation.passed === null)
+    return `· ${activation.className} · source unavailable`;
+  if (activation.passed)
+    return activation.className === "negative"
+      ? `· ${activation.targetSkill} avoided`
+      : `· ${activation.targetSkill} selected`;
+  return failedActivationRoute(activation);
+}
+
+function failedActivationRoute(activation: ActivationLine): string {
+  const observed = activation.observedSkills ?? [];
+  const excluded = activation.excludedSkills ?? [];
+  const hasForbiddenSkill = excluded.some((skill) => observed.includes(skill));
+  if (hasForbiddenSkill)
+    return `· forbidden ${excluded.join(", ")} observed in ${activation.observedSkills?.join(" → ") || "none"}`;
+  if (activation.expectedSkills)
+    return `· expected ${activation.expectedSkills.join(" → ")}, got ${activation.observedSkills?.join(" → ") || "none"}`;
+  return `· expected ${activation.targetSkill}, got ${activation.primarySkill ?? "none"}`;
+}
+
 function outcomesLine(
   taskPassed: boolean,
   activation: ActivationLine,
   presentation: Presentation,
 ): string {
-  const known = activation.passed !== null;
-  const state = !known ? "unknown" : activation.passed ? "passed" : "failed";
-  const color = !known
-    ? ANSI.yellow
-    : activation.passed
-      ? ANSI.green
-      : ANSI.red;
-  const taskColor = taskPassed ? ANSI.green : ANSI.red;
+  const state =
+    activation.passed === null
+      ? "unknown"
+      : activation.passed
+        ? "passed"
+        : "failed";
+  const color =
+    activation.passed === null
+      ? ANSI.yellow
+      : activation.passed
+        ? ANSI.green
+        : ANSI.red;
   const task = paint(
     `Task ${taskPassed ? "passed" : "failed"}`,
-    taskColor,
+    taskPassed ? ANSI.green : ANSI.red,
     presentation,
   );
   const activationState = paint(`Activation ${state}`, color, presentation);
-  const route = !known
-    ? `· ${activation.className} · source unavailable`
-    : activation.passed
-      ? `· ${activation.targetSkill} selected`
-      : `· expected ${activation.targetSkill}, got ${activation.primarySkill ?? "none"}`;
+  const route = activationRoute(activation);
   return `   ${task}  ·  ${activationState} ${paint(route, ANSI.dim, presentation)}`;
 }
 

@@ -1,4 +1,6 @@
 interface:
   display_name: "Grilling"
   short_description: "Stress-test an idea through decision rounds"
-  default_prompt: "Grill me on this idea before I act on it."
+  default_prompt: "$darrow-discovery:grilling Grill me on this idea before I act on it."
+policy:
+  allow_implicit_invocation: false

@@ -924,6 +924,10 @@ function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
         evalCase.activation,
         activationTargetSkill(evalCase),
         harness.skillActivation,
+        {
+          sequence: evalCase.activation_sequence,
+          excludes: evalCase.activation_excludes,
+        },
       )
     : undefined;
 }
@@ -1354,7 +1358,10 @@ function trialLine(
           passed: result.activation.passed,
           className: result.activation.class,
           targetSkill: result.activation.targetSkill,
+          expectedSkills: result.activation.expectedSkills,
+          excludedSkills: result.activation.excludedSkills,
           primarySkill: result.activation.primarySkill,
+          observedSkills: result.activation.observedSkills,
           source: result.activation.source,
         }
       : undefined,
@@ -1720,6 +1727,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           model: caseRoutes[evalCase.id]?.model ?? model,
           effort: caseRoutes[evalCase.id]?.effort ?? effort,
           trials,
+          jobs,
           threshold,
           dry: values.dry!,
           condition,

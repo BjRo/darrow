@@ -1,6 +1,7 @@
 id: plan-implementation-negated-grilling-unknowns
 invariant: PI-C1,PI-C2,DG-C1,DC-E1,DC-C1
 activation: competition
+activation_sequence: [plan-implementation, grilling]
 mount_plugin_skills: true
 prompt: >-
   Draft an implementation plan for configurable request timeouts. The public

@@ -113,6 +113,10 @@ export interface SkillActivationObservation {
 export interface TrialActivationResult {
   class: ActivationClass;
   targetSkill: string;
+  /** Optional required leading skill-load sequence for composed capabilities. */
+  expectedSkills?: string[];
+  /** Skills that must not appear anywhere in the observed load sequence. */
+  excludedSkills?: string[];
   /** Null means the observation was unavailable or incomplete. */
   passed: boolean | null;
   source: ActivationEvidenceSource | null;
@@ -158,6 +162,10 @@ export interface EvalCase {
   transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
   activation?: ActivationClass;
+  /** Optional required leading skill-load sequence for composed capabilities. */
+  activation_sequence?: string[];
+  /** Optional skill names forbidden anywhere in the observed load sequence. */
+  activation_excludes?: string[];
   /** Override the owning adaptive-goal skill's default required completion report. */
   goal_report?: "required" | "optional" | "forbidden";
   /** Grade the full native route in addition to focused case checks. */

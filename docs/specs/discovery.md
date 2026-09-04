@@ -1,6 +1,6 @@
 # Capability: Discovery and Structured Grilling
 
-Darrow should provide a reusable, model-invoked grilling capability and two
+Darrow should provide a reusable, explicitly invoked grilling capability and two
 focused consumers that use the same method to resolve product and
 implementation unknowns through an evidence-backed conversation.
 
@@ -15,10 +15,10 @@ They need the same underlying discipline: discover facts from available
 evidence, expose decisions to the user, and advance only through questions
 whose prerequisites are already settled.
 
-Making that discipline a public capability also lets a user stress-test an
-idea, plan, or decision without entering a feature-discovery or planning
-workflow. The outcome-oriented skills reuse it rather than defining competing
-interview methods.
+Making that discipline a public capability also lets a user explicitly invoke
+a grilling session for an idea, plan, or decision without entering a
+feature-discovery or planning workflow. The outcome-oriented skills reuse its
+method rather than defining competing questioning methods.
 
 ## Capability boundaries
 
@@ -45,10 +45,16 @@ implementation-readiness intent.
 
 ### Intent
 
-Use `grilling` directly when the user asks to be grilled, interviewed,
-challenged, or stress-tested about a plan, decision, design, or idea. It may
-also be used by another skill whose explicit outcome requires material
-unknowns to be resolved with the user.
+`grilling` is manual-only. Use it directly only through the host's explicit
+skill-invocation mechanism. Ordinary natural-language requests—including
+“grill me,” interview, challenge, stress-test, plan, and unresolved-question
+language—do not select it implicitly.
+
+This direct invocation boundary is distinct from composed reuse. An already
+selected outcome skill reads the installed sibling `grilling` skill file as
+its canonical method when material unknowns must be resolved with the user.
+That resource load does not select `grilling` as the primary skill and does not
+require another user invocation.
 
 Do not select it merely because an ordinary request is incomplete, asks one
 clarifying question, requests implementation, or requests a deliverable owned
@@ -213,7 +219,9 @@ publication, or a request that merely asks whether existing work is ready.
    it through grilling before selecting implementation structure.
 5. When the material frontier is empty, produce a concise draft implementation
    plan in the conversation.
-6. End with a one-sentence plan restatement and ask the user to confirm it.
+6. End with a one-sentence plan restatement followed by an explicit request
+   asking the user to confirm or correct it. A heading or label that merely
+   mentions confirmation is not a confirmation request.
 
 The plan contains:
 
@@ -238,16 +246,16 @@ skill.
 
 ## Invariants
 
-1. **DG-C1 — Direct and composed intent.** Grilling is available directly only
-   for affirmative interview, challenge, or stress-test intent and as the
-   canonical unknown-resolution method inside outcome-oriented discovery
-   skills. A negated mention such as “do not interview me” is not direct
-   grilling intent and does not cancel an outcome skill's required composed use.
-   It does not take over ordinary incomplete requests, while `discover-feature`
-   and `plan-implementation` still load and apply it when their selected
-   outcomes contain material unknowns. When direct grilling intent has no
-   identifiable subject, its user-facing final answer is exactly `What subject
-would you like me to grill?`, and it stops.
+1. **DG-C1 — Manual and composed invocation.** Grilling is selected directly
+   only through explicit host-native skill invocation. Natural-language
+   grilling, interview, challenge, stress-test, plan, and unresolved-question
+   requests do not select it implicitly. Its use as the canonical
+   unknown-resolution method inside an already selected outcome skill is a
+   direct installed-sibling resource load, not primary grilling selection and
+   not another user invocation. A negated mention such as “do not grill me”
+   does not cancel an outcome skill's required composed use. When an explicit
+   grilling invocation has no identifiable subject, its user-facing final
+   answer is exactly `What subject would you like me to grill?`, and it stops.
 2. **DG-C2 — Dependency-aware frontier.** Each round asks all material
    independent questions whose prerequisites are settled and defers dependent
    questions until a later round. A node is dependent when another open answer
@@ -277,7 +285,9 @@ would you like me to grill?`, and it stops.
    consumer.
 7. **DF-C1 — Product outcome.** Feature discovery resolves desired behavior,
    users, scope, constraints, non-goals, and observable acceptance without
-   turning into implementation planning.
+   turning into implementation planning. It is not selected when the user's
+   requested outcome is an implementation plan, even if unresolved choices
+   must be discussed before that plan can be produced.
 8. **DF-C2 — Honest brief.** A discovery brief exposes evidence provenance,
    assumptions, and deferred questions. Material product choices cannot be
    moved into assumptions or deferrals, and no discovery brief, including a
@@ -289,12 +299,20 @@ would you like me to grill?`, and it stops.
 9. **PI-C1 — Technical outcome.** Implementation planning resolves public
    seams, approach, delivery slices, dependencies, verification, and relevant
    migration or rollout concerns without implementing or publishing tickets.
+   For implementation-planning intent, `plan-implementation` is the primary
+   capability even when every material choice is already settled. It is loaded
+   before reading its supporting `grilling` method. It also remains primary when
+   unresolved implementation choices must be discussed before plan slices can
+   be produced.
 10. **PI-C2 — No invented plan.** Planning investigates technical facts and
     returns to the user for unresolved product or consequential choices rather
     than embedding guesses as architecture. An explicitly delegated bounded
-    choice is permitted only with its delegation, assumptions, and rationale
-    visible in the current response, even when another frontier remains.
-    Delegation is literal and does not authorize adjacent choices; any
+    choice is permitted only when the current response gives that choice its
+    own visible entry containing the selected answer, agent-selected provenance
+    and available or missing evidence, rationale, and a relevant consequence,
+    even when another frontier remains. Before sending the response, planning
+    checks that every explicitly delegated choice has exactly one complete
+    entry. Delegation is literal and does not authorize adjacent choices; any
     remaining material frontier prevents ordered plan slices.
 11. **DC-C1 — Read-only composition.** All three skills preserve repository
     and external state; later persistence, decision capture, ticketing,
@@ -307,18 +325,20 @@ would you like me to grill?`, and it stops.
    skill and resource and assumes no sibling Darrow plugin.
 2. **DC-P2 — Cross-host discovery.** Each public skill carries concrete
    trigger and exclusion metadata usable by Claude Code and Codex.
-3. **DC-P3 — One canonical method.** Outcome-oriented skills reuse the
-   `grilling` capability rather than reproducing their own interview protocol.
+3. **DC-P3 — One canonical method.** Outcome-oriented skills read and reuse the
+   installed sibling `grilling` skill file rather than selecting that
+   manual-only skill or reproducing their own interview protocol.
 4. **DC-P4 — Contextual judgment.** Decision-tree construction, fact
    classification, materiality, and closure remain model judgment; no keyword
    checklist or numeric ambiguity score substitutes for them.
 
 ## Evaluation requirements
 
-1. **DC-E1 — Intent boundaries.** Direct and indirect grilling, feature
+1. **DC-E1 — Intent boundaries.** Explicit grilling invocation, feature
    discovery, and implementation-planning requests select their matching
-   behavior; ordinary implementation, readiness, and single-clarification
-   requests do not mis-trigger adjacent skills.
+   behavior. Natural-language grilling, interview, challenge, or stress-test
+   requests and ordinary implementation, readiness, and single-clarification
+   requests do not select standalone grilling.
 2. **DC-E2 — Frontier sequencing.** Cases contain independent and dependent
    decisions and verify that the first response asks the independent frontier
    with recommendations while deferring downstream questions.

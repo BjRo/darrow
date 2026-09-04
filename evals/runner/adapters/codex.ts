@@ -137,6 +137,18 @@ function completedCommand(event: CodexEvent): string | undefined {
   return event.item.command;
 }
 
+function finishedCommandForSkillRead(event: CodexEvent): string | undefined {
+  if (
+    event.type !== "item.completed" ||
+    event.item?.type !== "command_execution" ||
+    typeof event.item.command !== "string" ||
+    typeof event.item.exit_code !== "number" ||
+    (event.item.status !== "completed" && event.item.status !== "failed")
+  )
+    return undefined;
+  return event.item.command;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -232,6 +244,7 @@ function skillReads(command: string, skillsRoot: string): string[] {
 interface MountedSkillBody {
   name: string;
   frontmatter: string;
+  body: string;
 }
 
 function mountedSkillBody(
@@ -254,7 +267,7 @@ function mountedSkillBody(
     ).test(frontmatter)
   )
     return undefined;
-  return { name: entry.name, frontmatter };
+  return { name: entry.name, frontmatter, body };
 }
 
 function mountedSkillBodies(
@@ -400,7 +413,7 @@ function eventSkillReads(
   roots: string[],
   mountedSkills: MountedSkillBody[],
 ): string[] {
-  const command = completedCommand(event);
+  const command = finishedCommandForSkillRead(event);
   if (!command) return [];
   const output = event.item?.aggregated_output;
   const payload = shellPayload(command);
@@ -434,16 +447,33 @@ function observedSkillReads(
     const skills = eventSkillReads(event, roots, mountedSkills);
     for (const skill of skills) {
       if (
-        typeof output === "string" &&
-        new RegExp(
-          `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
-        ).test(output) &&
-        !observedSkills.includes(skill)
+        !observedSkills.includes(skill) &&
+        skillReadIsObservable(
+          skill,
+          output,
+          observedSkills.length > 0,
+          mountedSkills,
+        )
       )
         observedSkills.push(skill);
     }
   }
   return observedSkills;
+}
+
+function skillReadIsObservable(
+  skill: string,
+  output: unknown,
+  requiresCompleteBody: boolean,
+  mountedSkills: MountedSkillBody[],
+): boolean {
+  if (typeof output !== "string") return false;
+  const hasFrontmatter = new RegExp(
+    `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
+  ).test(output);
+  if (!hasFrontmatter || !requiresCompleteBody) return hasFrontmatter;
+  const mounted = mountedSkills.find((candidate) => candidate.name === skill);
+  return !mounted || output.includes(mounted.body);
 }
 
 function codexTrackedSkillRoots(

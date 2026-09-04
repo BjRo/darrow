@@ -1,6 +1,7 @@
 ---
 name: grilling
-description: Use when either the user affirmatively asks to grill, interview, challenge, or relentlessly stress-test a plan, decision, design, or idea through dependency-aware question rounds with recommendations, or an enclosing skill explicitly requests structured grilling for its selected outcome. A negated direct mention such as "do not interview me" does not select this skill by itself and does not cancel an enclosing skill's required composed use. Do not use merely because an ordinary implementation or deliverable request is incomplete or needs one clarification.
+description: Run one explicitly invoked dependency-aware grilling session with recommendations. This skill is manual-only and must never be selected from natural-language intent.
+disable-model-invocation: true
 ---
 
 # Grilling
