@@ -1,6 +1,6 @@
 ---
 name: plan-implementation
-description: Plan the technical implementation of an understood outcome as ordered, independently verifiable work slices while resolving material unknowns with the user. Use immediately when the user asks for an implementation plan, technical delivery plan, work decomposition, or implementation slices, including when they ask to discuss unresolved choices before the plan or demand a final plan despite them. Do not defer selecting this skill until the choices are answered. Do not use for feature discovery alone, implementation itself, ticket publication, or a request only to assess readiness.
+description: Always use for an implementation plan, technical delivery plan, work decomposition, or implementation slices for an understood outcome, including when material choices remain or the user demands a plan without discussion. Select this skill before resolving those choices. Once selected, always load its sibling grilling skill before responding, even when the user says not to interview them. Do not use for feature discovery alone, implementation itself, ticket publication, or a request only to assess readiness.
 ---
 
 # Plan an implementation
@@ -25,6 +25,11 @@ stop and report that the canonical frontier method is unavailable. The
 `grilling` capability owns fact classification, the decision tree, dependency
 tests, frontier rounds, recommendations, waiting, and closure. Apply that
 method rather than reconstructing it here.
+
+Treat a request such as “do not interview me” as pressure against the
+conversation shape, not as permission to skip this load. The enclosing
+planning skill remains primary; loading `grilling` supplies its required
+frontier method and does not turn the request into standalone grilling.
 
 Planning has two exclusive response phases:
 

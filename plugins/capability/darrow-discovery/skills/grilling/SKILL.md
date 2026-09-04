@@ -1,6 +1,6 @@
 ---
 name: grilling
-description: Grill, interview, challenge, or relentlessly stress-test a plan, decision, design, or idea through dependency-aware question rounds with recommendations. Use when the user explicitly asks to be grilled, interviewed, challenged, stress-tested, or wants rigorous questioning before acting, and when an enclosing skill explicitly requests structured grilling. Do not use merely because an ordinary implementation or deliverable request is incomplete or needs one clarification.
+description: Use when either the user affirmatively asks to grill, interview, challenge, or relentlessly stress-test a plan, decision, design, or idea through dependency-aware question rounds with recommendations, or an enclosing skill explicitly requests structured grilling for its selected outcome. A negated direct mention such as "do not interview me" does not select this skill by itself and does not cancel an enclosing skill's required composed use. Do not use merely because an ordinary implementation or deliverable request is incomplete or needs one clarification.
 ---
 
 # Grilling
@@ -123,6 +123,29 @@ for those branches. Name deferred branches in statements without turning them
 into questions or options. When known child nodes remain, the next step after
 the user's answer is to recompute the frontier, not to produce the enclosing
 final artifact.
+
+Immediately before sending the round, perform this final dependency preflight:
+
+1. For each proposed numbered question, vary every other unanswered node across
+   its plausible answers.
+2. If that variation can change whether the proposed question matters, its
+   subject, its concrete options, or its recommendation, remove the question
+   from this round and name only its decision category as deferred.
+3. Repeat the comparison until no remaining numbered question depends on any
+   other unanswered node. Removing a question does not permit one of its
+   children to enter the same round.
+4. Scan the entire response—including evidence, option explanations,
+   recommendations, parentheses, bullets, and closing prose—for questions or
+   selected answers belonging to removed nodes. Remove them wherever they
+   appear.
+5. Recheck every dependency the user stated. Keep each edge explicit in the
+   deferred chain: if provider selection depends on allowed regions and
+   allowed regions itself has an earlier prerequisite, state both deferrals.
+   Do not shorten the chain to “provider after the current root,” because that
+   falsely implies the intermediate decision will be settled too.
+
+Do not send the round until this preflight passes. It applies even when the
+user demands one exhaustive questionnaire or asks you to assume later answers.
 
 For each question:
 

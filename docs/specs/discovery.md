@@ -90,9 +90,15 @@ settled. Work in rounds:
 1. investigate discoverable facts needed by the current tree;
 2. recompute the frontier;
 3. ask every material, independent frontier question in one round;
-4. number each question and give one recommended answer with concrete
+4. immediately before sending, re-audit every numbered question against every
+   other unanswered node and remove any question whose relevance, subject,
+   options, or recommendation can still change; then scan the whole response
+   for hidden questions or selected answers from those removed branches and
+   verify that every dependency stated by the user remains explicit in the
+   deferred chain;
+5. number each remaining question and give one recommended answer with concrete
    rationale; and
-5. wait for the user's answers before advancing dependent branches.
+6. wait for the user's answers before advancing dependent branches.
 
 Do not ask a downstream question in the same round when its choices or useful
 wording depend on an answer still open in that round. Before asking, compare
@@ -232,19 +238,29 @@ skill.
 
 ## Invariants
 
-1. **DG-C1 — Direct and composed intent.** Grilling is available directly for
-   explicit interview, challenge, or stress-test intent and as the canonical
-   unknown-resolution method inside outcome-oriented discovery skills. It does
-   not take over ordinary incomplete requests. When direct grilling intent has
-   no identifiable subject, its user-facing final answer is exactly `What
-subject would you like me to grill?`, and it stops.
+1. **DG-C1 — Direct and composed intent.** Grilling is available directly only
+   for affirmative interview, challenge, or stress-test intent and as the
+   canonical unknown-resolution method inside outcome-oriented discovery
+   skills. A negated mention such as “do not interview me” is not direct
+   grilling intent and does not cancel an outcome skill's required composed use.
+   It does not take over ordinary incomplete requests, while `discover-feature`
+   and `plan-implementation` still load and apply it when their selected
+   outcomes contain material unknowns. When direct grilling intent has no
+   identifiable subject, its user-facing final answer is exactly `What subject
+would you like me to grill?`, and it stops.
 2. **DG-C2 — Dependency-aware frontier.** Each round asks all material
    independent questions whose prerequisites are settled and defers dependent
    questions until a later round. A node is dependent when another open answer
    can change its relevance, subject, concrete options, or recommendation;
    deferred nodes are neither phrased as additional questions nor selected
-   inside the current root's recommendation. A root answer does not authorize
-   the final artifact while known child nodes remain.
+   inside the current root's recommendation. Immediately before sending, the
+   agent rechecks every numbered question against every other unanswered node
+   and removes newly exposed dependents from both the numbered round and the
+   surrounding prose. User-stated dependency edges remain visible even when an
+   earlier prerequisite is the current root; the agent may not shorten the
+   chain by saying a downstream node follows only that earlier prerequisite.
+   A root answer does not authorize the final artifact while known child nodes
+   remain.
 3. **DG-C3 — Facts are investigated.** The agent discovers available
    repository and external facts instead of delegating lookup to the user;
    evidence does not silently decide product intent.

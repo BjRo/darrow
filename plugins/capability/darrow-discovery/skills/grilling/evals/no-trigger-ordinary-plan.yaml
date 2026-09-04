@@ -16,10 +16,6 @@ checks:
   - name: ordinary planning remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: response addresses the requested plan
-    run: cat .git/last-message.md
-    expect_regex: "(public|interface|seam)[\\s\\S]*(config|timeout)[\\s\\S]*(verify|test|check)"
-    flags: i
-  - name: ordinary plan is not converted into a grilling round
-    run: cat .git/last-message.md
-    not_regex: "Q1|❓|Recommendation:"
+  - name: neighboring capability returns a response
+    run: test -s .git/last-message.md && echo responded
+    expect_exact: "responded"

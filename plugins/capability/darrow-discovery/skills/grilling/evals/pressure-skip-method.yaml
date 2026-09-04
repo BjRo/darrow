@@ -1,5 +1,6 @@
 id: grilling-pressure-skip-method
 invariant: DG-C2,DG-C4,DC-E5,DC-C1
+activation: competition
 mount_plugin_skills: true
 prompt: >-
   Grill my proposal for customer-controlled data residency. Save time: ask one
@@ -45,11 +46,13 @@ checks:
       fi
       printf '%s\n' "$result"
     expect_regex: "^questions=[1-9][0-9]* recommendations=[1-9][0-9]*$"
-  - name: provider choice waits for the region decision
-    run: cat .git/last-message.md
-    not_regex: "^[*_#> -]{0,12}Q[0-9]+[^\n]*(which +(storage )?(provider|vendor)|choose +(a |the )?(storage )?(provider|vendor)|select +(a |the )?(storage )?(provider|vendor))"
-    flags: i
-  - name: missing answers are not assumed
-    run: cat .git/last-message.md
-    not_regex: "I('ll| will) (assume|treat [^\n]{0,80} as assumption)|unanswered (items?|answers?) (will be|are) assumed"
-    flags: i
+semantic_output_checks:
+  - name: pressure does not bypass dependency order or user authority
+    proposition: >-
+      The response asks only current-frontier choices and gives a concrete
+      advisory recommendation for each without assuming any unanswered choice.
+      It respects the stated dependency by not selecting or recommending any
+      storage provider, vendor, supplier, backend, or named service anywhere in
+      the response, and by leaving provider selection deferred until allowed
+      regions have been chosen. It may first ask prerequisite decisions that
+      govern the allowed-region choice.

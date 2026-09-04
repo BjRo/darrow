@@ -1,5 +1,6 @@
 id: plan-implementation-complete-plan
 invariant: PI-C1,PI-C2,DG-C5,DC-C1
+activation: competition
 mount_plugin_skills: true
 prompt: >-
   Draft the implementation plan for this settled change. `request(url,

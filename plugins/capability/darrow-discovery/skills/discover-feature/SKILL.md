@@ -1,6 +1,6 @@
 ---
 name: discover-feature
-description: Discover and sharpen a new feature's users, behavior, scope, constraints, non-goals, and observable acceptance. Always use for requests to discover, explore, shape, flesh out, define, or clarify a feature before planning or implementation, or to produce its discovery brief—even when the user asks to skip questions, finish immediately, or assume defaults. Do not use for a settled implementation request, implementation planning alone, bug diagnosis, or a generic stress-test without a feature outcome.
+description: Discover and sharpen a new feature's users, behavior, scope, constraints, non-goals, and observable acceptance. Always use for requests to discover, explore, shape, flesh out, define, or clarify a feature before planning or implementation, or to produce its discovery brief—even when the user asks to skip questions, finish immediately, or assume defaults. After selecting this skill, always load its sibling grilling skill before responding, even when the user says not to interview them. Do not use for a settled implementation request, implementation planning alone, bug diagnosis, or a generic stress-test without a feature outcome.
 ---
 
 # Discover a feature
@@ -8,11 +8,22 @@ description: Discover and sharpen a new feature's users, behavior, scope, constr
 Turn an unresolved feature idea into a confirmed, evidence-backed discovery
 brief without planning or building it.
 
-Before beginning, read the canonical [grilling
-capability](../grilling/SKILL.md) completely. Use its fact classification,
-decision tree, frontier rounds, recommendations, waiting boundary, and closure
-confirmation whenever material unknowns remain. Do not reproduce a different
-interview method here.
+Before beginning, load the sibling `grilling` capability completely from this
+selected installed plugin. This is mandatory even when the user asks not to be
+interviewed or to skip questions:
+
+- Claude Code: invoke the sibling `grilling` capability through the host skill
+  loader for the same installed plugin.
+- Codex: use the absolute path of this selected `SKILL.md` catalog entry and
+  read `../grilling/SKILL.md` completely.
+
+Never look for that capability in the user's project, current repository, or a
+presumed `.agents/skills` checkout. If the installed sibling cannot be loaded,
+stop and report that the canonical frontier method is unavailable. The
+enclosing discovery skill remains primary; loading `grilling` supplies its
+fact classification, decision tree, frontier rounds, recommendations, waiting
+boundary, and closure confirmation. Do not reproduce a different interview
+method here.
 
 This capability is conversational and read-only. Do not edit or create files,
 record decisions, update a glossary, create tickets, assess implementation

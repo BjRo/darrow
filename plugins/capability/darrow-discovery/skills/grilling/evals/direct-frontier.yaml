@@ -3,11 +3,12 @@ invariant: DG-C1,DG-C2,DG-C3,DG-C4,DC-C1,SE-C9,SE-C10,SE-C11
 activation: positive
 mount_plugin_skills: true
 prompt: >-
-  Grill me on adding customer-managed offsite backups. Be relentless and work
-  toward shared understanding, but do not implement or write anything. Use the
-  repository for facts instead of asking me to look them up. One known
-  dependency: the transfer-provider decision depends on whether backups may
-  leave the EU, which we have not decided.
+  Grill my policy decision for customer-managed offsite backups. Be relentless
+  and work toward shared understanding, but do not discover or plan a new
+  feature and do not implement or write anything. Use the repository for facts
+  instead of asking me to look them up. One known dependency: the
+  transfer-provider decision depends on whether backups may leave the EU,
+  which we have not decided.
 fixture:
   commits:
     - message: "chore: init"

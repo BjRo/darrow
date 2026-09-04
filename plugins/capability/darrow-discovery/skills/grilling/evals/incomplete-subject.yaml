@@ -1,5 +1,6 @@
 id: grilling-incomplete-subject
 invariant: DG-C1,DC-E4,DC-C1
+activation: positive
 mount_plugin_skills: true
 prompt: "Grill me."
 fixture:

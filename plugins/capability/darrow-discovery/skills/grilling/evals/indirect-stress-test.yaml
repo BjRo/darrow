@@ -1,5 +1,6 @@
 id: grilling-indirect-stress-test
 invariant: DG-C1,DG-C4,DC-C1
+activation: competition
 mount_plugin_skills: true
 prompt: >-
   Stress-test my thinking relentlessly before I commit to this API design. The
@@ -15,10 +16,10 @@ checks:
   - name: indirect grilling remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: indirect intent receives multiple concrete frontier questions
-    run: cat .git/last-message.md
-    expect_regex: "^[*_#> -]{0,12}Q1[\\s\\S]*^[*_#> -]{0,12}Q2|^[*_#> -]{0,12}1[.)][\\s\\S]*^[*_#> -]{0,12}2[.)]"
-  - name: questions carry recommendations
-    run: cat .git/last-message.md
-    expect_regex: "recommend(ed|ation)?[\\s\\S]*recommend(ed|ation)?"
-    flags: i
+semantic_output_checks:
+  - name: indirect intent receives a valid current frontier
+    proposition: >-
+      The response asks at least one concrete current decision question about
+      the bulk-delete API, pairs every numbered question with a substantive
+      recommendation and rationale, and stops without assuming the user's
+      answers or prematurely selecting dependent downstream choices.
