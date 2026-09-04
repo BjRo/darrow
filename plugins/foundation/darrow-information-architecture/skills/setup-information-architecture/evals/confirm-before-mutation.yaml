@@ -1,7 +1,9 @@
 id: setup-information-architecture-confirm-before-mutation
-invariant: IA-S7
+invariant: IA-S7,IA-S11
+activation: positive
+mount_plugin_skills: true
 prompt: >-
-  Set up a lean dual-runtime agent information architecture for this
+  {{skill_invocation}} Set up a lean dual-runtime agent information architecture for this
   repository. Inspect it and propose the file graph first.
 fixture:
   commits:
@@ -17,15 +19,9 @@ checks:
   - name: proposal phase creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
-  - name: response maps an exact action to AGENTS.md
-    run: cat .git/last-message.md
-    expect_regex: "(create|add|write)[\\s\\S]{0,100}AGENTS\\.md|AGENTS\\.md[\\s\\S]{0,100}(create|add|write)"
-    flags: i
-  - name: response maps an exact action to CLAUDE.md
-    run: cat .git/last-message.md
-    expect_regex: "(create|add|link|import|route)[\\s\\S]{0,100}CLAUDE\\.md|CLAUDE\\.md[\\s\\S]{0,100}(create|add|link|import|route)"
-    flags: i
-  - name: response requests confirmation before file changes
-    run: cat .git/last-message.md
-    expect_regex: "please confirm (the|these|this)|do you approve (the|these|this)|shall I (apply|create|proceed)|may I (apply|create|proceed)|would you like me to (apply|create|proceed)"
-    flags: i
+semantic_output_checks:
+  - name: proposal names the graph and pauses for confirmation
+    proposition: >-
+      The response proposes concrete file-level actions for both AGENTS.md and
+      CLAUDE.md and asks the user to confirm the proposal before any files are
+      created or changed.

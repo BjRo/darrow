@@ -1,0 +1,26 @@
+id: setup-information-architecture-no-trigger-doctor
+invariant: IA-S7,IA-S11
+activation: negative
+activation_excludes: [setup-information-architecture]
+mount_plugin_skills: true
+prompt: >-
+  Audit the existing agent instructions for stale or broken routes and report
+  a proposed set of corrections. Do not change any files yet.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent instructions
+
+          Before API work, read `docs/missing-api-guidance.md`.
+checks:
+  - name: audit-only request remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: audit reports the broken route and proposes correction
+    proposition: >-
+      The response identifies that AGENTS.md routes API work to the missing
+      docs/missing-api-guidance.md target and proposes a correction without
+      claiming that files were changed.

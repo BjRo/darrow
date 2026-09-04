@@ -1,5 +1,7 @@
 id: setup-information-architecture-preserve-existing
-invariant: IA-S1,IA-S3
+invariant: IA-S1,IA-S3,IA-S11
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Reorganize the existing agent instructions into a lean routed architecture.
   Preserve all project-specific constraints. I approve applying the proposal.

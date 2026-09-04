@@ -124,7 +124,13 @@ files. Verify the resulting graph before reporting it.
 - **IA-S10 — Path semantics match the loader.** Ordinary repository paths in
   routed agent guidance resolve from the repository session root. Setup
   rewrites lifted or nested-relative ordinary routes without rewriting
-  loader-native imports or skill-bundled resource paths.
+  or deleting loader-native imports, even when an imported file appears empty,
+  and without relocating skill bundles or rewriting their skill-relative
+  resource paths unless separate scope or reachability evidence requires it.
+- **IA-S11 — Intent-matched setup.** Explicit invocation and requests to
+  create or reorganize the repository guidance graph select setup. Requests
+  only to audit or doctor an existing graph leave setup unselected so the
+  narrower doctor capability can own them.
 
 ### Non-goals
 
