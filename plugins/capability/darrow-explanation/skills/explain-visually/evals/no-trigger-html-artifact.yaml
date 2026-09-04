@@ -1,10 +1,11 @@
 id: explain-visually-no-trigger-html-artifact
 invariant: VE-C1,VE-C7,VE-E1
+activation: negative
+activation_excludes: [explain-visually]
 mount_plugin_skills: true
 prompt: >-
   Create a polished standalone HTML explainer named architecture.html for the
-  two-layer architecture described in README.md. This is an artifact-creation
-  request, not an inline conversational explanation.
+  two-layer architecture described in README.md.
 fixture:
   commits:
     - message: "chore: init"

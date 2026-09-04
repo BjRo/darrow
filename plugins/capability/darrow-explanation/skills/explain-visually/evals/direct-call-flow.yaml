@@ -1,8 +1,9 @@
 id: explain-visually-direct-call-flow
 invariant: VE-C1,VE-C2,VE-C3,VE-C4,VE-C5,VE-C7
+activation: positive
 mount_plugin_skills: true
 prompt: >-
-  Use explain-visually to show the observed runtime call flow when submitJob is
+  Use {{skill_invocation}} to show the observed runtime call flow when submitJob is
   called. Inspect the repository, keep only calls that matter to this path,
   include useful source anchors, and do not modify or create files.
 fixture:
@@ -47,7 +48,7 @@ checks:
       END { exit !(a && b>a && c>b && d>c) }' .git/last-message.md
   - name: response uses a compact visual shape
     run: >-
-      grep -Eq -- '->|-->|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
+      grep -Eq -- '->|-->|─+>|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
       test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
   - name: observed source is anchored
     run: grep -Ei 'observed|current|src/jobs\.ts' .git/last-message.md

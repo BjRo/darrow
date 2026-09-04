@@ -1,5 +1,6 @@
 id: explain-visually-algorithm-pseudocode
 invariant: VE-C2,VE-C3,VE-C5,VE-C7
+activation: positive
 mount_plugin_skills: true
 prompt: >-
   Explain nextDelay as compact pseudocode. Preserve invalid-attempt handling,
@@ -23,15 +24,17 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: pseudocode preserves all material branches
-    run: >-
-      grep -Ei 'attempt.*< *1|attempt.*positive' .git/last-message.md >/dev/null;
-      grep -Ei 'error|throw|reject|fail' .git/last-message.md >/dev/null;
-      grep -Ei 'cap|maximum|30.?000' .git/last-message.md >/dev/null;
-      grep -Ei 'jitter|random|half|50%' .git/last-message.md >/dev/null
   - name: response is compact pseudocode
     run: >-
       grep -Ei 'if|return' .git/last-message.md >/dev/null;
       test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
   - name: unrelated collaborators are not invented
     run: '! grep -Ei "database|queue|network|cache|normal distribution" .git/last-message.md'
+semantic_output_checks:
+  - name: pseudocode preserves the material algorithm
+    proposition: >-
+      The response presents compact pseudocode for nextDelay that rejects an
+      invalid attempt below one, applies exponential growth capped at 30,000
+      milliseconds, and returns an integer delay randomized within the upper
+      half of the capped delay. It does not merely transliterate the TypeScript
+      source line by line.

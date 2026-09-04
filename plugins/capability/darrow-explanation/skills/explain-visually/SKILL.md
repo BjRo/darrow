@@ -1,6 +1,6 @@
 ---
 name: explain-visually
-description: Explain a codebase, change, design, runtime flow, state model, algorithm, or current technical topic through a compact call tree, responsibility tree, state or sequence diagram, structural diff, pseudocode, signature sketch, or table. Use when the user asks to visualize, diagram, draw, map, show structure or flow, show what calls what or where something lives, restate something visually, or says the prose is too dense. Do not use for polished visual assets or UI mockups, implementation, documentation edits, or an ordinary question that short prose answers more directly.
+description: Explain an existing codebase, change, design, runtime flow, state model, algorithm, or technical topic inline in conversation through a compact call tree, responsibility tree, state or sequence diagram, structural diff, pseudocode, signature sketch, or table. Use when the user asks to visualize, diagram, map, or show technical structure or flow, or says prose is too dense. Do not use to create or edit HTML pages, images, slides, UI mockups, documentation, or other artifact files; for implementation; or for an ordinary question that short prose answers directly.
 ---
 
 # Explain visually
