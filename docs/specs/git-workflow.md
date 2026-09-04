@@ -105,9 +105,6 @@ new linked worktree instead and the current checkout stays where it is.
   substituted. An existing path is never reused or overwritten. The report
   states the worktree path and, when the tree was dirty, that uncommitted
   changes stayed behind.
-- **GW-B7 — Portable capability.** The skill advertises
-  `git.branch.create@1.0.0`. A Darrow command may require `^1.0.0` during
-  preflight, then express branch-creation intent without naming this provider.
 
 ### Non-goals
 

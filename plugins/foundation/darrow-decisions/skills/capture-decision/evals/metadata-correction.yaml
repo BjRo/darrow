@@ -29,6 +29,9 @@ fixture:
           ## Consequences
 
           The application owns one repository-local database.
+  setup: >-
+    cp "{{case_dir}}/../../../bin/decision" .git/decision-facade &&
+    chmod +x .git/decision-facade
 checks:
   - name: changes the existing ADR and refreshes its catalog
     run: >-
@@ -47,15 +50,11 @@ checks:
     expect_regex: "^preserved$"
   - name: deterministic validation passes
     run: >-
-      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
-      else facade=.claude/bin/decision; fi;
-      bash "$facade" validate --repo .
+      bash .git/decision-facade validate --repo .
     expect_regex: "^valid: 1 ADR\\(s\\) in /"
   - name: refreshed catalog is deterministic and fresh
     run: >-
-      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
-      else facade=.claude/bin/decision; fi;
-      bash "$facade" catalog check --repo .
+      bash .git/decision-facade catalog check --repo .
     expect_regex: "^fresh: /"
   - name: response identifies correction and absolute canonical path
     run: >-

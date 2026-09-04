@@ -673,35 +673,33 @@ after launch.
 
 1. How reliably does the versioned implementation-readiness result compose in
    larger native goals across Claude and Codex?
-2. Which capability identifiers, if any, are needed for ticket reading,
-   evidence capture, branch, commit, and PR operations beyond intent mapping?
-3. How reliable is the default independent-review requirement for high-risk
+2. How reliable is the default independent-review requirement for high-risk
    adaptive goals across varied repositories, models, and hosts?
-4. Which worktree actions must happen before goal launch on each host?
-5. Is early existing-PR detection valuable enough to add a read-only Git/forge
+3. Which worktree actions must happen before goal launch on each host?
+4. Is early existing-PR detection valuable enough to add a read-only Git/forge
    capability, or is duplicate protection at publication sufficient?
-6. Where should host telemetry adapters live, and what common correlation
+5. Where should host telemetry adapters live, and what common correlation
    schema should OpenTelemetry and Langfuse receive?
-7. What artifact schema, retention, redaction, binary-size, and external-store
+6. What artifact schema, retention, redaction, binary-size, and external-store
    policies govern `.darrow/evidence`?
-8. Which inputs and output authority should a periodic cross-ticket learning
+7. Which inputs and output authority should a periodic cross-ticket learning
    capability have?
-9. How reliably do Claude and Codex match capability intent from inside a
+8. How reliably do Claude and Codex match capability intent from inside a
    native goal, especially for fresh-context review and publication?
-10. How should readiness represent quality bars that combine deterministic
-    thresholds, reference artifacts, and contextual judgment?
-11. What portable task-recipe contract lets automations such as Artificer
+9. How should readiness represent quality bars that combine deterministic
+   thresholds, reference artifacts, and contextual judgment?
+10. What portable task-recipe contract lets automations such as Artificer
     discover and invoke outcomes such as `ticket-to-pr` without assuming a
     sibling plugin?
-12. Which tracker or environment primitive can provide an atomic, expiring
+11. Which tracker or environment primitive can provide an atomic, expiring
     claim across concurrent Artificer instances?
-13. How should an Artificer instance correlate its activation, claim,
+12. How should an Artificer instance correlate its activation, claim,
     worktree, native goal, branch, and pull request without creating a workflow
     ledger?
-14. Which pull requests occupy Artificer capacity, when is that capacity
+13. Which pull requests occupy Artificer capacity, when is that capacity
     released, and how should blocked or abandoned pull requests avoid permanent
     starvation?
-15. Which host scheduling boundaries reliably provide non-overlap, isolation,
+14. Which host scheduling boundaries reliably provide non-overlap, isolation,
     explicit authority, observable launch, and recovery across Claude and
     Codex?
 

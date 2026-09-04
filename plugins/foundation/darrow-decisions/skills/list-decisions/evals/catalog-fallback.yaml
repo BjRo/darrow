@@ -1,5 +1,5 @@
 id: list-decisions-catalog-fallback
-invariant: "DM-20,DM-L6"
+invariant: "DM-20,DM-L5"
 activation: competition
 mount_plugin_skills: true
 prompt: >-

@@ -2,7 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-13
-Summary: Treat each plugin as a self-contained unit of adoption, compatibility, and ownership that composes through host-visible contracts rather than sibling dependencies.
+Summary: Treat each plugin as a self-contained unit of adoption, compatibility, and ownership that composes through host-visible skill intent rather than sibling dependencies or a separate capability registry.
 
 ## Context
 
@@ -26,8 +26,9 @@ Treat each plugin as Darrow's unit of adoption, compatibility, and ownership.
 - Every plugin is self-contained and independently installable. It must not
   reference files outside itself, name a sibling implementation as a runtime
   prerequisite, or assume another Darrow plugin is installed.
-- Plugins cooperate through host-visible intent and, where deterministic
-  compatibility is required, runtime-discovered capability contracts.
+- Plugins cooperate through host-visible skill intent. Darrow does not require
+  plugins to advertise a second versioned capability name or participate in a
+  separate capability registry.
 - A consumer requests the behavior it needs without prescribing the provider's
   plugin path, command, result serialization, or internal workflow.
 - When an optional capability is unavailable, the consumer follows its own
@@ -37,7 +38,7 @@ Treat each plugin as Darrow's unit of adoption, compatibility, and ownership.
   but it is not a runtime dependency shipped across plugin boundaries.
 
 Normative provider and consumer behavior remains in each applicable capability
-specification. This ADR owns the architectural reason those contracts cannot
+specification. This ADR owns the architectural reason that composition cannot
 be implemented as sibling-plugin dependencies.
 
 ## Consequences
@@ -45,9 +46,9 @@ be implemented as sibling-plugin dependencies.
 - Users can install one focused capability without accepting the rest of the
   marketplace or an implicit control plane.
 - Plugins can evolve and release independently as long as their public intent
-  and declared capability contracts remain compatible.
-- Composition depends on honest runtime discovery and explicit unavailable
-  behavior rather than compile-time certainty.
+  and supported behavior remain compatible.
+- Composition depends on honest host-visible skill discovery and explicit
+  unavailable behavior rather than compile-time certainty.
 - Some small mechanics or explanatory context may be repeated inside separate
   plugins because sharing a private helper would violate the adoption boundary.
 - New cross-plugin integrations must define a semantic contract or remain an
