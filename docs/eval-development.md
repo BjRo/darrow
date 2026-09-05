@@ -126,6 +126,11 @@ harness configuration, copied harness credentials, and retained evidence are
 protected. An unavailable isolation boundary fails explicitly; the existing
 external-sandbox declaration is valid only inside equivalent external isolation.
 
+Grading scratch cleanup handles read-only dependency caches such as Go modules.
+If cleanup still fails, the runner prints the absolute retained scratch path
+and the cleanup error. Grading outcomes and any original execution error remain
+intact; the warning does not turn a completed behavioral check into a failure.
+
 ## Live-run controls
 
 Codex runs use independent defaults for each eval role:

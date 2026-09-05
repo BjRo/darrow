@@ -1,12 +1,13 @@
 import type { Check, CheckResult, OutputCheck, TranscriptCheck } from "./types";
 import { join, resolve } from "node:path";
-import { mkdtemp, realpath, rm } from "node:fs/promises";
+import { mkdtemp, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { validateExternalSchema } from "./schema";
 import { isolatedCheckEnvironment } from "./environment";
 import { sandboxedCommand } from "./sandbox";
 import { throwIfInterrupted, trackEvaluationProcess } from "./run-control";
+import { destroyFixture } from "./fixture";
 
 function jsonPointer(value: unknown, pointer: string): unknown {
   if (pointer === "") return value;
@@ -417,6 +418,12 @@ export async function runChecks(
     }
     return results;
   } finally {
-    await rm(stateRoot, { recursive: true, force: true });
+    try {
+      await destroyFixture(stateRoot);
+    } catch (error) {
+      console.warn(
+        `Grading scratch retained at ${stateRoot}: ${String(error)}`,
+      );
+    }
   }
 }

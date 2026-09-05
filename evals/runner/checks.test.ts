@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { destroyFixture } from "./fixture";
 import {
   runChecks,
   runOutputChecks,
@@ -10,6 +12,113 @@ import {
 } from "./checks";
 
 describe("eval checks", () => {
+  test.each(["result", "execution error"])(
+    "cleanup failure preserves the original %s and reports retained scratch",
+    async (outcome) => {
+      const repo = await mkdtemp(join(tmpdir(), "darrow-checks-cleanup-"));
+      const bin = join(repo, "bin");
+      const capture = join(repo, "cleanup-root");
+      try {
+        await mkdir(bin);
+        await writeFile(
+          join(bin, "chmod"),
+          '#!/bin/sh\nprintf "%s" "$3" >"$DARROW_CLEANUP_TEST_CAPTURE"\nprintf cleanup-unavailable >&2\nexit 1\n',
+          { mode: 0o755 },
+        );
+        const script = join(repo, "check.ts");
+        await writeFile(
+          script,
+          `
+import { runChecks } from ${JSON.stringify(join(import.meta.dir, "checks.ts"))};
+try {
+  const results = await runChecks(process.argv[2], [
+    { name: "completed check", run: "true" },
+  ]);
+  console.log(JSON.stringify({ results }));
+} catch (error) {
+  console.log(JSON.stringify({ error: String(error) }));
+}
+`,
+        );
+        const proc = Bun.spawn(
+          [
+            process.execPath,
+            script,
+            outcome === "result" ? repo : join(repo, "missing"),
+          ],
+          {
+            stdout: "pipe",
+            stderr: "pipe",
+            env: {
+              ...process.env,
+              PATH: `${bin}:${process.env.PATH}`,
+              DARROW_CLEANUP_TEST_CAPTURE: capture,
+            },
+          },
+        );
+        const [stdout, stderr, code] = await Promise.all([
+          new Response(proc.stdout).text(),
+          new Response(proc.stderr).text(),
+          proc.exited,
+        ]);
+        expect(code).toBe(0);
+        const observed = JSON.parse(stdout);
+        if (outcome === "result") {
+          expect(observed.results).toEqual([
+            { name: "completed check", passed: true, detail: "ok" },
+          ]);
+        } else {
+          expect(observed.error).toContain("ENOENT");
+        }
+        const stateRoot = await readFile(capture, "utf8");
+        expect(existsSync(stateRoot)).toBe(true);
+        expect(stderr).toContain(`Grading scratch retained at ${stateRoot}:`);
+        expect(stderr).toContain("cleanup-unavailable");
+      } finally {
+        if (existsSync(capture))
+          await destroyFixture(await readFile(capture, "utf8"));
+        await destroyFixture(repo);
+      }
+    },
+  );
+
+  test.each([0, 7])(
+    "read-only grading caches preserve check outcomes (exit %i)",
+    async (exitCode) => {
+      const repo = await mkdtemp(join(tmpdir(), "darrow-checks-cache-"));
+      let stateRoot: string | undefined;
+      try {
+        const [result] = await runChecks(repo, [
+          {
+            name: "check creates a read-only dependency cache",
+            run: `
+printf '%s' "$HOME" >grading-home
+mkdir -p "$HOME/go/pkg/mod/example"
+printf cached >"$HOME/go/pkg/mod/example/module"
+chmod 555 "$HOME/go/pkg/mod/example"
+exit ${exitCode}
+`,
+          },
+        ]);
+        stateRoot = dirname(await readFile(join(repo, "grading-home"), "utf8"));
+        expect(result).toMatchObject({
+          name: "check creates a read-only dependency cache",
+          passed: exitCode === 0,
+          detail: exitCode === 0 ? "ok" : expect.stringContaining("exit=7"),
+        });
+        expect(existsSync(stateRoot)).toBe(false);
+      } finally {
+        if (existsSync(join(repo, "grading-home"))) {
+          stateRoot = dirname(
+            await readFile(join(repo, "grading-home"), "utf8"),
+          );
+          await destroyFixture(stateRoot);
+        }
+        await destroyFixture(repo);
+      }
+    },
+  );
+
   test.skipIf(process.platform !== "darwin")(
     "candidate grading retains isolation and a private environment",
     async () => {

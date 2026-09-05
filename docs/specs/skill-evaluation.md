@@ -281,7 +281,10 @@ remains copyable and useful when hyperlinks are unavailable.
 - **SE-C19 — Isolated grading execution.** Shell checks and their descendants
   retain outer isolation and a credential-free environment in live and dry
   runs, while authorized fixture checks remain functional. Isolation failures
-  never fall back to unrestricted host execution.
+  never fall back to unrestricted host execution. Cleanup handles read-only
+  dependency caches in evaluator-owned scratch space. If cleanup cannot finish,
+  it reports the retained absolute path without discarding grading outcomes or
+  replacing the original execution error.
 - **SE-C20 — Durable incremental evidence.** Every completed trial's full
   bounded evidence and provenance survive later errors and interruption.
   Persistence precedes cleanup and completion reporting, concurrent completions
@@ -345,7 +348,8 @@ remains copyable and useful when hyperlinks are unavailable.
     changes, and discovery commands, plus missing or ambiguous evidence for both
     observation paths.
 15. Grading tests execute candidate scripts through the real isolation boundary,
-    proving denied source/peer/credential access and preserved fixture behavior.
+    proving denied source/peer/credential access and preserved fixture behavior,
+    including read-only cache cleanup and retained outcomes on cleanup failure.
 16. Runner subprocess tests inject later-trial errors, concurrent completions,
     persistence errors, and process interruption, then inspect retained evidence.
 17. Reports and comparison tests cover dry-only, mixed, historical, unknown,
