@@ -170,6 +170,60 @@ check 'visible custom worktree side effect is reported' 0 $?
 git status --porcelain | grep -q 'visible-worktree/'
 check 'custom worktree is actually visible in caller status' 0 $?
 
+printf '%s\n' '# P6: concurrent branch creation is never deleted on worktree failure'
+fresh_repo
+real_git=$(command -v git)
+fake_bin="$repo/.git/fake-bin"
+mkdir "$fake_bin"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  "$RACE_REAL_GIT" branch "$RACE_BRANCH"' \
+  'fi' \
+  'exec "$RACE_REAL_GIT" "$@"' >"$fake_bin/git"
+chmod +x "$fake_bin/git"
+worktree_path="$repo/race-worktree"
+PATH="$fake_bin:$PATH" RACE_REAL_GIT="$real_git" \
+  RACE_BRANCH=fix/DAR-123-attribution \
+  bash "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 \
+  --worktree --at "$worktree_path" >/dev/null 2>&1
+check 'concurrent branch makes worktree preparation fail' 4 $?
+git show-ref -q --verify refs/heads/fix/DAR-123-attribution
+check 'concurrently created branch survives refusal' 0 $?
+check 'caller stays on main after concurrent creation' main "$(git branch --show-current)"
+
+printf '%s\n' '# P7: failed default worktree setup leaves no repository residue'
+fresh_repo
+real_git=$(command -v git)
+fake_bin="$repo/.git/fake-bin"
+mkdir "$fake_bin"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  echo "simulated worktree refusal" >&2' \
+  '  exit 1' \
+  'fi' \
+  'exec "$FAIL_REAL_GIT" "$@"' >"$fake_bin/git"
+chmod +x "$fake_bin/git"
+exclude=$(git rev-parse --git-path info/exclude)
+exclude_before=$(cat "$exclude")
+PATH="$fake_bin:$PATH" FAIL_REAL_GIT="$real_git" \
+  bash "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 \
+  --worktree >/dev/null 2>&1
+check 'simulated default worktree preparation fails' 4 $?
+check 'exclude file is unchanged after refusal' "$exclude_before" "$(cat "$exclude")"
+if [[ ! -e "$repo/.worktrees" ]]; then
+  hierarchy_status=0
+else
+  hierarchy_status=1
+fi
+check 'default worktree hierarchy is absent after refusal' 0 "$hierarchy_status"
+git show-ref -q --verify refs/heads/fix/DAR-123-attribution
+check 'failed setup creates no task branch' 1 $?
+check 'caller stays on main after failed setup' main "$(git branch --show-current)"
+
 if [[ $failures -gt 0 ]]; then
   printf '%s failure(s)\n' "$failures"
   exit 1

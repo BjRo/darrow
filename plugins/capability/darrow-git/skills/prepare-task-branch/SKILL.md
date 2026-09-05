@@ -81,7 +81,10 @@ Interpret the script's authoritative mode:
 Relay a validation refusal or Git failure verbatim and stop. Do not invent a
 variant, fetch, use a remote-only branch, reset an existing branch, move or
 remove a worktree, or retry through a destructive operation. A worktree refusal
-leaves the caller's checkout and its local changes untouched.
+leaves the caller's checkout and its local changes untouched. A failed
+worktree addition does not delete a branch that appeared concurrently or leave
+default-path directories or local-exclude entries created for the failed
+attempt.
 
 **Complete when:** the script reports one mode and exact branch, or its refusal
 has been preserved with the original repository state intact.

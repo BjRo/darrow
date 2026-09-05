@@ -4,9 +4,8 @@ activation: positive
 mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
-  Use {{skill_invocation}} to prepare the exact existing branch
-  `fix/DAR-123-attribution` for the active provider's canonical token DAR-123.
-  Reuse it without moving its tip.
+  Switch to the exact existing ticket branch `fix/DAR-123-attribution` for the
+  active provider's canonical token DAR-123. Reuse it without moving its tip.
 fixture:
   commits:
     - message: "chore: init"

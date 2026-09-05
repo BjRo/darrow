@@ -146,7 +146,10 @@ while leaving the caller's checkout untouched.
   when applicable.
 - **GW-TB3 — No work lost.** Uncommitted changes are never stashed, reset,
   discarded, or committed. A refused switch relays Git's failure and leaves the
-  original branch, refs, worktree, index, and stash intact.
+  original branch, refs, worktree, index, and stash intact. A failed worktree
+  addition never deletes a branch that appeared concurrently and leaves no
+  default-path directories or local-exclude entries created solely for the
+  failed attempt.
 - **GW-TB4 — Conflicts stop.** Merge, rebase, cherry-pick, revert, or unmerged
   index state prevents preparation before any branch mutation.
 - **GW-TB5 — Explicit worktree context.** Worktree preparation occurs only on
