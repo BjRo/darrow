@@ -92,7 +92,8 @@ new linked worktree instead and the current checkout stays where it is.
   they travel to the new branch untouched; in worktree mode they stay in
   the current checkout. If git refuses, relay verbatim and stop.
 - **GW-B3 — No clobbering.** An existing branch name is never reused, reset,
-  or force-moved; report it and stop — no invented variants.
+  or force-moved; report it and stop — no invented variants. A failed worktree
+  addition never deletes a branch that appeared concurrently.
 - **GW-B4 — Deliberate base.** Base is the current HEAD unless the user names
   one; the base is stated in the report.
 - **GW-B5 — No branching mid-conflict.** Merge/rebase in progress → don't
@@ -101,10 +102,13 @@ new linked worktree instead and the current checkout stays where it is.
   user asks for one. Default location is `.worktrees/<branch>` under the
   main worktree's root (never nested inside another worktree), kept out of
   `git status` via the repo's local excludes. A
-  user-named path is used verbatim or reported as unusable — never
-  substituted. An existing path is never reused or overwritten. The report
-  states the worktree path and, when the tree was dirty, that uncommitted
-  changes stayed behind.
+  user-named path is resolved from the caller's current directory or reported
+  as unusable — never substituted. An existing path is never reused or
+  overwritten. The report states the absolute worktree path and, when the tree
+  was dirty, that uncommitted changes stayed behind. Once default worktree
+  creation begins, a failure never removes branch or directory state that may
+  belong to another actor and never adds a local-exclude entry; harmless empty
+  default directories may remain.
 
 ### Non-goals
 

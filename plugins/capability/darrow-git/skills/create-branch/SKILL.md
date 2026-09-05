@@ -69,7 +69,11 @@ the portable script enforce its exact leading, single occurrence. Pass `--from`
 only for a user-named base; otherwise use current `HEAD`. Pass
 `--at` only for a user-named worktree path; if rejected, preserve that refusal
 rather than choosing another path. The default worktree location is script
-owned.
+owned. Relay the script's absolute worktree path even when the user supplied a
+relative path. A failed addition must preserve a branch that appeared
+concurrently and must not add a local-exclude entry. Once Git worktree creation
+begins, leave empty default-path directories rather than risk removing state
+created or replaced by another actor.
 
 Keep the operation additive: leave existing branches, worktrees, commits,
 stashes, and working-tree changes intact. An existing branch is not new branch

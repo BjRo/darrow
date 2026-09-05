@@ -232,6 +232,7 @@ check "anchored at main root from linked worktree" "feat/wt-nested (from feat/wt
 
 echo "# N14: worktree --at custom path"
 fresh_repo
+CALLER=$PWD
 AT=$(mktemp -d)/custom-wt
 out=$(bash "$SCRIPT" create fix/at-outside --worktree --at "$AT")
 check "exit 0" 0 $?
@@ -241,7 +242,9 @@ echo "$out" | grep -q "## note:.*git status"
 check "no status note for outside path" 1 $?
 out=$(bash "$SCRIPT" create fix/at-inside --worktree --at inside-wt)
 check "inside-repo path accepted" 0 $?
-echo "$out" | grep -q "## note: inside-wt is inside the repository and not ignored"
+echo "$out" | grep -q "fix/at-inside (from main) at $CALLER/inside-wt"
+check "relative custom path is reported as absolute" 0 $?
+echo "$out" | grep -q "## note: $CALLER/inside-wt is inside the repository and not ignored"
 check "status-visibility note printed" 0 $?
 bash "$SCRIPT" create fix/at-alone --at somewhere > /dev/null 2>&1
 check "--at without --worktree, exit 2" 2 $?
@@ -332,14 +335,234 @@ check "main listed as other from linked worktree" 0 $?
 echo "$out" | grep -q "\.worktrees/feat/wt-listed"
 check "current worktree not listed as other" 1 $?
 
-echo "# N20: failed worktree add leaves no stray branch"
+echo "# N20: failed worktree add never deletes the created branch"
 fresh_repo
 touch exfile
 bash "$SCRIPT" create feat/stray --worktree --at exfile/sub > /dev/null 2>&1
 check "add fails, exit 4" 4 $?
-check "no stray branch" "" "$(git for-each-ref refs/heads --format='%(refname:short)' | grep stray || true)"
-bash "$SCRIPT" create feat/stray --worktree > /dev/null
-check "retry succeeds" 0 $?
+git show-ref -q --verify refs/heads/feat/stray
+check "created branch survives worktree failure" 0 $?
+STRAY_TIP=$(git rev-parse refs/heads/feat/stray)
+bash "$SCRIPT" create feat/stray --worktree > /dev/null 2>&1
+check "retry refuses to reuse the surviving branch" 9 $?
+check "surviving branch tip is unchanged" "$STRAY_TIP" "$(git rev-parse refs/heads/feat/stray)"
+
+echo "# N21: concurrent branch creation is never deleted on worktree failure"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+REAL_GIT=$(command -v git)
+FAKE_BIN="$TOP/.git/fake-bin"
+mkdir "$FAKE_BIN"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  "$RACE_REAL_GIT" branch "$RACE_BRANCH"' \
+  '  echo "simulated worktree refusal" >&2' \
+  '  exit 1' \
+  'fi' \
+  'exec "$RACE_REAL_GIT" "$@"' > "$FAKE_BIN/git"
+chmod +x "$FAKE_BIN/git"
+PATH="$FAKE_BIN:$PATH" RACE_REAL_GIT="$REAL_GIT" RACE_BRANCH=feat/concurrent \
+  bash "$SCRIPT" create feat/concurrent --worktree --at "$TOP/race-worktree" > /dev/null 2>&1
+check "concurrent branch makes worktree creation fail" 4 $?
+git show-ref -q --verify refs/heads/feat/concurrent
+check "concurrently created branch survives refusal" 0 $?
+check "caller stays on main after concurrent creation" main "$(git branch --show-current)"
+
+echo "# N22: failed default worktree setup does not change local excludes"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+REAL_GIT=$(command -v git)
+FAKE_BIN="$TOP/.git/fake-bin"
+mkdir "$FAKE_BIN"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  echo "simulated worktree refusal" >&2' \
+  '  exit 1' \
+  'fi' \
+  'exec "$FAIL_REAL_GIT" "$@"' > "$FAKE_BIN/git"
+chmod +x "$FAKE_BIN/git"
+EXCLUDE=$(git rev-parse --git-path info/exclude)
+EXCLUDE_BEFORE=$(cat "$EXCLUDE")
+PATH="$FAKE_BIN:$PATH" FAIL_REAL_GIT="$REAL_GIT" \
+  bash "$SCRIPT" create feat/default-refusal --worktree > /dev/null 2>&1
+check "simulated default worktree creation fails" 4 $?
+check "exclude file is unchanged after refusal" "$EXCLUDE_BEFORE" "$(cat "$EXCLUDE")"
+if [[ -d "$TOP/.worktrees" ]]; then
+  hierarchy_entries=$(find "$TOP/.worktrees" ! -type d -print | wc -l | tr -d '[:space:]')
+else
+  hierarchy_entries=0
+fi
+check "failed setup leaves at most empty default directories" 0 "$hierarchy_entries"
+check "caller stays on main after default refusal" main "$(git branch --show-current)"
+
+echo "# N23: inspect preserves backslashes in the current worktree path"
+BACKSLASH_PARENT=$(mktemp -d)
+REPO="$BACKSLASH_PARENT/repo\\test"
+mkdir "$REPO"
+cd "$REPO" || exit 70
+git init -qb main
+git config user.email t@t.local
+git config user.name t
+echo base > base.txt
+git add base.txt
+git commit -qm "chore: init"
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "## other worktrees"
+check "backslash path is not listed as another worktree" 1 $?
+
+echo "# N24: failed setup preserves a concurrently created default directory"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+REAL_GIT=$(command -v git)
+REAL_MKDIR=$(command -v mkdir)
+FAKE_BIN="$TOP/.git/fake-bin"
+mkdir "$FAKE_BIN"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  echo "simulated worktree refusal" >&2' \
+  '  exit 1' \
+  'fi' \
+  'exec "$DIR_RACE_REAL_GIT" "$@"' > "$FAKE_BIN/git"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'target=$1' \
+  'if [[ "$target" == "-p" ]]; then target=${2:-}; fi' \
+  'if [[ "$target" == "$DIR_RACE_PATH" && ! -e "$target" ]]; then' \
+  '  "$DIR_RACE_REAL_MKDIR" -p "$target"' \
+  'fi' \
+  'exec "$DIR_RACE_REAL_MKDIR" "$@"' > "$FAKE_BIN/mkdir"
+chmod +x "$FAKE_BIN/git" "$FAKE_BIN/mkdir"
+PATH="$FAKE_BIN:$PATH" DIR_RACE_REAL_GIT="$REAL_GIT" \
+  DIR_RACE_REAL_MKDIR="$REAL_MKDIR" DIR_RACE_PATH="$TOP/.worktrees/feat" \
+  bash "$SCRIPT" create feat/directory-race --worktree > /dev/null 2>&1
+check "directory race worktree creation fails" 4 $?
+if [[ -d "$TOP/.worktrees/feat" ]]; then
+  concurrent_directory_status=0
+else
+  concurrent_directory_status=1
+fi
+check "concurrently created default directory survives refusal" 0 "$concurrent_directory_status"
+
+echo "# N25: failed setup preserves a replaced default directory"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+REAL_GIT=$(command -v git)
+REAL_MKDIR=$(command -v mkdir)
+REAL_RMDIR=$(command -v rmdir)
+FAKE_BIN="$TOP/.git/fake-bin"
+mkdir "$FAKE_BIN"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  "$REPLACE_REAL_RMDIR" "$REPLACE_PATH"' \
+  '  "$REPLACE_REAL_MKDIR" "$REPLACE_PATH"' \
+  '  echo "simulated worktree refusal" >&2' \
+  '  exit 1' \
+  'fi' \
+  'exec "$REPLACE_REAL_GIT" "$@"' > "$FAKE_BIN/git"
+chmod +x "$FAKE_BIN/git"
+PATH="$FAKE_BIN:$PATH" REPLACE_REAL_GIT="$REAL_GIT" \
+  REPLACE_REAL_MKDIR="$REAL_MKDIR" REPLACE_REAL_RMDIR="$REAL_RMDIR" \
+  REPLACE_PATH="$TOP/.worktrees/feat" \
+  bash "$SCRIPT" create feat/directory-replacement --worktree > /dev/null 2>&1
+check "directory replacement worktree creation fails" 4 $?
+if [[ -d "$TOP/.worktrees/feat" ]]; then
+  replaced_directory_status=0
+else
+  replaced_directory_status=1
+fi
+check "replaced default directory survives refusal" 0 "$replaced_directory_status"
+
+echo "# N26: unreadable local excludes refuse default worktree creation"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+EXCLUDE=$(git rev-parse --git-path info/exclude)
+chmod a-r "$EXCLUDE"
+bash "$SCRIPT" create feat/unreadable-exclude --worktree > /dev/null 2>&1
+check "unreadable exclude is refused" 9 $?
+chmod u+r "$EXCLUDE"
+git show-ref -q --verify refs/heads/feat/unreadable-exclude
+check "unreadable exclude creates no branch" 1 $?
+if [[ -d "$TOP/.worktrees" ]]; then
+  unreadable_hierarchy_entries=$(find "$TOP/.worktrees" ! -type d -print | wc -l | tr -d '[:space:]')
+else
+  unreadable_hierarchy_entries=0
+fi
+check "unreadable exclude leaves at most empty default directories" 0 "$unreadable_hierarchy_entries"
+check "caller stays on main after unreadable exclude" main "$(git branch --show-current)"
+
+echo "# N27: post-create exclude update failure is reported"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+REAL_GIT=$(command -v git)
+EXCLUDE=$(git rev-parse --git-path info/exclude)
+[[ "$EXCLUDE" == /* ]] || EXCLUDE="$TOP/$EXCLUDE"
+FAKE_BIN="$TOP/.git/fake-bin"
+mkdir "$FAKE_BIN"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '  "$APPEND_FAIL_REAL_GIT" "$@"' \
+  '  status=$?' \
+  '  if [[ $status -eq 0 ]]; then chmod a-w "$APPEND_FAIL_EXCLUDE"; fi' \
+  '  exit "$status"' \
+  'fi' \
+  'exec "$APPEND_FAIL_REAL_GIT" "$@"' > "$FAKE_BIN/git"
+chmod +x "$FAKE_BIN/git"
+output=$(PATH="$FAKE_BIN:$PATH" APPEND_FAIL_REAL_GIT="$REAL_GIT" \
+  APPEND_FAIL_EXCLUDE="$EXCLUDE" \
+  bash "$SCRIPT" create feat/exclude-append-failure --worktree 2>&1)
+append_failure_status=$?
+chmod u+w "$EXCLUDE"
+check "post-create exclude update failure is nonzero" 9 "$append_failure_status"
+echo "$output" | grep -q "worktree created but cannot update repository exclude file"
+check "post-create exclude failure identifies the partial result" 0 $?
+git show-ref -q --verify refs/heads/feat/exclude-append-failure
+check "created branch remains after exclude update failure" 0 $?
+git worktree list --porcelain | grep -q "branch refs/heads/feat/exclude-append-failure"
+check "created worktree remains after exclude update failure" 0 $?
+check "caller stays on main after exclude update failure" main "$(git branch --show-current)"
+
+echo "# N28: exclude preflight preserves a replaced default directory"
+fresh_repo
+TOP=$(git rev-parse --show-toplevel)
+REAL_GIT=$(command -v git)
+REAL_MKDIR=$(command -v mkdir)
+REAL_RMDIR=$(command -v rmdir)
+EXCLUDE=$(git rev-parse --git-path info/exclude)
+chmod a-r "$EXCLUDE"
+FAKE_BIN="$TOP/.git/fake-bin"
+mkdir "$FAKE_BIN"
+# shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == "rev-parse" && "${2:-}" == "--git-path" && "${3:-}" == "info/exclude" ]]; then' \
+  '  "$PREFLIGHT_REAL_RMDIR" "$PREFLIGHT_REPLACE_PATH"' \
+  '  "$PREFLIGHT_REAL_MKDIR" "$PREFLIGHT_REPLACE_PATH"' \
+  'fi' \
+  'exec "$PREFLIGHT_REAL_GIT" "$@"' > "$FAKE_BIN/git"
+chmod +x "$FAKE_BIN/git"
+PATH="$FAKE_BIN:$PATH" PREFLIGHT_REAL_GIT="$REAL_GIT" \
+  PREFLIGHT_REAL_MKDIR="$REAL_MKDIR" PREFLIGHT_REAL_RMDIR="$REAL_RMDIR" \
+  PREFLIGHT_REPLACE_PATH="$TOP/.worktrees/feat" \
+  bash "$SCRIPT" create feat/preflight-replacement --worktree > /dev/null 2>&1
+check "preflight replacement is refused" 9 $?
+chmod u+r "$EXCLUDE"
+if [[ -d "$TOP/.worktrees/feat" ]]; then
+  preflight_replacement_status=0
+else
+  preflight_replacement_status=1
+fi
+check "preflight replacement directory survives refusal" 0 "$preflight_replacement_status"
 
 if [[ $FAILURES -gt 0 ]]; then
   echo "$FAILURES failure(s)"
