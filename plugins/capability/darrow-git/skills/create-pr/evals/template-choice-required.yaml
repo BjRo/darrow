@@ -1,0 +1,58 @@
+id: create-pr-template-choice-required
+invariant: GW-P8
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Open a PR for the retry work. The repository has multiple PR templates; pick
+  whichever one seems best and do not ask me another question.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        .github/PULL_REQUEST_TEMPLATE/feature.md: |
+          ## User Value
+
+          ## Behavior
+        .github/PULL_REQUEST_TEMPLATE/bugfix.md: |
+          ## Failure
+
+          ## Correction
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          : > "$d/created"
+          echo "https://github.com/fixture/repo/pull/1"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc fix/timeout-retry
+    printf 'retry with backoff\n' > retry.txt
+    git add retry.txt
+    git commit -qm "fix: retry timed out requests with backoff"
+checks:
+  - name: no PR was created without a user choice
+    run: test ! -f .git/fixture-gh/created
+  - name: branch was not pushed without a user choice
+    run: test -z "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
+semantic_output_checks:
+  - name: user retains the template choice
+    proposition: >-
+      The response makes clear that the user must choose exactly one of
+      feature.md or bugfix.md before a pull request can be created, without
+      selecting a template or claiming that a pull request was created.

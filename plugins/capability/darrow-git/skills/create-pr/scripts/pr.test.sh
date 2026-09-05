@@ -110,6 +110,10 @@ bash "$SCRIPT" create --title "fix: x" -b > /dev/null 2>&1
 check "dangling -b, exit 2" 2 $?
 bash "$SCRIPT" create --title "fix: x" -b why --base > /dev/null 2>&1
 check "dangling --base, exit 2" 2 $?
+bash "$SCRIPT" create --title "fix: x" -b why --template > /dev/null 2>&1
+check "dangling --template, exit 2" 2 $?
+bash "$SCRIPT" inspect --template > /dev/null 2>&1
+check "inspect dangling --template, exit 2" 2 $?
 bash "$SCRIPT" create --title "fix: x" -b why --force > /dev/null 2>&1
 check "unknown flag, exit 2" 2 $?
 bash "$SCRIPT" create --title "fix: x" -b "   " > /dev/null 2>&1
@@ -569,6 +573,13 @@ check "docs/ fallback found" 0 $?
 rm -rf docs
 mkdir -p .github/PULL_REQUEST_TEMPLATE
 echo "## A" > .github/PULL_REQUEST_TEMPLATE/feature.md
+out=$(bash "$SCRIPT" inspect)
+echo "$out" | grep -q "pr template (.github/PULL_REQUEST_TEMPLATE/feature.md)"
+check "one directory template is selected automatically" 0 $?
+echo "$out" | grep -q "## A"
+check "one directory template is printed" 0 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+check "one directory template is enforced, exit 7" 7 $?
 echo "## B" > .github/PULL_REQUEST_TEMPLATE/bugfix.md
 out=$(bash "$SCRIPT" inspect)
 echo "$out" | grep -q "multiple PR templates"
@@ -576,7 +587,32 @@ check "multi-template note present" 0 $?
 echo "$out" | grep -q "feature.md"
 check "template names listed" 0 $?
 bash "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
-check "dir-only templates do not block create" 0 $?
+check "multiple templates require a choice, exit 7" 7 $?
+check "missing choice does not push" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
+check "missing choice does not create a PR" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b why --template ../feature.md > /dev/null 2>&1
+check "template selection cannot escape its directory, exit 2" 2 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b why --template missing.md > /dev/null 2>&1
+check "unknown template selection, exit 7" 7 $?
+echo "## Outside" > outside.md
+ln -s ../../outside.md .github/PULL_REQUEST_TEMPLATE/linked.md
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Outside
+Unlisted content." --template linked.md > /dev/null 2>&1
+check "unlisted symlink template is refused, exit 7" 7 $?
+out=$(bash "$SCRIPT" inspect --template feature.md)
+check "inspect accepts an exact selected template" 0 $?
+echo "$out" | grep -q "pr template (.github/PULL_REQUEST_TEMPLATE/feature.md)"
+check "inspect names the selected template" 0 $?
+echo "$out" | grep -q "## A"
+check "inspect prints the selected template" 0 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## B
+Wrong template." --template feature.md > /dev/null 2>&1
+check "selected template shape is enforced, exit 7" 7 $?
+out=$(bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## A
+Feature behavior is covered." --template feature.md)
+check "exact selected template accepted" 0 $?
+check "selected template body captured" "## A
+Feature behavior is covered." "$(cat .git/fixture-gh/body)"
 
 echo "# P15e: truncation note for long templates"
 ready_repo
@@ -614,6 +650,26 @@ check "attribution at the end of a 200KB body still caught, exit 6" 6 $?
 check "no PR after large-body attribution" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
 
 echo "# P16b: heading edge cases — tab after hashes, BOM, backslashes"
+ready_repo
+mkdir -p .github
+cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
+  ## Why
+
+  ## Testing
+EOF
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "plain body" > /dev/null 2>&1
+check "up-to-three-space-indented headings are enforced, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+Flaky links." -b "  ## Testing
+Tests." > /dev/null 2>&1
+check "indented heading must be kept verbatim, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "  ## Why" -b "  ## Testing
+Tests." > /dev/null 2>&1
+check "indented peer heading does not fill an empty section, exit 7" 7 $?
+bash "$SCRIPT" create --title "fix: retry request on timeout" -b "  ## Why
+Flaky links." -b "  ## Testing
+Tests." > /dev/null 2>&1
+check "filled indented template headings accepted" 0 $?
 ready_repo
 mkdir -p .github
 printf '##\tTracking\n' > .github/PULL_REQUEST_TEMPLATE.md

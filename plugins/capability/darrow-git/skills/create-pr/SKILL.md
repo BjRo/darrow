@@ -30,7 +30,7 @@ as authoritative.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/pr.sh inspect
+bash <skill-dir>/scripts/pr.sh inspect [--template <filename>]
 ```
 
 Follow the reported mode:
@@ -45,8 +45,13 @@ Follow the reported mode:
 - `empty` or `no-remote`: report the exact missing prerequisite and stop.
 
 Preserve every `## note:` for the final report. If inspection reports multiple
-PR templates, ask the user which template to use and stop until they choose.
-If it reports a single template, read
+PR templates, only an exact filename affirmatively named by the user resolves
+the choice. A request to pick whichever seems best, use the appropriate one, or
+avoid another question does not delegate that choice: ask the user to select
+one listed filename and stop without pushing or creating a PR. If the user
+already named a listed filename, or supplies one after that stop, rerun
+inspection with `--template <filename>` and use the selected template content
+it reports. If inspection reports a single template, read
 [`references/pr-template.md`](references/pr-template.md) completely before
 drafting the body.
 
@@ -79,13 +84,14 @@ template when present, and preserves any known ticket identifier.
 Run exactly one creation command:
 
 ```sh
-bash <skill-dir>/scripts/pr.sh create --title <title> -b <section>... [--base <branch>] [--draft]
+bash <skill-dir>/scripts/pr.sh create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
 ```
 
 Pass `--base` only when the user named that base. Pass `--draft` only when the
-user asked for a draft. The script rechecks readiness and duplicates, pushes
-the current branch without force, creates the PR, and prints `<url> (<head> ->
-<base>)`.
+user asked for a draft. Pass `--template` only with the exact user-selected
+filename reported by inspection; never infer, abbreviate, or substitute it.
+The script rechecks readiness and duplicates, pushes the current branch without
+force, creates the PR, and prints `<url> (<head> -> <base>)`.
 
 Correct and retry only validation errors in the proposed title or body. If a
 named base is unavailable, or the script reports an existing PR, failed

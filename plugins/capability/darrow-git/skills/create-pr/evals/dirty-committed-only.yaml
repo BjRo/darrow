@@ -1,5 +1,7 @@
 id: create-pr-dirty-committed-only
 invariant: GW-P7
+activation: positive
+mount_plugin_skills: true
 prompt: Open a PR for the timeout fix.
 fixture:
   commits:

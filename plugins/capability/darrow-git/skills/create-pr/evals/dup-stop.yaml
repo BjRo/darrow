@@ -1,5 +1,7 @@
 id: create-pr-dup-stop
 invariant: GW-P6
+activation: positive
+mount_plugin_skills: true
 prompt: Open a PR for this branch.
 fixture:
   commits:

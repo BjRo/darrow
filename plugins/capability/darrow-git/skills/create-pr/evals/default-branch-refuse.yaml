@@ -1,5 +1,7 @@
 id: create-pr-default-branch-refuse
 invariant: GW-P4
+activation: positive
+mount_plugin_skills: true
 prompt: Open a PR for my latest change.
 fixture:
   commits:

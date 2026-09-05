@@ -1,5 +1,7 @@
 id: create-pr-template-fill
 invariant: GW-P8
+activation: positive
+mount_plugin_skills: true
 prompt: Open a PR for the retry work.
 fixture:
   commits:
@@ -9,11 +11,11 @@ fixture:
         src/http.ts: "export async function get(url: string) { return fetch(url); }\n"
         .github/PULL_REQUEST_TEMPLATE.md: |
           <!-- Explain the motivation before the mechanics. Link the ticket. -->
-          ## Why
+            ## Why
 
-          ## What Changed
+            ## What Changed
 
-          ## Testing
+            ## Testing
           <!-- How was this verified? -->
   bin:
     gh: |
@@ -67,16 +69,20 @@ checks:
     expect_regex: "^created$"
   - name: template headings kept verbatim
     run: cat .git/fixture-gh/body
-    expect_regex: "^## Why$[\\s\\S]*^## What Changed$[\\s\\S]*^## Testing$"
+    expect_regex: "^  ## Why$[\\s\\S]*^  ## What Changed$[\\s\\S]*^  ## Testing$"
   - name: no template comments left in the body
     run: grep -c '<!--' .git/fixture-gh/body || true
     expect_regex: "^0$"
   - name: Why section filled with the motivation
-    run: awk '/^## Why$/{f=1;next} /^## /{f=0} f' .git/fixture-gh/body
+    run: >-
+      awk '/^  ## Why$/{f=1;next} /^  ## /{f=0} f'
+      .git/fixture-gh/body
     expect_regex: "[A-Za-z].*(retry|retries|fail|flaky|timeout|resilien|backoff)"
     flags: i
   - name: Testing section filled
-    run: awk '/^## Testing$/{f=1;next} /^## /{f=0} f' .git/fixture-gh/body
+    run: >-
+      awk '/^  ## Testing$/{f=1;next} /^  ## /{f=0} f'
+      .git/fixture-gh/body
     expect_regex: "[A-Za-z]"
   - name: ticket referenced verbatim
     run: cat .git/fixture-gh/body

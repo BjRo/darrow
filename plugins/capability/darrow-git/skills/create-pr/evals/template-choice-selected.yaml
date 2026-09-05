@@ -1,0 +1,74 @@
+id: create-pr-template-choice-selected
+invariant: GW-P8
+activation: positive
+mount_plugin_skills: true
+prompt: Open a PR for the retry work using the bugfix.md PR template.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/http.ts: "export async function get(url: string) { return fetch(url); }\n"
+        .github/PULL_REQUEST_TEMPLATE/feature.md: |
+          ## User Value
+
+          ## Behavior
+        .github/PULL_REQUEST_TEMPLATE/bugfix.md: |
+          <!-- Explain the failure and correction. -->
+          ## Failure
+
+          ## Correction
+
+          ## Testing
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          shift 2
+          while [ $# -gt 0 ]; do
+            case "$1" in
+              --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
+              --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
+              --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
+              --draft) : > "$d/draft"; shift ;;
+              *) shift ;;
+            esac
+          done
+          echo "https://github.com/fixture/repo/pull/1"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc fix/DAR-123-timeout-retry
+    printf 'retry with backoff\n' > retry.txt
+    git add retry.txt
+    git commit -qm "fix: retry timed out requests with backoff"
+    printf 'retry exhaustion test\n' > retry.test.txt
+    git add retry.test.txt
+    git commit -qm "test: cover retry exhaustion"
+checks:
+  - name: PR created
+    run: test -f .git/fixture-gh/body && echo created
+    expect_exact: created
+  - name: selected bugfix template headings kept verbatim
+    run: cat .git/fixture-gh/body
+    expect_regex: "^## Failure$[\\s\\S]*^## Correction$[\\s\\S]*^## Testing$"
+  - name: unselected feature template was not used
+    run: grep -c '^## User Value$' .git/fixture-gh/body || true
+    expect_exact: "0"
+  - name: template comments removed
+    run: grep -c '<!--' .git/fixture-gh/body || true
+    expect_exact: "0"

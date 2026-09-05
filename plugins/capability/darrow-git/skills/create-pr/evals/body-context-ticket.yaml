@@ -1,5 +1,7 @@
 id: create-pr-body-context-ticket
 invariant: GW-P2
+activation: positive
+mount_plugin_skills: true
 prompt: Open a PR for the retry work.
 fixture:
   commits:
@@ -60,10 +62,12 @@ checks:
   - name: ticket referenced verbatim
     run: cat .git/fixture-gh/body
     expect_regex: "DAR-123"
-  - name: body describes the work
-    run: cat .git/fixture-gh/body
-    expect_regex: "(retry|retries|backoff)"
-    flags: i
-  - name: body is non-trivial
-    run: test "$(wc -c < .git/fixture-gh/body)" -ge 80 && echo ok
-    expect_regex: "^ok$"
+  - name: distinct paragraphs explain motivation and solution
+    run: >-
+      awk 'BEGIN { RS="" }
+      { n++; l=tolower($0);
+        if (l ~ /(fail|flaky|timeout|unreliab|transient|request)/) why[n]=1;
+        if (l ~ /(retry|retries|backoff|attempt|exhaust)/) what[n]=1 }
+      END { for (i in why) for (j in what) if (i != j) { print "ok"; exit } }'
+      .git/fixture-gh/body
+    expect_exact: ok

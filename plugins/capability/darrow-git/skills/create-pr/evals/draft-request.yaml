@@ -1,6 +1,10 @@
 id: create-pr-draft-request
 invariant: GW-P4
-prompt: Open a draft PR for this so CI can run while I keep working.
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Use {{skill_invocation}} to open a draft PR for this so CI can run while I
+  keep working.
 fixture:
   commits:
     - message: "chore: init"
