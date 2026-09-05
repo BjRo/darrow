@@ -25,8 +25,8 @@ function p95(values: number[]): number | undefined {
   return sorted[Math.ceil(sorted.length * 0.95) - 1];
 }
 
-function percent(value: number | undefined): string {
-  return value === undefined ? "n/a" : `${(value * 100).toFixed(0)}%`;
+function percent(value: number | null | undefined): string {
+  return value == null ? "n/a" : `${(value * 100).toFixed(0)}%`;
 }
 
 function activationPercent(value: number | null | undefined): string {
@@ -52,7 +52,8 @@ function isBookkeepingCheck(name: string): boolean {
   );
 }
 
-function taskPassRate(result: CaseResult): number {
+function taskPassRate(result: CaseResult): number | null {
+  if (!hasBehavioralEvidence(result)) return null;
   if (!result.trials.length) return result.passRate;
   return (
     result.trials.filter((trial) =>
@@ -146,19 +147,25 @@ function candidateDurations(cell: ReportCell): number[] {
 
 /** Interventions are a total, so an unreported case must not read as zero. */
 function humanInterventions(cell: ReportCell): number | undefined {
+  if (!cell.results.length) return undefined;
   const values = cell.results.map((result) => result.totalHumanInterruptions);
   return values.every((value) => value !== undefined)
     ? values.reduce<number>((total, value) => total + (value ?? 0), 0)
     : undefined;
 }
 
-function cellMetrics(cell: ReportCell) {
+function cellMetrics(input: ReportCell) {
+  const cell = input.results.every(hasBehavioralEvidence)
+    ? input
+    : { ...input, results: [] };
   const durations = candidateDurations(cell);
   const assessments = cellAssessments(cell);
   const judgeRuns = cellJudgeRuns(cell);
   return {
-    taskPass: mean(cell.results.map(taskPassRate)),
-    protocolPass: mean(cell.results.map((result) => result.passRate)),
+    taskPass: meanWhenComplete(cell.results.map(taskPassRate)),
+    protocolPass: meanWhenComplete(
+      cell.results.map((result) => result.passRate),
+    ),
     ...judgeQuality(cell, assessments),
     wallMean: mean(durations),
     wallP95: p95(durations),
@@ -200,11 +207,13 @@ function outcomesSection(
     "",
     "## Outcomes and candidate efficiency",
     "",
-    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "Dry and unknown execution modes are unmeasured; preparation checks do not establish behavioral success.",
+    "",
+    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions | Execution |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ...rows.map(
       ({ cell, metric }) =>
-        `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} |`,
+        `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} | ${executionLabel(cell.results)} |`,
     ),
   ];
 }
@@ -258,12 +267,12 @@ function perTaskSection(cells: ReportCell[]): string[] {
     "",
     "The aggregate is intentionally paired with task-level results so one task shape cannot hide another.",
     "",
-    "| Harness | Mode | Case | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Harness | Mode | Case | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean | Execution |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ...cells.flatMap((cell) =>
       cell.results.map(
         (result) =>
-          `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(taskPassRate(result))} | ${percent(result.passRate)} | ${result.meanJudgeScore?.toFixed(2) ?? "n/a"} | ${milliseconds(result.meanDurationMs)} | ${result.meanTokens === null ? "unknown" : Math.round(result.meanTokens)} |`,
+          `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(taskPassRate(result))} | ${percent(hasBehavioralEvidence(result) ? result.passRate : null)} | ${hasBehavioralEvidence(result) ? (result.meanJudgeScore?.toFixed(2) ?? "n/a") : "n/a"} | ${milliseconds(hasBehavioralEvidence(result) ? result.meanDurationMs : undefined)} | ${tokens(hasBehavioralEvidence(result) ? (result.meanTokens ?? undefined) : undefined)} | ${executionLabel([result])} |`,
       ),
     ),
   ];
@@ -282,6 +291,7 @@ const activationSourceLabel = (
 
 function caseActivationRate(result: CaseResult): number | null | undefined {
   if (result.activationClass === undefined) return undefined;
+  if (!hasBehavioralEvidence(result)) return null;
   if (!result.trials.length) {
     return typeof result.activationPassRate === "number"
       ? result.activationPassRate
@@ -347,6 +357,7 @@ function completeActivationGrades(declared: CaseResult[]): {
     result.trials.map((trial) => trial.activation),
   );
   const complete =
+    declared.every(hasBehavioralEvidence) &&
     expected > 0 &&
     possible.length === expected &&
     possible.every(
@@ -579,6 +590,7 @@ if (import.meta.main) {
   }
   const manifestPath = resolve(process.cwd(), positionals[0]!);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+    dry?: boolean;
     cells: Array<{ harness: string; mode: string; result: string }>;
   };
   const cells: ReportCell[] = [];
@@ -586,7 +598,17 @@ if (import.meta.main) {
     cells.push({
       harness: cell.harness,
       mode: cell.mode,
-      results: JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[],
+      results: (
+        JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[]
+      ).map((result) => ({
+        ...result,
+        executionMode: executionMode(
+          result,
+          typeof manifest.dry === "boolean"
+            ? manifestExecutionMode(manifest.dry)
+            : undefined,
+        ),
+      })),
     });
   }
   const outputPath = values.output
@@ -595,3 +617,9 @@ if (import.meta.main) {
   await writeFile(outputPath, renderSuiteReport(cells));
   console.log(`Report: ${outputPath}`);
 }
+import {
+  executionLabel,
+  executionMode,
+  hasBehavioralEvidence,
+  manifestExecutionMode,
+} from "./execution";

@@ -175,17 +175,21 @@ async function runFixtureSetup(
   caseDir: string,
 ): Promise<void> {
   const setup = script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR");
-  const proc = Bun.spawn(["bash", "-c", setup], {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-    env: {
-      ...process.env,
-      GIT_CONFIG_GLOBAL: "/dev/null",
-      GIT_CONFIG_SYSTEM: "/dev/null",
-      DARROW_EVAL_CASE_DIR: caseDir,
-    },
-  });
+  throwIfInterrupted();
+  const proc = trackEvaluationProcess(
+    Bun.spawn(["bash", "-c", setup], {
+      detached: true,
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        ...process.env,
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_CONFIG_SYSTEM: "/dev/null",
+        DARROW_EVAL_CASE_DIR: caseDir,
+      },
+    }),
+  );
   const [err, code] = await Promise.all([
     new Response(proc.stderr).text(),
     proc.exited,
@@ -562,3 +566,4 @@ export async function destroyFixture(repoDir: string): Promise<void> {
   }
   throw removalError ?? new Error(`cannot remove eval fixture: ${repoDir}`);
 }
+import { throwIfInterrupted, trackEvaluationProcess } from "./run-control";

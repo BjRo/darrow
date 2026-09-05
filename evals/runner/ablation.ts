@@ -246,6 +246,8 @@ function compareMatchedCase(input: {
 }): { comparison?: AblationCaseComparison; error?: string } {
   const { definition, harness, caseId, baseline, candidate } = input;
   const prefix = `${definition.name}/${harness}/${caseId}`;
+  if (!hasBehavioralEvidence(baseline) || !hasBehavioralEvidence(candidate))
+    return { error: `${prefix}: dry or unknown execution is unmeasured` };
   if (baseline.skillDirectory !== null)
     return { error: `${prefix}: baseline mounted a skill` };
   if (!candidate.skillDirectory)
@@ -258,8 +260,8 @@ function compareMatchedCase(input: {
 
 function caseComparison(
   harness: string,
-  baseline: CaseResult,
-  candidate: CaseResult,
+  baseline: CaseResult & { passRate: number },
+  candidate: CaseResult & { passRate: number },
 ): AblationCaseComparison {
   return {
     harness,
@@ -367,7 +369,7 @@ function signed(value: number, digits = 0): string {
 }
 
 function percentTransition(row: AblationCaseComparison): string {
-  return `${(row.baseline.passRate * 100).toFixed(0)}% → ${(row.candidate.passRate * 100).toFixed(0)}% (${signed(row.passRateDelta * 100)}pp)`;
+  return `${(row.baseline.passRate! * 100).toFixed(0)}% → ${(row.candidate.passRate! * 100).toFixed(0)}% (${signed(row.passRateDelta * 100)}pp)`;
 }
 
 function durationTransition(row: AblationCaseComparison): string {
@@ -444,6 +446,7 @@ if (import.meta.main) {
     );
   const manifestPath = resolve(process.cwd(), positionals[0]!);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+    dry?: boolean;
     trials: number;
     threshold: number;
     ablations?: AblationDefinition[];
@@ -456,7 +459,17 @@ if (import.meta.main) {
     cells.push({
       harness: cell.harness,
       mode: cell.mode,
-      results: JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[],
+      results: (
+        JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[]
+      ).map((result) => ({
+        ...result,
+        executionMode: executionMode(
+          result,
+          typeof manifest.dry === "boolean"
+            ? manifestExecutionMode(manifest.dry)
+            : undefined,
+        ),
+      })),
     });
   }
   const analysis = analyzeAblations(
@@ -468,7 +481,22 @@ if (import.meta.main) {
   const outputPath = values.output
     ? resolve(process.cwd(), values.output)
     : join(dirname(manifestPath), "ablation.md");
-  await writeFile(outputPath, renderAblationReport(analysis));
+  const dry =
+    manifest.dry === true &&
+    cells.every((cell) =>
+      cell.results.every((result) => executionMode(result) === "dry"),
+    );
+  await writeFile(
+    outputPath,
+    dry
+      ? `# Skill ablation — dry run\n\nUnmeasured: ${manifest.ablations.map((ablation) => ablation.name).join(", ")}. Fixture preparation does not establish a behavioral comparison.\n`
+      : renderAblationReport(analysis),
+  );
   console.log(`Ablation report: ${outputPath}`);
-  if (!analysis.valid) process.exitCode = 1;
+  if (!analysis.valid && !dry) process.exitCode = 1;
 }
+import {
+  executionMode,
+  hasBehavioralEvidence,
+  manifestExecutionMode,
+} from "./execution";

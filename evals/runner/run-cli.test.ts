@@ -90,6 +90,13 @@ test("emits stable plain logs and an absolute result path", async () => {
     expect(stdout).not.toMatch(/[✓✕🧪📄✨]/u);
     const results = JSON.parse(await readFile(resultPath, "utf8"));
     expect(results).toHaveLength(1);
+    expect(results[0].executionMode).toBe("dry");
+    expect(results[0].passRate).toBeNull();
+    expect(
+      results[0].trials.every(
+        (trial: { executionMode: string }) => trial.executionMode === "dry",
+      ),
+    ).toBe(true);
     expect(
       results[0].trials.map((trial: { trial: number }) => trial.trial),
     ).toEqual([1, 2]);

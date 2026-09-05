@@ -16,6 +16,7 @@ import {
   retainedCodexEvidence,
 } from "./codex";
 import { observeCodexTicketPipelineRoutes } from "../orchestration-metrics";
+import { gradeActivation } from "../activation";
 import {
   fixtureStateFingerprint,
   guardCodexSpawn,
@@ -187,6 +188,161 @@ describe("Codex token accounting", () => {
 });
 
 describe("Codex skill activation observation", () => {
+  test("explicit activation ignores a complete read outside the mounted skill root", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-explicit-unmounted-"));
+    const root = join(repo, ".agents/skills");
+    const decoy = join(repo, "docs/grilling/SKILL.md");
+    const body =
+      "---\nname: grilling\ndescription: Ask questions\n---\nComplete required instructions.\n";
+    try {
+      await mkdir(join(root, "grilling"), { recursive: true });
+      await mkdir(join(repo, "docs/grilling"), { recursive: true });
+      await writeFile(join(root, "grilling/SKILL.md"), body);
+      await writeFile(decoy, body);
+      const stream = [
+        {
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${decoy}`,
+            aggregated_output: body,
+            status: "completed",
+            exit_code: 0,
+          },
+        },
+        { type: "turn.completed" },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const observation = codexExplicitSkillActivation(
+        stream,
+        "$sample:plan-implementation",
+        {
+          mode: "explicit",
+          skill: "plan-implementation",
+          invocation: "$sample:plan-implementation",
+        },
+        { repoDir: repo, installedSkillsRoots: root },
+      );
+      expect(observation).toMatchObject({
+        complete: true,
+        primarySkill: "plan-implementation",
+        observedSkills: ["plan-implementation"],
+      });
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          sequence: ["plan-implementation", "grilling"],
+        }).passed,
+      ).toBe(false);
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          excludes: ["grilling"],
+        }).passed,
+      ).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("a truncated first supporting read cannot prove an explicit exclusion", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-explicit-truncated-"));
+    const root = join(repo, ".agents/skills");
+    const frontmatter =
+      "---\nname: grilling\ndescription: Ask questions\n---\n";
+    try {
+      await mkdir(join(root, "grilling"), { recursive: true });
+      await writeFile(
+        join(root, "grilling/SKILL.md"),
+        `${frontmatter}Complete required instructions.\n`,
+      );
+      const stream = [
+        {
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${root}/grilling/SKILL.md`,
+            aggregated_output: frontmatter,
+            status: "completed",
+            exit_code: 0,
+          },
+        },
+        { type: "turn.completed" },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const observation = codexExplicitSkillActivation(
+        stream,
+        "$sample:plan-implementation",
+        {
+          mode: "explicit",
+          skill: "plan-implementation",
+          invocation: "$sample:plan-implementation",
+        },
+        { repoDir: repo, installedSkillsRoots: root },
+      );
+      expect(observation.observedSkills).toEqual(["plan-implementation"]);
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          excludes: ["grilling"],
+        }).passed,
+      ).toBeNull();
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("explicit activation grades supporting reads in sequences and exclusions", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-explicit-activation-"));
+    const root = join(repo, ".agents/skills");
+    const body =
+      "---\nname: grilling\ndescription: Ask the decision frontier\n---\nRead the full instructions before asking.\n";
+    try {
+      await mkdir(join(root, "grilling"), { recursive: true });
+      await writeFile(join(root, "grilling/SKILL.md"), body);
+      const read = {
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${root}/grilling/SKILL.md`,
+          aggregated_output: body,
+          exit_code: 0,
+          status: "completed",
+        },
+      };
+      const stream = [read, read, { type: "turn.completed" }]
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const observation = codexExplicitSkillActivation(
+        stream,
+        "Use $sample:plan-implementation",
+        {
+          mode: "explicit",
+          skill: "plan-implementation",
+          invocation: "$sample:plan-implementation",
+        },
+        { repoDir: repo, installedSkillsRoots: root },
+      );
+      expect(observation).toMatchObject({
+        source: "explicit_invocation",
+        complete: true,
+        primarySkill: "plan-implementation",
+        observedSkills: ["plan-implementation", "grilling"],
+      });
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          sequence: ["plan-implementation", "grilling"],
+        }).passed,
+      ).toBe(true);
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          excludes: ["grilling"],
+        }).passed,
+      ).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   test("uses one explicit host invocation without requiring a skill-file read", () => {
     const stream = JSON.stringify({ type: "turn.completed" });
     expect(

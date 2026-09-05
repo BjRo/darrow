@@ -153,6 +153,29 @@ than averaged over the available subset.
 
 ### Evidence lifecycle
 
+Shell checks execute candidate-controlled code inside the runner's outer
+isolation boundary, including during dry runs. Grading uses a private,
+credential-free environment and cannot access source worktrees, peer fixtures,
+harness credentials, or modify retained evidence. An unavailable isolation
+boundary is an explicit error.
+
+Each finished trial is persisted atomically, with its complete bounded result
+evidence and case/run provenance, before fixture cleanup or completion feedback.
+A later failure or interruption cannot erase those results. Partial attempts
+remain inspectable and explicitly incomplete; they are not complete suite
+evidence. Retrying preserves the previous attempt's artifacts.
+
+Trial and case artifacts identify dry versus executed trials. Dry preparation
+checks remain inspectable but produce no behavioral success or comparative
+scores. Historical execution mode may be recovered from an explicit suite
+manifest; absent provenance stays unknown.
+
+Equivalent runs have one verifiable process owner. A live owner prevents a
+duplicate; a confirmed abandoned owner can be reclaimed atomically without
+discarding evidence. Process identity includes protection against PID reuse.
+Ownerless legacy or unverifiable records require explicit diagnosed recovery,
+never automatic expiry based only on age.
+
 Raw result bundles remain gitignored. A reviewed tracked snapshot may preserve
 the suite definition, pinned harnesses and models, effort, trial count,
 quantitative results, observed failures, limitations, and the exact raw result
@@ -255,6 +278,30 @@ remains copyable and useful when hyperlinks are unavailable.
   under a mounted root. Missing or ambiguous evidence stays unknown and both
   paths preserve source, primary skill, and ordered observations independently
   from task success.
+- **SE-C19 — Isolated grading execution.** Shell checks and their descendants
+  retain outer isolation and a credential-free environment in live and dry
+  runs, while authorized fixture checks remain functional. Isolation failures
+  never fall back to unrestricted host execution. Cleanup handles read-only
+  dependency caches in evaluator-owned scratch space. If cleanup cannot finish,
+  it reports the retained absolute path without discarding grading outcomes or
+  replacing the original execution error.
+- **SE-C20 — Durable incremental evidence.** Every completed trial's full
+  bounded evidence and provenance survive later errors and interruption.
+  Persistence precedes cleanup and completion reporting, concurrent completions
+  cannot overwrite one another, and incomplete attempts remain distinct from
+  completed result bundles.
+- **SE-C21 — Dry is unmeasured.** Artifacts retain execution mode; dry or
+  unknown execution provenance cannot produce behavioral or comparative scores.
+  Fixture preparation results are independently inspectable.
+- **SE-C22 — Recoverable run ownership.** Equivalent-run ownership is acquired
+  and reclaimed atomically using verifiable process identity. Live or unknown
+  ownership blocks duplicates; confirmed abandonment permits retry while
+  preserving prior evidence.
+- **SE-C23 — Complete explicit composition evidence.** Explicit Codex
+  observations retain the invoked primary first and all verified supporting
+  reads in order, without duplicate skills. Every supporting observation
+  requires a complete mounted skill body. Sequence and exclusion checks use
+  that complete observation; invalid dispatch or stream evidence stays unknown.
 
 ## Evaluation requirements
 
@@ -300,6 +347,18 @@ remains copyable and useful when hyperlinks are unavailable.
     indirect mounted-skill reads through shell variables, working-directory
     changes, and discovery commands, plus missing or ambiguous evidence for both
     observation paths.
+15. Grading tests execute candidate scripts through the real isolation boundary,
+    proving denied source/peer/credential access and preserved fixture behavior,
+    including read-only cache cleanup and retained outcomes on cleanup failure.
+16. Runner subprocess tests inject later-trial errors, concurrent completions,
+    persistence errors, and process interruption, then inspect retained evidence.
+17. Reports and comparison tests cover dry-only, mixed, historical, unknown,
+    and executed provenance without inventing behavioral measurements.
+18. Ownership tests cover live duplicates, terminated owners, abrupt death,
+    PID reuse, competing retries, and legacy or unverifiable records.
+19. Explicit activation fixtures combine supporting reads with required
+    sequences and exclusions, plus truncated, unmounted, duplicated, malformed,
+    and failed observation counterexamples.
 
 ## Non-goals
 

@@ -73,6 +73,63 @@ constraints for producing and interpreting that evidence.
   `activation_excludes` when a negative case must prove that a named skill was
   absent from the entire observed sequence rather than merely absent as the
   primary selection.
+- Explicit Codex probes retain the invoked owner first, then verified supporting
+  reads. Every supporting read must contain the complete mounted body, including
+  the first supporting read. Truncated evidence cannot establish an exclusion;
+  the observation stays unknown until a complete read verifies that skill.
+
+## Retained results and interrupted runs
+
+Each attempt has a unique directory under `evals/results/attempts/`. Its
+`run.json` records ownership, lifecycle status, and absolute per-trial artifact
+paths. Each trial artifact contains the complete bounded `CaseResult` for that
+trial, including response, checks, transcript, activation and grader evidence,
+plus the configured trial count. It is persisted before fixture cleanup and
+completion feedback. The normal result array is published atomically only after
+the entire run finishes.
+
+On error or interruption, inspect the printed diagnostic and evidence paths.
+Completed trials remain available even if another worker fails. If checkpoint
+storage fails, the diagnostic's `unpersistedTrials` retains the full results
+when the diagnostic destination is writable, and the error names the retained
+fixture. Do not treat a partial attempt's single-trial summaries as a completed
+threshold run. Raw evidence remains gitignored and bounded by the existing
+transcript/privacy contract.
+
+SIGINT and SIGTERM stop additional trial work and terminate tracked candidate
+and grading process groups before finalizing interruption evidence. A retry
+checks the recorded host, PID, and process start time, so a live runner still
+blocks duplicates and an exited owner can be reclaimed without losing the old
+attempt. Short ownership updates use Bun's built-in SQLite transaction lock;
+the OS releases that lock after abrupt process death. No lock is held for the
+duration of model execution.
+
+A legacy active record without process identity, an unreadable record, or an
+owner whose liveness cannot be verified is not automatically expired. Confirm
+the previous runner has exited, archive the exact active-record path reported
+by the error, and retry. Preserve the old evidence directory. SIGKILL cannot
+finalize in-flight evidence; completed trial files remain inspectable and the
+next attempt records the abandoned attempt as interrupted.
+
+Result arrays carry `executionMode` on cases and trials. Dry cases have a null
+`passRate`; their fixture checks are preparation diagnostics. Reports label dry
+or unknown execution as unmeasured, and comparison commands refuse behavioral
+deltas for those inputs. Historical suite manifests with an explicit `dry`
+boolean supply missing provenance. Standalone historical results without such
+provenance remain unknown; empty responses and zero timings do not establish
+execution mode.
+
+Shell checks, including dry checks, use the same outer isolation mechanism as
+candidate execution with a separate credential-free home and environment.
+They retain fixture tool access while source worktrees, peer fixtures, global
+harness configuration, copied harness credentials, and retained evidence are
+protected. An unavailable isolation boundary fails explicitly; the existing
+external-sandbox declaration is valid only inside equivalent external isolation.
+
+Grading scratch cleanup handles read-only dependency caches such as Go modules.
+If cleanup still fails, the runner prints the absolute retained scratch path
+and the cleanup error. Grading outcomes and any original execution error remain
+intact; the warning does not turn a completed behavioral check into a failure.
 
 ## Live-run controls
 
