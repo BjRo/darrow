@@ -1,5 +1,7 @@
 id: prepare-task-branch-ambiguous-branch
 invariant: GW-TB1,GW-TB3
+activation: positive
+mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare either `fix/DAR-123-attribution` or `feat/DAR-123-observability` for
@@ -13,6 +15,8 @@ checks:
   - name: ambiguous name causes no branch mutation
     run: git branch --show-current
     expect_exact: "main"
-output_checks:
+semantic_output_checks:
   - name: asks for one exact branch
-    expect_regex: "which|exact|choose|ambiguous"
+    proposition: >-
+      The response refuses to choose between the two supplied branch names and
+      asks the user to identify the single branch that should be prepared.

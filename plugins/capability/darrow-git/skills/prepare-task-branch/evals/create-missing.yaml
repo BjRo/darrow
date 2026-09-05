@@ -1,5 +1,7 @@
 id: prepare-task-branch-create-missing
 invariant: GW-TB1,GW-TB2,GW-TB3,GW-TB5
+activation: positive
+mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare the exact task branch `fix/DAR-123-attribution` for the active

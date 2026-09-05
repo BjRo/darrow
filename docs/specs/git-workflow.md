@@ -135,7 +135,9 @@ while leaving the caller's checkout untouched.
 - **GW-TB1 — Exact correlation.** The caller supplies one exact conventional
   branch name and the active ticket provider's opaque canonical token. The slug
   begins with that token exactly once. Generic Git never searches for, derives,
-  normalizes, or guesses a correlated name.
+  normalizes, or guesses a correlated name. Supplying multiple candidates and
+  delegating the choice (for example, "whichever seems better") remains
+  ambiguous; preparation asks for one exact selection before any Git mutation.
 - **GW-TB2 — Additive preparation.** An existing branch is switched to or
   attached to a worktree without resetting or moving it; a missing branch is
   created from the named base or current `HEAD`. The result reports `current`,

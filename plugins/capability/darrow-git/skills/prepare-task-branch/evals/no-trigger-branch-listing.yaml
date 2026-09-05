@@ -1,6 +1,7 @@
 id: prepare-task-branch-no-trigger-branch-listing
 invariant: GW-TB1,GW-TB6
 activation: negative
+activation_excludes: [prepare-task-branch]
 mount_plugin_skills: true
 expect_head_change: false
 prompt: >-

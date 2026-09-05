@@ -20,8 +20,11 @@ Require both:
 - the active ticket provider's exact opaque canonical token.
 
 Do not search for a branch, choose among alternatives, derive or normalize a
-token, or reinterpret another provider's identifier. Missing or ambiguous input
-asks the smallest question and performs no Git operation.
+token, or reinterpret another provider's identifier. Permission to pick one of
+multiple candidates—such as "whichever seems better"—does not bind one exact
+name. Ask the caller to select a single candidate and perform no Git operation.
+Other missing or ambiguous input likewise asks the smallest question without
+repository mutation.
 
 **Complete when:** one exact name and its unchanged provider token are bound—or
 the missing choice has been requested without repository mutation.
