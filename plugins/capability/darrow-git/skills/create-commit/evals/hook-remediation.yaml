@@ -1,5 +1,7 @@
 id: create-commit-hook-remediation
 invariant: GW-C9
+activation: positive
+mount_plugin_skills: true
 expect_head_change: true
 prompt: >-
   The pre-commit hook failed with `run: printf 'export const a = 2;\n' >

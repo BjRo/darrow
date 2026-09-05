@@ -1,0 +1,32 @@
+id: create-commit-no-trigger-inspect-staged
+invariant: GW-C1
+activation: negative
+activation_excludes: [create-commit]
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Show me which files are staged and briefly summarize those staged changes.
+  Do not create a commit or modify the index or working tree.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        src/a.ts: "export const a = 1;\n"
+  files:
+    src/a.ts: "export const a = 2;\n"
+  staged:
+    - src/a.ts
+checks:
+  - name: no commit created
+    run: git rev-list --count HEAD
+    expect_exact: "1"
+  - name: staged content remains selected
+    run: git diff --cached --name-only
+    expect_exact: src/a.ts
+  - name: working tree remains unchanged
+    run: git status --short
+    expect_exact: "M  src/a.ts"
+output_checks:
+  - name: response identifies the staged file
+    expect_regex: "src/a\\.ts"

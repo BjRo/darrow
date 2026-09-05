@@ -1,6 +1,9 @@
 id: create-commit-staged-only
 invariant: GW-C1
-prompt: Commit my staged changes.
+activation: positive
+mount_plugin_skills: true
+expect_head_change: true
+prompt: Use {{skill_invocation}} to commit my staged changes.
 fixture:
   commits:
     - message: "chore: init"
