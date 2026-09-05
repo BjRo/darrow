@@ -1,5 +1,7 @@
 id: create-branch-derive-name-feat
 invariant: GW-B1
+activation: positive
+mount_plugin_skills: true
 prompt: Create a branch for the work I'm about to start — adding a login form to the settings page.
 fixture:
   commits:

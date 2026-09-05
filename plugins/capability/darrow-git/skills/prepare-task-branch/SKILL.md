@@ -1,6 +1,6 @@
 ---
 name: prepare-task-branch
-description: Prepare one exact ticket-linked task branch in the current checkout or, only on explicit request, a linked worktree while preserving local work. Use when an authorized delivery workflow needs its attributed execution context before downstream work; do not use to list branches or choose among ambiguous branches.
+description: "Prepare one ticket-linked task branch when its exact provider token is supplied and its complete conventional branch name is bound by the caller or an authorized delivery workflow. Also use when a preparation request supplies multiple candidate names: refuse to choose, create, or switch until the caller binds one exact name. Once bound, switch to, reuse, or create that exact branch in the current checkout or an explicitly requested worktree. Do not use to derive a branch name from described work or to list branches."
 ---
 
 # Prepare a task branch

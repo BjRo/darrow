@@ -1,0 +1,27 @@
+id: create-branch-no-trigger-list-branches
+invariant: GW-B3
+activation: negative
+activation_excludes: [create-branch]
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  List the local branches and tell me which branch is currently checked out.
+  Do not create, switch, rename, or delete any branch or worktree.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  setup: git branch feat/existing
+checks:
+  - name: current branch remains main
+    run: git rev-parse --abbrev-ref HEAD
+    expect_exact: main
+  - name: no branch was added or removed
+    run: git for-each-ref refs/heads --format='%(refname:short)' | LC_ALL=C sort
+    expect_exact: |-
+      feat/existing
+      main
+output_checks:
+  - name: response identifies the current branch
+    expect_regex: "main"

@@ -1,5 +1,7 @@
 id: create-branch-ticket-in-name
 invariant: GW-B1
+activation: positive
+mount_plugin_skills: true
 prompt: "I'm starting on ticket DAR-123: add retry logic to the HTTP client. Create the branch."
 fixture:
   commits:

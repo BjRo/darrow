@@ -1,5 +1,7 @@
 id: create-branch-conflict-refuse
 invariant: GW-B5
+activation: positive
+mount_plugin_skills: true
 prompt: Create a branch chore/config-cleanup for me.
 fixture:
   commits:

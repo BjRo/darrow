@@ -1,6 +1,6 @@
 ---
 name: create-branch
-description: Create one new conventional Git branch, either in the current checkout or in a linked worktree. Use when starting named work on a branch or when the user explicitly requests a worktree.
+description: Create exactly one new Git branch from a work description or an explicit valid branch name, in the current checkout or an explicitly requested worktree. Derive a conventional name when needed and preserve any exact ticket token. Use for additive branch creation only; do not use to switch to or reuse an existing branch, or to prepare an exact ticket branch whose complete name and token are already bound by an authorized delivery workflow.
 ---
 
 # Create a branch

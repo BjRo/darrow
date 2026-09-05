@@ -1,6 +1,6 @@
 {
   "name": "darrow-git",
   "description": "Intent-triggered git workflow skills: create-branch, prepare-task-branch, create-commit, create-pr",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "license": "BUSL-1.1"
 }

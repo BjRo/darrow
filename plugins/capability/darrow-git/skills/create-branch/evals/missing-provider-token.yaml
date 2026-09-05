@@ -1,5 +1,7 @@
 id: create-branch-missing-provider-token
 invariant: GW-B1
+activation: positive
+mount_plugin_skills: true
 prompt: "Start a branch for the active ticket provider's ticket about preserving identifiers, but no canonical provider token was supplied."
 fixture:
   commits:
@@ -10,6 +12,8 @@ checks:
   - name: no branch mutation without the provider token
     run: git rev-parse --abbrev-ref HEAD
     expect_regex: "^main$"
-output_checks:
+semantic_output_checks:
   - name: asks for the missing canonical token
-    expect_regex: "token|identifier"
+    proposition: >-
+      The response asks the user to supply the active ticket provider's exact
+      canonical token and does not claim that a branch was created.
