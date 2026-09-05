@@ -1,5 +1,7 @@
 id: doctor-information-architecture-preserve-runtime-specific-guidance
-invariant: IA-D4
+invariant: IA-D4,IA-D12
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Doctor this repository's dual-runtime agent guidance and apply safe cleanup.
   The shared API rule and Claude-native web rule are intentionally independent;
@@ -24,6 +26,7 @@ fixture:
           # Web
 
           Preserve keyboard navigation.
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
 checks:
   - name: shared API rule remains
     run: cat .agent-shared/rules/api.md
@@ -41,10 +44,7 @@ checks:
     expect_regex: "^unchanged$"
   - name: deterministic dual-runtime verification passes
     run: >-
-      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
-      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
-      else echo missing-doctor; exit 1; fi;
-      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count

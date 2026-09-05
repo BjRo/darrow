@@ -1,7 +1,9 @@
 id: doctor-information-architecture-confirm-before-mutation
-invariant: IA-D7
+invariant: IA-D7,IA-D12
+activation: positive
+mount_plugin_skills: true
 prompt: >-
-  Doctor this repository's agent information architecture. Give me the exact
+  {{skill_invocation}} Doctor this repository's agent information architecture. Give me the exact
   keep, move, rewrite, and remove proposal before changing checked-in files.
 fixture:
   commits:
@@ -21,19 +23,11 @@ checks:
   - name: unapproved doctor phase creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
-  - name: response names the exact file and proposed action
-    run: cat .git/last-message.md
-    expect_regex: "AGENTS\\.md[\\s\\S]{0,240}(keep|rewrite|remove)|(keep|rewrite|remove)[\\s\\S]{0,240}AGENTS\\.md"
-    flags: i
-  - name: response estimates resident byte impact
-    run: cat .git/last-message.md
-    expect_regex: "[0-9]+\\s*bytes|bytes\\s*(saved|reduced|before|after|impact)"
-    flags: i
-  - name: response explains why the proposed edit is safe
-    run: cat .git/last-message.md
-    expect_regex: "manifest|package\\.json|deriv|because|canonical source"
-    flags: i
-  - name: response asks before applying the proposal
-    run: cat .git/last-message.md
-    expect_regex: "please confirm (the|these|this)|do you approve (the|these|this)|shall I (apply|rewrite|proceed)|may I (apply|rewrite|proceed)|would you like me to (apply|rewrite|proceed)"
-    flags: i
+semantic_output_checks:
+  - name: proposal is exact, evidenced, quantified, and awaits confirmation
+    proposition: >-
+      The response proposes a concrete keep, rewrite, or remove action for
+      AGENTS.md, estimates the resident-byte impact numerically, explains why
+      removing the derived package-manager fact is safe by naming package.json
+      or another canonical source, and asks for confirmation before changing
+      checked-in files.

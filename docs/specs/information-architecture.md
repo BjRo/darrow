@@ -186,7 +186,11 @@ decisions, then rerun the audit.
   systematically incomplete.
 - **IA-D6 — Separate invariant from procedure.** Keep concise invariants in
   their applicable scope. Move a repeatable ordered workflow to a skill only
-  when it can load by intent without losing reachability.
+  when it can load by intent without losing reachability. A structurally valid
+  graph does not make an ordered workflow correctly resident: when safe
+  reorganization is approved and a reachable skill destination exists, move
+  the workflow and leave only its universal invariant and intent route
+  resident.
 - **IA-D7 — Propose, confirm, apply.** The report groups exact file-level
   actions as keep, move, rewrite, or remove, with estimated resident-context
   impact and reasoning. An explicit request to apply safe fixes may confirm
@@ -213,6 +217,10 @@ decisions, then rerun the audit.
   instruction file. Routed maps and nested entrypoints use session-root paths.
   Loader-native imports and skill-bundled resources are outside this ordinary
   route rule and retain their native semantics.
+- **IA-D12 — Intent-matched doctoring.** Explicit invocation and requests to
+  audit, doctor, trim, deduplicate, or improve an existing repository guidance
+  graph select doctoring. Requests only to create or set up a new guidance
+  graph leave doctoring unselected so setup can own them.
 
 ### Non-goals
 
