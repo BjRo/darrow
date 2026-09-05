@@ -19,6 +19,7 @@ import type {
   SkillActivationObservation,
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
+import { throwIfInterrupted, trackEvaluationProcess } from "../run-control";
 import { isolatedHarnessEnvironment } from "../environment";
 import {
   fixtureStateFingerprint,
@@ -439,9 +440,10 @@ function observedSkillReads(
   events: CodexEvent[],
   skillsRoots: string | string[],
   mountedSkills: MountedSkillBody[] = [],
+  initialSkills: string[] = [],
 ): string[] {
   const roots = Array.isArray(skillsRoots) ? skillsRoots : [skillsRoots];
-  const observedSkills: string[] = [];
+  const observedSkills = [...initialSkills];
   for (const event of events) {
     const output = event.item?.aggregated_output;
     const skills = eventSkillReads(event, roots, mountedSkills);
@@ -547,6 +549,7 @@ export function codexExplicitSkillActivation(
   stream: string,
   prompt: string,
   probe: Extract<SkillActivationProbe, { mode: "explicit" }>,
+  context?: { repoDir: string; installedSkillsRoots: string | string[] },
 ): SkillActivationObservation {
   const events = codexEvents(stream);
   const unambiguous =
@@ -554,12 +557,45 @@ export function codexExplicitSkillActivation(
     probe.invocation.length > 0 &&
     literalOccurrences(prompt, probe.invocation) === 1;
   const complete = unambiguous && codexActivationStreamComplete(stream, events);
-  const observedSkills = complete ? [probe.skill] : [];
+  const observation = complete
+    ? explicitSkillReads(events, probe.skill, context)
+    : { observedSkills: [], complete: false };
   return {
     source: "explicit_invocation",
-    complete,
-    primarySkill: observedSkills[0] ?? null,
+    complete: observation.complete,
+    primarySkill: observation.observedSkills[0] ?? null,
+    observedSkills: observation.observedSkills,
+  };
+}
+
+function explicitSkillReads(
+  events: CodexEvent[],
+  primary: string,
+  context:
+    { repoDir: string; installedSkillsRoots: string | string[] } | undefined,
+): { observedSkills: string[]; complete: boolean } {
+  if (!context) return { observedSkills: [primary], complete: true };
+  const mounted = mountedSkillBodies(
+    context.repoDir,
+    context.installedSkillsRoots,
+  );
+  const roots = codexTrackedSkillRoots(
+    context.repoDir,
+    context.installedSkillsRoots,
+  );
+  const isMounted = (skill: string) =>
+    mounted.some(({ name }) => name === skill);
+  const observedSkills = observedSkillReads(events, roots, mounted, [
+    primary,
+  ]).filter(
+    (skill) => skill === primary || mounted.some(({ name }) => name === skill),
+  );
+  const attempted = events
+    .flatMap((event) => eventSkillReads(event, roots, mounted))
+    .filter(isMounted);
+  return {
     observedSkills,
+    complete: attempted.every((skill) => observedSkills.includes(skill)),
   };
 }
 
@@ -2382,17 +2418,21 @@ async function runCodexProcess(
   repoDir: string,
   env: Record<string, string>,
 ): Promise<{ out: string; err: string; code: number }> {
-  const proc = Bun.spawn(argv, {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-    // Fixture mocks shadow real network tools for the harness and children.
-    env: {
-      ...env,
-      DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
-      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-    },
-  });
+  throwIfInterrupted();
+  const proc = trackEvaluationProcess(
+    Bun.spawn(argv, {
+      detached: true,
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      // Fixture mocks shadow real network tools for the harness and children.
+      env: {
+        ...env,
+        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+      },
+    }),
+  );
   const [out, err, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -2419,6 +2459,10 @@ function codexActivationForRequest(
       .filter((value): value is string => value !== undefined)
       .join("\n"),
     activationProbe,
+    {
+      repoDir: execution.canonicalRepoDir,
+      installedSkillsRoots: execution.installedSkillsRoots,
+    },
   );
 }
 

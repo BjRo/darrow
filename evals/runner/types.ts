@@ -264,7 +264,11 @@ export interface CheckResult {
   metric?: "escaped_defect" | "defect_detection" | "false_positive";
 }
 
+export type ExecutionMode = "executed" | "dry" | "unknown";
+
 export interface TrialResult {
+  /** Absent on historical artifacts; never infer execution from output or timing. */
+  executionMode?: ExecutionMode;
   trial: number;
   passed: boolean;
   checks: CheckResult[];
@@ -329,6 +333,7 @@ export interface SemanticOutputResult {
 }
 
 export interface CaseResult {
+  executionMode?: ExecutionMode;
   caseId: string;
   invariant: string;
   /** Digest of skill-independent participant inputs and hidden evaluation checks. */
@@ -352,7 +357,7 @@ export interface CaseResult {
   /** Harness CLI version at run time. */
   harnessVersion?: string;
   trials: TrialResult[];
-  passRate: number;
+  passRate: number | null;
   meanDurationMs: number;
   p95DurationMs: number;
   meanPreparationDurationMs?: number;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -10,6 +10,59 @@ import {
 } from "./checks";
 
 describe("eval checks", () => {
+  test.skipIf(process.platform !== "darwin")(
+    "candidate grading retains isolation and a private environment",
+    async () => {
+      const repo = await mkdtemp(join(tmpdir(), "darrow-eval-grading-test-"));
+      const peer = await mkdtemp(join(tmpdir(), "darrow-eval-grading-peer-"));
+      const original = process.env.DARROW_GRADING_SENTINEL;
+      process.env.DARROW_GRADING_SENTINEL = "host-only";
+      try {
+        const credentials = join(repo, ".git/darrow-eval/state/codex/config");
+        await mkdir(credentials, { recursive: true });
+        await writeFile(join(credentials, "auth.json"), "fixture-credential");
+        await writeFile(join(peer, "private"), "peer-evidence");
+        await writeFile(join(repo, "README.md"), "fixture");
+        await writeFile(
+          join(repo, "candidate.sh"),
+          `
+test -z "\${DARROW_GRADING_SENTINEL:-}" || exit 10
+test "$HOME" != "$HOST_HOME" || exit 11
+if cat "$SOURCE_FILE" >/dev/null 2>&1; then exit 12; fi
+if cat "$PEER_FILE" >/dev/null 2>&1; then exit 13; fi
+if cat .git/darrow-eval/state/codex/config/auth.json >/dev/null 2>&1; then exit 14; fi
+test -f README.md
+printf fixture-ok
+`,
+        );
+        const [result] = await runChecks(
+          repo,
+          [
+            {
+              name: "isolated candidate script",
+              run: "sh candidate.sh",
+              expect_exact: "fixture-ok",
+            },
+          ],
+          {
+            HOST_HOME: process.env.HOME ?? "",
+            SOURCE_FILE: join(import.meta.dir, "types.ts"),
+            PEER_FILE: join(peer, "private"),
+          },
+        );
+        expect(result).toMatchObject({ passed: true, detail: "ok" });
+      } finally {
+        if (original === undefined) delete process.env.DARROW_GRADING_SENTINEL;
+        else process.env.DARROW_GRADING_SENTINEL = original;
+        await Promise.all(
+          [repo, peer].map((path) =>
+            rm(path, { recursive: true, force: true }),
+          ),
+        );
+      }
+    },
+  );
+
   test("invalid regular expressions fail preflight before harness execution", () => {
     expect(
       validateRegexChecks(

@@ -1,7 +1,12 @@
 import type { Check, CheckResult, OutputCheck, TranscriptCheck } from "./types";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { validateExternalSchema } from "./schema";
+import { isolatedCheckEnvironment } from "./environment";
+import { sandboxedCommand } from "./sandbox";
+import { throwIfInterrupted, trackEvaluationProcess } from "./run-control";
 
 function jsonPointer(value: unknown, pointer: string): unknown {
   if (pointer === "") return value;
@@ -298,17 +303,35 @@ async function runCommand(
   repoDir: string,
   command: string,
   environment: Record<string, string>,
+  profileDir: string,
 ): Promise<CommandOutcome> {
-  const proc = Bun.spawn(["/bin/sh", "-e", "-c", command], {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-    env: {
-      ...process.env,
-      PATH: process.env.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin",
-      ...environment,
+  const credentialPaths = ["codex", "claude"].flatMap((harness) =>
+    ["auth.json", ".credentials.json"].map((name) =>
+      join(repoDir, ".git", "darrow-eval", "state", harness, "config", name),
+    ),
+  );
+  const argv = await sandboxedCommand(
+    ["/bin/sh", "-e", "-c", command],
+    repoDir,
+    {
+      writeDeniedPaths: [
+        join(repoDir, ".git", "retained-harness.jsonl"),
+        join(profileDir, "sh.sb"),
+      ],
+      profileDir,
+      deniedPaths: credentialPaths,
     },
-  });
+  );
+  throwIfInterrupted();
+  const proc = trackEvaluationProcess(
+    Bun.spawn(argv, {
+      detached: true,
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: environment,
+    }),
+  );
   const [out, err, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -344,8 +367,14 @@ async function runOneCheck(
   repoDir: string,
   check: Check,
   environment: Record<string, string>,
+  profileDir: string,
 ): Promise<CheckResult> {
-  const { out, err, code } = await runCommand(repoDir, check.run, environment);
+  const { out, err, code } = await runCommand(
+    repoDir,
+    check.run,
+    environment,
+    profileDir,
+  );
   const expectedCode = check.exit_code ?? 0;
   if (code !== expectedCode) {
     const processOutput = [out.trim(), err.trim()].filter(Boolean).join("\n");
@@ -370,9 +399,24 @@ export async function runChecks(
   checks: Check[],
   environment: Record<string, string> = {},
 ): Promise<CheckResult[]> {
-  const results: CheckResult[] = [];
-  for (const check of checks) {
-    results.push(await runOneCheck(repoDir, check, environment));
+  if (!checks.length) return [];
+  // Keep evaluator-owned shell state outside candidate-controlled paths.
+  const stateRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-grading-")),
+  );
+  try {
+    const canonicalRepo = await realpath(repoDir);
+    const env = await isolatedCheckEnvironment(
+      canonicalRepo,
+      stateRoot,
+      environment,
+    );
+    const results: CheckResult[] = [];
+    for (const check of checks) {
+      results.push(await runOneCheck(canonicalRepo, check, env, stateRoot));
+    }
+    return results;
+  } finally {
+    await rm(stateRoot, { recursive: true, force: true });
   }
-  return results;
 }

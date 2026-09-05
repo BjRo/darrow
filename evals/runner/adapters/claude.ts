@@ -4089,13 +4089,17 @@ async function spawnClaudeEvaluation(
   repoDir: string,
   env: Record<string, string>,
 ) {
-  const proc = Bun.spawn(argv, {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-    // Fixture mocks shadow real network tools for every subprocess.
-    env: claudeProcessEnvironment(env, repoDir),
-  });
+  throwIfInterrupted();
+  const proc = trackEvaluationProcess(
+    Bun.spawn(argv, {
+      detached: true,
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      // Fixture mocks shadow real network tools for every subprocess.
+      env: claudeProcessEnvironment(env, repoDir),
+    }),
+  );
   return Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -4279,3 +4283,4 @@ function claudeEvidenceContext(
     observedRouteTrusted: true,
   };
 }
+import { throwIfInterrupted, trackEvaluationProcess } from "../run-control";
