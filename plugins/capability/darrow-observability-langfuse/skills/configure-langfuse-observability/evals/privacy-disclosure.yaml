@@ -15,16 +15,18 @@ checks:
   - name: privacy explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: answer says tracing or export defaults off
-    expect_regex: "((tracing|export)[\\s\\S]{0,300}(disabled|off|opt.?in|false)|(disabled|off|false)[\\s\\S]{0,300}(tracing|export))"
-    flags: i
-  - name: answer says raw-content capture defaults off separately
-    expect_regex: "((content|prompt|tool)[\\s\\S]{0,300}(disabled|off|opt.?in|false)|(disabled|off|false)[\\s\\S]{0,300}(content|prompt|tool))"
-    flags: i
-  - name: answer names sensitive captured categories
-    expect_regex: "prompt[\\s\\S]{0,260}(reasoning|assistant)[\\s\\S]{0,260}tool[\\s\\S]{0,260}(input|output)"
-    flags: i
-  - name: answer warns about destination retention
-    expect_regex: "retention|stored|storage"
-    flags: i
+semantic_output_checks:
+  - name: answer distinguishes the two privacy opt-ins
+    proposition: >-
+      The response says tracing or export defaults off and raw-content capture
+      separately defaults off. It makes clear that enabling tracing does not by
+      itself enable raw-content capture.
+  - name: answer identifies eligible raw content
+    proposition: >-
+      The response says that opting into raw-content capture can export prompts,
+      reasoning, assistant text, and both tool inputs and tool outputs.
+  - name: answer states the residual privacy boundary
+    proposition: >-
+      The response warns that sensitive-data redaction is best effort and that
+      exported data may be stored by Langfuse subject to the destination's
+      access and retention controls.

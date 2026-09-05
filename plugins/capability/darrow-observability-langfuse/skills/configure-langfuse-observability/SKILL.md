@@ -103,6 +103,15 @@ snapshot exists. If neither snapshot exists, the trace remains discoverable by
 `codex.thread_id` but is not attached to a Langfuse session and does not create
 an attribution epoch.
 
+For an interrupted-turn diagnosis, state the resulting grouping explicitly.
+An interruption alone does not start a new epoch: when the provisional
+snapshot's attribution source and work-item value match the snapshot-backed
+turns around it, those turns share one `darrow.attribution_epoch` and one native
+Langfuse session segment. If the snapshot is missing, only that turn is
+ungrouped. In either case, identify `codex.thread_id` as the stable conversation
+key used to find and correlate turns across session segments and ungrouped
+gaps.
+
 An in-session attribution-control answer is incomplete unless it includes the
 applicable exact directive lines, their current-and-subsequent-turn scope, the
 epoch-to-Langfuse-session mapping, and `codex.thread_id` as the conversation key

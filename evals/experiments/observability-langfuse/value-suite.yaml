@@ -1,0 +1,12 @@
+version: 1
+experiment: observability-langfuse-value
+case_filter:
+  - langfuse-observability-interrupted-attribution
+modes:
+  without-skill:
+    without_skill: true
+  configure-langfuse-observability: {}
+ablations:
+  - name: interrupted-attribution-skill-value
+    baseline: without-skill
+    candidate: configure-langfuse-observability

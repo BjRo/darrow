@@ -3,9 +3,8 @@ activation: negative
 invariant: OLF-P1
 mount_plugin_skills: true
 prompt: >-
-  Add Datadog host CPU metrics to this service. Do not use Langfuse and do not
-  change any Codex plugin configuration. First tell me whether the requested
-  repository has enough implementation context.
+  Add Datadog host CPU metrics to this service. First tell me whether the
+  requested repository has enough implementation context.
 fixture:
   commits:
     - message: "chore: init"
@@ -19,6 +18,10 @@ output_checks:
   - name: response does not redirect to Codex Langfuse tracing
     not_regex: "DARROW_LANGFUSE|darrow-observability-langfuse|Codex Stop hook"
     flags: i
+semantic_output_checks:
   - name: response identifies missing service context
-    expect_regex: "(not[\\s*]{0,16}(have )?enough|insufficient|missing|need|no service)[\\s\\S]{0,240}(service|runtime|deployment|code|stack)"
-    flags: i
+    proposition: >-
+      The response explains that the repository does not contain enough service
+      implementation, runtime, deployment, or existing observability context
+      to add Datadog host CPU metrics, and requests the missing bounded context
+      without redirecting the user to Codex or Langfuse observability.

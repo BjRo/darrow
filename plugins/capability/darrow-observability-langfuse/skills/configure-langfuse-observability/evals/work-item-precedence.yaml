@@ -15,10 +15,15 @@ checks:
   - name: precedence explanation has no repository effects
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: explicit value wins over inferred branch value
-    expect_regex: "TEAM-7[\\s\\S]{0,240}(wins|precedence|explicit|instead of|rather than)[\\s\\S]{0,180}(issue-45|branch)"
-    flags: i
+semantic_output_checks:
+  - name: configured value wins over inferred branch value
+    proposition: >-
+      The response says the trace contains TEAM-7 because the configured
+      DARROW_LANGFUSE_WORK_ITEM_ID takes precedence over the issue-45 value
+      inferred from the branch.
   - name: detached head produces no inferred value
-    expect_regex: "detached[\\s\\S]{0,200}(no|none|absent|without)[\\s\\S]{0,120}(work-item|attribution|identifier|ID)"
-    flags: i
+    proposition: >-
+      The response explains that detached HEAD provides no branch-inferred
+      work-item identifier and, when no explicit or configured value exists,
+      the trace has no darrow.work_item_id. It does not invent an identifier or
+      contact a tracker.
