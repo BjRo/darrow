@@ -1,5 +1,8 @@
 id: tdd-review-only
-invariant: TDD-C1
+invariant: TDD-C1,TDD-E1
+activation: negative
+activation_excludes: [tdd]
+mount_plugin_skills: true
 prompt: >-
   Review the existing tests for implementation coupling. Do not modify any
   files and do not implement new behavior; report only the most important
@@ -28,10 +31,9 @@ checks:
   - name: review-only intent leaves repository unchanged
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: review identifies the private-structure coupling
-    expect_regex: "(addOne|internal|implementation)[\\s\\S]{0,260}(coupl|public|increment)"
-    flags: i
-  - name: review does not claim a red-green implementation cycle
-    not_regex: "red[ -]?green (cycle|implementation)|implemented.*red[ -]?green"
-    flags: i
+semantic_output_checks:
+  - name: review identifies coupling without inventing implementation work
+    proposition: >-
+      The response identifies that the test is coupled to the addOne
+      implementation detail instead of the public increment behavior, and it
+      does not claim to have performed a red-green implementation cycle.

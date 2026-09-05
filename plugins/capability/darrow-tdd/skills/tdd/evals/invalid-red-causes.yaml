@@ -1,5 +1,7 @@
 id: tdd-invalid-red-causes
-invariant: TDD-C4,TDD-C10
+invariant: TDD-C4,TDD-C10,TDD-E1,TDD-E2
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   We need to implement a documented `parseMode("safe") === "safe"` behavior
   through the public export in src/mode.js using TDD. Before editing, diagnose
@@ -46,13 +48,10 @@ checks:
     expect_exact: ""
   - name: preflight wrapper is unchanged
     run: git diff --exit-code -- test.sh
-output_checks:
-  - name: response names every invalid red cause
-    expect_regex: "syntax[\\s\\S]{0,260}fixture[\\s\\S]{0,260}environment"
-    flags: i
-  - name: response rejects the preflights collectively as meaningful red
-    expect_regex: "(no|none|not)[\\s\\S]{0,160}(preflight|failure|cause)[\\s\\S]{0,160}meaningful[\\s\\S]{0,80}red"
-    flags: i
-  - name: response reports that implementation did not begin
-    expect_regex: "(did not|didn't|cannot|can't|blocked|stopped|no)[\\s\\S]{0,180}(implement|product|code|edit|change)"
-    flags: i
+semantic_output_checks:
+  - name: response rejects every invalid red cause and stops
+    proposition: >-
+      The response identifies the syntax error, missing fixture, and unavailable
+      environment dependency; explains that none is a meaningful red for the
+      requested product behavior; and states that product implementation did
+      not begin.

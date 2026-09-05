@@ -1,5 +1,7 @@
 id: tdd-integration-test-intent
-invariant: TDD-C1,TDD-C2,TDD-C4
+invariant: TDD-C1,TDD-C2,TDD-C3,TDD-C4,TDD-C7,TDD-E1
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Implement the false-flag serialization change through an integration-style
   test at the documented public serializeFlag export in src/flag.js. The
@@ -29,23 +31,12 @@ fixture:
           node --test test/flag.test.js >.git/test-output 2>&1
           status=$?
           cat .git/test-output
+          if grep -Fq 'serializes a false protocol flag' test/flag.test.js; then added=1; else added=0; fi
+          if git diff --quiet -- src/flag.js; then implementation=unchanged; else implementation=changed; fi
+          if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
+          printf '%s|integration_test=%s|implementation=%s\n' \
+            "$result" "$added" "$implementation" >>.git/tdd-trace
           exit "$status"
-  bin:
-    node: |
-      #!/usr/bin/env bash
-      real_node=$(PATH="${PATH#*:}" command -v node)
-      "$real_node" "$@"
-      status=$?
-      case " $* " in
-        *--test*) ;;
-        *) exit "$status" ;;
-      esac
-      if grep -Fq 'serializes a false protocol flag' test/flag.test.js; then added=1; else added=0; fi
-      if git diff --quiet -- src/flag.js; then implementation=unchanged; else implementation=changed; fi
-      if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
-      printf '%s|integration_test=%s|implementation=%s\n' \
-        "$result" "$added" "$implementation" >>.git/tdd-trace
-      exit "$status"
 checks:
   - name: integration intent produces the protocol behavior
     run: >-
@@ -62,6 +53,21 @@ checks:
     run: >-
       grep -F 'from "../src/flag.js"' test/flag.test.js >/dev/null;
       ! grep -Ei 'internal|private|readFile|mock\.|spy|console\.' test/flag.test.js
+  - name: retained integration test detects a protocol regression
+    run: >-
+      node --test test/flag.test.js >/dev/null || exit 1;
+      cp src/flag.js .git/flag.original;
+      trap 'cp .git/flag.original src/flag.js' EXIT HUP INT TERM;
+      printf '%s\n' 'export function serializeFlag(value) {'
+      '  return value ? "1" : "false";'
+      '}' >src/flag.js;
+      set +e;
+      node --test test/flag.test.js >.git/flag-mutation-output 2>&1;
+      status=$?;
+      set -e;
+      test "$status" -ne 0;
+      grep -F 'serializes a false protocol flag' .git/flag-mutation-output >/dev/null;
+      ! grep -E 'SyntaxError|ERR_MODULE_NOT_FOUND|Cannot find module' .git/flag-mutation-output
   - name: test telemetry wrapper is unchanged
     run: git diff --exit-code -- test.sh
   - name: final suite is green

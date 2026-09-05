@@ -1,5 +1,7 @@
 id: tdd-public-red-green
-invariant: TDD-C2,TDD-C3,TDD-C4,TDD-C12
+invariant: TDD-C2,TDD-C3,TDD-C4,TDD-C12,TDD-E1
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Implement the blank-name greeting behavior test-first. The documented public
   seam is renderGreeting from src/greeting.js. The product rule is that an
@@ -33,20 +35,9 @@ fixture:
           node --test test/greeting.test.js >.git/test-output 2>&1
           status=$?
           cat .git/test-output
-          exit "$status"
-  bin:
-    node: |
-      #!/usr/bin/env bash
-      real_node=$(PATH="${PATH#*:}" command -v node)
-      "$real_node" "$@"
-      status=$?
-      case " $* " in
-        *--test*) ;;
-        *) exit "$status" ;;
-      esac
-      if grep -Fq 'blank names greet a stranger' test/greeting.test.js; then
-        added=1
-      else
+          if grep -Fq 'blank names greet a stranger' test/greeting.test.js; then
+            added=1
+          else
             added=0
           fi
           if git diff --quiet -- src/greeting.js; then
@@ -55,9 +46,9 @@ fixture:
             implementation=changed
           fi
           if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
-      printf '%s|blank_test=%s|implementation=%s\n' \
-        "$result" "$added" "$implementation" >>.git/tdd-trace
-      exit "$status"
+          printf '%s|blank_test=%s|implementation=%s\n' \
+            "$result" "$added" "$implementation" >>.git/tdd-trace
+          exit "$status"
 checks:
   - name: blank-name behavior is implemented through the public seam
     run: >-
@@ -103,10 +94,9 @@ checks:
       ! grep -E 'SyntaxError|ERR_MODULE_NOT_FOUND|Cannot find module' .git/greeting-mutation-output
   - name: final suite is green
     run: bash test.sh >/dev/null
-output_checks:
-  - name: response reports observed red command and cause
-    expect_regex: "red[\\s\\S]{0,240}(bash test\\.sh|npm test)[\\s\\S]{0,240}(fail|blank|stranger)"
-    flags: i
-  - name: response reports observed green command
-    expect_regex: "green[\\s\\S]{0,240}(bash test\\.sh|npm test)[\\s\\S]{0,120}(pass|passed|green)"
-    flags: i
+semantic_output_checks:
+  - name: response reports observed red and green evidence
+    proposition: >-
+      The response names the test command and reports that the new blank-name
+      greeting test first failed because the stranger behavior was missing and
+      then passed after the implementation change.

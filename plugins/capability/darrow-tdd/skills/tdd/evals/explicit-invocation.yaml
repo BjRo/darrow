@@ -1,0 +1,28 @@
+id: tdd-explicit-invocation
+invariant: TDD-C2,TDD-C3,TDD-E1
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Use {{skill_invocation}} to select the first durable test for the documented
+  public parsePort(value) export in src/port.js. The accepted example requires
+  parsePort("8080") to return the number 8080. State the expected assertion and
+  why it is independent evidence, but do not edit files yet.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/port.js: |
+          export function parsePort(value) {
+            return value;
+          }
+checks:
+  - name: explicit planning request remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: response selects the independent public assertion
+    proposition: >-
+      The response proposes a test through the public parsePort export that
+      asserts parsePort("8080") returns the number 8080, and explains that the
+      accepted example supplies an independent oracle rather than deriving the
+      expectation from the implementation.

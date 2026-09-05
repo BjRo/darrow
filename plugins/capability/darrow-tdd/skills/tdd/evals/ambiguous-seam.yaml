@@ -1,5 +1,7 @@
 id: tdd-ambiguous-seam
-invariant: TDD-C10
+invariant: TDD-C10,TDD-E1,TDD-E5
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Implement a seven-day archive threshold via TDD. The repository proposal
   lists two incompatible public interfaces: a new `archive --older-than`
@@ -35,6 +37,9 @@ output_checks:
   - name: response surfaces both public seam choices
     expect_regex: "older-than[\\s\\S]{0,400}maxAgeDays|maxAgeDays[\\s\\S]{0,400}older-than"
     flags: i
+semantic_output_checks:
   - name: response requests the missing seam decision
-    expect_regex: "(choose|which|decide|decision|confirm)[\\s\\S]{0,220}(interface|seam|CLI|config)"
-    flags: i
+    proposition: >-
+      The response explains that implementation cannot safely begin until the
+      public interface is chosen and asks the user to select between the CLI
+      flag and configuration-key alternatives.
