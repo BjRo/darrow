@@ -117,7 +117,23 @@ checks:
       done; test "$standards_batch" = "$spec_batch" || exit 1; fi
   - name: review remains read-only
     run: test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
-output_checks:
-  - name: review returns the complete human protocol
-    expect_regex: '^# Code review — FAIL[\s\S]*## Findings[\s\S]*## Checks[\s\S]*## Scope[\s\S]*## Sources'
-    flags: i
+  - name: canonical TSV is retained beneath the review scope artifact
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" && bash "$tool" validate "$record"
+    expect_regex: "^valid: darrow-review-result-v1$"
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      bash "$tool" render "$record" >"$expected" &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

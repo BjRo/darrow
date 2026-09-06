@@ -62,8 +62,3 @@ checks:
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
       test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
-output_checks:
-  - name: reports unavailable verification as blocked
-    expect_regex: '^# Repair verification — BLOCKED[\s\S]*Evidence gaps[\s\S]*unavailable'
-  - name: does not claim clear or comprehensive review
-    not_regex: "^# (Repair verification — CLEAR|Code review —)"

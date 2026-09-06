@@ -34,9 +34,20 @@ checks:
       tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
       test -n "$tool" && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
+  - name: review is pinned to the pull-request objects and body specification
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      base=$(git rev-parse HEAD~1) && target=$(git rev-parse HEAD) &&
+      grep -F "base	$base" "$record" >/dev/null &&
+      grep -F "target	$target" "$record" >/dev/null &&
+      grep -F 'spec	pass' "$record" >/dev/null &&
+      grep -F 'verdict	pass' "$record" >/dev/null &&
+      awk -F '\t' '$1 == "changed_file" { count++; if ($2 ~ /\/health[.]txt$/) found = 1 }
+      END { exit !(count == 1 && found) }' "$record"
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-  - name: final response matches the canonical Markdown renderer
+  - name: final response preserves every canonical rendered line
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -44,6 +55,6 @@ checks:
       test -n "$tool" || exit 1;
       expected=.git/expected-review.md;
       bash "$tool" render "$record" >"$expected" &&
-      awk '1' "$expected" >.git/expected-review-normalized.md &&
-      awk '1' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

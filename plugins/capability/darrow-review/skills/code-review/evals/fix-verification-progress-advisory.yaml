@@ -5,9 +5,8 @@ prompt: >-
   Fix-verify my uncommitted repair against only the caller-owned evidence in
   `.git/verification-input`. Validate and use its pinned prior scope, closed
   original finding set, attempted keys, and first-verification marker. The
-  repair advances the blocking value finding but leaves it unresolved; the
-  advisory residue is non-gating. Use `bash check.sh`, return the normal
-  verification report, and do not edit anything.
+  caller attempted both supplied findings. Use `bash check.sh`, return the
+  normal verification report, and do not edit anything.
 fixture:
   commits:
     - message: "chore: base"
@@ -25,7 +24,7 @@ fixture:
     - message: "feat: introduce invalid value"
       files:
         src/value.js: |
-          export const value = 0;
+          export const value = "invalid";
           // legacy
   files:
     src/value.js: |
@@ -41,13 +40,21 @@ fixture:
       printf 'prior_target\t%s\n' "$original_target"
       printf 'prior_manifest\t%s\n' "$prior_manifest"
       printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/value.js:1\trequirement: value must be at least 2\tvalue was 0\n' "$original_target"
+      printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/value.js:1\trequirement: value must be numeric and at least 2\tvalue was non-numeric\n' "$original_target"
       printf 'original_finding\tstandards:2:%s\tstandards\t2\tlow\tadvisory\tsrc/value.js:2\t%s/AGENTS.md\tthe legacy comment remained\n' "$original_target" "$PWD"
       printf 'attempted\tspec:1:%s\n' "$original_target"
       printf 'attempted\tstandards:2:%s\n' "$original_target"
     } >.git/verification-input
     printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    git status --porcelain --untracked-files=all >.git/status-before
+    git hash-object src/value.js >.git/value-before
 checks:
+  - name: progress verification remains read only
+    run: >-
+      git status --porcelain --untracked-files=all >.git/status-after &&
+      cmp .git/status-before .git/status-after &&
+      git hash-object src/value.js >.git/value-after &&
+      cmp .git/value-before .git/value-after
   - name: progressing blocker keeps convergence open
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
@@ -66,10 +73,3 @@ checks:
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
       test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
-output_checks:
-  - name: report preserves the complete verification structure
-    expect_regex: '^# Repair verification — CONTINUE[\s\S]*## Attempted findings[\s\S]*## Repair-caused regressions[\s\S]*## Checks[\s\S]*## Target binding'
-  - name: report identifies material progress
-    expect_regex: "PROGRESSING"
-  - name: report preserves advisory disposition
-    expect_regex: "advisory"

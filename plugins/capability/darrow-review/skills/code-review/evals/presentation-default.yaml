@@ -25,21 +25,23 @@ fixture:
 checks:
   - name: raw TSV stays beneath the review artifact
     run: test "$(find .git -path '*/darrow-review.*/*' -name '*.tsv' | wc -l | tr -d ' ')" -ge 1
-output_checks:
-  - name: default response is a complete Markdown report
-    expect_regex: "^# Code review — FAIL"
-  - name: verdict and counts lead the report
-    expect_regex: '^# Code review[^\n]*\n\n\*\*Verdict:\*\* fail .*\*\*Findings:\*\*'
-    flags: i
-  - name: findings preserve axis severity disposition location source and evidence
-    expect_regex: '### 1\\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards\)[\\s\\S]{0,500}Location[\\s\\S]{0,500}Source[\\s\\S]{0,500}Evidence'
-    flags: i
-  - name: report preserves checks risks next action scope and sources
-    expect_regex: '## Checks[\\s\\S]*## Risks[\\s\\S]*## Next action[\\s\\S]*## Scope[\\s\\S]*## Sources'
-  - name: hostile evidence is safe Markdown text
-    expect_regex: "&lt;token&gt;.*&amp;"
+  - name: canonical TSV is valid
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" && bash "$tool" validate "$record"
+    expect_regex: "^valid: darrow-review-result-v1$"
   - name: human response does not duplicate raw TSV
-    not_regex: '^format\\tdarrow-review-result-v1$'
-  - name: superficial evidence-free summary fails
-    not_regex: '^# Code review[^\n]*\n(?:[^\n]*\n){0,8}.*(?:pass|fail).*$'
-    flags: i
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      bash "$tool" render "$record" >"$expected" &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

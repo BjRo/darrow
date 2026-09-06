@@ -61,7 +61,16 @@ checks:
       grep -F 'verdict	blocked' "$record" >/dev/null &&
       test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
     expect_regex: "^valid: darrow-review-result-v1$"
-output_checks:
-  - name: unavailable reviewer routes block the complete human protocol
-    expect_regex: '^# Code review — BLOCKED[\s\S]*## Findings[\s\S]*## Checks[\s\S]*## Scope[\s\S]*## Sources'
-    flags: i
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      bash "$tool" render "$record" >"$expected" &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

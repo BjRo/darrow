@@ -5,10 +5,8 @@ prompt: >-
   Fix-verify my uncommitted repair, limited to the caller-owned evidence in
   `.git/verification-input` and direct repair consequences. Validate and use
   its pinned prior scope, closed original finding set, attempted key, and
-  first-verification marker. `bash check.sh` proves the repair directly caused
-  negative inputs to return the wrong sign; record that regression against the
-  attempted finding. The new TODO is unrelated and must not enter the closed
-  set. Return the normal human verification report and remain read-only.
+  first-verification marker. Use current deterministic evidence from `bash
+  check.sh`. Return the normal human verification report and remain read-only.
 fixture:
   commits:
     - message: "chore: base"
@@ -47,7 +45,15 @@ fixture:
       printf 'attempted\tspec:1:%s\n' "$original_target"
     } >.git/verification-input
     printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    git status --porcelain --untracked-files=all >.git/status-before
+    git hash-object src/math.js >.git/math-before
 checks:
+  - name: regression verification remains read only
+    run: >-
+      git status --porcelain --untracked-files=all >.git/status-after &&
+      cmp .git/status-before .git/status-after &&
+      git hash-object src/math.js >.git/math-after &&
+      cmp .git/math-before .git/math-after
   - name: direct regression enters the closed convergence set
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
@@ -65,7 +71,3 @@ checks:
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
       test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
-output_checks:
-  - name: report attributes the regression without unrelated findings
-    expect_regex: '^# Repair verification — CONTINUE[\s\S]*## Repair-caused regressions[\s\S]*spec:1:[0-9a-f]{40}'
-    not_regex: "renaming scale"

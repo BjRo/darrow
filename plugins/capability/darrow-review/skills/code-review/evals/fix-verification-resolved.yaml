@@ -151,8 +151,3 @@ checks:
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
       test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
-output_checks:
-  - name: reports one fix-scoped clear result
-    expect_regex: '^# Repair verification — CLEAR[\s\S]*Original findings: 3[\s\S]*Resolved: 3'
-  - name: does not return a comprehensive-review report
-    not_regex: "^# Code review —"

@@ -33,9 +33,20 @@ checks:
       tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
       test -n "$tool" && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
+  - name: scope contains every worktree layer exactly once
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      grep -F 'spec	not_available' "$record" >/dev/null &&
+      awk -F '\t' '$1 == "changed_file" {
+      count++; if ($2 ~ /\/committed[.]txt$/) committed++;
+      if ($2 ~ /\/staged[.]txt$/) staged++;
+      if ($2 ~ /\/untracked[.]txt$/) untracked++ }
+      END { exit !(count == 3 && committed == 1 && staged == 1 && untracked == 1) }'
+      "$record"
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-  - name: final response matches the canonical Markdown renderer
+  - name: final response preserves every canonical rendered line
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -43,6 +54,6 @@ checks:
       test -n "$tool" || exit 1;
       expected=.git/expected-review.md;
       bash "$tool" render "$record" >"$expected" &&
-      awk '1' "$expected" >.git/expected-review-normalized.md &&
-      awk '1' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

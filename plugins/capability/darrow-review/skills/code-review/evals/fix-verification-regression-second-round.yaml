@@ -63,10 +63,15 @@ fixture:
     } >.git/verification-input
     cp .git/current-config config.env
     git hash-object config.env >.git/config-before
+    git status --porcelain --untracked-files=all >.git/status-before
     printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
 checks:
   - name: second verification remains read only
-    run: git hash-object config.env >.git/config-after; cmp .git/config-before .git/config-after
+    run: >-
+      git hash-object config.env >.git/config-after &&
+      cmp .git/config-before .git/config-after &&
+      git status --porcelain --untracked-files=all >.git/status-after &&
+      cmp .git/status-before .git/status-after
   - name: carried regression keeps its stable identity and resolves
     run: >-
       tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
@@ -87,10 +92,7 @@ checks:
       expected=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' .git/verification-input) &&
       actual=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' "$record") &&
       test "$actual" = "$expected"
-output_checks:
-  - name: report clears the carried regression
-    expect_regex: '^# Repair verification — CLEAR[\s\S]*Repair-caused regressions[\s\S]*RESOLVED'
-  - name: report preserves the regression axis
-    expect_regex: '\*\*Axis:\*\* <code>standards</code>'
-  - name: does not return a comprehensive report
-    not_regex: "^# Code review —"
+  - name: final response is the complete rendered verification report
+    run: >-
+      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
+      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"

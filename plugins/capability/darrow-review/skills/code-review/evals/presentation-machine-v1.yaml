@@ -18,8 +18,10 @@ checks:
       test -n "$tool" || exit 1;
       bash "$tool" validate .git/last-message.md
     expect_regex: "^valid: darrow-review-result-v1$"
-output_checks:
-  - name: explicit machine request returns only TSV
-    expect_regex: "^format\\tdarrow-review-result-v1[\\s\\S]*^next_action\\t"
-  - name: machine response has no Markdown heading
-    not_regex: "^# Code review"
+  - name: explicit machine response preserves the retained canonical record
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      awk '1' "$record" >.git/expected-review.tsv &&
+      awk '1' .git/last-message.md >.git/actual-review.tsv &&
+      cmp .git/expected-review.tsv .git/actual-review.tsv
