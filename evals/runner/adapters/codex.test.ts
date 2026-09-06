@@ -1246,7 +1246,7 @@ describe("Codex skill activation observation", () => {
           fork_turns: "none",
           model: "gpt-5.6-sol",
           reasoning_effort: "xhigh",
-          message: "- review_axis: standards\nsensitive review packet",
+          message: "gAAAAABencrypted-native-child-prompt",
         }),
       }),
       nativeEntry(2, {
@@ -1289,7 +1289,7 @@ describe("Codex skill activation observation", () => {
     expect(retained).toContain('"fork_turns":"none"');
     expect(retained).toContain('"review_axis":"standards"');
     expect(retained).toContain('"type":"darrow.codex_native_wait"');
-    expect(retained).not.toContain("sensitive review packet");
+    expect(retained).not.toContain("encrypted-native-child-prompt");
   });
 
   test("assembles thread-bound native evidence into the retained transcript", async () => {
@@ -1369,6 +1369,125 @@ describe("Codex skill activation observation", () => {
       '"type":"darrow.codex_native_session_malformed"',
     );
     expect(retained).not.toContain('"type":"darrow.codex_native_spawn"');
+  });
+
+  test("retains earlier spawn attempts when a later native entry is malformed", () => {
+    const nativeSession = [
+      JSON.stringify({
+        timestamp: "2026-09-06T10:00:01.000Z",
+        ordinal: 1,
+        type: "response_item",
+        payload: {
+          type: "function_call",
+          name: "spawn_agent",
+          namespace: "collaboration",
+          call_id: "call-standards",
+          arguments: JSON.stringify({
+            task_name: "review_standards",
+            fork_turns: "none",
+            model: "gpt-5.6-sol",
+            reasoning_effort: "xhigh",
+            message: "gAAAAABsensitive-encrypted-prompt",
+          }),
+        },
+      }),
+      "not-json",
+    ].join("\n");
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+    );
+    expect(retained).toContain(
+      '"type":"darrow.codex_native_session_malformed"',
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"unaccepted"');
+    expect(retained).not.toContain("sensitive-encrypted-prompt");
+  });
+
+  test("does not accept a native spawn with ambiguous returned child IDs", () => {
+    const nativeEntry = (ordinal: number, payload: Record<string, unknown>) =>
+      JSON.stringify({
+        timestamp: `2026-09-06T10:00:0${ordinal}.000Z`,
+        ordinal,
+        type: "response_item",
+        payload,
+      });
+    const nativeSession = [
+      nativeEntry(1, {
+        type: "function_call",
+        name: "spawn_agent",
+        namespace: "collaboration",
+        call_id: "call-standards",
+        arguments: JSON.stringify({
+          task_name: "review_standards",
+          fork_turns: "none",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          message: "gAAAAABsensitive-encrypted-prompt",
+        }),
+      }),
+      nativeEntry(2, {
+        type: "item_completed",
+        item: {
+          type: "SubAgentActivity",
+          id: "call-standards",
+          kind: "started",
+          agent_thread_id: "01a04f35-c37a-74b3-baa4-961bc21b6f49",
+          agent_path: "/root/review_standards",
+        },
+      }),
+      nativeEntry(3, {
+        type: "function_call_output",
+        call_id: "call-standards",
+        output: JSON.stringify({ task_name: "/root/review_standards" }),
+      }),
+      nativeEntry(4, {
+        type: "function_call_output",
+        call_id: "call-standards",
+        output: JSON.stringify({ task_name: "/root/another_child" }),
+      }),
+    ].join("\n");
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"unaccepted"');
+    expect(retained).not.toContain('"status":"accepted"');
+    expect(retained).not.toContain("sensitive-encrypted-prompt");
+  });
+
+  test("retains an ineligible native spawn without exposing its prompt", () => {
+    const nativeSession = JSON.stringify({
+      timestamp: "2026-09-06T10:00:01.000Z",
+      ordinal: 1,
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        name: "spawn_agent",
+        namespace: "collaboration",
+        call_id: "call-generic",
+        arguments: JSON.stringify({
+          task_name: "generic_reviewer",
+          fork_turns: "none",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          message: "gAAAAABsensitive-encrypted-prompt",
+        }),
+      },
+    });
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"unaccepted"');
+    expect(retained).toContain('"reasons":["review_axis"]');
+    expect(retained).not.toContain("sensitive-encrypted-prompt");
   });
 
   test("does not mark a started-only review launch as accepted", () => {

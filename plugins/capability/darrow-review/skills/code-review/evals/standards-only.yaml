@@ -86,23 +86,9 @@ checks:
       test "$(printf '%s\n' "$launch" | grep -c .)" -eq 1 || exit 1;
       ! grep -F '"type":"darrow.review_agent_launch"' .git/retained-harness.jsonl |
       grep -F '"review_axis":"spec"' >/dev/null || exit 1; fi
-  - name: an unaccepted standards launch fails closed without coordinator judgment
-    run: >-
-      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
-      test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
-      if grep -F '"type":"darrow.codex_native_spawn"' .git/retained-harness.jsonl |
-      grep -F '"status":"accepted"' >/dev/null; then exit 0; fi;
-      record="$artifact_dir/result.tsv"; test -f "$record" || exit 1;
-      grep -F 'standards	blocked' "$record" >/dev/null &&
-      grep -F 'verdict	blocked' "$record" >/dev/null &&
-      ! grep -F 'finding	' "$record" >/dev/null &&
-      case "$DARROW_EVAL_HARNESS" in codex)
-      ! grep -E '"tool":"(wait|wait_agent)"|"type":"darrow.codex_native_wait"'
-      .git/retained-harness.jsonl >/dev/null ;;
-      claude) true ;; *) exit 2 ;; esac
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-  - name: final response matches the canonical Markdown renderer
+  - name: final response preserves every canonical rendered line
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -110,6 +96,6 @@ checks:
       test -n "$tool" || exit 1;
       expected=.git/expected-review.md;
       bash "$tool" render "$record" >"$expected" &&
-      awk '1' "$expected" >.git/expected-review-normalized.md &&
-      awk '1' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

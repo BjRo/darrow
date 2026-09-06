@@ -57,6 +57,15 @@ type ReviewInputs = {
   specText: string;
 };
 
+export type ReviewAxis = "standards" | "spec";
+
+export function reviewAxesFromTaskName(value: unknown): ReviewAxis[] {
+  if (typeof value !== "string") return [];
+  return (["standards", "spec"] as const).filter((axis) =>
+    new RegExp(`(^|[-_])${axis}($|[-_])`).test(value),
+  );
+}
+
 type NativeReviewProof = {
   format: "darrow-code-review-native-live-v1";
   outcome: "pass";
@@ -218,13 +227,11 @@ function spawnRequest(input: LaunchInput) {
     `${axis} spawn arguments`,
   );
   const expectedTask = agentId.replace(/^\/root\//, "");
-  const axisMarker = new RegExp(`(^|[-_])${axis}($|[-_])`);
-  const oppositeAxis = axis === "standards" ? "spec" : "standards";
-  const oppositeMarker = new RegExp(`(^|[-_])${oppositeAxis}($|[-_])`);
+  const markedAxes = reviewAxesFromTaskName(expectedTask);
   if (
     args.task_name !== expectedTask ||
-    !axisMarker.test(expectedTask) ||
-    oppositeMarker.test(expectedTask) ||
+    markedAxes.length !== 1 ||
+    markedAxes[0] !== axis ||
     args.model !== route.model ||
     args.reasoning_effort !== route.effort ||
     args.fork_turns !== "none"

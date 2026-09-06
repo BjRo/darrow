@@ -1,8 +1,8 @@
 # Fix-verification workflow
 
 Use this workflow only after the main skill selects fix verification. The main
-skill's presentation, read-only, and Native reader acceptance gates remain in
-force throughout this branch.
+skill's presentation and read-only gates, plus the reader-routing acceptance
+rules, remain in force throughout this branch.
 
 ## 1. Bind the closed finding set
 
@@ -80,9 +80,9 @@ verifiers through that exact route as fresh readers, issuing both invocations
 before waiting when both groups exist. Do not invoke an axis with no attempted
 finding and no regression evidence to verify.
 
-Apply the main skill's Native reader acceptance gate immediately after each
-launch. Write down the returned child ID before any wait. No child ID becomes
-an `evidence_gap`; it never permits coordinator verification of an attempted
+Apply the reader-routing acceptance rules immediately after each launch. Write
+down the returned child ID before any wait. No child ID becomes an
+`evidence_gap`; it never permits coordinator verification of an attempted
 finding.
 
 Each verifier receives only:

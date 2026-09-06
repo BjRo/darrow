@@ -128,8 +128,11 @@ When `codex exec --json` omits collaboration calls, the runner keeps the
 session only inside the trial's isolated configuration long enough to locate
 the one rollout bound to the reported parent thread. It reduces native spawn,
 start, acceptance, and wait records into the same bounded result evidence; the
-full rollout and child prompt are never copied into the result. A missing,
-ambiguous, or malformed parent rollout establishes no accepted launch.
+full rollout and child prompt are never copied into the result. When the native
+host encrypts that prompt, one unambiguous bounded axis token in the task name
+supplies the retained review-axis marker; a task name containing both axes
+supplies neither. A missing, ambiguous, or malformed parent rollout establishes
+no accepted launch.
 
 ### Semantic output checks
 
@@ -327,7 +330,8 @@ remains copyable and useful when hyperlinks are unavailable.
   retained only as an attempt, never as accepted-launch proof; unbounded raw
   collaboration identifiers are omitted. A unique parent-thread rollout may
   supply this evidence when CLI stdout does not, but its full transcript never
-  enters the retained result.
+  enters the retained result. Encrypted child prompts bind review axes through
+  one unambiguous bounded task-name token rather than prompt inspection.
 
 ## Evaluation requirements
 
@@ -390,7 +394,8 @@ remains copyable and useful when hyperlinks are unavailable.
     excluding unrelated prompt content. They reject start-only acceptance and
     omit hostile or unbounded sender and receiver identifiers. Session fixtures
     cover exact parent-thread lookup, missing or ambiguous rollouts, accepted
-    native launch reduction, and prompt exclusion.
+    native launch reduction from encrypted prompts, task-name axis binding,
+    rejected-attempt retention, and prompt exclusion.
 
 ## Non-goals
 

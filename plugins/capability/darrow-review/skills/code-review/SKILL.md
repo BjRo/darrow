@@ -24,33 +24,6 @@ preface, recap, interpretation, or follow-up. This applies equally to
 standalone and composed review. In machine mode, apply the same rule to the
 validated TSV bytes.
 
-## Native reader acceptance gate
-
-The coordinator scopes, gathers sources, runs checks, and aggregates; it never
-performs Standards, Spec, or fix-verification judgment itself. A native launch
-becomes an admissible reader only when the host accepts it and returns exactly
-one distinct child ID for that axis.
-
-Apply this gate literally for every reader:
-
-1. Issue the required native launch with the selected route and fresh context.
-2. Capture the child ID from that launch's successful return. Do not derive it
-   from the requested task label, prompt, route record, a later message, or
-   prior state. A host-returned canonical child reference remains the child ID
-   even when the response field is named `task_name`.
-3. Only with one returned child ID may you wait for that child, confirm its
-   route, validate its axis record, or use its judgment.
-4. If launch is rejected, returns no child ID, or returns an ambiguous child
-   reference, stop that axis immediately. Do not call a wait operation for that
-   axis, retry, launch a generic substitute, or inspect the change in the
-   coordinator context. Materialize the schema-valid blocked axis record (or
-   fix-verification `evidence_gap`) and continue only to mechanical aggregation
-   and rendering.
-
-With two axes, issue both launches before any wait. A failed launch blocks only
-its axis; wait only for successfully accepted child IDs. Plausible coordinator
-analysis is never evidence that the native reader ran.
-
 ## Working model
 
 - **Scope first:** resolve one immutable base/target and complete changed-file
@@ -180,9 +153,6 @@ Resolve and retain the concrete reviewer route beside the scope manifest, then
 use that reference's host-specific native fresh-reader boundary. When both axes
 apply, issue both invocations before waiting for either; never simulate
 isolation in one context. When Spec is unavailable, invoke Standards only.
-Apply the Native reader acceptance gate above immediately after each launch.
-Write down the returned child ID before any wait. No child ID means that axis is
-blocked and receives no coordinator-authored review judgment.
 
 Give each reader only its template plus:
 
@@ -267,8 +237,8 @@ enclosing contract.
 For this mode, read
 [`references/fix-verification.md`](references/fix-verification.md) completely
 and follow it instead of the comprehensive steps above. Keep the top-level
-presentation, read-only, and Native reader acceptance gates in force. Do not
-widen an incomplete fix-verification request into comprehensive review.
+presentation and read-only gates in force. Do not widen an incomplete
+fix-verification request into comprehensive review.
 
 **Complete when:** the referenced workflow emits the exact validated
 verification presentation for the pinned repair target, or an evidence-backed

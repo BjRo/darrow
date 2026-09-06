@@ -29,6 +29,10 @@ import {
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
 import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
+import {
+  reviewAxesFromTaskName,
+  type ReviewAxis,
+} from "../native-review-proof";
 
 type AcceptedCodexOwner = NonNullable<
   Awaited<ReturnType<typeof verifiedCodexAcceptedOwner>>
@@ -1975,6 +1979,17 @@ interface CodexNativeSpawnRequest {
   reviewAxis: "standards" | "spec";
 }
 
+interface CodexNativeSpawnFields {
+  ordinal: number;
+  callId?: string;
+  argumentsValid: boolean;
+  taskName?: string;
+  model?: string;
+  reasoningEffort?: string;
+  forkTurns?: string;
+  reviewAxis?: ReviewAxis;
+}
+
 function parsedRecord(value: string): Record<string, unknown> | undefined {
   try {
     const parsed: unknown = JSON.parse(value);
@@ -1984,27 +1999,40 @@ function parsedRecord(value: string): Record<string, unknown> | undefined {
   }
 }
 
-function codexNativeSessionEntries(
-  session: string,
-): CodexNativeSessionEntry[] | undefined {
+function codexNativeSessionEntries(session: string): {
+  entries: CodexNativeSessionEntry[];
+  malformed: boolean;
+} {
   const entries: CodexNativeSessionEntry[] = [];
+  let malformed = false;
   for (const line of session.split("\n").filter(Boolean)) {
     const record = parsedRecord(line);
-    if (!record || !Number.isInteger(record.ordinal)) return undefined;
-    if (!isRecord(record.payload)) return undefined;
+    if (
+      !record ||
+      !Number.isInteger(record.ordinal) ||
+      !isRecord(record.payload)
+    ) {
+      malformed = true;
+      continue;
+    }
     entries.push({
       ordinal: record.ordinal as number,
       payload: record.payload,
     });
   }
-  return entries;
+  return { entries, malformed };
 }
 
-function nativeReviewAxis(value: unknown): "standards" | "spec" | undefined {
-  if (typeof value !== "string") return undefined;
-  const firstLine = value.split("\n", 1)[0];
+function nativeReviewAxis(
+  taskName: string,
+  message: unknown,
+): ReviewAxis | undefined {
+  const taskAxes = reviewAxesFromTaskName(taskName);
+  if (taskAxes.length === 1) return taskAxes[0];
+  if (taskAxes.length > 1 || typeof message !== "string") return undefined;
+  const firstLine = message.split("\n", 1)[0];
   const match = firstLine?.match(/^- review_axis: (standards|spec)$/);
-  return match?.[1] as "standards" | "spec" | undefined;
+  return match?.[1] as ReviewAxis | undefined;
 }
 
 function isNativeSpawnCall(payload: Record<string, unknown>): boolean {
@@ -2023,43 +2051,92 @@ function nativeSpawnArguments(
     : undefined;
 }
 
-function nativeSpawnRequest(
+function nativeSpawnFields(
   entry: CodexNativeSessionEntry,
-): CodexNativeSpawnRequest | undefined {
+): CodexNativeSpawnFields {
   const { payload, ordinal } = entry;
-  if (!isNativeSpawnCall(payload)) return undefined;
   const callId = boundedCollaborationIdentifier(payload.call_id);
   const args = nativeSpawnArguments(payload);
-  if (!args) return undefined;
   const taskName = boundedRouteField(
-    args.task_name,
+    args?.task_name,
     /^[a-z0-9][a-z0-9_]{0,63}$/,
   );
-  const model = boundedRouteField(args.model, /^.{1,128}$/s);
+  const model = boundedRouteField(
+    args?.model,
+    /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/,
+  );
   const reasoningEffort = boundedRouteField(
-    args.reasoning_effort,
+    args?.reasoning_effort,
     /^(?:low|medium|high|xhigh|max|ultra)$/,
   );
   const forkTurns = boundedRouteField(
-    args.fork_turns,
+    args?.fork_turns,
     /^(?:none|all|[1-9][0-9]*)$/,
   );
-  const reviewAxis = nativeReviewAxis(args.message);
-  if (
-    [callId, taskName, model, reasoningEffort, forkTurns, reviewAxis].some(
-      (value) => !value,
-    )
-  )
-    return undefined;
+  const reviewAxis = taskName
+    ? nativeReviewAxis(taskName, args?.message)
+    : undefined;
   return {
     ordinal,
     callId,
+    argumentsValid: args !== undefined,
     taskName,
     model,
     reasoningEffort,
     forkTurns,
     reviewAxis,
-  } as CodexNativeSpawnRequest;
+  };
+}
+
+function nativeSpawnRequest(
+  entry: CodexNativeSessionEntry,
+): CodexNativeSpawnRequest | undefined {
+  const fields = nativeSpawnFields(entry);
+  if (
+    !fields.argumentsValid ||
+    [
+      fields.callId,
+      fields.taskName,
+      fields.model,
+      fields.reasoningEffort,
+      fields.forkTurns,
+      fields.reviewAxis,
+    ].some((value) => !value)
+  )
+    return undefined;
+  return fields as CodexNativeSpawnRequest;
+}
+
+function retainedRejectedNativeSpawn(
+  entry: CodexNativeSessionEntry,
+): Record<string, unknown> {
+  const fields = nativeSpawnFields(entry);
+  const reasons = fields.argumentsValid
+    ? [
+        ["call_id", fields.callId],
+        ["task_name", fields.taskName],
+        ["model", fields.model],
+        ["reasoning_effort", fields.reasoningEffort],
+        ["fork_turns", fields.forkTurns],
+        ["review_axis", fields.reviewAxis],
+      ]
+        .filter(([, value]) => !value)
+        .map(([reason]) => reason)
+    : ["arguments"];
+  return {
+    type: "darrow.codex_native_spawn",
+    status: "unaccepted",
+    requested_ordinal: fields.ordinal,
+    reasons,
+    ...(fields.callId ? { call_id: fields.callId } : {}),
+    ...(fields.taskName ? { task_name: fields.taskName } : {}),
+    ...(fields.model ? { model: fields.model } : {}),
+    ...(fields.reasoningEffort
+      ? { reasoning_effort: fields.reasoningEffort }
+      : {}),
+    ...(fields.forkTurns ? { fork_turns: fields.forkTurns } : {}),
+    ...(fields.reviewAxis ? { review_axis: fields.reviewAxis } : {}),
+  };
 }
 
 function nativeStartedActivity(
@@ -2099,32 +2176,47 @@ function nativeSpawnAcceptance(
   request: CodexNativeSpawnRequest,
   agentRef: string,
 ): number | undefined {
-  const acceptances = entries.flatMap((entry) => {
-    if (
-      entry.payload.type !== "function_call_output" ||
-      entry.payload.call_id !== request.callId ||
-      typeof entry.payload.output !== "string"
-    )
-      return [];
-    const output = parsedRecord(entry.payload.output);
-    return output?.task_name === agentRef ? [entry.ordinal] : [];
-  });
-  return acceptances.length === 1 ? acceptances[0] : undefined;
+  const outputs = entries.filter(
+    (entry) =>
+      entry.payload.type === "function_call_output" &&
+      entry.payload.call_id === request.callId,
+  );
+  if (outputs.length !== 1 || typeof outputs[0]?.payload.output !== "string")
+    return undefined;
+  const output = parsedRecord(outputs[0].payload.output);
+  return output?.task_name === agentRef ? outputs[0].ordinal : undefined;
+}
+
+function isAcceptedNativeSpawn(
+  request: CodexNativeSpawnRequest,
+  start: { ordinal: number } | undefined,
+  acceptedOrdinal: number | undefined,
+  acceptanceAllowed: boolean,
+): boolean {
+  return (
+    acceptanceAllowed &&
+    start !== undefined &&
+    acceptedOrdinal !== undefined &&
+    request.ordinal < start.ordinal &&
+    start.ordinal < acceptedOrdinal
+  );
 }
 
 function retainedNativeSpawn(
   entries: CodexNativeSessionEntry[],
   request: CodexNativeSpawnRequest,
+  acceptanceAllowed = true,
 ): Record<string, unknown> {
   const start = nativeSpawnStart(entries, request);
   const acceptedOrdinal = start
     ? nativeSpawnAcceptance(entries, request, start.agentRef)
     : undefined;
-  const accepted =
-    start !== undefined &&
-    acceptedOrdinal !== undefined &&
-    request.ordinal < start.ordinal &&
-    start.ordinal < acceptedOrdinal;
+  const accepted = isAcceptedNativeSpawn(
+    request,
+    start,
+    acceptedOrdinal,
+    acceptanceAllowed,
+  );
   return {
     type: "darrow.codex_native_spawn",
     status: accepted ? "accepted" : "unaccepted",
@@ -2163,16 +2255,23 @@ function retainedNativeWait(
 }
 
 export function retainedCodexNativeSessionEvidence(session: string): object[] {
-  const entries = codexNativeSessionEntries(session);
-  if (!entries) return [{ type: "darrow.codex_native_session_malformed" }];
+  const { entries, malformed } = codexNativeSessionEntries(session);
   const spawns = entries
-    .map(nativeSpawnRequest)
-    .filter((request): request is CodexNativeSpawnRequest => !!request)
-    .map((request) => retainedNativeSpawn(entries, request));
+    .filter((entry) => isNativeSpawnCall(entry.payload))
+    .map((entry) => {
+      const request = nativeSpawnRequest(entry);
+      return request
+        ? retainedNativeSpawn(entries, request, !malformed)
+        : retainedRejectedNativeSpawn(entry);
+    });
   const waits = entries
     .map(retainedNativeWait)
     .filter((wait): wait is Record<string, unknown> => !!wait);
-  return [...spawns, ...waits];
+  return [
+    ...spawns,
+    ...waits,
+    ...(malformed ? [{ type: "darrow.codex_native_session_malformed" }] : []),
+  ];
 }
 
 export function retainedCodexEvidence(
