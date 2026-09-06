@@ -115,6 +115,22 @@ qualification in child skill tokens. Reconciliation treats that exact
 qualification as host transport syntax and compares the declared phase
 capability by its leaf skill name; another plugin namespace is not equivalent.
 
+Retained Codex collaboration evidence distinguishes a current host task label
+from the stable child-agent reference returned by the launch. A valid bounded
+task label must not cause an otherwise accepted launch event to disappear.
+For review-route verification, the retained launch also preserves the
+non-sensitive requested model, reasoning effort, and fresh-context setting
+alongside its bounded axis marker and stable child reference.
+Started and successfully returned launches remain distinct evidence; a start
+event alone never becomes accepted-launch proof. Raw collaboration identifiers
+outside the bounded public identifier grammar are omitted.
+When `codex exec --json` omits collaboration calls, the runner keeps the
+session only inside the trial's isolated configuration long enough to locate
+the one rollout bound to the reported parent thread. It reduces native spawn,
+start, acceptance, and wait records into the same bounded result evidence; the
+full rollout and child prompt are never copied into the result. A missing,
+ambiguous, or malformed parent rollout establishes no accepted launch.
+
 ### Semantic output checks
 
 An eval case may declare one or more gating semantic output checks when the
@@ -302,6 +318,16 @@ remains copyable and useful when hyperlinks are unavailable.
   reads in order, without duplicate skills. Every supporting observation
   requires a complete mounted skill body. Sequence and exclusion checks use
   that complete observation; invalid dispatch or stream evidence stays unknown.
+- **SE-C24 — Current Codex collaboration evidence.** A valid native task label
+  is not mistaken for a conflicting child-agent reference. Retained accepted
+  launch evidence preserves the stable child reference, bounded task label,
+  requested model, reasoning effort, fresh-context setting, and permitted
+  review-axis marker needed to verify route application without retaining the
+  rest of the child prompt. A start without a correlated successful return is
+  retained only as an attempt, never as accepted-launch proof; unbounded raw
+  collaboration identifiers are omitted. A unique parent-thread rollout may
+  supply this evidence when CLI stdout does not, but its full transcript never
+  enters the retained result.
 
 ## Evaluation requirements
 
@@ -359,6 +385,12 @@ remains copyable and useful when hyperlinks are unavailable.
 19. Explicit activation fixtures combine supporting reads with required
     sequences and exclusions, plus truncated, unmounted, duplicated, malformed,
     and failed observation counterexamples.
+20. Codex collaboration-retention fixtures cover current task labels separately
+    from stable child references and preserve bounded review route fields while
+    excluding unrelated prompt content. They reject start-only acceptance and
+    omit hostile or unbounded sender and receiver identifiers. Session fixtures
+    cover exact parent-thread lookup, missing or ambiguous rollouts, accepted
+    native launch reduction, and prompt exclusion.
 
 ## Non-goals
 

@@ -1,4 +1,5 @@
 id: code-review-fix-verification-regression-second-round
+activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-C20,CR-E13
 prompt: >-
   Fix-verify only the carried repair-caused regression described by the
@@ -68,7 +69,8 @@ checks:
     run: git hash-object config.env >.git/config-after; cmp .git/config-before .git/config-after
   - name: carried regression keeps its stable identity and resolves
     run: >-
-      tool=$(sed -n '1p' .git/review-result-tool) &&
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      test -n "$tool" &&
       regression_key=$(awk -F '\t' '$1 == "regression_key" { print $2 }' .git/verification-input) &&
       previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
       previous_relative=${previous_path#"$PWD"/} &&

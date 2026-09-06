@@ -1,4 +1,5 @@
 id: code-review-presentation-machine-v1
+activation: positive
 invariant: CR-C15,CR-E12
 prompt: >-
   Review my uncommitted changes and return only the raw darrow-review-result-v1
@@ -13,8 +14,8 @@ fixture:
 checks:
   - name: requested raw record validates
     run: >-
-      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
       bash "$tool" validate .git/last-message.md
     expect_regex: "^valid: darrow-review-result-v1$"
 output_checks:

@@ -1,4 +1,5 @@
 id: code-review-empty-diff
+activation: positive
 invariant: CR-E3,CR-C2
 prompt: >-
   Review my uncommitted changes. Report only and do not make a change just to
@@ -14,22 +15,20 @@ checks:
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
-      test -n "$record" && if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi; && bash "$tool" validate "$record"
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-output_checks:
-  - name: default Markdown carries the verdict, axis statuses, and complete findings
-    expect_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n\*\*Verdict:\*\* (pass|fail|blocked) · \*\*Findings:\*\* [0-9]+ \(.*\)[\s\S]*## Findings[\s\S]*(### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards|Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*|No findings\.)'
-    flags: i
-  - name: default Markdown carries compact check applicability status and evidence
-    expect_regex: '## Checks[\s\S]*\*\*(PASS|FAIL|BLOCKED|NOT_APPLICABLE)\*\* \((applicable|not_applicable)\) — <code>[^<]+</code>: .+'
-    flags: i
-  - name: default Markdown carries risks next action scope and axis sources
-    expect_regex: '## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*\*\*Base:\*\*[\s\S]*\*\*Target:\*\*[\s\S]*\*\*Changed files:\*\*[\s\S]*## Sources[\s\S]*\*\*Standards \((pass|fail|blocked)\):\*\*[\s\S]*\*\*Spec \((pass|fail|blocked|not_available)\):\*\*'
-    flags: i
-  - name: generic heading-only summaries cannot satisfy the default contract
-    not_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n[^#]{0,240}$'
-  - name: default review does not expose raw TSV
-    not_regex: '^format\tdarrow-review-result-v1$'
+  - name: final response matches the canonical Markdown renderer
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      bash "$tool" render "$record" >"$expected" &&
+      awk '1' "$expected" >.git/expected-review-normalized.md &&
+      awk '1' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

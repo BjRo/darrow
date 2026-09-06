@@ -1,4 +1,5 @@
 id: code-review-presentation-blocked
+activation: positive
 invariant: CR-C15,CR-E12
 prompt: >-
   Review my uncommitted changes. Report only and do not create a change just to

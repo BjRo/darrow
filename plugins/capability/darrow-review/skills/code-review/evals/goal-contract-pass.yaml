@@ -1,4 +1,5 @@
 id: code-review-goal-contract-pass
+activation: positive
 invariant: CR-C13,CR-C14,CR-E9,CR-E11
 prompt: >-
   Execute this bounded goal contract. The candidate change is already present

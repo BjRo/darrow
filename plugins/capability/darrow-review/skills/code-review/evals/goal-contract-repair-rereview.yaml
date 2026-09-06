@@ -1,4 +1,5 @@
 id: code-review-goal-contract-repair-verification
+activation: positive
 invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13
 prompt: >-
   Execute this bounded goal contract. The candidate change is already present
@@ -59,7 +60,8 @@ checks:
   - name: additive verification artifact validates beside the repaired scope
     run: >-
       record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
-      tool=$(sed -n '1p' .git/review-result-tool) &&
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
       grep -F 'outcome	clear' "$record" >/dev/null &&
       grep -F 'RETRY_COUNT = 3' "$(dirname "$record")/diff.patch" >/dev/null

@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rm,
   writeFile,
@@ -62,6 +63,11 @@ interface CodexEvent {
     receiverThreadIds?: unknown;
     task_name?: unknown;
     taskName?: unknown;
+    model?: unknown;
+    reasoning_effort?: unknown;
+    reasoningEffort?: unknown;
+    fork_turns?: unknown;
+    forkTurns?: unknown;
   };
   tool_response?: unknown;
   result?: unknown;
@@ -665,7 +671,13 @@ function invalidTaskNameAgentRef(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return ["task_name", "taskName"].some(
-    (key) => key in record && canonicalCodexAgentRef(record[key]) === undefined,
+    (key) =>
+      key in record &&
+      canonicalCodexAgentRef(record[key]) === undefined &&
+      !(
+        typeof record[key] === "string" &&
+        /^[a-z0-9][a-z0-9_]{0,63}$/.test(record[key])
+      ),
   );
 }
 
@@ -677,7 +689,7 @@ function soleReceiverAgentRef(value: unknown): string | undefined {
 function unsafeReceiverAgentRef(value: unknown): boolean {
   if (!Array.isArray(value) || value.length !== 1) return true;
   const receiver = value[0];
-  if (typeof receiver !== "string" || receiver.length === 0) return true;
+  if (typeof receiver !== "string" || receiver.length > 128) return true;
   if (canonicalCodexAgentRef(receiver)) return false;
   return !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(receiver);
 }
@@ -789,6 +801,106 @@ function retainedCollaborationEvent(
   });
 }
 
+function taskNameDiagnosticClass(value: unknown): string {
+  if (value === undefined) return "absent";
+  if (canonicalCodexAgentRef(value)) return "agent_ref";
+  if (typeof value === "string" && /^[a-z0-9][a-z0-9_]{0,63}$/.test(value))
+    return "task_label";
+  return "invalid";
+}
+
+function diagnosticString(value: unknown): string {
+  return typeof value === "string" ? value : "unknown";
+}
+
+function rejectedCollaborationReasons(
+  event: CodexEvent,
+  acceptedAgentRef?: string,
+): string[] {
+  const reasons: string[] = [];
+  if (!acceptedCollaborationEvent(event)) reasons.push("event_shape");
+  if (collaborationAgentRefConflicts(event, acceptedAgentRef))
+    reasons.push("agent_reference");
+  return reasons.length > 0 ? reasons : ["unknown"];
+}
+
+function retainedRejectedCollaborationDiagnostic(
+  event: CodexEvent,
+  collaboration: unknown,
+  acceptedAgentRef?: string,
+): object | undefined {
+  const item = event.item;
+  if (collaboration || item?.tool !== "spawn_agent") return undefined;
+  const taskName = item.task_name ?? item.taskName;
+  const receiver = item.receiver_thread_ids ?? item.receiverThreadIds;
+  return {
+    type: "darrow.collaboration_launch_rejected",
+    event_type: diagnosticString(event.type),
+    item_type: diagnosticString(item.type),
+    status: diagnosticString(item.status),
+    reasons: rejectedCollaborationReasons(event, acceptedAgentRef),
+    task_name_class: taskNameDiagnosticClass(taskName),
+    receiver_count: Array.isArray(receiver) ? receiver.length : -1,
+    item_keys: Object.keys(item)
+      .filter((key) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
+      .sort(),
+  };
+}
+
+function retainedSpawnRouteFields(
+  item: NonNullable<CodexEvent["item"]>,
+): Record<string, string> {
+  if (item.tool !== "spawn_agent") return {};
+  const retained: Record<string, string> = {};
+  const taskName = boundedRouteField(
+    item.task_name ?? item.taskName,
+    /^[a-z0-9][a-z0-9_]{0,63}$/,
+  );
+  const model = boundedRouteField(item.model, /^.{1,128}$/s);
+  const reasoningEffort = boundedRouteField(
+    item.reasoning_effort ?? item.reasoningEffort,
+    /^(?:low|medium|high|xhigh|max|ultra)$/,
+  );
+  const forkTurns = boundedRouteField(
+    item.fork_turns ?? item.forkTurns,
+    /^(?:none|all|[1-9][0-9]*)$/,
+  );
+  if (taskName) retained.task_name = taskName;
+  if (model) retained.model = model;
+  if (reasoningEffort) retained.reasoning_effort = reasoningEffort;
+  if (forkTurns) retained.fork_turns = forkTurns;
+  return retained;
+}
+
+function boundedRouteField(
+  value: unknown,
+  pattern: RegExp,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return pattern.test(value) ? value : undefined;
+}
+
+function boundedCollaborationIdentifier(value: unknown): string | undefined {
+  return boundedRouteField(value, /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/);
+}
+
+function boundedCollaborationReceivers(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || value.length > 8) return undefined;
+  const receivers = value.map(boundedCollaborationIdentifier);
+  return receivers.every((receiver) => receiver !== undefined)
+    ? (receivers as string[])
+    : undefined;
+}
+
+function acceptedNativeSpawn(event: CodexEvent, agentRef?: string): boolean {
+  return (
+    event.type === "item.completed" &&
+    event.item?.tool === "spawn_agent" &&
+    event.item.status === "completed" &&
+    agentRef !== undefined
+  );
+}
+
 function collaborationSpawnAttestation(
   item: NonNullable<CodexEvent["item"]>,
   secret?: string,
@@ -808,14 +920,24 @@ function retainedCollaborationRecord(
   },
 ): object {
   const retained: Record<string, unknown> = {
+    event_type: event.type,
     type: item.type,
     tool: item.tool,
     status: item.status,
-    sender_thread_id: item.sender_thread_id ?? item.senderThreadId,
-    receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
   };
+  const sender = boundedCollaborationIdentifier(
+    item.sender_thread_id ?? item.senderThreadId,
+  );
+  const receivers = boundedCollaborationReceivers(
+    item.receiver_thread_ids ?? item.receiverThreadIds,
+  );
+  if (sender) retained.sender_thread_id = sender;
+  if (receivers) retained.receiver_thread_ids = receivers;
   if (evidence.agentRef) retained.agent_ref = evidence.agentRef;
+  if (acceptedNativeSpawn(event, evidence.agentRef))
+    retained.launch_accepted = true;
   if (evidence.prompt) retained.prompt = evidence.prompt;
+  Object.assign(retained, retainedSpawnRouteFields(item));
   if (evidence.attestation)
     retained.goal_spawn_attestation = publicSpawnAttestation(
       evidence.attestation,
@@ -1554,6 +1676,7 @@ function retainedNestedApplication(event: CodexEvent): unknown | undefined {
 interface CodexRetentionStatus {
   exitCode: number;
   stderrPresent: boolean;
+  nativeSession?: string;
   spawnGuardSecret?: string;
   goalLoopPath?: string;
   acceptedAgentRef?: string;
@@ -1575,6 +1698,29 @@ interface CodexRetentionState {
   objectiveReleased: boolean;
 }
 
+function retainedLifecycleEvent(
+  event: CodexEvent,
+  state: CodexRetentionState,
+  repoDir: string,
+  status?: CodexRetentionStatus,
+): unknown | undefined {
+  if (!state.goalOwnerAccepted) return retainedPreGoalToolEvent(event, repoDir);
+  return retainedPostGoalToolEvent(event, {
+    seen: state.postGoalToolIds,
+    repoDir,
+    attestation: state.goalAttestation,
+    goalLoopPath: status?.goalLoopPath,
+    agentRef: state.goalOwnerReference,
+    activationState: state.activationState,
+    goalPersistence: state.goalPersistence,
+    waited: state.waited,
+    interrupted: state.interrupted,
+    closed: state.closed,
+    launchStopRecorded: state.launchStopRecorded,
+    objectiveReleased: state.objectiveReleased,
+  });
+}
+
 function retainCodexEvent(
   event: CodexEvent,
   state: CodexRetentionState,
@@ -1587,28 +1733,18 @@ function retainCodexEvent(
     status?.spawnGuardSecret,
     state.goalOwnerReference ?? status?.acceptedAgentRef,
   );
-  const lifecycle = state.goalOwnerAccepted
-    ? retainedPostGoalToolEvent(event, {
-        seen: state.postGoalToolIds,
-        repoDir,
-        attestation: state.goalAttestation,
-        goalLoopPath: status?.goalLoopPath,
-        agentRef: state.goalOwnerReference,
-        activationState: state.activationState,
-        goalPersistence: state.goalPersistence,
-        waited: state.waited,
-        interrupted: state.interrupted,
-        closed: state.closed,
-        launchStopRecorded: state.launchStopRecorded,
-        objectiveReleased: state.objectiveReleased,
-      })
-    : retainedPreGoalToolEvent(event, repoDir);
+  const lifecycle = retainedLifecycleEvent(event, state, repoDir, status);
   const collaborationViolation = retainedCollaborationViolation(
     event,
     collaboration,
     state,
   );
   const postOwnerSpawn = retainedPostOwnerSpawnObservation(event, state);
+  const collaborationDiagnostic = retainedRejectedCollaborationDiagnostic(
+    event,
+    collaboration,
+    state.goalOwnerReference ?? status?.acceptedAgentRef,
+  );
   const values = [
     retainedTerminalEvent(event),
     retainedHostProtocolEvent(event),
@@ -1618,6 +1754,7 @@ function retainCodexEvent(
     lifecycle,
     collaborationViolation,
     postOwnerSpawn,
+    collaborationDiagnostic,
   ].filter((value): value is object => value !== undefined);
   trackPostGoalCommand(event, state);
   acceptAttestedGoalSpawn(event, collaboration, state, status);
@@ -1823,6 +1960,221 @@ function retainedCodexSkillReads(
   );
 }
 
+interface CodexNativeSessionEntry {
+  ordinal: number;
+  payload: Record<string, unknown>;
+}
+
+interface CodexNativeSpawnRequest {
+  ordinal: number;
+  callId: string;
+  taskName: string;
+  model: string;
+  reasoningEffort: string;
+  forkTurns: string;
+  reviewAxis: "standards" | "spec";
+}
+
+function parsedRecord(value: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function codexNativeSessionEntries(
+  session: string,
+): CodexNativeSessionEntry[] | undefined {
+  const entries: CodexNativeSessionEntry[] = [];
+  for (const line of session.split("\n").filter(Boolean)) {
+    const record = parsedRecord(line);
+    if (!record || !Number.isInteger(record.ordinal)) return undefined;
+    if (!isRecord(record.payload)) return undefined;
+    entries.push({
+      ordinal: record.ordinal as number,
+      payload: record.payload,
+    });
+  }
+  return entries;
+}
+
+function nativeReviewAxis(value: unknown): "standards" | "spec" | undefined {
+  if (typeof value !== "string") return undefined;
+  const firstLine = value.split("\n", 1)[0];
+  const match = firstLine?.match(/^- review_axis: (standards|spec)$/);
+  return match?.[1] as "standards" | "spec" | undefined;
+}
+
+function isNativeSpawnCall(payload: Record<string, unknown>): boolean {
+  return (
+    payload.type === "function_call" &&
+    payload.name === "spawn_agent" &&
+    payload.namespace === "collaboration"
+  );
+}
+
+function nativeSpawnArguments(
+  payload: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  return typeof payload.arguments === "string"
+    ? parsedRecord(payload.arguments)
+    : undefined;
+}
+
+function nativeSpawnRequest(
+  entry: CodexNativeSessionEntry,
+): CodexNativeSpawnRequest | undefined {
+  const { payload, ordinal } = entry;
+  if (!isNativeSpawnCall(payload)) return undefined;
+  const callId = boundedCollaborationIdentifier(payload.call_id);
+  const args = nativeSpawnArguments(payload);
+  if (!args) return undefined;
+  const taskName = boundedRouteField(
+    args.task_name,
+    /^[a-z0-9][a-z0-9_]{0,63}$/,
+  );
+  const model = boundedRouteField(args.model, /^.{1,128}$/s);
+  const reasoningEffort = boundedRouteField(
+    args.reasoning_effort,
+    /^(?:low|medium|high|xhigh|max|ultra)$/,
+  );
+  const forkTurns = boundedRouteField(
+    args.fork_turns,
+    /^(?:none|all|[1-9][0-9]*)$/,
+  );
+  const reviewAxis = nativeReviewAxis(args.message);
+  if (
+    [callId, taskName, model, reasoningEffort, forkTurns, reviewAxis].some(
+      (value) => !value,
+    )
+  )
+    return undefined;
+  return {
+    ordinal,
+    callId,
+    taskName,
+    model,
+    reasoningEffort,
+    forkTurns,
+    reviewAxis,
+  } as CodexNativeSpawnRequest;
+}
+
+function nativeStartedActivity(
+  entry: CodexNativeSessionEntry,
+  callId: string,
+): { ordinal: number; agentRef: string; threadId: string } | undefined {
+  if (entry.payload.type !== "item_completed") return undefined;
+  const activity = isRecord(entry.payload.item)
+    ? entry.payload.item
+    : undefined;
+  if (activity?.type !== "SubAgentActivity") return undefined;
+  if (activity.id !== callId || activity.kind !== "started") return undefined;
+  const agentRef = canonicalCodexAgentRef(activity.agent_path);
+  const threadId = boundedCollaborationIdentifier(activity.agent_thread_id);
+  return agentRef && threadId
+    ? { ordinal: entry.ordinal, agentRef, threadId }
+    : undefined;
+}
+
+function nativeSpawnStart(
+  entries: CodexNativeSessionEntry[],
+  request: CodexNativeSpawnRequest,
+): { ordinal: number; agentRef: string; threadId: string } | undefined {
+  const starts = entries
+    .map((entry) => nativeStartedActivity(entry, request.callId))
+    .filter(
+      (
+        start,
+      ): start is { ordinal: number; agentRef: string; threadId: string } =>
+        !!start,
+    );
+  return starts.length === 1 ? starts[0] : undefined;
+}
+
+function nativeSpawnAcceptance(
+  entries: CodexNativeSessionEntry[],
+  request: CodexNativeSpawnRequest,
+  agentRef: string,
+): number | undefined {
+  const acceptances = entries.flatMap((entry) => {
+    if (
+      entry.payload.type !== "function_call_output" ||
+      entry.payload.call_id !== request.callId ||
+      typeof entry.payload.output !== "string"
+    )
+      return [];
+    const output = parsedRecord(entry.payload.output);
+    return output?.task_name === agentRef ? [entry.ordinal] : [];
+  });
+  return acceptances.length === 1 ? acceptances[0] : undefined;
+}
+
+function retainedNativeSpawn(
+  entries: CodexNativeSessionEntry[],
+  request: CodexNativeSpawnRequest,
+): Record<string, unknown> {
+  const start = nativeSpawnStart(entries, request);
+  const acceptedOrdinal = start
+    ? nativeSpawnAcceptance(entries, request, start.agentRef)
+    : undefined;
+  const accepted =
+    start !== undefined &&
+    acceptedOrdinal !== undefined &&
+    request.ordinal < start.ordinal &&
+    start.ordinal < acceptedOrdinal;
+  return {
+    type: "darrow.codex_native_spawn",
+    status: accepted ? "accepted" : "unaccepted",
+    call_id: request.callId,
+    task_name: request.taskName,
+    model: request.model,
+    reasoning_effort: request.reasoningEffort,
+    fork_turns: request.forkTurns,
+    review_axis: request.reviewAxis,
+    requested_ordinal: request.ordinal,
+    ...(accepted && start && acceptedOrdinal !== undefined
+      ? {
+          agent_ref: start.agentRef,
+          thread_id: start.threadId,
+          started_ordinal: start.ordinal,
+          accepted_ordinal: acceptedOrdinal,
+        }
+      : {}),
+  };
+}
+
+function retainedNativeWait(
+  entry: CodexNativeSessionEntry,
+): Record<string, unknown> | undefined {
+  const { payload, ordinal } = entry;
+  if (
+    payload.type !== "function_call" ||
+    payload.name !== "wait_agent" ||
+    payload.namespace !== "collaboration"
+  )
+    return undefined;
+  const callId = boundedCollaborationIdentifier(payload.call_id);
+  return callId
+    ? { type: "darrow.codex_native_wait", call_id: callId, ordinal }
+    : undefined;
+}
+
+export function retainedCodexNativeSessionEvidence(session: string): object[] {
+  const entries = codexNativeSessionEntries(session);
+  if (!entries) return [{ type: "darrow.codex_native_session_malformed" }];
+  const spawns = entries
+    .map(nativeSpawnRequest)
+    .filter((request): request is CodexNativeSpawnRequest => !!request)
+    .map((request) => retainedNativeSpawn(entries, request));
+  const waits = entries
+    .map(retainedNativeWait)
+    .filter((wait): wait is Record<string, unknown> => !!wait);
+  return [...spawns, ...waits];
+}
+
 export function retainedCodexEvidence(
   stream: string,
   repoDir: string,
@@ -1861,6 +2213,8 @@ export function retainedCodexEvidence(
   appendCodexRetentionState(retained, state, {
     acceptedOwner: status?.acceptedOwner,
   });
+  if (status?.nativeSession)
+    retained.push(...retainedCodexNativeSessionEvidence(status.nativeSession));
   if (codexStreamMalformed(stream)) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)
     retained.push({
@@ -1869,6 +2223,32 @@ export function retainedCodexEvidence(
       stderr_present: status.stderrPresent,
     });
   return retained.map((event) => JSON.stringify(event)).join("\n");
+}
+
+export async function retainedCodexEvidenceForThread(
+  stream: string,
+  repoDir: string,
+  configRoot: string,
+  options: {
+    status?: CodexRetentionStatus;
+    installedSkillsRoot?: string | string[];
+  } = {},
+): Promise<string> {
+  const threadId = codexThreadId(stream);
+  const nativeSession = threadId
+    ? await codexNativeSessionForThread(configRoot, threadId)
+    : undefined;
+  const status = options.status
+    ? { ...options.status, nativeSession }
+    : nativeSession
+      ? { exitCode: 0, stderrPresent: false, nativeSession }
+      : undefined;
+  return retainedCodexEvidence(
+    stream,
+    repoDir,
+    status,
+    options.installedSkillsRoot,
+  );
 }
 
 interface CodexTokenUsage {
@@ -1939,12 +2319,11 @@ interface CodexArgvOptions {
   prompt: string;
   model: string;
   effort: string;
-  persistent?: boolean;
 }
 
 export function codexArgv(options: CodexArgvOptions): string[] {
-  const { repoDir, prompt, model, effort, persistent = false } = options;
-  const argv = [
+  const { repoDir, prompt, model, effort } = options;
+  return [
     "codex",
     "exec",
     prompt,
@@ -1962,11 +2341,9 @@ export function codexArgv(options: CodexArgvOptions): string[] {
     "-o",
     join(repoDir, ".git", "last-message.md"),
   ];
-  if (!persistent) argv.push("--ephemeral");
-  return argv;
 }
 
-interface CodexResumeArgvOptions extends Omit<CodexArgvOptions, "persistent"> {
+interface CodexResumeArgvOptions extends CodexArgvOptions {
   threadId: string;
 }
 
@@ -2083,6 +2460,7 @@ async function codexFinalMessage(repoDir: string): Promise<string> {
 
 interface CodexExecution {
   canonicalRepoDir: string;
+  configRoot: string;
   installedSkillsRoots: string[];
   out: string;
   err: string;
@@ -2364,6 +2742,41 @@ function codexProcessContextForRequest(request: HarnessRunRequest) {
   );
 }
 
+async function filesBeneath(root: string): Promise<string[]> {
+  let entries: Dirent[];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const path = join(root, entry.name);
+      if (entry.isDirectory()) return filesBeneath(path);
+      return entry.isFile() ? [path] : [];
+    }),
+  );
+  return nested.flat();
+}
+
+export async function codexNativeSessionForThread(
+  configRoot: string,
+  threadId: string,
+): Promise<string | undefined> {
+  const boundedThread = boundedCollaborationIdentifier(threadId);
+  if (!boundedThread) return undefined;
+  const suffix = `-${boundedThread}.jsonl`;
+  const matches = (await filesBeneath(join(configRoot, "sessions"))).filter(
+    (path) => path.endsWith(suffix),
+  );
+  if (matches.length !== 1) return undefined;
+  try {
+    return await readFile(matches[0]!, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 async function executeCodex(
   request: HarnessRunRequest,
 ): Promise<CodexExecution> {
@@ -2374,12 +2787,7 @@ async function executeCodex(
   const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
     const initial = await runCodexProcess(
-      await sandboxed(
-        codexArgv({
-          ...request,
-          persistent: !!request.control?.followUpPrompt,
-        }),
-      ),
+      await sandboxed(codexArgv(request)),
       repoDir,
       env,
     );
@@ -2398,6 +2806,7 @@ async function executeCodex(
       : undefined;
     return {
       canonicalRepoDir: context.canonicalRepoDir,
+      configRoot: env.CODEX_HOME!,
       installedSkillsRoots: context.installedSkillsRoots,
       out,
       err,
@@ -2472,6 +2881,7 @@ async function codexHarnessResult(
 ): Promise<HarnessResult> {
   const {
     canonicalRepoDir,
+    configRoot,
     installedSkillsRoots,
     out,
     err,
@@ -2494,18 +2904,21 @@ async function codexHarnessResult(
     outputTokens: usage.outputTokens,
     costUsd: null,
     resultText,
-    raw: retainedCodexEvidence(
+    raw: await retainedCodexEvidenceForThread(
       out,
       canonicalRepoDir,
+      configRoot,
       {
-        exitCode: code,
-        stderrPresent: err.trim().length > 0,
-        spawnGuardSecret,
-        goalLoopPath,
-        acceptedAgentRef,
-        acceptedOwner,
+        status: {
+          exitCode: code,
+          stderrPresent: err.trim().length > 0,
+          spawnGuardSecret,
+          goalLoopPath,
+          acceptedAgentRef,
+          acceptedOwner,
+        },
+        installedSkillsRoot: installedSkillsRoots,
       },
-      installedSkillsRoots,
     ),
     skillActivation: { ...activation, complete: ok && activation.complete },
   };

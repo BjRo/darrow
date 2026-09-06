@@ -1,4 +1,5 @@
 id: code-review-value-comparison
+activation: positive
 invariant: CR-E8
 prompt: >-
   Review my uncommitted changes against this originating requirement: the
@@ -43,8 +44,8 @@ checks:
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"

@@ -7,6 +7,7 @@ import {
   codexArgv,
   codexEvalSkillsRoot,
   codexExplicitSkillActivation,
+  codexNativeSessionForThread,
   codexResumeArgv,
   codexRunSucceeded,
   codexSkillActivation,
@@ -14,6 +15,7 @@ import {
   codexThreadId,
   codexTokenUsage,
   retainedCodexEvidence,
+  retainedCodexEvidenceForThread,
 } from "./codex";
 import { observeCodexTicketPipelineRoutes } from "../orchestration-metrics";
 import { gradeActivation } from "../activation";
@@ -60,7 +62,6 @@ test("builds one persistent Codex session and one exact follow-up resume", () =>
     prompt: "first",
     model: "gpt-5.5",
     effort: "medium",
-    persistent: true,
   });
   expect(initial).not.toContain("--ephemeral");
   const resumed = codexResumeArgv({
@@ -80,6 +81,16 @@ test("builds one persistent Codex session and one exact follow-up resume", () =>
   expect(resumed).not.toContain("--ephemeral");
 });
 
+test("keeps an ordinary Codex eval session for bounded evidence extraction", () => {
+  const argv = codexArgv({
+    repoDir: REPO,
+    prompt: "review",
+    model: "gpt-5.6-terra",
+    effort: "medium",
+  });
+  expect(argv).not.toContain("--ephemeral");
+});
+
 test("requires exactly one Codex thread id before resuming", () => {
   expect(
     codexThreadId(
@@ -97,6 +108,40 @@ test("requires exactly one Codex thread id before resuming", () => {
       ].join("\n"),
     ),
   ).toBeUndefined();
+});
+
+test("loads the one native session bound to the Codex thread", async () => {
+  const configRoot = await mkdtemp(join(tmpdir(), "darrow-codex-session-"));
+  try {
+    expect(
+      await codexNativeSessionForThread(configRoot, "thread-123"),
+    ).toBeUndefined();
+    const sessionRoot = join(configRoot, "sessions", "2026", "09", "06");
+    await mkdir(sessionRoot, { recursive: true });
+    const expected = '{"ordinal":0,"payload":{"type":"session_meta"}}\n';
+    await writeFile(
+      join(sessionRoot, "rollout-2026-09-06T10-00-00-thread-123.jsonl"),
+      expected,
+    );
+    await writeFile(
+      join(sessionRoot, "rollout-2026-09-06T10-00-01-other-thread.jsonl"),
+      "decoy\n",
+    );
+    expect(await codexNativeSessionForThread(configRoot, "thread-123")).toBe(
+      expected,
+    );
+    const secondRoot = join(configRoot, "sessions", "2026", "09", "07");
+    await mkdir(secondRoot, { recursive: true });
+    await writeFile(
+      join(secondRoot, "rollout-2026-09-07T10-00-00-thread-123.jsonl"),
+      expected,
+    );
+    expect(
+      await codexNativeSessionForThread(configRoot, "thread-123"),
+    ).toBeUndefined();
+  } finally {
+    await rm(configRoot, { recursive: true, force: true });
+  }
 });
 
 test("Codex no-skill control does not require a plugin package", async () => {
@@ -1110,9 +1155,9 @@ describe("Codex skill activation observation", () => {
 
     const retained = retainedCodexEvidence(stream, REPO);
     expect(retained).toContain('"type":"item.started"');
-    expect(retained).not.toContain('"model":"gpt-5.6-sol"');
-    expect(retained).not.toContain('"reasoning_effort":"xhigh"');
-    expect(retained).not.toContain('"fork_turns":"none"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
     expect(retained).toContain('"tool":"wait_agent"');
     expect(retained).toContain('"sender_thread_id":"parent-thread"');
     expect(retained).toContain("- review_axis: standards");
@@ -1135,6 +1180,269 @@ describe("Codex skill activation observation", () => {
       },
     ]);
     expect(retained).not.toContain("sensitive task context");
+  });
+
+  test("retains current review task labels and route fields", () => {
+    const childId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          sender_thread_id: "parent-thread",
+          receiver_thread_ids: [childId],
+          task_name: "review_standards",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          fork_turns: "none",
+          prompt: "- review_axis: standards\nsensitive task context",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "completed",
+          sender_thread_id: "parent-thread",
+          receiver_thread_ids: [childId],
+          task_name: "review_standards",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"tool":"spawn_agent"');
+    expect(retained).toContain(`"agent_ref":"${childId}"`);
+    expect(retained).toContain('"task_name":"review_standards"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
+    expect(retained).toContain('"event_type":"item.completed"');
+    expect(retained).toContain('"launch_accepted":true');
+    expect(retained).toContain("- review_axis: standards");
+    expect(retained).not.toContain("sensitive task context");
+  });
+
+  test("merges bounded accepted-launch evidence from the native session", () => {
+    const nativeEntry = (ordinal: number, payload: Record<string, unknown>) =>
+      JSON.stringify({
+        timestamp: `2026-09-06T10:00:0${ordinal}.000Z`,
+        ordinal,
+        type: "response_item",
+        payload,
+      });
+    const nativeSession = [
+      nativeEntry(1, {
+        type: "function_call",
+        name: "spawn_agent",
+        namespace: "collaboration",
+        call_id: "call-standards",
+        arguments: JSON.stringify({
+          task_name: "review_standards",
+          fork_turns: "none",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          message: "- review_axis: standards\nsensitive review packet",
+        }),
+      }),
+      nativeEntry(2, {
+        type: "item_completed",
+        item: {
+          type: "SubAgentActivity",
+          id: "call-standards",
+          kind: "started",
+          agent_thread_id: "01a04f35-c37a-74b3-baa4-961bc21b6f49",
+          agent_path: "/root/review_standards",
+        },
+      }),
+      nativeEntry(3, {
+        type: "function_call_output",
+        call_id: "call-standards",
+        output: JSON.stringify({ task_name: "/root/review_standards" }),
+      }),
+      nativeEntry(4, {
+        type: "function_call",
+        name: "wait_agent",
+        namespace: "collaboration",
+        call_id: "call-wait",
+        arguments: "{}",
+      }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+      join(REPO, ".agents", "skills"),
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"accepted"');
+    expect(retained).toContain('"call_id":"call-standards"');
+    expect(retained).toContain('"agent_ref":"/root/review_standards"');
+    expect(retained).toContain('"task_name":"review_standards"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
+    expect(retained).toContain('"review_axis":"standards"');
+    expect(retained).toContain('"type":"darrow.codex_native_wait"');
+    expect(retained).not.toContain("sensitive review packet");
+  });
+
+  test("assembles thread-bound native evidence into the retained transcript", async () => {
+    const configRoot = await mkdtemp(join(tmpdir(), "darrow-codex-session-"));
+    try {
+      const threadId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+      const sessionRoot = join(configRoot, "sessions", "2026", "09", "06");
+      await mkdir(sessionRoot, { recursive: true });
+      const entry = (ordinal: number, payload: Record<string, unknown>) =>
+        JSON.stringify({
+          timestamp: `2026-09-06T10:00:0${ordinal}.000Z`,
+          ordinal,
+          type: "response_item",
+          payload,
+        });
+      await writeFile(
+        join(sessionRoot, `rollout-2026-09-06T10-00-00-${threadId}.jsonl`),
+        [
+          entry(1, {
+            type: "function_call",
+            name: "spawn_agent",
+            namespace: "collaboration",
+            call_id: "call-standards",
+            arguments: JSON.stringify({
+              task_name: "review_standards",
+              fork_turns: "none",
+              model: "gpt-5.6-sol",
+              reasoning_effort: "xhigh",
+              message: "- review_axis: standards\nsensitive review packet",
+            }),
+          }),
+          entry(2, {
+            type: "item_completed",
+            item: {
+              type: "SubAgentActivity",
+              id: "call-standards",
+              kind: "started",
+              agent_thread_id: threadId,
+              agent_path: "/root/review_standards",
+            },
+          }),
+          entry(3, {
+            type: "function_call_output",
+            call_id: "call-standards",
+            output: JSON.stringify({ task_name: "/root/review_standards" }),
+          }),
+        ].join("\n"),
+      );
+      const stream = [
+        JSON.stringify({ type: "thread.started", thread_id: threadId }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+      const retained = await retainedCodexEvidenceForThread(
+        stream,
+        REPO,
+        configRoot,
+      );
+      expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+      expect(retained).toContain('"status":"accepted"');
+      expect(retained).not.toContain("sensitive review packet");
+    } finally {
+      await rm(configRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("retains no accepted launch from a malformed native session", () => {
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      {
+        exitCode: 0,
+        stderrPresent: false,
+        nativeSession: "not-json\n",
+      },
+    );
+    expect(retained).toContain(
+      '"type":"darrow.codex_native_session_malformed"',
+    );
+    expect(retained).not.toContain('"type":"darrow.codex_native_spawn"');
+  });
+
+  test("does not mark a started-only review launch as accepted", () => {
+    const childId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: [childId],
+          task_name: "review_standards",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          fork_turns: "none",
+          prompt: "- review_axis: standards\nsecret body",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"event_type":"item.started"');
+    expect(retained).not.toContain('"launch_accepted":true');
+    expect(retained).not.toContain("secret body");
+  });
+
+  test("omits hostile and unbounded collaboration identifiers", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "wait_agent",
+          status: "in_progress",
+          sender_thread_id: `parent-${"x".repeat(256)}`,
+          receiver_thread_ids: ["child\nsecret"],
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"tool":"wait_agent"');
+    expect(retained).not.toContain("sender_thread_id");
+    expect(retained).not.toContain("receiver_thread_ids");
+    expect(retained).not.toContain("secret");
+  });
+
+  test("retains a bounded reason when a native launch is rejected", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: ["child-1", "child-2"],
+          task_name: "Sensitive review title",
+          prompt: "- review_axis: standards\nsecret body",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"type":"darrow.collaboration_launch_rejected"');
+    expect(retained).toContain('"reasons":["agent_reference"]');
+    expect(retained).toContain('"task_name_class":"invalid"');
+    expect(retained).toContain('"receiver_count":2');
+    expect(retained).toContain('"item_keys"');
+    expect(retained).not.toContain("Sensitive review title");
+    expect(retained).not.toContain("secret body");
   });
 
   test("distinguishes authorized staging from executed parent verification", () => {

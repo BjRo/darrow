@@ -1,7 +1,8 @@
 id: code-review-reviewer-route-unavailable
+activation: positive
 invariant: CR-C4,CR-C10,CR-C21,CR-E7,CR-E14
 prompt: >-
-  Explicitly use the installed $code-review skill to review my uncommitted
+  Explicitly use {{skill_invocation}} to review my uncommitted
   changes against this originating requirement: exported mode must equal
   "safe". The native host reports that the selected configured reviewer route
   is unavailable for this run. Do not repair the code, inherit another reviewer
@@ -43,7 +44,8 @@ checks:
   - name: unavailable route retains zero native reader launch attempts
     run: >-
       case "$DARROW_EVAL_HARNESS" in codex)
-      awk 'index($0, "\"tool\":\"spawn_agent\"") { found = 1 }
+      awk 'index($0, "\"tool\":\"spawn_agent\"") ||
+      index($0, "\"type\":\"darrow.codex_native_spawn\"") { found = 1 }
       END { exit found }' .git/retained-harness.jsonl ;;
       claude) awk 'index($0, "\"name\":\"Agent\"") ||
       index($0, "\"type\":\"darrow.review_agent_launch\"") { found = 1 }
@@ -53,8 +55,8 @@ checks:
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
       bash "$tool" validate "$record" &&
       grep -F 'verdict	blocked' "$record" >/dev/null &&
       test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'

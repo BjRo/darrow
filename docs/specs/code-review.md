@@ -254,6 +254,13 @@ axis and report `not_available`. Do not invent requirements.
     paths and applies only the returned native launch fields. It MUST NOT
     reconstruct route tuples or use shell redirection to create route evidence.
     Each application record MUST bind its axis and the host-reported child ID.
+    A native reader launch is accepted only after the host returns exactly one
+    distinct child ID for that axis. A canonical child reference in a
+    host-returned field named `task_name` is such an ID and MUST NOT be confused
+    with the requested bounded task label. Until then the coordinator MUST NOT
+    wait for, consume, or replace reader judgment. A rejected launch or a launch
+    without one child ID immediately blocks that axis; the coordinator MUST NOT
+    substitute same-context analysis, a generic reader, or an inferred result.
     Codex evidence is valid only when retained native events show a distinct
     accepted fresh-context spawn for that ID, exact model and effort, and a
     host-visible, unambiguous axis marker in its native task name or retained

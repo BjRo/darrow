@@ -1,4 +1,5 @@
 id: code-review-fix-verification-unavailable
+activation: positive
 invariant: CR-C17,CR-C18,CR-C20,CR-E13
 prompt: >-
   Fix-verify the uncommitted repair described by `.git/verification-input`.
@@ -51,7 +52,8 @@ checks:
   - name: unavailable evidence produces a valid blocked artifact
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(sed -n '1p' .git/review-result-tool) &&
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
       awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" && $3 == "applicable" && $4 == "blocked" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       awk -F '\t' '$1 == "evidence_gap" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
