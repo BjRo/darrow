@@ -145,8 +145,11 @@ axis and report `not_available`. Do not invent requirements.
    review intent. It MUST NOT require a router skill, external orchestrator, or
    another Darrow plugin.
 2. **CR-C2 — Fixed point first.** Resolve and validate the base and target
-   before starting reviewer agents. An invalid base or empty declared diff is
-   reported before spending review-model budget.
+   in the requester-bound repository before starting reviewer agents. An
+   explicit repository path overrides ambient Git repository-selection state;
+   skill or plugin directories MUST NOT become the review repository. Every
+   emitted manifest identifies that bound repository. An invalid base or empty
+   declared diff is reported before spending review-model budget.
 3. **CR-C3 — Complete diff.** The review scope includes every declared staged,
    unstaged, and untracked target file. Reviewers inspect the diff itself, not a
    summary written by the change author.
@@ -160,8 +163,10 @@ axis and report `not_available`. Do not invent requirements.
    relevant repository guidance. Documented local decisions override any
    bundled smell heuristic.
 7. **CR-C7 — Tools before taste.** Run or validate applicable deterministic
-   gates. Suppress model findings that merely restate tool-enforced formatting,
-   lint, type, or test results.
+   gates through bundled check-evidence capture. Preserve each literal command,
+   actual exit status, and bounded output in a canonical record, and copy its
+   check row without reinterpretation. Suppress model findings that merely
+   restate tool-enforced formatting, lint, type, or test results.
 8. **CR-C8 — Traceable Spec findings.** Every blocking Spec finding cites the
    source requirement it violates. Unsupported assumptions and personal
    product preferences are excluded.
@@ -194,6 +199,9 @@ axis and report `not_available`. Do not invent requirements.
     from the validated TSV, prioritizes verdict and findings, renders checks
     compactly, and presents detailed scope and sources later. Renderer
     mechanics escape hostile field content without changing the canonical TSV.
+    Human presentation is first materialized as a nonempty canonical Markdown
+    artifact beside the TSV, then emitted by one dedicated final renderer
+    invocation whose complete stdout is returned without coordinator rewriting.
 17. **CR-C17 — Explicit review modes.** Comprehensive initial review retains
     the complete-diff, isolated-axis behavior above. Fix verification requires
     the original finding set and target binding and MUST NOT silently fall back
@@ -215,10 +223,12 @@ axis and report `not_available`. Do not invent requirements.
     later verification is no progress. Every later verification binds the
     checksum and path of the prior verification artifact, preserves each prior
     regression's stable key and immutable causal fields, and records the
-    current state of every carried regression. The first verification has no
-    target history and binds its prior target to the original review target;
-    each later artifact preserves exactly the prior history plus the prior
-    artifact's prior target. Advisories never determine the gate outcome.
+    current state of every carried regression. Regression order is an
+    independent sequence beginning at one, not the causing original finding's
+    order. The first verification has no target history and binds its prior
+    target to the original review target; each later artifact preserves exactly
+    the prior history plus the prior artifact's prior target. Advisories never
+    determine the gate outcome.
 20. **CR-C20 — Mechanical verification outcome.** Verification derives
     `clear`, `continue`, `no_progress`, or `blocked` from exact target history,
     blocking finding and regression states, deterministic checks, and evidence

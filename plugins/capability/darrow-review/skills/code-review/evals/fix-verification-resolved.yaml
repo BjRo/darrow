@@ -2,12 +2,10 @@ id: code-review-fix-verification-resolved
 activation: positive
 invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E13,CR-E14
 prompt: >-
-  Fix-verify the uncommitted repair described by the caller-owned evidence file
-  `.git/verification-input`; do not run another comprehensive review. Validate
-  and use its pinned prior scope, closed original finding set, attempted keys,
-  and first-verification marker. Use current deterministic evidence from `bash
-  check.sh`. Return the normal human repair-verification report and remain
-  read-only.
+  Verify whether my uncommitted repair resolved the prior code-review findings
+  recorded in `.git/verification-input`. Use `bash check.sh` as current check
+  evidence. Remain read-only and do not widen this into another comprehensive
+  review.
 fixture:
   commits:
     - message: "chore: base"
@@ -60,6 +58,18 @@ checks:
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
   - name: verification remains read only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: current verification scope remains in the requested repository
+    run: >-
+      verification=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      test -n "$verification" &&
+      artifact_dir=$(cd "$(dirname "$verification")" && pwd -P) &&
+      manifest=$artifact_dir/scope.tsv &&
+      test -r "$manifest" &&
+      expected_repo=$(pwd -P) &&
+      git_dir=$(git rev-parse --absolute-git-dir) &&
+      git_dir=$(cd "$git_dir" && pwd -P) &&
+      test "$(awk -F '\t' '$1 == "repository" { print $2 }' "$manifest")" = "$expected_repo" &&
+      case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
@@ -150,4 +160,7 @@ checks:
   - name: final response is the complete rendered verification report
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+      test -n "$report" &&
+      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md

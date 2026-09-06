@@ -2,6 +2,11 @@
 # Pin a complete Git diff without changing the reviewed working tree.
 set -u
 
+# --repo is the authority boundary. Do not let an inherited Git invocation
+# context redirect repository, worktree, index, or object discovery.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+
 PROGRAM=${0##*/}
 TAB=$(printf '\t')
 

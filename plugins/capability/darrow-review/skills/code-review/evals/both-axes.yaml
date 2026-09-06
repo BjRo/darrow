@@ -39,6 +39,15 @@ checks:
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: canonical Markdown handoff is materialized beside the TSV
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      report=$(dirname "$record")/review.md;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -r "$report" && test -s "$report" && test -n "$tool" &&
+      bash "$tool" render "$record" >.git/expected-review.md &&
+      cmp .git/expected-review.md "$report"
   - name: final response preserves every canonical rendered line
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');

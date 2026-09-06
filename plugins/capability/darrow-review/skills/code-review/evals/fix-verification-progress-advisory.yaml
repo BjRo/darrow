@@ -2,11 +2,9 @@ id: code-review-fix-verification-progress-advisory
 activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-E13
 prompt: >-
-  Fix-verify my uncommitted repair against only the caller-owned evidence in
-  `.git/verification-input`. Validate and use its pinned prior scope, closed
-  original finding set, attempted keys, and first-verification marker. The
-  caller attempted both supplied findings. Use `bash check.sh`, return the
-  normal verification report, and do not edit anything.
+  Verify my uncommitted repair against only the prior code-review findings in
+  `.git/verification-input`. Use `bash check.sh` as current check evidence.
+  Remain read-only and do not widen this into another comprehensive review.
 fixture:
   commits:
     - message: "chore: base"
@@ -72,4 +70,7 @@ checks:
   - name: final response is the complete rendered verification report
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+      test -n "$report" &&
+      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md

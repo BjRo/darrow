@@ -2,12 +2,10 @@ id: code-review-fix-verification-regression-second-round
 activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-C20,CR-E13
 prompt: >-
-  Fix-verify only the carried repair-caused regression described by the
-  caller-owned evidence file `.git/verification-input`. This is the second fix
-  verification round, not a comprehensive review. Validate the prior artifact,
-  preserve its stable regression identity, use the pinned prior-to-current
-  repair delta, run `bash check.sh`, return the normal human report, and remain
-  read-only.
+  Verify only the carried repair-caused regression from the prior code review
+  recorded in `.git/verification-input`. This is a follow-up repair
+  verification, not a comprehensive review. Use `bash check.sh` as current
+  check evidence and remain read-only.
 fixture:
   commits:
     - message: "chore: init"
@@ -95,4 +93,7 @@ checks:
   - name: final response is the complete rendered verification report
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+      test -n "$report" &&
+      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md

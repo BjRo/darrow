@@ -2,25 +2,34 @@ id: code-review-fix-verification-regression-scope
 activation: positive
 invariant: CR-C17,CR-C18,CR-C20,CR-E13
 prompt: >-
-  Fix-verify my uncommitted repair, limited to the caller-owned evidence in
-  `.git/verification-input` and direct repair consequences. Validate and use
-  its pinned prior scope, closed original finding set, attempted key, and
-  first-verification marker. Use current deterministic evidence from `bash
-  check.sh`. Return the normal human verification report and remain read-only.
+  Verify my uncommitted repair against the prior code-review findings in
+  `.git/verification-input`, limited to those findings and direct repair
+  consequences. Use `bash check.sh` as current check evidence and remain
+  read-only. Do not widen this into another comprehensive review.
 fixture:
   commits:
     - message: "chore: base"
       files:
         AGENTS.md: "# Repository instructions\n"
+        package.json: |
+          { "type": "module" }
         src/math.js: |
           export const multiplier = 2;
           export const scale = (value) => value * multiplier;
         check.sh: |
           #!/usr/bin/env bash
           set -eu
-          grep -Fx 'export const multiplier = 2;' src/math.js >/dev/null
-          grep -Fx 'export const scale = (value) => Math.abs(value * multiplier);' src/math.js >/dev/null
-          exit 1
+          node -e 'import("./src/math.js").then(({multiplier, scale}) => {
+            if (multiplier !== 2) {
+              console.error(`multiplier: expected 2, got ${multiplier}`);
+              process.exit(1);
+            }
+            const actual = scale(-2);
+            if (actual !== -4) {
+              console.error(`scale(-2): expected -4, got ${actual}`);
+              process.exit(1);
+            }
+          })'
     - message: "feat: introduce wrong multiplier"
       files:
         src/math.js: |
@@ -60,6 +69,8 @@ checks:
       tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
+      awk -F '\t' '$1 == "check" && $2 == "bash check.sh" && $3 == "applicable" &&
+      $4 == "fail" && $5 ~ /scale\(-2\)/ { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
       awk -F '\t' -v cause="spec:1:$original_target" '$1 == "regression" && $2 == "regression:1:" cause && $3 == cause && $4 == 1 { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       grep -F 'outcome	continue' "$record" >/dev/null
@@ -70,4 +81,7 @@ checks:
   - name: final response is the complete rendered verification report
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
+      test -n "$report" &&
+      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md

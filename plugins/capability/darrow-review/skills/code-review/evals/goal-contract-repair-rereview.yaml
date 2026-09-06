@@ -9,10 +9,10 @@ prompt: >-
   standards. Use its normal review report. With no blocking findings, return
   control to this goal. With blocking findings, repair only those findings
   under the existing authorization below, rerun invalidated checks, and
-  fix-verify only the attempted findings and their direct repair consequences
-  against the changed target fingerprint. If verification is unavailable or
-  inconclusive, stop. After and only after clear exact-target verification, run
-  `bash mark-complete.sh`. Originating
+  independently verify only the attempted findings and their direct repair
+  consequences against the changed target fingerprint. If verification is
+  unavailable or inconclusive, stop. After and only after clear exact-target
+  verification, run `bash mark-complete.sh`. Originating
   requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain
   3.
   Acceptance: `bash check.sh` passes. Authorized repair: edit src/config.js

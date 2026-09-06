@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Capture one deterministic review check as canonical evidence.
+set -u
+
+PROGRAM=${0##*/}
+TAB=$(printf '\t')
+NEWLINE='
+'
+command_output=
+record_temp=
+
+cleanup() {
+  [ -z "$command_output" ] || rm -f "$command_output"
+  [ -z "$record_temp" ] || rm -f "$record_temp"
+}
+trap cleanup EXIT
+
+usage() {
+  printf 'Usage: %s run --output ABSOLUTE_PATH --command LITERAL_COMMAND\n' "$PROGRAM"
+}
+
+fail() {
+  code=$1
+  shift
+  printf '%s: %s\n' "$PROGRAM" "$*" >&2
+  exit "$code"
+}
+
+[ "${1:-}" = run ] || { usage >&2; exit 2; }
+shift
+
+output=
+check_command=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output)
+      [ "$#" -ge 2 ] || fail 2 "--output requires a value"
+      output=$2
+      shift 2
+      ;;
+    --command)
+      [ "$#" -ge 2 ] || fail 2 "--command requires a value"
+      check_command=$2
+      shift 2
+      ;;
+    *) fail 2 "unknown argument: $1" ;;
+  esac
+done
+
+[ -n "$output" ] || fail 2 "--output is required"
+[ -n "$check_command" ] || fail 2 "--command is required"
+case "$output" in
+  /*) ;;
+  *) fail 2 "output must be an absolute path" ;;
+esac
+case "$check_command" in
+  *"$TAB"*|*"$NEWLINE"*) fail 2 "command must be one nonempty TSV-safe line" ;;
+esac
+
+git_dir_raw=$(git rev-parse --git-dir 2>/dev/null) || fail 2 "current directory is not inside a Git repository"
+git_dir=$(cd "$git_dir_raw" 2>/dev/null && pwd -P) || fail 2 "repository Git directory is unreadable: $git_dir_raw"
+output_name=${output##*/}
+[ -n "$output_name" ] && [ "$output_name" != . ] && [ "$output_name" != .. ] || fail 2 "output must name a file"
+output_dir_raw=${output%/*}
+[ -n "$output_dir_raw" ] || output_dir_raw=/
+output_dir=$(cd "$output_dir_raw" 2>/dev/null && pwd -P) || fail 2 "output directory is unreadable: $output_dir_raw"
+output_path=$output_dir/$output_name
+case "$output_path" in
+  "$git_dir"/*) ;;
+  *) fail 2 "output must be beneath the repository Git directory: $git_dir" ;;
+esac
+[ ! -e "$output_path" ] || fail 2 "output already exists: $output_path"
+
+command_output=$(mktemp "$output_dir/.review-check-output.XXXXXX") || fail 2 "could not create command-output artifact"
+record_temp=$(mktemp "$output_dir/.review-check-record.XXXXXX") || fail 2 "could not create record artifact"
+
+"${BASH:-bash}" -c "$check_command" >"$command_output" 2>&1
+exit_code=$?
+case "$exit_code" in
+  0) status=pass ;;
+  126|127) status=blocked ;;
+  *) status=fail ;;
+esac
+
+first_line=$(LC_ALL=C awk 'NR == 1 { gsub(/\t/, " "); gsub(/\r/, ""); print substr($0, 1, 512); exit }' "$command_output")
+[ -n "$first_line" ] || first_line="no output"
+evidence="exited $exit_code: $first_line"
+
+{
+  printf 'format\tdarrow-review-check-v1\n'
+  printf 'check\t%s\tapplicable\t%s\t%s\n' "$check_command" "$status" "$evidence"
+  printf 'exit_code\t%s\n' "$exit_code"
+} >"$record_temp" || fail 2 "could not write check record: $output_path"
+
+mv "$record_temp" "$output_path" || fail 2 "could not finalize check record: $output_path"
+record_temp=
+printf 'check_record\t%s\n' "$output_path"

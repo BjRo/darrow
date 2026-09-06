@@ -17,7 +17,16 @@ fixture:
   bin:
     git: |
       #!/usr/bin/env bash
-      real_git=$(PATH="${PATH#*:}" command -v git)
+      wrapper_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+      real_git=
+      while IFS= read -r candidate; do
+        candidate_dir=$(CDPATH= cd -- "$(dirname -- "$candidate")" && pwd -P)
+        if [ "$candidate_dir" != "$wrapper_dir" ]; then
+          real_git=$candidate
+          break
+        fi
+      done < <(type -a -p git)
+      [ -n "$real_git" ] || exit 127
       printf '%s\n' "$*" >>.git/git-trace
       exec "$real_git" "$@"
     gh: |

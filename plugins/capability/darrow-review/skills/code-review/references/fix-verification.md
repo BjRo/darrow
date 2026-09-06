@@ -36,15 +36,15 @@ consistent—or their exact evidence gaps are bound for a blocked result.
 
 ## 2. Pin the current repair target
 
-Resolve the same bundled `review-scope`, `review-result`, and `review-report`
-tools as comprehensive mode. Validate the prior scope manifest and require its
-target to equal the supplied prior target and its effective base to equal the
-current scope's effective base. For the first verification, use the scope
-manifest retained by the comprehensive run; a fresh invocation may locate it
-only when exactly one validated artifact beneath the repository Git directory
-has that target. For a later verification, validate the immediately prior
-verification artifact and use its sibling scope manifest. Missing or ambiguous
-prior artifacts block.
+Resolve the same bundled `review-scope`, `review-result`, `review-report`, and
+`review-check` tools as comprehensive mode. Validate the prior scope manifest
+and require its target to equal the supplied prior target and its effective base
+to equal the current scope's effective base. For the first verification, use
+the scope manifest retained by the comprehensive run; a fresh invocation may
+locate it only when exactly one validated artifact beneath the repository Git
+directory has that target. For a later verification, validate the immediately
+prior verification artifact and use its sibling scope manifest. Missing or
+ambiguous prior artifacts block.
 
 Prepare the exact current base/target scope with the ordinary scope table plus:
 
@@ -55,20 +55,33 @@ bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
 
 Treat its target fingerprint, absolute manifest, changed paths, fixed show
 command, and `repair_show_command` as authoritative. The current target must
-not be copied from caller prose. `--allow-empty` is fix-verification-only: it
-permits an exact repair that restored the base while the pinned
-prior-to-current repair delta still exposes what changed. Run the
+not be copied from caller prose. Require both prior and current manifests'
+`repository` fields to equal the main skill's requester-bound `repo`; a plugin,
+skill, or cache repository is an evidence gap. `--allow-empty` is
+fix-verification-only: it permits an exact repair that restored the base while
+the pinned prior-to-current repair delta still exposes what changed. Run the
 `repair_show_command` and use only that mechanical delta—not caller-described
 changes—to establish repair causality.
 
-Run only applicable deterministic checks invalidated by the repair, recording
-their literal command, applicability, status, and concise evidence. A check
+Run only applicable deterministic checks invalidated by the repair. For each
+one, never execute the literal command directly. Use the main skill's resolved
+`review-check` as its sole execution boundary:
+
+```sh
+check_record="$(dirname "$manifest")/check-1.tsv" # increment for later checks
+bash "$check_tool" run --output "$check_record" --command "$literal_command"
+```
+
+Copy the retained record's canonical `check` row byte-for-byte into reader
+evidence and `verification.tsv`; never reinterpret the observed status. A check
 failure belongs in the convergence set only as evidence for a direct
 repair-caused regression tied to an attempted original finding. An unavailable
-required check is an evidence gap and blocks verification.
+required check or failed evidence capture is an evidence gap and blocks
+verification.
 
-**Complete when:** current content and checks are exact-target-bound and no
-reader has been asked to inspect an unpinned or stale target.
+**Complete when:** current content and canonical check records are
+exact-target-bound and no reader has been asked to inspect an unpinned or stale
+target.
 
 ## 3. Invoke isolated fix verifiers
 
@@ -136,7 +149,9 @@ regression keys mechanically. For a first verification write
 artifact's Git blob checksum and absolute path, carry every prior regression
 under the same key and immutable causal fields, and replace only its status,
 progress, and evidence from `regression_attempt`. New regression orders follow
-all carried orders.
+all carried regression orders. Regression order is its own sequence: when no
+regression is carried, the first new regression has order `1`, regardless of
+the causing original finding's order.
 
 Run:
 

@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Comprehensively review one bounded code change or fix-verify attempted findings from its closed review set. Use for explicit review intent, including an independent-review or repair-verification clause in a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
+description: Review bounded code changes and verify attempted repairs against prior review findings. Always use for explicit requests to review code, independently review a change, verify fixes from a prior code review, or perform repair verification within a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
 ---
 
 # Review code
@@ -18,11 +18,15 @@ apply its continuation rule.
 ## Presentation gate
 
 The final response is a protocol output, not a conversational summary. In
-human mode, the entire final response must be the bundled renderer's stdout.
-After the last renderer invocation, issue no more tool calls and add no
-preface, recap, interpretation, or follow-up. This applies equally to
-standalone and composed review. In machine mode, apply the same rule to the
-validated TSV bytes.
+human mode, first materialize the bundled renderer's complete stdout as the
+named Markdown artifact beside the TSV and confirm that artifact is readable
+and nonempty. Then invoke the renderer once more as a standalone final tool
+call. Copy that last invocation's stdout in full as the entire final response,
+including every section through Scope and Sources. Do not reconstruct the
+report from the TSV or reader findings. After that final renderer invocation,
+issue no more tool calls and add no preface, recap, interpretation, or
+follow-up. This applies equally to standalone and composed review. In machine
+mode, apply the same rule to the validated TSV bytes.
 
 ## Working model
 
@@ -50,6 +54,30 @@ validated TSV bytes.
 
 ## Workflow
 
+Before resolving plugin resources or changing directory, bind the repository
+from an explicit repository path in the request or, when none was supplied,
+from the invocation working directory:
+
+```sh
+repo_input=<explicit repository path or invocation working directory>
+repo=$(git -C "$repo_input" rev-parse --show-toplevel)
+repo=$(cd "$repo" && pwd -P)
+```
+
+Keep this value for the entire review. Never derive `repo` from `skill_dir`, a
+plugin cache, or a tool path.
+
+Resolve every bundled tool before choosing a mode so fix verification does not
+skip a comprehensive-only setup step:
+
+```sh
+skill_dir=<absolute directory containing this SKILL.md>
+scope_tool="$skill_dir/../../bin/review-scope"
+result_tool="$skill_dir/../../bin/review-result"
+report_tool="$skill_dir/../../bin/review-report"
+check_tool="$skill_dir/../../bin/review-check"
+```
+
 Choose the review mode before pinning scope:
 
 - **Comprehensive initial review** for an ordinary review request or the first
@@ -64,21 +92,12 @@ comprehensive workflow. Fix verification follows its separate workflow after
 them.
 
 In either mode, the final presentation comes from the bundled renderer, not
-coordinator prose. For fix verification, materialize the renderer output as
-`verification.md` beside `verification.tsv` and return that file byte-for-byte.
-A shortened response that preserves the heading or outcome but omits a rendered
-section is incomplete.
+coordinator prose. Materialize comprehensive output as `review.md` beside
+`result.tsv` and fix-verification output as `verification.md` beside
+`verification.tsv`. A shortened response that preserves the heading or outcome
+but omits a rendered section is incomplete.
 
 ### 1. Pin the comprehensive scope
-
-Resolve the bundled tools from this file:
-
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-scope_tool="$skill_dir/../../bin/review-scope"
-result_tool="$skill_dir/../../bin/review-result"
-report_tool="$skill_dir/../../bin/review-report"
-```
 
 Choose the scope mechanically:
 
@@ -103,6 +122,10 @@ Run exact values through:
 bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
   [--merge-base] [working-tree flags]
 ```
+
+Require the returned manifest's `repository` field to equal the bound `repo`.
+Any mismatch blocks before reader invocation; never continue with a manifest
+beneath a plugin or skill repository.
 
 Exit 2 means invalid/unreadable scope, exit 3 an empty declared diff, and exit
 4 an ambiguous merge base. For one of these terminal outcomes, read
@@ -135,15 +158,27 @@ from implementation.
 
 Discover applicable, deterministic, non-destructive format, lint, type, build,
 and test commands from repository guidance and configuration. Run the narrowest
-commands that settle the changed scope. Record each literal command,
-applicability, status, and concise evidence. A required command that cannot run
-is `blocked`; a runnable command that detects a defect is `fail`; no applicable
-command becomes one explicit `not_applicable` check. Do not run publication,
+commands that settle the changed scope. For every applicable command, choose a
+unique `check-N.tsv` beneath the scope artifact directory and run:
+
+```sh
+bash "$check_tool" run --output "$check_record" --command "$literal_command"
+```
+
+Read the retained `darrow-review-check-v1` record and copy its `check` row
+byte-for-byte into the aggregate result and reader evidence. Never infer,
+restate, or override its status from memory. Never execute an applicable
+command directly: `review-check` is its sole execution boundary. Exit 0 is
+`pass`, an ordinary nonzero exit is `fail`, and an unavailable command is
+`blocked`. If the helper itself refuses or cannot retain evidence, record that
+evidence gap as `blocked`. When no command applies, add one explicit
+`not_applicable` check without invoking the helper. Do not run publication,
 deployment, release, or network-writing commands.
 
 **Complete when:** Standards sources are complete, Spec is bound to an
-originating source or honestly unavailable, and every applicable or
-inapplicable deterministic check has current evidence.
+originating source or honestly unavailable, and every applicable deterministic
+check has one retained canonical evidence record while inapplicability is
+explicit.
 
 ### 3. Invoke isolated comprehensive readers
 
@@ -189,13 +224,23 @@ that merely restates deterministic tool output while keeping the check record.
 Do not introduce a new finding.
 
 Assemble and validate the TSV result beneath the scope artifact directory.
-For the default human presentation, run:
+For the default human presentation, materialize and validate the handoff:
+
+```sh
+review_report="$(dirname "$result_record")/review.md"
+bash "$report_tool" render "$result_record" >"$review_report"
+test -r "$review_report" && test -s "$review_report"
+```
+
+If either command fails, do not substitute coordinator prose; return a blocked
+evidence gap. Otherwise make this standalone renderer invocation the final tool
+call:
 
 ```sh
 bash "$report_tool" render "$result_record"
 ```
 
-Return those Markdown bytes as the entire response. The renderer validates the
+Copy its complete stdout as the entire response. The renderer validates the
 TSV, preserves every semantic field, and escapes hostile Markdown content. Only
 when the requester explicitly asked for raw TSV, v1, or machine format, copy
 the validated TSV bytes verbatim instead. Never concatenate the Markdown and
@@ -228,9 +273,9 @@ fix verification against the changed target.
 
 **Complete when:** the record reconciles the pinned scope, available axes,
 sources, findings, checks, verdict, risks, and next action; validation passes;
-and either the standalone final response contains exactly those bytes or the
-composed goal owner has received the findings and outcome and applied its
-enclosing contract.
+`review.md` contains the complete canonical rendering; and either the
+standalone final response contains exactly those bytes or the composed goal
+owner has received the findings and outcome and applied its enclosing contract.
 
 ## Fix-verification workflow
 
