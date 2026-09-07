@@ -36,7 +36,9 @@ package", or an explicit skill invocation.
 
 Missing information is resolved from repository evidence when safe. A choice
 that materially changes the skill's goal, side effects, destination, or runtime
-support is presented to the user rather than guessed.
+support is presented to the user rather than guessed. Asking the agent to pick
+an arbitrary capability or destination does not supply or approve that missing
+input.
 
 ### Output
 
@@ -50,6 +52,8 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   inputs and outputs, stop/question boundaries, supported runtimes, and success
   criteria before implementation. Establish representative direct, indirect,
   incomplete-input, negative-trigger, and plausible counterexample requests.
+  Delegating invention of an unspecified goal or destination does not satisfy
+  the contract and must not authorize a repository or user-level skill change.
   For a behavior-changing revision, capture baseline behavior before relying on
   the revised skill unless the harness cannot provide an uncontaminated
   baseline; disclose that limitation instead of fabricating one.
@@ -81,9 +85,13 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   successful empty state.
 - **SA-C7 — Portable self-containment.** Bundled shell scripts work in Bash 5
   and `/bin/bash` 3.2, avoid GNU-only assumptions, and never require files from a
-  sibling plugin. A packaged skill remains useful with no MCP server or other
-  Darrow plugin installed unless its own manifest declares and supplies that
-  dependency.
+  sibling plugin. Normalize paths before emitting or comparing them, and handle
+  ordinary environment spelling variants such as `TMPDIR` with or without a
+  trailing separator. Label shell evidence by the interpreter's observed
+  version rather than its command name, deduplicate equivalent interpreters,
+  and leave an unavailable required version explicitly unverified. A packaged
+  skill remains useful with no MCP server or other Darrow plugin installed
+  unless its own manifest declares and supplies that dependency.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,

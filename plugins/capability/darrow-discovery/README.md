@@ -9,12 +9,13 @@ discovery and implementation planning.
 
 ### `grilling`
 
-Stress-tests a plan, decision, design, or idea through dependency-aware
-question rounds. The skill investigates discoverable facts, asks the user only
-for decisions or confirmation, and gives a recommendation with every material
-question.
+When explicitly invoked, stress-tests a plan, decision, design, or idea through
+dependency-aware question rounds. The skill investigates discoverable facts,
+asks the user only for decisions or confirmation, and gives a recommendation
+with every material question. It never activates from natural-language intent.
 
-Example: _“Grill me on this API design before I commit to it.”_
+Example: explicitly invoke the installed `grilling` skill with _“Grill me on
+this API design before I commit to it.”_
 
 ### `discover-feature`
 
@@ -37,8 +38,8 @@ through consequential choices with me first.”_
 ## Design boundaries
 
 - All three skills are conversational and read-only.
-- Grilling is directly intent-triggered and reusable by the two outcome skills;
-  it is not an automatic response to every incomplete request.
+- Grilling is manual-only. The two outcome skills read its installed sibling
+  file as their shared method without selecting it as the primary skill.
 - Feature discovery does not become implementation planning, and planning does
   not invent unresolved feature behavior.
 - The plugin does not write specifications or plans, record decisions, create

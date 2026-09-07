@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { CaseResult } from "./types";
+import { hasBehavioralEvidence } from "./execution";
 
 const [baselinePath, candidatePath] = process.argv.slice(2);
 if (!baselinePath || !candidatePath) {
@@ -102,6 +103,13 @@ for (const base of baseline) {
   if (!cand) {
     invalidComparison = true;
     console.log(`${base.caseId}: missing in candidate`);
+    continue;
+  }
+  if (!hasBehavioralEvidence(base) || !hasBehavioralEvidence(cand)) {
+    invalidComparison = true;
+    console.log(
+      `${base.caseId}: incomparable — dry or unknown execution is unmeasured`,
+    );
     continue;
   }
   const errors = comparisonErrors(base, cand);

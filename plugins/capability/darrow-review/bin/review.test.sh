@@ -75,6 +75,28 @@ manifest_from() {
   awk -F '\t' '$1 == "manifest" { print $2 }' <<<"$1"
 }
 
+echo "explicit repository ignores hostile ambient Git context"
+fresh_repo
+TARGET_REPO=$REPO
+printf 'two\n' >"$TARGET_REPO/src/value.txt"
+fresh_repo
+HOSTILE_REPO=$REPO
+set +e
+out=$(cd / && GIT_DIR="$HOSTILE_REPO/.git" GIT_WORK_TREE="$HOSTILE_REPO" \
+  "$SHELL_UNDER_TEST" "$SCOPE" prepare --repo "$TARGET_REPO" --base HEAD --target WORKTREE 2>&1)
+status=$?
+set -e
+check_equal "explicit repository remains authoritative" 0 "$status"
+check_contains "hostile context cannot replace the repository" "repository${TAB}$TARGET_REPO" "$out"
+manifest=$(manifest_from "$out")
+case "$manifest" in
+  "$TARGET_REPO/.git"/*) printf '  ok: scope artifact stays beneath the target Git directory\n' ;;
+  *)
+    printf '  FAIL: scope artifact escaped the target Git directory (%s)\n' "$manifest"
+    FAILURES=$((FAILURES + 1))
+    ;;
+esac
+
 echo "committed scope"
 fresh_repo
 base=$(git -C "$REPO" rev-parse HEAD)

@@ -1,8 +1,10 @@
 id: readiness-needs-discovery
-invariant: IRG-C4
+invariant: IRG-C4,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C14
+activation: positive
+mount_plugin_skills: true
 prompt: >-
-  Can engineering start this work without inventing important details? Assess
-  implementation readiness from docs/request.md and the repository. Do not
+  Can engineering safely start the work in docs/request.md without inventing
+  important details? Use the request and repository evidence to answer. Do not
   plan or implement the change.
 fixture:
   commits:
@@ -48,7 +50,8 @@ fixture:
             const hash = createHash("sha256")
               .update(JSON.stringify(result)).digest("hex");
             console.log(`median_ms=${samples[10]} output_hash=${hash}`);'
-        package.json: '{"type":"module"}\n'
+        package.json: |
+          {"type":"module"}
         src/import.js: |
           export function importCustomers(rows) {
             return rows.map((row) => ({ ...row, imported: true }));
@@ -74,12 +77,16 @@ output_checks:
     expect_regex: "^\\*\\*Verdict:\\*\\* `needs-discovery`$"
   - name: next action is bounded discovery
     expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `discovery`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
-  - name: result identifies workload or baseline evidence
-    expect_regex: "baseline|representative (dataset|workload)|benchmark"
-    flags: i
   - name: default result preserves typed basis and finding fields
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: quality bar is explicitly empty or contains typed items
     expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
+semantic_output_checks:
+  - name: benchmark evidence is the first readiness action
+    proposition: >-
+      The response says implementation must wait for a bounded discovery run
+      that selects the representative workload and records the current
+      benchmark baseline while preserving result equivalence; it does not turn
+      that evidence-gathering step into a product-policy decision.

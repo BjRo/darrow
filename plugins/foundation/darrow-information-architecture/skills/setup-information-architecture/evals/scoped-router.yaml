@@ -1,5 +1,7 @@
 id: setup-information-architecture-scoped-router
-invariant: IA-S2,IA-S3,IA-S4,IA-S6,IA-S8
+invariant: IA-S2,IA-S3,IA-S4,IA-S6,IA-S8,IA-S11
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Set up a lean agent information architecture for this repository. Database
   work must preserve integer cents. Frontend changes must preserve keyboard
@@ -13,6 +15,7 @@ fixture:
         package.json: "{\"private\":true,\"packageManager\":\"bun@1.3.0\"}\n"
         apps/api/src/db.ts: "export const schemaVersion = 1;\n"
         apps/web/src/app.tsx: "export const App = () => null;\n"
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
 checks:
   - name: root entrypoint created
     run: test -f AGENTS.md && echo created
@@ -29,7 +32,7 @@ checks:
     expect_regex: "^adapter$"
   - name: universal merge safety stays resident
     run: cat AGENTS.md
-    expect_regex: "self[- ]?merge|never merge a pull request|merge (its|your) own"
+    expect_regex: "self[- ]?merge|never merge a pull request|merge (its|your) own|do not merge (a )?pull requests? yourself|must not merge (a )?pull requests? yourself"
     flags: i
   - name: root contains an explicit deferred read route
     run: cat AGENTS.md
@@ -97,7 +100,7 @@ checks:
     run: >-
       count=$(find . -type f -name '*.md' -not -path './.git/*'
       -not -path './.agents/*' -not -path './.claude/*'
-      -exec grep -Eil 'self[- ]?merge|merge (its|your) own' {} + | wc -l | tr -d ' ');
+      -exec grep -Eil 'self[- ]?merge|merge (its|your) own|do not merge (a )?pull requests? yourself|must not merge (a )?pull requests? yourself' {} + | wc -l | tr -d ' ');
       test "$count" = 1 && echo single
     expect_regex: "^single$"
   - name: money invariant is preserved in project guidance
@@ -108,10 +111,7 @@ checks:
     flags: i
   - name: deterministic dual-runtime verification passes
     run: >-
-      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
-      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
-      else echo missing-doctor; exit 1; fi;
-      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: setup creates no commit
     run: git rev-list --all --reflog --count

@@ -20,11 +20,20 @@ output_checks:
     expect_regex: "UV"
     flags: i
   - name: answer names the endpoint prerequisite
-    expect_regex: "endpoint|base URL|LANGFUSE_BASE_URL"
-    flags: i
-  - name: answer names the credential prerequisite
-    expect_regex: "public|secret|API key|credentials"
-    flags: i
+    expect_regex: "LANGFUSE_BASE_URL"
+  - name: answer names the public-key source
+    expect_regex: "LANGFUSE_PUBLIC_KEY"
+  - name: answer names the secret-key source
+    expect_regex: "LANGFUSE_SECRET_KEY"
   - name: answer does not claim tracing is enabled
     not_regex: "(configured|enabled|installed|working|connected) successfully"
     flags: i
+semantic_output_checks:
+  - name: answer stops on the complete prerequisite frontier
+    proposition: >-
+      The response accounts for UV availability, either by reporting direct
+      verification or by listing it as unverified, and groups every remaining
+      unknown prerequisite together: the Langfuse base URL, secure sources for
+      both public and secret keys, and the raw-content export decision. It does
+      not ask for the secret in chat, mutate configuration, run the hook, or
+      claim that tracing is configured.

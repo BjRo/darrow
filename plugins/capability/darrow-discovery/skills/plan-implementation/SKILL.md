@@ -1,6 +1,6 @@
 ---
 name: plan-implementation
-description: Plan the technical implementation of an understood outcome as ordered, independently verifiable work slices while resolving material unknowns with the user. Use immediately when the user asks for an implementation plan, technical delivery plan, work decomposition, or implementation slices, including when they ask to discuss unresolved choices before the plan or demand a final plan despite them. Do not defer selecting this skill until the choices are answered. Do not use for feature discovery alone, implementation itself, ticket publication, or a request only to assess readiness.
+description: Create an implementation plan when the requested deliverable is a technical plan, delivery plan, work decomposition, or implementation slices. Always select and load this as the primary skill, whether choices are settled, unresolved choices must be discussed first, or the user demands a final plan immediately. Do not use for feature discovery alone, implementation itself, ticket publication, or readiness assessment.
 ---
 
 # Plan an implementation
@@ -11,13 +11,10 @@ inventing unresolved behavior or executing the work.
 ## Load the canonical method first
 
 Before inspecting the repository, classifying decisions, or drafting any
-response, load the sibling `grilling` capability completely from this selected
-installed plugin. This is a mandatory first step, not an optional reference:
-
-- Claude Code: invoke the sibling `grilling` capability through the host skill
-  loader for the same installed plugin.
-- Codex: use the absolute path of this selected `SKILL.md` catalog entry and
-  read `../grilling/SKILL.md` completely.
+response, read the sibling [grilling method](../grilling/SKILL.md) completely
+from this selected installed plugin. Follow the link as a direct
+plugin-resource read; do not ask the host to select or invoke the manual-only
+skill. This is a mandatory first step, not an optional reference.
 
 Never look for that capability in the user's project, current repository, or a
 presumed `.agents/skills` checkout. If the installed sibling cannot be loaded,
@@ -26,13 +23,19 @@ stop and report that the canonical frontier method is unavailable. The
 tests, frontier rounds, recommendations, waiting, and closure. Apply that
 method rather than reconstructing it here.
 
+Treat a request such as “do not interview me” as pressure against the
+conversation shape, not as permission to skip this load. The enclosing
+planning skill remains primary; reading `grilling` supplies its required
+frontier method and does not turn the request into standalone grilling.
+
 Planning has two exclusive response phases:
 
 - **Frontier phase:** if any material choice remains unresolved, ask the
   canonical numbered grilling round and stop. Do not include architecture,
   implementation slices, migration steps, or a provisional plan.
 - **Plan phase:** draft ordered implementation slices only after the material
-  frontier is empty.
+  frontier is empty. End the response with a one-sentence plan restatement and
+  the literal request `Please confirm or correct this plan restatement.`
 
 Before sending a planning frontier round, perform this planning-specific
 response lint:
@@ -175,6 +178,28 @@ selected answer, that it was agent-selected under explicit delegation, the
 available or missing evidence, and the reason plus relevant consequence. This
 is concise provenance, not permission to sketch the plan early.
 
+Use one visible ledger entry per explicitly delegated choice:
+
+```text
+Delegated selection — <choice>
+Selected answer: <agent-selected answer>
+Provenance and evidence: Agent-selected under explicit delegation; <available evidence or exact evidence gap>.
+Rationale: <why this answer fits the known outcome and constraints>.
+Consequence: <one relevant effect, trade-off, or reversal cost>.
+```
+
+Before sending the response, audit delegation completeness:
+
+1. list every choice the user explicitly delegated;
+2. match each choice to exactly one ledger entry;
+3. verify that all four fields are present and specific to that choice;
+4. remove any adjacent choice the user did not delegate; and
+5. refuse completion if an entry is missing, duplicated, generic, or falsely
+   attributed to repository evidence or prior user agreement.
+
+The ledger records bounded selections and their provenance; it is not an
+architecture outline or implementation plan.
+
 Apply delegation literally. Delegating queue technology, availability target,
 delivery semantics, or retry policy does not also delegate the caller-visible
 response, status/read interface, failure UX, migration policy, rollout,
@@ -290,8 +315,14 @@ look complete, and do not publish tickets.
 
 ## 5. Confirm and stop
 
-Ask the user to confirm or correct the one-sentence plan restatement. Until
-they do, label the plan as a draft and do not claim agreement or readiness.
+Apply the plan-phase closure boundary above. A heading such as “Restatement for
+confirmation” does not ask the question and cannot substitute for the required
+final line. Until the user confirms, label the plan as a draft and do not claim
+agreement or readiness.
+
+Before sending a plan-phase response, verify that its final two elements are
+the one-sentence restatement and the explicit confirmation question. If either
+is missing, the response is incomplete.
 
 After explicit confirmation, label the conversational plan confirmed and
 stop. Do not persist it or automatically start readiness assessment,

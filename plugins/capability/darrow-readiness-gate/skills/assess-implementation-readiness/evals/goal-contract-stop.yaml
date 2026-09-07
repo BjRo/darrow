@@ -1,5 +1,7 @@
 id: readiness-goal-contract-nonready
-invariant: IRG-C8
+invariant: IRG-C8,IRG-E1,IRG-E6,IRG-E9,SE-C9,SE-C10,SE-C11
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Execute this bounded goal contract. Outcome: session renewal follows the
   approved policy in docs/request.md. Before any repository mutation, use an

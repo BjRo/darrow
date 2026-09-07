@@ -1,5 +1,6 @@
 id: author-agent-skill-non-skill-guidance
 invariant: SA-C2
+activation: negative
 prompt: >-
   Tighten the wording of the existing package-manager convention in AGENTS.md.
   Keep it as an always-on repository convention; this is not a reusable
@@ -19,7 +20,7 @@ checks:
     flags: i
   - name: negative-trigger request creates no repository skill
     run: >-
-      test -z "$(find . -path './.codex/skills/author-agent-skill' -prune -o -type f -name SKILL.md -print)"
+      test -z "$(find . -path './.git' -prune -o -type f -name SKILL.md -print)"
   - name: guidance edit creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"

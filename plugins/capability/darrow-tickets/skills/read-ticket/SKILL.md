@@ -1,6 +1,6 @@
 ---
 name: read-ticket
-description: Read one exact current-project tracker ticket by ID or canonical URL without changing tracker state. Use when the user asks to read, show, fetch, or inspect what a specific ticket or issue says; do not use to find or list tickets, mutate a ticket, assess readiness, or start the tracked work.
+description: 'Retrieve and relay one exact current-project tracker ticket, read-only. Always use for requests to read, show, fetch, or inspect one ticket or issue—including incomplete requests such as "show me the ticket", bare IDs, "read ticket #42", indirect questions such as "what does this ticket ask for?", and any supplied ticket URL. Use it even when a URL appears foreign or invalid, or the user suggests reusing its numeric suffix; this skill decides ticket-URL validity. Do not use to find or list tickets, mutate a ticket, assess readiness, or start the tracked work.'
 ---
 
 # Read one ticket

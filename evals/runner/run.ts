@@ -1,4 +1,16 @@
-import { readFile, mkdir, rename, writeFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { atomicWriteJson } from "./artifacts";
+import {
+  checkpointActiveRun,
+  finalizeActiveRun,
+  startActiveRun,
+} from "./run-state";
+import {
+  installRunSignals,
+  interruptionExitCode,
+  settleInterruption,
+  throwIfInterrupted,
+} from "./run-control";
 import {
   basename,
   dirname,
@@ -33,7 +45,9 @@ import {
   hasClaudeGoalAgentEvidence,
 } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
+import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
 import { EvalCliUi, resolvePresentation, type TrialLine } from "./cli-ui";
+import { mapWithConcurrency } from "./concurrency";
 import {
   exposesInternalGoalRecord,
   parsePausedGoalReport,
@@ -42,6 +56,7 @@ import {
   validGoalReportValues,
 } from "./goal-report";
 import {
+  activationProbeForCase,
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
@@ -66,6 +81,7 @@ import type {
   HarnessAdapter,
   HarnessRunRequest,
   HarnessResult,
+  SkillActivationProbe,
   TrialResult,
 } from "./types";
 
@@ -98,6 +114,7 @@ interface RunCaseOptions {
   model: string;
   effort: string;
   trials: number;
+  jobs: number;
   threshold: number;
   dry: boolean;
   condition?: { label: string; text: string };
@@ -152,66 +169,6 @@ const DEFAULT_CORPUS_MANIFEST = join(
   "orchestration",
   "manifest.yaml",
 );
-
-interface ActiveRunRecord {
-  format: "darrow-eval-active-run-v1";
-  status: "active" | "complete" | "diagnostic";
-  startedAt: string;
-  finalizedAt?: string;
-  artifactPath: string;
-  diagnosticPath?: string;
-  completedTrials: Array<{ caseId: string; trial: number; passed: boolean }>;
-  failure?: string;
-}
-
-async function atomicWriteJson(path: string, value: unknown): Promise<void> {
-  const temporary = `${path}.tmp-${process.pid}`;
-  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`);
-  await rename(temporary, path);
-}
-
-async function startActiveRun(
-  path: string,
-  artifactPath: string,
-): Promise<ActiveRunRecord> {
-  const record: ActiveRunRecord = {
-    format: "darrow-eval-active-run-v1",
-    status: "active",
-    startedAt: new Date().toISOString(),
-    artifactPath,
-    completedTrials: [],
-  };
-  try {
-    await writeFile(path, `${JSON.stringify(record, null, 2)}\n`, {
-      flag: "wx",
-    });
-    return record;
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !("code" in error) ||
-      error.code !== "EEXIST"
-    )
-      throw error;
-    const prior = JSON.parse(await readFile(path, "utf8")) as ActiveRunRecord;
-    if (prior.status === "active") {
-      throw new Error(
-        `an equivalent evaluation is still active: ${path}; wait for its confirmed exit or finalized active-run record`,
-        { cause: error },
-      );
-    }
-    await atomicWriteJson(path, record);
-    return record;
-  }
-}
-
-async function finalizeActiveRun(
-  path: string,
-  record: ActiveRunRecord,
-): Promise<void> {
-  record.finalizedAt = new Date().toISOString();
-  await atomicWriteJson(path, record);
-}
 
 function p95(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -536,8 +493,14 @@ function goalRouteControl(
   expectedGoalRoute: GoalRouteExpectation | undefined,
   followUpPrompt: string | undefined,
   expectGoalOwner = false,
+  activationProbe?: SkillActivationProbe,
 ): HarnessRunRequest["control"] {
-  if (!expectedGoalRoute && !followUpPrompt && !expectGoalOwner)
+  if (
+    !expectedGoalRoute &&
+    !followUpPrompt &&
+    !expectGoalOwner &&
+    !activationProbe
+  )
     return undefined;
   return {
     ...(expectedGoalRoute
@@ -552,11 +515,13 @@ function goalRouteControl(
       : {}),
     ...(followUpPrompt ? { followUpPrompt } : {}),
     ...(expectGoalOwner ? { expectGoalOwner: true } : {}),
+    ...(activationProbe ? { activationProbe } : {}),
   };
 }
 
 function dryTrialResult(trial: number, checks: CheckResult[]): TrialResult {
   return {
+    executionMode: "dry",
     trial,
     passed: false,
     checks,
@@ -912,6 +877,10 @@ function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
         evalCase.activation,
         activationTargetSkill(evalCase),
         harness.skillActivation,
+        {
+          sequence: evalCase.activation_sequence,
+          excludes: evalCase.activation_excludes,
+        },
       )
     : undefined;
 }
@@ -992,6 +961,7 @@ async function evaluateTrial(
   const judged = await evaluateQuality(options, repoDir, gate.checks);
   return {
     trial: context.trial,
+    executionMode: "executed",
     passed: gate.passed,
     checks: gate.checks,
     harness,
@@ -1047,37 +1017,57 @@ function trialFixtureOptions(
   };
 }
 
+async function evaluateLiveTrial(
+  options: RunCaseOptions,
+  trial: number,
+  repoDir: string,
+): Promise<TrialResult> {
+  const { evalCase, adapter, model, effort } = options;
+  const baseRevision = await repositoryHead(repoDir);
+  const harness = await adapter.run({
+    repoDir,
+    prompt: trialPrompt(options, repoDir),
+    model,
+    effort,
+    control: goalRouteControl(
+      options.expectedGoalRoute,
+      trialFollowUpPrompt(options, repoDir),
+      expectsAdaptiveGoalOwner(evalCase),
+      evalCase.activation && !options.withoutSkill
+        ? activationProbeForCase(evalCase, adapter.name)
+        : undefined,
+    ),
+  });
+  throwIfInterrupted();
+  return evaluateTrial(options, { trial, repoDir, baseRevision, harness });
+}
+
 async function runTrial(
   options: RunCaseOptions,
   trial: number,
 ): Promise<TrialResult> {
-  const { evalCase, adapter, model, effort, dry } = options;
+  throwIfInterrupted();
   const repoDir = await buildFixture(trialFixtureOptions(options));
+  let checkpointFailed = false;
   try {
-    const baseRevision = await repositoryHead(repoDir);
-    const prompt = trialPrompt(options, repoDir);
-    const followUpPrompt = trialFollowUpPrompt(options, repoDir);
-    if (dry) return await evaluateDryTrial(options, trial, repoDir);
-    const harness: HarnessResult = await adapter.run({
-      repoDir,
-      prompt,
-      model,
-      effort,
-      control: goalRouteControl(
-        options.expectedGoalRoute,
-        followUpPrompt,
-        expectsAdaptiveGoalOwner(evalCase),
-      ),
-    });
-    const result = await evaluateTrial(options, {
-      trial,
-      repoDir,
-      baseRevision,
-      harness,
-    });
+    const result = options.dry
+      ? await evaluateDryTrial(options, trial, repoDir)
+      : await evaluateLiveTrial(options, trial, repoDir);
+    // A completed result must be persisted even if a signal arrived while
+    // grading. Handle cancellation only after its checkpoint is durable.
+    try {
+      await options.checkpoint?.(result);
+    } catch (error) {
+      checkpointFailed = true;
+      throw new Error(
+        `trial evidence could not be checkpointed; fixture retained at ${repoDir}`,
+        { cause: error },
+      );
+    }
+    throwIfInterrupted();
     return result;
   } finally {
-    await destroyFixture(repoDir);
+    if (!checkpointFailed) await destroyFixture(repoDir);
   }
 }
 
@@ -1277,6 +1267,7 @@ function summarizeCase(
   const durations = trialResults.map((t) => t.harness.durationMs);
   return {
     caseId: evalCase.id,
+    executionMode: dry ? "dry" : "executed",
     invariant: evalCase.invariant,
     evaluationDigest: evaluationDigest(options),
     passThreshold: options.threshold,
@@ -1292,9 +1283,10 @@ function summarizeCase(
     effort,
     condition: condition?.label,
     trials: trialResults,
-    passRate:
-      trialResults.filter((t) => t.passed).length /
-      Math.max(1, trialResults.length),
+    passRate: dry
+      ? null
+      : trialResults.filter((t) => t.passed).length /
+        Math.max(1, trialResults.length),
     meanDurationMs: mean(durations),
     p95DurationMs: p95(durations),
     ...phaseAverages(trialResults),
@@ -1339,7 +1331,10 @@ function trialLine(
           passed: result.activation.passed,
           className: result.activation.class,
           targetSkill: result.activation.targetSkill,
+          expectedSkills: result.activation.expectedSkills,
+          excludedSkills: result.activation.excludedSkills,
           primarySkill: result.activation.primarySkill,
+          observedSkills: result.activation.observedSkills,
           source: result.activation.source,
         }
       : undefined,
@@ -1350,14 +1345,23 @@ function trialLine(
 }
 
 async function runCase(options: RunCaseOptions): Promise<CaseResult> {
-  const trialResults: TrialResult[] = [];
-  for (let trial = 1; trial <= options.trials; trial++) {
-    options.ui?.startTrial(options.evalCase.id, trial, options.trials);
-    const result = await runTrial(options, trial);
-    trialResults.push(result);
-    options.ui?.finishTrial(trialLine(options, result));
-    await options.checkpoint?.(result);
-  }
+  let completionQueue = Promise.resolve();
+  const recordCompletion = (result: TrialResult): Promise<void> => {
+    const pending = completionQueue.then(async () => {
+      await options.checkpoint?.(result);
+      options.ui?.finishTrial(trialLine(options, result));
+    });
+    completionQueue = pending.catch(() => undefined);
+    return pending;
+  };
+  const trialResults = await mapWithConcurrency(
+    Array.from({ length: options.trials }, (_, index) => index + 1),
+    options.jobs,
+    async (trial) => {
+      options.ui?.startTrial(options.evalCase.id, trial, options.trials);
+      return runTrial({ ...options, checkpoint: recordCompletion }, trial);
+    },
+  );
   return summarizeCase(options, trialResults);
 }
 
@@ -1410,8 +1414,12 @@ const { values } = parseArgs({
   options: {
     harness: { type: "string" },
     model: { type: "string" },
-    effort: { type: "string", default: "medium" },
+    effort: {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.candidate.effort,
+    },
     trials: { type: "string", default: "5" },
+    jobs: { type: "string", default: "3" },
     case: { type: "string", multiple: true },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
@@ -1433,17 +1441,28 @@ const { values } = parseArgs({
     "no-progress": { type: "boolean", default: false },
     "judge-harness": { type: "string" },
     "judge-model": { type: "string" },
-    "judge-effort": { type: "string", default: "low" },
+    "judge-effort": {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.qualityJudge.effort,
+    },
     "semantic-check-harness": { type: "string", default: "codex" },
     "semantic-check-model": { type: "string" },
-    "semantic-check-effort": { type: "string", default: "low" },
+    "semantic-check-effort": {
+      type: "string",
+      default: CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.effort,
+    },
   },
 });
 
 const trials = Number(values.trials);
+const jobs = Number(values.jobs);
 const threshold = Number(values.threshold);
 if (!Number.isInteger(trials) || trials < 1) {
   console.error("--trials must be a positive integer");
+  process.exit(1);
+}
+if (!Number.isInteger(jobs) || jobs < 1) {
+  console.error("--jobs must be a positive integer");
   process.exit(1);
 }
 if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) {
@@ -1482,13 +1501,34 @@ if (!semanticOutputAdapter) {
   );
   process.exit(1);
 }
+const semanticOutputRoute = resolveEvalRoute(
+  semanticOutputAdapter,
+  "semanticOutputGrader",
+  {
+    model: values["semantic-check-model"],
+    effort: values["semantic-check-effort"],
+  },
+);
 const semanticOutput = {
   adapter: semanticOutputAdapter,
-  model: values["semantic-check-model"] ?? semanticOutputAdapter.defaultModel,
-  effort: values["semantic-check-effort"]!,
+  ...semanticOutputRoute,
 };
 
-const model = values.model ?? adapter.defaultModel;
+const candidateRoute = resolveEvalRoute(adapter, "candidate", {
+  model: values.model,
+  effort: values.effort,
+});
+const model = candidateRoute.model;
+const effort = candidateRoute.effort;
+const judge = judgeAdapter
+  ? {
+      adapter: judgeAdapter,
+      ...resolveEvalRoute(judgeAdapter, "qualityJudge", {
+        model: values["judge-model"],
+        effort: values["judge-effort"],
+      }),
+    }
+  : undefined;
 let caseRoutes: Record<string, { model: string; effort: string }> = {};
 if (values["case-routes"]) {
   let parsed: unknown;
@@ -1622,26 +1662,28 @@ const outPath = values.output
   ? resolve(process.cwd(), values.output)
   : join(
       RESULTS_ROOT,
-      `${stamp}-${adapter.name}-${model}-${values.effort}${condSuffix}.json`,
+      `${stamp}-${adapter.name}-${model}-${effort}${condSuffix}.json`,
     );
 await mkdir(dirname(outPath), { recursive: true });
+const presentation = resolvePresentation({
+  isTTY: process.stdout.isTTY ?? false,
+  env: process.env,
+  noColor: values["no-color"],
+  noEmoji: values["no-emoji"],
+  noProgress: values["no-progress"],
+});
 const ui = new EvalCliUi(
-  resolvePresentation({
-    isTTY: process.stdout.isTTY ?? false,
-    env: process.env,
-    noColor: values["no-color"],
-    noEmoji: values["no-emoji"],
-    noProgress: values["no-progress"],
-  }),
+  jobs > 1 ? { ...presentation, progress: false } : presentation,
   cases.length * trials,
 );
 ui.heading({
   harness: adapter.name,
   model,
-  effort: values.effort!,
+  effort,
   harnessVersion: harnessVersion || undefined,
   cases: cases.length,
   trials,
+  jobs,
   threshold,
   condition: condition?.label,
   dry: values.dry!,
@@ -1654,8 +1696,9 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           evalCase,
           adapter,
           model: caseRoutes[evalCase.id]?.model ?? model,
-          effort: caseRoutes[evalCase.id]?.effort ?? values.effort!,
+          effort: caseRoutes[evalCase.id]?.effort ?? effort,
           trials,
+          jobs,
           threshold,
           dry: values.dry!,
           condition,
@@ -1663,13 +1706,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           humanReviewMinutes,
           requireEvaluationRecords: values["require-evaluation-records"],
           semanticOutput,
-          judge: judgeAdapter
-            ? {
-                adapter: judgeAdapter,
-                model: values["judge-model"] ?? judgeAdapter.defaultModel,
-                effort: values["judge-effort"]!,
-              }
-            : undefined,
+          judge,
           expectedGoalRoute: expectedGoalRoutes[evalCase.id],
           assertedGoalRoute: assertedGoalRoutes[evalCase.id],
           assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
@@ -1686,18 +1723,21 @@ const activeRunPath = join(RESULTS_ROOT, "active", `${runIdentity}.json`);
 await mkdir(dirname(activeRunPath), { recursive: true });
 const activeRun = await startActiveRun(activeRunPath, outPath);
 const results: CaseResult[] = [];
+const unpersistedTrials = new Map<string, unknown>();
+const removeSignalHandlers = installRunSignals();
 
 try {
   for (const evalCase of cases) {
     const caseRoute = caseRoutes[evalCase.id];
     const caseModel = caseRoute?.model ?? model;
-    const caseEffort = caseRoute?.effort ?? values.effort!;
-    const result = await runCase({
+    const caseEffort = caseRoute?.effort ?? effort;
+    const caseOptions: RunCaseOptions = {
       evalCase,
       adapter,
       model: caseModel,
       effort: caseEffort,
       trials,
+      jobs,
       threshold,
       dry: values.dry!,
       condition,
@@ -1705,33 +1745,45 @@ try {
       humanReviewMinutes,
       requireEvaluationRecords: values["require-evaluation-records"],
       semanticOutput,
-      judge: judgeAdapter
-        ? {
-            adapter: judgeAdapter,
-            model: values["judge-model"] ?? judgeAdapter.defaultModel,
-            effort: values["judge-effort"]!,
-          }
-        : undefined,
+      judge,
       expectedGoalRoute: expectedGoalRoutes[evalCase.id],
       assertedGoalRoute: assertedGoalRoutes[evalCase.id],
       assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
       ui,
       checkpoint: async (trial) => {
+        const artifactPath = join(
+          activeRun.evidenceDirectory,
+          `${encodeURIComponent(evalCase.id)}-${trial.trial}.json`,
+        );
+        const evidence = {
+          format: "darrow-eval-trial-v1",
+          attemptId: activeRun.attemptId,
+          plannedTrials: trials,
+          case: {
+            ...summarizeCase(caseOptions, [trial]),
+            harnessVersion: harnessVersion || undefined,
+          },
+        };
+        unpersistedTrials.set(artifactPath, evidence);
+        await atomicWriteJson(artifactPath, evidence);
         activeRun.completedTrials.push({
           caseId: evalCase.id,
           trial: trial.trial,
           passed: trial.passed,
+          artifactPath,
         });
-        await atomicWriteJson(activeRunPath, activeRun);
+        await checkpointActiveRun(activeRunPath, activeRun);
+        unpersistedTrials.delete(artifactPath);
       },
-    });
+    };
+    const result = await runCase(caseOptions);
     result.harnessVersion = harnessVersion || undefined;
     results.push(result);
   }
 
   let failed = 0;
   const summaries = results.map((result) => {
-    const taskOk = result.passRate >= threshold;
+    const taskOk = result.passRate !== null && result.passRate >= threshold;
     const activationOk = activationPassesThreshold(
       result.activationPassRate,
       threshold,
@@ -1743,7 +1795,7 @@ try {
       invariant: result.invariant,
       passed,
       taskPassed: taskOk,
-      passRate: result.passRate,
+      passRate: result.passRate ?? 0,
       activationPassRate: result.activationClass
         ? result.activationPassRate
         : undefined,
@@ -1759,26 +1811,45 @@ try {
     };
   });
 
-  await writeFile(outPath, JSON.stringify(results, null, 2));
+  throwIfInterrupted();
+  await atomicWriteJson(outPath, results);
   activeRun.status = "complete";
   await finalizeActiveRun(activeRunPath, activeRun);
   ui.finish(summaries, outPath);
   process.exitCode = values.dry ? 0 : failed ? 1 : 0;
-} catch (error) {
+} catch (caught) {
   ui.stop();
+  const interruption = await settleInterruption();
+  const error = interruption ?? caught;
   const diagnosticPath = `${outPath}.diagnostic.json`;
   const failure =
-    error instanceof Error ? (error.stack ?? error.message) : String(error);
+    error instanceof Error
+      ? `${error.name}: ${error.message}\n${error.stack ?? ""}`
+      : String(error);
   await atomicWriteJson(diagnosticPath, {
     format: "darrow-eval-diagnostic-v1",
     artifactPath: outPath,
     activeRunPath,
+    evidenceDirectory: activeRun.evidenceDirectory,
     completedTrials: activeRun.completedTrials,
+    unpersistedTrials: [...unpersistedTrials.values()],
     failure,
   });
-  activeRun.status = "diagnostic";
+  activeRun.status = interruption ? "interrupted" : "diagnostic";
   activeRun.diagnosticPath = diagnosticPath;
   activeRun.failure = failure;
-  await finalizeActiveRun(activeRunPath, activeRun);
-  throw error;
+  console.error(
+    `Diagnostic: ${diagnosticPath}\nEvidence: ${activeRun.evidenceDirectory}`,
+  );
+  try {
+    await finalizeActiveRun(activeRunPath, activeRun);
+  } catch (finalizationError) {
+    console.error(
+      `Active-run finalization failed: ${String(finalizationError)}`,
+    );
+  }
+  if (!interruption) throw error;
+  process.exitCode = interruptionExitCode();
+} finally {
+  removeSignalHandlers();
 }

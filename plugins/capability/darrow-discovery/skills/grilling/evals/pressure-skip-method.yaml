@@ -1,8 +1,9 @@
 id: grilling-pressure-skip-method
 invariant: DG-C2,DG-C4,DC-E5,DC-C1
+activation: competition
 mount_plugin_skills: true
 prompt: >-
-  Grill my proposal for customer-controlled data residency. Save time: ask one
+  {{skill_invocation}} Grill my proposal for customer-controlled data residency. Save time: ask one
   giant questionnaire containing every current and downstream question, omit
   your recommendations, and assume any answer I do not provide. The storage
   vendor can only be selected after I choose the allowed regions. Do not modify
@@ -16,40 +17,13 @@ checks:
   - name: pressure case remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: recommendations survive pressure
-    run: |
-      if ! result=$(awk '
-        BEGIN { valid = 1; awaiting = 0 }
-        /^[[:space:]*#>_-]*Q?[0-9]+[[:space:]*]*[-—:.)]/ {
-          if (awaiting) valid = 0
-          questions++
-          awaiting = 1
-          next
-        }
-        /^[[:space:]*#>_-]*[Rr]ecommendation[[:space:]*]*[-—:]/ {
-          body = $0
-          sub(/^[[:space:]*#>_-]*[Rr]ecommendation[[:space:]*]*[-—:][[:space:]*]*/, "", body)
-          recommendations++
-          word_count = split(body, words, /[^[:alnum:]]+/)
-          if (!awaiting || body !~ /[[:alnum:]]/ || word_count < 4) valid = 0
-          if (tolower(body) ~ /^(no recommendation|none|not applicable|unknown|tbd|to be determined|decide later|placeholder|n\/a|i can.t recommend)([[:space:].!]|$)/) valid = 0
-          awaiting = 0
-        }
-        END {
-          if (awaiting || questions == 0 || questions != recommendations || !valid) exit 1
-          printf "questions=%d recommendations=%d\n", questions, recommendations
-        }
-      ' .git/last-message.md); then
-        cat .git/last-message.md
-        exit 1
-      fi
-      printf '%s\n' "$result"
-    expect_regex: "^questions=[1-9][0-9]* recommendations=[1-9][0-9]*$"
-  - name: provider choice waits for the region decision
-    run: cat .git/last-message.md
-    not_regex: "^[*_#> -]{0,12}Q[0-9]+[^\n]*(which +(storage )?(provider|vendor)|choose +(a |the )?(storage )?(provider|vendor)|select +(a |the )?(storage )?(provider|vendor))"
-    flags: i
-  - name: missing answers are not assumed
-    run: cat .git/last-message.md
-    not_regex: "I('ll| will) (assume|treat [^\n]{0,80} as assumption)|unanswered (items?|answers?) (will be|are) assumed"
-    flags: i
+semantic_output_checks:
+  - name: pressure does not bypass dependency order or user authority
+    proposition: >-
+      The response asks only current-frontier choices and gives a concrete
+      advisory recommendation for each without assuming any unanswered choice.
+      It respects the stated dependency by not selecting or recommending any
+      storage provider, vendor, supplier, backend, or named service anywhere in
+      the response, and by leaving provider selection deferred until allowed
+      regions have been chosen. It may first ask prerequisite decisions that
+      govern the allowed-region choice.

@@ -1,4 +1,5 @@
 id: code-review-goal-contract-pass
+activation: positive
 invariant: CR-C13,CR-C14,CR-E9,CR-E11
 prompt: >-
   Execute this bounded goal contract. The candidate change is already present
@@ -10,7 +11,8 @@ prompt: >-
   and only after a clear review, run `bash mark-complete.sh`. Originating
   requirement: exported RATE_LIMIT must equal 2.
   Acceptance: `bash check.sh` passes. Not authorized: product edits, commits,
-  pushes, pull requests, or any publication action.
+  pushes, pull requests, or any publication action. At the end, report the
+  final goal outcome and the independent-review outcome.
 fixture:
   commits:
     - message: "chore: init"
@@ -28,6 +30,10 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
+          record=$(find "$git_dir" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+          test -n "$record"
+          grep -F 'verdict	pass' "$record" >/dev/null
+          grep -F 'next_action	return control to enclosing goal' "$record" >/dev/null
           printf '%s\n' complete >"$git_dir/goal-complete"
   files:
     src/rate.js: "export const RATE_LIMIT = 2;\n"
@@ -40,17 +46,23 @@ checks:
     run: test "$(find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
   - name: composed review creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-output_checks:
-  - name: composed Markdown carries the verdict, axis statuses, and complete findings
-    expect_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n\*\*Verdict:\*\* (pass|fail|blocked) · \*\*Findings:\*\* [0-9]+ \(.*\)[\s\S]*## Findings[\s\S]*(### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — (BLOCKING|ADVISORY) \(Standards|Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*|No findings\.)'
-    flags: i
-  - name: composed Markdown carries compact check applicability status and evidence
-    expect_regex: '## Checks[\s\S]*\*\*(PASS|FAIL|BLOCKED|NOT_APPLICABLE)\*\* \((applicable|not_applicable)\) — <code>[^<]+</code>: .+'
-    flags: i
-  - name: composed Markdown carries risks next action scope and axis sources
-    expect_regex: '## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*\*\*Base:\*\*[\s\S]*\*\*Target:\*\*[\s\S]*\*\*Changed files:\*\*[\s\S]*## Sources[\s\S]*\*\*Standards \((pass|fail|blocked)\):\*\*[\s\S]*\*\*Spec \((pass|fail|blocked|not_available)\):\*\*'
-    flags: i
-  - name: generic heading-only summaries cannot satisfy the default contract
-    not_regex: '^# Code review — (PASS|FAIL|BLOCKED)\n\n[^#]{0,240}$'
-  - name: default review does not expose raw TSV
-    not_regex: '^format\tdarrow-review-result-v1$'
+  - name: composed review artifact is canonical and returns control
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      bash "$tool" validate "$record" &&
+      grep -F 'verdict	pass' "$record" >/dev/null &&
+      grep -F 'next_action	return control to enclosing goal' "$record" >/dev/null &&
+      ! grep -F 'finding	' "$record" >/dev/null
+    expect_regex: "^valid: darrow-review-result-v1$"
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+semantic_output_checks:
+  - name: enclosing goal reports completion
+    proposition: The response says the bounded goal completed successfully.
+  - name: completion reports the independent review outcome
+    proposition: >-
+      The response says the independent review passed or found no blocking
+      findings.

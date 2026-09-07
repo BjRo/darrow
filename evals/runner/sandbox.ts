@@ -101,11 +101,27 @@ async function repositoryWorktrees(): Promise<string[]> {
  * CLI flags. The native agent sandbox is bypassed only inside this boundary so
  * fixture mutations remain representative while source cases stay secret.
  */
-export async function sandboxedAgentCommand(
+export function sandboxedAgentCommand(
   argv: string[],
   repoDir: string,
   writeDeniedPaths: string[] = [],
   executeOnlyPaths: string[] = [],
+): Promise<string[]> {
+  return sandboxedCommand(argv, repoDir, {
+    writeDeniedPaths,
+    executeOnlyPaths,
+  });
+}
+
+export async function sandboxedCommand(
+  argv: string[],
+  repoDir: string,
+  options: {
+    profileDir?: string;
+    deniedPaths?: string[];
+    writeDeniedPaths?: string[];
+    executeOnlyPaths?: string[];
+  } = {},
 ): Promise<string[]> {
   if (argv.length === 0) throw new Error("cannot sandbox an empty command");
   if (process.env.DARROW_EVAL_EXTERNAL_SANDBOX === "1") return argv;
@@ -120,13 +136,14 @@ export async function sandboxedAgentCommand(
     ...(await repositoryWorktrees()),
     ...(await siblingFixtures(repoDir)),
     ...(await globalHarnessConfigs()),
+    ...(options.deniedPaths ?? []),
   ];
-  const profileDir = join(repoDir, ".git", "darrow-eval");
+  const profileDir = options.profileDir ?? join(repoDir, ".git", "darrow-eval");
   await mkdir(profileDir, { recursive: true });
   const profilePath = join(profileDir, `${basename(argv[0]!)}.sb`);
   await writeFile(
     profilePath,
-    sandboxProfile(denied, writeDeniedPaths, executeOnlyPaths),
+    sandboxProfile(denied, options.writeDeniedPaths, options.executeOnlyPaths),
     {
       mode: 0o600,
     },

@@ -1,8 +1,9 @@
 id: explain-visually-structural-diff
 invariant: VE-C2,VE-C3,VE-C4,VE-C5,VE-C7
+activation: positive
 mount_plugin_skills: true
 prompt: >-
-  Use explain-visually to show the accepted transport refactor as a compact
+  Use {{skill_invocation}} to show the accepted transport refactor as a compact
   structural diff from the current file layout to the target layout. Do not
   implement it and do not dump full source files.
 fixture:

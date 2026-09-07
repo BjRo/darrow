@@ -1,6 +1,6 @@
 ---
 name: prepare-task-branch
-description: Prepare one exact ticket-linked task branch in the current checkout or, only on explicit request, a linked worktree while preserving local work. Use when an authorized delivery workflow needs its attributed execution context before downstream work; do not use to list branches or choose among ambiguous branches.
+description: "Prepare one ticket-linked task branch when its exact provider token is supplied and its complete conventional branch name is bound by the caller or an authorized delivery workflow. Also use when a preparation request supplies multiple candidate names: refuse to choose, create, or switch until the caller binds one exact name. Once bound, switch to, reuse, or create that exact branch in the current checkout or an explicitly requested worktree. Do not use to derive a branch name from described work or to list branches."
 ---
 
 # Prepare a task branch
@@ -20,8 +20,11 @@ Require both:
 - the active ticket provider's exact opaque canonical token.
 
 Do not search for a branch, choose among alternatives, derive or normalize a
-token, or reinterpret another provider's identifier. Missing or ambiguous input
-asks the smallest question and performs no Git operation.
+token, or reinterpret another provider's identifier. Permission to pick one of
+multiple candidates—such as "whichever seems better"—does not bind one exact
+name. Ask the caller to select a single candidate and perform no Git operation.
+Other missing or ambiguous input likewise asks the smallest question without
+repository mutation.
 
 **Complete when:** one exact name and its unchanged provider token are bound—or
 the missing choice has been requested without repository mutation.
@@ -78,7 +81,10 @@ Interpret the script's authoritative mode:
 Relay a validation refusal or Git failure verbatim and stop. Do not invent a
 variant, fetch, use a remote-only branch, reset an existing branch, move or
 remove a worktree, or retry through a destructive operation. A worktree refusal
-leaves the caller's checkout and its local changes untouched.
+leaves the caller's checkout and its local changes untouched. A failed
+worktree addition does not delete a branch that appeared concurrently or leave
+default-path directories or local-exclude entries created for the failed
+attempt.
 
 **Complete when:** the script reports one mode and exact branch, or its refusal
 has been preserved with the original repository state intact.

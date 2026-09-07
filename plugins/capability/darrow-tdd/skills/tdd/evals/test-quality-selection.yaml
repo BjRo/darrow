@@ -1,5 +1,7 @@
 id: tdd-test-quality-selection
-invariant: TDD-C2,TDD-C3,TDD-C7,TDD-C8
+invariant: TDD-C2,TDD-C3,TDD-C7,TDD-C8,TDD-E1,TDD-E3
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   We are about to implement order quoting test-first, but should choose a
   durable starting test before editing. The documented public seam is
@@ -24,19 +26,12 @@ checks:
   - name: test-quality decision does not edit before the chosen test is accepted
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: response selects the public independent example
-    expect_regex: "(proposal|option|test)?[ ]*D[\\s\\S]{0,260}(public|quoteOrder)[\\s\\S]{0,260}(15|accepted example|independent)"
-    flags: i
-  - name: response rejects private call-sequence coupling
-    expect_regex: "(proposal|option|test)?[ ]*A[\\s\\S]{0,260}(private|call sequence|implementation|coupl)"
-    flags: i
-  - name: response rejects the tautological oracle
-    expect_regex: "(proposal|option|test)?[ ]*B[\\s\\S]{0,280}(same|repeat|reimplement|tautolog|independent oracle|algorithm)"
-    flags: i
-  - name: response rejects mocking the behavior and its side channel
-    expect_regex: "(proposal|option|test)?[ ]*C[\\s\\S]{0,300}(mock|behavior under test|console|side channel)"
-    flags: i
-  - name: response permits a fake only at the external boundary
-    expect_regex: "(fake|mock)[\\s\\S]{0,220}(external|exchange-rate|nondeterministic|boundary)"
-    flags: i
+semantic_output_checks:
+  - name: response chooses the durable test and rejects false evidence
+    proposition: >-
+      The response selects proposal D because it exercises the public
+      quoteOrder export against the independent accepted total of 15; rejects A
+      for private call-sequence coupling, B for reproducing the production
+      algorithm as a tautological oracle, and C for mocking the behavior under
+      test and asserting a console side channel; and permits a fake only at the
+      nondeterministic external exchange-rate boundary.

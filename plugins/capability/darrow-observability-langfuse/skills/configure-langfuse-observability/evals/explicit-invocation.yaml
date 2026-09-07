@@ -1,0 +1,36 @@
+id: langfuse-observability-explicit-invocation
+activation: positive
+invariant: OLF-P2,OLF-P5,OLF-P6
+mount_plugin_skills: true
+prompt: >-
+  {{skill_invocation}} Explain how I can verify Codex trace reconstruction
+  without sending data to Langfuse or supplying credentials. I have not given
+  you an installed plugin root or rollout path. Keep this read-only and do not
+  imply that live ingestion works.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# sample repository"
+checks:
+  - name: explicit verification guidance stays read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+output_checks:
+  - name: answer names dry-run mode
+    expect_regex: "DARROW_LANGFUSE_DRY_RUN"
+  - name: answer names export enablement required for dry run
+    expect_regex: "DARROW_LANGFUSE_ENABLED"
+semantic_output_checks:
+  - name: answer provides safe reconstruction verification
+    proposition: >-
+      The response explains how to use dry-run mode to inspect reconstructed
+      trace JSON without network export or credentials, keeps raw-content
+      capture disabled for this verification, and does not claim that dry-run
+      proves live authentication or ingestion.
+  - name: answer respects missing manual-hook inputs
+    proposition: >-
+      Because no installed plugin root or readable absolute rollout path was
+      supplied, the response provides guidance only. It does not search for a
+      plugin installation, invent a path, run a hook, or claim verification was
+      performed.

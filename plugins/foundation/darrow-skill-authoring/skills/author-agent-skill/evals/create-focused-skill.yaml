@@ -1,5 +1,6 @@
 id: author-agent-skill-create-focused-skill
 invariant: SA-C1,SA-C2,SA-C3,SA-C5,SA-C7,SA-C8
+activation: positive
 prompt: >-
   Create one cross-runtime agent skill named validate-release-note in the
   existing plugins/release-helper plugin. It should help when someone asks to
@@ -37,21 +38,69 @@ checks:
       test -r "$skill";
       grep -E '^name:[[:space:]]*validate-release-note[[:space:]]*$' "$skill" >/dev/null;
       grep -Ei '^description:.*(release note|changelog).*(validat|review)|^description:.*(validat|review).*(release note|changelog)' "$skill" >/dev/null
-  - name: deterministic validator accepts a valid note
-    run: >-
-      bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note valid-note.md
-  - name: deterministic validator rejects a missing section
-    run: >-
-      printf '# Summary\n\nOnly summary.\n' >.git/invalid-note.md;
-      ! bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note .git/invalid-note.md
-  - name: bundled tests pass with both shells
-    run: >-
-      bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note.test.sh >/dev/null &&
-      /bin/bash plugins/release-helper/skills/validate-release-note/scripts/validate-release-note.test.sh >/dev/null
-  - name: workflow keeps judgment and completion criteria in the skill
+  - name: deterministic validator canonicalizes paths under both shells
+    run: |
+      validator=plugins/release-helper/skills/validate-release-note/scripts/validate-release-note
+      root=$(pwd -P)
+      canonical=$root/valid-note.md
+      spelled=$root//valid-note.md
+      for shell in bash /bin/bash; do
+        if output=$("$shell" "$validator" "$spelled" 2>&1); then
+          :
+        else
+          validator_status=$?
+          printf 'canonical-path check failed: shell=%s reason=validator-exit status=%s\ninput=%s\noutput:\n%s\n' \
+            "$shell" "$validator_status" "$spelled" "$output" >&2
+          exit 1
+        fi
+        case "$output" in
+          *"$spelled"*)
+            printf 'canonical-path check failed: shell=%s reason=retained-input-spelling\nexpected=%s\nrejected=%s\noutput:\n%s\n' \
+              "$shell" "$canonical" "$spelled" "$output" >&2
+            exit 1
+            ;;
+        esac
+        case "$output" in
+          *"$canonical"*) ;;
+          *)
+            printf 'canonical-path check failed: shell=%s reason=canonical-path-omitted\nexpected=%s\noutput:\n%s\n' \
+              "$shell" "$canonical" "$output" >&2
+            exit 1
+            ;;
+        esac
+      done
+  - name: deterministic validator rejects a missing section under both shells
+    run: |
+      validator=plugins/release-helper/skills/validate-release-note/scripts/validate-release-note
+      printf '# Summary\n\nOnly summary.\n' >.git/invalid-note.md
+      ! bash "$validator" .git/invalid-note.md
+      ! /bin/bash "$validator" .git/invalid-note.md
+  - name: bundled tests pass with both shells and temp path forms
+    run: |
+      test_script=plugins/release-helper/skills/validate-release-note/scripts/validate-release-note.test.sh
+      temp_parent=${TMPDIR:-/tmp}
+      case "$temp_parent" in
+        /) plain_temp=/ ;;
+        */) plain_temp=${temp_parent%/} ;;
+        *) plain_temp=$temp_parent ;;
+      esac
+      case "$plain_temp" in
+        /) trailing_temp=/ ;;
+        *) trailing_temp=$plain_temp/ ;;
+      esac
+      TMPDIR="$plain_temp" bash "$test_script" >/dev/null
+      TMPDIR="$trailing_temp" bash "$test_script" >/dev/null
+      TMPDIR="$plain_temp" /bin/bash "$test_script" >/dev/null
+      TMPDIR="$trailing_temp" /bin/bash "$test_script" >/dev/null
+  - name: workflow keeps contextual judgment in the skill
     run: >-
       cat plugins/release-helper/skills/validate-release-note/SKILL.md
-    expect_regex: "(tone|clarity|audience|editorial)[\\s\\S]*(complete when|completion|done when|report)"
+    expect_regex: "editorial|tone|clarity|audience|specific|accurate|risk"
+    flags: i
+  - name: workflow defines its completion criterion
+    run: >-
+      cat plugins/release-helper/skills/validate-release-note/SKILL.md
+    expect_regex: "ready for review|complete when|completion|done when"
     flags: i
   - name: result is self-contained
     run: >-
@@ -62,3 +111,8 @@ checks:
   - name: authoring creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
+semantic_output_checks:
+  - name: unavailable Bash 5 evidence is reported honestly
+    proposition: >-
+      The response explicitly says Bash 5 was unavailable or was not executed,
+      and does not claim that a Bash 5 run passed.

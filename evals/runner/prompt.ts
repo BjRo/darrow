@@ -1,6 +1,6 @@
 import { basename, dirname } from "node:path";
 
-const SKILL_INVOCATION_PLACEHOLDER = "{{skill_invocation}}";
+export const SKILL_INVOCATION_PLACEHOLDER = "{{skill_invocation}}";
 
 interface ColocatedSkill {
   skillDir: string;
@@ -8,14 +8,14 @@ interface ColocatedSkill {
   source_plugin?: string;
 }
 
-/** Render only host-facing prompt syntax; outcome intent stays in the case YAML. */
-export function renderParticipantPrompt(
-  template: string,
+export function hasExplicitSkillInvocation(template: string): boolean {
+  return template.includes(SKILL_INVOCATION_PLACEHOLDER);
+}
+
+export function skillInvocationToken(
   harness: string,
   skill: ColocatedSkill,
 ): string {
-  if (!template.includes(SKILL_INVOCATION_PLACEHOLDER)) return template;
-
   const owningSkillName = skill.owningSkillName;
   if (
     !skill.skillDir ||
@@ -28,10 +28,8 @@ export function renderParticipantPrompt(
     );
   }
 
-  let invocation: string;
-  if (harness === "claude") {
-    invocation = `/${owningSkillName}`;
-  } else if (harness === "codex") {
+  if (harness === "claude") return `/${owningSkillName}`;
+  if (harness === "codex") {
     const pluginName = skill.source_plugin
       ? basename(skill.source_plugin)
       : basename(dirname(dirname(skill.skillDir)));
@@ -40,12 +38,22 @@ export function renderParticipantPrompt(
         "skill_invocation requires a colocated owning skill under a named plugin",
       );
     }
-    invocation = `$${pluginName}:${owningSkillName}`;
-  } else {
-    throw new Error(
-      `skill_invocation does not support harness ${JSON.stringify(harness)}`,
-    );
+    return `$${pluginName}:${owningSkillName}`;
   }
+  throw new Error(
+    `skill_invocation does not support harness ${JSON.stringify(harness)}`,
+  );
+}
 
-  return template.replaceAll(SKILL_INVOCATION_PLACEHOLDER, invocation);
+/** Render only host-facing prompt syntax; outcome intent stays in the case YAML. */
+export function renderParticipantPrompt(
+  template: string,
+  harness: string,
+  skill: ColocatedSkill,
+): string {
+  if (!hasExplicitSkillInvocation(template)) return template;
+  return template.replaceAll(
+    SKILL_INVOCATION_PLACEHOLDER,
+    skillInvocationToken(harness, skill),
+  );
 }

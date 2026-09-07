@@ -1,7 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { CaseResult, JudgeAssessment } from "./types";
+import type {
+  ActivationEvidenceSource,
+  CaseResult,
+  JudgeAssessment,
+} from "./types";
 
 export interface ReportCell {
   harness: string;
@@ -21,8 +25,8 @@ function p95(values: number[]): number | undefined {
   return sorted[Math.ceil(sorted.length * 0.95) - 1];
 }
 
-function percent(value: number | undefined): string {
-  return value === undefined ? "n/a" : `${(value * 100).toFixed(0)}%`;
+function percent(value: number | null | undefined): string {
+  return value == null ? "n/a" : `${(value * 100).toFixed(0)}%`;
 }
 
 function activationPercent(value: number | null | undefined): string {
@@ -48,7 +52,8 @@ function isBookkeepingCheck(name: string): boolean {
   );
 }
 
-function taskPassRate(result: CaseResult): number {
+function taskPassRate(result: CaseResult): number | null {
+  if (!hasBehavioralEvidence(result)) return null;
   if (!result.trials.length) return result.passRate;
   return (
     result.trials.filter((trial) =>
@@ -142,19 +147,25 @@ function candidateDurations(cell: ReportCell): number[] {
 
 /** Interventions are a total, so an unreported case must not read as zero. */
 function humanInterventions(cell: ReportCell): number | undefined {
+  if (!cell.results.length) return undefined;
   const values = cell.results.map((result) => result.totalHumanInterruptions);
   return values.every((value) => value !== undefined)
     ? values.reduce<number>((total, value) => total + (value ?? 0), 0)
     : undefined;
 }
 
-function cellMetrics(cell: ReportCell) {
+function cellMetrics(input: ReportCell) {
+  const cell = input.results.every(hasBehavioralEvidence)
+    ? input
+    : { ...input, results: [] };
   const durations = candidateDurations(cell);
   const assessments = cellAssessments(cell);
   const judgeRuns = cellJudgeRuns(cell);
   return {
-    taskPass: mean(cell.results.map(taskPassRate)),
-    protocolPass: mean(cell.results.map((result) => result.passRate)),
+    taskPass: meanWhenComplete(cell.results.map(taskPassRate)),
+    protocolPass: meanWhenComplete(
+      cell.results.map((result) => result.passRate),
+    ),
     ...judgeQuality(cell, assessments),
     wallMean: mean(durations),
     wallP95: p95(durations),
@@ -196,12 +207,56 @@ function outcomesSection(
     "",
     "## Outcomes and candidate efficiency",
     "",
-    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "Dry and unknown execution modes are unmeasured; preparation checks do not establish behavioral success.",
+    "",
+    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions | Execution |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ...rows.map(
       ({ cell, metric }) =>
-        `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} |`,
+        `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} | ${executionLabel(cell.results)} |`,
     ),
+  ];
+}
+
+interface RecordedRoute {
+  harness: string;
+  model: string;
+  effort: string;
+}
+
+function routeLabels(routes: RecordedRoute[]): string {
+  const labels = [
+    ...new Set(
+      routes.map(
+        ({ harness, model, effort }) => `${harness}/${model}@${effort}`,
+      ),
+    ),
+  ];
+  return labels.length ? labels.join(", ") : "not used";
+}
+
+function effectiveRoutesSection(cells: ReportCell[]): string[] {
+  return [
+    "",
+    "## Effective routes",
+    "",
+    "Routes are taken from the actual candidate and grader result evidence. Multiple values identify a heterogeneous cell.",
+    "",
+    "| Harness | Mode | Candidate | Quality judge | Semantic-output grader |",
+    "| --- | --- | --- | --- | --- |",
+    ...cells.map((cell) => {
+      const judgeRoutes = cell.results.flatMap((result) =>
+        result.trials.flatMap((trial) =>
+          trial.judge?.route ? [trial.judge.route] : [],
+        ),
+      );
+      const semanticRoutes = cell.results.flatMap((result) =>
+        result.trials.flatMap((trial) =>
+          trial.semanticOutput?.route ? [trial.semanticOutput.route] : [],
+        ),
+      );
+      return `| ${cell.harness} | ${cell.mode} | ${routeLabels(cell.results)} | ${routeLabels(judgeRoutes)} | ${routeLabels(semanticRoutes)} |`;
+    }),
   ];
 }
 
@@ -212,28 +267,31 @@ function perTaskSection(cells: ReportCell[]): string[] {
     "",
     "The aggregate is intentionally paired with task-level results so one task shape cannot hide another.",
     "",
-    "| Harness | Mode | Case | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Harness | Mode | Case | Task pass | Protocol pass | Judge score | Wall mean | Candidate tokens mean | Execution |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ...cells.flatMap((cell) =>
       cell.results.map(
         (result) =>
-          `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(taskPassRate(result))} | ${percent(result.passRate)} | ${result.meanJudgeScore?.toFixed(2) ?? "n/a"} | ${milliseconds(result.meanDurationMs)} | ${result.meanTokens === null ? "unknown" : Math.round(result.meanTokens)} |`,
+          `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${percent(taskPassRate(result))} | ${percent(hasBehavioralEvidence(result) ? result.passRate : null)} | ${hasBehavioralEvidence(result) ? (result.meanJudgeScore?.toFixed(2) ?? "n/a") : "n/a"} | ${milliseconds(hasBehavioralEvidence(result) ? result.meanDurationMs : undefined)} | ${tokens(hasBehavioralEvidence(result) ? (result.meanTokens ?? undefined) : undefined)} | ${executionLabel([result])} |`,
       ),
     ),
   ];
 }
 
 const activationSourceLabel = (
-  source: "harness_event" | "skill_file_read_probe" | null,
+  source: ActivationEvidenceSource | null,
 ): string =>
   source === "harness_event"
     ? "harness event"
-    : source === "skill_file_read_probe"
-      ? "skill-file read probe"
-      : "unknown";
+    : source === "explicit_invocation"
+      ? "explicit invocation"
+      : source === "skill_file_read_probe"
+        ? "skill-file read probe"
+        : "unknown";
 
 function caseActivationRate(result: CaseResult): number | null | undefined {
   if (result.activationClass === undefined) return undefined;
+  if (!hasBehavioralEvidence(result)) return null;
   if (!result.trials.length) {
     return typeof result.activationPassRate === "number"
       ? result.activationPassRate
@@ -269,6 +327,22 @@ function caseActivationSources(result: CaseResult): string {
   ].join(", ");
 }
 
+function caseActivationObservedSkills(result: CaseResult): string {
+  if (!result.trials.length) return "unknown";
+  const grades = result.trials.map((trial) => trial.activation);
+  if (grades.some((grade) => grade === undefined || grade.passed === null))
+    return "unknown";
+  return [
+    ...new Set(
+      grades.map((grade) =>
+        grade!.observedSkills.length
+          ? grade!.observedSkills.join(" → ")
+          : "none",
+      ),
+    ),
+  ].join("; ");
+}
+
 type ActivationGrade = NonNullable<CaseResult["trials"][number]["activation"]>;
 
 function completeActivationGrades(declared: CaseResult[]): {
@@ -283,6 +357,7 @@ function completeActivationGrades(declared: CaseResult[]): {
     result.trials.map((trial) => trial.activation),
   );
   const complete =
+    declared.every(hasBehavioralEvidence) &&
     expected > 0 &&
     possible.length === expected &&
     possible.every(
@@ -375,14 +450,14 @@ function activationSection(cells: ReportCell[]): string[] {
     "",
     "### Per-case activation",
     "",
-    "| Harness | Mode | Case | Class | Target | Primary observed | Activation pass | Task pass | Evidence |",
-    "| --- | --- | --- | --- | --- | --- | ---: | ---: | --- |",
+    "| Harness | Mode | Case | Class | Target | Primary observed | Ordered observations | Activation pass | Task pass | Evidence |",
+    "| --- | --- | --- | --- | --- | --- | --- | ---: | ---: | --- |",
     ...cells.flatMap((cell) =>
       cell.results
         .filter((result) => result.activationClass !== undefined)
         .map(
           (result) =>
-            `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${result.activationClass} | ${result.activationTargetSkill} | ${caseActivationPrimary(result)} | ${activationPercent(caseActivationRate(result))} | ${percent(taskPassRate(result))} | ${caseActivationSources(result)} |`,
+            `| ${cell.harness} | ${cell.mode} | ${result.caseId} | ${result.activationClass} | ${result.activationTargetSkill} | ${caseActivationPrimary(result)} | ${caseActivationObservedSkills(result)} | ${activationPercent(caseActivationRate(result))} | ${percent(taskPassRate(result))} | ${caseActivationSources(result)} |`,
         ),
     ),
   ];
@@ -492,6 +567,7 @@ export function renderSuiteReport(cells: ReportCell[]): string {
   );
   return [
     ...outcomesSection(rows, orchestrationEvidence),
+    ...effectiveRoutesSection(cells),
     ...perTaskSection(cells),
     ...activationSection(cells),
     ...phaseSection(cells),
@@ -514,6 +590,7 @@ if (import.meta.main) {
   }
   const manifestPath = resolve(process.cwd(), positionals[0]!);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+    dry?: boolean;
     cells: Array<{ harness: string; mode: string; result: string }>;
   };
   const cells: ReportCell[] = [];
@@ -521,7 +598,17 @@ if (import.meta.main) {
     cells.push({
       harness: cell.harness,
       mode: cell.mode,
-      results: JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[],
+      results: (
+        JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[]
+      ).map((result) => ({
+        ...result,
+        executionMode: executionMode(
+          result,
+          typeof manifest.dry === "boolean"
+            ? manifestExecutionMode(manifest.dry)
+            : undefined,
+        ),
+      })),
     });
   }
   const outputPath = values.output
@@ -530,3 +617,9 @@ if (import.meta.main) {
   await writeFile(outputPath, renderSuiteReport(cells));
   console.log(`Report: ${outputPath}`);
 }
+import {
+  executionLabel,
+  executionMode,
+  hasBehavioralEvidence,
+  manifestExecutionMode,
+} from "./execution";

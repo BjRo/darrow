@@ -1,0 +1,32 @@
+id: read-ticket-ambiguous-reference
+invariant: TM-R1,TM-R2
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  We discussed ticket #12 and ticket #21. Show me the ticket we should handle,
+  but do not guess which of those two I mean.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >>"$d/calls"
+      echo "mock gh: tracker must not be contacted" >&2
+      exit 1
+checks:
+  - name: ambiguous request remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: ambiguous request does not contact the tracker
+    run: test ! -f .git/fixture-gh/calls
+semantic_output_checks:
+  - name: both candidate references are disambiguated
+    proposition: >-
+      The response identifies ticket #12 and ticket #21 as the two plausible
+      references and asks the user to choose exactly one before retrieval,
+      without claiming that either ticket was retrieved.

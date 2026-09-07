@@ -1,0 +1,21 @@
+id: grilling-no-trigger-natural-language
+invariant: DG-C1,DC-E1,DC-C1
+activation: negative
+activation_excludes: [grilling]
+mount_plugin_skills: true
+prompt: >-
+  Grill me on this personal decision: should I take meeting notes on paper or
+  digitally? Ask rigorous questions with recommendations, but do not modify
+  the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated repository\n"
+checks:
+  - name: natural-language grilling remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: ordinary response is still produced
+    run: test -s .git/last-message.md && echo responded
+    expect_exact: "responded"

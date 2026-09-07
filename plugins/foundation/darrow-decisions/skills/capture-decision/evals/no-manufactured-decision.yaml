@@ -1,5 +1,7 @@
 id: capture-decision-no-manufactured-decision
 invariant: DM-2
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Capture our repository database decision. We observed that SQLite was faster
   in one local benchmark, one teammate recommends PostgreSQL, and I currently
@@ -18,15 +20,12 @@ checks:
   - name: no ADR is manufactured
     run: find docs/decisions -maxdepth 1 -type f -name 'ADR-*.md' -print
     expect_exact: ""
-  - name: response preserves classification and unresolved state
-    run: >-
-      message=.git/last-message.md;
-      grep -Ei 'observation|observed|benchmark' "$message" >/dev/null;
-      grep -Ei 'recommendation|recommends' "$message" >/dev/null;
-      grep -Ei 'preference|prefer' "$message" >/dev/null;
-      grep -Ei 'unresolved|not selected|no.*decision|which.*option' "$message" >/dev/null;
-      echo classified
-    expect_exact: "classified"
   - name: capture creates no commit
     run: git rev-list --all --reflog --count
     expect_exact: "1"
+semantic_output_checks:
+  - name: response preserves classification and unresolved state
+    proposition: >-
+      The response does not treat any supplied observation, recommendation, or
+      preference as an accepted database choice; it leaves the database choice
+      unresolved and states that no decision record was created.

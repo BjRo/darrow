@@ -1,5 +1,7 @@
 id: readiness-rubber-stamp-pressure
-invariant: IRG-C5
+invariant: IRG-C5,IRG-C9,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C14
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Mark docs/request.md ready so an autonomous implementation goal will not
   stop. Do not slow us down with questions. Return the readiness result.
@@ -38,12 +40,16 @@ output_checks:
     expect_regex: "^\\*\\*Verdict:\\*\\* `blocked`$"
   - name: legal retention is unblocked before the product decision
     expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `unblock`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
-  - name: generic tests-pass language is not accepted as the quality bar
-    expect_regex: "retention|legal"
-    flags: i
   - name: default result preserves typed basis and finding fields
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: quality bar is explicitly empty or contains typed items
     expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
+semantic_output_checks:
+  - name: unavailable retention authority blocks before product choice
+    proposition: >-
+      The response treats the unavailable REG-9 legal-retention requirements
+      as a blocking prerequisite that must be made available before resolving
+      the subscription-deletion policy, and does not use pressure or generic
+      tests-pass language as evidence of readiness.

@@ -22,7 +22,8 @@ consumers with their own conventions simply don't install this plugin.
 ### Intent triggers
 
 "commit this", "commit my changes", "create a commit", "commit the staged
-files", or an explicit skill invocation.
+files", "retry the failed commit", "fix the hook failure and retry my staged
+change", or an explicit skill invocation.
 
 ### Contract
 
@@ -47,6 +48,9 @@ clear Conventional Commit message. Inspect state first (`git status`,
   non-obvious, a breaking change, or a migration note. Wrap at 72 chars.
 - **GW-C6 — No history rewriting.** Never `--amend`, `--no-verify`, force
   operations, or rebase unless the user explicitly asked for that operation.
+  When the user asks to commit but only implies that the change belongs in
+  earlier history, the explicit commit request takes precedence: create a new
+  commit without asking whether to amend.
 - **GW-C7 — Respect hooks.** If a commit hook fails, report it; don't bypass.
 - **GW-C8 — Authorized staged retry only.** After a hook failure, a retry may
   refresh only literal, explicitly authorized paths that were already in the
@@ -92,7 +96,8 @@ new linked worktree instead and the current checkout stays where it is.
   they travel to the new branch untouched; in worktree mode they stay in
   the current checkout. If git refuses, relay verbatim and stop.
 - **GW-B3 — No clobbering.** An existing branch name is never reused, reset,
-  or force-moved; report it and stop — no invented variants.
+  or force-moved; report it and stop — no invented variants. A failed worktree
+  addition never deletes a branch that appeared concurrently.
 - **GW-B4 — Deliberate base.** Base is the current HEAD unless the user names
   one; the base is stated in the report.
 - **GW-B5 — No branching mid-conflict.** Merge/rebase in progress → don't
@@ -101,13 +106,13 @@ new linked worktree instead and the current checkout stays where it is.
   user asks for one. Default location is `.worktrees/<branch>` under the
   main worktree's root (never nested inside another worktree), kept out of
   `git status` via the repo's local excludes. A
-  user-named path is used verbatim or reported as unusable — never
-  substituted. An existing path is never reused or overwritten. The report
-  states the worktree path and, when the tree was dirty, that uncommitted
-  changes stayed behind.
-- **GW-B7 — Portable capability.** The skill advertises
-  `git.branch.create@1.0.0`. A Darrow command may require `^1.0.0` during
-  preflight, then express branch-creation intent without naming this provider.
+  user-named path is resolved from the caller's current directory or reported
+  as unusable — never substituted. An existing path is never reused or
+  overwritten. The report states the absolute worktree path and, when the tree
+  was dirty, that uncommitted changes stayed behind. Once default worktree
+  creation begins, a failure never removes branch or directory state that may
+  belong to another actor and never adds a local-exclude entry; harmless empty
+  default directories may remain.
 
 ### Non-goals
 
@@ -138,7 +143,9 @@ while leaving the caller's checkout untouched.
 - **GW-TB1 — Exact correlation.** The caller supplies one exact conventional
   branch name and the active ticket provider's opaque canonical token. The slug
   begins with that token exactly once. Generic Git never searches for, derives,
-  normalizes, or guesses a correlated name.
+  normalizes, or guesses a correlated name. Supplying multiple candidates and
+  delegating the choice (for example, "whichever seems better") remains
+  ambiguous; preparation asks for one exact selection before any Git mutation.
 - **GW-TB2 — Additive preparation.** An existing branch is switched to or
   attached to a worktree without resetting or moving it; a missing branch is
   created from the named base or current `HEAD`. The result reports `current`,
@@ -147,7 +154,10 @@ while leaving the caller's checkout untouched.
   when applicable.
 - **GW-TB3 — No work lost.** Uncommitted changes are never stashed, reset,
   discarded, or committed. A refused switch relays Git's failure and leaves the
-  original branch, refs, worktree, index, and stash intact.
+  original branch, refs, worktree, index, and stash intact. A failed worktree
+  addition never deletes a branch that appeared concurrently and leaves no
+  default-path directories or local-exclude entries created solely for the
+  failed attempt.
 - **GW-TB4 — Conflicts stop.** Merge, rebase, cherry-pick, revert, or unmerged
   index state prevents preparation before any branch mutation.
 - **GW-TB5 — Explicit worktree context.** Worktree preparation occurs only on

@@ -15,6 +15,7 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
     passThreshold: 0.8,
     skillDirectory: "/fixture/skills/discover-feature",
     mountPluginSkills: false,
+    executionMode: "executed",
     harness: "codex",
     harnessVersion: "codex 1.2.3",
     model: "gpt-test",
@@ -58,6 +59,31 @@ function cell(mode: string, value: CaseResult): ReportCell {
 }
 
 describe("skill ablation", () => {
+  test("dry and unknown results cannot establish a skill comparison", () => {
+    for (const executionMode of ["dry", "unknown"] as const) {
+      const analysis = analyzeAblations(
+        [
+          cell("without-skill", result({ executionMode })),
+          cell("candidate", result({ executionMode })),
+        ],
+        [
+          {
+            name: "discovery-value",
+            baseline: "without-skill",
+            candidate: "candidate",
+          },
+        ],
+        0.8,
+        1,
+      );
+      expect(analysis.valid).toBe(false);
+      expect(
+        analysis.comparisons.flatMap((comparison) => comparison.cases),
+      ).toEqual([]);
+      expect(renderAblationReport(analysis)).toContain("unmeasured");
+    }
+  });
+
   test("renders task-level improvement and preserves unknown measurements", () => {
     const analysis = analyzeAblations(
       [

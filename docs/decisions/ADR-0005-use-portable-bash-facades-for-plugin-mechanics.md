@@ -8,7 +8,7 @@ Revisit when: Every supported Claude Code and Codex host provides a common, inde
 ## Context
 
 Agent skills should spend model judgment on intent, evidence, authority, and
-trade-offs. Reconstructing command syntax, capability discovery, escaping,
+trade-offs. Reconstructing command syntax, tool availability discovery, escaping,
 validation, parsing, and normalization in every invocation instead consumes
 context and makes repeatable mechanics nondeterministic. Bundled scripts can
 provide a smaller, testable interface for those operations.
@@ -27,7 +27,7 @@ narrow bundled facades written in portable Bash.
 
 - `SKILL.md` owns contextual judgment, authority checks, material choices, and
   semantic interpretation.
-- A bundled script owns repeatable command construction, capability discovery,
+- A bundled script owns repeatable command construction, tool availability discovery,
   escaping, bounded validation, parsing, and normalization when those mechanics
   would otherwise be reconstructed by the model.
 - Script interfaces accept intent-level inputs and return compact, stable,

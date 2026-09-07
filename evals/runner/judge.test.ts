@@ -130,6 +130,11 @@ describe("orchestration quality judge", () => {
         effort: "medium",
       });
       expect(result.assessment?.verdict).toBe("pass");
+      expect(result.route).toEqual({
+        harness: "fixture-locker",
+        model: "test-model",
+        effort: "medium",
+      });
       expect(existsSync(judgeDir)).toBe(false);
     } finally {
       await rm(repo, { recursive: true, force: true });

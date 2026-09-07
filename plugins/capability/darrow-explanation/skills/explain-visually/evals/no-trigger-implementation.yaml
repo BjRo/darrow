@@ -1,10 +1,11 @@
 id: explain-visually-no-trigger-implementation
 invariant: VE-C1,VE-E1
+activation: negative
+activation_excludes: [explain-visually]
 mount_plugin_skills: true
 prompt: >-
   Implement the documented double(value) behavior in src/math.js. Keep the
-  response concise. This is an implementation request, not an explanation or
-  diagram request.
+  response concise.
 fixture:
   commits:
     - message: "chore: init"

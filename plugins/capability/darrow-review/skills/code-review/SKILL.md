@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Comprehensively review one bounded code change or fix-verify attempted findings from its closed review set. Use for explicit review intent, including an independent-review or repair-verification clause in a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
+description: Review bounded code changes and verify attempted repairs against prior review findings. Always use for explicit requests to review code, including when a requested base or target is missing or invalid; independently review a change; verify fixes from a prior code review; or perform repair verification within a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
 ---
 
 # Review code
@@ -18,11 +18,15 @@ apply its continuation rule.
 ## Presentation gate
 
 The final response is a protocol output, not a conversational summary. In
-human mode, the entire final response must be the bundled renderer's stdout.
-After the last renderer invocation, issue no more tool calls and add no
-preface, recap, interpretation, or follow-up. This applies equally to
-standalone and composed review. In machine mode, apply the same rule to the
-validated TSV bytes.
+human mode, first materialize the bundled renderer's complete stdout as the
+named Markdown artifact beside the TSV and confirm that artifact is readable
+and nonempty. Then invoke the renderer once more as a standalone final tool
+call. Copy that last invocation's stdout in full as the entire final response,
+including every section through Scope and Sources. Do not reconstruct the
+report from the TSV or reader findings. After that final renderer invocation,
+issue no more tool calls and add no preface, recap, interpretation, or
+follow-up. This applies equally to standalone and composed review. In machine
+mode, apply the same rule to the validated TSV bytes.
 
 ## Working model
 
@@ -50,6 +54,30 @@ validated TSV bytes.
 
 ## Workflow
 
+Before resolving plugin resources or changing directory, bind the repository
+from an explicit repository path in the request or, when none was supplied,
+from the invocation working directory:
+
+```sh
+repo_input=<explicit repository path or invocation working directory>
+repo=$(git -C "$repo_input" rev-parse --show-toplevel)
+repo=$(cd "$repo" && pwd -P)
+```
+
+Keep this value for the entire review. Never derive `repo` from `skill_dir`, a
+plugin cache, or a tool path.
+
+Resolve every bundled tool before choosing a mode so fix verification does not
+skip a comprehensive-only setup step:
+
+```sh
+skill_dir=<absolute directory containing this SKILL.md>
+scope_tool="$skill_dir/../../bin/review-scope"
+result_tool="$skill_dir/../../bin/review-result"
+report_tool="$skill_dir/../../bin/review-report"
+check_tool="$skill_dir/../../bin/review-check"
+```
+
 Choose the review mode before pinning scope:
 
 - **Comprehensive initial review** for an ordinary review request or the first
@@ -64,21 +92,12 @@ comprehensive workflow. Fix verification follows its separate workflow after
 them.
 
 In either mode, the final presentation comes from the bundled renderer, not
-coordinator prose. For fix verification, materialize the renderer output as
-`verification.md` beside `verification.tsv` and return that file byte-for-byte.
-A shortened response that preserves the heading or outcome but omits a rendered
-section is incomplete.
+coordinator prose. Materialize comprehensive output as `review.md` beside
+`result.tsv` and fix-verification output as `verification.md` beside
+`verification.tsv`. A shortened response that preserves the heading or outcome
+but omits a rendered section is incomplete.
 
 ### 1. Pin the comprehensive scope
-
-Resolve the bundled tools from this file:
-
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-scope_tool="$skill_dir/../../bin/review-scope"
-result_tool="$skill_dir/../../bin/review-result"
-report_tool="$skill_dir/../../bin/review-report"
-```
 
 Choose the scope mechanically:
 
@@ -103,6 +122,10 @@ Run exact values through:
 bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
   [--merge-base] [working-tree flags]
 ```
+
+Require the returned manifest's `repository` field to equal the bound `repo`.
+Any mismatch blocks before reader invocation; never continue with a manifest
+beneath a plugin or skill repository.
 
 Exit 2 means invalid/unreadable scope, exit 3 an empty declared diff, and exit
 4 an ambiguous merge base. For one of these terminal outcomes, read
@@ -135,15 +158,27 @@ from implementation.
 
 Discover applicable, deterministic, non-destructive format, lint, type, build,
 and test commands from repository guidance and configuration. Run the narrowest
-commands that settle the changed scope. Record each literal command,
-applicability, status, and concise evidence. A required command that cannot run
-is `blocked`; a runnable command that detects a defect is `fail`; no applicable
-command becomes one explicit `not_applicable` check. Do not run publication,
+commands that settle the changed scope. For every applicable command, choose a
+unique `check-N.tsv` beneath the scope artifact directory and run:
+
+```sh
+bash "$check_tool" run --output "$check_record" --command "$literal_command"
+```
+
+Read the retained `darrow-review-check-v1` record and copy its `check` row
+byte-for-byte into the aggregate result and reader evidence. Never infer,
+restate, or override its status from memory. Never execute an applicable
+command directly: `review-check` is its sole execution boundary. Exit 0 is
+`pass`, an ordinary nonzero exit is `fail`, and an unavailable command is
+`blocked`. If the helper itself refuses or cannot retain evidence, record that
+evidence gap as `blocked`. When no command applies, add one explicit
+`not_applicable` check without invoking the helper. Do not run publication,
 deployment, release, or network-writing commands.
 
 **Complete when:** Standards sources are complete, Spec is bound to an
-originating source or honestly unavailable, and every applicable or
-inapplicable deterministic check has current evidence.
+originating source or honestly unavailable, and every applicable deterministic
+check has one retained canonical evidence record while inapplicability is
+explicit.
 
 ### 3. Invoke isolated comprehensive readers
 
@@ -189,13 +224,23 @@ that merely restates deterministic tool output while keeping the check record.
 Do not introduce a new finding.
 
 Assemble and validate the TSV result beneath the scope artifact directory.
-For the default human presentation, run:
+For the default human presentation, materialize and validate the handoff:
+
+```sh
+review_report="$(dirname "$result_record")/review.md"
+bash "$report_tool" render "$result_record" >"$review_report"
+test -r "$review_report" && test -s "$review_report"
+```
+
+If either command fails, do not substitute coordinator prose; return a blocked
+evidence gap. Otherwise make this standalone renderer invocation the final tool
+call:
 
 ```sh
 bash "$report_tool" render "$result_record"
 ```
 
-Return those Markdown bytes as the entire response. The renderer validates the
+Copy its complete stdout as the entire response. The renderer validates the
 TSV, preserves every semantic field, and escapes hostile Markdown content. Only
 when the requester explicitly asked for raw TSV, v1, or machine format, copy
 the validated TSV bytes verbatim instead. Never concatenate the Markdown and
@@ -228,177 +273,21 @@ fix verification against the changed target.
 
 **Complete when:** the record reconciles the pinned scope, available axes,
 sources, findings, checks, verdict, risks, and next action; validation passes;
-and either the standalone final response contains exactly those bytes or the
-composed goal owner has received the findings and outcome and applied its
-enclosing contract.
+`review.md` contains the complete canonical rendering; and either the
+standalone final response contains exactly those bytes or the composed goal
+owner has received the findings and outcome and applied its enclosing contract.
 
 ## Fix-verification workflow
 
-### 1. Bind the closed finding set
+For this mode, read
+[`references/fix-verification.md`](references/fix-verification.md) completely
+and follow it instead of the comprehensive steps above. Keep the top-level
+presentation and read-only gates in force. Do not widen an incomplete
+fix-verification request into comprehensive review.
 
-Require all of these caller-owned inputs before reader calls:
-
-- the exact original comprehensive-review target fingerprint;
-- the validated original or immediately prior scope manifest for that target;
-- every original finding with its original axis, severity, disposition,
-  location, source, evidence, and one canonical cross-axis order;
-- the immediately prior repair target plus every earlier repair target;
-- every finding attempted by the current repair;
-- the immediately prior validated verification artifact when an earlier fix
-  verification exists, including all carried regression records; and
-- current deterministic-check commands and evidence.
-
-Derive each original key as
-`<axis>:<canonical-order>:<original-target>`. Reject duplicate orders or keys,
-attempts outside the original set, a changed original record, or inconsistent
-target history. Every original blocker must have one attempted state; if repair
-was unavailable or unauthorized, that state is `blocked`. An ineligible
-advisory may be omitted because advisories never gate.
-
-Missing or inconsistent evidence does not authorize a comprehensive rereview.
-Preserve the evidence gap, pin the current scope if possible, and produce a
-validated `blocked` verification artifact as described in
-[`references/result-protocol.md`](references/result-protocol.md).
-
-**Complete when:** the immutable original set, stable keys, attempted subset,
-prior/history targets, repair evidence, and current checks are mutually
-consistent—or their exact evidence gaps are bound for a blocked result.
-
-### 2. Pin the current repair target
-
-Resolve the same bundled `review-scope`, `review-result`, and `review-report`
-tools as comprehensive mode. Validate the prior scope manifest and require its
-target to equal the supplied prior target and its effective base to equal the
-current scope's effective base. For the first verification, use the
-scope manifest retained by the comprehensive run; a fresh invocation may
-locate it only when exactly one validated artifact beneath the repository Git
-directory has that target. For a later verification, validate the immediately
-prior verification artifact and use its sibling scope manifest. Missing or
-ambiguous prior artifacts block.
-
-Prepare the exact current base/target scope with the ordinary scope table plus:
-
-```sh
-bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
-  [working-tree flags] --allow-empty --prior-manifest "$prior_scope_manifest"
-```
-
-Treat its target fingerprint, absolute manifest, changed paths, fixed show
-command, and `repair_show_command` as authoritative. The current target must
-not be copied from caller prose. `--allow-empty` is fix-verification-only: it
-permits an exact repair that restored the base while the pinned
-prior-to-current repair delta still exposes what changed. Run the
-`repair_show_command` and use only that mechanical delta—not caller-described
-changes—to establish repair causality.
-
-Run only applicable deterministic checks invalidated by the repair, recording
-their literal command, applicability, status, and concise evidence. A check
-failure belongs in the convergence set only as evidence for a direct
-repair-caused regression tied to an attempted original finding. An unavailable
-required check is an evidence gap and blocks verification.
-
-**Complete when:** current content and checks are exact-target-bound and no
-reader has been asked to inspect an unpinned or stale target.
-
-### 3. Invoke isolated fix verifiers
-
-Read [`references/axis-prompts.md`](references/axis-prompts.md) and
-[`references/reader-routing.md`](references/reader-routing.md) completely.
-Resolve and retain the concrete reviewer route beside the current scope
-manifest. Group attempted findings by their original axis. Invoke the
-applicable Standards and Spec fix verifiers through that exact route as fresh
-readers, issuing both invocations before waiting when both groups exist. Do not
-invoke an axis with no attempted finding and no regression evidence to verify.
-
-Each verifier receives only:
-
-- its original-axis finding records and stable keys;
-- active prior regression records for its axis, preserving stable keys and
-  immutable causal fields;
-- the original, prior, history, and current target fingerprints;
-- the validated prior verification artifact or explicit first-verification
-  marker;
-- the authoritative prior/current manifests, fixed repair-delta show command,
-  and changed paths relevant to those findings;
-- current deterministic-check evidence; and
-- its isolated fix-verifier schema.
-
-Permit inspection only of the current target, cited original finding context,
-the repair changes, and direct consequences. A reader must ignore an unrelated
-potential defect rather than serialize it. It may mark an attempted finding
-`resolved`, `unresolved`, or `blocked`; unresolved evidence is `progressing`
-only when it materially narrows the remaining failure and otherwise is
-`unchanged`. A newly detected direct repair-caused regression is `progressing`
-for its first verification so the enclosing owner can attempt it; if the same
-regression evidence remains after that attempt it is `unchanged`. A direct
-regression must name the causing original key. An invalid or missing reader
-record becomes an evidence gap; never repair its judgment or replace it with a
-generic review.
-
-Save each raw fix-axis record beneath the current scope artifact directory and
-run the applicable commands:
-
-```sh
-bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
-bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
-```
-
-An invalid record or missing or mismatched route-application evidence is an
-evidence gap. Do not retry on another route.
-
-**Complete when:** each attempted axis has one isolated fix-verifier record and
-exact-route evidence, and no observation outside the closed repair scope has
-entered aggregation.
-
-### 4. Derive and return verification
-
-Read [`references/result-protocol.md`](references/result-protocol.md)
-completely. Assemble `verification.tsv` beneath the current scope artifact
-directory. Preserve every original record and verifier state. Order direct
-regressions by causing original finding order, then by their reader order, and
-derive their stable regression keys mechanically. For a first verification
-write `previous_verification none none`. For a later verification write the
-prior artifact's Git blob checksum and absolute path, carry every prior
-regression under the same key and immutable causal fields, and replace only its
-status, progress, and evidence from `regression_attempt`. New regression orders
-follow all carried orders.
-
-Run:
-
-```sh
-bash "$result_tool" validate-verification "$verification_record"
-```
-
-The validator derives the outcome: `clear` when all blockers and regressions
-are resolved; `continue` only for materially progressing blockers or
-regressions; `no_progress` for repetition, oscillation, or unchanged failure
-evidence; and `blocked` for evidence gaps or unavailable states. Advisory state
-never keeps the gate open.
-
-In default mode run:
-
-```sh
-verification_report="$(dirname "$verification_record")/verification.md"
-bash "$report_tool" render-verification "$verification_record" >"$verification_report"
-bash "$report_tool" render-verification "$verification_record"
-```
-
-Confirm that the report is a readable, nonempty regular file before the second
-renderer invocation. Make that second invocation the last tool command and copy
-its stdout verbatim as the entire final response. For an explicit
-verification-v1, raw TSV, or machine request, return the validated TSV bytes
-only. In composed use, return the selected presentation and exit this read-only
-capability. The enclosing goal interprets the semantic outcome and owns every
-repair, stop, goal-status, completion, and publication decision.
-
-The `verification.md` bytes are the final response contract. Do not replace
-them with a handwritten summary, even when the outcome and counts look
-equivalent.
-
-**Complete when:** the validated artifact binds original, prior, history, and
-current targets; contains only original attempts and directly caused
-regressions; preserves current checks; derives the honest mechanical outcome;
-and is returned without changing the reviewed product content.
+**Complete when:** the referenced workflow emits the exact validated
+verification presentation for the pinned repair target, or an evidence-backed
+blocked result, without coordinator judgment or product mutation.
 
 ## Boundaries
 

@@ -1,5 +1,6 @@
 id: discover-feature-no-trigger-implementation
-invariant: DF-C1,DC-E1
+invariant: DF-C1,DC-E1,SE-C9,SE-C10,SE-C11
+activation: negative
 prompt: >-
   Implement the documented `normalizeEmail(value)` behavior in src/email.js and
   add its two specified tests. Do not ask product-discovery questions; the

@@ -93,7 +93,11 @@ export interface TranscriptCheck extends OutputCheck {
 export type ActivationClass = "positive" | "negative" | "competition";
 
 export type ActivationEvidenceSource =
-  "harness_event" | "skill_file_read_probe";
+  "harness_event" | "explicit_invocation" | "skill_file_read_probe";
+
+export type SkillActivationProbe =
+  | { mode: "implicit" }
+  | { mode: "explicit"; skill: string; invocation: string };
 
 /** Normalized harness-visible evidence about skill selection. */
 export interface SkillActivationObservation {
@@ -109,6 +113,10 @@ export interface SkillActivationObservation {
 export interface TrialActivationResult {
   class: ActivationClass;
   targetSkill: string;
+  /** Optional required leading skill-load sequence for composed capabilities. */
+  expectedSkills?: string[];
+  /** Skills that must not appear anywhere in the observed load sequence. */
+  excludedSkills?: string[];
   /** Null means the observation was unavailable or incomplete. */
   passed: boolean | null;
   source: ActivationEvidenceSource | null;
@@ -154,6 +162,10 @@ export interface EvalCase {
   transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
   activation?: ActivationClass;
+  /** Optional required leading skill-load sequence for composed capabilities. */
+  activation_sequence?: string[];
+  /** Optional skill names forbidden anywhere in the observed load sequence. */
+  activation_excludes?: string[];
   /** Override the owning adaptive-goal skill's default required completion report. */
   goal_report?: "required" | "optional" | "forbidden";
   /** Grade the full native route in addition to focused case checks. */
@@ -241,6 +253,7 @@ export interface HarnessRunRequest {
     expectedGoalRoute?: GoalRoute;
     followUpPrompt?: string;
     expectGoalOwner?: boolean;
+    activationProbe?: SkillActivationProbe;
   };
 }
 
@@ -251,7 +264,11 @@ export interface CheckResult {
   metric?: "escaped_defect" | "defect_detection" | "false_positive";
 }
 
+export type ExecutionMode = "executed" | "dry" | "unknown";
+
 export interface TrialResult {
+  /** Absent on historical artifacts; never infer execution from output or timing. */
+  executionMode?: ExecutionMode;
   trial: number;
   passed: boolean;
   checks: CheckResult[];
@@ -287,6 +304,11 @@ export interface JudgeAssessment {
 
 export interface JudgeResult {
   ok: boolean;
+  route: {
+    harness: string;
+    model: string;
+    effort: string;
+  };
   assessment?: JudgeAssessment;
   parseError?: string;
   harness: HarnessResult;
@@ -311,6 +333,7 @@ export interface SemanticOutputResult {
 }
 
 export interface CaseResult {
+  executionMode?: ExecutionMode;
   caseId: string;
   invariant: string;
   /** Digest of skill-independent participant inputs and hidden evaluation checks. */
@@ -334,7 +357,7 @@ export interface CaseResult {
   /** Harness CLI version at run time. */
   harnessVersion?: string;
   trials: TrialResult[];
-  passRate: number;
+  passRate: number | null;
   meanDurationMs: number;
   p95DurationMs: number;
   meanPreparationDurationMs?: number;

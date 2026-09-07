@@ -1,4 +1,5 @@
 id: code-review-value-comparison
+activation: positive
 invariant: CR-E8
 prompt: >-
   Review my uncommitted changes against this originating requirement: the
@@ -32,27 +33,65 @@ fixture:
 checks:
   - name: seeded trailing-character defect is detected
     metric: defect_detection
-    run: grep -Ei '(12x|integer|string|parseInt|trailing)' .git/last-message.md
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" &&
+      tolower($7) ~ /(12x|parseint|trailing|integer|string)/ { found = 1 }
+      END { exit !found }' "$record"
   - name: no seeded defect escapes
     metric: escaped_defect
-    run: grep -Ei '(12x|integer|string|parseInt|trailing)' .git/last-message.md
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" &&
+      tolower($7) ~ /(12x|parseint|trailing|integer|string)/ { found = 1 }
+      END { exit !found }' "$record"
   - name: accepted inline design does not create a false positive
     metric: false_positive
-    run: "! grep -Ei '(abstract|inline|generalit)' .git/last-message.md"
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      awk -F '\t' '$1 == "finding" &&
+      tolower($7) ~ /(abstract|inline|generalit)/ { false_positive = 1 }
+      END { exit false_positive }' "$record"
   - name: comparative review remains read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      if [ -x .agents/bin/review-result ]; then tool=.agents/bin/review-result;
-      else tool=.claude/bin/review-result; fi;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" && bash "$tool" validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
-output_checks:
-  - name: default Markdown preserves the seeded Spec finding
-    expect_regex: '# Code review — FAIL[\s\S]*### [0-9]+\. (CRITICAL|HIGH|MEDIUM|LOW) — BLOCKING \(Spec\)[\s\S]*\*\*Location:\*\*[\s\S]*\*\*Source:\*\*[\s\S]*\*\*Evidence:\*\*[\s\S]*(12x|parseInt|trailing)'
-    flags: i
-  - name: default Markdown includes decision context instead of a summary
-    expect_regex: '## Checks[\s\S]*\(applicable\)[\s\S]*## Risks[\s\S]*## Next action[\s\S]*## Scope[\s\S]*## Sources'
-  - name: default comparison output is not raw TSV
-    not_regex: '^format\tdarrow-review-result-v1$'
+  - name: canonical result preserves the seeded Spec defect without a design false positive
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      awk -F '\t' '$1 == "spec" && $2 == "fail" { spec_fail = 1 }
+      $1 == "verdict" && $2 == "fail" { verdict_fail = 1 }
+      $1 == "finding" && $2 == "spec" && $4 == "blocking" &&
+      tolower($0) ~ /(12x|parseint|trailing)/ { found = 1 }
+      $1 == "finding" && $2 == "standards" { standards = 1 }
+      END { exit !(spec_fail && verdict_fail && found && !standards) }' "$record"
+  - name: canonical Markdown handoff is materialized beside the TSV
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      report=$(dirname "$record")/review.md;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -r "$report" && test -s "$report" && test -n "$tool" &&
+      bash "$tool" render "$record" >.git/expected-review.md &&
+      cmp .git/expected-review.md "$report"
+  - name: default response does not expose canonical TSV
+    run: "! grep -F 'format\tdarrow-review-result-v1' .git/last-message.md"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      bash "$tool" render "$record" >.git/expected-review.md &&
+      awk 'NF' .git/expected-review.md >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

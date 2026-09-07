@@ -3,20 +3,24 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import type { Dirent } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import type {
   HarnessAdapter,
   HarnessResult,
   HarnessRunRequest,
+  SkillActivationProbe,
   SkillActivationObservation,
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
+import { throwIfInterrupted, trackEvaluationProcess } from "../run-control";
 import { isolatedHarnessEnvironment } from "../environment";
 import {
   fixtureStateFingerprint,
@@ -24,6 +28,11 @@ import {
   verifiedCodexAcceptedOwner,
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
+import {
+  reviewAxesFromTaskName,
+  type ReviewAxis,
+} from "../native-review-proof";
 
 type AcceptedCodexOwner = NonNullable<
   Awaited<ReturnType<typeof verifiedCodexAcceptedOwner>>
@@ -58,6 +67,11 @@ interface CodexEvent {
     receiverThreadIds?: unknown;
     task_name?: unknown;
     taskName?: unknown;
+    model?: unknown;
+    reasoning_effort?: unknown;
+    reasoningEffort?: unknown;
+    fork_turns?: unknown;
+    forkTurns?: unknown;
   };
   tool_response?: unknown;
   result?: unknown;
@@ -134,6 +148,18 @@ function completedCommand(event: CodexEvent): string | undefined {
   return event.item.command;
 }
 
+function finishedCommandForSkillRead(event: CodexEvent): string | undefined {
+  if (
+    event.type !== "item.completed" ||
+    event.item?.type !== "command_execution" ||
+    typeof event.item.command !== "string" ||
+    typeof event.item.exit_code !== "number" ||
+    (event.item.status !== "completed" && event.item.status !== "failed")
+  )
+    return undefined;
+  return event.item.command;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -143,6 +169,75 @@ function shellPayload(command: string): string | undefined {
     /^\/bin\/(?:ba|z)?sh\s+-lc\s+(["'])([\s\S]*)\1$/,
   );
   return wrapper?.[2] ?? command;
+}
+
+const SKILL_BODY_READERS = new Set([
+  "awk",
+  "bat",
+  "cat",
+  "ctx_read",
+  "cut",
+  "dd",
+  "grep",
+  "head",
+  "lean-ctx",
+  "less",
+  "more",
+  "rg",
+  "sed",
+  "tail",
+]);
+
+function shellClauseExecutable(part: string): string | undefined {
+  let clause = part.trim();
+  while (clause) {
+    const assignment = clause.match(
+      /^(?:(?:export|local|readonly)\s+)?[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/,
+    );
+    if (!assignment) break;
+    clause = clause.slice(assignment[0].length).trimStart();
+  }
+  clause = clause.replace(/^(?:command|env)\s+/, "");
+  const token = clause.match(/^["']?([^\s"']+)/)?.[1];
+  return token?.split("/").at(-1);
+}
+
+function replaceShellVariable(
+  value: string,
+  name: string,
+  replacement: string,
+): string {
+  return value.replace(
+    new RegExp(`\\$\\{${name}\\}|\\$${name}(?![A-Za-z0-9_])`, "g"),
+    () => replacement,
+  );
+}
+
+function expandSimpleShellVariables(payload: string): string {
+  const values = new Map<string, string>();
+  const assignments =
+    /(?:^|[;&|\n]\s*)(?:(?:export|local|readonly)\s+)?([A-Za-z_][A-Za-z0-9_]*)=(?:"([^"`]*)"|'([^']*)'|((?!\$\()[^\s;&|)]+))/g;
+  for (const match of payload.matchAll(assignments)) {
+    const name = match[1];
+    const raw = match[2] ?? match[3] ?? match[4];
+    if (!name || raw === undefined) continue;
+    let value = raw;
+    if (match[3] === undefined)
+      for (const [knownName, knownValue] of values)
+        value = replaceShellVariable(value, knownName, knownValue);
+    if (!/[`\r\n]/.test(value)) values.set(name, value);
+  }
+  let expanded = payload;
+  for (const [name, value] of values)
+    expanded = replaceShellVariable(expanded, name, value);
+  return expanded;
+}
+
+function skillBodyReadClauses(payload: string): string[] {
+  return payload.split(/&&|\|\||[;|\n]/).filter((part) => {
+    const executable = shellClauseExecutable(part);
+    return executable ? SKILL_BODY_READERS.has(executable) : false;
+  });
 }
 
 function skillReads(command: string, skillsRoot: string): string[] {
@@ -155,6 +250,160 @@ function skillReads(command: string, skillsRoot: string): string[] {
   return [...payload.matchAll(path)].flatMap((match) =>
     match[1] ? [match[1]] : [],
   );
+}
+
+interface MountedSkillBody {
+  name: string;
+  frontmatter: string;
+  body: string;
+}
+
+function mountedSkillBody(
+  root: string,
+  entry: Dirent,
+): MountedSkillBody | undefined {
+  if (!entry.isDirectory() || !/^[A-Za-z0-9._-]+$/.test(entry.name))
+    return undefined;
+  let body: string;
+  try {
+    body = readFileSync(join(root, entry.name, "SKILL.md"), "utf8");
+  } catch {
+    return undefined;
+  }
+  const frontmatter = body.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)?.[0];
+  if (
+    !frontmatter ||
+    !new RegExp(
+      `(?:^|\\n)name:\\s*${escapeRegExp(entry.name)}\\s*(?:\\n|$)`,
+    ).test(frontmatter)
+  )
+    return undefined;
+  return { name: entry.name, frontmatter, body };
+}
+
+function mountedSkillBodies(
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+): MountedSkillBody[] {
+  const installedRoots = Array.isArray(installedSkillsRoot)
+    ? installedSkillsRoot
+    : [installedSkillsRoot];
+  const roots = [
+    ...new Set([
+      ...installedRoots.map((root) =>
+        isAbsolute(root) ? root : resolve(repoDir, root),
+      ),
+      join(repoDir, ".agents", "skills"),
+    ]),
+  ];
+  const bodies: MountedSkillBody[] = [];
+  for (const root of roots) {
+    let entries;
+    try {
+      entries = readdirSync(root, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const skill = mountedSkillBody(root, entry);
+      if (skill) bodies.push(skill);
+    }
+  }
+  return bodies;
+}
+
+function commandReferencesPath(command: string, path: string): boolean {
+  return new RegExp(
+    `(?:^|[^A-Za-z0-9._/-])(?:\\./)?${escapeRegExp(path)}(?=$|/|[^A-Za-z0-9._/-])`,
+  ).test(command);
+}
+
+function cdFeedsSkillRead(
+  payload: string,
+  skillsRoots: string[],
+  skill: string,
+): boolean {
+  let inSkillDirectory = false;
+  for (const clause of payload.split(/&&|;|\n/)) {
+    if (shellClauseExecutable(clause) === "cd") {
+      inSkillDirectory = skillsRoots.some((root) =>
+        commandReferencesPath(clause, `${root}/${skill}`),
+      );
+      continue;
+    }
+    if (
+      inSkillDirectory &&
+      skillBodyReadClauses(clause).length > 0 &&
+      /(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(clause)
+    )
+      return true;
+  }
+  return false;
+}
+
+function commandSubstitutionFeedsSkillRead(
+  payload: string,
+  skillsRoots: string[],
+): boolean {
+  const assignment = /([A-Za-z_][A-Za-z0-9_]*)=\$\(([\s\S]*?)\)/g;
+  for (const match of payload.matchAll(assignment)) {
+    const variable = match[1];
+    const discovery = match[2];
+    if (!variable || !discovery) continue;
+    const rooted = skillsRoots.some((root) =>
+      commandReferencesPath(discovery, root),
+    );
+    if (
+      !rooted ||
+      !/(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(discovery)
+    )
+      continue;
+    const tail = payload.slice((match.index ?? 0) + match[0].length);
+    if (
+      skillBodyReadClauses(tail).some((clause) =>
+        new RegExp(
+          `\\$\\{${escapeRegExp(variable)}\\}|\\$${escapeRegExp(variable)}(?![A-Za-z0-9_])`,
+        ).test(clause),
+      )
+    )
+      return true;
+  }
+  return false;
+}
+
+function indirectSkillReads(
+  command: string,
+  output: string,
+  skillsRoots: string[],
+  mountedSkills: MountedSkillBody[],
+): string[] {
+  const payload = shellPayload(command);
+  if (!payload) return [];
+  const expanded = expandSimpleShellVariables(payload);
+  const rootedRead = skillBodyReadClauses(expanded).some(
+    (clause) =>
+      /(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(clause) &&
+      skillsRoots.some((root) => commandReferencesPath(clause, root)),
+  );
+  const substitutionRead = commandSubstitutionFeedsSkillRead(
+    expanded,
+    skillsRoots,
+  );
+  return mountedSkills
+    .flatMap((skill) => {
+      const outputOffset = output.indexOf(skill.frontmatter);
+      const workingDirectoryRead = cdFeedsSkillRead(
+        expanded,
+        skillsRoots,
+        skill.name,
+      );
+      return outputOffset >= 0 &&
+        (rootedRead || substitutionRead || workingDirectoryRead)
+        ? [{ name: skill.name, outputOffset }]
+        : [];
+    })
+    .sort((left, right) => left.outputOffset - right.outputOffset)
+    .map(({ name }) => name);
 }
 
 function malformedCompletedCommand(event: CodexEvent): boolean {
@@ -170,25 +419,53 @@ function malformedCompletedCommand(event: CodexEvent): boolean {
   );
 }
 
+function eventSkillReads(
+  event: CodexEvent,
+  roots: string[],
+  mountedSkills: MountedSkillBody[],
+): string[] {
+  const command = finishedCommandForSkillRead(event);
+  if (!command) return [];
+  const output = event.item?.aggregated_output;
+  const payload = shellPayload(command);
+  const directReads = payload
+    ? skillBodyReadClauses(expandSimpleShellVariables(payload)).flatMap(
+        (clause) =>
+          roots.flatMap((skillsRoot) => skillReads(clause, skillsRoot)),
+      )
+    : [];
+  const mountedNames = new Set(mountedSkills.map(({ name }) => name));
+  const verifiedDirectReads = mountedNames.size
+    ? directReads.filter((skill) => mountedNames.has(skill))
+    : directReads;
+  return [
+    ...verifiedDirectReads,
+    ...(typeof output === "string"
+      ? indirectSkillReads(command, output, roots, mountedSkills)
+      : []),
+  ];
+}
+
 function observedSkillReads(
   events: CodexEvent[],
   skillsRoots: string | string[],
+  mountedSkills: MountedSkillBody[] = [],
+  initialSkills: string[] = [],
 ): string[] {
   const roots = Array.isArray(skillsRoots) ? skillsRoots : [skillsRoots];
-  const observedSkills: string[] = [];
+  const observedSkills = [...initialSkills];
   for (const event of events) {
-    const command = completedCommand(event);
     const output = event.item?.aggregated_output;
-    const skills = command
-      ? roots.flatMap((skillsRoot) => skillReads(command, skillsRoot))
-      : [];
+    const skills = eventSkillReads(event, roots, mountedSkills);
     for (const skill of skills) {
       if (
-        typeof output === "string" &&
-        new RegExp(
-          `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
-        ).test(output) &&
-        !observedSkills.includes(skill)
+        !observedSkills.includes(skill) &&
+        skillReadIsObservable(
+          skill,
+          output,
+          observedSkills.length > 0,
+          mountedSkills,
+        )
       )
         observedSkills.push(skill);
     }
@@ -196,27 +473,56 @@ function observedSkillReads(
   return observedSkills;
 }
 
-/**
- * Codex exposes command events but no native skill-invocation event. Its skill
- * protocol requires the selected skill body to be read, so the first completed
- * mounted SKILL.md read is retained as an explicitly labeled behavior probe.
- */
-export function codexSkillActivation(
-  stream: string,
+function skillReadIsObservable(
+  skill: string,
+  output: unknown,
+  requiresCompleteBody: boolean,
+  mountedSkills: MountedSkillBody[],
+): boolean {
+  if (typeof output !== "string") return false;
+  const hasFrontmatter = new RegExp(
+    `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
+  ).test(output);
+  if (!hasFrontmatter || !requiresCompleteBody) return hasFrontmatter;
+  const mounted = mountedSkills.find((candidate) => candidate.name === skill);
+  return !mounted || output.includes(mounted.body);
+}
+
+function codexTrackedSkillRoots(
   repoDir: string,
-  installedSkillsRoot: string | string[] = join(repoDir, ".agents", "skills"),
-): SkillActivationObservation {
-  const events = codexEvents(stream);
+  installedSkillsRoot: string | string[],
+): string[] {
   const installedSkillsRoots = Array.isArray(installedSkillsRoot)
     ? installedSkillsRoot
     : [installedSkillsRoot];
-  const observedSkills = observedSkillReads(events, [
+  const repoRelativeInstalledRoots = installedSkillsRoots.flatMap(
+    (skillsRoot) => {
+      if (!isAbsolute(skillsRoot)) return [];
+      const repoRelativeRoot = relative(repoDir, skillsRoot);
+      if (
+        !repoRelativeRoot ||
+        repoRelativeRoot === ".." ||
+        repoRelativeRoot.startsWith(`..${sep}`) ||
+        isAbsolute(repoRelativeRoot)
+      )
+        return [];
+      return [repoRelativeRoot];
+    },
+  );
+  return [
     ...new Set([
       ...installedSkillsRoots,
+      ...repoRelativeInstalledRoots,
       join(repoDir, ".agents", "skills"),
       join(".agents", "skills"),
     ]),
-  ]);
+  ];
+}
+
+function codexActivationStreamComplete(
+  stream: string,
+  events: CodexEvent[],
+): boolean {
   let completed = false;
   let failed = false;
   for (const event of events) {
@@ -224,13 +530,105 @@ export function codexSkillActivation(
     if (types.includes("turn.completed")) completed = true;
     if (types.includes("turn.failed")) failed = true;
   }
+  return (
+    completed &&
+    !failed &&
+    !codexStreamMalformed(stream) &&
+    !events.some(malformedCompletedCommand)
+  );
+}
+
+function literalOccurrences(value: string, token: string): number {
+  if (!token) return 0;
+  let count = 0;
+  let offset = 0;
+  while ((offset = value.indexOf(token, offset)) !== -1) {
+    count++;
+    offset += token.length;
+  }
+  return count;
+}
+
+/**
+ * Codex resolves a runner-rendered explicit skill token before model execution,
+ * so that dispatch is not repeated as a transcript-visible SKILL.md read. The
+ * controlled probe is complete only when one exact expected token was supplied
+ * to a successfully completed turn.
+ */
+export function codexExplicitSkillActivation(
+  stream: string,
+  prompt: string,
+  probe: Extract<SkillActivationProbe, { mode: "explicit" }>,
+  context?: { repoDir: string; installedSkillsRoots: string | string[] },
+): SkillActivationObservation {
+  const events = codexEvents(stream);
+  const unambiguous =
+    /^[A-Za-z0-9._-]+$/.test(probe.skill) &&
+    probe.invocation.length > 0 &&
+    literalOccurrences(prompt, probe.invocation) === 1;
+  const complete = unambiguous && codexActivationStreamComplete(stream, events);
+  const observation = complete
+    ? explicitSkillReads(events, probe.skill, context)
+    : { observedSkills: [], complete: false };
+  return {
+    source: "explicit_invocation",
+    complete: observation.complete,
+    primarySkill: observation.observedSkills[0] ?? null,
+    observedSkills: observation.observedSkills,
+  };
+}
+
+function explicitSkillReads(
+  events: CodexEvent[],
+  primary: string,
+  context:
+    { repoDir: string; installedSkillsRoots: string | string[] } | undefined,
+): { observedSkills: string[]; complete: boolean } {
+  if (!context) return { observedSkills: [primary], complete: true };
+  const mounted = mountedSkillBodies(
+    context.repoDir,
+    context.installedSkillsRoots,
+  );
+  const roots = codexTrackedSkillRoots(
+    context.repoDir,
+    context.installedSkillsRoots,
+  );
+  const isMounted = (skill: string) =>
+    mounted.some(({ name }) => name === skill);
+  const observedSkills = observedSkillReads(events, roots, mounted, [
+    primary,
+  ]).filter(
+    (skill) => skill === primary || mounted.some(({ name }) => name === skill),
+  );
+  const attempted = events
+    .flatMap((event) => eventSkillReads(event, roots, mounted))
+    .filter(isMounted);
+  return {
+    observedSkills,
+    complete: attempted.every((skill) => observedSkills.includes(skill)),
+  };
+}
+
+/**
+ * Codex exposes command events but no native skill-invocation event for
+ * implicit discovery. The first completed mounted SKILL.md read is therefore
+ * retained as an explicitly labeled behavior probe for implicit cases.
+ */
+export function codexSkillActivation(
+  stream: string,
+  repoDir: string,
+  installedSkillsRoot: string | string[] = join(repoDir, ".agents", "skills"),
+): SkillActivationObservation {
+  const events = codexEvents(stream);
+  const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
+  const observedSkills = observedSkillReads(
+    events,
+    codexTrackedSkillRoots(repoDir, installedSkillsRoot),
+    mountedSkills,
+  );
   return {
     source: "skill_file_read_probe",
-    complete:
-      completed &&
-      !failed &&
-      !codexStreamMalformed(stream) &&
-      !events.some(malformedCompletedCommand),
+    complete: codexActivationStreamComplete(stream, events),
     primarySkill: observedSkills[0] ?? null,
     observedSkills,
   };
@@ -277,7 +675,13 @@ function invalidTaskNameAgentRef(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return ["task_name", "taskName"].some(
-    (key) => key in record && canonicalCodexAgentRef(record[key]) === undefined,
+    (key) =>
+      key in record &&
+      canonicalCodexAgentRef(record[key]) === undefined &&
+      !(
+        typeof record[key] === "string" &&
+        /^[a-z0-9][a-z0-9_]{0,63}$/.test(record[key])
+      ),
   );
 }
 
@@ -289,7 +693,7 @@ function soleReceiverAgentRef(value: unknown): string | undefined {
 function unsafeReceiverAgentRef(value: unknown): boolean {
   if (!Array.isArray(value) || value.length !== 1) return true;
   const receiver = value[0];
-  if (typeof receiver !== "string" || receiver.length === 0) return true;
+  if (typeof receiver !== "string" || receiver.length > 128) return true;
   if (canonicalCodexAgentRef(receiver)) return false;
   return !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(receiver);
 }
@@ -401,6 +805,106 @@ function retainedCollaborationEvent(
   });
 }
 
+function taskNameDiagnosticClass(value: unknown): string {
+  if (value === undefined) return "absent";
+  if (canonicalCodexAgentRef(value)) return "agent_ref";
+  if (typeof value === "string" && /^[a-z0-9][a-z0-9_]{0,63}$/.test(value))
+    return "task_label";
+  return "invalid";
+}
+
+function diagnosticString(value: unknown): string {
+  return typeof value === "string" ? value : "unknown";
+}
+
+function rejectedCollaborationReasons(
+  event: CodexEvent,
+  acceptedAgentRef?: string,
+): string[] {
+  const reasons: string[] = [];
+  if (!acceptedCollaborationEvent(event)) reasons.push("event_shape");
+  if (collaborationAgentRefConflicts(event, acceptedAgentRef))
+    reasons.push("agent_reference");
+  return reasons.length > 0 ? reasons : ["unknown"];
+}
+
+function retainedRejectedCollaborationDiagnostic(
+  event: CodexEvent,
+  collaboration: unknown,
+  acceptedAgentRef?: string,
+): object | undefined {
+  const item = event.item;
+  if (collaboration || item?.tool !== "spawn_agent") return undefined;
+  const taskName = item.task_name ?? item.taskName;
+  const receiver = item.receiver_thread_ids ?? item.receiverThreadIds;
+  return {
+    type: "darrow.collaboration_launch_rejected",
+    event_type: diagnosticString(event.type),
+    item_type: diagnosticString(item.type),
+    status: diagnosticString(item.status),
+    reasons: rejectedCollaborationReasons(event, acceptedAgentRef),
+    task_name_class: taskNameDiagnosticClass(taskName),
+    receiver_count: Array.isArray(receiver) ? receiver.length : -1,
+    item_keys: Object.keys(item)
+      .filter((key) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
+      .sort(),
+  };
+}
+
+function retainedSpawnRouteFields(
+  item: NonNullable<CodexEvent["item"]>,
+): Record<string, string> {
+  if (item.tool !== "spawn_agent") return {};
+  const retained: Record<string, string> = {};
+  const taskName = boundedRouteField(
+    item.task_name ?? item.taskName,
+    /^[a-z0-9][a-z0-9_]{0,63}$/,
+  );
+  const model = boundedRouteField(item.model, /^.{1,128}$/s);
+  const reasoningEffort = boundedRouteField(
+    item.reasoning_effort ?? item.reasoningEffort,
+    /^(?:low|medium|high|xhigh|max|ultra)$/,
+  );
+  const forkTurns = boundedRouteField(
+    item.fork_turns ?? item.forkTurns,
+    /^(?:none|all|[1-9][0-9]*)$/,
+  );
+  if (taskName) retained.task_name = taskName;
+  if (model) retained.model = model;
+  if (reasoningEffort) retained.reasoning_effort = reasoningEffort;
+  if (forkTurns) retained.fork_turns = forkTurns;
+  return retained;
+}
+
+function boundedRouteField(
+  value: unknown,
+  pattern: RegExp,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return pattern.test(value) ? value : undefined;
+}
+
+function boundedCollaborationIdentifier(value: unknown): string | undefined {
+  return boundedRouteField(value, /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/);
+}
+
+function boundedCollaborationReceivers(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || value.length > 8) return undefined;
+  const receivers = value.map(boundedCollaborationIdentifier);
+  return receivers.every((receiver) => receiver !== undefined)
+    ? (receivers as string[])
+    : undefined;
+}
+
+function acceptedNativeSpawn(event: CodexEvent, agentRef?: string): boolean {
+  return (
+    event.type === "item.completed" &&
+    event.item?.tool === "spawn_agent" &&
+    event.item.status === "completed" &&
+    agentRef !== undefined
+  );
+}
+
 function collaborationSpawnAttestation(
   item: NonNullable<CodexEvent["item"]>,
   secret?: string,
@@ -420,14 +924,24 @@ function retainedCollaborationRecord(
   },
 ): object {
   const retained: Record<string, unknown> = {
+    event_type: event.type,
     type: item.type,
     tool: item.tool,
     status: item.status,
-    sender_thread_id: item.sender_thread_id ?? item.senderThreadId,
-    receiver_thread_ids: item.receiver_thread_ids ?? item.receiverThreadIds,
   };
+  const sender = boundedCollaborationIdentifier(
+    item.sender_thread_id ?? item.senderThreadId,
+  );
+  const receivers = boundedCollaborationReceivers(
+    item.receiver_thread_ids ?? item.receiverThreadIds,
+  );
+  if (sender) retained.sender_thread_id = sender;
+  if (receivers) retained.receiver_thread_ids = receivers;
   if (evidence.agentRef) retained.agent_ref = evidence.agentRef;
+  if (acceptedNativeSpawn(event, evidence.agentRef))
+    retained.launch_accepted = true;
   if (evidence.prompt) retained.prompt = evidence.prompt;
+  Object.assign(retained, retainedSpawnRouteFields(item));
   if (evidence.attestation)
     retained.goal_spawn_attestation = publicSpawnAttestation(
       evidence.attestation,
@@ -1166,6 +1680,7 @@ function retainedNestedApplication(event: CodexEvent): unknown | undefined {
 interface CodexRetentionStatus {
   exitCode: number;
   stderrPresent: boolean;
+  nativeSession?: string;
   spawnGuardSecret?: string;
   goalLoopPath?: string;
   acceptedAgentRef?: string;
@@ -1187,6 +1702,29 @@ interface CodexRetentionState {
   objectiveReleased: boolean;
 }
 
+function retainedLifecycleEvent(
+  event: CodexEvent,
+  state: CodexRetentionState,
+  repoDir: string,
+  status?: CodexRetentionStatus,
+): unknown | undefined {
+  if (!state.goalOwnerAccepted) return retainedPreGoalToolEvent(event, repoDir);
+  return retainedPostGoalToolEvent(event, {
+    seen: state.postGoalToolIds,
+    repoDir,
+    attestation: state.goalAttestation,
+    goalLoopPath: status?.goalLoopPath,
+    agentRef: state.goalOwnerReference,
+    activationState: state.activationState,
+    goalPersistence: state.goalPersistence,
+    waited: state.waited,
+    interrupted: state.interrupted,
+    closed: state.closed,
+    launchStopRecorded: state.launchStopRecorded,
+    objectiveReleased: state.objectiveReleased,
+  });
+}
+
 function retainCodexEvent(
   event: CodexEvent,
   state: CodexRetentionState,
@@ -1199,28 +1737,18 @@ function retainCodexEvent(
     status?.spawnGuardSecret,
     state.goalOwnerReference ?? status?.acceptedAgentRef,
   );
-  const lifecycle = state.goalOwnerAccepted
-    ? retainedPostGoalToolEvent(event, {
-        seen: state.postGoalToolIds,
-        repoDir,
-        attestation: state.goalAttestation,
-        goalLoopPath: status?.goalLoopPath,
-        agentRef: state.goalOwnerReference,
-        activationState: state.activationState,
-        goalPersistence: state.goalPersistence,
-        waited: state.waited,
-        interrupted: state.interrupted,
-        closed: state.closed,
-        launchStopRecorded: state.launchStopRecorded,
-        objectiveReleased: state.objectiveReleased,
-      })
-    : retainedPreGoalToolEvent(event, repoDir);
+  const lifecycle = retainedLifecycleEvent(event, state, repoDir, status);
   const collaborationViolation = retainedCollaborationViolation(
     event,
     collaboration,
     state,
   );
   const postOwnerSpawn = retainedPostOwnerSpawnObservation(event, state);
+  const collaborationDiagnostic = retainedRejectedCollaborationDiagnostic(
+    event,
+    collaboration,
+    state.goalOwnerReference ?? status?.acceptedAgentRef,
+  );
   const values = [
     retainedTerminalEvent(event),
     retainedHostProtocolEvent(event),
@@ -1230,6 +1758,7 @@ function retainCodexEvent(
     lifecycle,
     collaborationViolation,
     postOwnerSpawn,
+    collaborationDiagnostic,
   ].filter((value): value is object => value !== undefined);
   trackPostGoalCommand(event, state);
   acceptAttestedGoalSpawn(event, collaboration, state, status);
@@ -1410,35 +1939,339 @@ function codexEvidenceSkillRoots(
   repoDir: string,
   installedSkillsRoot: string | string[],
 ) {
-  const installedSkillsRoots = Array.isArray(installedSkillsRoot)
-    ? installedSkillsRoot
-    : [installedSkillsRoot];
-  return [
-    ...new Set([
-      ...installedSkillsRoots,
-      join(repoDir, ".agents", "skills"),
-      join(".agents", "skills"),
-    ]),
-  ];
+  return codexTrackedSkillRoots(repoDir, installedSkillsRoot);
 }
 
 function retainedCodexSkillReads(
   event: CodexEvent,
   skillsRoots: string[],
+  mountedSkills: MountedSkillBody[],
   retainedSkills: Set<string>,
 ): Record<string, unknown>[] {
-  return observedSkillReads([event], skillsRoots).flatMap((skill) => {
-    if (retainedSkills.has(skill)) return [];
-    retainedSkills.add(skill);
-    return [
-      {
-        type: "darrow.skill_read_probe",
-        source: "skill_file_read_probe",
-        skill,
-        status: "completed",
-      },
-    ];
-  });
+  return observedSkillReads([event], skillsRoots, mountedSkills).flatMap(
+    (skill) => {
+      if (retainedSkills.has(skill)) return [];
+      retainedSkills.add(skill);
+      return [
+        {
+          type: "darrow.skill_read_probe",
+          source: "skill_file_read_probe",
+          skill,
+          status: "completed",
+        },
+      ];
+    },
+  );
+}
+
+interface CodexNativeSessionEntry {
+  ordinal: number;
+  payload: Record<string, unknown>;
+}
+
+interface CodexNativeSpawnRequest {
+  ordinal: number;
+  callId: string;
+  taskName: string;
+  model: string;
+  reasoningEffort: string;
+  forkTurns: string;
+  reviewAxis: "standards" | "spec";
+}
+
+interface CodexNativeSpawnFields {
+  ordinal: number;
+  callId?: string;
+  argumentsValid: boolean;
+  taskName?: string;
+  model?: string;
+  reasoningEffort?: string;
+  forkTurns?: string;
+  reviewAxis?: ReviewAxis;
+}
+
+function parsedRecord(value: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function codexNativeSessionEntries(session: string): {
+  entries: CodexNativeSessionEntry[];
+  malformed: boolean;
+} {
+  const entries: CodexNativeSessionEntry[] = [];
+  let malformed = false;
+  for (const line of session.split("\n").filter(Boolean)) {
+    const record = parsedRecord(line);
+    if (
+      !record ||
+      !Number.isInteger(record.ordinal) ||
+      !isRecord(record.payload)
+    ) {
+      malformed = true;
+      continue;
+    }
+    entries.push({
+      ordinal: record.ordinal as number,
+      payload: record.payload,
+    });
+  }
+  return { entries, malformed };
+}
+
+function nativeReviewAxis(
+  taskName: string,
+  message: unknown,
+): ReviewAxis | undefined {
+  const taskAxes = reviewAxesFromTaskName(taskName);
+  if (taskAxes.length === 1) return taskAxes[0];
+  if (taskAxes.length > 1 || typeof message !== "string") return undefined;
+  const firstLine = message.split("\n", 1)[0];
+  const match = firstLine?.match(/^- review_axis: (standards|spec)$/);
+  return match?.[1] as ReviewAxis | undefined;
+}
+
+function isNativeSpawnCall(payload: Record<string, unknown>): boolean {
+  return (
+    payload.type === "function_call" &&
+    payload.name === "spawn_agent" &&
+    payload.namespace === "collaboration"
+  );
+}
+
+function nativeSpawnArguments(
+  payload: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  return typeof payload.arguments === "string"
+    ? parsedRecord(payload.arguments)
+    : undefined;
+}
+
+function nativeSpawnFields(
+  entry: CodexNativeSessionEntry,
+): CodexNativeSpawnFields {
+  const { payload, ordinal } = entry;
+  const callId = boundedCollaborationIdentifier(payload.call_id);
+  const args = nativeSpawnArguments(payload);
+  const taskName = boundedRouteField(
+    args?.task_name,
+    /^[a-z0-9][a-z0-9_]{0,63}$/,
+  );
+  const model = boundedRouteField(
+    args?.model,
+    /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/,
+  );
+  const reasoningEffort = boundedRouteField(
+    args?.reasoning_effort,
+    /^(?:low|medium|high|xhigh|max|ultra)$/,
+  );
+  const forkTurns = boundedRouteField(
+    args?.fork_turns,
+    /^(?:none|all|[1-9][0-9]*)$/,
+  );
+  const reviewAxis = taskName
+    ? nativeReviewAxis(taskName, args?.message)
+    : undefined;
+  return {
+    ordinal,
+    callId,
+    argumentsValid: args !== undefined,
+    taskName,
+    model,
+    reasoningEffort,
+    forkTurns,
+    reviewAxis,
+  };
+}
+
+function nativeSpawnRequest(
+  entry: CodexNativeSessionEntry,
+): CodexNativeSpawnRequest | undefined {
+  const fields = nativeSpawnFields(entry);
+  if (
+    !fields.argumentsValid ||
+    [
+      fields.callId,
+      fields.taskName,
+      fields.model,
+      fields.reasoningEffort,
+      fields.forkTurns,
+      fields.reviewAxis,
+    ].some((value) => !value)
+  )
+    return undefined;
+  return fields as CodexNativeSpawnRequest;
+}
+
+function retainedRejectedNativeSpawn(
+  entry: CodexNativeSessionEntry,
+): Record<string, unknown> {
+  const fields = nativeSpawnFields(entry);
+  const reasons = fields.argumentsValid
+    ? [
+        ["call_id", fields.callId],
+        ["task_name", fields.taskName],
+        ["model", fields.model],
+        ["reasoning_effort", fields.reasoningEffort],
+        ["fork_turns", fields.forkTurns],
+        ["review_axis", fields.reviewAxis],
+      ]
+        .filter(([, value]) => !value)
+        .map(([reason]) => reason)
+    : ["arguments"];
+  return {
+    type: "darrow.codex_native_spawn",
+    status: "unaccepted",
+    requested_ordinal: fields.ordinal,
+    reasons,
+    ...(fields.callId ? { call_id: fields.callId } : {}),
+    ...(fields.taskName ? { task_name: fields.taskName } : {}),
+    ...(fields.model ? { model: fields.model } : {}),
+    ...(fields.reasoningEffort
+      ? { reasoning_effort: fields.reasoningEffort }
+      : {}),
+    ...(fields.forkTurns ? { fork_turns: fields.forkTurns } : {}),
+    ...(fields.reviewAxis ? { review_axis: fields.reviewAxis } : {}),
+  };
+}
+
+function nativeStartedActivity(
+  entry: CodexNativeSessionEntry,
+  callId: string,
+): { ordinal: number; agentRef: string; threadId: string } | undefined {
+  if (entry.payload.type !== "item_completed") return undefined;
+  const activity = isRecord(entry.payload.item)
+    ? entry.payload.item
+    : undefined;
+  if (activity?.type !== "SubAgentActivity") return undefined;
+  if (activity.id !== callId || activity.kind !== "started") return undefined;
+  const agentRef = canonicalCodexAgentRef(activity.agent_path);
+  const threadId = boundedCollaborationIdentifier(activity.agent_thread_id);
+  return agentRef && threadId
+    ? { ordinal: entry.ordinal, agentRef, threadId }
+    : undefined;
+}
+
+function nativeSpawnStart(
+  entries: CodexNativeSessionEntry[],
+  request: CodexNativeSpawnRequest,
+): { ordinal: number; agentRef: string; threadId: string } | undefined {
+  const starts = entries
+    .map((entry) => nativeStartedActivity(entry, request.callId))
+    .filter(
+      (
+        start,
+      ): start is { ordinal: number; agentRef: string; threadId: string } =>
+        !!start,
+    );
+  return starts.length === 1 ? starts[0] : undefined;
+}
+
+function nativeSpawnAcceptance(
+  entries: CodexNativeSessionEntry[],
+  request: CodexNativeSpawnRequest,
+  agentRef: string,
+): number | undefined {
+  const outputs = entries.filter(
+    (entry) =>
+      entry.payload.type === "function_call_output" &&
+      entry.payload.call_id === request.callId,
+  );
+  if (outputs.length !== 1 || typeof outputs[0]?.payload.output !== "string")
+    return undefined;
+  const output = parsedRecord(outputs[0].payload.output);
+  return output?.task_name === agentRef ? outputs[0].ordinal : undefined;
+}
+
+function isAcceptedNativeSpawn(
+  request: CodexNativeSpawnRequest,
+  start: { ordinal: number } | undefined,
+  acceptedOrdinal: number | undefined,
+  acceptanceAllowed: boolean,
+): boolean {
+  return (
+    acceptanceAllowed &&
+    start !== undefined &&
+    acceptedOrdinal !== undefined &&
+    request.ordinal < start.ordinal &&
+    start.ordinal < acceptedOrdinal
+  );
+}
+
+function retainedNativeSpawn(
+  entries: CodexNativeSessionEntry[],
+  request: CodexNativeSpawnRequest,
+  acceptanceAllowed = true,
+): Record<string, unknown> {
+  const start = nativeSpawnStart(entries, request);
+  const acceptedOrdinal = start
+    ? nativeSpawnAcceptance(entries, request, start.agentRef)
+    : undefined;
+  const accepted = isAcceptedNativeSpawn(
+    request,
+    start,
+    acceptedOrdinal,
+    acceptanceAllowed,
+  );
+  return {
+    type: "darrow.codex_native_spawn",
+    status: accepted ? "accepted" : "unaccepted",
+    call_id: request.callId,
+    task_name: request.taskName,
+    model: request.model,
+    reasoning_effort: request.reasoningEffort,
+    fork_turns: request.forkTurns,
+    review_axis: request.reviewAxis,
+    requested_ordinal: request.ordinal,
+    ...(accepted && start && acceptedOrdinal !== undefined
+      ? {
+          agent_ref: start.agentRef,
+          thread_id: start.threadId,
+          started_ordinal: start.ordinal,
+          accepted_ordinal: acceptedOrdinal,
+        }
+      : {}),
+  };
+}
+
+function retainedNativeWait(
+  entry: CodexNativeSessionEntry,
+): Record<string, unknown> | undefined {
+  const { payload, ordinal } = entry;
+  if (
+    payload.type !== "function_call" ||
+    payload.name !== "wait_agent" ||
+    payload.namespace !== "collaboration"
+  )
+    return undefined;
+  const callId = boundedCollaborationIdentifier(payload.call_id);
+  return callId
+    ? { type: "darrow.codex_native_wait", call_id: callId, ordinal }
+    : undefined;
+}
+
+export function retainedCodexNativeSessionEvidence(session: string): object[] {
+  const { entries, malformed } = codexNativeSessionEntries(session);
+  const spawns = entries
+    .filter((entry) => isNativeSpawnCall(entry.payload))
+    .map((entry) => {
+      const request = nativeSpawnRequest(entry);
+      return request
+        ? retainedNativeSpawn(entries, request, !malformed)
+        : retainedRejectedNativeSpawn(entry);
+    });
+  const waits = entries
+    .map(retainedNativeWait)
+    .filter((wait): wait is Record<string, unknown> => !!wait);
+  return [
+    ...spawns,
+    ...waits,
+    ...(malformed ? [{ type: "darrow.codex_native_session_malformed" }] : []),
+  ];
 }
 
 export function retainedCodexEvidence(
@@ -1449,6 +2282,7 @@ export function retainedCodexEvidence(
 ): string {
   const events = codexEvents(stream);
   const skillsRoots = codexEvidenceSkillRoots(repoDir, installedSkillsRoot);
+  const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
   const retainedSkills = new Set<string>();
   const state: CodexRetentionState = {
     goalOwnerAccepted: false,
@@ -1467,12 +2301,19 @@ export function retainedCodexEvidence(
   const retained = events.flatMap((event) => {
     return [
       ...retainCodexEvent(event, state, repoDir, status),
-      ...retainedCodexSkillReads(event, skillsRoots, retainedSkills),
+      ...retainedCodexSkillReads(
+        event,
+        skillsRoots,
+        mountedSkills,
+        retainedSkills,
+      ),
     ];
   });
   appendCodexRetentionState(retained, state, {
     acceptedOwner: status?.acceptedOwner,
   });
+  if (status?.nativeSession)
+    retained.push(...retainedCodexNativeSessionEvidence(status.nativeSession));
   if (codexStreamMalformed(stream)) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)
     retained.push({
@@ -1481,6 +2322,32 @@ export function retainedCodexEvidence(
       stderr_present: status.stderrPresent,
     });
   return retained.map((event) => JSON.stringify(event)).join("\n");
+}
+
+export async function retainedCodexEvidenceForThread(
+  stream: string,
+  repoDir: string,
+  configRoot: string,
+  options: {
+    status?: CodexRetentionStatus;
+    installedSkillsRoot?: string | string[];
+  } = {},
+): Promise<string> {
+  const threadId = codexThreadId(stream);
+  const nativeSession = threadId
+    ? await codexNativeSessionForThread(configRoot, threadId)
+    : undefined;
+  const status = options.status
+    ? { ...options.status, nativeSession }
+    : nativeSession
+      ? { exitCode: 0, stderrPresent: false, nativeSession }
+      : undefined;
+  return retainedCodexEvidence(
+    stream,
+    repoDir,
+    status,
+    options.installedSkillsRoot,
+  );
 }
 
 interface CodexTokenUsage {
@@ -1551,12 +2418,11 @@ interface CodexArgvOptions {
   prompt: string;
   model: string;
   effort: string;
-  persistent?: boolean;
 }
 
 export function codexArgv(options: CodexArgvOptions): string[] {
-  const { repoDir, prompt, model, effort, persistent = false } = options;
-  const argv = [
+  const { repoDir, prompt, model, effort } = options;
+  return [
     "codex",
     "exec",
     prompt,
@@ -1574,11 +2440,9 @@ export function codexArgv(options: CodexArgvOptions): string[] {
     "-o",
     join(repoDir, ".git", "last-message.md"),
   ];
-  if (!persistent) argv.push("--ephemeral");
-  return argv;
 }
 
-interface CodexResumeArgvOptions extends Omit<CodexArgvOptions, "persistent"> {
+interface CodexResumeArgvOptions extends CodexArgvOptions {
   threadId: string;
 }
 
@@ -1695,6 +2559,7 @@ async function codexFinalMessage(repoDir: string): Promise<string> {
 
 interface CodexExecution {
   canonicalRepoDir: string;
+  configRoot: string;
   installedSkillsRoots: string[];
   out: string;
   err: string;
@@ -1976,6 +2841,41 @@ function codexProcessContextForRequest(request: HarnessRunRequest) {
   );
 }
 
+async function filesBeneath(root: string): Promise<string[]> {
+  let entries: Dirent[];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const path = join(root, entry.name);
+      if (entry.isDirectory()) return filesBeneath(path);
+      return entry.isFile() ? [path] : [];
+    }),
+  );
+  return nested.flat();
+}
+
+export async function codexNativeSessionForThread(
+  configRoot: string,
+  threadId: string,
+): Promise<string | undefined> {
+  const boundedThread = boundedCollaborationIdentifier(threadId);
+  if (!boundedThread) return undefined;
+  const suffix = `-${boundedThread}.jsonl`;
+  const matches = (await filesBeneath(join(configRoot, "sessions"))).filter(
+    (path) => path.endsWith(suffix),
+  );
+  if (matches.length !== 1) return undefined;
+  try {
+    return await readFile(matches[0]!, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 async function executeCodex(
   request: HarnessRunRequest,
 ): Promise<CodexExecution> {
@@ -1986,12 +2886,7 @@ async function executeCodex(
   const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
     const initial = await runCodexProcess(
-      await sandboxed(
-        codexArgv({
-          ...request,
-          persistent: !!request.control?.followUpPrompt,
-        }),
-      ),
+      await sandboxed(codexArgv(request)),
       repoDir,
       env,
     );
@@ -2010,6 +2905,7 @@ async function executeCodex(
       : undefined;
     return {
       canonicalRepoDir: context.canonicalRepoDir,
+      configRoot: env.CODEX_HOME!,
       installedSkillsRoots: context.installedSkillsRoots,
       out,
       err,
@@ -2030,17 +2926,21 @@ async function runCodexProcess(
   repoDir: string,
   env: Record<string, string>,
 ): Promise<{ out: string; err: string; code: number }> {
-  const proc = Bun.spawn(argv, {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-    // Fixture mocks shadow real network tools for the harness and children.
-    env: {
-      ...env,
-      DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
-      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
-    },
-  });
+  throwIfInterrupted();
+  const proc = trackEvaluationProcess(
+    Bun.spawn(argv, {
+      detached: true,
+      cwd: repoDir,
+      stdout: "pipe",
+      stderr: "pipe",
+      // Fixture mocks shadow real network tools for the harness and children.
+      env: {
+        ...env,
+        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+        PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+      },
+    }),
+  );
   const [out, err, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -2049,12 +2949,38 @@ async function runCodexProcess(
   return { out, err, code };
 }
 
+function codexActivationForRequest(
+  request: HarnessRunRequest,
+  execution: CodexExecution,
+): SkillActivationObservation {
+  const activationProbe = request.control?.activationProbe;
+  if (activationProbe?.mode !== "explicit") {
+    return codexSkillActivation(
+      execution.out,
+      execution.canonicalRepoDir,
+      execution.installedSkillsRoots,
+    );
+  }
+  return codexExplicitSkillActivation(
+    execution.out,
+    [request.prompt, request.control?.followUpPrompt]
+      .filter((value): value is string => value !== undefined)
+      .join("\n"),
+    activationProbe,
+    {
+      repoDir: execution.canonicalRepoDir,
+      installedSkillsRoots: execution.installedSkillsRoots,
+    },
+  );
+}
+
 async function codexHarnessResult(
-  repoDir: string,
+  request: HarnessRunRequest,
   execution: CodexExecution,
 ): Promise<HarnessResult> {
   const {
     canonicalRepoDir,
+    configRoot,
     installedSkillsRoots,
     out,
     err,
@@ -2067,12 +2993,8 @@ async function codexHarnessResult(
   } = execution;
   const usage = codexTokenUsage(out);
   const ok = codexRunSucceeded(code, out);
-  const resultText = await codexFinalMessage(repoDir);
-  const activation = codexSkillActivation(
-    out,
-    canonicalRepoDir,
-    installedSkillsRoots,
-  );
+  const resultText = await codexFinalMessage(request.repoDir);
+  const activation = codexActivationForRequest(request, execution);
   return {
     ok,
     durationMs,
@@ -2081,18 +3003,21 @@ async function codexHarnessResult(
     outputTokens: usage.outputTokens,
     costUsd: null,
     resultText,
-    raw: retainedCodexEvidence(
+    raw: await retainedCodexEvidenceForThread(
       out,
       canonicalRepoDir,
+      configRoot,
       {
-        exitCode: code,
-        stderrPresent: err.trim().length > 0,
-        spawnGuardSecret,
-        goalLoopPath,
-        acceptedAgentRef,
-        acceptedOwner,
+        status: {
+          exitCode: code,
+          stderrPresent: err.trim().length > 0,
+          spawnGuardSecret,
+          goalLoopPath,
+          acceptedAgentRef,
+          acceptedOwner,
+        },
+        installedSkillsRoot: installedSkillsRoots,
       },
-      installedSkillsRoots,
     ),
     skillActivation: { ...activation, complete: ok && activation.complete },
   };
@@ -2108,7 +3033,7 @@ async function codexHarnessResult(
  */
 export const codexAdapter: HarnessAdapter = {
   name: "codex",
-  defaultModel: "gpt-5.5",
+  defaultModel: CODEX_EVAL_ROLE_DEFAULTS.candidate.model,
   skillMounts: [],
   sourceCodexPlugin: true,
 
@@ -2123,6 +3048,6 @@ export const codexAdapter: HarnessAdapter = {
   },
 
   async run(request): Promise<HarnessResult> {
-    return codexHarnessResult(request.repoDir, await executeCodex(request));
+    return codexHarnessResult(request, await executeCodex(request));
   },
 };

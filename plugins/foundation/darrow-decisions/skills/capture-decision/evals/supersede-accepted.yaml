@@ -1,5 +1,7 @@
 id: capture-decision-supersede-accepted
 invariant: DM-10
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   We have decided to replace the repository's accepted REST API architecture
   with GraphQL. Supersede the existing ADR and record the new accepted
@@ -27,6 +29,9 @@ fixture:
           ## Consequences
 
           Clients integrate through resource endpoints.
+  setup: >-
+    cp "{{case_dir}}/../../../bin/decision" .git/decision-facade &&
+    chmod +x .git/decision-facade
 checks:
   - name: changes the old ADR, adds one new ADR, and refreshes the catalog
     run: >-
@@ -44,29 +49,41 @@ checks:
       test "$old" = "$new" && echo preserved
     expect_regex: "^preserved$"
   - name: old accepted meaning remains in history
-    run: cat docs/decisions/ADR-0001-rest-api.md
-    expect_regex: "Status: Superseded[\\s\\S]*Superseded by: ADR-0002[\\s\\S]*## Decision[\\s\\S]*REST API"
+    run: >-
+      file=docs/decisions/ADR-0001-rest-api.md;
+      grep -Fx 'Status: Superseded' "$file" >/dev/null;
+      grep -Fx 'Superseded by: ADR-0002' "$file" >/dev/null;
+      grep -Fx '## Decision' "$file" >/dev/null;
+      grep -Fi 'REST API' "$file" >/dev/null;
+      echo preserved
+    expect_exact: "preserved"
   - name: replacement is a new accepted ADR
     run: >-
       file=$(find docs/decisions -maxdepth 1 -type f -name 'ADR-0002-*.md' -print);
       test -n "$file";
       sed -n '1p' "$file" | grep -Ei '^# ADR-0002: .*GraphQL' >/dev/null;
-      cat "$file"
-    expect_regex: "Status: Accepted[\\s\\S]*Summary: [^\\n]+[\\s\\S]*Supersedes: ADR-0001[\\s\\S]*## Decision[\\s\\S]*GraphQL"
+      grep -Fx 'Status: Accepted' "$file" >/dev/null;
+      grep -E '^Summary: .+' "$file" >/dev/null;
+      grep -Fx 'Supersedes: ADR-0001' "$file" >/dev/null;
+      grep -Fx '## Decision' "$file" >/dev/null;
+      grep -Fi 'GraphQL' "$file" >/dev/null;
+      echo valid
+    expect_exact: "valid"
   - name: reciprocal supersession validates
     run: >-
-      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
-      else facade=.claude/bin/decision; fi;
-      bash "$facade" validate --repo .
+      bash .git/decision-facade validate --repo .
     expect_regex: "^valid: 2 ADR\\(s\\) in /"
   - name: capture creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
-  - name: response reports reciprocal relationship and absolute replacement
+  - name: response reports the absolute replacement path
     run: >-
       root=$(pwd -P); message=.git/last-message.md;
       grep -E "$root/docs/decisions/ADR-0002-[a-z0-9-]+\\.md" "$message" >/dev/null;
-      text=$(tr '\n' ' ' < "$message");
-      printf '%s\n' "$text" | grep -Ei 'ADR-0002.{0,160}supersedes.{0,80}ADR-0001|ADR-0001.{0,160}superseded by.{0,80}ADR-0002' >/dev/null;
       echo reported
-    expect_regex: "^reported$"
+    expect_exact: "reported"
+semantic_output_checks:
+  - name: response reports the reciprocal supersession
+    proposition: >-
+      The response clearly reports that the new ADR-0002 supersedes the old
+      ADR-0001, or equivalently that ADR-0001 is superseded by ADR-0002.

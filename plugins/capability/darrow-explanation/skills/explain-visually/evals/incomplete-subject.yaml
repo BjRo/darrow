@@ -1,7 +1,8 @@
 id: explain-visually-incomplete-subject
 invariant: VE-C1,VE-C3,VE-C7
+activation: positive
 mount_plugin_skills: true
-prompt: "Use explain-visually. Show me."
+prompt: "{{skill_invocation}} Show me."
 fixture:
   commits:
     - message: "chore: init"

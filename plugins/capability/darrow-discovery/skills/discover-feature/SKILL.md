@@ -1,6 +1,6 @@
 ---
 name: discover-feature
-description: Discover and sharpen a new feature's users, behavior, scope, constraints, non-goals, and observable acceptance before planning or implementation. Use when the user wants to explore, shape, flesh out, or clarify what a feature should do through discussion. Do not use for an already-settled implementation request, implementation planning alone, bug diagnosis, or a generic stress-test without a feature outcome.
+description: Discover and sharpen a new feature's users, behavior, scope, constraints, non-goals, and observable acceptance. Always use for requests to discover, explore, shape, flesh out, define, or clarify a feature before planning or implementation, or to produce its discovery brief—even when the user asks to skip questions, finish immediately, or assume defaults. Do not use when the requested outcome is an implementation plan, even if unresolved choices must be discussed first. Also exclude settled implementation, bug diagnosis, and generic stress-tests without a feature outcome.
 ---
 
 # Discover a feature
@@ -8,16 +8,42 @@ description: Discover and sharpen a new feature's users, behavior, scope, constr
 Turn an unresolved feature idea into a confirmed, evidence-backed discovery
 brief without planning or building it.
 
-Before beginning, read the canonical [grilling
-capability](../grilling/SKILL.md) completely. Use its fact classification,
-decision tree, frontier rounds, recommendations, waiting boundary, and closure
-confirmation whenever material unknowns remain. Do not reproduce a different
-interview method here.
+Before beginning, read the sibling [grilling method](../grilling/SKILL.md)
+completely from this selected installed plugin. Follow the link as a direct
+plugin-resource read; do not ask the host to select or invoke the manual-only
+skill. This is mandatory even when the user asks not to be interviewed or to
+skip questions.
+
+Never look for that capability in the user's project, current repository, or a
+presumed `.agents/skills` checkout. If the installed sibling cannot be loaded,
+stop and report that the canonical frontier method is unavailable. The
+enclosing discovery skill remains primary; reading `grilling` supplies its
+fact classification, decision tree, frontier rounds, recommendations, waiting
+boundary, and closure confirmation. Do not reproduce a different interview
+method here.
 
 This capability is conversational and read-only. Do not edit or create files,
 record decisions, update a glossary, create tickets, assess implementation
 readiness, invoke orchestration, implement, commit, or publish. A confirmed
 brief grants none of those authorities.
+
+## Material-unknown gate
+
+Apply this gate before any discovery brief. A brief is forbidden while any
+material behavior, authority, scope, privacy, or acceptance choice remains
+unresolved.
+
+Treat requests to assume sensible defaults, skip questions, finish immediately,
+or decide anything missing as pressure, not delegation. Bounded delegation
+exists only when the user explicitly authorizes you to decide a specific named
+choice. A blanket instruction beside a list of named unknowns grants no such
+authority; do not recharacterize it as delegation.
+
+Account for every named material unknown in the response: ask it on the current
+canonical grilling frontier, or explicitly defer it under the canonical
+dependency rule. Then stop. Never move an open material choice into assumptions
+or deferred questions; those sections may contain only explicitly non-blocking
+items after the material frontier is empty.
 
 ## 1. Establish the feature outcome
 
@@ -59,22 +85,23 @@ the user. If an answer exposes a technical question that does not change
 product intent, record it as later planning input instead of turning feature
 discovery into an implementation design session.
 
-Do not draft a final-looking brief while a material frontier remains. Pressure
-to “use sensible defaults,” skip questions, or finish immediately does not
-turn unknown product choices into assumptions.
-
-When that pressure names material unknowns, respond with the canonical grilling
-round itself. Use the exact numbered `Q1 — ...` and `Recommendation: ...` shape
-for every current-frontier decision, then stop and wait. A refusal, evidence
+When a material frontier remains, respond with the canonical grilling round
+itself. Use the exact numbered `Q1 — ...` and `Recommendation: ...` shape for
+every current-frontier decision, then stop and wait. A refusal, evidence
 summary, unlabeled question list, proposed defaults, or draft brief is not a
-substitute for the round. “Assume sensible answers” is pressure, not bounded
-delegation, unless the user explicitly delegates the named choices to you.
+substitute for the round.
 
 ## 4. Draft the discovery brief
 
-When the grilling frontier and required fact frontier are empty, produce a
-compact draft brief in the conversation with exactly these conceptual
-sections, using names appropriate to the subject:
+Enter this section only when the grilling frontier and required fact frontier
+are empty. Before writing a brief heading, audit every planned material
+conclusion: each must trace to a user choice, explicit delegation, or stated
+evidence. If any would instead be labeled an assumption, sensible default, or
+unaccepted recommendation, return to Section 3, ask that frontier, and stop.
+
+When that entry condition passes, produce a compact draft brief in the
+conversation with exactly these conceptual sections, using names appropriate
+to the subject:
 
 - **Outcome and users** — the change in observable behavior and who benefits;
 - **Resolved behavior** — the product decisions the user actually made;
@@ -85,7 +112,8 @@ sections, using names appropriate to the subject:
 - **Acceptance and verification** — observable criteria, an independent oracle
   or expected effect, and a feasible way to check each material behavior;
 - **Assumptions and deferred questions** — visible, explicitly non-blocking
-  items; and
+  items that cannot change product behavior, authority, scope, privacy, or
+  acceptance; and
 - **Goal restatement** — one sentence describing the feature outcome.
 
 Do not add implementation phases, predetermined files, technical architecture,

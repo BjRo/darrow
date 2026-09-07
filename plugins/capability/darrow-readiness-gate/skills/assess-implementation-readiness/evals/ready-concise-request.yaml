@@ -1,5 +1,7 @@
 id: readiness-ready-concise-request
-invariant: IRG-C3
+invariant: IRG-C3,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C14
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Assess whether this request is ready for implementation. The authoritative
   request is docs/request.md. Return the implementation-readiness result; do
@@ -20,7 +22,8 @@ fixture:
           "a@b.c"`. Add those assertions to `test/email.test.js` and exercise
           them with `bash test.sh` without changing other APIs.
         src/email.js: "export const identity = (value) => value;\n"
-        package.json: '{"type":"module"}\n'
+        package.json: |
+          {"type":"module"}
         test/email.test.js: |
           import test from "node:test";
           import assert from "node:assert/strict";
@@ -51,11 +54,15 @@ output_checks:
     expect_regex: "^## Implementation readiness$"
   - name: concise observable request is ready
     expect_regex: "^\\*\\*Verdict:\\*\\* `ready`$"
-  - name: quality bar preserves the first independent example
-    expect_regex: "[\"'] Alice@EXAMPLE\\.com [\"'][\\s\\S]{0,600}alice@example\\.com[\\s\\S]{0,600}bash test\\.sh"
-  - name: quality bar preserves the second independent example
-    expect_regex: "A@B\\.C[\\s\\S]{0,600}a@b\\.c[\\s\\S]{0,600}bash test\\.sh"
   - name: ready report preserves basis quality bar and empty findings
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^- \\*\\*Criterion:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Oracle:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Verification:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Findings$\\n\\nNone\\.$[\\s\\S]*^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `none`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
+semantic_output_checks:
+  - name: quality bar binds the independent oracles and verification
+    proposition: >-
+      In the Quality bar section, at least one Oracle field contains both exact
+      input/output mappings: `" Alice@EXAMPLE.com "` produces
+      `"alice@example.com"`, and `"A@B.C"` produces `"a@b.c"`. At least one
+      corresponding Verification field includes running `bash test.sh`; it may
+      also require adding assertions or inspecting the implementation.

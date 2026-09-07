@@ -1,12 +1,11 @@
 id: code-review-fix-verification-unavailable
+activation: positive
 invariant: CR-C17,CR-C18,CR-C20,CR-E13
 prompt: >-
-  Fix-verify the uncommitted repair described by `.git/verification-input`.
-  Validate and use its pinned prior scope, closed original finding set,
-  attempted key, and first-verification marker. The caller requires `bash
-  external-check.sh`, but that evidence source is unavailable in this fixture.
-  Report the unavailable verification evidence honestly, return the normal
-  human repair-verification report, and remain read-only.
+  Verify my uncommitted repair against the prior code-review findings recorded
+  in `.git/verification-input`. The required `bash external-check.sh` evidence
+  is unavailable in this fixture. Report that evidence gap, remain read-only,
+  and do not widen this into another comprehensive review.
 fixture:
   commits:
     - message: "chore: base"
@@ -19,7 +18,7 @@ fixture:
         external-check.sh: |
           #!/usr/bin/env bash
           printf 'required external verifier is unavailable\n' >&2
-          exit 69
+          exit 127
     - message: "feat: introduce stale endpoint"
       files:
         endpoint.txt: "https://example.invalid/v1\n"
@@ -51,17 +50,20 @@ checks:
   - name: unavailable evidence produces a valid blocked artifact
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(sed -n '1p' .git/review-result-tool) &&
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
-      awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" && $3 == "applicable" && $4 == "blocked" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
+      awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" &&
+      $3 == "applicable" && $4 == "blocked" &&
+      $5 ~ /^exited 127: required external verifier is unavailable/ { found=1 }
+      END { exit found ? 0 : 1 }' "$record" &&
       awk -F '\t' '$1 == "evidence_gap" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
+      awk -F '\t' '$1 == "regression" { found=1 } END { exit found ? 1 : 0 }' "$record" &&
       awk -F '\t' '$1 == "outcome" && $2 == "blocked" { found=1 } END { exit found ? 0 : 1 }' "$record"
   - name: final response is the complete rendered verification report
     run: >-
       report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
-output_checks:
-  - name: reports unavailable verification as blocked
-    expect_regex: '^# Repair verification — BLOCKED[\s\S]*Evidence gaps[\s\S]*unavailable'
-  - name: does not claim clear or comprehensive review
-    not_regex: "^# (Repair verification — CLEAR|Code review —)"
+      test -n "$report" &&
+      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md

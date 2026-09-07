@@ -1,5 +1,7 @@
 id: plan-implementation-complete-plan
 invariant: PI-C1,PI-C2,DG-C5,DC-C1
+activation: competition
+activation_sequence: [plan-implementation, grilling]
 mount_plugin_skills: true
 prompt: >-
   Draft the implementation plan for this settled change. `request(url,
@@ -57,10 +59,6 @@ checks:
       grep -F 'DEFAULT_TIMEOUT_MS' .git/last-message.md >/dev/null &&
       echo present
     expect_exact: "present"
-  - name: plan provides ordered independently verifiable slices
-    run: cat .git/last-message.md
-    expect_regex: "^1\\.[\\s\\S]*^2\\.[\\s\\S]*(verify|test|check)"
-    flags: i
   - name: plan preserves invalid-input error behavior
     run: cat .git/last-message.md
     expect_regex: "RangeError"
@@ -84,15 +82,25 @@ checks:
     run: cat .git/last-message.md
     expect_regex: "non-finite|NaN|Infinity"
     flags: i
-  - name: plan preserves compatibility and omission behavior
-    run: cat .git/last-message.md
-    expect_regex: "(backward|existing callers|no caller migration|omission)[\\s\\S]*(DEFAULT_TIMEOUT_MS|default|optional second argument)"
-    flags: i
-  - name: plan asks for restatement confirmation
-    run: cat .git/last-message.md
-    expect_regex: "(one.sentence|restatement|in short)[\\s\\S]*(confirm|correct|accurate|agree)"
-    flags: i
   - name: plan does not create ticket-publication claims
     run: cat .git/last-message.md
     not_regex: "created (the )?(tickets?|issues?)|opened (the )?(tickets?|issues?)|published (the )?plan"
     flags: i
+semantic_output_checks:
+  - name: plan is ordered and independently verifiable
+    proposition: >-
+      The response presents at least two ordered implementation slices whose
+      outcomes can be verified independently through concrete tests or checks.
+  - name: plan preserves compatibility and omission behavior
+    proposition: >-
+      The response keeps timeoutMs optional, preserves DEFAULT_TIMEOUT_MS when
+      it is omitted, and states that existing callers require no migration.
+  - name: plan requests confirmation of the outcome
+    proposition: >-
+      The response's final two substantive elements are a concise one-sentence
+      outcome restatement followed by an explicit request asking the user to
+      confirm or correct that restatement. The literal sentence "Please
+      confirm or correct this plan restatement." satisfies this requirement
+      even though it is grammatically imperative. A heading or label that
+      merely mentions confirmation does not satisfy it, and no additional
+      substantive content follows it.

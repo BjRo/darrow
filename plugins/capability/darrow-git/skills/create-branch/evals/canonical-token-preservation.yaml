@@ -1,6 +1,11 @@
 id: create-branch-canonical-token-preservation
 invariant: GW-B1
-prompt: "Start the fix for the active ticket provider's canonical token issue-64: preserve ticket identifiers. Create the branch with token issue-64 exactly as supplied."
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Create a new branch to fix incorrect ticket identifier normalization. Derive
+  the complete branch name from that work and use the active ticket provider's
+  canonical token issue-64 exactly as supplied.
 fixture:
   commits:
     - message: "chore: init"

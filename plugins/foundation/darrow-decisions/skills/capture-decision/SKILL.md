@@ -78,10 +78,22 @@ relevant—the work item. Resolve every plausible canonical match. A semanticall
 equivalent accepted record is already captured; leave it unchanged unless the
 user requested a verified non-semantic correction.
 
+When that equivalent accepted record is found and the user requested neither a
+correction nor a lifecycle change, take an explicit read-only no-op path. Do not
+edit the ADR, create or rebuild its catalog, or repair missing, stale, or
+unrelated repository state. Continue only to canonical-path verification and
+the final already-captured report.
+
 Classify the requested content and establish its selected choice, authority,
 scope, expected lifetime, status, provenance, and relationships. Ask only when
 an unknown value would materially change the effect or sink. Preserve an
 unselected alternative as unresolved rather than accepting it.
+
+If no outcome has been selected and the user did not ask to preserve a
+proposal, stop on a read-only unresolved path. Create no ADR or catalog and
+change no other canonical surface. Do not turn the absence of a choice into an
+accepted decision to defer. Report that the choice remains unresolved, there
+is no canonical sink, and no record was created.
 
 **Complete when:** no plausible canonical match remains unexamined and every
 field that could change the recorded effect has explicit evidence.
@@ -128,7 +140,8 @@ build a catalog for specifications, policies, work items, review state, or
 another owner surface. Treat an unreadable catalog or ADR input as a refusal
 rather than silently leaving stale catalog data. If an existing `README.md`
 lacks the derived-catalog marker, preserve it and report the facade refusal;
-never overwrite a human-authored guide.
+never overwrite a human-authored guide. Finding an unchanged equivalent ADR is
+not an ADR edit and never triggers catalog creation, rebuild, or repair.
 
 **Complete when:** one canonical effect is persisted without changing unrelated
 state, every ADR mutation has refreshed its local catalog, or a truthful
@@ -147,6 +160,10 @@ Success requires the literal `valid` result. For a specification or policy,
 reread the exact changed surface and its routing context. For a work item,
 refetch and compare the owner state as described in its reference.
 
+For an unchanged equivalent ADR, do not require catalog freshness or invoke a
+catalog operation. Preserve a clean repository and use canonical-path
+verification as the persistence proof for the already-captured record.
+
 For a repository sink, make this the final tool action before responding:
 
 ```sh
@@ -162,6 +179,10 @@ End every attempt—including refusals and metadata-only corrections—with:
 Use truthful placeholders such as `unresolved`, `not established`, or `no
 canonical sink selected`. Name the authorizing user or repository authority.
 For a refusal, put the exact refusal or persistence gap in `persistence`.
+When the user explicitly asked to preserve provenance distinctions, also
+summarize each supplied item and its class in the final response. The single
+`authority` field does not substitute for reporting those requested
+observation, assumption, recommendation, or other distinctions.
 
 **Complete when:** the report accounts for the effect, status, scope, authority
 and provenance, canonical path or owner, relationships, and proven persistence

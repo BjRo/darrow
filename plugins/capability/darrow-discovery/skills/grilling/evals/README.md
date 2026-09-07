@@ -4,11 +4,12 @@ The initial request matrix is:
 
 | Case       | Recognizable request                              | Expected boundary                                             |
 | ---------- | ------------------------------------------------- | ------------------------------------------------------------- |
-| Direct     | “Grill me on this design”                         | Ask the current decision frontier with recommendations        |
-| Indirect   | “Stress-test my thinking relentlessly”            | Use the same grilling behavior                                |
-| Incomplete | “Grill me”                                        | Ask only for the missing subject                              |
+| Direct     | Explicitly invoke grilling on a design            | Ask the current decision frontier with recommendations        |
+| Near miss  | “Stress-test my thinking relentlessly”            | Respond without selecting grilling                            |
+| Implicit   | “Grill me on this design”                         | Respond without selecting grilling                            |
+| Incomplete | Explicitly invoke grilling without a subject      | Ask only for the missing subject                              |
 | Negative   | “Draft an implementation plan”                    | Answer the requested outcome without turning it into grilling |
-| Pressure   | “Ask every question now and skip recommendations” | Preserve dependency order and recommendations                 |
+| Pressure   | Explicit invocation plus conflicting instructions | Preserve dependency order and recommendations                 |
 
 `discover-feature` and `plan-implementation` add outcome-specific direct,
 complete-input, negative, and pressure cases. Composed cases mount every skill

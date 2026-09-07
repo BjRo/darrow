@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { renderSuiteReport } from "./report";
 import type { CaseResult } from "./types";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 function result(overrides: Partial<CaseResult> = {}): CaseResult {
   return {
@@ -10,6 +13,7 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
     passThreshold: 0.8,
     skillDirectory: "/fixture/skills/sample",
     mountPluginSkills: false,
+    executionMode: "executed",
     harness: "codex",
     model: "candidate-model",
     effort: "medium",
@@ -30,6 +34,92 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
 }
 
 describe("orchestration suite report", () => {
+  test("mixed and unknown execution stay unmeasured without hiding executed cases", () => {
+    const markdown = renderSuiteReport([
+      {
+        harness: "codex",
+        mode: "mixed",
+        results: [
+          result({ caseId: "executed" }),
+          result({ caseId: "prepared", executionMode: "dry" }),
+        ],
+      },
+      {
+        harness: "codex",
+        mode: "historical",
+        results: [result({ executionMode: undefined })],
+      },
+    ]);
+    expect(markdown).toContain("| codex | mixed | n/a | n/a |");
+    expect(markdown).toContain("| codex | mixed | executed | 100% | 100% |");
+    expect(markdown).toContain("| codex | mixed | prepared | n/a | n/a |");
+    expect(markdown).toContain("| codex | historical | n/a | n/a |");
+    expect(markdown).toContain("unknown (unmeasured)");
+  });
+
+  test.each([true, false])(
+    "historical report CLI uses explicit suite dry=%s provenance",
+    async (dry) => {
+      const root = await mkdtemp(join(tmpdir(), "darrow-report-provenance-"));
+      try {
+        const artifact = join(root, "result.json");
+        const manifest = join(root, "suite-run.json");
+        await writeFile(
+          artifact,
+          JSON.stringify([result({ executionMode: undefined })]),
+        );
+        await writeFile(
+          manifest,
+          JSON.stringify({
+            dry,
+            cells: [{ harness: "codex", mode: "historical", result: artifact }],
+          }),
+        );
+        const proc = Bun.spawn(
+          [process.execPath, join(import.meta.dir, "report.ts"), manifest],
+          { stdout: "pipe", stderr: "pipe" },
+        );
+        expect(await proc.exited).toBe(0);
+        const markdown = await readFile(join(root, "report.md"), "utf8");
+        if (dry) {
+          expect(markdown).toContain("dry (unmeasured)");
+          expect(markdown).not.toContain("100%");
+        } else
+          expect(markdown).toContain("| codex | historical | 100% | 100% |");
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test("dry fixture checks never become behavioral success scores", () => {
+    const dry = result({
+      executionMode: "dry",
+      trials: [
+        {
+          trial: 1,
+          executionMode: "dry",
+          passed: false,
+          checks: [{ name: "README exists", passed: true, detail: "ok" }],
+          harness: {
+            ok: true,
+            durationMs: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            costUsd: null,
+            resultText: "",
+            raw: "",
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [dry] },
+    ]);
+    expect(markdown).toContain("dry (unmeasured)");
+    expect(markdown).not.toMatch(/\d+%/);
+  });
+
   test("separates task outcomes, protocol compliance, judge quality, and unknown cost", () => {
     const markdown = renderSuiteReport([
       {
@@ -60,6 +150,65 @@ describe("orchestration suite report", () => {
     expect(markdown).toContain("$1.2500");
     expect(markdown).toContain("Human interventions");
     expect(markdown).toContain("Per-task outcomes");
+    expect(markdown).toContain("## Effective routes");
+    expect(markdown).toContain(
+      "| codex | vanilla | codex/candidate-model@medium | not used | not used |",
+    );
+  });
+
+  test("reports exact heterogeneous candidate and grader routes", () => {
+    const harness = {
+      ok: true,
+      durationMs: 10,
+      inputTokens: 1,
+      outputTokens: 1,
+      costUsd: null,
+      resultText: "done",
+      raw: "",
+    };
+    const terra = result({
+      model: "gpt-5.6-terra",
+      effort: "medium",
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness,
+          judge: {
+            ok: false,
+            route: {
+              harness: "codex",
+              model: "gpt-5.6-sol",
+              effort: "low",
+            },
+            parseError: "fixture",
+            harness,
+          },
+          semanticOutput: {
+            ok: true,
+            route: {
+              harness: "codex",
+              model: "gpt-5.6-luna",
+              effort: "low",
+            },
+            assessments: [],
+            harness,
+          },
+        },
+      ],
+    });
+    const override = result({
+      caseId: "override",
+      model: "candidate-override",
+      effort: "xhigh",
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [terra, override] },
+    ]);
+    expect(markdown).toContain(
+      "| codex | candidate | codex/gpt-5.6-terra@medium, codex/candidate-override@xhigh | codex/gpt-5.6-sol@low | codex/gpt-5.6-luna@low |",
+    );
   });
 
   test("does not treat missing bookkeeping records as a task failure", () => {
@@ -279,7 +428,7 @@ describe("orchestration suite report", () => {
             passed: true,
             source: "harness_event",
             primarySkill: "grilling",
-            observedSkills: ["grilling"],
+            observedSkills: ["grilling", "plan-implementation"],
           },
         },
       ],
@@ -327,7 +476,10 @@ describe("orchestration suite report", () => {
       "| claude | candidate | 100% | 50% | 100% | 0% | n/a | harness event |",
     );
     expect(markdown).toContain(
-      "| claude | candidate | grilling-negative | negative | grilling | grilling | 0% | 100% | harness event |",
+      "| claude | candidate | grilling-negative | negative | grilling | grilling | grilling | 0% | 100% | harness event |",
+    );
+    expect(markdown).toContain(
+      "| claude | candidate | grilling-positive | positive | grilling | grilling | grilling → plan-implementation | 100% | 100% | harness event |",
     );
   });
 
@@ -390,7 +542,45 @@ describe("orchestration suite report", () => {
       "| claude | candidate | unknown | unknown | unknown | unknown | unknown | harness event, unknown |",
     );
     expect(markdown).toContain(
-      "| claude | candidate | oss-sample | positive | grilling | unknown | unknown | 100% | harness event, unknown |",
+      "| claude | candidate | oss-sample | positive | grilling | unknown | unknown | unknown | 100% | harness event, unknown |",
+    );
+  });
+
+  test("retains explicit activation source and ordered observations", () => {
+    const value = result({
+      activationClass: "positive",
+      activationTargetSkill: "grilling",
+      activationPassRate: 1,
+      trials: [
+        {
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 10,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "done",
+            raw: "",
+          },
+          activation: {
+            class: "positive",
+            targetSkill: "grilling",
+            passed: true,
+            source: "explicit_invocation",
+            primarySkill: "grilling",
+            observedSkills: ["grilling"],
+          },
+        },
+      ],
+    });
+    const markdown = renderSuiteReport([
+      { harness: "codex", mode: "candidate", results: [value] },
+    ]);
+    expect(markdown).toContain(
+      "| codex | candidate | oss-sample | positive | grilling | grilling | grilling | 100% | 100% | explicit invocation |",
     );
   });
 

@@ -1,5 +1,7 @@
 id: setup-information-architecture-codex-only-scope
-invariant: IA-S6,IA-S8
+invariant: IA-S6,IA-S8,IA-S11
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Set up a lean information architecture for Codex only. Do not add Claude
   guidance or adapters. I approve the proposed file-level actions.
@@ -9,6 +11,7 @@ fixture:
       files:
         README.md: "# Service\n"
         package.json: "{\"private\":true}\n"
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
 checks:
   - name: Codex entrypoint is created
     run: test -f AGENTS.md && echo created
@@ -20,10 +23,7 @@ checks:
     expect_regex: "^absent$"
   - name: Codex-only verification passes
     run: >-
-      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
-      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
-      else echo missing-doctor; exit 1; fi;
-      bash "$doctor" verify --runtime codex . >/dev/null && echo verified
+      bash .git/ia-doctor verify --runtime codex . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: setup creates no commit
     run: git rev-list --all --reflog --count

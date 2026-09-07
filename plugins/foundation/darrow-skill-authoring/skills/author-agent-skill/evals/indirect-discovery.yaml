@@ -1,5 +1,6 @@
 id: author-agent-skill-indirect-discovery
 invariant: SA-C1,SA-C2,SA-C3
+activation: positive
 prompt: >-
   We keep pasting the same release-triage checklist into chat. Turn it into a
   reusable capability in the existing plugins/triage package for both Claude
@@ -30,12 +31,17 @@ checks:
     run: cat plugins/triage/skills/triage-release/SKILL.md
     expect_regex: "description:[^\\n]*(release|incident)[^\\n]*(triage|blocker)|description:[^\\n]*(triage|blocker)[^\\n]*(release|incident)"
     flags: i
-  - name: workflow preserves the incident and bounds its output
+  - name: workflow preserves the incident
+    run: git diff --exit-code -- incident.md
+  - name: workflow defines the bounded response structure
     run: >-
-      git diff --exit-code -- incident.md;
-      cat plugins/triage/skills/triage-release/SKILL.md
-    expect_regex: "(blockers|release blockers)[\\s\\S]*(follow-ups|follow ups)[\\s\\S]*(complete when|completion|done when|report)"
-    flags: i
+      skill=plugins/triage/skills/triage-release/SKILL.md;
+      body=$(awk 'NR == 1 && $0 == "---" { frontmatter = 1; next }
+        frontmatter && $0 == "---" { frontmatter = 0; next }
+        !frontmatter { print }' "$skill");
+      printf '%s\n' "$body" | grep -Ei 'release blockers?' >/dev/null;
+      printf '%s\n' "$body" | grep -Ei 'follow-ups?|follow ups?' >/dev/null;
+      printf '%s\n' "$body" | grep -Ei 'complete|completion|return|report|output' >/dev/null
   - name: authoring creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"

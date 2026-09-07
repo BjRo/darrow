@@ -17,13 +17,29 @@ checks:
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
 output_checks:
-  - name: answer names the required opt-in and endpoint variables
-    expect_regex: "DARROW_LANGFUSE_ENABLED[\\s\\S]{0,500}LANGFUSE_BASE_URL"
+  - name: answer names the export opt-in
+    expect_regex: "DARROW_LANGFUSE_ENABLED"
+  - name: answer names the endpoint
+    expect_regex: "LANGFUSE_BASE_URL"
   - name: answer keeps content capture disabled
-    expect_regex: "DARROW_LANGFUSE_CAPTURE_CONTENT[\\s\\S]{0,120}(false|disabled|off)"
-    flags: i
+    expect_regex: "DARROW_LANGFUSE_CAPTURE_CONTENT"
   - name: answer configures the explicit work item
-    expect_regex: "DARROW_LANGFUSE_WORK_ITEM_ID[\\s\\S]{0,100}OPS-42"
-  - name: answer uses dry-run verification without a success claim
-    expect_regex: "DRY_RUN[\\s\\S]{0,300}(inspect|verify|dry|without|does not)"
-    flags: i
+    expect_regex: "DARROW_LANGFUSE_WORK_ITEM_ID"
+  - name: answer names both credential placeholders
+    expect_regex: "LANGFUSE_PUBLIC_KEY"
+  - name: answer names the secret credential placeholder
+    expect_regex: "LANGFUSE_SECRET_KEY"
+semantic_output_checks:
+  - name: answer provides the requested privacy-first configuration
+    proposition: >-
+      The response provides a read-only configuration for the supplied
+      http://localhost:3000 endpoint that enables tracing, keeps raw-content
+      capture disabled, explicitly attributes traces to OPS-42, and leaves both
+      Langfuse credentials as unfilled placeholders rather than inventing or
+      requesting secret values.
+  - name: answer provides bounded dry-run verification
+    proposition: >-
+      The response recommends a dry run that reconstructs trace data without a
+      network export or credentials and clearly distinguishes that evidence
+      from live authentication or ingestion. It does not claim that the
+      supplied credentials, endpoint, or live export already work.

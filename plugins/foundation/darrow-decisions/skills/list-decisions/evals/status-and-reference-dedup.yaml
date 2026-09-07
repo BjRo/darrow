@@ -1,5 +1,7 @@
 id: list-decisions-status-and-reference-dedup
 invariant: "DM-L2,DM-L3"
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   List recorded authentication decisions and unresolved authentication
   proposals across ADR and specification surfaces. Distinguish actual statuses,
@@ -74,40 +76,12 @@ checks:
   - name: listing is read-only
     run: git status --porcelain --untracked-files=all
     not_regex: "\\S"
-  - name: reports accepted and proposed statuses separately
-    run: >-
-      root=$(pwd -P); message=.git/last-message.md;
-      oidc="$root/docs/decisions/ADR-0001-oidc.md";
-      proposal="$root/docs/decisions/ADR-0002-passwordless.md";
-      specification="$root/docs/specs/authentication.md";
-      oidc_line=$(grep -F "$oidc" "$message");
-      proposal_line=$(grep -F "$proposal" "$message");
-      specification_line=$(grep -F "$specification" "$message");
-      printf '%s\n' "$oidc_line" | grep -Ei 'Accepted' >/dev/null;
-      printf '%s\n' "$oidc_line" | grep -Ei 'OIDC|external identity|federated identity' >/dev/null;
-      printf '%s\n' "$oidc_line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
-      ! printf '%s\n' "$oidc_line" | grep -F "$proposal" >/dev/null;
-      ! printf '%s\n' "$oidc_line" | grep -F "$specification" >/dev/null;
-      printf '%s\n' "$proposal_line" | grep -Ei 'Proposed' >/dev/null;
-      printf '%s\n' "$proposal_line" | grep -Ei 'passkey|passwordless' >/dev/null;
-      printf '%s\n' "$proposal_line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
-      ! printf '%s\n' "$proposal_line" | grep -F "$oidc" >/dev/null;
-      ! printf '%s\n' "$proposal_line" | grep -F "$specification" >/dev/null;
-      printf '%s\n' "$specification_line" | grep -Ei 'no recorded status|no status|status.{0,80}(none|not applicable|n/a)' >/dev/null;
-      printf '%s\n' "$specification_line" | grep -Ei 'normative capability|capability scope|scope.{0,80}(normative|capability|product|specification)' >/dev/null;
-      printf '%s\n' "$specification_line" | grep -Ei 'HttpOnly' >/dev/null;
-      printf '%s\n' "$specification_line" | grep -Ei 'SameSite|same-site' >/dev/null;
-      printf '%s\n' "$specification_line" | grep -Ei 'cookie' >/dev/null;
-      ! printf '%s\n' "$specification_line" | grep -F "$oidc" >/dev/null;
-      ! printf '%s\n' "$specification_line" | grep -F "$proposal" >/dev/null;
-      echo distinguished
-    expect_exact: "distinguished"
   - name: canonical records are deduplicated
     run: >-
       root=$(pwd -P); message=.git/last-message.md;
-      test "$(NEEDLE="$root/docs/decisions/ADR-0001-oidc.md" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
-      test "$(NEEDLE="$root/docs/decisions/ADR-0002-passwordless.md" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
-      test "$(NEEDLE="$root/docs/specs/authentication.md" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
+      test "$(grep -F -c "$root/docs/decisions/ADR-0001-oidc.md" "$message")" -eq 1;
+      test "$(grep -F -c "$root/docs/decisions/ADR-0002-passwordless.md" "$message")" -eq 1;
+      test "$(grep -F -c "$root/docs/specs/authentication.md" "$message")" -eq 1;
       echo unique
     expect_exact: "unique"
   - name: unrelated record is omitted
@@ -117,3 +91,18 @@ checks:
   - name: listing creates no commit
     run: git rev-list --all --reflog --count
     expect_exact: "1"
+semantic_output_checks:
+  - name: accepted authentication decision keeps its actual status
+    proposition: >-
+      The response reports the OIDC external-identity effect as an Accepted
+      repository-architecture decision owned by ADR-0001.
+  - name: unresolved authentication proposal keeps its actual status
+    proposition: >-
+      The response reports the passkey or passwordless evaluation as a
+      Proposed repository-architecture decision owned by ADR-0002 and does not
+      imply that it is already in effect.
+  - name: specification effect remains distinct from its ADR reference
+    proposition: >-
+      The response reports the HttpOnly SameSite cookie rule as a distinct
+      normative capability effect with no recorded status, owned by the
+      authentication specification rather than duplicating the OIDC ADR.

@@ -43,7 +43,9 @@ cross-field validity rules for the result.
 
 In standalone human-readable mode, return one complete report using the
 reference's section structure. Do not append a second summary that competes
-with the report. In standalone JSON mode, the semantic payload is exactly one
+with the report. Before sending it, verify that the required-next-action
+`Description` is the final line and remove every later summary, disclaimer,
+mutation note, offer, or comment. In standalone JSON mode, the semantic payload is exactly one
 JSON object. Prefer raw JSON with no prose. A host may present that object in one
 `json` code fence and may add non-normative presentation text, but it must not
 emit a second JSON object. Consumers ignore presentation text and use the

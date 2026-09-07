@@ -1,5 +1,7 @@
 id: capture-decision-proposed-provenance
 invariant: "DM-2,DM-5,DM-8"
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Record a repository architecture proposal to evaluate Redis for shared cache
   state. This is not accepted. User-provided observation: one local load test
@@ -11,6 +13,9 @@ fixture:
       files:
         README.md: "# Service\n"
         docs/decisions/.gitkeep: ""
+  setup: >-
+    cp "{{case_dir}}/../../../bin/decision" .git/decision-facade &&
+    chmod +x .git/decision-facade
 checks:
   - name: creates one proposed ADR and its derived catalog
     run: >-
@@ -43,16 +48,18 @@ checks:
     flags: i
   - name: deterministic validation passes
     run: >-
-      if [ -f .agents/bin/decision ]; then facade=.agents/bin/decision;
-      else facade=.claude/bin/decision; fi;
-      bash "$facade" validate --repo .
+      bash .git/decision-facade validate --repo .
     expect_regex: "^valid: 1 ADR\\(s\\) in /"
-  - name: response reports proposal provenance and absolute sink
+  - name: response reports the absolute canonical sink
     run: >-
       root=$(pwd -P); message=.git/last-message.md;
       grep -E "$root/docs/decisions/ADR-0001-[a-z0-9-]+\\.md" "$message" >/dev/null;
-      grep -Ei 'Proposed' "$message" >/dev/null;
-      grep -Ei 'observation|user-provided' "$message" >/dev/null;
-      grep -Ei 'assumption' "$message" >/dev/null;
       echo reported
-    expect_regex: "^reported$"
+    expect_exact: "reported"
+semantic_output_checks:
+  - name: response reports proposal status and provenance distinctions
+    proposition: >-
+      The response reports that the Redis architecture record is a proposal
+      rather than an accepted decision, and says that the load-test result is
+      preserved as a user-provided observation while the projected traffic
+      increase is preserved separately as an explicit assumption.

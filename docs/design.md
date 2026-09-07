@@ -23,7 +23,7 @@ adapts, and what counts as complete. Because that changes the shape and extent
 of a session, orchestration starts only through explicit user invocation. The
 model must not infer orchestration merely because a task is complex,
 long-running, or multi-step. Once invoked, orchestration may use installed
-capabilities by their public intent or contract. It may also delegate a bounded
+capabilities by their public intent. It may also delegate a bounded
 phase to another orchestration helper without requiring a second user
 invocation, provided the originating request and authority are preserved. That
 delegation is continuation of already-authorized orchestration, not inferred
@@ -49,11 +49,12 @@ A plugin is Darrow's unit of adoption, compatibility, and ownership. Each
 plugin is self-contained and independently installable. It must not reference a
 sibling plugin's files or assume that another Darrow plugin is present.
 
-Plugins may cooperate through host-visible intent and runtime-discovered
-capability contracts. For example, a consumer can ask for ticket operations
-without knowing which compatible ticket provider supplies them. If an optional
-contract is unavailable, the consumer follows its own documented stop or
-fallback behavior instead of reaching into another plugin.
+Plugins may cooperate through host-visible skill intent. For example, a
+consumer can ask for ticket operations without knowing which installed skill
+supplies them. Darrow does not add a second versioned capability-name registry
+on top of the host's skill discovery. If an optional skill is unavailable, the
+consumer follows its own documented stop or fallback behavior instead of
+reaching into another plugin.
 
 This boundary preserves genuine choice: users can adopt one focused capability,
 several complementary capabilities, or an orchestration helper without
@@ -74,7 +75,7 @@ Skills should expose the intent, decisions, and evidence that require model
 judgment—not the plumbing of every underlying command or tool protocol. When a
 workflow depends on repeatable, error-prone mechanics, a bundled script provides
 a narrow interface. The invoking model supplies intent-level inputs; the script
-owns command construction, capability discovery, escaping, validation, parsing,
+owns command construction, tool discovery, escaping, validation, parsing,
 and normalization, then returns compact, stable, machine-readable evidence.
 
 This boundary reduces tool-call chatter and model context while making the

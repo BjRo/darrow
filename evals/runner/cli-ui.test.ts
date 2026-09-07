@@ -139,6 +139,25 @@ describe("eval CLI presentation", () => {
     ui.stop();
   });
 
+  test("numbers concurrently started plain-text trials by dispatched work", () => {
+    const chunks: string[] = [];
+    const ui = new EvalCliUi(
+      { color: false, emoji: false, progress: false, hyperlinks: false },
+      3,
+      { write: (chunk: string) => chunks.push(chunk) },
+    );
+
+    ui.startTrial("concurrent-case", 1, 3);
+    ui.startTrial("concurrent-case", 2, 3);
+    ui.startTrial("concurrent-case", 3, 3);
+
+    expect(chunks).toEqual([
+      "RUN 1/3  concurrent-case · trial 1/3\n",
+      "RUN 2/3  concurrent-case · trial 2/3\n",
+      "RUN 3/3  concurrent-case · trial 3/3\n",
+    ]);
+  });
+
   test("colors task and activation outcomes independently", () => {
     const lines = trialLines(
       {
@@ -169,6 +188,93 @@ describe("eval CLI presentation", () => {
     expect(lines).toContain("Task passed");
     expect(lines).toContain("Activation failed");
     expect(lines).toContain("✕");
+  });
+
+  test("reports a missing composed skill in activation failures", () => {
+    const lines = trialLines(
+      {
+        passed: true,
+        caseId: "composition-regression",
+        trial: 1,
+        trials: 1,
+        completed: 1,
+        total: 1,
+        durationMs: 1_000,
+        tokens: 1_000,
+        failedChecks: [],
+        activation: {
+          passed: false,
+          className: "competition",
+          targetSkill: "plan-implementation",
+          expectedSkills: ["plan-implementation", "grilling"],
+          primarySkill: "plan-implementation",
+          observedSkills: ["plan-implementation"],
+          source: "skill-read",
+        },
+      },
+      { color: false, emoji: false, progress: false, hyperlinks: false },
+    ).join("\n");
+
+    expect(lines).toContain(
+      "expected plan-implementation → grilling, got plan-implementation",
+    );
+  });
+
+  test("reports a forbidden skill observed after another primary skill", () => {
+    const lines = trialLines(
+      {
+        passed: false,
+        caseId: "negative-activation",
+        trial: 1,
+        trials: 1,
+        completed: 1,
+        total: 1,
+        durationMs: 1_000,
+        tokens: 1_000,
+        failedChecks: [],
+        activation: {
+          passed: false,
+          className: "negative",
+          targetSkill: "grilling",
+          excludedSkills: ["grilling"],
+          primarySkill: "discover-feature",
+          observedSkills: ["discover-feature", "grilling"],
+          source: "skill-read",
+        },
+      },
+      { color: false, emoji: false, progress: false, hyperlinks: false },
+    ).join("\n");
+
+    expect(lines).toContain(
+      "forbidden grilling observed in discover-feature → grilling",
+    );
+  });
+
+  test("reports successful negative activation as avoidance", () => {
+    const lines = trialLines(
+      {
+        passed: true,
+        caseId: "negative-activation",
+        trial: 1,
+        trials: 1,
+        completed: 1,
+        total: 1,
+        durationMs: 1_000,
+        tokens: 1_000,
+        failedChecks: [],
+        activation: {
+          passed: true,
+          className: "negative",
+          targetSkill: "grilling",
+          primarySkill: null,
+          source: "skill-read",
+        },
+      },
+      { color: false, emoji: false, progress: false, hyperlinks: false },
+    ).join("\n");
+
+    expect(lines).toContain("Activation passed · grilling avoided");
+    expect(lines).not.toContain("grilling selected");
   });
 
   test("summarizes repeated trials with symbols and a plain-text fallback", () => {

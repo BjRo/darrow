@@ -1,5 +1,7 @@
 id: tdd-product-value-bug-fix
-invariant: TDD-E7
+invariant: TDD-E1,TDD-E7
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Use test-driven development to fix the production Retry-After parser bug.
   parseRetryAfter(value, nowMs) in
@@ -33,23 +35,12 @@ fixture:
           node --test test/retry-after.test.js >.git/test-output 2>&1
           status=$?
           cat .git/test-output
+          if grep -Eqi 'HTTP.?date|2030|1893456000000' test/retry-after.test.js; then added=1; else added=0; fi
+          if git diff --quiet -- src/retry-after.js; then implementation=unchanged; else implementation=changed; fi
+          if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
+          printf '%s|regression_test=%s|implementation=%s\n' \
+            "$result" "$added" "$implementation" >>.git/tdd-trace
           exit "$status"
-  bin:
-    node: |
-      #!/usr/bin/env bash
-      real_node=$(PATH="${PATH#*:}" command -v node)
-      "$real_node" "$@"
-      status=$?
-      case " $* " in
-        *--test*) ;;
-        *) exit "$status" ;;
-      esac
-      if grep -Eqi 'HTTP.?date|2030|1893456000000' test/retry-after.test.js; then added=1; else added=0; fi
-      if git diff --quiet -- src/retry-after.js; then implementation=unchanged; else implementation=changed; fi
-      if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
-      printf '%s|regression_test=%s|implementation=%s\n' \
-        "$result" "$added" "$implementation" >>.git/tdd-trace
-      exit "$status"
 checks:
   - name: no seeded Retry-After defect escapes
     metric: escaped_defect
@@ -88,7 +79,9 @@ checks:
     run: git diff --exit-code -- test.sh
   - name: final suite is green
     run: bash test.sh >/dev/null
-output_checks:
+semantic_output_checks:
   - name: response reports red and green evidence
-    expect_regex: "red[\\s\\S]{0,240}(bash test\\.sh|node --test)[\\s\\S]{0,240}green[\\s\\S]{0,240}(bash test\\.sh|node --test)"
-    flags: i
+    proposition: >-
+      The response reports an observed failing test before the Retry-After fix
+      and a passing test afterward, and names bash test.sh or the equivalent
+      focused node test command used for that evidence.

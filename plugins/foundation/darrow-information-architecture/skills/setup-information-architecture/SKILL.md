@@ -74,10 +74,13 @@ Before changing <area>, read <session-root-relative-guidance-path>.
 Every explicit route names both its trigger and target. Ordinary paths resolve
 from the session root, including routes inside maps and nested entrypoints.
 Rewrite containing-file-relative ordinary paths; preserve loader-native imports
-and skill-relative resources under their own semantics. A position-dependent
-path defect alone authorizes rewriting that route in its existing file, not
-moving, replacing, or deleting the guidance file. Preserve valid existing
-placement unless separate scope/reachability evidence justifies relocation.
+and skill-relative resources under their own semantics. When fixing an
+ordinary path defect, do not delete or rewrite a loader-native import merely
+because its target appears empty, and do not relocate an existing skill bundle
+merely because a neutral location seems preferable. A position-dependent path
+defect alone authorizes rewriting that route in its existing file, not moving,
+replacing, or deleting the guidance file. Preserve valid existing placement
+unless separate scope/reachability evidence justifies relocation.
 
 Apply runtime semantics independently:
 

@@ -62,6 +62,12 @@ Assign each candidate exactly one action:
 | `rewrite` | Repair an ambiguous/broken route, duplicated summary, stale path, or mixed statement by retaining its non-derivable constraint and removing only its derived fragment. |
 | `remove` | Delete only a fact that is reliable and cheap to recover from a named canonical source; never rephrase a derived inventory as an imperative merely to keep it. |
 
+Treat a repeatable ordered workflow in resident guidance as procedural even
+when the structural graph passes verification. When safe reorganization is
+approved and a reachable skill destination exists, classify it as `move`; do
+not call the resident procedure minimal merely because its routes are valid.
+Keep only its universal safety invariant and the intent route resident.
+
 Optimize total retrieval cost, not root line count. A routed rare safety rule
 usually stays deferred; promoting it to root increases every task's cost.
 Preserve the spelling of an unusual command; incidental executable bits or a

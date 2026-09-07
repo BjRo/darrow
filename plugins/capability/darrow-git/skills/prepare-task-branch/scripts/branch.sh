@@ -55,6 +55,13 @@ common_git_dir() {
   [[ "$dir" == /* ]] || dir="$repo/$dir"
   (cd "$dir" 2>/dev/null && pwd -P)
 }
+remove_created_parents() {
+  local path=$1 existing_ancestor=$2
+  while [[ -n "$path" && "$path" != "$existing_ancestor" ]]; do
+    rmdir "$path" 2>/dev/null || return 0
+    path=$(dirname "$path")
+  done
+}
 default_branch() {
   local branch
   branch=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)
@@ -212,6 +219,10 @@ case "$command" in
       exit 9
     fi
     if [[ $worktree -eq 1 ]]; then
+      default_parent=""
+      existing_ancestor=""
+      exclude=""
+      exclude_needs_append=0
       existing_path=$(worktree_for_branch "$name")
       if [[ -n "$existing_path" ]]; then
         if [[ ! -d "$existing_path" ]] ||
@@ -269,50 +280,69 @@ case "$command" in
       [[ -z "$base" ]] || from=$base
       pre_status=$(git status --porcelain)
       if [[ $at_set -eq 0 ]]; then
-        output=$(mkdir -p "$(dirname "$path")" 2>&1) || {
+        default_parent=$(dirname "$path")
+        existing_ancestor=$default_parent
+        while [[ ! -e "$existing_ancestor" ]]; do
+          parent=$(dirname "$existing_ancestor")
+          [[ "$parent" != "$existing_ancestor" ]] || break
+          existing_ancestor=$parent
+        done
+        output=$(mkdir -p "$default_parent" 2>&1) || {
           echo "error: cannot create worktree parent dir: $output" >&2
           exit 9
         }
         exclude=$(git rev-parse --git-path info/exclude)
         if [[ -e "$exclude" && ! -r "$exclude" ]]; then
           echo "error: repository exclude file is unreadable: $exclude" >&2
+          remove_created_parents "$default_parent" "$existing_ancestor"
           exit 9
         fi
         output=$(mkdir -p "$(dirname "$exclude")" 2>&1) || {
           echo "error: cannot prepare repository exclude directory: $output" >&2
+          remove_created_parents "$default_parent" "$existing_ancestor"
           exit 9
         }
         exclude_status=0
         grep -qxF '/.worktrees/' "$exclude" 2>/dev/null || exclude_status=$?
         if [[ $exclude_status -gt 1 ]]; then
           echo "error: cannot inspect repository exclude file: $exclude" >&2
+          remove_created_parents "$default_parent" "$existing_ancestor"
           exit 9
         fi
         if [[ $exclude_status -eq 1 ]]; then
-          if ! printf '%s\n' '/.worktrees/' >> "$exclude"; then
-            echo "error: cannot keep the default worktree path out of repository status: $exclude" >&2
+          if [[ ! -w "$exclude" ]]; then
+            echo "error: repository exclude file is not writable: $exclude" >&2
+            remove_created_parents "$default_parent" "$existing_ancestor"
             exit 9
           fi
+          exclude_needs_append=1
         fi
       fi
       if [[ -n "$exact" ]]; then
         output=$(git worktree add "$path" "$name" 2>&1) || {
+          remove_created_parents "$default_parent" "$existing_ancestor"
           echo "$output" >&2
           exit 4
         }
-        echo "## mode: worktree-reused"
-        echo "$name (at $(git rev-parse "refs/heads/$name")) in $path"
+        result_mode="worktree-reused"
+        result_evidence="$name (at $(git rev-parse "refs/heads/$name")) in $path"
       else
         output=$(git worktree add "$path" -b "$name" ${base:+"$base"} 2>&1) || {
-          if git show-ref -q --verify "refs/heads/$name"; then
-            git branch -qD "$name" 2>/dev/null || true
-          fi
+          remove_created_parents "$default_parent" "$existing_ancestor"
           echo "$output" >&2
           exit 4
         }
-        echo "## mode: worktree-created"
-        echo "$name (from $from) in $path"
+        result_mode="worktree-created"
+        result_evidence="$name (from $from) in $path"
       fi
+      if [[ $exclude_needs_append -eq 1 ]]; then
+        if ! printf '%s\n' '/.worktrees/' >> "$exclude"; then
+          echo "error: worktree prepared but cannot update repository exclude file: $exclude" >&2
+          exit 9
+        fi
+      fi
+      echo "## mode: $result_mode"
+      echo "$result_evidence"
       if [[ -n "$pre_status" ]]; then
         echo "## note: uncommitted changes stay in the current worktree — they were not carried into $path"
       fi

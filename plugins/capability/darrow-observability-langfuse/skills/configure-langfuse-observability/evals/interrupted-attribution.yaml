@@ -22,12 +22,23 @@ output_checks:
   - name: answer uses provisional evidence for an interrupted turn
     expect_regex: "interrupt[\\s\\S]{0,240}(provisional|prompt-time)[\\s\\S]{0,240}(snapshot|attribution|evidence)"
     flags: i
-  - name: answer preserves one issue epoch when evidence exists
-    expect_regex: "((same|one|single|existing|original|continu)[\\s\\S]{0,220}(epoch|Langfuse session|session segment|group)|(epoch|Langfuse session|session segment|group)[\\s\\S]{0,220}(same|one|single|existing|original|continu))"
-    flags: i
-  - name: answer leaves a genuinely unknown turn ungrouped
-    expect_regex: "(neither|missing|no)[\\s\\S]{0,220}(snapshot|evidence)[\\s\\S]{0,220}(ungrouped|not attached|no Langfuse session)"
-    flags: i
+semantic_output_checks:
+  - name: matching interrupted attribution preserves the epoch
+    proposition: >-
+      The response explicitly explains that the interrupted turn's provisional
+      issue-45 attribution keeps it in the same attribution epoch and native
+      Langfuse session segment as the surrounding issue-45 turns. Merely saying
+      that the provisional snapshot governs the interrupted turn, without
+      stating the shared epoch or session result, does not satisfy this check.
   - name: answer preserves the conversation correlation key
-    expect_regex: "codex\\.thread_id[\\s\\S]{0,180}(conversation|correlat|across|discover)"
-    flags: i
+    proposition: >-
+      The response identifies codex.thread_id as the stable conversation key
+      used to find or correlate turns across Langfuse session segments and any
+      ungrouped gap. Merely naming the field without explaining its
+      conversation-level role does not satisfy this check.
+  - name: answer leaves a genuinely unknown turn ungrouped
+    proposition: >-
+      The response explains that an interrupted turn with neither provisional
+      nor final attribution evidence remains ungrouped, is not attached to a
+      Langfuse session, and does not create an attribution epoch. It must not
+      infer attribution for that turn from the surrounding issue-45 turns.

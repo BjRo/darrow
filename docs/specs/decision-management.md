@@ -202,7 +202,10 @@ that is unavailable, report the owner and stop without creating a substitute.
   changing a record. Reported root surfaces are discovery candidates, not an
   exhaustive policy map: follow repository routers, referenced guidance, and
   scoped instructions applicable to the target path. A plausible canonical
-  match is resolved before writing.
+  match is resolved before writing. When an accepted ADR already captures the
+  same effect and no correction or lifecycle change was requested, capture is
+  a read-only no-op: do not edit the ADR, create or rebuild its catalog, or
+  repair unrelated drift.
 - **DM-C2 — Ask only material questions.** Reuse explicit conversation and
   repository evidence. Ask only when the selected choice, authority, scope,
   status, canonical sink, or materiality cannot be established safely.
@@ -210,21 +213,25 @@ that is unavailable, report the owner and stop without creating a substitute.
   requested. Do not commit, push, update unrelated work items, reorganize
   documentation, or repair implementation drift as side effects.
 - **DM-C4 — Safe accepted records.** Do not accept an unresolved choice or
-  silently rewrite accepted meaning. Supersession preserves the old record and
-  passes the deterministic relationship checks.
+  silently rewrite accepted meaning. When no outcome has been selected and the
+  user did not ask to preserve a proposal, capture is a read-only unresolved
+  result: create no ADR or catalog and change no other canonical surface. Do
+  not reinterpret the absence of a choice as an accepted decision to defer.
+  Supersession preserves the old record and passes the deterministic
+  relationship checks.
 - **DM-C5 — Verify and report.** Validate affected ADRs or inspect the edited
   canonical surface before success. Report the decision, status, scope,
   authority evidence with its provenance class, canonical absolute path or
   external owner, relationships, and any unresolved follow-up or inaccessible
-  owner.
-- **DM-C6 — Portable capability.** The skill advertises
-  `decision.capture@1.0.0` so workflows can request decision capture by
-  contract without naming this provider.
-- **DM-C7 — Refresh the derived ADR catalog.** After creating or changing an ADR,
+  owner. When the user explicitly asks to preserve provenance distinctions,
+  the final response names each supplied item and its class; correctly storing
+  those distinctions without reporting them is incomplete.
+- **DM-C6 — Refresh the derived ADR catalog.** After creating or changing an ADR,
   rebuild `README.md` in the selected ADR directory before validation.
   Capture and a manual `catalog rebuild` use the same facade operation and must
   produce identical bytes. Specification, policy, and work-item captures do not
-  create or update an ADR catalog.
+  create or update an ADR catalog. Rediscovering an unchanged equivalent ADR
+  does not authorize catalog creation, refresh, or repair.
 
 ### Non-goals
 
@@ -258,10 +265,7 @@ canonical repository surfaces when the query is not ADR-only.
 - **DM-L4 — Honest gaps.** State applied filters, empty results, unreadable
   required records, inaccessible foreign owners, ambiguity, and output caps.
   Never present a partial or inferred inventory as complete.
-- **DM-L5 — Portable capability.** The skill advertises
-  `decision.list@1.0.0` so workflows can request read-only decision discovery
-  by contract without naming this provider.
-- **DM-L6 — Use catalog metadata; scan bodies for subjects.** Listing may use a
+- **DM-L5 — Use catalog metadata; scan bodies for subjects.** Listing may use a
   fresh ADR catalog for complete inventory and metadata, status, or relationship
   filters without reading ADR bodies. Literal subject or full-text search always
   scans every ADR body and preserves its exact result set, including terms absent

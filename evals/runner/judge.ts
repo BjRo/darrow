@@ -160,6 +160,7 @@ export async function runQualityJudge(
   request: QualityJudgeRequest,
 ): Promise<JudgeResult> {
   const { adapter, repoDir, task, checks, model, effort } = request;
+  const route = { harness: adapter.name, model, effort };
   const checkSummary = checks
     .map(
       (check) =>
@@ -192,10 +193,11 @@ All scores are integers 1-5. A pass requires no material correctness defect and 
     });
     try {
       const assessment = parseJudgeAssessment(harness.resultText);
-      return { ok: harness.ok, assessment, harness };
+      return { ok: harness.ok, route, assessment, harness };
     } catch (error) {
       return {
         ok: false,
+        route,
         parseError:
           error instanceof Error ? error.message : "invalid judge output",
         harness,

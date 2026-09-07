@@ -1,5 +1,7 @@
 id: update-ticket-comment-only
 invariant: TM-U2
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Add my findings to ticket #12: the root cause is grep -q exiting early
   under pipefail, which SIGPIPEs the writer. The fix is to switch the
@@ -163,13 +165,20 @@ fixture:
 checks:
   - name: findings landed as a comment
     run: cat .git/fixture-gh/comment-body-12
-    expect_regex: "pipefail"
+    expect_regex: "grep -q.*pipefail|pipefail.*grep -q"
+  - name: comment preserves the reported symptom and fix
+    run: cat .git/fixture-gh/comment-body-12
+    expect_regex: "SIGPIPE[\\s\\S]*here-?strings?|here-?strings?[\\s\\S]*SIGPIPE"
+    flags: i
   - name: no status change smuggled in
     run: test ! -f .git/fixture-gh/transitions && echo none
     expect_regex: "^none$"
   - name: description untouched
     run: test ! -f .git/fixture-gh/edited-body-12 && echo none
     expect_regex: "^none$"
-  - name: no label changes
+  - name: comment is the requested tracker mutation
     run: cat .git/fixture-gh/calls
-    not_regex: "add-label|remove-label"
+    expect_regex: "^issue comment 12 "
+  - name: no other tracker mutation occurs
+    run: cat .git/fixture-gh/calls
+    not_regex: "(^| )issue (create|edit|close|reopen)( |$)|(^| )api (-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

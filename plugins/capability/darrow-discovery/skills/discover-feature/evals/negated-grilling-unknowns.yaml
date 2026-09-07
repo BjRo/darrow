@@ -1,0 +1,31 @@
+id: discover-feature-negated-grilling-unknowns
+invariant: DF-C1,DF-C2,DG-C1,DG-C2,DG-C3,DG-C4,DC-C1
+activation: competition
+activation_sequence: [discover-feature, grilling]
+mount_plugin_skills: true
+prompt: >-
+  Help me discover a scheduled-reporting feature. Schedule ownership is still
+  unresolved: should each schedule belong to an individual analyst or to an
+  administrator-managed team? Do not interview me; just give me the discovery
+  brief. Do not modify the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Analytics
+
+          Analysts can save reports. Administrators manage teams. The product
+          has no scheduled-reporting feature.
+checks:
+  - name: unresolved discovery remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: discovery retains the canonical unresolved-choice frontier
+    proposition: >-
+      The response treats this as feature discovery, asks the user to choose
+      individual analyst or administrator-managed team ownership with a
+      concrete advisory recommendation and rationale, and stops without
+      assuming the answer or presenting a discovery brief as final or
+      confirmed.

@@ -1,7 +1,8 @@
 id: code-review-reviewer-route-override
+activation: positive
 invariant: CR-C4,CR-C21,CR-P8,CR-E14
 prompt: >-
-  Explicitly use the installed $code-review skill to review my uncommitted
+  Explicitly use {{skill_invocation}} to review my uncommitted
   changes against this originating requirement:
   exported mode must equal "safe". Do not repair the code.
 fixture:
@@ -44,12 +45,10 @@ checks:
       claude) host=claude; provider=anthropic; model=claude-sonnet-5; effort=high ;;
       *) exit 2 ;; esac;
       case "$DARROW_EVAL_HARNESS" in codex)
-      test "$(grep -F '"tool":"spawn_agent"' .git/retained-harness.jsonl |
-      grep -F '"status":"in_progress"' | grep -c .)" -eq 2 || exit 1;
-      awk 'index($0, "\"tool\":\"spawn_agent\"") &&
-      !index($0, "\"status\":\"in_progress\"") &&
-      !index($0, "\"status\":\"completed\"") { failed = 1 }
-      END { exit failed }' .git/retained-harness.jsonl || exit 1 ;;
+      test "$(grep -F '"type":"darrow.codex_native_spawn"'
+      .git/retained-harness.jsonl | grep -c .)" -eq 2 || exit 1;
+      ! grep -F '"type":"darrow.codex_native_spawn"' .git/retained-harness.jsonl |
+      grep -v -F '"status":"accepted"' >/dev/null || exit 1 ;;
       claude) test "$(grep -F '"type":"darrow.review_agent_launch"'
       .git/retained-harness.jsonl | grep -c .)" -eq 2 || exit 1 ;; esac;
       for axis in standards spec; do record="$artifact_dir/$axis-route.tsv";
@@ -67,20 +66,23 @@ checks:
       awk -F '\t' -v f="$proof_field" '$1 == f && $2 == "true" { found = 1 }
       END { exit !found }' "$record" || exit 1;
       if test "$DARROW_EVAL_HARNESS" = codex; then
-      native=$(grep -F '"tool":"spawn_agent"' .git/retained-harness.jsonl |
-      grep -F '"status":"in_progress"' | grep -F "\"$agent\"" |
+      native=$(grep -F '"type":"darrow.codex_native_spawn"' .git/retained-harness.jsonl |
+      grep -F '"status":"accepted"' | grep -F "\"agent_ref\":\"$agent\"" |
       grep -F "\"model\":\"$model\"" | grep -F "\"reasoning_effort\":\"$effort\"") || exit 1;
       case "$native" in *'"fork_turns":"none"'*) ;; *) exit 1 ;; esac;
-      case "$native" in *"- review_axis: $axis"*) ;; *) exit 1 ;; esac; fi; done;
+      case "$native" in *"\"review_axis\":\"$axis\""*) ;; *) exit 1 ;; esac; fi; done;
       test "$standards_agent" != "$spec_agent" || exit 1;
       case "$DARROW_EVAL_HARNESS" in codex)
       awk -v s="$standards_agent" -v p="$spec_agent"
-      'index($0, "\"type\":\"item.started\"") && index($0, "\"tool\":\"spawn_agent\"") {
-      if (index($0, "\"" s "\"")) standards_start = NR;
-      if (index($0, "\"" p "\"")) spec_start = NR }
-      !first_wait && index($0, "\"tool\":\"wait") { first_wait = NR }
-      END { exit !(standards_start && spec_start && first_wait &&
-      standards_start < first_wait && spec_start < first_wait) }'
+      'index($0, "\"type\":\"darrow.codex_native_spawn\"") {
+      value = $0; sub(/^.*"accepted_ordinal":/, "", value); sub(/[^0-9].*$/, "", value);
+      if (index($0, "\"agent_ref\":\"" s "\"")) standards_accept = value + 0;
+      if (index($0, "\"agent_ref\":\"" p "\"")) spec_accept = value + 0 }
+      index($0, "\"type\":\"darrow.codex_native_wait\"") {
+      value = $0; sub(/^.*"ordinal":/, "", value); sub(/[^0-9].*$/, "", value);
+      if (!first_wait || value + 0 < first_wait) first_wait = value + 0 }
+      END { exit !(standards_accept && spec_accept && first_wait &&
+      standards_accept < first_wait && spec_accept < first_wait) }'
       .git/retained-harness.jsonl || exit 1 ;; claude)
       subagent="darrow-review:review-reader-$model-$effort";
       awk 'index($0, "\"name\":\"Agent\"") {
@@ -115,7 +117,23 @@ checks:
       done; test "$standards_batch" = "$spec_batch" || exit 1; fi
   - name: review remains read-only
     run: test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
-output_checks:
-  - name: review returns the complete human protocol
-    expect_regex: '^# Code review — FAIL[\s\S]*## Findings[\s\S]*## Checks[\s\S]*## Scope[\s\S]*## Sources'
-    flags: i
+  - name: canonical TSV is retained beneath the review scope artifact
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" && bash "$tool" validate "$record"
+    expect_regex: "^valid: darrow-review-result-v1$"
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      bash "$tool" render "$record" >"$expected" &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

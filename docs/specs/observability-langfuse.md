@@ -139,6 +139,14 @@ identifiers, and branches without a leading token yield no inferred value.
 Inference is local mechanics and does not call a tracker or require a ticket
 plugin.
 
+An interruption does not start an attribution epoch by itself. When an
+interrupted turn's provisional snapshot has the same attribution source and
+work-item value as the snapshot-backed turns around it, all of those turns
+remain in one epoch and one native Langfuse session segment. A missing snapshot
+still leaves only that turn ungrouped; `codex.thread_id` remains the stable
+conversation key for finding and correlating turns across grouped segments and
+ungrouped gaps.
+
 Each epoch has a deterministic identifier derived from the original Codex
 thread ID and its ordered position. That identifier is both the
 `darrow.attribution_epoch` metadata value and the native Langfuse `session.id`.
@@ -197,9 +205,10 @@ trace and work-item metadata.
    change, clear, or restore automatic attribution without retroactively
    changing earlier epochs. Final Stop evidence supersedes provisional
    prompt-time evidence; provisional evidence covers interrupted turns that
-   never stop. Snapshotted configuration and Git provenance keep branch
-   fallback and export retries stable, while absent evidence produces no ID or
-   session segment.
+   never stop without creating an epoch boundary when its effective
+   attribution matches the surrounding turns. Snapshotted configuration and
+   Git provenance keep branch fallback and export retries stable, while absent
+   evidence produces no ID or session segment.
 5. **OLF-P5 — Privacy by opt-in.** Export and raw-content capture are separate
    explicit choices, and credential values never become trace metadata.
 6. **OLF-P6 — Safe failure.** Runtime and exporter failures fail open by

@@ -1,5 +1,7 @@
 id: setup-information-architecture-preserve-reverse-adapter
-invariant: IA-S1,IA-S6
+invariant: IA-S1,IA-S6,IA-S11
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Reorganize the existing dual-runtime agent guidance into a lean routed
   architecture while preserving the repository's declared source-of-truth
@@ -15,7 +17,8 @@ fixture:
         package.json: "{\"private\":true}\n"
   setup: >-
     ln -s CLAUDE.md AGENTS.md && git add AGENTS.md &&
-    git commit -m 'chore: add Codex adapter' >/dev/null
+    git commit -m 'chore: add Codex adapter' >/dev/null &&
+    cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
 checks:
   - name: existing Claude canonical direction is preserved
     run: test -L AGENTS.md && test AGENTS.md -ef CLAUDE.md && echo preserved
@@ -28,8 +31,5 @@ checks:
     expect_regex: "^2$"
   - name: reverse adapter passes deterministic dual-runtime verification
     run: >-
-      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
-      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
-      else echo missing-doctor; exit 1; fi;
-      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"

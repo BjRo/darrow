@@ -1,5 +1,7 @@
 id: plan-implementation-no-trigger-discovery
 invariant: PI-C1,DC-E1,DC-C1
+activation: negative
+mount_plugin_skills: true
 prompt: >-
   Help me discover what a customer-facing audit-export feature should do. Its
   users, included events, privacy boundary, and success criteria are all
@@ -13,11 +15,6 @@ checks:
   - name: feature discovery remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: feature request is not converted into an implementation plan
-    run: cat .git/last-message.md
-    not_regex: "^[*_#> -]{0,12}(Implementation (plan|slices)|Phase 1)|Here (is|'s) (the )?implementation plan|files to (change|modify)"
-    flags: i
-  - name: response keeps product unknowns visible
-    run: cat .git/last-message.md
-    expect_regex: "(users?|who)[\\s\\S]*(events?|include)[\\s\\S]*(privacy|personal data|sensitive)[\\s\\S]*(success|acceptance)"
-    flags: i
+  - name: neighboring capability returns a response
+    run: test -s .git/last-message.md && echo responded
+    expect_exact: "responded"

@@ -3,6 +3,34 @@ import { dirname, join, resolve } from "node:path";
 
 type Harness = "claude" | "codex";
 
+/** Checks need fixture tools, not the candidate harness's authentication. */
+export async function isolatedCheckEnvironment(
+  repoDir: string,
+  stateRoot: string,
+  explicit: Record<string, string>,
+): Promise<Record<string, string>> {
+  const home = join(stateRoot, "home");
+  const temp = join(stateRoot, "tmp");
+  await Promise.all(
+    [home, temp].map((path) => mkdir(path, { recursive: true })),
+  );
+  const inherited = Object.fromEntries(
+    ["LANG", "LC_ALL", "TERM"].flatMap((name) =>
+      process.env[name] === undefined ? [] : [[name, process.env[name]!]],
+    ),
+  );
+  return {
+    ...inherited,
+    ...explicit,
+    PATH: `${join(repoDir, ".git", "fixture-bin")}:${process.env.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin"}`,
+    HOME: home,
+    TMPDIR: temp,
+    ZDOTDIR: home,
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+  };
+}
+
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }

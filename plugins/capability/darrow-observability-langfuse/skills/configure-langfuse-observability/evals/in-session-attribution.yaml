@@ -23,15 +23,25 @@ output_checks:
     expect_regex: "(?:^|\\n)@darrow\\.attribution clear(?:\\r?\\n|$)"
   - name: answer gives the exact automatic directive
     expect_regex: "(?:^|\\n)@darrow\\.attribution auto(?:\\r?\\n|$)"
-  - name: answer explains current and subsequent turn scope
-    expect_regex: "current[\\s\\S]{0,180}subsequent|current[\\s\\S]{0,180}following"
-    flags: i
-  - name: answer explains epoch session segmentation
-    expect_regex: "(epoch[\\s\\S]{0,180}Langfuse[\\s\\S]{0,120}session|Langfuse[\\s\\S]{0,180}session[\\s\\S]{0,120}epoch)"
-    flags: i
-  - name: answer preserves the conversation correlation key
-    expect_regex: "codex\\.thread_id[\\s\\S]{0,180}(conversation|across|segment)"
-    flags: i
   - name: answer preserves the tracker boundary
     not_regex: "(gh|jira|ticket) (issue |api |get |edit |comment |close |create )"
     flags: i
+semantic_output_checks:
+  - name: answer explains directive scope
+    proposition: >-
+      A user following the response would understand that the directives are
+      persistent mode changes beginning in the prompt that contains them: set
+      establishes ISSUE-60 attribution, clear begins an ongoing unattributed
+      run, and auto restores ongoing automatic attribution. It is sufficient to
+      say that each directive is the first non-empty line of its prompt and to
+      describe the clear/restore sequence; the response need not repeat
+      "current and subsequent turns" after every directive. Fail this check if
+      the response describes any directive as one-turn-only, applies it only to
+      later turns, or leaves persistence genuinely ambiguous.
+  - name: answer explains session segmentation and correlation
+    proposition: >-
+      The response explains that every set, clear, or auto directive begins a
+      new attribution epoch represented as a native Langfuse session segment,
+      while codex.thread_id remains the stable conversation key across those
+      segments. Naming epochs and the field without explaining these roles is
+      insufficient.

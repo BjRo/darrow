@@ -1,5 +1,7 @@
 id: tdd-meaningful-red
-invariant: TDD-C4,TDD-C9,TDD-C12
+invariant: TDD-C2,TDD-C3,TDD-C4,TDD-C7,TDD-C9,TDD-C12,TDD-E1
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Fix displayName through a red/green development cycle at its documented
   export in src/user.js. The independent product rule says an empty string
@@ -44,24 +46,9 @@ fixture:
           fi
           status=$?
           cat .git/test-output
-          exit "$status"
-  bin:
-    node: |
-      #!/usr/bin/env bash
-      real_node=$(PATH="${PATH#*:}" command -v node)
-      "$real_node" "$@"
-      status=$?
-      case " $* " in
-        *--test*) ;;
-        *) exit "$status" ;;
-      esac
-      case " $* " in
-        *--test-name-pattern*) mode=focused ;;
-        *) mode=full ;;
-      esac
-      if grep -Fq 'empty names fall back to Anonymous' test/user.test.js; then
-        added=1
-      else
+          if grep -Fq 'empty names fall back to Anonymous' test/user.test.js; then
+            added=1
+          else
             added=0
           fi
           if git diff --quiet -- src/user.js; then
@@ -70,9 +57,9 @@ fixture:
             implementation=changed
           fi
           if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
-      printf '%s|mode=%s|fallback_test=%s|implementation=%s\n' \
-        "$result" "$mode" "$added" "$implementation" >>.git/tdd-trace
-      exit "$status"
+          printf '%s|mode=%s|fallback_test=%s|implementation=%s\n' \
+            "$result" "$mode" "$added" "$implementation" >>.git/tdd-trace
+          exit "$status"
 checks:
   - name: empty-name behavior is implemented
     run: >-
@@ -87,18 +74,32 @@ checks:
       END { exit !(red && green) }' .git/tdd-trace
   - name: unrelated failing test was not changed
     run: git diff --exit-code -- test/legacy.test.js
+  - name: retained focused test detects the empty-name regression
+    run: >-
+      node --test --test-name-pattern='empty names fall back to Anonymous'
+      test/*.test.js >/dev/null || exit 1;
+      cp src/user.js .git/user.original;
+      trap 'cp .git/user.original src/user.js' EXIT HUP INT TERM;
+      printf '%s\n' 'export function displayName(name) {'
+      '  return name.trim();'
+      '}' >src/user.js;
+      set +e;
+      node --test --test-name-pattern='empty names fall back to Anonymous'
+      test/*.test.js >.git/user-mutation-output 2>&1;
+      status=$?;
+      set -e;
+      test "$status" -ne 0;
+      grep -F 'empty names fall back to Anonymous' .git/user-mutation-output >/dev/null;
+      ! grep -E 'SyntaxError|ERR_MODULE_NOT_FOUND|Cannot find module' .git/user-mutation-output
   - name: test telemetry wrapper is unchanged
     run: git diff --exit-code -- test.sh
   - name: final suite was run and remains red only outside the slice
     run: >-
       grep -F 'fail|mode=full|fallback_test=1|implementation=changed' .git/tdd-trace
-output_checks:
-  - name: response classifies the legacy failure as pre-existing
-    expect_regex: "(unrelated|pre-existing|existing|unchanged)[\\s\\S]{0,140}(legacy|arithmetic)"
-    flags: i
-  - name: response reports the failing final gate
-    expect_regex: "final[\\s\\S]{0,120}bash test\\.sh[\\s\\S]{0,160}(fail|failed)"
-    flags: i
-  - name: response reports focused red and green evidence
-    expect_regex: "red[\\s\\S]{0,240}bash test\\.sh[\\s\\S]{0,160}empty names fall back to Anonymous[\\s\\S]{0,240}green"
-    flags: i
+semantic_output_checks:
+  - name: response reports focused evidence and the unrelated final failure
+    proposition: >-
+      The response reports the observed focused red and green outcomes for the
+      empty-name behavior, including the focused bash test.sh command, and
+      honestly reports that the final full bash test.sh gate remains failing
+      only because of the pre-existing unrelated legacy arithmetic test.

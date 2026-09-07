@@ -1,11 +1,18 @@
 ---
 name: create-commit
-description: Create exactly one new commit for the user's intended change. Use when asked to commit current work, commit selected files, or commit an existing staged set.
+description: Create exactly one new commit for the user's intended change, including a guarded retry after a commit-hook failure. Use when asked to commit current work, commit selected files, commit an existing staged set, or retry or remediate that failed commit. Do not use for hook maintenance without commit intent.
 ---
 
 # Create a commit
 
 Record one intended change as one new Conventional Commit.
+
+Select the operation from the user's literal request before inspecting Git:
+
+| Request | Action |
+| --- | --- |
+| `commit`, including “commit this; it belongs with the previous commit” or “commit this and keep history clean/compact” | Create one new commit through this workflow without asking whether to amend. The literal commit request takes precedence over the implied history preference. |
+| literal `amend`, `rewrite`, or `rebase` request | Stop before any Git operation because history rewriting is outside this workflow. |
 
 Run every Git operation for this task through
 `<skill-dir>/scripts/commit.sh`, where `<skill-dir>` contains this file. Run
@@ -19,13 +26,10 @@ reimplementing it. Treat its refusals as authoritative.
   Working-tree and untracked files remain outside it.
 - **Unstaged means choose:** when nothing is staged, select only literal paths
   that belong to the user's described change.
-- **New means additive:** this capability always creates a new commit. Saying
-  that a change belongs with the previous commit or asking for clean or compact
-  history does not authorize amendment. Only a literal request to `amend`,
-  `rewrite`, or `rebase` selects a different operation, which falls outside
-  this workflow. Leave pushing, branching, and pull requests outside it too.
 - **Message split:** the subject says what changed; a body exists only to
   explain non-obvious motivation, a breaking change, or migration guidance.
+
+Leave pushing, branching, and pull requests outside this workflow.
 
 ## Workflow
 

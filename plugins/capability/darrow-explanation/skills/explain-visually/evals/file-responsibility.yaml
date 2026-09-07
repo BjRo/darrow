@@ -1,5 +1,6 @@
 id: explain-visually-file-responsibility
 invariant: VE-C2,VE-C3,VE-C5,VE-C7
+activation: positive
 mount_plugin_skills: true
 prompt: >-
   Map where command parsing, session state, and API transport live in this

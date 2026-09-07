@@ -93,12 +93,15 @@ suite modes do not receive an activation grade because their target capability
 is absent.
 
 Activation is graded only from a normalized, harness-visible observation. A
-direct host skill-invocation event is preferred. On a host that exposes no such
-event, the runner may use a controlled behavior probe required by that host's
-skill-loading protocol, such as the first completed read of a mounted
-`SKILL.md`. The retained trial identifies the evidence source, primary skill,
-and ordered observed skills. Final-answer resemblance, hidden reasoning, and
-unbounded transcript capture are not activation evidence.
+direct host skill-invocation event is preferred. Codex cases that contain the
+shared explicit-invocation placeholder use the runner-rendered host-native
+invocation token as a controlled dispatch probe: the exact token must occur
+once in a successfully completed turn. Codex cases without that placeholder
+remain implicit-discovery probes and require the first completed read of a
+mounted `SKILL.md`. Missing, duplicated, malformed, or failed probe evidence is
+unavailable rather than a pass. The retained trial identifies the evidence
+source, primary skill, and ordered observed skills. Final-answer resemblance,
+hidden reasoning, and unbounded transcript capture are not activation evidence.
 
 Participant prompts that explicitly invoke the colocated skill use the shared
 `{{skill_invocation}}` placeholder. The runner resolves it only at trial time
@@ -111,6 +114,25 @@ Codex orchestration evidence may repeat the owning installed plugin
 qualification in child skill tokens. Reconciliation treats that exact
 qualification as host transport syntax and compares the declared phase
 capability by its leaf skill name; another plugin namespace is not equivalent.
+
+Retained Codex collaboration evidence distinguishes a current host task label
+from the stable child-agent reference returned by the launch. A valid bounded
+task label must not cause an otherwise accepted launch event to disappear.
+For review-route verification, the retained launch also preserves the
+non-sensitive requested model, reasoning effort, and fresh-context setting
+alongside its bounded axis marker and stable child reference.
+Started and successfully returned launches remain distinct evidence; a start
+event alone never becomes accepted-launch proof. Raw collaboration identifiers
+outside the bounded public identifier grammar are omitted.
+When `codex exec --json` omits collaboration calls, the runner keeps the
+session only inside the trial's isolated configuration long enough to locate
+the one rollout bound to the reported parent thread. It reduces native spawn,
+start, acceptance, and wait records into the same bounded result evidence; the
+full rollout and child prompt are never copied into the result. When the native
+host encrypts that prompt, one unambiguous bounded axis token in the task name
+supplies the retained review-axis marker; a task name containing both axes
+supplies neither. A missing, ambiguous, or malformed parent rollout establishes
+no accepted launch.
 
 ### Semantic output checks
 
@@ -150,6 +172,29 @@ than averaged over the available subset.
 
 ### Evidence lifecycle
 
+Shell checks execute candidate-controlled code inside the runner's outer
+isolation boundary, including during dry runs. Grading uses a private,
+credential-free environment and cannot access source worktrees, peer fixtures,
+harness credentials, or modify retained evidence. An unavailable isolation
+boundary is an explicit error.
+
+Each finished trial is persisted atomically, with its complete bounded result
+evidence and case/run provenance, before fixture cleanup or completion feedback.
+A later failure or interruption cannot erase those results. Partial attempts
+remain inspectable and explicitly incomplete; they are not complete suite
+evidence. Retrying preserves the previous attempt's artifacts.
+
+Trial and case artifacts identify dry versus executed trials. Dry preparation
+checks remain inspectable but produce no behavioral success or comparative
+scores. Historical execution mode may be recovered from an explicit suite
+manifest; absent provenance stays unknown.
+
+Equivalent runs have one verifiable process owner. A live owner prevents a
+duplicate; a confirmed abandoned owner can be reclaimed atomically without
+discarding evidence. Process identity includes protection against PID reuse.
+Ownerless legacy or unverifiable records require explicit diagnosed recovery,
+never automatic expiry based only on age.
+
 Raw result bundles remain gitignored. A reviewed tracked snapshot may preserve
 the suite definition, pinned harnesses and models, effort, trial count,
 quantitative results, observed failures, limitations, and the exact raw result
@@ -159,9 +204,13 @@ trials for their risk and must not rely on one convenient green run.
 ### Terminal experience
 
 The direct evaluation command presents long-running work as a bounded run with
-an explicit target, total workload, live trial progress, and a final case-level
-summary. Interactive terminals receive color, status symbols, and an updating
-progress bar by default. Passes are green, failures are red, and unknown or
+an explicit target, total workload, configured worker count, live trial
+progress, and a final case-level summary. The positive `--jobs` option bounds
+simultaneous trials and defaults to three. Use `--jobs 1` when diagnosis or
+rate-limit constraints require serial execution.
+Interactive serial runs receive color, status symbols, and an updating progress
+bar by default. Concurrent runs use per-trial status lines instead of a
+single-trial animation. Passes are green, failures are red, and unknown or
 skipped states remain visually distinct; this applies to activation as well as
 task outcomes. Users may independently disable color, status symbols, and
 animated progress, while `NO_COLOR` and non-interactive output produce stable,
@@ -227,10 +276,62 @@ remains copyable and useful when hyperlinks are unavailable.
   malformed, incomplete, duplicate, or unexpected semantic grader results and
   retains the grader route, verdicts, reasons, raw result, tokens, and cost.
 - **SE-C16 — Legible terminal feedback.** The direct runner shows bounded live
-  progress, visually distinct task and activation outcomes, a repeated-trial
-  case summary, and an absolute result artifact link. Color, symbols, and
-  animation are independently disableable, respect terminal conventions, and
-  degrade to stable outcome-bearing text outside an interactive terminal.
+  progress, its configured positive worker count, visually distinct task and
+  activation outcomes, a repeated-trial case summary, and an absolute result
+  artifact link. `--jobs` bounds simultaneous trials and defaults to three.
+  Color, symbols, and animation are independently disableable, respect terminal
+  conventions, and degrade to stable outcome-bearing text outside an
+  interactive terminal.
+- **SE-C17 — Role-specific Codex defaults.** Candidate execution, advisory
+  quality judging, and gating semantic-output grading resolve independent
+  GPT-5.6 model defaults, preserve explicit model and effort overrides, and
+  record the exact effective route in manifests, JSON result evidence, and
+  generated reports.
+- **SE-C18 — Invocation-aware Codex activation.** Explicit Codex activation
+  cases use one exact runner-controlled host invocation as dispatch evidence,
+  while implicit cases retain the mounted-skill read probe. Installed skill
+  roots contained by the fixture repository are recognized in both absolute
+  and repository-relative command paths. Indirect shell reads through variables,
+  working-directory changes, or discovery commands require a successful
+  read-capable command and frontmatter matching a skill that actually exists
+  under a mounted root. Missing or ambiguous evidence stays unknown and both
+  paths preserve source, primary skill, and ordered observations independently
+  from task success.
+- **SE-C19 — Isolated grading execution.** Shell checks and their descendants
+  retain outer isolation and a credential-free environment in live and dry
+  runs, while authorized fixture checks remain functional. Isolation failures
+  never fall back to unrestricted host execution. Cleanup handles read-only
+  dependency caches in evaluator-owned scratch space. If cleanup cannot finish,
+  it reports the retained absolute path without discarding grading outcomes or
+  replacing the original execution error.
+- **SE-C20 — Durable incremental evidence.** Every completed trial's full
+  bounded evidence and provenance survive later errors and interruption.
+  Persistence precedes cleanup and completion reporting, concurrent completions
+  cannot overwrite one another, and incomplete attempts remain distinct from
+  completed result bundles.
+- **SE-C21 — Dry is unmeasured.** Artifacts retain execution mode; dry or
+  unknown execution provenance cannot produce behavioral or comparative scores.
+  Fixture preparation results are independently inspectable.
+- **SE-C22 — Recoverable run ownership.** Equivalent-run ownership is acquired
+  and reclaimed atomically using verifiable process identity. Live or unknown
+  ownership blocks duplicates; confirmed abandonment permits retry while
+  preserving prior evidence.
+- **SE-C23 — Complete explicit composition evidence.** Explicit Codex
+  observations retain the invoked primary first and all verified supporting
+  reads in order, without duplicate skills. Every supporting observation
+  requires a complete mounted skill body. Sequence and exclusion checks use
+  that complete observation; invalid dispatch or stream evidence stays unknown.
+- **SE-C24 — Current Codex collaboration evidence.** A valid native task label
+  is not mistaken for a conflicting child-agent reference. Retained accepted
+  launch evidence preserves the stable child reference, bounded task label,
+  requested model, reasoning effort, fresh-context setting, and permitted
+  review-axis marker needed to verify route application without retaining the
+  rest of the child prompt. A start without a correlated successful return is
+  retained only as an attempt, never as accepted-launch proof; unbounded raw
+  collaboration identifiers are omitted. A unique parent-thread rollout may
+  supply this evidence when CLI stdout does not, but its full transcript never
+  enters the retained result. Encrypted child prompts bind review axes through
+  one unambiguous bounded task-name token rather than prompt inspection.
 
 ## Evaluation requirements
 
@@ -268,6 +369,33 @@ remains copyable and useful when hyperlinks are unavailable.
 12. CLI rendering tests cover interactive progress, green pass and red failure
     output (including activation failure), repeated-trial summaries, artifact
     hyperlinks, explicit style opt-outs, `NO_COLOR`, and non-interactive logs.
+13. Runner tests cover default and explicitly overridden model and effort
+    resolution for the candidate, advisory quality judge, and semantic-output
+    grader roles.
+14. Activation fixtures cover an explicit Codex invocation without a visible
+    skill-file read, implicit discovery with a completed mounted-skill read,
+    indirect mounted-skill reads through shell variables, working-directory
+    changes, and discovery commands, plus missing or ambiguous evidence for both
+    observation paths.
+15. Grading tests execute candidate scripts through the real isolation boundary,
+    proving denied source/peer/credential access and preserved fixture behavior,
+    including read-only cache cleanup and retained outcomes on cleanup failure.
+16. Runner subprocess tests inject later-trial errors, concurrent completions,
+    persistence errors, and process interruption, then inspect retained evidence.
+17. Reports and comparison tests cover dry-only, mixed, historical, unknown,
+    and executed provenance without inventing behavioral measurements.
+18. Ownership tests cover live duplicates, terminated owners, abrupt death,
+    PID reuse, competing retries, and legacy or unverifiable records.
+19. Explicit activation fixtures combine supporting reads with required
+    sequences and exclusions, plus truncated, unmounted, duplicated, malformed,
+    and failed observation counterexamples.
+20. Codex collaboration-retention fixtures cover current task labels separately
+    from stable child references and preserve bounded review route fields while
+    excluding unrelated prompt content. They reject start-only acceptance and
+    omit hostile or unbounded sender and receiver identifiers. Session fixtures
+    cover exact parent-thread lookup, missing or ambiguous rollouts, accepted
+    native launch reduction from encrypted prompts, task-name axis binding,
+    rejected-attempt retention, and prompt exclusion.
 
 ## Non-goals
 

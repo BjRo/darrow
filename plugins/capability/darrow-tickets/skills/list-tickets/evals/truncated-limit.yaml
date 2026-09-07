@@ -1,0 +1,40 @@
+id: list-tickets-truncated-limit
+invariant: TM-L2,TM-L3,TM-L4,SE-C9,SE-C10,SE-C11
+activation: competition
+mount_plugin_skills: true
+prompt: List the first 2 open tickets.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >> "$d/calls"
+      case "$1 $2" in
+        "repo view") echo true ;;
+        "issue list")
+          printf '#1 open  First issue\n#2 open  Second issue\n#3 open  Third issue\n'
+          ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: requested limit is passed through with one-row lookahead
+    run: cat .git/fixture-gh/calls
+    expect_regex: "issue list.*--state open.*--limit 3"
+  - name: truncated result is relayed without semantic changes
+    run: sed 's/[[:blank:]]*$//' .git/last-message.md
+    expect_exact: |-
+      backend: github
+      #1 open  First issue
+      #2 open  Second issue
+      total: more than 2 (state=open)
+      note: list truncated at 2 — narrow the filters or raise --limit
+  - name: listing remains read-only
+    run: cat .git/fixture-gh/calls
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

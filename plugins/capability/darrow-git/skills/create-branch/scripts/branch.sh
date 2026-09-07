@@ -19,6 +19,28 @@ in_progress() {
   [[ -n "$(git ls-files -u -- ':/')" ]]
 }
 current_ref() { git symbolic-ref -q --short HEAD || echo "(detached @ $(git rev-parse --short HEAD))"; }
+other_worktrees() {
+  local current=$1 listing line path="" branch=""
+  listing=$(git worktree list --porcelain)
+  while IFS= read -r line; do
+    case "$line" in
+      "worktree "*) path=${line#worktree } ;;
+      "branch "*) branch=${line#branch refs/heads/} ;;
+      "detached") branch="(detached)" ;;
+      "bare") branch="(bare)" ;;
+      "")
+        if [[ -n "$path" && "$path" != "$current" ]]; then
+          printf '%s [%s]\n' "$path" "$branch"
+        fi
+        path=""
+        branch=""
+        ;;
+    esac
+  done <<< "$listing"
+  if [[ -n "$path" && "$path" != "$current" ]]; then
+    printf '%s [%s]\n' "$path" "$branch"
+  fi
+}
 default_branch() {
   local b
   b=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)
@@ -65,13 +87,7 @@ case "$cmd" in
       # Every worktree other than the current one — run from a linked
       # worktree, the main checkout is "elsewhere" too, and this one is not.
       cur_top=$(git rev-parse --show-toplevel)
-      others=$(git worktree list --porcelain | awk -v cur="$cur_top" '
-        /^worktree /{p=substr($0,10)}
-        /^branch /{b=$2; sub("refs/heads/","",b)}
-        /^detached$/{b="(detached)"}
-        /^bare$/{b="(bare)"}
-        /^$/{if (p!="" && p!=cur) print p" ["b"]"; p=""; b=""}
-        END{if (p!="" && p!=cur) print p" ["b"]"}')
+      others=$(other_worktrees "$cur_top")
       if [[ -n "$others" ]]; then
         echo "## other worktrees (their branches are checked out elsewhere)"
         printf '%s\n' "$others" | truncate_lines
@@ -212,12 +228,17 @@ case "$cmd" in
     from=$(current_ref)
     [[ -z "$base" ]] || from=$base
     if [[ $worktree -eq 1 ]]; then
+      default_root=""
+      default_parent=""
+      exclude=""
+      exclude_needs_append=0
+      pre_status=$(git status --porcelain)
       if [[ $at_set -eq 1 ]]; then
         path=$at_path
+        [[ "$path" == /* ]] || path="$PWD/$path"
         # A worktree inside .git corrupts expectations of every git tool.
         # Best-effort prefix check, not a full canonicalization.
         abs=$path
-        [[ "$abs" == /* ]] || abs="$PWD/$abs"
         gitdir=$(cd "$(git rev-parse --git-dir)" && pwd)
         case "$abs" in
           "$gitdir"|"$gitdir"/*)
@@ -230,7 +251,8 @@ case "$cmd" in
         # worktree would nest worktrees, and removing the outer one takes
         # the inner working tree with it.
         main_root=$(git worktree list --porcelain | awk '/^worktree /{print substr($0,10); exit}')
-        path="$main_root/.worktrees/$name"
+        default_root="$main_root/.worktrees"
+        path="$default_root/$name"
       fi
       # [[ -e "file/" ]] is false for a regular file — strip trailing
       # slashes so the clobber check sees it.
@@ -241,30 +263,57 @@ case "$cmd" in
         exit 9
       fi
       if [[ $at_set -eq 0 ]]; then
-        err=$(mkdir -p "$(dirname "$path")" 2>&1) || {
-          echo "error: cannot create worktree parent dir: $err" >&2
-          exit 9
-        }
+        default_parent=$(dirname "$path")
+        if [[ ! -d "$default_root" ]]; then
+          if err=$(mkdir "$default_root" 2>&1); then
+            :
+          elif [[ ! -d "$default_root" ]]; then
+            echo "error: cannot create worktree parent dir: $err" >&2
+            exit 9
+          fi
+        fi
+        if [[ ! -d "$default_parent" ]]; then
+          if err=$(mkdir "$default_parent" 2>&1); then
+            :
+          elif [[ ! -d "$default_parent" ]]; then
+            echo "error: cannot create worktree parent dir: $err" >&2
+            exit 9
+          fi
+        fi
         # Keep the default location out of git status. info/exclude is
         # shared across worktrees and never a tracked file; the anchored
         # pattern applies at each worktree's root.
         exclude=$(git rev-parse --git-path info/exclude)
-        if mkdir -p "$(dirname "$exclude")" 2>/dev/null; then
-          grep -qxF '/.worktrees/' "$exclude" 2>/dev/null || echo '/.worktrees/' >> "$exclude" || true
+        if [[ -e "$exclude" && ! -r "$exclude" ]]; then
+          echo "error: repository exclude file is unreadable: $exclude" >&2
+          exit 9
+        fi
+        exclude_status=0
+        grep -qxF '/.worktrees/' "$exclude" 2>/dev/null || exclude_status=$?
+        if [[ $exclude_status -gt 1 && -e "$exclude" ]]; then
+          echo "error: cannot inspect repository exclude file: $exclude" >&2
+          exit 9
+        fi
+        if [[ $exclude_status -eq 1 ]]; then
+          if [[ ! -w "$exclude" ]]; then
+            echo "error: repository exclude file is not writable: $exclude" >&2
+            exit 9
+          fi
+          exclude_needs_append=1
+        elif [[ ! -e "$exclude" ]]; then
+          exclude_needs_append=1
         fi
       fi
-      # Status before the add: a non-ignored worktree dir must not show up
-      # as "uncommitted changes" of its own creation.
-      pre_status=$(git status --porcelain)
       out=$(git worktree add "$path" -b "$name" ${base:+"$base"} 2>&1) || {
-        # git can create the branch before failing on the path; a stray
-        # branch would turn every retry into a bogus "already exists".
-        if git show-ref -q --verify "refs/heads/$name"; then
-          git branch -qD "$name" 2>/dev/null || true
-        fi
         echo "$out" >&2
         exit 4
       }
+      if [[ $exclude_needs_append -eq 1 ]]; then
+        if ! printf '%s\n' '/.worktrees/' >> "$exclude"; then
+          echo "error: worktree created but cannot update repository exclude file: $exclude" >&2
+          exit 9
+        fi
+      fi
       echo "$name (from $from) at $path"
       if [[ -n "$pre_status" ]]; then
         echo "## note: uncommitted changes stay in the current worktree — they were not carried into $path"

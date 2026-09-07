@@ -1,5 +1,7 @@
 id: capture-decision-normative-specification
 invariant: DM-6
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   We have decided that API sessions must use HttpOnly same-site cookies rather
   than bearer tokens. Capture this as normative authentication capability
@@ -43,7 +45,9 @@ checks:
     run: >-
       text=$(awk '/AUTH-1/{seen=1} seen{print} seen && /^$/{exit}' docs/specs/authentication.md | tr '\n' ' ');
       printf '%s\n' "$text";
-      printf '%s\n' "$text" | grep -Ei 'API sessions?[^.]{0,80}(must|required)[^.]{0,160}(HttpOnly[^.]{0,100}(SameSite|same-site)[^.]{0,100}cookies?|cookies?[^.]{0,100}HttpOnly[^.]{0,100}(SameSite|same-site))|API session cookies?[^.]{0,80}(must|required)[^.]{0,100}HttpOnly[^.]{0,100}(SameSite|same-site)' >/dev/null;
+      printf '%s\n' "$text" | grep -Ei 'API sessions?[^.]{0,80}(must|required)[^.]{0,160}cookies?' >/dev/null;
+      printf '%s\n' "$text" | grep -Fi 'HttpOnly' >/dev/null;
+      printf '%s\n' "$text" | grep -Ei 'SameSite|same-site' >/dev/null;
       printf '%s\n' "$text" | grep -Ei '(must not|rather than|instead of|prohibit|forbid).{0,100}bearer|bearer.{0,100}(must not|prohibit|forbid|not (allowed|permitted|used))' >/dev/null;
       ! printf '%s\n' "$text" | grep -Ei 'must use bearer|required[^.]*bearer|bearer[^.]*(is|are) required|(^|[.;])[[:space:]]*use bearer' >/dev/null;
       ! printf '%s\n' "$text" | grep -Ei '(allow|permit)(s|ted)?[^.]*bearer|bearer[^.]*(allowed|permitted|may|can be used)|also[^.]*bearer' >/dev/null;

@@ -1,5 +1,7 @@
 id: create-commit-hook-retry-authorization
 invariant: GW-C8
+activation: positive
+mount_plugin_skills: true
 expect_head_change: true
 prompt: The commit hook already failed for my staged correction. I corrected src/a.ts only in the working tree, and I explicitly authorize refreshing that staged path and retrying the commit. Do not include notes.txt.
 fixture:

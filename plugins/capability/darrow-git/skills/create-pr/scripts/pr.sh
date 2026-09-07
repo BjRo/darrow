@@ -81,6 +81,52 @@ find_pr_template() {
   return 1
 }
 
+list_pr_template_choices() {
+  local top dir
+  top=$(git rev-parse --show-toplevel)
+  dir="$top/.github/PULL_REQUEST_TEMPLATE"
+  if [[ -d "$dir" ]]; then
+    find "$dir" -mindepth 1 -maxdepth 1 -type f ! -name '.*' \
+      -exec basename -- {} \; | LC_ALL=C sort
+  fi
+}
+
+valid_pr_template_choice() {
+  case "$1" in
+    ""|.*|*/*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+pr_template_choice_is_listed() {
+  local wanted=$1 choices=$2 choice
+  while IFS= read -r choice; do
+    if [[ "$choice" == "$wanted" ]]; then
+      return 0
+    fi
+  done <<< "$choices"
+  return 1
+}
+
+print_pr_template() {
+  local top rel tlines
+  top=$(git rev-parse --show-toplevel)
+  rel=${PR_TEMPLATE#"$top/"}
+  if [[ ! -r "$PR_TEMPLATE" ]]; then
+    # Not silently skippable: create refuses, so say why up front.
+    echo "## note: pr template $rel exists but is not readable — fix its permissions; create will refuse"
+    return
+  fi
+  echo "## pr template ($rel) — the body must follow it: keep headings verbatim, fill every section, follow comment instructions then delete the comments"
+  awk 'NR<=100' "$PR_TEMPLATE"
+  tlines=$(awk 'END{print NR}' "$PR_TEMPLATE")
+  if [[ "$tlines" -gt 100 ]]; then
+    # Absolute path: a toplevel-relative one does not resolve from a
+    # subdirectory cwd, and create enforces headings past the cut.
+    echo "## note: template truncated at 100 lines ($tlines total) — read $PR_TEMPLATE for the rest"
+  fi
+}
+
 # Template ATX headings outside fenced code blocks, trailing whitespace
 # trimmed. Fences: ``` or ~~~ indented up to 3 spaces (CommonMark), matched
 # with substr — interval regexes are not portable across awks. A leading
@@ -91,9 +137,9 @@ template_headings() {
     { n=0; while (substr($0, n+1, 1)==" ") n++; c = substr($0, n+1, 3) }
     n<=3 && (c=="```" || c=="~~~") { f=!f; next }
     f { next }
-    /^#/ {
-      m=0; while (substr($0, m+1, 1)=="#") m++
-      rest = substr($0, m+1, 1)
+    n<=3 && substr($0, n+1, 1)=="#" {
+      m=0; while (substr($0, n+m+1, 1)=="#") m++
+      rest = substr($0, n+m+1, 1)
       if (m<=6 && (rest==" " || rest=="\t")) { l=$0; sub(/[[:space:]]+$/, "", l); print l }
     }' "$1"
 }
@@ -107,6 +153,27 @@ cmd=${1:-}
 shift || true
 case "$cmd" in
   inspect)
+    selected_template=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --template)
+          if [[ $# -lt 2 ]]; then
+            echo "error: --template needs a filename" >&2
+            exit 2
+          fi
+          selected_template=$2
+          shift 2
+          ;;
+        *)
+          echo "error: unknown argument: $1" >&2
+          exit 2
+          ;;
+      esac
+    done
+    if [[ -n "$selected_template" ]] && ! valid_pr_template_choice "$selected_template"; then
+      echo "error: --template must be one exact visible filename from .github/PULL_REQUEST_TEMPLATE/" >&2
+      exit 2
+    fi
     if in_progress; then
       echo "## mode: conflict (merge/rebase/cherry-pick in progress — do not open a PR; inform the user)"
       echo "## unmerged files"
@@ -171,24 +238,29 @@ case "$cmd" in
             { git diff --stat "$cmp...HEAD" 2>/dev/null || true; } | truncate_lines
           fi
           top=$(git rev-parse --show-toplevel)
-          if find_pr_template && [[ ! -r "$PR_TEMPLATE" ]]; then
-            # Not silently skippable: create refuses, so say why up front.
-            echo "## note: pr template ${PR_TEMPLATE#"$top/"} exists but is not readable — fix its permissions; create will refuse"
-          elif [[ -n "$PR_TEMPLATE" ]]; then
-            rel=${PR_TEMPLATE#"$top/"}
-            echo "## pr template ($rel) — the body must follow it: keep headings verbatim, fill every section, follow comment instructions then delete the comments"
-            awk 'NR<=100' "$PR_TEMPLATE"
-            tlines=$(awk 'END{print NR}' "$PR_TEMPLATE")
-            if [[ "$tlines" -gt 100 ]]; then
-              # Absolute path: a toplevel-relative one does not resolve from
-              # a subdirectory cwd, and create enforces headings past the cut.
-              echo "## note: template truncated at 100 lines ($tlines total) — read $PR_TEMPLATE for the rest"
+          if find_pr_template; then
+            if [[ -n "$selected_template" ]]; then
+              echo "error: --template is not valid when the repository has the single template $PR_TEMPLATE" >&2
+              exit 7
             fi
-          elif [[ -d "$top/.github/PULL_REQUEST_TEMPLATE" ]]; then
-            echo "## note: multiple PR templates in .github/PULL_REQUEST_TEMPLATE/ — ask the user which one to follow"
-            find "$top/.github/PULL_REQUEST_TEMPLATE" -mindepth 1 -maxdepth 1 \
-              ! -name '.*' -exec basename -- {} \; |
-              LC_ALL=C sort | truncate_lines
+            print_pr_template
+          else
+            choices=$(list_pr_template_choices)
+            choice_count=$(awk 'NF {n++} END {print n+0}' <<< "$choices")
+            if [[ -n "$selected_template" ]]; then
+              PR_TEMPLATE="$top/.github/PULL_REQUEST_TEMPLATE/$selected_template"
+              if ! pr_template_choice_is_listed "$selected_template" "$choices"; then
+                echo "error: selected pr template is not available: $PR_TEMPLATE" >&2
+                exit 7
+              fi
+              print_pr_template
+            elif [[ "$choice_count" -eq 1 ]]; then
+              PR_TEMPLATE="$top/.github/PULL_REQUEST_TEMPLATE/$choices"
+              print_pr_template
+            elif [[ "$choice_count" -gt 1 ]]; then
+              echo "## note: multiple PR templates in .github/PULL_REQUEST_TEMPLATE/ — ask the user which one to follow"
+              printf '%s\n' "$choices" | truncate_lines
+            fi
           fi
           echo "## working tree (uncommitted changes will NOT be in the PR)"
           status=$(git status --porcelain)
@@ -202,12 +274,14 @@ case "$cmd" in
     fi
     ;;
   create)
-    # create --title <t> -b <body-section>... [--base <branch>] [--draft]
+    # create --title <t> -b <body-section>... [--template <filename>]
+    #   [--base <branch>] [--draft]
     title=""
     bodies=()
     base=""
     user_base=""
     draft=""
+    selected_template=""
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --title)
@@ -241,6 +315,14 @@ case "$cmd" in
           user_base=1
           shift 2
           ;;
+        --template)
+          if [[ $# -lt 2 ]]; then
+            echo "error: --template needs a filename" >&2
+            exit 2
+          fi
+          selected_template=$2
+          shift 2
+          ;;
         --draft)
           draft=1
           shift
@@ -257,6 +339,10 @@ case "$cmd" in
     fi
     if [[ ${#bodies[@]} -eq 0 ]]; then
       echo "error: at least one -b body section required" >&2
+      exit 2
+    fi
+    if [[ -n "$selected_template" ]] && ! valid_pr_template_choice "$selected_template"; then
+      echo "error: --template must be one exact visible filename from .github/PULL_REQUEST_TEMPLATE/" >&2
       exit 2
     fi
     if in_progress; then
@@ -322,6 +408,28 @@ case "$cmd" in
         body="$body"$'\n\n'"$b"
       fi
     done
+    top=$(git rev-parse --show-toplevel)
+    if find_pr_template; then
+      if [[ -n "$selected_template" ]]; then
+        echo "error: --template is not valid when the repository has the single template $PR_TEMPLATE" >&2
+        exit 7
+      fi
+    else
+      choices=$(list_pr_template_choices)
+      choice_count=$(awk 'NF {n++} END {print n+0}' <<< "$choices")
+      if [[ -n "$selected_template" ]]; then
+        PR_TEMPLATE="$top/.github/PULL_REQUEST_TEMPLATE/$selected_template"
+        if ! pr_template_choice_is_listed "$selected_template" "$choices"; then
+          echo "error: selected pr template is not available: $PR_TEMPLATE" >&2
+          exit 7
+        fi
+      elif [[ "$choice_count" -eq 1 ]]; then
+        PR_TEMPLATE="$top/.github/PULL_REQUEST_TEMPLATE/$choices"
+      elif [[ "$choice_count" -gt 1 ]]; then
+        echo "error: multiple PR templates require --template <filename>; run inspect and ask the user which one to follow" >&2
+        exit 7
+      fi
+    fi
     # Attribution needs tool context: "generated by openapi-generator" is
     # legitimate prose, "Generated using Claude Code" is not.
     # Herestring, not a pipe: grep -q exits at the first match, and on a
@@ -334,7 +442,7 @@ case "$cmd" in
     # Template shape is checkable — headings present with content, no
     # leftover instruction comments. Content quality stays with the model.
     # Runs before any push or PR call: a rejected body must mutate nothing.
-    if find_pr_template; then
+    if [[ -n "$PR_TEMPLATE" ]]; then
       # An unreadable template must refuse, not skip: chmod 000 would
       # otherwise silently disable GW-P8 enforcement (and awk would die
       # with a raw error under set -e).
@@ -354,16 +462,26 @@ case "$cmd" in
           # in via ENVIRON — awk -v mangles backslashes.
           rc=0
           TPL_H="$h" awk '
-            BEGIN {h=ENVIRON["TPL_H"]; hl=0; while (substr(h, hl+1, 1) == "#") hl++}
+            BEGIN {
+              h=ENVIRON["TPL_H"]
+              hn=0; while (substr(h, hn+1, 1) == " ") hn++
+              hl=0; while (substr(h, hn+hl+1, 1) == "#") hl++
+            }
             {
               l=$0; sub(/[[:space:]]+$/, "", l)
               n=0; while (substr(l, n+1, 1)==" ") n++
               c = substr(l, n+1, 3)
               isfence = (n<=3 && (c=="```" || c=="~~~"))
+              isheading=0; level=0
+              if (n<=3 && substr(l, n+1, 1)=="#") {
+                while (substr(l, n+level+1, 1)=="#") level++
+                rest=substr(l, n+level+1, 1)
+                if (level<=6 && (rest==" " || rest=="\t")) isheading=1
+              }
             }
             isfence {f=!f}
             !f && !isfence && !insec && l==h {insec=1; seen=1; next}
-            insec && !f && !isfence && l ~ /^#+[ \t]/ {m=0; while (substr(l, m+1, 1) == "#") m++; if (m<=hl) exit}
+            insec && !f && !isfence && isheading && level<=hl {exit}
             insec && NF {ok=1; exit}
             END {if (!seen) exit 2; exit ok ? 0 : 1}' <<< "$body" || rc=$?
           if [[ $rc -eq 2 ]]; then
@@ -439,7 +557,7 @@ case "$cmd" in
     fi
     ;;
   *)
-    echo "usage: pr.sh inspect | create --title <t> -b <body-section>... [--base <branch>] [--draft]" >&2
+    echo "usage: pr.sh inspect [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft]" >&2
     exit 64
     ;;
 esac

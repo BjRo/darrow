@@ -1,5 +1,7 @@
 id: capture-decision-work-item-owner
 invariant: DM-7
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   In the GitHub issue tracker, capture this ticket-local implementation
   decision on ticket acme/service#42: retry only idempotent requests with exponential
@@ -30,26 +32,13 @@ checks:
       printf '%s\n' "$calls" | grep -Ei -- '--repo[ =]+acme/service|repos/acme/service|github\.com/acme/service' >/dev/null
     expect_regex: "(42|issue|api)"
     flags: i
-  - name: response preserves owner content and unverified persistence gap
-    run: >-
-      message=.git/last-message.md; text=$(tr '\n' ' ' < "$message");
-      printf '%s\n' "$text";
-      printf '%s\n' "$text" | grep -Ei '(ticket|issue|work item).{0,80}(#42|42)|(#42|42).{0,80}(ticket|issue|work item)' >/dev/null;
-      printf '%s\n' "$text" | grep -Ei 'idempotent.{0,120}exponential backoff|exponential backoff.{0,120}idempotent' >/dev/null;
-      printf '%s\n' "$text" | grep -Ei 'unavailable|unable|cannot|can.t' >/dev/null;
-      printf '%s\n' "$text" | grep -Ei 'unverified|incomplete|unresolved|unconfirmed|not confirmed|not applied|not posted|not persisted|has not been applied|have not been applied|persistence gap|no.{0,80}(issue )?comment.{0,80}(was )?created' >/dev/null
-    expect_regex: "(#42|ticket 42|issue 42)"
-    flags: i
-  - name: response affirmatively reports non-persistence
-    run: cat .git/last-message.md
-    expect_regex: "\\bnot (persisted|added|posted|recorded|captured|applied|written)\\b|(has not been|have not been|was not|is not|not yet|could not be) (persisted|added|posted|recorded|captured|applied|written)|could not (persist|capture|record|post|add|apply|write)|failed to persist|no.{0,120}(issue |ticket )?(comment|update).{0,80}(was )?(created|added|posted)|persistence (is )?not applied|comment not posted"
-    flags: i
-  - name: response does not falsely claim ticket persistence
-    run: >-
-      text=$(tr '\n' ' ' < .git/last-message.md);
-      printf '%s\n' "$text"
-    not_regex: "\\b(I|we) (added|put|wrote|posted|updated|commented|recorded|captured)\\b|(ticket|issue)( #?42)?.{0,80}(now (contains|includes|records|has)|(was|has been) (updated|commented|recorded|captured)|now includes)|(decision|content).{0,80}(was|has been).{0,20}(added|posted|recorded|captured).{0,80}(ticket|issue)"
-    flags: i
   - name: capture creates no commit
     run: git rev-list --all --reflog --count
     expect_exact: "1"
+semantic_output_checks:
+  - name: response preserves owner content and the unconfirmed persistence gap
+    proposition: >-
+      The response identifies GitHub issue acme/service#42 and the requested
+      idempotent-request exponential-backoff policy, reports that the tracker
+      operation was unavailable, and clearly leaves persistence unconfirmed
+      without claiming the decision was applied to the issue.

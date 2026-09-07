@@ -236,7 +236,9 @@ unavailable.
 9. **IRG-C9 — Explicit output negotiation.** The default result is
    human-readable and preserves every semantic field. The v1 JSON
    representation is used only when the caller or enclosing contract
-   explicitly requires JSON; composition alone never selects it.
+   explicitly requires JSON; composition alone never selects it. A standalone
+   human-readable result ends with the required-next-action description and
+   appends no second summary, disclaimer, or commentary.
 
 ## Packaging and portability
 
@@ -255,12 +257,16 @@ unavailable.
 
 ## Evaluation requirements
 
-1. **IRG-E1 — Intent boundaries.** Direct and indirect readiness requests and
-   explicit goal-contract gates select the skill; ordinary implementation
-   requests do not.
+1. **IRG-E1 — Intent boundaries.** Activation evidence separately grades
+   direct, indirect, incomplete-input, and explicit goal-contract readiness
+   requests as selections of the skill, and grades ordinary implementation and
+   planning requests as negative cases. Task success never substitutes for the
+   activation grade.
 2. **IRG-E2 — Verdict discrimination.** Fixtures independently exercise all
    four verdicts and mixtures where the first required action determines the
-   primary verdict.
+   primary verdict. Meaning-based verdict and next-action claims use hidden
+   semantic checks when faithful paraphrase is allowed, while canonical enum
+   values and serialized result structure remain deterministic checks.
 3. **IRG-E3 — Quality-bar strength.** A detailed request with only generic
    “tests pass” language is not ready, while a concise request with concrete
    observable acceptance and verification can be ready.

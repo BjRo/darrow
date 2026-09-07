@@ -9,11 +9,25 @@ fixture:
       files:
         README.md: "# Fixture\n"
   bin:
+    bash: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)"
+      case "${1:-}" in
+        */darrow-tickets/*/bin/ticket)
+          printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls"
+          ;;
+      esac
+      exec /bin/bash "$@"
     gh: |
       #!/bin/sh
       d="$(git rev-parse --git-dir)/fixture-gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
+      case "$1" in
+        issue) printf 'issue view %s %s %s\n' "$3" "$4" "$5" >> "$d/protocol" ;;
+        api) printf 'api %s\n' "$2" >> "$d/protocol" ;;
+        *) printf 'unexpected %s\n' "$1" >> "$d/protocol" ;;
+      esac
       find_flag() {
         want=$1; shift
         prev=""
@@ -83,9 +97,13 @@ checks:
   - name: native relations are returned
     run: cat .git/last-message.md
     expect_regex: "parent: #7[\\s\\S]*depends-on: #3"
-  - name: one exact ticket is fetched
-    run: cat .git/fixture-gh/calls
-    expect_regex: "issue view 12"
-  - name: tracker state is unchanged
-    run: cat .git/fixture-gh/calls
-    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"
+  - name: bundled CLI owns the one retrieval
+    run: cat .git/fixture-ticket-cli-calls
+    expect_regex: "/bin/ticket get #?12$"
+  - name: retrieval uses only the bundled read protocol
+    run: cat .git/fixture-gh/protocol
+    expect_exact: |-
+      issue view 12 --json number,state,title,url,labels
+      issue view 12 --json body
+      api repos/{owner}/{repo}/issues/12/parent
+      api repos/{owner}/{repo}/issues/12/dependencies/blocked_by

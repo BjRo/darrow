@@ -1,0 +1,64 @@
+id: read-ticket-relation-failure
+invariant: TM-R2,TM-R4
+activation: positive
+mount_plugin_skills: true
+prompt: "Read ticket #31 and return the authoritative tracker response without changing anything."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    bash: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)"
+      case "${1:-}" in
+        */darrow-tickets/*/bin/ticket)
+          printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls"
+          ;;
+      esac
+      exec /bin/bash "$@"
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >>"$d/calls"
+      case "$1" in
+        issue) printf 'issue view %s %s %s\n' "$3" "$4" "$5" >>"$d/protocol" ;;
+        api) printf 'api %s\n' "$2" >>"$d/protocol" ;;
+        *) printf 'unexpected %s\n' "$1" >>"$d/protocol" ;;
+      esac
+      case "$1 $2" in
+        "issue view")
+          case "$*" in
+            *"--json number,state,title,url,labels"*)
+              printf 'ticket-token: #31\n#31 open — Relation failure\nhttps://github.test/o/r/issues/31\nlabels: bug\n'
+              ;;
+            *"--json body"*) printf 'PARTIAL-BODY-MUST-NOT-LEAK\n' ;;
+            *) echo "mock gh: unsupported issue view: $*" >&2; exit 1 ;;
+          esac
+          ;;
+        "api repos/{owner}/{repo}/issues/31/parent")
+          echo "backend relation endpoint unavailable" >&2
+          exit 1
+          ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: relation failure is relayed byte-for-byte
+    run: cat .git/last-message.md
+    expect_exact: "backend relation endpoint unavailable"
+  - name: bundled CLI owns the failed retrieval
+    run: cat .git/fixture-ticket-cli-calls
+    expect_regex: "/bin/ticket get #?31$"
+  - name: relation failure stops without partial ticket output or later calls
+    run: cat .git/fixture-gh/protocol
+    expect_exact: |-
+      issue view 31 --json number,state,title,url,labels
+      issue view 31 --json body
+      api repos/{owner}/{repo}/issues/31/parent
+  - name: partial ticket output does not leak
+    run: cat .git/last-message.md
+    not_regex: "PARTIAL-BODY-MUST-NOT-LEAK"

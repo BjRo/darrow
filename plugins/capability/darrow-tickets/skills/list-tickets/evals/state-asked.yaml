@@ -1,5 +1,7 @@
 id: list-tickets-state-asked
-invariant: TM-L2
+invariant: TM-L1,TM-L2,TM-L3,SE-C9,SE-C10,SE-C11
+activation: competition
+mount_plugin_skills: true
 prompt: List the closed tickets about export.
 fixture:
   commits:
@@ -155,6 +157,12 @@ fixture:
     printf 'bug\nenhancement\ndocumentation\n' > .git/fixture-gh/labels
     printf '#8 closed  CSV export drops the header row (bug)\n' > .git/fixture-gh/list
 checks:
+  - name: authoritative closed-ticket result is relayed without semantic changes
+    run: sed 's/[[:blank:]]*$//' .git/last-message.md
+    expect_exact: |-
+      backend: github
+      #8 closed  CSV export drops the header row (bug)
+      total: 1 (state=closed, search="export")
   - name: closed state passed through
     run: cat .git/fixture-gh/calls
     expect_regex: "issue list --state closed"
@@ -164,4 +172,4 @@ checks:
     flags: i
   - name: nothing mutated
     run: cat .git/fixture-gh/calls
-    not_regex: "issue (create|edit|comment|close|reopen)"
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

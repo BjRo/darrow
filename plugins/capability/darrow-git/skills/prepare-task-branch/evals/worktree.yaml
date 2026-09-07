@@ -1,5 +1,7 @@
 id: prepare-task-branch-worktree
 invariant: GW-TB1,GW-TB2,GW-TB3,GW-TB5,GW-TB6
+activation: positive
+mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Use {{skill_invocation}} to prepare `fix/DAR-123-attribution` for the active

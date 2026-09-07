@@ -1,5 +1,7 @@
 id: tdd-vertical-slices
-invariant: TDD-C5,TDD-C6,TDD-C11
+invariant: TDD-C2,TDD-C3,TDD-C5,TDD-C6,TDD-C7,TDD-C11,TDD-E1,TDD-E4
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Use test-driven development to implement two documented behaviors through
   the public formatUsername export in src/username.js. Complete normalization's
@@ -31,25 +33,14 @@ fixture:
           node --test test/username.test.js >.git/test-output 2>&1
           status=$?
           cat .git/test-output
+          if grep -Fq 'normalizes a username' test/username.test.js; then normalize=1; else normalize=0; fi
+          if grep -Fq 'truncates a normalized username' test/username.test.js; then truncate=1; else truncate=0; fi
+          if git diff --quiet -- src/username.js; then implementation=unchanged; else implementation=changed; fi
+          if node --input-type=module -e "import('./src/username.js').then(({formatUsername}) => process.exit(formatUsername('Grace Hopper Extended', 15) === 'grace-hopper' ? 0 : 1))" >/dev/null 2>&1; then truncation_behavior=1; else truncation_behavior=0; fi
+          if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
+          printf '%s|normalize=%s|truncate=%s|implementation=%s|truncation_behavior=%s\n' \
+            "$result" "$normalize" "$truncate" "$implementation" "$truncation_behavior" >>.git/tdd-trace
           exit "$status"
-  bin:
-    node: |
-      #!/usr/bin/env bash
-      real_node=$(PATH="${PATH#*:}" command -v node)
-      "$real_node" "$@"
-      status=$?
-      case " $* " in
-        *--test*) ;;
-        *) exit "$status" ;;
-      esac
-      if grep -Fq 'normalizes a username' test/username.test.js; then normalize=1; else normalize=0; fi
-      if grep -Fq 'truncates a normalized username' test/username.test.js; then truncate=1; else truncate=0; fi
-      if git diff --quiet -- src/username.js; then implementation=unchanged; else implementation=changed; fi
-      if "$real_node" --input-type=module -e "import('./src/username.js').then(({formatUsername}) => process.exit(formatUsername('Grace Hopper Extended', 15) === 'grace-hopper' ? 0 : 1))" >/dev/null 2>&1; then truncation_behavior=1; else truncation_behavior=0; fi
-      if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
-      printf '%s|normalize=%s|truncate=%s|implementation=%s|truncation_behavior=%s\n' \
-        "$result" "$normalize" "$truncate" "$implementation" "$truncation_behavior" >>.git/tdd-trace
-      exit "$status"
 checks:
   - name: both public behaviors are implemented
     run: >-
@@ -65,6 +56,31 @@ checks:
       state==2 && $1=="fail" && $2=="normalize=1" && $3=="truncate=1" && $4=="implementation=changed" && $5=="truncation_behavior=0" { state=3; next }
       state==3 && $1=="pass" && $2=="normalize=1" && $3=="truncate=1" && $4=="implementation=changed" && $5=="truncation_behavior=1" { state=4; next }
       END { exit !(state==4) }' .git/tdd-trace
+  - name: retained tests detect normalization and truncation regressions
+    run: >-
+      node --test test/username.test.js >/dev/null || exit 1;
+      cp src/username.js .git/username.original;
+      trap 'cp .git/username.original src/username.js' EXIT HUP INT TERM;
+      printf '%s\n' 'export function formatUsername(input) {'
+      '  return input.trim();'
+      '}' >src/username.js;
+      set +e;
+      node --test test/username.test.js >.git/username-normalize-mutation-output 2>&1;
+      normalize_status=$?;
+      set -e;
+      test "$normalize_status" -ne 0;
+      grep -F 'normalizes a username' .git/username-normalize-mutation-output >/dev/null;
+      printf '%s\n' 'export function formatUsername(input) {'
+      '  return input.trim().toLowerCase().replace(/\s+/g, "-");'
+      '}' >src/username.js;
+      set +e;
+      node --test test/username.test.js >.git/username-truncate-mutation-output 2>&1;
+      truncate_status=$?;
+      set -e;
+      test "$truncate_status" -ne 0;
+      grep -F 'truncates a normalized username' .git/username-truncate-mutation-output >/dev/null;
+      ! grep -E 'SyntaxError|ERR_MODULE_NOT_FOUND|Cannot find module'
+      .git/username-normalize-mutation-output .git/username-truncate-mutation-output
   - name: test telemetry wrapper is unchanged
     run: git diff --exit-code -- test.sh
   - name: final suite is green

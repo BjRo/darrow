@@ -136,18 +136,18 @@ describe("evaluation suite ablation", () => {
     ]);
     expect(manifest.models).toEqual({
       claude: "claude-sonnet-5",
-      codex: "gpt-5.5",
+      codex: "gpt-5.6-terra",
     });
     expect(manifest.judge).toBeNull();
     expect(manifest.semanticOutput).toEqual({
       harness: "codex",
-      model: "gpt-5.5",
+      model: "gpt-5.6-luna",
       effort: "low",
     });
     expect(manifest.cells).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          fallbackModel: "gpt-5.5",
+          fallbackModel: "gpt-5.6-terra",
           fallbackEffort: "medium",
           caseRoutes: null,
         }),
@@ -207,7 +207,7 @@ describe("evaluation suite ablation", () => {
       expect.objectContaining({
         harness: "codex",
         mode: "goal",
-        fallbackModel: "gpt-5.5",
+        fallbackModel: "gpt-5.6-terra",
         fallbackEffort: "medium",
         caseRoutes: null,
       }),
@@ -271,7 +271,7 @@ describe("evaluation suite ablation", () => {
     );
     expect(manifest.cells).toEqual([
       expect.objectContaining({
-        fallbackModel: "gpt-5.5",
+        fallbackModel: "gpt-5.6-terra",
         fallbackEffort: "medium",
         caseRoutes: {
           "grilling-incomplete-subject": {

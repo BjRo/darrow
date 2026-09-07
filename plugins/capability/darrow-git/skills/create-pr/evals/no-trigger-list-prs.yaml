@@ -1,0 +1,53 @@
+id: create-pr-no-trigger-list-prs
+invariant: GW-P6
+activation: negative
+activation_excludes: [create-pr]
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  List the open pull requests for the current branch. Do not push the branch or
+  create, update, or close any pull request.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          mkdir -p "$d"
+          : >"$d/listed"
+          printf '#7\tRetry request timeouts\tfix/timeout-retry\n'
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          : >"$d/created"
+          echo "https://github.com/fixture/repo/pull/8"
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc fix/timeout-retry
+    printf 'retry\n' > retry.txt
+    git add retry.txt
+    git commit -qm "fix: retry request timeouts"
+checks:
+  - name: open PRs were listed
+    run: test -f .git/fixture-gh/listed
+  - name: no PR was created
+    run: test ! -f .git/fixture-gh/created
+  - name: branch was not pushed
+    run: test -z "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
+output_checks:
+  - name: response includes the existing PR
+    expect_regex: "#7|Retry request timeouts"

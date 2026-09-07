@@ -1,0 +1,26 @@
+id: prepare-task-branch-current
+invariant: GW-TB1,GW-TB2,GW-TB3,GW-TB6
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Prepare the exact task branch `fix/DAR-123-attribution` for the active
+  provider's canonical token DAR-123. That exact branch is already active;
+  keep its tip unchanged and report its current state.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: git switch -qc fix/DAR-123-attribution
+checks:
+  - name: exact task branch remains active
+    run: git branch --show-current
+    expect_exact: "fix/DAR-123-attribution"
+  - name: active branch tip remains unchanged
+    run: git rev-list --count fix/DAR-123-attribution
+    expect_exact: "1"
+output_checks:
+  - name: reports current state
+    expect_regex: "current|already active"
+    flags: i

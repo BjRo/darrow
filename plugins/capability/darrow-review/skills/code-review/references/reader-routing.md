@@ -60,6 +60,13 @@ Use only the child ID returned by the accepted native spawn. If the spawn
 surface rejects the model or effort, returns no child ID, the child fails to
 finish, or route confirmation fails, discard any returned judgment and bind
 that axis as blocked. Do not retry on an inherited or substitute route.
+Treat a canonical child reference returned in a host response field named
+`task_name` as the child ID; it is distinct from the requested bounded task
+label. Never promote the requested label itself into an ID.
+When no child ID is returned, do not call `wait`, `wait_agent`, or any other
+join operation for that axis. Do not use a plausible same-context finding as a
+stand-in for the missing child. Proceed directly to the blocked axis record and
+mechanical aggregation.
 The retained native launch batch from the first bound spawn through the first
 wait must contain exactly the bound axes and no additional spawn.
 

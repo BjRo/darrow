@@ -1,5 +1,7 @@
 id: list-decisions-supersession-query
 invariant: DM-L3
+activation: competition
+mount_plugin_skills: true
 prompt: "Which accepted architecture decision superseded ADR-0001? List the canonical record and relationship read-only."
 fixture:
   commits:
@@ -45,29 +47,21 @@ fixture:
 
           Clients use the GraphQL schema.
 checks:
-  - name: reports the accepted replacement and relationship
+  - name: reports the canonical replacement exactly once
     run: >-
       root=$(pwd -P); message=.git/last-message.md;
       path="$root/docs/decisions/ADR-0002-graphql.md";
-      line=$(grep -F "$path" "$message");
-      test "$(NEEDLE="$path" awk 'BEGIN {needle=ENVIRON["NEEDLE"]} {line=$0; while ((at=index(line,needle)) > 0) {count++; line=substr(line,at+length(needle))}} END {print count+0}' "$message")" -eq 1;
-      printf '%s\n' "$line" | grep -Ei 'Accepted' >/dev/null;
-      printf '%s\n' "$line" | grep -Ei 'supersedes.{0,120}ADR-0001' >/dev/null;
-      printf '%s\n' "$line" | grep -Ei 'GraphQL' >/dev/null;
-      printf '%s\n' "$line" | grep -Ei 'repository architecture|architecture scope|scope.{0,80}(repository|architecture)' >/dev/null;
+      test "$(grep -F -c "$path" "$message")" -eq 1;
       echo related
     expect_exact: "related"
-  - name: does not invert the supersession direction
-    run: cat .git/last-message.md
-    not_regex: "ADR-0001[^\\n]{0,120}supersedes[^\\n]{0,80}ADR-0002|ADR-0002[^\\n]{0,120}superseded by[^\\n]{0,80}ADR-0001"
-    flags: i
-  - name: reports the canonical absolute replacement path
-    run: >-
-      root=$(pwd -P); grep -F "$root/docs/decisions/ADR-0002-graphql.md" .git/last-message.md >/dev/null && echo absolute
-    expect_regex: "^absolute$"
   - name: listing is read-only
     run: git status --porcelain --untracked-files=all
     not_regex: "\\S"
   - name: listing creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
+semantic_output_checks:
+  - name: supersession relationship is classified correctly
+    proposition: >-
+      The response reports GraphQL as the Accepted repository-architecture
+      decision owned by ADR-0002 and states that ADR-0002 supersedes ADR-0001.

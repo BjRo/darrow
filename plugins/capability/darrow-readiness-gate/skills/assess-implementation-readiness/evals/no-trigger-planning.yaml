@@ -1,5 +1,7 @@
 id: readiness-no-trigger-planning
-invariant: IRG-C1
+invariant: IRG-C1,IRG-E1,SE-C9,SE-C10,SE-C11
+activation: negative
+mount_plugin_skills: true
 prompt: >-
   Draft a concise implementation plan for adding configurable request timeouts
   to this service. Identify the public seam, likely work areas, and verification

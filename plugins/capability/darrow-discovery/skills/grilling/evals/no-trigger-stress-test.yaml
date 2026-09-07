@@ -1,5 +1,6 @@
-id: grilling-indirect-stress-test
-invariant: DG-C1,DG-C4,DC-C1
+id: grilling-no-trigger-stress-test
+invariant: DG-C1,DC-E1,DC-C1
+activation: negative
 mount_plugin_skills: true
 prompt: >-
   Stress-test my thinking relentlessly before I commit to this API design. The
@@ -12,13 +13,9 @@ fixture:
       files:
         README.md: "# Bulk API\n"
 checks:
-  - name: indirect grilling remains read-only
+  - name: generic stress-test remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: indirect intent receives multiple concrete frontier questions
-    run: cat .git/last-message.md
-    expect_regex: "^[*_#> -]{0,12}Q1[\\s\\S]*^[*_#> -]{0,12}Q2|^[*_#> -]{0,12}1[.)][\\s\\S]*^[*_#> -]{0,12}2[.)]"
-  - name: questions carry recommendations
-    run: cat .git/last-message.md
-    expect_regex: "recommend(ed|ation)?[\\s\\S]*recommend(ed|ation)?"
-    flags: i
+  - name: neighboring behavior returns a response
+    run: test -s .git/last-message.md && echo responded
+    expect_exact: "responded"

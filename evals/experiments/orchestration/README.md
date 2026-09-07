@@ -261,7 +261,7 @@ bun evals/runner/suite.ts --harness codex --mode vanilla --case oss-go-git --tri
 # Run one within-harness matrix with a chosen candidate and judge model.
 bun evals/runner/suite.ts --harness claude --trials 3 \
   --claude-model claude-sonnet-5 \
-  --judge-harness codex --judge-model gpt-5.5
+  --judge-harness codex --judge-model gpt-5.6-sol
 
 # Omit advisory judging during a cheap calibration pass.
 bun evals/runner/suite.ts --trials 1 --no-judge

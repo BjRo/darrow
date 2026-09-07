@@ -1,5 +1,7 @@
 id: create-pr-base-user-named
 invariant: GW-P4
+activation: positive
+mount_plugin_skills: true
 prompt: Open a PR for the rate limit work against develop, not main.
 fixture:
   commits:

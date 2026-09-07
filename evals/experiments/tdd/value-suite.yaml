@@ -1,0 +1,12 @@
+version: 1
+experiment: tdd-value
+case_filter:
+  - tdd-product-value-bug-fix
+modes:
+  without-skill:
+    without_skill: true
+  darrow-tdd: {}
+ablations:
+  - name: tdd-skill-value
+    baseline: without-skill
+    candidate: darrow-tdd

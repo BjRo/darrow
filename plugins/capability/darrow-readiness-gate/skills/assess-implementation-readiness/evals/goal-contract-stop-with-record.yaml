@@ -1,5 +1,7 @@
 id: readiness-goal-contract-stop-with-record
-invariant: IRG-C8
+invariant: IRG-C8,IRG-E1,IRG-E6,IRG-E9,SE-C9,SE-C10,SE-C11
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Execute this bounded goal contract. Before any mutation, use an available
   implementation-readiness capability on docs/request.md. Continue only on
@@ -51,7 +53,7 @@ output_checks:
     expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
   - name: result preserves typed finding fields
     expect_regex: "^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
-  - name: result preserves the typed next action
-    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `decision`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
+  - name: complete readiness result precedes the outer record
+    expect_regex: "^### Required next action$\\n\\n- \\*\\*Type:\\*\\* `decision`$\\n- \\*\\*Description:\\*\\* \\S[^\\n]*$\\n(?:\\n)?^`?outer_goal_status\\tstopped`?\\n?$"
   - name: composition alone does not select JSON
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'

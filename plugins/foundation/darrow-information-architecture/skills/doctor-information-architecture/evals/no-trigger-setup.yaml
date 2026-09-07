@@ -1,0 +1,23 @@
+id: doctor-information-architecture-no-trigger-setup
+invariant: IA-D12
+activation: negative
+activation_excludes:
+  - doctor-information-architecture
+mount_plugin_skills: true
+prompt: >-
+  Set up a new dual-runtime agent-guidance architecture for this repository.
+  There are no existing instruction files. Propose the file graph before
+  changing anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+        package.json: '{"private":true}'
+checks:
+  - name: proposal phase leaves the worktree clean
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: doctor skill is not claimed for greenfield setup
+    run: cat .git/last-message.md
+    not_regex: "doctor-information-architecture"

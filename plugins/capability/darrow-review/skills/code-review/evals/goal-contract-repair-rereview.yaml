@@ -1,4 +1,5 @@
 id: code-review-goal-contract-repair-verification
+activation: positive
 invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13
 prompt: >-
   Execute this bounded goal contract. The candidate change is already present
@@ -8,14 +9,16 @@ prompt: >-
   standards. Use its normal review report. With no blocking findings, return
   control to this goal. With blocking findings, repair only those findings
   under the existing authorization below, rerun invalidated checks, and
-  fix-verify only the attempted findings and their direct repair consequences
-  against the changed target fingerprint. If verification is unavailable or
-  inconclusive, stop. After and only after clear exact-target verification, run
-  `bash mark-complete.sh`. Originating
+  independently verify only the attempted findings and their direct repair
+  consequences against the changed target fingerprint. If verification is
+  unavailable or inconclusive, stop. After and only after clear exact-target
+  verification, run `bash mark-complete.sh`. Originating
   requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain
   3.
   Acceptance: `bash check.sh` passes. Authorized repair: edit src/config.js
   only. Not authorized: commits, pushes, pull requests, or other publication.
+  At the end, report the final goal outcome, the initial independent-review
+  outcome, and the fix-verification outcome.
 fixture:
   commits:
     - message: "chore: init"
@@ -36,6 +39,9 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
+          record=$(find "$git_dir" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+          test -n "$record"
+          grep -F 'outcome	clear' "$record" >/dev/null
           printf '%s\n' complete >"$git_dir/goal-complete"
   files:
     src/config.js: |
@@ -59,19 +65,23 @@ checks:
   - name: additive verification artifact validates beside the repaired scope
     run: >-
       record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
-      tool=$(sed -n '1p' .git/review-result-tool) &&
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
       grep -F 'outcome	clear' "$record" >/dev/null &&
       grep -F 'RETRY_COUNT = 3' "$(dirname "$record")/diff.patch" >/dev/null
   - name: composed repair creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-  - name: composed response is the complete rendered verification report
-    run: >-
-      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" && test "$(cat "$report")" = "$(cat .git/last-message.md)"
-output_checks:
-  - name: composed Markdown carries fix-verification lifecycle and target binding
-    expect_regex: '^# Repair verification — CLEAR[\s\S]*## Attempted findings[\s\S]*## Repair-caused regressions[\s\S]*## Checks[\s\S]*## Target binding[\s\S]*## Closed original finding set[\s\S]*## Next action'
-    flags: i
-  - name: default verification does not expose raw TSV
-    not_regex: '^format\tdarrow-review-verification-v1$'
+  - name: default response does not expose raw verification TSV
+    run: "! grep -F 'format	darrow-review-verification-v1' .git/last-message.md"
+semantic_output_checks:
+  - name: enclosing goal reports completion
+    proposition: The response says the bounded goal completed successfully.
+  - name: completion reports the initial independent review outcome
+    proposition: >-
+      The response says the initial independent review found a blocking
+      RETRY_COUNT or retry-count problem before the repair.
+  - name: completion reports clear fix verification
+    proposition: >-
+      The response says independent fix verification cleared or passed the
+      repaired change.

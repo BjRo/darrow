@@ -5,7 +5,8 @@ description: List matching tickets or issues for the current project without cha
 
 # List tickets
 
-Run one backend-neutral query and return its compact result unchanged.
+Run one backend-neutral query and return its compact result without changing
+its visible content or line order.
 
 ## Tracker boundary
 
@@ -69,9 +70,11 @@ verbatim refusal, with zero tracker mutations.
 
 ### 3. Return the authoritative list
 
-Relay the CLI's ticket lines, `total:` line, and every `note:` line. Do not
-rerank, rewrite, summarize, trim, or enrich the rows. The compact CLI format is
-the deliverable.
+On success, relay every line of CLI stdout, starting with `backend:` and
+continuing through every ticket, `total:`, and `note:` line. Do not omit, add,
+or reorder lines or rewrite their visible content. The compact CLI format is the
+entire final response; add no preamble, epilogue, heading, fence, or
+explanation.
 
 An empty result is complete: report it with the echoed filters. A capped result
 is incomplete by definition: retain the stated cap, total characterization,

@@ -1,7 +1,9 @@
 id: readiness-blocked-missing-input
-invariant: IRG-C2
+invariant: IRG-C2,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C12,SE-C14,SE-C18
+activation: positive
+mount_plugin_skills: true
 prompt: >-
-  Assess implementation readiness for ticket SEC-42. I have not supplied its
+  {{skill_invocation}} Assess implementation readiness for ticket SEC-42. I have not supplied its
   contents, there is no tracker capability in this environment, and the
   repository contains no copy. Return the readiness result without inventing
   the ticket.
@@ -31,12 +33,16 @@ output_checks:
     expect_regex: "^\\*\\*Verdict:\\*\\* `blocked`$"
   - name: next action asks to unblock the input
     expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `unblock`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
-  - name: ticket contents are not invented
-    expect_regex: "(supply|provide|make available|resolve)[\\s\\S]{0,200}(SEC-42|ticket|contents)"
-    flags: i
   - name: default result preserves typed basis and finding fields
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: quality bar is explicitly empty or contains typed items
     expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
+semantic_output_checks:
+  - name: missing ticket remains an unavailable authoritative input
+    proposition: >-
+      The response treats the absent contents of SEC-42 as unavailable
+      authoritative input, does not invent or reconstruct the ticket, and asks
+      for the ticket contents to be supplied or made available before another
+      readiness assessment.

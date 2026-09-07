@@ -1,5 +1,7 @@
 id: create-branch-existing-no-clobber
 invariant: GW-B3
+activation: positive
+mount_plugin_skills: true
 prompt: Create a branch feat/login for the login work I'm starting.
 fixture:
   commits:

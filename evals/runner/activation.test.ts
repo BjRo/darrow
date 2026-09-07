@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  activationProbeForCase,
   activationPassRate,
   activationPassesThreshold,
   expectsAdaptiveGoalOwner,
@@ -22,6 +23,25 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 describe("skill activation grading", () => {
+  test("derives explicit and implicit probes from the shared placeholder", () => {
+    expect(
+      activationProbeForCase(
+        evalCase({
+          owningSkillName: "grilling",
+          prompt: "Use {{skill_invocation}} for this request.",
+        }),
+        "codex",
+      ),
+    ).toEqual({
+      mode: "explicit",
+      skill: "grilling",
+      invocation: "$sample:grilling",
+    });
+    expect(activationProbeForCase(evalCase(), "codex")).toEqual({
+      mode: "implicit",
+    });
+  });
+
   test("expects an owner for adaptive-goal cases except negative activation", () => {
     expect(
       expectsAdaptiveGoalOwner(
@@ -67,6 +87,14 @@ describe("skill activation grading", () => {
       primarySkill: null,
       observedSkills: [],
     });
+    expect(
+      gradeActivation("positive", "grilling", {
+        source: "explicit_invocation",
+        complete: false,
+        primarySkill: null,
+        observedSkills: [],
+      }).passed,
+    ).toBeNull();
   });
 
   test("grades negative avoidance and competition selection against the owning skill", () => {
@@ -83,6 +111,63 @@ describe("skill activation grading", () => {
       gradeActivation("competition", "plan-implementation", otherPrimary)
         .passed,
     ).toBe(false);
+  });
+
+  test("requires a declared composed skill sequence after the primary owner", () => {
+    const observed = {
+      source: "skill_file_read_probe" as const,
+      complete: true,
+      primarySkill: "plan-implementation",
+      observedSkills: ["plan-implementation", "grilling"],
+    };
+    expect(
+      gradeActivation("competition", "plan-implementation", observed, {
+        sequence: ["plan-implementation", "grilling"],
+      }),
+    ).toMatchObject({
+      passed: true,
+      expectedSkills: ["plan-implementation", "grilling"],
+    });
+    expect(
+      gradeActivation(
+        "competition",
+        "plan-implementation",
+        { ...observed, observedSkills: ["plan-implementation"] },
+        { sequence: ["plan-implementation", "grilling"] },
+      ).passed,
+    ).toBe(false);
+    expect(
+      gradeActivation(
+        "competition",
+        "plan-implementation",
+        {
+          ...observed,
+          primarySkill: "grilling",
+          observedSkills: ["grilling", "plan-implementation"],
+        },
+        { sequence: ["plan-implementation", "grilling"] },
+      ).passed,
+    ).toBe(false);
+  });
+
+  test("can forbid a skill anywhere in an otherwise negative observation", () => {
+    const observation = {
+      source: "skill_file_read_probe" as const,
+      complete: true,
+      primarySkill: "discover-feature",
+      observedSkills: ["discover-feature", "grilling"],
+    };
+    expect(gradeActivation("negative", "grilling", observation).passed).toBe(
+      true,
+    );
+    expect(
+      gradeActivation("negative", "grilling", observation, {
+        excludes: ["grilling"],
+      }),
+    ).toMatchObject({
+      passed: false,
+      excludedSkills: ["grilling"],
+    });
   });
 
   test("rejects unknown activation classes and competition without sibling skills", () => {
@@ -106,6 +191,38 @@ describe("skill activation grading", () => {
         }),
       ),
     ).toEqual([]);
+    expect(
+      validateActivationCase(
+        evalCase({
+          activation: "competition",
+          mount_plugin_skills: true,
+          activation_sequence: ["plan-implementation", "grilling"],
+        }),
+      ),
+    ).toEqual([
+      "activation-case: activation_sequence must start with the owning skill grilling",
+    ]);
+    expect(
+      validateActivationCase(
+        evalCase({
+          activation: "negative",
+          mount_plugin_skills: true,
+          activation_sequence: ["grilling"],
+        }),
+      ),
+    ).toEqual([
+      "activation-case: activation_sequence is incompatible with negative activation",
+    ]);
+    expect(
+      validateActivationCase(
+        evalCase({
+          activation: "negative",
+          activation_excludes: [],
+        }),
+      ),
+    ).toEqual([
+      "activation-case: activation_excludes must be a non-empty skill-name list",
+    ]);
   });
 
   test("does not average measured activation trials with an unknown trial", () => {

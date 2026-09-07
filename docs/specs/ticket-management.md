@@ -177,12 +177,14 @@ then relay its authoritative metadata, relations, and body.
 
 ### Invariants
 
-- **TM-R1 — Exact current-project reference.** Read only an explicit ticket ID,
-  a canonical URL belonging to the current project's resolved backend, or an
-  exact reference already bound unambiguously in the conversation. A missing
-  reference asks for an ID or canonical URL. A topic, title fragment, foreign-
-  project URL, ambiguous conversational reference, or numeric suffix extracted
-  from a rejected URL never becomes a guessed ticket.
+- **TM-R1 — Exact current-project reference.** Direct or indirect requests to
+  retrieve one referenced ticket select this capability without requiring the
+  user to name the skill. Read only an explicit ticket ID, a canonical URL
+  belonging to the current project's resolved backend, or an exact reference
+  already bound unambiguously in the conversation. A missing reference asks for
+  an ID or canonical URL. A topic, title fragment, foreign-project URL,
+  ambiguous conversational reference, or numeric suffix extracted from a
+  rejected URL never becomes a guessed ticket.
 - **TM-R2 — Read-only.** Reading never mutates tracker state and never becomes
   permission to comment, edit, label, relate, close, reopen, assign, or start
   the tracked work.
@@ -228,12 +230,14 @@ act on.
 - **TM-L2 — Deliberate filters.** Filters (type/label, milestone, text,
   state) are derived from the request and stated in the report. Open
   tickets are the default; closed or all states only when asked.
-- **TM-L3 — Compact, decision-relevant output.** Per ticket: id, title,
-  type/labels (and state, when the query spans states) — no raw tracker
-  dumps.
-- **TM-L4 — Honest truncation.** A capped list states the cap and the
-  total match count; an empty result states which filters produced it.
-  Never present a truncated list as complete.
+- **TM-L3 — Compact, decision-relevant output.** Relay the complete compact CLI
+  response starting with its `backend:` line without changing its visible
+  content or line order. Per ticket: id, title, type/labels (and state, when the
+  query spans states) — no raw tracker dumps.
+- **TM-L4 — Honest truncation.** A capped list states the cap and characterizes
+  the total honestly, including `more than N` when the backend query establishes
+  only a lower bound; an empty result states which filters produced it. Never
+  present a truncated list as complete.
 
 ### Non-goals
 

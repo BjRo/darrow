@@ -1,5 +1,7 @@
 id: readiness-ready-without-plan
-invariant: IRG-C6
+invariant: IRG-C6,IRG-E1,IRG-E4,SE-C9,SE-C10,SE-C11,SE-C14
+activation: positive
+mount_plugin_skills: true
 prompt: >-
   Is this ready for implementation? Replace the user-facing phrase "Master
   account" with "Primary account" in README.md only. It is complete when the
@@ -37,10 +39,14 @@ output_checks:
     expect_regex: "^## Implementation readiness$"
   - name: exact mechanical request is ready without formal planning
     expect_regex: "^\\*\\*Verdict:\\*\\* `ready`$"
-  - name: result does not demand planning ceremony
-    not_regex: "needs (a |an )?(formal )?(ticket|implementation plan|file list)"
-    flags: i
   - name: ready report preserves basis quality bar and empty findings
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^- \\*\\*Criterion:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Oracle:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Verification:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Findings$\\n\\nNone\\.$[\\s\\S]*^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `none`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
+semantic_output_checks:
+  - name: bounded mechanical work needs no planning ceremony
+    proposition: >-
+      The response accepts the request as ready from its exact file scope,
+      phrase-replacement oracle, and feasible check, without treating the lack
+      of a ticket, implementation plan, or predetermined implementation steps
+      as a readiness blocker.

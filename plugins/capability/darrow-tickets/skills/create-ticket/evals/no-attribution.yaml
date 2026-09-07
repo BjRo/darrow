@@ -1,5 +1,7 @@
 id: create-ticket-no-attribution
 invariant: TM-C7
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   File a feature ticket for CSV export of the transactions view. Motivation:
   our accountant needs offline copies. Done when a CSV with all visible
@@ -164,7 +166,7 @@ checks:
     expect_regex: ".+"
   - name: no attribution in the ticket
     run: cat .git/fixture-gh/created-title .git/fixture-gh/created-body
-    not_regex: "generated (with|by|using)|co-authored|claude|🤖"
+    not_regex: "generated (with|by|using)|created (with|by|using)|authored (with|by|using)|produced (with|by|using)|AI[- ](generated|created|authored|filed)|co-authored|artificial intelligence|ChatGPT|GPT-?[0-9]|Claude|Codex|LLM|🤖"
     flags: i
   - name: no invented export requirements
     run: cat .git/fixture-gh/created-body
@@ -172,5 +174,5 @@ checks:
     flags: i
   - name: not smuggled via comments or edits
     run: cat .git/fixture-gh/comment-body-* .git/fixture-gh/edited-body-* 2>/dev/null || true
-    not_regex: "generated (with|by|using)|co-authored|claude|🤖"
+    not_regex: "generated (with|by|using)|created (with|by|using)|authored (with|by|using)|produced (with|by|using)|AI[- ](generated|created|authored|filed)|co-authored|artificial intelligence|ChatGPT|GPT-?[0-9]|Claude|Codex|LLM|🤖"
     flags: i

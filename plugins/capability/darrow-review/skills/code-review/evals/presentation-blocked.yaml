@@ -1,4 +1,5 @@
 id: code-review-presentation-blocked
+activation: positive
 invariant: CR-C15,CR-E12
 prompt: >-
   Review my uncommitted changes. Report only and do not create a change just to
@@ -8,10 +9,28 @@ fixture:
     - message: "chore: init"
       files:
         README.md: "# Clean fixture\n"
-checks: []
-output_checks:
-  - name: terminal scope failure is human-readable Markdown
-    expect_regex: "^# Code review — BLOCKED[\\s\\S]*## Checks[\\s\\S]*declared review scope is empty"
-    flags: i
+checks:
+  - name: terminal scope artifact is canonical and preserves the reason
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      bash "$tool" validate "$record" &&
+      grep -F 'verdict	blocked' "$record" >/dev/null &&
+      grep -F 'declared review scope is empty' "$record" >/dev/null &&
+      ! grep -E '^(changed_file|finding)	' "$record" >/dev/null
+    expect_regex: "^valid: darrow-review-result-v1$"
   - name: terminal scope response does not leak TSV
-    not_regex: "^format\\tdarrow-review-result-v1$"
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      bash "$tool" render "$record" >"$expected" &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

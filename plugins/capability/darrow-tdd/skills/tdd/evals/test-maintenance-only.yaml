@@ -1,5 +1,8 @@
 id: tdd-test-maintenance-only
-invariant: TDD-C1
+invariant: TDD-C1,TDD-E1
+activation: negative
+activation_excludes: [tdd]
+mount_plugin_skills: true
 prompt: >-
   Update the test fixture's displayName from "Old Name" to "Ada Lovelace".
   This is fixture maintenance only: do not modify product code or tests and do
@@ -35,7 +38,8 @@ checks:
       if(f.id!==42 || f.displayName!=='Ada Lovelace' || Object.keys(f).length!==2) process.exit(1)"
   - name: product and test files remain unchanged
     run: git diff --exit-code -- src/user.js test/user.test.js
-output_checks:
-  - name: maintenance response does not invent red or green evidence
-    not_regex: "(^|\\b)(red|green)(\\b|:)"
-    flags: i
+semantic_output_checks:
+  - name: maintenance response does not invent a TDD cycle
+    proposition: >-
+      The response reports the requested fixture-only maintenance without
+      claiming that it performed or observed a red-green implementation cycle.

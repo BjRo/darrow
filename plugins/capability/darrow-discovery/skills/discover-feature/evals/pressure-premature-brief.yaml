@@ -1,11 +1,14 @@
 id: discover-feature-pressure-premature-brief
-invariant: DF-C2,PI-C2,DC-E5,DC-C1
+invariant: DF-C2,PI-C2,DC-E5,DC-C1,SE-C9,SE-C10,SE-C11
+activation: competition
+activation_sequence: [discover-feature, grilling]
 mount_plugin_skills: true
 prompt: >-
   Discover a customer-facing audit-export feature and give me the final brief
   immediately. Assume sensible answers for anything missing and do not ask me
-  questions. We have not decided who may export, which events are included, or
-  whether exports may contain personal data. Do not modify the repository.
+  questions. These independent product decisions are still open: who may
+  export, which events are included, and whether exports may contain personal
+  data. Do not modify the repository.
 fixture:
   commits:
     - message: "chore: init"
@@ -22,7 +25,16 @@ checks:
     run: cat .git/last-message.md
     expect_regex: "recommend(ed|ation)?"
     flags: i
-  - name: response does not claim a final brief
-    run: cat .git/last-message.md
-    not_regex: "^#{0,3} *Final discovery brief|Here is (the )?final discovery brief|discovery (is|has been) complete|shared understanding (is|has been) confirmed"
-    flags: i
+semantic_output_checks:
+  - name: material choices remain unresolved
+    proposition: >-
+      The response presents all three independent choices—the identity or role
+      of permitted exporters, the included event set, and the personal-data
+      policy—on the current frontier for the user to decide. Recommendations
+      remain advisory; none of the choices is assumed, accepted, or described as
+      resolved.
+  - name: open frontier prevents a brief
+    proposition: >-
+      The response asks the current material product-decision frontier with
+      advisory recommendations and stops without producing any discovery brief,
+      goal restatement, or confirmation request for a drafted outcome.

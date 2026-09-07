@@ -1,4 +1,5 @@
 id: code-review-no-trigger-after-edit
+activation: negative
 invariant: CR-E1
 prompt: >-
   Change DEFAULT_TIMEOUT_MS from 1000 to 2500. Do not perform a code review;

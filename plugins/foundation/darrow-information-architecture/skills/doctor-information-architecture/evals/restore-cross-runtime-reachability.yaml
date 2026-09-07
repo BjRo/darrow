@@ -1,5 +1,7 @@
 id: doctor-information-architecture-restore-cross-runtime-reachability
-invariant: IA-D4
+invariant: IA-D4,IA-D12
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Doctor this dual-runtime information architecture and apply safe fixes. The
   signed policy applies to every coding agent, regardless of runtime.
@@ -18,6 +20,7 @@ fixture:
           # Security policy
 
           Scope: all automated coding runtimes.
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
 checks:
   - name: cross-runtime security rule remains intact
     run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
@@ -29,24 +32,14 @@ checks:
       rule=$(find . -type f -name '*.md' -not -path './.git/*'
       -not -path './.agents/*' -not -path './.claude/skills/*'
       -exec grep -il 'never copy production secrets into local fixtures' {} + | sed -n '1p');
-      target=${rule#./}; test -n "$target"; TARGET="$target" awk '
-      function without_target(value, target, pos) {if (target == "") return value; while ((pos=index(value, target))) value=substr(value, 1, pos-1) " " substr(value, pos+length(target)); return value}
-      function has_loader(value) {return tolower(value) ~ /(^|[^[:alnum:]_])(read|consult|load|follow)([^[:alnum:]_]|$)/}
-      function check() {target=ENVIRON["TARGET"]; lower=tolower(without_target(block, target)); if (index(block, target) && lower ~ /(secret|credential|security)/ && has_loader(lower)) found=1}
-      /\|/ {check(); block=$0; check(); block=""; next}
-      /^[[:space:]]*([-*+]|[0-9][0-9]*[.)])[[:space:]]/ {check(); if (has_loader(block) && block !~ /[.A-Za-z0-9_\/-]+\.md/) block=block " " $0; else block=$0; next}
-      /^[[:space:]]*#[#]*[[:space:]]/ {check(); block=$0; next}
-      /^[[:space:]]*$/ {if (block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=""} else if (has_loader(block)) block=block " "; else block=""; next}
-      {if (has_loader($0) && $0 ~ /[.A-Za-z0-9_\/-]+\.md/ && block ~ /[.A-Za-z0-9_\/-]+\.md/) {check(); block=$0; next}}
-      {block=block " " $0}
-      END {check(); if (found) print "reachable"}' AGENTS.md; fi
+      target=${rule#./}; test -n "$target";
+      root=$(pwd -P); policy=$(cd "$(dirname "$target")" && pwd -P)/$(basename "$target");
+      bash .git/ia-doctor inspect --runtime codex . |
+      grep -F "$root/AGENTS.md -> $policy" >/dev/null && echo reachable; fi
     expect_regex: "^reachable$"
   - name: deterministic dual-runtime verification passes
     run: >-
-      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
-      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
-      else echo missing-doctor; exit 1; fi;
-      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count

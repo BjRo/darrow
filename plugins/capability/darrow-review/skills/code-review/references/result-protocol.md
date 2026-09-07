@@ -11,12 +11,15 @@ canonical mechanical artifact and every field is one line without tabs. Do not
 select an arbitrary TSV: `scope.tsv` and axis records are not aggregate results.
 
 Default standalone and composed responses are a Markdown rendering of that
-validated artifact. Use `bash "$report_tool" render "$result_record"`; it
-preserves all fields, escapes hostile content, and does not include raw TSV.
-Only an explicit request for raw TSV, v1, or machine format returns the TSV
-bytes, beginning with `format<TAB>darrow-review-result-v1`, ending with the
-`next_action` record, and containing nothing else. This applies to `pass`,
-`fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff outcomes.
+validated artifact. Materialize it as `review.md` beside `result.tsv`, confirm
+that file is readable and nonempty, then use one dedicated final
+`bash "$report_tool" render "$result_record"` invocation and return its complete
+stdout. The renderer preserves all fields, escapes hostile content, and does
+not include raw TSV. Only an explicit request for raw TSV, v1, or machine format
+returns the TSV bytes, beginning with `format<TAB>darrow-review-result-v1`,
+ending with the `next_action` record, and containing nothing else. This applies
+to `pass`, `fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff
+outcomes.
 
 For an explicit review clause inside a larger goal, return the selected normal
 presentation rather than the enclosing goal's response envelope. The goal owner
@@ -59,6 +62,10 @@ risk<TAB>concise residual risk or none observed       # repeat
 next_action<TAB>one authorized next step, or none
 ```
 
+Every applicable `check` row is copied byte-for-byte from a retained
+`darrow-review-check-v1` artifact produced beneath this scope. Coordinator prose
+must not replace the captured command, status, or evidence.
+
 A failing axis has at least one blocking finding; advisory findings alone do
 not fail it. Every blocking Spec finding cites an exact originating clause.
 
@@ -80,11 +87,21 @@ Write the draft only beneath the scope artifact directory and run:
 bash "$result_tool" validate "$result_record"
 ```
 
-Correct serialization errors only. In default mode, render the validated file
-and return only that Markdown. In explicit machine mode, copy the validated
-file bytes verbatim. In composed mode, return the selected review report to the
-goal owner and exit the capability. Add no remediation, commit,
-publication, approval, merge, release, or deploy action inside review.
+Correct serialization errors only. In default mode, first run:
+
+```sh
+review_report="$(dirname "$result_record")/review.md"
+bash "$report_tool" render "$result_record" >"$review_report"
+test -r "$review_report" && test -s "$review_report"
+```
+
+If that succeeds, make a standalone
+`bash "$report_tool" render "$result_record"` the final tool call and copy its
+complete stdout as the entire response. Do not handwrite, shorten, or reconstruct
+it. In explicit machine mode, copy the validated file bytes verbatim. In
+composed mode, return the selected review report to the goal owner and exit the
+capability. Add no remediation, commit, publication, approval, merge, release,
+or deploy action inside review.
 
 ## Fix-verification artifact
 
@@ -113,6 +130,9 @@ Derive every original finding key as
 `<axis>:<canonical-order>:<original-target>`. Derive every repair-caused
 regression key as
 `regression:<canonical-regression-order>:<causing-original-finding-key>`.
+Regression order is independent of original-finding order: start at `1` when no
+regression is carried, then assign new orders after the highest carried
+regression order.
 
 Create this tab-separated record in the shown order:
 
@@ -132,6 +152,10 @@ evidence_gap<TAB>missing or inconsistent required evidence           # repeat
 outcome<TAB>clear|continue|no_progress|blocked
 next_action<TAB>one authorized enclosing-goal action, or none
 ```
+
+Every applicable verification `check` row likewise comes byte-for-byte from its
+retained `darrow-review-check-v1` artifact. The reader receives the same row, so
+aggregation cannot turn a failed command into a pass.
 
 Every blocking original finding has exactly one attempt. An advisory may remain
 unattempted when it was ineligible; advisories never determine the outcome. A

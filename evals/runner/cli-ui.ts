@@ -29,7 +29,10 @@ export interface ActivationLine {
   passed: boolean | null;
   className: string;
   targetSkill: string;
+  expectedSkills?: string[];
+  excludedSkills?: string[];
   primarySkill: string | null;
+  observedSkills?: string[];
   source: string | null;
 }
 
@@ -70,6 +73,7 @@ export interface RunHeading {
   harnessVersion?: string;
   cases: number;
   trials: number;
+  jobs: number;
   threshold: number;
   condition?: string;
   dry: boolean;
@@ -170,30 +174,51 @@ export function progressFrame(
   return `${styled}  ${truncate(suffix, available)}`;
 }
 
+function activationRoute(activation: ActivationLine): string {
+  if (activation.passed === null)
+    return `· ${activation.className} · source unavailable`;
+  if (activation.passed)
+    return activation.className === "negative"
+      ? `· ${activation.targetSkill} avoided`
+      : `· ${activation.targetSkill} selected`;
+  return failedActivationRoute(activation);
+}
+
+function failedActivationRoute(activation: ActivationLine): string {
+  const observed = activation.observedSkills ?? [];
+  const excluded = activation.excludedSkills ?? [];
+  const hasForbiddenSkill = excluded.some((skill) => observed.includes(skill));
+  if (hasForbiddenSkill)
+    return `· forbidden ${excluded.join(", ")} observed in ${activation.observedSkills?.join(" → ") || "none"}`;
+  if (activation.expectedSkills)
+    return `· expected ${activation.expectedSkills.join(" → ")}, got ${activation.observedSkills?.join(" → ") || "none"}`;
+  return `· expected ${activation.targetSkill}, got ${activation.primarySkill ?? "none"}`;
+}
+
 function outcomesLine(
   taskPassed: boolean,
   activation: ActivationLine,
   presentation: Presentation,
 ): string {
-  const known = activation.passed !== null;
-  const state = !known ? "unknown" : activation.passed ? "passed" : "failed";
-  const color = !known
-    ? ANSI.yellow
-    : activation.passed
-      ? ANSI.green
-      : ANSI.red;
-  const taskColor = taskPassed ? ANSI.green : ANSI.red;
+  const state =
+    activation.passed === null
+      ? "unknown"
+      : activation.passed
+        ? "passed"
+        : "failed";
+  const color =
+    activation.passed === null
+      ? ANSI.yellow
+      : activation.passed
+        ? ANSI.green
+        : ANSI.red;
   const task = paint(
     `Task ${taskPassed ? "passed" : "failed"}`,
-    taskColor,
+    taskPassed ? ANSI.green : ANSI.red,
     presentation,
   );
   const activationState = paint(`Activation ${state}`, color, presentation);
-  const route = !known
-    ? `· ${activation.className} · source unavailable`
-    : activation.passed
-      ? `· ${activation.targetSkill} selected`
-      : `· expected ${activation.targetSkill}, got ${activation.primarySkill ?? "none"}`;
+  const route = activationRoute(activation);
   return `   ${task}  ·  ${activationState} ${paint(route, ANSI.dim, presentation)}`;
 }
 
@@ -365,7 +390,7 @@ export function headingLines(
     ),
     paint("─".repeat(72), ANSI.dim, presentation),
     `${paint("Target", ANSI.dim, presentation)}   ${target}`,
-    `${paint("Run", ANSI.dim, presentation)}      ${heading.cases} cases × ${heading.trials} trials · ${heading.cases * heading.trials} total · threshold ${(heading.threshold * 100).toFixed(0)}%`,
+    `${paint("Run", ANSI.dim, presentation)}      ${heading.cases} cases × ${heading.trials} trials · ${heading.cases * heading.trials} total · jobs ${heading.jobs} · threshold ${(heading.threshold * 100).toFixed(0)}%`,
     ...(context
       ? [`${paint("Context", ANSI.dim, presentation)}  ${context}`]
       : []),
@@ -378,6 +403,7 @@ export function headingLines(
 
 export class EvalCliUi {
   private completed = 0;
+  private started = 0;
   private readonly startedAt = Date.now();
   private currentCaseId?: string;
   private active?: {
@@ -401,6 +427,7 @@ export class EvalCliUi {
     if (this.currentCaseId && this.currentCaseId !== caseId)
       this.stream.write("\n");
     this.currentCaseId = caseId;
+    this.started++;
     this.active = {
       state: {
         completed: this.completed,
@@ -413,7 +440,7 @@ export class EvalCliUi {
     };
     if (!this.presentation.progress) {
       this.stream.write(
-        `RUN ${this.completed + 1}/${this.total}  ${caseId} · trial ${trial}/${trials}\n`,
+        `RUN ${this.started}/${this.total}  ${caseId} · trial ${trial}/${trials}\n`,
       );
       return;
     }

@@ -3,8 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  codexAdapter,
   codexArgv,
   codexEvalSkillsRoot,
+  codexExplicitSkillActivation,
+  codexNativeSessionForThread,
   codexResumeArgv,
   codexRunSucceeded,
   codexSkillActivation,
@@ -12,8 +15,10 @@ import {
   codexThreadId,
   codexTokenUsage,
   retainedCodexEvidence,
+  retainedCodexEvidenceForThread,
 } from "./codex";
 import { observeCodexTicketPipelineRoutes } from "../orchestration-metrics";
+import { gradeActivation } from "../activation";
 import {
   fixtureStateFingerprint,
   guardCodexSpawn,
@@ -31,6 +36,10 @@ const COMPLETE_CONTRACT = [
   "Verification and gates: readiness=not required; review=not required; focused=run the focused test; final=run the repository gate; feedback=return the smallest complete question; blockers=return concrete evidence and the smallest next action",
   "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");
+
+test("uses Terra as the default Codex eval model", () => {
+  expect(codexAdapter.defaultModel).toBe("gpt-5.6-terra");
+});
 
 test("installs the adaptive-goal spawn guard only for relevant turns", () => {
   expect(
@@ -53,7 +62,6 @@ test("builds one persistent Codex session and one exact follow-up resume", () =>
     prompt: "first",
     model: "gpt-5.5",
     effort: "medium",
-    persistent: true,
   });
   expect(initial).not.toContain("--ephemeral");
   const resumed = codexResumeArgv({
@@ -73,6 +81,16 @@ test("builds one persistent Codex session and one exact follow-up resume", () =>
   expect(resumed).not.toContain("--ephemeral");
 });
 
+test("keeps an ordinary Codex eval session for bounded evidence extraction", () => {
+  const argv = codexArgv({
+    repoDir: REPO,
+    prompt: "review",
+    model: "gpt-5.6-terra",
+    effort: "medium",
+  });
+  expect(argv).not.toContain("--ephemeral");
+});
+
 test("requires exactly one Codex thread id before resuming", () => {
   expect(
     codexThreadId(
@@ -90,6 +108,40 @@ test("requires exactly one Codex thread id before resuming", () => {
       ].join("\n"),
     ),
   ).toBeUndefined();
+});
+
+test("loads the one native session bound to the Codex thread", async () => {
+  const configRoot = await mkdtemp(join(tmpdir(), "darrow-codex-session-"));
+  try {
+    expect(
+      await codexNativeSessionForThread(configRoot, "thread-123"),
+    ).toBeUndefined();
+    const sessionRoot = join(configRoot, "sessions", "2026", "09", "06");
+    await mkdir(sessionRoot, { recursive: true });
+    const expected = '{"ordinal":0,"payload":{"type":"session_meta"}}\n';
+    await writeFile(
+      join(sessionRoot, "rollout-2026-09-06T10-00-00-thread-123.jsonl"),
+      expected,
+    );
+    await writeFile(
+      join(sessionRoot, "rollout-2026-09-06T10-00-01-other-thread.jsonl"),
+      "decoy\n",
+    );
+    expect(await codexNativeSessionForThread(configRoot, "thread-123")).toBe(
+      expected,
+    );
+    const secondRoot = join(configRoot, "sessions", "2026", "09", "07");
+    await mkdir(secondRoot, { recursive: true });
+    await writeFile(
+      join(secondRoot, "rollout-2026-09-07T10-00-00-thread-123.jsonl"),
+      expected,
+    );
+    expect(
+      await codexNativeSessionForThread(configRoot, "thread-123"),
+    ).toBeUndefined();
+  } finally {
+    await rm(configRoot, { recursive: true, force: true });
+  }
 });
 
 test("Codex no-skill control does not require a plugin package", async () => {
@@ -181,6 +233,213 @@ describe("Codex token accounting", () => {
 });
 
 describe("Codex skill activation observation", () => {
+  test("explicit activation ignores a complete read outside the mounted skill root", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-explicit-unmounted-"));
+    const root = join(repo, ".agents/skills");
+    const decoy = join(repo, "docs/grilling/SKILL.md");
+    const body =
+      "---\nname: grilling\ndescription: Ask questions\n---\nComplete required instructions.\n";
+    try {
+      await mkdir(join(root, "grilling"), { recursive: true });
+      await mkdir(join(repo, "docs/grilling"), { recursive: true });
+      await writeFile(join(root, "grilling/SKILL.md"), body);
+      await writeFile(decoy, body);
+      const stream = [
+        {
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${decoy}`,
+            aggregated_output: body,
+            status: "completed",
+            exit_code: 0,
+          },
+        },
+        { type: "turn.completed" },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const observation = codexExplicitSkillActivation(
+        stream,
+        "$sample:plan-implementation",
+        {
+          mode: "explicit",
+          skill: "plan-implementation",
+          invocation: "$sample:plan-implementation",
+        },
+        { repoDir: repo, installedSkillsRoots: root },
+      );
+      expect(observation).toMatchObject({
+        complete: true,
+        primarySkill: "plan-implementation",
+        observedSkills: ["plan-implementation"],
+      });
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          sequence: ["plan-implementation", "grilling"],
+        }).passed,
+      ).toBe(false);
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          excludes: ["grilling"],
+        }).passed,
+      ).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("a truncated first supporting read cannot prove an explicit exclusion", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-explicit-truncated-"));
+    const root = join(repo, ".agents/skills");
+    const frontmatter =
+      "---\nname: grilling\ndescription: Ask questions\n---\n";
+    try {
+      await mkdir(join(root, "grilling"), { recursive: true });
+      await writeFile(
+        join(root, "grilling/SKILL.md"),
+        `${frontmatter}Complete required instructions.\n`,
+      );
+      const stream = [
+        {
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${root}/grilling/SKILL.md`,
+            aggregated_output: frontmatter,
+            status: "completed",
+            exit_code: 0,
+          },
+        },
+        { type: "turn.completed" },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const observation = codexExplicitSkillActivation(
+        stream,
+        "$sample:plan-implementation",
+        {
+          mode: "explicit",
+          skill: "plan-implementation",
+          invocation: "$sample:plan-implementation",
+        },
+        { repoDir: repo, installedSkillsRoots: root },
+      );
+      expect(observation.observedSkills).toEqual(["plan-implementation"]);
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          excludes: ["grilling"],
+        }).passed,
+      ).toBeNull();
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("explicit activation grades supporting reads in sequences and exclusions", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-explicit-activation-"));
+    const root = join(repo, ".agents/skills");
+    const body =
+      "---\nname: grilling\ndescription: Ask the decision frontier\n---\nRead the full instructions before asking.\n";
+    try {
+      await mkdir(join(root, "grilling"), { recursive: true });
+      await writeFile(join(root, "grilling/SKILL.md"), body);
+      const read = {
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: `cat ${root}/grilling/SKILL.md`,
+          aggregated_output: body,
+          exit_code: 0,
+          status: "completed",
+        },
+      };
+      const stream = [read, read, { type: "turn.completed" }]
+        .map((event) => JSON.stringify(event))
+        .join("\n");
+      const observation = codexExplicitSkillActivation(
+        stream,
+        "Use $sample:plan-implementation",
+        {
+          mode: "explicit",
+          skill: "plan-implementation",
+          invocation: "$sample:plan-implementation",
+        },
+        { repoDir: repo, installedSkillsRoots: root },
+      );
+      expect(observation).toMatchObject({
+        source: "explicit_invocation",
+        complete: true,
+        primarySkill: "plan-implementation",
+        observedSkills: ["plan-implementation", "grilling"],
+      });
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          sequence: ["plan-implementation", "grilling"],
+        }).passed,
+      ).toBe(true);
+      expect(
+        gradeActivation("positive", "plan-implementation", observation, {
+          excludes: ["grilling"],
+        }).passed,
+      ).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("uses one explicit host invocation without requiring a skill-file read", () => {
+    const stream = JSON.stringify({ type: "turn.completed" });
+    expect(
+      codexExplicitSkillActivation(
+        stream,
+        "Use $sample:grilling for this request.",
+        {
+          mode: "explicit",
+          skill: "grilling",
+          invocation: "$sample:grilling",
+        },
+      ),
+    ).toEqual({
+      source: "explicit_invocation",
+      complete: true,
+      primarySkill: "grilling",
+      observedSkills: ["grilling"],
+    });
+  });
+
+  test.each([
+    [
+      "missing token",
+      "Use the appropriate skill.",
+      '{"type":"turn.completed"}',
+    ],
+    [
+      "duplicated token",
+      "Use $sample:grilling, then $sample:grilling again.",
+      '{"type":"turn.completed"}',
+    ],
+    [
+      "malformed stream",
+      "Use $sample:grilling.",
+      '{"type":"item.completed",broken\n{"type":"turn.completed"}',
+    ],
+    ["failed turn", "Use $sample:grilling.", '{"type":"turn.failed"}'],
+  ])("keeps %s explicit evidence unknown", (_label, prompt, stream) => {
+    expect(
+      codexExplicitSkillActivation(stream, prompt, {
+        mode: "explicit",
+        skill: "grilling",
+        invocation: "$sample:grilling",
+      }),
+    ).toEqual({
+      source: "explicit_invocation",
+      complete: false,
+      primarySkill: null,
+      observedSkills: [],
+    });
+  });
+
   test("keeps a no-plugin control complete without inventing a project skill", () => {
     const stream = JSON.stringify({ type: "turn.completed" });
     expect(
@@ -188,6 +447,15 @@ describe("Codex skill activation observation", () => {
     ).toEqual({
       source: "skill_file_read_probe",
       complete: true,
+      primarySkill: null,
+      observedSkills: [],
+    });
+  });
+
+  test("keeps a missing implicit observation channel unknown", () => {
+    expect(codexSkillActivation("", REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: false,
       primarySkill: null,
       observedSkills: [],
     });
@@ -273,6 +541,197 @@ describe("Codex skill activation observation", () => {
     });
   });
 
+  test("observes mounted skill bodies read through shell indirections", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const skillDirectory = join(skillsRoot, "grilling");
+    const skillBody = [
+      "---",
+      "name: grilling",
+      "description: Help prepare food over direct heat.",
+      "---",
+      "",
+      "# Grilling",
+      "",
+      "Inspect the food before giving advice.",
+      "",
+    ].join("\n");
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(join(skillDirectory, "SKILL.md"), skillBody);
+
+    try {
+      const commands = [
+        `skills_root=${skillsRoot}; skill=grilling; cat "$skills_root/$skill/SKILL.md"`,
+        `cd ${skillDirectory} && sed -n '1,80p' SKILL.md`,
+        `skill_file=$(find ${skillsRoot} -path '*/grilling/SKILL.md' -print -quit); sed -n '1,80p' "$skill_file"`,
+      ];
+      for (const command of commands) {
+        const stream = [
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command,
+              aggregated_output: skillBody,
+              exit_code: 0,
+              status: "completed",
+            },
+          }),
+          JSON.stringify({ type: "turn.completed" }),
+        ].join("\n");
+
+        expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+          source: "skill_file_read_probe",
+          complete: true,
+          primarySkill: "grilling",
+          observedSkills: ["grilling"],
+        });
+        expect(
+          retainedCodexEvidence(stream, REPO, undefined, skillsRoot),
+        ).toContain('"skill":"grilling"');
+      }
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("requires a complete mounted body for a supporting skill read", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-composed-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const planBody = [
+      "---",
+      "name: plan-implementation",
+      "description: Plan an implementation.",
+      "---",
+      "",
+      "# Plan implementation",
+      "",
+      "Inspect the repository before planning.",
+      "",
+    ].join("\n");
+    const grillingBody = [
+      "---",
+      "name: grilling",
+      "description: Resolve material unknowns.",
+      "---",
+      "",
+      "# Grilling",
+      "",
+      "Ask dependency-aware questions.",
+      "",
+    ].join("\n");
+    await mkdir(join(skillsRoot, "plan-implementation"), { recursive: true });
+    await mkdir(join(skillsRoot, "grilling"), { recursive: true });
+    await writeFile(
+      join(skillsRoot, "plan-implementation", "SKILL.md"),
+      planBody,
+    );
+    await writeFile(join(skillsRoot, "grilling", "SKILL.md"), grillingBody);
+
+    try {
+      const event = (skill: string, output: string) =>
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${skillsRoot}/${skill}/SKILL.md`,
+            aggregated_output: output,
+            exit_code: 0,
+            status: "completed",
+          },
+        });
+      const stream = [
+        event("plan-implementation", planBody),
+        event("grilling", grillingBody.split("# Grilling")[0] ?? ""),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+
+      expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+        source: "skill_file_read_probe",
+        complete: true,
+        primarySkill: "plan-implementation",
+        observedSkills: ["plan-implementation"],
+      });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects indirect output that is not a mounted skill body", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const skillDirectory = join(skillsRoot, "grilling");
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(
+      join(skillDirectory, "SKILL.md"),
+      "---\nname: grilling\ndescription: Mounted body.\n---\n",
+    );
+
+    try {
+      const stream = [
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `root=${skillsRoot}; cat "$root/decoy/SKILL.md"`,
+            aggregated_output:
+              "---\nname: decoy\ndescription: Unmounted body.\n---\n",
+            exit_code: 0,
+            status: "completed",
+          },
+        }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+
+      expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+        source: "skill_file_read_probe",
+        complete: true,
+        primarySkill: null,
+        observedSkills: [],
+      });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("does not infer an indirect read from fabricated mounted frontmatter", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "codex-skill-probe-"));
+    const skillsRoot = join(temporary, "skills");
+    const skillDirectory = join(skillsRoot, "grilling");
+    const skillBody = "---\nname: grilling\ndescription: Mounted body.\n---\n";
+    await mkdir(skillDirectory, { recursive: true });
+    await writeFile(join(skillDirectory, "SKILL.md"), skillBody);
+
+    try {
+      const commands = [
+        `test -f ${skillDirectory}/SKILL.md; printf '%s' fabricated`,
+        `find ${skillsRoot} -name SKILL.md -exec printf '%s' fabricated \\;`,
+        `find ${skillsRoot} -name SKILL.md -print; cat /tmp/decoy/SKILL.md; printf '%s' fabricated`,
+      ];
+      for (const command of commands) {
+        const stream = [
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command,
+              aggregated_output: skillBody,
+              exit_code: 0,
+              status: "completed",
+            },
+          }),
+          JSON.stringify({ type: "turn.completed" }),
+        ].join("\n");
+
+        expect(
+          codexSkillActivation(stream, REPO, skillsRoot).primarySkill,
+        ).toBeNull();
+      }
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
   test("observes canonical skill reads from an installed plugin cache", () => {
     const skillsRoot =
       "/tmp/eval-home/plugins/cache/darrow/darrow-discovery/0.1.0/skills";
@@ -307,6 +766,38 @@ describe("Codex skill activation observation", () => {
       primarySkill: "plan-implementation",
       observedSkills: ["plan-implementation", "grilling"],
     });
+  });
+
+  test("observes repository-relative reads from an installed plugin cache", () => {
+    const skillsRoot = join(
+      REPO,
+      ".git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets/0.2.3/skills",
+    );
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "sed -n '1,240p' .git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets/0.2.3/skills/list-tickets/SKILL.md",
+          aggregated_output:
+            "---\nname: list-tickets\ndescription: List tickets\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO, skillsRoot)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "list-tickets",
+      observedSkills: ["list-tickets"],
+    });
+    expect(
+      retainedCodexEvidence(stream, REPO, undefined, skillsRoot),
+    ).toContain('"skill":"list-tickets"');
   });
 
   test("observes project capability reads alongside an installed orchestrator", () => {
@@ -467,7 +958,32 @@ describe("Codex skill activation observation", () => {
     expect(codexSkillActivation(stream, REPO).complete).toBe(true);
   });
 
-  test("requires structurally complete successful command evidence", () => {
+  test("observes a verified skill read before a later compound command fails", () => {
+    const skillBody = "---\nname: grilling\ndescription: Grill\n---\n";
+    const stream = [
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command:
+            "cat /tmp/eval/.agents/skills/grilling/SKILL.md && rg missing",
+          aggregated_output: skillBody,
+          exit_code: 1,
+          status: "failed",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    expect(codexSkillActivation(stream, REPO)).toEqual({
+      source: "skill_file_read_probe",
+      complete: true,
+      primarySkill: "grilling",
+      observedSkills: ["grilling"],
+    });
+  });
+
+  test("keeps ambiguous implicit command evidence unknown", () => {
     const stream = [
       JSON.stringify({
         type: "item.completed",
@@ -639,9 +1155,9 @@ describe("Codex skill activation observation", () => {
 
     const retained = retainedCodexEvidence(stream, REPO);
     expect(retained).toContain('"type":"item.started"');
-    expect(retained).not.toContain('"model":"gpt-5.6-sol"');
-    expect(retained).not.toContain('"reasoning_effort":"xhigh"');
-    expect(retained).not.toContain('"fork_turns":"none"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
     expect(retained).toContain('"tool":"wait_agent"');
     expect(retained).toContain('"sender_thread_id":"parent-thread"');
     expect(retained).toContain("- review_axis: standards");
@@ -664,6 +1180,388 @@ describe("Codex skill activation observation", () => {
       },
     ]);
     expect(retained).not.toContain("sensitive task context");
+  });
+
+  test("retains current review task labels and route fields", () => {
+    const childId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          sender_thread_id: "parent-thread",
+          receiver_thread_ids: [childId],
+          task_name: "review_standards",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          fork_turns: "none",
+          prompt: "- review_axis: standards\nsensitive task context",
+        },
+      }),
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "completed",
+          sender_thread_id: "parent-thread",
+          receiver_thread_ids: [childId],
+          task_name: "review_standards",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"tool":"spawn_agent"');
+    expect(retained).toContain(`"agent_ref":"${childId}"`);
+    expect(retained).toContain('"task_name":"review_standards"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
+    expect(retained).toContain('"event_type":"item.completed"');
+    expect(retained).toContain('"launch_accepted":true');
+    expect(retained).toContain("- review_axis: standards");
+    expect(retained).not.toContain("sensitive task context");
+  });
+
+  test("merges bounded accepted-launch evidence from the native session", () => {
+    const nativeEntry = (ordinal: number, payload: Record<string, unknown>) =>
+      JSON.stringify({
+        timestamp: `2026-09-06T10:00:0${ordinal}.000Z`,
+        ordinal,
+        type: "response_item",
+        payload,
+      });
+    const nativeSession = [
+      nativeEntry(1, {
+        type: "function_call",
+        name: "spawn_agent",
+        namespace: "collaboration",
+        call_id: "call-standards",
+        arguments: JSON.stringify({
+          task_name: "review_standards",
+          fork_turns: "none",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          message: "gAAAAABencrypted-native-child-prompt",
+        }),
+      }),
+      nativeEntry(2, {
+        type: "item_completed",
+        item: {
+          type: "SubAgentActivity",
+          id: "call-standards",
+          kind: "started",
+          agent_thread_id: "01a04f35-c37a-74b3-baa4-961bc21b6f49",
+          agent_path: "/root/review_standards",
+        },
+      }),
+      nativeEntry(3, {
+        type: "function_call_output",
+        call_id: "call-standards",
+        output: JSON.stringify({ task_name: "/root/review_standards" }),
+      }),
+      nativeEntry(4, {
+        type: "function_call",
+        name: "wait_agent",
+        namespace: "collaboration",
+        call_id: "call-wait",
+        arguments: "{}",
+      }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+      join(REPO, ".agents", "skills"),
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"accepted"');
+    expect(retained).toContain('"call_id":"call-standards"');
+    expect(retained).toContain('"agent_ref":"/root/review_standards"');
+    expect(retained).toContain('"task_name":"review_standards"');
+    expect(retained).toContain('"model":"gpt-5.6-sol"');
+    expect(retained).toContain('"reasoning_effort":"xhigh"');
+    expect(retained).toContain('"fork_turns":"none"');
+    expect(retained).toContain('"review_axis":"standards"');
+    expect(retained).toContain('"type":"darrow.codex_native_wait"');
+    expect(retained).not.toContain("encrypted-native-child-prompt");
+  });
+
+  test("assembles thread-bound native evidence into the retained transcript", async () => {
+    const configRoot = await mkdtemp(join(tmpdir(), "darrow-codex-session-"));
+    try {
+      const threadId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+      const sessionRoot = join(configRoot, "sessions", "2026", "09", "06");
+      await mkdir(sessionRoot, { recursive: true });
+      const entry = (ordinal: number, payload: Record<string, unknown>) =>
+        JSON.stringify({
+          timestamp: `2026-09-06T10:00:0${ordinal}.000Z`,
+          ordinal,
+          type: "response_item",
+          payload,
+        });
+      await writeFile(
+        join(sessionRoot, `rollout-2026-09-06T10-00-00-${threadId}.jsonl`),
+        [
+          entry(1, {
+            type: "function_call",
+            name: "spawn_agent",
+            namespace: "collaboration",
+            call_id: "call-standards",
+            arguments: JSON.stringify({
+              task_name: "review_standards",
+              fork_turns: "none",
+              model: "gpt-5.6-sol",
+              reasoning_effort: "xhigh",
+              message: "- review_axis: standards\nsensitive review packet",
+            }),
+          }),
+          entry(2, {
+            type: "item_completed",
+            item: {
+              type: "SubAgentActivity",
+              id: "call-standards",
+              kind: "started",
+              agent_thread_id: threadId,
+              agent_path: "/root/review_standards",
+            },
+          }),
+          entry(3, {
+            type: "function_call_output",
+            call_id: "call-standards",
+            output: JSON.stringify({ task_name: "/root/review_standards" }),
+          }),
+        ].join("\n"),
+      );
+      const stream = [
+        JSON.stringify({ type: "thread.started", thread_id: threadId }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+      const retained = await retainedCodexEvidenceForThread(
+        stream,
+        REPO,
+        configRoot,
+      );
+      expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+      expect(retained).toContain('"status":"accepted"');
+      expect(retained).not.toContain("sensitive review packet");
+    } finally {
+      await rm(configRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("retains no accepted launch from a malformed native session", () => {
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      {
+        exitCode: 0,
+        stderrPresent: false,
+        nativeSession: "not-json\n",
+      },
+    );
+    expect(retained).toContain(
+      '"type":"darrow.codex_native_session_malformed"',
+    );
+    expect(retained).not.toContain('"type":"darrow.codex_native_spawn"');
+  });
+
+  test("retains earlier spawn attempts when a later native entry is malformed", () => {
+    const nativeSession = [
+      JSON.stringify({
+        timestamp: "2026-09-06T10:00:01.000Z",
+        ordinal: 1,
+        type: "response_item",
+        payload: {
+          type: "function_call",
+          name: "spawn_agent",
+          namespace: "collaboration",
+          call_id: "call-standards",
+          arguments: JSON.stringify({
+            task_name: "review_standards",
+            fork_turns: "none",
+            model: "gpt-5.6-sol",
+            reasoning_effort: "xhigh",
+            message: "gAAAAABsensitive-encrypted-prompt",
+          }),
+        },
+      }),
+      "not-json",
+    ].join("\n");
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+    );
+    expect(retained).toContain(
+      '"type":"darrow.codex_native_session_malformed"',
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"unaccepted"');
+    expect(retained).not.toContain("sensitive-encrypted-prompt");
+  });
+
+  test("does not accept a native spawn with ambiguous returned child IDs", () => {
+    const nativeEntry = (ordinal: number, payload: Record<string, unknown>) =>
+      JSON.stringify({
+        timestamp: `2026-09-06T10:00:0${ordinal}.000Z`,
+        ordinal,
+        type: "response_item",
+        payload,
+      });
+    const nativeSession = [
+      nativeEntry(1, {
+        type: "function_call",
+        name: "spawn_agent",
+        namespace: "collaboration",
+        call_id: "call-standards",
+        arguments: JSON.stringify({
+          task_name: "review_standards",
+          fork_turns: "none",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          message: "gAAAAABsensitive-encrypted-prompt",
+        }),
+      }),
+      nativeEntry(2, {
+        type: "item_completed",
+        item: {
+          type: "SubAgentActivity",
+          id: "call-standards",
+          kind: "started",
+          agent_thread_id: "01a04f35-c37a-74b3-baa4-961bc21b6f49",
+          agent_path: "/root/review_standards",
+        },
+      }),
+      nativeEntry(3, {
+        type: "function_call_output",
+        call_id: "call-standards",
+        output: JSON.stringify({ task_name: "/root/review_standards" }),
+      }),
+      nativeEntry(4, {
+        type: "function_call_output",
+        call_id: "call-standards",
+        output: JSON.stringify({ task_name: "/root/another_child" }),
+      }),
+    ].join("\n");
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"unaccepted"');
+    expect(retained).not.toContain('"status":"accepted"');
+    expect(retained).not.toContain("sensitive-encrypted-prompt");
+  });
+
+  test("retains an ineligible native spawn without exposing its prompt", () => {
+    const nativeSession = JSON.stringify({
+      timestamp: "2026-09-06T10:00:01.000Z",
+      ordinal: 1,
+      type: "response_item",
+      payload: {
+        type: "function_call",
+        name: "spawn_agent",
+        namespace: "collaboration",
+        call_id: "call-generic",
+        arguments: JSON.stringify({
+          task_name: "generic_reviewer",
+          fork_turns: "none",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          message: "gAAAAABsensitive-encrypted-prompt",
+        }),
+      },
+    });
+    const retained = retainedCodexEvidence(
+      JSON.stringify({ type: "turn.completed" }),
+      REPO,
+      { exitCode: 0, stderrPresent: false, nativeSession },
+    );
+    expect(retained).toContain('"type":"darrow.codex_native_spawn"');
+    expect(retained).toContain('"status":"unaccepted"');
+    expect(retained).toContain('"reasons":["review_axis"]');
+    expect(retained).not.toContain("sensitive-encrypted-prompt");
+  });
+
+  test("does not mark a started-only review launch as accepted", () => {
+    const childId = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: [childId],
+          task_name: "review_standards",
+          model: "gpt-5.6-sol",
+          reasoning_effort: "xhigh",
+          fork_turns: "none",
+          prompt: "- review_axis: standards\nsecret body",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"event_type":"item.started"');
+    expect(retained).not.toContain('"launch_accepted":true');
+    expect(retained).not.toContain("secret body");
+  });
+
+  test("omits hostile and unbounded collaboration identifiers", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "wait_agent",
+          status: "in_progress",
+          sender_thread_id: `parent-${"x".repeat(256)}`,
+          receiver_thread_ids: ["child\nsecret"],
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"tool":"wait_agent"');
+    expect(retained).not.toContain("sender_thread_id");
+    expect(retained).not.toContain("receiver_thread_ids");
+    expect(retained).not.toContain("secret");
+  });
+
+  test("retains a bounded reason when a native launch is rejected", () => {
+    const stream = [
+      JSON.stringify({
+        type: "item.started",
+        item: {
+          type: "collab_tool_call",
+          tool: "spawn_agent",
+          status: "in_progress",
+          receiver_thread_ids: ["child-1", "child-2"],
+          task_name: "Sensitive review title",
+          prompt: "- review_axis: standards\nsecret body",
+        },
+      }),
+      JSON.stringify({ type: "turn.completed" }),
+    ].join("\n");
+
+    const retained = retainedCodexEvidence(stream, REPO);
+    expect(retained).toContain('"type":"darrow.collaboration_launch_rejected"');
+    expect(retained).toContain('"reasons":["agent_reference"]');
+    expect(retained).toContain('"task_name_class":"invalid"');
+    expect(retained).toContain('"receiver_count":2');
+    expect(retained).toContain('"item_keys"');
+    expect(retained).not.toContain("Sensitive review title");
+    expect(retained).not.toContain("secret body");
   });
 
   test("distinguishes authorized staging from executed parent verification", () => {

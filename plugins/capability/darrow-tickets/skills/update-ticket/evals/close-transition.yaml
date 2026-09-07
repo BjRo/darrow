@@ -1,5 +1,7 @@
 id: update-ticket-close-transition
 invariant: TM-U4
+activation: competition
+mount_plugin_skills: true
 prompt: "Close ticket #12."
 fixture:
   commits:
@@ -162,8 +164,12 @@ checks:
     run: cat .git/fixture-gh/transitions
     expect_regex: "^close 12$"
   - name: target verified before mutating
-    run: cat .git/fixture-gh/calls
-    expect_regex: "issue view 12"
+    run: >-
+      awk '
+        /^issue view 12 / && !verified { verified = NR }
+        /^issue close 12( |$)/ { closed = NR; close_count++ }
+        END { exit !(verified && closed && verified < closed && close_count == 1) }
+      ' .git/fixture-gh/calls
   - name: no comment smuggled in
     run: test ! -f .git/fixture-gh/comment-body-12 && echo none
     expect_regex: "^none$"

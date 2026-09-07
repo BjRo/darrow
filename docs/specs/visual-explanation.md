@@ -167,9 +167,10 @@ prose is implemented:
 
 ## Evaluation requirements
 
-1. **VE-E1 — Intent boundaries.** Direct and indirect visual-explanation
-   requests select the behavior; implementation and visual-artifact requests
-   do not mis-trigger it.
+1. **VE-E1 — Intent boundaries.** Explicit direct and incomplete-subject
+   requests dispatch the named skill, indirect visual-explanation requests
+   select it through completed skill-body discovery, and implementation and
+   visual-artifact requests do not select it.
 2. **VE-E2 — Representation fit.** Call flow, state transition, ownership,
    change, and algorithm cases choose a fitting compact form rather than a
    generic prose list or an unrelated diagram type.

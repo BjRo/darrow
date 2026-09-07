@@ -1,5 +1,7 @@
 id: doctor-information-architecture-preserve-settled-abandoned-experiment
-invariant: IA-D10
+invariant: IA-D10,IA-D12
+activation: competition
+mount_plugin_skills: true
 prompt: >-
   Doctor the repository information architecture and apply safe cleanup while
   preserving settled architecture decisions.
@@ -21,6 +23,7 @@ fixture:
         src/persistence/sql/a.go: "package sql\n"
         src/persistence/sql/b.go: "package sql\n"
         src/persistence/sql/c.go: "package sql\n"
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
 checks:
   - name: settled ORM direction survives despite pattern frequency
     run: cat .agent-shared/rules/storage.md
@@ -29,17 +32,16 @@ checks:
     run: cat .agent-shared/rules/storage.md
     expect_regex: "abandoned experiment[\\s\\S]*do not extend"
     flags: i
-  - name: response does not reopen the settled choice
-    run: cat .git/last-message.md
-    not_regex: "(which|whether|should|want|prefer|choose|pick|select|either)[^\\n]{0,120}(ORM|SQL)|(ORM|SQL)[^\\n]{0,120}(which|whether|should|want|prefer|choose|pick|select|either)|ORM[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}SQL|SQL[^\\n]{0,40}(or|versus|vs\\.?)[^\\n]{0,40}ORM"
-    flags: i
   - name: settled deferred decision remains reachable in both runtimes
     run: >-
-      if [ -f .agents/bin/ia-doctor ]; then doctor=.agents/bin/ia-doctor;
-      elif [ -f .claude/bin/ia-doctor ]; then doctor=.claude/bin/ia-doctor;
-      else echo missing-doctor; exit 1; fi;
-      bash "$doctor" verify --runtime both . >/dev/null && echo verified
+      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
+semantic_output_checks:
+  - name: settled storage direction is preserved rather than reopened
+    proposition: >-
+      The response recognizes the existing storage guidance as a settled
+      policy rather than treating ORM and raw SQL as an unresolved choice or
+      asking the user to choose between them again.

@@ -1,7 +1,7 @@
 {
   "name": "darrow-discovery",
-  "description": "Structured grilling, feature discovery, and implementation planning",
-  "version": "0.1.0",
+  "description": "Explicit grilling, feature discovery, and implementation planning",
+  "version": "0.1.3",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",
