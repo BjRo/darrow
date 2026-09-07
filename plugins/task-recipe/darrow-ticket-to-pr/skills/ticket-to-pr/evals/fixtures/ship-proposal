@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Independent fixture publisher: no calls into the Darrow Git implementation.
+set -euo pipefail
+test "$#" = 1
+test "$1" = "$(git rev-parse HEAD)"
+test "$(git branch --show-current)" = fix/GH-42-timeout
+bash check.sh
+git -c push.followTags=false push origin "$1:refs/heads/fix/GH-42-timeout"
+remote=$(git ls-remote origin refs/heads/fix/GH-42-timeout | awk '{print $1}')
+forge=$(gh pr list --repo fixture/repo --head fix/GH-42-timeout --state open \
+  --json headRefOid --jq '.[] | .headRefOid' | awk -F '\t' '{print $5}')
+test "$remote" = "$1"
+test "$forge" = "$1"
+printf '%s\n' "$1" >>.git/replacement-publications
+printf '%s\n' 'publication: verified' \
+  'url: https://github.com/fixture/repo/pull/42' 'repository: fixture/repo' \
+  'head: fix/GH-42-timeout' 'base: main' 'draft: false' \
+  "intended-commit: $1" "remote-commit: $remote" "pr-commit: $forge"

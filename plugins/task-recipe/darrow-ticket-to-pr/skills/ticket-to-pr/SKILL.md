@@ -40,6 +40,11 @@ Pass one concise request that preserves the exact ticket reference and says:
 > Commit or commits, push without rewriting history, and create or reuse exactly
 > one verified pull request when ready. Use a linked worktree, named base, or
 > draft pull request only when the user explicitly requested it.
+>
+> Completion must include owner-sourced evidence that the remote branch and
+> exactly one open PR both have the intended verified commit as their head,
+> with the requested repository, base and draft state. An existing URL alone
+> does not satisfy publication of additional local commits.
 
 Include this authority boundary in the same request:
 
@@ -71,6 +76,9 @@ this main thread. A later user answer continues the same adaptive-goal owner in
 this thread. Do not invoke Ticket-to-PR again, answer or rewrite the question,
 launch a replacement owner, or perform the owner's work in the main thread.
 
-Completion is the owner-sourced URL and evidence for exactly one verified pull
-request. Otherwise relay the exact current question or blocker and its smallest
-next action.
+Completion is the owner-sourced URL and intended/published commit evidence for
+exactly one verified pull request. Preserve that complete URL and commit
+evidence when relaying or summarizing completion; a PR number alone is
+insufficient. If the owner omitted required evidence, relay that gap instead
+of claiming completion or inspecting the forge yourself. Otherwise relay the
+exact current question or blocker and its smallest next action.

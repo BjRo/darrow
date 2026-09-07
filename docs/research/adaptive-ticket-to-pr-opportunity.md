@@ -7,6 +7,14 @@ orchestrator; Matt Shumer's
 [How to Run a Gauntlet Loop](https://somethingbig.ai/gauntlet-loop); and the
 layered-composition sketch and follow-up design discussion reproduced below.
 
+Current disposition: the adopted responsibility model and operation contracts
+are in [layer composition](../specs/layer-composition.md). The implemented
+[ticket-to-PR recipe](../specs/ticket-to-pr.md) delegates once and owns no
+specialized preflight. Earlier assignments of readiness, intake mechanics or
+workflow policy to the recipe below are research history, not current policy.
+Automation and Artificer remain unimplemented proposals requiring a separately
+authorized entry and handoff design.
+
 ## Purpose
 
 This note preserves the result of a design discussion about replacing the

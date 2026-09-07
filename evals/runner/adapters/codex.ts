@@ -2158,7 +2158,7 @@ function nativeStartedActivity(
 
 function nativeSpawnStart(
   entries: CodexNativeSessionEntry[],
-  request: CodexNativeSpawnRequest,
+  request: Pick<CodexNativeSpawnRequest, "callId">,
 ): { ordinal: number; agentRef: string; threadId: string } | undefined {
   const starts = entries
     .map((entry) => nativeStartedActivity(entry, request.callId))
@@ -2173,7 +2173,7 @@ function nativeSpawnStart(
 
 function nativeSpawnAcceptance(
   entries: CodexNativeSessionEntry[],
-  request: CodexNativeSpawnRequest,
+  request: Pick<CodexNativeSpawnRequest, "callId">,
   agentRef: string,
 ): number | undefined {
   const outputs = entries.filter(
@@ -2188,7 +2188,7 @@ function nativeSpawnAcceptance(
 }
 
 function isAcceptedNativeSpawn(
-  request: CodexNativeSpawnRequest,
+  request: Pick<CodexNativeSpawnRequest, "ordinal">,
   start: { ordinal: number } | undefined,
   acceptedOrdinal: number | undefined,
   acceptanceAllowed: boolean,
@@ -2270,8 +2270,66 @@ export function retainedCodexNativeSessionEvidence(session: string): object[] {
   return [
     ...spawns,
     ...waits,
+    ...retainedSingleNativeAgent(entries, malformed),
     ...(malformed ? [{ type: "darrow.codex_native_session_malformed" }] : []),
   ];
+}
+
+/** Host acceptance proves an agent exists, without inferring its private role. */
+function retainedSingleNativeAgent(
+  entries: CodexNativeSessionEntry[],
+  malformed: boolean,
+): object[] {
+  const spawns = entries.filter((entry) => isNativeSpawnCall(entry.payload));
+  if (malformed || spawns.length !== 1) return [];
+  const fields = nativeSpawnFields(spawns[0]!);
+  if (
+    !fields.callId ||
+    !fields.model ||
+    !fields.reasoningEffort ||
+    !fields.forkTurns
+  )
+    return [];
+  const request = { callId: fields.callId, ordinal: fields.ordinal };
+  const start = nativeSpawnStart(entries, request);
+  if (!start) return [];
+  const accepted = nativeSpawnAcceptance(entries, request, start.agentRef);
+  if (
+    accepted === undefined ||
+    !isAcceptedNativeSpawn(request, start, accepted, true)
+  )
+    return [];
+  return [
+    {
+      type: "darrow.codex_native_single_agent_accepted",
+      agent_ref: start.agentRef,
+      model: fields.model,
+      reasoning_effort: fields.reasoningEffort,
+      fork_turns: fields.forkTurns,
+      role: "unverified",
+    },
+    ...entries
+      .filter((entry) => nativeParentWork(entry, accepted, start.agentRef))
+      .map(() => ({ type: "darrow.codex_native_parent_tool_after_agent" })),
+  ];
+}
+
+function nativeParentWork(
+  entry: CodexNativeSessionEntry,
+  acceptedOrdinal: number,
+  agentRef: string,
+) {
+  const payload = entry.payload;
+  if (
+    entry.ordinal <= acceptedOrdinal ||
+    (payload.type !== "function_call" && payload.type !== "custom_tool_call")
+  )
+    return false;
+  if (payload.namespace !== "collaboration") return true;
+  if (payload.name === "wait_agent") return false;
+  if (payload.name === "followup_task" || payload.name === "interrupt_agent")
+    return nativeSpawnArguments(payload)?.target !== agentRef;
+  return true;
 }
 
 export function retainedCodexEvidence(

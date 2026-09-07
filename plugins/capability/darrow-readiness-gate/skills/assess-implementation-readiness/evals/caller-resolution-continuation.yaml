@@ -1,0 +1,63 @@
+id: readiness-caller-resolution-continuation
+invariant: IRG-C7,IRG-C8,IRG-E6,LC-C2
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Execute this bounded goal: change config.json to the timeout I select, either
+  1500 or 2500 ms. I have not selected one yet. Use an implementation-readiness
+  capability before implementation; continue only with ready evidence.
+  You own this goal, including returning any readiness finding to me and
+  continuing after I resolve it. Authorized effects are only editing config.json
+  and running bash check.sh with the selected timeout. Also preserve each
+  returned assessment for my audit: request v1 JSON and, after the capability
+  returns, pipe that complete JSON to capture-readiness. This caller-owned
+  recorder is authorized; the assessment itself stays read-only. Keep commits
+  and all publication out of scope. Return the complete readiness result when
+  asking for my decision.
+follow_up_prompt: >-
+  Select 2500 ms. Continue this same goal with the resolved input and its required
+  readiness evidence, then implement and verify. Keep the same authority limits.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        config.json: '{"timeoutMs":1000}'
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test "$(cat config.json)" = "{\"timeoutMs\":$1}"
+  bin:
+    capture-readiness: |
+      #!/usr/bin/env bash
+      set -eu
+      if test -e .git/readiness-first.json; then stage=resolved; else stage=first; fi
+      test ! -e ".git/readiness-$stage.json"
+      cat >".git/readiness-$stage.json"
+      cp config.json ".git/config-at-$stage.json"
+checks:
+  - name: same caller continues to the resolved outcome
+    run: bash check.sh 2500
+  - name: only authorized configuration changes
+    run: test "$(git status --porcelain | awk '{print $2}')" = config.json
+  - name: no commit or new owner
+    run: test "$(git rev-list --count HEAD)" = 1
+  - name: full nonready and ready assessments survive the caller handoff
+    run: >-
+      bun -e 'const a=await Bun.file(".git/readiness-first.json").json();
+      const b=await Bun.file(".git/readiness-resolved.json").json();
+      if(a.format!=="darrow-implementation-readiness-v1" || a.verdict!=="needs-decision" ||
+      !a.findings.length || a.required_next_action.type!=="decision" ||
+      b.format!==a.format || b.verdict!=="ready" || !b.quality_bar.length ||
+      b.findings.length || b.required_next_action.type!=="none") process.exit(1);'
+  - name: implementation waits for both assessment returns
+    run: >-
+      test "$(cat .git/config-at-first.json)" = '{"timeoutMs":1000}' &&
+      test "$(cat .git/config-at-resolved.json)" = '{"timeoutMs":1000}'
+transcript_checks:
+  - name: resolution resumes the same host conversation
+    expect_regex: '"type":"darrow.eval.follow_up_turn","thread_id":"[^"]+"'
+  - name: caller does not spawn a replacement owner
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"|"name":"Task"'
+semantic_output_checks:
+  - name: final result reports resolved readiness and verified implementation
+    proposition: The response reports that config.json now uses 2500 ms with successful verification. It does not say that the non-ready finding terminated the goal permanently.

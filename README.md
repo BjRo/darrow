@@ -142,9 +142,11 @@ instead of bringing its own agent runtime.
 ### Task recipes
 
 Where `adaptive-goal` is a general-purpose primitive, task recipes package one
-common outcome behind a one-line skill invocation — pure ergonomics. A recipe
-owns the outcome-specific authority and publication safety, then delegates
-execution.
+common outcome and a consistent grant of authority behind one explicit
+invocation. A recipe owns the outcome and permission envelope, then delegates
+workflow selection, assurance and execution. The current `ticket-to-pr` recipe
+does no preflight and chooses no workflow, model, branch name or verification
+command.
 
 | Plugin                                                                     | Use it to                                                                                                                        |
 | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -152,9 +154,12 @@ execution.
 
 ### Automation
 
-The outermost loop, sitting on top of task recipes: automations are invoked
-by a scheduler and work unattended, gluing lower layers together. There can be
-as many automations as there are useful combinations.
+Planned automation decides when eligible, explicitly authorized work may start
+under configured admission and capacity rules. It is not implemented. Before
+unattended execution ships, it needs explicit contracts for recurring authority,
+duplicate-work prevention, capacity, waiting for a person and reconciliation.
+The current recipe requires explicit invocation in the current host thread;
+scheduler delegation needs a separately authorized entry path.
 
 Coming soon:
 
@@ -163,6 +168,14 @@ Coming soon:
   work-in-progress limits.
 
 ## How Darrow works
+
+These are responsibility layers, not stages every task traverses. Foundations
+and capabilities support several layers directly; ordinary repository artifacts
+remain useful after their producing foundation plugin is removed. Evaluation
+and observability assess behavior alongside all layers. See the
+[layer contracts and decision ownership](docs/specs/layer-composition.md) for
+implemented handoffs, recommendation dispositions and automation's future
+requirements.
 
 Capabilities teach the agent one focused kind of work. Each skill advertises
 the intent it serves, so the model can select it when a matching request

@@ -162,6 +162,19 @@ skill before performing that operation; a direct shell, Git, forge, tracker,
 or generic subagent call is not a substitute. A refusal or unavailable bound
 skill stops that operation without expanding authority.
 
+Intent matching is candidate discovery, not complete behavioral compatibility.
+Check required prerequisites, effects, evidence and stop conditions against the
+bound skill's public contract before the operation. Preserve compatible
+replacement skills by intent rather than plugin identity. A mismatch returns
+to the owner for an authorized compatible path or a blocker; it never licenses
+bypassing the bound operation's refusal through raw tools.
+
+For authorized create-or-reuse publication, require evidence that exactly one
+open PR has the intended repository, head/base and draft state and that its
+forge head and remote branch equal the intended verified commit. An existing
+URL without current-content evidence cannot complete the goal. The capability
+owns publication mechanics; the owner ties its result to final assurance.
+
 Bindings are derived only from the active host's advertised skills. Do not
 invent a skill, assume a sibling plugin is installed, or bind an unrelated
 capability merely because it is available. An operation with no matching
@@ -281,6 +294,13 @@ written. Do not invoke readiness again merely because the goal is now being
 launched. Reassess only after a material change to scope, acceptance,
 constraints, or authoritative input, or when an explicit user or repository
 rule requires another assessment.
+
+If a material readiness finding appears after launch, the retained engineering
+owner pauses implementation and invokes the bound readiness capability for the
+changed scope. A non-ready result returns to that same owner. It may investigate
+within authority or relay a material question through the parent; after findings
+are resolved it obtains required ready evidence before continuing. The parent
+does not take over preflight, launch another owner, or perform the investigation.
 
 ## Independent review
 

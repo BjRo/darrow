@@ -78,6 +78,17 @@ constraints for producing and interpreting that evidence.
   the first supporting read. Truncated evidence cannot establish an exclusion;
   the observation stays unknown until a complete read verifies that skill.
 
+- Recipe composition evidence must positively establish the accepted agent and
+  the bound supporting capability. Absence of a prohibited action alone cannot
+  prove a handoff. Codex native acceptance correlates one spawn, host start and
+  accepted result; missing, duplicate, malformed or mismatched evidence stays
+  unaccepted. When the host encrypts the launch message, the receipt leaves the
+  agent's role unverified. Combine it with supporting capability activation,
+  observed outcomes and absence of parent work after acceptance for composition
+  evidence; it cannot establish a complete goal contract or selected/effective
+  route equivalence. Retain only bounded identity/route facts and parent work
+  observations, without private command or contract contents.
+
 ## Retained results and interrupted runs
 
 Each attempt has a unique directory under `evals/results/attempts/`. Its

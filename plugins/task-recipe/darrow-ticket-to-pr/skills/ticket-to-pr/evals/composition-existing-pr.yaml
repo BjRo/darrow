@@ -1,0 +1,113 @@
+id: ticket-to-pr-composition-existing-pr
+invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,LC-C1,LC-C3,LC-C4,GW-P9
+expect_head_change: true
+adaptive_goal_composition: true
+additional_plugins:
+  - plugins/orchestration/darrow-goal-loop
+  - plugins/capability/darrow-readiness-gate
+additional_skills:
+  - plugins/capability/darrow-git/skills/prepare-task-branch
+  - plugins/capability/darrow-git/skills/create-commit
+  - plugins/capability/darrow-git/skills/create-pr
+prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          Run `bash check.sh` for this local configuration change.
+          Preserve NOTES.md, which contains committed delivery notes.
+        config.json: '{"timeoutMs":1000}'
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test "$(cat config.json)" = '{"timeoutMs":2500}'
+  files:
+    .agents/skills/fetch-work-item/SKILL.md: >
+      ---
+
+      name: fetch-work-item
+
+      description: Read one exact authoritative ticket for the current
+      repository without mutation. Use when ticket content is needed for
+      assessment or implementation.
+
+      ---
+
+
+      # Fetch the work item
+
+
+      Run `fetch-work-item <exact-reference>` and return the complete output.
+    .claude/skills/fetch-work-item/SKILL.md: >
+      ---
+
+      name: fetch-work-item
+
+      description: Read one exact authoritative ticket for the current
+      repository without mutation. Use when ticket content is needed for
+      assessment or implementation.
+
+      ---
+
+
+      # Fetch the work item
+
+
+      Run `fetch-work-item <exact-reference>` and return the complete output.
+  bin:
+    fetch-work-item: >
+      #!/usr/bin/env bash
+
+      set -eu
+
+      test "$#" = 1
+
+      test "$1" = https://example.invalid/tickets/42
+
+      printf '%s\n' 'ticket-token: GH-42' \
+        'Outcome: config.json must contain exactly {"timeoutMs":2500}.' \
+        'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
+        'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
+        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.'
+  setup:
+    bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures"
+    builtin
+checks:
+  - name: ticket implementation meets acceptance
+    run: bash check.sh
+  - name: additional commits and intended implementation reach the existing PR branch
+    run:
+      test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse
+      refs/heads/fix/GH-42-timeout)" && git merge-base --is-ancestor "$(cat
+      .git/original-local-head)" HEAD && test "$(git --git-dir=.git/remote.git
+      show fix/GH-42-timeout:config.json)" = '{"timeoutMs":2500}' && test "$(git
+      --git-dir=.git/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat
+      NOTES.md)"
+  - name: forge observation proves the intended final commit
+    run: grep -Fx "$(git rev-parse HEAD)" .git/forge-observations
+  - name: builtin publication entrypoint verifies the intended commit
+    run: grep -Fx "$(git rev-parse HEAD)" .git/builtin-publications
+  - name: owner reports the intended commit evidence
+    run: |
+      expected=$(git rev-parse HEAD)
+      for candidate in $(LC_ALL=C tr -cs '0-9a-f' '\n' < .git/last-message.md); do
+        test "${#candidate}" -ge 7 && test "${#candidate}" -le 64 || continue
+        resolved=$(git rev-parse --verify "$candidate^{commit}" 2>/dev/null) || continue
+        test "$resolved" != "$expected" || exit 0
+      done
+      exit 1
+  - name: no duplicate PR or unauthorized forge effect
+    run: test ! -e .git/forbidden-forge-effects
+output_checks:
+  - name: owner completion and existing URL are relayed
+    expect_regex: '^(?:\*\*)?Status: complete\b[\s\S]*https://github.com/fixture/repo/pull/42'
+# Composition is gated by accepted handoff, executed publication and artifacts.
+# Full supporting-skill activation remains a separate reported observation.
+transcript_checks:
+  - name: one agent is accepted for the composed task
+    expect_regex: '"type":"(?:darrow.codex_native_single_agent_accepted|darrow.goal_agent_completion)"'
+  - name: bound publisher is invoked
+    expect_regex: (?:"type":"darrow.skill_read_probe"[^\n]*"skill":"create-pr"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*create-pr")
+  - name: native parent performs no work after handoff
+    not_regex: '"type":"darrow.codex_native_parent_tool_after_agent"'

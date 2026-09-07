@@ -1,7 +1,7 @@
 {
   "name": "darrow-readiness-gate",
   "description": "Read-only implementation-readiness assessment with composable gate verdicts",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

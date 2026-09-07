@@ -207,8 +207,9 @@ upstream) first if needed. Draft only when the user asks for a draft.
 - **GW-P5 — Push without rewrite.** The branch is pushed (upstream set when
   missing) before the PR is created. Never force-push; a refused push is
   relayed verbatim and stops the workflow.
-- **GW-P6 — One PR, no duplicates.** An existing open PR for the branch is
-  reported, never duplicated. Exactly one PR per invocation.
+- **GW-P6 — One PR, no duplicates.** Ordinary creation reports an existing open
+  PR without pushing. Explicit authority to publish to/reuse that PR permits
+  the separate reuse operation, never a duplicate or metadata update.
 - **GW-P7 — Committed work only.** The PR proposes committed work.
   Uncommitted changes are reported, never committed or stashed to "complete"
   the PR. No commits ahead of the base → report, stop.
@@ -220,10 +221,17 @@ upstream) first if needed. Draft only when the user asks for a draft.
   the default why/what structure. With multiple templates
   (`.github/PULL_REQUEST_TEMPLATE/`), the user chooses; never silently
   pick one.
+- **GW-P9 — Verified publication.** An authorized reuse requires the intended
+  full commit ID and verifies exactly one open same-repository PR with the
+  expected head, base and draft state before pushing. Push only that commit to
+  the same branch without force. Read-only verification proves both the remote
+  branch and forge head equal the intended commit. A mismatch, ambiguous PR,
+  unavailable check or changed local head refuses completion and reports any
+  push already performed. The same verification is available after creation.
 
 ### Non-goals
 
-Merging or auto-merge, assigning reviewers/labels/milestones, updating or
-closing existing PRs, creating tickets, authoring or editing PR templates,
+Merging or auto-merge, assigning reviewers/labels/milestones, editing existing
+PR metadata or closing PRs, creating tickets, authoring or editing PR templates,
 committing (see create-commit), branching (see create-branch), pushing the
 default branch.

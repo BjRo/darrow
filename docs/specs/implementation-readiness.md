@@ -193,9 +193,12 @@ preserve the complete readiness result and smallest next action in the final
 response.
 ```
 
-A non-ready verdict terminates the enclosing implementation goal before
-mutation. The goal owner preserves the complete readiness result in the
-selected presentation and may append records its own contract requires. A
+A non-ready verdict prevents implementation and returns the complete assessment
+to the caller. The same enclosing owner decides whether to investigate within
+authority, ask the user, or terminate; readiness does not make that decision.
+Only resolved findings and required ready evidence permit implementation. The
+owner preserves the complete result in the selected presentation and emits its
+own required records if it terminates. A
 ready verdict returns the `ready` verdict and concrete `quality_bar` to that
 goal owner as gate evidence before returning control, after which the goal's
 separately authorized effects may continue. The enclosing goal, not the
@@ -230,9 +233,10 @@ unavailable.
 7. **IRG-C7 — Read-only authority.** Assessment does not edit files, create a
    branch, update a ticket, implement, commit, push, open a pull request,
    release, deploy, or perform unrelated external mutation.
-8. **IRG-C8 — Composable stop.** Inside an enclosing goal, a non-ready verdict
-   stops before mutation; a ready verdict returns control without adding
-   authority.
+8. **IRG-C8 — Composable stop.** A non-ready verdict stops implementation and
+   returns findings to the enclosing owner without terminating or replacing it.
+   A ready verdict returns control without adding authority. Authorized finding
+   resolution and required reassessment belong to the caller.
 9. **IRG-C9 — Explicit output negotiation.** The default result is
    human-readable and preserves every semantic field. The v1 JSON
    representation is used only when the caller or enclosing contract
@@ -272,9 +276,10 @@ unavailable.
    observable acceptance and verification can be ready.
 4. **IRG-E4 — Proportionality.** A clear mechanical change is not rejected for
    lacking a formal ticket, plan, or predetermined file list.
-5. **IRG-E5 — Read-only safety.** Standalone assessment and every non-ready
-   composed goal leave repository and external state unchanged, including
-   under pressure to rubber-stamp readiness.
+5. **IRG-E5 — Read-only safety.** Every assessment leaves repository and external
+   state unchanged, including under pressure to rubber-stamp readiness. A
+   non-ready result never permits implementation; separately authorized finding
+   resolution belongs to the caller after the capability returns.
 6. **IRG-E6 — Composition.** A ready composed goal may continue under its
    existing authority, while a non-ready composed goal stops before mutation.
 7. **IRG-E7 — Cross-harness behavior.** Fresh Claude Code and Codex contexts

@@ -198,6 +198,18 @@ tracker, or generic-subagent call is not a substitute for a bound skill. If the
 skill refuses or becomes unavailable, stop that operation without expanding
 authority.
 
+Before an operation becomes due, check the bound skill's public prerequisites,
+effects, returned evidence and stop conditions against the goal. Advertised
+intent alone does not prove behavioral compatibility. Accept differently named
+compatible skills; resolve a known mismatch before mutation. Return a refusal
+to the owner for an authorized next action, never bypass it through raw tools.
+
+For authorized PR creation or reuse, require the publisher to return evidence
+for the intended verified commit: exactly one open PR, repository, head/base,
+draft state, and matching remote and forge head commit IDs. An existing URL
+alone cannot prove unpublished local commits were delivered. Explicit reuse
+and non-force push authority permits content publication, not metadata updates.
+
 Do not invent bindings or assume sibling plugins exist. An operation without a
 matching advertised skill remains ordinary owner work unless the request,
 repository, or selected gate requires that capability. Bind publication
@@ -270,6 +282,14 @@ and smallest next action. Before repeating an ambiguous external effect,
 observe current state and never duplicate an effect that already completed. Do
 not retry an unchanged deterministic failure without changed evidence or
 conditions. There is no Darrow retry or waiver state machine.
+
+Compile this readiness-continuation rule when readiness is selected: a material
+scope, acceptance, constraint or authoritative-input change after launch pauses
+implementation. The retained owner invokes the bound readiness capability for
+that changed scope, resolves findings within authority or relays the smallest
+question, and obtains required ready evidence before resuming. A non-ready
+capability result returns to this same owner; it does not terminate or replace
+the owner. The parent only relays human feedback after launch.
 
 The owner result must begin with exactly `Status: complete` when the requested
 outcome is achieved or `Status: blocked` when work cannot proceed. It must then
