@@ -69,6 +69,34 @@ async function selectionFixture() {
   return root;
 }
 
+async function pluginSelectionFixture() {
+  const root = await selectionFixture();
+  await cp(
+    join(root, "plugins/capability/example"),
+    join(root, "plugins/capability/darrow-git"),
+    { recursive: true },
+  );
+  await rm(join(root, "plugins/capability/example"), { recursive: true });
+  for (const kind of [
+    "capability",
+    "foundation",
+    "orchestration",
+    "task-recipe",
+  ]) {
+    await writeCase(
+      root,
+      `plugins/${kind}/darrow-git-extra/skills/create-commit/evals`,
+      `darrow-git-${kind}-misleading`,
+    );
+  }
+  await writeCase(
+    root,
+    "evals/experiments/darrow-git/cases",
+    "darrow-git-experiment",
+  );
+  return root;
+}
+
 async function runSelection(root: string, args: readonly string[]) {
   const output = join(root, "result.json");
   const proc = Bun.spawn(
@@ -210,6 +238,160 @@ test("unfiltered selection includes every discovered case", async () => {
     "alpha",
     "beta",
     "create-commit-experiment",
+    "create-commit-misleading",
+    "gamma",
+  ]);
+});
+
+test("--plugin selects every colocated skill by exact plugin directory", async () => {
+  const root = await pluginSelectionFixture();
+  const { code, stderr, results } = await runSelection(root, [
+    "--plugin",
+    "darrow-git",
+  ]);
+  expect(code, stderr).toBe(0);
+  expect(results.map((result) => result.caseId)).toEqual([
+    "alpha",
+    "beta",
+    "create-commit-misleading",
+    "gamma",
+  ]);
+  expect(results.map((result) => result.skillDirectory)).toEqual([
+    join(root, "plugins/capability/darrow-git/skills/create-commit"),
+    join(root, "plugins/capability/darrow-git/skills/create-commit"),
+    join(root, "plugins/capability/darrow-git/skills/create-pr"),
+    join(root, "plugins/capability/darrow-git/skills/create-commit-extra"),
+  ]);
+});
+
+test.each(["foundation", "orchestration", "task-recipe"])(
+  "--plugin selects cases in %s plugins",
+  async (kind) => {
+    const root = await selectionFixture();
+    await mkdir(join(root, `plugins/${kind}`), { recursive: true });
+    await cp(
+      join(root, "plugins/capability/example"),
+      join(root, `plugins/${kind}/darrow-git`),
+      { recursive: true },
+    );
+    const { code, stderr, results } = await runSelection(root, [
+      "--plugin",
+      "darrow-git",
+    ]);
+    expect(code, stderr).toBe(0);
+    expect(results.map((result) => result.caseId)).toEqual([
+      "alpha",
+      "beta",
+      "create-commit-misleading",
+      "gamma",
+    ]);
+    expect(
+      results.every((result) =>
+        result.skillDirectory?.startsWith(
+          join(root, `plugins/${kind}/darrow-git/skills/`),
+        ),
+      ),
+    ).toBe(true);
+  },
+);
+
+test("plugin, skill, and repeatable case filters intersect", async () => {
+  const root = await pluginSelectionFixture();
+  const { code, stderr, results } = await runSelection(root, [
+    "--plugin",
+    "darrow-git",
+    "--skill",
+    "create-commit",
+    "--case",
+    "alp",
+    "--case",
+    "bet",
+    "--case",
+    "misleading",
+  ]);
+  expect(code, stderr).toBe(0);
+  expect(results.map((result) => result.caseId)).toEqual(["alpha", "beta"]);
+});
+
+test("case filters narrow plugin selection across skills", async () => {
+  const root = await pluginSelectionFixture();
+  const { code, stderr, results } = await runSelection(root, [
+    "--plugin",
+    "darrow-git",
+    "--case",
+    "alp",
+    "--case",
+    "misleading",
+  ]);
+  expect(code, stderr).toBe(0);
+  expect(results.map((result) => result.caseId)).toEqual([
+    "alpha",
+    "create-commit-misleading",
+  ]);
+});
+
+test.each([
+  { args: ["--plugin", "unknown"] },
+  { args: ["--plugin", "darrow"] },
+  { args: ["--plugin", ""] },
+  { args: ["--plugin", "darrow-git", "--skill", "unknown"] },
+  { args: ["--plugin", "darrow-git", "--case", "darrow-git"] },
+])("rejects an empty plugin selection: %j", async ({ args }) => {
+  const root = await pluginSelectionFixture();
+  const { code, stdout, stderr, results } = await runSelection(root, args);
+  expect(code).toBe(1);
+  expect(stdout).toBe("");
+  expect(stderr).toBe("No cases matched.\n");
+  expect(results).toEqual([]);
+});
+
+test.each([
+  { args: ["--skill-dir", siblingPath], mounted: siblingPath },
+  { args: ["--without-skill"], mounted: null },
+])("mount options preserve plugin selection: %j", async ({ args, mounted }) => {
+  const root = await pluginSelectionFixture();
+  await cp(
+    join(root, "plugins/capability/darrow-git/skills/create-pr"),
+    join(root, siblingPath),
+    { recursive: true },
+  );
+  const { code, stderr, results } = await runSelection(root, [
+    "--plugin",
+    "darrow-git",
+    ...args,
+  ]);
+  expect(code, stderr).toBe(0);
+  expect(results.map((result) => result.caseId)).toEqual([
+    "alpha",
+    "beta",
+    "create-commit-misleading",
+    "gamma",
+  ]);
+  expect(
+    results.every(
+      (result) =>
+        result.skillDirectory === (mounted ? join(root, mounted) : null),
+    ),
+  ).toBe(true);
+});
+
+test("plugin selection excludes unrelated corpus dependencies before resolution", async () => {
+  const root = await pluginSelectionFixture();
+  const path = join(
+    root,
+    "plugins/capability/darrow-git-extra/skills/create-commit/evals/darrow-git-capability-misleading.yaml",
+  );
+  const evalCase = JSON.parse(await readFile(path, "utf8"));
+  evalCase.fixture = { source: "unprepared-corpus" };
+  await writeFile(path, JSON.stringify(evalCase));
+  const { code, stderr, results } = await runSelection(root, [
+    "--plugin",
+    "darrow-git",
+  ]);
+  expect(code, stderr).toBe(0);
+  expect(results.map((result) => result.caseId)).toEqual([
+    "alpha",
+    "beta",
     "create-commit-misleading",
     "gamma",
   ]);

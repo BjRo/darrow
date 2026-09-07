@@ -232,6 +232,9 @@ async function scanCases(
     evalCase.owningSkillName = evalCase.skillDir
       ? basename(evalCase.skillDir)
       : undefined;
+    evalCase.owningPluginName = evalCase.skillDir
+      ? basename(dirname(dirname(evalCase.skillDir)))
+      : undefined;
     evalCase.caseDir = dirname(path);
     cases.push(evalCase);
   }
@@ -330,6 +333,7 @@ async function loadCases(
   filter?: string[],
   corpusManifest = DEFAULT_CORPUS_MANIFEST,
   skill?: string,
+  plugin?: string,
 ): Promise<EvalCase[]> {
   const cases = [
     ...(await scanCases("plugins/*/*/skills/*/evals/*.yaml", (path) =>
@@ -341,6 +345,7 @@ async function loadCases(
   cases.sort((a, b) => a.id.localeCompare(b.id));
   const selected = cases.filter(
     (evalCase) =>
+      (plugin === undefined || evalCase.owningPluginName === plugin) &&
       (skill === undefined || evalCase.owningSkillName === skill) &&
       (!filter?.length || filter.some((value) => evalCase.id.includes(value))),
   );
@@ -1425,6 +1430,7 @@ const { values } = parseArgs({
     jobs: { type: "string", default: "3" },
     case: { type: "string", multiple: true },
     skill: { type: "string" },
+    plugin: { type: "string" },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
     condition: { type: "string" },
@@ -1627,6 +1633,7 @@ const cases = await loadCases(
     ? resolve(process.cwd(), values["corpus-manifest"])
     : DEFAULT_CORPUS_MANIFEST,
   values.skill,
+  values.plugin,
 );
 if (values["skill-dir"]) {
   const skillDir = resolve(process.cwd(), values["skill-dir"]);
