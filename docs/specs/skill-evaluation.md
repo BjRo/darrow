@@ -30,6 +30,20 @@ distinct from task outcomes and skill-value ablation.
 
 ## Public contract
 
+### Direct case selection
+
+The direct runner accepts `--skill <skill-name>` to select discovered cases
+by the exact name of their colocated owning skill directory. Selection does
+not depend on case IDs and excludes skill-less experiments. When combined
+with repeatable `--case <substring>` filters, a case must belong to the named
+skill and match at least one case substring. Without `--skill`, existing case
+selection is unchanged. An empty selection fails with `No cases matched.`
+
+Selection happens before fixture resolution and mounted-skill overrides.
+`--skill-dir` still overrides the skill mounted for the selected cases; it
+does not select cases or change their ownership. `--without-skill` likewise
+changes mounting without changing the selected case set.
+
 ### Invariant coverage
 
 The coverage command scans one or more normative Markdown specifications and
@@ -333,6 +347,12 @@ remains copyable and useful when hyperlinks are unavailable.
   enters the retained result. Encrypted child prompts bind review axes through
   one unambiguous bounded task-name token rather than prompt inspection.
 
+- **SE-C25 — Select cases by owning skill.** The direct runner's `--skill`
+  filter selects every discovered case colocated with the exact named skill,
+  independently of case-ID naming and mounted-skill overrides. Case filters
+  narrow that set, skill-less cases are excluded, and an empty selection
+  fails explicitly.
+
 ## Evaluation requirements
 
 1. Coverage fixtures include covered and uncovered IDs, comma-separated case
@@ -396,6 +416,11 @@ remains copyable and useful when hyperlinks are unavailable.
     cover exact parent-thread lookup, missing or ambiguous rollouts, accepted
     native launch reduction from encrypted prompts, task-name axis binding,
     rejected-attempt retention, and prompt exclusion.
+
+21. Direct-runner subprocess tests cover skill selection with unrelated and
+    misleading case IDs, exact skill-name matching, skill-less experiments,
+    combined case filters, mount overrides, and empty matches. They also
+    preserve case-only and unfiltered selection.
 
 ## Non-goals
 
