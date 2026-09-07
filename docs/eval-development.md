@@ -133,6 +133,14 @@ intact; the warning does not turn a completed behavioral check into a failure.
 
 ## Live-run controls
 
+Select all colocated cases for every skill in one plugin with
+`--plugin <plugin-name>`, for example
+`bun evals/runner/run.ts --plugin darrow-git --harness codex` from the repository
+root. The plugin name matches its directory exactly across plugin kinds,
+regardless of case IDs, and excludes skill-less experiments. Add `--skill` to
+narrow the selection to one skill in that plugin, or repeatable `--case` filters
+to narrow it to IDs matching any supplied substring.
+
 Select all colocated cases for one skill with `--skill <skill-name>`, for
 example `bun evals/runner/run.ts --skill create-commit --harness codex` from
 the repository root. The skill name matches its directory exactly, regardless

@@ -135,6 +135,9 @@ export interface EvalCase {
   /** Owning skill name derived from the colocated case path before any
    *  candidate skill-directory override; never supplied by case YAML. */
   owningSkillName?: string;
+  /** Owning plugin directory name derived from the colocated case path before
+   *  mount overrides; never supplied by case YAML. */
+  owningPluginName?: string;
   /** Absolute directory containing the case YAML, derived by the loader. */
   caseDir: string;
   prompt: string;

@@ -36,8 +36,15 @@ The direct runner accepts `--skill <skill-name>` to select discovered cases
 by the exact name of their colocated owning skill directory. Selection does
 not depend on case IDs and excludes skill-less experiments. When combined
 with repeatable `--case <substring>` filters, a case must belong to the named
-skill and match at least one case substring. Without `--skill`, existing case
-selection is unchanged. An empty selection fails with `No cases matched.`
+skill and match at least one case substring.
+
+The direct runner also accepts `--plugin <plugin-name>` to select all discovered
+cases under `plugins/<kind>/<plugin-name>/skills/*/evals/`, matching the plugin
+directory exactly regardless of case IDs or plugin kind. Skill-less experiments
+are excluded. `--plugin` and `--skill` intersect when both are supplied, and
+repeatable `--case` filters narrow the result to IDs matching any substring.
+Without either ownership filter, existing case selection is unchanged. An empty
+selection fails with `No cases matched.`
 
 Selection happens before fixture resolution and mounted-skill overrides.
 `--skill-dir` still overrides the skill mounted for the selected cases; it
@@ -352,6 +359,11 @@ remains copyable and useful when hyperlinks are unavailable.
   independently of case-ID naming and mounted-skill overrides. Case filters
   narrow that set, skill-less cases are excluded, and an empty selection
   fails explicitly.
+- **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
+  filter selects every discovered case colocated under all skills of the exact
+  named plugin, across plugin kinds and independently of case IDs or mounting
+  configuration. Skill and case filters narrow that set, skill-less experiments
+  are excluded, and an empty selection fails explicitly.
 
 ## Evaluation requirements
 
@@ -421,6 +433,10 @@ remains copyable and useful when hyperlinks are unavailable.
     misleading case IDs, exact skill-name matching, skill-less experiments,
     combined case filters, mount overrides, and empty matches. They also
     preserve case-only and unfiltered selection.
+22. Direct-runner subprocess tests cover plugin selection across multiple skills
+    and plugin kinds, unrelated and misleading case IDs, exact plugin-name
+    matching, excluded experiments, combined skill and case filters, mount
+    overrides, and empty matches.
 
 ## Non-goals
 
