@@ -133,6 +133,15 @@ intact; the warning does not turn a completed behavioral check into a failure.
 
 ## Live-run controls
 
+Select all colocated cases for one skill with `--skill <skill-name>`, for
+example `bun evals/runner/run.ts --skill create-commit --harness codex` from
+the repository root. The skill name matches its directory exactly, regardless
+of case IDs. Add repeatable `--case <substring>` options to narrow that skill's
+cases to IDs matching any supplied substring. An unmatched selection fails
+with `No cases matched.` The separate `--skill-dir <path>` option overrides
+the mounted skill after selection; `--without-skill` disables mounting while
+preserving the selected cases.
+
 Codex runs use independent defaults for each eval role:
 
 - candidate: `gpt-5.6-terra` at `medium` effort;
