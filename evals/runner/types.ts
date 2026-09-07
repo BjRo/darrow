@@ -176,6 +176,8 @@ export interface EvalCase {
 }
 
 export interface HarnessResult {
+  /** Actual policy assistance; absent historical evidence remains unknown. */
+  evaluationEnforcement?: "passive" | "enforced";
   ok: boolean;
   durationMs: number;
   /** False when reported token buckets are missing or structurally invalid. */
@@ -253,6 +255,7 @@ export interface HarnessRunRequest {
   model: string;
   effort: string;
   control?: {
+    ownerEvaluationMode?: "passive" | "enforced";
     expectedGoalRoute?: GoalRoute;
     followUpPrompt?: string;
     expectGoalOwner?: boolean;
@@ -270,6 +273,8 @@ export interface CheckResult {
 export type ExecutionMode = "executed" | "dry" | "unknown";
 
 export interface TrialResult {
+  /** Applied native route without inferring encrypted contract selection. */
+  effectiveOwnerRoute?: GoalRoute;
   /** Absent on historical artifacts; never infer execution from output or timing. */
   executionMode?: ExecutionMode;
   trial: number;
@@ -336,6 +341,9 @@ export interface SemanticOutputResult {
 }
 
 export interface CaseResult {
+  /** Requested policy-assistance condition, distinct from actual harness evidence. */
+  ownerEvaluationMode?: "passive" | "enforced";
+  expectedEffectiveOwnerRoute?: { model: string; effort: string };
   executionMode?: ExecutionMode;
   caseId: string;
   invariant: string;

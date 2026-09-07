@@ -64,13 +64,13 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: owner reports complete focused and final verification
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: final verification command is reported
     expect_regex: "final\\.sh"
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
+  - name: owner reports complete focused and final verification
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
   - name: owner reports focused and final verification completed
     proposition: The response says focused verification completed with relevant evidence and final.sh completed as final verification.
 transcript_checks:

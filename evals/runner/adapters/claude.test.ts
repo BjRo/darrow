@@ -1166,8 +1166,9 @@ describe("Claude skill activation observation", () => {
     );
   });
 
-  test("rejects incomplete or route-inconsistent inline owner contracts", () => {
+  test("observes native acceptance separately from strict contract diagnostics", () => {
     for (const prompt of [
+      "- phase: adaptive-goal-owner\nOwn this bounded local change directly.\nOutcome: update notes; preserve existing work; run the notes check.\nNo publication is authorized.",
       inlineOwnerPrompt()
         .split("\n")
         .filter((line) => !line.startsWith("Scope and authority:"))
@@ -1209,7 +1210,10 @@ describe("Claude skill activation observation", () => {
       ].join("\n");
       expect(
         retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
-      ).not.toContain('"type":"darrow.goal_agent_completion"');
+      ).toContain('"type":"darrow.goal_agent_completion"');
+      expect(
+        retainedClaudeEvidence(stream, undefined, routeEvidenceContext),
+      ).toContain('"enforcement_contract_issue"');
     }
   });
 
@@ -1656,6 +1660,25 @@ describe("Claude skill activation observation", () => {
     expect(contextBoundAnswer).toContain(
       '"type":"darrow.goal_agent_resumption"',
     );
+    const steeringEvidence = retainedClaudeEvidence(
+      noEchoStream.replace(
+        JSON.stringify(goalResult("toolu_goal", "agentgoal", feedbackResult)),
+        JSON.stringify(
+          goalResult(
+            "toolu_goal",
+            "agentgoal",
+            "Window closed. No product question is pending.",
+          ),
+        ),
+      ),
+      undefined,
+      {
+        ...routeEvidenceContext,
+        followUpPrompt: "Use the strict migration policy.",
+      },
+    );
+    expect(steeringEvidence).toContain('"type":"darrow.goal_agent_resumption"');
+    expect(steeringEvidence).not.toContain('"question_present":true');
     const plainQuestion = "Which migration policy should this delivery use?";
     const plainQuestionStream = stream.replace(
       JSON.stringify(goalResult("toolu_goal", "agentgoal", feedbackResult)),
@@ -1696,7 +1719,7 @@ describe("Claude skill activation observation", () => {
       },
     );
     expect(configuredFollowUpEvidence).toMatch(
-      /"type":"darrow\.human_feedback_request"[^\n]*"agent_id":"agentgoal"[\s\S]*"type":"darrow\.eval\.follow_up_turn"[\s\S]*"type":"darrow\.human_feedback_relay"[^\n]*"agent_id":"agentgoal"/,
+      /"type":"darrow\.owner_feedback_available"[^\n]*"agent_id":"agentgoal"[\s\S]*"type":"darrow\.eval\.follow_up_turn"[\s\S]*"type":"darrow\.human_feedback_relay"[^\n]*"agent_id":"agentgoal"/,
     );
     expect(claudeParentLifecycleOperations(configuredFollowUpEvidence)).toEqual(
       [],

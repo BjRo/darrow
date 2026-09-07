@@ -80,11 +80,11 @@ checks:
       awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
       END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-invocations
 output_checks:
-  - name: sequenced transition is classified as migration
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
+  - name: sequenced transition is classified as migration
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
   - name: completion reports the semantic review outcome
     proposition: The response says an independent review of the completed change found no blocking findings.
 transcript_checks:

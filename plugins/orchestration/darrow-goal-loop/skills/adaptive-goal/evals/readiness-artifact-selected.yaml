@@ -39,8 +39,6 @@ checks:
   - name: artifact request stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: completed readiness-gated goal reports success
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: completed goal does not expose internal readiness records
     not_regex: "readiness_selection\\t|readiness_verdict\\t"
 transcript_checks:
@@ -48,3 +46,6 @@ transcript_checks:
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: completed readiness-gated goal reports success
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

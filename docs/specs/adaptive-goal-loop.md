@@ -62,8 +62,8 @@ The skill starts only when:
 - the user explicitly invokes adaptive-goal orchestration;
 - an explicitly invoked orchestration entrypoint delegates one bounded request
   while preserving the originating scope and permissions; or
-- an unambiguous answer in the same host thread targets the retained owner's
-  pending question or blocker.
+- unambiguous feedback in the same host thread targets the retained preflight
+  or owner, including corrections, constraints, cancellation, and status requests.
 
 Complexity, duration, and ordinary engineering intent do not authorize
 orchestration. A fresh conversation, an ambiguous answer, or multiple plausible
@@ -87,8 +87,9 @@ reason: explicit-orchestration-entrypoint-required
 Before the owner is accepted, the parent may inspect the request, repository
 state, applicable instructions, accepted decisions, manifests, CI
 configuration, and focused test surfaces. It may run the bundled `goal-loop
-prepare` and `goal-loop route` commands and invoke a selected read-only
-implementation-readiness capability.
+prepare` and `goal-loop route` commands and invoke selected read-only input
+gathering and implementation-readiness capabilities. Retrieve necessary
+authoritative input before classification; preserve the returned evidence.
 
 It must not:
 
@@ -123,22 +124,14 @@ The contract is self-contained and concise. It contains, in plain language:
 - publication limits and the completion evidence to return; and
 - the selected model route and any explicit stopping budget.
 
-The launch representation uses seven stable, human-readable fields exactly
-once: `Role:`, `Outcome:`, `Acceptance criteria:`, `Scope and authority:`,
-`Execution:`, `Verification and gates:`, and `Completion evidence:`. Scope and
-authority names included work, authorized effects, forbidden effects, and work
-to preserve. Execution names the exact workflow identifier, its compact
-implementation sequence, risk, profile, selected route, and exact capability
-bindings. The workflow value is only one of the documented identifiers; the
-sequence occupies a separate semicolon-delimited field, and its steps contain
-no semicolons. Verification and gates names readiness, review, focused checks,
-final checks, feedback, and blockers. This is a launch completeness guard, not
-a serialized lifecycle or completion-report protocol. The Codex and Claude
-boundaries require nonempty workflow and profile values and normalize risk
-semantically to `routine`, `elevated`, or `high`. They validate structural
-completeness, while behavioral evidence verifies the exact selected workflow
-and its separate sequence. Both boundaries reject a contract whose selected
-route disagrees with the concrete spawn model and effort.
+The seven-field template covers role, outcome, acceptance, scope and authority,
+execution, verification and gates, and completion evidence. Equivalent clear
+prose, line wrapping, punctuation, and role wording are valid. Keep the exact
+workflow identifier distinct from its implementation steps and preserve scope,
+permissions, gates, capability bindings, and concrete route. The shipped skill
+does not provide a host contract validator. An eval guard may enforce a stricter
+structured template as a separately identified diagnostic condition; its
+rejections do not define product behavior.
 
 The contract must be understandable without another Darrow file except the
 selected workflow document, which the parent reads and incorporates before
@@ -155,9 +148,10 @@ to the exact advertised skill name. Include those bindings in the owner
 contract. Typical bindings include ticket reads and updates, TDD, commits, pull
 requests, and independent code review.
 
-Readiness is the one pre-owner binding: when selected, the parent invokes its
-bound skill during preflight. Every other binding is invoked by the owner at
-the point where the operation becomes due. The owner must follow the bound
+Readiness and necessary read-only input gathering may run during preflight.
+Preserve completed input evidence and bind any necessary refresh. Implementation,
+verification, review, and publication bindings run in the owner when due.
+The owner must follow the bound
 skill before performing that operation; a direct shell, Git, forge, tracker,
 or generic subagent call is not a substitute. A refusal or unavailable bound
 skill stops that operation without expanding authority.
@@ -296,8 +290,9 @@ constraints, or authoritative input, or when an explicit user or repository
 rule requires another assessment.
 
 If a material readiness finding appears after launch, the retained engineering
-owner pauses implementation and invokes the bound readiness capability for the
-changed scope. A non-ready result returns to that same owner. It may investigate
+owner pauses affected implementation and invokes bound or newly necessary
+advertised readiness under the same selection rules, even if initially omitted.
+A non-ready result returns to that same owner. It may investigate
 within authority or relay a material question through the parent; after findings
 are resolved it obtains required ready evidence before continuing. The parent
 does not take over preflight, launch another owner, or perform the investigation.
@@ -332,12 +327,15 @@ final-tree checks. It supplies the exact current change, originating authority,
 repository standards, and check evidence. A clear result satisfies the gate
 for that content. A blocking result prevents completion and publication.
 
-When existing authority covers the repair, the owner may repair the closed
-finding set once, rerun invalidated checks, and request one fix verification.
-Only a clear verification satisfies the gate. Continued blockage,
-unavailability, inconclusive evidence, no progress, or exhausted authority
-stops. An explicit user-supplied limit may reduce these invocations but never
-permits completion without clear evidence.
+When existing authority covers repair, default to one closed-set repair and
+one fix verification after invalidated checks. An explicit finite nonnegative
+integer user or repository repair budget may change that limit. Apply the
+strictest applicable invocation, time, token, and authority limit. Additional
+attempts require the preceding verification to show resolved original blockers
+or changed evidence narrowing their cause. Only clear current-content evidence
+satisfies the gate. Unchanged, unavailable, inconclusive, out-of-scope, or
+exhausted evidence stops completion and remaining publication. Keep the original
+finding set plus direct repair-caused regressions closed.
 
 No Darrow helper call records review targets or outcomes. The independent
 capability's returned result, the final content, and the owner's summary are the
@@ -361,7 +359,7 @@ repeat preflight, invoke `adaptive-goal`, create another adaptive owner, or
 create a second nested goal for the same contract.
 
 After launch acceptance, the parent performs no repository or external work.
-It may only wait, relay an explicit user answer to the same owner, or stop that
+It may only wait, relay user feedback or request status from the same owner, or stop that
 owner after explicit abandonment or supersession.
 
 ### Human feedback
@@ -374,9 +372,15 @@ The parent surfaces the question and retains the same owner. A later explicit
 answer is relayed verbatim to that owner. No lifecycle marker or fixed display
 summary is required.
 
-The answer grants no broader authority. The same owner performs any required
+The answer grants only explicitly supplied authority. The same owner performs any required
 acknowledgement before resuming mutation. Pending feedback is neither
 completion nor a terminal blocker, and no replacement owner is launched.
+
+Corrections, added constraints, cancellation, and status requests also reach
+the retained owner without requiring a pending question. Restrictions apply
+before the next affected action. Status alone does not cancel execution.
+Cancellation stops further work and reports already performed effects. Report
+host transport or stopping limitations without claiming an unobserved stop.
 
 ### Blockage
 
@@ -405,11 +409,9 @@ authority.
 
 ### Completion
 
-The owner returns a concise human-readable result beginning with exactly one
-status line:
+The owner returns concise human-readable evidence:
 
-- `Status: complete` when the requested outcome is achieved, or
-  `Status: blocked` when work cannot proceed;
+- whether the requested outcome is complete, awaiting feedback, or blocked;
 - changed files or an explicit statement that none changed;
 - focused and final verification evidence;
 - readiness and review outcomes when selected;
@@ -458,8 +460,7 @@ Reason: <specific unavailable boundary or capability>
 Selected route: <provider/model/effort>
 ```
 
-The first line is exactly `Status: launch_required`, with no leading or
-trailing whitespace or Markdown hard-break spaces.
+The unavailable boundary must be clear; this status block is an example.
 
 Nested host processes are not an adaptive-goal fallback.
 
@@ -489,8 +490,8 @@ Nested host processes are not an adaptive-goal fallback.
 9. **AGL-L2 — Semantic gates.** Readiness completes before launch; review runs
    inside the owner. Both are proven by capability results and observable
    repository behavior, not bookkeeping transitions.
-10. **AGL-L3 — Same-owner feedback.** A question and its answer remain attached
-    to the accepted owner whenever the host supports continuation.
+10. **AGL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation,
+    and status requests remain attached to the accepted owner when supported.
 11. **AGL-L4 — Semantic blockage.** A blocker names its condition, evidence,
     and next action without a Darrow retry state machine.
 12. **AGL-L5 — Owner-sourced completion.** The parent relays the owner's
@@ -531,6 +532,47 @@ a similarly named binary. Optional capabilities are selected through
 host-visible intent and are never accessed through sibling plugin paths.
 
 ## Evaluation requirements
+
+### Adaptation and evaluation fidelity (#102)
+
+The following invariants govern adaptation and evidence provenance:
+
+- **AGL-A1 — Owner reassessment.** Material changes invalidate only affected
+  assumptions, readiness, and verification evidence. The retained owner pauses
+  affected implementation, invokes necessary advertised read-only readiness,
+  and strengthens checks within existing scope and authority. Required ready
+  evidence must precede resumed implementation. Missing product decisions or
+  expanded effects require the user's answer; the parent never takes over.
+- **AGL-A2 — Execution steering.** Unambiguous same-thread corrections, added
+  constraints, cancellation, and status requests reach the retained owner even
+  without a pending question. A status request does not cancel execution.
+  Restrictions apply before the next affected action; cancellation stops work
+  and reports already performed effects. Unsupported live delivery is reported
+  honestly, without a replacement owner or a claim that cancellation succeeded.
+- **AGL-A3 — Read-only input gathering.** Before classification and launch, the
+  parent may invoke necessary advertised read-only capabilities to retrieve
+  authoritative input, including a referenced ticket. Preserve their evidence
+  and bind future operations by intent. Retrieval grants no mutation authority.
+- **AGL-A4 — Budgeted closed-set repair.** Default to one repair plus one fix
+  verification. An explicit finite user or repository budget may allow more;
+  each additional attempt requires changed evidence showing material progress
+  against the original blockers or direct repair regressions. Unchanged,
+  inconclusive, unavailable, out-of-scope, or exhausted evidence stops affected
+  work and publication. Only clear verification of current content clears the
+  gate. The same owner applies the limit; no parent repair controller is added.
+- **AGL-A5 — Semantic presentation.** The seven contract fields are a
+  completeness template. Equivalent clear prose, line wrapping, punctuation,
+  status presentation, and role wording are valid. Preserve exact tool keys,
+  route identifiers, and the owner task marker consumed by the owner interface.
+  No runtime contract validator or mandatory closing disclaimer is claimed.
+- **AGL-E2 — Enforcement provenance.** Retain whether candidate execution used
+  active eval enforcement or passive observation. Passive trials install no
+  adaptive-goal guard, rewrite no launch input, and block no candidate operation
+  for product-policy compliance. Ordinary fixture isolation remains in both
+  conditions. Unknown or incomplete observation proves no missing fact.
+  Compare direct execution and preflight on the same fixtures and model/effort
+  routes separately from comparisons changing routes; report sample sizes,
+  outcomes, timing, token-accounting completeness, and limitations.
 
 Behavior evals verify outcomes and public boundaries rather than private
 reasoning or bookkeeping. At minimum, cover:

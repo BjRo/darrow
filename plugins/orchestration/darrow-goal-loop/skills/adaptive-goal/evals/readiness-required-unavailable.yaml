@@ -28,10 +28,9 @@ checks:
     expect_exact: ""
   - name: unavailable readiness creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-output_checks:
-  - name: unavailable readiness stops launch
-    expect_regex: "^Status: launch_required(?:\\r?\\n|$)"
 semantic_output_checks:
+  - name: unavailable readiness stops launch
+    proposition: The response clearly reports that the owner could not be launched and identifies the unavailable launch boundary or required capability.
   - name: stop identifies unavailable readiness
     proposition: The response identifies the required implementation-readiness capability or boundary as unavailable.
 transcript_checks:

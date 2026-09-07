@@ -89,6 +89,15 @@ constraints for producing and interpreting that evidence.
   route equivalence. Retain only bounded identity/route facts and parent work
   observations, without private command or contract contents.
 
+- Native Codex feedback receipts remain `delivery: unverified`; an output
+  string can also be an error. The observer records whether a same-target
+  message attempt followed the runner's actual feedback boundary. Continuation
+  cases combine that observation with an unchanged worktree at the boundary,
+  fixture acknowledgement and effects, one accepted agent, and no parent work.
+  These establish bounded task behavior, not independent proof of exact message
+  delivery. Interrupts and pre-feedback messages cannot satisfy the attempt
+  check.
+
 ## Retained results and interrupted runs
 
 Each attempt has a unique directory under `evals/results/attempts/`. Its
@@ -143,6 +152,31 @@ and the cleanup error. Grading outcomes and any original execution error remain
 intact; the warning does not turn a completed behavioral check into a failure.
 
 ## Live-run controls
+
+Use `--owner-evaluation passive` for native trials of the shipped adaptive-goal
+skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
+and Claude's adaptive-goal-specific scheduler exclusion. The default
+`--owner-evaluation enforced` preserves the historical diagnostic condition.
+Neither mode removes ordinary fixture/credential isolation. Suite modes can
+set `owner_evaluation: passive|enforced` independently. Results retain requested
+mode on the case and actual assistance on each harness result; historical
+absence stays unknown. A dry run is not an observed passive trial.
+
+The enforced Codex guard still consumes its strict structured contract
+template. It may reject valid presentation variants allowed by the shipped
+skill. Treat those as enforcement-profile results, never native product
+failures. Passive native session evidence proves correlated acceptance and
+same-target message attempts but leaves delivery and encrypted role/contract contents
+unverified. Combine it with task and authority evidence; do not infer missing
+contract or route-selection facts.
+
+For a matched Codex comparison, pass `--assert-effective-owner-routes` with
+a JSON object mapping case IDs to `{model, effort}`, or set the suite mode's
+`effective_owner_routes` mapping. Missing, ambiguous, or wrong native route
+evidence fails the assertion. The case retains the expected route and the
+trial retains the independently observed effective route. Suite
+`model_by_harness` overrides the candidate model for that condition, while a
+top-level `harnesses: [codex]` restricts both default and explicit host selection.
 
 Select all colocated cases for every skill in one plugin with
 `--plugin <plugin-name>`, for example

@@ -1334,8 +1334,8 @@ describe("Codex skill activation observation", () => {
       items
         .map((payload, i) => JSON.stringify({ ordinal: i + 1, payload }))
         .join("\n");
-    const proof = (input: string) =>
-      retainedCodexEvidence("", REPO, {
+    const proof = (input: string, boundary = "") =>
+      retainedCodexEvidence(boundary, REPO, {
         exitCode: 0,
         stderrPresent: false,
         nativeSession: input,
@@ -1378,6 +1378,59 @@ describe("Codex skill activation observation", () => {
       arguments: '{"target":"/root/delivery","message":"private"}',
     };
     expect(proof(session([...payloads, feedback]))).not.toContain(parentWork);
+    const delivered = [
+      ...payloads,
+      { ...feedback, call_id: "feedback-call" },
+      {
+        type: "function_call_output",
+        call_id: "feedback-call",
+        output: JSON.stringify({ task_name: "/root/delivery" }),
+      },
+    ];
+    expect(proof(session(delivered))).toContain(
+      '"type":"darrow.codex_native_feedback"',
+    );
+    expect(proof(session(delivered))).toContain('"response_observed":true');
+    expect(proof(session(delivered))).toContain('"delivery":"unverified"');
+    expect(proof(session(delivered))).toContain('"after_follow_up":false');
+    const boundary = JSON.stringify({
+      type: "darrow.eval.follow_up_turn",
+      native_after_ordinal: 4,
+    });
+    expect(proof(session(delivered), boundary)).toContain(
+      '"after_follow_up":true',
+    );
+    for (const output of [
+      '{"error":"agent missing"}',
+      "Tool failed",
+      '{"task_name":"/root/other"}',
+    ]) {
+      const raw = proof(
+        session([...delivered.slice(0, -1), { ...delivered.at(-1), output }]),
+        boundary,
+      );
+      expect(raw).toContain('"delivery":"unverified"');
+      expect(raw).not.toContain('"delivery":"verified"');
+    }
+    expect(
+      proof(
+        session(delivered),
+        JSON.stringify({
+          type: "darrow.eval.follow_up_turn",
+          native_after_ordinal: 6,
+        }),
+      ),
+    ).toContain('"after_follow_up":false');
+    expect(proof(session(delivered))).not.toContain('"message":"private"');
+    expect(proof(session(delivered.slice(0, -1)))).toContain(
+      '"response_observed":false',
+    );
+    expect(proof(session([...delivered, delivered.at(-1)!]))).toContain(
+      '"response_observed":false',
+    );
+    expect(
+      proof(session([...payloads, { ...feedback, name: "send_message" }])),
+    ).not.toContain(parentWork);
     expect(
       proof(
         session([

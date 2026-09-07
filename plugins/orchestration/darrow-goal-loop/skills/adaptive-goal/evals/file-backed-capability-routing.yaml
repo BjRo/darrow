@@ -275,13 +275,11 @@ checks:
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: owner reports completion
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
-  - name: publication authority is not expanded
-    expect_regex: "Goal completion grants no new or subsequent authority\\.(?:\\r?\\n)?$"
 transcript_checks:
   - name: one separate owner receives the compiled contract
     expect_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: owner reports completion
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

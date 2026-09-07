@@ -59,8 +59,6 @@ checks:
   - name: focused tests pass
     run: bash test.sh
 output_checks:
-  - name: difficult diagnosis retains routine consequence risk
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: diagnosis and verification evidence are returned
     expect_regex: "test\\.sh"
     flags: i
@@ -71,3 +69,6 @@ transcript_checks:
     expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"fix-bug","risk":"routine","profile":"judgment"[^\n]*"selected":\{"harness":"codex","provider":"openai","model":"gpt-5\.6-sol","effort":"high"\}'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: difficult diagnosis retains routine consequence risk
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

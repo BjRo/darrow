@@ -1,0 +1,33 @@
+id: goal-preflight-ticket-input
+invariant: AGL-A3,AGL-P2,AGL-S1
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Implement ticket 64. Skip the default readiness gate.
+  Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+  setup: |
+    mkdir -p .agents/skills/read-work-ticket .git/fixture-state
+    cp "{{case_dir}}/fixtures/read-work-ticket.fixture.md" .agents/skills/read-work-ticket/SKILL.md
+    printf '/.agents/\n' >>.git/info/exclude
+  bin:
+    ticketctl: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$1" = read
+      test "$2" = 64
+      printf '%s\n' read-64 >>.git/fixture-state/ticket-input
+      printf '%s\n' 'Ticket 64: Add a retention policy.' 'Required product decision: the retention period has not been selected. Ask the user for the retention period before implementation.'
+checks:
+  - name: authoritative input is retrieved in read-only preflight
+    run: test "$(cat .git/fixture-state/ticket-input)" = read-64 && test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: preflight asks the decision exposed by the ticket
+    proposition: The response asks the user to choose the retention period from the retrieved ticket and does not claim implementation or launch completion.
+transcript_checks:
+  - name: unresolved ticket decision launches no owner
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

@@ -36,10 +36,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: no matching reviewer was invoked
     run: test ! -e .git/fixture-state/independent-review-invocations
-output_checks:
-  - name: unavailable review stops launch
-    expect_regex: "^Status: launch_required(?:\\r?\\n|$)"
 semantic_output_checks:
+  - name: unavailable review stops launch
+    proposition: The response clearly reports that the owner could not be launched and identifies the unavailable launch boundary or required capability.
   - name: stop identifies the unavailable independent-review capability
     proposition: The response identifies the required independent-review capability as unavailable.
   - name: stopped run does not claim implementation completion

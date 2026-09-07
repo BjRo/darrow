@@ -1,0 +1,66 @@
+id: goal-steering-without-question
+invariant: AGL-A2,AGL-L3,AGL-S3
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Add normalize(input) in src/normalize.js, returning a
+  trimmed string. Keep this local. The implementation window is not open yet:
+  launch the owner to inspect the existing parser and return its status without
+  editing, retaining that owner for my next message. No product question is pending.
+follow_up_prompt: >-
+  The implementation window is open. Use the existing parser, leave src/legacy.js
+  alone, and stop before committing. Finish the requested normalize function.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+          Run `bash check.sh` for source changes. Before waiting for the
+          implementation window run `windowctl inspect`. When the window opens,
+          run `windowctl open` before editing source.
+        src/parser.js: |
+          export function parse(input) { return String(input ?? '').trim(); }
+        src/legacy.js: |
+          export const legacy = 'preserved';
+        src/normalize.js: |
+          // Public normalization entrypoint.
+        package.json: '{"type":"module"}'
+        check.sh: |
+          #!/usr/bin/env bash
+          node --input-type=module -e "import {normalize} from './src/normalize.js'; import assert from 'node:assert/strict'; assert.equal(normalize(' a '), 'a'); assert.equal(normalize(null), '');"
+  bin:
+    windowctl: |
+      #!/usr/bin/env bash
+      set -eu
+      git diff --exit-code HEAD -- src
+      case "$1" in
+        inspect) test ! -e .git/fixture-state/window ;;
+        open) test "$(cat .git/fixture-state/window)" = inspect ;;
+        *) exit 64 ;;
+      esac
+      printf '%s\n' "$1" >>.git/fixture-state/window
+checks:
+  - name: normalization handles existing parser inputs
+    run: bash check.sh
+  - name: existing parser is reused and protected files are preserved
+    run: |
+      if ! grep -F "parser.js" src/normalize.js >/dev/null; then
+        sed -n '1,60p' src/normalize.js >&2
+        exit 1
+      fi
+      git diff --exit-code HEAD -- src/parser.js src/legacy.js
+  - name: steering grants no publication
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: source mutation waits for the implementation window
+    run: printf 'inspect\nopen\n' >.git/expected-window && cmp -s .git/expected-window .git/fixture-state/window
+semantic_output_checks:
+  - name: retained owner completes the steered request
+    proposition: The response reports completed normalization using the existing parser.
+transcript_checks:
+  # Native delivery is opaque. Task evidence also requires the fixture
+  # acknowledgement, unchanged pre-feedback worktree, and no parent work.
+  - name: native source is unchanged at the actual feedback boundary
+    expect_regex: '"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true|"type":"darrow.goal_agent_completion"'
+  - name: host observes a same-owner continuation attempt after user feedback
+    expect_regex: '(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)'

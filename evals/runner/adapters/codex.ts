@@ -2254,7 +2254,10 @@ function retainedNativeWait(
     : undefined;
 }
 
-export function retainedCodexNativeSessionEvidence(session: string): object[] {
+export function retainedCodexNativeSessionEvidence(
+  session: string,
+  followUpOrdinal?: number,
+): object[] {
   const { entries, malformed } = codexNativeSessionEntries(session);
   const spawns = entries
     .filter((entry) => isNativeSpawnCall(entry.payload))
@@ -2270,7 +2273,7 @@ export function retainedCodexNativeSessionEvidence(session: string): object[] {
   return [
     ...spawns,
     ...waits,
-    ...retainedSingleNativeAgent(entries, malformed),
+    ...retainedSingleNativeAgent(entries, malformed, followUpOrdinal),
     ...(malformed ? [{ type: "darrow.codex_native_session_malformed" }] : []),
   ];
 }
@@ -2279,6 +2282,7 @@ export function retainedCodexNativeSessionEvidence(session: string): object[] {
 function retainedSingleNativeAgent(
   entries: CodexNativeSessionEntry[],
   malformed: boolean,
+  followUpOrdinal?: number,
 ): object[] {
   const spawns = entries.filter((entry) => isNativeSpawnCall(entry.payload));
   if (malformed || spawns.length !== 1) return [];
@@ -2307,11 +2311,68 @@ function retainedSingleNativeAgent(
       reasoning_effort: fields.reasoningEffort,
       fork_turns: fields.forkTurns,
       role: "unverified",
+      accepted_ordinal: accepted,
     },
+    ...retainedNativeFeedback(
+      entries,
+      accepted,
+      start.agentRef,
+      followUpOrdinal,
+    ),
     ...entries
       .filter((entry) => nativeParentWork(entry, accepted, start.agentRef))
       .map(() => ({ type: "darrow.codex_native_parent_tool_after_agent" })),
   ];
+}
+
+function retainedNativeFeedback(
+  entries: CodexNativeSessionEntry[],
+  accepted: number,
+  agentRef: string,
+  followUpOrdinal?: number,
+): object[] {
+  return entries.flatMap((entry) => {
+    const payload = entry.payload;
+    if (
+      entry.ordinal <= accepted ||
+      payload.type !== "function_call" ||
+      payload.namespace !== "collaboration" ||
+      !["followup_task", "send_message", "interrupt_agent"].includes(
+        String(payload.name),
+      )
+    )
+      return [];
+    const target = canonicalCodexAgentRef(
+      nativeSpawnArguments(payload)?.target,
+    );
+    const callId = boundedCollaborationIdentifier(payload.call_id);
+    if (!target || !callId) return [];
+    const outputs = entries.filter(
+      (candidate) =>
+        candidate.ordinal > entry.ordinal &&
+        candidate.payload.type === "function_call_output" &&
+        candidate.payload.call_id === callId,
+    );
+    return [
+      {
+        type: "darrow.codex_native_feedback",
+        tool: payload.name,
+        agent_ref: target,
+        same_owner: target === agentRef,
+        ordinal: entry.ordinal,
+        after_follow_up:
+          followUpOrdinal !== undefined && entry.ordinal > followUpOrdinal,
+        delivery: "unverified",
+        response_observed: nativeFeedbackResponseObserved(outputs),
+      },
+    ];
+  });
+}
+
+function nativeFeedbackResponseObserved(
+  outputs: CodexNativeSessionEntry[],
+): boolean {
+  return outputs.length === 1 && typeof outputs[0]?.payload.output === "string";
 }
 
 function nativeParentWork(
@@ -2327,7 +2388,11 @@ function nativeParentWork(
     return false;
   if (payload.namespace !== "collaboration") return true;
   if (payload.name === "wait_agent") return false;
-  if (payload.name === "followup_task" || payload.name === "interrupt_agent")
+  if (
+    payload.name === "followup_task" ||
+    payload.name === "interrupt_agent" ||
+    payload.name === "send_message"
+  )
     return nativeSpawnArguments(payload)?.target !== agentRef;
   return true;
 }
@@ -2370,8 +2435,7 @@ export function retainedCodexEvidence(
   appendCodexRetentionState(retained, state, {
     acceptedOwner: status?.acceptedOwner,
   });
-  if (status?.nativeSession)
-    retained.push(...retainedCodexNativeSessionEvidence(status.nativeSession));
+  retained.push(...nativeEvidenceForStatus(status, events));
   if (codexStreamMalformed(stream)) retained.push({ type: "malformed_stream" });
   if (status && status.exitCode !== 0)
     retained.push({
@@ -2380,6 +2444,31 @@ export function retainedCodexEvidence(
       stderr_present: status.stderrPresent,
     });
   return retained.map((event) => JSON.stringify(event)).join("\n");
+}
+
+function nativeEvidenceForStatus(
+  status: CodexRetentionStatus | undefined,
+  events: CodexEvent[],
+): object[] {
+  return status?.nativeSession
+    ? retainedCodexNativeSessionEvidence(
+        status.nativeSession,
+        nativeFollowUpOrdinal(events),
+      )
+    : [];
+}
+
+function nativeFollowUpOrdinal(events: CodexEvent[]): number | undefined {
+  const boundaries = events.filter(
+    (event) => event.type === "darrow.eval.follow_up_turn",
+  );
+  const ordinal = boundaries[0]?.native_after_ordinal;
+  return boundaries.length === 1 &&
+    typeof ordinal === "number" &&
+    Number.isInteger(ordinal) &&
+    ordinal >= 0
+    ? ordinal
+    : undefined;
 }
 
 export async function retainedCodexEvidenceForThread(
@@ -2465,7 +2554,7 @@ export function codexTokenUsage(stream: string): CodexTokenUsage {
   if (!found || !usage || codexStreamMalformed(stream))
     return { complete: false, inputTokens: 0, outputTokens: 0 };
   return {
-    complete: true,
+    complete: !stream.includes('"type":"darrow.eval.follow_up_turn"'),
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
   };
@@ -2844,6 +2933,7 @@ async function codexTurnOutput(options: {
   initial: CodexProcessOutput;
   sandboxed: (argv: string[]) => Promise<string[]>;
   env: Record<string, string>;
+  initialRepositoryFingerprint: string;
 }): Promise<CodexProcessOutput> {
   const { request, initial, sandboxed, env } = options;
   const followUpPrompt = request.control?.followUpPrompt;
@@ -2854,6 +2944,13 @@ async function codexTurnOutput(options: {
     throw new Error(
       "Codex follow-up eval could not identify exactly one initial thread",
     );
+  const nativeAfterOrdinal = await nativeSessionLastOrdinal(
+    env.CODEX_HOME!,
+    threadId,
+  );
+  const preFeedbackWorktreeUnchanged =
+    options.initialRepositoryFingerprint ===
+    (await repositoryFingerprint(request.repoDir));
   const resumed = await runCodexProcess(
     await sandboxed(
       codexResumeArgv({ ...request, threadId, prompt: followUpPrompt }),
@@ -2864,6 +2961,8 @@ async function codexTurnOutput(options: {
   const boundary = JSON.stringify({
     type: "darrow.eval.follow_up_turn",
     thread_id: threadId,
+    native_after_ordinal: nativeAfterOrdinal,
+    pre_feedback_worktree_unchanged: preFeedbackWorktreeUnchanged,
   });
   return {
     out: [initial.out.trimEnd(), boundary, resumed.out.trimStart()].join("\n"),
@@ -2872,6 +2971,18 @@ async function codexTurnOutput(options: {
       .join("\n"),
     code: resumed.code,
   };
+}
+
+async function nativeSessionLastOrdinal(
+  configRoot: string,
+  threadId: string,
+): Promise<number | undefined> {
+  const session = await codexNativeSessionForThread(configRoot, threadId);
+  if (!session) return undefined;
+  const parsed = codexNativeSessionEntries(session);
+  return parsed.malformed || !parsed.entries.length
+    ? undefined
+    : Math.max(...parsed.entries.map((entry) => entry.ordinal));
 }
 
 function codexSandboxedCommand(
@@ -2890,12 +3001,19 @@ function codexSandboxedCommand(
     sandboxedAgentCommand(argv, repoDir, deniedPaths, allowedExecutables);
 }
 
+export function codexSpawnGuardEnabled(request: HarnessRunRequest): boolean {
+  return (
+    request.control?.ownerEvaluationMode !== "passive" &&
+    (request.control?.expectGoalOwner === true ||
+      codexSpawnGuardRequested(request.prompt, request.control?.followUpPrompt))
+  );
+}
+
 function codexProcessContextForRequest(request: HarnessRunRequest) {
   return codexProcessContext(
     request.repoDir,
     request.prompt,
-    request.control?.expectGoalOwner === true ||
-      codexSpawnGuardRequested(request.prompt, request.control?.followUpPrompt),
+    codexSpawnGuardEnabled(request),
   );
 }
 
@@ -2943,6 +3061,7 @@ async function executeCodex(
   const { env, spawnGuard } = context;
   const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
+    const initialRepositoryFingerprint = await repositoryFingerprint(repoDir);
     const initial = await runCodexProcess(
       await sandboxed(codexArgv(request)),
       repoDir,
@@ -2953,6 +3072,7 @@ async function executeCodex(
       initial,
       sandboxed,
       env,
+      initialRepositoryFingerprint,
     });
     const acceptedOwner = spawnGuard
       ? await verifiedCodexAcceptedOwner(
@@ -3053,32 +3173,51 @@ async function codexHarnessResult(
   const ok = codexRunSucceeded(code, out);
   const resultText = await codexFinalMessage(request.repoDir);
   const activation = codexActivationForRequest(request, execution);
+  const raw = await retainedCodexEvidenceForThread(
+    out,
+    canonicalRepoDir,
+    configRoot,
+    {
+      status: {
+        exitCode: code,
+        stderrPresent: err.trim().length > 0,
+        spawnGuardSecret,
+        goalLoopPath,
+        acceptedAgentRef,
+        acceptedOwner,
+      },
+      installedSkillsRoot: installedSkillsRoots,
+    },
+  );
   return {
+    evaluationEnforcement: spawnGuardSecret ? "enforced" : "passive",
     ok,
     durationMs,
-    tokenUsageComplete: usage.complete,
+    tokenUsageComplete: codexUsageCoversExecution(usage.complete, raw),
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
     costUsd: null,
     resultText,
-    raw: await retainedCodexEvidenceForThread(
-      out,
-      canonicalRepoDir,
-      configRoot,
-      {
-        status: {
-          exitCode: code,
-          stderrPresent: err.trim().length > 0,
-          spawnGuardSecret,
-          goalLoopPath,
-          acceptedAgentRef,
-          acceptedOwner,
-        },
-        installedSkillsRoot: installedSkillsRoots,
-      },
-    ),
+    raw,
     skillActivation: { ...activation, complete: ok && activation.complete },
   };
+}
+
+/** Child usage is not reconciled by the native acceptance observer. */
+export function codexUsageCoversExecution(
+  complete: boolean,
+  raw: string,
+): boolean {
+  return (
+    complete &&
+    !codexEvents(raw).some(
+      (event) =>
+        event.type === "darrow.codex_native_spawn" ||
+        event.type === "darrow.codex_native_single_agent_accepted" ||
+        event.type === "darrow.goal_owner_accepted" ||
+        event.item?.tool === "spawn_agent",
+    )
+  );
 }
 
 /**

@@ -11,8 +11,7 @@ Require the host-visible subagent control. Spawn exactly one subagent with:
 - `model` set to the selected concrete Codex model;
 - `reasoning_effort` set to the selected effort;
 - the complete task whose first line is exactly
-  `- phase: adaptive-goal-owner` and whose second line begins `Role: You are the
-already-launched sole engineering owner`; and
+  `- phase: adaptive-goal-owner`, followed by an explicit sole-owner instruction; and
 - no surrounding explanation or second objective.
 
 The accepted spawn result proves application of the selected model and effort.
@@ -46,9 +45,23 @@ for the retained canonical task name with the exact user answer and no wrapper
 or lifecycle marker.
 
 Then wait for that same owner. Do not repeat preflight, readiness, routing, or
-spawn. The same transport may resume a semantically blocked owner when the
+spawn in the parent. The same transport may resume a semantically blocked owner when the
 answer clearly resolves its stated blocker; preserve the original contract and
 send only the exact user response.
+
+For corrections, new constraints, cancellation, and status requests while the
+owner is active, use the host's message control for that canonical owner
+(`send_message` when available). No pending question is required. For an idle
+retained owner use `followup_task`; never create a replacement. Relay the exact
+user feedback once. A status request does not stop execution. For explicit
+cancellation, use the host stop/interrupt control when available and report its
+result; do not claim an in-flight effect was prevented without owner or host
+evidence. Report if the host cannot deliver feedback during a running tool.
+
+The owner applies restrictions before its next affected action, reassesses
+invalidated assumptions and readiness, and strengthens checks within authority.
+Missing product decisions or expanded effects return a question to the user.
+These are owner actions, not permission for parent-side capability calls.
 
 If the host cannot retain or resume the owner, report that limitation. Do not
 claim that a replacement is the same goal.

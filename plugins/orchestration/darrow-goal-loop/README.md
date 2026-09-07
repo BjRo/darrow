@@ -33,7 +33,10 @@ The skill:
 Readiness is conversational and pre-owner. A non-ready result leaves the tree
 unchanged while the user resolves its findings. Once the same scope is ready,
 adaptive-goal compiles that settled evidence into the owner contract rather than
-running readiness again inside implementation.
+running readiness again for unchanged scope. If assumptions materially change,
+the same owner reassesses affected gates and strengthens verification within
+authority. Necessary read-only ticket or specification retrieval may precede
+readiness and routing.
 
 Capability bindings make intent-based skills part of the contract. If an
 authorized commit, pull request, ticket operation, TDD procedure, or independent
@@ -70,14 +73,26 @@ review by default; routine work does not.
 
 Selected review runs through the exact bound review skill after implementation
 and final checks. A clear result completes the gate. A blocking result allows
-at most one authorized closed-set repair and one fix verification; only clear
-verification permits completion or remaining publication.
+one authorized closed-set repair and one fix verification by default. An
+explicit finite repair budget permits additional attempts only with material
+progress on the original findings; only clear current-content verification
+permits completion or remaining publication.
 
 ## Human feedback and blockage
 
 A material question discovered during implementation pauses mutation and is
-relayed to the same retained owner. The answer grants no broader authority and
+relayed to the same retained owner. The answer grants only explicitly supplied authority and
 the owner performs any required acknowledgement before continuing.
+
+Corrections, constraints, cancellation, and status requests also target the
+same owner without requiring a pending question. Status alone does not stop
+execution. Restrictions apply before the next affected action; unavailable
+host delivery or stopping controls are reported honestly.
+
+The seven contract fields are a completeness template, not a runtime validator.
+Only interface syntax such as host tool keys and the owner marker is rigid.
+Eval results distinguish active enforcement from passive native observation;
+the eval guard is additional assistance, not shipped-skill behavior.
 
 A genuine blocker is reported semantically with its condition, evidence, and
 smallest next action. Darrow does not maintain a retry, waiver, evidence-digest,

@@ -1,0 +1,73 @@
+version: 1
+experiment: adaptive-goal-adaptation-fidelity
+harnesses: [codex]
+case_filter:
+  - orchestration-routing-localized-mechanical
+  - orchestration-routing-localized-quality-feature
+modes:
+  direct-terra:
+    condition: conditions/vanilla.md
+    without_skill: true
+    model_by_harness:
+      codex: gpt-5.6-terra
+    effort: medium
+    owner_evaluation: passive
+  preflight-terra:
+    effective_owner_routes:
+      orchestration-routing-localized-mechanical:
+        { model: gpt-5.6-terra, effort: medium }
+      orchestration-routing-localized-quality-feature:
+        { model: gpt-5.6-terra, effort: medium }
+    condition_by_harness:
+      codex: conditions/matched-preflight-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    model_by_harness:
+      codex: gpt-5.6-terra
+    effort: medium
+    owner_evaluation: passive
+  direct-luna:
+    condition: conditions/vanilla.md
+    without_skill: true
+    model_by_harness:
+      codex: gpt-5.6-luna
+    effort: medium
+    owner_evaluation: passive
+  preflight-luna:
+    effective_owner_routes:
+      orchestration-routing-localized-mechanical:
+        { model: gpt-5.6-luna, effort: medium }
+      orchestration-routing-localized-quality-feature:
+        { model: gpt-5.6-luna, effort: medium }
+    condition_by_harness:
+      codex: conditions/matched-preflight-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    model_by_harness:
+      codex: gpt-5.6-luna
+    effort: medium
+    owner_evaluation: passive
+  routed-terra:
+    effective_owner_routes:
+      orchestration-routing-localized-mechanical:
+        { model: gpt-5.6-luna, effort: medium }
+      orchestration-routing-localized-quality-feature:
+        { model: gpt-5.6-luna, effort: high }
+    condition_by_harness:
+      codex: conditions/adaptation-policy-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    model_by_harness:
+      codex: gpt-5.6-terra
+    effort: medium
+    owner_evaluation: passive
+  enforced-terra:
+    effective_owner_routes:
+      orchestration-routing-localized-mechanical:
+        { model: gpt-5.6-terra, effort: medium }
+      orchestration-routing-localized-quality-feature:
+        { model: gpt-5.6-terra, effort: medium }
+    condition_by_harness:
+      codex: conditions/matched-preflight-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    model_by_harness:
+      codex: gpt-5.6-terra
+    effort: medium
+    owner_evaluation: enforced
