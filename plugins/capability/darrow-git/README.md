@@ -52,6 +52,11 @@ one pull request for its committed delta. It respects the repository's default
 base, pull-request template, and an explicitly requested draft state, and stops
 when an open pull request already exists.
 
+An explicit request to publish commits to and reuse the existing PR selects a
+separate path: it pushes without force and verifies that the remote branch and
+forge head both equal the intended commit. It returns the repository, URL,
+head/base, draft state and commit evidence without changing PR metadata.
+
 Example: _“Push this branch and open a draft PR.”_
 
 ### Bundled workflow scripts

@@ -1,11 +1,11 @@
 ---
 name: create-pr
-description: Push the current feature branch and open exactly one pull request for its committed work. Use when asked to create or open a PR, publish the branch for review, or push and open a draft PR.
+description: Publish the current feature branch through one pull request. Use when asked to create or open a PR, publish the branch for review, push and open a draft PR, or explicitly publish commits to and reuse its existing PR. Do not use merely to list PRs.
 ---
 
 # Create a pull request
 
-Propose the current branch's committed delta through one new pull request.
+Propose the current branch's committed delta through one pull request.
 
 Run every Git and GitHub operation through `<skill-dir>/scripts/pr.sh`, where
 `<skill-dir>` contains this file. Run the script with Bash. It owns repository
@@ -19,8 +19,9 @@ as authoritative.
   Uncommitted changes remain local and excluded.
 - **Deliberate base:** use the repository default unless the user names another
   branch. A named base is exact, never a hint to substitute.
-- **Single proposal:** an existing open PR is the terminal result; do not create
-  or alter another one.
+- **Single proposal:** ordinary creation reports an existing PR without push.
+  Publishing to/reusing that PR requires explicit user or enclosing-contract
+  authority for its content update and a non-force push.
 - **Requested shape:** create a draft only when the user asks for a draft.
 
 ## Workflow
@@ -37,7 +38,9 @@ Follow the reported mode:
 
 - `ready`: use the reported branch, base, commits, diffstat, template state,
   and working-tree state as the complete creation context.
-- `exists`: report the existing PR and stop.
+- `exists`: report the existing PR and stop for ordinary creation. With explicit
+  publish-and-reuse authority, retain the reported intended commit and follow
+  the existing-publication path below; never run `create` for that PR.
 - `no-commits`: report that the branch has nothing ahead of the base and stop.
 - `wrong-branch`: report that a feature branch is required and stop; suggest
   `create-branch` without creating one.
@@ -107,8 +110,49 @@ stashes, or duplicate PRs.
 
 Report the emitted URL, head, base, and draft state. Name every uncommitted file
 that inspection excluded from the PR, and include any degraded-context notes.
-Leave reviewers, labels, milestones, merging, and existing PR updates outside
-this workflow.
+Leave reviewers, labels, milestones, merging and existing PR metadata updates
+outside this workflow. An existing-PR observation proves identity, not current
+publication of local commits. Return the result and refusal to the enclosing
+owner; the capability stops its operation, not the owner's entire goal.
 
 **Complete when:** the user can identify the one PR, its shape, its exact
 committed scope, and any local work or degraded checks that remain outside it.
+
+## Explicit existing publication and content verification
+
+Use this path only when the request explicitly authorizes publishing commits to
+or reusing an existing PR and a non-force push. A request merely to create/open
+a PR grants no such update authority. Preserve the intended full commit ID from
+inspection; when the enclosing owner supplies an ID for its verified content,
+require that same ID. Do not silently replace it with a later local head.
+
+```sh
+bash <skill-dir>/scripts/pr.sh publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
+```
+
+The script checks one open same-repository PR and its exact branch, base and
+draft state, pushes only the pinned commit without force when needed, and
+compares the current remote and forge heads with that commit. It refuses a
+different or multiple fetch/push endpoint, fork PR, ambiguous/missing PR,
+changed local head, shape mismatch, divergence or unavailable observation. It
+does not create another PR or change metadata. Pass base/draft options only
+when explicitly requested; otherwise the default base and ready-for-review
+shape are required.
+
+When the caller requires verified published content after creation, or needs
+to observe an ambiguous prior publication, run the read-only operation:
+
+```sh
+bash <skill-dir>/scripts/pr.sh verify --expected-head <full-commit-id> [--base <branch>] [--draft]
+```
+
+Report the URL, repository, head/base, draft state, intended/remote/PR commit
+IDs, push effect and excluded working-tree files. Only `publication: verified`
+proves publication of that commit. If a push completed but verification failed,
+return both facts without claiming completion. The enclosing owner decides
+when changed evidence supports another observation; never retry unchanged
+failure, force-push, open a duplicate, or edit metadata as remediation.
+
+**Complete when:** exact committed publication evidence or the operation's
+refusal and any partial push effect has been returned to the caller. The caller
+owns tying this evidence to its final checks and deciding overall completion.

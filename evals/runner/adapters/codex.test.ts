@@ -1292,6 +1292,102 @@ describe("Codex skill activation observation", () => {
     expect(retained).not.toContain("encrypted-native-child-prompt");
   });
 
+  test("native acceptance is role-neutral and requires one correlated agent", () => {
+    const payloads = [
+      {
+        type: "function_call",
+        namespace: "collaboration",
+        name: "spawn_agent",
+        call_id: "delivery-call",
+        arguments: JSON.stringify({
+          task_name: "delivery",
+          model: "gpt-5.6-luna",
+          reasoning_effort: "low",
+          fork_turns: "none",
+          message: "encrypted-private-contract",
+        }),
+      },
+      {
+        type: "item_completed",
+        item: {
+          type: "SubAgentActivity",
+          id: "delivery-call",
+          kind: "started",
+          agent_thread_id: "delivery-thread",
+          agent_path: "/root/delivery",
+        },
+      },
+      {
+        type: "function_call_output",
+        call_id: "delivery-call",
+        output: JSON.stringify({ task_name: "/root/delivery" }),
+      },
+      {
+        type: "function_call",
+        namespace: "collaboration",
+        name: "wait_agent",
+        call_id: "wait-call",
+        arguments: "{}",
+      },
+    ];
+    const session = (items: object[] = payloads) =>
+      items
+        .map((payload, i) => JSON.stringify({ ordinal: i + 1, payload }))
+        .join("\n");
+    const proof = (input: string) =>
+      retainedCodexEvidence("", REPO, {
+        exitCode: 0,
+        stderrPresent: false,
+        nativeSession: input,
+      });
+    const accepted = "darrow.codex_native_single_agent_accepted";
+    const parentWork = "darrow.codex_native_parent_tool_after_agent";
+    expect(proof(session())).toContain(accepted);
+    expect(proof(session())).toContain('"role":"unverified"');
+    expect(proof(session())).not.toContain("encrypted-private-contract");
+    expect(proof(session())).not.toContain("darrow.goal_owner_accepted");
+    expect(proof(session())).not.toContain(parentWork);
+    for (const broken of [
+      payloads.slice(0, 2),
+      [...payloads, payloads[2]!],
+      [payloads[1]!, payloads[0]!, ...payloads.slice(2)],
+      [...payloads, payloads[0]!],
+      [
+        payloads[0]!,
+        payloads[1]!,
+        { ...payloads[2], output: '{"task_name":"/root/other"}' },
+      ],
+    ])
+      expect(proof(session(broken))).not.toContain(accepted);
+    expect(proof(session() + "\nmalformed")).not.toContain(accepted);
+    const work = [
+      ...payloads,
+      {
+        type: "custom_tool_call",
+        namespace: "functions",
+        name: "exec",
+        input: "private shell command",
+      },
+    ];
+    expect(proof(session(work))).toContain(parentWork);
+    expect(proof(session(work))).not.toContain("private shell command");
+    const feedback = {
+      type: "function_call",
+      namespace: "collaboration",
+      name: "followup_task",
+      arguments: '{"target":"/root/delivery","message":"private"}',
+    };
+    expect(proof(session([...payloads, feedback]))).not.toContain(parentWork);
+    expect(
+      proof(
+        session([
+          ...payloads,
+          { ...feedback, arguments: '{"target":"/root/other"}' },
+        ]),
+      ),
+    ).toContain(parentWork);
+  });
+
   test("assembles thread-bound native evidence into the retained transcript", async () => {
     const configRoot = await mkdtemp(join(tmpdir(), "darrow-codex-session-"));
     try {

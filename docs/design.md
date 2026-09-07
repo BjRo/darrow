@@ -4,6 +4,25 @@ Darrow deliberately separates **what an agent knows how to do** from **how
 longer-running work is kept moving**. It packages both as independently
 adoptable plugins, but gives them different activation and ownership models.
 
+## Responsibility layers and their contracts
+
+These responsibilities can be entered independently; they are not mandatory
+sequential stages. Foundations and capabilities support several layers directly.
+
+| Responsibility       | Decision owner                                                            | Delivered evidence                                                                      |
+| -------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Foundations          | Repository context, accepted policy and reusable skills                   | Ordinary repository artifacts that remain useful without the producing plugin installed |
+| Capabilities         | Focused operations and how they establish assurance                       | Result, inspected basis, effects and operation-specific refusal                         |
+| Orchestration        | Bounded goal, workflow, required assurance and one execution owner        | Contract and owner-sourced continuation/completion evidence                             |
+| Task recipes         | Familiar complete outcomes and consistent explicit permission envelopes   | One delegated outcome with preserved authority                                          |
+| Automation — planned | Admission timing, eligibility and capacity for explicitly authorized work | Future entry and handoff contracts; no current unattended recipe entry                  |
+
+Evaluation and observability assess behavior across all of these responsibilities.
+They do not grant authority or act as another execution stage. The
+[layer-composition contract](specs/layer-composition.md) records decision
+ownership, recommendation dispositions, operation handoffs and the contracts
+automation needs before it can ship.
+
 ## Capabilities and orchestration
 
 A capability is a focused procedure such as reviewing code, practicing TDD,
@@ -55,6 +74,13 @@ supplies them. Darrow does not add a second versioned capability-name registry
 on top of the host's skill discovery. If an optional skill is unavailable, the
 consumer follows its own documented stop or fallback behavior instead of
 reaching into another plugin.
+
+Advertised intent identifies a potential provider; the caller must also check
+its prerequisites, effects, returned evidence and stop conditions. A capability
+returns its operation's refusal to the enclosing owner, which decides authorized
+investigation, human feedback or termination. It cannot waive a failed gate or
+bypass a refused operation. This permits compatible replacements without a
+central registry and keeps continuation with the same owner.
 
 This boundary preserves genuine choice: users can adopt one focused capability,
 several complementary capabilities, or an orchestration helper without

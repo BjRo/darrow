@@ -62,6 +62,13 @@ adaptive goal to:
 8. create or reuse exactly one pull request whose current content satisfies the
    ticket, ready for review unless draft was explicitly requested.
 
+Verified publication includes owner-sourced repository, head/base, draft state
+and intended commit evidence: both the remote branch and open PR head must equal
+the commit for which final checks and selected review passed. An existing URL
+alone is insufficient when local commits remain unpublished. Adaptive-goal binds
+behaviorally compatible publication operations; the recipe chooses no command
+or capability. Reuse authorizes a non-force content update, not PR metadata edits.
+
 The request authorizes only those branch, commit, non-force push, and one-PR
 effects. It excludes merge, auto-merge, deployment, release, ticket mutation,
 reviewer assignment, labels, milestones, destructive Git operations, unrelated
@@ -89,7 +96,9 @@ does not answer or rewrite the question, and does not replace the owner.
 
 The recipe relays the adaptive-goal result without repository or forge
 reinspection. Success requires the owner-sourced URL and evidence for exactly
-one verified pull request. A non-ready result, human-feedback request, or
+one verified pull request. Preserve the complete URL and intended/published
+commit evidence in the relay; a PR number alone does not satisfy completion.
+A non-ready result, human-feedback request, or
 blocker remains the adaptive goal's result and next action; the recipe adds no
 retry, waiver, recovery, or status protocol.
 

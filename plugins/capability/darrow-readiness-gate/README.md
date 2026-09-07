@@ -22,8 +22,9 @@ boundary.
 Example: _“Is this ticket ready for implementation?”_
 
 The skill can also satisfy an explicit gate inside a larger native goal. It
-runs before mutation, stops the goal on a non-ready verdict, and returns
-control on `ready` without granting any additional authority. The consuming
+runs read-only before implementation and returns its assessment to the caller.
+A non-ready verdict prevents implementation; the enclosing owner decides how
+to resolve findings or whether to finish. `ready` adds no authority. The consuming
 goal discovers the capability by intent; neither this plugin nor the consumer
 depends on a particular Darrow sibling.
 

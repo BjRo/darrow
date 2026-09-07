@@ -11,3 +11,8 @@ the separate engineering owner, verification, review, publication, blockage,
 and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
 post-goal inspection of its own.
+
+Completion includes the owner's evidence that the remote branch and open PR
+both point at the intended verified commit. Reusing an existing URL therefore
+requires publishing any additional intended local commits without force;
+the recipe still chooses no publication command or capability.

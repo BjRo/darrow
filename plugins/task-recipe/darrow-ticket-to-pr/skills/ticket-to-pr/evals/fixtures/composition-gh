@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+dir=$(git rev-parse --absolute-git-dir)
+case "$1 $2" in
+  'repo view') echo fixture/repo ;;
+  'pr list')
+    tip=$(git ls-remote origin refs/heads/fix/GH-42-timeout | awk '{print $1}')
+    if [[ " $* " == *' --json '* ]]; then
+      printf '%s\n' "$tip" >>"$dir/forge-observations"
+      printf '42\thttps://github.com/fixture/repo/pull/42\tOPEN\tfix/GH-42-timeout\t%s\tmain\tfalse\tfalse\n' "$tip"
+    else
+      printf '42\tfix: increase timeout\tfix/GH-42-timeout\tOPEN\n'
+    fi
+    ;;
+  *) printf '%s\n' "$*" >>"$dir/forbidden-forge-effects"; exit 80 ;;
+esac

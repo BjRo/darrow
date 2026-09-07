@@ -39,7 +39,7 @@ detect_default_branch() {
   # origin/HEAD is only set by clone/set-head; ask the remote directly
   # (resolves offline for path remotes).
   DEFAULT_SRC=remote
-  b=$(git ls-remote --symref origin HEAD 2>/dev/null | awk '$1 == "ref:" {sub("refs/heads/", "", $2); print $2; exit}' || true)
+  b=$(git ls-remote --symref origin HEAD 2>/dev/null | awk '$1 == "ref:" && !seen {sub("refs/heads/", "", $2); print $2; seen=1}' || true)
   if [[ -n "$b" ]]; then
     DEFAULT_BRANCH=$b
     return
@@ -152,6 +152,11 @@ fi
 cmd=${1:-}
 shift || true
 case "$cmd" in
+  publish-existing|verify)
+    # The sourced file is checked separately and exercised by publication.test.sh.
+    # shellcheck disable=SC1091
+    source "$(cd "$(dirname "$0")" && pwd -P)/publication.sh" "$cmd" "$@"
+    ;;
   inspect)
     selected_template=""
     while [[ $# -gt 0 ]]; do
@@ -211,6 +216,7 @@ case "$cmd" in
         fi
         if [[ -n "$existing" ]]; then
           echo "## mode: exists (open PR for this branch — report it; do not create another)"
+          echo "## intended commit: $(git rev-parse HEAD)"
           printf '%s\n' "$existing" | truncate_lines
         elif [[ "$ahead" == "0" ]]; then
           echo "## mode: no-commits (no commits ahead of $cmp — nothing to propose; report and stop)"
@@ -218,6 +224,7 @@ case "$cmd" in
           echo "## base branch (default): $def"
         else
           echo "## mode: ready"
+          echo "## intended commit: $(git rev-parse HEAD)"
           echo "## cur branch: $cur"
           echo "## base branch (default): $def"
           if [[ "$DEFAULT_SRC" == "guess" ]]; then
@@ -557,7 +564,7 @@ case "$cmd" in
     fi
     ;;
   *)
-    echo "usage: pr.sh inspect [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft]" >&2
+    echo "usage: pr.sh inspect [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]" >&2
     exit 64
     ;;
 esac

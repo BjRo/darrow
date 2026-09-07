@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
   "description": "Delegate one explicit ticket-to-PR shortcut to adaptive-goal",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

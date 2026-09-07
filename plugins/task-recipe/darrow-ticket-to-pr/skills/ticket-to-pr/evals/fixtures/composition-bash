@@ -1,0 +1,22 @@
+#!/bin/bash
+# Fixture-only observation of the real bundled publication entrypoint.
+case "${1-}" in
+  */create-pr/scripts/pr.sh)
+    if [[ "${2-}" == publish-existing || "${2-}" == verify ]]; then
+      intended=''
+      previous=''
+      for argument in "$@"; do
+        if [[ "$previous" == --expected-head ]]; then intended=$argument; fi
+        previous=$argument
+      done
+      /bin/bash "$@"
+      result=$?
+      if [[ "$result" == 0 ]]; then
+        dir=$(git rev-parse --absolute-git-dir) || exit 1
+        printf '%s\n' "$intended" >>"$dir/builtin-publications"
+      fi
+      exit "$result"
+    fi
+    ;;
+esac
+exec /bin/bash "$@"

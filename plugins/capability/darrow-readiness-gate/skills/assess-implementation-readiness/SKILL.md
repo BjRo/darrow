@@ -57,10 +57,8 @@ Represent every material observation inside `basis`, `quality_bar`, or
 In composed mode, follow the outer-goal rules in section 5. Never append the
 composed ready-gate summary to a standalone assessment.
 
-A non-ready gate stops the outer goal's authorized mutation work, not its
-terminal reporting obligations. When the enclosing contract names required
-records, the composed gate is incomplete until those records have also been
-emitted.
+A non-ready gate prevents implementation and returns control to the caller.
+The caller owns finding resolution, continuation and any outer reporting.
 
 ## 1. Establish the gate and authority
 
@@ -181,11 +179,13 @@ JSON representation under the output-mode contract above.
 For a readiness clause inside a larger goal contract, complete this entire
 assessment before the first repository or external mutation:
 
-- if the verdict is not `ready`, terminate the enclosing goal and return the
-  complete readiness result to its goal owner in the selected presentation.
-  When the outer contract requires its own completion records, emit the
-  readiness result first and then every required outer record in its exact
-  syntax. Do not omit or replace either contract;
+- if the verdict is not `ready`, return the complete result, findings and
+  smallest next action to the current goal owner in the selected presentation,
+  then exit this capability. Implementation cannot proceed. The owner decides
+  whether to investigate within existing authority, ask for a material decision,
+  or terminate; it retains the same ownership while resolving the findings and
+  obtaining any required reassessment. Do not terminate the enclosing goal,
+  resolve findings, choose defaults or prescribe its retry policy here;
 - if the verdict is `ready`, return the `ready` verdict and concrete
   `quality_bar` to the current goal owner as gate evidence, exit this
   capability, and return control. That goal may continue only with effects
@@ -201,11 +201,8 @@ persist the assessment as a repository artifact unless separately requested.
 The capability is complete only when every material conclusion is traceable to
 the stated basis, the quality bar supports the verdict, the smallest next
 action matches the verdict, and the assessment itself caused no mutation.
-Before finalizing a composed gate, re-read the enclosing contract's terminal
-reporting clause. If a non-ready result stops the goal and that contract
-requires an outer status or other record, append every such record after the
-readiness result. For a composed `ready` gate, completion means returning the
-`ready` verdict and concrete `quality_bar` to the goal owner before
-continuation; the readiness capability does not prescribe the enclosing goal's
-eventual terminal response.
-Never treat “stop” as permission to abandon mandatory outer records.
+For a composed gate, completion means returning the full non-ready assessment
+or the `ready` verdict and concrete `quality_bar` to the caller before
+continuation. The enclosing owner emits any required outer records when it
+pauses or terminates; this capability's return neither replaces those records
+nor decides when the goal finishes.
