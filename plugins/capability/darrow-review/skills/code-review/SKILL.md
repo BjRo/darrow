@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Review bounded code changes and verify attempted repairs against prior review findings. Always use for explicit requests to review code, independently review a change, verify fixes from a prior code review, or perform repair verification within a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
+description: Review bounded code changes and verify attempted repairs against prior review findings. Always use for explicit requests to review code, including when a requested base or target is missing or invalid; independently review a change; verify fixes from a prior code review; or perform repair verification within a larger goal. Remain read-only; do not trigger merely because code changed or implementation was requested.
 ---
 
 # Review code

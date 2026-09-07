@@ -148,8 +148,10 @@ axis and report `not_available`. Do not invent requirements.
    in the requester-bound repository before starting reviewer agents. An
    explicit repository path overrides ambient Git repository-selection state;
    skill or plugin directories MUST NOT become the review repository. Every
-   emitted manifest identifies that bound repository. An invalid base or empty
-   declared diff is reported before spending review-model budget.
+   emitted manifest identifies that bound repository. Explicit review intent
+   remains in this capability when a requested base or target is missing or
+   invalid. An invalid base or empty declared diff is reported before spending
+   review-model budget.
 3. **CR-C3 — Complete diff.** The review scope includes every declared staged,
    unstaged, and untracked target file. Reviewers inspect the diff itself, not a
    summary written by the change author.
