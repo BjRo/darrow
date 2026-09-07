@@ -1,0 +1,20 @@
+id: goal-budgeted-repair-default
+invariant: AGL-A4
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work. No user or
+  repository repair limit was supplied. The owner used one repair and fix
+  verification resolved one original blocker but another remains. Should it
+  automatically attempt another repair?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: default repair budget is finite
+    proposition: The response does not permit a second automatic repair because the default one-attempt budget is exhausted, and does not claim the uncleared gate is complete.

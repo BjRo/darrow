@@ -34,6 +34,40 @@ function result(overrides: Partial<CaseResult> = {}): CaseResult {
 }
 
 describe("orchestration suite report", () => {
+  test("reports observed enforcement rather than inferring it from the requested mode", () => {
+    const sample = result({
+      ownerEvaluationMode: "enforced",
+      trials: [
+        {
+          executionMode: "executed",
+          trial: 1,
+          passed: true,
+          checks: [],
+          harness: {
+            ok: true,
+            durationMs: 1,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: null,
+            resultText: "Complete",
+            raw: "",
+            evaluationEnforcement: "passive",
+          },
+        },
+      ],
+    });
+    const report = renderSuiteReport([
+      { harness: "codex", mode: "diagnostic", results: [sample] },
+    ]);
+    expect(report).toContain("| Enforcement |");
+    expect(report).toContain("| executed | passive |");
+    delete sample.trials[0]!.harness.evaluationEnforcement;
+    expect(
+      renderSuiteReport([
+        { harness: "codex", mode: "historical", results: [sample] },
+      ]),
+    ).toContain("| executed | unknown |");
+  });
   test("mixed and unknown execution stay unmeasured without hiding executed cases", () => {
     const markdown = renderSuiteReport([
       {

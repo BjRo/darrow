@@ -37,11 +37,11 @@ checks:
       bash test.sh
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
-output_checks:
-  - name: owner reports completion
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
 transcript_checks:
   - name: one separate refactor owner is accepted
     expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"refactor","risk":"routine","profile":"routine"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: owner reports completion
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

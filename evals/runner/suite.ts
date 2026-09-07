@@ -12,6 +12,9 @@ import { codexAdapter } from "./adapters/codex";
 import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
 
 interface ModeConfig {
+  effective_owner_routes?: Record<string, { model: string; effort: string }>;
+  model_by_harness?: Record<string, string>;
+  owner_evaluation?: "passive" | "enforced";
   condition?: string;
   condition_by_harness?: Record<string, string>;
   skill_dir?: string;
@@ -33,6 +36,7 @@ interface GoalExpectation {
 }
 
 interface SuiteConfig {
+  harnesses?: string[];
   version: number;
   experiment: string;
   case_filter: string | string[];
@@ -166,8 +170,10 @@ if (
   );
 }
 
-const harnesses = values.harness ?? ["claude", "codex"];
+const harnesses = values.harness ?? suite.harnesses ?? ["claude", "codex"];
 for (const harness of harnesses) {
+  if (suite.harnesses && !suite.harnesses.includes(harness))
+    throw new Error(`suite does not support harness: ${harness}`);
   if (harness !== "claude" && harness !== "codex") {
     throw new Error(`unsupported suite harness: ${harness}`);
   }
@@ -287,10 +293,16 @@ for (const { harness, modeName } of cellPlan) {
   const condition = mode.condition_by_harness?.[harness] ?? mode.condition;
   const resultPath = join(outputDir, `${harness}-${modeName}.json`);
   const model =
-    harness === "claude"
+    mode.model_by_harness?.[harness] ??
+    (harness === "claude"
       ? candidateRoutes.claude.model
-      : candidateRoutes.codex.model;
+      : candidateRoutes.codex.model);
   const effort = mode.effort ?? values.effort!;
+  if (
+    mode.owner_evaluation &&
+    !["passive", "enforced"].includes(mode.owner_evaluation)
+  )
+    throw new Error(`Invalid owner_evaluation: ${mode.owner_evaluation}`);
   const args = [
     "bun",
     resolve(import.meta.dir, "run.ts"),
@@ -302,6 +314,8 @@ for (const { harness, modeName } of cellPlan) {
     String(evidenceLimits.threshold),
     "--effort",
     effort,
+    "--owner-evaluation",
+    mode.owner_evaluation ?? "enforced",
     "--model",
     model,
     "--output",
@@ -326,6 +340,11 @@ for (const { harness, modeName } of cellPlan) {
   }
   if (mode.mount_plugin_skills) args.push("--mount-plugin-skills");
   if (mode.without_skill) args.push("--without-skill");
+  if (mode.effective_owner_routes)
+    args.push(
+      "--assert-effective-owner-routes",
+      JSON.stringify(mode.effective_owner_routes),
+    );
   if (mode.require_evaluation_records)
     args.push("--require-evaluation-records");
   if (mode.apply_expected_goal_routes) {

@@ -22,11 +22,17 @@ describe("evaluation suite ablation", () => {
       [
         "version: 1",
         "experiment: activation-mount-test",
+        "harnesses: [codex]",
         "case_filter: grilling-direct-frontier",
         "modes:",
         "  without-skill:",
         "    without_skill: true",
-        "  candidate: {}",
+        "  candidate:",
+        "    owner_evaluation: passive",
+        "    model_by_harness:",
+        "      codex: gpt-5.6-luna",
+        "    effective_owner_routes:",
+        "      grilling-direct-frontier: {model: gpt-5.6-luna, effort: medium}",
       ].join("\n"),
     );
     const proc = Bun.spawn(
@@ -35,8 +41,6 @@ describe("evaluation suite ablation", () => {
         resolve(import.meta.dir, "suite.ts"),
         "--suite",
         suite,
-        "--harness",
-        "codex",
         "--trials",
         "1",
         "--dry",
@@ -63,17 +67,53 @@ describe("evaluation suite ablation", () => {
       ),
     );
     expect(byMode["without-skill"][0].activationClass).toBeUndefined();
+    expect(manifest.harnesses).toEqual(["codex"]);
+    expect(
+      manifest.cells.every(
+        (cell: { harness: string }) => cell.harness === "codex",
+      ),
+    ).toBe(true);
+    expect(byMode.candidate[0].expectedEffectiveOwnerRoute).toEqual({
+      model: "gpt-5.6-luna",
+      effort: "medium",
+    });
     expect(byMode.candidate[0]).toEqual(
       expect.objectContaining({
         activationClass: "positive",
         activationTargetSkill: "grilling",
         activationPassRate: null,
+        model: "gpt-5.6-luna",
+        ownerEvaluationMode: "passive",
       }),
     );
     const report = await readFile(join(output, "report.md"), "utf8");
+    expect(
+      byMode.candidate[0].trials[0].harness.evaluationEnforcement,
+    ).toBeUndefined();
+    expect(report).toContain("Enforcement");
     expect(report).toContain("| codex | candidate | unknown | unknown |");
     expect(report).not.toContain(
       "| codex | without-skill | unknown | unknown | unknown | unknown | unknown | unknown |",
+    );
+    const unsupported = Bun.spawn(
+      [
+        "bun",
+        resolve(import.meta.dir, "suite.ts"),
+        "--suite",
+        suite,
+        "--harness",
+        "claude",
+        "--dry",
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const [unsupportedError, unsupportedCode] = await Promise.all([
+      new Response(unsupported.stderr).text(),
+      unsupported.exited,
+    ]);
+    expect(unsupportedCode).not.toBe(0);
+    expect(unsupportedError).toContain(
+      "suite does not support harness: claude",
     );
   });
 

@@ -20,6 +20,10 @@ import {
   resolve,
 } from "node:path";
 import { parseArgs } from "node:util";
+import {
+  effectiveOwnerRouteCheck,
+  effectiveNativeOwnerRoute,
+} from "./owner-evidence";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import { resolveCorpusSource } from "./corpus";
@@ -109,6 +113,8 @@ interface SemanticOutputConfig {
 }
 
 interface RunCaseOptions {
+  assertedEffectiveOwnerRoute?: { model: string; effort: string };
+  ownerEvaluationMode: "passive" | "enforced";
   evalCase: EvalCase;
   adapter: HarnessAdapter;
   model: string;
@@ -472,6 +478,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     evalCase,
   );
   const evidence = stableEvidence({
+    ownerEvaluationMode: options.ownerEvaluationMode,
     participantPrompt,
     followUpPrompt,
     sourcePlugin,
@@ -490,6 +497,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     requireEvaluationRecords: standaloneEvaluationRecordEvidence(options),
     expectedGoalRoute: options.expectedGoalRoute ?? null,
     assertedGoalRoute: options.assertedGoalRoute ?? null,
+    assertedEffectiveOwnerRoute: options.assertedEffectiveOwnerRoute ?? null,
     assertedGoalDimensions: options.assertedGoalDimensions ?? null,
     semanticOutput: semanticOutputEvidence(options),
     judge: judgeEvidence(judge),
@@ -597,6 +605,14 @@ function routeChecks(
   );
   return [
     ...(observedTicketPipelineCheck ? [observedTicketPipelineCheck] : []),
+    ...(options.assertedEffectiveOwnerRoute
+      ? [
+          effectiveOwnerRouteCheck(
+            harness.raw,
+            options.assertedEffectiveOwnerRoute,
+          ),
+        ]
+      : []),
     ...(observedGoalRouteCheck ? [observedGoalRouteCheck] : []),
     ...(assertedGoalRoute
       ? [goalRouteAssertionCheck(observed, assertedGoalRoute)]
@@ -761,7 +777,13 @@ function hasCanonicalGoalReport(resultText: string): boolean {
 function adaptiveGoalSingleOwnerCheck(raw: string): CheckResult {
   return {
     name: "no parent replacement owner is spawned after acceptance",
-    passed: !raw.includes('"type":"darrow.parent_spawn_after_goal"'),
+    passed:
+      !raw.includes('"type":"darrow.parent_spawn_after_goal"') &&
+      raw
+        .split("\n")
+        .filter((line) =>
+          line.startsWith('{"type":"darrow.codex_native_spawn"'),
+        ).length <= 1,
     detail:
       "the parent must retain the accepted owner instead of spawning another agent",
   };
@@ -772,6 +794,7 @@ function adaptiveGoalParentWorkCheck(raw: string): CheckResult {
     .split("\n")
     .some(
       (line) =>
+        line.includes('"type":"darrow.codex_native_parent_tool_after_agent"') ||
         (line.includes('"type":"darrow.parent_tool_after_goal"') &&
           !line.includes('"operation":"error"')) ||
         (line.includes('"type":"darrow.parent_repository_tool_after_goal"') &&
@@ -975,6 +998,7 @@ async function evaluateTrial(
     harness,
     activation: trialActivation(options, harness),
     routeApplication: observedGoalRouteApplication,
+    effectiveOwnerRoute: effectiveNativeOwnerRoute(harness.raw),
     orchestrationMetrics: extractOrchestrationMetrics(
       harness.resultText,
       gate.checks,
@@ -1037,14 +1061,17 @@ async function evaluateLiveTrial(
     prompt: trialPrompt(options, repoDir),
     model,
     effort,
-    control: goalRouteControl(
-      options.expectedGoalRoute,
-      trialFollowUpPrompt(options, repoDir),
-      expectsAdaptiveGoalOwner(evalCase),
-      evalCase.activation && !options.withoutSkill
-        ? activationProbeForCase(evalCase, adapter.name)
-        : undefined,
-    ),
+    control: {
+      ...goalRouteControl(
+        options.expectedGoalRoute,
+        trialFollowUpPrompt(options, repoDir),
+        expectsAdaptiveGoalOwner(evalCase),
+        evalCase.activation && !options.withoutSkill
+          ? activationProbeForCase(evalCase, adapter.name)
+          : undefined,
+      ),
+      ownerEvaluationMode: options.ownerEvaluationMode,
+    },
   });
   throwIfInterrupted();
   return evaluateTrial(options, { trial, repoDir, baseRevision, harness });
@@ -1275,6 +1302,8 @@ function summarizeCase(
   const durations = trialResults.map((t) => t.harness.durationMs);
   return {
     caseId: evalCase.id,
+    ownerEvaluationMode: options.ownerEvaluationMode,
+    expectedEffectiveOwnerRoute: options.assertedEffectiveOwnerRoute,
     executionMode: dry ? "dry" : "executed",
     invariant: evalCase.invariant,
     evaluationDigest: evaluationDigest(options),
@@ -1433,6 +1462,7 @@ const { values } = parseArgs({
     plugin: { type: "string" },
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
+    "owner-evaluation": { type: "string", default: "enforced" },
     condition: { type: "string" },
     "without-skill": { type: "boolean", default: false },
     "human-review-minutes": { type: "string" },
@@ -1444,6 +1474,7 @@ const { values } = parseArgs({
     "case-routes": { type: "string" },
     "expected-goal-routes": { type: "string" },
     "assert-goal-routes": { type: "string" },
+    "assert-effective-owner-routes": { type: "string" },
     "assert-goal-dimensions": { type: "string" },
     output: { type: "string" },
     "no-color": { type: "boolean", default: false },
@@ -1465,6 +1496,11 @@ const { values } = parseArgs({
 });
 
 const trials = Number(values.trials);
+const ownerEvaluationMode = values["owner-evaluation"];
+if (ownerEvaluationMode !== "passive" && ownerEvaluationMode !== "enforced") {
+  console.error("--owner-evaluation must be passive or enforced");
+  process.exit(1);
+}
 const jobs = Number(values.jobs);
 const threshold = Number(values.threshold);
 if (!Number.isInteger(trials) || trials < 1) {
@@ -1584,6 +1620,28 @@ if (values["expected-goal-routes"]) {
   >;
 }
 let assertedGoalRoutes: Record<string, { model: string; effort: string }> = {};
+let assertedEffectiveOwnerRoutes: Record<
+  string,
+  { model: string; effort: string }
+> = {};
+if (values["assert-effective-owner-routes"]) {
+  try {
+    const parsed = JSON.parse(values["assert-effective-owner-routes"]);
+    if (
+      !parsed ||
+      Array.isArray(parsed) ||
+      typeof parsed !== "object" ||
+      !Object.values(parsed).every(isNonEmptyRouteRecord)
+    )
+      throw new Error("invalid routes");
+    assertedEffectiveOwnerRoutes = parsed;
+  } catch {
+    console.error(
+      "--assert-effective-owner-routes must be a JSON object of model/effort routes",
+    );
+    process.exit(2);
+  }
+}
 if (values["assert-goal-routes"]) {
   try {
     assertedGoalRoutes = JSON.parse(values["assert-goal-routes"]);
@@ -1705,6 +1763,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
     stableEvidence({
       cases: cases.map((evalCase) =>
         evaluationDigest({
+          ownerEvaluationMode,
           evalCase,
           adapter,
           model: caseRoutes[evalCase.id]?.model ?? model,
@@ -1721,6 +1780,8 @@ const runIdentity = new Bun.CryptoHasher("sha256")
           judge,
           expectedGoalRoute: expectedGoalRoutes[evalCase.id],
           assertedGoalRoute: assertedGoalRoutes[evalCase.id],
+          assertedEffectiveOwnerRoute:
+            assertedEffectiveOwnerRoutes[evalCase.id],
           assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
         }),
       ),
@@ -1744,6 +1805,7 @@ try {
     const caseModel = caseRoute?.model ?? model;
     const caseEffort = caseRoute?.effort ?? effort;
     const caseOptions: RunCaseOptions = {
+      ownerEvaluationMode,
       evalCase,
       adapter,
       model: caseModel,
@@ -1760,6 +1822,7 @@ try {
       judge,
       expectedGoalRoute: expectedGoalRoutes[evalCase.id],
       assertedGoalRoute: assertedGoalRoutes[evalCase.id],
+      assertedEffectiveOwnerRoute: assertedEffectiveOwnerRoutes[evalCase.id],
       assertedGoalDimensions: assertedGoalDimensions[evalCase.id],
       ui,
       checkpoint: async (trial) => {

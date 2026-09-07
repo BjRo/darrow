@@ -1,0 +1,2430 @@
+{
+  "date": "2026-09-07",
+  "finalPluginVersion": "0.16.0",
+  "scope": "Exploratory issue #102 evidence. Historical attempts used evolving candidate instructions/checks (baseline-feedback used plugin 0.15.0); only named final trials use the final fixture contracts. No pooled reliability or cost claim.",
+  "trials": [
+    {
+      "sourceFile": "/tmp/darrow-102-baseline-feedback.json",
+      "sha256": "d056e9e67464dd15f2d307bb089485faae57ea9810eb2aa4296d393612059ad2",
+      "caseId": "goal-cross-turn-feedback-answer",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "a4518cedd35381d1534d8090e8917dfbd5e82c987a4516ef11a00aa452313c93",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 77196.34675,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 75772,
+      "checks": [
+        {
+          "name": "resumed owner implements the approved migration behavior",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "discovery precedes exact same-owner acknowledgement and mutation",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "resumed owner reports completion",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "one accepted owner exists before the later host turn",
+          "passed": false,
+          "detail": "expect_regex /(?:\"type\":\"darrow.goal_agent_completion\"[^\\n]*\"status\":\"completed\"[^\\n]*\"agent_id\":\"[^\"]+\"[\\s\\S]*\"type\":\"darrow.eval.follow_up_turn\"|\"tool\":\"spawn_agent\"[^\\n]*\"status\":\"completed\"[^\\n]*\"receiver_thread_ids\":\\[\"[^\"]+\"\\][^\\n]*\"prompt\":\"- phase: adaptive-goal-owner\"[\\s\\S]*\"type\":\"darrow.eval.follow_up_turn\")/ missed"
+        },
+        {
+          "name": "later turn relays to the retained owner",
+          "passed": false,
+          "detail": "expect_regex /(?:\"type\":\"darrow.goal_agent_completion\"[^\\n]*\"agent_id\":\"([^\"]+)\"[\\s\\S]*\"type\":\"darrow.human_feedback_request\"[^\\n]*\"agent_id\":\"\\1\"[^\\n]*\"question_present\":true[\\s\\S]*\"type\":\"darrow.eval.follow_up_turn\"[\\s\\S]*\"type\":\"darrow.human_feedback_relay\"[^\\n]*\"agent_id\":\"\\1\"[^\\n]*\"same_owner\":true[\\s\\S]*\"type\":\"darrow.goal_agent_resumption\"[^\\n]*\"agent_id\":\"\\1\"[^\\n]*\"status\":\"completed\"[^\\n]*\"same_owner\":true|\"tool\":\"spawn_agent\"[^\\n]*\"status\":\"completed\"[^\\n]*\"receiver_thread_ids\":\\[\"([^\"]+)\"\\][^\\n]*\"agent_ref\":\"\\2\"[\\s\\S]*\"type\":\"darrow.eval.follow_up_turn\"[\\s\\S]*\"tool\":\"(?:followup_task|send_input)\"[^\\n]*\"status\":\"completed\"[^\\n]*\"receiver_thread_ids\":\\[\"\\2\"\\][^\\n]*\"agent_ref\":\"\\2\")/ missed"
+        },
+        {
+          "name": "later turn creates no replacement owner or lifecycle transition",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        }
+      ],
+      "finalOutput": "Status: complete\n\n- Added exported `migrationMode()` returning `\"strict\"` in `src/migration.js`.\n- Focused and full tests passed: 2/2.\n- Kept local; no publication effects.\n\nGoal completion grants no new or subsequent authority.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07cd2-f1b1-7821-ae1d-ce7be2596836"
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/migration_mode_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified"
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-feedback-schema.json",
+      "sha256": "5ec16f3a2cc5aace6893e3fcaaa2b49387b1fcc58635dbb53aecc06fbb409d41",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "a88153a22e49ca67808ae8a0e07ef4169c9f5249b02b7a1e8ddef2f9220e29fa",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 92007.129709,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "source mutation waits for the implementation window",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native host retains one owner and targets its continuation",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": true,
+          "detail": "The response states that normalization was implemented using the existing parser."
+        }
+      ],
+      "finalOutput": "Implemented [`src/normalize.js`](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-fcDYZf/src/normalize.js:1) as a named export using the existing parser.\n\n`windowctl open` succeeded and `bash check.sh` passed. `src/legacy.js` was untouched; no commit was made.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07cf5-534f-7b23-bd39-37d54fab127d",
+          "native_after_ordinal": 51
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 34
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 62,
+          "after_follow_up": true,
+          "delivery": "unverified",
+          "response_keys": [],
+          "response_status": "unverified",
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-claude-steering.json",
+      "sha256": "786d60999b5fec9057611f77b18752a39e0c222eec902c323b222bb9d2bc415b",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "28275fa4342ee6b9b6b4e7c09042062c359314e5d5f3426ded89c016a41efda2",
+      "condition": "focused",
+      "harness": "claude",
+      "harnessVersion": "2.1.223 (Claude Code)",
+      "model": "claude-sonnet-5",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 173702.998625,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 773425,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "source mutation waits for the implementation window",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native source is unchanged at the actual feedback boundary",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "host observes a same-owner continuation attempt after user feedback",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "Claude native-subagent route has retained effective-route evidence",
+          "passed": true,
+          "detail": "expected one marked completed Claude runner whose transcript-derived route exactly matches its selected model and effort (materializations=0; goal_completions=1; route_observations=1; parent_operations=before:inspect-ls,before:goal-loop-unbound,before:mutation-redirect-find+head+echo+ls,before:other-cat+echo+cat+echo,before:other-windowctl+echo+cat,before:mutation-redirect-cat+echo+git,before:mutation-rm,before:goal-loop-unbound,before:agent-route-unbound)"
+        },
+        {
+          "name": "Claude parent performs no mutation or verification outside the owner",
+          "passed": true,
+          "detail": "no parent mutation or verification outside the owner"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": true,
+          "detail": "The response says the owner finished implementing normalize(input) using the existing parser.js."
+        }
+      ],
+      "finalOutput": "The owner finished implementing `normalize(input)`, stopping before commit as instructed.\n\n**`src/normalize.js`** now reads:\n```js\n// Public normalization entrypoint.\nimport { parse } from './parser.js';\n\nexport function normalize(input) {\n  return parse(input);\n}\n```\n\n- Reuses the existing `parser.js` (`String(input ?? '').trim()`), so it returns a trimmed string as requested.\n- `src/legacy.js` untouched.\n- `bash check.sh` passed (`normalize(' a ') → 'a'`, `normalize(null) → ''`).\n- `git status --porcelain` shows only `M src/normalize.js` — nothing committed.\n\nOne thing worth flagging: the owner independently re-ran `windowctl inspect`/`windowctl open` to confirm the window state itself rather than just trusting your statement that it was open — that's why the sequence shows `inspect` exiting 1 before `open` succeeded. Nothing else was mutated beyond the file above. Let me know if you'd like it to commit now.",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.goal_agent_completion",
+          "tool_use_id": "toolu_01U9HMLDaaWYyooGyveSZnQ1",
+          "subagent_type": "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+          "status": "completed",
+          "agent_id": "ad80423bf965db52d"
+        },
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "7b009a08-b5cb-454e-b000-dc46d5c2c8ad"
+        },
+        {
+          "type": "darrow.goal_agent_resumption",
+          "tool_use_id": "toolu_01E6XZYsPSWh8XRgBAnG8fQr",
+          "goal_tool_use_id": "toolu_01U9HMLDaaWYyooGyveSZnQ1",
+          "subagent_type": "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+          "agent_id": "ad80423bf965db52d",
+          "observed_agent_id": "ad80423bf965db52d",
+          "status": "completed",
+          "same_owner": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-goal-budgeted-repair-default.json",
+      "sha256": "1db7c99911216d5502e3c4ab8d6ab8210fe59dbcfc08fcde7b883972d5f20470",
+      "caseId": "goal-budgeted-repair-default",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "324cc207176b8e0e0fade91c370cb8d2404fd2b2696605d78d1a077bce4d0343",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 8654.855207999999,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 18835,
+      "checks": [
+        {
+          "name": "advice leaves repository unchanged",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "default repair budget is finite",
+          "passed": true,
+          "detail": "It states the default permits exactly one repair and one verification, and says the remaining blocker should be reported as blocked/remaining risk rather than complete."
+        }
+      ],
+      "finalOutput": "No. Without an explicit finite repair budget, the default permits exactly one closed-set repair and one fix verification. With another original blocker remaining, the owner should report it as blocked/remaining risk and request authority for an additional repair attempt.",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-goal-budgeted-repair-progress.json",
+      "sha256": "19009ac5345b051a362dfca1e788633d642f966555667664927b0c54c6376ed5",
+      "caseId": "goal-budgeted-repair-progress",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "65163aa7ec1fb7da6e25e83aca495f2c37adccd045424bb3a915e16819855baa",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 16224.1665,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 18792,
+      "checks": [
+        {
+          "name": "advice leaves repository unchanged",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "advice launches no agent",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "remaining budget and material progress permit another repair",
+          "passed": true,
+          "detail": "The response explicitly authorizes the second and final repair, identifies the remaining blocker, and requires rerunning verification before completion or publication."
+        }
+      ],
+      "finalOutput": "Use the second and final authorized closed-set repair to handle the missed null input, then rerun fix verification.\n\nNo—do not publish before that verification returns clear. The remaining original blocker is still open; only clear verification permits completion or publication of the verified result.",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-goal-budgeted-repair-unchanged.json",
+      "sha256": "cdec8ef9e49e42c175712575c422ad77896bb086b7b3accc7595a5b34fc539cf",
+      "caseId": "goal-budgeted-repair-unchanged",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "05a575d09aac1f5aaf260f61a0e91e8a38a2da57c87123ff83cd268e472e65ae",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 12389.854874999999,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 38367,
+      "checks": [
+        {
+          "name": "advice leaves repository unchanged",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "budget alone does not authorize ineffective retries",
+          "passed": true,
+          "detail": "The response stops further repair attempts and publication based on unchanged evidence, explicitly stating that the remaining numerical budget cannot be used."
+        }
+      ],
+      "finalOutput": "The owner must stop affected work: no second repair attempt and no publication.\n\nUnchanged verification evidence shows no material progress, so the remaining numerical budget cannot be used. The owner should report the unresolved findings, unchanged evidence, and consumed budget (1 of 3); request a concrete decision only if it would enable an authorized next action.",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-goal-post-launch-reassessment.json",
+      "sha256": "5b809519707d978defa5beb1b44568268ce7714912ed45fe25187dfdb4f7509a",
+      "caseId": "goal-post-launch-reassessment",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "fe9bc2683ad7b101ad49a85ecba6ef0ca53a9d12e8a4a1e2333d55195a096020",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 114606.740208,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "caller compatibility is verified",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "changed readiness is assessed by the retained owner",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "authority and existing parser are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "one native owner was accepted",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "owner reports compatible completion",
+          "passed": true,
+          "detail": "The response states completion, preserves undefined-input compatibility (`undefined → ''`), and reports that checks and verification passed."
+        }
+      ],
+      "finalOutput": "Status: complete.\n\n- Changed `src/normalize.js` to export `normalize(input)` via the existing parser.\n- Preserved parser compatibility, including `undefined → ''`.\n- Focused compatibility checks and `bash check.sh` passed.\n- Readiness: ready; review: permitted omission for routine risk.\n- No publication effects, remaining risks, or blockers.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 57
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 72,
+          "after_follow_up": false,
+          "delivery": "unverified",
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-goal-preflight-ticket-input.json",
+      "sha256": "6391f652445d53f011f33dbdd035a5bb6d090298f2d82aa1f8ccf4d17dc8b683",
+      "caseId": "goal-preflight-ticket-input",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "74a605042b710b28e557bc1272b92c47a7c62992d27c5cbaf20928eda552a09f",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 26053.043625,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 81524,
+      "checks": [
+        {
+          "name": "authoritative input is retrieved in read-only preflight",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "unresolved ticket decision launches no owner",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "preflight asks the decision exposed by the ticket",
+          "passed": true,
+          "detail": "The response asks what retention period the policy should use and does not claim implementation or launch completion."
+        }
+      ],
+      "finalOutput": "Ticket 64 requires a retention-period decision before implementation. What retention period should the policy use?",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-final-goal-steering-without-question.json",
+      "sha256": "424bf59e834a7036faa602f10bb54f87fc952140df43c4fc86e3cfc6ffbe7921",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "final-focused",
+      "evaluationDigest": "e5139b3e53c37085e98203c96c921d01ef13cc5643680730128310637e382988",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 98226.674625,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "source mutation waits for the implementation window",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native source is unchanged at the actual feedback boundary",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "host observes a same-owner continuation attempt after user feedback",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": true,
+          "detail": "The response states that normalization was implemented and delegates to the existing parser."
+        }
+      ],
+      "finalOutput": "Implemented [`src/normalize.js`](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-panLlf/src/normalize.js).\n\nIt delegates to the existing parser, leaves `src/legacy.js` unchanged, and `bash check.sh` passes. No commit or publication was performed.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07d0a-cc2b-7d60-9afc-2c28bb826f1a",
+          "native_after_ordinal": 58,
+          "pre_feedback_worktree_unchanged": true
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 39
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 69,
+          "after_follow_up": true,
+          "delivery": "unverified",
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-direct-luna-feature/codex-direct-luna.json",
+      "sha256": "228c512c26427737f4597fd576242bd2e6411cc644eb93ce636c1ccd18dcc7d4",
+      "caseId": "orchestration-routing-localized-quality-feature",
+      "candidateStage": "comparison",
+      "evaluationDigest": "99318257b31fada5e296c2a72f482267e4f733d93b0884298abc1e173591df13",
+      "condition": "direct-luna-without-skill",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-luna",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 33751.295042000005,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 71357,
+      "checks": [
+        {
+          "name": "canonical stable versions are recognized",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "unstable and noncanonical versions are rejected",
+          "passed": true,
+          "detail": "ok",
+          "metric": "escaped_defect"
+        },
+        {
+          "name": "repository tests pass",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        }
+      ],
+      "finalOutput": "Implemented and exported `isStableVersion(value)` with canonical `x.y.z` validation.\n\nAdded accepted/rejected boundary tests. `bash test.sh` passes all 3 tests, and `git diff --check` is clean.\n\nevaluation_child_invocations 0\nevaluation_human_interruptions 0",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-direct-luna-mechanical/codex-direct-luna.json",
+      "sha256": "ded128c9b0bfe9f5ea993f1d10fddb9726eea00aa1d420b9d2ee1ecbba71fbdf",
+      "caseId": "orchestration-routing-localized-mechanical",
+      "candidateStage": "comparison",
+      "evaluationDigest": "826cbf44536ab3cebc5bacd747af53d0a0505f1dc553398468d999192cdd4f8d",
+      "condition": "direct-luna-without-skill",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-luna",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 19359.509082999997,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 54163,
+      "checks": [
+        {
+          "name": "deterministic prose transformation is correct",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        }
+      ],
+      "finalOutput": "Alphabetized the three entries in [NOTES.md](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-LD55cc/NOTES.md). `bash check.sh` passed, and the diff is clean.\n\nevaluation_child_invocations 0\nevaluation_human_interruptions 0",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-direct-terra-feature/codex-direct-terra.json",
+      "sha256": "b958ed0b09216840cce1cd18cffd1428cb26430d9386951de100dc056127f7a2",
+      "caseId": "orchestration-routing-localized-quality-feature",
+      "candidateStage": "comparison",
+      "evaluationDigest": "99318257b31fada5e296c2a72f482267e4f733d93b0884298abc1e173591df13",
+      "condition": "direct-terra-without-skill",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 39238.804874999994,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 79185,
+      "checks": [
+        {
+          "name": "canonical stable versions are recognized",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "unstable and noncanonical versions are rejected",
+          "passed": true,
+          "detail": "ok",
+          "metric": "escaped_defect"
+        },
+        {
+          "name": "repository tests pass",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        }
+      ],
+      "finalOutput": "Implemented `isStableVersion` in [src/version.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-h7bNjf/src/version.js:3) with strict canonical semver validation.\n\nAdded focused acceptance/rejection tests in [test/version.test.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-h7bNjf/test/version.test.js:9). `bash test.sh` passes (3 tests).\n\nevaluation_child_invocations\t0\nevaluation_human_interruptions\t0",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-direct-terra-mechanical/codex-direct-terra.json",
+      "sha256": "f11f78c042d34dcf7ebd3ebceb261ac404e5608dbd6e95ad54546f71dc26a403",
+      "caseId": "orchestration-routing-localized-mechanical",
+      "candidateStage": "comparison",
+      "evaluationDigest": "826cbf44536ab3cebc5bacd747af53d0a0505f1dc553398468d999192cdd4f8d",
+      "condition": "direct-terra-without-skill",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": null,
+      "durationMs": 18205.079334,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 59657,
+      "checks": [
+        {
+          "name": "deterministic prose transformation is correct",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        }
+      ],
+      "finalOutput": "Alphabetized the entries in [NOTES.md](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-qrf09l/NOTES.md). `bash check.sh` and `git diff --check` pass.\n\nevaluation_child_invocations 0\nevaluation_human_interruptions 0",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-enforced-terra-feature/codex-enforced-terra.json",
+      "sha256": "d59fbeee4bd0172a4b31a4dfd5d9725e648da281e850d0f1ce7c115f4c378496",
+      "caseId": "orchestration-routing-localized-quality-feature",
+      "candidateStage": "comparison",
+      "evaluationDigest": "59222b1257694cb1b12b35f3924e956929906a8889eaf81e70f53097fc14a604",
+      "condition": "enforced-terra",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "enforced",
+      "observedEnforcement": "enforced",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "durationMs": 80242.01483300001,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "canonical stable versions are recognized",
+          "passed": false,
+          "detail": "exit=1 (expected 0): file:///private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-cSh63V/[eval1]:1\nimport('./src/version.js').then(({isStableVersion}) => { for (const value of ['0.0.0', '1.2.3', '10.20.30']) { if (!isStableVersion(value)) process.exit(1) } })\n                                                                                                                    ^\n\nTypeError: isStableVersion is not a function\n    at file:///private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-cSh63V/[eval1]:1:117\n\nNode.js v24.13.0"
+        },
+        {
+          "name": "unstable and noncanonical versions are rejected",
+          "passed": false,
+          "detail": "exit=1 (expected 0): file:///private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-cSh63V/[eval1]:1\nimport('./src/version.js').then(({isStableVersion}) => { for (const value of ['01.2.3', '1.02.3', '1.2', '1.2.3-beta', '1.2.3+build', ' 1.2.3 ', '1.2.3.4', 123]) { if (isStableVersion(value)) process.exit(1) } })\n                                                                                                                                                                        ^\n\nTypeError: isStableVersion is not a function\n    at file:///private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-cSh63V/[eval1]:1:169\n\nNode.js v24.13.0",
+          "metric": "escaped_defect"
+        },
+        {
+          "name": "repository tests pass",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": true,
+          "detail": "expected one accepted owner at gpt-5.6-terra/medium; observed gpt-5.6-terra/medium; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Status: blocked.\n\nNo files changed. Both test editing and `bash test.sh` were denied by the adaptive-goal PreToolUse guard, which reports the session as read-only/not activated. The smallest next action is to enable the owner’s local edit and verification permissions, then I can complete the feature.\n\nReadiness: omitted as instructed. Review: omitted (routine risk). Publication: none.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/version_stability_owner",
+          "model": "gpt-5.6-terra",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 44
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-enforced-terra-mechanical/codex-enforced-terra.json",
+      "sha256": "760eb0c0a53f3a89172536303efa2e3296dff3d612a741d2b84f91d729c3329d",
+      "caseId": "orchestration-routing-localized-mechanical",
+      "candidateStage": "comparison",
+      "evaluationDigest": "2eb844c8d6b8c5fb1d89e544db43094a9e3d95486bcc232a41cd15c4adac21c2",
+      "condition": "enforced-terra",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "enforced",
+      "observedEnforcement": "enforced",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "durationMs": 53704.751542,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "deterministic prose transformation is correct",
+          "passed": false,
+          "detail": "exit=1 (expected 0): "
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": true,
+          "detail": "expected one accepted owner at gpt-5.6-terra/medium; observed gpt-5.6-terra/medium; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Status: blocked\n\nThe owner could inspect `NOTES.md`, but its authorized patch was denied by a read-only adaptive-goal hook. No files were changed and `bash check.sh` was not run.\n\nSmallest next action: permit the authorized `NOTES.md` edit (or remove the read-only hook), then I can resume the same owner to reorder the entries and run the check.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/notes_alphabetize_owner",
+          "model": "gpt-5.6-terra",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 34
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-preflight-luna-feature/codex-preflight-luna.json",
+      "sha256": "2c876344be4d0af1abe25a19331e72486e5ab09a1c236aee887a3666a07f857b",
+      "caseId": "orchestration-routing-localized-quality-feature",
+      "candidateStage": "comparison",
+      "evaluationDigest": "d81bc12c923c5d4cc2118292aeb476eab101632ffc690cd7643206732414dde7",
+      "condition": "preflight-luna",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-luna",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": null,
+      "durationMs": 129007.13583300001,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "canonical stable versions are recognized",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "unstable and noncanonical versions are rejected",
+          "passed": true,
+          "detail": "ok",
+          "metric": "escaped_defect"
+        },
+        {
+          "name": "repository tests pass",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": false,
+          "detail": "expected one accepted owner at gpt-5.6-luna/medium; observed unverified; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Complete.\n\n- Added and exported `isStableVersion` in [src/version.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-VUyOA5/src/version.js).\n- Added boundary tests in [test/version.test.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-VUyOA5/test/version.test.js).\n- Focused tests: 3 passed.\n- `bash test.sh`: passed.\n- No commits or publication performed.",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 1,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-preflight-luna-mechanical/codex-preflight-luna.json",
+      "sha256": "37c4a9b48a9aa1251e7263ad6dc43dadfdb1188e232613a79d1030c731a19d16",
+      "caseId": "orchestration-routing-localized-mechanical",
+      "candidateStage": "comparison",
+      "evaluationDigest": "b4c133884e288b84c08cd001c0235868214d5b504fefd46d6efa135a566f5554",
+      "condition": "preflight-luna",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-luna",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": null,
+      "durationMs": 78799.585167,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "deterministic prose transformation is correct",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": false,
+          "detail": "expected one accepted owner at gpt-5.6-luna/medium; observed unverified; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Status: complete.\n\n- Updated [NOTES.md](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-bmlIjR/NOTES.md): `alpha`, `maple`, `zebra`\n- `bash check.sh` passed\n- No unrelated changes, commits, or publication performed",
+      "nativeSpawnCount": 0,
+      "legacyCompletedSpawnCount": 1,
+      "boundedNativeEvidence": []
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-preflight-terra-feature/codex-preflight-terra.json",
+      "sha256": "225e5b8f7ef9d925538607803a518daeb5855b473e2cd51a78b9e0dcbb4dd65b",
+      "caseId": "orchestration-routing-localized-quality-feature",
+      "candidateStage": "comparison",
+      "evaluationDigest": "1835e25f2b715c960c73afdd3d880d88ae8d50cc30766ae684a74e9128fe4e5e",
+      "condition": "preflight-terra",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "durationMs": 78721.378708,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "canonical stable versions are recognized",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "unstable and noncanonical versions are rejected",
+          "passed": true,
+          "detail": "ok",
+          "metric": "escaped_defect"
+        },
+        {
+          "name": "repository tests pass",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": true,
+          "detail": "expected one accepted owner at gpt-5.6-terra/medium; observed gpt-5.6-terra/medium; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Complete.\n\n- Added exported `isStableVersion(value)` in `src/version.js`.\n- Added focused accepted/rejected boundary tests in `test/version.test.js`.\n- `bash test.sh` passed (3/3).\n- No commits, publishing, dependencies, or unrelated changes.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/stable_version_owner",
+          "model": "gpt-5.6-terra",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 41
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-preflight-terra-mechanical-v2/codex-preflight-terra.json",
+      "sha256": "395f31b2ec3df39c0abe2bb7380cad8811e5025e4eed163d7028905271ece984",
+      "caseId": "orchestration-routing-localized-mechanical",
+      "candidateStage": "comparison",
+      "evaluationDigest": "8c6618211adb52ae9ebd27d7f4e5c0e723477ede54100d98b0d44a275536af95",
+      "condition": "preflight-terra",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "durationMs": 51826.929334,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "deterministic prose transformation is correct",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": true,
+          "detail": "expected one accepted owner at gpt-5.6-terra/medium; observed gpt-5.6-terra/medium; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Status: complete.\n\nUpdated [NOTES.md](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-iqRD8W/NOTES.md) with alphabetized entries. `bash check.sh` passed. No commits or publication.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/notes_alphabetize_owner",
+          "model": "gpt-5.6-terra",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 32
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-routed-terra-feature/codex-routed-terra.json",
+      "sha256": "73cdadaedc31d052792c6efd2750897b00cf7921ceafe7efe28c2ab9cab32e47",
+      "caseId": "orchestration-routing-localized-quality-feature",
+      "candidateStage": "comparison",
+      "evaluationDigest": "64e58dac882255e707087bf41b66b72d43a85ee43334b6e84d433f3bfbd96c2c",
+      "condition": "routed-terra",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      },
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      },
+      "durationMs": 101340.881542,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "canonical stable versions are recognized",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "unstable and noncanonical versions are rejected",
+          "passed": true,
+          "detail": "ok",
+          "metric": "escaped_defect"
+        },
+        {
+          "name": "repository tests pass",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": true,
+          "detail": "expected one accepted owner at gpt-5.6-luna/high; observed gpt-5.6-luna/high; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Status: complete.\n\nChanged:\n- `src/version.js`: exported `isStableVersion(value)` with strict canonical `X.Y.Z` validation.\n- `test/version.test.js`: added accepted/rejected boundary tests.\n\nVerification:\n- `node --test test/version.test.js` passed.\n- `bash test.sh` passed.\n- `git diff --check` passed.\n\nNo commits, publication, or deployment performed.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/version_stability_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "high",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 34
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-matched-routed-terra-mechanical/codex-routed-terra.json",
+      "sha256": "1e567a3126eb3b1708f661f41e93723d7e9c26825d09a2af44d003e22e2bb9d2",
+      "caseId": "orchestration-routing-localized-mechanical",
+      "candidateStage": "comparison",
+      "evaluationDigest": "20d9f3aa9225e8916a2236fe9329defe27319b5834b9c5a0f2c762e6b641e3e8",
+      "condition": "routed-terra",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": {
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 56305.392750000006,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "deterministic prose transformation is correct",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no publication occurred",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "removed canonical goal report is absent",
+          "passed": true,
+          "detail": "adaptive-goal output must not contain the removed canonical report"
+        },
+        {
+          "name": "native owner effective route matches expectation",
+          "passed": true,
+          "detail": "expected one accepted owner at gpt-5.6-luna/medium; observed gpt-5.6-luna/medium; contract selection is not inferred"
+        }
+      ],
+      "finalOutput": "Complete.\n\n- Alphabetized the three `NOTES.md` entries: `alpha`, `maple`, `zebra`.\n- Ran `bash check.sh` successfully.\n- No commit or publication was performed.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/notes_alphabetize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 41
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-reassessment-evidence.json",
+      "sha256": "48d580ea887bc8e99a782b1887af0ba8ebbe4c0a79336f854d1f7d74dd8537e6",
+      "caseId": "goal-post-launch-reassessment",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "39b4ac715a79fa7be0cadb0c41985a556a0b7afdf312e22e086a7dfad26af7ce",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 97948.689166,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "caller compatibility is verified",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "changed readiness is assessed by the retained owner",
+          "passed": false,
+          "detail": "exit=1 (expected 0): ready"
+        },
+        {
+          "name": "authority and existing parser are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "one native owner was accepted",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "owner reports reassessment and compatible completion",
+          "passed": false,
+          "detail": "The response claims completion and readiness, but does not mention reassessment for the newly discovered undefined-input caller constraint or avoiding transfer to a new owner."
+        }
+      ],
+      "finalOutput": "Status: complete.\n\nImplemented `normalize(input)` in [src/normalize.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-hpur0b/src/normalize.js).\n\n- Focused normalize/parser compatibility checks passed.\n- `bash check.sh` passed.\n- Readiness was `ready`; review was appropriately omitted for routine risk.\n- No commits, pushes, or publication. No remaining blockers.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/adaptive_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 57
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/adaptive_owner",
+          "same_owner": true,
+          "ordinal": 72,
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-reassessment-explicit.json",
+      "sha256": "a064540a6747cd0581ed8220b6fefb922b3f155a324f33e6b0eb0dd853d7a9d3",
+      "caseId": "goal-post-launch-reassessment",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "39b4ac715a79fa7be0cadb0c41985a556a0b7afdf312e22e086a7dfad26af7ce",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 120897.250792,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "caller compatibility is verified",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "changed readiness is assessed by the retained owner",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "authority and existing parser are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "one native owner was accepted",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "owner reports reassessment and compatible completion",
+          "passed": false,
+          "detail": "The response reports implementation and compatibility checks, but does not clearly state that readiness was reassessed for a newly discovered undefined-input caller constraint or that execution remained with the same owner."
+        }
+      ],
+      "finalOutput": "Implemented `normalize(input)` in [src/normalize.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-yNZC7s/src/normalize.js:2).\n\nIt trims strings while preserving `undefined` compatibility. Focused checks, parser compatibility checks, `bash check.sh`, and diff validation all passed. No external changes were made.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 50
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-reassessment.json",
+      "sha256": "f8f58d4d2d8f346fafee078a34adaaaa59b30a9beca5ae5f99882ebc0a66b5da",
+      "caseId": "goal-post-launch-reassessment",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "005708c6325a2f6964c7b0014b6aef623fd8a8f51d42d9c2fb79192095991ed8",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 79662.879125,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "caller compatibility is verified",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "changed readiness is assessed by the retained owner",
+          "passed": false,
+          "detail": "exit=1 (expected 0): "
+        },
+        {
+          "name": "authority and existing parser are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "one native owner was accepted",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "owner reports reassessment and compatible completion",
+          "passed": false,
+          "detail": "The response reports completion and parser compatibility, but does not mention reassessing readiness for a newly discovered undefined-input caller constraint or avoiding a new owner."
+        }
+      ],
+      "finalOutput": "Status: complete.\n\nImplemented `normalize(input)` in `src/normalize.js`. It trims input while preserving parser compatibility.\n\nVerified focused behavior, parser compatibility, `bash check.sh`, and `git diff --check`. Only that source file changed; nothing was published.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/adaptive_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 50
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-steering-constraints.json",
+      "sha256": "518203c18ff9ddec08b2037c2eeee0ed419f2318478cdc3554aafb93767de41b",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "e14a5aa51152e10de0d4170b8c44a92b373ec7b077e3085a9b539b4d4510ff41",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 93764.398542,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": false,
+          "detail": "exit=1 (expected 0): "
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "source mutation waits for the implementation window",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native Codex retains one owner and targets its continuation",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": true,
+          "detail": "The response states that src/normalize.js was implemented using the parser’s convention."
+        }
+      ],
+      "finalOutput": "Implemented [`src/normalize.js`](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-6cJOID/src/normalize.js:2) using the parser’s `String(input ?? '').trim()` convention.\n\n`src/legacy.js` was untouched. `windowctl open` ran before editing, and `bash check.sh` passes. No commit or publication was performed.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07ce2-d11b-7ba3-913c-72f048fb3ba8"
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 39
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 71,
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-steering-diagnostic.json",
+      "sha256": "fcb53c7036976db332efadcf2be272ad3a5df4a7d8772fd48a1645efbc2aff15",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "f41b7c6cb116fde1e1bd20bda1d881f5b41398696be45b6be9dbea02d900f77b",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 150760.481042,
+      "harnessOk": true,
+      "passed": true,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "source mutation waits for the implementation window",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native host retains one owner and targets its continuation",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": true,
+          "detail": "The response states the normalization was implemented and reused parser behavior, with status complete."
+        }
+      ],
+      "finalOutput": "Status: complete.\n\nImplemented [`src/normalize.js`](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-EjMJBs/src/normalize.js), reusing parser behavior. `src/legacy.js` was untouched.\n\nPassed focused assertions and `bash check.sh`. No commit was created.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07ce5-5c47-7cc0-b6c5-87b20f1d48e9"
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 32
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 64,
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-steering-final.json",
+      "sha256": "1559bc3a346ee34bcae1b2d565fe5686cad5ec6386873bd9bdd679c9f2af790b",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "e14a5aa51152e10de0d4170b8c44a92b373ec7b077e3085a9b539b4d4510ff41",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 103776.669584,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": false,
+      "completeTokenTotal": null,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": false,
+          "detail": "exit=1 (expected 0): "
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "source mutation waits for the implementation window",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native Codex retains one owner and targets its continuation",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": false,
+          "detail": "The response says normalization was implemented and matches the parser’s behavior, but does not clearly state that it was completed using the existing parser."
+        }
+      ],
+      "finalOutput": "Implemented `normalize(input)` in [src/normalize.js](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-BqZCsY/src/normalize.js).\n\nIt matches the parser’s nullish-safe string conversion and trimming. `src/legacy.js` was untouched, `bash check.sh` passed, and no commit was made.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07ce0-1173-7d60-abae-c4c1b435cf80"
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 46
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 74,
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-steering-verified.json",
+      "sha256": "f612344576b6733cf57337f532dadc1492879b52aed43d34d25a3dfe2576a36f",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "9eadd871641eb22bd44ab8a0a8948090497afad3ee9d409bc1f14a8d1fb886f1",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 99572.24025,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 81045,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native Codex retains one owner and targets its continuation",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": false,
+          "detail": "The response says normalization was implemented using the existing parser and that no commit was made, but it does not clearly state that the changes were kept local."
+        }
+      ],
+      "finalOutput": "Implemented [`src/normalize.js`](/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/darrow-eval-bPlZRA/src/normalize.js) using the existing parser. `src/legacy.js` was unchanged.\n\n`bash check.sh` passes. No commit was made.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07cdd-3909-7163-aa50-d098f8e6ed0f"
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 41
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 71,
+          "response_observed": true
+        }
+      ]
+    },
+    {
+      "sourceFile": "/tmp/darrow-102-steering.json",
+      "sha256": "003c5b2036acc31e78526bcfe42abfbc2f5749e3b4a5be296d48a69bdd3e8a58",
+      "caseId": "goal-steering-without-question",
+      "candidateStage": "historical-development",
+      "evaluationDigest": "12cef49ca33f7a0be98eeaf3a86e00115ad0900d29aac3ecc178d4557b36545f",
+      "condition": "focused",
+      "harness": "codex",
+      "harnessVersion": "codex-cli 0.153.4",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "trial": 1,
+      "requestedEnforcement": "passive",
+      "observedEnforcement": "passive",
+      "expectedEffectiveOwnerRoute": null,
+      "effectiveOwnerRoute": {
+        "harness": "codex",
+        "provider": "openai",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+      },
+      "durationMs": 102143.96783299999,
+      "harnessOk": true,
+      "passed": false,
+      "tokenUsageComplete": true,
+      "completeTokenTotal": 67752,
+      "checks": [
+        {
+          "name": "normalization handles existing parser inputs",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "existing parser is reused and protected files are preserved",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "steering grants no publication",
+          "passed": true,
+          "detail": "ok"
+        },
+        {
+          "name": "base revision remains unchanged",
+          "passed": true,
+          "detail": "candidate created or switched to a different commit"
+        },
+        {
+          "name": "native Codex retains one owner and delivers steering to it",
+          "passed": false,
+          "detail": "expect_regex /\"type\":\"darrow.codex_native_single_agent_accepted\"[^\\n]*\"agent_ref\":\"([^\"]+)\"[\\s\\S]*\"type\":\"darrow.codex_native_feedback\"[^\\n]*\"agent_ref\":\"\\1\"[^\\n]*\"same_owner\":true[^\\n]*\"delivered\":true/ missed"
+        },
+        {
+          "name": "no parent replacement owner is spawned after acceptance",
+          "passed": true,
+          "detail": "the parent must retain the accepted owner instead of spawning another agent"
+        },
+        {
+          "name": "no parent repository or external work occurs after owner acceptance",
+          "passed": true,
+          "detail": "after acceptance the parent may only wait, relay feedback, or stop the owner"
+        },
+        {
+          "name": "goal completion report omits internal TSV records",
+          "passed": true,
+          "detail": "internal tab-separated records are not caller-facing output"
+        },
+        {
+          "name": "retained owner completes the steered request",
+          "passed": true,
+          "detail": "The response says normalization was implemented using the existing parser, legacy.js was untouched, and no commit was made."
+        }
+      ],
+      "finalOutput": "Implemented `normalize(input)` in `src/normalize.js` using the existing parser. `src/legacy.js` was untouched.\n\nVerification passed, including `bash check.sh`. No commit was made.",
+      "nativeSpawnCount": 1,
+      "legacyCompletedSpawnCount": 0,
+      "boundedNativeEvidence": [
+        {
+          "type": "darrow.eval.follow_up_turn",
+          "thread_id": "01a07cd9-f554-7e01-bd69-5f4ed11496ee"
+        },
+        {
+          "type": "darrow.codex_native_single_agent_accepted",
+          "agent_ref": "/root/normalize_owner",
+          "model": "gpt-5.6-luna",
+          "reasoning_effort": "medium",
+          "fork_turns": "none",
+          "role": "unverified",
+          "accepted_ordinal": 32
+        },
+        {
+          "type": "darrow.codex_native_feedback",
+          "tool": "followup_task",
+          "agent_ref": "/root/normalize_owner",
+          "same_owner": true,
+          "ordinal": 64,
+          "delivered": false
+        }
+      ]
+    }
+  ]
+}

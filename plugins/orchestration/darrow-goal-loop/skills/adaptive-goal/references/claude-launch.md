@@ -69,6 +69,20 @@ answer clearly resolves its stated blocker.
 If the host cannot retain or resume the owner, report that limitation. Do not
 claim that a replacement is the same goal.
 
+Corrections, added constraints, cancellation, and status requests also target
+the retained id through `SendMessage`; no pending question is required. Deliver
+the user's exact feedback once. A status request does not cancel work. For
+explicit cancellation use a host stop control when available and report its
+observed result and already performed effects. If the foreground Agent call
+prevents live message delivery, report that host limitation and deliver at the
+next available boundary. Do not claim immediate stopping without evidence or
+launch a replacement to apply steering.
+
+The owner applies restrictions before its next affected action and reassesses
+invalidated assumptions and gates itself, using necessary readiness and
+stronger checks within existing authority. Product decisions or expanded
+effects return to the user. The parent never repeats capability preflight.
+
 ## Result
 
 Relay the owner's complete, paused, or blocked result without repository

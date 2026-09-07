@@ -25,8 +25,6 @@ checks:
   - name: delegation adds no publication authority
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
-  - name: explicit orchestration delegation is accepted
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
   - name: delegation is not mistaken for ordinary intent
     not_regex: "darrow-adaptive-goal-authority-stop-v1"
 transcript_checks:
@@ -34,3 +32,6 @@ transcript_checks:
     expect_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: explicit orchestration delegation is accepted
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

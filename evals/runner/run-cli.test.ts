@@ -45,6 +45,33 @@ test("rejects invalid job counts", async () => {
   }
 });
 
+test("rejects unknown owner evaluation modes before creating evidence", async () => {
+  const proc = Bun.spawn(
+    [
+      "bun",
+      "runner/run.ts",
+      "--harness",
+      "codex",
+      "--owner-evaluation",
+      "maybe",
+      "--dry",
+    ],
+    {
+      cwd: join(import.meta.dir, ".."),
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  expect(code).toBe(1);
+  expect(out).toBe("");
+  expect(err).toBe("--owner-evaluation must be passive or enforced\n");
+});
+
 test("emits stable plain logs and an absolute result path", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "darrow-eval-cli-"));
   const resultPath = join(temporary, "result.json");

@@ -1,31 +1,32 @@
 # Orchestration value benchmark
 
-**TL;DR.** `darrow-goal-loop` is now an adaptive preflight around native goal
-execution: it inspects each task, chooses an execution workflow, gives more
-demanding work a stronger model/effort route, and independently gives
-higher-consequence work deeper validation and verification. The latest matched
-N=3 localized-routing experiment found Luna equal to Terra on deterministic
-task success, 14.6% faster at medium effort, and effectively wall-time neutral
-at high effort while using materially fewer host-reported tokens. This supports
-Luna for localized defaults while leaving the larger-work and judgment routes
-unchanged.
+`darrow-goal-loop` compiles a bounded contract and launches one route-selected
+owner. Evaluate model routing separately from the value of that complete
+workflow. The [adaptation and fidelity study](adaptation-fidelity.md) and its
+[Codex suite](adaptation-fidelity-suite.yaml) compare direct execution with
+matched preflight, separate passive native trials from eval enforcement, and
+retain failed or unverified evidence.
 
-This experiment compares four ways to complete the same engineering task:
+The earlier matched N=3 localized-routing experiment found Luna equal to Terra
+on deterministic task success, 14.6% faster at medium effort, and effectively
+wall-time neutral at high effort while using fewer host-reported tokens. Those
+two synthetic tasks support only the scoped model-routing choice; they do not
+establish a benefit for the complete workflow or its adaptation behavior.
+
+The historical four-way experiment compared the same engineering tasks under:
 
 1. a vanilla single-agent run;
 2. the harness's native goal capability;
 3. native goal mode after `darrow-goal-loop` preflight and route selection;
 4. `darrow-ticket-pipeline`.
 
-`darrow-ticket-pipeline` is the explicit, high-assurance alternative. It moves
-one durable ticket through fresh refine, challenge, implementation, independent
-review, bounded rework, QA, and codification agents. Persisted ticket state,
-traceable handoffs, separate writers and approvers, and resumable execution make
-it a credible end-to-end delivery setup when those controls matter. That rigor
-has a heavy price: the initial benchmark averaged 4.0--6.3 child agents per task
+`darrow-ticket-pipeline` is retained as a reference implementation of the former
+static phase approach and as a benchmark baseline. Its historical sequence
+used refine, challenge, implementation, independent review, bounded rework, QA,
+and codification agents. The initial benchmark averaged 4.0--6.3 child agents per task
 and 3.4--5.1 times vanilla wall time. It also passed only 75% of Codex tasks and
 50% of Claude tasks in this N=1 corpus, so the evidence supports it as a
-deliberate heavyweight option, not a reliable default for every task.
+historical baseline rather than a demonstrated reliable delivery default.
 
 Each mode runs independently on Claude Code and Codex. Comparisons should be
 made primarily within a harness/model/effort block; the cross-harness view also

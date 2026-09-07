@@ -37,9 +37,6 @@ checks:
     run: bash check.sh
   - name: prior assessment suppresses redundant readiness
     run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
-output_checks:
-  - name: previously assessed goal completes
-    expect_regex: "^Status: complete(?:\\r?\\n|$)"
 transcript_checks:
   - name: readiness is invoked exactly once before the goal turn
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"'
@@ -49,3 +46,6 @@ transcript_checks:
     expect_regex: '"type":"darrow.goal_owner_accepted"'
   - name: no lifecycle ledger is used
     not_regex: "goal-loop step|Protocol ledger"
+semantic_output_checks:
+  - name: previously assessed goal completes
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

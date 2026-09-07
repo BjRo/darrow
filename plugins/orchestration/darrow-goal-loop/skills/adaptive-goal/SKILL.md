@@ -15,8 +15,8 @@ Proceed only when:
 - the user explicitly invoked adaptive-goal;
 - an explicitly invoked orchestration entrypoint delegated one bounded request
   while preserving its scope and permissions; or
-- an unambiguous answer in this same host thread targets the one retained
-  preflight question or owner pause.
+- unambiguous same-thread feedback targets the retained preflight or owner,
+  including an answer, correction, added constraint, cancellation, or status request.
 
 Complexity and duration do not authorize orchestration. A fresh conversation,
 ambiguous answer, or multiple plausible owners supplies no continuation
@@ -47,9 +47,8 @@ Require the resulting `goal-loop` path to be an executable regular file. Do not
 scan the repository, plugin caches, home directory, `PATH`, or machine for an
 alternative. If the host does not expose the active plugin path or the exact
 helper is unavailable, return `Status: launch_required` and make no mutation.
-Every `launch_required` response in this workflow begins with the exact
-plain-text line `Status: launch_required`; add no leading or trailing whitespace
-or Markdown hard-break spaces to that line.
+Describe the unavailable launch boundary clearly, for example with
+`Status: launch_required`.
 
 Then run:
 
@@ -70,6 +69,13 @@ Turn the request into observable acceptance criteria without choosing missing
 product behavior. If a required product, security, destructive-scope,
 publication, or permission decision is missing, ask the smallest concrete
 question and do not launch.
+
+When authoritative input is missing, invoke the necessary host-advertised
+read-only capability before selecting readiness, acceptance, risk, workflow,
+or route. For example, retrieve a referenced ticket through its matching read
+skill. Check that the operation is read-only, preserve its complete evidence,
+and stop dependent preflight if it refuses. Do not ask the owner to discover
+the request after launch. Input gathering grants no mutation authority.
 
 ## 3. Resolve readiness before launch
 
@@ -149,7 +155,8 @@ When selected, bind the exact advertised skill matching independent review of
 the final code change. If none exists, stop before owner launch. The owner runs
 it after implementation and final checks. A clear result completes the gate. A
 blocking result permits one authorized closed-set repair and one fix
-verification; only clear verification permits completion. Read
+verification by default. An explicit finite repair budget may permit further
+attempts with material progress; only clear verification permits completion. Read
 [`references/review-lifecycle.md`](references/review-lifecycle.md) completely
 when review is selected.
 
@@ -192,8 +199,10 @@ intent matches a host-advertised skill, record the exact advertised skill name
 as a required capability binding. Common examples include ticket reads and
 updates, TDD, commits, pull requests, and independent review.
 
-Readiness is invoked by the parent before launch. Every other binding is invoked
-by the owner when that operation becomes due. A direct shell, Git, forge,
+Readiness and necessary read-only input gathering are invoked by the parent
+before launch. Preserve completed input evidence in the contract and bind any
+needed refresh. All implementation, verification, review, and publication
+bindings are invoked by the owner when due. A direct shell, Git, forge,
 tracker, or generic-subagent call is not a substitute for a bound skill. If the
 skill refuses or becomes unavailable, stop that operation without expanding
 authority.
@@ -237,13 +246,12 @@ launch a separate owner is consumed by this preflight and launch. Do not copy
 that clause into the engineering outcome, acceptance criteria, or workflow
 sequence; the launched subagent must understand that it is already the owner.
 
-Use these seven exact top-level fields so the host boundary can validate the
-contract without requiring a long heading checklist. Keep each structured
-field on one line and preserve every key shown. Set `workflow` to exactly one
+Use these seven fields as a completeness template. Equivalent clear prose,
+role wording, punctuation, and line wrapping are valid; this is not a shipped
+host validator. Set `workflow` to exactly one
 selected identifier: `fix-bug`, `implement-feature`, `change-feature`,
 `refactor`, `migration`, or `mechanical`. Put the compact workflow steps in
-`sequence`, separated by commas rather than semicolons; never append sequence
-text to `workflow`:
+`sequence`; keep the identifier distinct from the steps:
 
 ```text
 Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.
@@ -251,8 +259,8 @@ Outcome: <bounded result>
 Acceptance criteria: <observable outcomes>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
 Execution: workflow=<exact workflow identifier>; sequence=<compact workflow steps>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
-Verification and gates: readiness=<evidence or omitted reason>; review=<exact advertised skill when selected; omitted reason only when review is not required>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same-owner pause and relay rule>; blockers=<semantic blocker and observe-before-retry rule>
-Completion evidence: begin with exactly Status: complete when achieved or Status: blocked when unable to proceed; then include=<changed files, focused and final verification, selected readiness and review outcomes, publication effects, and remaining risks or blockers>
+Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner pauses affected implementation and invokes required readiness for material changed scope, then strengthens affected checks within authority>; review=<bound skill and finite repair budget, or permitted omission>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives answers, corrections, constraints, cancellation and status; verify new restrictions before completion>; blockers=<semantic blocker and observe-before-retry rule>
+Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final verification, selected readiness and review outcomes, publication effects, and remaining risks or blockers>
 ```
 
 Feedback checks exercise the changed seam after coherent slices. Final-tree
@@ -272,7 +280,7 @@ Compile this human-feedback rule: a material decision first discovered after
 launch pauses repository and external mutation. The owner returns the smallest
 complete question as its paused result; no lifecycle marker is required. The
 parent relays the explicit answer verbatim to the same owner, with no lifecycle
-marker or fixed display summary. The answer grants no broader authority, and
+marker or fixed display summary. The answer grants only explicitly supplied authority, and
 the owner performs any required acknowledgement before mutation. Never choose
 a default or launch a replacement owner.
 
@@ -283,22 +291,35 @@ observe current state and never duplicate an effect that already completed. Do
 not retry an unchanged deterministic failure without changed evidence or
 conditions. There is no Darrow retry or waiver state machine.
 
-Compile this readiness-continuation rule when readiness is selected: a material
-scope, acceptance, constraint or authoritative-input change after launch pauses
-implementation. The retained owner invokes the bound readiness capability for
-that changed scope, resolves findings within authority or relays the smallest
-question, and obtains required ready evidence before resuming. A non-ready
-capability result returns to this same owner; it does not terminate or replace
-the owner. The parent only relays human feedback after launch.
+Compile this adaptation rule: after a material scope, acceptance, constraint,
+or authoritative-input change, the same owner pauses affected implementation
+and reassesses affected assumptions and gates. It invokes bound readiness or
+selects the necessary advertised readiness capability under the selection
+rules above, even if initially omitted. Obtain required ready evidence before
+resuming. Strengthen verification within existing authority; ask for missing
+product decisions or expanded effects. A non-ready result returns to the same
+owner, which may investigate within authority. The parent never repeats preflight.
 
-The owner result must begin with exactly `Status: complete` when the requested
-outcome is achieved or `Status: blocked` when work cannot proceed. It must then
+Compile this steering rule: forward unambiguous corrections, constraints,
+cancellation, and status requests to the retained owner even without a pending
+question. Apply restrictions before the next affected action.
+Add each correction or constraint to the remaining acceptance checks and verify
+it before completion. An implementation constraint requires the specified
+implementation property; equivalent output alone does not satisfy it.
+Cancellation stops further work and reports effects already performed; status alone does
+not cancel. Report unavailable live delivery or stopping controls honestly.
+Do not reinterpret a status request or restriction as new scope or publication
+authority, and never launch a replacement owner to deliver feedback.
+
+The owner result must clearly state whether the outcome is complete, awaiting
+feedback, or blocked; `Status: complete` and `Status: blocked` are examples. It must
 state changed files, focused and final verification, readiness and review
 outcomes when applicable, performed publication effects, and remaining risks.
 Workflow, risk, profile, and route are already established at launch and need
 not be echoed. No other canonical serialization is required.
 
-The complete launch task begins exactly:
+The complete launch task begins with the exact owner marker, followed by an
+explicit sole-owner role instruction. For example:
 
 ```text
 - phase: adaptive-goal-owner
@@ -326,7 +347,7 @@ owner, inspect child work, start a nested host process, retry with another
 route, or replace an accepted owner.
 
 After acceptance, the parent performs no repository or external work. It may
-only wait, relay an explicit answer to the same owner, or stop that owner after
+only wait, relay user feedback or request status from the same owner, or stop that owner after
 explicit abandonment or supersession.
 
 If launch is unavailable or rejected, preserve the product tree and return:
@@ -344,5 +365,9 @@ checks in the parent. Preserve complete readiness and review results and every
 authorized publication effect. A blocked or feedback-pending owner remains the
 same owner for a later same-thread answer when the host supports continuation.
 
-End completed results with: `Goal completion grants no new or subsequent
-authority.`
+Do not shorten away selected gate outcomes or performed effects. If the owner
+omits required completion evidence, request that missing status evidence from
+the same owner before claiming completion; do not inspect the tree yourself or
+invent the missing outcome. This request adds no work or publication authority.
+
+Completion adds no authority. No fixed closing disclaimer is required.

@@ -207,13 +207,13 @@ function outcomesSection(
     "",
     "## Outcomes and candidate efficiency",
     "",
-    "Dry and unknown execution modes are unmeasured; preparation checks do not establish behavioral success.",
+    "Dry and unknown execution modes are unmeasured; preparation checks do not establish behavioral success. Enforced trials include eval policy assistance; passive trials observe native behavior. Missing enforcement provenance remains unknown.",
     "",
-    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions | Execution |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    "| Harness | Mode | Task pass | Protocol pass | Judge score | Judge pass | Wall mean / p95 | Candidate tokens mean | Candidate cost | Children mean | Human interventions | Execution | Enforcement |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ...rows.map(
       ({ cell, metric }) =>
-        `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} | ${executionLabel(cell.results)} |`,
+        `| ${cell.harness} | ${cell.mode} | ${percent(metric.taskPass)} | ${percent(metric.protocolPass)} | ${metric.judgeScore?.toFixed(2) ?? "n/a"} | ${percent(metric.judgePass)} | ${milliseconds(metric.wallMean)} / ${milliseconds(metric.wallP95)} | ${tokens(metric.candidateTokens)} | ${cost(metric.candidateCost)} | ${metric.childInvocations?.toFixed(1) ?? "n/a"} | ${metric.humanInterventions ?? "n/a"} | ${executionLabel(cell.results)} | ${[...new Set(cell.results.flatMap((result) => result.trials.map((trial) => trial.harness.evaluationEnforcement ?? "unknown")))].join(", ") || "unknown"} |`,
     ),
   ];
 }

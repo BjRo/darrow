@@ -312,7 +312,7 @@ function retainedReviewAgentBlocks(event: ClaudeResultEnvelope) {
             ? { prompt: input.prompt }
             : { prompt_marker: "invalid" }),
           ...(input.contractIssue
-            ? { contract_issue: input.contractIssue }
+            ? { enforcement_contract_issue: input.contractIssue }
             : {}),
         },
       },
@@ -514,8 +514,7 @@ function inlineGoalAgentStart(block: unknown) {
     input.runInBackground !== false ||
     input.model !== undefined ||
     typeof rawPrompt !== "string" ||
-    !rawPrompt.startsWith("- phase: adaptive-goal-owner\n") ||
-    !completeInlineOwnerContract(rawPrompt, input.subagentType)
+    !rawPrompt.startsWith("- phase: adaptive-goal-owner\n")
   )
     return undefined;
   return { id: input.id, pending: { subagentType: input.subagentType } };
@@ -589,13 +588,6 @@ function completeStructuredOwnerField(
   keys: string[],
 ): boolean {
   return keys.every((key) => structuredOwnerValue(value, key));
-}
-
-function completeInlineOwnerContract(
-  prompt: string,
-  subagentType: string,
-): boolean {
-  return inlineOwnerContractIssue(prompt, subagentType) === undefined;
 }
 
 function inlineOwnerPolicyIssue(
@@ -709,8 +701,8 @@ function resumableGoalAgentResponse(
   )
     return undefined;
   const goal = [...state.completedGoalAgents.values()][0]!;
-  if (goal.feedbackPending && state.humanFeedbackResponse)
-    return { mode: "feedback", response: state.humanFeedbackResponse };
+  const feedback = retainedOwnerFeedback(goal, state);
+  if (feedback) return { mode: "feedback", response: feedback };
   if (
     state.reportRendered &&
     state.renderedGoalStatus === "blocked" &&
@@ -718,6 +710,16 @@ function resumableGoalAgentResponse(
   )
     return { mode: "blocked", response: state.blockedGoalResponse };
   return undefined;
+}
+
+function retainedOwnerFeedback(
+  goal: CompletedGoalAgent,
+  state: ClaudeEvidenceState,
+) {
+  return goal.feedbackPending ||
+    (state.inlineGoalOwner && state.followUpStarted)
+    ? state.humanFeedbackResponse
+    : undefined;
 }
 
 function blockedGoalResponsePromptIssue(
@@ -3693,12 +3695,10 @@ function retainedConfiguredFollowUpRequest(
     return [];
   const [goal] = state.completedGoalAgents.values();
   if (!goal || goal.feedbackPending) return [];
-  goal.feedbackPending = true;
   return [
     {
-      type: "darrow.human_feedback_request",
+      type: "darrow.owner_feedback_available",
       agent_id: goal.agentId,
-      question_present: true,
     },
   ];
 }
@@ -3900,6 +3900,7 @@ export function retainedClaudeEvidence(
 }
 
 interface ClaudeArgvOptions {
+  ownerEvaluationMode?: "passive" | "enforced";
   pluginDir?: string;
   pluginDirs?: string[];
   expectGoalOwner?: boolean;
@@ -3940,13 +3941,20 @@ export function claudeArgv(
     "--no-chrome",
     "--dangerously-skip-permissions",
   ];
-  if (disallowScheduler(prompt, options.expectGoalOwner)) {
+  if (enforcedScheduler(prompt, options)) {
     argv.push("--disallowed-tools", "ScheduleWakeup");
   }
   if (session?.mode === "start") argv.push("--session-id", session.id);
   if (session?.mode === "resume") argv.push("--resume", session.id);
   for (const path of pluginDirs) argv.push("--plugin-dir", path);
   return argv;
+}
+
+function enforcedScheduler(prompt: string, options: ClaudeArgvOptions) {
+  return (
+    options.ownerEvaluationMode !== "passive" &&
+    disallowScheduler(prompt, options.expectGoalOwner)
+  );
 }
 
 /**
@@ -4126,6 +4134,7 @@ async function sandboxedClaudeCommand(options: {
     claudeArgv(prompt, request.model, request.effort, {
       pluginDirs: evalPlugins,
       expectGoalOwner: request.control?.expectGoalOwner,
+      ownerEvaluationMode: request.control?.ownerEvaluationMode,
       session,
     }),
     repo,
@@ -4236,13 +4245,25 @@ async function executeClaude(
   });
   try {
     const turn = await claudeTurnOutput({ request, repo, evalPlugins, env });
-    return await claudeHarnessResult({
+    const result = await claudeHarnessResult({
       repo,
       turn,
       start,
       evidenceContext,
       configRoot: env.CLAUDE_CONFIG_DIR!,
     });
+    return {
+      ...result,
+      evaluationEnforcement:
+        request.control?.ownerEvaluationMode !== "passive" &&
+        [request.prompt, request.control?.followUpPrompt].some(
+          (prompt) =>
+            prompt !== undefined &&
+            disallowScheduler(prompt, request.control?.expectGoalOwner),
+        )
+          ? "enforced"
+          : "passive",
+    };
   } finally {
     await rm(stagingRoot, { recursive: true, force: true });
   }

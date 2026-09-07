@@ -1,0 +1,60 @@
+id: goal-post-launch-reassessment
+invariant: AGL-A1,AGL-L2,AGL-S3
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Implement the accepted REQUEST.md. Keep changes local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+          During implementation, run `callerctl inspect` before changing source.
+          Run `bash check.sh` for source changes. Material new caller constraints
+          invalidate the affected readiness assumptions.
+        REQUEST.md: |
+          # Accepted request
+          Add normalize(input) to src/normalize.js to trim a string. Preserve the
+          existing parser and caller compatibility. Run the repository checks.
+        .readiness-verdict: "ready\n"
+        package.json: '{"type":"module"}'
+        src/parser.js: |
+          export function parse(input) { return String(input ?? '').trim(); }
+        src/normalize.js: |
+          // Public normalization entrypoint.
+        check.sh: |
+          #!/usr/bin/env bash
+          node --input-type=module -e "import {normalize} from './src/normalize.js'; import assert from 'node:assert/strict'; assert.equal(normalize(' a '), 'a'); assert.equal(normalize(undefined), '');"
+  setup: |
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD" \
+    "{{case_dir}}/fixtures" codex
+    cp "{{case_dir}}/fixtures/owner-readiness.fixture.md" .agents/skills/assess-implementation-readiness/SKILL.md
+  bin:
+    callerctl: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$1" = inspect
+      test -s .git/fixture-state/implementation-readiness-invocations
+      if test ! -e .git/fixture-state/caller-inspection; then
+        wc -l <.git/fixture-state/implementation-readiness-invocations >.git/fixture-state/initial-readiness-count
+      fi
+      printf '%s\n' inspected >>.git/fixture-state/caller-inspection
+      printf '%s\n' 'New material caller constraint: legacy callers pass undefined. Preserve the existing parser behavior for this input; the initial string-only readiness assumption is invalid.'
+checks:
+  - name: caller compatibility is verified
+    run: bash check.sh
+  - name: changed readiness is assessed by the retained owner
+    run: |
+      cat .git/fixture-state/implementation-readiness-invocations >&2
+      test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -gt "$(cat .git/fixture-state/initial-readiness-count | tr -d ' ')"
+      test -s .git/fixture-state/caller-inspection
+      test ! -s .git/fixture-state/implementation-readiness-pre-status
+  - name: authority and existing parser are preserved
+    run: git diff --exit-code HEAD -- src/parser.js && test "$(git rev-list --count HEAD)" -eq 1
+semantic_output_checks:
+  - name: owner reports compatible completion
+    proposition: The response reports completed normalization with undefined-input compatibility and passing verification.
+transcript_checks:
+  - name: one native owner was accepted
+    expect_regex: '"type":"darrow.codex_native_single_agent_accepted"'
