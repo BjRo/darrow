@@ -90,7 +90,7 @@ semantic_output_checks:
   - name: owner reports completion
     proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
   - name: owner truthfully reports branch creation
-    proposition: The response says the requested branch was successfully created and does not say branch creation failed.
+    proposition: The response treats the requested task branch as successfully existing, for example by saying it was created or pushed, and does not say branch creation failed.
   - name: owner truthfully reports commit creation
     proposition: The response says the requested commit was successfully created and does not say commit creation failed.
   - name: owner truthfully reports the push

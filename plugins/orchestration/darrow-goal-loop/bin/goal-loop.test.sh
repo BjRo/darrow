@@ -49,8 +49,11 @@ case "$out" in
   *$'preexisting_change\t'*) fail "prepare leaked relative porcelain paths" ;;
 esac
 contains "$out" $'instruction\t'"$repo_abs/AGENTS.md"
-contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-luna\tmedium'
-contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-5.6-sol\thigh'
+contains "$out" $'route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium'
+contains "$out" $'route\troutine-plus\tcodex\topenai\tgpt-5.6-terra\thigh'
+contains "$out" $'route\tscaled\tcodex\topenai\tgpt-5.6-sol\tmedium'
+contains "$out" $'route\trepo-wide\tcodex\topenai\tgpt-5.6-sol\thigh'
+contains "$out" $'route\tjudgment\tcodex\topenai\tgpt-6-astra\thigh'
 contains "$out" $'workflow\tfix-bug\t'
 contains "$out" $'workflow\timplement-feature\t'
 contains "$out" $'workflow\tmigration\t'
@@ -68,7 +71,7 @@ contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
 contains "$out" $'format\tdarrow-native-goal-route-v2'
 contains "$out" $'profile\troutine'
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\tmedium'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'route_source\tpolicy'
 contains "$out" $'policy_route_source\tbundled'
 
@@ -80,7 +83,7 @@ out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile scaled)
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\thigh'
 contains "$out" $'policy_route_source\trepository'
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile routine)
-contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-luna\tmedium'
+contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'policy_route_source\tbundled'
 
 out=$(bash "$goal_loop" route --repo "$repo" --host codex --profile scaled \
@@ -100,7 +103,15 @@ rejects bash "$goal_loop" route --repo "$repo" --host codex --profile scaled \
 rejects bash "$goal_loop" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|openai|none|none'
 rejects bash "$goal_loop" route --repo "$repo" --host codex --profile scaled \
+  --route 'codex|openai|gpt-5.6-luna|medium'
+rejects bash "$goal_loop" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|openai|gpt-5.6-luna|impossible'
+
+cat >"$repo/.darrow/config.json" <<'EOF'
+{"routes":[{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-luna","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}]}
+EOF
+rejects bash "$goal_loop" prepare --repo "$repo" --host codex
+rejects bash "$goal_loop" route --repo "$repo" --host codex --profile routine
 
 printf '{malformed\n' >"$repo/.darrow/config.json"
 rejects bash "$goal_loop" prepare --repo "$repo" --host codex

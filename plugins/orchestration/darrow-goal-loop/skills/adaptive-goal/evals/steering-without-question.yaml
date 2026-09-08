@@ -20,7 +20,12 @@ fixture:
           implementation window run `windowctl inspect`. When the window opens,
           run `windowctl open` before editing source.
         src/parser.js: |
-          export function parse(input) { return String(input ?? '').trim(); }
+          let parserCalls = 0;
+          export function parse(input) {
+            parserCalls += 1;
+            return String(input ?? '').trim();
+          }
+          export function parserCallCount() { return parserCalls; }
         src/legacy.js: |
           export const legacy = 'preserved';
         src/normalize.js: |
@@ -34,33 +39,45 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       git diff --exit-code HEAD -- src
+      state_file=.git/fixture-state/window
+      if test -e "$state_file"; then
+        current_state=$(tail -n 1 "$state_file")
+      else
+        current_state=closed
+      fi
       case "$1" in
-        inspect) test ! -e .git/fixture-state/window ;;
-        open) test "$(cat .git/fixture-state/window)" = inspect ;;
+        inspect)
+          if test "$current_state" = closed; then
+            printf 'inspect\n' >>"$state_file"
+            current_state=inspect
+          fi
+          ;;
+        open)
+          test "$current_state" = inspect
+          printf 'open\n' >>"$state_file"
+          current_state=open
+          ;;
         *) exit 64 ;;
       esac
-      printf '%s\n' "$1" >>.git/fixture-state/window
+      printf 'window state: %s\n' "$current_state"
 checks:
   - name: normalization handles existing parser inputs
     run: bash check.sh
-  - name: existing parser is reused and protected files are preserved
-    run: |
-      if ! grep -F "parser.js" src/normalize.js >/dev/null; then
-        sed -n '1,60p' src/normalize.js >&2
-        exit 1
-      fi
-      git diff --exit-code HEAD -- src/parser.js src/legacy.js
+  - name: normalization delegates to the existing parser
+    run: >-
+      node --input-type=module -e "import assert from 'node:assert/strict'; import {normalize} from './src/normalize.js'; import {parserCallCount} from './src/parser.js'; let coercions = 0; const input = {toString() { coercions += 1; return coercions === 1 ? ' delegated ' : ' wrong '; }}; assert.equal(normalize(input), 'delegated'); assert.equal(parserCallCount(), 1); assert.equal(coercions, 1);"
+  - name: protected parser legacy and check files are preserved
+    run: git diff --exit-code HEAD -- check.sh src/parser.js src/legacy.js
   - name: steering grants no publication
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: source mutation waits for the implementation window
     run: printf 'inspect\nopen\n' >.git/expected-window && cmp -s .git/expected-window .git/fixture-state/window
-semantic_output_checks:
-  - name: retained owner completes the steered request
-    proposition: The response reports completed normalization using the existing parser.
 transcript_checks:
   # Native delivery is opaque. Task evidence also requires the fixture
   # acknowledgement, unchanged pre-feedback worktree, and no parent work.
-  - name: native source is unchanged at the actual feedback boundary
-    expect_regex: '"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true|"type":"darrow.goal_agent_completion"'
+  - name: host records the actual feedback boundary
+    expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
+  - name: Codex feedback boundary retains unchanged-worktree evidence
+    not_regex: '"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_'
   - name: host observes a same-owner continuation attempt after user feedback
     expect_regex: '(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)'

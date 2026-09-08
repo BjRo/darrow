@@ -1,6 +1,6 @@
 {
   "name": "darrow-goal-loop",
-  "version": "0.16.0",
+  "version": "0.16.5",
   "description": "Adaptive Goal: ready and compile bounded engineering requests, then launch one routed subagent owner",
   "author": {
     "name": "Björn Rochel",

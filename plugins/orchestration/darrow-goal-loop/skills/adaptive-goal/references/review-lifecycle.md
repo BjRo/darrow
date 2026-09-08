@@ -5,8 +5,8 @@ the exact advertised review skill before launch; the owner invokes it.
 
 ## Review the final candidate
 
-After implementation and applicable final-tree checks, invoke the bound review
-skill with:
+After implementation and every applicable current final-tree check succeeds,
+invoke the bound review skill with:
 
 - the exact current change;
 - the originating request or authoritative specification;
@@ -14,11 +14,15 @@ skill with:
 - current focused and final-tree check evidence.
 
 A pre-existing candidate described as review-ready still needs current checks
-before review. Once the review invocation starts, await its complete ordinary
-response before editing or running unrelated repository work.
+before review. Merely running a required check is insufficient: a failure must
+be repaired within existing authority and the invalidated checks rerun, or the
+owner stops before review, commit, and publication. Once the review invocation
+starts, await its complete ordinary response before editing or running
+unrelated repository work.
 
 Read the result semantically. A result with no blocking findings clears that
-exact content. Preserve its complete result and report the clear outcome.
+exact content for the review gate, but cannot waive a failed required check.
+Preserve its complete result and report the clear outcome.
 
 ## Repair within an explicit budget
 

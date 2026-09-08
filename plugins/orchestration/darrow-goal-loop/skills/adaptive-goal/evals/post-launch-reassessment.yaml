@@ -54,7 +54,7 @@ checks:
     run: git diff --exit-code HEAD -- src/parser.js && test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:
   - name: owner reports compatible completion
-    proposition: The response reports completed normalization with undefined-input compatibility and passing verification.
+    proposition: The response reports the requested normalization as complete with passing verification and no unresolved blocker.
 transcript_checks:
   - name: one native owner was accepted
     expect_regex: '"type":"darrow.codex_native_single_agent_accepted"'

@@ -153,10 +153,13 @@ Select the independent-review gate separately:
 
 When selected, bind the exact advertised skill matching independent review of
 the final code change. If none exists, stop before owner launch. The owner runs
-it after implementation and final checks. A clear result completes the gate. A
-blocking result permits one authorized closed-set repair and one fix
-verification by default. An explicit finite repair budget may permit further
-attempts with material progress; only clear verification permits completion. Read
+it only after implementation and every applicable current final check
+succeeds. Merely running a required check does not satisfy this dependency. A
+clear result completes the review gate for that content, but cannot waive a
+failed required check. A blocking result permits one authorized closed-set
+repair and one fix verification by default. An explicit finite repair budget
+may permit further attempts with material progress; only clear verification
+permits completion. Read
 [`references/review-lifecycle.md`](references/review-lifecycle.md) completely
 when review is selected.
 
@@ -181,7 +184,10 @@ Classify reasoning demand independently:
 - `judgment`: unresolved cause across plausible layers or architecture,
   planning, or review judgment.
 
-An explicit user model and effort wins. Otherwise resolve the policy route:
+An explicit user model and effort wins only when the model is eligible for
+adaptive-goal ownership. A Codex `gpt-5.6-luna` route is not owner-capable and
+must be rejected; Luna remains available for explicit leaf work outside this
+orchestration. Otherwise resolve the policy route:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop route \
@@ -212,6 +218,12 @@ effects, returned evidence and stop conditions against the goal. Advertised
 intent alone does not prove behavioral compatibility. Accept differently named
 compatible skills; resolve a known mismatch before mutation. Return a refusal
 to the owner for an authorized next action, never bypass it through raw tools.
+
+Invoking a bound skill or receiving a zero exit status proves neither that its
+substantive contract was satisfied nor that a dependent operation is due.
+Validate the returned evidence against the bound skill and goal contract before
+continuing. A successful review or publication response cannot replace missing
+or failed verification evidence.
 
 For authorized PR creation or reuse, require the publisher to return evidence
 for the intended verified commit: exactly one open PR, repository, head/base,
@@ -271,6 +283,12 @@ checks are the applicable repository gate plus:
 | routine | focused evidence and scoped repository gate |
 | elevated | routine evidence plus affected-caller or compatibility checks and one counterexample |
 | high | elevated evidence plus an adversarial boundary or state-transition check and independent review |
+
+Every required focused and final check must succeed against the applicable
+current content before review and before any dependent commit or publication
+effect. If one fails, repair within existing scope and authority and rerun the
+invalidated checks. Otherwise stop before those dependent operations. Do not
+consume a one-commit allowance with content whose required checks are failing.
 
 When a stable seam and independent oracle exist, behavior-changing workflows
 add or update focused evidence before the production change and confirm the
@@ -349,6 +367,12 @@ route, or replace an accepted owner.
 After acceptance, the parent performs no repository or external work. It may
 only wait, relay user feedback or request status from the same owner, or stop that owner after
 explicit abandonment or supersession.
+
+For every message-based relay after acceptance, preserve every instruction and
+constraint from the current user message. Do not summarize or paraphrase in a
+way that drops, weakens, broadens, or converts an implementation property into
+equivalent output behavior. Keep the retained-owner target and transport
+metadata separate from the feedback content.
 
 If launch is unavailable or rejected, preserve the product tree and return:
 

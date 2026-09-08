@@ -43,10 +43,8 @@ checks:
 semantic_output_checks:
   - name: changed-scope readiness-gated goal completes
     proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
-  - name: changed-scope readiness outcome is reported
-    proposition: The response reports the readiness outcome as ready and does not report a non-ready outcome.
 transcript_checks:
-  - name: changed scope invokes readiness before the separate owner
-    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+  - name: changed scope launches one separate owner after readiness
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

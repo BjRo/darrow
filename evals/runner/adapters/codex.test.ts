@@ -1334,11 +1334,16 @@ describe("Codex skill activation observation", () => {
       items
         .map((payload, i) => JSON.stringify({ ordinal: i + 1, payload }))
         .join("\n");
-    const proof = (input: string, boundary = "") =>
+    const proof = (
+      input: string,
+      boundary = "",
+      expectedFollowUpPrompt?: string,
+    ) =>
       retainedCodexEvidence(boundary, REPO, {
         exitCode: 0,
         stderrPresent: false,
         nativeSession: input,
+        expectedFollowUpPrompt,
       });
     const accepted = "darrow.codex_native_single_agent_accepted";
     const parentWork = "darrow.codex_native_parent_tool_after_agent";
@@ -1397,9 +1402,27 @@ describe("Codex skill activation observation", () => {
       type: "darrow.eval.follow_up_turn",
       native_after_ordinal: 4,
     });
-    expect(proof(session(delivered), boundary)).toContain(
-      '"after_follow_up":true',
-    );
+    const matchedFeedback = proof(session(delivered), boundary, "private");
+    expect(matchedFeedback).toContain('"after_follow_up":true');
+    expect(matchedFeedback).toContain('"message_matches_expected":true');
+    expect(matchedFeedback).toContain('"message_contains_expected":true');
+    expect(matchedFeedback).not.toContain('"message":"private"');
+    expect(
+      proof(session(delivered), boundary, "different private feedback"),
+    ).toContain('"message_matches_expected":false');
+    const wrappedFeedback = [
+      ...delivered.slice(0, -2),
+      {
+        ...feedback,
+        call_id: "feedback-call",
+        arguments:
+          '{"target":"/root/delivery","message":"prefix private suffix"}',
+      },
+      delivered.at(-1)!,
+    ];
+    const wrappedProof = proof(session(wrappedFeedback), boundary, "private");
+    expect(wrappedProof).toContain('"message_matches_expected":false');
+    expect(wrappedProof).toContain('"message_contains_expected":true');
     for (const output of [
       '{"error":"agent missing"}',
       "Tool failed",

@@ -230,11 +230,28 @@ Classify reasoning demand independently:
   architecture, planning, or review judgment.
 
 Use the bundled route policy unless the user explicitly supplied a concrete
-host-supported model and effort. Such a user override need not appear in the
-policy catalog; the host launch remains its final availability check.
+host-supported, owner-capable model and effort. Such a user override need not
+appear in the policy catalog; the host launch remains its final availability
+check. A route that cannot compose the goal's bound capabilities is not
+owner-capable and must be rejected before launch.
 Repository route overrides apply only through the documented
 `.darrow/config.json` surface. Invalid or unreadable owned configuration stops
 launch rather than falling back silently.
+
+The bundled Codex owner policy is:
+
+| Profile        | Model           | Effort   |
+| -------------- | --------------- | -------- |
+| `routine`      | `gpt-5.6-terra` | `medium` |
+| `routine-plus` | `gpt-5.6-terra` | `high`   |
+| `scaled`       | `gpt-5.6-sol`   | `medium` |
+| `repo-wide`    | `gpt-5.6-sol`   | `high`   |
+| `judgment`     | `gpt-6-astra`   | `high`   |
+
+`gpt-5.6-luna` is not eligible for adaptive-goal ownership because an owner
+must be able to invoke bound readiness and review capabilities through their
+native delegation boundaries. This restriction does not remove Luna from
+explicit leaf work or evaluation roles outside adaptive-goal ownership.
 
 Route binding is host-specific:
 
@@ -322,10 +339,14 @@ A clear or localized implementation does not make a high-risk change eligible
 to omit review. A stronger user or repository rule may stop implementation
 before launch, but it does not turn the required review into an omission.
 
-The owner invokes the matching capability after implementation and current
-final-tree checks. It supplies the exact current change, originating authority,
-repository standards, and check evidence. A clear result satisfies the gate
-for that content. A blocking result prevents completion and publication.
+The owner invokes the matching capability only after implementation and every
+applicable current final-tree check succeeds. Merely running a required check
+does not satisfy this dependency. If a required check fails, the owner repairs
+within existing authority and reruns invalidated checks, or stops before
+review, commit, and publication. It supplies the exact current change,
+originating authority, repository standards, and successful check evidence. A
+clear result satisfies the review gate for that content, but cannot waive a
+failed required check. A blocking result prevents completion and publication.
 
 When existing authority covers repair, default to one closed-set repair and
 one fix verification after invalidated checks. An explicit finite nonnegative
@@ -377,10 +398,13 @@ acknowledgement before resuming mutation. Pending feedback is neither
 completion nor a terminal blocker, and no replacement owner is launched.
 
 Corrections, added constraints, cancellation, and status requests also reach
-the retained owner without requiring a pending question. Restrictions apply
-before the next affected action. Status alone does not cancel execution.
-Cancellation stops further work and reports already performed effects. Report
-host transport or stopping limitations without claiming an unobserved stop.
+the retained owner without requiring a pending question. When feedback is
+delivered as a message, it preserves every user-supplied instruction and
+constraint without weakening or omission; targeting and host-required routing
+metadata remain separate. Restrictions apply before the next affected action.
+Status alone does not cancel execution. Cancellation stops further work and
+reports already performed effects. Report host transport or stopping
+limitations without claiming an unobserved stop.
 
 ### Blockage
 
@@ -487,8 +511,10 @@ Nested host processes are not an adaptive-goal fallback.
 8. **AGL-L1 — One Darrow owner.** Exactly one route-selected subagent owns the
    complete run. It creates no replacement adaptive owner or nested goal for
    the same contract.
-9. **AGL-L2 — Semantic gates.** Readiness completes before launch; review runs
-   inside the owner. Both are proven by capability results and observable
+9. **AGL-L2 — Semantic gates.** Readiness completes before launch; every
+   applicable current check succeeds before review and every dependent commit
+   or publication effect; review runs inside the owner and cannot waive a
+   failed check. The gates are proven by capability results and observable
    repository behavior, not bookkeeping transitions.
 10. **AGL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation,
     and status requests remain attached to the accepted owner when supported.
@@ -545,10 +571,12 @@ The following invariants govern adaptation and evidence provenance:
   expanded effects require the user's answer; the parent never takes over.
 - **AGL-A2 — Execution steering.** Unambiguous same-thread corrections, added
   constraints, cancellation, and status requests reach the retained owner even
-  without a pending question. A status request does not cancel execution.
-  Restrictions apply before the next affected action; cancellation stops work
-  and reports already performed effects. Unsupported live delivery is reported
-  honestly, without a replacement owner or a claim that cancellation succeeded.
+  without a pending question. The retained owner applies every user-supplied
+  instruction and constraint without weakening or omission. A status request
+  does not cancel execution. Restrictions apply before the next affected action;
+  cancellation stops work and reports already performed effects.
+  Unsupported live delivery is reported honestly, without a replacement owner
+  or a claim that cancellation succeeded.
 - **AGL-A3 — Read-only input gathering.** Before classification and launch, the
   parent may invoke necessary advertised read-only capabilities to retrieve
   authoritative input, including a referenced ticket. Preserve their evidence

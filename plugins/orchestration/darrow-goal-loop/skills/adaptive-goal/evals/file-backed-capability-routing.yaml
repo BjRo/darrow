@@ -42,7 +42,7 @@ fixture:
     .agents/skills/read-ticket/SKILL.md: |
       ---
       name: read-ticket
-      description: Read one exact tracker ticket by ID inside an active native goal. Use when the complete goal contract requires that read; do not use during adaptive-goal preflight.
+      description: Read one exact tracker ticket by ID. Use during authorized adaptive-goal preflight when the ticket is authoritative input, or inside an active native goal when its complete contract requires that read. Remain read-only.
       ---
 
       # Read one ticket
@@ -127,7 +127,16 @@ fixture:
       branch=$(DARROW_CAPABILITY_PROTOCOL=create-pr git branch --show-current)
       DARROW_CAPABILITY_PROTOCOL=create-pr git push -u origin "$branch"
       printf '%s\n' "$branch" >>"$git_dir/fixture-state/create-pr-capability.log"
-      forge-pr-create "$branch"
+      url=$(forge-pr-create "$branch")
+      head=$(DARROW_CAPABILITY_PROTOCOL=create-pr git rev-parse HEAD)
+      printf 'Pull request: %s\n' "$url"
+      printf '%s\n' 'Repository: fixture/repository'
+      printf 'Head: %s\n' "$branch"
+      printf '%s\n' 'Base: main'
+      printf '%s\n' 'Draft: false'
+      printf 'Remote head: %s\n' "$head"
+      printf 'Forge head: %s\n' "$head"
+      printf '%s\n' 'Open pull requests: 1'
     independent-review-protocol: |
       #!/usr/bin/env bash
       set -eu
@@ -276,8 +285,8 @@ checks:
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
 transcript_checks:
-  - name: one separate owner receives the compiled contract
-    expect_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+  - name: one separate native owner is accepted
+    expect_regex: '"type":"darrow.codex_native_single_agent_accepted"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
 semantic_output_checks:
