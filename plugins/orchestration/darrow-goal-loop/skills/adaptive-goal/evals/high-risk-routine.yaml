@@ -2,13 +2,17 @@ id: goal-preflight-high-risk-routine
 invariant: AGL-C1,AGL-C2,AGL-R1,AGL-L2,AGL-L5,AGL-S3
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-review
 prompt: >-
   {{skill_invocation}} Change the exported sessionCookieOptions in auth-config.js so
   sameSite is exactly "strict" instead of "lax". This is a security boundary where the cost of a mistake
   is high, but the requested implementation is clear, localized, and fully
   specified. Add focused evidence for the new value and preserve the other
-  cookie options. Acceptance is that bash test.sh passes. Select and apply the
-  policy route rather than pinning it. Keep the result local.
+  cookie options. Acceptance is that bash test.sh passes. Require independent
+  review of the exact final change after all checks; after and only after a
+  clear review, run bash mark-complete.sh. Select and apply the policy route
+  rather than pinning it. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -35,11 +39,19 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           node auth-config.test.js
-          review_target=$(.agents/bin/independent-review-fixture "$PWD" fingerprint)
-          printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
-  setup: >-
-    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
-    "{{case_dir}}/fixtures" codex
+          git_dir=$(git rev-parse --git-dir)
+          mkdir -p "$git_dir/fixture-state"
+          scope_count=$(find "$git_dir" -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')
+          printf 'check\t%s\n' "$scope_count" >>"$git_dir/fixture-state/high-risk-review-events"
+        mark-complete.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          git_dir=$(git rev-parse --git-dir)
+          record=$(find "$git_dir" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+          test -n "$record"
+          grep -F "$(printf 'verdict\tpass')" "$record" >/dev/null
+          grep -F "$(printf 'next_action\treturn control to enclosing goal')" "$record" >/dev/null
+          printf '%s\n' complete >"$git_dir/goal-complete"
 checks:
   - name: cookie behavior is changed and preserved
     run: >-
@@ -52,17 +64,32 @@ checks:
     run: grep -F '"strict"' auth-config.test.js >/dev/null && bash test.sh
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
-  - name: high risk invokes one matching independent review
-    run: test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 1
-  - name: independent review clears the final changed target
+  - name: clear independent review returns control to the goal
+    run: test "$(cat .git/goal-complete)" = complete
+  - name: final check precedes review scope
     run: >-
-      test "$(cut -f1 .git/fixture-state/independent-review-invocations)" =
-      "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)" &&
-      awk -F '\t' '$1 == "check" { checked[$2]=1 }
-      $1 == "review_start" && checked[$2] { ok=1 }
-      END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-events &&
-      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
-      END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-invocations
+      awk -F '\t' 'NR == 1 && $1 == "check" && $2 == 0 { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/fixture-state/high-risk-review-events
+  - name: independent review artifact is canonical and clear
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      bash "$tool" validate "$record" &&
+      grep -F "$(printf 'verdict\tpass')" "$record" >/dev/null &&
+      grep -F "$(printf 'next_action\treturn control to enclosing goal')" "$record" >/dev/null &&
+      ! grep -F "$(printf 'finding\t')" "$record" >/dev/null
+    expect_regex: "^valid: darrow-review-result-v1$"
+  - name: independent review covers the exact final worktree
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      scope_tool=$(find .git -path '*/bin/review-scope' -type f | sort | tail -n '1');
+      test -n "$record" && test -n "$scope_tool" || exit 1;
+      reviewed_target=$(awk -F '\t' '$1 == "target" { print $2 }' "$record");
+      current_target=$(bash "$scope_tool" prepare --repo "$PWD" --base HEAD --target WORKTREE |
+      awk -F '\t' '$1 == "target" { print $2 }');
+      test -n "$reviewed_target" && test "$reviewed_target" = "$current_target"
 output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
@@ -72,7 +99,7 @@ semantic_output_checks:
   - name: completion reports the semantic review outcome
     proposition: The response says an independent review of the completed high-risk change found no blocking findings.
 transcript_checks:
-  - name: launch preserves selected workflow and risk
-    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"change-feature","risk":"high"'
+  - name: Terra policy route is applied to the high-risk owner
+    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"(?:medium|high)"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-(?:low|medium)")'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

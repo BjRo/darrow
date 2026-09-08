@@ -184,7 +184,10 @@ Classify reasoning demand independently:
 - `judgment`: unresolved cause across plausible layers or architecture,
   planning, or review judgment.
 
-An explicit user model and effort wins. Otherwise resolve the policy route:
+An explicit user model and effort wins only when the model is eligible for
+adaptive-goal ownership. A Codex `gpt-5.6-luna` route is not owner-capable and
+must be rejected; Luna remains available for explicit leaf work outside this
+orchestration. Otherwise resolve the policy route:
 
 ```sh
 /bin/bash <absolute-plugin-bin>/goal-loop route \

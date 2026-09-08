@@ -195,6 +195,16 @@ validate_explicit_route() {
   esac
 }
 
+validate_owner_route() {
+  owner_host=$1
+  owner_model=$2
+  case "$owner_host|$owner_model" in
+    codex\|gpt-5.6-luna)
+      die "model is not eligible for adaptive-goal ownership: $owner_model"
+      ;;
+  esac
+}
+
 prepare() {
   repo=
   host=
@@ -250,6 +260,7 @@ prepare() {
       test -z "${extra:-}" ||
       die "invalid route configuration row for profile: $profile"
     test "$route_host" = "$host" || continue
+    validate_owner_route "$route_host" "$model"
     printf 'route\t%s\t%s\t%s\t%s\t%s\n' \
       "$profile" "$harness" "$provider" "$model" "$effort"
     printf 'route_policy_source\t%s\t%s\n' "$profile" "$policy_source"
@@ -319,6 +330,7 @@ EOF
     IFS=$old_ifs
     source=policy
   fi
+  validate_owner_route "$host" "$model"
 
   printf 'format\tdarrow-native-goal-route-v2\n'
   printf 'profile\t%s\n' "$profile"

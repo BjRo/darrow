@@ -29,7 +29,7 @@ output_checks:
     not_regex: "darrow-adaptive-goal-authority-stop-v1"
 transcript_checks:
   - name: delegated work receives one separate Codex owner
-    expect_regex: '"tool":"spawn_agent"[^\n]*"prompt":"- phase: adaptive-goal-owner'
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
 semantic_output_checks:

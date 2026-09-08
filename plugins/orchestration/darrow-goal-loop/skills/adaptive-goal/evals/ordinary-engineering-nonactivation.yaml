@@ -32,4 +32,4 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 transcript_checks:
   - name: adaptive-goal is not selected for ordinary engineering intent
-    not_regex: '"skill":"adaptive-goal"|goal-loop prepare|"type":"darrow.goal_owner_accepted"|"name":"Agent"[^\n]*"adaptive-goal-owner"'
+    not_regex: '"skill":"adaptive-goal"|goal-loop prepare|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"[^\n]*"adaptive-goal-owner"'

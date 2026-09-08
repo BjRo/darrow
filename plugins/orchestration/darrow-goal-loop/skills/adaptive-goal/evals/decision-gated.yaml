@@ -28,6 +28,6 @@ semantic_output_checks:
     proposition: The response identifies the unresolved authorization, policy, or rollout choice concretely enough for the user to answer.
 transcript_checks:
   - name: no owner launches before the decision
-    not_regex: '"tool":"spawn_agent"|"name":"Agent"'
+    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
   - name: no lifecycle ledger is used
     not_regex: "goal-loop step|darrow-native-goal-report"

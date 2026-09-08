@@ -30,11 +30,11 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:
   - name: unavailable readiness stops launch
-    proposition: The response clearly reports that the owner could not be launched and identifies the unavailable launch boundary or required capability.
+    proposition: The response reports that launch cannot proceed or is launch_required because the readiness capability or boundary is unavailable.
   - name: stop identifies unavailable readiness
     proposition: The response identifies the required implementation-readiness capability or boundary as unavailable.
 transcript_checks:
   - name: unavailable readiness stops before generic delegation
-    not_regex: '"tool":"spawn_agent"'
+    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: unavailable readiness uses no lifecycle ledger
     not_regex: "goal-loop step|darrow-native-goal-report"

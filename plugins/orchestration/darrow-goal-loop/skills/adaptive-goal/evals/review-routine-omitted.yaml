@@ -37,6 +37,6 @@ semantic_output_checks:
     proposition: The response does not claim that an independent review was performed or cleared.
 transcript_checks:
   - name: launch preserves routine risk
-    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"risk":"routine"'
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

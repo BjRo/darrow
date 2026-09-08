@@ -21,4 +21,4 @@ semantic_output_checks:
     proposition: The response says another publication attempt must not occur before that observation.
 transcript_checks:
   - name: advice-only invocation launches no owner or helper
-    not_regex: '"tool":"spawn_agent"|"name":"Agent"|goal-loop (?:prepare|route|step)'
+    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|goal-loop (?:prepare|route|step)'

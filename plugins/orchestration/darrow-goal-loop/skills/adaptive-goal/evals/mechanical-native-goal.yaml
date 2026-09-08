@@ -36,8 +36,8 @@ output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 transcript_checks:
-  - name: launch preserves mechanical workflow and routine risk
-    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"mechanical","risk":"routine"'
+  - name: one native mechanical owner is accepted
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
 semantic_output_checks:

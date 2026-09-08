@@ -43,7 +43,7 @@ transcript_checks:
   - name: readiness is not redundantly invoked after the goal turn begins
     not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
   - name: one separate owner is accepted
-    expect_regex: '"type":"darrow.goal_owner_accepted"'
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: no lifecycle ledger is used
     not_regex: "goal-loop step|Protocol ledger"
 semantic_output_checks:

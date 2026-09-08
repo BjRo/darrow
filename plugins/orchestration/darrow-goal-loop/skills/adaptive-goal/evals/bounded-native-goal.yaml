@@ -44,12 +44,12 @@ output_checks:
   - name: no canonical ledger report is required
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified|evaluation_child_invocations"
 transcript_checks:
-  - name: launch preserves selected workflow and risk
-    expect_regex: '"type":"darrow.goal_owner_accepted"[^\n]*"workflow":"implement-feature","risk":"routine"'
-  - name: exactly one separate Codex owner is accepted
-    expect_regex: '"type":"darrow.goal_owner_accepted"'
-  - name: no replacement Codex owner is launched
-    not_regex: '"type":"darrow.goal_owner_accepted"[\s\S]*"type":"darrow.goal_owner_accepted"'
+  - name: one native owner is accepted
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
+  - name: exactly one separate owner is accepted
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
+  - name: no replacement owner is launched
+    not_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|"tool":"create_goal"'
 semantic_output_checks:

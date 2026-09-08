@@ -230,11 +230,28 @@ Classify reasoning demand independently:
   architecture, planning, or review judgment.
 
 Use the bundled route policy unless the user explicitly supplied a concrete
-host-supported model and effort. Such a user override need not appear in the
-policy catalog; the host launch remains its final availability check.
+host-supported, owner-capable model and effort. Such a user override need not
+appear in the policy catalog; the host launch remains its final availability
+check. A route that cannot compose the goal's bound capabilities is not
+owner-capable and must be rejected before launch.
 Repository route overrides apply only through the documented
 `.darrow/config.json` surface. Invalid or unreadable owned configuration stops
 launch rather than falling back silently.
+
+The bundled Codex owner policy is:
+
+| Profile        | Model           | Effort   |
+| -------------- | --------------- | -------- |
+| `routine`      | `gpt-5.6-terra` | `medium` |
+| `routine-plus` | `gpt-5.6-terra` | `high`   |
+| `scaled`       | `gpt-5.6-sol`   | `medium` |
+| `repo-wide`    | `gpt-5.6-sol`   | `high`   |
+| `judgment`     | `gpt-6-astra`   | `high`   |
+
+`gpt-5.6-luna` is not eligible for adaptive-goal ownership because an owner
+must be able to invoke bound readiness and review capabilities through their
+native delegation boundaries. This restriction does not remove Luna from
+explicit leaf work or evaluation roles outside adaptive-goal ownership.
 
 Route binding is host-specific:
 

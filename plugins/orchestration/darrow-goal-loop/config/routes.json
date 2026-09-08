@@ -5,7 +5,7 @@
       "profile": "routine",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-luna",
+      "model": "gpt-5.6-terra",
       "effort": "medium",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -15,7 +15,7 @@
       "profile": "routine-plus",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-luna",
+      "model": "gpt-5.6-terra",
       "effort": "high",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -25,7 +25,7 @@
       "profile": "scaled",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-terra",
+      "model": "gpt-5.6-sol",
       "effort": "medium",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -35,7 +35,7 @@
       "profile": "repo-wide",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-terra",
+      "model": "gpt-5.6-sol",
       "effort": "high",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -45,7 +45,7 @@
       "profile": "judgment",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-sol",
+      "model": "gpt-6-astra",
       "effort": "high",
       "fallbackModel": "none",
       "fallbackEffort": "none"

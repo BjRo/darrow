@@ -2,6 +2,8 @@ id: goal-readiness-nonready-stops
 invariant: AGL-P2,AGL-L2,AGL-X1
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-readiness-gate
 prompt: >-
   {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
   The specification has not previously
@@ -13,29 +15,22 @@ fixture:
   commits:
     - message: "chore: init"
       files:
-        .readiness-verdict: |
-          needs-decision
         REQUEST.md: |
           # Authoritative request
 
-          Choose and write either `mode = safe` or `mode = fast` to policy.txt.
+          Product accepts either `mode = safe` or `mode = fast`, but no policy
+          has been selected. An authorized product owner must choose between
+          them before implementation; engineering must not choose a default.
         policy.txt: |
           mode = undecided
         check.sh: |
           #!/usr/bin/env bash
           set -eu
           grep -E '^mode = (safe|fast)$' policy.txt >/dev/null
-  setup: >-
-    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
-    "{{case_dir}}/fixtures" codex
 checks:
   - name: non-ready verdict stops before mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: non-ready readiness runs exactly once
-    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
-  - name: readiness sees the original product tree
-    run: test ! -s .git/fixture-state/implementation-readiness-pre-status
 output_checks:
   - name: complete readiness result is returned
     expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action"
@@ -48,6 +43,6 @@ transcript_checks:
   - name: readiness is not retried without a user resolution
     not_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
   - name: no work owner launches before ready
-    not_regex: '"tool":"spawn_agent"|"name":"Agent"'
+    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
   - name: no lifecycle ledger is used
     not_regex: "goal-loop step|darrow-native-goal-report"
