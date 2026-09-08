@@ -153,10 +153,13 @@ Select the independent-review gate separately:
 
 When selected, bind the exact advertised skill matching independent review of
 the final code change. If none exists, stop before owner launch. The owner runs
-it after implementation and final checks. A clear result completes the gate. A
-blocking result permits one authorized closed-set repair and one fix
-verification by default. An explicit finite repair budget may permit further
-attempts with material progress; only clear verification permits completion. Read
+it only after implementation and every applicable current final check
+succeeds. Merely running a required check does not satisfy this dependency. A
+clear result completes the review gate for that content, but cannot waive a
+failed required check. A blocking result permits one authorized closed-set
+repair and one fix verification by default. An explicit finite repair budget
+may permit further attempts with material progress; only clear verification
+permits completion. Read
 [`references/review-lifecycle.md`](references/review-lifecycle.md) completely
 when review is selected.
 
@@ -212,6 +215,12 @@ effects, returned evidence and stop conditions against the goal. Advertised
 intent alone does not prove behavioral compatibility. Accept differently named
 compatible skills; resolve a known mismatch before mutation. Return a refusal
 to the owner for an authorized next action, never bypass it through raw tools.
+
+Invoking a bound skill or receiving a zero exit status proves neither that its
+substantive contract was satisfied nor that a dependent operation is due.
+Validate the returned evidence against the bound skill and goal contract before
+continuing. A successful review or publication response cannot replace missing
+or failed verification evidence.
 
 For authorized PR creation or reuse, require the publisher to return evidence
 for the intended verified commit: exactly one open PR, repository, head/base,
@@ -271,6 +280,12 @@ checks are the applicable repository gate plus:
 | routine | focused evidence and scoped repository gate |
 | elevated | routine evidence plus affected-caller or compatibility checks and one counterexample |
 | high | elevated evidence plus an adversarial boundary or state-transition check and independent review |
+
+Every required focused and final check must succeed against the applicable
+current content before review and before any dependent commit or publication
+effect. If one fails, repair within existing scope and authority and rerun the
+invalidated checks. Otherwise stop before those dependent operations. Do not
+consume a one-commit allowance with content whose required checks are failing.
 
 When a stable seam and independent oracle exist, behavior-changing workflows
 add or update focused evidence before the production change and confirm the
