@@ -398,10 +398,13 @@ acknowledgement before resuming mutation. Pending feedback is neither
 completion nor a terminal blocker, and no replacement owner is launched.
 
 Corrections, added constraints, cancellation, and status requests also reach
-the retained owner without requiring a pending question. Restrictions apply
-before the next affected action. Status alone does not cancel execution.
-Cancellation stops further work and reports already performed effects. Report
-host transport or stopping limitations without claiming an unobserved stop.
+the retained owner without requiring a pending question. When feedback is
+delivered as a message, it preserves every user-supplied instruction and
+constraint without weakening or omission; targeting and host-required routing
+metadata remain separate. Restrictions apply before the next affected action.
+Status alone does not cancel execution. Cancellation stops further work and
+reports already performed effects. Report host transport or stopping
+limitations without claiming an unobserved stop.
 
 ### Blockage
 
@@ -568,10 +571,12 @@ The following invariants govern adaptation and evidence provenance:
   expanded effects require the user's answer; the parent never takes over.
 - **AGL-A2 — Execution steering.** Unambiguous same-thread corrections, added
   constraints, cancellation, and status requests reach the retained owner even
-  without a pending question. A status request does not cancel execution.
-  Restrictions apply before the next affected action; cancellation stops work
-  and reports already performed effects. Unsupported live delivery is reported
-  honestly, without a replacement owner or a claim that cancellation succeeded.
+  without a pending question. The retained owner applies every user-supplied
+  instruction and constraint without weakening or omission. A status request
+  does not cancel execution. Restrictions apply before the next affected action;
+  cancellation stops work and reports already performed effects.
+  Unsupported live delivery is reported honestly, without a replacement owner
+  or a claim that cancellation succeeded.
 - **AGL-A3 — Read-only input gathering.** Before classification and launch, the
   parent may invoke necessary advertised read-only capabilities to retrieve
   authoritative input, including a referenced ticket. Preserve their evidence

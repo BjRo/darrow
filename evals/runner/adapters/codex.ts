@@ -1681,6 +1681,7 @@ interface CodexRetentionStatus {
   exitCode: number;
   stderrPresent: boolean;
   nativeSession?: string;
+  expectedFollowUpPrompt?: string;
   spawnGuardSecret?: string;
   goalLoopPath?: string;
   acceptedAgentRef?: string;
@@ -2257,6 +2258,7 @@ function retainedNativeWait(
 export function retainedCodexNativeSessionEvidence(
   session: string,
   followUpOrdinal?: number,
+  expectedFollowUpPrompt?: string,
 ): object[] {
   const { entries, malformed } = codexNativeSessionEntries(session);
   const spawns = entries
@@ -2273,7 +2275,12 @@ export function retainedCodexNativeSessionEvidence(
   return [
     ...spawns,
     ...waits,
-    ...retainedSingleNativeAgent(entries, malformed, followUpOrdinal),
+    ...retainedSingleNativeAgent(
+      entries,
+      malformed,
+      followUpOrdinal,
+      expectedFollowUpPrompt,
+    ),
     ...(malformed ? [{ type: "darrow.codex_native_session_malformed" }] : []),
   ];
 }
@@ -2283,6 +2290,7 @@ function retainedSingleNativeAgent(
   entries: CodexNativeSessionEntry[],
   malformed: boolean,
   followUpOrdinal?: number,
+  expectedFollowUpPrompt?: string,
 ): object[] {
   const spawns = entries.filter((entry) => isNativeSpawnCall(entry.payload));
   if (malformed || spawns.length !== 1) return [];
@@ -2313,60 +2321,96 @@ function retainedSingleNativeAgent(
       role: "unverified",
       accepted_ordinal: accepted,
     },
-    ...retainedNativeFeedback(
-      entries,
+    ...retainedNativeFeedback(entries, {
       accepted,
-      start.agentRef,
+      agentRef: start.agentRef,
       followUpOrdinal,
-    ),
+      expectedFollowUpPrompt,
+    }),
     ...entries
       .filter((entry) => nativeParentWork(entry, accepted, start.agentRef))
       .map(() => ({ type: "darrow.codex_native_parent_tool_after_agent" })),
   ];
 }
 
+interface NativeFeedbackContext {
+  accepted: number;
+  agentRef: string;
+  followUpOrdinal?: number;
+  expectedFollowUpPrompt?: string;
+}
+
 function retainedNativeFeedback(
   entries: CodexNativeSessionEntry[],
-  accepted: number,
-  agentRef: string,
-  followUpOrdinal?: number,
+  context: NativeFeedbackContext,
 ): object[] {
-  return entries.flatMap((entry) => {
-    const payload = entry.payload;
-    if (
-      entry.ordinal <= accepted ||
-      payload.type !== "function_call" ||
-      payload.namespace !== "collaboration" ||
-      !["followup_task", "send_message", "interrupt_agent"].includes(
-        String(payload.name),
-      )
+  return entries.flatMap((entry) =>
+    retainedNativeFeedbackEntry(entries, entry, context),
+  );
+}
+
+function nativeFeedbackCallAfterAcceptance(
+  entry: CodexNativeSessionEntry,
+  accepted: number,
+): boolean {
+  const payload = entry.payload;
+  return (
+    entry.ordinal > accepted &&
+    payload.type === "function_call" &&
+    payload.namespace === "collaboration" &&
+    ["followup_task", "send_message", "interrupt_agent"].includes(
+      String(payload.name),
     )
-      return [];
-    const target = canonicalCodexAgentRef(
-      nativeSpawnArguments(payload)?.target,
-    );
-    const callId = boundedCollaborationIdentifier(payload.call_id);
-    if (!target || !callId) return [];
-    const outputs = entries.filter(
-      (candidate) =>
-        candidate.ordinal > entry.ordinal &&
-        candidate.payload.type === "function_call_output" &&
-        candidate.payload.call_id === callId,
-    );
-    return [
-      {
-        type: "darrow.codex_native_feedback",
-        tool: payload.name,
-        agent_ref: target,
-        same_owner: target === agentRef,
-        ordinal: entry.ordinal,
-        after_follow_up:
-          followUpOrdinal !== undefined && entry.ordinal > followUpOrdinal,
-        delivery: "unverified",
-        response_observed: nativeFeedbackResponseObserved(outputs),
-      },
-    ];
-  });
+  );
+}
+
+function expectedNativeFeedbackEvidence(
+  message: unknown,
+  expected: string | undefined,
+): Record<string, boolean> {
+  if (expected === undefined) return {};
+  return {
+    message_matches_expected: message === expected,
+    message_contains_expected:
+      typeof message === "string" && message.includes(expected),
+  };
+}
+
+function retainedNativeFeedbackEntry(
+  entries: CodexNativeSessionEntry[],
+  entry: CodexNativeSessionEntry,
+  context: NativeFeedbackContext,
+): object[] {
+  if (!nativeFeedbackCallAfterAcceptance(entry, context.accepted)) return [];
+  const { payload } = entry;
+  const args = nativeSpawnArguments(payload);
+  const target = canonicalCodexAgentRef(args?.target);
+  const callId = boundedCollaborationIdentifier(payload.call_id);
+  if (!target || !callId) return [];
+  const outputs = entries.filter(
+    (candidate) =>
+      candidate.ordinal > entry.ordinal &&
+      candidate.payload.type === "function_call_output" &&
+      candidate.payload.call_id === callId,
+  );
+  return [
+    {
+      type: "darrow.codex_native_feedback",
+      tool: payload.name,
+      agent_ref: target,
+      same_owner: target === context.agentRef,
+      ordinal: entry.ordinal,
+      after_follow_up:
+        context.followUpOrdinal !== undefined &&
+        entry.ordinal > context.followUpOrdinal,
+      ...expectedNativeFeedbackEvidence(
+        args?.message,
+        context.expectedFollowUpPrompt,
+      ),
+      delivery: "unverified",
+      response_observed: nativeFeedbackResponseObserved(outputs),
+    },
+  ];
 }
 
 function nativeFeedbackResponseObserved(
@@ -2454,6 +2498,7 @@ function nativeEvidenceForStatus(
     ? retainedCodexNativeSessionEvidence(
         status.nativeSession,
         nativeFollowUpOrdinal(events),
+        status.expectedFollowUpPrompt,
       )
     : [];
 }
@@ -3152,6 +3197,21 @@ function codexActivationForRequest(
   );
 }
 
+function codexRetentionStatus(
+  request: HarnessRunRequest,
+  execution: CodexExecution,
+): CodexRetentionStatus {
+  return {
+    exitCode: execution.code,
+    stderrPresent: execution.err.trim().length > 0,
+    expectedFollowUpPrompt: request.control?.followUpPrompt,
+    spawnGuardSecret: execution.spawnGuardSecret,
+    goalLoopPath: execution.goalLoopPath,
+    acceptedAgentRef: execution.acceptedAgentRef,
+    acceptedOwner: execution.acceptedOwner,
+  };
+}
+
 async function codexHarnessResult(
   request: HarnessRunRequest,
   execution: CodexExecution,
@@ -3161,13 +3221,9 @@ async function codexHarnessResult(
     configRoot,
     installedSkillsRoots,
     out,
-    err,
     code,
     durationMs,
     spawnGuardSecret,
-    goalLoopPath,
-    acceptedAgentRef,
-    acceptedOwner,
   } = execution;
   const usage = codexTokenUsage(out);
   const ok = codexRunSucceeded(code, out);
@@ -3178,14 +3234,7 @@ async function codexHarnessResult(
     canonicalRepoDir,
     configRoot,
     {
-      status: {
-        exitCode: code,
-        stderrPresent: err.trim().length > 0,
-        spawnGuardSecret,
-        goalLoopPath,
-        acceptedAgentRef,
-        acceptedOwner,
-      },
+      status: codexRetentionStatus(request, execution),
       installedSkillsRoot: installedSkillsRoots,
     },
   );

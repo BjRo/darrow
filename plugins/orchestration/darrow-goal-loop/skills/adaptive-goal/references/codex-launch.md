@@ -36,13 +36,20 @@ them; those are not replacement adaptive owners. It must not invoke
 
 ## Feedback and continuation
 
+For every answer, correction, added constraint, or status request delivered
+through `followup_task` or `send_message`, preserve every instruction and
+constraint from the user's current message. Do not omit, weaken, broaden, or
+translate an implementation property into merely equivalent output behavior.
+The `target` argument carries the retained owner identity; keep that transport
+metadata separate from the feedback content.
+
 When the owner returns a material-decision question as its paused result,
 surface the complete question and retain the exact owner. The question needs no
 lifecycle marker. Do not treat the pause as completion or start another owner.
 
 On the user's later unambiguous answer in this thread, call `followup_task` once
-for the retained canonical task name with the exact user answer and no wrapper
-or lifecycle marker.
+for the retained canonical task name with the complete answer and no lifecycle
+marker.
 
 Then wait for that same owner. Do not repeat preflight, readiness, routing, or
 spawn in the parent. The same transport may resume a semantically blocked owner when the
@@ -53,7 +60,7 @@ For corrections, new constraints, cancellation, and status requests while the
 owner is active, use the host's message control for that canonical owner
 (`send_message` when available). No pending question is required. For an idle
 retained owner use `followup_task`; never create a replacement. Relay the exact
-user feedback once. A status request does not stop execution. For explicit
+user feedback once under the preservation rule above. A status request does not stop execution. For explicit
 cancellation, use the host stop/interrupt control when available and report its
 result; do not claim an in-flight effect was prevented without owner or host
 evidence. Report if the host cannot deliver feedback during a running tool.

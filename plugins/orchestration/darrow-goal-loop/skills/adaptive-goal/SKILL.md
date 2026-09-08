@@ -368,6 +368,12 @@ After acceptance, the parent performs no repository or external work. It may
 only wait, relay user feedback or request status from the same owner, or stop that owner after
 explicit abandonment or supersession.
 
+For every message-based relay after acceptance, preserve every instruction and
+constraint from the current user message. Do not summarize or paraphrase in a
+way that drops, weakens, broadens, or converts an implementation property into
+equivalent output behavior. Keep the retained-owner target and transport
+metadata separate from the feedback content.
+
 If launch is unavailable or rejected, preserve the product tree and return:
 
 ```text

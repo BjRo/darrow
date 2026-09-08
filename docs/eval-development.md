@@ -92,8 +92,14 @@ constraints for producing and interpreting that evidence.
 - Native Codex feedback receipts remain `delivery: unverified`; an output
   string can also be an error. The observer records whether a same-target
   message attempt followed the runner's actual feedback boundary. Continuation
-  cases combine that observation with an unchanged worktree at the boundary,
-  fixture acknowledgement and effects, one accepted agent, and no parent work.
+  cases with a configured second turn also retain booleans stating whether the
+  collaboration call's message exactly matched or contained that rendered
+  second-turn prompt; neither message body is retained. These facts distinguish
+  exact copying and intact wrapping from other relay forms, but do not grade
+  semantic preservation or claim host delivery.
+  Continuation cases combine those observations with an unchanged worktree at
+  the boundary, fixture acknowledgement and effects, one accepted agent, and
+  no parent work.
   These establish bounded task behavior, not independent proof of exact message
   delivery. Interrupts and pre-feedback messages cannot satisfy the attempt
   check.
