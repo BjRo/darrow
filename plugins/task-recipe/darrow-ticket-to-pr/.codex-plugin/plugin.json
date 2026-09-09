@@ -1,6 +1,6 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "description": "Delegate one explicit ticket-to-PR shortcut to adaptive-goal",
   "skills": "./skills/",
   "interface": {

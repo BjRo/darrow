@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { resolve } from "node:path";
 import {
   activationProbeForCase,
   activationPassRate,
@@ -6,6 +7,7 @@ import {
   expectsAdaptiveGoalOwner,
   gradeActivation,
   validateActivationCase,
+  validateMountedActivationTarget,
 } from "./activation";
 import type { EvalCase, TrialActivationResult } from "./types";
 
@@ -23,6 +25,37 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 describe("skill activation grading", () => {
+  test("validates exclusions from separately mounted composition plugins", async () => {
+    const target = evalCase({
+      activation: "negative",
+      skillDir: resolve(
+        import.meta.dir,
+        "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr",
+      ),
+      owningSkillName: "ticket-to-pr",
+      activation_excludes: ["ticket-to-pr", "adaptive-goal"],
+      additional_plugins: ["plugins/orchestration/darrow-goal-loop"],
+    });
+    expect(await validateMountedActivationTarget(target)).toEqual([]);
+    expect(
+      await validateMountedActivationTarget({
+        ...target,
+        additional_plugins: [],
+      }),
+    ).toEqual([
+      "activation-case: activation exclusion adaptive-goal is absent from the mounted skill set",
+    ]);
+    expect(
+      await validateMountedActivationTarget({
+        ...target,
+        additional_plugins: [],
+        additional_skills: [
+          "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal",
+        ],
+      }),
+    ).toEqual([]);
+  });
+
   test("derives explicit and implicit probes from the shared placeholder", () => {
     expect(
       activationProbeForCase(

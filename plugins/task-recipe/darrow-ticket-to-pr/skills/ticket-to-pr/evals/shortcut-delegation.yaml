@@ -1,4 +1,9 @@
 id: ticket-to-pr-shortcut-delegation
+activation: positive
+mount_plugin_skills: true
+activation_sequence:
+  - ticket-to-pr
+  - adaptive-goal
 invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-P1,TPR-P2,TPR-P3
 goal_report: forbidden
 expect_head_change: false

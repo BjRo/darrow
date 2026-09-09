@@ -32,6 +32,13 @@ delegation without a second user invocation. If no single unambiguous such
 capability is available, return `Status: launch_required`, name the missing or
 ambiguous adaptive-goal boundary, and make no mutation.
 
+Native goal controls such as `create_goal` only record or start a current-thread
+goal; they do not supply adaptive-goal's preflight and separate-owner
+orchestration. Do not call them as a substitute. If only such controls are
+available, treat the adaptive-goal capability as unavailable. A differently
+named capability is valid when it advertises the matching orchestration
+contract; do not require a fixed plugin name or path.
+
 Pass one concise request that preserves the exact ticket reference and says:
 
 > Read and implement `<ticket>` in the current repository on a new

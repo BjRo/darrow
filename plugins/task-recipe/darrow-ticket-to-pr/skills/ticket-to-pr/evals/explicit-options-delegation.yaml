@@ -1,4 +1,9 @@
 id: ticket-to-pr-explicit-options-delegation
+activation: positive
+mount_plugin_skills: true
+activation_sequence:
+  - ticket-to-pr
+  - adaptive-goal
 invariant: TPR-C2,TPR-C3,TPR-C6
 goal_report: forbidden
 expect_head_change: false

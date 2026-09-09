@@ -1,4 +1,5 @@
 id: goal-steering-without-question
+activation: positive
 invariant: AGL-A2,AGL-L3,AGL-S3
 goal_report: forbidden
 goal_route_checks: false

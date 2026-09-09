@@ -23,7 +23,7 @@ require_line "$skill" 'A direct shell, Git, forge,'
 require_line "$guide" '`fork_turns` set to `none`'
 require_line "$guide" '`model` set to the selected concrete Codex model'
 require_line "$guide" '`reasoning_effort` set to the selected effort'
-require_line "$guide" 'call `followup_task` once'
+require_line "$guide" 'Call `followup_task` exactly once'
 
 if grep -E 'goal-loop step|Protocol ledger|create_goal|materialize-objective|darrow-native-goal-report' \
   "$skill" "$guide" >/dev/null; then

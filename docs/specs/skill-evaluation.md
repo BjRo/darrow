@@ -155,6 +155,14 @@ supplies the retained review-axis marker; a task name containing both axes
 supplies neither. A missing, ambiguous, or malformed parent rollout establishes
 no accepted launch.
 
+Native goal controls are separate from adaptive-owner launch evidence. Retain
+only their allowlisted names and source ordinals, never goal arguments or tool
+outputs. A direct native function call establishes an invocation attempt; a
+goal-control call expression in submitted code establishes only a code
+reference, not that the expression ran. Neither establishes goal persistence,
+adaptive delegation, or owner acceptance. Missing references cannot establish
+non-use because dynamic calls and unavailable source remain unobserved.
+
 ### Semantic output checks
 
 An eval case may declare one or more gating semantic output checks when the
@@ -352,6 +360,16 @@ not prove equivalence or savings.
   reads in order, without duplicate skills. Every supporting observation
   requires a complete mounted skill body. Sequence and exclusion checks use
   that complete observation; invalid dispatch or stream evidence stays unknown.
+  Exact source pages from one actor may overlap or repeat: complete source
+  coverage establishes the read without requiring duplicate-free concatenation.
+  Missing intervals, altered content and pages split across actors do not.
+  Exact source coverage may be embedded in compound command output; unrelated
+  returned text neither contributes coverage nor erases verified source bytes.
+  Native recovery reconciles completeness and shared read-order anchors without
+  repairing invalid explicit dispatch. Conflicting source orders remain
+  unknown; recovered earlier reads are not appended after known later reads.
+  Child launch-list order is not skill-read order. Multiple children adding
+  unanchored supporting reads leave the ordering evidence incomplete.
 - **SE-C24 — Current Codex collaboration evidence.** A valid native task label
   is not mistaken for a conflicting child-agent reference. Retained accepted
   launch evidence preserves the stable child reference, bounded task label,

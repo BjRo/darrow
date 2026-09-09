@@ -190,6 +190,36 @@ describe("eval CLI presentation", () => {
     expect(lines).toContain("✕");
   });
 
+  test("distinguishes incomplete activation evidence from a missing source", () => {
+    const render = (source: string | null) =>
+      trialLines(
+        {
+          passed: true,
+          caseId: "partial-composition",
+          trial: 1,
+          trials: 1,
+          completed: 1,
+          total: 1,
+          durationMs: 1_000,
+          tokens: null,
+          failedChecks: [],
+          activation: {
+            passed: null,
+            className: "positive",
+            targetSkill: "ticket-to-pr",
+            primarySkill: "ticket-to-pr",
+            source,
+          },
+        },
+        { color: false, emoji: false, progress: false, hyperlinks: false },
+      ).join("\n");
+    expect(render("explicit_invocation")).toContain(
+      "evidence incomplete (explicit_invocation)",
+    );
+    expect(render("explicit_invocation")).not.toContain("source unavailable");
+    expect(render(null)).toContain("source unavailable");
+  });
+
   test("reports a missing composed skill in activation failures", () => {
     const lines = trialLines(
       {

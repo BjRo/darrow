@@ -48,6 +48,13 @@ The recipe invokes exactly one available capability whose advertised contract
 is adaptive-goal orchestration. The explicit recipe invocation authorizes that
 single delegation without requiring a second user invocation.
 
+Native controls that merely record or start a current-thread goal, such as
+`create_goal`, do not supply adaptive-goal's preflight and separate-owner
+orchestration. The recipe must not use them as a substitute or treat their
+availability as proof that an adaptive-goal capability is available. A
+compatible orchestration capability may have a different name; matching is
+about its advertised contract, not a fixed plugin name or path.
+
 The delegated request preserves the exact ticket reference and directs the
 adaptive goal to:
 
@@ -108,6 +115,7 @@ retry, waiver, recovery, or status protocol.
    the recipe; one exact ticket ID or URL is required.
 2. **TPR-C2 — One delegation.** A valid invocation delegates exactly once to an
    advertised adaptive-goal capability and performs no delivery work first.
+   Native current-thread goal creation is not a substitute for that delegation.
 3. **TPR-C3 — Complete envelope.** Delegation preserves the exact reference,
    current repository, ready implementation outcome, new-branch intent,
    verification, intended commits, non-force push, exactly one verified pull
@@ -136,6 +144,7 @@ retry, waiver, recovery, or status protocol.
 Behavior evals cover:
 
 - direct explicit shortcut delegation using the harness-rendered invocation;
+- delegation to a compatible orchestration capability with a different name;
 - missing or ambiguous ticket input before delegation;
 - an unavailable or ambiguous adaptive-goal boundary with no fallback work;
 - ordinary ticket or engineering intent that must not select the recipe;

@@ -3,6 +3,21 @@
 Use this guide after preflight, readiness, capability binding, route selection,
 and contract compilation are complete.
 
+## Feedback continuation fast path
+
+When the current user message unambiguously answers a material question from
+the retained owner, do this before any other action or response:
+
+1. Call `followup_task` exactly once.
+2. Set `target` to the retained canonical owner reference.
+3. Set `message` to the complete current user message byte-for-byte. Its first
+   and last characters must be the user's first and last characters. Add no
+   prefix, suffix, quotation, summary, explanation, or lifecycle marker.
+4. Wait for that same owner and relay its result.
+
+Keep `target` and all routing metadata outside `message`. Do not repeat
+preflight, readiness, routing, launch, or the feedback content on this path.
+
 ## Launch
 
 Require the host-visible subagent control. Spawn exactly one subagent with:
@@ -47,14 +62,10 @@ When the owner returns a material-decision question as its paused result,
 surface the complete question and retain the exact owner. The question needs no
 lifecycle marker. Do not treat the pause as completion or start another owner.
 
-On the user's later unambiguous answer in this thread, call `followup_task` once
-for the retained canonical task name with the complete answer and no lifecycle
-marker.
-
-Then wait for that same owner. Do not repeat preflight, readiness, routing, or
-spawn in the parent. The same transport may resume a semantically blocked owner when the
-answer clearly resolves its stated blocker; preserve the original contract and
-send only the exact user response.
+On the user's later unambiguous answer in this thread, use the feedback
+continuation fast path. The same transport may resume a semantically blocked
+owner when the answer clearly resolves its stated blocker; preserve the
+original contract.
 
 For corrections, new constraints, cancellation, and status requests while the
 owner is active, use the host's message control for that canonical owner

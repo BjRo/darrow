@@ -393,8 +393,11 @@ The parent surfaces the question and retains the same owner. A later explicit
 answer is relayed verbatim to that owner. No lifecycle marker or fixed display
 summary is required.
 
-The answer grants only explicitly supplied authority. The same owner performs any required
-acknowledgement before resuming mutation. Pending feedback is neither
+The answer grants only explicitly supplied authority. The same owner supplies the
+complete answer to any required acknowledgement and requires that operation to
+succeed before resuming mutation. A rejected acknowledgement leaves the gate
+closed: correct the invocation within authority or return the blocker. Knowing
+the intended implementation does not waive the gate. Pending feedback is neither
 completion nor a terminal blocker, and no replacement owner is launched.
 
 Corrections, added constraints, cancellation, and status requests also reach
@@ -518,6 +521,10 @@ Nested host processes are not an adaptive-goal fallback.
    repository behavior, not bookkeeping transitions.
 10. **AGL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation,
     and status requests remain attached to the accepted owner when supported.
+    For message-based relay, the payload equals the complete current user
+    message verbatim and exactly once; prefixes, suffixes, quotations,
+    summaries, lifecycle markers, and routing metadata do not enter that
+    payload.
 11. **AGL-L4 — Semantic blockage.** A blocker names its condition, evidence,
     and next action without a Darrow retry state machine.
 12. **AGL-L5 — Owner-sourced completion.** The parent relays the owner's

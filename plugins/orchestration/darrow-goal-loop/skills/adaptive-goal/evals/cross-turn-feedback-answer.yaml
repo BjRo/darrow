@@ -1,4 +1,5 @@
 id: goal-cross-turn-feedback-answer
+activation: positive
 invariant: AGL-L1,AGL-L3,AGL-L5,AGL-X1
 goal_report: forbidden
 goal_route_checks: false

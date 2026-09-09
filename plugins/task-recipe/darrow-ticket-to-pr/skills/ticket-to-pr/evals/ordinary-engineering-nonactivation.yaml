@@ -1,4 +1,11 @@
 id: ticket-to-pr-ordinary-engineering-nonactivation
+activation: negative
+mount_plugin_skills: true
+additional_plugins:
+  - plugins/orchestration/darrow-goal-loop
+activation_excludes:
+  - ticket-to-pr
+  - adaptive-goal
 invariant: TPR-C1
 goal_report: forbidden
 prompt: >-

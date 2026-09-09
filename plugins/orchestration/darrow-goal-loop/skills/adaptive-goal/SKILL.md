@@ -271,7 +271,7 @@ Outcome: <bounded result>
 Acceptance criteria: <observable outcomes>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
 Execution: workflow=<exact workflow identifier>; sequence=<compact workflow steps>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
-Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner pauses affected implementation and invokes required readiness for material changed scope, then strengthens affected checks within authority>; review=<bound skill and finite repair budget, or permitted omission>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives answers, corrections, constraints, cancellation and status; verify new restrictions before completion>; blockers=<semantic blocker and observe-before-retry rule>
+Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner pauses affected implementation and invokes required readiness for material changed scope, then strengthens affected checks within authority>; review=<bound skill and finite repair budget, or permitted omission>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; verify new restrictions before completion>; blockers=<semantic blocker and observe-before-retry rule>
 Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final verification, selected readiness and review outcomes, publication effects, and remaining risks or blockers>
 ```
 
@@ -298,9 +298,14 @@ Compile this human-feedback rule: a material decision first discovered after
 launch pauses repository and external mutation. The owner returns the smallest
 complete question as its paused result; no lifecycle marker is required. The
 parent relays the explicit answer verbatim to the same owner, with no lifecycle
-marker or fixed display summary. The answer grants only explicitly supplied authority, and
-the owner performs any required acknowledgement before mutation. Never choose
-a default or launch a replacement owner.
+marker or fixed display summary. The answer grants only explicitly supplied
+authority. Preserve repository-specific acknowledgement prerequisites in the
+owner contract. The owner must pass the complete received answer to that
+acknowledgement without shortening it to a selected value, and require success
+before any production edit, commit, or publication. A nonzero exit or rejection
+keeps the gate closed: correct the invocation within authority or return the
+blocker. Knowing the chosen behavior does not authorize bypassing the gate.
+Never choose a default or launch a replacement owner.
 
 Compile this blocker rule: when work cannot proceed without an external state
 change, return `Status: blocked` with the specific blocker, current evidence,
@@ -355,6 +360,9 @@ Read exactly one host guide completely:
 
 - Codex: [`references/codex-launch.md`](references/codex-launch.md)
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
+
+On a continuation turn, apply that guide's feedback fast path before any other
+action.
 
 The separate route-selected subagent is the sole Darrow work owner. The
 accepted Codex launch carries its concrete route. On Claude, the resolver
