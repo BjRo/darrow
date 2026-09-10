@@ -4,7 +4,7 @@ activation: negative
 mount_plugin_skills: true
 prompt: >-
   Set up a bounded engineering task to add configurable request timeouts to
-  this service. Use Darrow Goal Loop for the new orchestration work, identify
+  this service. Use Adaptive Delivery for the new orchestration work, identify
   the likely verification seam, and do not modify this repository.
 fixture:
   commits:
@@ -23,5 +23,5 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: new work is directed to the supported orchestration option
-    expect_regex: "(goal loop|darrow-goal-loop)"
+    expect_regex: "(Adaptive Delivery|darrow-adaptive-delivery)"
     flags: i

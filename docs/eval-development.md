@@ -288,6 +288,6 @@ use per-trial status lines instead of the single active-trial animation.
 - When changing `darrow-review`'s externally visible independent-review or
   fix-verification outcome semantics, also run the affected review-composition
   evals under
-  `plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/`.
+  `plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/`.
 - Keep activation, task outcome, invariant coverage, and matched ablation as
   separate evidence dimensions; one does not substitute for another.

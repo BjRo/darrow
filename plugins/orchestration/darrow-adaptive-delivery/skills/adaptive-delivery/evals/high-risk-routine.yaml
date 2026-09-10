@@ -1,0 +1,92 @@
+id: goal-preflight-high-risk-routine
+invariant: ADL-C1,ADL-C2,ADL-R1,ADL-L2,ADL-L5,ADL-S3
+goal_report: forbidden
+goal_route_checks: false
+activation: positive
+mount_plugin_skills: true
+activation_sequence: [adaptive-delivery, code-review]
+additional_plugins:
+  - plugins/capability/darrow-review
+prompt: >-
+  {{skill_invocation}} Change the exported sessionCookieOptions in auth-config.js so
+  sameSite is exactly "strict" instead of "lax". This is a security boundary where the cost of a mistake
+  is high, but the requested implementation is clear, localized, and fully
+  specified. Add focused evidence for the new value and preserve the other
+  cookie options. Acceptance is that bash test.sh passes. Require independent
+  review of the exact final change after all checks; after and only after a
+  clear review or clear repair verification, run bash mark-complete.sh with the
+  returned canonical artifact path as its single argument. Select and apply the policy route
+  rather than pinning it. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for authentication configuration changes.
+        auth-config.js: |
+          export const sessionCookieOptions = Object.freeze({
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+          });
+        auth-config.test.js: |
+          import assert from "node:assert/strict";
+          import { sessionCookieOptions } from "./auth-config.js";
+
+          assert.equal(sessionCookieOptions.httpOnly, true);
+          assert.equal(sessionCookieOptions.secure, true);
+          assert.equal(sessionCookieOptions.sameSite, "lax");
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          node auth-config.test.js
+          git_dir=$(git rev-parse --git-dir)
+          mkdir -p "$git_dir/fixture-state"
+          scope_count=$(find "$git_dir" -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')
+          printf 'check\t%s\n' "$scope_count" >>"$git_dir/fixture-state/high-risk-review-events"
+        mark-complete.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          git_dir=$(git rev-parse --git-dir)
+          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned result.tsv or verification.tsv path}"
+  setup: |
+    mkdir -p .git/fixture-bin
+    cp "{{case_dir}}/fixtures/require-clear-review.sh" .git/fixture-bin/review-proof
+checks:
+  - name: cookie behavior is changed and preserved
+    run: >-
+      node --input-type=module -e
+      "import('./auth-config.js').then(({sessionCookieOptions}) => {
+      if (sessionCookieOptions.sameSite !== 'strict' ||
+      sessionCookieOptions.httpOnly !== true ||
+      sessionCookieOptions.secure !== true) process.exit(1) })"
+  - name: focused evidence covers the strict value
+    run: grep -F '"strict"' auth-config.test.js >/dev/null && bash test.sh
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: clear independent review returns control to the goal
+    run: test "$(cat .git/goal-complete)" = complete
+  - name: final check precedes review scope
+    run: >-
+      awk -F '\t' 'NR == 1 && $1 == "check" && $2 == 0 { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/fixture-state/high-risk-review-events
+  - name: independent review artifact is canonical and clear
+    run: bash .git/fixture-bin/review-proof artifact
+  - name: independent review covers the exact final worktree
+    run: bash .git/fixture-bin/review-proof current
+output_checks:
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+semantic_output_checks:
+  - name: high-risk owner reports completion
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+  - name: completion reports the semantic review outcome
+    proposition: The response says an independent review of the completed high-risk change found no blocking findings.
+transcript_checks:
+  - name: Terra policy route is applied to the high-risk owner
+    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"(?:medium|high)"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'

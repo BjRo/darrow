@@ -25,9 +25,9 @@ describe("participant prompt rendering", () => {
         skillDir:
           "/repo/plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr",
         owningSkillName: "ticket-to-pr",
-        source_plugin: "plugins/orchestration/darrow-goal-loop",
+        source_plugin: "plugins/orchestration/darrow-adaptive-delivery",
       }),
-    ).toBe("Use $darrow-goal-loop:ticket-to-pr.");
+    ).toBe("Use $darrow-adaptive-delivery:ticket-to-pr.");
   });
 
   test("leaves prompts without the placeholder unchanged", () => {

@@ -1210,7 +1210,7 @@ interface PostGoalEvidenceContext {
   seen: Set<string>;
   repoDir: string;
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
-  goalLoopPath?: string;
+  adaptiveDeliveryPreflightPath?: string;
   agentRef?: string;
   activationState: "pending" | "recorded" | "rejected";
   goalPersistence: "none" | "confirmed" | "unavailable";
@@ -1246,14 +1246,14 @@ function retainedGoalLifecycleEvent(
   const activation = retainedGoalActivationEvent(
     event,
     context.attestation,
-    context.goalLoopPath,
+    context.adaptiveDeliveryPreflightPath,
     context.agentRef,
   );
   if (activation) return activation;
   const rejected = retainedGoalActivationRejectedEvent(
     event,
     context.attestation,
-    context.goalLoopPath,
+    context.adaptiveDeliveryPreflightPath,
     context.agentRef,
   );
   if (rejected) return rejected;
@@ -1264,7 +1264,7 @@ function retainedGoalLifecycleEvent(
       ? retainedGoalLaunchStopEvent(
           event,
           context.attestation,
-          context.goalLoopPath,
+          context.adaptiveDeliveryPreflightPath,
           context.agentRef,
         )
       : undefined;
@@ -1272,13 +1272,13 @@ function retainedGoalLifecycleEvent(
   const release = retainedObjectiveReleaseEvent(
     event,
     context.attestation,
-    context.goalLoopPath,
+    context.adaptiveDeliveryPreflightPath,
   );
   if (release) return release;
   const report = retainedGoalReportEvent(
     event,
     context.attestation,
-    context.goalLoopPath,
+    context.adaptiveDeliveryPreflightPath,
   );
   return goalReportFollowsLifecycle(report, context) ? report : undefined;
 }
@@ -1291,7 +1291,7 @@ function retainedGoalPersistenceForState(
     ? retainedGoalPersistenceEvent(
         event,
         context.attestation,
-        context.goalLoopPath,
+        context.adaptiveDeliveryPreflightPath,
         context.agentRef,
       )
     : undefined;
@@ -1388,11 +1388,18 @@ function literalShellWords(command: string): string[] | undefined {
 function retainedObjectiveReleaseEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  goalLoopPath?: string,
+  adaptiveDeliveryPreflightPath?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !goalLoopPath) return undefined;
-  if (!objectiveReleaseCommandMatches(command, attestation, goalLoopPath))
+  if (!command || !attestation || !adaptiveDeliveryPreflightPath)
+    return undefined;
+  if (
+    !objectiveReleaseCommandMatches(
+      command,
+      attestation,
+      adaptiveDeliveryPreflightPath,
+    )
+  )
     return undefined;
   if (!objectiveReleaseOutputMatches(event, attestation)) return undefined;
   return {
@@ -1405,16 +1412,21 @@ function retainedObjectiveReleaseEvent(
 function retainedGoalActivationEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  goalLoopPath?: string,
+  adaptiveDeliveryPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !goalLoopPath || !acceptedAgentRef)
+  if (
+    !command ||
+    !attestation ||
+    !adaptiveDeliveryPreflightPath ||
+    !acceptedAgentRef
+  )
     return undefined;
   const evidence = goalActivationCommandEvidence(
     command,
     attestation,
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     acceptedAgentRef,
   );
   if (!evidence || !goalActivationOutputMatches(event, evidence))
@@ -1431,16 +1443,21 @@ function retainedGoalActivationEvent(
 function retainedGoalActivationRejectedEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  goalLoopPath?: string,
+  adaptiveDeliveryPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = rejectedCommand(event);
-  if (!command || !attestation || !goalLoopPath || !acceptedAgentRef)
+  if (
+    !command ||
+    !attestation ||
+    !adaptiveDeliveryPreflightPath ||
+    !acceptedAgentRef
+  )
     return undefined;
   const evidence = goalActivationCommandEvidence(
     command,
     attestation,
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     acceptedAgentRef,
   );
   return evidence
@@ -1455,14 +1472,15 @@ function retainedGoalActivationRejectedEvent(
 function retainedGoalPersistenceEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  goalLoopPath?: string,
+  adaptiveDeliveryPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
-  if (!attestation || !goalLoopPath || !acceptedAgentRef) return undefined;
+  if (!attestation || !adaptiveDeliveryPreflightPath || !acceptedAgentRef)
+    return undefined;
   const status = goalPersistenceCommandStatus(
     event,
     attestation,
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     acceptedAgentRef,
   );
   if (!status || !goalPersistenceOutputMatches(event, status)) return undefined;
@@ -1476,7 +1494,7 @@ function retainedGoalPersistenceEvent(
 function goalPersistenceCommandStatus(
   event: CodexEvent,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  goalLoopPath: string,
+  adaptiveDeliveryPreflightPath: string,
   acceptedAgentRef: string,
 ): "active" | "unavailable" | undefined {
   const command = completedCommand(event);
@@ -1487,7 +1505,7 @@ function goalPersistenceCommandStatus(
   if (status !== "active" && status !== "unavailable") return undefined;
   const expected = [
     "/bin/bash",
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     "step",
     "goal-state",
     "--ledger",
@@ -1530,7 +1548,7 @@ function rejectedCommand(event: CodexEvent): string | undefined {
 function goalActivationCommandEvidence(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  goalLoopPath: string,
+  adaptiveDeliveryPreflightPath: string,
   acceptedAgentRef: string,
 ): { agentRef: string; route: string } | undefined {
   const words = literalShellWords(command);
@@ -1538,7 +1556,7 @@ function goalActivationCommandEvidence(
   if (!words || words.length !== 16) return undefined;
   const prefix = [
     "/bin/bash",
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     "step",
     "activate",
     "--ledger",
@@ -1587,17 +1605,22 @@ function goalActivationOutputMatches(
 function retainedGoalLaunchStopEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  goalLoopPath?: string,
+  adaptiveDeliveryPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !goalLoopPath || !acceptedAgentRef)
+  if (
+    !command ||
+    !attestation ||
+    !adaptiveDeliveryPreflightPath ||
+    !acceptedAgentRef
+  )
     return undefined;
   if (
     !goalLaunchStopCommandMatches(
       command,
       attestation,
-      goalLoopPath,
+      adaptiveDeliveryPreflightPath,
       acceptedAgentRef,
     ) ||
     !goalLaunchStopOutputMatches(event, acceptedAgentRef)
@@ -1614,12 +1637,12 @@ function retainedGoalLaunchStopEvent(
 function goalLaunchStopCommandMatches(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  goalLoopPath: string,
+  adaptiveDeliveryPreflightPath: string,
   acceptedAgentRef: string,
 ): boolean {
   const expected = [
     "/bin/bash",
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     "step",
     "launch-stop",
     "--ledger",
@@ -1654,14 +1677,15 @@ function goalLaunchStopOutputMatches(
 function retainedGoalReportEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  goalLoopPath?: string,
+  adaptiveDeliveryPreflightPath?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !goalLoopPath) return undefined;
+  if (!command || !attestation || !adaptiveDeliveryPreflightPath)
+    return undefined;
   const evidence = goalReportCommandEvidence(
     command,
     attestation,
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
   );
   if (!evidence || !goalReportOutputMatches(event, evidence.status))
     return undefined;
@@ -1675,13 +1699,13 @@ function retainedGoalReportEvent(
 function goalReportCommandEvidence(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  goalLoopPath: string,
+  adaptiveDeliveryPreflightPath: string,
 ): { status: string; humanInterruptions: number } | undefined {
   const words = literalShellWords(command);
   if (!words || words.length !== 10) return undefined;
   const prefix = [
     "/bin/bash",
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     "step",
     "report",
     "--ledger",
@@ -1715,13 +1739,13 @@ function goalReportOutputMatches(event: CodexEvent, status: string): boolean {
 function objectiveReleaseCommandMatches(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  goalLoopPath: string,
+  adaptiveDeliveryPreflightPath: string,
 ): boolean {
   if (!attestation.attachmentDir || attestation.objectiveMode !== "file-backed")
     return false;
   const expected = [
     "/bin/bash",
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     "step",
     "release-objective",
     "--ledger",
@@ -1767,7 +1791,11 @@ function postGoalCommandOperation(command: string, repoDir: string): string {
   if (executedVerification(command)) return "verification";
   if (/\bindependent-review-fixture\b/.test(command))
     return "independent-review";
-  if (/\bgoal-loop\s+release-(?:staging|objective)\b/.test(command))
+  if (
+    /\badaptive-delivery-preflight\s+release-(?:staging|objective)\b/.test(
+      command,
+    )
+  )
     return "objective-cleanup";
   const privateRoot = join(repoDir, ".git", "darrow-eval", "state", "codex");
   if (/\brm\b/.test(command) && command.includes(privateRoot))
@@ -1937,7 +1965,7 @@ interface CodexRetentionStatus {
   nativeSession?: string;
   expectedFollowUpPrompt?: string;
   spawnGuardSecret?: string;
-  goalLoopPath?: string;
+  adaptiveDeliveryPreflightPath?: string;
   acceptedAgentRef?: string;
   acceptedOwner?: AcceptedCodexOwner;
 }
@@ -1968,7 +1996,7 @@ function retainedLifecycleEvent(
     seen: state.postGoalToolIds,
     repoDir,
     attestation: state.goalAttestation,
-    goalLoopPath: status?.goalLoopPath,
+    adaptiveDeliveryPreflightPath: status?.adaptiveDeliveryPreflightPath,
     agentRef: state.goalOwnerReference,
     activationState: state.activationState,
     goalPersistence: state.goalPersistence,
@@ -3701,7 +3729,7 @@ interface CodexExecution {
   code: number;
   durationMs: number;
   spawnGuardSecret?: string;
-  goalLoopPath?: string;
+  adaptiveDeliveryPreflightPath?: string;
   acceptedAgentRef?: string;
   acceptedOwner?: AcceptedCodexOwner;
 }
@@ -3719,7 +3747,7 @@ interface CodexSpawnGuardPolicy {
   fixtureStateSha256: string;
   requestSha256: string;
   objectiveRoot: string;
-  goalLoopPath: string;
+  adaptiveDeliveryPreflightPath: string;
   statePath: string;
 }
 
@@ -3733,7 +3761,7 @@ async function installCodexSpawnGuard(
   options: {
     prompt: string;
     objectiveRoot: string;
-    goalLoopPath: string;
+    adaptiveDeliveryPreflightPath: string;
   },
 ): Promise<CodexSpawnGuard> {
   const configRoot = env.CODEX_HOME;
@@ -3750,7 +3778,7 @@ async function installCodexSpawnGuard(
     fixtureStateSha256: await fixtureStateFingerprint(repoDir),
     requestSha256: createHash("sha256").update(options.prompt).digest("hex"),
     objectiveRoot: options.objectiveRoot,
-    goalLoopPath: options.goalLoopPath,
+    adaptiveDeliveryPreflightPath: options.adaptiveDeliveryPreflightPath,
     statePath,
   };
   await compileCodexSpawnGuard(wrapperPath, executablePath, policy);
@@ -3832,7 +3860,7 @@ interface CodexProcessContext {
   canonicalRepoDir: string;
   installedSkillsRoots: string[];
   installedPluginRoots: string[];
-  goalLoopPath?: string;
+  adaptiveDeliveryPreflightPath?: string;
   objectiveRoot: string;
   env: Record<string, string>;
   spawnGuard?: CodexSpawnGuard;
@@ -3884,26 +3912,27 @@ async function codexProcessContext(
   env.TMPDIR = objectiveRoot;
   const { installedSkillsRoots, installedPluginRoots } =
     await installedCodexPluginContext(repoDir, env);
-  const goalLoopCandidate = installedPluginRoots
-    .map((pluginRoot) => join(pluginRoot, "bin", "goal-loop"))
+  const adaptiveDeliveryPreflightCandidate = installedPluginRoots
+    .map((pluginRoot) => join(pluginRoot, "bin", "adaptive-delivery-preflight"))
     .find((path) => existsSync(path));
-  const goalLoopPath =
-    goalLoopCandidate && existsSync(goalLoopCandidate)
-      ? await realpath(goalLoopCandidate)
+  const adaptiveDeliveryPreflightPath =
+    adaptiveDeliveryPreflightCandidate &&
+    existsSync(adaptiveDeliveryPreflightCandidate)
+      ? await realpath(adaptiveDeliveryPreflightCandidate)
       : undefined;
   const spawnGuard =
-    goalLoopPath && enableSpawnGuard
+    adaptiveDeliveryPreflightPath && enableSpawnGuard
       ? await installCodexSpawnGuard(canonicalRepoDir, env, {
           prompt,
           objectiveRoot,
-          goalLoopPath,
+          adaptiveDeliveryPreflightPath,
         })
       : undefined;
   return {
     canonicalRepoDir,
     installedSkillsRoots,
     installedPluginRoots,
-    goalLoopPath,
+    adaptiveDeliveryPreflightPath,
     objectiveRoot,
     env,
     spawnGuard,
@@ -4081,7 +4110,7 @@ async function executeCodex(
       code,
       durationMs: performance.now() - start,
       spawnGuardSecret: spawnGuard?.secret,
-      goalLoopPath: context.goalLoopPath,
+      adaptiveDeliveryPreflightPath: context.adaptiveDeliveryPreflightPath,
       acceptedAgentRef: acceptedOwner?.agentRef,
       acceptedOwner,
     };
@@ -4105,7 +4134,7 @@ async function runCodexProcess(
       // Fixture mocks shadow real network tools for the harness and children.
       env: {
         ...env,
-        DARROW_GOAL_LOOP_EXTERNAL_SANDBOX: "1",
+        DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX: "1",
         PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
       },
     }),
@@ -4156,7 +4185,7 @@ function codexRetentionStatus(
         : undefined,
     expectedFollowUpPrompt: request.control?.followUpPrompt,
     spawnGuardSecret: execution.spawnGuardSecret,
-    goalLoopPath: execution.goalLoopPath,
+    adaptiveDeliveryPreflightPath: execution.adaptiveDeliveryPreflightPath,
     acceptedAgentRef: execution.acceptedAgentRef,
     acceptedOwner: execution.acceptedOwner,
   };

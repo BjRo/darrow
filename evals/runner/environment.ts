@@ -143,9 +143,9 @@ export async function isolatedHarnessEnvironment(
   env.TMPDIR = tempRoot;
   env.ZDOTDIR = shellRoot;
   // The runner wraps the evaluated agent in sandboxedAgentCommand. Nested
-  // goal-loop mechanics must reuse that boundary instead of attempting an
+  // adaptive-delivery-preflight mechanics must reuse that boundary instead of attempting an
   // unsupported second sandbox-exec layer.
-  env.DARROW_GOAL_LOOP_EXTERNAL_SANDBOX = "1";
+  env.DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX = "1";
   env.CODEX_HOME = configRoot;
   env.CLAUDE_CONFIG_DIR = configRoot;
   return env;

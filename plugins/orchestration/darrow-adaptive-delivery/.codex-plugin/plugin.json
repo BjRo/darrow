@@ -1,0 +1,21 @@
+{
+  "name": "darrow-adaptive-delivery",
+  "version": "0.18.0",
+  "description": "Adaptive Delivery: ready and compile bounded engineering requests, then launch one routed subagent owner",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Adaptive Delivery",
+    "shortDescription": "One routed owner for bounded engineering goals",
+    "longDescription": "Adaptive Delivery prepares a bounded engineering request, reuses or obtains readiness, binds intent-matched skills, selects a workflow, risk, model, and effort, and launches exactly one separate subagent owner without a lifecycle ledger.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Preflight this bounded engineering request and launch one route-selected subagent owner."
+    ]
+  }
+}

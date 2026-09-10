@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adaptive Delivery"
+  short_description: "Compile and launch one routed subagent owner"
+  default_prompt: "Use $darrow-adaptive-delivery:adaptive-delivery to preflight this engineering request, select a proportionate route, and launch one separate subagent owner."

@@ -2,7 +2,7 @@ id: ticket-to-pr-ordinary-engineering-nonactivation
 activation: negative
 mount_plugin_skills: true
 additional_plugins:
-  - plugins/orchestration/darrow-goal-loop
+  - plugins/orchestration/darrow-adaptive-delivery
 activation_excludes:
   - ticket-to-pr
   - adaptive-delivery

@@ -814,15 +814,15 @@ function adaptiveDeliveryParentWorkCheck(raw: string): CheckResult {
 }
 
 const CLAUDE_GOAL_RUNNERS: Record<string, { model: string; effort: string }> = {
-  "darrow-goal-loop:adaptive-delivery-sonnet-5-low": {
+  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low": {
     model: "claude-sonnet-5",
     effort: "low",
   },
-  "darrow-goal-loop:adaptive-delivery-sonnet-5-medium": {
+  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium": {
     model: "claude-sonnet-5",
     effort: "medium",
   },
-  "darrow-goal-loop:adaptive-delivery-opus-5-high": {
+  "darrow-adaptive-delivery:adaptive-delivery-opus-5-high": {
     model: "claude-opus-5",
     effort: "high",
   },

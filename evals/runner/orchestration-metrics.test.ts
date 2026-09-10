@@ -139,7 +139,7 @@ describe("orchestration outcome metrics", () => {
     ).toBe(false);
   });
 
-  test("counts child routes, interruptions, and failed quality oracles", () => {
+  test("counts legacy goal-loop routes, interruptions, and failed quality oracles", () => {
     const result = [
       "format\tdarrow-goal-loop-result-v1",
       "status\tneeds_human",

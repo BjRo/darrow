@@ -50,7 +50,7 @@ not as a second execution runtime.
   second recommended orchestration path or a template for new runtime features.
 
 The detailed preflight, route, launch, and safety contract remains in
-[Capability: Native Goal Preflight](../specs/adaptive-delivery-loop.md). The frozen
+[Capability: Adaptive Delivery](../specs/adaptive-delivery.md). The frozen
 comparison surface remains in
 [Capability: Ticket Pipeline](../specs/ticket-pipeline.md).
 

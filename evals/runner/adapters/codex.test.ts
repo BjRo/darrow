@@ -882,7 +882,7 @@ describe("Codex skill activation observation", () => {
 
   test("observes project capability reads alongside an installed orchestrator", () => {
     const installedSkillsRoot =
-      "/tmp/eval-home/plugins/cache/darrow/darrow-goal-loop/0.13.0/skills";
+      "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-delivery/0.13.0/skills";
     const stream = [
       JSON.stringify({
         type: "item.completed",
@@ -925,7 +925,7 @@ describe("Codex skill activation observation", () => {
     const recipeRoot =
       "/tmp/eval-home/plugins/cache/darrow/recipe/0.3.0/skills";
     const goalRoot =
-      "/tmp/eval-home/plugins/cache/darrow/darrow-goal-loop/0.13.1/skills";
+      "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-delivery/0.13.1/skills";
     const stream = [
       JSON.stringify({
         type: "item.completed",
@@ -2067,7 +2067,8 @@ describe("Codex skill activation observation", () => {
         fixtureStateSha256: await fixtureStateFingerprint(repo),
         requestSha256: "4".repeat(64),
         objectiveRoot,
-        goalLoopPath: "/plugin/bin/goal-loop",
+        adaptiveDeliveryPreflightPath:
+          "/plugin/bin/adaptive-delivery-preflight",
         statePath: join(repo, ".git", "guard-state"),
       };
       const hook = {

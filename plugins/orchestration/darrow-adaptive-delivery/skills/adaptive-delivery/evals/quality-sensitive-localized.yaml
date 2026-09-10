@@ -1,0 +1,100 @@
+id: goal-preflight-quality-sensitive-localized
+invariant: ADL-C1,ADL-R1,ADL-L1,ADL-L5
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Add an exported isStableVersion(value) to src/version.js that returns true
+  only for canonical stable semantic versions: three dot-separated non-negative
+  integer components with no leading zeroes except the value zero itself. Reject
+  prerelease tags, build metadata, omitted components, and surrounding
+  whitespace. Add focused tests for
+  the accepted and rejected boundaries and run bash test.sh. The implementation
+  is localized and fully specified, but the boundary cases make first-pass
+  correctness more valuable than the cheapest routine route. Select and apply
+  the policy route rather than pinning a model. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/version.js: |
+          export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;
+        test/version.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { formatVersion } from "../src/version.js";
+
+          test("formats a version", () => {
+            assert.equal(formatVersion(1, 2, 3), "1.2.3");
+          });
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/version.test.js
+checks:
+  - name: canonical stable versions are recognized
+    run: >-
+      node --input-type=module -e
+      "import('./src/version.js').then(({isStableVersion}) => {
+      for (const value of ['0.0.0', '1.2.3', '10.20.30']) {
+      if (!isStableVersion(value)) process.exit(1) } })"
+  - name: noncanonical and unstable versions are rejected
+    metric: escaped_defect
+    run: >-
+      node --input-type=module -e
+      "import('./src/version.js').then(({isStableVersion}) => {
+      for (const value of ['01.2.3', '1.02.3', '1.2', '1.2.3-beta',
+      '1.2.3+build', ' 1.2.3 ', '1.2.3.4']) {
+      if (isStableVersion(value)) process.exit(1) } })"
+  - name: focused tests are durable
+    run: |
+      set -eu
+      probe=.git/version-test-probe
+      mkdir -p "$probe/src" "$probe/test"
+      cp package.json "$probe/package.json"
+      cp test/version.test.js "$probe/test/version.test.js"
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*$/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^[0-9]+\.[0-9]+\.[0-9]+$/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
+      bash test.sh >/dev/null
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: verification evidence is returned
+    expect_regex: "test\\.sh"
+    flags: i
+  - name: no lifecycle protocol is reported
+    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+transcript_checks:
+  - name: routine-plus policy route is applied to the owner
+    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium")'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: quality-sensitive owner reports completion
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

@@ -85,7 +85,7 @@ from the catalog below as you need them.
   work through everything below.
 
 <p align="center">
-  <img src="docs/assets/darrow-plugin-layers.svg" alt="Darrow's five plugin layers: automations invoke task recipes from a scheduler; task recipes add an ergonomic interface over orchestration; orchestration executes work packages with cost and risk proportionate to the task; capabilities teach software-engineering skills; foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.">
+  <img src="docs/assets/darrow-plugin-layers.svg" alt="Darrow's five plugin layers: automations invoke task recipes from a scheduler; task recipes add an ergonomic interface over orchestration; Adaptive Delivery frames bounded work and hands it to one host-native owner with proportionate cost and risk; capabilities teach software-engineering skills; foundations help build and maintain a healthy agent harness. Every plugin remains independently adoptable.">
 </p>
 
 ## Plugin catalog
@@ -129,15 +129,15 @@ Coming soon:
 ### Orchestration
 
 The work-package primitive in this layer is the `adaptive-delivery` skill inside
-`darrow-goal-loop`. Give it a bounded engineering task and it sizes up the
+`darrow-adaptive-delivery`. Give it a bounded engineering task and it sizes up the
 cost and risk, picks the workflow, checks, model, and effort, then hands a
 properly packed brief to the host's native goal loop. It improves the handoff
 instead of bringing its own agent runtime.
 
 | Plugin                                                                                          | Use it to                                                                                                                                                                                                                                                  |
 | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`darrow-goal-loop`](plugins/orchestration/darrow-goal-loop/README.md)                          | Run Darrow's core orchestration helper. It prepares repository evidence, compiles a bounded completion contract, selects a proportionate workflow and risk gate, and hands the work to one host-native goal owner without building a second agent runtime. |
-| [`darrow-ticket-pipeline`](plugins/orchestration/darrow-ticket-pipeline/README.md) (deprecated) | An earlier static orchestrator implementation kept for comparison and executable benchmark baseline. For new orchestration work, use `darrow-goal-loop`.                                                                                                   |
+| [`darrow-adaptive-delivery`](plugins/orchestration/darrow-adaptive-delivery/README.md)          | Run Darrow's core orchestration helper. It prepares repository evidence, compiles a bounded completion contract, selects a proportionate workflow and risk gate, and hands the work to one host-native goal owner without building a second agent runtime. |
+| [`darrow-ticket-pipeline`](plugins/orchestration/darrow-ticket-pipeline/README.md) (deprecated) | An earlier static orchestrator implementation kept for comparison and executable benchmark baseline. For new orchestration work, use `darrow-adaptive-delivery`.                                                                                           |
 
 ### Task recipes
 
@@ -188,7 +188,7 @@ framed, what must remain true, and what counts as complete. It starts only
 through an entrypoint you explicitly invoke — never merely because a task
 looks complex or multi-step — though an invoked entrypoint may delegate a
 bounded phase to another orchestration helper while preserving your original
-authority. The core helper is the `adaptive-delivery` skill in `darrow-goal-loop`:
+authority. The core helper is the `adaptive-delivery` skill in `darrow-adaptive-delivery`:
 
 ```text
 request + repository -> read-only preflight -> goal contract -> host-native goal owner

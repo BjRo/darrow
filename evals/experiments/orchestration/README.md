@@ -1,6 +1,6 @@
 # Orchestration value benchmark
 
-`darrow-goal-loop` compiles a bounded contract and launches one route-selected
+`darrow-adaptive-delivery` compiles a bounded contract and launches one route-selected
 owner. Evaluate model routing separately from the value of that complete
 workflow. The [adaptation and fidelity study](adaptation-fidelity.md) and its
 [Codex suite](adaptation-fidelity-suite.yaml) compare direct execution with
@@ -17,7 +17,7 @@ The historical four-way experiment compared the same engineering tasks under:
 
 1. a vanilla single-agent run;
 2. the harness's native goal capability;
-3. native goal mode after `darrow-goal-loop` preflight and route selection;
+3. native goal mode after `darrow-adaptive-delivery` preflight and route selection;
 4. `darrow-ticket-pipeline`.
 
 `darrow-ticket-pipeline` is retained as a reference implementation of the former
@@ -66,9 +66,9 @@ usage was not reconciled; it is not a complete orchestrator cost.
 ### Original four-way benchmark
 
 The [initial benchmark](snapshots/2026-08-07-n1.md) used four tasks and held the
-candidate model fixed within each harness. Its `darrow-goal-loop` rows describe
-the retired child-controller implementation, not the current native-goal
-preflight.
+candidate model fixed within each harness. Its historical `darrow-goal-loop`
+rows describe the retired child-controller implementation, not the current
+Adaptive Delivery preflight.
 
 | Harness / model          | Variant                      | Quality: task pass / judge |     Time |    Tokens | Cost, four-task cell |
 | ------------------------ | ---------------------------- | -------------------------: | -------: | --------: | -------------------: |
@@ -301,7 +301,7 @@ The [GPT-5.6 routing calibration](snapshots/2026-08-08-gpt-5.6-routing-router-n1
 with its [machine-readable snapshot](snapshots/2026-08-08-gpt-5.6-routing-router-n1.json),
 records the active-versus-candidate evidence that preceded promotion. The
 task-oriented mappings now live in the single canonical
-`plugins/orchestration/darrow-goal-loop/config/routes.json` policy; the snapshot
+`plugins/orchestration/darrow-adaptive-delivery/config/routes.json` policy; the snapshot
 retains the historical comparison and subsequent promotion rationale.
 
 The [latest Sol-baseline retrospective](snapshots/2026-08-09-adaptive-goal-sol-baseline-n1.md),
