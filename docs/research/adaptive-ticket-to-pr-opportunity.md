@@ -451,7 +451,7 @@ PR capabilities by intent. Explicit invocation of `ticket-to-pr`, rather than
 successful implementation alone, supplies the narrow publication authority.
 
 The authoritative wording is maintained in
-[`adaptive-goal-loop.md`](../specs/adaptive-goal-loop.md).
+[`adaptive-goal-loop.md`](../specs/adaptive-delivery-loop.md).
 
 ## Workflows, risk, and canonical review
 

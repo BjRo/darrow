@@ -1,5 +1,5 @@
 version: 1
-experiment: adaptive-goal-adaptation-fidelity
+experiment: adaptive-delivery-adaptation-fidelity
 harnesses: [codex]
 case_filter:
   - orchestration-routing-localized-mechanical
@@ -20,7 +20,7 @@ modes:
         { model: gpt-5.6-terra, effort: medium }
     condition_by_harness:
       codex: conditions/matched-preflight-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
     model_by_harness:
       codex: gpt-5.6-terra
     effort: medium
@@ -40,7 +40,7 @@ modes:
         { model: gpt-5.6-luna, effort: medium }
     condition_by_harness:
       codex: conditions/matched-preflight-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
     model_by_harness:
       codex: gpt-5.6-luna
     effort: medium
@@ -53,7 +53,7 @@ modes:
         { model: gpt-5.6-luna, effort: high }
     condition_by_harness:
       codex: conditions/adaptation-policy-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
     model_by_harness:
       codex: gpt-5.6-terra
     effort: medium
@@ -66,7 +66,7 @@ modes:
         { model: gpt-5.6-terra, effort: medium }
     condition_by_harness:
       codex: conditions/matched-preflight-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
     model_by_harness:
       codex: gpt-5.6-terra
     effort: medium

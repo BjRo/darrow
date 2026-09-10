@@ -1,0 +1,93 @@
+id: goal-review-high-selected-claude
+invariant: ADL-C1,ADL-C2,ADL-R2,ADL-L1,ADL-L2,ADL-L5,ADL-X1
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Change the exported sessionCookieOptions in
+  auth-config.js so sameSite is exactly "strict" instead of "lax". This is a
+  security boundary where the cost of a mistake is high, but the requested
+  implementation is clear, localized, and fully specified. Add focused
+  evidence for the new value and preserve the other cookie options. Acceptance
+  is that bash test.sh passes. Select the policy route and launch exactly one
+  separate foreground Agent owner. Keep the result local; commits, pushes,
+  pull requests, and other publication are not authorized. The owner must run
+  bash test.sh against the final target before invoking the advertised
+  independent-review skill and must not rerun it after a clear response. An ad
+  hoc review is not a substitute. The parent must not inspect the repository or
+  child work after Agent returns. Use no lifecycle ledger or nested goal.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run bash test.sh for authentication configuration changes.
+        auth-config.js: |
+          export const sessionCookieOptions = Object.freeze({
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+          });
+        auth-config.test.js: |
+          import assert from "node:assert/strict";
+          import { sessionCookieOptions } from "./auth-config.js";
+
+          assert.equal(sessionCookieOptions.httpOnly, true);
+          assert.equal(sessionCookieOptions.secure, true);
+          assert.equal(sessionCookieOptions.sameSite, "lax");
+        package.json: '{"type":"module"}'
+        test.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          node auth-config.test.js
+          review_target=$(.claude/bin/independent-review-fixture "$PWD" fingerprint)
+          printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    "{{case_dir}}/fixtures" claude
+checks:
+  - name: cookie behavior is changed and preserved
+    run: >-
+      node --input-type=module -e
+      "import('./auth-config.js').then(({sessionCookieOptions}) => {
+      if (sessionCookieOptions.sameSite !== 'strict' ||
+      sessionCookieOptions.httpOnly !== true ||
+      sessionCookieOptions.secure !== true) process.exit(1) })"
+  - name: focused evidence covers the strict value
+    run: grep -F '"strict"' auth-config.test.js >/dev/null && bash test.sh
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: high risk invokes one matching independent review
+    run: test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 1
+  - name: review token exists only in the advertised skill instruction
+    run: >-
+      grep -F 'independent-review-skill-contract-v1'
+      .claude/skills/independent-code-review/SKILL.md >/dev/null &&
+      ! grep -F 'independent-review-skill-contract-v1'
+      .claude/bin/independent-review-fixture >/dev/null
+  - name: independent review clears the final changed target
+    run: >-
+      test "$(cut -f1 .git/fixture-state/independent-review-invocations)" =
+      "$(.claude/bin/independent-review-fixture "$PWD" fingerprint)" &&
+      awk -F '\t' '$1 == "check" { checked[$2]=1 }
+      $1 == "review_start" && checked[$2] { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-events &&
+      awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 }
+      END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-invocations
+semantic_output_checks:
+  - name: owner reports completion
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+  - name: completion reports clear independent review
+    proposition: The response says an independent review of the completed change found no blocking findings.
+transcript_checks:
+  - name: one marked selected foreground owner is launched
+    expect_regex: '"name":"Agent","id":"([^"]+)","input":\{"subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-owner"\}'
+  - name: no second adaptive-delivery owner is launched
+    not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-delivery-(?:sonnet-5-(?:low|medium)|opus-5-high)"[\s\S]*"name":"Agent"[^\r\n]*"subagent_type":"darrow-goal-loop:adaptive-delivery-(?:sonnet-5-(?:low|medium)|opus-5-high)"'
+  - name: advertised independent review skill is invoked
+    expect_regex: '"name":"Skill","input":\{"skill":"independent-code-review"\}'
+  - name: owner route is transcript-verified once
+    expect_regex: '"type":"darrow.claude_route_observation"[^\n]*"status":"observed"[^\n]*"model":"claude-sonnet-5","effort":"low"[\s\S]*"type":"darrow.claude_route_confirmation"[^\n]*"status":"confirmed"'
+  - name: no lifecycle ledger or retired route gate is used
+    not_regex: "goal-loop step|Protocol ledger|claude-route-gate"

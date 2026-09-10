@@ -8,7 +8,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/readiness-artifact-selected.yaml",
+  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/readiness-artifact-selected.yaml",
   import.meta.url,
 );
 for (const [name, trace, passes] of [

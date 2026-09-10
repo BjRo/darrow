@@ -20,4 +20,4 @@ output_checks:
     expect_regex: "ticket (?:ID|id)|canonical URL|ticket URL"
 transcript_checks:
   - name: missing input is not delegated
-    not_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")'
+    not_regex: '(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery")'

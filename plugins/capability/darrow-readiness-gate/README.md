@@ -38,7 +38,7 @@ depends on a particular Darrow sibling.
   outcome and quality bar are already concrete.
 - JSON is an explicit machine-output mode, not the default presentation and
   not an automatic consequence of composition.
-- The plugin does not require adaptive-goal, a tracker, or another Darrow
+- The plugin does not require adaptive-delivery, a tracker, or another Darrow
   plugin.
 
 ## License

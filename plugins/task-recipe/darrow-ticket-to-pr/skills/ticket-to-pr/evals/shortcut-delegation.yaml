@@ -3,7 +3,7 @@ activation: positive
 mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
-  - adaptive-goal
+  - adaptive-delivery
 invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-P1,TPR-P2,TPR-P3
 goal_report: forbidden
 expect_head_change: false
@@ -15,13 +15,13 @@ fixture:
       files:
         README.md: "base\n"
   files:
-    .claude/skills/adaptive-goal/SKILL.md: &adaptive_goal |
+    .claude/skills/adaptive-delivery/SKILL.md: &adaptive_delivery |
       ---
-      name: adaptive-goal
+      name: adaptive-delivery
       description: Accept one bounded engineering request delegated by an explicitly invoked task recipe and record this fixture's delivery envelope.
       ---
 
-      # Fixture adaptive goal
+      # Fixture adaptive delivery
 
       Accept the delegation only when it preserves the exact ticket URL and asks
       one owner to read and implement that ticket in the current repository on a
@@ -42,7 +42,7 @@ fixture:
       Status: blocked
       Reason: fixture-delegation-observed
       ```
-    .agents/skills/adaptive-goal/SKILL.md: *adaptive_goal
+    .agents/skills/adaptive-delivery/SKILL.md: *adaptive_delivery
   bin:
     record-ticket-to-pr-delegation: |
       #!/usr/bin/env bash
@@ -65,7 +65,7 @@ output_checks:
   - name: recipe relays the adaptive result
     expect_regex: "fixture-delegation-observed"
 transcript_checks:
-  - name: supporting adaptive-goal skill use is observed
-    expect_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal"[^\n]*"status":"completed")'
+  - name: supporting adaptive-delivery skill use is observed
+    expect_regex: '(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery"[^\n]*"status":"completed")'
   - name: recipe does not pre-run adaptive-owned capabilities
     not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")'

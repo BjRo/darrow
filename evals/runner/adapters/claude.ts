@@ -245,7 +245,7 @@ function retainedAgentPromptMarker(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const first = prompt.split("\n", 1)[0];
   return first &&
-    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-goal-(?:owner|runner)|blocked-goal-response))$/.test(
+    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-delivery-(?:owner|runner)|blocked-goal-response))$/.test(
       first,
     )
     ? first
@@ -258,8 +258,8 @@ function retainedInlineContractIssue(
 ): string | undefined {
   if (
     typeof prompt !== "string" ||
-    !prompt.startsWith("- phase: adaptive-goal-owner\n") ||
-    !adaptiveGoalRunner.test(subagentType)
+    !prompt.startsWith("- phase: adaptive-delivery-owner\n") ||
+    !adaptiveDeliveryRunner.test(subagentType)
   )
     return undefined;
   return inlineOwnerContractIssue(prompt, subagentType);
@@ -455,8 +455,8 @@ interface SelectedClaudeRoute {
   effort: string;
 }
 
-const adaptiveGoalRunner =
-  /^darrow-goal-loop:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)$/;
+const adaptiveDeliveryRunner =
+  /^darrow-goal-loop:adaptive-delivery-(?:sonnet-5-(?:low|medium)|opus-5-high)$/;
 
 function retainGoalAgentStarts(
   event: ClaudeResultEnvelope,
@@ -510,11 +510,11 @@ function inlineGoalAgentStart(block: unknown) {
   const rawPrompt = isRecord(block.input) ? block.input.prompt : undefined;
   if (
     !input ||
-    !adaptiveGoalRunner.test(input.subagentType) ||
+    !adaptiveDeliveryRunner.test(input.subagentType) ||
     input.runInBackground !== false ||
     input.model !== undefined ||
     typeof rawPrompt !== "string" ||
-    !rawPrompt.startsWith("- phase: adaptive-goal-owner\n")
+    !rawPrompt.startsWith("- phase: adaptive-delivery-owner\n")
   )
     return undefined;
   return { id: input.id, pending: { subagentType: input.subagentType } };
@@ -650,7 +650,7 @@ function inlineOwnerContractIssue(
   if (missing.length) return `missing-${missing.join("+")}`;
   if (
     fields.Role !==
-    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner."
+    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner."
   )
     return "role";
   return inlineOwnerPolicyIssue(fields, subagentType);
@@ -772,10 +772,10 @@ function goalAgentStart(block: unknown, objective: MaterializedGoalObjective) {
   const input = normalizedReviewAgentInput(block);
   if (!input || !isRecord(block.input)) return undefined;
   const valid = [
-    adaptiveGoalRunner.test(input.subagentType),
+    adaptiveDeliveryRunner.test(input.subagentType),
     input.runInBackground === false,
     input.model === undefined,
-    input.prompt === "- phase: adaptive-goal-runner",
+    input.prompt === "- phase: adaptive-delivery-runner",
     boundGoalAgentPrompt(block.input.prompt, objective),
   ].every(Boolean);
   if (!valid) return undefined;
@@ -794,7 +794,7 @@ function goalAgentPromptIssue(
   objective: MaterializedGoalObjective,
 ): string | undefined {
   if (typeof prompt !== "string") return "shape";
-  const marker = "- phase: adaptive-goal-runner";
+  const marker = "- phase: adaptive-delivery-runner";
   if (!prompt.startsWith(`${marker}\n`)) return "marker";
   const body = prompt.slice(marker.length + 1);
   const boundedObjective =
@@ -1110,15 +1110,15 @@ function concreteAbsolutePath(path: string): boolean {
 
 function routeForGoalRunner(subagentType: string) {
   const routes: Record<string, { model: string; effort: string }> = {
-    "darrow-goal-loop:adaptive-goal-sonnet-5-low": {
+    "darrow-goal-loop:adaptive-delivery-sonnet-5-low": {
       model: "claude-sonnet-5",
       effort: "low",
     },
-    "darrow-goal-loop:adaptive-goal-sonnet-5-medium": {
+    "darrow-goal-loop:adaptive-delivery-sonnet-5-medium": {
       model: "claude-sonnet-5",
       effort: "medium",
     },
-    "darrow-goal-loop:adaptive-goal-opus-5-high": {
+    "darrow-goal-loop:adaptive-delivery-opus-5-high": {
       model: "claude-opus-5",
       effort: "high",
     },
@@ -1654,9 +1654,9 @@ function exactOptionalClaudeRoute(words: string[]): boolean {
 
 function goalRunnerForRoute(model: string, effort: string): string | undefined {
   return [
-    "darrow-goal-loop:adaptive-goal-sonnet-5-low",
-    "darrow-goal-loop:adaptive-goal-sonnet-5-medium",
-    "darrow-goal-loop:adaptive-goal-opus-5-high",
+    "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+    "darrow-goal-loop:adaptive-delivery-sonnet-5-medium",
+    "darrow-goal-loop:adaptive-delivery-opus-5-high",
   ].find((runner) => {
     const route = routeForGoalRunner(runner);
     return route?.model === model && route.effort === effort;
@@ -2121,11 +2121,11 @@ function rejectedGoalAgentOperation(
 function goalAgentInvocationIssue(
   input: NonNullable<ReturnType<typeof normalizedReviewAgentInput>>,
 ): string | undefined {
-  if (!adaptiveGoalRunner.test(input.subagentType))
+  if (!adaptiveDeliveryRunner.test(input.subagentType))
     return "agent-route-invalid";
   if (input.runInBackground !== false) return "agent-background-invalid";
   if (input.model !== undefined) return "agent-model-override";
-  if (input.prompt !== "- phase: adaptive-goal-runner")
+  if (input.prompt !== "- phase: adaptive-delivery-runner")
     return "agent-marker-invalid";
   return undefined;
 }
@@ -3910,7 +3910,7 @@ interface ClaudeArgvOptions {
 function disallowScheduler(prompt: string, expectGoalOwner?: boolean): boolean {
   return (
     expectGoalOwner === true ||
-    /(?:^|\s)(?:\/adaptive-goal|\$adaptive-goal)(?:\s|$)/.test(prompt)
+    /(?:^|\s)(?:\/adaptive-delivery|\$adaptive-delivery)(?:\s|$)/.test(prompt)
   );
 }
 

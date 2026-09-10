@@ -26,7 +26,7 @@ const report = [
   "enforcement: helper",
 ].join("\n");
 
-describe("adaptive-goal completion reports", () => {
+describe("adaptive-delivery completion reports", () => {
   test("parses one leading contiguous ordered report", () => {
     expect(parseGoalReport(`\n\n${report}\nDone.`)).toEqual({
       format: "darrow-native-goal-report-v1",

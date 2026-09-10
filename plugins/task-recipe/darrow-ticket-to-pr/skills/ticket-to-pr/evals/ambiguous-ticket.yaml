@@ -22,4 +22,4 @@ output_checks:
     expect_regex: "one (?:exact|single) (?:ticket )?(?:ID|id|URL|reference)|exactly one"
 transcript_checks:
   - name: ambiguous input is not delegated
-    not_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")'
+    not_regex: '(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery")'

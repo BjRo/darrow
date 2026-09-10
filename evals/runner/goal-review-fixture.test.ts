@@ -5,7 +5,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/high-risk-routine.yaml",
+  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/high-risk-routine.yaml",
   import.meta.url,
 );
 const validatorSource = new URL(
@@ -17,21 +17,21 @@ const scopeSource = new URL("review-scope", validatorSource);
 
 test("high-risk composition requires the supporting review body read", async () => {
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;
-  evalCase.owningSkillName = "adaptive-goal";
+  evalCase.owningSkillName = "adaptive-delivery";
   evalCase.skillDir = new URL("..", source).pathname;
   expect(validateActivationCase(evalCase)).toEqual([]);
   expect(evalCase.activation).toBe("positive");
   for (const [skills, passed] of [
-    [["adaptive-goal", "code-review"], true],
-    [["adaptive-goal"], false],
+    [["adaptive-delivery", "code-review"], true],
+    [["adaptive-delivery"], false],
   ] as const) {
     const grade = gradeActivation(
       "positive",
-      "adaptive-goal",
+      "adaptive-delivery",
       {
         source: "skill_file_read_probe",
         complete: true,
-        primarySkill: "adaptive-goal",
+        primarySkill: "adaptive-delivery",
         observedSkills: [...skills],
       },
       { sequence: evalCase.activation_sequence },

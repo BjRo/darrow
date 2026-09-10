@@ -1,12 +1,12 @@
 id: ticket-to-pr-composition-existing-pr
 invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,LC-C1,LC-C3,LC-C4,GW-P9
 expect_head_change: true
-adaptive_goal_composition: true
+adaptive_delivery_composition: true
 activation: positive
 mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
-  - adaptive-goal
+  - adaptive-delivery
 additional_plugins:
   - plugins/orchestration/darrow-goal-loop
   - plugins/capability/darrow-readiness-gate

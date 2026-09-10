@@ -5,7 +5,7 @@ import { parse } from "yaml";
 import { retainedCodexEvidence } from "./codex";
 
 const casePath = resolve(
-  "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/cross-turn-feedback-answer.yaml",
+  "plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/cross-turn-feedback-answer.yaml",
 );
 const evalCase = parse(readFileSync(casePath, "utf8"));
 const ownerCheck = evalCase.transcript_checks.find((check: { name: string }) =>

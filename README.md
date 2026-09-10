@@ -124,11 +124,11 @@ Coming soon:
 - `darrow-troubleshooting` — debugging and figuring out what is going on.
 - `darrow-domain-modelling` — better management of the core domain.
 - `darrow-evidence` — like `darrow-review` and `darrow-readiness-gate`, pulled
-  by `adaptive-goal` when extra evidence needs to be presented for the PR.
+  by `adaptive-delivery` when extra evidence needs to be presented for the PR.
 
 ### Orchestration
 
-The work-package primitive in this layer is the `adaptive-goal` skill inside
+The work-package primitive in this layer is the `adaptive-delivery` skill inside
 `darrow-goal-loop`. Give it a bounded engineering task and it sizes up the
 cost and risk, picks the workflow, checks, model, and effort, then hands a
 properly packed brief to the host's native goal loop. It improves the handoff
@@ -141,16 +141,16 @@ instead of bringing its own agent runtime.
 
 ### Task recipes
 
-Where `adaptive-goal` is a general-purpose primitive, task recipes package one
+Where `adaptive-delivery` is a general-purpose primitive, task recipes package one
 common outcome and a consistent grant of authority behind one explicit
 invocation. A recipe owns the outcome and permission envelope, then delegates
 workflow selection, assurance and execution. The current `ticket-to-pr` recipe
 does no preflight and chooses no workflow, model, branch name or verification
 command.
 
-| Plugin                                                                     | Use it to                                                                                                                        |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| [`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md) | Turn one ticket reference into the usual new-branch implementation and one-PR request, then delegate it once to `adaptive-goal`. |
+| Plugin                                                                     | Use it to                                                                                                                            |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [`darrow-ticket-to-pr`](plugins/task-recipe/darrow-ticket-to-pr/README.md) | Turn one ticket reference into the usual new-branch implementation and one-PR request, then delegate it once to `adaptive-delivery`. |
 
 ### Automation
 
@@ -188,7 +188,7 @@ framed, what must remain true, and what counts as complete. It starts only
 through an entrypoint you explicitly invoke — never merely because a task
 looks complex or multi-step — though an invoked entrypoint may delegate a
 bounded phase to another orchestration helper while preserving your original
-authority. The core helper is the `adaptive-goal` skill in `darrow-goal-loop`:
+authority. The core helper is the `adaptive-delivery` skill in `darrow-goal-loop`:
 
 ```text
 request + repository -> read-only preflight -> goal contract -> host-native goal owner

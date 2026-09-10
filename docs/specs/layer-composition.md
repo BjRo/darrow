@@ -82,7 +82,7 @@ model, branch name, review policy or verification command and does no preflight.
    authorized reuse path and content verification, preserving that default and
    avoiding implicit updates under a creation-only request.
 3. **Adopt one owner per policy decision.** Keep the thin recipe in the current
-   `ticket-to-pr` specification and one owner in `adaptive-goal`; their existing
+   `ticket-to-pr` specification and one owner in `adaptive-delivery`; their existing
    delegation and feedback evals establish these boundaries. Align handoffs
    rather than moving preflight or repair into the recipe. The broader adaptive
    fidelity work in #102 remains separate; this change covers composition and

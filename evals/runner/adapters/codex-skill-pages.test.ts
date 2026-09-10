@@ -10,7 +10,7 @@ import {
 
 const body = [
   "---",
-  "name: adaptive-goal",
+  "name: adaptive-delivery",
   "description: Paginated source fixture.",
   "---",
   "# Fixture",
@@ -30,7 +30,7 @@ test("an explicit owner's later file reread cannot conflict with its earlier dis
     const skills = join(repo, ".agents/skills");
     const config = join(repo, ".git/codex");
     await mkdir(join(config, "sessions"), { recursive: true });
-    const names = ["adaptive-goal", "ticket-to-pr", "create-pr"];
+    const names = ["adaptive-delivery", "ticket-to-pr", "create-pr"];
     const bodies = new Map(
       names.map((name) => [
         name,
@@ -102,7 +102,7 @@ test("an explicit owner's later file reread cannot conflict with its earlier dis
     expect(explicit.activation.complete).toBeTrue();
     expect(explicit.activation.observedSkills).toEqual([
       "ticket-to-pr",
-      "adaptive-goal",
+      "adaptive-delivery",
       "create-pr",
     ]);
     const implicit = await run(false);
@@ -111,7 +111,7 @@ test("an explicit owner's later file reread cannot conflict with its earlier dis
     expect(
       (await run(true, "$ticket-to-pr $ticket-to-pr")).activation.complete,
     ).toBeFalse();
-    await native(["create-pr", "adaptive-goal", "ticket-to-pr"]);
+    await native(["create-pr", "adaptive-delivery", "ticket-to-pr"]);
     expect((await run(true)).activation.complete).toBeFalse();
   } finally {
     await rm(repo, { recursive: true, force: true });
@@ -122,7 +122,7 @@ async function observe(pages: string[]) {
   const repo = await mkdtemp(join(tmpdir(), "darrow-skill-pages-"));
   try {
     const skills = join(repo, ".agents/skills");
-    const skill = join(skills, "adaptive-goal");
+    const skill = join(skills, "adaptive-delivery");
     await mkdir(skill, { recursive: true });
     await writeFile(join(skill, "SKILL.md"), body);
     const stream = [
@@ -172,9 +172,9 @@ test("complete adjacent source pages establish a supporting skill read", async (
   expect(result.activation.complete).toBeTrue();
   expect(result.activation.observedSkills).toEqual([
     "ticket-to-pr",
-    "adaptive-goal",
+    "adaptive-delivery",
   ]);
-  expect(result.retained).toContain('"skill":"adaptive-goal"');
+  expect(result.retained).toContain('"skill":"adaptive-delivery"');
 });
 
 test("overlapping complete source pages establish the same read without requiring duplicate-free output", async () => {
@@ -182,9 +182,9 @@ test("overlapping complete source pages establish the same read without requirin
   expect(result.activation.complete).toBeTrue();
   expect(result.activation.observedSkills).toEqual([
     "ticket-to-pr",
-    "adaptive-goal",
+    "adaptive-delivery",
   ]);
-  expect(result.retained).toContain('"skill":"adaptive-goal"');
+  expect(result.retained).toContain('"skill":"adaptive-delivery"');
   expect(result.retained).not.toContain("distinct instruction");
 });
 
@@ -200,7 +200,7 @@ test("repeated partial pages cannot fill a missing source interval", async () =>
     const result = await observe(pages);
     expect(result.activation.complete).toBeFalse();
     expect(result.activation.observedSkills).toEqual(["ticket-to-pr"]);
-    expect(result.retained).not.toContain('"skill":"adaptive-goal"');
+    expect(result.retained).not.toContain('"skill":"adaptive-delivery"');
   }
 });
 
@@ -213,7 +213,7 @@ test("compound command output can contain an overlapping exact source page", asy
   expect(result.activation.complete).toBeTrue();
   expect(result.activation.observedSkills).toEqual([
     "ticket-to-pr",
-    "adaptive-goal",
+    "adaptive-delivery",
   ]);
   const gap = await observe([
     body.slice(0, overlap) + "\nUnrelated output.\n",
@@ -226,7 +226,7 @@ test("native body recovery reconciles explicit completeness without repairing fa
   const repo = await mkdtemp(join(tmpdir(), "darrow-native-pages-"));
   try {
     const skills = join(repo, ".agents/skills");
-    const skill = join(skills, "adaptive-goal");
+    const skill = join(skills, "adaptive-delivery");
     const config = join(repo, ".git/codex");
     const sessions = join(config, "sessions/2026/09/08");
     await mkdir(skill, { recursive: true });
@@ -296,9 +296,9 @@ test("native body recovery reconciles explicit completeness without repairing fa
       commandEvent(body.slice(0, midpoint)),
       { type: "turn.completed" },
     ]);
-    expect(recovered.activation.observedSkills).toContain("adaptive-goal");
+    expect(recovered.activation.observedSkills).toContain("adaptive-delivery");
     expect(recovered.activation.complete).toBeTrue();
-    expect(recovered.raw).toContain('"skill":"adaptive-goal"');
+    expect(recovered.raw).toContain('"skill":"adaptive-delivery"');
     const publisher = join(skills, "create-pr");
     const publisherBody = "---\nname: create-pr\ndescription: Publisher\n---\n";
     await mkdir(publisher, { recursive: true });
@@ -333,7 +333,7 @@ test("native body recovery reconciles explicit completeness without repairing fa
     ]);
     expect(ordered.activation.observedSkills).toEqual([
       "ticket-to-pr",
-      "adaptive-goal",
+      "adaptive-delivery",
       "create-pr",
     ]);
     expect(ordered.activation.complete).toBeTrue();
@@ -355,7 +355,9 @@ test("native body recovery reconciles explicit completeness without repairing fa
     ).toBeFalse();
     await nativeRead(body.slice(0, midpoint));
     const partial = await run([{ type: "turn.completed" }]);
-    expect(partial.activation.observedSkills).not.toContain("adaptive-goal");
+    expect(partial.activation.observedSkills).not.toContain(
+      "adaptive-delivery",
+    );
     expect(partial.activation.complete).toBeFalse();
     const firstPage = JSON.parse(await Bun.file(nativePath).text()).payload;
     await writeFile(
@@ -410,7 +412,7 @@ test("native body recovery reconciles explicit completeness without repairing fa
     const splitActors = await run([{ type: "turn.completed" }]);
     expect(splitActors.activation.complete).toBeFalse();
     expect(splitActors.activation.observedSkills).not.toContain(
-      "adaptive-goal",
+      "adaptive-delivery",
     );
     await childRead(body);
     expect(
@@ -441,7 +443,7 @@ test("native body recovery reconciles explicit completeness without repairing fa
       }),
     );
     const siblings = await run([{ type: "turn.completed" }]);
-    expect(siblings.activation.observedSkills).toContain("adaptive-goal");
+    expect(siblings.activation.observedSkills).toContain("adaptive-delivery");
     expect(siblings.activation.observedSkills).toContain("create-pr");
     expect(siblings.activation.complete).toBeFalse();
     const anchoredSiblings = await run([

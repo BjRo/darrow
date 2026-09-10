@@ -1,16 +1,16 @@
 {
   "name": "darrow-goal-loop",
-  "version": "0.16.33",
-  "description": "Adaptive Goal: ready and compile bounded engineering requests, then launch one routed subagent owner",
+  "version": "0.17.0",
+  "description": "Adaptive Delivery: ready and compile bounded engineering requests, then launch one routed subagent owner",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Darrow -> Adaptive Goal Loop",
+    "displayName": "Darrow -> Adaptive Delivery Loop",
     "shortDescription": "One routed owner for bounded engineering goals",
-    "longDescription": "Adaptive Goal prepares a bounded engineering request, reuses or obtains readiness, binds intent-matched skills, selects a workflow, risk, model, and effort, and launches exactly one separate subagent owner without a lifecycle ledger.",
+    "longDescription": "Adaptive Delivery prepares a bounded engineering request, reuses or obtains readiness, binds intent-matched skills, selects a workflow, risk, model, and effort, and launches exactly one separate subagent owner without a lifecycle ledger.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

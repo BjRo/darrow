@@ -1,0 +1,23 @@
+id: ticket-to-pr-adaptive-delivery-unavailable
+activation: positive
+invariant: TPR-C2,TPR-C4,TPR-C7
+goal_report: forbidden
+expect_head_change: false
+prompt: "{{skill_invocation}} https://example.invalid/tickets/404"
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: unavailable delegation causes no mutation
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 &&
+      git diff --exit-code
+output_checks:
+  - name: reports the missing adaptive boundary
+    expect_regex: "launch_required[\\s\\S]*adaptive-delivery|adaptive-delivery[\\s\\S]*launch_required"
+transcript_checks:
+  - name: recipe does not substitute delivery work for adaptive delivery
+    not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")'

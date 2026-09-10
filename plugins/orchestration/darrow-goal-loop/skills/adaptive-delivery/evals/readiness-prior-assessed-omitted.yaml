@@ -1,0 +1,51 @@
+id: goal-readiness-prior-assessed-omitted
+invariant: ADL-L2,ADL-L1,ADL-X1
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  Assess the authoritative accepted plan in REQUEST.md for implementation
+  readiness using the exact advertised readiness capability. Return its
+  complete result. Do not implement the plan or launch orchestration yet.
+follow_up_prompt: >-
+  {{skill_invocation}} Implement the exact REQUEST.md scope that the readiness
+  result you just returned marked ready. Nothing in REQUEST.md, its acceptance
+  check, constraints, permissions, or repository state has changed since that
+  assessment. Acceptance is that `bash check.sh` passes. Reuse the preserved
+  same-scope result rather than reassessing it. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        REQUEST.md: |
+          # Accepted plan
+
+          Add `Previously assessed.` beneath the heading in NOTES.md.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Previously assessed.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: previously assessed plan is implemented
+    run: bash check.sh
+  - name: prior assessment suppresses redundant readiness
+    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 1
+transcript_checks:
+  - name: readiness is invoked exactly once before the goal turn
+    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"'
+  - name: readiness is not redundantly invoked after the goal turn begins
+    not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
+  - name: one separate owner is accepted
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
+  - name: no lifecycle ledger is used
+    not_regex: "goal-loop step|Protocol ledger"
+semantic_output_checks:
+  - name: previously assessed goal completes
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

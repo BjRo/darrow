@@ -215,7 +215,7 @@ export function parseImplementationReadinessResult(
     : undefined;
 }
 
-/** Parse exactly one ordered, contiguous adaptive-goal report block. */
+/** Parse exactly one ordered, contiguous adaptive-delivery report block. */
 export function parseGoalReport(resultText: string): GoalReport | undefined {
   const lines = resultText.trimStart().split("\n");
   const starts = reportStarts(lines);

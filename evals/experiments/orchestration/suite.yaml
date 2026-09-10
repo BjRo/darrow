@@ -14,7 +14,7 @@ modes:
     condition_by_harness:
       claude: conditions/darrow-goal-loop-claude.md
       codex: conditions/darrow-goal-loop-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal
+    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
     mount_plugin_skills: true
     require_evaluation_records: true
   darrow-ticket-pipeline:
