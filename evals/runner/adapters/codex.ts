@@ -967,7 +967,7 @@ function completedGoalOwnerAgentRef(stream: string): string | undefined {
     const item = event.item;
     const markedOwner =
       typeof item?.prompt === "string" &&
-      item.prompt.startsWith("- phase: adaptive-goal-owner\n");
+      item.prompt.startsWith("- phase: adaptive-delivery-owner\n");
     if (
       event.type !== "item.completed" ||
       item?.type !== "collab_tool_call" ||
@@ -1001,11 +1001,12 @@ function collaborationAgentRefConflicts(
 function retainedCollaborationPrompt(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const lines = prompt.split("\n");
-  if (/^- phase: adaptive-goal-(?:owner|runner)$/.test(lines[0] ?? ""))
+  if (/^- phase: adaptive-delivery-(?:owner|runner)$/.test(lines[0] ?? ""))
     return lines[0];
   const retained = lines
     .filter((line, index) => {
-      if (/^- phase: adaptive-goal-(?:owner|runner)$/.test(line)) return false;
+      if (/^- phase: adaptive-delivery-(?:owner|runner)$/.test(line))
+        return false;
       return (
         /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
           line,
@@ -1026,7 +1027,7 @@ function retainedCollaborationEvent(
   const item = event.item!;
   const prompt = retainedCollaborationPrompt(item.prompt);
   const attestation = collaborationSpawnAttestation(item, spawnGuardSecret);
-  const isGoalOwner = prompt === "- phase: adaptive-goal-owner";
+  const isGoalOwner = prompt === "- phase: adaptive-delivery-owner";
   if (collaborationAgentRefConflicts(event, acceptedAgentRef)) return undefined;
   const agentRef =
     acceptedCollaborationAgentRef(event) ||
@@ -1845,7 +1846,7 @@ function acceptedGoalOwnerSpawn(value: unknown): boolean {
     event.item.status === "completed" &&
     canonicalCodexAgentRef(event.item.agent_ref) === event.item.agent_ref &&
     (!!event.item.goal_spawn_attestation ||
-      event.item.prompt === "- phase: adaptive-goal-owner")
+      event.item.prompt === "- phase: adaptive-delivery-owner")
   );
 }
 
@@ -3842,7 +3843,7 @@ export function codexSpawnGuardRequested(
   followUpPrompt?: string,
 ): boolean {
   return [prompt, followUpPrompt].some((value) =>
-    value?.includes("adaptive-goal"),
+    value?.includes("adaptive-delivery"),
   );
 }
 

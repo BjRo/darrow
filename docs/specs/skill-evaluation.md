@@ -286,9 +286,9 @@ remains copyable and useful when hyperlinks are unavailable.
 
 ## Invariants
 
-Adaptive-goal trials record requested evaluation mode and actual per-trial
+`adaptive-delivery` trials record requested evaluation mode and actual per-trial
 policy assistance separately. Passive observation installs no product-policy
-guard, rewrites no launch inputs, and disables no tools for adaptive-goal
+guard, rewrites no launch inputs, and disables no tools for adaptive-delivery
 compliance. Fixture isolation remains identical. Enforced trials evaluate the
 skill plus eval assistance; missing historical provenance is unknown. Reports
 must expose this distinction. Matched framing comparisons hold fixture,

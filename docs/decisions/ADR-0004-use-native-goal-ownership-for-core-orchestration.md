@@ -30,7 +30,7 @@ choose a proportionate model route before execution starts.
 Use Darrow as a goal compiler and launcher around host-native goal ownership,
 not as a second execution runtime.
 
-- `adaptive-goal` performs read-only preflight in the current context and emits
+- `adaptive-delivery` performs read-only preflight in the current context and emits
   one compact goal contract.
 - It activates exactly one host-visible subagent that can honestly apply the
   selected model and effort. That subagent task is the goal boundary and owns
@@ -44,13 +44,13 @@ not as a second execution runtime.
   general workflow runtime.
 - Readiness completes conversationally before launch when required, and exact
   intent-matched capabilities are bound into the owner contract.
-- A nested host process is not an adaptive-goal compatibility fallback.
+- A nested host process is not an adaptive-delivery compatibility fallback.
 - `darrow-ticket-pipeline` remains an executable reference and comparative
   benchmark for the former static, controller-owned approach. It is not a
   second recommended orchestration path or a template for new runtime features.
 
 The detailed preflight, route, launch, and safety contract remains in
-[Capability: Native Goal Preflight](../specs/adaptive-goal-loop.md). The frozen
+[Capability: Native Goal Preflight](../specs/adaptive-delivery-loop.md). The frozen
 comparison surface remains in
 [Capability: Ticket Pipeline](../specs/ticket-pipeline.md).
 

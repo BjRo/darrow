@@ -73,7 +73,7 @@
     {
       "name": "darrow-ticket-to-pr",
       "source": "./plugins/task-recipe/darrow-ticket-to-pr",
-      "description": "Delegate one explicit ticket as a new-branch implementation and one-PR adaptive goal"
+      "description": "Delegate one explicit ticket as a new-branch implementation and one-PR adaptive delivery"
     }
   ]
 }

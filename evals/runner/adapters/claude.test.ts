@@ -72,7 +72,7 @@ test("audits the native Claude owner route outside the product stream", async ()
     const raw = JSON.stringify({
       type: "darrow.goal_agent_completion",
       tool_use_id: "toolu_goal",
-      subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+      subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
       status: "completed",
       agent_id: "ownerone",
     });
@@ -154,7 +154,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         "working_tree\tclean",
         "route\troutine\tclaude\tanthropic\tclaude-sonnet-5\tlow",
         "route_policy_source\troutine\tbundled",
-        `workflow\tchange-feature\t${context.pluginDir}/skills/adaptive-goal/references/workflows/change-feature.md`,
+        `workflow\tchange-feature\t${context.pluginDir}/skills/adaptive-delivery/references/workflows/change-feature.md`,
       ].join("\n"),
     ),
     ...exchange(
@@ -187,8 +187,8 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         "status\trecorded",
         "format\tdarrow-claude-agent-route-v1",
         "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
-        "subagent_type\tdarrow-goal-loop:adaptive-goal-sonnet-5-low",
-        `agent_file\t${context.pluginDir}/agents/adaptive-goal-sonnet-5-low.md`,
+        "subagent_type\tdarrow-goal-loop:adaptive-delivery-sonnet-5-low",
+        `agent_file\t${context.pluginDir}/agents/adaptive-delivery-sonnet-5-low.md`,
       ].join("\n"),
     ),
   ];
@@ -202,13 +202,13 @@ function boundGoalPrompt(
     mode === "inline"
       ? objectiveContract
       : `- objective_file: ${objectiveFile}`;
-  return ["- phase: adaptive-goal-runner", body].join("\n");
+  return ["- phase: adaptive-delivery-runner", body].join("\n");
 }
 
 function inlineOwnerPrompt() {
   return [
-    "- phase: adaptive-goal-owner",
-    "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
+    "- phase: adaptive-delivery-owner",
+    "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner.",
     "Outcome: Implement the requested fixture behavior.",
     "Acceptance criteria: The focused behavior and repository checks pass.",
     "Scope and authority: included=fixture implementation and focused tests; authorized=local edits and checks; forbidden=publication and unrelated work; preserve=all pre-existing work",
@@ -609,9 +609,9 @@ test("loads independently packaged composition plugins", () => {
   expect(argv).toContain("--disallowed-tools");
 });
 
-test("disallows scheduler tools for adaptive-goal evaluations", () => {
+test("disallows scheduler tools for adaptive-delivery evaluations", () => {
   const goalArgv = claudeArgv(
-    "/adaptive-goal Implement the request.",
+    "/adaptive-delivery Implement the request.",
     "claude-sonnet-5",
     "medium",
   );
@@ -626,7 +626,7 @@ test("disallows scheduler tools for adaptive-goal evaluations", () => {
     "medium",
     {
       expectGoalOwner: true,
-      session: { mode: "resume", id: "adaptive-goal-session" },
+      session: { mode: "resume", id: "adaptive-delivery-session" },
     },
   );
   expect(
@@ -635,7 +635,7 @@ test("disallows scheduler tools for adaptive-goal evaluations", () => {
     "--disallowed-tools",
     "ScheduleWakeup",
     "--resume",
-    "adaptive-goal-session",
+    "adaptive-delivery-session",
   ]);
 
   const ordinaryArgv = claudeArgv(
@@ -1025,7 +1025,7 @@ describe("Claude skill activation observation", () => {
     expect(retained).toContain('"prompt_marker":"invalid"');
   });
 
-  test("retains a marked foreground adaptive-goal runner and its completion", () => {
+  test("retains a marked foreground adaptive-delivery runner and its completion", () => {
     const stream = [
       ...validClaudePreflightEvents(),
       ...inlineMaterializationEvents(),
@@ -1039,7 +1039,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1057,10 +1058,10 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"',
+      '"subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-runner"',
     );
     expect(retained).toContain(
-      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_goal","subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","status":"completed"',
+      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_goal","subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","status":"completed"',
     );
     expect(retained).toContain('"agent_id":"agentgoal"');
     expect(retained).not.toContain("private objective");
@@ -1070,7 +1071,7 @@ describe("Claude skill activation observation", () => {
     );
   });
 
-  test("retains the simplified inline adaptive-goal owner without lifecycle setup", () => {
+  test("retains the simplified inline adaptive-delivery owner without lifecycle setup", () => {
     const stream = [
       JSON.stringify({
         type: "assistant",
@@ -1081,7 +1082,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_inline_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1137,7 +1139,7 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"subagent_type":"darrow-goal-loop:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-owner"',
+      '"subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-owner"',
     );
     expect(retained).toContain(
       '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
@@ -1168,7 +1170,7 @@ describe("Claude skill activation observation", () => {
 
   test("observes native acceptance separately from strict contract diagnostics", () => {
     for (const prompt of [
-      "- phase: adaptive-goal-owner\nOwn this bounded local change directly.\nOutcome: update notes; preserve existing work; run the notes check.\nNo publication is authorized.",
+      "- phase: adaptive-delivery-owner\nOwn this bounded local change directly.\nOutcome: update notes; preserve existing work; run the notes check.\nNo publication is authorized.",
       inlineOwnerPrompt()
         .split("\n")
         .filter((line) => !line.startsWith("Scope and authority:"))
@@ -1197,7 +1199,8 @@ describe("Claude skill activation observation", () => {
                 name: "Agent",
                 id: "toolu_incomplete_goal",
                 input: {
-                  subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                  subagent_type:
+                    "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                   run_in_background: false,
                   prompt,
                 },
@@ -1230,7 +1233,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1266,7 +1270,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1330,7 +1335,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1352,7 +1358,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal_resume",
               input: {
                 to: "agentgoal",
-                summary: "Resume blocked adaptive goal with user response",
+                summary: "Resume blocked adaptive delivery with user response",
                 message:
                   "- phase: blocked-goal-response\nUse the strict migration policy.",
                 type: "message",
@@ -1546,7 +1552,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1575,7 +1582,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal_feedback",
               input: {
                 to: "agentgoal",
-                summary: "Resume adaptive goal with human feedback",
+                summary: "Resume adaptive delivery with human feedback",
                 message: "Use the strict migration policy.",
               },
             },
@@ -1729,8 +1736,8 @@ describe("Claude skill activation observation", () => {
 
     const alternateSummary = retainedClaudeEvidence(
       stream.replace(
-        "Resume adaptive goal with human feedback",
-        "Resume blocked adaptive goal with user response",
+        "Resume adaptive delivery with human feedback",
+        "Resume blocked adaptive delivery with user response",
       ),
       undefined,
       routeEvidenceContext,
@@ -1764,7 +1771,7 @@ describe("Claude skill activation observation", () => {
                 id: "toolu_duplicate_feedback",
                 input: {
                   to: "agentgoal",
-                  summary: "Resume adaptive goal with human feedback",
+                  summary: "Resume adaptive delivery with human feedback",
                   message: "Use the strict migration policy.",
                 },
               },
@@ -1833,7 +1840,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1882,7 +1890,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1949,7 +1958,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1978,7 +1988,7 @@ describe("Claude skill activation observation", () => {
     ]);
   });
 
-  test("does not accept an unmarked call as an adaptive-goal completion", () => {
+  test("does not accept an unmarked call as an adaptive-delivery completion", () => {
     const stream = [
       JSON.stringify({
         type: "assistant",
@@ -1989,7 +1999,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: "private objective",
               },
@@ -2018,7 +2029,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt,
               },
@@ -2051,13 +2063,13 @@ describe("Claude skill activation observation", () => {
     const wrongProof = [
       ...preflight,
       ...materialization,
-      goalCall("- phase: adaptive-goal-runner\nwrong objective"),
+      goalCall("- phase: adaptive-delivery-runner\nwrong objective"),
       completion,
     ].join("\n");
     const proofOnly = [
       ...preflight,
       ...materialization,
-      goalCall("- phase: adaptive-goal-runner"),
+      goalCall("- phase: adaptive-delivery-runner"),
       completion,
     ].join("\n");
     const wrongStagedDigest = [
@@ -2452,7 +2464,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -2848,7 +2861,7 @@ describe("Claude skill activation observation", () => {
             name: "Agent",
             id: "toolu_goal",
             input: {
-              subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+              subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
               run_in_background: false,
               prompt: boundGoalPrompt(),
             },
@@ -3065,7 +3078,7 @@ describe("Claude skill activation observation", () => {
       ),
       ...provisionalActivationEvents(),
       assistantTool("toolu_goal", "Agent", {
-        subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+        subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
         run_in_background: false,
         prompt: boundGoalPrompt(
           "/private/darrow-goal-contract.fixture/goal-objective.txt",
@@ -3155,7 +3168,7 @@ describe("Claude skill activation observation", () => {
     expect(claudeGoalRouteEvidence(retained)).toEqual({
       goalToolUseId: "toolu_goal",
       agentId: "agentgoal",
-      subagentType: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+      subagentType: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
       observation: {
         status: "observed",
         harness: "claude",
@@ -3176,7 +3189,7 @@ describe("Claude skill activation observation", () => {
       "file-backed",
     );
     const completeContractPrompt = [
-      "- phase: adaptive-goal-runner",
+      "- phase: adaptive-delivery-runner",
       fileBackedContract,
     ].join("\n");
     const completeContractEvidence = retainedClaudeEvidence(
@@ -3208,7 +3221,7 @@ describe("Claude skill activation observation", () => {
       stream.replace(
         JSON.stringify(boundedPrompt).slice(1, -1),
         JSON.stringify(
-          `- phase: adaptive-goal-runner\nnon-authoritative host note\n- objective_file: /private/darrow-goal-contract.fixture/goal-objective.txt`,
+          `- phase: adaptive-delivery-runner\nnon-authoritative host note\n- objective_file: /private/darrow-goal-contract.fixture/goal-objective.txt`,
         ).slice(1, -1),
       ),
       undefined,
@@ -3376,7 +3389,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -3537,7 +3551,7 @@ describe("Claude skill activation observation", () => {
       ),
       ...provisionalActivationEvents().map((line) => JSON.parse(line)),
       toolCall("toolu_goal", "Agent", {
-        subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+        subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
         run_in_background: false,
         prompt: boundGoalPrompt(
           "/private/darrow-goal-contract.fixture/goal-objective.txt",
@@ -3596,7 +3610,8 @@ describe("Claude skill activation observation", () => {
               name: "Agent",
               id: "toolu_goal",
               input: {
-                subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+                subagent_type:
+                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -3691,7 +3706,7 @@ describe("Claude skill activation observation", () => {
       JSON.stringify({
         type: "darrow.goal_agent_completion",
         tool_use_id: "toolu_goal",
-        subagent_type: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+        subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
         status: "completed",
         agent_id: "agentgoal",
       }),
@@ -3714,7 +3729,7 @@ describe("Claude skill activation observation", () => {
     const evidence = {
       goalToolUseId: "toolu_goal",
       agentId: "agentgoal",
-      subagentType: "darrow-goal-loop:adaptive-goal-sonnet-5-low",
+      subagentType: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
       observation: {
         status: "observed" as const,
         harness: "claude",

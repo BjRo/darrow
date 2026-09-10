@@ -7,7 +7,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/failed-check-blocks-publication.yaml",
+  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/failed-check-blocks-publication.yaml",
   import.meta.url,
 );
 

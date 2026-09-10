@@ -2,7 +2,7 @@
 # Same follow-up and behavioral checks as goal-steering-without-question.
 # Diagnostic variant: windowctl inspect also supplies the complete parser body.
 id: diagnostic-direct-owner-parser-presented
-invariant: AGL-A2
+invariant: ADL-A2
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-

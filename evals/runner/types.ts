@@ -152,8 +152,8 @@ export interface EvalCase {
   additional_skills?: string[];
   /** Repository-relative plugin roots installed independently beside the owning plugin. */
   additional_plugins?: string[];
-  /** Apply adaptive-goal ownership guards to a recipe-to-goal composition case. */
-  adaptive_goal_composition?: boolean;
+  /** Apply adaptive-delivery ownership guards to a recipe-to-goal composition case. */
+  adaptive_delivery_composition?: boolean;
   /** Require HEAD to advance linearly when the public behavior explicitly commits. */
   expect_head_change?: boolean | null;
   checks: Check[];
@@ -169,7 +169,7 @@ export interface EvalCase {
   activation_sequence?: string[];
   /** Optional skill names forbidden anywhere in the observed load sequence. */
   activation_excludes?: string[];
-  /** Override the owning adaptive-goal skill's default required completion report. */
+  /** Override the owning adaptive-delivery skill's default required completion report. */
   goal_report?: "required" | "optional" | "forbidden";
   /** Grade the full native route in addition to focused case checks. */
   goal_route_checks?: boolean;

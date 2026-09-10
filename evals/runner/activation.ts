@@ -34,11 +34,11 @@ export function activationProbeForCase(
   };
 }
 
-export function expectsAdaptiveGoalOwner(evalCase: EvalCase): boolean {
+export function expectsAdaptiveDeliveryOwner(evalCase: EvalCase): boolean {
   if (evalCase.activation === "negative") return false;
   return (
-    evalCase.adaptive_goal_composition === true ||
-    activationTargetSkill(evalCase) === "adaptive-goal"
+    evalCase.adaptive_delivery_composition === true ||
+    activationTargetSkill(evalCase) === "adaptive-delivery"
   );
 }
 

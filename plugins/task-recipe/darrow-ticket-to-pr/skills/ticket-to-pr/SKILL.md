@@ -1,12 +1,12 @@
 ---
 name: ticket-to-pr
-description: Start only for explicit invocation of the ticket-to-pr recipe. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-goal.
+description: Start only for explicit invocation of the ticket-to-pr recipe. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-delivery.
 disable-model-invocation: true
 ---
 
 # Ticket to PR
 
-Turn the explicit shortcut into one bounded adaptive-goal request. Own the
+Turn the explicit shortcut into one bounded adaptive-delivery request. Own the
 delivery authority envelope, not the delivery workflow.
 
 ## 1. Require one explicit ticket
@@ -27,15 +27,15 @@ request. Do not invent one.
 ## 2. Delegate the shortcut once
 
 Invoke exactly one available capability whose advertised intent is
-adaptive-goal orchestration. This explicit recipe invocation authorizes that
+adaptive-delivery orchestration. This explicit recipe invocation authorizes that
 delegation without a second user invocation. If no single unambiguous such
 capability is available, return `Status: launch_required`, name the missing or
-ambiguous adaptive-goal boundary, and make no mutation.
+ambiguous adaptive-delivery boundary, and make no mutation.
 
 Native goal controls such as `create_goal` only record or start a current-thread
-goal; they do not supply adaptive-goal's preflight and separate-owner
+goal; they do not supply adaptive-delivery's preflight and separate-owner
 orchestration. Do not call them as a substitute. If only such controls are
-available, treat the adaptive-goal capability as unavailable. A differently
+available, treat the adaptive-delivery capability as unavailable. A differently
 named capability is valid when it advertises the matching orchestration
 contract; do not require a fixed plugin name or path.
 
@@ -64,22 +64,22 @@ Include this authority boundary in the same request:
 
 Preserve the originating request and explicit recipe authority. Do not add a
 workflow, risk, model, effort, route, readiness result, branch name, capability
-name, owner protocol, or verification command. Adaptive-goal selects and binds
+name, owner protocol, or verification command. `adaptive-delivery` selects and binds
 those from current context.
 
 Do not invoke ticket, readiness, Git, review, or forge capabilities in this
 recipe. Do not perform preflight, launch an engineering subagent, implement,
-verify, commit, push, or publish here. Adaptive-goal owns all of that after the
+verify, commit, push, or publish here. `adaptive-delivery` owns all of that after the
 single delegation.
 
 ## 3. Stay at the main-thread boundary
 
-Relay the adaptive-goal response without repository or forge reinspection. A
+Relay the adaptive-delivery response without repository or forge reinspection. A
 ready result, non-ready result, owner question, blocker, or completion remains
 its result; do not add a recipe retry, waiver, recovery, or status protocol.
 
 When its separate owner asks a material question, surface that question from
-this main thread. A later user answer continues the same adaptive-goal owner in
+this main thread. A later user answer continues the same adaptive-delivery owner in
 this thread. Do not invoke Ticket-to-PR again, answer or rewrite the question,
 launch a replacement owner, or perform the owner's work in the main thread.
 

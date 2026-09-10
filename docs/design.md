@@ -91,7 +91,7 @@ accepting the rest of the marketplace.
 A task recipe packages one repeatable, explicitly invoked delivery outcome. It
 uses the orchestration activation model, but owns only the outcome-specific
 authority, intake, and publication envelope. A recipe can delegate its one
-bounded request to adaptive-goal without another user invocation, preserving
+bounded request to adaptive-delivery without another user invocation, preserving
 the original request and permissions. It is not a controller, phase graph,
 ledger, queue, or durable workflow runtime.
 
@@ -155,9 +155,9 @@ invocations, human interruptions, tokens, cost, and wall time. A design is not
 called better because it is plausible or because one run succeeded; empirical
 claims carry their evidence, uncertainty, and limitations.
 
-## The adaptive goal loop is the core orchestration helper
+## The adaptive delivery loop is the core orchestration helper
 
-The core path for bounded engineering work is the `adaptive-goal` skill in
+The core path for bounded engineering work is the `adaptive-delivery` skill in
 [`darrow-goal-loop`](../plugins/orchestration/darrow-goal-loop/README.md).
 
 Long-running native agent work often begins with a request that leaves
@@ -168,7 +168,7 @@ recovery, and completion machinery. Darrow's earlier orchestration benchmark
 found no incremental value from that duplication and measured substantial
 wall-time and child-invocation overhead.
 
-The adaptive goal loop keeps the useful part and removes the duplicate runtime:
+The adaptive delivery loop keeps the useful part and removes the duplicate runtime:
 
 ```text
 request + repository -> read-only preflight/readiness -> goal contract -> one routed subagent owner
@@ -185,7 +185,7 @@ verification, feedback, and completion from that point onward.
 The helper therefore improves the initial conditions for an adaptive run; it is
 not a second adaptive loop, multi-agent controller, lifecycle ledger, daemon,
 queue, publication mechanism, or general workflow runtime. The normative
-contract is in [Capability: Native Goal Preflight](specs/adaptive-goal-loop.md).
+contract is in [Capability: Native Goal Preflight](specs/adaptive-delivery-loop.md).
 
 ## The ticket pipeline is a reference and benchmark baseline
 
@@ -211,7 +211,7 @@ are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
 - Add focused, reusable behavior as an intent-matched capability.
 - Introduce orchestration only when work needs an explicit continuation and
   completion contract and the user invokes it explicitly.
-- Use the adaptive goal loop as the default orchestration helper for bounded
+- Use the adaptive delivery loop as the default orchestration helper for bounded
   engineering work.
 - Treat the ticket pipeline as historical reference and comparative evidence,
   not as a template for new orchestration features.

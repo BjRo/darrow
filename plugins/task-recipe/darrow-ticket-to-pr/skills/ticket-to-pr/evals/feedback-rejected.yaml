@@ -1,12 +1,12 @@
 id: ticket-to-pr-feedback-rejected
 invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-P2
 expect_head_change: false
-adaptive_goal_composition: true
+adaptive_delivery_composition: true
 activation: positive
 mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
-  - adaptive-goal
+  - adaptive-delivery
 additional_plugins:
   - plugins/orchestration/darrow-goal-loop
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42"

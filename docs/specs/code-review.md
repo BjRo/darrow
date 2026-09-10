@@ -417,7 +417,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     scope, unavailable evidence, and exact-target read-only operation.
 14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
     evidence covers bundled Sol/xhigh and Opus/xhigh defaults, repository
-    overrides in a config that may also contain adaptive-goal routes, direct
+    overrides in a config that may also contain adaptive-delivery routes, direct
     Anthropic-provider detection and rejection of every supported third-party
     or custom-endpoint selector, parallel
     two-axis application, one-axis omission, fix-verifier application,

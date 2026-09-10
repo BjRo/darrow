@@ -11,11 +11,11 @@ The parent owns preflight, readiness discussion, capability binding, route
 selection, and launch. The subagent owns implementation, verification, human
 feedback, independent review, authorized publication, and completion.
 
-Adaptive-goal starts only through explicit user invocation or delegation from
+`adaptive-delivery` starts only through explicit user invocation or delegation from
 an explicitly invoked orchestration entrypoint. Ordinary engineering intent
 never starts it.
 
-## `adaptive-goal`
+## `adaptive-delivery`
 
 The skill:
 
@@ -32,7 +32,7 @@ The skill:
 
 Readiness is conversational and pre-owner. A non-ready result leaves the tree
 unchanged while the user resolves its findings. Once the same scope is ready,
-adaptive-goal compiles that settled evidence into the owner contract rather than
+adaptive-delivery compiles that settled evidence into the owner contract rather than
 running readiness again for unchanged scope. If assumptions materially change,
 the same owner reassesses affected gates and strengthens verification within
 authority. Necessary read-only ticket or specification retrieval may precede
@@ -47,14 +47,14 @@ shell, or generic-agent calls are not substitutes for a binding.
 The owner task begins with:
 
 ```text
-- phase: adaptive-goal-owner
+- phase: adaptive-delivery-owner
 ```
 
 The complete goal contract follows inline. Host acceptance of the explicitly
 routed subagent launch proves the model and effort. The owner does not create a
 second nested goal or replacement adaptive owner.
 
-Example: _“Use adaptive-goal to diagnose and fix the intermittent cache test.”_
+Example: _“Use adaptive-delivery to diagnose and fix the intermittent cache test.”_
 
 ## Workflows and risk
 

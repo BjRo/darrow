@@ -5,7 +5,7 @@ additional_plugins:
   - plugins/orchestration/darrow-goal-loop
 activation_excludes:
   - ticket-to-pr
-  - adaptive-goal
+  - adaptive-delivery
 invariant: TPR-C1
 goal_report: forbidden
 prompt: >-
@@ -20,5 +20,5 @@ checks:
   - name: fixture remains inspectable after the adjacent request
     run: git rev-parse --verify HEAD
 transcript_checks:
-  - name: ticket recipe and adaptive goal remain inactive
-    not_regex: '"skill":"ticket-to-pr"|"skill":"adaptive-goal"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-goal)|"tool":"spawn_agent"'
+  - name: ticket recipe and adaptive delivery remain inactive
+    not_regex: '"skill":"ticket-to-pr"|"skill":"adaptive-delivery"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-delivery)|"tool":"spawn_agent"'

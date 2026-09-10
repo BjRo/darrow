@@ -5,8 +5,8 @@ set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
-skill="$plugin_dir/skills/adaptive-goal/SKILL.md"
-guide="$plugin_dir/skills/adaptive-goal/references/codex-launch.md"
+skill="$plugin_dir/skills/adaptive-delivery/SKILL.md"
+guide="$plugin_dir/skills/adaptive-delivery/references/codex-launch.md"
 
 fail() {
   printf 'not ok - %s\n' "$*" >&2
@@ -18,7 +18,7 @@ require_line() {
 }
 
 require_line "$skill" 'launch exactly one route-selected subagent owner'
-require_line "$skill" '- phase: adaptive-goal-owner'
+require_line "$skill" '- phase: adaptive-delivery-owner'
 require_line "$skill" 'A direct shell, Git, forge,'
 require_line "$guide" '`fork_turns` set to `none`'
 require_line "$guide" '`model` set to the selected concrete Codex model'

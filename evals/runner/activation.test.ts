@@ -4,7 +4,7 @@ import {
   activationProbeForCase,
   activationPassRate,
   activationPassesThreshold,
-  expectsAdaptiveGoalOwner,
+  expectsAdaptiveDeliveryOwner,
   gradeActivation,
   validateActivationCase,
   validateMountedActivationTarget,
@@ -33,7 +33,7 @@ describe("skill activation grading", () => {
         "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr",
       ),
       owningSkillName: "ticket-to-pr",
-      activation_excludes: ["ticket-to-pr", "adaptive-goal"],
+      activation_excludes: ["ticket-to-pr", "adaptive-delivery"],
       additional_plugins: ["plugins/orchestration/darrow-goal-loop"],
     });
     expect(await validateMountedActivationTarget(target)).toEqual([]);
@@ -43,14 +43,14 @@ describe("skill activation grading", () => {
         additional_plugins: [],
       }),
     ).toEqual([
-      "activation-case: activation exclusion adaptive-goal is absent from the mounted skill set",
+      "activation-case: activation exclusion adaptive-delivery is absent from the mounted skill set",
     ]);
     expect(
       await validateMountedActivationTarget({
         ...target,
         additional_plugins: [],
         additional_skills: [
-          "plugins/orchestration/darrow-goal-loop/skills/adaptive-goal",
+          "plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery",
         ],
       }),
     ).toEqual([]);
@@ -75,24 +75,28 @@ describe("skill activation grading", () => {
     });
   });
 
-  test("expects an owner for adaptive-goal cases except negative activation", () => {
+  test("expects an owner for adaptive-delivery cases except negative activation", () => {
     expect(
-      expectsAdaptiveGoalOwner(
-        evalCase({ skillDir: "/repo/plugins/goal-loop/skills/adaptive-goal" }),
+      expectsAdaptiveDeliveryOwner(
+        evalCase({
+          skillDir: "/repo/plugins/goal-loop/skills/adaptive-delivery",
+        }),
       ),
     ).toBe(true);
     expect(
-      expectsAdaptiveGoalOwner(evalCase({ adaptive_goal_composition: true })),
+      expectsAdaptiveDeliveryOwner(
+        evalCase({ adaptive_delivery_composition: true }),
+      ),
     ).toBe(true);
     expect(
-      expectsAdaptiveGoalOwner(
+      expectsAdaptiveDeliveryOwner(
         evalCase({
-          skillDir: "/repo/plugins/goal-loop/skills/adaptive-goal",
+          skillDir: "/repo/plugins/goal-loop/skills/adaptive-delivery",
           activation: "negative",
         }),
       ),
     ).toBe(false);
-    expect(expectsAdaptiveGoalOwner(evalCase())).toBe(false);
+    expect(expectsAdaptiveDeliveryOwner(evalCase())).toBe(false);
   });
 
   test("grades a positive primary selection and preserves unavailable evidence as unknown", () => {

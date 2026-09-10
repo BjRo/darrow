@@ -1,0 +1,57 @@
+id: goal-readiness-artifact-selected
+invariant: ADL-L2,ADL-L1,ADL-X1
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
+  The specification has not previously
+  been assessed for implementation readiness. Acceptance is that `bash
+  check.sh` passes. Select and apply the policy route. Keep the result local;
+  commits, pushes, pull requests, and other publication are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .readiness-verdict: |
+          ready
+        REQUEST.md: |
+          # Authoritative request
+
+          Add the exact line `Artifact request completed.` beneath the heading
+          in NOTES.md. Preserve the heading and add no other content.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          printf '%s\n' '# Notes' 'Artifact request completed.' >.git/expected-notes
+          cmp -s .git/expected-notes NOTES.md
+  setup: >-
+    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    "{{case_dir}}/fixtures" codex
+checks:
+  - name: artifact request reaches its exact outcome
+    run: bash check.sh
+  - name: readiness returns ready evidence
+    run: |
+      if ! awk 'NF != 1 || $1 != "ready" { bad=1 }
+      END { exit !(NR > 0 && !bad) }' .git/fixture-state/implementation-readiness-invocations; then
+        printf '%s\n' 'Recent readiness assessments:' >&2
+        tail -n 20 .git/fixture-state/implementation-readiness-invocations >&2
+        exit 1
+      fi
+  - name: readiness runs before product mutation
+    run: test ! -s .git/fixture-state/implementation-readiness-pre-status
+  - name: artifact request stays local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: completed goal does not expose internal readiness records
+    not_regex: "readiness_selection\\t|readiness_verdict\\t"
+transcript_checks:
+  - name: readiness body is loaded by the parent before owner launch
+    expect_regex: '"type":"darrow\.codex_native_pre_owner_skill_read","actor":"parent","pre_owner_skill":"assess-implementation-readiness","status":"completed"|"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow\.goal_agent_completion"'
+  - name: no lifecycle ledger or nested goal is used
+    not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'
+semantic_output_checks:
+  - name: completed readiness-gated goal reports success
+    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.

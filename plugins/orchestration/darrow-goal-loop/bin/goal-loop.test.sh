@@ -145,4 +145,4 @@ case "$help" in
     ;;
 esac
 
-printf 'ok - adaptive goal preflight and route helper\n'
+printf 'ok - adaptive delivery preflight and route helper\n'

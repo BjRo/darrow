@@ -9,7 +9,7 @@ import { createHash, createHmac } from "node:crypto";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-const OWNER_MARKER = "- phase: adaptive-goal-owner";
+const OWNER_MARKER = "- phase: adaptive-delivery-owner";
 const CODEX_AGENT_REF =
   /^(?:\/root(?:\/[a-z0-9_]+)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const LEGACY_ATTESTATION_PREFIX = "- darrow_eval_spawn_attestation: ";
@@ -364,7 +364,7 @@ function structuredOwnerContractIssue(
       ["included", "authorized", "forbidden", "preserve"],
     )
   )
-    return "adaptive goal owner contract has incomplete scope or authority";
+    return "adaptive delivery owner contract has incomplete scope or authority";
   const execution = contractLabelValue(contract, "Execution");
   if (
     !completeStructuredContractField(execution, [
@@ -376,21 +376,21 @@ function structuredOwnerContractIssue(
       "capabilities",
     ])
   )
-    return "adaptive goal owner contract has incomplete execution policy";
+    return "adaptive delivery owner contract has incomplete execution policy";
   if (!ownerDimensions(input))
-    return "adaptive goal owner contract has invalid workflow, risk, or profile";
+    return "adaptive delivery owner contract has invalid workflow, risk, or profile";
   if (
     !completeStructuredContractField(
       contractLabelValue(contract, "Verification and gates"),
       ["readiness", "review", "focused", "final", "feedback", "blockers"],
     )
   )
-    return "adaptive goal owner contract has incomplete verification or gates";
+    return "adaptive delivery owner contract has incomplete verification or gates";
   const expectedRoute = `codex|openai|${route.model}|${route.effort}`;
   return semanticSelectedRoute(structuredContractValue(execution, "route")) ===
     expectedRoute
     ? undefined
-    : "adaptive goal owner contract route does not match the host spawn";
+    : "adaptive delivery owner contract route does not match the host spawn";
 }
 
 function ownerContractIssue(
@@ -400,23 +400,23 @@ function ownerContractIssue(
   const message = String(input.message);
   const contract = message.slice(OWNER_MARKER.length + 1).trim();
   if (contract.length < 80)
-    return "adaptive goal owner contract is missing or incomplete";
+    return "adaptive delivery owner contract is missing or incomplete";
   if (
     /Protocol ledger|goal-loop step|darrow-native-goal-report|objective_file/i.test(
       contract,
     )
   )
-    return "adaptive goal owner contract contains removed lifecycle protocol";
+    return "adaptive delivery owner contract contains removed lifecycle protocol";
   const missing = REQUIRED_CONTRACT_LABELS.filter(
     (label) => !contractLabelValue(contract, label),
   );
   if (missing.length)
-    return `adaptive goal owner contract is missing fields: ${missing.join(", ")}`;
+    return `adaptive delivery owner contract is missing fields: ${missing.join(", ")}`;
   if (
     contractLabelValue(contract, "Role") !==
-    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner."
+    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner."
   )
-    return "adaptive goal owner contract has an invalid role";
+    return "adaptive delivery owner contract has an invalid role";
   return structuredOwnerContractIssue(contract, input, route);
 }
 
@@ -429,9 +429,9 @@ async function ownerBoundaryIssue(
     fixtureStateFingerprint(cwd),
   ]);
   if (repository !== policy.baselineSha256)
-    return "parent worktree changed before adaptive goal owner activation";
+    return "parent worktree changed before adaptive delivery owner activation";
   if (fixture !== policy.fixtureStateSha256)
-    return "parent fixture state changed before adaptive goal owner activation";
+    return "parent fixture state changed before adaptive delivery owner activation";
   return undefined;
 }
 
@@ -451,7 +451,7 @@ async function persistOwnerState(
     });
     return undefined;
   } catch {
-    return "adaptive goal owner activation state could not be established; retry is forbidden";
+    return "adaptive delivery owner activation state could not be established; retry is forbidden";
   }
 }
 
@@ -462,12 +462,12 @@ async function guardOwnerAgent(
 ): Promise<Record<string, unknown>> {
   if (await readGuardState(policy))
     return denied(
-      "adaptive goal owner activation was already attempted; retries are forbidden",
+      "adaptive delivery owner activation was already attempted; retries are forbidden",
     );
   const route = concreteSpawnRoute(input);
   if (!route)
     return denied(
-      "adaptive goal owner requires concrete model and effort without a conflicting fork_turns value",
+      "adaptive delivery owner requires concrete model and effort without a conflicting fork_turns value",
     );
   const contractIssue = ownerContractIssue(input, route);
   if (contractIssue) return denied(contractIssue);
@@ -494,7 +494,7 @@ async function guardUnmarkedAgent(
   const state = await readGuardState(policy);
   if (state) return undefined;
   return denied(
-    "only the ownership-marked adaptive goal Agent may start from the parent thread",
+    "only the ownership-marked adaptive delivery Agent may start from the parent thread",
   );
 }
 
@@ -531,7 +531,7 @@ async function guardParentPatch(
 ): Promise<Record<string, unknown> | undefined> {
   const state = await readGuardState(policy);
   if (state) return undefined;
-  return denied("the adaptive-goal classifier is read-only");
+  return denied("the adaptive-delivery classifier is read-only");
 }
 
 export async function guardCodexSpawn(

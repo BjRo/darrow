@@ -191,9 +191,9 @@ intact; the warning does not turn a completed behavioral check into a failure.
 
 ## Live-run controls
 
-Use `--owner-evaluation passive` for native trials of the shipped adaptive-goal
+Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery
 skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
-and Claude's adaptive-goal-specific scheduler exclusion. The default
+and Claude's adaptive-delivery-specific scheduler exclusion. The default
 `--owner-evaluation enforced` preserves the historical diagnostic condition.
 Neither mode removes ordinary fixture/credential isolation. Suite modes can
 set `owner_evaluation: passive|enforced` independently. Results retain requested
@@ -288,6 +288,6 @@ use per-trial status lines instead of the single active-trial animation.
 - When changing `darrow-review`'s externally visible independent-review or
   fix-verification outcome semantics, also run the affected review-composition
   evals under
-  `plugins/orchestration/darrow-goal-loop/skills/adaptive-goal/evals/`.
+  `plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/`.
 - Keep activation, task outcome, invariant coverage, and matched ablation as
   separate evidence dimensions; one does not substitute for another.

@@ -97,7 +97,7 @@ Every fresh standards, specification, and fix-verification reader runs on one
 explicit strong route. Bundled defaults are `gpt-5.6-sol` / `xhigh` on Codex
 and `claude-opus-5` / `xhigh` on Claude. A repository can replace either host's
 route in the independent `reviewers` section of the same shared
-`.darrow/config.json` used by adaptive goal routing:
+`.darrow/config.json` used by adaptive delivery routing:
 
 ```json
 {

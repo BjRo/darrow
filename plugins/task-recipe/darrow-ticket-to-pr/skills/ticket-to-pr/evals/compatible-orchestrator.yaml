@@ -17,7 +17,7 @@ fixture:
     .agents/skills/bounded-delivery/SKILL.md: &orchestrator |
       ---
       name: bounded-delivery
-      description: Provide adaptive-goal orchestration for an explicitly delegated engineering request, owning preflight and one separate execution owner. Accept preserved authority from an explicit task recipe.
+      description: Provide adaptive-delivery orchestration for an explicitly delegated engineering request, owning preflight and one separate execution owner. Accept preserved authority from an explicit task recipe.
       ---
 
       # Bounded delivery

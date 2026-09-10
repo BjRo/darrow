@@ -8,7 +8,7 @@ import { claudeArgv } from "./adapters/claude";
 
 const request = {
   repoDir: "/tmp/fixture",
-  prompt: "$adaptive-goal Implement the bounded request",
+  prompt: "$adaptive-delivery Implement the bounded request",
   model: "gpt-5.6-terra",
   effort: "medium",
 };
@@ -27,7 +27,7 @@ test("passive mode disables all adaptive spawn enforcement even for composition"
       prompt: "Read NOTES.md",
       control: {
         ownerEvaluationMode: "passive",
-        followUpPrompt: "$adaptive-goal Continue",
+        followUpPrompt: "$adaptive-delivery Continue",
       },
     }),
   ).toBe(false);
@@ -37,7 +37,7 @@ test("passive mode disables all adaptive spawn enforcement even for composition"
 });
 
 test("passive Claude trials do not add product-policy tool exclusions", () => {
-  const argv = claudeArgv("$adaptive-goal Work", "claude-sonnet-5", "low", {
+  const argv = claudeArgv("$adaptive-delivery Work", "claude-sonnet-5", "low", {
     expectGoalOwner: true,
     ownerEvaluationMode: "passive",
   });

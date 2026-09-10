@@ -104,7 +104,8 @@ const LAUNCH_REQUIRED =
   /^(?:launch_boundary\tlaunch_required|launch_boundary: launch_required)[ \t]*$/m;
 const CODEX_STREAM_EVENT = /^(thread|turn|item)\./;
 const SHA256 = /^[a-f0-9]{64}$/;
-const NATIVE_GOAL_OWNER_PROMPT = /^- phase: adaptive-goal-runner(?:\r?\n|$)/;
+const NATIVE_GOAL_OWNER_PROMPT =
+  /^- phase: adaptive-delivery-runner(?:\r?\n|$)/;
 
 /** Markers a nested Codex session must print to claim it applied the route. */
 const NESTED_APPLICATION_MARKERS = [
@@ -591,7 +592,7 @@ function validAcceptedGoalOwnerBoundary(
 }
 
 /** Route evidence emitted by the Codex adapter only after its launch guard has
- *  accepted and bound one concrete adaptive-goal owner. */
+ *  accepted and bound one concrete adaptive-delivery owner. */
 function acceptedGoalOwnerRouteApplication(
   raw: string,
 ): GoalRouteApplication | undefined {

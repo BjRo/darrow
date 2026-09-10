@@ -7,7 +7,7 @@
 > `deliver-ticket` does not add a warning or confirmation gate.
 
 This plugin delivers one existing engineering ticket through a deliberately
-static sequence of fresh phase agents. Unlike the adaptive goal loop, the route
+static sequence of fresh phase agents. Unlike the adaptive delivery loop, the route
 is known in advance: refine and challenge the plan, implement it, review and
 rework when needed, verify acceptance in QA, then identify any durable learning.
 
