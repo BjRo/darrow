@@ -32,16 +32,16 @@ modes:
     apply_case_routes: true
   darrow-workflow:
     condition_by_harness:
-      codex: conditions/darrow-goal-loop-workflow-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
+      codex: conditions/darrow-adaptive-delivery-workflow-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
     mount_plugin_skills: true
     require_evaluation_records: true
     apply_expected_goal_routes: true
     effort: low
   darrow-workflow-risk:
     condition_by_harness:
-      codex: conditions/darrow-goal-loop-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery
+      codex: conditions/darrow-adaptive-delivery-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
     mount_plugin_skills: true
     require_evaluation_records: true
     apply_expected_goal_routes: true

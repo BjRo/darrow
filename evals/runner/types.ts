@@ -283,7 +283,7 @@ export interface TrialResult {
   harness: HarnessResult;
   /** Activation grade kept separate from outcome checks and `passed`. */
   activation?: TrialActivationResult;
-  /** Harness-observed application of a goal-loop profile route. */
+  /** Harness-observed application of an Adaptive Delivery profile route. */
   routeApplication?: GoalRouteApplication;
   orchestrationMetrics?: {
     childInvocationCount: number;

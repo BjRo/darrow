@@ -8,7 +8,7 @@ activation_sequence:
   - ticket-to-pr
   - adaptive-delivery
 additional_plugins:
-  - plugins/orchestration/darrow-goal-loop
+  - plugins/orchestration/darrow-adaptive-delivery
   - plugins/capability/darrow-readiness-gate
 additional_skills:
   - plugins/capability/darrow-git/skills/prepare-task-branch

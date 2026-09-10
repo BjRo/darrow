@@ -54,7 +54,7 @@ async function fixture() {
       fixtureStateSha256: await fixtureStateFingerprint(repo),
       requestSha256: "4".repeat(64),
       objectiveRoot,
-      goalLoopPath: "/plugin/bin/goal-loop",
+      adaptiveDeliveryPreflightPath: "/plugin/bin/adaptive-delivery-preflight",
       statePath: join(repo, ".git", "guard-state"),
     },
   };

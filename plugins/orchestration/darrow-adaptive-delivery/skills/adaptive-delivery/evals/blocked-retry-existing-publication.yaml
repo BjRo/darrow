@@ -1,0 +1,25 @@
+id: goal-blocked-retry-existing-publication
+invariant: ADL-S2
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  Use {{skill_invocation}} to decide the next lifecycle action only. The retained
+  owner in this same thread was blocked because pull-request creation returned
+  an ambiguous result. It has now observed that the matching pull request
+  already exists. The user says "retry" without qualification. May the owner
+  issue another pull-request creation request, and what should it do with the
+  observed pull request? Answer briefly.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks: []
+semantic_output_checks:
+  - name: rejects another publication attempt
+    proposition: The response rejects making another publication attempt after observing that the pull request already exists.
+  - name: uses the observed publication
+    proposition: The response uses the observed existing pull request for validation and reuse rather than treating another PR-creation request as necessary. Verifying repository, branch, draft state, or commit evidence before declaring publication complete is allowed.
+transcript_checks:
+  - name: advice-only invocation launches no owner or helper
+    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-delivery-preflight (?:prepare|route|step)'

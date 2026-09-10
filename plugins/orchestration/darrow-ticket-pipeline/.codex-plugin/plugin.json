@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-pipeline",
-  "version": "0.2.1",
-  "description": "Deprecated reference static ticket pipeline; use darrow-goal-loop for new work",
+  "version": "0.2.2",
+  "description": "Deprecated reference static ticket pipeline; use darrow-adaptive-delivery for new work",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,8 +9,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Deprecated Ticket Pipeline",
-    "shortDescription": "Deprecated reference; use Darrow Goal Loop for new work",
-    "longDescription": "Deprecated but installable reference implementation of a static ticket pipeline. Use Darrow Goal Loop for new orchestration work; explicit deliver-ticket invocation remains available for deliberate comparison runs.",
+    "shortDescription": "Deprecated reference; use Adaptive Delivery for new work",
+    "longDescription": "Deprecated but installable reference implementation of a static ticket pipeline. Use Adaptive Delivery for new orchestration work; explicit deliver-ticket invocation remains available for deliberate comparison runs.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

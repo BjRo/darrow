@@ -163,11 +163,11 @@ describe("orchestration suite report", () => {
       },
       {
         harness: "claude",
-        mode: "darrow-goal-loop",
+        mode: "darrow-adaptive-delivery",
         results: [
           result({
             harness: "claude",
-            condition: "darrow-goal-loop",
+            condition: "darrow-adaptive-delivery",
             passRate: 0.5,
             totalCostUsd: 1.25,
             meanChildInvocationCount: 2,
@@ -293,10 +293,10 @@ describe("orchestration suite report", () => {
     const markdown = renderSuiteReport([
       {
         harness: "codex",
-        mode: "darrow-goal-loop",
+        mode: "darrow-adaptive-delivery",
         results: [
           result({
-            condition: "darrow-goal-loop",
+            condition: "darrow-adaptive-delivery",
             meanPreparationDurationMs: 100,
             meanClassifierDurationMs: 200,
             meanClassifierTokens: 300,
@@ -309,7 +309,7 @@ describe("orchestration suite report", () => {
     ]);
     expect(markdown).toContain("Preflight and native execution phases");
     expect(markdown).toContain(
-      "| codex | darrow-goal-loop | 0.1s | 0.2s | 300 | 1.0 | 0.9s | 120 |",
+      "| codex | darrow-adaptive-delivery | 0.1s | 0.2s | 300 | 1.0 | 0.9s | 120 |",
     );
   });
 

@@ -28,7 +28,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 <!-- darrow-source: 1a57cf608fb4cfa4b770abebf34ca450e79c0160 2711262332 330 ADR-0001-eval-runner.md -->
 <!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
 <!-- darrow-source: 452327e39a9dff558c6897356d0e1e85cf65906f 3673420192 418 ADR-0003-treat-plugins-as-optionality-boundaries.md -->
-<!-- darrow-source: e762247b2760494fc834135916b5989f13f06de7 504439881 628 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
+<!-- darrow-source: 42bc1095831a4d097a6bda6462d29315bc0f0529 2382776868 628 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
 <!-- darrow-source: 1aa2b5acc9ffef09063953d78bfe04c26cab4089 3642678449 590 ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md -->
 <!-- darrow-source: 739b2fa46ad8b0ed220c4d341317bf670d3d7a41 243106577 398 ADR-0006-keep-decisions-with-their-authoritative-owners.md -->
 <!-- darrow-source: ae5948d48fa4b0b0ce2c80ea76e23a71d582aa71 4074249863 369 ADR-0007-separate-skill-evaluation-evidence-dimensions.md -->

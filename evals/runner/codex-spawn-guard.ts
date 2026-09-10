@@ -33,7 +33,7 @@ export interface CodexSpawnGuardPolicy {
   fixtureStateSha256: string;
   requestSha256: string;
   objectiveRoot: string;
-  goalLoopPath: string;
+  adaptiveDeliveryPreflightPath: string;
   statePath: string;
 }
 
@@ -402,7 +402,7 @@ function ownerContractIssue(
   if (contract.length < 80)
     return "adaptive delivery owner contract is missing or incomplete";
   if (
-    /Protocol ledger|goal-loop step|darrow-native-goal-report|objective_file/i.test(
+    /Protocol ledger|adaptive-delivery-preflight step|darrow-native-goal-report|objective_file/i.test(
       contract,
     )
   )
@@ -605,7 +605,7 @@ if (import.meta.main) {
       "fixture-state": { type: "string" },
       request: { type: "string" },
       "objective-root": { type: "string" },
-      "goal-loop": { type: "string" },
+      "adaptive-delivery-preflight": { type: "string" },
       state: { type: "string" },
     },
   });
@@ -615,7 +615,7 @@ if (import.meta.main) {
     !values["fixture-state"] ||
     !values.request ||
     !values["objective-root"] ||
-    !values["goal-loop"] ||
+    !values["adaptive-delivery-preflight"] ||
     !values.state
   )
     process.exit(64);
@@ -625,7 +625,7 @@ if (import.meta.main) {
     fixtureStateSha256: values["fixture-state"],
     requestSha256: values.request,
     objectiveRoot: values["objective-root"],
-    goalLoopPath: values["goal-loop"],
+    adaptiveDeliveryPreflightPath: values["adaptive-delivery-preflight"],
     statePath: values.state,
   });
   if (result) process.stdout.write(`${JSON.stringify(result)}\n`);

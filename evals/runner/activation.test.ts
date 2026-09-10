@@ -34,7 +34,7 @@ describe("skill activation grading", () => {
       ),
       owningSkillName: "ticket-to-pr",
       activation_excludes: ["ticket-to-pr", "adaptive-delivery"],
-      additional_plugins: ["plugins/orchestration/darrow-goal-loop"],
+      additional_plugins: ["plugins/orchestration/darrow-adaptive-delivery"],
     });
     expect(await validateMountedActivationTarget(target)).toEqual([]);
     expect(
@@ -50,7 +50,7 @@ describe("skill activation grading", () => {
         ...target,
         additional_plugins: [],
         additional_skills: [
-          "plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery",
+          "plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery",
         ],
       }),
     ).toEqual([]);
@@ -79,7 +79,8 @@ describe("skill activation grading", () => {
     expect(
       expectsAdaptiveDeliveryOwner(
         evalCase({
-          skillDir: "/repo/plugins/goal-loop/skills/adaptive-delivery",
+          skillDir:
+            "/repo/plugins/darrow-adaptive-delivery/skills/adaptive-delivery",
         }),
       ),
     ).toBe(true);
@@ -91,7 +92,8 @@ describe("skill activation grading", () => {
     expect(
       expectsAdaptiveDeliveryOwner(
         evalCase({
-          skillDir: "/repo/plugins/goal-loop/skills/adaptive-delivery",
+          skillDir:
+            "/repo/plugins/darrow-adaptive-delivery/skills/adaptive-delivery",
           activation: "negative",
         }),
       ),

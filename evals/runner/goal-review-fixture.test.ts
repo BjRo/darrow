@@ -5,7 +5,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-goal-loop/skills/adaptive-delivery/evals/high-risk-routine.yaml",
+  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/high-risk-routine.yaml",
   import.meta.url,
 );
 const validatorSource = new URL(

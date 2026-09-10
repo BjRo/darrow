@@ -6,7 +6,7 @@ explicit orchestration, with each plugin serving as an optionality boundary.
 Capabilities are model-invoked in response to matching user intent, though a
 user may also name one explicitly. Orchestration starts only through explicit
 user invocation; never infer it from task complexity or duration.
-`darrow-goal-loop` is the core orchestration helper: it frames a bounded native
+`darrow-adaptive-delivery` is the core orchestration helper: it frames a bounded native
 goal and then leaves execution to the host. `darrow-ticket-pipeline` is retained
 only as a reference implementation of the former static phase approach and as a
 benchmark baseline. Neither is a daemon, queue, general workflow runtime, or

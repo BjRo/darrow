@@ -98,7 +98,7 @@ const GOAL_PREFLIGHT_V4 = /^format\tdarrow-native-goal-preflight-v4$/m;
 const GOAL_PREFLIGHT_V2 = /^format\tdarrow-native-goal-preflight-v2$/m;
 const GOAL_REPORT_V1 = /^format: darrow-native-goal-report-v1[ \t]*$/m;
 const TICKET_PIPELINE_FORMAT = /^format\tdarrow-ticket-pipeline-result-v1$/m;
-const GOAL_LOOP_RESULT = /^format\tdarrow-goal-loop-result-v1$/m;
+const LEGACY_GOAL_LOOP_RESULT = /^format\tdarrow-goal-loop-result-v1$/m;
 const ROUTE_VERIFIED = /^(?:route_verified\ttrue|route_verified: true)[ \t]*$/m;
 const LAUNCH_REQUIRED =
   /^(?:launch_boundary\tlaunch_required|launch_boundary: launch_required)[ \t]*$/m;
@@ -1389,13 +1389,13 @@ export function extractOrchestrationMetrics(
   const routeRecords = resultText.match(
     /^route\t(?:planner|executor|verifier|repair)\t/gm,
   );
-  const hasGoalLoopResult = GOAL_LOOP_RESULT.test(resultText);
+  const hasLegacyGoalLoopResult = LEGACY_GOAL_LOOP_RESULT.test(resultText);
   const declaredChildren = matchField(resultText, DECLARED_CHILDREN);
   const declaredInterruptions = matchField(
     resultText,
     /^(?:evaluation_human_interruptions\t|evaluation_human_interruptions: )([0-9]+)$/m,
   );
-  if (!hasGoalLoopResult && !routeRecords && !declaredChildren)
+  if (!hasLegacyGoalLoopResult && !routeRecords && !declaredChildren)
     return undefined;
   return {
     childInvocationCount:

@@ -2,12 +2,12 @@
 
 > **Deprecated reference.** This plugin remains installable and its explicitly
 > invoked `deliver-ticket` workflow remains available for reproducible
-> comparison. Use Darrow Goal Loop for new orchestration work. This is
+> comparison. Use Adaptive Delivery for new orchestration work. This is
 > informational only: deliberately invoking
 > `deliver-ticket` does not add a warning or confirmation gate.
 
 This plugin delivers one existing engineering ticket through a deliberately
-static sequence of fresh phase agents. Unlike the adaptive delivery loop, the route
+static sequence of fresh phase agents. Unlike Adaptive Delivery, the route
 is known in advance: refine and challenge the plan, implement it, review and
 rework when needed, verify acceptance in QA, then identify any durable learning.
 

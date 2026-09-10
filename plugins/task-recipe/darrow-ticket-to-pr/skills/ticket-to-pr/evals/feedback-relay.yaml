@@ -8,7 +8,7 @@ activation_sequence:
   - ticket-to-pr
   - adaptive-delivery
 additional_plugins:
-  - plugins/orchestration/darrow-goal-loop
+  - plugins/orchestration/darrow-adaptive-delivery
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
 follow_up_prompt: "Use the strict migration policy. Approval reference: cobalt-7391."
 fixture:

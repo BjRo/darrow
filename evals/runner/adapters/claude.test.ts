@@ -29,7 +29,7 @@ import {
 
 const routeEvidenceContext = {
   repoDir: "/fixture",
-  pluginDir: "/plugin/darrow-goal-loop",
+  pluginDir: "/plugin/darrow-adaptive-delivery",
   stagingRoot: "/tmp",
   observedRouteTrusted: true,
   engineeringRequest:
@@ -72,7 +72,7 @@ test("audits the native Claude owner route outside the product stream", async ()
     const raw = JSON.stringify({
       type: "darrow.goal_agent_completion",
       tool_use_id: "toolu_goal",
-      subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+      subagent_type: "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
       status: "completed",
       agent_id: "ownerone",
     });
@@ -126,7 +126,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
   return [
     ...exchange(
       "toolu_start",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop step start --repo ${context.repoDir} --host claude`,
+      `/bin/bash ${context.pluginDir}/bin/adaptive-delivery-preflight step start --repo ${context.repoDir} --host claude`,
       [
         "format\tdarrow-goal-step-v1",
         "run_id\tfixture",
@@ -141,7 +141,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
     ),
     ...exchange(
       "toolu_prepare",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop step prepare --ledger ${ledger}`,
+      `/bin/bash ${context.pluginDir}/bin/adaptive-delivery-preflight step prepare --ledger ${ledger}`,
       [
         "format\tdarrow-goal-step-v1",
         "run_id\tfixture",
@@ -159,7 +159,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
     ),
     ...exchange(
       "toolu_route",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow change-feature --risk routine --profile routine --verification-gate routine --readiness omitted --review omitted`,
+      `/bin/bash ${context.pluginDir}/bin/adaptive-delivery-preflight step route --ledger ${ledger} --workflow change-feature --risk routine --profile routine --verification-gate routine --readiness omitted --review omitted`,
       [
         "format\tdarrow-goal-step-v1",
         "run_id\tfixture",
@@ -178,7 +178,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
     ),
     ...exchange(
       "toolu_agent_route",
-      `/bin/bash ${context.pluginDir}/bin/goal-loop step runner --ledger ${ledger} --provider anthropic --model claude-sonnet-5 --effort low`,
+      `/bin/bash ${context.pluginDir}/bin/adaptive-delivery-preflight step runner --ledger ${ledger} --provider anthropic --model claude-sonnet-5 --effort low`,
       [
         "format\tdarrow-goal-step-v1",
         "run_id\tfixture",
@@ -187,7 +187,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         "status\trecorded",
         "format\tdarrow-claude-agent-route-v1",
         "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
-        "subagent_type\tdarrow-goal-loop:adaptive-delivery-sonnet-5-low",
+        "subagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
         `agent_file\t${context.pluginDir}/agents/adaptive-delivery-sonnet-5-low.md`,
       ].join("\n"),
     ),
@@ -220,7 +220,7 @@ function inlineOwnerPrompt() {
 
 function provisionalActivationEvents() {
   const command =
-    `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step activate --ledger ${goalLedger} ` +
+    `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step activate --ledger ${goalLedger} ` +
     "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
     "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false";
   const content = [
@@ -315,7 +315,7 @@ function inlineMaterializationEvents(includeActivation = true) {
             name: "Bash",
             id: "toolu_register_stage",
             input: {
-              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+              command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
             },
           },
         ],
@@ -350,7 +350,7 @@ function inlineMaterializationEvents(includeActivation = true) {
             name: "Bash",
             id: "toolu_materialize",
             input: {
-              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
+              command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
             },
           },
         ],
@@ -377,7 +377,7 @@ function inlineMaterializationEvents(includeActivation = true) {
             name: "Bash",
             id: "toolu_release_staging",
             input: {
-              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
+              command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
             },
           },
         ],
@@ -414,7 +414,7 @@ function goalReportEvents(
             name: "Bash",
             id: toolUseId,
             input: {
-              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step report --ledger ${goalLedger} --status ${status} --human-interruptions 0`,
+              command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step report --ledger ${goalLedger} --status ${status} --human-interruptions 0`,
             },
           },
         ],
@@ -461,7 +461,7 @@ function goalBlockEvents() {
             name: "Bash",
             id: "toolu_block",
             input: {
-              command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step block --ledger ${goalLedger} --kind decision --operation migration-policy --retry forbidden --waiver forbidden`,
+              command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step block --ledger ${goalLedger} --kind decision --operation migration-policy --retry forbidden --waiver forbidden`,
             },
           },
         ],
@@ -1040,7 +1040,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1058,10 +1058,10 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-runner"',
+      '"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-runner"',
     );
     expect(retained).toContain(
-      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_goal","subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","status":"completed"',
+      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_goal","subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low","status":"completed"',
     );
     expect(retained).toContain('"agent_id":"agentgoal"');
     expect(retained).not.toContain("private objective");
@@ -1083,7 +1083,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_inline_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1102,7 +1102,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_owner_route",
               input: {
                 command: [
-                  "/bin/bash /plugin/darrow-goal-loop/bin/claude-owner-route \\",
+                  "/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-owner-route \\",
                   "  --repo /fixture --agent-id agentgoal \\",
                   "  --selected-model claude-sonnet-5 --selected-effort low",
                 ].join("\n"),
@@ -1139,7 +1139,7 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"subagent_type":"darrow-goal-loop:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-owner"',
+      '"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-delivery-owner"',
     );
     expect(retained).toContain(
       '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
@@ -1200,7 +1200,7 @@ describe("Claude skill activation observation", () => {
                 id: "toolu_incomplete_goal",
                 input: {
                   subagent_type:
-                    "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                    "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                   run_in_background: false,
                   prompt,
                 },
@@ -1234,7 +1234,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1271,7 +1271,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1336,7 +1336,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1553,7 +1553,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1841,7 +1841,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1891,7 +1891,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1959,7 +1959,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -2000,7 +2000,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: "private objective",
               },
@@ -2030,7 +2030,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt,
               },
@@ -2249,7 +2249,7 @@ describe("Claude skill activation observation", () => {
         id: "toolu_prepare",
         input: {
           command:
-            "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop prepare --repo /fixture --host claude",
+            "/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight prepare --repo /fixture --host claude",
         },
       },
       {
@@ -2258,7 +2258,7 @@ describe("Claude skill activation observation", () => {
         id: "toolu_route",
         input: {
           command:
-            "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop route --repo /fixture --host claude --profile routine",
+            "/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight route --repo /fixture --host claude --profile routine",
         },
       },
       {
@@ -2267,7 +2267,7 @@ describe("Claude skill activation observation", () => {
         id: "toolu_agent_route",
         input: {
           command:
-            "/bin/bash /plugin/darrow-goal-loop/bin/claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low",
+            "/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low",
         },
       },
     ];
@@ -2362,7 +2362,7 @@ describe("Claude skill activation observation", () => {
             name: "Bash",
             id: routeId,
             input: {
-              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/goal-loop step route --ledger ${ledger} --workflow decision-gated --risk high --profile none --verification-gate not-applicable --readiness omitted --review omitted`,
+              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/adaptive-delivery-preflight step route --ledger ${ledger} --workflow decision-gated --risk high --profile none --verification-gate not-applicable --readiness omitted --review omitted`,
             },
           },
         ],
@@ -2401,7 +2401,7 @@ describe("Claude skill activation observation", () => {
             name: "Bash",
             id: reportId,
             input: {
-              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/goal-loop step report --ledger ${ledger} --status launch-required --human-interruptions 1`,
+              command: `/bin/bash ${routeEvidenceContext.pluginDir}/bin/adaptive-delivery-preflight step report --ledger ${ledger} --status launch-required --human-interruptions 1`,
             },
           },
         ],
@@ -2465,7 +2465,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -2802,7 +2802,7 @@ describe("Claude skill activation observation", () => {
             id: "toolu_activate",
             input: {
               command:
-                `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step activate --ledger ${goalLedger} ` +
+                `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step activate --ledger ${goalLedger} ` +
                 "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
                 "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false",
             },
@@ -2861,7 +2861,8 @@ describe("Claude skill activation observation", () => {
             name: "Agent",
             id: "toolu_goal",
             input: {
-              subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+              subagent_type:
+                "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
               run_in_background: false,
               prompt: boundGoalPrompt(),
             },
@@ -2985,7 +2986,7 @@ describe("Claude skill activation observation", () => {
                 name: "Bash",
                 id: "toolu_register_alias_stage",
                 input: {
-                  command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${context.stagingRoot}/darrow-goal-run.fixture --goal-file ${join(aliasGoalStaging, "goal.md")}`,
+                  command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step stage --ledger ${context.stagingRoot}/darrow-goal-run.fixture --goal-file ${join(aliasGoalStaging, "goal.md")}`,
                 },
               },
             ],
@@ -3056,21 +3057,21 @@ describe("Claude skill activation observation", () => {
         content: fileBackedContract,
       }),
       assistantTool("toolu_register_stage", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
       }),
       toolResult(
         "toolu_register_stage",
         `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tstage\nstatus\trecorded\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md\ncontract_sha256\t${fileBackedDigest}`,
       ),
       assistantTool("toolu_materialize", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult(
         "toolu_materialize",
         `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tmaterialize\nstatus\trecorded\nformat\tdarrow-native-goal-objective-v1\nmode\tfile-backed\ncontract_bytes\t5000\ncontract_sha256\t${fileBackedDigest}\ncontract_file\t/private/darrow-goal-contract.fixture/goal-contract.md\nobjective_bytes\t300\nobjective_file\t/private/darrow-goal-contract.fixture/goal-objective.txt\nattachment_dir\t/private/darrow-goal-contract.fixture`,
       ),
       assistantTool("toolu_release_staging", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult(
         "toolu_release_staging",
@@ -3078,7 +3079,8 @@ describe("Claude skill activation observation", () => {
       ),
       ...provisionalActivationEvents(),
       assistantTool("toolu_goal", "Agent", {
-        subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+        subagent_type:
+          "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
         run_in_background: false,
         prompt: boundGoalPrompt(
           "/private/darrow-goal-contract.fixture/goal-objective.txt",
@@ -3087,21 +3089,21 @@ describe("Claude skill activation observation", () => {
       }),
       JSON.stringify(goalResult("toolu_goal", "agentgoal")),
       assistantTool("toolu_gate", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       }),
       toolResult(
         "toolu_gate",
         "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed",
       ),
       assistantTool("toolu_release", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult(
         "toolu_release",
         `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\trelease-objective\nstatus\trecorded\nformat\tdarrow-native-goal-objective-release-v1\nstatus\treleased\nattachment_dir\t/private/darrow-goal-contract.fixture`,
       ),
       assistantTool("toolu_release_again", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
       }),
       toolResult("toolu_release_again", "private duplicate cleanup result"),
       assistantTool("toolu_search", "ToolSearch", { query: "route gate" }),
@@ -3168,7 +3170,7 @@ describe("Claude skill activation observation", () => {
     expect(claudeGoalRouteEvidence(retained)).toEqual({
       goalToolUseId: "toolu_goal",
       agentId: "agentgoal",
-      subagentType: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+      subagentType: "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
       observation: {
         status: "observed",
         harness: "claude",
@@ -3307,7 +3309,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_register_stage",
               input: {
-                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+                command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
               },
             },
           ],
@@ -3334,7 +3336,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_materialize",
               input: {
-                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
+                command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
               },
             },
           ],
@@ -3361,7 +3363,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_release_staging",
               input: {
-                command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
+                command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${objectiveDigest}`,
               },
             },
           ],
@@ -3390,7 +3392,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -3408,7 +3410,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_gate",
               input: {
-                command: `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+                command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
               },
             },
           ],
@@ -3529,21 +3531,21 @@ describe("Claude skill activation observation", () => {
         content: fileBackedContract,
       }),
       toolCall("toolu_register_stage", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step stage --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md`,
       }),
       toolResult(
         "toolu_register_stage",
         `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tstage\nstatus\trecorded\ngoal_file\t/tmp/darrow-goal-stage.fixture/goal.md\ncontract_sha256\t${digest}`,
       ),
       toolCall("toolu_materialize", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step materialize --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${digest}`,
       }),
       toolResult(
         "toolu_materialize",
         `format\tdarrow-goal-step-v1\nrun_id\tfixture\nledger\t${goalLedger}\nstep\tmaterialize\nstatus\trecorded\nformat\tdarrow-native-goal-objective-v1\nmode\tfile-backed\ncontract_bytes\t5000\ncontract_sha256\t${digest}\ncontract_file\t${attachment}/goal-contract.md\nobjective_bytes\t300\nobjective_file\t${attachment}/goal-objective.txt\nattachment_dir\t${attachment}`,
       ),
       toolCall("toolu_release_staging", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-staging --ledger ${goalLedger} --goal-file /tmp/darrow-goal-stage.fixture/goal.md --expected-sha256 ${digest}`,
       }),
       toolResult(
         "toolu_release_staging",
@@ -3551,7 +3553,8 @@ describe("Claude skill activation observation", () => {
       ),
       ...provisionalActivationEvents().map((line) => JSON.parse(line)),
       toolCall("toolu_goal", "Agent", {
-        subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+        subagent_type:
+          "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
         run_in_background: false,
         prompt: boundGoalPrompt(
           "/private/darrow-goal-contract.fixture/goal-objective.txt",
@@ -3560,11 +3563,11 @@ describe("Claude skill activation observation", () => {
       }),
       goalResult("toolu_goal", "agentgoal"),
       toolCall("toolu_wrong_release", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.wrong --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.wrong --expected-sha256 ${digest}`,
       }),
       toolResult("toolu_wrong_release", "private wrong release"),
       toolCall("toolu_failed_release", "Bash", {
-        command: `/bin/bash /plugin/darrow-goal-loop/bin/goal-loop step release-objective --ledger ${goalLedger} --attachment-dir ${attachment} --expected-sha256 ${digest}`,
+        command: `/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight step release-objective --ledger ${goalLedger} --attachment-dir ${attachment} --expected-sha256 ${digest}`,
       }),
       toolResult("toolu_failed_release", "private failed release", true),
     ]
@@ -3577,7 +3580,7 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"operation":"goal-loop-unbound-release-objective"',
+      '"operation":"adaptive-delivery-preflight-unbound-release-objective"',
     );
     expect(retained).toContain('"operation":"release-failed"');
     expect(retained).toContain('"operation":"release-missing"');
@@ -3611,7 +3614,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+                  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -3622,7 +3625,7 @@ describe("Claude skill activation observation", () => {
       goalResult("toolu_goal", "agentgoal"),
       bashCall(
         "toolu_wrong_agent",
-        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id otheragent --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id otheragent --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_agent",
@@ -3630,7 +3633,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_route",
-        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-opus-5|high' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-opus-5|high' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_route",
@@ -3638,7 +3641,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_output",
-        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_output",
@@ -3651,12 +3654,12 @@ describe("Claude skill activation observation", () => {
       result("toolu_spoof", "private spoof result"),
       bashCall(
         "toolu_compound_release",
-        "/bin/bash /plugin/darrow-goal-loop/bin/goal-loop release-objective --attachment-dir /private/attachment --expected-sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa && bash test.sh",
+        "/bin/bash /plugin/darrow-adaptive-delivery/bin/adaptive-delivery-preflight release-objective --attachment-dir /private/attachment --expected-sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa && bash test.sh",
       ),
       result("toolu_compound_release", "private compound result"),
       bashCall(
         "toolu_fake_path",
-        `/bin/bash /tmp/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /tmp/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_fake_path",
@@ -3664,7 +3667,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_repo",
-        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /other --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /other --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_repo",
@@ -3672,7 +3675,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_retry",
-        `/bin/bash /plugin/darrow-goal-loop/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-delivery/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_retry",
@@ -3706,7 +3709,8 @@ describe("Claude skill activation observation", () => {
       JSON.stringify({
         type: "darrow.goal_agent_completion",
         tool_use_id: "toolu_goal",
-        subagent_type: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+        subagent_type:
+          "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
         status: "completed",
         agent_id: "agentgoal",
       }),
@@ -3729,7 +3733,7 @@ describe("Claude skill activation observation", () => {
     const evidence = {
       goalToolUseId: "toolu_goal",
       agentId: "agentgoal",
-      subagentType: "darrow-goal-loop:adaptive-delivery-sonnet-5-low",
+      subagentType: "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
       observation: {
         status: "observed" as const,
         harness: "claude",

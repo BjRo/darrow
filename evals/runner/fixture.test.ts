@@ -302,7 +302,7 @@ describe("eval fixture skill mounts", () => {
       );
     }
     await writeFile(
-      join(orchestrationRoot, "bin", "goal-loop"),
+      join(orchestrationRoot, "bin", "adaptive-delivery-preflight"),
       "fixture runner\n",
     );
 
@@ -331,7 +331,9 @@ describe("eval fixture skill mounts", () => {
       existsSync(join(claudeAdditional, "skills", "adaptive", "SKILL.md")),
     ).toBe(true);
     expect(existsSync(join(claudeAdditional, "skills", "recipe"))).toBe(false);
-    expect(existsSync(join(claudeAdditional, "bin", "goal-loop"))).toBe(true);
+    expect(
+      existsSync(join(claudeAdditional, "bin", "adaptive-delivery-preflight")),
+    ).toBe(true);
 
     const marketplace = join(fixture, ".git", "eval-marketplace");
     const catalog = JSON.parse(
