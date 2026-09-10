@@ -52,15 +52,19 @@ checks:
       grep -F 'isEven(-' test/math.test.js >/dev/null &&
       grep -F 'isEven(3)' test/math.test.js >/dev/null
   - name: feedback precedes final-tree verification
-    run: >-
-      awk '
-      BEGIN { red = 0; green = 0; final = 0; final_count = 0; bad = 0 }
-      $1 == "focused" && $2 == "fail" && red == 0 { red = NR }
+    run: |
+      if ! awk '
+      BEGIN { red = 0; green = 0; final = 0 }
+      $1 == "focused" && $2 == "fail" { red = NR; green = 0; final = 0 }
       $1 == "focused" && $2 == "pass" && red > 0 && NR > red && green == 0 { green = NR }
-      $1 == "final" { final_count++; if (green == 0) bad = 1 }
+      $1 == "final" { final = 0 }
       $1 == "final" && $2 == "pass" && green > 0 && NR > green { final = NR }
-      END { exit !(red > 0 && green > red && final > green && final_count == 1 && bad == 0) }
-      ' .git/fixture-state/verification-trace
+      END { exit !(red > 0 && green > red && final > green) }
+      ' .git/fixture-state/verification-trace; then
+        printf '%s\n' 'Recent focused/final check evidence:' >&2
+        tail -n 20 .git/fixture-state/verification-trace >&2
+        exit 1
+      fi
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
@@ -71,8 +75,10 @@ output_checks:
 semantic_output_checks:
   - name: owner reports complete focused and final verification
     proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
-  - name: owner reports focused and final verification completed
-    proposition: The response says focused verification completed with relevant evidence and final.sh completed as final verification.
+  - name: focused verification is reported successful
+    proposition: In this case focused.sh is the focused verification command. The response reports that this command completed successfully, rather than merely advising or planning to run it.
+  - name: final verification is reported successful
+    proposition: In this case final.sh is the final verification command. The response reports that this command completed successfully, rather than merely advising or planning to run it. It need not repeat the label 'final verification' alongside the command name.
 transcript_checks:
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

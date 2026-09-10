@@ -232,6 +232,34 @@ status=$?
 set -e
 check_equal "rejects an axis mismatch" 4 "$status"
 
+echo "axis status follows blocking disposition, not finding count"
+for axis_name in standards spec; do
+  for axis_status in pass fail; do
+    for disposition in advisory blocking; do
+      {
+        printf 'format\tdarrow-review-axis-v1\n'
+        printf 'axis\t%s\n' "$axis_name"
+        printf 'status\t%s\n' "$axis_status"
+        printf 'source\tuser-supplied repository rule or requirement\n'
+        printf 'finding\tlow\t%s\tsrc/value.txt:1\tuser-supplied clause\tConcrete changed evidence\n' "$disposition"
+      } >"$axis"
+      set +e
+      out=$("$SHELL_UNDER_TEST" "$RESULT" validate-axis "$axis_name" "$axis" 2>&1)
+      status=$?
+      set -e
+      case "$axis_status:$disposition" in
+        pass:advisory|fail:blocking) expected_status=0 ;;
+        *) expected_status=4 ;;
+      esac
+      check_equal "$axis_name $axis_status with $disposition finding" "$expected_status" "$status"
+      if [ "$axis_status:$disposition" = fail:advisory ]; then
+        check_contains "advisory-only failure explains the evidence mismatch" \
+          "failing axis requires a blocking finding" "$out"
+      fi
+    done
+  done
+done
+
 result=$REPO/.git/result.tsv
 {
   printf 'format\tdarrow-review-result-v1\n'

@@ -27,6 +27,8 @@ constraints for producing and interpreting that evidence.
   require one exact tool sequence when several safe implementations yield the
   same observable result.
 - Keep participant prompts visible and pass criteria hidden.
+- Keep authoritative fixture input and its executable acceptance oracle aligned,
+  including whether representation details such as trailing newlines matter.
 - Keep fixture skills inert in the source tree: never name an eval fixture
   `SKILL.md`. Use a non-discoverable template filename and materialize it as
   `SKILL.md` only inside the isolated eval repository during setup.
@@ -73,9 +75,29 @@ constraints for producing and interpreting that evidence.
   `activation_excludes` when a negative case must prove that a named skill was
   absent from the entire observed sequence rather than merely absent as the
   primary selection.
+  Excluded skills must actually be available in the case's mounted skill set;
+  that includes independently installed `additional_plugins` and explicitly
+  selected `additional_skills`, not just siblings of the owning skill.
 - Explicit Codex probes retain the invoked owner first, then verified supporting
   reads. Every supporting read must contain the complete mounted body, including
-  the first supporting read. Truncated evidence cannot establish an exclusion;
+  the first supporting read. Consecutive pages from the same actor may establish
+  that complete body when their accumulated output contains it exactly. The raw
+  read probes and activation summary use the same completeness requirement.
+  Overlapping exact source pages from that same actor also establish the read
+  when their coverage includes the whole body; repeated pages cannot fill a
+  gap, and altered or ambiguously located fragments do not prove coverage.
+  For compound output, locate unique source anchors and extend only through
+  byte-for-byte matching text; unrelated output contributes no source coverage.
+  If the native session recovers a complete read missing from CLI output,
+  recompute read completeness from that recovered evidence. Never retain a
+  stale incomplete flag, and never let read recovery repair failed or ambiguous
+  explicit dispatch. A partial read visible only natively remains incomplete.
+  Insert recovered reads according to shared ordering anchors rather than
+  appending an earlier skill after later ones. Conflicting source orders remain
+  incomplete instead of silently selecting one sequence.
+  Do not infer cross-child read order from launch-list order: multiple children
+  contributing unanchored new reads keep the observation incomplete.
+  Truncated evidence cannot establish an exclusion;
   the observation stays unknown until a complete read verifies that skill.
 
 - Recipe composition evidence must positively establish the accepted agent and
@@ -93,8 +115,10 @@ constraints for producing and interpreting that evidence.
   string can also be an error. The observer records whether a same-target
   message attempt followed the runner's actual feedback boundary. Continuation
   cases with a configured second turn also retain booleans stating whether the
-  collaboration call's message exactly matched or contained that rendered
-  second-turn prompt; neither message body is retained. These facts distinguish
+  collaboration call's plaintext message exactly matched or contained that rendered
+  second-turn prompt; neither message body is retained. Encrypted or unavailable
+  native message fields retain null comparisons and their representation, never
+  a false mismatch. These facts distinguish
   exact copying and intact wrapping from other relay forms, but do not grade
   semantic preservation or claim host delivery.
   Continuation cases combine those observations with an unchanged worktree at
@@ -105,6 +129,14 @@ constraints for producing and interpreting that evidence.
   check.
 
 ## Retained results and interrupted runs
+
+Codex evidence also retains bounded native goal-control observations. Direct
+function calls are invocation attempts; references found in submitted `exec`
+code remain execution-unverified, including conditional or deferred calls.
+Comments and string literals are not call expressions. These observations do
+not establish goal-creation success or adaptive-owner acceptance. They never
+retain the submitted code, goal text, arguments, or tool output, and their
+absence is not proof of non-use through aliases or other dynamic code.
 
 Each attempt has a unique directory under `evals/results/attempts/`. Its
 `run.json` records ownership, lifecycle status, and absolute per-trial artifact

@@ -1,0 +1,63 @@
+id: ticket-to-pr-compatible-orchestrator
+activation: positive
+mount_plugin_skills: true
+activation_sequence:
+  - ticket-to-pr
+  - bounded-delivery
+invariant: TPR-C2,TPR-C4,TPR-C7,TPR-P1
+goal_report: forbidden
+expect_head_change: false
+prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  files:
+    .agents/skills/bounded-delivery/SKILL.md: &orchestrator |
+      ---
+      name: bounded-delivery
+      description: Provide adaptive-goal orchestration for an explicitly delegated engineering request, owning preflight and one separate execution owner. Accept preserved authority from an explicit task recipe.
+      ---
+
+      # Bounded delivery
+
+      This fixture observes the delegation boundary and returns a blocker
+      before preflight or owner launch. Accept the request only when it
+      preserves the exact ticket URL, new-branch delivery, verification,
+      intended commits, non-force push and one verified pull request, without
+      authorizing merge, deployment, release, ticket mutation, destructive Git
+      operations or unrelated changes.
+
+      Record the accepted request once by running:
+
+      ```sh
+      record-compatible-delegation https://example.invalid/tickets/42
+      ```
+
+      Return `Status: blocked` and `Reason: compatible-delegation-observed`.
+      Do not perform any repository or delivery work.
+    .claude/skills/bounded-delivery/SKILL.md: *orchestrator
+  bin:
+    record-compatible-delegation: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$#" -eq 1
+      test "$1" = https://example.invalid/tickets/42
+      printf '%s\n' "$1" >>.git/compatible-delegations
+checks:
+  - name: compatible provider receives the exact ticket once
+    run: >-
+      test "$(wc -l <.git/compatible-delegations | tr -d ' ')" -eq 1 &&
+      test "$(cat .git/compatible-delegations)" = https://example.invalid/tickets/42
+  - name: recipe does not take over delivery
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 &&
+      git diff --exit-code HEAD
+output_checks:
+  - name: compatible provider blocker is relayed
+    expect_regex: "compatible-delegation-observed"
+transcript_checks:
+  - name: fixture blocker launches no engineering owner
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'

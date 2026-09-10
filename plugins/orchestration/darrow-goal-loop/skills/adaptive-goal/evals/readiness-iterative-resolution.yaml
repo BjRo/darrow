@@ -46,3 +46,5 @@ transcript_checks:
     not_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"'
   - name: no lifecycle ledger is used
     not_regex: "goal-loop step|Protocol ledger"
+  - name: no observed native goal-control attempts or call references
+    not_regex: '"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"'

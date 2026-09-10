@@ -7,6 +7,7 @@ import {
   codexArgv,
   codexEvalSkillsRoot,
   codexExplicitSkillActivation,
+  codexInitialResponseEvidence,
   codexNativeSessionForThread,
   codexResumeArgv,
   codexRunSucceeded,
@@ -79,6 +80,40 @@ test("builds one persistent Codex session and one exact follow-up resume", () =>
     "answer",
   ]);
   expect(resumed).not.toContain("--ephemeral");
+});
+
+test("retains bounded public first-turn output before resume overwrites it", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "darrow-codex-initial-response-"));
+  try {
+    await mkdir(join(repo, ".git"));
+    expect(await codexInitialResponseEvidence(repo)).toEqual({
+      initial_response_text: "",
+      initial_response_truncated: false,
+    });
+    const path = join(repo, ".git", "last-message.md");
+    await writeFile(path, "Which migration policy should this product use?");
+    const before = await codexInitialResponseEvidence(repo);
+    await writeFile(path, "Implemented.");
+    expect(before.initial_response_text).toBe(
+      "Which migration policy should this product use?",
+    );
+    expect(before.initial_response_truncated).toBeFalse();
+    expect(await codexInitialResponseEvidence(repo)).toEqual({
+      initial_response_text: "Implemented.",
+      initial_response_truncated: false,
+    });
+    await writeFile(path, "x".repeat(8000));
+    expect(
+      (await codexInitialResponseEvidence(repo)).initial_response_truncated,
+    ).toBeFalse();
+    await writeFile(path, "x".repeat(8000) + "excluded tail");
+    expect(await codexInitialResponseEvidence(repo)).toEqual({
+      initial_response_text: "x".repeat(8000),
+      initial_response_truncated: true,
+    });
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
 });
 
 test("keeps an ordinary Codex eval session for bounded evidence extraction", () => {
@@ -563,6 +598,9 @@ describe("Codex skill activation observation", () => {
       const commands = [
         `skills_root=${skillsRoot}; skill=grilling; cat "$skills_root/$skill/SKILL.md"`,
         `cd ${skillDirectory} && sed -n '1,80p' SKILL.md`,
+        `if test -f ${skillDirectory}/SKILL.md; then cat ${skillDirectory}/SKILL.md; fi`,
+        `if false; then printf absent; else sed -n '1,80p' ${skillDirectory}/SKILL.md; fi`,
+        `for f in ${skillDirectory}/SKILL.md; do sed -n '1,$p' "$f"; done`,
         `skill_file=$(find ${skillsRoot} -path '*/grilling/SKILL.md' -print -quit); sed -n '1,80p' "$skill_file"`,
       ];
       for (const command of commands) {
@@ -652,6 +690,41 @@ describe("Codex skill activation observation", () => {
         primarySkill: "plan-implementation",
         observedSkills: ["plan-implementation"],
       });
+      expect(
+        retainedCodexEvidence(stream, REPO, undefined, skillsRoot),
+      ).not.toContain('"skill":"grilling"');
+      const partialPrimary = [
+        event("grilling", grillingBody.split("# Grilling")[0] ?? ""),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+      expect(
+        codexSkillActivation(partialPrimary, REPO, skillsRoot).observedSkills,
+      ).toEqual([]);
+      expect(
+        retainedCodexEvidence(partialPrimary, REPO, undefined, skillsRoot),
+      ).not.toContain('"skill":"grilling"');
+      expect(
+        retainedCodexEvidence(
+          event("grilling", grillingBody.split("# Grilling")[0] ?? ""),
+          REPO,
+          {
+            exitCode: 0,
+            stderrPresent: false,
+            explicitlyInvokedSkill: "plan-implementation",
+          },
+          skillsRoot,
+        ),
+      ).not.toContain('"skill":"grilling"');
+      const paginated = [
+        stream,
+        event("grilling", "# Grilling" + grillingBody.split("# Grilling")[1]),
+      ].join("\n");
+      expect(
+        codexSkillActivation(paginated, REPO, skillsRoot).observedSkills,
+      ).toEqual(["plan-implementation", "grilling"]);
+      expect(
+        retainedCodexEvidence(paginated, REPO, undefined, skillsRoot),
+      ).toContain('"skill":"grilling"');
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }
@@ -705,6 +778,12 @@ describe("Codex skill activation observation", () => {
     try {
       const commands = [
         `test -f ${skillDirectory}/SKILL.md; printf '%s' fabricated`,
+        `if test -f ${skillDirectory}/SKILL.md; then printf '%s' fabricated; fi`,
+        `if test -f ${skillDirectory}/SKILL.md; then cat /tmp/decoy/SKILL.md; fi`,
+        `for f in ${skillDirectory}/SKILL.md; do printf '%s' "$f"; done`,
+        `for f in ${skillDirectory}/SKILL.md; do cat /tmp/decoy/SKILL.md; done`,
+        `for f in /tmp/decoy/SKILL.md; do cat "$f"; done`,
+        `for f in ${skillDirectory}/SKILL.md; do f=/tmp/decoy/SKILL.md; cat "$f"; done`,
         `find ${skillsRoot} -name SKILL.md -exec printf '%s' fabricated \\;`,
         `find ${skillsRoot} -name SKILL.md -print; cat /tmp/decoy/SKILL.md; printf '%s' fabricated`,
       ];
@@ -1348,6 +1427,7 @@ describe("Codex skill activation observation", () => {
     const accepted = "darrow.codex_native_single_agent_accepted";
     const parentWork = "darrow.codex_native_parent_tool_after_agent";
     expect(proof(session())).toContain(accepted);
+    expect(proof(session())).not.toContain('"status":"unaccepted"');
     expect(proof(session())).toContain('"role":"unverified"');
     expect(proof(session())).not.toContain("encrypted-private-contract");
     expect(proof(session())).not.toContain("darrow.goal_owner_accepted");
@@ -1375,7 +1455,25 @@ describe("Codex skill activation observation", () => {
       },
     ];
     expect(proof(session(work))).toContain(parentWork);
+    expect(proof(session(work))).toContain(
+      '"namespace":"functions","operation":"exec"',
+    );
     expect(proof(session(work))).not.toContain("private shell command");
+    const unknownWork = proof(
+      session([
+        ...payloads,
+        {
+          type: "function_call",
+          namespace: "private-provider",
+          name: "private-operation",
+          arguments: '{"secret":"private-argument"}',
+        },
+      ]),
+    );
+    expect(unknownWork).toContain('"namespace":"other","operation":"other"');
+    expect(unknownWork).not.toContain("private-provider");
+    expect(unknownWork).not.toContain("private-operation");
+    expect(unknownWork).not.toContain("private-argument");
     const feedback = {
       type: "function_call",
       namespace: "collaboration",
@@ -1423,6 +1521,39 @@ describe("Codex skill activation observation", () => {
     const wrappedProof = proof(session(wrappedFeedback), boundary, "private");
     expect(wrappedProof).toContain('"message_matches_expected":false');
     expect(wrappedProof).toContain('"message_contains_expected":true');
+    for (const message of ["gAAAAABencrypted-feedback-token", undefined, 42]) {
+      const raw = proof(
+        session([
+          ...delivered.slice(0, -2),
+          {
+            ...feedback,
+            call_id: "feedback-call",
+            arguments: JSON.stringify({ target: "/root/delivery", message }),
+          },
+          delivered.at(-1)!,
+        ]),
+        boundary,
+        "private",
+      );
+      expect(raw).toContain('"message_matches_expected":null');
+      expect(raw).toContain('"message_contains_expected":null');
+      expect(raw).not.toContain("encrypted-feedback-token");
+    }
+    const relativeTarget = proof(
+      session([
+        ...delivered.slice(0, -2),
+        {
+          ...feedback,
+          call_id: "feedback-call",
+          arguments: '{"target":"delivery","message":"private"}',
+        },
+        delivered.at(-1)!,
+      ]),
+      boundary,
+      "private",
+    );
+    expect(relativeTarget).toContain('"same_owner":true');
+    expect(relativeTarget).not.toContain(parentWork);
     for (const output of [
       '{"error":"agent missing"}',
       "Tool failed",
@@ -1523,6 +1654,148 @@ describe("Codex skill activation observation", () => {
       expect(retained).toContain('"status":"accepted"');
       expect(retained).not.toContain("sensitive review packet");
     } finally {
+      await rm(configRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("recovers supporting skill reads from an accepted child native session", async () => {
+    const repoDir = await mkdtemp(join(tmpdir(), "darrow-codex-skills-"));
+    const configRoot = await mkdtemp(join(tmpdir(), "darrow-codex-session-"));
+    try {
+      const parentThread = "01a04f35-c37a-74b3-baa4-961bc21b6f49";
+      const childThread = "01a04f35-c37a-74b3-baa4-961bc21b6f50";
+      const skillsRoot = join(repoDir, ".agents", "skills");
+      const primaryBody =
+        "---\nname: adaptive-goal\ndescription: Primary fixture skill\n---\n\n# Adaptive goal\n";
+      const supportingBody =
+        "---\nname: create-pr\ndescription: Sensitive supporting fixture skill\n---\n\n# Create PR\n";
+      await mkdir(join(skillsRoot, "adaptive-goal"), { recursive: true });
+      await mkdir(join(skillsRoot, "create-pr"), { recursive: true });
+      await writeFile(
+        join(skillsRoot, "adaptive-goal", "SKILL.md"),
+        primaryBody,
+      );
+      await writeFile(
+        join(skillsRoot, "create-pr", "SKILL.md"),
+        supportingBody,
+      );
+
+      const sessionRoot = join(configRoot, "sessions", "2026", "09", "06");
+      await mkdir(sessionRoot, { recursive: true });
+      const entry = (ordinal: number, payload: Record<string, unknown>) =>
+        JSON.stringify({ ordinal, payload });
+      await writeFile(
+        join(sessionRoot, `rollout-2026-09-06T10-00-00-${parentThread}.jsonl`),
+        [
+          entry(1, {
+            type: "function_call",
+            name: "spawn_agent",
+            namespace: "collaboration",
+            call_id: "call-owner",
+            arguments: JSON.stringify({
+              task_name: "adaptive_owner",
+              fork_turns: "none",
+              model: "gpt-5.6-terra",
+              reasoning_effort: "medium",
+              message: "sensitive owner contract",
+            }),
+          }),
+          entry(2, {
+            type: "item_completed",
+            item: {
+              type: "SubAgentActivity",
+              id: "call-owner",
+              kind: "started",
+              agent_thread_id: childThread,
+              agent_path: "/root/adaptive_owner",
+            },
+          }),
+          entry(3, {
+            type: "function_call_output",
+            call_id: "call-owner",
+            output: JSON.stringify({ task_name: "/root/adaptive_owner" }),
+          }),
+        ].join("\n"),
+      );
+      await writeFile(
+        join(sessionRoot, `rollout-2026-09-06T10-00-01-${childThread}.jsonl`),
+        entry(1, {
+          type: "item_completed",
+          item: {
+            type: "CommandExecution",
+            command: [
+              "/bin/zsh",
+              "-lc",
+              `sed -n '1,200p' ${join(skillsRoot, "create-pr", "SKILL.md")}`,
+            ],
+            aggregated_output: supportingBody,
+            exit_code: 0,
+            status: "completed",
+          },
+        }),
+      );
+
+      const stream = [
+        JSON.stringify({ type: "thread.started", thread_id: parentThread }),
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${join(skillsRoot, "adaptive-goal", "SKILL.md")}`,
+            aggregated_output: primaryBody,
+            exit_code: 0,
+            status: "completed",
+          },
+        }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+
+      const retained = await retainedCodexEvidenceForThread(
+        stream,
+        repoDir,
+        configRoot,
+        { installedSkillsRoot: skillsRoot },
+      );
+      expect(retained).toContain('"skill":"adaptive-goal"');
+      expect(retained).toContain('"skill":"create-pr"');
+      expect(retained.indexOf('"skill":"adaptive-goal"')).toBeLessThan(
+        retained.indexOf('"skill":"create-pr"'),
+      );
+      expect(retained).not.toContain("Sensitive supporting fixture skill");
+      expect(retained).not.toContain("sensitive owner contract");
+      for (const complete of [true, false]) {
+        await writeFile(
+          join(sessionRoot, `rollout-2026-09-06T10-00-01-${childThread}.jsonl`),
+          entry(1, {
+            type: "item_completed",
+            item: {
+              type: "CommandExecution",
+              command: [
+                "/bin/zsh",
+                "-lc",
+                `for f in ${skillsRoot}/adaptive-goal/SKILL.md ${skillsRoot}/create-pr/SKILL.md; do sed -n '1,$p' "$f"; done`,
+              ],
+              aggregated_output:
+                primaryBody +
+                (complete ? supportingBody : supportingBody.slice(0, -10)),
+              exit_code: 0,
+              status: "completed",
+            },
+          }),
+        );
+        const loopRetained = await retainedCodexEvidenceForThread(
+          stream,
+          repoDir,
+          configRoot,
+          { installedSkillsRoot: skillsRoot },
+        );
+        expect(loopRetained.includes('"skill":"create-pr"')).toBe(complete);
+        expect(loopRetained).not.toContain(
+          "Sensitive supporting fixture skill",
+        );
+      }
+    } finally {
+      await rm(repoDir, { recursive: true, force: true });
       await rm(configRoot, { recursive: true, force: true });
     }
   });
@@ -1741,13 +2014,17 @@ describe("Codex skill activation observation", () => {
       type: "item.started",
       item: { id: "stage", type: "file_change", status: "in_progress" },
     });
-    const command = (exitCode: number, status: "completed" | "failed") =>
+    const command = (
+      exitCode: number,
+      status: "completed" | "failed",
+      text = "bash test.sh",
+    ) =>
       JSON.stringify({
         type: "item.completed",
         item: {
           id: "test",
           type: "command_execution",
-          command: "bash test.sh",
+          command: text,
           exit_code: exitCode,
           status,
           aggregated_output: "",
@@ -1759,9 +2036,18 @@ describe("Codex skill activation observation", () => {
     expect(retainedCodexEvidence(command(0, "completed"), REPO)).toContain(
       '"type":"darrow.parent_tool_before_goal","operation":"verification"',
     );
-    expect(retainedCodexEvidence(command(1, "failed"), REPO)).not.toContain(
+    expect(retainedCodexEvidence(command(1, "failed"), REPO)).toContain(
       "darrow.parent_tool_before_goal",
     );
+    for (const read of [
+      "cat test.sh",
+      "sed -n '1,80p' test.sh",
+      "printf '%s' 'bash test.sh'",
+    ]) {
+      expect(
+        retainedCodexEvidence(command(0, "completed", read), REPO),
+      ).not.toContain("darrow.parent_tool_before_goal");
+    }
   });
 
   test("retains one verified inline owner boundary and post-owner evidence", async () => {

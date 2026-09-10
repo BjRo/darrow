@@ -2,6 +2,9 @@ id: goal-preflight-high-risk-routine
 invariant: AGL-C1,AGL-C2,AGL-R1,AGL-L2,AGL-L5,AGL-S3
 goal_report: forbidden
 goal_route_checks: false
+activation: positive
+mount_plugin_skills: true
+activation_sequence: [adaptive-goal, code-review]
 additional_plugins:
   - plugins/capability/darrow-review
 prompt: >-
@@ -11,7 +14,8 @@ prompt: >-
   specified. Add focused evidence for the new value and preserve the other
   cookie options. Acceptance is that bash test.sh passes. Require independent
   review of the exact final change after all checks; after and only after a
-  clear review, run bash mark-complete.sh. Select and apply the policy route
+  clear review or clear repair verification, run bash mark-complete.sh with the
+  returned canonical artifact path as its single argument. Select and apply the policy route
   rather than pinning it. Keep the result local.
 fixture:
   commits:
@@ -47,11 +51,10 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          record=$(find "$git_dir" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
-          test -n "$record"
-          grep -F "$(printf 'verdict\tpass')" "$record" >/dev/null
-          grep -F "$(printf 'next_action\treturn control to enclosing goal')" "$record" >/dev/null
-          printf '%s\n' complete >"$git_dir/goal-complete"
+          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned result.tsv or verification.tsv path}"
+  setup: |
+    mkdir -p .git/fixture-bin
+    cp "{{case_dir}}/fixtures/require-clear-review.sh" .git/fixture-bin/review-proof
 checks:
   - name: cookie behavior is changed and preserved
     run: >-
@@ -71,25 +74,9 @@ checks:
       awk -F '\t' 'NR == 1 && $1 == "check" && $2 == 0 { ok=1 }
       END { exit ok ? 0 : 1 }' .git/fixture-state/high-risk-review-events
   - name: independent review artifact is canonical and clear
-    run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
-      test -n "$record" || exit 1;
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      bash "$tool" validate "$record" &&
-      grep -F "$(printf 'verdict\tpass')" "$record" >/dev/null &&
-      grep -F "$(printf 'next_action\treturn control to enclosing goal')" "$record" >/dev/null &&
-      ! grep -F "$(printf 'finding\t')" "$record" >/dev/null
-    expect_regex: "^valid: darrow-review-result-v1$"
+    run: bash .git/fixture-bin/review-proof artifact
   - name: independent review covers the exact final worktree
-    run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
-      scope_tool=$(find .git -path '*/bin/review-scope' -type f | sort | tail -n '1');
-      test -n "$record" && test -n "$scope_tool" || exit 1;
-      reviewed_target=$(awk -F '\t' '$1 == "target" { print $2 }' "$record");
-      current_target=$(bash "$scope_tool" prepare --repo "$PWD" --base HEAD --target WORKTREE |
-      awk -F '\t' '$1 == "target" { print $2 }');
-      test -n "$reviewed_target" && test "$reviewed_target" = "$current_target"
+    run: bash .git/fixture-bin/review-proof current
 output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"

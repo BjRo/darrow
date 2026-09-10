@@ -14,7 +14,9 @@ invoke the bound review skill with:
 - current focused and final-tree check evidence.
 
 A pre-existing candidate described as review-ready still needs current checks
-before review. Merely running a required check is insufficient: a failure must
+before review. When the caller requires review before changing that candidate,
+check and review it unchanged first; do not preemptively repair issues before
+the requested initial review. Merely running a required check is insufficient: a failure must
 be repaired within existing authority and the invalidated checks rerun, or the
 owner stops before review, commit, and publication. Once the review invocation
 starts, await its complete ordinary response before editing or running

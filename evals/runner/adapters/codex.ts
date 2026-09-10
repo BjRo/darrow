@@ -29,6 +29,7 @@ import {
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
 import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
+import { retainedCodexGoalControls } from "./codex-goal-tools";
 import {
   reviewAxesFromTaskName,
   type ReviewAxis,
@@ -166,7 +167,7 @@ function escapeRegExp(value: string): string {
 
 function shellPayload(command: string): string | undefined {
   const wrapper = command.match(
-    /^\/bin\/(?:ba|z)?sh\s+-lc\s+(["'])([\s\S]*)\1$/,
+    /^\/bin\/(?:ba|z)?sh\s+-l?c\s+(["'])([\s\S]*)\1$/,
   );
   return wrapper?.[2] ?? command;
 }
@@ -186,6 +187,27 @@ const SKILL_BODY_READERS = new Set([
   "rg",
   "sed",
   "tail",
+]);
+
+const READ_DIAGNOSTIC_HEADS = new Set([
+  ...SKILL_BODY_READERS,
+  "for",
+  "do",
+  "done",
+  "if",
+  "then",
+  "else",
+  "fi",
+  "while",
+  "find",
+  "xargs",
+  "sh",
+  "bash",
+  "zsh",
+  "test",
+  "printf",
+  "echo",
+  "cd",
 ]);
 
 function shellClauseExecutable(part: string): string | undefined {
@@ -234,10 +256,13 @@ function expandSimpleShellVariables(payload: string): string {
 }
 
 function skillBodyReadClauses(payload: string): string[] {
-  return payload.split(/&&|\|\||[;|\n]/).filter((part) => {
-    const executable = shellClauseExecutable(part);
-    return executable ? SKILL_BODY_READERS.has(executable) : false;
-  });
+  return payload
+    .split(/&&|\|\||[;|\n]/)
+    .map((part) => part.replace(/^\s*(?:then|else)\s+/, ""))
+    .filter((part) => {
+      const executable = shellClauseExecutable(part);
+      return executable ? SKILL_BODY_READERS.has(executable) : false;
+    });
 }
 
 function skillReads(command: string, skillsRoot: string): string[] {
@@ -371,6 +396,129 @@ function commandSubstitutionFeedsSkillRead(
   return false;
 }
 
+function simpleLoopBodyReadsVariable(body: string, variable: string): boolean {
+  if (/[;&|\r\n]/.test(body)) return false;
+  if (!SKILL_BODY_READERS.has(shellClauseExecutable(body) ?? "")) return false;
+  if (new RegExp(`\\b${variable}\\s*=`).test(body)) return false;
+  return new RegExp(
+    `(?:^|\\s)"?\\$(?:\\{${variable}\\}|${variable})"?(?=\\s|$)`,
+  ).test(body);
+}
+
+function namesLoopVariable(operand: string, variable: string): boolean {
+  return [`$${variable}`, `\${${variable}}`].some(
+    (reference) => operand === reference || operand === `"${reference}"`,
+  );
+}
+
+function labeledLoopBodyReadsVariable(body: string, variable: string): boolean {
+  if (simpleLoopBodyReadsVariable(body, variable)) return true;
+  const clauses = body.split(/[;\r\n]/).map((part) => part.trim());
+  if (clauses.length !== 2) return false;
+  const header = clauses[0]!.match(
+    /^printf\s+(?:'([^']*)'|"([^"$`]*)")\s+(.+)$/,
+  );
+  if (!header || !namesLoopVariable(header[3]!, variable)) return false;
+  const format = header[1] ?? header[2]!;
+  // One filename substitution surrounded only by bounded separator characters.
+  // Never accept dynamic formats, extra arguments, escapes that render data,
+  // or literal skill text as a substitute for the actual reader's output.
+  if (format.length > 80 || format.split("%s").length !== 2) return false;
+  const separator = format.replace("%s", "").replace(/\\[nrt]/g, "");
+  if (!/^[ \t#=[\]():.-]*$/.test(separator)) return false;
+  return simpleLoopBodyReadsVariable(clauses[1]!, variable);
+}
+
+function guardedLoopBodyReadsVariable(body: string, variable: string): boolean {
+  if (labeledLoopBodyReadsVariable(body, variable)) return true;
+  const conditional = body.match(
+    /^if\s+([^;\n]+)[;\n]\s*then\s+([\s\S]*?)[;\n]\s*fi$/,
+  );
+  if (!conditional) return false;
+  const guard = conditional[1]!
+    .trim()
+    .match(/^(?:test\s+-[fr]\s+(.+)|\[\s+-[fr]\s+(.+)\s+\])$/);
+  if (!guard) return false;
+  const operand = (guard[1] ?? guard[2])!.trim();
+  return (
+    namesLoopVariable(operand, variable) &&
+    labeledLoopBodyReadsVariable(conditional[2]!.trim(), variable)
+  );
+}
+
+function pathnamePattern(word: string): RegExp | undefined {
+  // Only pathname expansion: never execute substitutions or interpret shell
+  // operators. Quotes preserve literal wildcard characters, including spaces.
+  if (/[$`\\()[\]{}<>;&|]/.test(word)) return undefined;
+  let quote: string | undefined;
+  let pattern = "";
+  for (const character of word) {
+    if (quote) {
+      if (character === quote) quote = undefined;
+      else pattern += escapeRegExp(character);
+    } else if (character === '"' || character === "'") quote = character;
+    else
+      pattern += pathnamePatternCharacter(
+        character,
+        !pattern || pattern.endsWith("/"),
+      );
+  }
+  return quote ? undefined : new RegExp(`^${pattern}$`);
+}
+
+function pathnamePatternCharacter(
+  character: string,
+  startsComponent: boolean,
+): string {
+  const visible = startsComponent ? "(?!\\.)" : "";
+  if (character === "*") return `${visible}[^/]*`;
+  if (character === "?") return `${visible}[^/]`;
+  return escapeRegExp(character);
+}
+
+function pathnameLoopBindsSkill(
+  paths: string,
+  roots: string[],
+  skill: string,
+): boolean {
+  const token = /(?:'[^']*'|"[^"]*"|[^\s'"])+/g;
+  if (paths.replace(token, "").trim()) return false;
+  const patterns = [...paths.matchAll(token)].map((match) =>
+    pathnamePattern(match[0]),
+  );
+  if (patterns.some((pattern) => !pattern)) return false;
+  return roots.some((root) => {
+    const path = `${root}/${skill}/SKILL.md`;
+    return patterns.some(
+      (pattern) =>
+        pattern!.test(path) ||
+        (!isAbsolute(root) && pattern!.test(`./${path}`)),
+    );
+  });
+}
+
+function pathnameLoopFeedsSkillRead(
+  payload: string,
+  roots: string[],
+  skill: string,
+): boolean {
+  // Bind literal/glob path words to a mounted file and one variable-consuming
+  // reader, optionally guarded by that same file's existence/readability.
+  // Other loop mutation, control flow, and dynamic expansion stay unrecognized.
+  const loops =
+    /(?:^|[;\n])\s*for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([^;\n]+)[;\n]\s*do\s+([\s\S]*?)[;\n]\s*done\b/g;
+  for (const match of payload.matchAll(loops)) {
+    const [, variable, paths, body] = match;
+    if (!variable || !paths || !body) continue;
+    if (
+      pathnameLoopBindsSkill(paths, roots, skill) &&
+      guardedLoopBodyReadsVariable(body.trim(), variable)
+    )
+      return true;
+  }
+  return false;
+}
+
 function indirectSkillReads(
   command: string,
   output: string,
@@ -398,7 +546,10 @@ function indirectSkillReads(
         skill.name,
       );
       return outputOffset >= 0 &&
-        (rootedRead || substitutionRead || workingDirectoryRead)
+        (rootedRead ||
+          substitutionRead ||
+          workingDirectoryRead ||
+          pathnameLoopFeedsSkillRead(expanded, skillsRoots, skill.name))
         ? [{ name: skill.name, outputOffset }]
         : [];
     })
@@ -446,44 +597,133 @@ function eventSkillReads(
   ];
 }
 
+interface SkillReadEvidence {
+  output: string;
+  ranges: Array<[number, number]>;
+}
+
 function observedSkillReads(
   events: CodexEvent[],
   skillsRoots: string | string[],
   mountedSkills: MountedSkillBody[] = [],
-  initialSkills: string[] = [],
+  options: {
+    initialSkills?: string[];
+    readEvidence?: Map<string, SkillReadEvidence>;
+  } = {},
 ): string[] {
-  const roots = Array.isArray(skillsRoots) ? skillsRoots : [skillsRoots];
-  const observedSkills = [...initialSkills];
+  const roots = [skillsRoots].flat();
+  const observedSkills = [...(options.initialSkills ?? [])];
+  const readEvidence =
+    options.readEvidence ?? new Map<string, SkillReadEvidence>();
   for (const event of events) {
     const output = event.item?.aggregated_output;
     const skills = eventSkillReads(event, roots, mountedSkills);
     for (const skill of skills) {
-      if (
-        !observedSkills.includes(skill) &&
-        skillReadIsObservable(
-          skill,
-          output,
-          observedSkills.length > 0,
-          mountedSkills,
-        )
-      )
+      if (observedSkills.includes(skill)) continue;
+      const accumulated = accumulatedSkillOutput(
+        skill,
+        output,
+        mountedSkills,
+        readEvidence,
+      );
+      if (skillReadIsObservable(skill, accumulated, mountedSkills))
         observedSkills.push(skill);
     }
   }
   return observedSkills;
 }
 
+function accumulatedSkillOutput(
+  skill: string,
+  output: unknown,
+  mountedSkills: MountedSkillBody[],
+  evidence: Map<string, SkillReadEvidence>,
+): unknown {
+  const mounted = mountedSkills.find((candidate) => candidate.name === skill);
+  if (typeof output !== "string" || !mounted) return output;
+  const previous = evidence.get(skill) ?? { output: "", ranges: [] };
+  const accumulated = (previous.output + output).slice(
+    -Math.max(mounted.body.length * 4, 65536),
+  );
+  const merged = mergedSkillPageRanges(mounted.body, output, previous.ranges);
+  evidence.set(skill, { output: accumulated, ranges: merged });
+  return merged.length === 1 &&
+    merged[0]![0] === 0 &&
+    merged[0]![1] === mounted.body.length
+    ? mounted.body
+    : accumulated;
+}
+
+function mergedSkillPageRanges(
+  body: string,
+  output: string,
+  previous: Array<[number, number]>,
+): Array<[number, number]> {
+  // Only uniquely located exact slices contribute coverage, never inferred gaps.
+  const ranges = [...previous];
+  const start = output.length ? body.indexOf(output) : -1;
+  if (start >= 0 && body.lastIndexOf(output) === start)
+    ranges.push([start, start + output.length]);
+  else ranges.push(...embeddedSkillPageRanges(body, output));
+  ranges.sort((left, right) => left[0] - right[0]);
+  const merged: Array<[number, number]> = [];
+  for (const range of ranges) {
+    const last = merged.at(-1);
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([...range]);
+  }
+  return merged;
+}
+
+function embeddedSkillPageRanges(
+  body: string,
+  output: string,
+): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  const anchorSize = 64;
+  for (let start = 0; start + anchorSize <= body.length; start += anchorSize) {
+    if ((ranges.at(-1)?.[1] ?? 0) >= start + anchorSize) continue;
+    const anchor = body.slice(start, start + anchorSize);
+    if (body.indexOf(anchor) !== start || body.lastIndexOf(anchor) !== start)
+      continue;
+    const offset = output.indexOf(anchor);
+    if (offset < 0) continue;
+    ranges.push(
+      extendExactSkillPage(body, output, { start, offset, anchorSize }),
+    );
+  }
+  return ranges;
+}
+
+function extendExactSkillPage(
+  body: string,
+  output: string,
+  anchor: { start: number; offset: number; anchorSize: number },
+): [number, number] {
+  const { start, offset, anchorSize } = anchor;
+  let left = start;
+  let right = start + anchorSize;
+  const delta = offset - start;
+  while (
+    left > 0 &&
+    left + delta > 0 &&
+    body[left - 1] === output[left + delta - 1]
+  )
+    left--;
+  while (right < body.length && body[right] === output[right + delta]) right++;
+  return [left, right];
+}
+
 function skillReadIsObservable(
   skill: string,
   output: unknown,
-  requiresCompleteBody: boolean,
   mountedSkills: MountedSkillBody[],
 ): boolean {
   if (typeof output !== "string") return false;
   const hasFrontmatter = new RegExp(
     `(?:^|\\n)---\\nname:\\s*${escapeRegExp(skill)}(?:\\n|$)`,
   ).test(output);
-  if (!hasFrontmatter || !requiresCompleteBody) return hasFrontmatter;
+  if (!hasFrontmatter) return false;
   const mounted = mountedSkills.find((candidate) => candidate.name === skill);
   return !mounted || output.includes(mounted.body);
 }
@@ -595,9 +835,9 @@ function explicitSkillReads(
   );
   const isMounted = (skill: string) =>
     mounted.some(({ name }) => name === skill);
-  const observedSkills = observedSkillReads(events, roots, mounted, [
-    primary,
-  ]).filter(
+  const observedSkills = observedSkillReads(events, roots, mounted, {
+    initialSkills: [primary],
+  }).filter(
     (skill) => skill === primary || mounted.some(({ name }) => name === skill),
   );
   const attempted = events
@@ -1523,12 +1763,7 @@ function postGoalToolOperation(
 
 function postGoalCommandOperation(command: string, repoDir: string): string {
   if (/\bgit\s+(?:status|diff)\b/.test(command)) return "repository-inspection";
-  if (
-    /\b(?:bash\s+)?test\.sh\b|\b(?:bun|npm|pnpm)\s+(?:run\s+)?test\b|\bnode\s+--test\b/.test(
-      command,
-    )
-  )
-    return "verification";
+  if (executedVerification(command)) return "verification";
   if (/\bindependent-review-fixture\b/.test(command))
     return "independent-review";
   if (/\bgoal-loop\s+release-(?:staging|objective)\b/.test(command))
@@ -1539,13 +1774,30 @@ function postGoalCommandOperation(command: string, repoDir: string): string {
   return "command";
 }
 
+/** Bounded executable positions; mentions in read commands/quoted prose do not run tests. */
+function executedVerification(command: string): boolean {
+  const payload = shellPayload(command) ?? command;
+  const clauses = payload.match(/(?:[^'";&|\n]|'[^']*'|"[^"]*")+/g) ?? [];
+  return clauses.some((clause) => {
+    const executable = shellClauseExecutable(clause);
+    if (executable === "test.sh") return true;
+    if (["bash", "sh"].includes(executable ?? ""))
+      return /^\s*(?:\/[^\s]+\/)?(?:bash|sh)\s+(?:\.\/)?test\.sh(?:\s|$)/.test(
+        clause,
+      );
+    if (["bun", "npm", "pnpm"].includes(executable ?? ""))
+      return /\b(?:bun|npm|pnpm)\s+(?:run\s+)?test\b/.test(clause);
+    return executable === "node" && /\bnode\s+--test\b/.test(clause);
+  });
+}
+
 function retainedPreGoalToolEvent(
   event: CodexEvent,
   repoDir: string,
 ): unknown | undefined {
   const item = event.item;
   if (!item || typeof item.type !== "string") return undefined;
-  const command = completedCommand(event);
+  const command = finishedCommandForSkillRead(event);
   if (command) {
     const operation = postGoalCommandOperation(command, repoDir);
     return operation === "verification" || operation === "independent-review"
@@ -1680,6 +1932,7 @@ function retainedNestedApplication(event: CodexEvent): unknown | undefined {
 interface CodexRetentionStatus {
   exitCode: number;
   stderrPresent: boolean;
+  explicitlyInvokedSkill?: string;
   nativeSession?: string;
   expectedFollowUpPrompt?: string;
   spawnGuardSecret?: string;
@@ -1947,22 +2200,27 @@ function retainedCodexSkillReads(
   event: CodexEvent,
   skillsRoots: string[],
   mountedSkills: MountedSkillBody[],
-  retainedSkills: Set<string>,
+  state: {
+    retainedSkills: Set<string>;
+    readEvidence: Map<string, SkillReadEvidence>;
+  },
 ): Record<string, unknown>[] {
-  return observedSkillReads([event], skillsRoots, mountedSkills).flatMap(
-    (skill) => {
-      if (retainedSkills.has(skill)) return [];
-      retainedSkills.add(skill);
-      return [
-        {
-          type: "darrow.skill_read_probe",
-          source: "skill_file_read_probe",
-          skill,
-          status: "completed",
-        },
-      ];
-    },
-  );
+  const { retainedSkills, readEvidence } = state;
+  return observedSkillReads([event], skillsRoots, mountedSkills, {
+    initialSkills: [...retainedSkills],
+    readEvidence,
+  }).flatMap((skill) => {
+    if (retainedSkills.has(skill)) return [];
+    retainedSkills.add(skill);
+    return [
+      {
+        type: "darrow.skill_read_probe",
+        source: "skill_file_read_probe",
+        skill,
+        status: "completed",
+      },
+    ];
+  });
 }
 
 interface CodexNativeSessionEntry {
@@ -2022,6 +2280,547 @@ function codexNativeSessionEntries(session: string): {
     });
   }
   return { entries, malformed };
+}
+
+function nativeCommandText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value) || !value.every((part) => typeof part === "string"))
+    return undefined;
+  if (value.length >= 3 && (value[1] === "-lc" || value[1] === "-c"))
+    return value.slice(2).join(" ");
+  return value.join(" ");
+}
+
+function nativeSkillReadEvents(session: string): CodexEvent[] {
+  return codexNativeSessionEntries(session).entries.flatMap((entry) => {
+    const { payload } = entry;
+    const item = isRecord(payload.item) ? payload.item : undefined;
+    if (payload.type !== "item_completed" || item?.type !== "CommandExecution")
+      return [];
+    const command = nativeCommandText(item.command);
+    if (!command) return [];
+    return [
+      {
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command,
+          aggregated_output: item.aggregated_output,
+          exit_code: item.exit_code,
+          status: item.status,
+        },
+      },
+    ];
+  });
+}
+
+function acceptedNativeChildThreadIds(session: string): string[] {
+  const { entries, malformed } = codexNativeSessionEntries(session);
+  if (malformed) return [];
+  return [
+    ...new Set(
+      entries
+        .filter((entry) => isNativeSpawnCall(entry.payload))
+        .flatMap((entry) => {
+          const fields = nativeSpawnFields(entry);
+          if (!fields.callId) return [];
+          const request = { callId: fields.callId, ordinal: fields.ordinal };
+          const start = nativeSpawnStart(entries, request);
+          if (!start) return [];
+          const accepted = nativeSpawnAcceptance(
+            entries,
+            request,
+            start.agentRef,
+          );
+          return accepted !== undefined &&
+            isAcceptedNativeSpawn(request, start, accepted, true)
+            ? [start.threadId]
+            : [];
+        }),
+    ),
+  ];
+}
+
+interface CodexNativeSkillEvidence {
+  parentSession?: string;
+  observedSkills: string[];
+  additionalSkills: string[];
+  attemptedSkills: string[];
+  malformed: boolean;
+  orderConsistent: boolean;
+  preOwnerSkills: string[];
+  readDiagnostics: Record<string, unknown>[];
+}
+
+/** Diagnostic facts only; never substitute these records for observed reads. */
+export function nativeParentReadDiagnostics(
+  session: string,
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+): Record<string, unknown>[] {
+  const { entries, malformed } = codexNativeSessionEntries(session);
+  if (malformed) return [];
+  const spawn = entries.find((entry) => isNativeSpawnCall(entry.payload));
+  if (spawn && !retainedSingleNativeAgent(entries, false).length) return [];
+  const roots = codexTrackedSkillRoots(repoDir, installedSkillsRoot);
+  const mounted = mountedSkillBodies(repoDir, installedSkillsRoot);
+  const diagnostics = entries
+    .filter((entry) => !spawn || entry.ordinal < spawn.ordinal)
+    .flatMap((entry) =>
+      nativeReadDiagnosticsAtEntry(entry, repoDir, roots, mounted),
+    );
+  return diagnostics.slice(-24).map((record) => ({
+    ...record,
+    diagnostics_truncated: diagnostics.length > 24,
+  }));
+}
+
+function nativeReadDiagnosticsAtEntry(
+  entry: CodexNativeSessionEntry,
+  repoDir: string,
+  roots: string[],
+  mounted: MountedSkillBody[],
+): Record<string, unknown>[] {
+  const event = nativeSkillReadEvents(JSON.stringify(entry))[0];
+  if (!event) return [];
+  const output =
+    typeof event.item?.aggregated_output === "string"
+      ? event.item.aggregated_output
+      : "";
+  const recognized = eventSkillReads(event, roots, mounted);
+  const item = entry.payload.item as Record<string, unknown>;
+  return mounted
+    .filter(
+      (skill, index) =>
+        mounted.findIndex((other) => other.name === skill.name) === index,
+    )
+    .filter(
+      (skill) =>
+        recognized.includes(skill.name) || output.includes(skill.frontmatter),
+    )
+    .map((skill) => ({
+      type: "darrow.codex_native_read_diagnostic",
+      actor: "parent",
+      ordinal: entry.ordinal,
+      read_candidate: skill.name,
+      recognized_read: recognized.includes(skill.name),
+      complete_body_in_output: output.includes(skill.body),
+      frontmatter_in_output: output.includes(skill.frontmatter),
+      finished_command: finishedCommandForSkillRead(event) !== undefined,
+      native_read_path_binds: nativeReadPathBinds(
+        item,
+        repoDir,
+        roots,
+        skill.name,
+      ),
+      ...nativeReadShape(event, item, roots, { repoDir, skill: skill.name }),
+    }));
+}
+
+function nativeReadShape(
+  event: CodexEvent,
+  item: Record<string, unknown>,
+  roots: string[],
+  context: { repoDir: string; skill: string },
+): Record<string, unknown> {
+  const command =
+    typeof event.item?.command === "string" ? event.item.command : "";
+  const payload = shellPayload(command) ?? "";
+  const heads = payload
+    .split(/&&|\|\||[;|\n]/)
+    .filter((part) => part.trim())
+    .map((part) => {
+      const head = shellClauseExecutable(part);
+      return head && READ_DIAGNOSTIC_HEADS.has(head) ? head : "other";
+    });
+  const cwd = nativeReadWorkingDirectory(item.cwd);
+  return {
+    clause_heads: heads.slice(0, 16),
+    clause_heads_truncated: heads.length > 16,
+    mounted_root_mentioned: roots.some((root) =>
+      commandReferencesPath(payload, root),
+    ),
+    skill_filename_mentioned:
+      /(?:^|[^A-Za-z0-9._-])SKILL\.md(?=$|[^A-Za-z0-9._-])/.test(payload),
+    cwd_is_skill_directory:
+      cwd !== undefined &&
+      roots.some(
+        (root) => cwd === resolve(context.repoDir, root, context.skill),
+      ),
+  };
+}
+
+function nativeParentSkillEvidence(
+  session: string,
+  repoDir: string,
+  roots: string | string[],
+  options: {
+    children?: Array<{ threadId: string; session: string | undefined }>;
+    orderDiagnostic?: Record<string, unknown>;
+  } = {},
+): Pick<CodexNativeSkillEvidence, "preOwnerSkills" | "readDiagnostics"> {
+  return {
+    preOwnerSkills: nativePreOwnerSkillReads(session, repoDir, roots),
+    readDiagnostics: [
+      ...nativeParentReadDiagnostics(session, repoDir, roots),
+      ...nativeChildReadDiagnostics(options.children ?? [], repoDir, roots),
+      ...(options.orderDiagnostic ? [options.orderDiagnostic] : []),
+    ],
+  };
+}
+
+function nativeChildReadDiagnostics(
+  children: Array<{ threadId: string; session: string | undefined }>,
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+): Record<string, unknown>[] {
+  const roots = codexTrackedSkillRoots(repoDir, installedSkillsRoot);
+  const mounted = mountedSkillBodies(repoDir, installedSkillsRoot);
+  return children.slice(0, 8).flatMap(({ threadId, session }) => {
+    const parsed =
+      session === undefined ? undefined : codexNativeSessionEntries(session);
+    const available = parsed !== undefined && !parsed.malformed;
+    const diagnostics = available
+      ? parsed.entries.flatMap((entry) =>
+          nativeReadDiagnosticsAtEntry(entry, repoDir, roots, mounted),
+        )
+      : [];
+    const identity = { actor: "accepted_child", child_thread_id: threadId };
+    return [
+      {
+        type: "darrow.codex_native_child_skill_evidence",
+        ...identity,
+        session_status: !parsed
+          ? "unavailable"
+          : parsed.malformed
+            ? "malformed"
+            : "available",
+        command_execution_count: available
+          ? nativeSkillReadEvents(session!).length
+          : null,
+        read_diagnostic_count: available ? diagnostics.length : null,
+        children_truncated: children.length > 8,
+        diagnostics_truncated: diagnostics.length > 24,
+      },
+      ...diagnostics.slice(-24).map((record) => ({
+        ...record,
+        ...identity,
+        diagnostics_truncated: diagnostics.length > 24,
+      })),
+    ];
+  });
+}
+
+function nativeReadPathBinds(
+  item: Record<string, unknown>,
+  repoDir: string,
+  roots: string[],
+  skill: string,
+): boolean {
+  const cwd = nativeReadWorkingDirectory(item.cwd);
+  const parsed = Array.isArray(item.parsed_cmd)
+    ? item.parsed_cmd.filter(isRecord)
+    : [];
+  return (
+    cwd !== undefined &&
+    parsed.some(
+      (part) =>
+        part.type === "read" &&
+        typeof part.path === "string" &&
+        roots.some(
+          (root) =>
+            resolve(cwd, part.path as string) ===
+            resolve(repoDir, root, skill, "SKILL.md"),
+        ),
+    )
+  );
+}
+
+function nativeReadWorkingDirectory(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  if (isAbsolute(value)) return value;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol === "file:" &&
+      (!url.hostname || url.hostname === "localhost")
+    )
+      return decodeURIComponent(url.pathname);
+  } catch {
+    // Unavailable or malformed native path metadata proves no binding.
+  }
+  return undefined;
+}
+
+export function nativePreOwnerSkillReads(
+  session: string,
+  repoDir: string,
+  installedSkillsRoot: string | string[],
+): string[] {
+  const { entries, malformed } = codexNativeSessionEntries(session);
+  if (!retainedSingleNativeAgent(entries, malformed).length) return [];
+  const spawn = entries.find((entry) => isNativeSpawnCall(entry.payload));
+  if (!spawn) return [];
+  const beforeSpawn = entries
+    .filter((entry) => entry.ordinal < spawn.ordinal)
+    .map((entry) => JSON.stringify(entry))
+    .join("\n");
+  return observedSkillReads(
+    nativeSkillReadEvents(beforeSpawn),
+    codexTrackedSkillRoots(repoDir, installedSkillsRoot),
+    mountedSkillBodies(repoDir, installedSkillsRoot),
+  );
+}
+
+function anchoredStreamReadOrder(
+  stream: string,
+  roots: string[],
+  mounted: MountedSkillBody[],
+): string[] {
+  const attempts = codexEvents(stream).flatMap((event) => {
+    const output = event.item?.aggregated_output;
+    if (typeof output !== "string") return [];
+    return [...new Set(eventSkillReads(event, roots, mounted))]
+      .flatMap((name) => {
+        const frontmatter = mounted.find(
+          (skill) => skill.name === name,
+        )?.frontmatter;
+        const offset = frontmatter ? output.indexOf(frontmatter) : -1;
+        return offset >= 0 ? [{ name, offset }] : [];
+      })
+      .sort((left, right) => left.offset - right.offset)
+      .map(({ name }) => name);
+  });
+  return [...new Set(attempts)];
+}
+
+function recoveredEarlierSkillReads(
+  stream: string[],
+  native: string[],
+  firstAttempts: string[],
+): string[] {
+  return native.filter((skill, index) => {
+    const position = stream.indexOf(skill);
+    const firstAttempt = firstAttempts.indexOf(skill);
+    if (position < 0 || firstAttempt < 0) return false;
+    const crossed = native
+      .slice(index + 1)
+      .filter(
+        (other) => stream.includes(other) && stream.indexOf(other) < position,
+      );
+    return (
+      crossed.length > 0 &&
+      crossed.every((other) => firstAttempts.indexOf(other) > firstAttempt)
+    );
+  });
+}
+
+function mergeSkillReadOrders(
+  stream: string[],
+  native: string[],
+  firstAttempts: string[],
+) {
+  const recoveredEarlier = recoveredEarlierSkillReads(
+    stream,
+    native,
+    firstAttempts,
+  );
+  const observedSkills = stream.filter(
+    (skill) => !recoveredEarlier.includes(skill),
+  );
+  for (const [index, skill] of native.entries()) {
+    if (observedSkills.includes(skill)) continue;
+    const next = native
+      .slice(index + 1)
+      .find((name) => observedSkills.includes(name));
+    if (next) observedSkills.splice(observedSkills.indexOf(next), 0, skill);
+    else observedSkills.push(skill);
+  }
+  const positions = native.map((skill) => observedSkills.indexOf(skill));
+  const orderConsistent = positions.every(
+    (position, index) => index === 0 || position > positions[index - 1]!,
+  );
+  return {
+    observedSkills,
+    orderConsistent,
+    orderDiagnostic: {
+      type: "darrow.codex_native_skill_order",
+      stream_skills: stream.slice(0, 32),
+      native_skills: native.slice(0, 32),
+      anchored_stream_reads: firstAttempts.slice(0, 32),
+      recovered_earlier_skills: recoveredEarlier.slice(0, 32),
+      order_consistent: orderConsistent,
+      diagnostics_truncated: [stream, native, firstAttempts].some(
+        (order) => order.length > 32,
+      ),
+    },
+  };
+}
+
+function emptyNativeSkillEvidence(
+  initialSkills: string[],
+): CodexNativeSkillEvidence {
+  return {
+    observedSkills: initialSkills,
+    additionalSkills: [],
+    attemptedSkills: [],
+    malformed: false,
+    orderConsistent: true,
+    preOwnerSkills: [],
+    readDiagnostics: [],
+  };
+}
+
+interface CodexNativeSkillEvidenceOptions {
+  stream: string;
+  repoDir: string;
+  configRoot: string;
+  installedSkillsRoot: string | string[];
+  initialSkills: string[];
+  explicitPrimary?: string;
+}
+
+async function codexNativeSkillEvidence(
+  options: CodexNativeSkillEvidenceOptions,
+): Promise<CodexNativeSkillEvidence> {
+  const { stream, repoDir, configRoot, installedSkillsRoot, initialSkills } =
+    options;
+  const threadId = codexThreadId(stream);
+  const parentSession = threadId
+    ? await codexNativeSessionForThread(configRoot, threadId)
+    : undefined;
+  if (!parentSession) return emptyNativeSkillEvidence(initialSkills);
+  const children = await Promise.all(
+    acceptedNativeChildThreadIds(parentSession).map(async (threadId) => ({
+      threadId,
+      session: await codexNativeSessionForThread(configRoot, threadId),
+    })),
+  );
+  const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
+  const roots = codexTrackedSkillRoots(repoDir, installedSkillsRoot);
+  const { attemptedSkills, malformed, nativeSkills, childrenOrdered } =
+    nativeSessionSkillReads(
+      [parentSession, ...children.map((child) => child.session)],
+      roots,
+      mountedSkills,
+      initialSkills,
+    );
+  const { observedSkills, orderConsistent, orderDiagnostic } =
+    mergeSkillReadOrders(
+      initialSkills,
+      nativeReadOrderAfterDispatch(nativeSkills, options.explicitPrimary),
+      anchoredStreamReadOrder(stream, roots, mountedSkills),
+    );
+  const initial = new Set(initialSkills);
+  return {
+    parentSession,
+    observedSkills,
+    additionalSkills: observedSkills.filter((skill) => !initial.has(skill)),
+    attemptedSkills: [...attemptedSkills],
+    malformed,
+    orderConsistent: orderConsistent && childrenOrdered,
+    ...nativeParentSkillEvidence(parentSession, repoDir, installedSkillsRoot, {
+      children,
+      orderDiagnostic,
+    }),
+  };
+}
+
+function nativeReadOrderAfterDispatch(
+  skills: string[],
+  primary?: string,
+): string[] {
+  // The verified explicit dispatch precedes all tool reads. Rereading that
+  // owner's file is not a second selection; supporting order remains intact.
+  return primary
+    ? [primary, ...skills.filter((skill) => skill !== primary)]
+    : skills;
+}
+
+function nativeSessionSkillReads(
+  sessions: Array<string | undefined>,
+  roots: string[],
+  mountedSkills: MountedSkillBody[],
+  initialSkills: string[],
+) {
+  const attemptedSkills = new Set<string>();
+  let malformed = false;
+  let nativeSkills: string[] = [];
+  let unanchoredChildren = 0;
+  for (const [index, session] of sessions.entries()) {
+    if (!session) continue;
+    malformed ||= codexNativeSessionEntries(session).malformed;
+    const readEvents = nativeSkillReadEvents(session);
+    for (const event of readEvents)
+      for (const skill of eventSkillReads(event, roots, mountedSkills))
+        attemptedSkills.add(skill);
+    // Pages must belong to one actor; parent and child half-reads cannot combine.
+    const nextSkills = observedSkillReads(readEvents, roots, mountedSkills, {
+      initialSkills: nativeSkills,
+    });
+    if (
+      index > 0 &&
+      nextSkills.some(
+        (skill) =>
+          !nativeSkills.includes(skill) && !initialSkills.includes(skill),
+      )
+    )
+      unanchoredChildren++;
+    nativeSkills = nextSkills;
+  }
+  return {
+    attemptedSkills,
+    malformed,
+    nativeSkills,
+    childrenOrdered: unanchoredChildren <= 1,
+  };
+}
+
+function appendRetainedSkillReads(
+  retained: string,
+  skills: string[],
+  preOwnerSkills: string[] = [],
+  readDiagnostics: Record<string, unknown>[] = [],
+): string {
+  const existing = new Set(
+    retained.split("\n").flatMap((line) => {
+      try {
+        const record = JSON.parse(line) as Record<string, unknown>;
+        return record.type === "darrow.skill_read_probe" &&
+          typeof record.skill === "string"
+          ? [record.skill]
+          : [];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const additions = skills
+    .filter((skill) => !existing.has(skill))
+    .map((skill) =>
+      JSON.stringify({
+        type: "darrow.skill_read_probe",
+        source: "skill_file_read_probe",
+        skill,
+        status: "completed",
+      }),
+    );
+  const preOwner = preOwnerSkills.map((skill) =>
+    JSON.stringify({
+      type: "darrow.codex_native_pre_owner_skill_read",
+      actor: "parent",
+      pre_owner_skill: skill,
+      status: "completed",
+    }),
+  );
+  return [
+    retained,
+    ...additions,
+    ...preOwner,
+    ...readDiagnostics.map((record) => JSON.stringify(record)),
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function nativeReviewAxis(
@@ -2137,6 +2936,42 @@ function retainedRejectedNativeSpawn(
       : {}),
     ...(fields.forkTurns ? { fork_turns: fields.forkTurns } : {}),
     ...(fields.reviewAxis ? { review_axis: fields.reviewAxis } : {}),
+  };
+}
+
+function retainedUnclassifiedNativeSpawn(
+  entries: CodexNativeSessionEntry[],
+  entry: CodexNativeSessionEntry,
+  acceptanceAllowed: boolean,
+): Record<string, unknown> {
+  const record = retainedRejectedNativeSpawn(entry);
+  const fields = nativeSpawnFields(entry);
+  if (
+    !fields.callId ||
+    !fields.model ||
+    !fields.reasoningEffort ||
+    !fields.forkTurns
+  )
+    return record;
+  const request = { callId: fields.callId, ordinal: fields.ordinal };
+  const start = nativeSpawnStart(entries, request);
+  if (!start) return record;
+  const accepted = nativeSpawnAcceptance(entries, request, start.agentRef);
+  if (
+    accepted === undefined ||
+    !isAcceptedNativeSpawn(request, start, accepted, acceptanceAllowed)
+  )
+    return record;
+  // A review role is irrelevant to accepting an ordinary engineering owner.
+  return {
+    ...record,
+    status: "accepted",
+    reasons: [],
+    role: "unverified",
+    agent_ref: start.agentRef,
+    thread_id: start.threadId,
+    started_ordinal: start.ordinal,
+    accepted_ordinal: accepted,
   };
 }
 
@@ -2267,12 +3102,13 @@ export function retainedCodexNativeSessionEvidence(
       const request = nativeSpawnRequest(entry);
       return request
         ? retainedNativeSpawn(entries, request, !malformed)
-        : retainedRejectedNativeSpawn(entry);
+        : retainedUnclassifiedNativeSpawn(entries, entry, !malformed);
     });
   const waits = entries
     .map(retainedNativeWait)
     .filter((wait): wait is Record<string, unknown> => !!wait);
   return [
+    ...retainedCodexGoalControls(entries),
     ...spawns,
     ...waits,
     ...retainedSingleNativeAgent(
@@ -2320,6 +3156,10 @@ function retainedSingleNativeAgent(
       fork_turns: fields.forkTurns,
       role: "unverified",
       accepted_ordinal: accepted,
+      accepted_before_follow_up: nativeAcceptanceBeforeFeedback(
+        accepted,
+        followUpOrdinal,
+      ),
     },
     ...retainedNativeFeedback(entries, {
       accepted,
@@ -2329,8 +3169,55 @@ function retainedSingleNativeAgent(
     }),
     ...entries
       .filter((entry) => nativeParentWork(entry, accepted, start.agentRef))
-      .map(() => ({ type: "darrow.codex_native_parent_tool_after_agent" })),
+      .map(retainedNativeParentWork),
   ];
+}
+
+function nativeAcceptanceBeforeFeedback(
+  acceptedOrdinal: number,
+  followUpOrdinal: number | undefined,
+): boolean | null {
+  return followUpOrdinal === undefined
+    ? null
+    : acceptedOrdinal <= followUpOrdinal;
+}
+
+const PARENT_OPERATION_NAMES = new Set([
+  "exec",
+  "exec_command",
+  "apply_patch",
+  "write_stdin",
+  "view_image",
+  "wait",
+  "wait_agent",
+  "sleep",
+  "curr_time",
+  "list_agents",
+  "spawn_agent",
+  "followup_task",
+  "send_message",
+  "interrupt_agent",
+  "request_user_input",
+  "request_user_input_async",
+  "create_goal",
+  "get_goal",
+  "update_goal",
+]);
+
+function retainedNativeParentWork(entry: CodexNativeSessionEntry): object {
+  const { payload, ordinal } = entry;
+  return {
+    type: "darrow.codex_native_parent_tool_after_agent",
+    ordinal,
+    namespace: ["collaboration", "functions", "clock"].includes(
+      String(payload.namespace),
+    )
+      ? payload.namespace
+      : "other",
+    operation: PARENT_OPERATION_NAMES.has(String(payload.name))
+      ? payload.name
+      : "other",
+  };
 }
 
 interface NativeFeedbackContext {
@@ -2367,13 +3254,42 @@ function nativeFeedbackCallAfterAcceptance(
 function expectedNativeFeedbackEvidence(
   message: unknown,
   expected: string | undefined,
-): Record<string, boolean> {
+): Record<string, boolean | string | null> {
   if (expected === undefined) return {};
+  // Current native sessions persist collaboration message strings as opaque
+  // tokens. Comparing those bytes to the user prompt fabricates a mismatch.
+  const representation =
+    typeof message !== "string"
+      ? "unavailable"
+      : /^gAAAAA[A-Za-z0-9_-]+={0,2}$/.test(message)
+        ? "encrypted"
+        : "plaintext";
+  if (representation !== "plaintext")
+    return {
+      message_representation: representation,
+      message_matches_expected: null,
+      message_contains_expected: null,
+    };
   return {
+    message_representation: representation,
     message_matches_expected: message === expected,
     message_contains_expected:
       typeof message === "string" && message.includes(expected),
   };
+}
+
+function nativeFeedbackTarget(
+  value: unknown,
+  agentRef: string,
+): string | undefined {
+  const canonical = canonicalCodexAgentRef(value);
+  if (canonical) return canonical;
+  // The host also accepts a direct child's task name relative to /root.
+  return typeof value === "string" &&
+    /^\/root\/[a-z0-9_]+$/.test(agentRef) &&
+    value === agentRef.slice("/root/".length)
+    ? agentRef
+    : undefined;
 }
 
 function retainedNativeFeedbackEntry(
@@ -2384,7 +3300,7 @@ function retainedNativeFeedbackEntry(
   if (!nativeFeedbackCallAfterAcceptance(entry, context.accepted)) return [];
   const { payload } = entry;
   const args = nativeSpawnArguments(payload);
-  const target = canonicalCodexAgentRef(args?.target);
+  const target = nativeFeedbackTarget(args?.target, context.agentRef);
   const callId = boundedCollaborationIdentifier(payload.call_id);
   if (!target || !callId) return [];
   const outputs = entries.filter(
@@ -2437,7 +3353,10 @@ function nativeParentWork(
     payload.name === "interrupt_agent" ||
     payload.name === "send_message"
   )
-    return nativeSpawnArguments(payload)?.target !== agentRef;
+    return (
+      nativeFeedbackTarget(nativeSpawnArguments(payload)?.target, agentRef) !==
+      agentRef
+    );
   return true;
 }
 
@@ -2450,7 +3369,10 @@ export function retainedCodexEvidence(
   const events = codexEvents(stream);
   const skillsRoots = codexEvidenceSkillRoots(repoDir, installedSkillsRoot);
   const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
-  const retainedSkills = new Set<string>();
+  const retainedSkills = new Set<string>(
+    status?.explicitlyInvokedSkill ? [status.explicitlyInvokedSkill] : [],
+  );
+  const readEvidence = new Map<string, SkillReadEvidence>();
   const state: CodexRetentionState = {
     goalOwnerAccepted: false,
     goalAttestation: undefined,
@@ -2468,12 +3390,10 @@ export function retainedCodexEvidence(
   const retained = events.flatMap((event) => {
     return [
       ...retainCodexEvent(event, state, repoDir, status),
-      ...retainedCodexSkillReads(
-        event,
-        skillsRoots,
-        mountedSkills,
+      ...retainedCodexSkillReads(event, skillsRoots, mountedSkills, {
         retainedSkills,
-      ),
+        readEvidence,
+      }),
     ];
   });
   appendCodexRetentionState(retained, state, {
@@ -2525,20 +3445,31 @@ export async function retainedCodexEvidenceForThread(
     installedSkillsRoot?: string | string[];
   } = {},
 ): Promise<string> {
-  const threadId = codexThreadId(stream);
-  const nativeSession = threadId
-    ? await codexNativeSessionForThread(configRoot, threadId)
-    : undefined;
+  const installedSkillsRoot =
+    options.installedSkillsRoot ?? join(repoDir, ".agents", "skills");
+  const initialSkills = codexSkillActivation(
+    stream,
+    repoDir,
+    installedSkillsRoot,
+  ).observedSkills;
+  const native = await codexNativeSkillEvidence({
+    stream,
+    repoDir,
+    configRoot,
+    installedSkillsRoot,
+    initialSkills,
+  });
+  const nativeSession = native.parentSession;
   const status = options.status
     ? { ...options.status, nativeSession }
     : nativeSession
       ? { exitCode: 0, stderrPresent: false, nativeSession }
       : undefined;
-  return retainedCodexEvidence(
-    stream,
-    repoDir,
-    status,
-    options.installedSkillsRoot,
+  return appendRetainedSkillReads(
+    retainedCodexEvidence(stream, repoDir, status, installedSkillsRoot),
+    native.additionalSkills,
+    native.preOwnerSkills,
+    native.readDiagnostics,
   );
 }
 
@@ -2747,6 +3678,17 @@ async function codexFinalMessage(repoDir: string): Promise<string> {
     // A missing final message is observable to output checks and raw output.
     return "";
   }
+}
+
+export async function codexInitialResponseEvidence(repoDir: string): Promise<{
+  initial_response_text: string;
+  initial_response_truncated: boolean;
+}> {
+  const response = await codexFinalMessage(repoDir);
+  return {
+    initial_response_text: response.slice(0, 8000),
+    initial_response_truncated: response.length > 8000,
+  };
 }
 
 interface CodexExecution {
@@ -2996,6 +3938,8 @@ async function codexTurnOutput(options: {
   const preFeedbackWorktreeUnchanged =
     options.initialRepositoryFingerprint ===
     (await repositoryFingerprint(request.repoDir));
+  // The resume command writes to the same last-message file.
+  const initialResponse = await codexInitialResponseEvidence(request.repoDir);
   const resumed = await runCodexProcess(
     await sandboxed(
       codexResumeArgv({ ...request, threadId, prompt: followUpPrompt }),
@@ -3008,6 +3952,7 @@ async function codexTurnOutput(options: {
     thread_id: threadId,
     native_after_ordinal: nativeAfterOrdinal,
     pre_feedback_worktree_unchanged: preFeedbackWorktreeUnchanged,
+    ...initialResponse,
   });
   return {
     out: [initial.out.trimEnd(), boundary, resumed.out.trimStart()].join("\n"),
@@ -3204,6 +4149,10 @@ function codexRetentionStatus(
   return {
     exitCode: execution.code,
     stderrPresent: execution.err.trim().length > 0,
+    explicitlyInvokedSkill:
+      request.control?.activationProbe?.mode === "explicit"
+        ? request.control.activationProbe.skill
+        : undefined,
     expectedFollowUpPrompt: request.control?.followUpPrompt,
     spawnGuardSecret: execution.spawnGuardSecret,
     goalLoopPath: execution.goalLoopPath,
@@ -3216,27 +4165,13 @@ async function codexHarnessResult(
   request: HarnessRunRequest,
   execution: CodexExecution,
 ): Promise<HarnessResult> {
-  const {
-    canonicalRepoDir,
-    configRoot,
-    installedSkillsRoots,
-    out,
-    code,
-    durationMs,
-    spawnGuardSecret,
-  } = execution;
+  const { out, code, durationMs, spawnGuardSecret } = execution;
   const usage = codexTokenUsage(out);
   const ok = codexRunSucceeded(code, out);
   const resultText = await codexFinalMessage(request.repoDir);
-  const activation = codexActivationForRequest(request, execution);
-  const raw = await retainedCodexEvidenceForThread(
-    out,
-    canonicalRepoDir,
-    configRoot,
-    {
-      status: codexRetentionStatus(request, execution),
-      installedSkillsRoot: installedSkillsRoots,
-    },
+  const { activation, raw } = await codexHarnessActivationEvidence(
+    request,
+    execution,
   );
   return {
     evaluationEnforcement: spawnGuardSecret ? "enforced" : "passive",
@@ -3250,6 +4185,102 @@ async function codexHarnessResult(
     raw,
     skillActivation: { ...activation, complete: ok && activation.complete },
   };
+}
+
+export async function codexHarnessActivationEvidence(
+  request: HarnessRunRequest,
+  execution: CodexExecution,
+): Promise<{ activation: SkillActivationObservation; raw: string }> {
+  const { canonicalRepoDir, configRoot, installedSkillsRoots, out } = execution;
+  const streamActivation = codexActivationForRequest(request, execution);
+  const native = await codexNativeSkillEvidence({
+    stream: out,
+    repoDir: canonicalRepoDir,
+    configRoot,
+    installedSkillsRoot: installedSkillsRoots,
+    initialSkills: streamActivation.observedSkills,
+    explicitPrimary:
+      streamActivation.source === "explicit_invocation"
+        ? (streamActivation.primarySkill ?? undefined)
+        : undefined,
+  });
+  const activation = reconciledSkillActivation(
+    request,
+    execution,
+    streamActivation,
+    native,
+  );
+  const raw = appendRetainedSkillReads(
+    retainedCodexEvidence(
+      out,
+      canonicalRepoDir,
+      {
+        ...codexRetentionStatus(request, execution),
+        nativeSession: native.parentSession,
+      },
+      installedSkillsRoots,
+    ),
+    native.additionalSkills,
+    native.preOwnerSkills,
+    native.readDiagnostics,
+  );
+  return { activation, raw };
+}
+
+function reconciledSkillActivation(
+  request: HarnessRunRequest,
+  execution: CodexExecution,
+  streamActivation: SkillActivationObservation,
+  native: CodexNativeSkillEvidence,
+): SkillActivationObservation {
+  const explicit = request.control?.activationProbe?.mode === "explicit";
+  return {
+    ...streamActivation,
+    primarySkill: explicit
+      ? streamActivation.primarySkill
+      : (native.observedSkills[0] ?? streamActivation.primarySkill),
+    observedSkills: native.observedSkills,
+    complete:
+      !native.malformed &&
+      native.orderConsistent &&
+      (explicit
+        ? explicitRecoveredReadsComplete(request, execution, native)
+        : streamActivation.complete),
+  };
+}
+
+function explicitRecoveredReadsComplete(
+  request: HarnessRunRequest,
+  execution: CodexExecution,
+  native: CodexNativeSkillEvidence,
+): boolean {
+  const { canonicalRepoDir, installedSkillsRoots, out } = execution;
+  const probe = request.control?.activationProbe;
+  if (probe?.mode === "explicit") {
+    const dispatch = codexExplicitSkillActivation(
+      out,
+      [request.prompt, request.control?.followUpPrompt]
+        .filter((value) => value !== undefined)
+        .join("\n"),
+      probe,
+    );
+    const mounted = mountedSkillBodies(canonicalRepoDir, installedSkillsRoots);
+    const roots = codexTrackedSkillRoots(
+      canonicalRepoDir,
+      installedSkillsRoots,
+    );
+    const attempted = [
+      ...native.attemptedSkills,
+      ...codexEvents(out).flatMap((event) =>
+        eventSkillReads(event, roots, mounted),
+      ),
+    ].filter((skill) => mounted.some(({ name }) => name === skill));
+    return (
+      dispatch.complete &&
+      attempted.every((skill) => native.observedSkills.includes(skill))
+    );
+  }
+  return false;
 }
 
 /** Child usage is not reconciled by the native acceptance observer. */

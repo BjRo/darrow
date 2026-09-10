@@ -1,6 +1,6 @@
 ---
 name: ticket-to-pr
-description: Turn one exact ticket into a new-branch implementation and one verified pull request through adaptive-goal. Use only when the user explicitly invokes ticket-to-pr with one ticket ID or URL; do not select for ordinary ticket reading, implementation, feedback, or pull-request work.
+description: Start only for explicit invocation of the ticket-to-pr recipe. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-goal.
 disable-model-invocation: true
 ---
 
@@ -31,6 +31,13 @@ adaptive-goal orchestration. This explicit recipe invocation authorizes that
 delegation without a second user invocation. If no single unambiguous such
 capability is available, return `Status: launch_required`, name the missing or
 ambiguous adaptive-goal boundary, and make no mutation.
+
+Native goal controls such as `create_goal` only record or start a current-thread
+goal; they do not supply adaptive-goal's preflight and separate-owner
+orchestration. Do not call them as a substitute. If only such controls are
+available, treat the adaptive-goal capability as unavailable. A differently
+named capability is valid when it advertises the matching orchestration
+contract; do not require a fixed plugin name or path.
 
 Pass one concise request that preserves the exact ticket reference and says:
 

@@ -1,4 +1,5 @@
 id: ticket-to-pr-adaptive-goal-unavailable
+activation: positive
 invariant: TPR-C2,TPR-C4,TPR-C7
 goal_report: forbidden
 expect_head_change: false

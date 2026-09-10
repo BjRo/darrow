@@ -175,8 +175,12 @@ export function progressFrame(
 }
 
 function activationRoute(activation: ActivationLine): string {
-  if (activation.passed === null)
-    return `· ${activation.className} · source unavailable`;
+  if (activation.passed === null) {
+    const evidence = activation.source
+      ? `evidence incomplete (${activation.source})`
+      : "source unavailable";
+    return `· ${activation.className} · ${evidence}`;
+  }
   if (activation.passed)
     return activation.className === "negative"
       ? `· ${activation.targetSkill} avoided`

@@ -8,6 +8,10 @@ description: Start only for explicit adaptive-goal orchestration, preserved dele
 Prepare the goal, bind matching skills, launch one separate owner, and let that
 owner do the work. Darrow maintains no lifecycle ledger.
 
+The accepted subagent task is the goal boundary. Neither parent nor owner calls
+`create_goal` or `update_goal` to mirror this contract into a second goal
+lifecycle. Completion is the owner result relayed to the user.
+
 ## 1. Confirm authority and requested outcome
 
 Proceed only when:
@@ -40,8 +44,9 @@ Resolve the repository, then bind the bundled helper without searching:
 
 - Claude: use `${CLAUDE_PLUGIN_ROOT}/bin`; Claude substitutes the active
   plugin's absolute root in skill content.
-- Codex: use the `bin` directory two levels above the absolute `SKILL.md` path
-  that Codex activated for this skill.
+- Codex: for the activated file
+  `<plugin-root>/skills/adaptive-goal/SKILL.md`, use `<plugin-root>/bin`.
+  Starting at the directory containing `SKILL.md`, this is `../../bin`.
 
 Require the resulting `goal-loop` path to be an executable regular file. Do not
 scan the repository, plugin caches, home directory, `PATH`, or machine for an
@@ -91,8 +96,12 @@ Select readiness semantically:
 | user, repository, or delegating orchestration requires it | select |
 
 A readiness assessment preserved in this conversation counts for the exact
-scope it assessed. Do not rerun it merely because implementation is about to
-start or because no standalone artifact was written.
+scope it assessed. An accepted or approved request is not itself a readiness
+assessment: for an authoritative source, use the already-assessed branch only
+when an applicable readiness result is actually available. Completeness alone
+does not move a specification into the conversational-request omission. Do not
+rerun an existing assessment merely because implementation is about to start or
+because no standalone artifact was written.
 
 When selected, identify the exact host-advertised skill matching implementation
 readiness and invoke it now, while preflight remains read-only. Preserve its
@@ -258,6 +267,10 @@ launch a separate owner is consumed by this preflight and launch. Do not copy
 that clause into the engineering outcome, acceptance criteria, or workflow
 sequence; the launched subagent must understand that it is already the owner.
 
+Compile the remaining work from the caller-authorized entry point, preserving
+explicit prerequisites and step ordering. Do not restart completed phases or
+replace the caller's order with the selected workflow's default sequence.
+
 Use these seven fields as a completeness template. Equivalent clear prose,
 role wording, punctuation, and line wrapping are valid; this is not a shipped
 host validator. Set `workflow` to exactly one
@@ -268,10 +281,10 @@ selected identifier: `fix-bug`, `implement-feature`, `change-feature`,
 ```text
 Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.
 Outcome: <bounded result>
-Acceptance criteria: <observable outcomes>
+Acceptance criteria: <observable outcomes and required implementation properties>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
-Execution: workflow=<exact workflow identifier>; sequence=<compact workflow steps>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
-Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner pauses affected implementation and invokes required readiness for material changed scope, then strengthens affected checks within authority>; review=<bound skill and finite repair budget, or permitted omission>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives answers, corrections, constraints, cancellation and status; verify new restrictions before completion>; blockers=<semantic blocker and observe-before-retry rule>
+Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
+Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; review=<bound skill and finite repair budget, or permitted omission>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
 Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final verification, selected readiness and review outcomes, publication effects, and remaining risks or blockers>
 ```
 
@@ -298,9 +311,14 @@ Compile this human-feedback rule: a material decision first discovered after
 launch pauses repository and external mutation. The owner returns the smallest
 complete question as its paused result; no lifecycle marker is required. The
 parent relays the explicit answer verbatim to the same owner, with no lifecycle
-marker or fixed display summary. The answer grants only explicitly supplied authority, and
-the owner performs any required acknowledgement before mutation. Never choose
-a default or launch a replacement owner.
+marker or fixed display summary. The answer grants only explicitly supplied
+authority. Preserve repository-specific acknowledgement prerequisites in the
+owner contract. The owner must pass the complete received answer to that
+acknowledgement without shortening it to a selected value, and require success
+before any production edit, commit, or publication. A nonzero exit or rejection
+keeps the gate closed: correct the invocation within authority or return the
+blocker. Knowing the chosen behavior does not authorize bypassing the gate.
+Never choose a default or launch a replacement owner.
 
 Compile this blocker rule: when work cannot proceed without an external state
 change, return `Status: blocked` with the specific blocker, current evidence,
@@ -324,6 +342,9 @@ question. Apply restrictions before the next affected action.
 Add each correction or constraint to the remaining acceptance checks and verify
 it before completion. An implementation constraint requires the specified
 implementation property; equivalent output alone does not satisfy it.
+When feedback requires using an existing component, call that component from
+the implementation. Keep one source of behavior: copying or inlining its
+algorithm does not reuse the component.
 Cancellation stops further work and reports effects already performed; status alone does
 not cancel. Report unavailable live delivery or stopping controls honestly.
 Do not reinterpret a status request or restriction as new scope or publication
@@ -355,6 +376,9 @@ Read exactly one host guide completely:
 
 - Codex: [`references/codex-launch.md`](references/codex-launch.md)
 - Claude: [`references/claude-launch.md`](references/claude-launch.md)
+
+On a continuation turn, apply that guide's feedback fast path before any other
+action.
 
 The separate route-selected subagent is the sole Darrow work owner. The
 accepted Codex launch carries its concrete route. On Claude, the resolver

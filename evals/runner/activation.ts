@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type {
   ActivationClass,
   EvalCase,
@@ -126,25 +126,45 @@ export async function validateMountedActivationTarget(
 ): Promise<string[]> {
   if (evalCase.activation === undefined) return [];
   const target = activationTargetSkill(evalCase);
-  const mountedDir = (skill: string) =>
-    basename(evalCase.skillDir) === skill
-      ? evalCase.skillDir
-      : evalCase.mount_plugin_skills === true
-        ? join(dirname(evalCase.skillDir), skill)
-        : "";
   const errors: string[] = [];
   for (const skill of [target, ...(evalCase.activation_excludes ?? [])]) {
-    try {
-      const skillDir = mountedDir(skill);
-      if (!skillDir) throw new Error("not mounted");
-      await access(join(skillDir, "SKILL.md"));
-    } catch {
+    const available = await Promise.all(
+      mountedActivationDirectories(evalCase, skill).map((directory) =>
+        access(join(directory, "SKILL.md")).then(
+          () => true,
+          () => false,
+        ),
+      ),
+    );
+    if (!available.some(Boolean)) {
       errors.push(
         `${evalCase.id}: activation ${skill === target ? "target" : "exclusion"} ${skill} is absent from the mounted skill set`,
       );
     }
   }
   return errors;
+}
+
+function mountedActivationDirectories(
+  evalCase: EvalCase,
+  skill: string,
+): string[] {
+  const root = resolve(import.meta.dir, "../..");
+  const primary =
+    basename(evalCase.skillDir) === skill
+      ? [evalCase.skillDir]
+      : evalCase.mount_plugin_skills === true
+        ? [join(dirname(evalCase.skillDir), skill)]
+        : [];
+  return [
+    ...primary,
+    ...(evalCase.additional_skills ?? [])
+      .filter((directory) => basename(directory) === skill)
+      .map((directory) => resolve(root, directory)),
+    ...(evalCase.additional_plugins ?? []).map((plugin) =>
+      resolve(root, plugin, "skills", skill),
+    ),
+  ];
 }
 
 interface ActivationExpectations {

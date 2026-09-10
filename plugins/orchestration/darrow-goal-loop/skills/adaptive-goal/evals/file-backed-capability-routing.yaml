@@ -23,13 +23,14 @@ fixture:
           # Instructions
 
           Run `bash check.sh` for changes to NOTES.md.
-          Inside an active native goal, the host-advertised capabilities for an
+          The host-advertised capabilities for an
           exact ticket read, one commit, and one pull-request publication are
           available at `.agents/skills/read-ticket`,
           `.agents/skills/create-commit`, and `.agents/skills/create-pr`. The
           explicitly required independent review is available at
           `.agents/skills/independent-code-review`.
-          Adaptive-goal preflight only compiles those operations for its owner.
+          Adaptive-goal preflight gathers required read-only ticket input and
+          compiles review, commit, and publication for its owner.
         NOTES.md: |
           # Notes
         check.sh: |
@@ -42,7 +43,7 @@ fixture:
     .agents/skills/read-ticket/SKILL.md: |
       ---
       name: read-ticket
-      description: Read one exact tracker ticket by ID. Use during authorized adaptive-goal preflight when the ticket is authoritative input, or inside an active native goal when its complete contract requires that read. Remain read-only.
+      description: Read one exact tracker ticket by ID. Use during authorized adaptive-goal preflight when the ticket is authoritative input, or when the accepted owner contract requires a refresh. Remain read-only.
       ---
 
       # Read one ticket
@@ -54,7 +55,7 @@ fixture:
     .agents/skills/create-commit/SKILL.md: |
       ---
       name: create-commit
-      description: Create exactly one Conventional Commit inside an active native goal. Use when its complete contract authorizes the commit; do not use during adaptive-goal preflight.
+      description: Create exactly one Conventional Commit when the accepted owner contract authorizes the commit; do not use during adaptive-goal preflight.
       ---
 
       # Create one commit
@@ -66,7 +67,7 @@ fixture:
     .agents/skills/create-pr/SKILL.md: |
       ---
       name: create-pr
-      description: Push the current feature branch and open exactly one pull request inside an active native goal. Use when its complete contract authorizes publication; do not use during adaptive-goal preflight.
+      description: Push the current feature branch and open exactly one pull request when the accepted owner contract authorizes publication; do not use during adaptive-goal preflight.
       ---
 
       # Create one pull request

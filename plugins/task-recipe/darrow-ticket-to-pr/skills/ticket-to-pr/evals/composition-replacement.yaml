@@ -2,6 +2,11 @@ id: ticket-to-pr-composition-replacement
 invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,LC-C1,LC-C3,LC-C4,GW-P9
 expect_head_change: true
 adaptive_goal_composition: true
+activation: positive
+mount_plugin_skills: true
+activation_sequence:
+  - ticket-to-pr
+  - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-goal-loop
   - plugins/capability/darrow-readiness-gate
@@ -65,7 +70,7 @@ fixture:
       test "$1" = https://example.invalid/tickets/42
 
       printf '%s\n' 'ticket-token: GH-42' \
-        'Outcome: config.json must contain exactly {"timeoutMs":2500}.' \
+        'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
         'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
         'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
         'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.'
@@ -98,9 +103,12 @@ checks:
     run: test ! -e .git/forbidden-forge-effects
   - name: compatible replacement publishes the same intended commit
     run: grep -Fx "$(git rev-parse HEAD)" .git/replacement-publications
-output_checks:
+semantic_output_checks:
   - name: owner completion and existing URL are relayed
-    expect_regex: '^(?:\*\*)?Status: complete\b[\s\S]*https://github.com/fixture/repo/pull/42'
+    proposition: >-
+      The response unambiguously reports that delivery is complete and includes
+      the exact pull request URL https://github.com/fixture/repo/pull/42. It does
+      not present the result as blocked, incomplete, or still requiring action.
 # Composition is gated by accepted handoff, executed publication and artifacts.
 # Full supporting-skill activation remains a separate reported observation.
 transcript_checks:

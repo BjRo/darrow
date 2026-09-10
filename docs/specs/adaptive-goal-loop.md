@@ -49,7 +49,10 @@ auditing belongs to evaluation and diagnostics, not the live parent workflow.
    owner's result. It does not run post-launch shell checks, implement, verify,
    or reconstruct the engineering result.
 
-The accepted subagent task is the native goal boundary. A Codex subagent does
+The accepted subagent task is the native goal boundary. Neither parent nor
+owner mirrors the same contract into a second current-thread goal using
+`create_goal` or `update_goal`; relaying the owner's result completes the
+Darrow handoff without a separate goal lifecycle. A Codex subagent does
 not create another nested goal, and a Claude Agent does not claim session-level
 `/goal` persistence. The owner may use ordinary host-native delegation for a
 bounded subtask, but it remains responsible for the complete contract and must
@@ -83,6 +86,12 @@ reason: explicit-orchestration-entrypoint-required
 ```
 
 ## Read-only preflight
+
+The bundled helper is `<plugin-root>/bin/goal-loop`. On Codex, the activated
+file `<plugin-root>/skills/adaptive-goal/SKILL.md` binds that same plugin root.
+Relative traversal to `../../bin` starts at the directory containing
+`SKILL.md`, not at the file path. Check the helper at that exact location;
+unavailability does not authorize searching for a different installation.
 
 Before the owner is accepted, the parent may inspect the request, repository
 state, applicable instructions, accepted decisions, manifests, CI
@@ -124,6 +133,21 @@ The contract is self-contained and concise. It contains, in plain language:
 - publication limits and the completion evidence to return; and
 - the selected model route and any explicit stopping budget.
 
+The inline feedback rule makes later implementation constraints part of the
+owner's acceptance criteria before work resumes. Verifying equivalent outputs
+does not establish a required implementation property such as reuse of an
+existing component. The parent compiles this rule into the owner contract;
+leaving it only in parent-facing guidance is insufficient.
+When feedback requires using an existing component, reuse means calling that
+component from the implementation. Copying or inlining its algorithm creates
+another source of behavior and does not satisfy component reuse.
+
+The inline adaptation rule preserves reassessment for material scope,
+acceptance, constraint, and authoritative-input changes. A new caller constraint
+can invalidate readiness assumptions without changing the feature's stated
+scope. Invalidated readiness requires a new ready assessment before affected
+implementation; the original ready result cannot satisfy that gate.
+
 The seven-field template covers role, outcome, acceptance, scope and authority,
 execution, verification and gates, and completion evidence. Equivalent clear
 prose, line wrapping, punctuation, and role wording are valid. Keep the exact
@@ -132,6 +156,12 @@ permissions, gates, capability bindings, and concrete route. The shipped skill
 does not provide a host contract validator. An eval guard may enforce a stricter
 structured template as a separately identified diagnostic condition; its
 rejections do not define product behavior.
+
+The compiled sequence starts at the caller-authorized entry point and preserves
+explicit ordering and prerequisites. Workflow defaults do not restart completed
+phases or move implementation ahead of a requested review of an existing
+candidate. When the caller requires review before change, check and review that
+unchanged candidate first; repair follows the review under existing authority.
 
 The contract must be understandable without another Darrow file except the
 selected workflow document, which the parent reads and incorporates before
@@ -301,7 +331,11 @@ that no owner launched before `ready` are the evidence.
 “Already assessed” is semantic and scope-specific. A readiness result preserved
 in the current context counts when it covers the exact implementation scope and
 every finding has been resolved, even if no standalone readiness artifact was
-written. Do not invoke readiness again merely because the goal is now being
+written. Acceptance or approval of a request establishes product authority, not
+a readiness assessment. Do not infer an existing readiness result from that
+label or from the request's completeness; an unassessed authoritative source
+still selects readiness. The bounded conversational-request omission remains a
+separate selection rule. Do not invoke readiness again merely because the goal is now being
 launched. Reassess only after a material change to scope, acceptance,
 constraints, or authoritative input, or when an explicit user or repository
 rule requires another assessment.
@@ -393,12 +427,18 @@ The parent surfaces the question and retains the same owner. A later explicit
 answer is relayed verbatim to that owner. No lifecycle marker or fixed display
 summary is required.
 
-The answer grants only explicitly supplied authority. The same owner performs any required
-acknowledgement before resuming mutation. Pending feedback is neither
+The answer grants only explicitly supplied authority. The same owner supplies the
+complete answer to any required acknowledgement and requires that operation to
+succeed before resuming mutation. A rejected acknowledgement leaves the gate
+closed: correct the invocation within authority or return the blocker. Knowing
+the intended implementation does not waive the gate. Pending feedback is neither
 completion nor a terminal blocker, and no replacement owner is launched.
 
 Corrections, added constraints, cancellation, and status requests also reach
-the retained owner without requiring a pending question. When feedback is
+the retained owner without requiring a pending question. On Codex, the same
+verbatim feedback fast path handles these messages and answers to questions;
+use the host control appropriate to whether that retained owner is running
+or idle, without recompiling the engineering request. When feedback is
 delivered as a message, it preserves every user-supplied instruction and
 constraint without weakening or omission; targeting and host-required routing
 metadata remain separate. Restrictions apply before the next affected action.
@@ -518,6 +558,10 @@ Nested host processes are not an adaptive-goal fallback.
    repository behavior, not bookkeeping transitions.
 10. **AGL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation,
     and status requests remain attached to the accepted owner when supported.
+    For message-based relay, the payload equals the complete current user
+    message verbatim and exactly once; prefixes, suffixes, quotations,
+    summaries, lifecycle markers, and routing metadata do not enter that
+    payload.
 11. **AGL-L4 — Semantic blockage.** A blocker names its condition, evidence,
     and next action without a Darrow retry state machine.
 12. **AGL-L5 — Owner-sourced completion.** The parent relays the owner's
@@ -525,7 +569,9 @@ Nested host processes are not an adaptive-goal fallback.
 13. **AGL-S1 — No inferred decisions.** Missing product, safety, destructive,
     privacy, or authority choices stop before the affected mutation.
 14. **AGL-S2 — No duplicate external effect.** An ambiguous external result is
-    observed before another attempt.
+    observed before another attempt. An observed existing publication is
+    validated for reuse before claiming completion; further read-only
+    verification does not authorize another creation request.
 15. **AGL-S3 — No derived publication.** Completion or review clearance adds no
     commit, push, pull-request, merge, release, or deployment authority.
 16. **AGL-C2 — Intent-bound capabilities.** Every authorized operation with a
@@ -538,6 +584,11 @@ Nested host processes are not an adaptive-goal fallback.
     repository and external effects with passive fixture event logs under
     `.git/fixture-state/`, exact public tokens with rigid output checks, and
     paraphrasable prose contracts with fail-closed semantic output checks.
+    Fixture CLI help requests remain read-only and never count as external
+    effects or consume publication authorization.
+    Recovered skill-read record position is not temporal evidence. Pre-owner
+    read checks require complete parent-local reads before the native spawn
+    request; child reads and post-launch recovery do not establish preflight.
     Owner-boundary guards ignore only the named readiness preflight traces in
     that ledger; all product-tree and other fixture-state changes remain
     protected before owner launch.
@@ -601,6 +652,49 @@ The following invariants govern adaptation and evidence provenance:
   Compare direct execution and preflight on the same fixtures and model/effort
   routes separately from comparisons changing routes; report sample sizes,
   outcomes, timing, token-accounting completeness, and limitations.
+
+Real review-composition fixtures accept both the comprehensive result and the
+additive fix-verification protocol. Completion consumes an explicitly selected,
+validated clear artifact covering current content; a verification retains its
+binding to the original comprehensive finding set. Nonblocking advisories do
+not prevent completion. Artifact filename ordering is not evidence of recency
+or authority.
+
+Verification-cadence evals preserve required focused-before-final ordering and
+successful final evidence without inventing an exact invocation count. Repeated
+or repaired checks remain valid when their latest relevant evidence succeeds.
+An earlier repository-gate run used as a baseline is not a substitute for, nor
+a prohibition on, the required successful final-tree verification.
+Repair-budget advice evals assess the next authorized action without demanding
+that the answer restate supplied budget arithmetic or label the remaining
+attempt as final. They still reject authorization beyond the supplied budget,
+reopening unrelated findings, or bypassing required verification and publication
+gates.
+
+Complete mounted-skill reads have the same activation meaning through the
+host's login and non-login shell wrappers. Parent-before-owner evidence still
+requires a completed full body read by that parent before the accepted launch.
+For missing activation, retain bounded parent-read diagnostics for known mounted
+skills: read recognition and body-presence facts, native path binding, and
+ordering. Such diagnostics carry no private commands or output and confer no
+activation credit by themselves.
+Readiness-selection evals require actual ready evidence before affected work,
+not an invented exact assessment count. Additional read-only reassessment does
+not excuse non-ready evidence, missing assessment, or mutation before the gate.
+Composed fixture capabilities use the accepted owner contract as the execution
+boundary. They must not demand a second active current-thread goal or forbid
+the parent's required read-only input gathering. Such obsolete prerequisites
+would make a correct compatibility refusal fail an unrelated behavior oracle.
+Post-launch reassessment fixtures distinguish the initially assessed contract
+from the later authoritative constraint. A supposedly new requirement must not
+already be mandatory in the initial request or repository check. Preserve the
+final expanded-behavior oracle and evidence that reassessment preceded affected
+implementation; clarifying the fixture does not waive the owner readiness gate.
+The later input must name the affected entrypoint and its observable result;
+preserving a separate legacy helper alone must not appear to satisfy that delta.
+Launch-stop evals recognize the public `launch_required` status as a pre-launch
+stop without demanding a redundant explanatory sentence. An actual launch or
+contradictory launch claim does not satisfy that boundary.
 
 Behavior evals verify outcomes and public boundaries rather than private
 reasoning or bookkeeping. At minimum, cover:

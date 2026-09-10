@@ -15,8 +15,10 @@ fixture:
           invalidate the affected readiness assumptions.
         REQUEST.md: |
           # Accepted request
-          Add normalize(input) to src/normalize.js to trim a string. Preserve the
-          existing parser and caller compatibility. Run the repository checks.
+          Add normalize(input) to src/normalize.js to trim string inputs. The
+          current caller contract supplies strings; acceptance covers those
+          string inputs. Leave the existing parser unchanged and run the
+          repository checks.
         .readiness-verdict: "ready\n"
         package.json: '{"type":"module"}'
         src/parser.js: |
@@ -25,7 +27,7 @@ fixture:
           // Public normalization entrypoint.
         check.sh: |
           #!/usr/bin/env bash
-          node --input-type=module -e "import {normalize} from './src/normalize.js'; import assert from 'node:assert/strict'; assert.equal(normalize(' a '), 'a'); assert.equal(normalize(undefined), '');"
+          node --input-type=module -e "import {normalize} from './src/normalize.js'; import assert from 'node:assert/strict'; assert.equal(normalize(' a '), 'a');"
   setup: |
     bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD" \
     "{{case_dir}}/fixtures" codex
@@ -40,10 +42,15 @@ fixture:
         wc -l <.git/fixture-state/implementation-readiness-invocations >.git/fixture-state/initial-readiness-count
       fi
       printf '%s\n' inspected >>.git/fixture-state/caller-inspection
-      printf '%s\n' 'New material caller constraint: legacy callers pass undefined. Preserve the existing parser behavior for this input; the initial string-only readiness assumption is invalid.'
+      printf '%s\n' \
+        'New material caller constraint: callers invoke the new normalize entrypoint directly with undefined, invalidating the initial string-only readiness assumption.' \
+        'Updated acceptance: normalize(undefined) must return the empty string, matching parse(undefined). Returning undefined or throwing is incompatible. Leave the existing parser unchanged.'
 checks:
   - name: caller compatibility is verified
-    run: bash check.sh
+    run: >-
+      bash check.sh && node --input-type=module -e "import {normalize} from
+      './src/normalize.js'; import assert from 'node:assert/strict';
+      assert.equal(normalize(undefined), '');"
   - name: changed readiness is assessed by the retained owner
     run: |
       cat .git/fixture-state/implementation-readiness-invocations >&2

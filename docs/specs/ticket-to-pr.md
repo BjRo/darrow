@@ -33,6 +33,10 @@ Host-specific invocation syntax is a presentation detail. Ordinary requests to
 read or implement a ticket, work on a branch, or open a pull request do not
 activate this orchestration recipe implicitly.
 
+Explicit invocation names this recipe as the requested shortcut. An ordinary
+request describing the same delivery outcome does not grant recipe authority,
+even when its wording closely matches the recipe's delegated request.
+
 The recipe accepts the exact reference as opaque input. It does not read the
 ticket, validate its provider, derive a token, inspect the repository, choose a
 branch name, or run readiness before delegation. A missing or ambiguous
@@ -47,6 +51,13 @@ request are preserved. The recipe never invents those choices.
 The recipe invokes exactly one available capability whose advertised contract
 is adaptive-goal orchestration. The explicit recipe invocation authorizes that
 single delegation without requiring a second user invocation.
+
+Native controls that merely record or start a current-thread goal, such as
+`create_goal`, do not supply adaptive-goal's preflight and separate-owner
+orchestration. The recipe must not use them as a substitute or treat their
+availability as proof that an adaptive-goal capability is available. A
+compatible orchestration capability may have a different name; matching is
+about its advertised contract, not a fixed plugin name or path.
 
 The delegated request preserves the exact ticket reference and directs the
 adaptive goal to:
@@ -101,6 +112,10 @@ commit evidence in the relay; a PR number alone does not satisfy completion.
 A non-ready result, human-feedback request, or
 blocker remains the adaptive goal's result and next action; the recipe adds no
 retry, waiver, recovery, or status protocol.
+A rejected prerequisite followed by a request for its authorized replacement
+communicates the unresolved blocker without a status label or a redundant list
+of stopped operations. It must not claim delivery completed or will continue
+despite that unresolved prerequisite.
 
 ## Invariants
 
@@ -108,6 +123,7 @@ retry, waiver, recovery, or status protocol.
    the recipe; one exact ticket ID or URL is required.
 2. **TPR-C2 — One delegation.** A valid invocation delegates exactly once to an
    advertised adaptive-goal capability and performs no delivery work first.
+   Native current-thread goal creation is not a substitute for that delegation.
 3. **TPR-C3 — Complete envelope.** Delegation preserves the exact reference,
    current repository, ready implementation outcome, new-branch intent,
    verification, intended commits, non-force push, exactly one verified pull
@@ -136,6 +152,7 @@ retry, waiver, recovery, or status protocol.
 Behavior evals cover:
 
 - direct explicit shortcut delegation using the harness-rendered invocation;
+- delegation to a compatible orchestration capability with a different name;
 - missing or ambiguous ticket input before delegation;
 - an unavailable or ambiguous adaptive-goal boundary with no fallback work;
 - ordinary ticket or engineering intent that must not select the recipe;
@@ -147,6 +164,20 @@ Behavior evals cover:
 Cross-host claims run on both native harnesses. Composition evals assert the
 public boundary and repository outcome; adaptive-goal and capability suites own
 their detailed readiness, routing, Git, review, publication, and retry cases.
+
+A shortcut fixture's recorder proves the number of successful recorded
+handoffs. Supporting-skill read evidence establishes that the skill was loaded,
+not an independent count of logical invocations or failed delegation attempts.
+Do not label those bounded observations as complete invocation-count proof.
+
+Rejected-feedback fixtures retain bounded failure diagnostics distinguishing
+trace count/order, complete-answer equality, and unchanged production content.
+Those diagnostics expose no answer text or content hashes and do not replace
+the acknowledgement, authority, or unchanged-content acceptance requirements.
+
+Post-launch feedback fixtures provide authoritative consumer and data-impact
+scope so the intended preflight path is grounded in consequences, not inferred
+from a selector's name. A readiness result does not waive a selected review gate.
 
 ## Non-goals
 
