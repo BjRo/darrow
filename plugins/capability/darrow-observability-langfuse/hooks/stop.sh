@@ -15,7 +15,7 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 UV_NO_PROGRESS=1 uv run --quiet --frozen --project "$plugin_dir/backend" \
-  python -m darrow_observability_langfuse.cli
+  python -m darrow_observability_langfuse.cli "$@"
 status=$?
 
 if test "$status" -ne 0; then

@@ -28,7 +28,9 @@ plugin and does not change the default boundary for other plugins.
 ## Runtime contract
 
 Codex invokes the plugin on `UserPromptSubmit` to capture provisional
-attribution and on `Stop` to finalize attribution and export. Both hooks supply
+attribution and on foreground `Stop` to finalize attribution and local capture.
+`Interrupt` records explicit abortion; `SessionEnd` records a terminal watermark.
+Separate asynchronous lifecycle hooks deliver the captured envelopes. Hooks supply
 a JSON object on standard input. The Stop hook accepts a readable absolute
 `transcript_path` to a Codex rollout JSONL file. It reads that file without
 modifying it and reconstructs:
@@ -50,11 +52,15 @@ start. The hook records only its provisional fallback attribution and Git
 provenance in the plugin's writable data directory; it never persists the
 submitted prompt. The Stop payload's non-empty `turn_id` identifies the turn
 being completed and is authoritative even when the rollout writer has not
-appended its trailing `task_complete` record yet. Only rollout-completed turns
-and the current Stop turn are eligible for export. Before export, Stop records
+appended its trailing `task_complete` record yet. Only rollout-completed turns,
+the current Stop turn, and turns sealed by Interrupt or SessionEnd are eligible
+for export. Before export, Stop records
 the current turn's final fallback attribution and Git provenance atomically in
 a plugin-owned sidecar next to the rollout, replacing its provisional evidence
-for reconstruction. A rollout-aborted turn that never reaches Stop uses its
+for reconstruction. While the session is live, a completed non-aborted turn
+without its own final Stop receipt remains local. Dependent later turns remain
+local too, so their ordered attribution epochs are not frozen prematurely.
+A rollout-aborted turn that never reaches Stop uses its
 provisional snapshot. Before exporting that completed turn, Stop promotes the
 provisional snapshot into the rollout sidecar so later reconstruction cannot
 renumber an already-exported epoch. If neither snapshot exists, the trace
@@ -62,8 +68,8 @@ retains its Codex thread identifier but receives no attribution epoch or native
 Langfuse session association; missing evidence never creates an epoch
 transition.
 
-Successful ingestion adds the completed turn identifier to the rollout
-sidecar so repeated Stop events do not export it twice. Attribution evidence
+Confirmed request acceptance acknowledges the immutable turn envelope in the
+rollout sidecar so repeated Stop events do not export it again. Attribution evidence
 survives a failed export and makes a later retry independent of subsequent
 configuration, branch, or HEAD changes. Malformed JSONL records are ignored,
 but an unreadable `transcript_path`, missing original Codex thread ID, invalid
@@ -74,6 +80,69 @@ The hook fails open by default: configuration, parsing, dependency, network, or
 export failures do not block the Codex turn. An explicit strict test/debug
 setting may make those failures nonzero so installation and exporter failures
 are observable.
+
+## Incremental capture and durable delivery
+
+Foreground Stop performs only local capture. It commits its authoritative final
+receipt together with captured turn data before background delivery may contact
+Langfuse. It materializes the resolved ordered prefix as immutable delivery
+envelopes; turns behind an unresolved attribution gap remain local capture data,
+not prematurely frozen envelopes. A turn's own Stop supersedes provisional
+evidence and resolves that gap. Repeated Stop receipts retain the first final
+snapshot for retry stability. A generic index row is never a final-capture receipt.
+Codex-native asynchronous command hooks drain those envelopes at Stop and at
+later session/prompt lifecycle events. No daemon, collector, or per-tool
+streaming is introduced. A cancelled background hook leaves durable work for
+the next lifecycle invocation.
+
+Interrupt is explicit abortion and resolves its turn from provisional evidence
+unless final Stop evidence already exists. SessionEnd is the terminal watermark
+for the observed rollout identity and byte boundary: it seals remaining
+missing-Stop turns from the provisional evidence available at that boundary.
+It never substitutes current configuration or Git state for missing evidence.
+Terminally sealed or delivered evidence is not retroactively changed by a late
+hook. Appended turns after that watermark belong to the resumed live session
+and require new terminal evidence.
+
+Interrupt and SessionEnd handlers perform bounded durable local receipt writes
+only, respecting Codex's three-second maximum; SessionEnd never starts remote
+delivery. The next asynchronous session or prompt lifecycle hook resumes local
+indexing/materialization from those receipts, then drains the backlog. A private
+plugin-data registry retains rollout locations so a later session can recover
+an earlier session's sealed backlog. Termination during finalization leaves the
+receipt available for another lifecycle attempt.
+
+Capture persists a versioned JSONL cursor: rollout identity, committed byte
+offset, incomplete trailing bytes, active parser/turn state, attribution mode,
+epoch, previous effective attribution, and referenced subagent cursors. After
+initial indexing it reads only appended bytes and newly referenced subagent
+data. Replacement, truncation, or an incompatible parser version causes a safe
+rebuild from available evidence; it never invents a session, turn, or epoch.
+Validated legacy sidecars remain evidence of previously uploaded turns and
+already-final snapshots. Local unresolved turns retain redacted parser data
+until an authoritative receipt allows privacy-filtered envelope materialization.
+
+Local capture transactions and each session's single background drainer use
+separate process locks. State updates are atomic and durable. Concurrent and
+reordered hooks cannot overwrite another hook's capture or acknowledge work
+they did not deliver. Network waits never hold the capture lock.
+
+Every envelope has a stable identity, an expected observation count, a frozen
+privacy-filtered trace document, and exactly one state: `pending`,
+`acknowledged`, or `uncertain`. Definite pre-acceptance failures retain pending
+work. Confirmed complete acceptance acknowledges it. Before a network attempt,
+delivery durably records uncertainty so process termination cannot turn an
+ambiguous attempt into an automatic retry. Response loss, partial ingestion,
+or interruption after an attempt begins leaves the envelope quarantined as
+uncertain, with identity and expected count available for reconciliation.
+Uncertain envelopes are never blindly retried; this is not an exactly-once
+delivery guarantee.
+
+OTLP export uses bounded batches at the supported traces endpoint and retains
+the Langfuse SDK/version and current-ingestion headers. A trace containing one
+root and 200 observations must require exactly one exporter request. Foreground
+completion must be independent of remote delay or unavailability. Dry-run
+retains its existing full-document output and makes no durable or remote writes.
 
 ## Configuration and privacy
 
@@ -196,7 +265,8 @@ trace and work-item metadata.
    no reference to, another Darrow plugin or skill.
 2. **OLF-P2 — Host lifecycle seam.** Codex UserPromptSubmit captures
    provisional turn attribution, and a Stop payload naming a rollout is
-   sufficient to finalize the current turn, reconstruct, and export.
+   sufficient to finalize the current turn and durably capture its envelope;
+   asynchronous lifecycle hooks subsequently deliver it.
 3. **OLF-P3 — Coherent session and trace.** Each attribution epoch is one native
    Langfuse session segment whose turn, generation, tool, token, and subagent
    evidence is represented as correctly nested per-turn trace trees; every

@@ -10,7 +10,16 @@ rollout="$work_dir/rollout.jsonl"
 stderr_file="$work_dir/stderr"
 cp "$plugin_dir/tests/fixtures/main-rollout.jsonl" "$rollout"
 cp "$plugin_dir/tests/fixtures/rollout-2026-08-24-child-1.jsonl" "$work_dir/"
-payload=$(printf '{"cwd":"%s","transcript_path":"%s","hook_event_name":"Stop"}' "$repo_dir" "$rollout")
+payload=$(printf '{"session_id":"session-main","turn_id":"turn-1","cwd":"%s","transcript_path":"%s","hook_event_name":"Stop"}' "$repo_dir" "$rollout")
+
+# Foreground capture must succeed even when the endpoint is unavailable.
+printf '%s\n' "$payload" |
+  DARROW_LANGFUSE_ENABLED=true \
+  DARROW_LANGFUSE_STRICT=true \
+  LANGFUSE_PUBLIC_KEY=pk-test-not-secret \
+  LANGFUSE_SECRET_KEY=sk-must-never-appear \
+  LANGFUSE_BASE_URL=http://127.0.0.1:1 \
+  bash "$script_dir/stop.sh"
 
 set +e
 printf '%s\n' "$payload" |
@@ -21,7 +30,7 @@ printf '%s\n' "$payload" |
   LANGFUSE_PUBLIC_KEY=pk-test-not-secret \
   LANGFUSE_SECRET_KEY=sk-must-never-appear \
   LANGFUSE_BASE_URL=http://127.0.0.1:1 \
-  bash "$script_dir/stop.sh" 2>"$stderr_file"
+  bash "$script_dir/stop.sh" --drain 2>"$stderr_file"
 status=$?
 set -e
 

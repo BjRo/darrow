@@ -59,6 +59,24 @@ for (const event of ["UserPromptSubmit", "Stop"]) {
 }
 
 const entry = marketplace.plugins.find((plugin) => plugin.name === expectedName);
+for (const event of ["Stop", "UserPromptSubmit"]) {
+  const handlers = hooks.hooks[event].flatMap((registration) => registration.hooks);
+  if (!handlers.some((handler) => !handler.async && !handler.command.includes("--drain"))) {
+    throw new Error(`${event} is missing synchronous local capture`);
+  }
+  if (!handlers.some((handler) => handler.async === true && handler.command.includes("--drain"))) {
+    throw new Error(`${event} is missing native asynchronous delivery`);
+  }
+}
+if (!hooks.hooks.SessionStart.some((registration) => registration.hooks.some((handler) => handler.async === true && handler.command.includes("--drain")))) {
+  throw new Error("SessionStart cannot recover cancelled background delivery");
+}
+for (const event of ["Interrupt", "SessionEnd"]) {
+  const handlers = hooks.hooks[event]?.flatMap((registration) => registration.hooks);
+  if (!handlers?.length || handlers.some((handler) => handler.async || handler.command.includes("--drain") || handler.timeout > 3)) {
+    throw new Error(`${event} must record a bounded synchronous local receipt`);
+  }
+}
 if (!entry) throw new Error("marketplace entry is missing");
 if (entry.source !== "./plugins/capability/darrow-observability-langfuse") {
   throw new Error("marketplace entry has the wrong source");

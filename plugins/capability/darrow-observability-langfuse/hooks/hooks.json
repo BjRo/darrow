@@ -8,6 +8,12 @@
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
             "timeout": 45,
             "statusMessage": "Capturing Codex attribution"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\" --drain",
+            "async": true,
+            "timeout": 120
           }
         ]
       }
@@ -19,7 +25,47 @@
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
             "timeout": 45,
-            "statusMessage": "Exporting Codex trace to Langfuse"
+            "statusMessage": "Capturing Codex trace locally"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\" --drain",
+            "async": true,
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\" --drain",
+            "async": true,
+            "timeout": 120
           }
         ]
       }

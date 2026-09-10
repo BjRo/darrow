@@ -5,6 +5,8 @@ import json
 import os
 import re
 import tempfile
+import fcntl
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,22 @@ from .config import validate_work_item_id
 
 _CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f]")
 _GIT_HEAD = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", re.I)
+
+
+def _locked(path_for):
+    def decorate(function):
+        @wraps(function)
+        def invoke(*args, **kwargs):
+            path = path_for(*args, **kwargs)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            descriptor = os.open(f"{path}.lock", os.O_CREAT | os.O_RDWR, 0o600)
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+                return function(*args, **kwargs)
+            finally:
+                os.close(descriptor)
+        return invoke
+    return decorate
 
 
 def sidecar_path(rollout: Path) -> Path:
@@ -132,8 +150,15 @@ def _write_state_path(path: Path, state: dict[str, Any]) -> None:
                 sort_keys=True,
             )
             handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
         os.chmod(temporary, 0o600)
         os.replace(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
         temporary = None
     finally:
         if temporary is not None:
@@ -155,6 +180,7 @@ def load_provisional_attribution_snapshots(
     ]
 
 
+@_locked(lambda rollout, *args, **kwargs: sidecar_path(rollout))
 def record_attribution_snapshot(
     rollout: Path, turn_id: str, snapshot: dict[str, Any]
 ) -> None:
@@ -168,6 +194,7 @@ def record_attribution_snapshot(
     _write_state(rollout, state)
 
 
+@_locked(lambda plugin_data, session_id, *args, **kwargs: _provisional_path(plugin_data, session_id))
 def record_provisional_attribution_snapshot(
     plugin_data: Path,
     session_id: str,
@@ -185,6 +212,7 @@ def record_provisional_attribution_snapshot(
     _write_state_path(path, state)
 
 
+@_locked(lambda plugin_data, session_id, *args, **kwargs: _provisional_path(plugin_data, session_id))
 def discard_provisional_attribution_snapshots(
     plugin_data: Path, session_id: str, turn_ids: set[str]
 ) -> None:
@@ -218,6 +246,7 @@ def pending_document(document: dict[str, Any], rollout: Path) -> dict[str, Any]:
     return {**document, "traces": pending}
 
 
+@_locked(lambda rollout, *args, **kwargs: sidecar_path(rollout))
 def mark_exported_turns(rollout: Path, exported: dict[str, Any]) -> None:
     state = _load_state(rollout)
     uploaded = set(state["uploaded_turn_ids"])

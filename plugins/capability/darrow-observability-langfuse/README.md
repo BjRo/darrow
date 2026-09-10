@@ -42,8 +42,9 @@ Review and trust the plugin's hooks when Codex prompts you, then start a new
 Codex session after installation. You can inspect the registered hooks with
 `/hooks`. UV and a UV-managed Python
 `>=3.10,<3.14` are required. The locked Langfuse Python SDK requires a
-compatible Langfuse server; current SDK compatibility is documented by
-Langfuse and should be checked before connecting an older self-hosted server.
+compatible Langfuse v4 server or Langfuse Cloud. Delivery uses the supported
+OTLP traces endpoint and the v4 ingestion header. Codex must support native
+asynchronous command hooks (verified with CLI 0.153.4).
 
 ## Configure
 
@@ -51,6 +52,7 @@ Tracing is disabled until explicitly enabled. Environment variables override
 the repository file, which overrides the user file, which overrides defaults.
 
 | Environment variable              | File key          | Default                      | Purpose                                                                      |
+| --------------------------------- | ----------------- | ---------------------------- | ---------------------------------------------------------------------------- |
 | --------------------------------- | ----------------- | ---------------------------- | ---------------------------------------------------------------------------- |
 | `DARROW_LANGFUSE_ENABLED`         | `enabled`         | `false`                      | Opt into network export                                                      |
 | `DARROW_LANGFUSE_CAPTURE_CONTENT` | `capture_content` | `false`                      | Include prompt/reasoning/message/tool content and detailed invocation labels |
@@ -115,7 +117,7 @@ segments.
 At UserPromptSubmit, the plugin records the current turn's provisional
 automatic fallback, branch, and HEAD under Codex's plugin data directory. It
 does not persist the submitted prompt. At live Stop, the plugin records final
-evidence in `<rollout>.darrow-langfuse`; that final snapshot supersedes the
+evidence in `<rollout>.darrow-langfuse.sqlite3`; that final snapshot supersedes the
 current turn's provisional evidence. A failed export therefore retries with
 the original evidence even if the configuration, branch, or HEAD changes
 afterward. An interrupted turn that never reaches Stop uses its provisional
@@ -125,6 +127,15 @@ remains available by `codex.thread_id` but is not attached to a Langfuse
 session and does not create a false attribution epoch. Explicit directives
 remain in the rollout itself, so replay reconstructs the same ordered timeline.
 This state is entirely local; the plugin never contacts a tracker.
+
+A completed turn without its own final Stop receipt stays local while the
+session is live. Later turns depending on that attribution gap also stay local.
+Its own Stop resolves the gap with final evidence; Interrupt records explicit
+abortion and uses provisional evidence. SessionEnd seals any remaining
+missing-Stop turns from the provisional evidence present at its terminal
+rollout byte boundary. Missing evidence stays missing, not replaced by the
+configuration of a later session. Resumed turns appended after that watermark
+are live again and need their own terminal evidence.
 
 ## Privacy and security
 
@@ -159,12 +170,48 @@ installation and failure testing.
 The UserPromptSubmit payload's `turn_id` identifies the turn about to start and
 records a mode-`0600` provisional snapshot under `PLUGIN_DATA`. The Stop
 payload's `turn_id` identifies the turn being completed, including when the
-rollout does not yet contain its trailing `task_complete` record. Only that
-turn and other rollout-completed turns are eligible for export. The final
-current-turn snapshot is written atomically with mode `0600` to
-`<rollout>.darrow-langfuse` before export; the completed turn ID is added only
-after the exporter returns successfully. Repeated Stop hooks filter successful
-IDs, preserve retry attribution, and do not export unrelated in-progress turns.
+rollout does not yet contain its trailing `task_complete` record. Final Stop,
+explicit abortion, or SessionEnd sealing makes a captured turn eligible for
+ordered finalization. The final current-turn snapshot and receipt, incremental
+parser cursor, and resolved-prefix envelopes are committed together in a private
+SQLite sidecar. Unresolved turns remain local parser data. Stop does local
+capture only. It reads appended JSONL bytes after initial indexing, retaining
+an incomplete trailing line and active parser state. Rollout replacement,
+truncation, or an incompatible parser version rebuilds the index while keeping
+delivery evidence. Existing version-1 and legacy `.darrow-langfuse` sidecars
+are validated and imported; their uploaded-turn evidence is preserved.
+
+Separate Codex-native asynchronous Stop, UserPromptSubmit, and SessionStart
+hooks drain the backlog. One process lock serializes delivery; remote waits do
+not hold the capture transaction. Background hooks can finish out of order or
+be cancelled when Codex ends a session. Interrupt and SessionEnd are synchronous,
+local-only hooks with Codex's three-second maximum. They atomically write small
+immutable receipts under `<rollout>.darrow-langfuse-events`, without waiting
+for the capture database lock. SessionEnd never starts network delivery. A later
+asynchronous prompt/session hook finishes local finalization and catches up.
+Private `PLUGIN_DATA/langfuse-rollouts` registry entries let a different session
+recover earlier sealed backlogs. Terminal receipts survive a cancelled
+finalization attempt; no timer assumes a missing Stop will never arrive.
+No background daemon or collector runs between lifecycle invocations.
+
+An envelope is `pending`, `acknowledged`, or `uncertain`. Confirmed complete
+request acceptance acknowledges it; downstream storage is verified separately.
+Invalid URLs and other definite pre-request failures, connection refusal, and definite HTTP rejection
+leave pending work for a later invocation. The drainer records uncertainty
+before attempting delivery, so process termination, response loss, and partial
+ingestion quarantine the affected envelopes instead of blindly retrying them.
+Other pending envelopes can still drain. This does not promise exactly-once
+delivery. Each frozen envelope retains `darrow.delivery_id`, a deterministic
+trace ID, and `darrow.expected_observation_count` for manual reconciliation
+against the destination. Uncertain work stays quarantined; there is no automatic
+reset-to-pending command. Inspect the destination and retain the local evidence
+before deciding how to recover it.
+
+The SQLite file contains frozen privacy-filtered envelopes and local parser
+state, including unfinished and unresolved rollout content; protect it like the original
+rollout. Configured credential strings are redacted from persisted parser data.
+Retention follows the local rollout's retention; no automatic deletion runs.
+Dry-run remains read-only and reconstructs the full document for inspection.
 
 ## Verify
 
