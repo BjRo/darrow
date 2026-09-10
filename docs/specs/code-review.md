@@ -177,7 +177,11 @@ axis and report `not_available`. Do not invent requirements.
    Findings remain concise and actionable.
 10. **CR-C10 — Honest verdict.** `pass` requires every available axis and every
     applicable deterministic check to pass. Missing required evidence or a
-    check that cannot run produces `blocked`, not `pass`.
+    check that cannot run produces `blocked`, not `pass`. Each fresh reader's
+    bounded prompt includes the axis-status rule: an otherwise complete review
+    with only advisory findings passes; `fail` requires a blocking finding.
+    Advisory findings remain reported without being promoted to blockers merely
+    to match a status. The coordinator does not repair inconsistent judgment.
 11. **CR-C11 — Read-only operation.** The coordinator and reviewers MUST NOT
     edit product files or apply their own recommendations. Normal ignored test
     and build artifacts produced by checks are permitted.

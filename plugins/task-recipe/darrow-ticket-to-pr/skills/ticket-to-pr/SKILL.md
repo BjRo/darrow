@@ -1,6 +1,6 @@
 ---
 name: ticket-to-pr
-description: Turn one exact ticket into a new-branch implementation and one verified pull request through adaptive-goal. Use only when the user explicitly invokes ticket-to-pr with one ticket ID or URL; do not select for ordinary ticket reading, implementation, feedback, or pull-request work.
+description: Start only for explicit invocation of the ticket-to-pr recipe. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-goal.
 disable-model-invocation: true
 ---
 

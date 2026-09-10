@@ -106,6 +106,7 @@ fixture:
         'ticket-token: DAR-42' \
         'ticket: https://example.invalid/tickets/42' \
         'outcome: Export migrationMode() from src/migration.js using the policy selected through the repository decision process.' \
+        'scope: Add a pure string selector used only by the tests in this repository. There are no external callers, data conversions, persisted-format changes, deployments, or migration execution in this task.' \
         'acceptance: bash test.sh passes.'
     fixture-readiness: |
       #!/usr/bin/env bash

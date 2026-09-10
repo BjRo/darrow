@@ -7,6 +7,7 @@ import {
   codexArgv,
   codexEvalSkillsRoot,
   codexExplicitSkillActivation,
+  codexInitialResponseEvidence,
   codexNativeSessionForThread,
   codexResumeArgv,
   codexRunSucceeded,
@@ -79,6 +80,40 @@ test("builds one persistent Codex session and one exact follow-up resume", () =>
     "answer",
   ]);
   expect(resumed).not.toContain("--ephemeral");
+});
+
+test("retains bounded public first-turn output before resume overwrites it", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "darrow-codex-initial-response-"));
+  try {
+    await mkdir(join(repo, ".git"));
+    expect(await codexInitialResponseEvidence(repo)).toEqual({
+      initial_response_text: "",
+      initial_response_truncated: false,
+    });
+    const path = join(repo, ".git", "last-message.md");
+    await writeFile(path, "Which migration policy should this product use?");
+    const before = await codexInitialResponseEvidence(repo);
+    await writeFile(path, "Implemented.");
+    expect(before.initial_response_text).toBe(
+      "Which migration policy should this product use?",
+    );
+    expect(before.initial_response_truncated).toBeFalse();
+    expect(await codexInitialResponseEvidence(repo)).toEqual({
+      initial_response_text: "Implemented.",
+      initial_response_truncated: false,
+    });
+    await writeFile(path, "x".repeat(8000));
+    expect(
+      (await codexInitialResponseEvidence(repo)).initial_response_truncated,
+    ).toBeFalse();
+    await writeFile(path, "x".repeat(8000) + "excluded tail");
+    expect(await codexInitialResponseEvidence(repo)).toEqual({
+      initial_response_text: "x".repeat(8000),
+      initial_response_truncated: true,
+    });
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
 });
 
 test("keeps an ordinary Codex eval session for bounded evidence extraction", () => {
@@ -563,6 +598,9 @@ describe("Codex skill activation observation", () => {
       const commands = [
         `skills_root=${skillsRoot}; skill=grilling; cat "$skills_root/$skill/SKILL.md"`,
         `cd ${skillDirectory} && sed -n '1,80p' SKILL.md`,
+        `if test -f ${skillDirectory}/SKILL.md; then cat ${skillDirectory}/SKILL.md; fi`,
+        `if false; then printf absent; else sed -n '1,80p' ${skillDirectory}/SKILL.md; fi`,
+        `for f in ${skillDirectory}/SKILL.md; do sed -n '1,$p' "$f"; done`,
         `skill_file=$(find ${skillsRoot} -path '*/grilling/SKILL.md' -print -quit); sed -n '1,80p' "$skill_file"`,
       ];
       for (const command of commands) {
@@ -740,6 +778,12 @@ describe("Codex skill activation observation", () => {
     try {
       const commands = [
         `test -f ${skillDirectory}/SKILL.md; printf '%s' fabricated`,
+        `if test -f ${skillDirectory}/SKILL.md; then printf '%s' fabricated; fi`,
+        `if test -f ${skillDirectory}/SKILL.md; then cat /tmp/decoy/SKILL.md; fi`,
+        `for f in ${skillDirectory}/SKILL.md; do printf '%s' "$f"; done`,
+        `for f in ${skillDirectory}/SKILL.md; do cat /tmp/decoy/SKILL.md; done`,
+        `for f in /tmp/decoy/SKILL.md; do cat "$f"; done`,
+        `for f in ${skillDirectory}/SKILL.md; do f=/tmp/decoy/SKILL.md; cat "$f"; done`,
         `find ${skillsRoot} -name SKILL.md -exec printf '%s' fabricated \\;`,
         `find ${skillsRoot} -name SKILL.md -print; cat /tmp/decoy/SKILL.md; printf '%s' fabricated`,
       ];
@@ -1411,7 +1455,25 @@ describe("Codex skill activation observation", () => {
       },
     ];
     expect(proof(session(work))).toContain(parentWork);
+    expect(proof(session(work))).toContain(
+      '"namespace":"functions","operation":"exec"',
+    );
     expect(proof(session(work))).not.toContain("private shell command");
+    const unknownWork = proof(
+      session([
+        ...payloads,
+        {
+          type: "function_call",
+          namespace: "private-provider",
+          name: "private-operation",
+          arguments: '{"secret":"private-argument"}',
+        },
+      ]),
+    );
+    expect(unknownWork).toContain('"namespace":"other","operation":"other"');
+    expect(unknownWork).not.toContain("private-provider");
+    expect(unknownWork).not.toContain("private-operation");
+    expect(unknownWork).not.toContain("private-argument");
     const feedback = {
       type: "function_call",
       namespace: "collaboration",
@@ -1701,6 +1763,37 @@ describe("Codex skill activation observation", () => {
       );
       expect(retained).not.toContain("Sensitive supporting fixture skill");
       expect(retained).not.toContain("sensitive owner contract");
+      for (const complete of [true, false]) {
+        await writeFile(
+          join(sessionRoot, `rollout-2026-09-06T10-00-01-${childThread}.jsonl`),
+          entry(1, {
+            type: "item_completed",
+            item: {
+              type: "CommandExecution",
+              command: [
+                "/bin/zsh",
+                "-lc",
+                `for f in ${skillsRoot}/adaptive-goal/SKILL.md ${skillsRoot}/create-pr/SKILL.md; do sed -n '1,$p' "$f"; done`,
+              ],
+              aggregated_output:
+                primaryBody +
+                (complete ? supportingBody : supportingBody.slice(0, -10)),
+              exit_code: 0,
+              status: "completed",
+            },
+          }),
+        );
+        const loopRetained = await retainedCodexEvidenceForThread(
+          stream,
+          repoDir,
+          configRoot,
+          { installedSkillsRoot: skillsRoot },
+        );
+        expect(loopRetained.includes('"skill":"create-pr"')).toBe(complete);
+        expect(loopRetained).not.toContain(
+          "Sensitive supporting fixture skill",
+        );
+      }
     } finally {
       await rm(repoDir, { recursive: true, force: true });
       await rm(configRoot, { recursive: true, force: true });

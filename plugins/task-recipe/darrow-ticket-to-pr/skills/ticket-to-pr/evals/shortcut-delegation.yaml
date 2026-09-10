@@ -65,7 +65,7 @@ output_checks:
   - name: recipe relays the adaptive result
     expect_regex: "fixture-delegation-observed"
 transcript_checks:
-  - name: adaptive goal is invoked exactly once
+  - name: supporting adaptive-goal skill use is observed
     expect_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal"[^\n]*"status":"completed")'
   - name: recipe does not pre-run adaptive-owned capabilities
     not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")'

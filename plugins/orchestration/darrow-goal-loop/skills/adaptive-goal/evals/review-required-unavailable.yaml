@@ -38,7 +38,7 @@ checks:
     run: test ! -e .git/fixture-state/independent-review-invocations
 semantic_output_checks:
   - name: unavailable review stops launch
-    proposition: The response clearly reports that the owner could not be launched and identifies the unavailable launch boundary or required capability.
+    proposition: The response explicitly reports that owner launch is stopped, not merely that a capability is unavailable. The skill-defined status `launch_required` alone communicates this stop without an additional sentence. Claiming an owner was launched or promising to launch despite the missing capability contradicts the stop.
   - name: stop identifies the unavailable independent-review capability
     proposition: The response identifies the required independent-review capability as unavailable.
   - name: stopped run does not claim implementation completion

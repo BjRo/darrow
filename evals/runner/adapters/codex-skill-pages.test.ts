@@ -24,6 +24,100 @@ const body = [
 const midpoint = body.indexOf("Second distinct");
 const overlap = body.indexOf("First distinct");
 
+test("an explicit owner's later file reread cannot conflict with its earlier dispatch", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "darrow-owner-reread-"));
+  try {
+    const skills = join(repo, ".agents/skills");
+    const config = join(repo, ".git/codex");
+    await mkdir(join(config, "sessions"), { recursive: true });
+    const names = ["adaptive-goal", "ticket-to-pr", "create-pr"];
+    const bodies = new Map(
+      names.map((name) => [
+        name,
+        `---\nname: ${name}\ndescription: Test skill\n---\nComplete body.\n`,
+      ]),
+    );
+    for (const name of names) {
+      await mkdir(join(skills, name), { recursive: true });
+      await writeFile(join(skills, name, "SKILL.md"), bodies.get(name)!);
+    }
+    const item = (name: string) => ({
+      type: "command_execution",
+      command: `cat ${skills}/${name}/SKILL.md`,
+      aggregated_output: bodies.get(name),
+      exit_code: 0,
+      status: "completed",
+    });
+    const native = (order: string[]) =>
+      writeFile(
+        join(config, "sessions/rollout-parent.jsonl"),
+        order
+          .map((name, ordinal) =>
+            JSON.stringify({
+              ordinal,
+              payload: {
+                type: "item_completed",
+                item: { ...item(name), type: "CommandExecution" },
+              },
+            }),
+          )
+          .join("\n"),
+      );
+    const out = [
+      { type: "thread.started", thread_id: "parent" },
+      ...names.map((name) => ({ type: "item.completed", item: item(name) })),
+      { type: "turn.completed" },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+    const run = (explicit: boolean, prompt = "$ticket-to-pr") =>
+      codexHarnessActivationEvidence(
+        {
+          repoDir: repo,
+          prompt,
+          model: "gpt-5.6-terra",
+          effort: "medium",
+          control: explicit
+            ? {
+                activationProbe: {
+                  mode: "explicit",
+                  skill: "ticket-to-pr",
+                  invocation: "$ticket-to-pr",
+                },
+              }
+            : undefined,
+        },
+        {
+          canonicalRepoDir: repo,
+          configRoot: config,
+          installedSkillsRoots: [skills],
+          out,
+          err: "",
+          code: 0,
+          durationMs: 0,
+        },
+      );
+    await native(names);
+    const explicit = await run(true);
+    expect(explicit.activation.complete).toBeTrue();
+    expect(explicit.activation.observedSkills).toEqual([
+      "ticket-to-pr",
+      "adaptive-goal",
+      "create-pr",
+    ]);
+    const implicit = await run(false);
+    expect(implicit.activation.complete).toBeTrue();
+    expect(implicit.activation.observedSkills).toEqual(names);
+    expect(
+      (await run(true, "$ticket-to-pr $ticket-to-pr")).activation.complete,
+    ).toBeFalse();
+    await native(["create-pr", "adaptive-goal", "ticket-to-pr"]);
+    expect((await run(true)).activation.complete).toBeFalse();
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 async function observe(pages: string[]) {
   const repo = await mkdtemp(join(tmpdir(), "darrow-skill-pages-"));
   try {

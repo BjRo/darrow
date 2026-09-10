@@ -23,9 +23,14 @@ require_line "$skill" 'A direct shell, Git, forge,'
 require_line "$guide" '`fork_turns` set to `none`'
 require_line "$guide" '`model` set to the selected concrete Codex model'
 require_line "$guide" '`reasoning_effort` set to the selected effort'
-require_line "$guide" 'Call `followup_task` exactly once'
+# Assert the host controls, not one prose rendering of idle/active feedback.
+# Live continuation cases cover the same-owner behavior at the public seam.
+require_line "$guide" '`followup_task`'
+require_line "$guide" '`send_message`'
 
-if grep -E 'goal-loop step|Protocol ledger|create_goal|materialize-objective|darrow-native-goal-report' \
+# Mentioning a host control in a prohibition is not a lifecycle invocation.
+# Live transcript checks cover create_goal/update_goal usage, including mirrors.
+if grep -E 'goal-loop step|Protocol ledger|materialize-objective|darrow-native-goal-report' \
   "$skill" "$guide" >/dev/null; then
   fail "Codex launch surface retained removed lifecycle protocol"
 fi

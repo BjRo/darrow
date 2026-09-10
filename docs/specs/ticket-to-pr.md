@@ -33,6 +33,10 @@ Host-specific invocation syntax is a presentation detail. Ordinary requests to
 read or implement a ticket, work on a branch, or open a pull request do not
 activate this orchestration recipe implicitly.
 
+Explicit invocation names this recipe as the requested shortcut. An ordinary
+request describing the same delivery outcome does not grant recipe authority,
+even when its wording closely matches the recipe's delegated request.
+
 The recipe accepts the exact reference as opaque input. It does not read the
 ticket, validate its provider, derive a token, inspect the repository, choose a
 branch name, or run readiness before delegation. A missing or ambiguous
@@ -108,6 +112,10 @@ commit evidence in the relay; a PR number alone does not satisfy completion.
 A non-ready result, human-feedback request, or
 blocker remains the adaptive goal's result and next action; the recipe adds no
 retry, waiver, recovery, or status protocol.
+A rejected prerequisite followed by a request for its authorized replacement
+communicates the unresolved blocker without a status label or a redundant list
+of stopped operations. It must not claim delivery completed or will continue
+despite that unresolved prerequisite.
 
 ## Invariants
 
@@ -156,6 +164,20 @@ Behavior evals cover:
 Cross-host claims run on both native harnesses. Composition evals assert the
 public boundary and repository outcome; adaptive-goal and capability suites own
 their detailed readiness, routing, Git, review, publication, and retry cases.
+
+A shortcut fixture's recorder proves the number of successful recorded
+handoffs. Supporting-skill read evidence establishes that the skill was loaded,
+not an independent count of logical invocations or failed delegation attempts.
+Do not label those bounded observations as complete invocation-count proof.
+
+Rejected-feedback fixtures retain bounded failure diagnostics distinguishing
+trace count/order, complete-answer equality, and unchanged production content.
+Those diagnostics expose no answer text or content hashes and do not replace
+the acknowledgement, authority, or unchanged-content acceptance requirements.
+
+Post-launch feedback fixtures provide authoritative consumer and data-impact
+scope so the intended preflight path is grounded in consequences, not inferred
+from a selector's name. A readiness result does not waive a selected review gate.
 
 ## Non-goals
 

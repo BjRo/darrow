@@ -5,15 +5,20 @@ and contract compilation are complete.
 
 ## Feedback continuation fast path
 
-When the current user message unambiguously answers a material question from
-the retained owner, do this before any other action or response:
+When the current user message unambiguously addresses the retained owner—an
+answer, correction, new constraint, status request, or cancellation—take this
+path before any other action or response. No pending question is required.
 
-1. Call `followup_task` exactly once.
+1. Relay exactly once: use `followup_task` for an idle or paused owner, or
+   `send_message` for an owner that is still running.
 2. Set `target` to the retained canonical owner reference.
 3. Set `message` to the complete current user message byte-for-byte. Its first
    and last characters must be the user's first and last characters. Add no
    prefix, suffix, quotation, summary, explanation, or lifecycle marker.
 4. Wait for that same owner and relay its result.
+
+For explicit cancellation, also use the available stop/interrupt control and
+report its result. Do not infer that an in-flight effect was prevented.
 
 Keep `target` and all routing metadata outside `message`. Do not repeat
 preflight, readiness, routing, launch, or the feedback content on this path.
@@ -62,19 +67,15 @@ When the owner returns a material-decision question as its paused result,
 surface the complete question and retain the exact owner. The question needs no
 lifecycle marker. Do not treat the pause as completion or start another owner.
 
-On the user's later unambiguous answer in this thread, use the feedback
+On any later unambiguous feedback in this thread, use the feedback
 continuation fast path. The same transport may resume a semantically blocked
 owner when the answer clearly resolves its stated blocker; preserve the
 original contract.
 
-For corrections, new constraints, cancellation, and status requests while the
-owner is active, use the host's message control for that canonical owner
-(`send_message` when available). No pending question is required. For an idle
-retained owner use `followup_task`; never create a replacement. Relay the exact
-user feedback once under the preservation rule above. A status request does not stop execution. For explicit
-cancellation, use the host stop/interrupt control when available and report its
-result; do not claim an in-flight effect was prevented without owner or host
-evidence. Report if the host cannot deliver feedback during a running tool.
+The fast path preserves the complete user message, including implementation
+constraints; do not rewrite it as a new implementation task. A status request
+does not stop execution. Never create a replacement owner for delivery. Report
+if the host cannot deliver feedback during a running tool.
 
 The owner applies restrictions before its next affected action, reassesses
 invalidated assumptions and readiness, and strengthens checks within authority.
@@ -87,5 +88,7 @@ claim that a replacement is the same goal.
 ## Result
 
 Relay the owner's complete or blocked result without reconstructing repository
-facts or running checks in the parent. Absence of a parent-side cleanup control
-does not invalidate an otherwise completed owner.
+facts or running checks in the parent. This relay completes the handoff; do not
+create or close a mirrored current-thread goal with `create_goal` or
+`update_goal`. Absence of a parent-side cleanup control does not invalidate an
+otherwise completed owner.

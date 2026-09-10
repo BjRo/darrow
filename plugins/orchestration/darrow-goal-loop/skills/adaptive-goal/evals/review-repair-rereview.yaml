@@ -53,7 +53,9 @@ checks:
         'export const RETRY_COUNT = 3;' >.git/expected-config.js
       cmp -s .git/expected-config.js src/config.js
   - name: blocking target is repaired and fix verified
-    run: >-
+    run: |
+      # Keep bounded synthetic protocol evidence for sequence-failure diagnosis.
+      tail -n 20 .git/fixture-state/independent-review-invocations .git/fixture-state/review-events >&2
       test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 2 &&
       test "$(cut -f2 .git/fixture-state/independent-review-invocations | sed -n '1p')" = blocking &&
       test "$(cut -f2 .git/fixture-state/independent-review-invocations | sed -n '2p')" = clear &&
@@ -103,7 +105,11 @@ semantic_output_checks:
   - name: completion reports the clear fix-verification outcome
     proposition: The response says fix verification cleared the repaired change.
   - name: completion reports the prior blocking finding
-    proposition: The response reports that the initial review found a RETRY_COUNT or retry-count problem that prompted the repair.
+    proposition: >-
+      In this case, the review finding is RETRY_COUNT = 0 instead of the required
+      3. The response conveys that review found this wrong retry count, numerically
+      or as a retry-count defect. Merely listing the final value 3 or the final
+      clear review verdict is insufficient.
 transcript_checks:
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'goal-loop step|Protocol ledger|"tool":"create_goal"'

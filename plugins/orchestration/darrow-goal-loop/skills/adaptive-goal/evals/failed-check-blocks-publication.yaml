@@ -46,7 +46,7 @@ fixture:
     .agents/skills/create-commit/SKILL.md: |
       ---
       name: create-commit
-      description: Create exactly one Conventional Commit inside an active native goal after every required check and review gate clears.
+      description: Create exactly one authorized Conventional Commit after every required check and review gate clears.
       ---
 
       # Create one commit
