@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 from langfuse import Langfuse
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
@@ -66,6 +67,19 @@ class FakeClient:
 
 
 class ExportDocumentTest(unittest.TestCase):
+    def test_root_and_200_observations_use_one_bounded_batch(self):
+        batches = []
+        config = Config(enabled=True, public_key="pk-batch-regression", secret_key="sk-test")
+        document = {"traces": [{"name": "Codex Turn", "observations": [
+            {"name": "tool", "type": "tool"} for _ in range(200)
+        ]}]}
+        with patch(
+            "darrow_observability_langfuse.export.SingleAttemptExporter.export",
+            side_effect=lambda spans: batches.append(len(spans)) or SpanExportResult.SUCCESS,
+        ):
+            export_document(document, config)
+        self.assertEqual(batches, [201])
+
     def _exported_spans(self, *, public_key, work_item_id=None):
         config = Config(
             enabled=True,

@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from darrow_observability_langfuse.sidecar import (
@@ -18,6 +19,16 @@ from darrow_observability_langfuse.sidecar import (
 
 
 class SidecarTest(unittest.TestCase):
+    def test_concurrent_provisional_snapshots_do_not_lose_updates(self):
+        snapshot = {"work_item_id": None, "source": "none", "branch": None, "head": None}
+        with tempfile.TemporaryDirectory() as directory:
+            plugin_data = Path(directory)
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                list(executor.map(lambda index: record_provisional_attribution_snapshot(
+                    plugin_data, "session", str(index), snapshot), range(32)))
+            self.assertEqual(set(load_provisional_attribution_snapshots(plugin_data, "session")),
+                             {str(index) for index in range(32)})
+
     def test_provisional_snapshot_is_private_immutable_and_discardable(self):
         snapshot = {
             "work_item_id": "issue-45",

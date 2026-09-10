@@ -9,8 +9,21 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from darrow_observability_langfuse.cli import run
+from darrow_observability_langfuse.cli import run as hook_run
+from darrow_observability_langfuse.capture import database
+from darrow_observability_langfuse.export import DeliveryFailure
 from darrow_observability_langfuse.config import Config
+
+
+def run():
+    """Exercise the two host invocations in order for compatibility assertions."""
+    import sys
+    payload = json.loads(sys.stdin.getvalue())
+    result = hook_run()
+    if result == 0 and payload.get("hook_event_name") == "Stop":
+        with patch("sys.stdin", StringIO(json.dumps(payload))):
+            return hook_run(background=True)
+    return result
 
 
 class CliTest(unittest.TestCase):
@@ -495,19 +508,20 @@ class CliTest(unittest.TestCase):
             )
             exported: list[dict] = []
 
-            self._run_stop(
-                rollout,
-                "turn-6",
-                exported,
-                config=Config(
+            for index in range(1, 7):
+                self._run_stop(
+                    rollout,
+                    f"turn-{index}",
+                    exported,
+                    config=Config(
                     enabled=True,
                     public_key="pk-test",
                     secret_key="sk-test",
                     work_item_id="DEFAULT-1",
                 ),
-            )
+                )
 
-        traces = exported[0]["traces"]
+        traces = [trace for document in exported for trace in document["traces"]]
         self.assertEqual(
             [trace["metadata"].get("darrow.work_item_id") for trace in traces],
             ["ISSUE-60", "ISSUE-60", "ISSUE-61", None, None, "DEFAULT-1"],
@@ -590,7 +604,7 @@ class CliTest(unittest.TestCase):
             )
 
             def reject_export(_document: dict, _config: Config) -> int:
-                raise RuntimeError("temporary export failure")
+                raise DeliveryFailure("pending", "temporary pre-acceptance failure")
 
             self.assertEqual(
                 self._invoke_stop(rollout, repo, "turn-1", config, reject_export),
@@ -889,10 +903,8 @@ class CliTest(unittest.TestCase):
             )
 
             self.assertNotIn("issue-60", json.dumps(exported))
-            self.assertNotIn(
-                "issue-60",
-                Path(f"{rollout}.darrow-langfuse").read_text(encoding="utf-8"),
-            )
+            with database(rollout) as connection:
+                self.assertNotIn("issue-60", json.dumps([tuple(row) for row in connection.execute("SELECT * FROM snapshots")]))
             trace = exported[0]["traces"][0]
             self.assertNotIn("darrow.work_item_id", trace["metadata"])
             self.assertEqual(trace["metadata"]["darrow.attribution_source"], "none")
@@ -990,7 +1002,7 @@ class CliTest(unittest.TestCase):
             [["turn-1"], ["turn-2"]],
         )
 
-    def test_stop_does_not_export_an_unrelated_incomplete_turn(self):
+    def test_stop_keeps_unrelated_incomplete_turn_and_dependent_current_local(self):
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             records = [
@@ -1036,13 +1048,7 @@ class CliTest(unittest.TestCase):
 
             self._run_stop(rollout, "current", exported)
 
-        self.assertEqual(
-            [
-                trace["metadata"]["codex.turn_id"]
-                for trace in exported[0]["traces"]
-            ],
-            ["current"],
-        )
+        self.assertEqual(exported, [])
 
     def _run_stop(
         self,

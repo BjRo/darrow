@@ -8,14 +8,13 @@ from typing import Any
 
 from .config import Config, load_config
 from .export import export_document
+from .capture import capture, load_capture_snapshots
+from .delivery import await_capture, drain
+from .lifecycle import record_terminal, registered_rollouts
 from .rollout import attribution_snapshot, trace_document
 from .sidecar import (
-    discard_provisional_attribution_snapshots,
     load_attribution_snapshots,
     load_provisional_attribution_snapshots,
-    mark_exported_turns,
-    pending_document,
-    record_attribution_snapshot,
     record_provisional_attribution_snapshot,
 )
 
@@ -83,7 +82,7 @@ def _completed_turn_ids(document: dict[str, Any]) -> set[str]:
     return result
 
 
-def run() -> int:
+def run(*, background: bool = False) -> int:
     config: Config | None = None
     try:
         hook_input = _read_hook_input()
@@ -94,8 +93,46 @@ def run() -> int:
             return 0
         hook_event_name = hook_input.get("hook_event_name")
         session_id = _required_identifier(hook_input.get("session_id"), "session_id")
-        turn_id = _required_identifier(hook_input.get("turn_id"), "turn_id")
         plugin_data = _plugin_data()
+        if background:
+            if config.dry_run:
+                return 0
+            transcript_path = hook_input.get("transcript_path")
+            if not config.public_key or not config.secret_key:
+                raise ValueError("Langfuse credentials are missing")
+            valid_path = isinstance(transcript_path, str) and Path(transcript_path).is_absolute()
+            if hook_event_name == "Stop":
+                if not valid_path:
+                    raise ValueError("hook input is missing transcript_path")
+                if not await_capture(Path(transcript_path), _required_identifier(hook_input.get("turn_id"), "turn_id")):
+                    raise ValueError("foreground capture has not completed")
+                drain(Path(transcript_path), config, exporter=export_document, plugin_data=plugin_data)
+            elif hook_event_name in {"SessionStart", "UserPromptSubmit"}:
+                targets = list(registered_rollouts(plugin_data))
+                if valid_path:
+                    targets.append((Path(transcript_path).resolve(), session_id))
+                failure = None
+                for path, identifier in dict.fromkeys(targets):
+                    try:
+                        capture(path, config, cwd, identifier, None, plugin_data)
+                        drain(path, config, exporter=export_document, plugin_data=plugin_data)
+                    except Exception as error:
+                        failure = error  # One stale session cannot starve another backlog.
+                if failure is not None:
+                    raise failure
+            else:
+                raise ValueError("hook input has an unsupported background event")
+            return 0
+        if hook_event_name in {"Interrupt", "SessionEnd"}:
+            if config.dry_run:
+                return 0
+            transcript_path = hook_input.get("transcript_path")
+            if not isinstance(transcript_path, str):
+                raise ValueError("hook input is missing transcript_path")
+            terminal_turn = _required_identifier(hook_input.get("turn_id"), "turn_id") if hook_event_name == "Interrupt" else None
+            record_terminal(Path(transcript_path), session_id, hook_event_name, terminal_turn, config, plugin_data)
+            return 0
+        turn_id = _required_identifier(hook_input.get("turn_id"), "turn_id")
         if hook_event_name == "UserPromptSubmit":
             if config.dry_run:
                 return 0
@@ -114,7 +151,14 @@ def run() -> int:
         if not isinstance(transcript_path, str) or not transcript_path:
             raise ValueError("hook input is missing transcript_path")
         rollout = Path(transcript_path)
-        snapshots = load_attribution_snapshots(rollout)
+        if not rollout.is_absolute():
+            raise ValueError("transcript_path must name a readable absolute file")
+        if not config.dry_run:
+            if not config.public_key or not config.secret_key:
+                raise ValueError("Langfuse credentials are missing")
+            capture(rollout, config, cwd, session_id, turn_id, plugin_data)
+            return 0
+        snapshots = {**load_attribution_snapshots(rollout), **load_capture_snapshots(rollout)}
         provisional = (
             load_provisional_attribution_snapshots(plugin_data, session_id)
             if plugin_data is not None
@@ -138,28 +182,6 @@ def run() -> int:
             json.dump(document, sys.stdout, separators=(",", ":"), sort_keys=True)
             sys.stdout.write("\n")
             return 0
-        if not config.public_key or not config.secret_key:
-            raise ValueError("Langfuse credentials are missing")
-        record_attribution_snapshot(rollout, turn_id, current_snapshot)
-        if plugin_data is not None:
-            discard_provisional_attribution_snapshots(
-                plugin_data, session_id, {turn_id}
-            )
-        pending = pending_document(document, rollout)
-        if not pending["traces"]:
-            return 0
-        pending_turn_ids = _completed_turn_ids(pending)
-        for pending_turn_id in sorted(pending_turn_ids):
-            snapshot = effective_snapshots.get(pending_turn_id)
-            if snapshot is not None:
-                record_attribution_snapshot(rollout, pending_turn_id, snapshot)
-        export_document(pending, config)
-        mark_exported_turns(rollout, pending)
-        if plugin_data is not None:
-            discard_provisional_attribution_snapshots(
-                plugin_data, session_id, pending_turn_ids
-            )
-        return 0
     except Exception as error:  # The hook is fail-open unless strict mode is explicit.
         _diagnose(str(error), config=config)
         strict = config.strict if config is not None else _environment_true("DARROW_LANGFUSE_STRICT")
@@ -167,7 +189,7 @@ def run() -> int:
 
 
 def main() -> None:
-    raise SystemExit(run())
+    raise SystemExit(run(background="--drain" in sys.argv[1:]))
 
 
 if __name__ == "__main__":

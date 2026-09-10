@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import re
 from pathlib import Path
 from typing import Any
@@ -326,12 +327,21 @@ def load_rollout(path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def parse_rollout(records: list[dict[str, Any]]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    session = {"session_id": None, "is_subagent": False}
+def parse_rollout(
+    records: list[dict[str, Any]],
+    *,
+    state: dict[str, Any] | None = None,
+    finalize: bool = True,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    session = (state or {}).get("session", {"session_id": None, "is_subagent": False})
     turns: list[dict[str, Any]] = []
-    turn: dict[str, Any] | None = None
-    step: dict[str, Any] | None = None
-    tools: dict[str, dict[str, Any]] = {}
+    turn = (state or {}).get("turn")
+    step = (state or {}).get("step")
+    tools = {
+        tool["call_id"]: tool
+        for item in ((turn or {}).get("steps", []) + ([step] if step else []))
+        for tool in item["tools"]
+    }
 
     def ensure_turn(timestamp: str) -> dict[str, Any]:
         nonlocal turn
@@ -477,7 +487,13 @@ def parse_rollout(records: list[dict[str, Any]]) -> tuple[dict[str, Any], list[d
         elif event_type == "turn_aborted":
             close_turn(timestamp, completed=True, aborted=True)
 
-    close_turn(str(records[-1].get("timestamp") if records else ""), completed=False, aborted=False)
+    if state is not None:
+        state.update(session=session, turn=turn, step=step)
+    if finalize:
+        # The preview must not close the persisted active parser state.
+        if state is not None:
+            turn, step = copy.deepcopy((turn, step))
+        close_turn(str(records[-1].get("timestamp") if records else (turn or {}).get("end_time", "")), completed=False, aborted=False)
     return session, turns
 
 
@@ -532,6 +548,7 @@ def _turn_observations(
     config: Config,
     attribution: dict[str, Any],
     visited: set[Path],
+    subagent_loader: Any = None,
 ) -> list[dict[str, Any]]:
     observations = []
     for step in turn["steps"]:
@@ -573,7 +590,10 @@ def _turn_observations(
         if child_path is None or child_path in visited:
             continue
         visited.add(child_path)
-        child_session, child_turns = parse_rollout(load_rollout(child_path))
+        child_session, child_turns = (
+            subagent_loader(child_path) if subagent_loader is not None
+            else parse_rollout(load_rollout(child_path))
+        )
         if child_session.get("session_id") != thread_id:
             raise ValueError(
                 "subagent rollout thread ID does not match the spawned thread"
@@ -597,6 +617,7 @@ def _turn_observations(
                     config,
                     attribution,
                     visited,
+                    subagent_loader,
                 ),
             }
             if config.capture_content:
@@ -612,11 +633,14 @@ def trace_document(
     cwd: str,
     *,
     attribution_snapshots: dict[str, dict[str, Any]] | None = None,
+    parsed: tuple[dict[str, Any], list[dict[str, Any]]] | None = None,
+    attribution_state: dict[str, Any] | None = None,
+    subagent_loader: Any = None,
 ) -> dict[str, Any]:
     if not path.is_absolute():
         raise ValueError("transcript_path must name a readable absolute file")
     path = path.resolve()
-    session, turns = parse_rollout(load_rollout(path))
+    session, turns = parsed if parsed is not None else parse_rollout(load_rollout(path))
     if not isinstance(session.get("session_id"), str):
         raise ValueError("rollout is missing a valid Codex thread ID")
     thread_id = _redacted_metadata_string(session["session_id"], config)
@@ -628,10 +652,11 @@ def trace_document(
         if attribution_snapshots is None
         else None
     )
-    mode = "auto"
-    explicit_work_item_id: str | None = None
-    epoch = 0
-    previous_key: tuple[str, str | None] | None = None
+    timeline = attribution_state if attribution_state is not None else {}
+    mode = timeline.get("mode", "auto")
+    explicit_work_item_id = timeline.get("explicit_work_item_id")
+    epoch = timeline.get("epoch", 0)
+    previous_key = tuple(timeline["previous_key"]) if timeline.get("previous_key") else None
     for turn in turns:
         directive = _attribution_directive(turn.get("input"))
         if directive is not None:
@@ -689,11 +714,13 @@ def trace_document(
             "end_time": turn["end_time"],
             "metadata": _metadata(turn, session, attribution, config),
             "observations": _turn_observations(
-                path, turn, session, config, attribution, visited
+                path, turn, session, config, attribution, visited, subagent_loader
             ),
         }
         if config.capture_content:
             trace["input"] = _captured(turn.get("input"), config)
             trace["output"] = _captured(turn.get("output"), config)
         traces.append(trace)
+    timeline.update(mode=mode, explicit_work_item_id=explicit_work_item_id,
+                    epoch=epoch, previous_key=previous_key)
     return {"status": "dry-run", "traces": traces}
