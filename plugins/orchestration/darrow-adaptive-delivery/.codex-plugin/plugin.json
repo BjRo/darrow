@@ -1,6 +1,6 @@
 {
   "name": "darrow-adaptive-delivery",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "Adaptive Delivery: ready and compile bounded engineering requests, then launch one routed subagent owner",
   "author": {
     "name": "Björn Rochel",

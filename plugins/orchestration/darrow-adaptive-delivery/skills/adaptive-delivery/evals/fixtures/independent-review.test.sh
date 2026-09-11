@@ -130,6 +130,31 @@ if bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$review_c
   exit 1
 fi
 
+for final_outcome in clear continue no_progress; do
+  rm -f "$repo/.git/fixture-state/independent-review-invocations"
+  printf '%s\t%s\t%s\n' \
+    blocking 'original blocker' '' \
+    continue 'Original cause narrowed to null input' '' \
+    "$final_outcome" 'Remaining original blocker' '' >"$repo/.git/fixture-review-sequence"
+  printf '%s\n' 'initial candidate' >"$repo/candidate.txt"
+  bash "$repo/.agents/bin/independent-review-fixture" "$repo" comprehensive "$review_contract" >/dev/null
+  printf '%s\n' 'first repair' >"$repo/candidate.txt"
+  result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$review_contract")
+  grep -Fx 'Fix verification: continue.' <<<"$result" >/dev/null
+  grep -F 'Original cause narrowed to null input' <<<"$result" >/dev/null
+  printf '%s\n' 'second repair' >"$repo/candidate.txt"
+  result=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" verify "$review_contract")
+  grep -Fx "Fix verification: $final_outcome." <<<"$result" >/dev/null
+  test "$(cut -f3 "$repo/.git/fixture-state/independent-review-invocations" | tr '\n' ' ')" = 'comprehensive verify verify '
+  test "$(cut -f1 "$repo/.git/fixture-state/independent-review-invocations" | sort -u | wc -l | tr -d ' ')" -eq 3
+  current_target=$(bash "$repo/.agents/bin/independent-review-fixture" "$repo" fingerprint)
+  grep -Fx "Reviewed target: $current_target" <<<"$result" >/dev/null
+  if bash "$repo/.agents/bin/independent-review-fixture" "$repo" comprehensive "$review_contract" >/dev/null 2>&1; then
+    printf '%s\n' 'comprehensive review reset the closed finding set' >&2
+    exit 1
+  fi
+done
+
 rm -f "$repo/.git/fixture-state/independent-review-invocations"
 printf '%s\t%s\t%s\n' \
   blocking 'unavailable sequence blocker' '' \

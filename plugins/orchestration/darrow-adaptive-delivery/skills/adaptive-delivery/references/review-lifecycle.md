@@ -35,7 +35,9 @@ checks of the same behavior are permitted.
 Unresolved ineligible blockers stop the goal; advisories remain non-gating
 residual risks.
 
-Default to one repair attempt followed by one fix verification. Before launch,
+Default to at most two repair attempts, each followed by one fix verification.
+Stop as soon as verification clears; the second attempt requires material
+progress in the first verification. Before launch,
 include that limit or an explicit user/repository nonnegative integer maximum
 number of repair attempts in the contract, together with any review-invocation,
 time, or token limit. Apply the strictest applicable limit. An unbounded
@@ -48,12 +50,16 @@ and current check evidence. Verification covers those findings and direct
 repair-caused regressions; it is not a new comprehensive review.
 
 Only a clear verification satisfies the gate. A further attempt is allowed
-only within the explicit budget and when the preceding verification shows
+only within the configured budget and when the preceding verification shows
 material progress: resolved original blockers or changed evidence narrowing a
 remaining cause. Different wording or another speculative edit is not progress.
 Keep the original finding set plus direct repair-caused regressions closed;
 do not start another comprehensive review to reset the budget. The same owner
 applies these rules without a parent-side repair controller.
+
+Without an explicit override, an uncleared second verification exhausts the
+budget even if it shows progress. An explicit finite user/repository maximum
+replaces the default; it may raise or lower it, including to zero.
 
 Unchanged evidence, unavailable or inconclusive verification, no material
 progress, exhausted budget, or missing authority stops affected work,

@@ -6,6 +6,46 @@ import { runChecks } from "./checks";
 import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
+test("ticket-to-pr options oracle preserves a stricter caller repair limit", async () => {
+  const path = resolve(
+    import.meta.dir,
+    "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/explicit-options-delegation.yaml",
+  );
+  const evalCase = parse(await readFile(path, "utf8")) as EvalCase;
+  const repoDir = await buildFixture({
+    skillDir: "",
+    skillMounts: [],
+    fixture: { commits: evalCase.fixture.commits, bin: evalCase.fixture.bin },
+  });
+  try {
+    const record =
+      "record-ticket-to-pr-options https://example.invalid/tickets/99 release/2.x draft";
+    const results = await runChecks(repoDir, [
+      { name: "missing repair limit is rejected", run: record, exit_code: 1 },
+      {
+        name: "default cannot replace explicit limit",
+        run: `${record} 2 && (${evalCase.checks[0]!.run})`,
+        exit_code: 1,
+      },
+      {
+        name: "omitted caller limit fails the oracle",
+        run: `${record} unspecified && (${evalCase.checks[0]!.run})`,
+        exit_code: 1,
+      },
+      { name: "explicit limit is accepted", run: `${record} 1` },
+      evalCase.checks[0]!,
+      {
+        name: "changed receipt fails the oracle",
+        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.git/ticket-to-pr-options && (${evalCase.checks[0]!.run})`,
+        exit_code: 1,
+      },
+    ]);
+    expect(results.filter((result) => !result.passed)).toEqual([]);
+  } finally {
+    await destroyFixture(repoDir);
+  }
+});
+
 for (const variant of ["existing-pr", "replacement"]) {
   test(`composition ${variant} ticket and oracle agree on trailing newlines`, async () => {
     const path = resolve(

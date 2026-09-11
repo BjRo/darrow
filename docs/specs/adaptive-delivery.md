@@ -406,8 +406,8 @@ originating authority, repository standards, and successful check evidence. A
 clear result satisfies the review gate for that content, but cannot waive a
 failed required check. A blocking result prevents completion and publication.
 
-When existing authority covers repair, default to one closed-set repair and
-one fix verification after invalidated checks. An explicit finite nonnegative
+When existing authority covers repair, default to at most two closed-set repair
+attempts, each followed by fix verification after invalidated checks. An explicit finite nonnegative
 integer user or repository repair budget may change that limit. Apply the
 strictest applicable invocation, time, token, and authority limit. Additional
 attempts require the preceding verification to show resolved original blockers
@@ -662,13 +662,17 @@ The following invariants govern adaptation and evidence provenance:
   parent may invoke necessary advertised read-only capabilities to retrieve
   authoritative input, including a referenced ticket. Preserve their evidence
   and bind future operations by intent. Retrieval grants no mutation authority.
-- **ADL-A4 — Budgeted closed-set repair.** Default to one repair plus one fix
-  verification. An explicit finite user or repository budget may allow more;
+- **ADL-A4 — Budgeted closed-set repair.** Default to at most two repair attempts,
+  each followed by fix verification. An explicit finite user or repository budget
+  may raise or lower this maximum;
   each additional attempt requires changed evidence showing material progress
   against the original blockers or direct repair regressions. Unchanged,
   inconclusive, unavailable, out-of-scope, or exhausted evidence stops affected
   work and publication. Only clear verification of current content clears the
   gate. The same owner applies the limit; no parent repair controller is added.
+  Clear verification ends repair immediately; unused attempts are not required.
+  Without an explicit override, an uncleared second verification exhausts the
+  budget even when it shows progress. An unbounded request does not raise it.
 - **ADL-A5 — Semantic presentation.** The seven contract fields are a
   completeness template. Equivalent clear prose, line wrapping, punctuation,
   status presentation, and role wording are valid. Preserve exact tool keys,
