@@ -19,7 +19,6 @@
       "sources": ["docs/getting-started.md", "docs/installing-plugins.md"],
       "answer_points": [
         "Read-only readiness assessment",
-        "Fresh session after installation",
         "A non-ready verdict can be a successful assessment"
       ],
       "evidence": "authoritative",
