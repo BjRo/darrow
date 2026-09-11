@@ -447,3 +447,25 @@ for paraphrases, and an unresolved answer rather than invented agreement when
 the claim cannot be located. The unchanged conflict check remains the acceptance
 probe; affected conflict/unknown cases and the remaining inventory cases are next.
 This recurrence limits reliability claims even when a later single trial passes.
+
+The focused prose correction at `22bbf48` passed Codex conflict but failed Claude
+conflict again in `2026-09-11T17-00-26-733Z`: it substituted root/category READMEs
+for the disputed plugin source and denied the contradictory claim existed.
+That result remains an unresolved behavioral failure, not a passing suite.
+
+Following the authoring rule for repeated, error-prone mechanics, ambiguous
+plugin-README lookup now uses a small bundled read-only Bash helper. It accepts
+the checkout and one to four literal terms from the reader's claim, searches
+only actual plugin-local READMEs, refuses unreadable inputs, and returns absolute
+candidate paths/excerpts without a truth or consistency verdict. The guide still
+owns source inspection, precedence, uncertainty, and the final answer. Both host
+copies are identical and checked by the documentation gate; drift/missing-copy
+regressions were observed red before the checker fix. The helper adds no install,
+diagnostic, Git, network, or artifact-writing operation.
+
+Shell tests cover literal metacharacters, spaces in paths, later contradictory
+passages, exclusion of root/category READMEs, unknown/refusal outcomes, and
+unchanged source files. Bash 3.2.57 passed from outside the skill directory,
+including `TMPDIR=/tmp` and `/tmp/`; Bash 5 remains unavailable/unverified.
+The existing conflict prompt, fixture, and semantic expectation are unchanged.
+Native helper-backed behavior and the remaining cases are pending.

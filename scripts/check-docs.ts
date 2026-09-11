@@ -302,13 +302,22 @@ for (const page of pages.values()) {
   )
     fail(page.path, "plugin README is absent from marketplace");
 }
-const canonical = join(root, ".agents/skills/darrow-guide/SKILL.md");
-const mirror = join(root, ".claude/skills/darrow-guide/SKILL.md");
-try {
-  if ((await readFile(canonical, "utf8")) !== (await readFile(mirror, "utf8")))
-    fail(mirror, "guide entrypoints differ");
-} catch {
-  fail(canonical, "both guide entrypoints are required");
+for (const resource of ["SKILL.md", "scripts/find-plugin-claim.sh"]) {
+  const canonical = join(root, ".agents/skills/darrow-guide", resource);
+  const mirror = join(root, ".claude/skills/darrow-guide", resource);
+  try {
+    if (
+      (await readFile(canonical, "utf8")) !== (await readFile(mirror, "utf8"))
+    )
+      fail(
+        mirror,
+        resource === "SKILL.md"
+          ? "guide entrypoints differ"
+          : `guide resources differ: ${resource}`,
+      );
+  } catch {
+    fail(canonical, `both guide copies are required: ${resource}`);
+  }
 }
 
 interface GuideQuestion {
@@ -355,7 +364,7 @@ async function verifyListedCases(
   }
 }
 async function verifyGuideInventory() {
-  const directory = join(dirname(canonical), "evals");
+  const directory = join(root, ".agents/skills/darrow-guide/evals");
   const inventoryPath = join(directory, "inventory.json");
   const inventory = await json(inventoryPath);
   if (

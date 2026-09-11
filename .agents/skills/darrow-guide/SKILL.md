@@ -34,8 +34,20 @@ one small question identifies the missing context.
 ## Inspect the evidence
 
 For a quoted or disputed claim, first locate that claim in the actual source.
-If its label is ambiguous (such as "the plugin README"), search the relevant
-source files to identify the exact artifact; do not substitute the root README.
+If "the plugin README" is ambiguous, run the bundled read-only
+[plugin-claim lookup](scripts/find-plugin-claim.sh) first:
+
+```sh
+bash <skill-dir>/scripts/find-plugin-claim.sh <checkout-root> <literal-term> [term ...]
+```
+
+Here `<skill-dir>` contains this entrypoint. Quote paths and one to four distinctive
+terms from the reader's claim, not from the rule you expect to find. The lookup
+searches actual plugin READMEs, excluding root/category READMEs, and returns
+candidate paths with excerpts. Read the relevant candidate in full; a match is
+not a policy verdict. Refine unmatched terms or request the exact source.
+For other ambiguous source labels, use a bounded source search. Never substitute
+the root or category README for a plugin-local source.
 Inspect the surrounding claim and its governing specification or accepted ADR.
 If the wording is paraphrased, search distinctive terms separately rather than
 treating an absent exact phrase as disproof. Read the relevant short source in

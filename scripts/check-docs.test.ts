@@ -19,6 +19,10 @@ async function fixture(files: Record<string, string>) {
     }),
     ".agents/skills/darrow-guide/SKILL.md": "# Guide\n",
     ".claude/skills/darrow-guide/SKILL.md": "# Guide\n",
+    ".agents/skills/darrow-guide/scripts/find-plugin-claim.sh":
+      "# Read-only lookup\n",
+    ".claude/skills/darrow-guide/scripts/find-plugin-claim.sh":
+      "# Read-only lookup\n",
     ".agents/skills/darrow-guide/evals/inventory.json": JSON.stringify({
       version: 1,
       questions: [],
@@ -80,6 +84,17 @@ test("rejects guide drift and unpublished catalog paths", async () => {
   expect(result.output).toContain("guide entrypoints differ");
   expect(result.output).toContain("removed/README.md");
 });
+test.each(["different", "missing"])(
+  "rejects %s guide lookup mirrors",
+  async (state) => {
+    const mirror = ".claude/skills/darrow-guide/scripts/find-plugin-claim.sh";
+    const root = await fixture({ [mirror]: "# Different lookup\n" });
+    if (state === "missing") await rm(join(root, mirror));
+    const result = await check(root);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("scripts/find-plugin-claim.sh");
+  },
+);
 test("validates paired manifests, required README sections and catalog membership", async () => {
   const plugin = "plugins/capability/example";
   const root = await fixture({
