@@ -33,6 +33,9 @@ answer or model memory is not evidence. Resolve paths in this checkout, and
 follow the relevant references rather than reading all documentation up front.
 Preserve the source's conditions: an allowed outcome is not a guaranteed or
 required outcome, and a documented possible cause is not an observed diagnosis.
+An unsupported workflow entry does not become a supported route because a
+hypothetical external wrapper could invoke it. Suggested next steps and named
+capabilities need the same inspected basis as the main answer.
 
 1. Normative specifications and **accepted** ADRs govern capability and
    architecture invariants. Their order does not settle contradictions between

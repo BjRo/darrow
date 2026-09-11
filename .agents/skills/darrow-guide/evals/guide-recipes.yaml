@@ -1,5 +1,5 @@
 id: guide-recipes
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
+invariant: RG-C1,RG-C2,RG-C3,RG-C4,RG-C8
 activation: positive
 prompt: What does ticket-to-pr own and can a scheduler invoke it today?
 fixture:
@@ -34,6 +34,13 @@ semantic_output_checks:
       It must not claim it installed plugins, ran tests, changed configuration, contacted
       services, or established the cause of an unobserved live failure. Read-only repository
       inspection and required Claude support disclosure are permitted."
+  - name: no unsupported scheduler route
+    proposition: >-
+      The answer does not recommend a present-day cron or host-scheduler workaround
+      for invoking ticket-to-pr, and does not claim that Darrow ships or exposes a
+      scheduling skill. It may identify requirements for separately approved future
+      automation. A hypothetical external wrapper is not evidence that scheduler
+      entry is supported or authorized today.
 output_checks:
   - name: nearby repository evidence
     expect_regex: plugins/task-recipe/darrow-ticket-to-pr/README\.md|docs/specs/(layer-composition|ticket-to-pr)\.md

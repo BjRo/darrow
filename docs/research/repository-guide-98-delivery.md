@@ -497,3 +497,23 @@ an already-selected explicit guide (which must refuse as the guide with its
 disclosure) from ordinary unqualified operational requests that should not select
 it. This addresses the observed invocation/role confusion; the checks are unchanged.
 Affected refusal cases and the remaining inventory cases are pending.
+
+On `bb7cd00`, the seven remaining/affected case pairs passed their then-current
+checks in `2026-09-11T17-19-10-328Z`. The complete local gate also passed 454 tests
+and 1,819 assertions across 47 files (79.50 seconds), plus formatting, ESLint,
+shell lint, TypeScript, eight ADR checks, and local documentation checks.
+
+Manual inspection of the retained passing recipe answer found an oracle gap:
+Claude correctly denied current scheduler entry, then offered an external
+host-scheduler workaround and a purported Darrow scheduling skill. Neither route
+is established by the sources; `docs/specs/layer-composition.md:90-116` explicitly
+requires a separately approved automation entry and says a scheduler cannot
+masquerade as current-thread invocation. The new atomic recipe check rejects a
+current scheduler workaround or invented scheduling capability while permitting
+discussion of future design requirements. Regrading in
+`evals/results/guide-recipes-scheduler-regrade.json` rejected the retained bad
+answer and an external-wrapper counterexample, while accepting the retained
+Codex answer. The guide now explicitly applies grounding to next steps and does
+not append a hypothetical wrapper after documenting an unsupported entry.
+The earlier selected-pass matrix is a checkpoint, not final acceptance under
+this added check. Fresh recipe trials are pending.

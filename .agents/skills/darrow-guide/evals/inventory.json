@@ -397,7 +397,8 @@
       "answer_points": [
         "Explicit outcome and permission envelope",
         "One delegation",
-        "Automation not implemented"
+        "Automation not implemented",
+        "No invented scheduling capability or currently unsupported scheduler workaround"
       ],
       "evidence": "authoritative",
       "static_page": "plugins/task-recipe/README.md",

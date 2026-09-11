@@ -81,6 +81,10 @@ claim may come from model memory. A source's presence is not proof of execution,
 installation, test success, or a service guarantee.
 Preserve conditional wording: an allowed outcome is not a required or guaranteed
 outcome, and a documented possible cause is not an observed diagnosis.
+When an entry or workflow is unsupported today, do not append a hypothetical
+external wrapper or unverified capability as an operational workaround. A next
+step needs the same inspected support as the main answer; it may point to the
+documented requirements for separately approved future support.
 
 Apply this precedence by subject:
 
