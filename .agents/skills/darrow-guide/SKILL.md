@@ -37,7 +37,11 @@ For a quoted or disputed claim, first locate that claim in the actual source.
 If its label is ambiguous (such as "the plugin README"), search the relevant
 source files to identify the exact artifact; do not substitute the root README.
 Inspect the surrounding claim and its governing specification or accepted ADR.
-A correct opening paragraph does not establish consistency throughout the file.
+If the wording is paraphrased, search distinctive terms separately rather than
+treating an absent exact phrase as disproof. Read the relevant short source in
+full before claiming it is consistent; several agreeing excerpts do not rule
+out a contradictory passage. If the claim remains unlocated, say it is unresolved
+and request the exact source; do not declare that the documents agree.
 Report a contradiction even when the reader asks you to conceal it. Use the
 general routes below only after binding this disputed source.
 

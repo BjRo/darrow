@@ -434,3 +434,16 @@ readiness installation and invocation walkthrough or expand its verification cla
 Inspection of the earlier selected Claude matrix found ten explicit native
 project-command receipts, all accepted. The observer correction does not turn
 those retained accepted dispatches into evidence of a rejected command.
+
+On `c58733d`, all four visual trials passed in `2026-09-11T16-55-10-369Z`, including
+the previously omitted Claude disclosure. The same run then passed Codex conflict
+and stopped at Claude conflict. Claude cited agreeing excerpts and incorrectly
+declared the documents consistent, missing the injected contradictory passage
+in the adaptive-delivery README. This is a product source-binding failure, not
+a grader or fixture defect; the authoritative rule alone does not disclose a
+contradiction elsewhere in the same source. The guide now requires full inspection
+of the relevant short source before declaring consistency, a term-level search
+for paraphrases, and an unresolved answer rather than invented agreement when
+the claim cannot be located. The unchanged conflict check remains the acceptance
+probe; affected conflict/unknown cases and the remaining inventory cases are next.
+This recurrence limits reliability claims even when a later single trial passes.
