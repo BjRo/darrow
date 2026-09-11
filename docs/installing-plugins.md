@@ -1,76 +1,123 @@
 # Install a Darrow plugin
 
-Darrow is a marketplace, not one all-or-nothing plugin. Add its marketplace,
-inspect the available plugins, and install only the capabilities you want.
+Darrow is a marketplace of independent plugins. Choose a plugin from the
+[selection guide](choosing-plugins.md), then read its local README and manifests
+before installing: helpers run with the host's granted permissions.
 
-Before installing a plugin, review its README and manifest. Plugins can include
-instructions and executable helpers that run with the permissions granted by
-the host.
+## Prerequisites
+
+Use a signed-in Codex CLI or Claude Code installation with plugin support and
+network access to the marketplace. Open a repository you can safely use for
+the [read-only first workflow](getting-started.md). Follow organization policy
+for trusted sources and installation scope.
+
+The commands below identify their host. CLI syntax was checked against Codex
+0.154.0 and Claude Code 2.1.223 on 2026-09-11. Host menus and account policies
+can differ; consult local `--help` and the linked official documentation if
+a command is unavailable. Syntax checks alone do not verify your account,
+network, installed state, or the desktop UI.
 
 ## Claude Code
 
-From an interactive Claude Code session, add the Darrow marketplace:
+Run these inside an interactive **Claude Code session**, one at a time:
 
 ```text
 /plugin marketplace add BjRo/darrow
-```
-
-Install a plugin by its catalog name. For example, install the read-only
-readiness gate used by the getting-started tutorial:
-
-```text
 /plugin install darrow-readiness-gate@darrow
 ```
 
-The details view lets you inspect the plugin and choose user, project, or local
-scope. Follow the installation summary if it asks you to run
-`/reload-plugins`; otherwise start a new session before using the plugin.
+Expect a marketplace-added result, followed by an installation result naming
+`darrow-readiness-gate@darrow` and its scope. Choose user scope for your own
+sessions, project scope for shared project configuration, or local scope for
+a private project choice. Project scope can change checked-in configuration.
+Start a fresh session, or follow a host-provided reload instruction.
 
-To install a different capability, replace `darrow-readiness-gate` with a name
-from the [plugin catalog](../README.md#plugin-catalog).
+### Update or remove in Claude Code
 
-See the official Claude Code guide to
-[plugin marketplaces](https://code.claude.com/docs/en/discover-plugins) for
-scope, updating, removal, and troubleshooting.
+From your **shell**, inspect installed plugins:
+
+```sh
+claude plugin list
+```
+
+For a plugin installed in user scope, update with:
+
+```sh
+claude plugin update darrow-readiness-gate@darrow --scope user
+```
+
+To uninstall that user-scoped plugin:
+
+```sh
+claude plugin uninstall darrow-readiness-gate@darrow --scope user
+```
+
+Use the actual installation scope when it differs. Expect the result to name
+the updated or removed plugin. Start a new session after an update or removal.
+The [official Claude marketplace guide](https://code.claude.com/docs/en/discover-plugins)
+documents scope, trust, refresh behavior, and recovery. Claude Code support in
+Darrow is best-effort; primary development uses Codex.
 
 ## Codex
 
-Add the Darrow marketplace from your shell:
+Run these in your **shell**, one at a time:
 
 ```sh
 codex plugin marketplace add BjRo/darrow
-```
-
-Start Codex CLI and open the plugin browser:
-
-```text
-codex
-/plugins
-```
-
-Choose the `darrow` marketplace, inspect `darrow-readiness-gate`, and install
-it. You can also install it directly from your shell:
-
-```sh
 codex plugin add darrow-readiness-gate@darrow
 ```
 
-Start a new Codex session in the repository where you want to use the skill.
-The plugin browser can enable, disable, or uninstall installed plugins.
+Expect the marketplace and installation results to name `darrow` and the
+selected plugin. To inspect available plugins from the shell:
 
-Codex plugins are supported in Codex CLI and Codex in the ChatGPT desktop app,
-but not in the IDE extension. See the official OpenAI documentation for
-[installing and using plugins](https://developers.openai.com/codex/plugins) and
-[local marketplace discovery](https://developers.openai.com/plugins/build/plugins#how-local-marketplaces-work).
+```sh
+codex plugin list
+```
+
+Alternatively, start Codex, then enter `/plugins` **inside the session**.
+Choose the Darrow marketplace and inspect the plugin before installing it.
+Start a fresh session in the repository where you want to use it.
+
+### Update or remove in Codex
+
+Refresh the configured Darrow marketplace snapshot from your shell:
+
+```sh
+codex plugin marketplace upgrade darrow
+```
+
+Inspect the plugin in `/plugins` for the installation action your version
+offers. Refreshing the marketplace is not proof that an installed cached
+plugin was updated. To deliberately replace its installed cache, remove the
+selected plugin and add it again:
+
+```sh
+codex plugin remove darrow-readiness-gate@darrow
+codex plugin add darrow-readiness-gate@darrow
+```
+
+Removal uninstalls the selected plugin and removes its local cache. To remove
+it without reinstalling, run only the first command. Review the reported
+target and your plugin configuration, then start a fresh session.
+
+See the [official Codex plugin documentation](https://developers.openai.com/codex/plugins)
+for supported surfaces and UI behavior. If your Codex surface has no plugin
+support, use Codex CLI or browse the static documentation; do not assume that
+a CLI installation enabled a different app or extension.
 
 ## Verify the installation
 
-Start a new session in a repository and ask:
+In a fresh session, select the installed readiness skill explicitly:
 
-```text
-Assess whether this implementation request is ready before any code is changed.
-```
+- Codex: type `$` and choose `assess-implementation-readiness`.
+- Claude Code: use `/darrow-readiness-gate:assess-implementation-readiness`.
 
-If `darrow-readiness-gate` is installed and enabled, the agent should apply its
-read-only readiness workflow. Continue with the
-[first-workflow tutorial](getting-started.md) for a complete example.
+Supply the request in the [first-workflow tutorial](getting-started.md).
+Expect an assessment with a verdict, inspected basis, quality bar, and next
+action. No implementation, edits, or tracker writes should occur.
+An installed listing proves package state; the observed assessment proves
+that the skill can be invoked. Neither proves every plugin behavior.
+
+If listing succeeds but invocation does not, follow
+[an installed plugin does not appear](troubleshooting.md#an-installed-plugin-does-not-appear).
+Keep the exact host version, scope, invocation, and error for escalation.
