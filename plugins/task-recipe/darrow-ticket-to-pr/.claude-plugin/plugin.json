@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
   "description": "Delegate one explicit ticket-to-PR shortcut to adaptive-delivery",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

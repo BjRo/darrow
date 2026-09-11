@@ -156,6 +156,41 @@ the resulting child transcript without adding a live parent workflow step.
 - Goal completion grants no commit, push, pull-request, merge, release,
   deployment, ticket mutation, or other authority.
 
+## When to use
+
+Use this for an explicitly invoked bounded engineering outcome. Ordinary complex work does not select it. Use a focused capability when one operation suffices.
+
+## Hosts and prerequisites
+
+Codex with native subagent support or Claude Code with the bundled foreground route agents; Git, Bash, baseline Unix tools, available routes, and the capabilities matching authorized operations.
+
+## Installation
+
+Install `darrow-adaptive-delivery@darrow` using the
+[host installation and update instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review the local authority and prerequisite boundaries first.
+
+## Usage
+
+This orchestration entrypoint is explicit-only; an implicit request does not
+start it. For example:
+
+> Use adaptive-delivery to fix the intermittent cache test and verify the repair.
+
+Select `adaptive-delivery` from Codex's `$` menu, or invoke
+`/darrow-adaptive-delivery:adaptive-delivery` in Claude Code and provide the bounded request.
+
+## Expected result
+
+Read-only preflight and readiness, then one routed execution owner. Effects depend on the explicit contract; completion alone grants no publication or tracker authority.
+
+## Troubleshooting
+
+If readiness is not ready, resolve its findings before launch. Malformed route configuration or an unavailable exact capability binding must be reported. Keep feedback with the same accepted owner.
+For host discovery problems, use the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the exact host/plugin versions and refusal without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0 two
