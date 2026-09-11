@@ -249,11 +249,15 @@ Configure or explain Codex turn telemetry, privacy, and attribution. Do not use 
 
 ## Hosts and prerequisites
 
-Codex is the observed runtime. Both hosts package guidance, but Claude Code turns are not exported. Export requires Codex async hooks, UV, managed Python >=3.10,<3.14, and compatible Langfuse v4.
+Codex is the observed runtime. Export requires Codex async hooks, UV, managed
+Python >=3.10,<3.14, and compatible Langfuse v4. Claude Code turns are not exported.
+Claude installation and guidance invocation are unverified: Claude Code 2.1.223
+rejects this package's Codex-specific `Interrupt` hook during native validation.
+The presence of a Claude manifest is not a compatibility guarantee.
 
 ## Installation
 
-Install `darrow-observability-langfuse@darrow` using the
+For Codex, install `darrow-observability-langfuse@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 Review this plugin's local prerequisites and safety boundaries first.
 
@@ -263,8 +267,9 @@ An ordinary request can select the appropriate capability:
 
 > Explain what Codex data this plugin exports.
 
-To select it explicitly, choose `configure-langfuse-observability` from Codex's `$` skill menu,
-or use `/darrow-observability-langfuse:configure-langfuse-observability` in Claude Code, followed by your request.
+To select it explicitly, choose `configure-langfuse-observability` from Codex's
+`$` skill menu, followed by your request. Do not assume Claude Code can load the
+package; see the host limitation above.
 
 ## Expected result
 
