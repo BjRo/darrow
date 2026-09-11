@@ -1,6 +1,6 @@
 id: code-review-fix-verification-resolved
 activation: positive
-invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E13,CR-E14
+invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E12,CR-E13,CR-E14
 prompt: >-
   Verify whether my uncommitted repair resolved the prior code-review findings
   recorded in `.git/verification-input`. Use `bash check.sh` as current check
@@ -164,3 +164,10 @@ checks:
       awk 'NF' "$report" >.git/expected-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+  - name: verification response renders values as ordinary Markdown text
+    run: >-
+      ! grep -F '<code>' .git/last-message.md &&
+      ! grep -F '</code>' .git/last-message.md &&
+      ! grep -F '`' .git/last-message.md &&
+      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
+      esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md

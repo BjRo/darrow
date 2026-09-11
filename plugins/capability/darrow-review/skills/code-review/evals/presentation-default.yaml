@@ -34,6 +34,13 @@ checks:
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: human response does not duplicate raw TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: human response renders values as ordinary Markdown text
+    run: >-
+      ! grep -F '<code>' .git/last-message.md &&
+      ! grep -F '</code>' .git/last-message.md &&
+      ! grep -F '`' .git/last-message.md &&
+      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
+      esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
   - name: final response preserves every canonical rendered line
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
