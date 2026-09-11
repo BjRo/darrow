@@ -212,6 +212,29 @@ example, an authorized commit and pull request become separate bindings when
 separate matching skills are advertised. Completion never makes either
 operation implicitly due.
 
+## Ticket-correlated task branches
+
+For an explicitly authorized ticket delivery that needs task-branch preparation,
+adaptive delivery owns correlation and naming policy. Bind a host-advertised
+Git capability supporting complete read-only discovery by the provider's exact
+opaque canonical token and exact-name preparation. During preflight obtain
+complete local evidence before binding a proposed name. One match binds that
+exact branch regardless of a proposed type or suffix; multiple matches require
+one explicit user choice and no mutation; zero matches permits one conventional
+`<type>/<token>-<kebab-suffix>` name derived from the settled request (lowercase
+suffix, unchanged token exactly once, at most 60 characters). Preserve an exact
+caller-selected existing match; do not infer selection from a merely proposed
+new name. Missing compatible discovery or incomplete evidence stops preparation.
+
+Compile the token, evidence, selected name, and decision into the owner contract.
+The owner refreshes discovery before preparation; changed candidates require
+reapplying the same rule before mutation. Preparation remains owner work and
+uses the bound capability. Existing tips, local work, conflict refusals, and
+explicit worktree authority remain intact. A task recipe such as ticket-to-pr
+delegates its authority envelope without choosing names or owning Git mechanics.
+Fresh explicit delivery may reuse repository state but grants no automatic
+cross-conversation continuation or lifecycle ledger.
+
 ## Workflow and risk
 
 Select exactly one workflow:
@@ -593,6 +616,12 @@ Nested host processes are not an adaptive-delivery fallback.
     Owner-boundary guards ignore only the named readiness preflight traces in
     that ledger; all product-tree and other fixture-state changes remain
     protected before owner launch.
+
+19. **ADL-B1 — Token-correlated branch choice.** Before authorized ticket
+    branch creation, adaptive delivery consumes complete exact-token Git
+    capability evidence and applies the one/many/zero-match policy above. The
+    recipe owns no branch choice; the Git capability owns deterministic
+    discovery and preparation.
 
 ## Packaging and portability
 

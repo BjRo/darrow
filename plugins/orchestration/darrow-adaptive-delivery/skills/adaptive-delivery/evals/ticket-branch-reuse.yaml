@@ -1,0 +1,46 @@
+id: goal-ticket-branch-reuse
+invariant: ADL-B1,ADL-C2,ADL-L1,ADL-P2
+activation: positive
+mount_plugin_skills: true
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: false
+additional_plugins:
+  - plugins/capability/darrow-git
+prompt: >-
+  {{skill_invocation}} Deliver this already-assessed ready request for canonical
+  ticket token 77: append the exact line `Resumed.` to NOTES.md. The scope and
+  acceptance are unchanged from that assessment. Prepare the ticket task branch
+  first; I suggest feat/77-different-suffix. Keep existing branch tips intact,
+  do not commit, publish, or create a worktree. The only required check is
+  `grep -Fx 'Resumed.' NOTES.md`.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "# Notes\n"
+  setup: |
+    i=1
+    while test "$i" -le 65; do git branch "chore/unrelated-$i"; i=$((i + 1)); done
+    git branch fix/77-original-suffix
+    git branch fix/770-unrelated
+checks:
+  - name: prior branch is reused despite the suggested type and suffix
+    run: git branch --show-current
+    expect_exact: fix/77-original-suffix
+  - name: no new branch is created
+    run: git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' '
+    expect_exact: "68"
+  - name: existing branch tip is unchanged
+    run: test "$(git rev-parse refs/heads/fix/77-original-suffix)" = "$(git rev-parse refs/heads/main)"
+  - name: requested work is implemented
+    run: grep -Fx 'Resumed.' NOTES.md
+  - name: no worktree is allocated
+    run: git worktree list --porcelain | grep -c '^worktree '
+    expect_exact: "1"
+activation_sequence:
+  - adaptive-delivery
+  - prepare-task-branch
+transcript_checks:
+  - name: native owner is accepted
+    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'

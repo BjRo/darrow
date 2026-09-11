@@ -1,0 +1,47 @@
+id: prepare-task-branch-guard-correlated-creation
+invariant: GW-TB8
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Prepare the exact task branch feat/issue-84-new-suffix for canonical ticket
+  token issue-84 in this checkout. Preserve existing work and do not make a worktree.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: |
+    git branch fix/issue-84-original
+    git branch docs/issue-84-notes
+    git branch fix/issue-840-similar
+    printf 'user draft\n' > draft.txt
+    git show-ref > .git/expected-refs
+    git worktree list --porcelain > .git/expected-worktrees
+    git status --porcelain > .git/expected-status
+    cp .git/info/exclude .git/expected-exclude
+checks:
+  - name: checkout remains unchanged
+    run: git branch --show-current
+    expect_exact: main
+  - name: all refs and tips remain unchanged
+    run: git show-ref | diff .git/expected-refs -
+    expect_exit: 0
+  - name: worktrees remain unchanged
+    run: git worktree list --porcelain | diff .git/expected-worktrees -
+    expect_exit: 0
+  - name: dirty work and ignore configuration remain unchanged
+    run: |
+      git status --porcelain | diff .git/expected-status -
+      test "$(cat draft.txt)" = 'user draft'
+      cmp .git/info/exclude .git/expected-exclude
+      test ! -e .worktrees
+    expect_exit: 0
+semantic_output_checks:
+  - name: refuses duplicate creation and relays complete exact choices
+    proposition: >-
+      The response refuses to create feat/issue-84-new-suffix because correlated
+      local branches already exist, identifies both docs/issue-84-notes and
+      fix/issue-84-original as the available candidates, and stops without
+      choosing a replacement branch. It does not treat fix/issue-840-similar
+      as a correlated candidate or claim to have prepared any branch.

@@ -140,10 +140,10 @@ while leaving the caller's checkout untouched.
 
 ### Invariants
 
-- **GW-TB1 — Exact correlation.** The caller supplies one exact conventional
+- **GW-TB1 — Exact preparation input.** The caller supplies one exact conventional
   branch name and the active ticket provider's opaque canonical token. The slug
-  begins with that token exactly once. Generic Git never searches for, derives,
-  normalizes, or guesses a correlated name. Supplying multiple candidates and
+  begins with that token exactly once. Generic Git never derives, normalizes,
+  or chooses a correlated name. Supplying multiple candidates and
   delegating the choice (for example, "whichever seems better") remains
   ambiguous; preparation asks for one exact selection before any Git mutation.
 - **GW-TB2 — Additive preparation.** An existing branch is switched to or
@@ -168,6 +168,25 @@ while leaving the caller's checkout untouched.
 - **GW-TB6 — Composable capability.** The skill advertises one focused public
   intent that an authorized task recipe can request before its readiness gate,
   without assuming that recipe or any observability plugin is installed.
+
+- **GW-TB7 — Complete token discovery.** A read-only discovery operation takes
+  only the exact opaque canonical token and returns every correlated local
+  branch in refname order, its full tip, and a count, without truncation. A
+  correlated branch satisfies the same conventional name validation as exact
+  preparation: allowed type, literal case-sensitive `<token>-` slug prefix,
+  exactly one token occurrence, lowercase kebab suffix, and 60-character limit.
+  Never match substrings, normalize spelling, infer provider semantics, or use
+  remote refs. The delimiter is lexical: `fix/84-extra-work` can satisfy token
+  `84` or token `84-extra`; no branch name alone encodes the provider's identity.
+  Invalid tokens or failed enumeration refuse without mutation or a zero-count
+  claim. This operation is distinct from a bounded general branch listing.
+- **GW-TB8 — Guarded creation.** Immediately before preparing a missing exact
+  name, repeat complete token discovery. Any match refuses creation and returns
+  the candidates for caller selection, without branch or worktree mutation.
+  An explicitly bound existing name remains eligible for exact preparation,
+  including an explicit choice among multiple matches. The capability does not
+  silently replace a supplied name or choose among candidates. This inspection
+  is not a repository lock against concurrent actors after the check.
 
 ### Non-goals
 
