@@ -204,7 +204,12 @@ axis and report `not_available`. Do not invent requirements.
 16. **CR-C16 — Complete rendering.** Markdown preserves every semantic field
     from the validated TSV, prioritizes verdict and findings, renders checks
     compactly, and presents detailed scope and sources later. Renderer
-    mechanics escape hostile field content without changing the canonical TSV.
+    mechanics render field values as ordinary Markdown text without HTML code
+    wrappers, Markdown code spans, generated links, or terminal hyperlink
+    sequences. Conventional `path:line` values remain bare, while hostile field
+    content is escaped only as needed to preserve the report structure and its
+    visible, copyable value. These presentation rules do not change the
+    canonical TSV.
     Human presentation is first materialized as a nonempty canonical Markdown
     artifact beside the TSV, then emitted by one dedicated final renderer
     invocation whose complete stdout is returned without coordinator rewriting.
@@ -408,8 +413,11 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
 12. **CR-E12 — Presentation contract.** Acceptance evidence covers default
     Markdown for passing, failing, and terminal blocked scope outcomes;
     explicit raw-v1 negotiation; composed returns; semantic preservation;
-    hostile field escaping; absence of duplicated TSV in human output; and a
-    superficial summary that omits evidence.
+    hostile field escaping; bare conventional path references; faithful paths
+    containing spaces or host-sensitive characters; absence of HTML code
+    wrappers, Markdown code spans, generated links, terminal hyperlinks, and
+    duplicated TSV in human output; and a superficial summary that omits
+    evidence.
 13. **CR-E13 — Fix verification convergence.** Evals cover several blockers
     resolved together, a first-rework advisory, an unresolved non-gating
     advisory, progressing and unchanged blockers, repeated and oscillating

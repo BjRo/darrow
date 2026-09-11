@@ -33,19 +33,20 @@ if [ "$command" = "render-verification" ]; then
     gsub(/\[/, "\\&#91;", value)
     gsub(/\]/, "\\&#93;", value)
     gsub(/[|]/, "\\&#124;", value)
-    return value
+    return esc_backslashes(value)
   }
-  function esc_code(value) {
-    gsub(/&/, "\\&amp;", value)
-    gsub(/</, "\\&lt;", value)
-    gsub(/>/, "\\&gt;", value)
-    return value
+  function esc_backslashes(value, escaped, at) {
+    while ((at = index(value, "\\")) > 0) {
+      escaped = escaped substr(value, 1, at - 1) "&#92;"
+      value = substr(value, at + 1)
+    }
+    return escaped value
   }
   function status(value) {
     return toupper(value)
   }
-  function code_value(label, value) {
-    printf "- **%s:** <code>%s</code>\n", label, esc_code(value)
+  function print_value(label, value) {
+    printf "- **%s:** %s\n", label, esc(value)
   }
   {
     kind = $1
@@ -104,9 +105,9 @@ if [ "$command" = "render-verification" ]; then
     if (attempt_count == 0) print "No attempted findings were verifiable."
     for (i = 1; i <= attempt_count; i++) {
       key = attempted[i]
-      printf "\n### %d. %s — %s / %s (%s, %s)\n", i, esc_code(key), status(attempt_status[key]), status(attempt_progress[key]), status(original_severity[key]), esc(original_disposition[key])
-      code_value("Location", original_location[key])
-      code_value("Source", original_source[key])
+      printf "\n### %d. %s — %s / %s (%s, %s)\n", i, esc(key), status(attempt_status[key]), status(attempt_progress[key]), status(original_severity[key]), esc(original_disposition[key])
+      print_value("Location", original_location[key])
+      print_value("Source", original_source[key])
       printf "- **Original evidence:** %s\n", esc(original_evidence[key])
       printf "- **Current evidence:** %s\n", esc(attempt_evidence[key])
     }
@@ -114,37 +115,37 @@ if [ "$command" = "render-verification" ]; then
     print "\n## Repair-caused regressions"
     if (regression_count == 0) print "No repair-caused regressions."
     for (i = 1; i <= regression_count; i++) {
-      printf "\n### %d. %s — %s / %s (%s)\n", i, esc_code(regression_key[i]), status(regression_status[i]), status(regression_progress[i]), status(regression_severity[i])
-      code_value("Axis", regression_axis[i])
-      code_value("Caused by", regression_cause[i])
-      code_value("Location", regression_location[i])
-      code_value("Source", regression_source[i])
+      printf "\n### %d. %s — %s / %s (%s)\n", i, esc(regression_key[i]), status(regression_status[i]), status(regression_progress[i]), status(regression_severity[i])
+      print_value("Axis", regression_axis[i])
+      print_value("Caused by", regression_cause[i])
+      print_value("Location", regression_location[i])
+      print_value("Source", regression_source[i])
       printf "- **Evidence:** %s\n", esc(regression_evidence[i])
     }
 
     print "\n## Checks"
     for (i = 1; i <= check_count; i++)
-      printf "- **%s** (%s) — <code>%s</code>: %s\n", status(check_status[i]), esc_code(check_applicability[i]), esc_code(check_command[i]), esc(check_evidence[i])
+      printf "- **%s** (%s) — %s: %s\n", status(check_status[i]), esc(check_applicability[i]), esc(check_command[i]), esc(check_evidence[i])
 
     print "\n## Evidence gaps"
     if (gap_count == 0) print "No evidence gaps."
     for (i = 1; i <= gap_count; i++) print "- " esc(gaps[i])
 
     print "\n## Target binding"
-    code_value("Original target", original_target)
-    code_value("Prior target", prior_target)
-    code_value("Current target", current_target)
-    code_value("Previous verification checksum", previous_checksum)
-    code_value("Previous verification artifact", previous_path)
+    print_value("Original target", original_target)
+    print_value("Prior target", prior_target)
+    print_value("Current target", current_target)
+    print_value("Previous verification checksum", previous_checksum)
+    print_value("Previous verification artifact", previous_path)
     if (history_count > 0) {
       print "- **Earlier targets:**"
-      for (i = 1; i <= history_count; i++) print "  - <code>" esc_code(history[i]) "</code>"
+      for (i = 1; i <= history_count; i++) print "  - " esc(history[i])
     }
 
     print "\n## Closed original finding set"
     for (i = 1; i <= original_count; i++) {
       key = original_key[i]
-      printf "- <code>%s</code> — %s #%s, %s/%s; <code>%s</code>; source <code>%s</code>; %s\n", esc_code(key), esc(original_axis[key]), esc_code(original_order[key]), esc(original_severity[key]), esc(original_disposition[key]), esc_code(original_location[key]), esc_code(original_source[key]), esc(original_evidence[key])
+      printf "- %s — %s #%s, %s/%s; %s; source %s; %s\n", esc(key), esc(original_axis[key]), esc(original_order[key]), esc(original_severity[key]), esc(original_disposition[key]), esc(original_location[key]), esc(original_source[key]), esc(original_evidence[key])
     }
 
     print "\n## Next action"
@@ -170,13 +171,14 @@ function esc(value) {
   gsub(/\[/, "\\&#91;", value)
   gsub(/\]/, "\\&#93;", value)
   gsub(/[|]/, "\\&#124;", value)
-  return value
+  return esc_backslashes(value)
 }
-function esc_code(value) {
-  gsub(/&/, "\\&amp;", value)
-  gsub(/</, "\\&lt;", value)
-  gsub(/>/, "\\&gt;", value)
-  return value
+function esc_backslashes(value, escaped, at) {
+  while ((at = index(value, "\\")) > 0) {
+    escaped = escaped substr(value, 1, at - 1) "&#92;"
+    value = substr(value, at + 1)
+  }
+  return escaped value
 }
 function title(value) {
   return toupper(substr(value, 1, 1)) substr(value, 2)
@@ -186,9 +188,6 @@ function status(value) {
 }
 function print_value(label, value) {
   printf "- **%s:** %s\n", label, esc(value)
-}
-function print_code_value(label, value) {
-  printf "- **%s:** <code>%s</code>\n", label, esc_code(value)
 }
 {
   kind = $1
@@ -225,14 +224,14 @@ END {
   if (finding_count == 0) print "No findings."
   for (i = 1; i <= finding_count; i++) {
     printf "\n### %d. %s — %s (%s)\n", i, status(finding_severity[i]), status(finding_disposition[i]), title(finding_axis[i])
-    print_code_value("Location", finding_location[i])
-    print_code_value("Source", finding_source[i])
+    print_value("Location", finding_location[i])
+    print_value("Source", finding_source[i])
     print_value("Evidence", finding_evidence[i])
   }
 
   print "\n## Checks"
   for (i = 1; i <= check_count; i++)
-    printf "- **%s** (%s) — <code>%s</code>: %s\n", status(check_status[i]), esc_code(check_applicability[i]), esc_code(check_command[i]), esc(check_evidence[i])
+    printf "- **%s** (%s) — %s: %s\n", status(check_status[i]), esc(check_applicability[i]), esc(check_command[i]), esc(check_evidence[i])
 
   print "\n## Risks"
   for (i = 1; i <= risk_count; i++) print "- " esc(risks[i])
@@ -241,14 +240,14 @@ END {
   print esc(next_action)
 
   print "\n## Scope"
-  print_code_value("Base", base)
-  print_code_value("Target", target)
+  print_value("Base", base)
+  print_value("Target", target)
   print "- **Changed files:**"
-  for (i = 1; i <= changed_count; i++) print "  - <code>" esc_code(changed[i]) "</code>"
+  for (i = 1; i <= changed_count; i++) print "  - " esc(changed[i])
 
   print "\n## Sources"
   printf "- **Standards (%s):**\n", esc(standards)
-  for (i = 1; i <= standards_source_count; i++) print "  - <code>" esc_code(standards_sources[i]) "</code>"
-  printf "- **Spec (%s):** <code>%s</code>\n", esc(spec), esc_code(spec_source)
+  for (i = 1; i <= standards_source_count; i++) print "  - " esc(standards_sources[i])
+  printf "- **Spec (%s):** %s\n", esc(spec), esc(spec_source)
 }
 ' "$input"
