@@ -1,3 +1,4 @@
 plugins/*/*/skills/*/SKILL.md
 **/.venv/**
 **/__pycache__/**
+.worktrees/
