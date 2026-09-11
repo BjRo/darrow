@@ -243,6 +243,41 @@ uv run --frozen --project backend python -m unittest discover -s backend/tests
 
 Run each shell test with both `bash` and `/bin/bash` in repository development.
 
+## When to use
+
+Configure or explain Codex turn telemetry, privacy, and attribution. Do not use it to monitor arbitrary applications, deploy Langfuse, or operate tickets.
+
+## Hosts and prerequisites
+
+Codex is the observed runtime. Both hosts package guidance, but Claude Code turns are not exported. Export requires Codex async hooks, UV, managed Python >=3.10,<3.14, and compatible Langfuse v4.
+
+## Installation
+
+Install `darrow-observability-langfuse@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Explain what Codex data this plugin exports.
+
+To select it explicitly, choose `configure-langfuse-observability` from Codex's `$` skill menu,
+or use `/darrow-observability-langfuse:configure-langfuse-observability` in Claude Code, followed by your request.
+
+## Expected result
+
+Guidance is read-only by default. Explicit configuration changes affect the named file; enabled hooks write local state and export approved telemetry. Raw content is a separate opt-in.
+
+## Troubleshooting
+
+Use Trace and failure behavior and Verify above. Dry run proves reconstruction, not ingestion. Preserve uncertain delivery evidence and inspect the destination before recovery; do not replay blindly or share credentials.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0 two

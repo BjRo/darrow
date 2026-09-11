@@ -41,6 +41,41 @@ depends on a particular Darrow sibling.
 - The plugin does not require adaptive-delivery, a tracker, or another Darrow
   plugin.
 
+## When to use
+
+Check whether authoritative intent and observable acceptance are sufficient to begin implementation. Do not use it to implement or grade ticket formatting.
+
+## Hosts and prerequisites
+
+Codex and Claude Code with read access to the repository and request. No tracker or sibling plugin is required.
+
+## Installation
+
+Install `darrow-readiness-gate@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Assess whether this request is ready before any code changes.
+
+To select it explicitly, choose `assess-implementation-readiness` from Codex's `$` skill menu,
+or use `/darrow-readiness-gate:assess-implementation-readiness` in Claude Code, followed by your request.
+
+## Expected result
+
+One ready, needs-discovery, needs-decision, or blocked assessment, with evidence and a next action. Repository and tracker state stay unchanged.
+
+## Troubleshooting
+
+A non-ready verdict is an assessment result. Resolve the named missing fact or decision. For missing discovery, verify installation and try the explicit invocation below.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0 two

@@ -74,12 +74,47 @@ general Git wrapper.
 
 ## Design boundaries
 
-- The four skills do not chain implicitly: creating a commit does not push, and
+- The skills do not chain implicitly: creating a commit does not push, and
   creating or preparing a branch does not commit.
 - Commit and pull-request text follows Conventional Commits and contains no AI
   attribution.
 - Hooks and repository safety checks are respected rather than bypassed.
 - No workflow force-pushes, amends, rebases, merges, releases, or deploys.
+
+## When to use
+
+Create or prepare a branch, create a commit, or publish a requested PR. Do not use these workflows to rewrite history, merge, release, or deploy.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; Git, Bash, and baseline Unix tools. PR work also requires authenticated GitHub CLI access and a usable remote.
+
+## Installation
+
+Install `darrow-git@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Create a branch for retry handling.
+
+To select it explicitly, choose `create-branch` from Codex's `$` skill menu,
+or use `/darrow-git:create-branch` in Claude Code, followed by your request.
+
+## Expected result
+
+The requested branch, one commit, or verified PR, with evidence. Existing user work and safety checks are preserved.
+
+## Troubleshooting
+
+Keep exact conflict, existing-name, hook, or duplicate-PR refusals and follow the selected skill's recovery path. Do not force, bypass hooks, or invent another branch name.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
 
 ## License
 

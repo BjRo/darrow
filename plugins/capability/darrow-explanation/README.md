@@ -41,6 +41,41 @@ skill and Dexter Horthy's article
 Darrow adapts the smallest-fitting-view idea with explicit evidence status,
 read-only boundaries, cross-host fallback behavior, and colocated evals.
 
+## When to use
+
+Understand technical structure or a grounded proposed change. Use another capability for images, HTML, slides, mockups, or documentation artifacts.
+
+## Hosts and prerequisites
+
+Codex and Claude Code with access to the subject's sources. Plain text works when diagram rendering is unavailable.
+
+## Installation
+
+Install `darrow-explanation@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Show me the worker state transitions.
+
+To select it explicitly, choose `explain-visually` from Codex's `$` skill menu,
+or use `/darrow-explanation:explain-visually` in Claude Code, followed by your request.
+
+## Expected result
+
+One compact inline visual with nearby sources and appropriate evidence status. No artifact creation or subject edits.
+
+## Troubleshooting
+
+Identify a missing subject and keep evidence gaps visible. If rendering fails, use plain text; do not invent structure to complete the view.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0 two

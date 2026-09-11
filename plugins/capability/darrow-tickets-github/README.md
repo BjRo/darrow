@@ -78,6 +78,41 @@ client.
 - `read-ticket` and `list-tickets` are strictly read-only, and `update-ticket`
   applies only the single mutation requested.
 
+## When to use
+
+Operate on current-project GitHub Issues. Use the matching provider for another tracker and clarify an ambiguous provider before access.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; authenticated gh for the repository's GitHub host, a usable origin remote, Bash, and baseline Unix tools.
+
+## Installation
+
+Install `darrow-tickets-github@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> What does ticket #42 say?
+
+To select it explicitly, choose `read-ticket` from Codex's `$` skill menu,
+or use `/darrow-tickets-github:read-ticket` in Claude Code, followed by your request.
+
+## Expected result
+
+Read and list return tracker evidence without changes. Create and update perform at most one requested operation.
+
+## Troubleshooting
+
+A foreign URL, ambiguous reference, unreadable relation, or backend error is authoritative. Do not strip a foreign URL to its numeric suffix. Preserve the migration instructions above for the former package name.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
