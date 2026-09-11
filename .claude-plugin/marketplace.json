@@ -26,9 +26,9 @@
       "description": "Intent-triggered git workflow skills: create-branch, prepare-task-branch, create-commit, create-pr"
     },
     {
-      "name": "darrow-tickets",
-      "source": "./plugins/capability/darrow-tickets",
-      "description": "Intent-triggered ticket skills over a backend-neutral CLI: create-ticket, read-ticket, update-ticket, list-tickets"
+      "name": "darrow-tickets-github",
+      "source": "./plugins/capability/darrow-tickets-github",
+      "description": "GitHub Issues ticket skills: create-ticket, read-ticket, update-ticket, list-tickets"
     },
     {
       "name": "darrow-readiness-gate",

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Ticket (GitHub)"
+  short_description: "File a well-scoped tracker ticket in GitHub"
+  default_prompt: "Use $create-ticket to file a tracker ticket for this work."

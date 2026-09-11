@@ -851,7 +851,7 @@ describe("Codex skill activation observation", () => {
   test("observes repository-relative reads from an installed plugin cache", () => {
     const skillsRoot = join(
       REPO,
-      ".git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets/0.2.3/skills",
+      ".git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets-github/0.2.3/skills",
     );
     const stream = [
       JSON.stringify({
@@ -859,7 +859,7 @@ describe("Codex skill activation observation", () => {
         item: {
           type: "command_execution",
           command:
-            "sed -n '1,240p' .git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets/0.2.3/skills/list-tickets/SKILL.md",
+            "sed -n '1,240p' .git/darrow-eval/state/codex/config/plugins/cache/darrow-eval/darrow-tickets-github/0.2.3/skills/list-tickets/SKILL.md",
           aggregated_output:
             "---\nname: list-tickets\ndescription: List tickets\n",
           exit_code: 0,

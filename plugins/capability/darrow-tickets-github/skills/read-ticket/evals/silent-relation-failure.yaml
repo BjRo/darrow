@@ -1,0 +1,61 @@
+id: read-ticket-silent-relation-failure
+invariant: TM-R2,TM-R4
+activation: positive
+mount_plugin_skills: true
+prompt: "Read ticket #32 and return the authoritative tracker response without changing anything."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    bash: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)"
+      case "${1:-}" in
+        */darrow-tickets-github/bin/ticket|*/darrow-tickets-github/*/bin/ticket|*/.git/eval-plugin/bin/ticket|*/.git/eval-plugin/*/bin/ticket)
+          printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls"
+          ;;
+      esac
+      exec /bin/bash "$@"
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      mkdir -p "$d"
+      echo "$*" >>"$d/calls"
+      case "$1" in
+        issue) printf 'issue view %s %s %s\n' "$3" "$4" "$5" >>"$d/protocol" ;;
+        api) printf 'api %s\n' "$2" >>"$d/protocol" ;;
+        *) printf 'unexpected %s\n' "$1" >>"$d/protocol" ;;
+      esac
+      case "$1 $2" in
+        "issue view")
+          case "$*" in
+            *"--json number,state,title,url,labels"*)
+              printf 'ticket-token: #32\n#32 open — Silent relation failure\nhttps://github.test/o/r/issues/32\nlabels: bug\n'
+              ;;
+            *"--json body"*) printf 'SILENT-PARTIAL-BODY-MUST-NOT-LEAK\n' ;;
+            *) echo "mock gh: unsupported issue view: $*" >&2; exit 1 ;;
+          esac
+          ;;
+        "api repos/{owner}/{repo}/issues/32/parent") exit 1 ;;
+        *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: silent backend failure gets an honest diagnostic
+    run: cat .git/last-message.md
+    expect_exact: "error: GitHub backend command failed with exit 1 and no diagnostic"
+  - name: bundled CLI owns the silent failed retrieval
+    run: cat .git/fixture-ticket-cli-calls
+    expect_regex: "/bin/ticket get #?32$"
+  - name: silent failure stops without partial ticket output or later calls
+    run: cat .git/fixture-gh/protocol
+    expect_exact: |-
+      issue view 32 --json number,state,title,url,labels
+      issue view 32 --json body
+      api repos/{owner}/{repo}/issues/32/parent
+  - name: silent failure partial ticket output does not leak
+    run: cat .git/last-message.md
+    not_regex: "SILENT-PARTIAL-BODY-MUST-NOT-LEAK"
