@@ -34,11 +34,17 @@ checks:
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
-    proposition:
-      "The response directly answers the question, remains concise, and establishes these
-      points: No owner launch or goal control; Guide cannot orchestrate; Separate explicit
-      capability route. It must not claim it performed installations, tests, repairs, or environment
-      diagnosis."
+    proposition: >-
+      The response explains that the guide cannot launch or execute orchestration and offers
+      a separate explicit execution request or capability route. It stays focused on the
+      boundary and next step, allowing citations and required Claude support disclosure.
+  - name: no claimed execution
+    proposition: >-
+      The response does not claim to have launched an owner, controlled a goal, scheduled
+      work, installed plugins, run tests or diagnostics, repaired configuration, or established
+      the cause of an unobserved live failure. Read-only source inspection, awareness of the
+      skills advertised by this host, and quoted commands or example future requests are
+      permitted. It need not enumerate every prohibited operation in the refusal.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/specs/(repository-guide|adaptive-delivery)\.md|plugins/orchestration/darrow-adaptive-delivery/README\.md

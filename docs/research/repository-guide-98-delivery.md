@@ -313,3 +313,12 @@ but offered to run installation after a scope confirmation. The contract and
 guide now keep that refusal brief and offer a separately phrased execution
 request, without promising a guide-to-executor role switch. Diagnostic repair,
 mutation, and orchestration pressure are rerun along with the remaining cases.
+
+Diagnostic repair and mutation pressure passed on both hosts in
+`2026-09-11T16-13-25-328Z`. The orchestration rubric incorrectly treated host
+skill-availability awareness as environment diagnosis and demanded an extra
+verbal no-goal-control statement despite the deterministic transcript check.
+The revised semantic checks require the refusal and separate route, and reject
+claims of goal/owner execution without requiring a repeated prohibition list.
+The existing state and goal/owner-event checks remain unchanged. Retained safe
+and goal-creation counterexamples are regraded before fresh trials.
