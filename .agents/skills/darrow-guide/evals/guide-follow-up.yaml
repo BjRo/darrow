@@ -35,7 +35,8 @@ output_checks:
 semantic_output_checks:
   - name: progressive first success
     proposition:
-      The response directly answers the follow-up with a read-only readiness assessment and
-      explains that a non-ready verdict can be a valid assessment. It does not repeat a broad
+      The response recommends a read-only readiness assessment as the first workflow and
+      explains that a non-ready verdict can be a valid assessment. It describes the workflow;
+      it is not required to perform an assessment itself. It does not repeat a broad
       product overview or claim to have installed,
       tested, repaired, or changed anything.

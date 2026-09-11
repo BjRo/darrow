@@ -225,3 +225,18 @@ criteria correctly but failed an installation-specific fresh-session assertion.
 That requirement remains in `guide-installation`; it was removed from the
 follow-up question, which does not ask for installation steps. Retained valid
 and execution-claim counterexamples are regraded before the fresh full suite.
+
+Post-contraction verification also restored the overview's essential activation
+distinction and clarified that a follow-up recommends, rather than performs, a
+readiness assessment. Follow-up, orientation, and explicit invocation passed on
+both hosts in `2026-09-11T15-30-15-877Z`. A layer answer then reproduced the full
+catalog. That question now explicitly asks about implemented layers, and its
+focus check rejects catalog repetition while allowing citations, host disclosure,
+and one next source. Retained catalog-expanded output fails that focus check;
+a focused answer passes and a sequential/automatic-execution counterexample fails.
+The revised layer case exposed a real omission: Claude described the stack but
+did not distinguish responsibilities from a required execution sequence. The
+guide now explicitly requires that distinction for layer questions and a direct
+lower-layer entry example. Layer and visual cases are rerun with this targeted
+change; unrelated prior passing cases remain evidence for their unchanged paths.
+These partial results are not yet a complete matrix or stability claim.

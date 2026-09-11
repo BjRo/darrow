@@ -134,9 +134,12 @@ paths when supported. Explicitly label derived, conflicting, and unknown claims;
 start implementation-derived answers by naming that evidence status. A code
 citation alone is not the label. Authoritative citations need no repetitive label.
 
-Match the question's level. An overview needs the product's purpose and a next
-route, not a second list of selling points. Layer questions need responsibilities
-and support relationships, not every plugin or runtime helper. A narrow code
+Match the question's level. An overview needs the product's purpose, independent
+adoption, how capabilities and orchestration start, and one safe next route—not
+a second list of selling points. Layer questions need responsibilities
+and support relationships, not every plugin or runtime helper. Explicitly
+distinguish those responsibilities from a required execution sequence; identify
+where a reader can use a lower layer directly. A narrow code
 question usually needs one behavior statement and a code citation. A boundary
 question needs the rule and a governing citation, not several equivalent
 prohibitions or an inventory of downstream tasks.

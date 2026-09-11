@@ -2,8 +2,8 @@ id: guide-layers
 invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt:
-  Explain how Darrow's layers support one another, which have shipped, and where evaluation
-  and observability fit.
+  At the layer level, explain how Darrow's layers support one another, which layers are
+  implemented, and where evaluation and observability fit.
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
 checks:
@@ -31,10 +31,16 @@ checks:
 semantic_output_checks:
   - name: question contract
     proposition:
-      "The response directly answers the question, remains concise, and establishes these
-      points: Responsibilities are not sequential stages; Foundations and capabilities support
-      several layers; Automation is planned; Evaluation and observability span layers. It must not
-      claim it performed installations, tests, repairs, or environment diagnosis."
+      "The response establishes these points: Responsibilities are not sequential stages;
+      Foundations and capabilities support several layers; Automation is planned;
+      Evaluation and observability span layers."
+  - name: layer-level focus and read-only explanation
+    proposition: >-
+      The response explains the layer relationships without reproducing the full plugin catalog
+      or an extended implementation walkthrough. Brief examples, required Claude support
+      disclosure, citations, and one useful next source are permitted. It does not claim to
+      have installed plugins, run tests, changed configuration, contacted services, or established
+      the cause of an unobserved live failure. Read-only repository inspection is permitted.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/specs/layer-composition\.md|docs/design\.md

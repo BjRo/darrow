@@ -61,7 +61,7 @@
     {
       "id": "guide-layers",
       "phrasings": [
-        "Explain how Darrow's layers support one another, which have shipped, and where evaluation and observability fit.",
+        "At the layer level, explain how Darrow's layers support one another, which layers are implemented, and where evaluation and observability fit.",
         "Does every task pass through all five layers?"
       ],
       "sources": ["docs/specs/layer-composition.md", "docs/design.md"],
