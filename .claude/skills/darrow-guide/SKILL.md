@@ -140,8 +140,10 @@ start implementation-derived answers by naming that evidence status. A code
 citation alone is not the label. Authoritative citations need no repetitive label.
 
 Match the question's level. An overview needs the product's purpose, independent
-adoption, how capabilities and orchestration start, and one safe next route—not
-a second list of selling points. Layer questions need responsibilities
+adoption, and one safe next route. Include both activation rules together:
+capabilities match ordinary user intent; orchestration requires explicit
+invocation. Check for both before sending an overview; independent adoption
+alone does not explain capability activation. Layer questions need responsibilities
 and support relationships, not every plugin or runtime helper. Explicitly
 distinguish those responsibilities from a required execution sequence; identify
 where a reader can use a lower layer directly. A narrow code

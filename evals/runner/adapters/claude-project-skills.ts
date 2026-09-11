@@ -72,7 +72,7 @@ export function projectSkillActivation(
       : observation.observedSkills;
   return {
     source: "explicit_invocation",
-    complete: observation.complete && receipt.accepted !== null,
+    complete: observation.complete && receipt.accepted === true,
     primarySkill: observedSkills[0] ?? null,
     observedSkills,
   };

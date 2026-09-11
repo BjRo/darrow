@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { matchClaudeProjectInvocation } from "./claude-project-skills";
+import { gradeActivation } from "../activation";
+import {
+  matchClaudeProjectInvocation,
+  projectSkillActivation,
+} from "./claude-project-skills";
 const input = {
   sessionId: "session-one",
   skill: "darrow-guide",
@@ -92,3 +96,55 @@ test("malformed or unfinished native evidence remains unknown", () => {
     }).accepted,
   ).toBeNull();
 });
+
+test.each([false, null] as const)(
+  "later skill events cannot repair an unaccepted project receipt (%j)",
+  (accepted) => {
+    const observedSkills = ["darrow-guide", "explain-visually"];
+    const result = projectSkillActivation(
+      {
+        source: "harness_event",
+        complete: true,
+        primarySkill: "darrow-guide",
+        observedSkills,
+      },
+      {
+        type: "darrow.claude_project_skill_invocation",
+        skill: "darrow-guide",
+        accepted,
+        reason: "native command did not establish dispatch",
+      },
+    );
+    expect(result.observedSkills).toEqual(observedSkills);
+    expect(result.source).toBe("explicit_invocation");
+    expect(
+      gradeActivation("positive", "darrow-guide", result).passed,
+    ).toBeNull();
+  },
+);
+
+test.each([true, false])(
+  "accepted project dispatch preserves supporting-event completeness (%j)",
+  (complete) => {
+    const result = projectSkillActivation(
+      {
+        source: "harness_event",
+        complete,
+        primarySkill: "explain-visually",
+        observedSkills: ["explain-visually", "darrow-guide"],
+      },
+      {
+        type: "darrow.claude_project_skill_invocation",
+        skill: "darrow-guide",
+        accepted: true,
+        reason: "correlated native command and body",
+      },
+    );
+    expect(result.observedSkills).toEqual(["darrow-guide", "explain-visually"]);
+    expect(
+      gradeActivation("positive", "darrow-guide", result, {
+        sequence: ["darrow-guide", "explain-visually"],
+      }).passed,
+    ).toBe(complete ? true : null);
+  },
+);

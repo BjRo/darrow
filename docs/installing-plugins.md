@@ -17,6 +17,17 @@ can differ; consult local `--help` and the linked official documentation if
 a command is unavailable. Syntax checks alone do not verify your account,
 network, installed state, or the desktop UI.
 
+### Select the command target
+
+The commands below use `darrow-readiness-gate@darrow` as the worked example for
+the [first workflow](getting-started.md). For another plugin, replace that
+identifier in **every install, update, remove, and reinstall command** with the
+selected plugin's name from its README, followed by `@darrow`. For example,
+use `darrow-git@darrow` for Darrow Git. Keep the marketplace name `darrow`
+unchanged. Before removal or replacement, check the installed listing and scope
+against your intended target; do not run the readiness example literally for
+a different plugin. Verify using the selected plugin's own usage instructions.
+
 ## Claude Code
 
 Run these inside an interactive **Claude Code session**, one at a time:
@@ -27,7 +38,8 @@ Run these inside an interactive **Claude Code session**, one at a time:
 ```
 
 Expect a marketplace-added result, followed by an installation result naming
-`darrow-readiness-gate@darrow` and its scope. Choose user scope for your own
+your selected plugin (`darrow-readiness-gate@darrow` in this example) and its
+scope. Choose user scope for your own
 sessions, project scope for shared project configuration, or local scope for
 a private project choice. Project scope can change checked-in configuration.
 Start a fresh session, or follow a host-provided reload instruction.
@@ -107,14 +119,21 @@ a CLI installation enabled a different app or extension.
 
 ## Verify the installation
 
-In a fresh session, select the installed readiness skill explicitly:
+First check the installed listing names your selected plugin. In a fresh
+session, follow that plugin README's **Usage** and **Expected result** sections,
+including its host-support and safety limits. Use its documented skill name
+and a request whose effects you authorize. A package listing alone does not
+prove invocation or behavior; verifying readiness does not verify another plugin.
+
+For the readiness worked example, select its installed skill explicitly:
 
 - Codex: type `$` and choose `assess-implementation-readiness`.
 - Claude Code: use `/darrow-readiness-gate:assess-implementation-readiness`.
 
 Supply the request in the [first-workflow tutorial](getting-started.md).
 Expect an assessment with a verdict, inspected basis, quality bar, and next
-action. No implementation, edits, or tracker writes should occur.
+action; a non-ready verdict may leave the quality bar empty when required facts
+are missing. No implementation, edits, or tracker writes should occur.
 An installed listing proves package state; the observed assessment proves
 that the skill can be invoked. Neither proves every plugin behavior.
 

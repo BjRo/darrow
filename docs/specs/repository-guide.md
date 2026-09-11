@@ -20,6 +20,8 @@ to material claims. Mark derived, conflicting, and unknown claims explicitly;
 authoritative claims need citations but no repetitive status label. Offer one
 useful next source, question, or capability handoff when it helps the reader.
 Do not require a fixed template or an unsolicited follow-up after every answer.
+An overview includes independent adoption and the activation distinction:
+capabilities match ordinary user intent; orchestration requires explicit invocation.
 
 ## Evidence policy
 
@@ -107,6 +109,9 @@ The root landing page routes to `docs/README.md`, first success, installation,
 selection, architecture, troubleshooting, and contributing. The static spine
 remains useful without an agent. Plugin READMEs own local behavior and follow
 the documentation review contract in `docs/documentation-quality.md`.
+General lifecycle instructions distinguish any worked example from the selected
+plugin. Installation, update, removal, and verification must consistently target
+that selection, with plugin-local usage and expected outcomes governing verification.
 
 Keep a question-level migration ledger. Before removing a narrative section,
 record its question IDs, a surviving static route, and passing native Codex and

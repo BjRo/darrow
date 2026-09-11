@@ -354,7 +354,56 @@ again passed 13 packages and reported the same existing Claude `Interrupt`
 limitation for observability; marketplace validation passed with existing
 optional-metadata warnings. Bash 3.2 passed; Bash 5 remains unverified.
 
-The fresh-context challenge and a frozen-current-version full live run are next.
-Publication is separately awaiting user direction: draft PR #124 was discovered
+At this checkpoint, the fresh-context challenge and a frozen-current-version
+full live run were next. Publication is separately awaiting user direction:
+draft PR #124 was discovered
 on this branch after local implementation had started. No duplicate PR is created,
 and no existing-PR content or ready-state update is assumed authorized.
+
+## Independent review and corrections
+
+One fresh-context reviewer inspected the finished artifacts and task-local
+evidence without changing files, running Git/GitHub commands, launching live
+evals, or delegating. It confirmed all 44 selected result rows against their
+recorded digests, native host, executed task pass, and activation pass; local
+documentation checks and the unchanged licensing checksum also passed.
+
+The frozen run in `2026-09-11T16-27-50-471Z` passed both follow-up trials, then
+stopped at Codex orientation: independent adoption and explicit orchestration
+were explained, but intent-matched capability activation was omitted. The
+reviewer confirmed this as product behavior, not an invalid expectation. Both
+guide bodies now explicitly pair the two activation rules in the overview's
+final-answer check; the existing case and rubric remain unchanged.
+
+The reviewer also found that a rejected Claude project-command receipt could
+still pass explicit activation if later ordinary `Skill` events named the guide.
+A new regression reproduced that false positive before the implementation fix.
+Explicit activation now remains unknown unless the receipt is accepted, while
+preserving observed skill events. Tests also cover unavailable receipts,
+accepted ordered supporting events, and incomplete supporting observations.
+The focused activation tests pass: 27 tests and 57 assertions across two files.
+
+Finally, the canonical installation page used readiness commands without
+instructing readers selecting another plugin to substitute its identifier.
+It now identifies readiness as the worked example, requires the selected target
+throughout install/update/remove/reinstall commands, and directs verification
+to that plugin's Usage and Expected result sections with its host/safety limits.
+The readiness tutorial remains the concrete first workflow; the general page
+also preserves its allowed non-ready, empty-quality-bar outcome.
+
+Review limitations remain explicit: state checks and intercepted commands do
+not prove absence of every diagnostic, ignored artifact, or arbitrary API call.
+Citation-presence checks do not prove that every source was inspected during
+each question. The arithmetic negative case does not measure adjacent ordinary
+installation/implementation selection; explicit pressure cases test a different
+boundary. No rendered accessibility audit was performed. These limits do not
+become stronger RG-C2/RG-C5 evidence through aggregate passing results.
+
+Post-review dry preparation passed all 44 fixtures in
+`2026-09-11T16-37-57-611Z`; every retained fixture check was inspected and passed,
+with behavioral rates correctly remaining unmeasured. The complete repository
+run passed 452 tests and 1,815 assertions across 47 files (83.51 seconds), plus
+formatting, ESLint, shell lint, TypeScript, eight ADRs, local documentation, and
+both skill inspectors. Current-version full native verification remains pending.
+The earlier full test process ended, but its final output was unavailable after
+context compaction; no new pass claim is based on that missing terminal record.

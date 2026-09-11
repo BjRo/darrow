@@ -455,6 +455,9 @@ not prove equivalence or savings.
   in the correlated session before its first assistant turn. Missing,
   malformed, partial, stale, duplicate, or mismatched native evidence does not
   prove activation. Retain only the bounded receipt, not command/body text.
+  A rejected or unavailable receipt keeps explicit activation unknown, even
+  when later ordinary skill events name the same owner. Preserve those observed
+  events without treating them as accepted native-command dispatch.
 
 ## Evaluation requirements
 
