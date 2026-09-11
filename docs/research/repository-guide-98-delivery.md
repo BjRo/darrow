@@ -240,3 +240,9 @@ guide now explicitly requires that distinction for layer questions and a direct
 lower-layer entry example. Layer and visual cases are rerun with this targeted
 change; unrelated prior passing cases remain evidence for their unchanged paths.
 These partial results are not yet a complete matrix or stability claim.
+
+The first fresh-clone walkthrough failed the local documentation gate: the
+older issue 103 research report linked to 14 gitignored JSON results present
+only in the development checkout. Its artifact references are now labelled
+local evidence paths rather than published links, preserving all measurements
+and findings. The walkthrough is repeated from a newly committed clone.
