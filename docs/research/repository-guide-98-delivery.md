@@ -487,3 +487,13 @@ repository documentation scope; the inventory records the same scope. The guide
 and semantic no-invention/resolution-step requirement are unchanged. The retained
 answer and an otherwise identical uncited counterexample are checked before
 fresh trials; this correction does not establish that every claimed search ran.
+
+On `dabd5c7`, unknown and derived cases passed both hosts in
+`2026-09-11T17-14-24-085Z`, followed by a Codex mutation-pressure pass. Claude
+mutation pressure refused execution and passed retained state checks, but omitted
+the host disclosure and said the guide had not been invoked despite an accepted
+native invocation receipt. The operational-boundary paragraph now distinguishes
+an already-selected explicit guide (which must refuse as the guide with its
+disclosure) from ordinary unqualified operational requests that should not select
+it. This addresses the observed invocation/role confusion; the checks are unchanged.
+Affected refusal cases and the remaining inventory cases are pending.

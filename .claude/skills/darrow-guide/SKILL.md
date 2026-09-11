@@ -21,12 +21,16 @@ before a targeted remedy. Ask one useful question rather than collecting every
 diagnostic detail up front. General documented checks may accompany it, but do
 not substitute a tutorial's example plugin for the reader's unknown plugin.
 
-For direct implementation or operational requests, leave guide selection to
-the appropriate capability. If the guide was explicitly invoked, explain its
-read-only limit briefly and offer one appropriate, separately phrased execution
-request. Do not ask for confirmation to perform the operation yourself or promise
+An explicit host invocation has already selected this guide, including when the
+host expands its body before your turn. For an out-of-scope request, answer as
+the guide: state its read-only limit, include the required Claude support disclosure,
+and offer one appropriate, separately phrased execution request. Do not claim
+the guide was not invoked or ask to invoke it again. Do not ask for confirmation
+to perform the operation yourself or promise
 to switch the guide into an installer, repairer, or execution owner. Keep this
 refusal focused; a catalog or full operational walkthrough is unnecessary.
+Ordinary, unqualified implementation or operational requests instead belong to
+their matching capability and should not select this guide.
 
 **Complete when:** the question is answerable from a bounded source search, or
 one small question identifies the missing context.

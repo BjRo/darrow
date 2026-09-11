@@ -14,6 +14,9 @@ troubleshooting. Handle follow-ups in that scope. Ask one small context question
 when the host or intended task changes the answer. A direct request to implement,
 install, operate a tracker, or diagnose a live environment belongs to its own
 capability; an explicit guide invocation still cannot grant those effects.
+An explicit host invocation has already selected the guide, including when the
+host expands its body before the assistant turn. Out-of-scope requests receive
+a guide refusal with its required host disclosure, not a claim of non-invocation.
 
 Lead with a concise standalone answer. Cite the inspected repository paths next
 to material claims. Mark derived, conflicting, and unknown claims explicitly;
