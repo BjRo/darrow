@@ -187,7 +187,7 @@
       "answer_points": [
         "State diagnostic limit",
         "Offer appropriate capability or safe textual route",
-        "No commands or edits"
+        "No diagnostic execution or edits; documented command examples are allowed"
       ],
       "evidence": "unknown",
       "static_page": "docs/troubleshooting.md",

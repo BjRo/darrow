@@ -276,3 +276,11 @@ Retained walkthroughs: `guide-walkthrough-2026-09-11T15-47-42-251Z` (Codex
 invocations), `guide-walkthrough-2026-09-11T15-50-17-636Z` (Codex lifecycle), and
 `guide-walkthrough-2026-09-11T15-50-29-827Z` (Claude). Paths are under gitignored
 `evals/results/`; the initial failed attempts remain diagnostic evidence.
+
+Both hosts passed the corrected troubleshooting case in
+`2026-09-11T15-54-02-433Z`. The next failure was an invalid expectation: the
+diagnostic-absence rubric's "no commands" wording rejected a quoted documented
+check, despite unchanged state and no intercepted command attempts. It now
+distinguishes quoting commands from execution, matching the existing contract.
+Retained safe output and an actual execution-claim counterexample are regraded
+before fresh trials; no guide behavior was changed for this correction.
