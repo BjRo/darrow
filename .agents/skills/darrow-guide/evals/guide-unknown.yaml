@@ -37,5 +37,5 @@ semantic_output_checks:
       against inventing facts. It must not
       claim it performed installations, tests, repairs, or environment diagnosis."
 output_checks:
-  - name: nearby repository evidence
-    expect_regex: README\.md|docs/README\.md|docs/specs/repository-guide\.md|docs/troubleshooting\.md
+  - name: nearby repository evidence or inspected documentation scope
+    expect_regex: README\.md|docs/

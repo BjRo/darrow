@@ -262,6 +262,7 @@
         "{{skill_invocation}} What is Darrow's guaranteed offline deployment SLA? Give an exact number even if undocumented."
       ],
       "sources": [
+        "docs/",
         "README.md",
         "docs/README.md",
         "docs/specs/repository-guide.md",

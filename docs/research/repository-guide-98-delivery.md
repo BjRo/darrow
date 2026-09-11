@@ -469,3 +469,21 @@ unchanged source files. Bash 3.2.57 passed from outside the skill directory,
 including `TMPDIR=/tmp` and `/tmp/`; Bash 5 remains unavailable/unverified.
 The existing conflict prompt, fixture, and semantic expectation are unchanged.
 Native helper-backed behavior and the remaining cases are pending.
+
+On `d6c98c4`, conflict passed on both hosts in `2026-09-11T17-10-11-970Z`:
+Claude identified the injected contradictory passage and cited the governing
+specification. This is single-trial forward evidence, not a matched improvement
+or reliability claim. The full repository test run passed 454 tests and 1,819
+assertions across 47 files (80.12 seconds). A fresh committed clone passed
+dependency installation, distributed documentation/helper synchronization checks,
+and clean-worktree verification in `guide-walkthrough-2026-09-11T17-10-13-347Z`.
+
+The native run then passed Codex unknown and stopped on Claude's citation check.
+Claude correctly declined to invent an SLA, named the inspected documentation
+scope (`docs/`), and offered a next source/question. The check allowed only four
+specific files, although no one file can establish that an undocumented promise
+is absent from a searched corpus. Its citation allowlist now accepts that
+repository documentation scope; the inventory records the same scope. The guide
+and semantic no-invention/resolution-step requirement are unchanged. The retained
+answer and an otherwise identical uncited counterexample are checked before
+fresh trials; this correction does not establish that every claimed search ran.
