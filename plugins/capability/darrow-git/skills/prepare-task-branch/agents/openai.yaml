@@ -1,4 +1,4 @@
 interface:
   display_name: "Prepare Task Branch"
-  short_description: "Create or reuse one exact ticket branch"
+  short_description: "Discover ticket branches or prepare one exact name"
   default_prompt: "Use $prepare-task-branch to activate this ticket's exact task branch."

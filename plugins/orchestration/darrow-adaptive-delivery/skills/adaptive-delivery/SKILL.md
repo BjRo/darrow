@@ -84,6 +84,35 @@ the request after launch. Input gathering grants no mutation authority.
 
 ## 3. Resolve readiness before launch
 
+When authorized ticket delivery needs task-branch preparation, first preserve
+the provider's exact opaque canonical token and discover all correlated local
+branches through a compatible host-advertised Git capability's read-only token
+operation. Require complete token-filtered evidence; a truncated general
+listing is insufficient. If compatible discovery is unavailable or refuses,
+stop dependent preparation without raw Git fallback.
+
+Adaptive delivery owns the choice:
+
+- one match: bind that exact existing branch even if a proposed type or suffix
+  differs; preserve its tip;
+- multiple matches: ask for one explicit exact choice before mutation or
+  launch, unless the caller already selected one of those existing branches;
+- zero matches: bind one `<type>/<token>-<kebab-suffix>` name from the settled
+  request, using a lowercase descriptive suffix, the unchanged token exactly
+  once, and at most 60 characters. Preserve a valid exact caller-bound name.
+
+A proposed new name is not a choice among existing matches. Missing ticket
+identity asks the smallest question. Do not normalize tokens or infer provider
+semantics from names. Compile the token, complete evidence, exact selection,
+and this decision rule into the owner contract. Bind discovery refresh and
+exact preparation to the compatible Git capability. The owner refreshes
+discovery immediately before preparation and reapplies this rule if candidates
+changed; it asks through the same-owner feedback path when selection is needed.
+Preparation remains owner work and worktrees require explicit caller authority.
+The delegating task recipe owns neither branch selection nor Git mechanics.
+Fresh explicit delivery can reuse local state without automatic continuation
+across conversations.
+
 Select readiness semantically:
 
 | Situation | Selection |

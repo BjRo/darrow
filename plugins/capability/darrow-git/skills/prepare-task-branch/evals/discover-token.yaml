@@ -1,0 +1,29 @@
+id: prepare-task-branch-discover-token
+invariant: GW-TB7
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Find all local task branches correlated with the active provider's exact
+  canonical token issue-84 and report their full tips. Keep the checkout as it is.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  setup: |
+    i=1
+    while test "$i" -le 65; do git branch "chore/unrelated-$i"; i=$((i + 1)); done
+    git branch fix/issue-84-original
+    git branch fix/issue-840-similar
+    git branch fix/Issue-84-case
+checks:
+  - name: checkout remains unchanged
+    run: git branch --show-current
+    expect_exact: main
+  - name: branch count is unchanged
+    run: git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' '
+    expect_exact: "69"
+semantic_output_checks:
+  - name: reports only the correlated local branch
+    proposition: The response identifies fix/issue-84-original as the sole correlated branch and includes its full commit ID, without treating fix/issue-840-similar or fix/Issue-84-case as matches or requiring an exact branch name before discovery.

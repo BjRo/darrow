@@ -1,6 +1,6 @@
 ---
 name: prepare-task-branch
-description: "Prepare one ticket-linked task branch when its exact provider token is supplied and its complete conventional branch name is bound by the caller or an authorized delivery workflow. Also use when a preparation request supplies multiple candidate names: refuse to choose, create, or switch until the caller binds one exact name. Once bound, switch to, reuse, or create that exact branch in the current checkout or an explicitly requested worktree. Do not use to derive a branch name from described work or to list branches."
+description: "Discover local task branches for an exact opaque ticket token, or prepare one caller-bound exact ticket branch. Use to find prior local work for a canonical token, or switch to, reuse, or create one exact branch in the current checkout or an explicitly requested worktree. Multiple candidate names require an exact caller choice. Do not use to derive branch names from described work or for general branch listing."
 ---
 
 # Prepare a task branch
@@ -9,24 +9,46 @@ Prepare exactly one named task branch in the current checkout, or in a linked
 worktree only when the caller explicitly requests that context. Run every Git
 operation through `scripts/branch.sh` with Bash; `<skill-dir>` contains this
 file. The script owns repository inspection, name and ticket-token validation,
-additive creation, exact reuse, switching, worktree allocation, and refusal
+complete token discovery, additive creation, exact reuse, switching, worktree allocation, and refusal
 safety. Use its output as the source of truth.
 
-## 1. Require exact correlation
+## 1. Bind discovery or preparation input
 
-Require both:
+For discovery, require only the active provider's exact opaque canonical token.
+Run the read-only operation:
+
+```sh
+bash <skill-dir>/scripts/branch.sh discover --ticket-token <opaque-token>
+```
+
+Relay `mode: discovered`, the unchanged token, the exact count, and every
+candidate with its full tip. Do not truncate the result. Discovery inspects all
+local branches in refname order, using the same validation as preparation:
+allowed conventional type, literal case-sensitive `<token>-` prefix, token
+exactly once, lowercase kebab suffix, and at most 60 characters. It never reads
+remote refs or interprets provider identity. The delimiter is lexical:
+`fix/84-extra-work` can match token `84` or `84-extra`; do not infer a provider
+from that spelling. A failed enumeration is not zero matches.
+
+Discovery makes no selection or mutation. The caller or enclosing workflow
+chooses the exact branch using this complete evidence. Stop after reporting
+discovery unless an exact preparation name is already bound. Never use the
+bounded general listing from `inspect` as complete token evidence.
+
+For preparation, require both:
 
 - one exact conventional branch name, `<type>/<opaque-token>-<kebab-suffix>`;
 - the active ticket provider's exact opaque canonical token.
 
-Do not search for a branch, choose among alternatives, derive or normalize a
+Do not choose among alternatives, derive or normalize a
 token, or reinterpret another provider's identifier. Permission to pick one of
 multiple candidates—such as "whichever seems better"—does not bind one exact
 name. Ask the caller to select a single candidate and perform no Git operation.
 Other missing or ambiguous input likewise asks the smallest question without
 repository mutation.
 
-**Complete when:** one exact name and its unchanged provider token are bound—or
+**Complete when:** complete discovery evidence has been returned, or one exact
+name and its unchanged provider token are bound—or
 the missing choice has been requested without repository mutation.
 
 ## 2. Inspect safety
@@ -85,6 +107,13 @@ leaves the caller's checkout and its local changes untouched. A failed
 worktree addition does not delete a branch that appeared concurrently or leave
 default-path directories or local-exclude entries created for the failed
 attempt.
+
+Before creating a missing exact name, the script repeats complete token
+discovery. If any correlated local branch exists, it refuses and returns every
+candidate. Return that evidence to the caller; do not silently switch to a
+different name. An explicitly bound existing name remains eligible, including
+the caller's explicit choice among several matches. This check does not lock
+the repository against other actors after inspection.
 
 **Complete when:** the script reports one mode and exact branch, or its refusal
 has been preserved with the original repository state intact.

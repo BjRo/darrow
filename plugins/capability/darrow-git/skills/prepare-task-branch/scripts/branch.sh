@@ -77,12 +77,22 @@ default_branch() {
   done
   echo "(none)"
 }
-validate_name() {
-  local name=$1 ticket_token=$2 slug token_count suffix
+validate_token() {
+  local ticket_token=$1
   if ! [[ "$ticket_token" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]*$ ]]; then
     echo "error: ticket token contains unsupported branch characters: $ticket_token" >&2
     exit 5
   fi
+  # Use the shortest permitted type and suffix to test whether any name can fit.
+  if [[ ${#ticket_token} -gt 55 ]] ||
+    ! git check-ref-format --branch "ci/${ticket_token}-a" >/dev/null 2>&1; then
+    echo "error: ticket token cannot form a valid task branch: $ticket_token" >&2
+    exit 5
+  fi
+}
+validate_name() {
+  local name=$1 ticket_token=$2 slug token_count suffix
+  validate_token "$ticket_token"
   if ! [[ "$name" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/.+$ ]] ||
     ! git check-ref-format --branch "$name" >/dev/null 2>&1; then
     echo "error: branch name must be <type>/<opaque-token>-<kebab-suffix>: $name" >&2
@@ -109,6 +119,30 @@ validate_name() {
   fi
 }
 
+discover_matches() {
+  local ticket_token=$1 listing name tip
+  validate_token "$ticket_token"
+  listing=$(git for-each-ref --sort=refname --format='%(refname:lstrip=2)%09%(objectname)' refs/heads) || {
+    echo 'error: cannot enumerate local task branches' >&2
+    return 3
+  }
+  while IFS=$'\t' read -r name tip; do
+    [[ -n "$name" ]] || continue
+    if (validate_name "$name" "$ticket_token") >/dev/null 2>&1; then
+      printf '%s (at %s)\n' "$name" "$tip"
+    fi
+  done <<< "$listing"
+}
+report_matches() {
+  local matches=$1 count=0 line
+  while IFS= read -r line; do
+    [[ -z "$line" ]] || count=$((count + 1))
+  done <<< "$matches"
+  printf '## matches: %s\n' "$count"
+  [[ -z "$matches" ]] || printf '%s\n' "$matches"
+  return 0
+}
+
 if [[ "$(git rev-parse --is-inside-work-tree 2>/dev/null || true)" != "true" ]]; then
   echo "error: not inside a git work tree" >&2
   exit 3
@@ -118,6 +152,16 @@ command=${1:-}
 shift || true
 
 case "$command" in
+  discover)
+    if [[ $# -ne 2 || "$1" != --ticket-token || -z "$2" ]]; then
+      echo 'error: discover requires --ticket-token <opaque-token>' >&2
+      exit 2
+    fi
+    matches=$(discover_matches "$2") || exit $?
+    echo '## mode: discovered'
+    printf '## ticket token: %s\n' "$2"
+    report_matches "$matches"
+    ;;
   inspect)
     if in_progress; then
       echo "## mode: conflict (merge/rebase/cherry-pick in progress — do not switch; inform the user)"
@@ -217,6 +261,14 @@ case "$command" in
     if [[ -z "$exact" && -n "$collision" ]]; then
       echo "error: branch name differs only by case from existing branch: $collision" >&2
       exit 9
+    fi
+    if [[ -z "$exact" ]]; then
+      matches=$(discover_matches "$ticket_token") || exit $?
+      if [[ -n "$matches" ]]; then
+        echo 'error: correlated local branches exist; bind one exact existing branch before preparation' >&2
+        report_matches "$matches" >&2
+        exit 9
+      fi
     fi
     if [[ $worktree -eq 1 ]]; then
       default_parent=""
@@ -385,7 +437,7 @@ case "$command" in
     echo "$name (from $from)"
     ;;
   *)
-    echo "usage: branch.sh inspect | prepare <name> --ticket-token <opaque-token> [--from <base>] [--worktree [--at <path>]]" >&2
+    echo "usage: branch.sh discover --ticket-token <opaque-token> | inspect | prepare <name> --ticket-token <opaque-token> [--from <base>] [--worktree [--at <path>]]" >&2
     exit 64
     ;;
 esac

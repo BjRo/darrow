@@ -1,0 +1,37 @@
+id: goal-ticket-branch-create
+invariant: ADL-B1,ADL-C2,ADL-L1
+activation: positive
+mount_plugin_skills: true
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: false
+additional_plugins:
+  - plugins/capability/darrow-git
+prompt: >-
+  {{skill_invocation}} Deliver this already-assessed ready request for canonical
+  ticket token issue-84: append the exact line `Started.` to NOTES.md. Prepare
+  its task branch first using the name fix/issue-84-start-work if creation is
+  needed. The scope and acceptance are unchanged from that assessment.
+  Do not commit, publish, or create a worktree. The required check is
+  `grep -Fx 'Started.' NOTES.md`.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "# Notes\n"
+  setup: |
+    git branch fix/issue-840-similar
+    git branch fix/Issue-84-case
+    git branch fix/prefix-issue-84-substring
+checks:
+  - name: creates the bound branch for the exact opaque token
+    run: git branch --show-current
+    expect_exact: fix/issue-84-start-work
+  - name: only one branch is added
+    run: git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' '
+    expect_exact: "5"
+  - name: requested work is implemented
+    run: grep -Fx 'Started.' NOTES.md
+activation_sequence:
+  - adaptive-delivery
+  - prepare-task-branch

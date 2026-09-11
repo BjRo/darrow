@@ -23,12 +23,17 @@ Example: _“Create a branch for DAR-123 retry handling.”_
 
 ### `prepare-task-branch`
 
-Creates or reuses one exact ticket-linked task branch in the current checkout
+Discovers every local task branch for an exact opaque token without mutation,
+returning complete candidates and tips for the caller to select. It also
+creates or reuses one exact ticket-linked task branch in the current checkout
 or, only on explicit request, in a linked worktree. Existing branch tips stay
 fixed, the active provider's opaque token is required, and compatible
 uncommitted work is preserved without stashing or committing it. A worktree
 result returns the attributed execution path while leaving the caller's
 checkout untouched.
+
+Creating a missing name refuses when another correlated local branch exists,
+so callers can reuse prior work even when a newly proposed suffix differs.
 
 Example: _“Prepare the existing branch for DAR-123 before continuing.”_
 

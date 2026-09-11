@@ -44,6 +44,13 @@ review matches an advertised skill, the exact skill is bound before launch and
 must be invoked when that operation becomes due. Direct Git, forge, tracker,
 shell, or generic-agent calls are not substitutes for a binding.
 
+Ticket delivery discovers all local branches correlated with the provider's
+exact opaque token through a compatible Git capability. One match is reused
+even when a new attempt proposes a different suffix; several matches require
+an explicit choice; no matches permits a conventional new name. Adaptive
+delivery owns that decision and the Git capability owns inspection and
+preparation. Task recipes continue to delegate their authority envelope.
+
 The owner task begins with:
 
 ```text
