@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Ticket (GitHub)"
+  short_description: "Update one verified tracker ticket in GitHub"
+  default_prompt: "Use $update-ticket to apply my requested change to the relevant ticket."

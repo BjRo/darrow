@@ -1,0 +1,29 @@
+id: update-ticket-no-trigger-other-provider
+invariant: TM-P2
+activation: negative
+mount_plugin_skills: true
+activation_excludes:
+  - create-ticket
+  - read-ticket
+  - list-tickets
+  - update-ticket
+prompt: "Close Jira ticket APP-42."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# APP\n\nThis project tracks work in Jira.\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      printf '%s\n' "$*" >> "$(git rev-parse --git-dir)/fixture-gh-calls"
+      echo "Unexpected GitHub tracker access" >&2
+      exit 1
+  setup: |
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: explicit other tracker does not contact GitHub
+    run: test ! -f .git/fixture-gh-calls
+semantic_output_checks:
+  - name: requested tracker is preserved
+    proposition: The response preserves Jira as the requested tracker and does not claim the requested operation succeeded or substitute a GitHub issue.

@@ -3,7 +3,7 @@ invariant: ADL-A3,ADL-P2,ADL-S1
 goal_report: forbidden
 goal_route_checks: false
 additional_plugins:
-  - plugins/capability/darrow-tickets
+  - plugins/capability/darrow-tickets-github
 prompt: >-
   {{skill_invocation}} Implement ticket 64. Skip the default readiness gate.
   Keep the result local.
@@ -17,7 +17,7 @@ fixture:
       #!/bin/sh
       git_dir=$(git rev-parse --git-dir)
       case "${1:-}" in
-        */darrow-tickets/*/bin/ticket)
+        */darrow-tickets-github/bin/ticket|*/darrow-tickets-github/*/bin/ticket)
           printf '%s\n' "$*" >>"$git_dir/fixture-ticket-cli-calls"
           ;;
       esac

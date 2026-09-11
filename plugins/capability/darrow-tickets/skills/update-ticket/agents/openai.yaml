@@ -1,4 +1,0 @@
-interface:
-  display_name: "Update Ticket"
-  short_description: "Update one verified tracker ticket"
-  default_prompt: "Use $update-ticket to apply my requested change to the relevant ticket."

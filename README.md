@@ -111,7 +111,7 @@ opinions, bring your own implementation and nothing else breaks.
 | Plugin                                                                                        | Use it to                                                                                         |
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | [`darrow-git`](plugins/capability/darrow-git/README.md)                                       | Create branches, commits, and pull requests through bounded Git workflows.                        |
-| [`darrow-tickets`](plugins/capability/darrow-tickets/README.md)                               | Create, list, and update tracker work items through a backend-neutral interface.                  |
+| [`darrow-tickets-github`](plugins/capability/darrow-tickets-github/README.md)                 | Create, read, list, and update GitHub issues through bounded ticket workflows.                    |
 | [`darrow-readiness-gate`](plugins/capability/darrow-readiness-gate/README.md)                 | Check whether a request, ticket, specification, or plan is ready to implement.                    |
 | [`darrow-discovery`](plugins/capability/darrow-discovery/README.md)                           | Grill ideas, discover feature behavior, and plan implementation without inventing unknowns.       |
 | [`darrow-explanation`](plugins/capability/darrow-explanation/README.md)                       | Explain technical structure through compact, source-grounded visual forms.                        |
@@ -164,7 +164,7 @@ scheduler delegation needs a separately authorized entry path.
 Coming soon:
 
 - `darrow-artificer` — runs on a scheduler on top of `darrow-ticket-to-pr` and
-  `darrow-tickets`: pulls tickets and works on them while respecting
+  `darrow-tickets-github`: pulls tickets and works on them while respecting
   work-in-progress limits.
 
 ## How Darrow works

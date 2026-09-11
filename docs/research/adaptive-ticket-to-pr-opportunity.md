@@ -314,7 +314,7 @@ effort policy for ordinary ticket delivery.
 `ticket-to-pr` should express the intent to retrieve one authoritative ticket.
 It must not know whether Jira, GitHub Issues, Linear, another tracker, or a
 host connector fulfills that intent. In the current Darrow environment,
-`darrow-tickets` can supply the capability; another installation may provide a
+`darrow-tickets-github` can supply the capability; another installation may provide a
 different compatible implementation.
 
 The useful ticket input is intentionally small:

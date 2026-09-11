@@ -4,7 +4,7 @@ Consolidates ticket operations into intent-triggered skills so that
 creating and updating tickets is consistent, traceable, and backend-neutral
 regardless of which agent runtime executes them and which tracker backs them.
 
-Plugin: `darrow-tickets`. Skills: `create-ticket`, `read-ticket`,
+GitHub Issues provider: `darrow-tickets-github`. Skills: `create-ticket`, `read-ticket`,
 `update-ticket`, `list-tickets`.
 
 Scope: mechanics only. These skills record and mutate tickets; they do not
@@ -23,13 +23,23 @@ stable intent ("create a ticket for X") while the backend stays swappable.
 
 ## Backend contract
 
-- The skill layer is backend-neutral: intents and invariants hold for any
-  tracker. All backend specifics (CLI calls, field names, linking syntax)
-  live in the bundled scripts — SKILL.md never names a tracker.
-- First backend: GitHub Issues via `gh`. Future backends are external tracker
-  systems behind the same CLI contract. Repository-resident Darrow ticket
-  directories contain published artifacts only; they are never a tracker or a
-  file-backed ticket store. Adding a backend touches scripts only.
+- **TM-P1 — Independently installable providers.** Each tracker implementation
+  lives in its own `darrow-tickets-<provider>` plugin. The shipped provider is
+  GitHub Issues via `gh`. Future trackers use separate, self-contained plugins;
+  no shared runtime plugin or provider registry is required. Repository-resident
+  Darrow ticket directories contain published artifacts only; they are never a
+  tracker or a file-backed ticket store.
+- **TM-P2 — Shared intents, explicit provider scope.** Skill names and operation
+  invariants remain backend-neutral. Each provider advertises its tracker in
+  discovery metadata and states its prerequisites in the skill. CLI calls,
+  field mappings, and linking syntax stay in its bundled scripts. Consumers
+  request operations by intent and select a provider matching the user's
+  explicit tracker choice or established project context. If several installed
+  providers remain plausible, ask which tracker before contacting one. An
+  explicit request for another tracker must not be redirected to GitHub merely
+  because the repository is hosted there. A URL's appearance alone is not an
+  explicit provider choice: once this provider is selected, TM-R1 still requires
+  the bundled CLI to validate every supplied ticket URL.
 - **TM-1 — Deliberate backend.** The script resolves exactly one usable
   backend deterministically and the report names it. No usable backend
   (no remote, issues disabled, missing CLI) → refuse with a clear error

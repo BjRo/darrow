@@ -1,0 +1,936 @@
+#!/usr/bin/env bash
+# Backend facade for the darrow-tickets-github skills (ADR-0002): one command shape,
+# all backend specifics live here. GitHub Issues via gh (JSON
+# handling through gh's embedded --jq — no external jq).
+# stdout is read by a model: print only compact, decision-relevant data.
+# Checkable invariants are enforced here, not in the prompt: backend
+# resolution (TM-1), relation target verification (TM-2), script-owned
+# native relations (TM-3), body structure per type (TM-C3), existing labels
+# only (TM-C6), no AI attribution (TM-C7/TM-U6), deliberate state
+# transitions (TM-U4), honest list truncation (TM-L4).
+#
+# Exit codes: 2 usage/input, 3 backend unusable, 4 backend op failed,
+# 5 title violation, 6 attribution, 7 body structure, 8 unknown label,
+# 9 refusal (duplicate/conflicting state), 64 unknown command.
+set -euo pipefail
+
+# `head` would SIGPIPE the writer under pipefail on large output.
+truncate_lines() { awk 'NR<=50'; }
+
+TMPFILE=""
+TMPERR=""
+cleanup() {
+  if [[ -n "$TMPFILE" ]]; then rm -f "$TMPFILE"; fi
+  if [[ -n "$TMPERR" ]]; then rm -f "$TMPERR"; fi
+}
+trap cleanup EXIT
+
+usage() {
+  cat >&2 <<'EOF'
+usage: ticket <command> [args]
+
+  inspect
+  list [--state open|closed|all] [--type <t>] [--label <l>]... [--search <q>]
+       [--milestone <m>] [--limit <n>]
+  get <id|canonical-url>
+  create --title <t> --type bug|feature|task|chore --body-file <f>
+         [--label <l>]... [--milestone <m>] [--assignee <a>]
+         [--depends-on <id>]... [--parent <id>]
+  comment <id> --body-file <f>
+  describe <id> --body-file <f>   # full description rewrite, explicit request only
+  close <id>
+  reopen <id>
+  label <id> (--add <l> | --remove <l>)
+  relate <id> (--depends-on <id> | --remove-depends-on <id> |
+               --parent <id> | --remove-parent)
+
+create enforces body structure per type:
+  bug      -> "## Observed", "## Expected", "## Reproduction"
+  feature  -> "## Motivation", "## Acceptance criteria"
+  task     -> "## Outcome", "## Done criteria"
+  chore    -> "## Outcome", "## Done criteria"
+"## Open questions" is optional on every type.
+EOF
+  exit 64
+}
+
+# Relay bounded backend diagnostics without silently discarding failure. The
+# bytes we retain stay verbatim; an explicit note identifies truncation, and a
+# silent backend failure gets one honest synthetic diagnostic.
+relay_gh_failure() {
+  local rc=$1 out=$2 emitted=0 lines
+  if [[ -s "$TMPERR" ]]; then
+    truncate_lines < "$TMPERR" >&2
+    lines=$(awk 'END {print NR+0}' "$TMPERR")
+    if [[ "$lines" -gt 50 ]]; then
+      echo "note: backend stderr truncated at 50 lines ($lines total)" >&2
+    fi
+    emitted=1
+  fi
+  if [[ -n "$out" ]]; then
+    truncate_lines <<< "$out" >&2
+    lines=$(awk 'END {print NR+0}' <<< "$out")
+    if [[ "$lines" -gt 50 ]]; then
+      echo "note: backend stdout truncated at 50 lines ($lines total)" >&2
+    fi
+    emitted=1
+  fi
+  if [[ "$emitted" -eq 0 ]]; then
+    echo "error: GitHub backend command failed with exit $rc and no diagnostic" >&2
+  fi
+}
+
+# TM-1: exactly one backend, resolved deterministically from origin; unusable
+# -> refuse with the missing piece, never guess or honor ambient GH_REPO.
+resolve_backend() {
+  local remote rest authority host path owner name
+  if [[ "$(git rev-parse --is-inside-work-tree 2>/dev/null || true)" != "true" ]]; then
+    echo "error: not inside a git work tree" >&2
+    exit 3
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "error: gh CLI not found — the GitHub Issues backend is unusable" >&2
+    exit 3
+  fi
+  if ! remote=$(git remote get-url origin 2>/dev/null); then
+    echo "error: no 'origin' remote — cannot resolve a ticket backend" >&2
+    exit 3
+  fi
+  case "$remote" in
+    *://*)
+      rest=${remote#*://}
+      authority=${rest%%/*}
+      if [[ "$rest" == "$authority" ]]; then
+        echo "error: unsupported 'origin' URL for the GitHub backend: $remote" >&2
+        exit 3
+      fi
+      host=${authority##*@}
+      path=${rest#*/}
+      ;;
+    *@*:*)
+      authority=${remote%%:*}
+      host=${authority##*@}
+      path=${remote#*:}
+      ;;
+    *)
+      echo "error: unsupported 'origin' URL for the GitHub backend: $remote" >&2
+      exit 3
+      ;;
+  esac
+  path=${path%/}
+  path=${path%.git}
+  owner=${path%%/*}
+  name=${path#*/}
+  if [[ -z "$host" || "$host" == *[[:space:]/]* || -z "$owner" || \
+        "$owner" == *[[:space:]]* || -z "$name" || "$name" == */* || \
+        "$name" == *[[:space:]]* ]]; then
+    echo "error: unsupported 'origin' URL for the GitHub backend: $remote" >&2
+    exit 3
+  fi
+  REPO="$host/$owner/$name"
+  BACKEND=github
+}
+
+# Backend failure evidence is bounded and explicit — the caller reports it,
+# never works around it. stderr stays out of captured success data.
+run_gh() {
+  local out rc=0
+  TMPERR=$(mktemp)
+  out=$(GH_REPO="$REPO" gh "$@" 2>"$TMPERR") || rc=$?
+  if [[ $rc -ne 0 ]]; then
+    relay_gh_failure "$rc" "$out"
+    # The EXIT trap does not fire when this runs inside $(...): the
+    # subshell resets traps, so clean up before exiting.
+    rm -f "$TMPERR"
+    exit 4
+  fi
+  rm -f "$TMPERR"
+  TMPERR=""
+  printf '%s' "$out"
+}
+
+norm_id() {
+  local id=${1#\#}
+  if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+    echo "error: invalid ticket id: $1" >&2
+    exit 2
+  fi
+  # Leading zeros would defeat exact-match state comparisons ("012" != "12").
+  # Strip them as text: Bash arithmetic silently wraps oversized references and
+  # could otherwise redirect a read or mutation to a different ticket.
+  # shellcheck disable=SC2001 # ${var//pat/} is prohibited on unbounded input.
+  id=$(sed 's/^0*//' <<< "$id")
+  if [[ -z "$id" ]]; then id=0; fi
+  printf '%s' "$id"
+}
+
+# Read accepts a stable numeric id or a canonical URL for this repository.
+# Backend-specific URL verification stays in the facade: the model must never
+# strip a foreign URL down to a coincidentally matching local issue number.
+read_ticket_id() {
+  local ref=$1 repo_url suffix
+  if [[ "$ref" != *://* ]]; then
+    norm_id "$ref"
+    return
+  fi
+  repo_url=$(run_gh repo view --json url --jq '.url')
+  repo_url=${repo_url%/}
+  case "$ref" in
+    "$repo_url"/issues/*)
+      suffix=${ref#"$repo_url"/issues/}
+      if ! [[ "$suffix" =~ ^[0-9]+$ ]]; then
+        echo "error: ticket URL is not canonical for the current project: $ref" >&2
+        exit 2
+      fi
+      norm_id "$suffix"
+      ;;
+    *)
+      echo "error: ticket URL does not belong to the current project: $ref" >&2
+      exit 2
+      ;;
+  esac
+}
+
+# TM-2: a relation target must exist before anything is created or mutated.
+# Echoes state on line 1, title on line 2 (titles are single-line on GitHub;
+# @tsv would escape tabs/backslashes into the report). stderr stays out of
+# the captured value: close/reopen parse these lines.
+verify_ticket() {
+  local out rc=0
+  TMPERR=$(mktemp)
+  out=$(GH_REPO="$REPO" gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>"$TMPERR") || rc=$?
+  if [[ $rc -ne 0 ]]; then
+    echo "error: ticket #$1 not found:" >&2
+    relay_gh_failure "$rc" "$out"
+    rm -f "$TMPERR"
+    exit 4
+  fi
+  rm -f "$TMPERR"
+  TMPERR=""
+  printf '%s' "$out"
+}
+
+fetch_labels() {
+  REPO_LABELS=$(run_gh label list --json name --jq '.[].name' --limit 1000)
+}
+
+label_exists() { grep -qxF -- "$1" <<< "$REPO_LABELS"; }
+
+# gh's --label/--add-label flags comma-split their values; a comma label
+# would silently become two.
+check_label_value() {
+  if [[ "$1" == *,* ]]; then
+    echo "error: labels containing commas are not supported by the gh backend: $1" >&2
+    exit 8
+  fi
+}
+
+# First existing label a type maps to; empty when none (TM-C6: never create
+# taxonomy as a side effect).
+type_label() {
+  local cand
+  for cand in $(type_label_candidates "$1"); do
+    if label_exists "$cand"; then
+      printf '%s' "$cand"
+      return
+    fi
+  done
+}
+
+type_label_candidates() {
+  case "$1" in
+    bug) echo "bug" ;;
+    feature) echo "feature enhancement" ;;
+    task) echo "task" ;;
+    chore) echo "chore" ;;
+    *) return 1 ;;
+  esac
+}
+
+required_headings() {
+  case "$1" in
+    bug) printf '%s\n' "## Observed" "## Expected" "## Reproduction" ;;
+    feature) printf '%s\n' "## Motivation" "## Acceptance criteria" ;;
+    task|chore) printf '%s\n' "## Outcome" "## Done criteria" ;;
+  esac
+}
+
+# Attribution needs tool context: "generated by openapi-generator" is
+# legitimate prose, "Generated using Claude Code" is not.
+# Herestring, not a pipe: grep -q exits at the first match, and on a >64KB
+# body the writer's SIGPIPE (141) would make pipefail discard the match.
+check_attribution() {
+  if grep -qiE 'co-authored-by:.*\b(claude|gpt|chatgpt|codex|copilot|cursor|gemini|ai)\b|co[- ]?authored[- ]by +(claude|gpt|chatgpt|codex|copilot|cursor|gemini)\b|(generated|built|written|created|made|assisted)[- ](with|by|using) +\[?(claude|gpt|chatgpt|codex|copilot|cursor|gemini|an? ai\b|ai\b)|🤖' <<< "$1"; then
+    echo "error: AI attribution is not allowed in tickets" >&2
+    exit 6
+  fi
+}
+
+# A section ends at the next heading of the same or higher level; deeper
+# sub-headings count as content. Fenced lines never start or end a section
+# but do count as content. Herestring (SIGPIPE, see check_attribution);
+# heading rides in via ENVIRON — awk -v mangles backslashes.
+# Returns 0 filled, 1 empty, 2 missing.
+section_state() {
+  local rc=0
+  TKT_H="$1" awk '
+    BEGIN {h=ENVIRON["TKT_H"]; hl=0; while (substr(h, hl+1, 1) == "#") hl++}
+    {
+      l=$0; sub(/[[:space:]]+$/, "", l)
+      n=0; while (substr(l, n+1, 1)==" ") n++
+      c = substr(l, n+1, 3)
+      isfence = (n<=3 && (c=="```" || c=="~~~"))
+    }
+    isfence {f=!f}
+    !f && !isfence && !insec && l==h {insec=1; seen=1; next}
+    insec && !f && !isfence && l ~ /^#+[ \t]/ {m=0; while (substr(l, m+1, 1) == "#") m++; if (m<=hl) exit}
+    insec && NF {ok=1; exit}
+    END {if (!seen) exit 2; exit ok ? 0 : 1}' <<< "$2" || rc=$?
+  return $rc
+}
+
+check_body_structure() {
+  local type=$1 body=$2 h rc
+  while IFS= read -r h; do
+    rc=0
+    section_state "$h" "$body" || rc=$?
+    if [[ $rc -eq 2 ]]; then
+      echo "error: required section missing for type $type: $h" >&2
+      exit 7
+    elif [[ $rc -ne 0 ]]; then
+      echo "error: required section is empty: $h" >&2
+      exit 7
+    fi
+  done <<< "$(required_headings "$type")"
+}
+
+read_body_file() {
+  if [[ ! -f "$1" || ! -r "$1" ]]; then
+    echo "error: body file is not a readable file: $1" >&2
+    exit 2
+  fi
+  BODY=$(cat "$1")
+  if ! [[ "$BODY" =~ [^[:space:]] ]]; then
+    echo "error: body file is empty: $1" >&2
+    exit 2
+  fi
+}
+
+# TM-3: relations ride on GitHub's native mechanisms — sub-issues carry
+# parent, issue dependencies (blocked_by) carry depends-on. The REST
+# endpoints key on the issue's database id, not its number; gh resolves
+# the {owner}/{repo} placeholders from the origin remote.
+issue_db_id() {
+  run_gh api "repos/{owner}/{repo}/issues/$1" --jq '.id'
+}
+
+# Prints the parent's number; prints nothing when the issue has none (the
+# endpoint 404s with a distinct message for that case — any other failure
+# is a real backend error).
+fetch_parent() {
+  local out rc=0
+  TMPERR=$(mktemp)
+  out=$(GH_REPO="$REPO" gh api "repos/{owner}/{repo}/issues/$1/parent" --jq '.number' 2>"$TMPERR") || rc=$?
+  if [[ $rc -eq 0 ]]; then
+    rm -f "$TMPERR"
+    TMPERR=""
+    if ! [[ "$out" =~ ^[0-9]+$ ]]; then
+      echo "error: malformed parent relation response for ticket #$1" >&2
+      exit 4
+    fi
+    printf '%s' "$out"
+    return 0
+  fi
+  if grep -q "No parent issue found" "$TMPERR" || grep -q "No parent issue found" <<< "$out"; then
+    rm -f "$TMPERR"
+    TMPERR=""
+    return 0
+  fi
+  relay_gh_failure "$rc" "$out"
+  rm -f "$TMPERR"
+  exit 4
+}
+
+fetch_deps() {
+  local out d
+  out=$(run_gh api "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" --jq '.[].number') || return $?
+  if [[ -z "$out" ]]; then return 0; fi
+  while IFS= read -r d; do
+    if ! [[ "$d" =~ ^[0-9]+$ ]]; then
+      echo "error: malformed dependency relation response for ticket #$1" >&2
+      exit 4
+    fi
+  done <<< "$out"
+  printf '%s' "$out"
+}
+
+add_dep() {
+  local bid
+  bid=$(issue_db_id "$2")
+  run_gh api -X POST "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" -F "issue_id=$bid" >/dev/null
+}
+
+remove_dep() {
+  local bid
+  bid=$(issue_db_id "$2")
+  run_gh api -X DELETE "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by/$bid" >/dev/null
+}
+
+# Sub-issue membership is edited on the parent side of the relation.
+add_parent() {
+  local cid
+  cid=$(issue_db_id "$1")
+  run_gh api -X POST "repos/{owner}/{repo}/issues/$2/sub_issues" -F "sub_issue_id=$cid" >/dev/null
+}
+
+remove_parent() {
+  local cid
+  cid=$(issue_db_id "$1")
+  run_gh api -X DELETE "repos/{owner}/{repo}/issues/$2/sub_issue" -F "sub_issue_id=$cid" >/dev/null
+}
+
+report_relations() {
+  local parent deps list d
+  parent=$(fetch_parent "$1") || return $?
+  deps=$(fetch_deps "$1") || return $?
+  if [[ -n "$parent" ]]; then
+    echo "parent: #$parent"
+  else
+    echo "parent: (none)"
+  fi
+  if [[ -n "$deps" ]]; then
+    list=""
+    while IFS= read -r d; do
+      list="$list${list:+ }#$d"
+    done <<< "$deps"
+    echo "depends-on: $list"
+  else
+    echo "depends-on: (none)"
+  fi
+}
+
+# CRLF-normalized: GitHub stores \r\n after web-UI edits; this is
+# model-facing output, keep it clean.
+fetch_body() {
+  run_gh issue view "$1" --json body --jq '.body // ""' | awk '{sub(/\r$/, "")} 1'
+}
+
+issue_labels() {
+  run_gh issue view "$1" --json labels --jq '.labels[].name'
+}
+
+cmd=${1:-}
+if [[ -z "$cmd" ]]; then
+  usage
+fi
+shift
+
+case "$cmd" in
+  inspect)
+    resolve_backend
+    # TM-1: inspect is the orientation step, so it also probes the pieces
+    # that need a network round-trip (issues enabled, origin actually a
+    # GitHub repo). Mutating commands rely on gh's own errors instead of
+    # paying this probe on every call.
+    if ! probe=$(GH_REPO="$REPO" gh repo view --json hasIssuesEnabled --jq '.hasIssuesEnabled' 2>&1); then
+      echo "error: cannot resolve a GitHub repository for 'origin':" >&2
+      truncate_lines <<< "$probe" >&2
+      exit 3
+    fi
+    if [[ "$probe" != "true" ]]; then
+      echo "error: issues are disabled for this repository — enable them or use a different backend" >&2
+      exit 3
+    fi
+    fetch_labels
+    echo "## backend: $BACKEND"
+    echo "## types: bug, feature, task, chore (create maps the type to an existing label; none -> created unlabeled)"
+    echo "## labels"
+    if [[ -z "$REPO_LABELS" ]]; then
+      echo "(none defined)"
+    else
+      truncate_lines <<< "$REPO_LABELS"
+      total=$(awk 'END{print NR}' <<< "$REPO_LABELS")
+      if [[ "$total" -gt 50 ]]; then
+        echo "## note: label list truncated at 50 ($total fetched)"
+      fi
+    fi
+    ;;
+
+  list)
+    state=open
+    limit=20
+    search=""
+    milestone=""
+    type=""
+    labels=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --state)
+          [[ $# -ge 2 ]] || { echo "error: --state needs a value" >&2; exit 2; }
+          state=$2; shift 2 ;;
+        --type)
+          [[ $# -ge 2 ]] || { echo "error: --type needs a value" >&2; exit 2; }
+          type=$2; shift 2 ;;
+        --label)
+          [[ $# -ge 2 ]] || { echo "error: --label needs a value" >&2; exit 2; }
+          labels+=("$2"); shift 2 ;;
+        --search)
+          [[ $# -ge 2 ]] || { echo "error: --search needs a value" >&2; exit 2; }
+          search=$2; shift 2 ;;
+        --milestone)
+          [[ $# -ge 2 ]] || { echo "error: --milestone needs a value" >&2; exit 2; }
+          milestone=$2; shift 2 ;;
+        --limit)
+          [[ $# -ge 2 ]] || { echo "error: --limit needs a value" >&2; exit 2; }
+          limit=$2; shift 2 ;;
+        *) echo "error: unknown list argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    case "$state" in open|closed|all) ;; *)
+      echo "error: --state must be open, closed or all: $state" >&2; exit 2 ;;
+    esac
+    if ! [[ "$limit" =~ ^[1-9][0-9]*$ ]]; then
+      echo "error: --limit must be a positive number: $limit" >&2
+      exit 2
+    fi
+    resolve_backend
+    filters="state=$state"
+    args=(issue list --state "$state" --limit $((limit + 1)))
+    if [[ -n "$type" ]]; then
+      if ! type_label_candidates "$type" >/dev/null 2>&1; then
+        echo "error: unknown type: $type (bug, feature, task, chore)" >&2
+        exit 2
+      fi
+      fetch_labels
+      tlabel=$(type_label "$type")
+      if [[ -z "$tlabel" ]]; then
+        echo "error: no existing label maps to type $type — cannot filter by it" >&2
+        exit 8
+      fi
+      labels+=("$tlabel")
+      filters="$filters, type=$type"
+    fi
+    for l in ${labels[@]+"${labels[@]}"}; do
+      check_label_value "$l"
+      args+=(--label "$l")
+      filters="$filters, label=$l"
+    done
+    if [[ -n "$search" ]]; then
+      args+=(--search "$search")
+      filters="$filters, search=\"$search\""
+    fi
+    if [[ -n "$milestone" ]]; then
+      args+=(--milestone "$milestone")
+      filters="$filters, milestone=$milestone"
+    fi
+    args+=(--json 'number,state,title,labels' --jq '.[] | "#\(.number) \(.state|ascii_downcase)  \(.title)" + (if (.labels|length) > 0 then " (" + ([.labels[].name]|join(", ")) + ")" else "" end)')
+    out=$(run_gh "${args[@]}")
+    echo "backend: $BACKEND"
+    if [[ -z "$out" ]]; then
+      echo "no matches ($filters)"
+    else
+      count=$(awk 'END{print NR}' <<< "$out")
+      if [[ "$count" -gt "$limit" ]]; then
+        awk -v n="$limit" 'NR<=n' <<< "$out"
+        echo "total: more than $limit ($filters)"
+        echo "note: list truncated at $limit — narrow the filters or raise --limit"
+      else
+        printf '%s\n' "$out"
+        echo "total: $count ($filters)"
+      fi
+    fi
+    ;;
+
+  get)
+    [[ $# -ge 1 ]] || { echo "error: get needs a ticket id or canonical URL" >&2; exit 2; }
+    [[ $# -eq 1 ]] || { echo "error: get accepts exactly one ticket reference" >&2; exit 2; }
+    resolve_backend
+    id=$(read_ticket_id "$1")
+    meta=$(run_gh issue view "$id" --json number,state,title,url,labels --jq '"ticket-token: \(.number)\n#\(.number) \(.state|ascii_downcase) — \(.title)\n\(.url)\nlabels: " + (if (.labels|length) > 0 then ([.labels[].name]|join(", ")) else "(none)" end)')
+    body=$(fetch_body "$id")
+    relations=$(report_relations "$id") || { rc=$?; exit "$rc"; }
+    echo "backend: $BACKEND"
+    printf '%s\n' "$meta"
+    printf '%s\n' "$relations"
+    echo "## body"
+    printf '%s\n' "$body"
+    ;;
+
+  create)
+    title=""
+    type=""
+    body_file=""
+    parent=""
+    milestone=""
+    assignee=""
+    labels=()
+    deps=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --title)
+          [[ $# -ge 2 ]] || { echo "error: --title needs a value" >&2; exit 2; }
+          title=$2; shift 2 ;;
+        --type)
+          [[ $# -ge 2 ]] || { echo "error: --type needs a value" >&2; exit 2; }
+          type=$2; shift 2 ;;
+        --body-file)
+          [[ $# -ge 2 ]] || { echo "error: --body-file needs a value" >&2; exit 2; }
+          body_file=$2; shift 2 ;;
+        --label)
+          [[ $# -ge 2 ]] || { echo "error: --label needs a value" >&2; exit 2; }
+          labels+=("$2"); shift 2 ;;
+        --milestone)
+          [[ $# -ge 2 ]] || { echo "error: --milestone needs a value" >&2; exit 2; }
+          milestone=$2; shift 2 ;;
+        --assignee)
+          [[ $# -ge 2 ]] || { echo "error: --assignee needs a value" >&2; exit 2; }
+          assignee=$2; shift 2 ;;
+        --depends-on)
+          dep=$(norm_id "${2:-}")
+          for d in ${deps[@]+"${deps[@]}"}; do
+            if [[ "$d" == "$dep" ]]; then
+              echo "error: duplicate --depends-on: #$dep" >&2
+              exit 2
+            fi
+          done
+          deps+=("$dep"); shift 2 ;;
+        --parent)
+          [[ $# -ge 2 ]] || { echo "error: --parent needs a value" >&2; exit 2; }
+          parent=$(norm_id "$2"); shift 2 ;;
+        *) echo "error: unknown create argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    if [[ -z "$title" || -z "$type" || -z "$body_file" ]]; then
+      echo "error: --title, --type and --body-file are required" >&2
+      exit 2
+    fi
+    if ! type_label_candidates "$type" >/dev/null 2>&1; then
+      echo "error: unknown type: $type (bug, feature, task, chore)" >&2
+      exit 2
+    fi
+    # TM-C5: checkable parts of the title convention; conciseness stays
+    # with the model.
+    if ! [[ "$title" =~ [^[:space:]] ]]; then
+      echo "error: title is empty" >&2
+      exit 5
+    fi
+    if [[ "$title" == *. ]]; then
+      echo "error: title has trailing period" >&2
+      exit 5
+    fi
+    if [[ "$title" == *$'\n'* ]]; then
+      echo "error: title must be a single line" >&2
+      exit 5
+    fi
+    read_body_file "$body_file"
+    # TM-2/TM-3: relations are recorded natively, never as body text — a
+    # marker-style line would look recorded while the tracker knows nothing.
+    if grep -qE '^(Depends-on|Parent): #[0-9]+$' <<< "$BODY"; then
+      echo "error: relation lines in the body are not recorded — pass --depends-on/--parent instead" >&2
+      exit 2
+    fi
+    check_attribution "$title"$'\n'"$BODY"
+    check_body_structure "$type" "$BODY"
+    resolve_backend
+    fetch_labels
+    for l in ${labels[@]+"${labels[@]}"}; do
+      check_label_value "$l"
+      if ! label_exists "$l"; then
+        echo "error: label does not exist in the tracker: $l — pick from:" >&2
+        truncate_lines <<< "$REPO_LABELS" >&2
+        exit 8
+      fi
+    done
+    tlabel=$(type_label "$type")
+    type_note=""
+    if [[ -z "$tlabel" ]]; then
+      type_note="note: no existing label matches type $type — created without a type label"
+    else
+      already=""
+      for l in ${labels[@]+"${labels[@]}"}; do
+        if [[ "$l" == "$tlabel" ]]; then already=1; fi
+      done
+      if [[ -z "$already" ]]; then
+        labels+=("$tlabel")
+      fi
+    fi
+    # TM-2: verify every relation target before creating anything.
+    for d in ${deps[@]+"${deps[@]}"}; do
+      verify_ticket "$d" >/dev/null
+    done
+    if [[ -n "$parent" ]]; then
+      verify_ticket "$parent" >/dev/null
+    fi
+    TMPFILE=$(mktemp)
+    printf '%s\n' "$BODY" > "$TMPFILE"
+    args=(issue create --title "$title" --body-file "$TMPFILE")
+    for l in ${labels[@]+"${labels[@]}"}; do
+      args+=(--label "$l")
+    done
+    # Milestone/assignee values are validated by the backend; an unknown
+    # value is relayed verbatim (TM-C6: never created as a side effect).
+    if [[ -n "$milestone" ]]; then
+      args+=(--milestone "$milestone")
+    fi
+    if [[ -n "$assignee" ]]; then
+      args+=(--assignee "$assignee")
+    fi
+    url=$(run_gh "${args[@]}" | awk 'NF {l=$0} END {print l}')
+    num=${url##*/}
+    if ! [[ "$num" =~ ^[0-9]+$ ]]; then
+      echo "error: could not parse the created issue number from: $url" >&2
+      exit 4
+    fi
+    echo "backend: $BACKEND"
+    echo "created: #$num $url"
+    if [[ -n "$tlabel" ]]; then
+      echo "type: $type (label: $tlabel)"
+    else
+      echo "type: $type"
+    fi
+    if [[ ${#labels[@]} -gt 0 ]]; then
+      out=""
+      for l in "${labels[@]}"; do
+        out="$out${out:+, }$l"
+      done
+      echo "labels: $out"
+    fi
+    if [[ -n "$milestone" ]]; then
+      echo "milestone: $milestone"
+    fi
+    if [[ -n "$assignee" ]]; then
+      echo "assignee: $assignee"
+    fi
+    # Native relations attach to an existing issue, so they land after
+    # creation, each confirmed as it sticks; run_gh exits on failure, so
+    # the lines already printed keep a partial failure honest about what
+    # exists and which relations were recorded before it.
+    for d in ${deps[@]+"${deps[@]}"}; do
+      add_dep "$num" "$d"
+      echo "depends-on: #$d recorded"
+    done
+    if [[ -n "$parent" ]]; then
+      add_parent "$num" "$parent"
+      echo "parent: #$parent recorded"
+    fi
+    if [[ -n "$type_note" ]]; then
+      echo "$type_note"
+    fi
+    ;;
+
+  comment)
+    [[ $# -ge 1 ]] || { echo "error: comment needs a ticket id" >&2; exit 2; }
+    id=$(norm_id "$1")
+    shift
+    body_file=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --body-file)
+          [[ $# -ge 2 ]] || { echo "error: --body-file needs a value" >&2; exit 2; }
+          body_file=$2; shift 2 ;;
+        *) echo "error: unknown comment argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    if [[ -z "$body_file" ]]; then
+      echo "error: --body-file required" >&2
+      exit 2
+    fi
+    read_body_file "$body_file"
+    check_attribution "$BODY"
+    resolve_backend
+    verify_ticket "$id" >/dev/null
+    url=$(run_gh issue comment "$id" --body-file "$body_file" | awk 'NF {l=$0} END {print l}')
+    echo "commented on #$id: $url"
+    ;;
+
+  describe)
+    # TM-U3: full description rewrite, only ever on an explicit user
+    # request. Relations live in the tracker's own data model, so a
+    # rewrite cannot touch them.
+    [[ $# -ge 1 ]] || { echo "error: describe needs a ticket id" >&2; exit 2; }
+    id=$(norm_id "$1")
+    shift
+    body_file=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --body-file)
+          [[ $# -ge 2 ]] || { echo "error: --body-file needs a value" >&2; exit 2; }
+          body_file=$2; shift 2 ;;
+        *) echo "error: unknown describe argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    if [[ -z "$body_file" ]]; then
+      echo "error: --body-file required" >&2
+      exit 2
+    fi
+    read_body_file "$body_file"
+    if grep -qE '^(Depends-on|Parent): #[0-9]+$' <<< "$BODY"; then
+      echo "error: relation lines in the body are not recorded — use relate to change relations" >&2
+      exit 2
+    fi
+    check_attribution "$BODY"
+    resolve_backend
+    verify_ticket "$id" >/dev/null
+    run_gh issue edit "$id" --body-file "$body_file" >/dev/null
+    echo "#$id description replaced"
+    ;;
+
+  close|reopen)
+    [[ $# -ge 1 ]] || { echo "error: $cmd needs a ticket id" >&2; exit 2; }
+    [[ $# -eq 1 ]] || { echo "error: unknown $cmd argument: $2" >&2; exit 2; }
+    id=$(norm_id "$1")
+    resolve_backend
+    info=$(verify_ticket "$id")
+    state=${info%%$'\n'*}
+    title=${info#*$'\n'}
+    if [[ "$cmd" == close ]]; then
+      target=closed
+    else
+      target=open
+    fi
+    # TM-U4: the transition is deliberate and reported from -> to; a no-op
+    # transition is a refusal, not silent success.
+    if [[ "$state" == "$target" ]]; then
+      echo "error: #$id is already $target — $title" >&2
+      exit 9
+    fi
+    run_gh issue "$cmd" "$id" >/dev/null
+    echo "#$id: $state -> $target — $title"
+    ;;
+
+  label)
+    [[ $# -ge 1 ]] || { echo "error: label needs a ticket id" >&2; exit 2; }
+    id=$(norm_id "$1")
+    shift
+    add=""
+    remove=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --add)
+          [[ $# -ge 2 ]] || { echo "error: --add needs a value" >&2; exit 2; }
+          add=$2; shift 2 ;;
+        --remove)
+          [[ $# -ge 2 ]] || { echo "error: --remove needs a value" >&2; exit 2; }
+          remove=$2; shift 2 ;;
+        *) echo "error: unknown label argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    if [[ -n "$add" && -n "$remove" ]] || [[ -z "$add" && -z "$remove" ]]; then
+      echo "error: exactly one of --add or --remove" >&2
+      exit 2
+    fi
+    resolve_backend
+    verify_ticket "$id" >/dev/null
+    current=$(issue_labels "$id")
+    if [[ -n "$add" ]]; then
+      check_label_value "$add"
+      fetch_labels
+      if ! label_exists "$add"; then
+        echo "error: label does not exist in the tracker: $add — pick from:" >&2
+        truncate_lines <<< "$REPO_LABELS" >&2
+        exit 8
+      fi
+      if grep -qxF "$add" <<< "$current"; then
+        echo "error: #$id already has label: $add" >&2
+        exit 9
+      fi
+      run_gh issue edit "$id" --add-label "$add" >/dev/null
+      echo "#$id labels: +$add"
+    else
+      if ! grep -qxF "$remove" <<< "$current"; then
+        echo "error: #$id does not have label: $remove" >&2
+        exit 9
+      fi
+      run_gh issue edit "$id" --remove-label "$remove" >/dev/null
+      echo "#$id labels: -$remove"
+    fi
+    ;;
+
+  relate)
+    [[ $# -ge 1 ]] || { echo "error: relate needs a ticket id" >&2; exit 2; }
+    id=$(norm_id "$1")
+    shift
+    op=""
+    target=""
+    ops=0
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --depends-on)
+          [[ $# -ge 2 ]] || { echo "error: --depends-on needs a value" >&2; exit 2; }
+          op='add-dep'; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
+        --remove-depends-on)
+          [[ $# -ge 2 ]] || { echo "error: --remove-depends-on needs a value" >&2; exit 2; }
+          op='rm-dep'; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
+        --parent)
+          [[ $# -ge 2 ]] || { echo "error: --parent needs a value" >&2; exit 2; }
+          op='add-parent'; target=$(norm_id "$2"); ops=$((ops + 1)); shift 2 ;;
+        --remove-parent)
+          op='rm-parent'; target=""; ops=$((ops + 1)); shift ;;
+        *) echo "error: unknown relate argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    # TM-U2: one asked change per invocation, nothing smuggled alongside.
+    if [[ $ops -ne 1 ]]; then
+      echo "error: exactly one relation change per invocation" >&2
+      exit 2
+    fi
+    if [[ -n "$target" && "$target" == "$id" ]]; then
+      echo "error: #$id cannot relate to itself" >&2
+      exit 2
+    fi
+    resolve_backend
+    verify_ticket "$id" >/dev/null
+    # No-op changes are refusals (exit 9), not silent successes — the
+    # current state is read before mutating, via plain assignments so a
+    # failed read aborts (exit 4) instead of passing as "no match".
+    # GitHub itself rejects cycles and cross-repo targets; those errors
+    # are relayed verbatim. Each mutation is confirmed before the re-read
+    # report below, so a failed re-read cannot mask an applied change.
+    case "$op" in
+      add-dep)
+        verify_ticket "$target" >/dev/null
+        current_deps=$(fetch_deps "$id")
+        if grep -qxF -- "$target" <<< "$current_deps"; then
+          echo "error: #$id already depends on #$target" >&2
+          exit 9
+        fi
+        add_dep "$id" "$target"
+        echo "recorded: #$id depends-on #$target"
+        ;;
+      rm-dep)
+        current_deps=$(fetch_deps "$id")
+        if ! grep -qxF -- "$target" <<< "$current_deps"; then
+          echo "error: #$id does not depend on #$target" >&2
+          exit 9
+        fi
+        remove_dep "$id" "$target"
+        echo "removed: #$id depends-on #$target"
+        ;;
+      add-parent)
+        existing=$(fetch_parent "$id")
+        if [[ -n "$existing" ]]; then
+          echo "error: #$id already has parent #$existing — use --remove-parent first" >&2
+          exit 9
+        fi
+        verify_ticket "$target" >/dev/null
+        add_parent "$id" "$target"
+        echo "recorded: #$id parent #$target"
+        ;;
+      rm-parent)
+        existing=$(fetch_parent "$id")
+        if [[ -z "$existing" ]]; then
+          echo "error: #$id has no parent" >&2
+          exit 9
+        fi
+        remove_parent "$id" "$existing"
+        echo "removed: #$id parent #$existing"
+        ;;
+    esac
+    echo "#$id relations:"
+    report_relations "$id"
+    ;;
+
+  *)
+    usage
+    ;;
+esac
