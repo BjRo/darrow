@@ -243,6 +243,7 @@
       ],
       "sources": [
         "docs/specs/adaptive-delivery.md",
+        "docs/decisions/ADR-0002-separate-capabilities-from-orchestration.md",
         "plugins/orchestration/darrow-adaptive-delivery/README.md"
       ],
       "answer_points": [

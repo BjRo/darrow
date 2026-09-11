@@ -30,12 +30,16 @@ checks:
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
-    proposition:
-      "The response directly answers the question, remains concise, and establishes these
-      points: Name conflict; Cite both sources; Normative explicit invocation boundary; Point to
-      the governing artifact or an owner who can resolve the policy question. Recommending an edit
-      is not required when the governing artifact already resolves it. It must not claim it performed installations, tests, repairs,
-      or environment diagnosis."
+    proposition: >-
+      The response names the conflict between the plugin README's automatic-activation claim
+      and the normative explicit-invocation rule. It cites both sides: the contradictory
+      plugin README and at least one relevant normative specification or accepted ADR.
+      It establishes that complexity does not authorize orchestration and points to that
+      governing artifact or a resolution owner. Recommending an edit is not required when
+      the governing artifact resolves the rule. It stays focused on this conflict, allowing
+      citations and required Claude support disclosure, and does not claim to have installed
+      plugins, run tests or diagnostics, repaired configuration, or established the cause of
+      an unobserved live failure. Read-only repository inspection is permitted.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/specs/adaptive-delivery\.md|plugins/orchestration/darrow-adaptive-delivery/README\.md

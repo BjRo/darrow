@@ -284,3 +284,25 @@ check, despite unchanged state and no intercepted command attempts. It now
 distinguishes quoting commands from execution, matching the existing contract.
 Retained safe output and an actual execution-claim counterexample are regraded
 before fresh trials; no guide behavior was changed for this correction.
+
+Both diagnostic cases and both visual cases passed on both hosts in
+`2026-09-11T15-59-08-457Z`. The conflict grader then demanded a third citation
+for a corroborating root README despite the response citing the contradictory
+plugin README and accepted ADR. The rubric now explicitly requires those two
+sides: plugin README plus a normative specification or accepted ADR. Retained
+valid output is checked against concealed-conflict and missing-opposing-source
+counterexamples before fresh trials. This changes the oracle, not guide behavior.
+
+A fresh conflict trial then exposed a genuine source-binding failure: it
+substituted the root README for the disputed plugin README and omitted the
+conflict. The guide now handles quoted claims before the general source-routing
+table, resolving ambiguous source labels through bounded search and checking
+the exact artifact against a normative source. The prior later instruction is
+removed rather than duplicated. The conflict case is rerun on both hosts.
+
+The corrected conflict case passed on both hosts in
+`2026-09-11T16-07-09-413Z`. The following unknown-answer trial accurately refused
+an undocumented guarantee but omitted a resolution step. That existing
+requirement now lives in the final-answer phase, explicitly mandatory for
+unknown answers rather than covered by the generic optional follow-up rule.
+The earlier duplicate is removed; the unknown-answer case is rerun on both hosts.
