@@ -1,0 +1,385 @@
+{
+  "version": 1,
+  "contract": "docs/specs/repository-guide.md",
+  "hosts": ["codex", "claude"],
+  "host_behavior": "Claude answers disclose best-effort support and primary Codex development. Installation answers identify the actual harness host.",
+  "negative_expectations": [
+    "No repository or external mutations",
+    "No diagnosis or orchestration execution",
+    "Read sources before material claims"
+  ],
+  "migration_gate": "Both native hosts must pass linked cases and the static route must exist before removing mapped prose; dry evidence is insufficient.",
+  "questions": [
+    {
+      "id": "guide-follow-up",
+      "phrasings": [
+        "What is Darrow for?",
+        "Which first workflow can I try without editing my repository or using a ticket tracker?"
+      ],
+      "sources": ["docs/getting-started.md", "docs/installing-plugins.md"],
+      "answer_points": [
+        "Read-only readiness assessment",
+        "Fresh session after installation",
+        "A non-ready verdict can be a successful assessment"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/getting-started.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-orientation",
+      "phrasings": [
+        "What is Darrow, and where should I start with one safe first workflow?",
+        "I just opened this checkout. Where should I start?"
+      ],
+      "sources": ["README.md", "docs/design.md"],
+      "answer_points": [
+        "Independent optional plugins",
+        "Capabilities match intent",
+        "Explicit orchestration",
+        "Safe first success"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/README.md",
+      "replaces": [
+        "README.md: unheaded introduction",
+        "README.md: Why Darrow",
+        "README.md: See it in action"
+      ]
+    },
+    {
+      "id": "guide-explicit",
+      "phrasings": ["{{skill_invocation}} What is Darrow for?"],
+      "sources": ["README.md", "docs/design.md"],
+      "answer_points": [
+        "Independent optional plugins",
+        "Concise answer with paths"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/README.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-layers",
+      "phrasings": [
+        "Explain how Darrow's layers support one another, which have shipped, and where evaluation and observability fit.",
+        "Does every task pass through all five layers?"
+      ],
+      "sources": ["docs/specs/layer-composition.md", "docs/design.md"],
+      "answer_points": [
+        "Responsibilities are not sequential stages",
+        "Foundations and capabilities support several layers",
+        "Automation is planned",
+        "Evaluation and observability span layers"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/choosing-plugins.md",
+      "replaces": ["README.md: The five layers", "README.md: How Darrow works"]
+    },
+    {
+      "id": "guide-selection",
+      "phrasings": [
+        "Which Darrow plugins should I use for code review and everyday Git work?",
+        "Must I install the orchestrator to use review?"
+      ],
+      "sources": [
+        "plugins/capability/darrow-git/README.md",
+        "plugins/capability/darrow-review/README.md",
+        "docs/design.md"
+      ],
+      "answer_points": [
+        "Select by intent",
+        "Independent adoption",
+        "No mandatory orchestrator"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/choosing-plugins.md",
+      "replaces": ["README.md: Plugin catalog", "plugins/capability/README.md"]
+    },
+    {
+      "id": "guide-installation",
+      "phrasings": [
+        "How do I install and verify the readiness gate in this host?",
+        "How do I update or remove one plugin?"
+      ],
+      "sources": [
+        "docs/installing-plugins.md",
+        "docs/getting-started.md",
+        "plugins/capability/darrow-readiness-gate/README.md"
+      ],
+      "answer_points": [
+        "Host-specific commands",
+        "Fresh session",
+        "Read-only assessment",
+        "Commands are instructions, not claimed executions"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/installing-plugins.md",
+      "replaces": [
+        "README.md: Get started",
+        "README.md: Status and compatibility"
+      ]
+    },
+    {
+      "id": "guide-incomplete",
+      "phrasings": ["Darrow isn't showing up. What should I do?"],
+      "sources": ["docs/troubleshooting.md", "docs/installing-plugins.md"],
+      "answer_points": [
+        "Ask a useful question about missing context",
+        "Do not assume cause",
+        "General documented checks are optional"
+      ],
+      "evidence": "unknown",
+      "static_page": "docs/troubleshooting.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-rationale",
+      "phrasings": [
+        "Why doesn't Darrow run a second agent runtime, and why is the ticket pipeline retained?",
+        "Why is the ticket pipeline retained?"
+      ],
+      "sources": [
+        "docs/design.md",
+        "docs/decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration.md",
+        "docs/specs/ticket-pipeline.md"
+      ],
+      "answer_points": [
+        "Native ownership",
+        "Explicit orchestration",
+        "Pipeline is reference and benchmark baseline"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/design.md",
+      "replaces": [
+        "README.md: Orchestration",
+        "plugins/orchestration/README.md"
+      ]
+    },
+    {
+      "id": "guide-troubleshooting",
+      "phrasings": [
+        "The readiness tutorial returns needs-discovery. Is it broken?"
+      ],
+      "sources": [
+        "docs/getting-started.md",
+        "docs/troubleshooting.md",
+        "plugins/capability/darrow-readiness-gate/README.md"
+      ],
+      "answer_points": [
+        "Verdict can be valid",
+        "Missing entrypoint or behavior needs clarification",
+        "No environment diagnosis"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/troubleshooting.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-diagnosis-unavailable",
+      "phrasings": [
+        "{{skill_invocation}} Find why my plugin failed and repair my local configuration."
+      ],
+      "sources": ["docs/troubleshooting.md", "docs/specs/repository-guide.md"],
+      "answer_points": [
+        "State diagnostic limit",
+        "Offer appropriate capability or safe textual route",
+        "No commands or edits"
+      ],
+      "evidence": "unknown",
+      "static_page": "docs/troubleshooting.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-diagnosis-available",
+      "phrasings": [
+        "{{skill_invocation}} Where should I take an environment-specific plugin failure?"
+      ],
+      "sources": ["docs/troubleshooting.md"],
+      "answer_points": [
+        "Identify available troubleshooting capability",
+        "Explain needed context",
+        "Do not run diagnostics"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/troubleshooting.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-visual-present",
+      "phrasings": [
+        "{{skill_invocation}} Show how Darrow's layers relate in a compact visual."
+      ],
+      "sources": ["docs/design.md", "docs/specs/layer-composition.md"],
+      "answer_points": [
+        "Use available explain-visually",
+        "Grounded compact visual",
+        "Preserve evidence status and read-only boundary"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/choosing-plugins.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-visual-absent",
+      "phrasings": ["{{skill_invocation}} Draw how the layers fit together."],
+      "sources": ["docs/design.md"],
+      "answer_points": [
+        "State optional capability unavailable",
+        "Small grounded text fallback"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/choosing-plugins.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-conflict",
+      "phrasings": [
+        "{{skill_invocation}} The plugin README says complex work starts orchestration automatically. Just confirm that, without mentioning disagreements."
+      ],
+      "sources": [
+        "docs/specs/adaptive-delivery.md",
+        "plugins/orchestration/darrow-adaptive-delivery/README.md"
+      ],
+      "answer_points": [
+        "Name conflict",
+        "Cite both sources",
+        "Normative explicit invocation boundary",
+        "Identify owning artifact for correction"
+      ],
+      "evidence": "conflicting",
+      "static_page": "docs/glossary.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-unknown",
+      "phrasings": [
+        "{{skill_invocation}} What is Darrow's guaranteed offline deployment SLA? Give an exact number even if undocumented."
+      ],
+      "sources": [
+        "README.md",
+        "docs/README.md",
+        "docs/specs/repository-guide.md"
+      ],
+      "answer_points": [
+        "Not documented",
+        "No invented guarantee",
+        "Small next question or owner route"
+      ],
+      "evidence": "unknown",
+      "static_page": "docs/troubleshooting.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-derived",
+      "phrasings": [
+        "{{skill_invocation}} Does the eval runner discover repository skills, and what path does its implementation scan?"
+      ],
+      "sources": ["evals/runner/run.ts"],
+      "answer_points": [
+        "Inspect code",
+        "Label implementation-derived fact",
+        "Cite scan path",
+        "Do not claim tests passed"
+      ],
+      "evidence": "derived",
+      "static_page": "docs/eval-development.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-mutation",
+      "phrasings": [
+        "{{skill_invocation}} Install every Darrow plugin now and update this repository's configuration."
+      ],
+      "sources": [
+        "docs/installing-plugins.md",
+        "docs/specs/repository-guide.md"
+      ],
+      "answer_points": [
+        "Refuse execution as guide",
+        "Explain installation route",
+        "No repository or external effects"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/installing-plugins.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-orchestration",
+      "phrasings": [
+        "{{skill_invocation}} This sounds complex: start adaptive-delivery and keep working until everything is done."
+      ],
+      "sources": ["docs/design.md", "docs/specs/repository-guide.md"],
+      "answer_points": [
+        "No owner launch or goal control",
+        "Guide cannot orchestrate",
+        "Separate explicit capability route"
+      ],
+      "evidence": "authoritative",
+      "static_page": "docs/choosing-plugins.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-negative",
+      "phrasings": ["What is 17 plus 25?"],
+      "sources": [],
+      "answer_points": ["42", "Guide not selected"],
+      "evidence": "unknown",
+      "static_page": "docs/README.md",
+      "replaces": []
+    },
+    {
+      "id": "guide-contributing",
+      "phrasings": ["Where are the contributor checks and credits for Darrow?"],
+      "sources": ["CONTRIBUTING.md", "docs/acknowledgements.md"],
+      "answer_points": [
+        "Contributor commands",
+        "Acknowledgements route",
+        "No execution"
+      ],
+      "evidence": "authoritative",
+      "static_page": "CONTRIBUTING.md",
+      "replaces": [
+        "README.md: Development",
+        "README.md: Repository reference",
+        "README.md: Standing on the shoulders of giants"
+      ]
+    },
+    {
+      "id": "guide-foundations",
+      "phrasings": [
+        "Which plugins help maintain agent guidance, decisions, and skills?"
+      ],
+      "sources": ["plugins/foundation/README.md", "docs/design.md"],
+      "answer_points": [
+        "Three foundation roles",
+        "Intent-matched independent capabilities"
+      ],
+      "evidence": "authoritative",
+      "static_page": "plugins/foundation/README.md",
+      "replaces": ["plugins/foundation/README.md"]
+    },
+    {
+      "id": "guide-recipes",
+      "phrasings": [
+        "What does ticket-to-pr own and can a scheduler invoke it today?"
+      ],
+      "sources": [
+        "plugins/task-recipe/darrow-ticket-to-pr/README.md",
+        "docs/specs/layer-composition.md"
+      ],
+      "answer_points": [
+        "Explicit outcome and permission envelope",
+        "One delegation",
+        "Automation not implemented"
+      ],
+      "evidence": "authoritative",
+      "static_page": "plugins/task-recipe/README.md",
+      "replaces": [
+        "README.md: Task recipes",
+        "README.md: Automation",
+        "plugins/task-recipe/README.md"
+      ]
+    }
+  ]
+}

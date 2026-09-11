@@ -97,14 +97,18 @@ async function pluginSelectionFixture() {
   return root;
 }
 
-async function runSelection(root: string, args: readonly string[]) {
+async function runSelection(
+  root: string,
+  args: readonly string[],
+  harness = "claude",
+) {
   const output = join(root, "result.json");
   const proc = Bun.spawn(
     [
       process.execPath,
       join(root, "evals/runner/run.ts"),
       "--harness",
-      "claude",
+      harness,
       "--dry",
       "--trials",
       "1",
@@ -142,6 +146,113 @@ test("--skill selects all colocated cases independently of case IDs", async () =
     join(root, skillPath),
     join(root, skillPath),
   ]);
+});
+
+test.each(["claude", "codex"])(
+  "repository skill cases use the native %s entrypoint without plugin ownership",
+  async (harness) => {
+    const root = await selectionFixture();
+    expect(Bun.spawnSync(["git", "init", "-q", root]).exitCode).toBe(0);
+    const hostDirectory = harness === "claude" ? ".claude" : ".agents";
+    for (const host of [".agents", ".claude"]) {
+      const directory = join(root, host, "skills/repository-guide");
+      await mkdir(directory, { recursive: true });
+      await writeFile(
+        join(directory, "SKILL.md"),
+        "---\nname: repository-guide\ndescription: Explain the repository\n---\nRead sources.\n",
+      );
+      for (const manifest of [".claude-plugin", ".codex-plugin"]) {
+        await mkdir(join(root, host, manifest), { recursive: true });
+        await writeFile(
+          join(root, host, manifest, "plugin.json"),
+          JSON.stringify({
+            name: "not-a-plugin",
+            version: "1.0.0",
+            skills: "./skills/",
+          }),
+        );
+      }
+      await mkdir(join(root, host, "bin"), { recursive: true });
+      await writeFile(
+        join(root, host, "bin", "must-not-mount"),
+        "not a repository skill resource\n",
+      );
+    }
+    await writeCase(
+      root,
+      ".agents/skills/repository-guide/evals",
+      "repository-question",
+    );
+    await writeCase(
+      root,
+      ".claude/skills/repository-guide/evals",
+      "mirror-must-not-run",
+    );
+    const path = join(
+      root,
+      ".agents/skills/repository-guide/evals/repository-question.yaml",
+    );
+    const evalCase = JSON.parse(await readFile(path, "utf8"));
+    evalCase.checks = [
+      {
+        name: "native project skill mount, no synthetic plugin or leaked evals",
+        run: `test -f ${hostDirectory}/skills/repository-guide/SKILL.md && test ! -d ${hostDirectory}/skills/repository-guide/evals && test ! -e ${hostDirectory}/bin/must-not-mount && test ! -e .git/eval-plugin/.claude-plugin/plugin.json && test ! -e .git/eval-marketplace/.claude-plugin/marketplace.json`,
+      },
+    ];
+    await writeFile(path, JSON.stringify(evalCase));
+    const result = await runSelection(
+      root,
+      ["--skill", "repository-guide"],
+      harness,
+    );
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.results.map((entry) => entry.caseId)).toEqual([
+      "repository-question",
+    ]);
+    expect(result.results[0]?.skillDirectory).toBe(
+      join(root, hostDirectory, "skills/repository-guide"),
+    );
+    expect(
+      result.results[0]?.trials[0]?.checks.every((check) => check.passed),
+    ).toBe(true);
+    const pluginResult = await runSelection(root, ["--plugin", ".agents"]);
+    expect(pluginResult.code).toBe(1);
+    expect(pluginResult.stderr).toBe("No cases matched.\n");
+  },
+);
+
+test("missing Claude mirror refuses while repository no-skill and candidate controls keep ownership", async () => {
+  const root = await selectionFixture();
+  const directory = ".agents/skills/repository-guide";
+  await mkdir(join(root, directory), { recursive: true });
+  await writeFile(
+    join(root, directory, "SKILL.md"),
+    "---\nname: repository-guide\ndescription: Explain the repository\n---\nRead sources.\n",
+  );
+  await writeCase(root, `${directory}/evals`, "repository-question");
+  const missing = await runSelection(root, ["--skill", "repository-guide"]);
+  expect(missing.code).toBe(1);
+  expect(missing.stderr).toContain(".claude/skills/repository-guide/SKILL.md");
+  const control = await runSelection(root, [
+    "--skill",
+    "repository-guide",
+    "--without-skill",
+  ]);
+  expect(control.code, control.stderr).toBe(0);
+  expect(
+    control.results.map((result) => [result.caseId, result.skillDirectory]),
+  ).toEqual([["repository-question", null]]);
+  const candidate = await runSelection(root, [
+    "--skill",
+    "repository-guide",
+    "--skill-dir",
+    directory,
+  ]);
+  expect(candidate.code, candidate.stderr).toBe(0);
+  expect(candidate.results.map((result) => result.caseId)).toEqual([
+    "repository-question",
+  ]);
+  expect(candidate.results[0]?.skillDirectory).toBe(join(root, directory));
 });
 
 test("--case filters narrow --skill selection and retain OR matching", async () => {

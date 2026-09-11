@@ -42,6 +42,14 @@ export function expectsAdaptiveDeliveryOwner(evalCase: EvalCase): boolean {
   );
 }
 
+function hasSupportingSkillMount(evalCase: EvalCase): boolean {
+  if (evalCase.mount_plugin_skills === true) return true;
+  if (evalCase.skillScope !== "repository") return false;
+  return !!(
+    evalCase.additional_skills?.length || evalCase.additional_plugins?.length
+  );
+}
+
 function validateActivationSequence(evalCase: EvalCase): string[] {
   const sequence = evalCase.activation_sequence;
   if (sequence === undefined) return [];
@@ -64,7 +72,7 @@ function validateActivationSequence(evalCase: EvalCase): string[] {
     errors.push(
       `${evalCase.id}: activation_sequence must start with the owning skill ${target}`,
     );
-  if (sequence.length > 1 && evalCase.mount_plugin_skills !== true)
+  if (sequence.length > 1 && !hasSupportingSkillMount(evalCase))
     errors.push(
       `${evalCase.id}: composed activation_sequence requires mount_plugin_skills: true`,
     );

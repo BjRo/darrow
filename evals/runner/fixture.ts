@@ -379,8 +379,10 @@ function pluginMountPaths(
 async function mountClaudeSourcePlugins(
   repoDir: string,
   packages: SourcePluginPackage[],
+  includePrimary = true,
 ): Promise<void> {
   for (const [index, source] of packages.entries()) {
+    if (index === 0 && !includePrimary) continue;
     if (!existsSync(source.paths.manifest)) {
       if (index === 0) continue;
       throw new Error(
@@ -403,10 +405,12 @@ async function mountClaudeSourcePlugins(
 async function mountCodexSourcePlugins(
   repoDir: string,
   packages: SourcePluginPackage[],
+  includePrimary = true,
 ): Promise<void> {
   const marketplace = join(repoDir, ".git", "eval-marketplace");
   const entries: Array<{ name: string; source: string }> = [];
   for (const [index, source] of packages.entries()) {
+    if (index === 0 && !includePrimary) continue;
     if (
       !existsSync(source.paths.manifest) ||
       !existsSync(source.paths.codexManifest)
@@ -431,7 +435,7 @@ async function mountProjectSkills(
   repoDir: string,
   skillMounts: string[],
   skillDirs: string[],
-  paths: PluginMountPaths,
+  paths?: PluginMountPaths,
 ): Promise<void> {
   for (const mount of skillMounts) {
     for (const mountedSkillDir of skillDirs) {
@@ -441,7 +445,7 @@ async function mountProjectSkills(
         join(repoDir, mount, mountedSkillName),
       );
     }
-    await mountPluginMechanics(repoDir, mount, paths);
+    if (paths) await mountPluginMechanics(repoDir, mount, paths);
   }
 }
 
@@ -457,6 +461,7 @@ async function mountSkills(
     | "additionalPluginRoots"
     | "sourceClaudePlugin"
     | "sourceCodexPlugin"
+    | "repositorySkill"
   >,
 ): Promise<void> {
   const {
@@ -468,6 +473,7 @@ async function mountSkills(
     additionalPluginRoots = [],
     sourceClaudePlugin = false,
     sourceCodexPlugin = false,
+    repositorySkill = false,
   } = options;
   const paths = pluginMountPaths(skillDir, sourcePluginRoot);
   const skillDirs = await resolveMountedSkillDirs(
@@ -475,14 +481,22 @@ async function mountSkills(
     mountPluginSkills,
     additionalSkillDirs,
   );
-  await mountProjectSkills(repoDir, skillMounts, skillDirs, paths);
+  await mountProjectSkills(
+    repoDir,
+    skillMounts,
+    skillDirs,
+    repositorySkill ? undefined : paths,
+  );
   const packages = await sourcePluginPackages(
     skillDirs,
     paths,
     additionalPluginRoots,
   );
-  if (sourceClaudePlugin) await mountClaudeSourcePlugins(repoDir, packages);
-  if (sourceCodexPlugin) await mountCodexSourcePlugins(repoDir, packages);
+  // Repository skills remain project skills even if host config contains manifests.
+  if (sourceClaudePlugin)
+    await mountClaudeSourcePlugins(repoDir, packages, !repositorySkill);
+  if (sourceCodexPlugin)
+    await mountCodexSourcePlugins(repoDir, packages, !repositorySkill);
 }
 
 async function writeSkillMountExcludes(
@@ -497,6 +511,8 @@ async function writeSkillMountExcludes(
 }
 
 export interface BuildFixtureOptions {
+  /** Mount the primary skill through native project discovery only. */
+  repositorySkill?: boolean;
   fixture: Fixture;
   /** Skill under evaluation; empty for skill-less experiment cases. */
   skillDir: string;

@@ -1,4 +1,5 @@
 import { readdir, readFile, stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { extname, isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
@@ -362,7 +363,12 @@ if (import.meta.main) {
   const report = await scanInvariantCoverage({
     root,
     specInputs: values.spec ?? [join(root, "docs", "specs")],
-    evalInputs: values["eval-root"] ?? [join(root, "plugins")],
+    evalInputs: values["eval-root"] ?? [
+      join(root, "plugins"),
+      ...(existsSync(join(root, ".agents/skills"))
+        ? [join(root, ".agents/skills")]
+        : []),
+    ],
   });
   console.log(
     values.json
