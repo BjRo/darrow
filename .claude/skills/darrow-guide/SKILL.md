@@ -48,6 +48,8 @@ Search filenames or contents when a route does not establish the answer.
 Read the actual source, not just a search hit or another answer. No material
 claim may come from model memory. A source's presence is not proof of execution,
 installation, test success, or a service guarantee.
+Preserve conditional wording: an allowed outcome is not a required or guaranteed
+outcome, and a documented possible cause is not an observed diagnosis.
 
 Apply this precedence by subject:
 

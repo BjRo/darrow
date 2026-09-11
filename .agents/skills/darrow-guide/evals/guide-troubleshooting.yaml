@@ -27,12 +27,19 @@ checks:
       "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
-  - name: question contract
-    proposition:
-      "The response directly answers the question, remains concise, and establishes these
-      points: Verdict can be valid; Missing entrypoint or behavior needs clarification; No
-      environment diagnosis. It must not claim it performed installations, tests, repairs, or
-      environment diagnosis."
+  - name: conditional verdict and useful next step
+    proposition: >-
+      The response explains that needs-discovery can be a successful assessment, not proof
+      that the tutorial is broken. It does not claim that this is the tutorial's required,
+      guaranteed, or single intended verdict. It tells the reader to clarify or resolve the
+      missing fact identified by their assessment; an example missing CLI entrypoint is
+      permitted but not required.
+  - name: focused documented explanation
+    proposition: >-
+      The response stays focused on interpreting this verdict and the next step, allowing
+      citations and required Claude support disclosure. It does not claim to have installed
+      plugins, run tests, repaired configuration, or established the cause of an unobserved
+      live failure. Read-only repository inspection is permitted.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/getting-started\.md|docs/troubleshooting\.md|plugins/capability/darrow-readiness-gate/README\.md

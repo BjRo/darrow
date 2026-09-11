@@ -246,3 +246,33 @@ older issue 103 research report linked to 14 gitignored JSON results present
 only in the development checkout. Its artifact references are now labelled
 local evidence paths rather than published links, preserving all measurements
 and findings. The walkthrough is repeated from a newly committed clone.
+
+The post-contraction troubleshooting response incorrectly called
+`needs-discovery` the tutorial's intended verdict. The source allows several
+verdicts. The evidence contract and guide now preserve conditional outcomes;
+the rubric requires the assessment's missing fact to be resolved, without
+demanding the optional missing-entrypoint example. Regrading rejects the retained
+overclaim and an execution counterexample while accepting a conditional answer.
+Follow-up, installation, troubleshooting, and the remaining cases are rerun.
+
+Fresh-clone native CLI walkthroughs used isolated user settings and the local
+marketplace at commit `c6ab2ef`, not the user's normal installations. Both hosts
+installed/listed readiness 0.3.2, loaded the repository guide by ordinary intent,
+and returned ordinary and explicitly requested readiness assessments. Codex
+returned `needs-discovery`; Claude returned `needs-decision`. Both are allowed.
+The walkthrough revealed that the tutorial overpromised a concrete quality bar
+for every verdict; it now matches the local result contract, which permits an
+empty bar for non-ready results. Claude's responses also had report-format
+defects (a duplicated Summary label and placeholder quality-bar content in the
+explicit result); these are recorded as existing readiness-capability limits,
+not a claim of full readiness-contract conformance or guide failure.
+
+Codex cache remove/reinstall/remove/list and Claude update/uninstall/list left
+both checkouts clean. Claude's update reported the installed version current,
+so no version upgrade was demonstrated. Codex marketplace refresh refused the
+local source because it is not Git-backed; remote marketplace refresh, GitHub
+network installation, interactive pickers, and desktop UI remain unverified.
+Retained walkthroughs: `guide-walkthrough-2026-09-11T15-47-42-251Z` (Codex
+invocations), `guide-walkthrough-2026-09-11T15-50-17-636Z` (Codex lifecycle), and
+`guide-walkthrough-2026-09-11T15-50-29-827Z` (Claude). Paths are under gitignored
+`evals/results/`; the initial failed attempts remain diagnostic evidence.

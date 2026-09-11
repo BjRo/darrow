@@ -26,6 +26,8 @@ Do not require a fixed template or an unsolicited follow-up after every answer.
 Inspect sources for every material claim during the current question; a previous
 answer or model memory is not evidence. Resolve paths in this checkout, and
 follow the relevant references rather than reading all documentation up front.
+Preserve the source's conditions: an allowed outcome is not a guaranteed or
+required outcome, and a documented possible cause is not an observed diagnosis.
 
 1. Normative specifications and **accepted** ADRs govern capability and
    architecture invariants. Their order does not settle contradictions between

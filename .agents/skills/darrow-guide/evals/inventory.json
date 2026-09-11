@@ -171,7 +171,7 @@
       ],
       "answer_points": [
         "Verdict can be valid",
-        "Missing entrypoint or behavior needs clarification",
+        "Clarify the assessment's missing fact; no guaranteed tutorial verdict",
         "No environment diagnosis"
       ],
       "evidence": "authoritative",

@@ -41,9 +41,12 @@ The readiness gate should return exactly one of these verdicts:
 - `needs-decision`
 - `blocked`
 
-It should also identify a concrete quality bar and the evidence needed to
-verify the change in a human-readable report. JSON is available only when a
-caller explicitly requests the versioned machine representation. The exact
+Inspect the report's basis, quality bar, findings, and next action. A `ready`
+verdict requires a concrete quality bar and verification evidence. A non-ready
+assessment may leave the quality bar empty when the missing facts prevent it
+from being established; its finding and next action explain what is needed.
+JSON is available only when a caller explicitly requests the versioned machine
+representation. The exact
 verdict can differ between repositories. For example, a repository with no
 identifiable CLI entry point may need discovery; that is a successful
 assessment, not a failed tutorial.
