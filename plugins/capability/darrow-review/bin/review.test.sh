@@ -279,12 +279,13 @@ out=$("$SHELL_UNDER_TEST" "$RESULT" validate "$result")
 check_contains "accepts a complete passing result" "valid: darrow-review-result-v1" "$out"
 
 # shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
-printf 'finding\tstandards\thigh\tblocking\t%s/src/feature.txt:1\t%s/AGENTS.md#Heading\tUse <safe> & `literal` | evidence\n' "$REPO" "$REPO" >>"$result"
+printf 'finding\tstandards\thigh\tblocking\tsrc/feature.txt:1\t%s/AGENTS.md#Heading\tUse <safe> & `literal` | evidence\n' "$REPO" >>"$result"
 awk -F '\t' 'BEGIN { OFS="\t" } $1 == "standards" { $2="fail" } $1 == "verdict" { $2="fail" } { print }' "$result" >"$result.render"
 out=$("$SHELL_UNDER_TEST" "$REPORT" render "$result.render")
 check_contains "renders a Markdown verdict heading" "# Code review — FAIL" "$out"
 check_contains "leads with semantic finding counts" "**Findings:** 1 (1 blocking, 0 advisory)" "$out"
 check_contains "preserves finding axis and severity" "HIGH — BLOCKING (Standards)" "$out"
+check_contains "renders a conventional location as bare text" "- **Location:** src/feature.txt:1" "$out"
 # shellcheck disable=SC2016 # Expected literal intentionally contains Markdown backticks.
 check_contains "escapes Markdown-hostile evidence" '&lt;safe&gt;' "$out"
 check_contains "escapes Markdown backticks" '&#96;literal&#96;' "$out"
@@ -292,6 +293,10 @@ check_contains "escapes Markdown pipes" '&#124; evidence' "$out"
 check_contains "renders compact checks" "## Checks" "$out"
 check_contains "renders scope after findings" "## Scope" "$out"
 check_contains "renders sources after scope" "## Sources" "$out"
+check_not_contains "comprehensive Markdown omits opening code wrappers" "<code>" "$out"
+check_not_contains "comprehensive Markdown omits closing code wrappers" "</code>" "$out"
+check_not_contains "comprehensive Markdown omits generated links" "](" "$out"
+check_not_contains "comprehensive Markdown omits terminal hyperlinks" "$(printf '\033]8;')" "$out"
 check_not_contains "does not duplicate the raw TSV" "format${TAB}darrow-review-result-v1" "$out"
 
 golden=$REPO/.git/golden.tsv
@@ -299,14 +304,15 @@ golden=$REPO/.git/golden.tsv
   printf 'format\tdarrow-review-result-v1\n'
   printf 'base\tbase-oid\n'
   printf 'target\ttarget-fingerprint\n'
-  printf 'changed_file\t%s/src/one.js\n' "$REPO"
-  printf 'changed_file\t%s/src/two.js\n' "$REPO"
-  printf 'standards\tfail\nstandards_source\t%s/AGENTS.md\n' "$REPO"
+  printf 'changed_file\t/workspace/src/one.js\n'
+  printf 'changed_file\t%s\n' '/workspace/C:\(draft\) file.js'
+  printf 'standards\tfail\nstandards_source\t/workspace/AGENTS.md\n'
   printf 'spec\tpass\nspec_source\tobjective <v1> & details\n'
   # shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
-  printf 'finding\tstandards\thigh\tblocking\tsrc/one.js:1\t%s/AGENTS.md\tAvoid `debug` output\n' "$REPO"
-  printf 'finding\tspec\tmedium\tadvisory\tsrc/two.js:2\tobjective <v1> & details\tKeep [evidence] intact\n'
-  printf 'check\tbash test.sh\tapplicable\tpass\tAll tests passed\n'
+  printf 'finding\tstandards\thigh\tblocking\tsrc/one.js:1\t/workspace/AGENTS.md\tAvoid `debug` output\n'
+  printf 'finding\tspec\tmedium\tadvisory\tsrc/two_file.js:2\tobjective <v1> & details\tKeep [evidence] intact\n'
+  # shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
+  printf 'check\tbash check_[review].sh --label `nightly`\tapplicable\tpass\tAll tests passed\n'
   printf 'check\tnone\tnot_applicable\tnot_applicable\tNo typecheck applies\n'
   printf 'verdict\tfail\n'
   printf 'risk\tRisk <one> & two\nrisk\tSecond risk\n'
@@ -323,18 +329,18 @@ cat >"$expected" <<EOF
 ## Findings
 
 ### 1. HIGH — BLOCKING (Standards)
-- **Location:** <code>src/one.js:1</code>
-- **Source:** <code>$REPO/AGENTS.md</code>
+- **Location:** src/one.js:1
+- **Source:** /workspace/AGENTS.md
 - **Evidence:** Avoid &#96;debug&#96; output
 
 ### 2. MEDIUM — ADVISORY (Spec)
-- **Location:** <code>src/two.js:2</code>
-- **Source:** <code>objective &lt;v1&gt; &amp; details</code>
+- **Location:** src/two&#95;file.js:2
+- **Source:** objective &lt;v1&gt; &amp; details
 - **Evidence:** Keep &#91;evidence&#93; intact
 
 ## Checks
-- **PASS** (applicable) — <code>bash test.sh</code>: All tests passed
-- **NOT_APPLICABLE** (not_applicable) — <code>none</code>: No typecheck applies
+- **PASS** (applicable) — bash check&#95;&#91;review&#93;.sh --label &#96;nightly&#96;: All tests passed
+- **NOT_APPLICABLE** (not&#95;applicable) — none: No typecheck applies
 
 ## Risks
 - Risk &lt;one&gt; &amp; two
@@ -344,16 +350,16 @@ cat >"$expected" <<EOF
 Return &#96;findings&#96; to owner
 
 ## Scope
-- **Base:** <code>base-oid</code>
-- **Target:** <code>target-fingerprint</code>
+- **Base:** base-oid
+- **Target:** target-fingerprint
 - **Changed files:**
-  - <code>$REPO/src/one.js</code>
-  - <code>$REPO/src/two.js</code>
+  - /workspace/src/one.js
+  - /workspace/C:&#92;(draft&#92;) file.js
 
 ## Sources
 - **Standards (fail):**
-  - <code>$REPO/AGENTS.md</code>
-- **Spec (pass):** <code>objective &lt;v1&gt; &amp; details</code>
+  - /workspace/AGENTS.md
+- **Spec (pass):** objective &lt;v1&gt; &amp; details
 EOF
 actual=$REPO/.git/golden.actual.md
 printf '%s\n' "$out" >"$actual"
@@ -364,11 +370,15 @@ else
   diff -u "$expected" "$actual" || true
   FAILURES=$((FAILURES + 1))
 fi
-check_contains "golden preserves both changed files" "src/two.js" "$out"
-check_contains "golden preserves check applicability" "**NOT_APPLICABLE** (not_applicable)" "$out"
+check_contains "golden preserves both changed files" "C:&#92;(draft&#92;) file.js" "$out"
+check_contains "golden preserves a path containing spaces" "/workspace/C:&#92;(draft&#92;) file.js" "$out"
+check_contains "golden preserves visible backslashes" "&#92;(draft&#92;)" "$out"
+check_contains "golden preserves check applicability" "**NOT_APPLICABLE** (not&#95;applicable)" "$out"
 check_contains "golden preserves multiple risks" "Second risk" "$out"
 check_contains "golden escapes all hostile semantic fields" "&lt;v1&gt; &amp; details" "$out"
 check_contains "golden preserves next action" "Return &#96;findings&#96; to owner" "$out"
+# shellcheck disable=SC2016 # Expected literal intentionally contains Markdown backticks.
+check_not_contains "golden contains no Markdown code spans for commands" '`nightly`' "$out"
 
 awk -F '\t' 'BEGIN { OFS="\t" } $1 == "verdict" { $2="blocked" } { print }' "$result" >"$result.bad"
 set +e
@@ -435,12 +445,13 @@ check_contains "requires every carried regression state" "prior regression is mi
   printf 'prior_target\t%s\n' "$prior_target"
   printf 'current_target\t%s\n' "$current_target"
   printf 'previous_verification\tnone\tnone\n'
-  printf 'original_finding\t%s\tstandards\t1\thigh\tblocking\tsrc/value.txt:1\t%s/AGENTS.md\tOriginal standards evidence\n' "$standards_key" "$REPO"
-  printf 'original_finding\t%s\tspec\t2\tlow\tadvisory\tsrc/value.txt:2\tuser objective\tOriginal advisory evidence\n' "$spec_key"
+  printf 'original_finding\t%s\tstandards\t1\thigh\tblocking\tsrc/value.txt:1\t/workspace/AGENTS.md#Review\tOriginal standards evidence\n' "$standards_key"
+  printf 'original_finding\t%s\tspec\t2\tlow\tadvisory\tsrc/value with spaces.txt:2\tuser objective <v1> & [details]\tOriginal advisory evidence\n' "$spec_key"
   printf 'attempt\t%s\tresolved\tresolved\tThe violation is absent from the repair\n' "$standards_key"
   printf 'attempt\t%s\tunresolved\tunchanged\tThe advisory remains\n' "$spec_key"
-  printf 'regression\t%s\t%s\t1\tstandards\thigh\tresolved\tresolved\tsrc/value.txt:3\t%s/AGENTS.md\tThe repair-caused regression is fixed\n' "$regression_key" "$standards_key" "$REPO"
-  printf 'check\tbash test.sh\tapplicable\tpass\tAll tests passed\n'
+  printf 'regression\t%s\t%s\t1\tstandards\thigh\tresolved\tresolved\t%s\t/workspace/AGENTS_<repair>.md\tThe repair-caused regression is fixed\n' "$regression_key" "$standards_key" 'src/C:\(repair\) value_[repair].txt:3'
+  # shellcheck disable=SC2016 # Fixture content intentionally contains Markdown backticks.
+  printf 'check\tbash verify_[repair].sh --label `fast`\tapplicable\tpass\tAll tests passed\n'
   printf 'outcome\tclear\n'
   printf 'next_action\treturn control to enclosing goal\n'
 } >"$verification"
@@ -451,9 +462,74 @@ out=$("$SHELL_UNDER_TEST" "$REPORT" render-verification "$verification")
 check_contains "renders a verification outcome heading" "# Repair verification — CLEAR" "$out"
 check_contains "renders stable finding status" "$standards_key" "$out"
 check_contains "renders repair-caused regression provenance" "$regression_key" "$out"
-check_contains "renders repair-caused regression axis" "**Axis:** <code>standards</code>" "$out"
+check_contains "renders repair-caused regression axis as ordinary text" "**Axis:** standards" "$out"
+check_contains "renders a conventional verification location as bare text" "- **Location:** src/value.txt:1" "$out"
+check_contains "renders a verification command as ordinary text" "— bash verify&#95;&#91;repair&#93;.sh --label &#96;fast&#96;: All tests passed" "$out"
 check_contains "renders verification target binding" "## Target binding" "$out"
+check_not_contains "verification Markdown omits opening code wrappers" "<code>" "$out"
+check_not_contains "verification Markdown omits closing code wrappers" "</code>" "$out"
+check_not_contains "verification Markdown omits generated links" "](" "$out"
+check_not_contains "verification Markdown omits terminal hyperlinks" "$(printf '\033]8;')" "$out"
 check_not_contains "verification Markdown omits raw TSV" "format${TAB}darrow-review-verification-v1" "$out"
+
+verification_expected=$REPO/.git/verification-golden.md
+cat >"$verification_expected" <<EOF
+# Repair verification — CLEAR
+
+**Outcome:** clear · Original findings: 2 · Resolved: 1 · Unresolved: 1 · Blocked: 0 · Regressions: 1
+
+## Attempted findings
+
+### 1. $standards_key — RESOLVED / RESOLVED (HIGH, blocking)
+- **Location:** src/value.txt:1
+- **Source:** /workspace/AGENTS.md&#35;Review
+- **Original evidence:** Original standards evidence
+- **Current evidence:** The violation is absent from the repair
+
+### 2. $spec_key — UNRESOLVED / UNCHANGED (LOW, advisory)
+- **Location:** src/value with spaces.txt:2
+- **Source:** user objective &lt;v1&gt; &amp; &#91;details&#93;
+- **Original evidence:** Original advisory evidence
+- **Current evidence:** The advisory remains
+
+## Repair-caused regressions
+
+### 1. $regression_key — RESOLVED / RESOLVED (HIGH)
+- **Axis:** standards
+- **Caused by:** $standards_key
+- **Location:** src/C:&#92;(repair&#92;) value&#95;&#91;repair&#93;.txt:3
+- **Source:** /workspace/AGENTS&#95;&lt;repair&gt;.md
+- **Evidence:** The repair-caused regression is fixed
+
+## Checks
+- **PASS** (applicable) — bash verify&#95;&#91;repair&#93;.sh --label &#96;fast&#96;: All tests passed
+
+## Evidence gaps
+No evidence gaps.
+
+## Target binding
+- **Original target:** $original_target
+- **Prior target:** $prior_target
+- **Current target:** $current_target
+- **Previous verification checksum:** none
+- **Previous verification artifact:** none
+
+## Closed original finding set
+- $standards_key — standards #1, high/blocking; src/value.txt:1; source /workspace/AGENTS.md&#35;Review; Original standards evidence
+- $spec_key — spec #2, low/advisory; src/value with spaces.txt:2; source user objective &lt;v1&gt; &amp; &#91;details&#93;; Original advisory evidence
+
+## Next action
+return control to enclosing goal
+EOF
+verification_actual=$REPO/.git/verification-golden.actual.md
+printf '%s\n' "$out" >"$verification_actual"
+if cmp -s "$verification_expected" "$verification_actual"; then
+  printf '  ok: verification golden rendering preserves every byte\n'
+else
+  printf '  FAIL: verification golden rendering preserves every byte\n'
+  diff -u "$verification_expected" "$verification_actual" || true
+  FAILURES=$((FAILURES + 1))
+fi
 
 awk -F '\t' -v repeated="$prior_target" 'BEGIN { OFS="\t" } $1 == "current_target" { $2=repeated } $1 == "outcome" { $2="no_progress" } { print }' "$verification" >"$verification.oscillation"
 out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$verification.oscillation")
@@ -521,6 +597,49 @@ awk -F '\t' -v path="$verification" -v hash="$previous_hash" -v prior="$current_
 ' "$verification" >"$next_verification"
 out=$("$SHELL_UNDER_TEST" "$RESULT" validate-verification "$next_verification")
 check_contains "accepts a checksum-bound later regression verification" "valid: darrow-review-verification-v1" "$out"
+out=$("$SHELL_UNDER_TEST" "$REPORT" render-verification "$next_verification")
+check_contains "renders a verification checksum as ordinary text" "- **Previous verification checksum:** $previous_hash" "$out"
+check_contains "renders a prior artifact path as ordinary text" "/.git/verification.tsv" "$out"
+check_not_contains "checksum-bound verification contains no code wrappers" "<code>" "$out"
+
+next_verification_expected=$REPO/.git/verification-next-golden.md
+awk -v old_prior="$prior_target" -v new_prior="$current_target" -v checksum="$previous_hash" '
+  $0 == "- **Prior target:** " old_prior {
+    print "- **Prior target:** " new_prior
+    next
+  }
+  $0 == "- **Current target:** " new_prior {
+    print "- **Current target:** WORKTREE@base+repair-two"
+    next
+  }
+  $0 == "- **Previous verification checksum:** none" {
+    print "- **Previous verification checksum:** " checksum
+    next
+  }
+  $0 == "- **Previous verification artifact:** none" {
+    print "- **Previous verification artifact:** PREVIOUS_ARTIFACT"
+    print "- **Earlier targets:**"
+    print "  - " old_prior
+    next
+  }
+  { print }
+' "$verification_expected" >"$next_verification_expected"
+next_verification_actual=$REPO/.git/verification-next-golden.actual.md
+printf '%s\n' "$out" |
+  awk '
+    /^- \*\*Previous verification artifact:\*\*/ {
+      print "- **Previous verification artifact:** PREVIOUS_ARTIFACT"
+      next
+    }
+    { print }
+  ' >"$next_verification_actual"
+if cmp -s "$next_verification_expected" "$next_verification_actual"; then
+  printf '  ok: checksum-bound golden rendering preserves every stable byte\n'
+else
+  printf '  FAIL: checksum-bound golden rendering preserves every stable byte\n'
+  diff -u "$next_verification_expected" "$next_verification_actual" || true
+  FAILURES=$((FAILURES + 1))
+fi
 
 awk -F '\t' '$1 != "history_target"' "$next_verification" >"$next_verification.no-history"
 set +e

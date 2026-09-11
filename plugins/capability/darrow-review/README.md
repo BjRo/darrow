@@ -48,13 +48,13 @@ full traceability later in the same report:
 
 ### 1. HIGH — BLOCKING (Spec)
 
-- **Location:** <code>src/rate.js:1</code>
-- **Source:** <code>Originating requirement: RATE_LIMIT must equal 2</code>
+- **Location:** src/rate.js:1
+- **Source:** Originating requirement: RATE_LIMIT must equal 2
 - **Evidence:** The changed export remains `1`.
 
 ## Checks
 
-- **PASS** — <code>bash check.sh</code>: rate check passed
+- **PASS** — bash check.sh: rate check passed
 
 ## Risks
 
