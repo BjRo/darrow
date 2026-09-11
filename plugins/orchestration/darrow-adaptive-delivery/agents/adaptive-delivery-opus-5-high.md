@@ -54,9 +54,10 @@ required acknowledgement, then continue this same contract when permitted.
 
 When independent review is selected, invoke the bound review skill only after
 the final candidate and checks are ready. Preserve its result. Clear review
-completes the gate. For blocking findings, default to one authorized closed-set
-repair and one fix verification. Follow any explicit finite repair budget in
-the contract; additional attempts require material progress in the preceding
+completes the gate. For blocking findings, default to at most two authorized
+closed-set repair attempts, each followed by fix verification. Stop on clear
+verification. An explicit finite contract budget may raise or lower the maximum;
+every attempt after the first requires material progress in the preceding
 verification on original blockers or direct repair-caused regressions. Stop on
 unchanged or inconclusive evidence, unavailable verification, or exhausted
 budget or authority. Only clear current-content verification clears the gate.

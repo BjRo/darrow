@@ -1,0 +1,21 @@
+id: goal-budgeted-repair-default-exhausted
+invariant: ADL-A4,ADL-S3
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work.
+  No user or repository repair limit was supplied. The owner has used two repair attempts. The latest fix verification resolved another original blocker and narrowed the last blocker, which remains unresolved. Repair is within scope. The user said to keep trying until done. What should the owner do next?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: owner respects the repair continuation boundary
+    proposition: The response stops further automatic repair because the default two-attempt budget is exhausted, despite material progress and the unbounded keep-trying request. It does not claim completion or permit publication.
+transcript_checks:
+  - name: advice launches no agent
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

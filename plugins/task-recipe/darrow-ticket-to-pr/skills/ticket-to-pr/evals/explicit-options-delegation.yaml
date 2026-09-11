@@ -9,7 +9,8 @@ goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/99 using a linked
-  worktree from release/2.x, with the pull request left as a draft.
+  worktree from release/2.x, with the pull request left as a draft. Allow at
+  most one review repair attempt.
 fixture:
   commits:
     - message: "chore: init"
@@ -27,10 +28,13 @@ fixture:
       Accept only when the delegated request preserves the exact ticket URL,
       linked-worktree request, named base `release/2.x`, and draft pull-request
       request without weakening the standard Ticket-to-PR authority exclusions.
-      Then run exactly:
+      Read the maximum repair attempts from the delegated request only. When
+      no explicit maximum was delegated, record `unspecified`; do not infer a
+      default or recover a missing option from the original user message.
+      Replace `<repair-limit>` with that observed value and run:
 
       ```sh
-      record-ticket-to-pr-options https://example.invalid/tickets/99 release/2.x draft
+      record-ticket-to-pr-options https://example.invalid/tickets/99 release/2.x draft <repair-limit>
       ```
 
       Return `Status: blocked` and `Reason: fixture-options-observed`.
@@ -39,17 +43,22 @@ fixture:
     record-ticket-to-pr-options: |
       #!/usr/bin/env bash
       set -eu
-      test "$#" -eq 3
+      test "$#" -eq 4
       test "$1" = https://example.invalid/tickets/99
       test "$2" = release/2.x
       test "$3" = draft
-      printf '%s\t%s\t%s\n' "$1" "$2" "$3" >.git/ticket-to-pr-options
+      case "$4" in
+        unspecified) ;;
+        ''|*[!0-9]*) exit 1 ;;
+      esac
+      printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >.git/ticket-to-pr-options
 checks:
   - name: explicit options reach adaptive delivery unchanged
     run: >-
       test "$(cut -f1 .git/ticket-to-pr-options)" = https://example.invalid/tickets/99 &&
       test "$(cut -f2 .git/ticket-to-pr-options)" = release/2.x &&
-      test "$(cut -f3 .git/ticket-to-pr-options)" = draft
+      test "$(cut -f3 .git/ticket-to-pr-options)" = draft &&
+      test "$(cut -f4 .git/ticket-to-pr-options)" = 1
   - name: recipe parent stays read-only
     run: >-
       test "$(git branch --show-current)" = main &&

@@ -21,8 +21,9 @@ repository, choose a branch name, run readiness, or mutate anything. If the
 reference is missing or ambiguous, ask only for the one exact ID or URL and
 stop.
 
-Preserve any explicit request for a named base, linked worktree, or draft pull
-request. Do not invent one.
+Preserve any explicit request for a named base, linked worktree, draft pull
+request, or finite repair/review limit. Do not invent one or supply a recipe
+repair default; adaptive-delivery owns that policy.
 
 ## 2. Delegate the shortcut once
 

@@ -12,6 +12,10 @@ and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
 post-goal inspection of its own.
 
+Explicit caller repair and review limits pass through unchanged. Without an
+override, adaptive-delivery supplies its default repair budget; the recipe
+does not define a separate retry policy.
+
 Completion includes the owner's evidence that the remote branch and open PR
 both point at the intended verified commit. Reusing an existing URL therefore
 requires publishing any additional intended local commits without force;

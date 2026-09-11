@@ -43,8 +43,9 @@ branch name, or run readiness before delegation. A missing or ambiguous
 reference produces one small request for an exact ID or URL and no delegation
 or mutation.
 
-Explicit user options such as a named base, linked worktree, or draft pull
-request are preserved. The recipe never invents those choices.
+Explicit user options such as a named base, linked worktree, draft pull
+request, or finite repair/review limit are preserved. The recipe never invents
+those choices or supplies its own repair default; adaptive-delivery owns that policy.
 
 ## Delegated delivery request
 
@@ -127,7 +128,7 @@ despite that unresolved prerequisite.
 3. **TPR-C3 — Complete envelope.** Delegation preserves the exact reference,
    current repository, ready implementation outcome, new-branch intent,
    verification, intended commits, non-force push, exactly one verified pull
-   request, explicit user options, and all publication exclusions.
+   request, explicit user options (including repair/review limits), and all publication exclusions.
 4. **TPR-C4 — Adaptive ownership.** `adaptive-delivery` alone owns preflight,
    readiness, capability bindings, route and owner selection, implementation,
    review, publication execution, blockage, and completion.

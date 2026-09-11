@@ -194,9 +194,10 @@ the final code change. If none exists, stop before owner launch. The owner runs
 it only after implementation and every applicable current final check
 succeeds. Merely running a required check does not satisfy this dependency. A
 clear result completes the review gate for that content, but cannot waive a
-failed required check. A blocking result permits one authorized closed-set
-repair and one fix verification by default. An explicit finite repair budget
-may permit further attempts with material progress; only clear verification
+failed required check. A blocking result permits at most two authorized closed-set
+repair attempts by default, each followed by fix verification. Every attempt
+after the first requires material progress in the preceding verification. An
+explicit finite repair budget may raise or lower the maximum; only clear verification
 permits completion. Read
 [`references/review-lifecycle.md`](references/review-lifecycle.md) completely
 when review is selected.

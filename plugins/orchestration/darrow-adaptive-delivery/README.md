@@ -80,10 +80,13 @@ review by default; routine work does not.
 
 Selected review runs through the exact bound review skill after implementation
 and final checks. A clear result completes the gate. A blocking result allows
-one authorized closed-set repair and one fix verification by default. An
-explicit finite repair budget permits additional attempts only with material
-progress on the original findings; only clear current-content verification
-permits completion or remaining publication.
+at most two authorized closed-set repair attempts by default, each followed by
+fix verification. The second attempt requires material progress on the original
+findings or direct repair-caused regressions. Clear verification ends repair
+immediately; no progress or an uncleared second verification stops the run.
+An explicit finite user or repository budget may raise or lower that maximum,
+while stricter review-invocation, time, token, and authority limits still apply.
+Only clear current-content verification permits completion or remaining publication.
 
 ## Human feedback and blockage
 
