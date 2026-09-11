@@ -3,6 +3,9 @@
 This is a maintainer record, not current product policy. The contract is
 [Repository guide](../specs/repository-guide.md); the versioned question
 inventory is [inventory.json](../../.agents/skills/darrow-guide/evals/inventory.json).
+The [local verification checkpoint](#local-verification-checkpoint) records the
+latest handoff status. Earlier sections preserve the chronology, including failures
+and statements that work was pending at those checkpoints.
 
 ## Reviewable stages
 
@@ -517,3 +520,60 @@ Codex answer. The guide now explicitly applies grounding to next steps and does
 not append a hypothetical wrapper after documenting an unsupported entry.
 The earlier selected-pass matrix is a checkpoint, not final acceptance under
 this added check. Fresh recipe trials are pending.
+
+## Local verification checkpoint
+
+The strengthened recipe case passed on both hosts at `fe13520` in
+`2026-09-11T17-30-02-997Z`. Both answers deny current scheduler entry without
+claiming a shipped scheduling capability or recommending an unsupported wrapper.
+All 22 inventory questions now have selected post-review task-and-activation
+passes on both native hosts, one trial per selected result. The machine-readable
+`evals/results/guide-post-review-matrix.json` records each selected file's source
+revision and evaluation digest, and verifies its host, executed mode,
+task/check/activation result, and accepted Claude explicit receipt. It retains
+six original native failures and the separately calibrated
+recipe oracle gap instead of erasing them.
+
+These 44 cells span six source revisions and scoped post-failure retests. They
+are not one frozen-final-version full run, a reliability estimate, or a matched
+comparison against an unmounted guide. Routes remain Codex `gpt-5.6-terra` / medium
+and Claude `claude-sonnet-5` / medium, with Codex `gpt-5.6-terra` / medium semantic
+grading, one trial and a 100% threshold per invocation. The post-review full run
+and every failed continuation stopped at its first failed check; diagnosis and
+any required retained-output/counterexample check preceded fresh trials.
+
+The latest complete local gate passed 454 tests and 1,819 assertions across
+47 files (79.50 seconds), formatting, ESLint, shell lint, TypeScript, eight ADRs,
+and documentation checks. The subsequent recipe-only skill/spec/check changes
+passed both skill inspectors, formatting, local documentation, two dry fixture
+checks, retained-output calibration, and the two fresh native trials. The helper
+and fixture shell tests pass Bash 3.2.57; Bash 5 is unavailable, not certified.
+The independent review's activation-observer, selected-plugin lifecycle, and
+overview findings were addressed with regression or affected native evidence.
+
+Residual limits remain part of the handoff:
+
+- Semantic passes do not establish perfect wording. Some Claude answers exceed
+  the routine word target. The retained `bb7cd00` orchestration answer overstates
+  the need for command-form invocation; clear natural-language invocation is
+  distinct from missing scope or unavailable capabilities. Its mutation refusal
+  also offers to "switch out" of the guide, looser wording than the separate-request
+  instruction. Their retained state checks passed; these are not stronger proof
+  of every phrasing or transition boundary.
+- Grounding checks establish bounded source references, not proof that every
+  claimed search or cited source was inspected. State checks do not establish
+  absence of every possible ignored-file, diagnostic, or arbitrary API effect.
+- Claude native validation still rejects the existing observability `Interrupt`
+  hook; that plugin's README marks the unsupported installation/invocation claim
+  as unverified. The other 13 packages validate. Remote marketplace refresh,
+  an actual version upgrade, interactive/Desktop surfaces, Bash 5, and rendered
+  accessibility remain unverified as described above.
+- The native readiness walkthrough records useful invocation/lifecycle evidence,
+  not strict conformance of every readiness result field. External-link checks
+  retain the separately triaged private-repository responses.
+
+Publication is not complete. Read-only PR inspection still reports draft
+[#124](https://github.com/BjRo/darrow/pull/124). This work has not pushed the later
+commits, changed the existing PR, or established CI results for its final content.
+Explicit permission to publish to that existing PR and change its draft state
+is still required; no duplicate PR is created.
