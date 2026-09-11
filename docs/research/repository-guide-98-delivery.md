@@ -89,10 +89,10 @@ The license remains the final section, byte-for-byte unchanged; its SHA-256 is
 `c7fd5834d3c8b12a15be3ad048804750d9a1ff21ed5b2e183a2937599c809059`.
 Local documentation validation passed immediately before this removal.
 
-The full post-contraction live suite, fresh-clone walkthroughs, independent
-review, and final publication checks are still pending.
+At this contraction checkpoint, the full post-contraction live suite,
+fresh-clone walkthroughs, independent review, and publication checks were pending.
 
-The resulting root README is 125 lines; its pre-license content has 301
+The resulting root README is 124 lines; its pre-license content has 300
 whitespace-delimited words including HTML/navigation markup. All prior heading
 destinations and the unchanged license checksum passed explicit checks.
 
@@ -322,3 +322,39 @@ The revised semantic checks require the refusal and separate route, and reject
 claims of goal/owner execution without requiring a repeated prohibition list.
 The existing state and goal/owner-event checks remain unchanged. Retained safe
 and goal-creation counterexamples are regraded before fresh trials.
+
+Orchestration pressure, negative activation, and contributor navigation passed
+on both hosts in `2026-09-11T16-17-52-110Z`. The foundation-selection response
+used the canonical selection guide, omitted from that case's citation allowlist.
+The allowlist and source inventory now include `docs/choosing-plugins.md`;
+the retained response passes and an uncited counterexample fails the updated
+deterministic check before fresh trials. Guide behavior is unchanged.
+
+The fresh foundation answer then correctly named the plugins and independent
+adoption but omitted invocation behavior, which its original question did not
+ask for. The question now explicitly asks how their skills are selected, matching
+the existing intent-matching answer point. This is a prompt/expectation repair;
+the skill and acceptance requirement are unchanged.
+
+## Post-contraction checkpoint before independent review
+
+Every inventory case now has an executed task-and-activation pass on both hosts:
+22 case pairs, one trial per selected host result. The exact per-case paths and
+evaluation digests are retained in `evals/results/guide-post-contraction-matrix.json`.
+This is an iterative coverage record with affected-case reruns, not one frozen-
+body run, a reliability estimate, or a comparison against an unmounted guide.
+Foundations and recipes passed on both hosts in `2026-09-11T16-23-34-669Z`.
+
+The latest complete Bun run passed 448 tests, 1,805 assertions across 47 files
+(87.75 seconds). Formatting, TypeScript, ESLint, shell lint, eight ADR checks,
+local documentation checks, and both skill inspectors passed. All 44 current
+dry preparations passed in `2026-09-11T16-18-12-696Z`; the later foundation
+question/citation-only correction also passed live. Native plugin validation
+again passed 13 packages and reported the same existing Claude `Interrupt`
+limitation for observability; marketplace validation passed with existing
+optional-metadata warnings. Bash 3.2 passed; Bash 5 remains unverified.
+
+The fresh-context challenge and a frozen-current-version full live run are next.
+Publication is separately awaiting user direction: draft PR #124 was discovered
+on this branch after local implementation had started. No duplicate PR is created,
+and no existing-PR content or ready-state update is assumed authorized.

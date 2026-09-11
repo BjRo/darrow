@@ -1,7 +1,7 @@
 id: guide-foundations
 invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
-prompt: Which plugins help maintain agent guidance, decisions, and skills?
+prompt: Which plugins help maintain agent guidance, decisions, and skills, and how are their skills selected?
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
 checks:
@@ -34,4 +34,4 @@ semantic_output_checks:
       performed installations, tests, repairs, or environment diagnosis."
 output_checks:
   - name: nearby repository evidence
-    expect_regex: plugins/foundation/(README\.md|darrow-(decisions|information-architecture|skill-authoring)/README\.md)|docs/design\.md
+    expect_regex: plugins/foundation/(README\.md|darrow-(decisions|information-architecture|skill-authoring)/README\.md)|docs/(design|choosing-plugins)\.md

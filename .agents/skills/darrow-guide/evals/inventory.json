@@ -365,10 +365,11 @@
     {
       "id": "guide-foundations",
       "phrasings": [
-        "Which plugins help maintain agent guidance, decisions, and skills?"
+        "Which plugins help maintain agent guidance, decisions, and skills, and how are their skills selected?"
       ],
       "sources": [
         "plugins/foundation/README.md",
+        "docs/choosing-plugins.md",
         "docs/design.md",
         "plugins/foundation/darrow-decisions/README.md",
         "plugins/foundation/darrow-information-architecture/README.md",
