@@ -212,6 +212,9 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
+The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
+the shared runner's default lightweight grader remains unchanged. The route
+was calibrated against retained correct and reversed-delegation diagrams.
 
 ## Live-run controls
 

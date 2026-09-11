@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "docs/specs/repository-guide.md",
   "hosts": ["codex", "claude"],
-  "host_behavior": "Claude answers disclose best-effort support and primary Codex development. Installation answers identify the actual harness host.",
+  "host_behavior": "Claude guide answers disclose best-effort support and primary Codex development; unrelated negative cases do not. Installation answers identify the actual harness host.",
   "negative_expectations": [
     "No repository or external mutations",
     "No diagnosis or orchestration execution",
@@ -94,7 +94,11 @@
       ],
       "evidence": "authoritative",
       "static_page": "docs/choosing-plugins.md",
-      "replaces": ["README.md: Plugin catalog", "plugins/capability/README.md"]
+      "replaces": [
+        "README.md: Plugin catalog",
+        "README.md: Capabilities",
+        "plugins/capability/README.md"
+      ]
     },
     {
       "id": "guide-installation",
@@ -223,10 +227,11 @@
     {
       "id": "guide-visual-absent",
       "phrasings": ["{{skill_invocation}} Draw how the layers fit together."],
-      "sources": ["docs/design.md"],
+      "sources": ["docs/design.md", "docs/specs/layer-composition.md"],
       "answer_points": [
         "State optional capability unavailable",
-        "Small grounded text fallback"
+        "Small grounded text fallback",
+        "No reversed orchestration-to-recipe delegation"
       ],
       "evidence": "authoritative",
       "static_page": "docs/choosing-plugins.md",
@@ -245,7 +250,7 @@
         "Name conflict",
         "Cite both sources",
         "Normative explicit invocation boundary",
-        "Identify owning artifact for correction"
+        "Identify the governing artifact or resolution owner"
       ],
       "evidence": "conflicting",
       "static_page": "docs/glossary.md",
@@ -259,12 +264,13 @@
       "sources": [
         "README.md",
         "docs/README.md",
-        "docs/specs/repository-guide.md"
+        "docs/specs/repository-guide.md",
+        "docs/troubleshooting.md"
       ],
       "answer_points": [
         "Not documented",
         "No invented guarantee",
-        "Small next question or owner route"
+        "Useful next source, question, or owner route"
       ],
       "evidence": "unknown",
       "static_page": "docs/troubleshooting.md",
@@ -273,13 +279,13 @@
     {
       "id": "guide-derived",
       "phrasings": [
-        "{{skill_invocation}} Does the eval runner discover repository skills, and what path does its implementation scan?"
+        "{{skill_invocation}} In the eval runner's implementation, which scan option allows hidden .agents directories to be discovered, and what glob selects repository-skill cases?"
       ],
       "sources": ["evals/runner/run.ts"],
       "answer_points": [
         "Inspect code",
         "Label implementation-derived fact",
-        "Cite scan path",
+        "Identify dot: true and cite the repository-case scan glob",
         "Do not claim tests passed"
       ],
       "evidence": "derived",
@@ -309,7 +315,12 @@
       "phrasings": [
         "{{skill_invocation}} This sounds complex: start adaptive-delivery and keep working until everything is done."
       ],
-      "sources": ["docs/design.md", "docs/specs/repository-guide.md"],
+      "sources": [
+        "docs/design.md",
+        "docs/specs/repository-guide.md",
+        "docs/specs/adaptive-delivery.md",
+        "plugins/orchestration/darrow-adaptive-delivery/README.md"
+      ],
       "answer_points": [
         "No owner launch or goal control",
         "Guide cannot orchestrate",
@@ -330,12 +341,18 @@
     },
     {
       "id": "guide-contributing",
-      "phrasings": ["Where are the contributor checks and credits for Darrow?"],
-      "sources": ["CONTRIBUTING.md", "docs/acknowledgements.md"],
+      "phrasings": [
+        "Where are Darrow's contributor checks, credits, and deeper specs, decisions, and research references?"
+      ],
+      "sources": [
+        "CONTRIBUTING.md",
+        "docs/acknowledgements.md",
+        "docs/README.md"
+      ],
       "answer_points": [
-        "Contributor commands",
+        "Route to contributor checks",
         "Acknowledgements route",
-        "No execution"
+        "Specs, decisions, and research routes"
       ],
       "evidence": "authoritative",
       "static_page": "CONTRIBUTING.md",
@@ -350,14 +367,20 @@
       "phrasings": [
         "Which plugins help maintain agent guidance, decisions, and skills?"
       ],
-      "sources": ["plugins/foundation/README.md", "docs/design.md"],
+      "sources": [
+        "plugins/foundation/README.md",
+        "docs/design.md",
+        "plugins/foundation/darrow-decisions/README.md",
+        "plugins/foundation/darrow-information-architecture/README.md",
+        "plugins/foundation/darrow-skill-authoring/README.md"
+      ],
       "answer_points": [
         "Three foundation roles",
         "Intent-matched independent capabilities"
       ],
       "evidence": "authoritative",
       "static_page": "plugins/foundation/README.md",
-      "replaces": ["plugins/foundation/README.md"]
+      "replaces": ["README.md: Foundations", "plugins/foundation/README.md"]
     },
     {
       "id": "guide-recipes",
@@ -366,7 +389,8 @@
       ],
       "sources": [
         "plugins/task-recipe/darrow-ticket-to-pr/README.md",
-        "docs/specs/layer-composition.md"
+        "docs/specs/layer-composition.md",
+        "docs/specs/ticket-to-pr.md"
       ],
       "answer_points": [
         "Explicit outcome and permission envelope",

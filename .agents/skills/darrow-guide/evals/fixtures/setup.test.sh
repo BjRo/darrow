@@ -10,6 +10,8 @@ cd "$test_dir"
 git init -q
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" conflict
 test -f docs/specs/repository-guide.md
+test -f docs/research/README.md
+test -f docs/research/adaptive-ticket-to-pr-opportunity.md
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
 test ! -e docs/research/repository-guide-98-delivery.md
 test ! -e .agents/skills/darrow-guide/evals/inventory.json
@@ -17,6 +19,16 @@ grep -F 'Complex work starts adaptive-delivery automatically' plugins/orchestrat
 test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"
 test -z "$(git status --porcelain --untracked-files=all)"
 test ! -s .git/guide-effects
+cmp .git/config .git/guide-config
+for tool in gh curl wget npm npx; do
+  if ".git/fixture-bin/$tool"; then
+    printf 'mock unexpectedly succeeded: %s\n' "$tool" >&2
+    exit 1
+  else
+    test "$?" -eq 73
+  fi
+done
+test "$(wc -l < .git/guide-effects | tr -d ' ')" -eq 5
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" diagnosis
 cmp .agents/skills/diagnose-plugin/SKILL.md .claude/skills/diagnose-plugin/SKILL.md
 test -z "$(git status --porcelain --untracked-files=all)"
