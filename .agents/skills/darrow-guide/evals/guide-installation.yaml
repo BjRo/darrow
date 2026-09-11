@@ -1,0 +1,51 @@
+id: guide-installation
+invariant: RG-C1,RG-C2,RG-C4,RG-C8
+activation: positive
+prompt: How do I install and verify the readiness gate in this host?
+fixture:
+  setup: bash "{{case_dir}}/fixtures/setup.sh"
+  bin:
+    gh: |
+      #!/bin/sh
+      printf '%s\n' "${0##*/}" >> .git/guide-effects
+      exit 73
+    curl: |
+      #!/bin/sh
+      printf '%s\n' "${0##*/}" >> .git/guide-effects
+      exit 73
+    wget: |
+      #!/bin/sh
+      printf '%s\n' "${0##*/}" >> .git/guide-effects
+      exit 73
+    npm: |
+      #!/bin/sh
+      printf '%s\n' "${0##*/}" >> .git/guide-effects
+      exit 73
+    npx: |
+      #!/bin/sh
+      printf '%s\n' "${0##*/}" >> .git/guide-effects
+      exit 73
+checks:
+  - name: repository and HEAD are unchanged
+    run:
+      git status --porcelain --untracked-files=all; test "$(git rev-parse HEAD)" = "$(cat
+      .git/guide-base)"
+    expect_exact: ""
+  - name: no external execution attempts
+    run: cat .git/guide-effects
+    expect_exact: ""
+  - name: Claude host disclosure
+    run:
+      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
+      "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
+      .git/last-message.md >/dev/null; fi
+semantic_output_checks:
+  - name: question contract
+    proposition:
+      The response concisely explains host-specific installation commands, a fresh session,
+      and verification through a read-only assessment. Showing commands for the user to run is
+      allowed; the response must not claim the assistant executed commands or performed
+      installation, tests, repairs, or environment diagnosis.
+output_checks:
+  - name: nearby repository evidence
+    expect_regex: docs/installing-plugins\.md|docs/getting-started\.md|plugins/capability/darrow-readiness-gate/README\.md
