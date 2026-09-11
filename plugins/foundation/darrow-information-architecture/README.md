@@ -56,6 +56,41 @@ rule.
 Both skills inspect and propose first, require confirmation before changing
 checked-in guidance, and never commit or push implicitly.
 
+## When to use
+
+Organize or audit repository agent guidance. Use another capability for product implementation.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; repository file access, Bash, and baseline Unix tools.
+
+## Installation
+
+Install `darrow-information-architecture@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Set up a lean agent information architecture for this repository.
+
+To select it explicitly, choose `setup-information-architecture` from Codex's `$` skill menu,
+or use `/darrow-information-architecture:setup-information-architecture` in Claude Code, followed by your request.
+
+## Expected result
+
+An inventory and proposed guidance structure; checked-in guidance changes only after confirmation. No implicit commit or push.
+
+## Troubleshooting
+
+Resolve broken routes and unsettled policy through the named owner. The inspectors do not validate every host configuration format.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
