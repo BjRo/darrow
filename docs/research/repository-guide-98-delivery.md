@@ -407,3 +407,30 @@ formatting, ESLint, shell lint, TypeScript, eight ADRs, local documentation, and
 both skill inspectors. Current-version full native verification remains pending.
 The earlier full test process ended, but its final output was unavailable after
 context compaction; no new pass claim is based on that missing terminal record.
+
+## Post-review native run
+
+The full post-review run at `2026-09-11T16-40-18-927Z`, on commit `0b45c4d`,
+passed 23 executed single trials before stopping on the 24th: Claude visual
+composition omitted the required best-effort/primary-Codex disclosure. Its
+layer view, source citations, composed activation, and retained state checks
+passed; the disclosure check correctly failed. No assertion was changed.
+The guide now explicitly retains final-answer ownership and host disclosure
+after applying the optional visual capability. Both visual cases on both hosts,
+followed by the remaining inventory cases, are the scoped verification work.
+Earlier passing results remain version-identified evidence, not a claim that
+all 44 trials passed on one frozen final skill body or a reliability estimate.
+
+The retained answers also show a limitation: some Claude routine answers exceed
+the skill's 180-word target despite passing semantic focus checks. The suite
+does not establish a strict all-answers word-budget guarantee.
+
+A fresh committed clone of `0b45c4d` passed frozen-lockfile dependency installation,
+local documentation checks (167 distributed Markdown pages and 14 plugins), and
+a clean worktree check in `guide-walkthrough-2026-09-11T16-40-46-330Z`. This follow-up
+checked documentation only; it did not repeat the separately recorded native
+readiness installation and invocation walkthrough or expand its verification claims.
+
+Inspection of the earlier selected Claude matrix found ten explicit native
+project-command receipts, all accepted. The observer correction does not turn
+those retained accepted dispatches into evidence of a rejected command.

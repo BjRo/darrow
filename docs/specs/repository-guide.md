@@ -74,6 +74,8 @@ For a visual explanation, use an available `explain-visually` capability after
 binding the inspected sources, evidence status, concise question, and read-only
 boundary. Do not authorize artifact writes through that handoff. If unavailable,
 state that limitation and supply a small grounded textual explanation.
+The guide retains final-answer ownership: visual composition must preserve its
+evidence policy and required Claude best-effort/primary-Codex disclosure.
 
 For environment-specific diagnosis, identify an available troubleshooting
 capability by its advertised intent and explain the context it needs. A request

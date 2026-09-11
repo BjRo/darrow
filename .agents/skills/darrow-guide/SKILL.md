@@ -106,6 +106,8 @@ For a visual request, use an available `explain-visually` capability. Carry
 forward the concise question, inspected paths, evidence status, and inline,
 read-only constraint. Read and apply that capability's instructions; preserve
 grounding and compactness in its result. Do not authorize artifact creation.
+The guide still owns the final answer: in Claude Code, include the best-effort
+support and primary-Codex development disclosure beside the returned view.
 If it is unavailable, begin the answer by naming `explain-visually` as
 unavailable in this host, then provide a small grounded text view.
 Keep that fallback to one view, nearby sources, and any necessary caveat; do
