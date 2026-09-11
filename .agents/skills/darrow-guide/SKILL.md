@@ -23,7 +23,10 @@ not substitute a tutorial's example plugin for the reader's unknown plugin.
 
 For direct implementation or operational requests, leave guide selection to
 the appropriate capability. If the guide was explicitly invoked, explain its
-read-only limit and offer the appropriate separate request; do not execute it.
+read-only limit briefly and offer one appropriate, separately phrased execution
+request. Do not ask for confirmation to perform the operation yourself or promise
+to switch the guide into an installer, repairer, or execution owner. Keep this
+refusal focused; a catalog or full operational walkthrough is unnecessary.
 
 **Complete when:** the question is answerable from a bounded source search, or
 one small question identifies the missing context.

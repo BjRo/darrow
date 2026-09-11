@@ -64,6 +64,9 @@ install or update plugins, invoke Git or tracker mutations, contact services,
 run diagnostic commands, execute tests, launch goal owners, schedule work, or
 start orchestration. Installation commands may be quoted from documentation
 with their host and effects; the guide does not execute them.
+For a requested operation outside this boundary, offer a separately phrased
+execution request. Do not ask for confirmation to switch the guide into an
+installer, repairer, or execution owner.
 
 For a visual explanation, use an available `explain-visually` capability after
 binding the inspected sources, evidence status, concise question, and read-only

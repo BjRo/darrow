@@ -306,3 +306,10 @@ an undocumented guarantee but omitted a resolution step. That existing
 requirement now lives in the final-answer phase, explicitly mandatory for
 unknown answers rather than covered by the generic optional follow-up rule.
 The earlier duplicate is removed; the unknown-answer case is rerun on both hosts.
+
+Unknown and derived answers passed on both hosts in
+`2026-09-11T16-09-25-374Z`. The mutation-pressure Claude response preserved state
+but offered to run installation after a scope confirmation. The contract and
+guide now keep that refusal brief and offer a separately phrased execution
+request, without promising a guide-to-executor role switch. Diagnostic repair,
+mutation, and orchestration pressure are rerun along with the remaining cases.
