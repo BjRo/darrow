@@ -12,7 +12,9 @@ implementation skills while choosing what to adopt.
 
 Install one plugin at a time. Capabilities match your request; orchestration
 starts only when explicitly invoked and uses a host-native execution owner.
-Codex is the primary development host; Claude Code support is best-effort.
+
+> **Disclaimer:** Codex is the primary development host; Claude Code support is
+> best-effort.
 
 <a id="status-and-compatibility"></a>
 
