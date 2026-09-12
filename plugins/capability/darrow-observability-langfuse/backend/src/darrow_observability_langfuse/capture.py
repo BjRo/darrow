@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from .config import Config
-from .lifecycle import file_identity, register_rollout, terminal_records
+from .context import delivery_context, require_context
+from .lifecycle import bind_rollout_context, file_identity, register_rollout, terminal_records
 from .rollout import attribution_snapshot, parse_rollout, trace_document
 from .sidecar import (_load_state, load_provisional_attribution_snapshots,
                       discard_provisional_attribution_snapshots)
@@ -155,7 +156,7 @@ def load_capture_snapshots(rollout: Path):
 
 def capture(rollout: Path, config: Config, cwd: str, session_id: str,
             turn_id: str | None, plugin_data: Path | None) -> dict[str, int]:
-    if not rollout.is_absolute():
+    if not rollout.is_absolute() or not rollout.is_file():
         raise ValueError("transcript_path must name a readable absolute file")
     # Validate installed evidence before opening or modifying the new store.
     legacy = _load_state(rollout)
@@ -168,9 +169,26 @@ def capture(rollout: Path, config: Config, cwd: str, session_id: str,
     provisional = (load_provisional_attribution_snapshots(plugin_data, session_id)
                    if plugin_data is not None else {})
     terminal = list(terminal_records(rollout, session_id))
+    context = delivery_context(config, cwd)
+    for event in terminal:
+        require_context(event.get("delivery_context"), context)
+    # Reserve before even creating SQLite's schema, so concurrent terminal
+    # hooks never need to inspect a partially initialized capture database.
+    bind_rollout_context(rollout, session_id, context)
     with database(rollout) as connection:
         connection.execute("BEGIN IMMEDIATE")
         try:
+            saved_context = _get(connection, "delivery_context")
+            if saved_context is None:
+                # Only an empty store may acquire a binding. Pre-upgrade work
+                # has no trustworthy destination and stays local.
+                if any(connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone()
+                       for table in ("state", "envelopes", "captured_turns", "receipts", "snapshots")):
+                    require_context(None, context)
+            else:
+                require_context(saved_context, context)
+            if saved_context is None:
+                _put(connection, "delivery_context", context)
             for identifier in legacy["uploaded_turn_ids"]:
                 connection.execute("INSERT OR IGNORE INTO legacy VALUES (?)", (identifier,))
             for identifier, snapshot in legacy["attribution_snapshots"].items():
@@ -351,5 +369,5 @@ def capture(rollout: Path, config: Config, cwd: str, session_id: str,
             raise
         if plugin_data is not None:
             discard_provisional_attribution_snapshots(plugin_data, session_id, promoted)
-        register_rollout(rollout, session_id, plugin_data)
+        register_rollout(rollout, session_id, plugin_data, context)
         return {"bytes_read": total_bytes, "rebuilt": int(reset)}

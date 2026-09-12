@@ -36,20 +36,20 @@ def capture_worker(path, turn):
     capture(Path(path), Config(enabled=True), str(Path(path).parent), "session", turn, None)
 
 
-def terminate_worker(path, started):
+def terminate_worker(path, config, started):
     def exporter(document, config):
         started.set()
         time.sleep(30)
-    drain(Path(path), Config(enabled=True), exporter=exporter)
+    drain(Path(path), config, cwd=str(Path(path).parent), exporter=exporter)
 
 
-def terminate_capture_worker(path, started):
+def terminate_capture_worker(path, config, started):
     from darrow_observability_langfuse import capture as module
     def paused(*args):
         started.set()
         time.sleep(30)
     module._put = paused
-    module.capture(Path(path), Config(enabled=True), str(Path(path).parent), "session", "0", None)
+    module.capture(Path(path), config, str(Path(path).parent), "session", "0", None)
 
 
 @contextmanager
@@ -126,6 +126,8 @@ class DeliveryTest(unittest.TestCase):
         for delay in (0, 0.5):
             with endpoint(delay=delay) as (url, requests):
                 config = self.config(url)
+                self.path = Path(self.directory.name) / f"rollout-{delay}.jsonl"
+                rollout(self.path)
                 payload = {"hook_event_name": "Stop", "session_id": "session", "turn_id": "0",
                            "cwd": self.directory.name, "transcript_path": str(self.path)}
                 with patch("sys.stdin", StringIO(json.dumps(payload))), patch("darrow_observability_langfuse.cli.load_config", return_value=config):
@@ -163,16 +165,16 @@ class DeliveryTest(unittest.TestCase):
                 config = self.config(url)
                 capture(path, config, directory, "session", "0", None)
                 if mode in {"ok", "json", "queue"}:
-                    self.assertEqual(drain(path, config), 1)
+                    self.assertEqual(drain(path, config, cwd=directory), 1)
                 else:
                     with self.assertRaises(DeliveryFailure):
-                        drain(path, config)
+                        drain(path, config, cwd=directory)
                 row = delivery_rows(path)[0]
                 self.assertEqual(row["state"], expected)
                 self.assertEqual(row["expected_count"], 1)
                 self.assertEqual(len(requests), 1)
                 if expected == "uncertain":
-                    self.assertEqual(drain(path, config), 0)
+                    self.assertEqual(drain(path, config, cwd=directory), 0)
                     self.assertEqual(len(requests), 1)
 
     def test_connection_refusal_is_retryable_and_snapshot_is_stable(self):
@@ -180,22 +182,23 @@ class DeliveryTest(unittest.TestCase):
         self.capture(config)
         before = delivery_rows(self.path)[0]
         with self.assertRaises(DeliveryFailure) as caught:
-            drain(self.path, config)
+            drain(self.path, config, cwd=self.directory.name)
         self.assertEqual(caught.exception.outcome, "pending")
         self.assertEqual(delivery_rows(self.path)[0]["document"], before["document"])
-        self.assertEqual(drain(self.path, config, exporter=lambda doc, cfg: len(doc["traces"])), 1)
+        self.assertEqual(drain(self.path, config, cwd=self.directory.name, exporter=lambda doc, cfg: len(doc["traces"])), 1)
 
-    def test_invalid_url_before_request_remains_pending_then_recovers(self):
+    def test_invalid_url_before_request_remains_pending_without_destination_rebinding(self):
         config = self.config("not-a-url")
         self.capture(config)
         before = delivery_rows(self.path)[0]
         with self.assertRaises(DeliveryFailure) as caught:
-            drain(self.path, config)
+            drain(self.path, config, cwd=self.directory.name)
         self.assertEqual(caught.exception.outcome, "pending")
         self.assertEqual(delivery_rows(self.path)[0]["state"], "pending")
         with endpoint() as (url, requests):
-            self.assertEqual(drain(self.path, self.config(url)), 1)
-            self.assertEqual(len(requests), 1)
+            with self.assertRaisesRegex(ValueError, "delivery context"):
+                drain(self.path, self.config(url), cwd=self.directory.name)
+            self.assertEqual(requests, [])
         after = delivery_rows(self.path)[0]
         self.assertEqual((after["identity"], after["document"], after["expected_count"]),
                          (before["identity"], before["document"], before["expected_count"]))
@@ -208,11 +211,11 @@ class DeliveryTest(unittest.TestCase):
             started.set()
             finish.wait(5)
             return len(doc["traces"])
-        thread = threading.Thread(target=lambda: drain(self.path, config, exporter=slow_export))
+        thread = threading.Thread(target=lambda: drain(self.path, config, cwd=self.directory.name, exporter=slow_export))
         thread.start()
         try:
             self.assertTrue(started.wait(2))
-            self.assertEqual(drain(self.path, config, exporter=lambda *args: self.fail("second drainer exported")), 0)
+            self.assertEqual(drain(self.path, config, cwd=self.directory.name, exporter=lambda *args: self.fail("second drainer exported")), 0)
             self.assertEqual(self.capture(config)["bytes_read"], 0)
         finally:
             finish.set()
@@ -223,7 +226,7 @@ class DeliveryTest(unittest.TestCase):
         self.capture(config)
         context = multiprocessing.get_context("spawn")
         started = context.Event()
-        process = context.Process(target=terminate_worker, args=(str(self.path), started))
+        process = context.Process(target=terminate_worker, args=(str(self.path), config, started))
         process.start()
         self.assertTrue(started.wait(5))
         process.terminate()
@@ -233,20 +236,21 @@ class DeliveryTest(unittest.TestCase):
         rollout(self.path, 3)
         capture(self.path, config, self.directory.name, "session", "1", None)
         capture(self.path, config, self.directory.name, "session", "2", None)
-        self.assertEqual(drain(self.path, config, exporter=lambda doc, cfg: len(doc["traces"])), 2)
+        self.assertEqual(drain(self.path, config, cwd=self.directory.name, exporter=lambda doc, cfg: len(doc["traces"])), 2)
         self.assertEqual([row["state"] for row in delivery_rows(self.path)], ["uncertain", "acknowledged", "acknowledged"])
 
     def test_terminated_capture_rolls_back_atomic_local_state(self):
+        config = self.config()
         context = multiprocessing.get_context("spawn")
         started = context.Event()
-        process = context.Process(target=terminate_capture_worker, args=(str(self.path), started))
+        process = context.Process(target=terminate_capture_worker, args=(str(self.path), config, started))
         process.start()
         self.assertTrue(started.wait(5))
         process.terminate()
         process.join(5)
         self.assertFalse(process.is_alive())
         self.assertEqual(delivery_rows(self.path), [])
-        self.assertEqual(self.capture(self.config())["bytes_read"], self.path.stat().st_size)
+        self.assertEqual(self.capture(config)["bytes_read"], self.path.stat().st_size)
 
     def test_reordered_concurrent_capture_and_early_background_hook(self):
         rollout(self.path, 8)
@@ -264,7 +268,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(ready, [True])
         self.assertEqual(len(delivery_rows(self.path)), 1)
         from darrow_observability_langfuse.lifecycle import record_terminal
-        record_terminal(self.path, "session", "SessionEnd", None, Config(enabled=True), None)
+        record_terminal(self.path, "session", "SessionEnd", None, Config(enabled=True), None, cwd=self.directory.name)
         capture(self.path, Config(enabled=True), self.directory.name, "session", None, None)
         self.assertEqual(len(delivery_rows(self.path)), 8)
 

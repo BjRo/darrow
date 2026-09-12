@@ -3,34 +3,34 @@ set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
-repo_dir=$(CDPATH='' cd -- "$plugin_dir/../../.." && pwd)
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/darrow-langfuse-failure.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 rollout="$work_dir/rollout.jsonl"
 stderr_file="$work_dir/stderr"
 cp "$plugin_dir/tests/fixtures/main-rollout.jsonl" "$rollout"
 cp "$plugin_dir/tests/fixtures/rollout-2026-08-24-child-1.jsonl" "$work_dir/"
-payload=$(printf '{"session_id":"session-main","turn_id":"turn-1","cwd":"%s","transcript_path":"%s","hook_event_name":"Stop"}' "$repo_dir" "$rollout")
+payload=$(printf '{"session_id":"session-main","turn_id":"turn-1","cwd":"%s","transcript_path":"%s","hook_event_name":"Stop"}' "$work_dir" "$rollout")
+mkdir "$work_dir/.codex"
+printf '%s\n' '{"strict":true}' > "$work_dir/.codex/darrow-langfuse.json"
+unset DARROW_LANGFUSE_STRICT
 
 # Foreground capture must succeed even when the endpoint is unavailable.
 printf '%s\n' "$payload" |
   DARROW_LANGFUSE_ENABLED=true \
-  DARROW_LANGFUSE_STRICT=true \
   LANGFUSE_PUBLIC_KEY=pk-test-not-secret \
   LANGFUSE_SECRET_KEY=sk-must-never-appear \
   LANGFUSE_BASE_URL=http://127.0.0.1:1 \
-  bash "$script_dir/stop.sh"
+  "$BASH" "$script_dir/stop.sh"
 
 set +e
 printf '%s\n' "$payload" |
   CODEX_PLUGIN_ROOT="$plugin_dir" \
   DARROW_LANGFUSE_ENABLED=true \
   DARROW_LANGFUSE_CAPTURE_CONTENT=false \
-  DARROW_LANGFUSE_STRICT=true \
   LANGFUSE_PUBLIC_KEY=pk-test-not-secret \
   LANGFUSE_SECRET_KEY=sk-must-never-appear \
   LANGFUSE_BASE_URL=http://127.0.0.1:1 \
-  bash "$script_dir/stop.sh" --drain 2>"$stderr_file"
+  "$BASH" "$script_dir/stop.sh" --drain 2>"$stderr_file"
 status=$?
 set -e
 

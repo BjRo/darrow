@@ -164,6 +164,26 @@ capture is an explicit data-export decision; documentation must describe the
 data sent, the destination's retention boundary, truncation, and the limits of
 automatic redaction.
 
+Durable capture, terminal receipts, and registry entries bind to the canonical
+originating project directory, user configuration directory, and a nonsecret
+fingerprint of the endpoint and Langfuse public project key. Recovery only uses
+a matching current context; another project's hooks leave that backlog local.
+Capture and delivery both enforce the binding, including direct Stop delivery.
+Changing a secret key alone may resume delivery to the same project. Changing
+the destination or configuration location cannot rebind existing work. Legacy
+unbound capture databases and terminal receipts require manual reconciliation;
+they must never acquire a destination from the next hook's settings.
+An atomic first-writer context reservation precedes capture and terminal
+receipts. A mismatched terminal hook refuses before writing evidence, including
+while initial capture is uncommitted. Terminal receipts in the matching context
+remain independent of the capture transaction lock. Cancellation may retain
+the reservation; retries must use its original context.
+
+The launcher preserves the backend's resolved strict failure from file or
+environment configuration. Supported environment boolean spellings have the
+same meaning before backend startup. Startup failures remain fail-open by
+default; file settings cannot be resolved if the backend cannot start.
+
 ## Work-item attribution
 
 Attribution is an ordered timeline reconstructed from the rollout and its
@@ -281,8 +301,13 @@ trace and work-item metadata.
    evidence produces no ID or session segment.
 5. **OLF-P5 — Privacy by opt-in.** Export and raw-content capture are separate
    explicit choices, and credential values never become trace metadata.
+   Durable work binds to its originating project, configuration locations, and
+   destination identity; recovery cannot export it through another context or
+   automatically adopt unbound legacy work.
 6. **OLF-P6 — Safe failure.** Runtime and exporter failures fail open by
-   default and become nonzero only under the explicit strict setting.
+   default and become nonzero only under the explicit strict setting. The
+   launcher preserves backend-resolved file and environment strict failures,
+   while unresolved startup failures remain fail-open by default.
 7. **OLF-P7 — Runtime exception containment.** Python and UV are confined to
    this plugin, declared, locked, documented, and exercised through the
    plugin-local launcher.

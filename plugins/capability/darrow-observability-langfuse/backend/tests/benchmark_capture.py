@@ -106,7 +106,7 @@ def main():
                 metrics = capture(path, config, directory, "benchmark-session", identifier, None)
                 bytes_read += metrics["bytes_read"]
                 foreground += time.perf_counter() - tick
-                drain(path, config, exporter=export)
+                drain(path, config, cwd=directory, exporter=export)
         if args.mode == "candidate":
             outcome = sum(row["state"] == "acknowledged" for row in delivery_rows(path))
         elapsed = time.perf_counter() - start
