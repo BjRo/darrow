@@ -165,6 +165,9 @@ while leaving the caller's checkout untouched.
   adds a new linked worktree without switching or changing the caller's
   checkout, and reports the absolute execution path. It never moves or removes
   a linked worktree and never fetches or changes a remote ref.
+  Default-path preparation accepts an absent optional `info/exclude` file and
+  creates its ignore entry only after successful worktree creation. Existing
+  unreadable exclude configuration refuses preparation without branch changes.
 - **GW-TB6 — Composable capability.** The skill advertises one focused public
   intent that an authorized task recipe can request before its readiness gate,
   without assuming that recipe or any observability plugin is installed.
@@ -225,13 +228,18 @@ upstream) first if needed. Draft only when the user asks for a draft.
   no PR to make; report that and stop.
 - **GW-P5 — Push without rewrite.** The branch is pushed (upstream set when
   missing) before the PR is created. Never force-push; a refused push is
-  relayed verbatim and stops the workflow.
+  relayed verbatim and stops the workflow. Ordinary creation publishes only the
+  fully qualified current branch to the same fully qualified branch on origin;
+  Git push mappings must not redirect it, and implicit tag publication is disabled.
 - **GW-P6 — One PR, no duplicates.** Ordinary creation reports an existing open
   PR without pushing. Explicit authority to publish to/reuse that PR permits
   the separate reuse operation, never a duplicate or metadata update.
 - **GW-P7 — Committed work only.** The PR proposes committed work.
   Uncommitted changes are reported, never committed or stashed to "complete"
-  the PR. No commits ahead of the base → report, stop.
+  the PR. Inspection, readiness, commit context, diffstat, and creation all use
+  the same selected base, including an explicitly named non-default base. An
+  unavailable named base refuses without falling back to the default branch.
+  No commits ahead of the selected base → report, stop.
 - **GW-P8 — Template respected.** When the repo defines a PR template
   (`PULL_REQUEST_TEMPLATE.md` in `.github/`, the repo root, or `docs/`),
   the body follows it: headings kept verbatim, every section filled with

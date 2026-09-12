@@ -31,8 +31,13 @@ as authoritative.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/pr.sh inspect [--template <filename>]
+bash <skill-dir>/scripts/pr.sh inspect [--base <branch>] [--template <filename>]
 ```
+
+When the user names a base, pass that exact `--base` to inspection, every
+template reinspection, and creation. Readiness, commits, and diffstat must all
+describe that same base. An unavailable named base is a refusal; never substitute
+the default branch.
 
 Follow the reported mode:
 

@@ -54,6 +54,7 @@ fixture:
     printf 'export const requestsPerMinute = 100;\n' > src/limits.ts
     git add src/limits.ts
     git commit -qm "feat: add per-client api rate limits"
+    git push -q origin HEAD:refs/heads/main
 checks:
   - name: PR created
     run: test -f .git/fixture-gh/title && echo created
@@ -61,3 +62,6 @@ checks:
   - name: user-named base used
     run: cat .git/fixture-gh/base
     expect_regex: "^develop$"
+  - name: intended feature published
+    run: test "$(git rev-parse HEAD)" = "$(git -C .git/remote.git rev-parse refs/heads/feat/api-rate-limits)" && echo published
+    expect_regex: "^published$"

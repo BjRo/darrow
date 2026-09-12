@@ -344,7 +344,8 @@ case "$command" in
           exit 9
         }
         exclude=$(git rev-parse --git-path info/exclude)
-        if [[ -e "$exclude" && ! -r "$exclude" ]]; then
+        [[ "$exclude" == /* ]] || exclude="$PWD/$exclude"
+        if [[ ( -e "$exclude" || -L "$exclude" ) && ! -r "$exclude" ]]; then
           echo "error: repository exclude file is unreadable: $exclude" >&2
           remove_created_parents "$default_parent" "$existing_ancestor"
           exit 9
@@ -354,15 +355,18 @@ case "$command" in
           remove_created_parents "$default_parent" "$existing_ancestor"
           exit 9
         }
-        exclude_status=0
-        grep -qxF '/.worktrees/' "$exclude" 2>/dev/null || exclude_status=$?
+        exclude_status=1
+        if [[ -e "$exclude" || -L "$exclude" ]]; then
+          exclude_status=0
+          grep -qxF '/.worktrees/' "$exclude" 2>/dev/null || exclude_status=$?
+        fi
         if [[ $exclude_status -gt 1 ]]; then
           echo "error: cannot inspect repository exclude file: $exclude" >&2
           remove_created_parents "$default_parent" "$existing_ancestor"
           exit 9
         fi
         if [[ $exclude_status -eq 1 ]]; then
-          if [[ ! -w "$exclude" ]]; then
+          if [[ ( -e "$exclude" && ! -w "$exclude" ) || ( ! -e "$exclude" && ! -w "$(dirname "$exclude")" ) ]]; then
             echo "error: repository exclude file is not writable: $exclude" >&2
             remove_created_parents "$default_parent" "$existing_ancestor"
             exit 9

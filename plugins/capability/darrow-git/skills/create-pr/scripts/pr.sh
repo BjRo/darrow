@@ -22,7 +22,12 @@ in_progress() {
   [[ -n "$(git ls-files -u -- ':/')" ]]
 }
 
-current_ref() { git symbolic-ref -q --short HEAD || echo "(detached @ $(git rev-parse --short HEAD))"; }
+current_branch() {
+  local ref
+  ref=$(git symbolic-ref -q HEAD) || return $?
+  printf '%s\n' "${ref#refs/heads/}"
+}
+current_ref() { current_branch || echo "(detached @ $(git rev-parse --short HEAD))"; }
 
 # Sets DEFAULT_BRANCH and DEFAULT_SRC=tracked|remote|guess (globals, not
 # stdout: a command substitution would drop DEFAULT_SRC in a subshell).
@@ -60,6 +65,20 @@ compare_ref() {
     echo "origin/$1"
   else
     echo "$1"
+  fi
+}
+
+# Named bases must be usable before either inspection or publication. A
+# local-only branch would fail on the forge after the push already happened.
+validate_selected_base() {
+  local base=$1 branch=$2
+  if [[ "$base" == "$branch" ]]; then
+    echo "error: base equals the current branch: $branch" >&2
+    exit 2
+  fi
+  if ! git rev-parse -q --verify "refs/remotes/origin/$base" >/dev/null; then
+    echo "error: base not found on origin: $base — fetch or push it first" >&2
+    exit 2
   fi
 }
 
@@ -159,8 +178,19 @@ case "$cmd" in
     ;;
   inspect)
     selected_template=""
+    base=""
+    user_base=""
     while [[ $# -gt 0 ]]; do
       case "$1" in
+        --base)
+          if [[ $# -lt 2 || -z "$2" ]]; then
+            echo "error: --base needs a non-empty value" >&2
+            exit 2
+          fi
+          base=$2
+          user_base=1
+          shift 2
+          ;;
         --template)
           if [[ $# -lt 2 ]]; then
             echo "error: --template needs a filename" >&2
@@ -198,6 +228,13 @@ case "$cmd" in
         echo "## mode: wrong-branch (on the default branch — a PR needs a feature branch; suggest create-branch)"
         echo "## cur branch: $cur"
       else
+        base_source=default
+        if [[ -n "$user_base" ]]; then
+          validate_selected_base "$base" "$cur"
+          base_source=selected
+        else
+          base=$def
+        fi
         # Tolerant here (create re-checks hard), but a failed check must not
         # masquerade as "no open PR".
         existing=""
@@ -210,8 +247,8 @@ case "$cmd" in
         fi
         ahead=""
         cmp=""
-        if [[ "$def" != "(none)" ]]; then
-          cmp=$(compare_ref "$def")
+        if [[ "$base" != "(none)" ]]; then
+          cmp=$(compare_ref "$base")
           ahead=$(git rev-list --count "$cmp..HEAD" 2>/dev/null || true)
         fi
         if [[ -n "$existing" ]]; then
@@ -221,12 +258,12 @@ case "$cmd" in
         elif [[ "$ahead" == "0" ]]; then
           echo "## mode: no-commits (no commits ahead of $cmp — nothing to propose; report and stop)"
           echo "## cur branch: $cur"
-          echo "## base branch (default): $def"
+          echo "## base branch ($base_source): $base"
         else
           echo "## mode: ready"
           echo "## intended commit: $(git rev-parse HEAD)"
           echo "## cur branch: $cur"
-          echo "## base branch (default): $def"
+          echo "## base branch ($base_source): $base"
           if [[ "$DEFAULT_SRC" == "guess" ]]; then
             echo "## note: default branch guessed from local branches (origin/HEAD unset, remote unreachable)"
           fi
@@ -314,8 +351,8 @@ case "$cmd" in
           shift 2
           ;;
         --base)
-          if [[ $# -lt 2 ]]; then
-            echo "error: --base needs a value" >&2
+          if [[ $# -lt 2 || -z "$2" ]]; then
+            echo "error: --base needs a non-empty value" >&2
             exit 2
           fi
           base=$2
@@ -360,7 +397,7 @@ case "$cmd" in
       echo "error: repo has no commits yet — nothing to propose" >&2
       exit 3
     fi
-    if ! branch=$(git symbolic-ref -q --short HEAD); then
+    if ! branch=$(current_branch); then
       echo "error: detached HEAD — a PR needs a branch (see create-branch)" >&2
       exit 3
     fi
@@ -389,11 +426,8 @@ case "$cmd" in
       echo "error: base equals the current branch: $branch" >&2
       exit 2
     fi
-    # A user-named base must exist on origin: a local-only branch would pass
-    # here and then fail on the server after the push already happened.
-    if [[ -n "$user_base" ]] && ! git rev-parse -q --verify "refs/remotes/origin/$base" >/dev/null; then
-      echo "error: base not found on origin: $base — fetch or push it first" >&2
-      exit 2
+    if [[ -n "$user_base" ]]; then
+      validate_selected_base "$base" "$branch"
     fi
     if ! [[ "$title" =~ ^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)(\([^\)]+\))?\!?:\ [^[:space:]] ]]; then
       echo "error: title not Conventional Commits format: $title" >&2
@@ -532,17 +566,17 @@ case "$cmd" in
       printf '%s\n' "$existing" | truncate_lines >&2
       exit 9
     fi
-    # Explicit refspec: bare `git push` obeys push.default/tracking config
-    # and can publish other branches or a differently-named upstream.
+    # Fully qualified source and destination bypass configured push mappings.
+    # Disable implicit tags and mirroring so only this feature ref is published.
     # Never force-push; a refusal (diverged remote branch) surfaces verbatim.
     upstream=$(git rev-parse -q --verify --abbrev-ref '@{u}' 2>/dev/null || true)
     if [[ -n "$upstream" ]]; then
-      out=$(git push origin "$branch" 2>&1) || {
+      out=$(git -c push.followTags=false -c remote.origin.mirror=false push origin "refs/heads/$branch:refs/heads/$branch" 2>&1) || {
         echo "$out" >&2
         exit 4
       }
     else
-      out=$(git push -u origin "$branch" 2>&1) || {
+      out=$(git -c push.followTags=false -c remote.origin.mirror=false push -u origin "refs/heads/$branch:refs/heads/$branch" 2>&1) || {
         echo "$out" >&2
         exit 4
       }
@@ -564,7 +598,7 @@ case "$cmd" in
     fi
     ;;
   *)
-    echo "usage: pr.sh inspect [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]" >&2
+    echo "usage: pr.sh inspect [--base <branch>] [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]" >&2
     exit 64
     ;;
 esac
