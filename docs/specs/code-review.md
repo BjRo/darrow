@@ -146,7 +146,8 @@ axis and report `not_available`. Do not invent requirements.
    another Darrow plugin.
 2. **CR-C2 — Fixed point first.** Resolve and validate the base and target
    in the requester-bound repository before starting reviewer agents. An
-   explicit repository path overrides ambient Git repository-selection state;
+   explicit repository path overrides ambient Git repository-selection state
+   starting at the first repository-discovery command, before helper invocation;
    skill or plugin directories MUST NOT become the review repository. Every
    emitted manifest identifies that bound repository. Explicit review intent
    remains in this capability when a requested base or target is missing or
@@ -154,7 +155,9 @@ axis and report `not_available`. Do not invent requirements.
    review-model budget.
 3. **CR-C3 — Complete diff.** The review scope includes every declared staged,
    unstaged, and untracked target file. Reviewers inspect the diff itself, not a
-   summary written by the change author.
+   summary written by the change author. Generated authoritative show and repair
+   commands shell-quote every argument and remain executable from another
+   directory when tool or manifest paths contain spaces or shell metacharacters.
 4. **CR-C4 — Isolated axes.** Standards and Spec run as fresh, read-only
    subagents with separate bounded prompts so one axis does not anchor the
    other. When no spec exists, the Spec subagent is not spawned.
@@ -436,6 +439,9 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     redirects. Matched control/candidate trials use the same fixture,
     participant prompt, checks, harness, model, and effort within each pair and
     report native-evidence failures without converting them into acceptance.
+    Eval gates join each axis's native launch to the child ID from that axis's
+    own application record; valid distinct reviewers MUST pass this identity
+    check, while reused or mismatched child IDs MUST fail.
     Separately, at least one live passing route-mechanism case preserves and
     cross-binds distinct native accepted-launch evidence for every applicable
     axis. Codex evidence binds a native axis marker and places both accepted
