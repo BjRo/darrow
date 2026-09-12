@@ -93,6 +93,13 @@ Relative traversal to `../../bin` starts at the directory containing
 `SKILL.md`, not at the file path. Check the helper at that exact location;
 unavailability does not authorize searching for a different installation.
 
+The helper binds discovery and every Git operation to the requested `--repo`
+working tree, including a linked worktree or its subdirectory. Ambient Git
+repository, worktree, common-directory, index, object-store, discovery, and
+command-configuration selectors must not redirect that evidence. Require
+`--is-inside-work-tree` to return `true`; bare repositories, Git metadata
+directories, and failed Git observations cannot produce prepared evidence.
+
 Before the owner is accepted, the parent may inspect the request, repository
 state, applicable instructions, accepted decisions, manifests, CI
 configuration, and focused test surfaces. It may run the bundled
@@ -291,6 +298,13 @@ owner-capable and must be rejected before launch.
 Repository route overrides apply only through the documented
 `.darrow/config.json` surface. Invalid or unreadable owned configuration stops
 launch rather than falling back silently.
+
+Bundled policy, repository policy, and explicit routes share semantic
+validation before any route is reported or selected: the harness matches the
+host, Codex uses `openai`, Claude uses `anthropic`, the model is a concrete safe
+identifier other than `none`, and effort is one of `low`, `medium`, `high`,
+`xhigh`, `max`, or `ultra`. Host availability remains a launch-time check;
+validation must preserve valid off-catalog concrete models and user overrides.
 
 The bundled Codex owner policy is:
 
@@ -557,7 +571,8 @@ Nested host processes are not an adaptive-delivery fallback.
 1. **ADL-P1 — Explicit activation.** Ordinary engineering intent never starts
    adaptive-delivery orchestration.
 2. **ADL-P2 — Read-only preflight.** Product mutation and verification begin
-   only in the accepted owner.
+   only in the accepted owner. Preflight evidence belongs to the explicitly
+   requested working tree and cannot be redirected by ambient Git selectors.
 3. **ADL-P3 — Preserved authority.** Delegation and activation add no
    permissions or publication authority.
 4. **ADL-P4 — One bounded contract.** The owner receives the complete request,
@@ -566,7 +581,9 @@ Nested host processes are not an adaptive-delivery fallback.
    tie-breakers and consequence model. The launch contract keeps the exact
    workflow identifier separate from its implementation sequence.
 6. **ADL-R1 — Concrete selected route.** Policy or an explicit user override
-   resolves to one host/provider/model/effort tuple before launch.
+   resolves to one host/provider/model/effort tuple before launch. Both sources
+   pass the same host/provider, concrete-model, and effort validation before
+   reporting or selection.
 7. **ADL-R2 — Native route binding.** Codex launches with an explicit spawn
    tuple. Claude resolves a scoped agent with the selected model and effort,
    rejects higher-priority environment overrides, and launches without a
