@@ -64,11 +64,18 @@ response lint:
 
 When this lint leaves exactly one root, do not hand-write the round. You must
 run the bundled [frontier renderer](scripts/render-frontier) with Bash and
-use its stdout as the validated core of the user-facing response. Harmless
-Markdown and a concise inspected-fact preface are permitted, but do not alter
-the question, recommendation, deferred decisions, or recomputation boundary,
-and do not add semantic content after validation. Invoke it from the loaded
-skill using the applicable host path:
+use its stdout as the structurally validated core of the user-facing response.
+Harmless Markdown and a concise inspected-fact preface are permitted, but do
+not alter the question, recommendation, deferred decisions, or recomputation
+boundary. After assembling the complete response, apply the canonical grilling
+method's final preflight again, including the preface. For every claim that
+settles compatibility or migration obligations, identify the user decision or
+authoritative contract that settles it. Missing implementation, tests, or
+configuration establishes an evidence gap; it does not establish that there
+are no consumers, data, or obligations to preserve. Keep unsupported decisions
+open or deferred. Add no semantic content after this final preflight.
+
+Invoke the renderer from the loaded skill using the applicable host path:
 
 - Claude Code: run `darrow-render-plan-frontier ...`; plugin executables are
   added to `PATH` by the host.
@@ -89,18 +96,25 @@ Pass:
 - `--rationale` with root-level reasoning only; and
 - `--deferred` with the known child decisions.
 
-Pass child category names only in `--deferred`. Do not add parenthesized
+List only child category names in `--deferred`. Do not add parenthesized
 examples, `A vs B` menus, concrete mechanisms, or possible child answers.
 
-The renderer refuses multiple questions, undeclared or missing root options, a
-choice that is not exactly one declared label, a rationale that mentions an
-unselected option, a rationale that names a deferred node, and child-option
-examples in the deferred list. If it refuses the draft, correct the decision
-tree or fields and run it again; do not bypass it with a manually composed
-response. Never add another question, a child answer, a plan, or closing text
-that advances past frontier recomputation. For multiple independent roots,
-use the canonical grilling format directly and apply the whole-response lint
-to each question.
+The renderer checks non-empty single-line fields, at least two option labels
+present in the question, a choice matching one declared label, one question
+mark in the root question, and the presentation restrictions above. It refuses
+question marks in the rationale or deferred list and parenthesized mechanics
+or child-option menus. If it refuses the draft, correct the fields and run it
+again; do not bypass it with a manually composed response.
+
+The renderer does not judge evidence authority or classify decision
+dependencies. Apply the canonical grilling method and whole-response lint
+before rendering; successful rendering does not prove that a rationale stays
+at the root. Reasoning about migration, defaults, parameters, or any other
+subject is valid when it addresses the current root without selecting an
+unresolved child answer. Never add another question, a child answer, a plan,
+or closing text that advances past frontier recomputation. For multiple
+independent roots, use the canonical grilling format directly and apply the
+whole-response lint to each question.
 
 Describe current implementation facts before the frontier when they make the
 root concrete, but distinguish them from authority: an existing value,
@@ -109,11 +123,12 @@ decide whether to preserve it.
 
 Present root choices as short labels. Do not expand the choices into examples
 or mechanics when those details are child nodes. In the recommendation, choose
-exactly one root label. If the rationale repeats a second root label, combines
-labels, or uses a term from the `Deferred:` list, it has crossed levels; remove
-that content and keep only root-level trade-offs. This applies even when the
-extra child answer sounds backward-compatible, conventional, or obviously
-implied by the recommended root.
+exactly one root label. The rationale may compare root options or explain a
+dependency without selecting a child answer. Judge what the sentence decides
+in the actual tree, not whether it repeats another option label or a term from
+the `Deferred:` list. Remove combined recommendations and selected child
+answers, even when a child answer sounds backward-compatible, conventional,
+or obviously implied by the recommended root.
 
 Configuration scope is one common root. It can govern later interface,
 default, validation, compatibility, and migration decisions because changing

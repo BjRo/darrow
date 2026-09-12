@@ -330,7 +330,16 @@ skill.
    manual-only skill or reproducing their own interview protocol.
 4. **DC-P4 — Contextual judgment.** Decision-tree construction, fact
    classification, materiality, and closure remain model judgment; no keyword
-   checklist or numeric ambiguity score substitutes for them.
+   checklist or numeric ambiguity score substitutes for them. The frontier
+   renderer checks field and presentation structure, not semantic authority or
+   decision dependencies. It must accept valid root reasoning about migration,
+   defaults, parameters, or other subjects regardless of vocabulary, including
+   comparisons with another root option or words shared with deferred nodes.
+   The canonical grilling method remains responsible for preventing selected
+   child answers and unsupported authority in the surrounding conversation.
+   Apply that contextual audit to the complete user-facing round after
+   rendering, including any inspected-fact preface. Missing repository
+   implementation does not settle compatibility or migration obligations.
 
 ## Evaluation requirements
 
@@ -344,7 +353,8 @@ skill.
    with recommendations while deferring downstream questions.
 3. **DC-E3 — Fact ownership.** Repository fixtures contain facts tempting to
    ask the user; the skills inspect and use them without making the user look
-   them up.
+   them up. Verify relevant fact use at the current frontier without requiring
+   an exhaustive inventory of the inspected implementation in the response.
 4. **DC-E4 — Incomplete input.** A subjectless grilling request produces the
    user-facing final answer `What subject would you like me to grill?`, with no
    explanation, topic menu, second question, or numbered frontier in that
