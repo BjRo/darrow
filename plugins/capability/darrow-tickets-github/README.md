@@ -77,6 +77,14 @@ client.
   reproduction steps, acceptance criteria, or AI attribution.
 - `read-ticket` and `list-tickets` are strictly read-only, and `update-ticket`
   applies only the single mutation requested.
+- GitHub calls use the origin repository's host even when `GH_HOST` or
+  `GH_REPO` names another target in the caller's environment.
+- Parent relations are supported within the current repository. An existing
+  foreign parent stops reads and parent changes with its canonical URL.
+  Dependency reads follow all pages; a failed page stops reporting and any
+  mutation waiting on that read.
+- Label additions and removals refuse literal names containing commas because
+  `gh` would split those names into separate labels.
 
 ## When to use
 

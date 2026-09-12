@@ -1,7 +1,7 @@
 {
   "name": "darrow-tickets-github",
   "description": "GitHub Issues ticket skills: create-ticket, read-ticket, update-ticket, list-tickets",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",
