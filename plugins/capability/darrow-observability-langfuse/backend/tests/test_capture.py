@@ -22,7 +22,7 @@ class CaptureTest(unittest.TestCase):
             config = Config(enabled=True)
             capture(alias, config, directory, "session", "1", None)
             self.assertEqual(len(delivery_rows(path)), 1)
-            self.assertEqual(drain(alias, config, exporter=lambda doc, cfg: len(doc["traces"])), 1)
+            self.assertEqual(drain(alias, config, cwd=directory, exporter=lambda doc, cfg: len(doc["traces"])), 1)
             self.assertEqual(delivery_rows(path)[0]["state"], "acknowledged")
 
     def test_duplicate_turn_id_is_refused_without_delivery(self):

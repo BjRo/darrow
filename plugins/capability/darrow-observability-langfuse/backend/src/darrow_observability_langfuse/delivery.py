@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .capture import database, database_path, observation_count
 from .export import DeliveryFailure, export_document
+from .context import delivery_context, require_context
 
 
 def await_capture(rollout: Path, turn_id: str, timeout: float = 45):
@@ -30,11 +31,13 @@ def await_capture(rollout: Path, turn_id: str, timeout: float = 45):
     return False
 
 
-def drain(rollout: Path, config, *, exporter=export_document, plugin_data=None) -> int:
+def drain(rollout: Path, config, *, cwd, exporter=export_document, plugin_data=None) -> int:
     rollout = rollout.resolve()
     if not database_path(rollout).exists():
         return 0
     with database(rollout) as connection:
+        binding = connection.execute("SELECT value FROM state WHERE key='delivery_context'").fetchone()
+        require_context(json.loads(binding[0]) if binding else None, delivery_context(config, cwd))
         row = connection.execute("SELECT value FROM state WHERE key='session_id'").fetchone()
         if row is None:
             return 0

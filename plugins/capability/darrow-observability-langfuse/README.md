@@ -166,6 +166,10 @@ hook JSON or configuration, missing UV/credentials, and export failure are safe
 refusals. Normal hook operation fails open so observability cannot block the
 Codex turn. Strict mode makes the same condition nonzero for deterministic
 installation and failure testing.
+File-based `strict: true` and environment values `1`, `true`, `yes`, and `on`
+(case-insensitive, with surrounding whitespace allowed) remain nonzero through
+the launcher. If UV or Python cannot start, only the environment setting is
+available; startup failures still fail open by default.
 
 The UserPromptSubmit payload's `turn_id` identifies the turn about to start and
 records a mode-`0600` provisional snapshot under `PLUGIN_DATA`. The Stop
@@ -193,6 +197,27 @@ Private `PLUGIN_DATA/langfuse-rollouts` registry entries let a different session
 recover earlier sealed backlogs. Terminal receipts survive a cancelled
 finalization attempt; no timer assumes a missing Stop will never arrive.
 No background daemon or collector runs between lifecycle invocations.
+
+Recovery requires the same canonical project directory, user/repository
+configuration file locations, and destination fingerprint (endpoint and public
+project key) as the original capture. Hooks from another project leave the
+backlog local, even when both projects use the same Langfuse destination.
+Endpoint or public-key changes refuse capture and delivery for that rollout;
+restore the original context to resume it. A secret-key rotation within the
+same Langfuse project can resume delivery. Content policy remains frozen per
+receipt/envelope. Credentials and raw endpoint values are not stored in the
+binding.
+An immutable `<rollout>.darrow-langfuse-context` file reserves that binding
+before capture or a terminal receipt. Concurrent hooks cannot choose different
+origins. Terminal hooks check it without waiting for the capture transaction;
+a cancelled first capture retains the binding for a retry in the same context.
+
+On upgrade from 0.4.1, existing unbound SQLite capture state and terminal
+receipts stay local for manual reconciliation. They cannot safely inherit the
+next hook's destination. Preserve that evidence and inspect the original
+Langfuse project before deciding how to recover it; use a new Codex session
+for newly bound captures. Legacy uploaded-turn sidecars still prevent duplicate
+delivery when imported into a fresh capture store.
 
 An envelope is `pending`, `acknowledged`, or `uncertain`. Confirmed complete
 request acceptance acknowledges it; downstream storage is verified separately.
@@ -238,6 +263,7 @@ bash tests/package.test.sh
 bash hooks/stop.test.sh
 bash hooks/export-failure.test.sh
 bash hooks/refusal.test.sh
+bash hooks/strict.test.sh
 uv run --frozen --project backend python -m unittest discover -s backend/tests
 ```
 

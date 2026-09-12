@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import Config, load_config
+from .context import delivery_context
 from .export import export_document
 from .capture import capture, load_capture_snapshots
 from .delivery import await_capture, drain
@@ -106,16 +107,16 @@ def run(*, background: bool = False) -> int:
                     raise ValueError("hook input is missing transcript_path")
                 if not await_capture(Path(transcript_path), _required_identifier(hook_input.get("turn_id"), "turn_id")):
                     raise ValueError("foreground capture has not completed")
-                drain(Path(transcript_path), config, exporter=export_document, plugin_data=plugin_data)
+                drain(Path(transcript_path), config, cwd=cwd, exporter=export_document, plugin_data=plugin_data)
             elif hook_event_name in {"SessionStart", "UserPromptSubmit"}:
-                targets = list(registered_rollouts(plugin_data))
+                targets = list(registered_rollouts(plugin_data, delivery_context(config, cwd)))
                 if valid_path:
                     targets.append((Path(transcript_path).resolve(), session_id))
                 failure = None
                 for path, identifier in dict.fromkeys(targets):
                     try:
                         capture(path, config, cwd, identifier, None, plugin_data)
-                        drain(path, config, exporter=export_document, plugin_data=plugin_data)
+                        drain(path, config, cwd=cwd, exporter=export_document, plugin_data=plugin_data)
                     except Exception as error:
                         failure = error  # One stale session cannot starve another backlog.
                 if failure is not None:
@@ -130,7 +131,7 @@ def run(*, background: bool = False) -> int:
             if not isinstance(transcript_path, str):
                 raise ValueError("hook input is missing transcript_path")
             terminal_turn = _required_identifier(hook_input.get("turn_id"), "turn_id") if hook_event_name == "Interrupt" else None
-            record_terminal(Path(transcript_path), session_id, hook_event_name, terminal_turn, config, plugin_data)
+            record_terminal(Path(transcript_path), session_id, hook_event_name, terminal_turn, config, plugin_data, cwd=cwd)
             return 0
         turn_id = _required_identifier(hook_input.get("turn_id"), "turn_id")
         if hook_event_name == "UserPromptSubmit":
@@ -189,7 +190,13 @@ def run(*, background: bool = False) -> int:
 
 
 def main() -> None:
-    raise SystemExit(run(background="--drain" in sys.argv[1:]))
+    status = run(background="--drain" in sys.argv[1:])
+    if "--launcher-status" in sys.argv[1:]:
+        # The private launcher receipt distinguishes a resolved result from
+        # UV/import/startup failures, which remain fail-open by default.
+        index = sys.argv.index("--launcher-status")
+        Path(sys.argv[index + 1]).write_text(f"{status}\n", encoding="ascii")
+    raise SystemExit(status)
 
 
 if __name__ == "__main__":

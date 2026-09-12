@@ -122,10 +122,10 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(self.invoke("Stop", "1", "LATER"), 0)
         self.assertFalse(await_capture(self.path, "0", timeout=0.05))
         sent = []
-        config = Config(enabled=True, work_item_id="EARLIER")
+        config = Config(enabled=True, work_item_id="EARLIER", public_key="pk-lifecycle", secret_key="sk-lifecycle")
         def background():
             if await_capture(self.path, "0", timeout=3):
-                drain(self.path, config, exporter=lambda document, cfg: sent.append(document) or len(document["traces"]))
+                drain(self.path, config, cwd=str(self.root), exporter=lambda document, cfg: sent.append(document) or len(document["traces"]))
         with database(self.path) as connection:
             connection.execute("BEGIN IMMEDIATE")
             foreground = threading.Thread(target=lambda: capture(self.path, config, str(self.root), "session", "0", self.plugin_data))
@@ -152,6 +152,46 @@ class LifecycleTest(unittest.TestCase):
             self.assertLess(time.monotonic() - started, 1)
             connection.execute("ROLLBACK")
         self.assertEqual(self.exports, [])
+
+    def test_initial_capture_binding_serializes_terminal_context_without_waiting(self):
+        from dataclasses import replace
+        from darrow_observability_langfuse.capture import _put
+        from darrow_observability_langfuse.lifecycle import record_terminal
+        rollout(self.path)
+        config = Config(enabled=True, public_key="pk-origin", secret_key="sk-origin")
+        started, finish = threading.Event(), threading.Event()
+        failures = []
+        def paused_put(connection, key, value):
+            if key == "delivery_context":
+                started.set()
+                if not finish.wait(5):
+                    raise TimeoutError("capture test was not released")
+            return _put(connection, key, value)
+        def foreground():
+            try:
+                capture(self.path, config, str(self.root), "session", "0", self.plugin_data)
+            except BaseException as error:
+                failures.append(error)
+        with patch("darrow_observability_langfuse.capture._put", side_effect=paused_put):
+            worker = threading.Thread(target=foreground)
+            worker.start()
+            try:
+                self.assertTrue(started.wait(2))
+                tick = time.monotonic()
+                with self.assertRaisesRegex(ValueError, "delivery context"):
+                    record_terminal(self.path, "session", "SessionEnd", None,
+                                    replace(config, public_key="pk-other"), self.plugin_data, cwd=str(self.root))
+                record_terminal(self.path, "session", "SessionEnd", None,
+                                config, self.plugin_data, cwd=str(self.root))
+                self.assertLess(time.monotonic() - tick, 1)
+            finally:
+                finish.set()
+                worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(failures, [])
+        capture(self.path, config, str(self.root), "session", None, self.plugin_data)
+        self.assertEqual(drain(self.path, config, cwd=str(self.root),
+                               exporter=lambda doc, cfg: len(doc["traces"])), 1)
 
     def test_watermark_does_not_seal_appended_live_turn(self):
         rollout(self.path)

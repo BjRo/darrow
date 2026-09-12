@@ -22,7 +22,7 @@ def main():
             (Path(directory) / source.name).write_text(source.read_text().replace("session-main", session_id))
         path = Path(directory) / "main-rollout.jsonl"
         metrics = capture(path, config, directory, session_id, "turn-1", None)
-        assert drain(path, config) == 1
+        assert drain(path, config, cwd=directory) == 1
         row = delivery_rows(path)[0]
         assert row["state"] == "acknowledged"
         print(json.dumps({"state": row["state"], "trace_id": row["identity"][:32],

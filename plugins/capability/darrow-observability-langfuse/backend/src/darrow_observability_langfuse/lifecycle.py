@@ -4,10 +4,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sqlite3
 import tempfile
 from pathlib import Path
 
 from .sidecar import _load_state_path, load_provisional_attribution_snapshots
+from .context import delivery_context, require_context
 
 
 def file_identity(stat):
@@ -35,15 +37,40 @@ def _atomic_record(path, value):
         os.unlink(temporary)
 
 
-def register_rollout(rollout, session_id, plugin_data):
+def bind_rollout_context(rollout, session_id, context):
+    """First writer wins without waiting for a capture transaction."""
+    path = Path(f"{rollout}.darrow-langfuse-context")
+    if not path.exists():
+        # Never assign a new origin to old durable evidence. Read-only SQLite
+        # inspection is nonblocking; unreadable/locked legacy state refuses.
+        previous = Path(f"{rollout}.darrow-langfuse.sqlite3")
+        if previous.exists():
+            connection = sqlite3.connect(f"{previous.as_uri()}?mode=ro", uri=True, timeout=0)
+            try:
+                binding = connection.execute("SELECT value FROM state WHERE key='delivery_context'").fetchone()
+                if binding:
+                    require_context(json.loads(binding[0]), context)
+                elif any(connection.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone()
+                         for table in ("state", "envelopes", "captured_turns", "receipts", "snapshots")):
+                    require_context(None, context)
+            finally:
+                connection.close()
+        for event in terminal_records(rollout, session_id):
+            require_context(event.get("delivery_context"), context)
+        _atomic_record(path, context)
+    require_context(json.loads(path.read_text()), context)
+
+
+def register_rollout(rollout, session_id, plugin_data, context):
     if plugin_data is None:
         return
     identity = hashlib.sha256(f"{rollout.resolve()}\0{session_id}".encode()).hexdigest()
     _atomic_record(plugin_data / "langfuse-rollouts" / f"{identity}.json",
-                   {"rollout": str(rollout.resolve()), "session_id": session_id})
+                   {"rollout": str(rollout.resolve()), "session_id": session_id,
+                    "delivery_context": context})
 
 
-def registered_rollouts(plugin_data):
+def registered_rollouts(plugin_data, context):
     if plugin_data is None:
         return
     for path in sorted((plugin_data / "langfuse-rollouts").glob("*.json")):
@@ -52,23 +79,27 @@ def registered_rollouts(plugin_data):
                 or not Path(value["rollout"]).is_absolute()
                 or not isinstance(value.get("session_id"), str) or not value["session_id"]):
             raise ValueError("Langfuse rollout registry is invalid")
-        yield Path(value["rollout"]), value["session_id"]
+        if value.get("delivery_context") == context:
+            yield Path(value["rollout"]), value["session_id"]
 
 
-def record_terminal(rollout, session_id, event, turn_id, config, plugin_data):
+def record_terminal(rollout, session_id, event, turn_id, config, plugin_data, *, cwd):
     if event not in {"Interrupt", "SessionEnd"}:
         raise ValueError("invalid terminal hook")
     if not rollout.is_absolute() or not rollout.is_file():
         raise ValueError("transcript_path must name a readable absolute file")
     rollout = rollout.resolve()
     stat = rollout.stat()
+    context = delivery_context(config, cwd)
+    bind_rollout_context(rollout, session_id, context)
     value = {"version": 1, "uploaded_turn_ids": [],
              "attribution_snapshots": load_provisional_attribution_snapshots(plugin_data, session_id) if plugin_data else {},
              "session_id": session_id, "event": event, "turn_id": turn_id,
              "identity": file_identity(stat), "offset": stat.st_size,
-             "capture_content": config.capture_content}
+             "capture_content": config.capture_content,
+             "delivery_context": context}
     identity = hashlib.sha256(json.dumps([session_id, event, turn_id, value["identity"], stat.st_size]).encode()).hexdigest()
-    register_rollout(rollout, session_id, plugin_data)
+    register_rollout(rollout, session_id, plugin_data, value["delivery_context"])
     _atomic_record(Path(f"{rollout}.darrow-langfuse-events") / f"{identity}.json", value)
 
 
