@@ -175,8 +175,8 @@ if [[ -f "$catalog" ]]; then
   out=$(ADR_READ_LOG="$REPO/adr-reads" PATH="$REPO/read-bin:$PATH" "$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted)
   check_contains "catalog listing preserves the metadata match" "ADR-0001 Accepted" "$out"
   check_not_contains "catalog listing omits the filtered status" "ADR-0002 Proposed" "$out"
-  reads=$(awk 'END {print NR + 0}' "$REPO/adr-reads")
-  check_equal "fresh catalog answers metadata filters without ADR body reads" 0 "$reads"
+  reads=$(awk '$1 == "awk" || $1 == "grep" {count++} END {print count + 0}' "$REPO/adr-reads")
+  check_equal "fresh catalog answers metadata filters without ADR parsing or search" 0 "$reads"
   cp "$REPO/docs/decisions/ADR-0001-test.md" "$REPO/ADR-0001.saved"
   git -C "$REPO" update-index --assume-unchanged docs/decisions/ADR-0001-test.md
   printf '\nHidden worktree mutation.\n' >> "$REPO/docs/decisions/ADR-0001-test.md"
@@ -208,6 +208,108 @@ if [[ -f "$catalog" ]]; then
   reads=$(awk 'END {print NR + 0}' "$REPO/adr-reads")
   check_equal "full-text search deliberately scans every ADR body" 4 "$reads"
 fi
+
+echo "canonical fingerprints despite content-transforming Git filters"
+fresh_repo
+printf 'docs/decisions/ADR-*.md filter=accepted-status\n' > "$REPO/.gitattributes"
+git -C "$REPO" config filter.accepted-status.clean 'sed "s/^Status: .*/Status: Accepted/"'
+write_adr ADR-0001 Accepted "Filtered routing"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+git -C "$REPO" add .gitattributes docs/decisions
+git -C "$REPO" commit -qm "docs: catalog with status-normalizing filter"
+write_adr ADR-0001 Rejected "Filtered routing"
+git -C "$REPO" status --porcelain >/dev/null
+set +e
+git -C "$REPO" diff --quiet HEAD -- docs/decisions/ADR-0001-test.md
+rc=$?
+set -e
+check_equal "clean filter hides changed status from refreshed Git index" 0 "$rc"
+before_hash=$(git -C "$REPO" hash-object --no-filters "$REPO/docs/decisions/ADR-0001-test.md")
+before_catalog=$(git -C "$REPO" hash-object --no-filters "$REPO/docs/decisions/README.md")
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+check_contains "filtered ADR mutation warns as stale" "warning: ADR catalog is stale" "$out"
+check_contains "stale Accepted metadata cannot invent a match" "total: 0 (status=Accepted" "$out"
+check_not_contains "rejected ADR is absent from accepted matches" "ADR-0001 Accepted" "$out"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Rejected 2>&1)
+check_contains "stale catalog cannot hide the new status match" "ADR-0001 Rejected" "$out"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search "Filtered routing" 2>&1)
+check_contains "metadata listing agrees with canonical body search" "ADR-0001 Rejected" "$out"
+for operation in "catalog check" validate; do
+  set +e
+  # shellcheck disable=SC2086 # the fixed operation supplies one or two arguments
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" $operation --repo "$REPO" 2>&1)
+  rc=$?
+  set -e
+  check_equal "$operation rejects status hidden by a clean filter" 4 "$rc"
+  check_contains "$operation reports catalog drift" "ADR catalog is stale" "$out"
+done
+check_equal "filtered discovery preserves canonical ADR bytes" "$before_hash" "$(git -C "$REPO" hash-object --no-filters "$REPO/docs/decisions/ADR-0001-test.md")"
+check_equal "filtered discovery preserves catalog bytes" "$before_catalog" "$(git -C "$REPO" hash-object --no-filters "$REPO/docs/decisions/README.md")"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+actual_fingerprint=$(sed -n '/ADR-0001-test\.md -->$/s/^<!-- darrow-source: \([0-9a-f]*\) .*/\1/p' "$REPO/docs/decisions/README.md")
+check_equal "rebuild fingerprints canonical bytes without clean conversion" "$before_hash" "$actual_fingerprint"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO" >/dev/null
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: catalog canonical rejected status"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Rejected 2>&1)
+check_contains "raw fingerprint catalog lists the current status" "ADR-0001 Rejected" "$out"
+check_not_contains "raw fingerprint catalog remains fresh with a clean filter" "warning:" "$out"
+
+echo "canonical catalog bytes despite a content-transforming Git filter"
+fresh_repo
+write_adr ADR-0001 Accepted "Catalog filtering"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+cp "$REPO/docs/decisions/README.md" "$REPO/.git/catalog-original"
+printf 'docs/decisions/README.md filter=original-catalog\n' > "$REPO/.gitattributes"
+git -C "$REPO" config filter.original-catalog.clean 'cat .git/catalog-original'
+git -C "$REPO" add .gitattributes docs/decisions
+git -C "$REPO" commit -qm "docs: catalog with content-normalizing filter"
+printf '\n' >> "$REPO/docs/decisions/README.md"
+git -C "$REPO" status --porcelain >/dev/null
+set +e
+git -C "$REPO" diff --quiet HEAD -- docs/decisions/README.md
+rc=$?
+set -e
+check_equal "clean filter hides modified catalog from Git" 0 "$rc"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+check_contains "filtered catalog mutation warns as stale" "warning: ADR catalog is stale" "$out"
+check_contains "filtered catalog fallback preserves matches" "ADR-0001 Accepted" "$out"
+
+echo "legacy filtered fingerprints cannot authenticate current metadata"
+fresh_repo
+write_adr ADR-0001 Rejected "Legacy routing"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+# Retain an actual v1 catalog: Rejected metadata, the clean-filtered Accepted
+# blob identity, and its valid row checksum. The current Accepted bytes match
+# that old identity but must not authenticate the old Rejected metadata.
+write_adr ADR-0001 Accepted "Legacy routing"
+fingerprint=$(git -C "$REPO" hash-object --no-filters "$REPO/docs/decisions/ADR-0001-test.md")
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  "$fingerprint" ADR-0001-test.md ADR-0001-test.md ADR-0001 "Legacy routing" Rejected 2026-07-19 "Use Legacy routing." "" "" "" > "$REPO/legacy-signature"
+signature=$(cksum < "$REPO/legacy-signature")
+crc=${signature%% *}; signature=${signature#* }; bytes=${signature%% *}
+sed -e 's/darrow-adr-catalog-v2/darrow-adr-catalog-v1/' \
+  -e "s/^<!-- darrow-source: .*/<!-- darrow-source: $fingerprint $crc $bytes ADR-0001-test.md -->/" \
+  "$REPO/docs/decisions/README.md" > "$REPO/legacy-catalog"
+mv "$REPO/legacy-catalog" "$REPO/docs/decisions/README.md"
+git -C "$REPO" add docs/decisions
+git -C "$REPO" commit -qm "docs: legacy filtered catalog"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+check_contains "legacy catalog warns before scanning" "warning: ADR catalog" "$out"
+check_contains "legacy fingerprint cannot hide a current match" "ADR-0001 Accepted" "$out"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "legacy catalog requires explicit upgrade" 4 "$rc"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+check_contains "rebuild upgrades a recognized legacy catalog" "<!-- darrow-adr-catalog-v2 -->" "$(cat "$REPO/docs/decisions/README.md")"
+"$SHELL_UNDER_TEST" "$SCRIPT" catalog check --repo "$REPO" >/dev/null
+git -C "$REPO" add docs/decisions/README.md
+git -C "$REPO" commit -qm "docs: upgrade derived catalog"
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --status Accepted 2>&1)
+check_contains "upgraded catalog preserves current metadata" "ADR-0001 Accepted" "$out"
+check_not_contains "upgraded committed catalog is fresh" "warning:" "$out"
 
 echo "catalog fallback and stale-catalog counterexample"
 fresh_repo
@@ -250,7 +352,7 @@ rc=$?
 set -e
 check_equal "explicit freshness check rejects stale data" 4 "$rc"
 
-printf '# Broken catalog\n\n<!-- darrow-adr-catalog-v1 -->\n' > "$REPO/docs/decisions/README.md"
+printf '# Broken catalog\n\n<!-- darrow-adr-catalog-v2 -->\n' > "$REPO/docs/decisions/README.md"
 set +e
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --search Alpha 2>&1)
 rc=$?
@@ -298,7 +400,7 @@ check_contains "modified catalog cannot forge status metadata" "ADR-0001 Accepte
 
 fresh_repo
 "$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
-sed '/darrow-adr-catalog-v1/d' "$REPO/docs/decisions/README.md" > "$REPO/docs/decisions/README.md.new"
+sed '/darrow-adr-catalog-v2/d' "$REPO/docs/decisions/README.md" > "$REPO/docs/decisions/README.md.new"
 mv "$REPO/docs/decisions/README.md.new" "$REPO/docs/decisions/README.md"
 set +e
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
@@ -402,6 +504,73 @@ check_contains "accepts reciprocal relations" "valid: 2 ADR(s)" "$out"
 out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --related-to ADR-0001)
 check_contains "filters by relationship" "ADR-0002 Accepted" "$out"
 check_contains "shows supersedes relation" "supersedes: ADR-0001" "$out"
+
+echo "historical replacements retain reciprocal supersession"
+for replacement_status in Deprecated Superseded; do
+  fresh_repo
+  write_adr ADR-0001 Superseded "Original choice" "" "ADR-0002"
+  write_adr ADR-0002 Accepted "Intermediate choice" "ADR-0001"
+  "$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" >/dev/null
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" check-transition --from Accepted --to "$replacement_status")
+  check_contains "allows replacement transition to $replacement_status" "allowed" "$out"
+  count=2
+  if [[ "$replacement_status" == Superseded ]]; then
+    write_adr ADR-0002 Superseded "Intermediate choice" "ADR-0001" "ADR-0003"
+    write_adr ADR-0003 Accepted "Current choice" "ADR-0002"
+    count=3
+  else
+    write_adr ADR-0002 Deprecated "Intermediate choice" "ADR-0001"
+  fi
+  set +e
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" 2>&1)
+  rc=$?
+  set -e
+  check_equal "rebuild accepts a $replacement_status historical replacement" 0 "$rc"
+  set +e
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" validate --repo "$REPO" 2>&1)
+  rc=$?
+  set -e
+  check_equal "validates $replacement_status historical relationships" 0 "$rc"
+  check_contains "validates every record in the $replacement_status chain" "valid: $count ADR(s)" "$out"
+  set +e
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" list --repo "$REPO" --related-to ADR-0001 2>&1)
+  rc=$?
+  set -e
+  check_equal "inventories $replacement_status historical relationships" 0 "$rc"
+  check_contains "lists the $replacement_status replacement" "ADR-0002 $replacement_status" "$out"
+  check_contains "preserves the original reciprocal link" "supersedes: ADR-0001" "$out"
+done
+
+echo "supersession still requires prior acceptance and reciprocal acyclic links"
+for replacement_status in Proposed Rejected; do
+  fresh_repo
+  write_adr ADR-0001 Superseded "Original choice" "" "ADR-0002"
+  write_adr ADR-0002 "$replacement_status" "Never accepted" "ADR-0001"
+  set +e
+  out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" 2>&1)
+  rc=$?
+  set -e
+  check_equal "$replacement_status cannot replace an ADR" 4 "$rc"
+  check_contains "rejects the $replacement_status replacement target" "replacement ADR-0002" "$out"
+  check_contains "rejects Supersedes on $replacement_status" "Supersedes is allowed only" "$out"
+done
+fresh_repo
+write_adr ADR-0001 Superseded "Original choice" "" "ADR-0002"
+write_adr ADR-0002 Deprecated "Missing reciprocal history"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "historical replacement still requires reciprocity" 4 "$rc"
+check_contains "names missing historical reciprocal link" "does not reciprocate Supersedes ADR-0001" "$out"
+write_adr ADR-0001 Superseded "First historical choice" "ADR-0002" "ADR-0002"
+write_adr ADR-0002 Superseded "Second historical choice" "ADR-0001" "ADR-0001"
+set +e
+out=$("$SHELL_UNDER_TEST" "$SCRIPT" catalog rebuild --repo "$REPO" 2>&1)
+rc=$?
+set -e
+check_equal "reciprocal historical cycle remains invalid" 4 "$rc"
+check_contains "detects cycle with valid historical statuses" "supersession relationship cycle" "$out"
 
 echo "broken and cyclic supersession"
 fresh_repo

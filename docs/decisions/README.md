@@ -3,7 +3,7 @@
 This checked-in catalog is derived, non-authoritative metadata. ADR files remain canonical.
 Rebuild it with `decision catalog rebuild` and verify it with `decision catalog check`.
 
-<!-- darrow-adr-catalog-v1 -->
+<!-- darrow-adr-catalog-v2 -->
 
 ## Proposed
 

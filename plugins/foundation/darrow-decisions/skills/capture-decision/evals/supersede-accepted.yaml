@@ -1,5 +1,5 @@
 id: capture-decision-supersede-accepted
-invariant: DM-10
+invariant: "DM-10,DM-11"
 activation: competition
 mount_plugin_skills: true
 prompt: >-
@@ -11,12 +11,32 @@ fixture:
     - message: "chore: init"
       files:
         README.md: "# API\n"
+        docs/decisions/ADR-0000-rpc-api.md: |
+          # ADR-0000: Use an RPC API
+
+          Status: Superseded
+          Date: 2026-05-01
+          Summary: Use RPC as the service boundary.
+          Superseded by: ADR-0001
+
+          ## Context
+
+          Clients need remote operations.
+
+          ## Decision
+
+          Expose an RPC API.
+
+          ## Consequences
+
+          Clients integrate through procedure calls.
         docs/decisions/ADR-0001-rest-api.md: |
           # ADR-0001: Use a REST API
 
           Status: Accepted
           Date: 2026-06-01
           Summary: Use a REST API as the service boundary.
+          Supersedes: ADR-0000
 
           ## Context
 
@@ -69,10 +89,10 @@ checks:
       grep -Fi 'GraphQL' "$file" >/dev/null;
       echo valid
     expect_exact: "valid"
-  - name: reciprocal supersession validates
+  - name: historical reciprocal supersession chain validates
     run: >-
       bash .git/decision-facade validate --repo .
-    expect_regex: "^valid: 2 ADR\\(s\\) in /"
+    expect_regex: "^valid: 3 ADR\\(s\\) in /"
   - name: capture creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
