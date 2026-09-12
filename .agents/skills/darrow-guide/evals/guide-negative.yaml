@@ -1,0 +1,26 @@
+id: guide-negative
+invariant: RG-C1,RG-C2,RG-C4,RG-C8
+activation: negative
+prompt: What is 17 plus 25?
+fixture:
+  setup: bash "{{case_dir}}/fixtures/setup.sh"
+checks:
+  - name: Git refs and local configuration are unchanged
+    run: >-
+      test "$(git for-each-ref --format='%(refname)' refs/heads refs/tags)" = refs/heads/main
+      && test -z "$(git remote)" && cmp .git/config .git/guide-config
+  - name: no host project configuration was created
+    run: >-
+      test ! -e .claude/settings.json && test ! -e .claude/settings.local.json
+      && test ! -e .codex/config.toml
+  - name: repository and HEAD are unchanged
+    run:
+      git status --porcelain --untracked-files=all; test "$(git rev-parse HEAD)" = "$(cat
+      .git/guide-base)"
+    expect_exact: ""
+  - name: no intercepted external-command attempts
+    run: cat .git/guide-effects
+    expect_exact: ""
+semantic_output_checks:
+  - name: unrelated answer
+    proposition: The response answers 42 to the arithmetic question without a Darrow explanation.

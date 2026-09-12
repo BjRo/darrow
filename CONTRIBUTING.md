@@ -63,6 +63,22 @@ The existing repository directories express authority and lifecycle rather
 than reader need. Keep normative contracts in `docs/specs/`, accepted choices
 in `docs/decisions/`, and exploratory material in `docs/research/`.
 
+## Set up repository development
+
+```sh
+bun install
+bun run hooks:install
+```
+
+The hook uses the repository formatting gate for staged files. Run `bun test`
+for deterministic TypeScript checks, and the relevant Bash tests and native
+skill evals described below. Raw eval evidence stays under ignored
+`evals/results/` paths.
+
+Follow the [documentation review rubric](docs/documentation-quality.md)
+for user-facing pages. Run `bun run check:docs:external` separately from local
+checks and triage network failures using that rubric.
+
 ## Before opening a pull request
 
 ```sh
@@ -71,6 +87,7 @@ bun run lint:ts
 bun run lint:shell
 bun run typecheck
 bun run check:decisions
+bun run check:docs
 ```
 
 `check:decisions` rejects missing or stale checked-in ADR catalog data. When

@@ -440,6 +440,25 @@ not prove equivalence or savings.
   configuration. Skill and case filters narrow that set, skill-less experiments
   are excluded, and an empty selection fails explicitly.
 
+- **SE-C27 — Native repository-skill cases.** The runner discovers canonical
+  `.agents/skills/<name>/evals/*.yaml` cases alongside plugin and experiment
+  cases. These have an owning skill but no owning plugin. On Codex it mounts
+  the canonical `.agents/skills/<name>` entrypoint; on Claude it mounts the
+  corresponding `.claude/skills/<name>` entrypoint and refuses a missing one.
+  Repository cases use project-skill discovery and native explicit invocation,
+  never a synthetic guide plugin. Host mirrors are not discovered twice;
+  candidate overrides and no-skill controls preserve case ownership. Hidden
+  checks stay outside participant mounts, and ordinary fixture isolation
+  remains in force. Coverage includes repository cases by default.
+  Claude native project-command activation can be established by one exact
+  command with matching arguments and a complete host-injected mounted body,
+  in the correlated session before its first assistant turn. Missing,
+  malformed, partial, stale, duplicate, or mismatched native evidence does not
+  prove activation. Retain only the bounded receipt, not command/body text.
+  A rejected or unavailable receipt keeps explicit activation unknown, even
+  when later ordinary skill events name the same owner. Preserve those observed
+  events without treating them as accepted native-command dispatch.
+
 ## Evaluation requirements
 
 1. Coverage fixtures include covered and uncovered IDs, comma-separated case

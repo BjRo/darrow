@@ -7,7 +7,8 @@ the result.
 
 ## What you need
 
-- Claude Code or Codex CLI with plugin support.
+- A signed-in Claude Code or Codex CLI with plugin support and network access
+  for installation. See the [verified command versions](installing-plugins.md#prerequisites).
 - Any local software repository you can open in that host.
 
 ## 1. Install the readiness gate
@@ -40,9 +41,12 @@ The readiness gate should return exactly one of these verdicts:
 - `needs-decision`
 - `blocked`
 
-It should also identify a concrete quality bar and the evidence needed to
-verify the change in a human-readable report. JSON is available only when a
-caller explicitly requests the versioned machine representation. The exact
+Inspect the report's basis, quality bar, findings, and next action. A `ready`
+verdict requires a concrete quality bar and verification evidence. A non-ready
+assessment may leave the quality bar empty when the missing facts prevent it
+from being established; its finding and next action explain what is needed.
+JSON is available only when a caller explicitly requests the versioned machine
+representation. The exact
 verdict can differ between repositories. For example, a repository with no
 identifiable CLI entry point may need discovery; that is a successful
 assessment, not a failed tutorial.
@@ -65,6 +69,16 @@ For ordinary focused requests, intent matching is usually enough.
 
 ## 5. Choose your next plugin
 
-Return to the [plugin catalog](../README.md#plugin-catalog). Each plugin README
+Return to [Choose Darrow plugins](choosing-plugins.md). Each plugin README
 includes example requests and its safety boundaries. Install capabilities as
 you need them rather than installing the entire marketplace.
+
+## If your environment differs
+
+If your repository has no CLI, ask the gate to assess a small behavior it does
+have, with an observable expected result. Do not treat a different verdict as
+failure. If the skill cannot be selected, use the
+[installation checks](troubleshooting.md#an-installed-plugin-does-not-appear).
+Keep the host version and exact symptom for escalation.
+
+Return to the [documentation hub](README.md).

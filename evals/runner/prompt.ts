@@ -5,6 +5,7 @@ export const SKILL_INVOCATION_PLACEHOLDER = "{{skill_invocation}}";
 interface ColocatedSkill {
   skillDir: string;
   owningSkillName?: string;
+  skillScope?: "repository" | "plugin";
   source_plugin?: string;
 }
 
@@ -24,12 +25,13 @@ export function skillInvocationToken(
     basename(dirname(skill.skillDir)) !== "skills"
   ) {
     throw new Error(
-      "skill_invocation requires a colocated owning skill under a plugin skills directory",
+      "skill_invocation requires a colocated owning skill under a skills directory",
     );
   }
 
   if (harness === "claude") return `/${owningSkillName}`;
   if (harness === "codex") {
+    if (skill.skillScope === "repository") return `$${owningSkillName}`;
     const pluginName = skill.source_plugin
       ? basename(skill.source_plugin)
       : basename(dirname(dirname(skill.skillDir)));

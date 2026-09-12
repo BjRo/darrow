@@ -48,6 +48,41 @@ the target repository's own public seam and supported commands.
 - The workflow does not commit, push, publish, or bootstrap unrelated test
   infrastructure.
 
+## When to use
+
+Implement a behavior change or reproducible fix through a stable public seam. Do not use it for fixture maintenance, test review, or suite-only execution.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; the target's existing test harness and runtimes, an independent expected outcome, and an authorized public seam.
+
+## Installation
+
+Install `darrow-tdd@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Implement this parser fix test-first through the CLI.
+
+To select it explicitly, choose `tdd` from Codex's `$` skill menu,
+or use `/darrow-tdd:tdd` in Claude Code, followed by your request.
+
+## Expected result
+
+Observed red and green from the same focused command, then relevant final checks. Product and test files change; publication is separate.
+
+## Troubleshooting
+
+Syntax, fixture, dependency, and environment failures are not meaningful red. Resolve the actual failure before implementation; do not mock the subject or test a private method to manufacture evidence.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0

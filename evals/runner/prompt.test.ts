@@ -8,6 +8,19 @@ const colocatedSkill = {
 };
 
 describe("participant prompt rendering", () => {
+  test("uses unnamespaced native tokens for repository skill cases", () => {
+    const skill = {
+      skillDir: "/checkout/.agents/skills/darrow-guide",
+      owningSkillName: "darrow-guide",
+      skillScope: "repository" as const,
+    };
+    expect(
+      renderParticipantPrompt("Use {{skill_invocation}}.", "codex", skill),
+    ).toBe("Use $darrow-guide.");
+    expect(
+      renderParticipantPrompt("Use {{skill_invocation}}.", "claude", skill),
+    ).toBe("Use /darrow-guide.");
+  });
   test("renders the owning skill's host-native explicit invocation", () => {
     const template = "Explicitly invoke {{skill_invocation}} for ticket 7.";
 

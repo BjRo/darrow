@@ -1,0 +1,47 @@
+id: guide-visual-absent
+invariant: RG-C6,RG-C2,RG-C4,RG-C8
+activation: positive
+prompt: "{{skill_invocation}} Draw how the layers fit together."
+fixture:
+  setup: bash "{{case_dir}}/fixtures/setup.sh"
+checks:
+  - name: Git refs and local configuration are unchanged
+    run: >-
+      test "$(git for-each-ref --format='%(refname)' refs/heads refs/tags)" = refs/heads/main
+      && test -z "$(git remote)" && cmp .git/config .git/guide-config
+  - name: no host project configuration was created
+    run: >-
+      test ! -e .claude/settings.json && test ! -e .claude/settings.local.json
+      && test ! -e .codex/config.toml
+  - name: repository and HEAD are unchanged
+    run:
+      git status --porcelain --untracked-files=all; test "$(git rev-parse HEAD)" = "$(cat
+      .git/guide-base)"
+    expect_exact: ""
+  - name: no intercepted external-command attempts
+    run: cat .git/guide-effects
+    expect_exact: ""
+  - name: Claude host disclosure
+    run:
+      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
+      "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
+      .git/last-message.md >/dev/null; fi
+semantic_output_checks:
+  - name: transparent text fallback
+    proposition: >-
+      The response states that explain-visually is unavailable and supplies a text representation
+      of the layer relationships. It stays focused on those relationships rather than expanding
+      into a broad plugin catalog, historical comparison, or implementation walkthrough.
+  - name: grounded delegation direction
+    proposition: >-
+      The response does not depict orchestration delegating work to task recipes, in either its
+      diagram or prose. Recipes may delegate to orchestration or the view may describe composition
+      more generally; there is no requirement to draw that particular edge. An explicitly reversed
+      delegation arrow fails even when a later paragraph describes the correct direction.
+  - name: no claimed execution
+    proposition: >-
+      The response does not claim to have created files, installed plugins, run tests, repaired
+      configuration, or diagnosed the environment.
+output_checks:
+  - name: nearby repository evidence
+    expect_regex: docs/design\.md|docs/specs/layer-composition\.md

@@ -138,6 +138,8 @@ export interface EvalCase {
   /** Owning plugin directory name derived from the colocated case path before
    *  mount overrides; never supplied by case YAML. */
   owningPluginName?: string;
+  /** Derived from case location, never trusted from case YAML. */
+  skillScope?: "repository" | "plugin";
   /** Absolute directory containing the case YAML, derived by the loader. */
   caseDir: string;
   prompt: string;

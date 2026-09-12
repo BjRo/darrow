@@ -19,6 +19,10 @@ import type {
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
 import { parseGoalReport, validGoalReportValues } from "../goal-report";
+import {
+  observeClaudeProjectInvocation,
+  projectSkillActivation,
+} from "./claude-project-skills";
 
 function isHumanFeedbackPauseText(text: unknown): boolean {
   if (typeof text !== "string") return false;
@@ -4233,6 +4237,7 @@ async function claudeTurnOutput(options: {
 }
 
 async function claudeHarnessResult(options: {
+  request: HarnessRunRequest;
   repo: string;
   turn: ClaudeTurnOutput;
   start: number;
@@ -4241,13 +4246,27 @@ async function claudeHarnessResult(options: {
 }): Promise<HarnessResult> {
   const { repo, turn, start, evidenceContext, configRoot } = options;
   const outcome = await claudeOutcome(repo, turn.out, turn.code);
-  const skillActivation = claudeSkillActivation(turn.out);
-  const retained = retainedClaudeRunEvidence(
+  let skillActivation = claudeSkillActivation(turn.out);
+  const projectInvocation = await observeClaudeProjectInvocation({
+    repo,
+    configRoot,
+    stream: turn.out,
+    prompt: options.request.prompt,
+    probe: options.request.control?.activationProbe,
+  });
+  if (projectInvocation) {
+    skillActivation = projectSkillActivation(
+      skillActivation,
+      projectInvocation,
+    );
+  }
+  let retained = retainedClaudeRunEvidence(
     turn.out,
     turn.code,
     turn.err,
     evidenceContext,
   );
+  if (projectInvocation) retained += "\n" + JSON.stringify(projectInvocation);
   return {
     ok: outcome.ok,
     durationMs: performance.now() - start,
@@ -4295,6 +4314,7 @@ async function executeClaude(
   try {
     const turn = await claudeTurnOutput({ request, repo, evalPlugins, env });
     const result = await claudeHarnessResult({
+      request,
       repo,
       turn,
       start,

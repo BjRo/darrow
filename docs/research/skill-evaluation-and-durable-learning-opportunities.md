@@ -5,7 +5,7 @@ Reviewed: 2026-08-07
 Sources:
 [obra/superpowers](https://github.com/obra/superpowers),
 [Microsoft Waza](https://github.com/microsoft/waza),
-[EveryInc Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin/blob/main/docs/skills/README.md),
+[EveryInc Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin),
 [EveryInc Compound Knowledge](https://github.com/EveryInc/compound-knowledge-plugin)
 
 ## Purpose

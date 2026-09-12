@@ -89,7 +89,9 @@ diagnosed before another case. A single passing trial is a behavioral example,
 not a reliability estimate or comparison against a no-skill control. The runner
 threshold is 80%; monetary cost is unavailable for Codex. All pushes target
 temporary local bare repositories and all forge calls use isolated fixtures.
-Raw model evidence stays under gitignored `evals/results/`.
+Raw model evidence stays under gitignored `evals/results/`. The artifact paths
+below identify local retained evidence, not files distributed in a fresh clone.
+Ask the maintainer for access when reproducing or reviewing those runs.
 
 The native hosts are Codex CLI 0.153.4 and Claude Code 2.1.223. Candidate routes
 are `gpt-5.6-terra`/medium and `claude-sonnet-5`/medium respectively. Readiness's
@@ -132,19 +134,19 @@ formatting limitations above.
 
 All rows have one executed trial at medium effort. Counts and timings are host-reported; these are not matched performance comparisons. Diagnostic passes do not satisfy the final composition criteria.
 
-| Evidence use                                           | Case / host                                                       | Task | Time    | Tokens | Artifact                                                                                |
-| ------------------------------------------------------ | ----------------------------------------------------------------- | ---- | ------- | ------ | --------------------------------------------------------------------------------------- |
-| diagnostic: invalid readiness assertions               | readiness-caller-resolution-continuation / codex gpt-5.6-terra    | fail | 47.6 s  | 86389  | [JSON](../../evals/results/2026-09-07T15-44-30-194Z-codex-gpt-5.6-terra-medium.json)    |
-| readiness behavior                                     | readiness-caller-resolution-continuation / codex gpt-5.6-terra    | pass | 84.6 s  | 140973 | [JSON](../../evals/results/2026-09-07T15-47-14-717Z-codex-gpt-5.6-terra-medium.json)    |
-| diagnostic: weak composition checks                    | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | pass | 188.1 s | 298709 | [JSON](../../evals/results/2026-09-07T15-49-46-746Z-codex-gpt-5.6-terra-medium.json)    |
-| diagnostic: weak composition checks                    | ticket-to-pr-composition-replacement / codex gpt-5.6-terra        | pass | 180.6 s | 300515 | [JSON](../../evals/results/2026-09-07T15-54-18-078Z-codex-gpt-5.6-terra-medium.json)    |
-| diagnostic: missing accepted-owner evidence            | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | fail | 171.8 s | 333554 | [JSON](../../evals/results/2026-09-07T16-02-05-836Z-codex-gpt-5.6-terra-medium.json)    |
-| diagnostic: encrypted contract unavailable             | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | fail | 163.0 s | 246564 | [JSON](../../evals/results/2026-09-07T16-10-18-452Z-codex-gpt-5.6-terra-medium.json)    |
-| diagnostic: activation unknown; execution probe absent | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | pass | 158.0 s | 277822 | [JSON](../../evals/results/2026-09-07T16-17-46-705Z-codex-gpt-5.6-terra-medium.json)    |
-| builtin composition                                    | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | pass | 217.5 s | 304657 | [JSON](../../evals/results/2026-09-07T16-21-29-234Z-codex-gpt-5.6-terra-medium.json)    |
-| replacement composition                                | ticket-to-pr-composition-replacement / codex gpt-5.6-terra        | pass | 175.9 s | 270502 | [JSON](../../evals/results/2026-09-07T16-25-21-006Z-codex-gpt-5.6-terra-medium.json)    |
-| readiness behavior                                     | readiness-caller-resolution-continuation / claude claude-sonnet-5 | pass | 85.1 s  | 709961 | [JSON](../../evals/results/2026-09-07T16-28-28-148Z-claude-claude-sonnet-5-medium.json) |
-| diagnostic: report formatting and abbreviated ID       | ticket-to-pr-composition-existing-pr / claude claude-sonnet-5     | fail | 127.3 s | 790606 | [JSON](../../evals/results/2026-09-07T16-30-31-375Z-claude-claude-sonnet-5-medium.json) |
-| product failure: relay omitted PR URL                  | ticket-to-pr-composition-replacement / claude claude-sonnet-5     | fail | 106.6 s | 601469 | [JSON](../../evals/results/2026-09-07T16-37-50-420Z-claude-claude-sonnet-5-medium.json) |
-| supported-host validation                              | ticket-to-pr-composition-existing-pr / claude claude-sonnet-5     | pass | 100.4 s | 737579 | [JSON](../../evals/results/2026-09-07T16-35-17-482Z-claude-claude-sonnet-5-medium.json) |
-| supported-host validation                              | ticket-to-pr-composition-replacement / claude claude-sonnet-5     | pass | 176.8 s | 827949 | [JSON](../../evals/results/2026-09-07T16-41-27-867Z-claude-claude-sonnet-5-medium.json) |
+| Evidence use                                           | Case / host                                                       | Task | Time    | Tokens | Artifact                                                                    |
+| ------------------------------------------------------ | ----------------------------------------------------------------- | ---- | ------- | ------ | --------------------------------------------------------------------------- |
+| diagnostic: invalid readiness assertions               | readiness-caller-resolution-continuation / codex gpt-5.6-terra    | fail | 47.6 s  | 86389  | `evals/results/2026-09-07T15-44-30-194Z-codex-gpt-5.6-terra-medium.json`    |
+| readiness behavior                                     | readiness-caller-resolution-continuation / codex gpt-5.6-terra    | pass | 84.6 s  | 140973 | `evals/results/2026-09-07T15-47-14-717Z-codex-gpt-5.6-terra-medium.json`    |
+| diagnostic: weak composition checks                    | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | pass | 188.1 s | 298709 | `evals/results/2026-09-07T15-49-46-746Z-codex-gpt-5.6-terra-medium.json`    |
+| diagnostic: weak composition checks                    | ticket-to-pr-composition-replacement / codex gpt-5.6-terra        | pass | 180.6 s | 300515 | `evals/results/2026-09-07T15-54-18-078Z-codex-gpt-5.6-terra-medium.json`    |
+| diagnostic: missing accepted-owner evidence            | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | fail | 171.8 s | 333554 | `evals/results/2026-09-07T16-02-05-836Z-codex-gpt-5.6-terra-medium.json`    |
+| diagnostic: encrypted contract unavailable             | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | fail | 163.0 s | 246564 | `evals/results/2026-09-07T16-10-18-452Z-codex-gpt-5.6-terra-medium.json`    |
+| diagnostic: activation unknown; execution probe absent | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | pass | 158.0 s | 277822 | `evals/results/2026-09-07T16-17-46-705Z-codex-gpt-5.6-terra-medium.json`    |
+| builtin composition                                    | ticket-to-pr-composition-existing-pr / codex gpt-5.6-terra        | pass | 217.5 s | 304657 | `evals/results/2026-09-07T16-21-29-234Z-codex-gpt-5.6-terra-medium.json`    |
+| replacement composition                                | ticket-to-pr-composition-replacement / codex gpt-5.6-terra        | pass | 175.9 s | 270502 | `evals/results/2026-09-07T16-25-21-006Z-codex-gpt-5.6-terra-medium.json`    |
+| readiness behavior                                     | readiness-caller-resolution-continuation / claude claude-sonnet-5 | pass | 85.1 s  | 709961 | `evals/results/2026-09-07T16-28-28-148Z-claude-claude-sonnet-5-medium.json` |
+| diagnostic: report formatting and abbreviated ID       | ticket-to-pr-composition-existing-pr / claude claude-sonnet-5     | fail | 127.3 s | 790606 | `evals/results/2026-09-07T16-30-31-375Z-claude-claude-sonnet-5-medium.json` |
+| product failure: relay omitted PR URL                  | ticket-to-pr-composition-replacement / claude claude-sonnet-5     | fail | 106.6 s | 601469 | `evals/results/2026-09-07T16-37-50-420Z-claude-claude-sonnet-5-medium.json` |
+| supported-host validation                              | ticket-to-pr-composition-existing-pr / claude claude-sonnet-5     | pass | 100.4 s | 737579 | `evals/results/2026-09-07T16-35-17-482Z-claude-claude-sonnet-5-medium.json` |
+| supported-host validation                              | ticket-to-pr-composition-replacement / claude claude-sonnet-5     | pass | 176.8 s | 827949 | `evals/results/2026-09-07T16-41-27-867Z-claude-claude-sonnet-5-medium.json` |

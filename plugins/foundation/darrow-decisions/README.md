@@ -64,6 +64,41 @@ cannot hide a decision.
   directory; it never catalogs specifications, policies, or external owners.
 - Work-item and review decisions remain owned by their respective systems.
 
+## When to use
+
+Capture one explicit decision or find existing decisions. Do not infer accepted policy from code frequency.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; Bash, baseline Unix tools, and access to authoritative decision records.
+
+## Installation
+
+Install `darrow-decisions@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> What have we decided about authentication?
+
+To select it explicitly, choose `list-decisions` from Codex's `$` skill menu,
+or use `/darrow-decisions:list-decisions` in Claude Code, followed by your request.
+
+## Expected result
+
+Listing returns evidence without changes. Capture writes the requested canonical decision; acceptance requires explicit authority.
+
+## Troubleshooting
+
+A stale ADR catalog fails validation. Use the catalog commands above for an authorized rebuild. Read-only listing warns and scans canonical records instead.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0

@@ -9,6 +9,8 @@
   },
   "type": "module",
   "scripts": {
+    "check:docs": "bun scripts/check-docs.ts",
+    "check:docs:external": "bun scripts/check-docs.ts --external",
     "check:decisions": "bash plugins/foundation/darrow-decisions/bin/decision validate --repo .",
     "eval": "bun evals/runner/run.ts",
     "eval:coverage": "bun evals/runner/coverage.ts",
@@ -30,7 +32,9 @@
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.2.0",
     "eslint": "^10.8.1",
+    "github-slugger": "^2.0.0",
     "lint-staged": "^17.0.8",
+    "markdown-it": "^15.0.2",
     "prettier": "^3.9.5",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.66.0",

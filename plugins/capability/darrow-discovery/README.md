@@ -56,6 +56,41 @@ skill: decision trees, dependency-aware frontiers, recommendations with each
 question, and the division between agent-owned fact finding and user-owned
 decisions.
 
+## When to use
+
+Clarify a feature or develop an implementation plan. Grilling alone is manual-only. Do not use this plugin for implementation, readiness gates, or publication.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; repository read access. The planning frontier renderer uses Bash and baseline Unix tools.
+
+## Installation
+
+Install `darrow-discovery@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Help me discover what scheduled reporting should do.
+
+To select it explicitly, choose `discover-feature` from Codex's `$` skill menu,
+or use `/darrow-discovery:discover-feature` in Claude Code, followed by your request.
+
+## Expected result
+
+A read-only discussion and confirmed discovery brief or implementation plan, without writing artifacts, tickets, or code.
+
+## Troubleshooting
+
+Answer the current frontier when choices remain. A missing installed sibling method or renderer blocks progress; do not substitute an unrelated checkout's files.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0 two

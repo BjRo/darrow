@@ -16,6 +16,12 @@ metadata and containment for inline Markdown-linked local resources; the
 workflow inspects other path forms, and native runtime validators remain
 authoritative for their complete formats.
 
+## Design boundaries
+
+Validation is read-only. Creation and revision require a supplied goal,
+destination, supported runtimes, and clear authority. The skill does not
+invent a capability or publish it without a separate explicit request.
+
 ## Development
 
 Run the deterministic tests with both supported shells:
@@ -31,6 +37,41 @@ Run the judgment evals from the repository `evals` directory:
 bun runner/run.ts --case author-agent-skill --harness claude --dry
 bun runner/run.ts --case author-agent-skill --harness claude
 ```
+
+## When to use
+
+Create, revise, or validate one reusable skill. Do not use it for generic instruction-file prose or an invented capability.
+
+## Hosts and prerequisites
+
+Codex and Claude Code; Bash and baseline Unix tools. Live evaluations need the target's supported host harness.
+
+## Installation
+
+Install `darrow-skill-authoring@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Validate this skill for Claude Code and Codex.
+
+To select it explicitly, choose `author-agent-skill` from Codex's `$` skill menu,
+or use `/darrow-skill-authoring:author-agent-skill` in Claude Code, followed by your request.
+
+## Expected result
+
+Validation reports evidence without edits. Revision produces a bounded skill and checks. Installation and publication need separate authority.
+
+## Troubleshooting
+
+An unreadable required resource blocks dependent advice. The version-aware shell helper keeps a missing interpreter unverified; fix the exact named input before rerunning.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
 
 ## License
 

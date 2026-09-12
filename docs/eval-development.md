@@ -189,6 +189,33 @@ If cleanup still fails, the runner prints the absolute retained scratch path
 and the cleanup error. Grading outcomes and any original execution error remain
 intact; the warning does not turn a completed behavioral check into a failure.
 
+## Repository-skill cases
+
+Repository skills use canonical cases at `.agents/skills/<name>/evals/*.yaml`.
+Select them with `--skill <name>`. They have no owning plugin, so `--plugin`
+excludes them. Codex mounts the canonical project skill; Claude mounts the
+corresponding `.claude/skills/<name>` entrypoint and refuses a missing mirror.
+Explicit tokens are `$<name>` and `/<name>`. Mirrors are not scanned twice.
+`--skill-dir` overrides the candidate after selecting ownership;
+`--without-skill` preserves the cases as an unmounted control.
+
+Repository cases cannot request `source_plugin` or `mount_plugin_skills`.
+Optional supporting capabilities use `additional_skills` or independent
+`additional_plugins`. The same isolation and hidden-check boundaries apply.
+Coverage includes canonical repository cases by default.
+
+The guide's versioned inventory lives beside its cases. Run
+`bun evals/repository-guide.ts` for sequential cross-host, single-trial
+evaluation that stops at the first failure. `--only <question-id>` and
+`--harness codex|claude` narrow diagnosis; `--dry` prepares fixtures and
+`--without-skill` selects a matched unmounted control. Inspect each failure
+before continuing. Fixtures snapshot current public documentation, manifests,
+and relevant code while excluding inventory, hidden checks, and delivery
+conclusions from the participant repository.
+The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
+the shared runner's default lightweight grader remains unchanged. The route
+was calibrated against retained correct and reversed-delegation diagrams.
+
 ## Live-run controls
 
 Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery

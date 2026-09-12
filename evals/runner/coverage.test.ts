@@ -55,6 +55,50 @@ afterEach(async () => {
 });
 
 describe("invariant coverage", () => {
+  test("default CLI coverage includes canonical repository cases without scanning host mirrors", async () => {
+    const { root } = await fixture();
+    for (const directory of [
+      "docs/specs",
+      "plugins",
+      ".agents/skills/guide/evals",
+      ".claude/skills/guide/evals",
+    ])
+      await mkdir(join(root, directory), { recursive: true });
+    await writeFile(
+      join(root, "docs/specs/guide.md"),
+      "- **RG-C1 — Repository guide.**\n",
+    );
+    await writeFile(
+      join(root, ".agents/skills/guide/evals/direct.yaml"),
+      "id: repository-question\ninvariant: RG-C1\nprompt: Explain it\nfixture: {}\nchecks: []\n",
+    );
+    await writeFile(
+      join(root, ".claude/skills/guide/evals/direct.yaml"),
+      "id: mirror-not-canonical\ninvariant: UNKNOWN-C1\nprompt: Ignore\nfixture: {}\nchecks: []\n",
+    );
+    const proc = Bun.spawn(
+      [
+        process.execPath,
+        join(import.meta.dir, "coverage.ts"),
+        "--root",
+        root,
+        "--json",
+        "--strict",
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const [stdout, stderr, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    expect(code, stderr).toBe(0);
+    expect(
+      JSON.parse(stdout).invariants[0].cases.map(
+        (item: { id: string }) => item.id,
+      ),
+    ).toEqual(["repository-question"]);
+  });
   test("reports covered, uncovered, and unknown IDs without treating uncovered as invalid", async () => {
     const { root, specs, evals } = await fixture();
     await writeFile(

@@ -86,6 +86,41 @@ defines them, and every new verdict comes from a fresh read-only phase agent.
   releases, deploys, or changes ticket fields or status.
 - It is not an adaptive planner, daemon, queue, or general workflow runtime.
 
+## When to use
+
+Use this deprecated reference for deliberate static-workflow comparisons. Use Adaptive Delivery for new orchestration work. Ordinary ticket requests do not activate it.
+
+## Hosts and prerequisites
+
+Codex or Claude Code with fresh-agent support; Bash, Git, repository checks, and a compatible installed ticket capability with access to the selected ticket.
+
+## Installation
+
+Install `darrow-ticket-pipeline@darrow` using the
+[host installation and update instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review the local authority and prerequisite boundaries first.
+
+## Usage
+
+This orchestration entrypoint is explicit-only; an implicit request does not
+start it. For example:
+
+> Use deliver-ticket for the exact ticket reference I supplied.
+
+Select `deliver-ticket` from Codex's `$` menu, or invoke
+`/darrow-ticket-pipeline:deliver-ticket` in Claude Code and provide the bounded request.
+
+## Expected result
+
+The predefined phase sequence can edit product files and its owned ticket-description section. It does not branch, commit, push, or create PRs.
+
+## Troubleshooting
+
+Retain ticket-owned pipeline state and the failing phase evidence. Resume through the controller's documented state machine; do not invent phases, bypass bounds, or do phase work in the controller.
+For host discovery problems, use the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the exact host/plugin versions and refusal without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0

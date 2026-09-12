@@ -182,6 +182,41 @@ explicit without relying on another installed plugin.
 - An empty or invalid scope is reported honestly rather than treated as a
   successful review.
 
+## When to use
+
+Review a bounded change or verify authorized repairs against a closed finding set. Do not use it to implement repairs or as an automatic consequence of an edit.
+
+## Hosts and prerequisites
+
+Codex and Claude Code with native fresh-agent support; Git, Bash, target checks, and available reviewer routes. PR retrieval needs authenticated forge access.
+
+## Installation
+
+Install `darrow-review@darrow` using the
+[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
+Review this plugin's local prerequisites and safety boundaries first.
+
+## Usage
+
+An ordinary request can select the appropriate capability:
+
+> Review all uncommitted changes.
+
+To select it explicitly, choose `code-review` from Codex's `$` skill menu,
+or use `/darrow-review:code-review` in Claude Code, followed by your request.
+
+## Expected result
+
+A pinned report and validated review evidence artifacts without product edits. Checks and fresh reviewers establish standards and specification findings.
+
+## Troubleshooting
+
+A missing route, unverifiable child identity, invalid scope, or malformed result blocks review. Preserve the evidence and correct the exact input; selection alone does not prove a route ran.
+For a discovery or host problem, use the
+[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin version, host version, exact invocation, and error
+without credentials.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0

@@ -224,23 +224,28 @@ async function repositoryHasAncestor(
   );
 }
 
-/** Cases live next to the skill they test (plugins/<kind>/<name>/skills/<skill>/evals/*.yaml)
- *  or in skill-less experiments (evals/experiments/<name>/cases/*.yaml). */
+/** Canonical plugin and repository skill cases, plus skill-less experiments. */
 async function scanCases(
   pattern: string,
   skillDirOf: (casePath: string) => string,
+  skillScope?: "repository" | "plugin",
 ): Promise<EvalCase[]> {
   const cases: EvalCase[] = [];
-  for await (const rel of new Bun.Glob(pattern).scan(ROOT)) {
+  for await (const rel of new Bun.Glob(pattern).scan({
+    cwd: ROOT,
+    dot: true,
+  })) {
     const path = join(ROOT, rel);
     const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
     evalCase.skillDir = skillDirOf(path);
     evalCase.owningSkillName = evalCase.skillDir
       ? basename(evalCase.skillDir)
       : undefined;
-    evalCase.owningPluginName = evalCase.skillDir
-      ? basename(dirname(dirname(evalCase.skillDir)))
-      : undefined;
+    evalCase.skillScope = skillScope;
+    evalCase.owningPluginName =
+      skillScope === "plugin"
+        ? basename(dirname(dirname(evalCase.skillDir)))
+        : undefined;
     evalCase.caseDir = dirname(path);
     cases.push(evalCase);
   }
@@ -344,8 +349,15 @@ async function loadCases(
   plugin?: string,
 ): Promise<EvalCase[]> {
   const cases = [
-    ...(await scanCases("plugins/*/*/skills/*/evals/*.yaml", (path) =>
-      dirname(dirname(path)),
+    ...(await scanCases(
+      "plugins/*/*/skills/*/evals/*.yaml",
+      (path) => dirname(dirname(path)),
+      "plugin",
+    )),
+    ...(await scanCases(
+      ".agents/skills/*/evals/*.yaml",
+      (path) => dirname(dirname(path)),
+      "repository",
     )),
     // Skill-less experiments mount nothing.
     ...(await scanCases("evals/experiments/*/cases/*.yaml", () => "")),
@@ -488,6 +500,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     additionalPlugins,
     adaptiveDeliveryComposition,
     fixture: evalCase.fixture,
+    repositorySkill: evalCase.skillScope === "repository",
     checks: evalCase.checks,
     outputChecks,
     semanticOutputChecks,
@@ -1035,9 +1048,13 @@ function trialFixtureOptions(
 ): Parameters<typeof buildFixture>[0] {
   const { evalCase, adapter, withoutSkill = false } = options;
   return {
+    repositorySkill: evalCase.skillScope === "repository",
     fixture: evalCase.fixture,
     skillDir: withoutSkill ? "" : evalCase.skillDir,
-    skillMounts: adapter.skillMounts,
+    skillMounts:
+      evalCase.skillScope === "repository"
+        ? [adapter.name === "codex" ? ".agents/skills" : ".claude/skills"]
+        : adapter.skillMounts,
     mountPluginSkills: evalCase.mount_plugin_skills ?? false,
     sourcePluginRoot: evalCase.source_plugin
       ? resolve(ROOT, evalCase.source_plugin)
@@ -1698,6 +1715,21 @@ const cases = await loadCases(
   values.skill,
   values.plugin,
 );
+for (const evalCase of cases) {
+  if (evalCase.skillScope !== "repository") continue;
+  if (evalCase.source_plugin || evalCase.mount_plugin_skills)
+    throw new Error(
+      `${evalCase.id}: repository cases cannot use source_plugin or mount_plugin_skills`,
+    );
+  if (
+    adapter.name === "claude" &&
+    !values["skill-dir"] &&
+    !values["without-skill"]
+  ) {
+    evalCase.skillDir = join(ROOT, ".claude/skills", evalCase.owningSkillName!);
+    await readFile(join(evalCase.skillDir, "SKILL.md"), "utf8");
+  }
+}
 if (values["skill-dir"]) {
   const skillDir = resolve(process.cwd(), values["skill-dir"]);
   for (const evalCase of cases) {

@@ -1,0 +1,46 @@
+id: guide-layers
+invariant: RG-C1,RG-C2,RG-C4,RG-C8
+activation: positive
+prompt:
+  At the layer level, explain how Darrow's layers support one another, which layers are
+  implemented, and where evaluation and observability fit.
+fixture:
+  setup: bash "{{case_dir}}/fixtures/setup.sh"
+checks:
+  - name: Git refs and local configuration are unchanged
+    run: >-
+      test "$(git for-each-ref --format='%(refname)' refs/heads refs/tags)" = refs/heads/main
+      && test -z "$(git remote)" && cmp .git/config .git/guide-config
+  - name: no host project configuration was created
+    run: >-
+      test ! -e .claude/settings.json && test ! -e .claude/settings.local.json
+      && test ! -e .codex/config.toml
+  - name: repository and HEAD are unchanged
+    run:
+      git status --porcelain --untracked-files=all; test "$(git rev-parse HEAD)" = "$(cat
+      .git/guide-base)"
+    expect_exact: ""
+  - name: no intercepted external-command attempts
+    run: cat .git/guide-effects
+    expect_exact: ""
+  - name: Claude host disclosure
+    run:
+      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
+      "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
+      .git/last-message.md >/dev/null; fi
+semantic_output_checks:
+  - name: question contract
+    proposition:
+      "The response establishes these points: Responsibilities are not sequential stages;
+      Foundations and capabilities support several layers; Automation is planned;
+      Evaluation and observability span layers."
+  - name: layer-level focus and read-only explanation
+    proposition: >-
+      The response explains the layer relationships without reproducing the full plugin catalog
+      or an extended implementation walkthrough. Brief examples, citations, and one useful next
+      source are permitted. It does not claim to
+      have installed plugins, run tests, changed configuration, contacted services, or established
+      the cause of an unobserved live failure. Read-only repository inspection is permitted.
+output_checks:
+  - name: nearby repository evidence
+    expect_regex: docs/specs/layer-composition\.md|docs/design\.md
