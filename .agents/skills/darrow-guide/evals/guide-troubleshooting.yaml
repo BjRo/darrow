@@ -37,9 +37,9 @@ semantic_output_checks:
   - name: focused documented explanation
     proposition: >-
       The response stays focused on interpreting this verdict and the next step, allowing
-      citations and required Claude support disclosure. It does not claim to have installed
-      plugins, run tests, repaired configuration, or established the cause of an unobserved
-      live failure. Read-only repository inspection is permitted.
+      citations. It does not claim to have installed plugins, run tests, repaired configuration,
+      or established the cause of an unobserved live failure. Read-only repository inspection
+      is permitted.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/getting-started\.md|docs/troubleshooting\.md|plugins/capability/darrow-readiness-gate/README\.md

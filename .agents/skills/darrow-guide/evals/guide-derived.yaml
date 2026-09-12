@@ -43,10 +43,10 @@ semantic_output_checks:
     proposition: >-
       The response stays focused on repository-skill discovery rather than giving an unrelated
       product overview or broad plugin catalog. Related implementation detail, a material
-      checkout limitation, one useful next source or follow-up, and required Claude support
-      disclosure are permitted. It does not claim to have installed plugins, run tests, changed
-      configuration, contacted services, or established the cause of an unobserved live failure.
-      Read-only inspection of repository files and directories is permitted.
+      checkout limitation, and one useful next source or follow-up are permitted. It does not
+      claim to have installed plugins, run tests, changed configuration, contacted services,
+      or established the cause of an unobserved live failure. Read-only inspection of repository
+      files and directories is permitted.
 output_checks:
   - name: nearby repository evidence
     expect_regex: evals/runner/run\.ts

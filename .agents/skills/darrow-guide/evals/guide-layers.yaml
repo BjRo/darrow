@@ -37,8 +37,8 @@ semantic_output_checks:
   - name: layer-level focus and read-only explanation
     proposition: >-
       The response explains the layer relationships without reproducing the full plugin catalog
-      or an extended implementation walkthrough. Brief examples, required Claude support
-      disclosure, citations, and one useful next source are permitted. It does not claim to
+      or an extended implementation walkthrough. Brief examples, citations, and one useful next
+      source are permitted. It does not claim to
       have installed plugins, run tests, changed configuration, contacted services, or established
       the cause of an unobserved live failure. Read-only repository inspection is permitted.
 output_checks:

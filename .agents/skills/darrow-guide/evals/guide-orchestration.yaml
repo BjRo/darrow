@@ -37,7 +37,7 @@ semantic_output_checks:
     proposition: >-
       The response explains that the guide cannot launch or execute orchestration and offers
       a separate explicit execution request or capability route. It stays focused on the
-      boundary and next step, allowing citations and required Claude support disclosure.
+      boundary and next step, allowing citations.
   - name: no claimed execution
     proposition: >-
       The response does not claim to have launched an owner, controlled a goal, scheduled

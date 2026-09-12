@@ -37,9 +37,9 @@ semantic_output_checks:
       It establishes that complexity does not authorize orchestration and points to that
       governing artifact or a resolution owner. Recommending an edit is not required when
       the governing artifact resolves the rule. It stays focused on this conflict, allowing
-      citations and required Claude support disclosure, and does not claim to have installed
-      plugins, run tests or diagnostics, repaired configuration, or established the cause of
-      an unobserved live failure. Read-only repository inspection is permitted.
+      citations, and does not claim to have installed plugins, run tests or diagnostics,
+      repaired configuration, or established the cause of an unobserved live failure.
+      Read-only repository inspection is permitted.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/specs/adaptive-delivery\.md|plugins/orchestration/darrow-adaptive-delivery/README\.md
