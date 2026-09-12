@@ -41,8 +41,13 @@ inside_root() {
   case "$1" in "$ROOT"|"$ROOT"/*) return 0 ;; *) return 1 ;; esac
 }
 
+inventory_file() {
+  if [[ -f "$1" || -L "$1" ]]; then printf '%s\n' "$1" >> "$FILES"; fi
+}
+
 add_file() {
   local file=$1
+  inventory_file "$file"
   if [[ -L "$file" && ! -e "$file" ]]; then
     printf '%s\n' "$file (broken symlink)" >> "$UNREADABLE"
     return
@@ -54,9 +59,6 @@ add_file() {
   if [[ -e "$file" && ! -r "$file" ]]; then
     printf '%s\n' "$file" >> "$UNREADABLE"
     return
-  fi
-  if [[ -f "$file" ]]; then
-    printf '%s\n' "$file" >> "$FILES"
   fi
 }
 
@@ -115,8 +117,10 @@ extract_references() {
         rest=substr(rest, RSTART + RLENGTH)
       }
       rest=line
-      while (match(rest, /@[.A-Za-z0-9_-]+\/[.A-Za-z0-9_\/-]+\.md/)) {
-        value=substr(rest, RSTART + 1, RLENGTH - 1)
+      gsub(/`[^`]*`/, "", rest)
+      while (match(rest, /(^|[[:space:]])@[.A-Za-z0-9_\/-]+\.md/)) {
+        value=substr(rest, RSTART, RLENGTH)
+        sub(/^[[:space:]]*@/, "", value)
         emit(value, "explicit", "import")
         rest=substr(rest, RSTART + RLENGTH)
       }
@@ -159,7 +163,10 @@ resolve_reference() {
 
 resolve_source_relative() {
   local source=$1 ref=$2 candidate resolved
-  candidate="$(dirname "$source")/$ref"
+  case "$ref" in
+    /*) candidate=$ref ;;
+    *) candidate="$(dirname "$source")/$ref" ;;
+  esac
   if resolved=$(canonical_existing "$candidate"); then
     printf '%s' "$resolved"
     return
@@ -167,19 +174,20 @@ resolve_source_relative() {
   return 1
 }
 
-is_instruction_surface() {
-  local rel
-  rel=$(relpath "$1")
-  case "$rel" in
-    AGENTS.md|AGENTS.override.md|CLAUDE.md|CLAUDE.local.md|*/AGENTS.md|*/AGENTS.override.md|*/CLAUDE.md|*/CLAUDE.local.md) return 0 ;;
-    .agent-shared/*|.claude/rules/*|.claude/agents/*|.claude/skills/*|.agents/*|.codex/*|.pi/agents/*|.pi/skills/*) return 0 ;;
-    *) return 1 ;;
-  esac
+owning_skill() {
+  local dir
+  dir=$(dirname "$1")
+  while inside_root "$dir"; do
+    if [[ -f "$dir/SKILL.md" ]]; then printf '%s' "$dir"; return 0; fi
+    [[ "$dir" != "$ROOT" ]] || break
+    dir=$(dirname "$dir")
+  done
+  return 1
 }
 
 print_file_record() {
   local file=$1 bytes rel scope
-  if [[ ! -r "$file" ]]; then
+  if [[ ! -f "$file" || ! -r "$file" ]]; then
     printf '  - %s | unreadable\n' "$file"
     return
   fi
@@ -209,6 +217,18 @@ print_line_findings() {
     if [[ $count -le $limit ]]; then printf '  - %s | %s\n' "$label" "$line"; fi
   done < "$file"
   if [[ $count -gt $limit ]]; then printf '  - %s | ... %s additional findings omitted\n' "$label" "$((count - limit))"; fi
+}
+
+validate_mirror_spec() {
+  local spec=$1 source target
+  case "$spec" in *=*) ;; *) echo "error: mirror must be source=target: $spec" >&2; exit 64 ;; esac
+  source=${spec%%=*}
+  target=${spec#*=}
+  case "$source:$target" in *:|:*|/*:*|*:/*|../*:*|*:../*|*/../*:*|*:*/../*)
+    echo "error: mirror paths must stay inside the repository: $spec" >&2
+    exit 64
+    ;;
+  esac
 }
 
 [[ ${1:-} == "inspect" || ${1:-} == "verify" ]] || usage
@@ -287,8 +307,7 @@ find "$ROOT" \( -type f -o -type l \) \
   LC_ALL=C sort > "$ENTRYPOINTS"
 
 while IFS= read -r file; do
-  add_file "$file"
-  [[ -f "$file" && -r "$file" ]] || continue
+  inventory_file "$file"
   rel=$(relpath "$file")
   case "$rel" in
     AGENTS.override.md)
@@ -311,7 +330,7 @@ fi
 for dir in .claude/rules .agent-shared/rules .agents/rules .codex/rules .pi/rules; do
   if [[ -d "$ROOT/$dir" ]]; then
     find "$ROOT/$dir" \( -type f -o -type l \) -name '*.md' -print 2>/dev/null |
-      while IFS= read -r file; do add_file "$file"; done
+      while IFS= read -r file; do inventory_file "$file"; done
   fi
 done
 if [[ -d "$ROOT/.claude/rules" ]]; then
@@ -325,27 +344,44 @@ case "$RUNTIME" in
   claude) cp "$CLAUDE_SEEDS" "$SEEDS" ;;
   both) cat "$CODEX_SEEDS" "$CLAUDE_SEEDS" | LC_ALL=C sort -u > "$SEEDS" ;;
 esac
-cp "$FILES" "$TMP/parse-files"
+cp "$SEEDS" "$TMP/parse-files"
+if [[ -n "$MIRROR_SPECS" ]]; then
+  while IFS= read -r spec; do
+    validate_mirror_spec "$spec"
+    for dir in "${spec%%=*}" "${spec#*=}"; do
+      if [[ -d "$ROOT/$dir" && -r "$ROOT/$dir" && -x "$ROOT/$dir" ]]; then
+        find "$ROOT/$dir" \( -type f -o -type l \) -name '*.md' -print >> "$TMP/parse-files"
+      fi
+    done
+  done <<< "$MIRROR_SPECS"
+  LC_ALL=C sort -u "$TMP/parse-files" -o "$TMP/parse-files"
+fi
+: > "$TMP/parsed-files"
 
-pass=0
-previous=-1
-while [[ $pass -lt 8 ]]; do
-  current=$(wc -l < "$TMP/parse-files" | tr -d ' ')
-  [[ "$current" == "$previous" ]] && break
-  previous=$current
-  pass=$((pass + 1))
-  : > "$TMP/new-edges"
+while [[ -s "$TMP/parse-files" ]]; do
   cp "$TMP/parse-files" "$TMP/pass-files"
+  : > "$TMP/parse-files"
   while IFS= read -r source; do
-    [[ -r "$source" ]] || continue
+    add_file "$source"
+    [[ -f "$source" && -r "$source" ]] || continue
+    skill_root=$(owning_skill "$source") || skill_root=""
     while IFS=$'\t' read -r kind origin raw; do
       ref=$(clean_reference "$raw") || continue
       source_rel=$(relpath "$source")
       target=""
       skip_broken=0
+      broken_ref=$ref
       if [[ "$origin" == "import" ]]; then
         target=$(resolve_source_relative "$source" "$ref") || true
+        case "$ref" in
+          /*) broken_ref=$ref ;;
+          *) broken_ref=$(relpath "$(dirname "$source")/$ref") ;;
+        esac
         if [[ -n "$target" ]] && ! inside_root "$target"; then target=""; skip_broken=1; fi
+      elif [[ -n "$skill_root" && "$ref" != /* ]]; then
+        target=$(resolve_source_relative "$skill_root/SKILL.md" "$ref") || true
+        broken_ref=$(relpath "$skill_root/$ref")
+        if [[ -n "$target" ]] && ! inside_root "$target"; then target=""; fi
       else
         case "$ref" in
           /*)
@@ -364,24 +400,28 @@ while [[ $pass -lt 8 ]]; do
       fi
       if [[ -n "$target" ]]; then
         target_rel=$(relpath "$target")
-        printf '%s\t%s\n' "$source_rel" "$target_rel" >> "$TMP/new-edges"
-        add_file "$target"
-        if [[ "$kind" == "explicit" ]]; then printf '%s\t%s\n' "$source_rel" "$target_rel" >> "$EXPLICIT_EDGES"; fi
-        if is_instruction_surface "$target"; then printf '%s\n' "$target" >> "$TMP/parse-files"; fi
+        printf '%s\t%s\n' "$source_rel" "$target_rel" >> "$EDGES"
+        inventory_file "$target"
+        if [[ "$kind" == "explicit" ]]; then
+          add_file "$target"
+          printf '%s\t%s\n' "$source_rel" "$target_rel" >> "$EXPLICIT_EDGES"
+          case "$target" in *.md) printf '%s\n' "$target" >> "$TMP/parse-files" ;; esac
+        fi
       elif [[ $skip_broken -eq 0 ]]; then
         if [[ "$kind" == "explicit" ]] || is_route_reference "$ref"; then
-          printf '%s\t%s\n' "$source_rel" "$ref" >> "$BROKEN"
+          printf '%s\t%s\n' "$source_rel" "$broken_ref" >> "$BROKEN"
         fi
       fi
     done < <(extract_references "$source")
   done < "$TMP/pass-files"
-  cat "$TMP/new-edges" >> "$EDGES"
-  LC_ALL=C sort -u "$FILES" -o "$FILES"
+  cat "$TMP/pass-files" >> "$TMP/parsed-files"
+  LC_ALL=C sort -u "$TMP/parsed-files" -o "$TMP/parsed-files"
   LC_ALL=C sort -u "$TMP/parse-files" -o "$TMP/parse-files"
-  LC_ALL=C sort -u "$EDGES" -o "$EDGES"
-  LC_ALL=C sort -u "$EXPLICIT_EDGES" -o "$EXPLICIT_EDGES"
-  LC_ALL=C sort -u "$BROKEN" -o "$BROKEN"
-  LC_ALL=C sort -u "$NONROOT" -o "$NONROOT"
+  LC_ALL=C comm -23 "$TMP/parse-files" "$TMP/parsed-files" > "$TMP/pending-files"
+  mv "$TMP/pending-files" "$TMP/parse-files"
+done
+for records in "$FILES" "$EDGES" "$EXPLICIT_EDGES" "$BROKEN" "$NONROOT" "$UNREADABLE"; do
+  LC_ALL=C sort -u "$records" -o "$records"
 done
 
 while IFS= read -r file; do relpath "$file"; echo; done < "$FILES" > "$TMP/relative-files"
@@ -450,7 +490,7 @@ awk -F '\t' '
 ' "$EXPLICIT_EDGES" | LC_ALL=C sort -u > "$CYCLES"
 
 while IFS= read -r file; do
-  [[ -r "$file" ]] || continue
+  [[ -f "$file" && -r "$file" ]] || continue
   read -r checksum size _ < <(cksum "$file")
   printf '%s:%s\t%s\n' "$checksum" "$size" "$file"
 done < "$FILES" |
@@ -484,6 +524,7 @@ DRIFT_FINDINGS="$TMP/drift"
 MIRROR_RECORDS="$TMP/mirror-records"
 : > "$MIRROR_RECORDS"
 while IFS= read -r file; do
+  [[ -f "$file" && -r "$file" ]] || continue
   rel=$(relpath "$file")
   bytes=$(wc -c < "$file" | tr -d ' ')
   case "$rel" in
@@ -508,14 +549,9 @@ done < "$FILES"
 
 check_declared_mirror() {
   local spec=$1 source target source_abs target_abs status=aligned rel index
-  case "$spec" in *=*) ;; *) echo "error: mirror must be source=target: $spec" >&2; exit 64 ;; esac
+  validate_mirror_spec "$spec"
   source=${spec%%=*}
   target=${spec#*=}
-  case "$source:$target" in *:|:*|/*:*|*:/*|../*:*|*:../*|*/../*:*|*:*/../*)
-    echo "error: mirror paths must stay inside the repository: $spec" >&2
-    exit 64
-    ;;
-  esac
   source_abs="$ROOT/$source"
   target_abs="$ROOT/$target"
   if [[ ! -d "$source_abs" || ! -r "$source_abs" || ! -x "$source_abs" || ! -d "$target_abs" || ! -r "$target_abs" || ! -x "$target_abs" ]]; then

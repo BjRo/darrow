@@ -114,7 +114,10 @@ files. Verify the resulting graph before reporting it.
   references, position-dependent ordinary paths, instruction cycles, declared
   adapter drift, unreadable required evidence, and active-root budget
   violations block a successful report. Check reachability separately for each
-  selected runtime instead of inventing parity from file coexistence.
+  selected runtime instead of inventing parity from file coexistence. Follow
+  explicit guidance routes transitively regardless of directory, including
+  deferred maps under `docs/agent-guidance/`; a traversal limit must not silently
+  accept an unchecked dependency. Incidental source references are not guidance.
 - **IA-S9 — Codify decisions, not guesses.** A canonical rule that arbitrates
   between valid live patterns requires evidence of a prior team decision or an
   explicit user choice. When no arbiter exists, surface the decision and do not
@@ -178,7 +181,10 @@ decisions, then rerun the audit.
   scoped guidance needed for the selected runtime. Read the configured Codex
   root budget when it is available. Treat adapter directories as mirrors only
   when repository evidence or an explicit `--mirror` argument declares that
-  relationship.
+  relationship. Keep repository inventory separate from verification scope:
+  findings in unselected or shadowed entrypoints block only when selected
+  guidance explicitly reaches them. Selected native scoped guidance and
+  explicitly declared mirrors remain in scope.
 - **IA-D5 — Usage is never deletion authority.** Missing or infrequent
   transcript usage may prompt investigation but never justifies removal or
   promotion of valid scoped guidance into the resident root. Eval runs, short
@@ -216,7 +222,11 @@ decisions, then rerun the audit.
   routed repository path that resolves only relative to its containing
   instruction file. Routed maps and nested entrypoints use session-root paths.
   Loader-native imports and skill-bundled resources are outside this ordinary
-  route rule and retain their native semantics.
+  route rule and retain their native semantics. Recognize bare Claude imports
+  such as `@AGENTS.md` and resolve imports relative to the importing file.
+  Resolve skill resources against the owning skill directory, including from
+  its deferred references; repository-root lookalikes must not mask a missing
+  bundled resource. Missing native or bundled dependencies still block.
 - **IA-D12 — Intent-matched doctoring.** Explicit invocation and requests to
   audit, doctor, trim, deduplicate, or improve an existing repository guidance
   graph select doctoring. Requests only to create or set up a new guidance

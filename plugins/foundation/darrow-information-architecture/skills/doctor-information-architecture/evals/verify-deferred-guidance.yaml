@@ -1,0 +1,32 @@
+id: doctor-information-architecture-verify-deferred-guidance
+invariant: IA-D1,IA-D11,IA-D12,IA-S8
+activation: positive
+prompt: >-
+  {{skill_invocation}} Audit the Codex guidance graph and report any structural
+  blockers. Keep the repository unchanged.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          Before API work, read `docs/agent-guidance/map.md`.
+        docs/agent-guidance/map.md: |
+          # API guidance map
+
+          Before changing API errors, read `docs/agent-guidance/errors.md`.
+        src/api.ts: "export const api = true;\n"
+checks:
+  - name: audit leaves checked-in and untracked files unchanged
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: audit creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+semantic_output_checks:
+  - name: transitive missing guidance blocks verification
+    proposition: >-
+      The response identifies the missing docs/agent-guidance/errors.md target
+      referenced by docs/agent-guidance/map.md as a structural blocker for the
+      Codex graph. It does not claim that the graph passes verification.
