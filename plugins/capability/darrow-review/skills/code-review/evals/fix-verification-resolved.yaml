@@ -140,11 +140,12 @@ checks:
       if test "$DARROW_EVAL_HARNESS" = claude; then for axis in standards spec;
       do observed="$artifact_dir/$axis-observed-route.tsv"; test -f "$observed" || exit 1;
       application="$artifact_dir/$axis-route.tsv";
+      agent=$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$application");
       grep -F -x 'provider_evidence	current-host-environment-default'
       "$observed" >/dev/null || exit 1;
       grep -F -x 'provider_evidence	current-host-environment-default'
       "$application" >/dev/null || exit 1;
-      test "$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$application")" =
+      test "$agent" =
       "$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$observed")" || exit 1;
       awk -F '\t' -v m="$model" -v e="$effort"
       '$1 == "observed_route" && $2 == "claude" && $3 == "anthropic" && $4 == m && $5 == e { found = 1 }

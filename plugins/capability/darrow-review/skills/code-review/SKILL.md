@@ -56,10 +56,13 @@ mode, apply the same rule to the validated TSV bytes.
 
 Before resolving plugin resources or changing directory, bind the repository
 from an explicit repository path in the request or, when none was supplied,
-from the invocation working directory:
+from the invocation working directory. Clear ambient Git selectors before the
+first discovery command so they cannot override that input:
 
 ```sh
 repo_input=<explicit repository path or invocation working directory>
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 repo=$(git -C "$repo_input" rev-parse --show-toplevel)
 repo=$(cd "$repo" && pwd -P)
 ```
