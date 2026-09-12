@@ -64,7 +64,7 @@ expect_failure() {
 printf '%s\n' 'valid skill inspection'
 new_plugin
 before=$(find "$PLUGIN" -print | LC_ALL=C sort)
-output=$(bash "$SCRIPT" inspect "$SKILL" "$PLUGIN") || fail "valid skill is accepted"
+output=$("$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN") || fail "valid skill is accepted"
 after=$(find "$PLUGIN" -print | LC_ALL=C sort)
 expect_contains "reports the stable format" "format${TAB}darrow-skill-inspection-v1" "$output"
 expect_contains "reports the absolute skill directory" "skill_directory${TAB}$SKILL" "$output"
@@ -96,12 +96,12 @@ printf '%s\n' \
   "exec \"\$REAL_MKTEMP\" \"\$@\"" \
   >"$MOCK_BIN/mktemp"
 chmod +x "$MOCK_BIN/mktemp"
-if PATH="$MOCK_BIN:$PATH" TMPDIR=$TEMP_PARENT bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+if PATH="$MOCK_BIN:$PATH" TMPDIR=$TEMP_PARENT "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
   pass "temporary path without trailing separator is accepted"
 else
   fail "temporary path without trailing separator is accepted"
 fi
-if PATH="$MOCK_BIN:$PATH" TMPDIR=$TEMP_PARENT/ bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+if PATH="$MOCK_BIN:$PATH" TMPDIR=$TEMP_PARENT/ "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
   pass "temporary path with trailing separator is accepted"
 else
   fail "temporary path with trailing separator is accepted"
@@ -110,7 +110,7 @@ fi
 cp "$SKILL/SKILL.md" "$SKILL/SKILL.portable"
 sed '/^description:/a\
 disable-model-invocation: true' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
-if bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+if "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
   pass "disable-model-invocation true is accepted"
 else
   fail "disable-model-invocation true is accepted"
@@ -119,7 +119,7 @@ cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
 
 sed '/^description:/a\
 disable-model-invocation: false' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
-if bash "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
+if "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN" >/dev/null 2>&1; then
   pass "disable-model-invocation false is accepted"
 else
   fail "disable-model-invocation false is accepted"
@@ -128,24 +128,24 @@ cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
 
 sed '/^description:/a\
 disable-model-invocation: sometimes' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
-expect_failure "disable-model-invocation requires a boolean" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "disable-model-invocation requires a boolean" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
 
 sed '/^description:/a\
 disable-model-invocation: true\
 disable-model-invocation: false' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
-expect_failure "disable-model-invocation cannot be duplicated" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "disable-model-invocation cannot be duplicated" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
 
 sed '/^description:/a\
 unknown-host-field: true' "$SKILL/SKILL.portable" >"$SKILL/SKILL.md"
-expect_failure "unknown frontmatter remains fail-closed" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "unknown frontmatter remains fail-closed" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 cp "$SKILL/SKILL.portable" "$SKILL/SKILL.md"
 
 printf '%s\n' 'fail-closed inputs'
 missing="$PLUGIN/skills/missing/SKILL.md"
 set +e
-missing_output=$(bash "$SCRIPT" inspect "$PLUGIN/skills/missing" "$PLUGIN" 2>&1)
+missing_output=$("$BASH" "$SCRIPT" inspect "$PLUGIN/skills/missing" "$PLUGIN" 2>&1)
 missing_status=$?
 set -e
 if [ "$missing_status" -ne 0 ]; then
@@ -156,7 +156,7 @@ fi
 expect_contains "missing error identifies an absolute path" "$missing" "$missing_output"
 missing_plugin="$PLUGIN/missing-plugin"
 set +e
-plugin_output=$(cd "$PLUGIN" && bash "$SCRIPT" inspect skills/author-release-skill missing-plugin 2>&1)
+plugin_output=$(cd "$PLUGIN" && "$BASH" "$SCRIPT" inspect skills/author-release-skill missing-plugin 2>&1)
 plugin_status=$?
 set -e
 if [ "$plugin_status" -ne 0 ]; then
@@ -169,11 +169,11 @@ expect_contains "plugin-root error identifies an absolute path" "$missing_plugin
 printf '%s\n' 'metadata and containment counterexamples'
 cp "$SKILL/SKILL.md" "$SKILL/SKILL.valid"
 sed 's/name: author-release-skill/name: different-name/' "$SKILL/SKILL.valid" >"$SKILL/SKILL.md"
-expect_failure "frontmatter name must match the directory" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "frontmatter name must match the directory" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 cp "$SKILL/SKILL.valid" "$SKILL/SKILL.md"
 
 sed 's/name: author-release-skill/name: "author-release-skill/' "$SKILL/SKILL.valid" >"$SKILL/SKILL.md"
-expect_failure "frontmatter rejects an unmatched quote" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "frontmatter rejects an unmatched quote" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 cp "$SKILL/SKILL.valid" "$SKILL/SKILL.md"
 
 EXTERNAL=$(mktemp -d) || exit 1
@@ -182,23 +182,23 @@ TEMPS[${#TEMPS[@]}]=$EXTERNAL
 printf '%s\n' '---' 'name: symlink-skill' 'description: Validate a symbolic-link boundary.' '---' >"$EXTERNAL/SKILL.md"
 mkdir -p "$PLUGIN/skills/symlink-skill"
 ln -s "$EXTERNAL/SKILL.md" "$PLUGIN/skills/symlink-skill/SKILL.md"
-expect_failure "skill file symlink is rejected" bash "$SCRIPT" inspect "$PLUGIN/skills/symlink-skill" "$PLUGIN"
+expect_failure "skill file symlink is rejected" "$BASH" "$SCRIPT" inspect "$PLUGIN/skills/symlink-skill" "$PLUGIN"
 
 printf '# External policy\n' >"$EXTERNAL/policy.md"
 rm "$SKILL/references/policy.md"
 ln -s "$EXTERNAL/policy.md" "$SKILL/references/policy.md"
-expect_failure "local reference symlink is rejected" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "local reference symlink is rejected" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 rm "$SKILL/references/policy.md"
 printf '# Policy\n' >"$SKILL/references/policy.md"
 
 mkdir "$SKILL/scripts/private"
 printf '#!/usr/bin/env bash\nexit 0\n' >"$SKILL/scripts/private/hidden-check"
 chmod 000 "$SKILL/scripts/private"
-expect_failure "unreadable nested script directory fails closed" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "unreadable nested script directory fails closed" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 chmod 700 "$SKILL/scripts/private"
 
 printf '\nRead [external](../../../outside-the-plugin.md).\n' >>"$SKILL/SKILL.md"
-expect_failure "a local reference cannot escape the plugin" bash "$SCRIPT" inspect "$SKILL" "$PLUGIN"
+expect_failure "a local reference cannot escape the plugin" "$BASH" "$SCRIPT" inspect "$SKILL" "$PLUGIN"
 
 printf '%s\n' 'space-bearing absolute paths'
 temp_parent=${TMPDIR:-/tmp}
@@ -212,7 +212,7 @@ SPACE_PLUGIN=$(cd "$SPACE_PLUGIN" 2>/dev/null && pwd -P) || exit 1
 TEMPS[${#TEMPS[@]}]=$SPACE_PLUGIN
 mkdir -p "$SPACE_PLUGIN/skills/space-skill"
 printf '%s\n' '---' 'name: space-skill' 'description: Inspect a skill stored below a path containing spaces.' '---' >"$SPACE_PLUGIN/skills/space-skill/SKILL.md"
-space_output=$(bash "$SCRIPT" inspect "$SPACE_PLUGIN/skills/space-skill" "$SPACE_PLUGIN") || fail "space-bearing path is accepted"
+space_output=$("$BASH" "$SCRIPT" inspect "$SPACE_PLUGIN/skills/space-skill" "$SPACE_PLUGIN") || fail "space-bearing path is accepted"
 expect_contains "space-bearing path remains absolute" "skill_directory${TAB}$SPACE_PLUGIN/skills/space-skill" "$space_output"
 
 if [ "$FAILURES" -ne 0 ]; then

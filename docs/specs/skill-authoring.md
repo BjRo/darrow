@@ -89,15 +89,19 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   ordinary environment spelling variants such as `TMPDIR` with or without a
   trailing separator. Label shell evidence by the interpreter's observed
   version rather than its command name, deduplicate equivalent interpreters,
-  and leave an unavailable required version explicitly unverified. A packaged
-  skill remains useful with no MCP server or other Darrow plugin installed
-  unless its own manifest declares and supplies that dependency.
+  and leave an unavailable required version explicitly unverified. Shell tests
+  must preserve their executing interpreter in nested implementation calls;
+  a different `bash` on `PATH` must not substitute for the selected interpreter.
+  A packaged skill remains useful with no MCP server or other Darrow plugin
+  installed unless its own manifest declares and supplies that dependency.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,
   output quality, safety boundaries, and relevant repository state. Run scoped
   dry validation before live trials on supported harnesses selected by the
-  repository.
+  repository. Shell-reporting acceptance must allow observed successful runs
+  and explicitly unverified coverage; it must not assume a required interpreter
+  is unavailable when the fixture inherits the host's shell availability.
 - **SA-C9 — Independent challenge before completion.** Give a fresh-context
   reviewer the resulting artifact and task-local evidence without the intended
   answer or prior conclusions. Address material discovery, portability,

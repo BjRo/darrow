@@ -55,6 +55,12 @@ when repository evidence supplies additional interpreter paths. Never infer a
 version from an executable name, install a missing shell, or count two command
 names resolving to the same version as two compatibility results.
 
+In Bash test scripts, invoke nested implementation helpers with `"$BASH"`
+instead of literal `bash` or a hard-coded `/bin/bash`. This preserves the
+interpreter executing the test even when `PATH` resolves another Bash. Exercise
+that boundary with a conflicting `bash` on `PATH`; expected-failure assertions
+must not hide calls through the wrong interpreter.
+
 Interpret its final `matrix_status` and exit status together:
 
 - `complete` / exit `0`: both required versions were observed and all tests

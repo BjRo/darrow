@@ -79,7 +79,7 @@ printf '%s\n' '#!/usr/bin/env bash' 'exit 9' >"$FAIL_TEST"
 printf '%s\n' 'complete version matrix'
 : >"$RUN_LOG"
 set +e
-output=$(bash "$SCRIPT" --shell "$BASH_3" --shell "$BASH_5" -- "$PASS_TEST" 2>&1)
+output=$("$BASH" "$SCRIPT" --shell "$BASH_3" --shell "$BASH_5" -- "$PASS_TEST" 2>&1)
 status=$?
 set -e
 expect_status "complete matrix succeeds" 0 "$status"
@@ -93,7 +93,7 @@ expect_status "runs once under each distinct target" 2 "$run_count"
 printf '%s\n' 'duplicate interpreter evidence'
 : >"$RUN_LOG"
 set +e
-output=$(bash "$SCRIPT" --shell "$BASH_3" --shell "$BASH_3" --shell "$BASH_5" -- "$PASS_TEST" 2>&1)
+output=$("$BASH" "$SCRIPT" --shell "$BASH_3" --shell "$BASH_3" --shell "$BASH_5" -- "$PASS_TEST" 2>&1)
 status=$?
 set -e
 expect_status "duplicate matrix succeeds" 0 "$status"
@@ -103,7 +103,7 @@ expect_status "equivalent interpreter is deduplicated" 2 "$run_count"
 printf '%s\n' 'unavailable required version'
 : >"$RUN_LOG"
 set +e
-output=$(bash "$SCRIPT" --shell "$BASH_3" -- "$PASS_TEST" 2>&1)
+output=$("$BASH" "$SCRIPT" --shell "$BASH_3" -- "$PASS_TEST" 2>&1)
 status=$?
 set -e
 expect_status "incomplete matrix has distinct status" 3 "$status"
@@ -113,7 +113,7 @@ expect_contains "reports unverified matrix" "matrix_status${TAB}unverified" "$ou
 printf '%s\n' 'test failure'
 : >"$RUN_LOG"
 set +e
-output=$(bash "$SCRIPT" --shell "$BASH_3" --shell "$BASH_5" -- "$FAIL_TEST" 2>&1)
+output=$("$BASH" "$SCRIPT" --shell "$BASH_3" --shell "$BASH_5" -- "$FAIL_TEST" 2>&1)
 status=$?
 set -e
 expect_status "test failure fails the matrix" 1 "$status"
@@ -121,7 +121,7 @@ expect_contains "reports failed matrix" "matrix_status${TAB}failed" "$output"
 
 printf '%s\n' 'invalid input'
 set +e
-output=$(bash "$SCRIPT" --shell "$ROOT/missing-bash" -- "$PASS_TEST" 2>&1)
+output=$("$BASH" "$SCRIPT" --shell "$ROOT/missing-bash" -- "$PASS_TEST" 2>&1)
 status=$?
 set -e
 expect_status "missing explicit interpreter fails closed" 2 "$status"

@@ -24,12 +24,18 @@ invent a capability or publish it without a separate explicit request.
 
 ## Development
 
-Run the deterministic tests with both supported shells:
+From this plugin directory, run all deterministic tests through the
+version-aware matrix:
 
 ```sh
-bash skills/author-agent-skill/scripts/inspect-skill.test.sh
-/bin/bash skills/author-agent-skill/scripts/inspect-skill.test.sh
+bash skills/author-agent-skill/scripts/verify-shell-tests -- \
+  skills/author-agent-skill/scripts/inspect-skill.test.sh \
+  skills/author-agent-skill/scripts/verify-shell-tests.test.sh \
+  skills/author-agent-skill/scripts/interpreter-routing.test.sh
 ```
+
+The matrix reports observed interpreter versions. Exit `3` leaves an unavailable
+required version unverified; two executable names do not prove two versions.
 
 Run the judgment evals from the repository `evals` directory:
 
@@ -37,6 +43,9 @@ Run the judgment evals from the repository `evals` directory:
 bun runner/run.ts --case author-agent-skill --harness claude --dry
 bun runner/run.ts --case author-agent-skill --harness claude
 ```
+
+See the [eval case and shell-evidence notes](skills/author-agent-skill/evals/README.md)
+when changing reporting checks or interpreting coverage.
 
 ## When to use
 
