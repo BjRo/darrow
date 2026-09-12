@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --repo owns discovery and every later Git observation. Inherited invocation
+# selectors must not substitute another repository, index, or object store.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+unset GIT_CEILING_DIRECTORIES GIT_DISCOVERY_ACROSS_FILESYSTEM
+unset GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
+unset GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_NAMESPACE
+
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 routes_file="$script_dir/../config/routes.json"
 routes_parser="$script_dir/routes-json.awk"
@@ -63,7 +72,9 @@ safe_regular_file() {
 
 repository_root() {
   repo_path=$(absolute_dir "$1")
-  git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+  inside_work_tree=$(git -C "$repo_path" rev-parse --is-inside-work-tree 2>/dev/null) ||
+    die "not a git working tree: $repo_path"
+  test "$inside_work_tree" = true ||
     die "not a git working tree: $repo_path"
   git -C "$repo_path" rev-parse --show-toplevel
 }
@@ -92,14 +103,22 @@ validate_route_record_row() {
     test -n "$route_row_fallback_model" &&
     test -n "$route_row_fallback_effort" && test -z "$route_row_extra" ||
     die "invalid $route_row_source route configuration row for host=$route_row_host profile=$route_row_profile"
-  test "$route_row_host" = "$route_row_harness" ||
-    die "$route_row_source route host and harness disagree for host=$route_row_host profile=$route_row_profile"
+  validate_route "$route_row_source route for profile=$route_row_profile" \
+    "$route_row_host" "$route_row_harness" "$route_row_provider" \
+    "$route_row_model" "$route_row_effort"
 }
 
 route_records() {
   route_repo=$1
   bundled_records=$(bundled_route_records)
   repository_config="$route_repo/.darrow/config.json"
+
+  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
+    test -n "$host" || continue
+    validate_route_record_row bundled "$host" "$profile" "$harness" \
+      "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort" \
+      "${extra:-}"
+  done <<<"$bundled_records"
 
   if test ! -e "$repository_config" && test ! -L "$repository_config"; then
     while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort; do
@@ -115,13 +134,6 @@ route_records() {
     die "repository route configuration is unreadable or unsafe: $repository_config"
   repository_records=$(awk -v allow_missing_routes=1 -f "$routes_parser" "$repository_config") ||
     die "repository route configuration is invalid: $repository_config"
-
-  while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
-    test -n "$host" || continue
-    validate_route_record_row bundled "$host" "$profile" "$harness" \
-      "$provider" "$model" "$effort" "$fallback_model" "$fallback_effort" \
-      "${extra:-}"
-  done <<<"$bundled_records"
 
   while IFS="$tab" read -r host profile harness provider model effort fallback_model fallback_effort extra; do
     test -n "$host" || continue
@@ -176,22 +188,21 @@ route_record() {
     die "no route for host=$route_host profile=$route_profile"
 }
 
-validate_explicit_route() {
-  explicit_host=$1
-  explicit_route=$2
-  split_route_tuple "--route" "$explicit_route"
-  test "$tuple_harness" = "$explicit_host" ||
-    die "explicit route must use current host: $explicit_host"
-  case "$explicit_host|$tuple_provider" in
+validate_route() {
+  local label=$1 expected_host=$2 route_harness=$3 route_provider=$4
+  local route_model=$5 route_effort=$6
+  test "$route_harness" = "$expected_host" ||
+    die "$label must use current host: $expected_host"
+  case "$expected_host|$route_provider" in
     codex\|openai|claude\|anthropic) ;;
-    *) die "explicit route provider does not match host: $explicit_host" ;;
+    *) die "$label provider does not match host: $expected_host" ;;
   esac
-  case "$tuple_model" in
-    none|*[!A-Za-z0-9._-]*) die "explicit route has no concrete safe model" ;;
+  case "$route_model" in
+    ''|none|[!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) die "$label has no concrete safe model" ;;
   esac
-  case "$tuple_effort" in
+  case "$route_effort" in
     low|medium|high|xhigh|max|ultra) ;;
-    *) die "explicit route has unsupported effort: $tuple_effort" ;;
+    *) die "$label has unsupported effort: $route_effort" ;;
   esac
 }
 
@@ -230,8 +241,10 @@ prepare() {
   test -d "$workflows_dir" ||
     die "workflow directory is missing: $workflows_dir"
 
-  revision=$(git -C "$repo" rev-parse HEAD)
-  if test -n "$(git -C "$repo" status --porcelain=v1 --untracked-files=all)"; then
+  revision=$(git -C "$repo" rev-parse HEAD) || die "cannot read repository revision: $repo"
+  tree_status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all) ||
+    die "cannot read working tree state: $repo"
+  if test -n "$tree_status"; then
     tree_state=dirty
   else
     tree_state=clean
@@ -318,7 +331,7 @@ route() {
     provider=$tuple_provider
     model=$tuple_model
     effort=$tuple_effort
-    validate_explicit_route "$host" "$explicit_route"
+    validate_route 'explicit route' "$host" "$harness" "$provider" "$model" "$effort"
     source=user
   else
     record=$(route_record "$repo" "$host" "$profile")
