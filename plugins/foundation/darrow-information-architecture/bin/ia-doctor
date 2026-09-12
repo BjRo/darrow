@@ -297,8 +297,14 @@ DUPLICATES="$TMP/duplicates"
 : > "$EDGES"; : > "$EXPLICIT_EDGES"; : > "$BROKEN"; : > "$UNREADABLE"; : > "$NONROOT"
 : > "$MISSING_RUNTIME"; : > "$CYCLES"; : > "$UNROUTED"; : > "$DUPLICATES"
 ROOT_ADAPTER_STATUS=none
+ROOT_ADAPTER_SOURCE="$ROOT/AGENTS.md"
+ROOT_ADAPTER_TARGET="$ROOT/CLAUDE.md"
 if [[ -e "$ROOT/AGENTS.md" && -L "$ROOT/CLAUDE.md" && "$ROOT/AGENTS.md" -ef "$ROOT/CLAUDE.md" ]]; then
   ROOT_ADAPTER_STATUS=symlink
+elif [[ -e "$ROOT/CLAUDE.md" && -L "$ROOT/AGENTS.md" && "$ROOT/CLAUDE.md" -ef "$ROOT/AGENTS.md" ]]; then
+  ROOT_ADAPTER_STATUS=symlink
+  ROOT_ADAPTER_SOURCE="$ROOT/CLAUDE.md"
+  ROOT_ADAPTER_TARGET="$ROOT/AGENTS.md"
 fi
 
 find "$ROOT" \( -type f -o -type l \) \
@@ -627,7 +633,7 @@ if [[ ! -s "$MIRROR_RECORDS" && "$ROOT_ADAPTER_STATUS" == "none" ]]; then
   echo "  - none detected"
 fi
 if [[ "$ROOT_ADAPTER_STATUS" != "none" ]]; then
-  printf '  - %s -> %s | status=%s\n' "$ROOT/AGENTS.md" "$ROOT/CLAUDE.md" "$ROOT_ADAPTER_STATUS"
+  printf '  - %s -> %s | status=%s\n' "$ROOT_ADAPTER_SOURCE" "$ROOT_ADAPTER_TARGET" "$ROOT_ADAPTER_STATUS"
 fi
 while IFS=$'\t' read -r source target status; do printf '  - %s -> %s | status=%s | declared=true\n' "$source" "$target" "$status"; done < "$MIRROR_RECORDS"
 
