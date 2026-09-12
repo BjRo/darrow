@@ -330,7 +330,13 @@ skill.
    manual-only skill or reproducing their own interview protocol.
 4. **DC-P4 — Contextual judgment.** Decision-tree construction, fact
    classification, materiality, and closure remain model judgment; no keyword
-   checklist or numeric ambiguity score substitutes for them.
+   checklist or numeric ambiguity score substitutes for them. The frontier
+   renderer checks field and presentation structure, not semantic authority or
+   decision dependencies. It must accept valid root reasoning about migration,
+   defaults, parameters, or other subjects regardless of vocabulary, including
+   comparisons with another root option or words shared with deferred nodes.
+   The canonical grilling method remains responsible for preventing selected
+   child answers and unsupported authority in the surrounding conversation.
 
 ## Evaluation requirements
 
