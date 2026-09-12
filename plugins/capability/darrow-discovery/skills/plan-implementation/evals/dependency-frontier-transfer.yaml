@@ -28,14 +28,6 @@ checks:
   - name: planning conversation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: repository absence is not promoted to greenfield authority
-    run: |
-      if grep -Ei "greenfield|no (repository )?evidence[^?]*(requirement|constraint|policy)|absent[^?]*(requirement|constraint|policy)|no [^?]*(architecture|policy)[^?]*(preserve|inherit)" .git/last-message.md >/dev/null; then
-        cat .git/last-message.md
-        exit 1
-      fi
-      printf 'invented_greenfield_authority=0\n'
-    expect_exact: "invented_greenfield_authority=0"
   - name: unresolved storage choices do not become a plan
     run: |
       message=.git/last-message.md
@@ -46,6 +38,15 @@ checks:
       printf 'premature_plan_markers=0\n'
     expect_exact: "premature_plan_markers=0"
 semantic_output_checks:
+  - name: repository absence is not promoted to greenfield authority
+    proposition: >-
+      The response does not infer from sparse or missing implementation that
+      compatibility and migration obligations are absent, that no callers or
+      existing data need preservation, or that those obligations are already
+      settled. A claim such as "nothing to preserve for compatibility" based
+      only on the in-memory implementation fails. Describing the lack of
+      durable storage, or using "greenfield" while still leaving preservation
+      obligations unresolved, does not by itself fail this check.
   - name: storage isolation is the sole frontier root
     proposition: >-
       The response asks exactly one current-frontier question: whether durable
@@ -56,6 +57,7 @@ semantic_output_checks:
       frontier will be recomputed after the user's answer.
   - name: repository facts inform the frontier
     proposition: >-
-      The response accurately uses the inspected implementation fact that audit
-      events currently live in process-local or in-memory storage and reads are
-      not tenant-scoped, rather than asking the user to discover those facts.
+      The response uses at least one accurate, relevant inspected fact about
+      the audit-store implementation, such as the shared in-memory event array,
+      tenant-tagged entries, or the reader returning all tenants' events.
+      It does not ask the user to discover those available repository facts.

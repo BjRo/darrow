@@ -65,10 +65,17 @@ response lint:
 When this lint leaves exactly one root, do not hand-write the round. You must
 run the bundled [frontier renderer](scripts/render-frontier) with Bash and
 use its stdout as the structurally validated core of the user-facing response.
-Harmless Markdown and a concise inspected-fact preface are permitted, but do not alter
-the question, recommendation, deferred decisions, or recomputation boundary,
-and do not add semantic content after validation. Invoke it from the loaded
-skill using the applicable host path:
+Harmless Markdown and a concise inspected-fact preface are permitted, but do
+not alter the question, recommendation, deferred decisions, or recomputation
+boundary. After assembling the complete response, apply the canonical grilling
+method's final preflight again, including the preface. For every claim that
+settles compatibility or migration obligations, identify the user decision or
+authoritative contract that settles it. Missing implementation, tests, or
+configuration establishes an evidence gap; it does not establish that there
+are no consumers, data, or obligations to preserve. Keep unsupported decisions
+open or deferred. Add no semantic content after this final preflight.
+
+Invoke the renderer from the loaded skill using the applicable host path:
 
 - Claude Code: run `darrow-render-plan-frontier ...`; plugin executables are
   added to `PATH` by the host.

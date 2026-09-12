@@ -337,6 +337,9 @@ skill.
    comparisons with another root option or words shared with deferred nodes.
    The canonical grilling method remains responsible for preventing selected
    child answers and unsupported authority in the surrounding conversation.
+   Apply that contextual audit to the complete user-facing round after
+   rendering, including any inspected-fact preface. Missing repository
+   implementation does not settle compatibility or migration obligations.
 
 ## Evaluation requirements
 
@@ -350,7 +353,8 @@ skill.
    with recommendations while deferring downstream questions.
 3. **DC-E3 — Fact ownership.** Repository fixtures contain facts tempting to
    ask the user; the skills inspect and use them without making the user look
-   them up.
+   them up. Verify relevant fact use at the current frontier without requiring
+   an exhaustive inventory of the inspected implementation in the response.
 4. **DC-E4 — Incomplete input.** A subjectless grilling request produces the
    user-facing final answer `What subject would you like me to grill?`, with no
    explanation, topic menu, second question, or numbered frontier in that
