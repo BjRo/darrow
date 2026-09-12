@@ -1,0 +1,39 @@
+id: doctor-information-architecture-ignore-unselected-guidance
+invariant: IA-D4,IA-D9,IA-D12
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  Check only the Claude information architecture and apply safe structural
+  fixes if needed. Leave Codex guidance alone.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        CLAUDE.md: "# Claude\n\nPreserve public API compatibility.\n"
+        AGENTS.md: "# Codex\n\nBefore API work, read `docs/codex-policy.md`.\n"
+        .claude/rules/api.md: |
+          ---
+          paths: ["src/api/**"]
+          ---
+
+          Keep API errors typed.
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+checks:
+  - name: unrelated Codex guidance is unchanged
+    run: git diff HEAD -- AGENTS.md
+    not_regex: "\\S"
+  - name: no unrelated missing Codex policy is invented
+    run: test ! -e docs/codex-policy.md && echo absent
+    expect_regex: "^absent$"
+  - name: selected runtime verifies
+    run: bash .git/ia-doctor verify --runtime claude . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+semantic_output_checks:
+  - name: unrelated Codex routes do not block Claude verification
+    proposition: >-
+      The response reports successful Claude structural verification. It may
+      mention the Codex file as inventory, but does not require fixing its
+      missing policy before declaring the selected Claude graph verified.

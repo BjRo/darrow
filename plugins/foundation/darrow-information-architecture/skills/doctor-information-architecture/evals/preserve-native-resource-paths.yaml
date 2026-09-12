@@ -1,0 +1,40 @@
+id: doctor-information-architecture-preserve-native-resource-paths
+invariant: IA-D4,IA-D11,IA-D12
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  Doctor this dual-runtime guidance graph. Apply safe path and reachability
+  fixes if needed, preserving valid existing guidance and skill placement.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Agent Instructions
+
+          Before API work, read `.agent-shared/rules/api.md`.
+          For API checks, read `.agents/skills/api-check/SKILL.md`.
+        CLAUDE.md: "@AGENTS.md\n"
+        .agent-shared/rules/api.md: "# API\n\nKeep errors typed.\n"
+        .agents/skills/api-check/SKILL.md: |
+          ---
+          name: api-check
+          description: Check API error behavior.
+          ---
+
+          Before checking API errors, read `references/guide.md`.
+        .agents/skills/api-check/references/guide.md: |
+          # API checks
+
+          Preserve error codes in compatibility checks.
+  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+checks:
+  - name: valid root routes, native adapter, and skill bundle remain unchanged
+    run: git diff HEAD -- AGENTS.md CLAUDE.md .agents/skills/api-check
+    not_regex: "\\S"
+  - name: native adapter and bundled resource verification passes
+    run: bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+    expect_regex: "^verified$"
+  - name: doctor creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

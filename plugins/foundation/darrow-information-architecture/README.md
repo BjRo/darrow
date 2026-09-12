@@ -39,6 +39,14 @@ root context size; the doctor skill reaches it through its colocated script.
 These are compact structural checks, not complete validators for every Codex
 or Claude Code configuration format.
 
+Verification starts from the selected runtime's active entrypoints and native
+scoped guidance, then follows explicit Markdown routes through deferred maps
+in any repository directory. Other entrypoints remain visible in inventory.
+Native imports (including `@AGENTS.md`) resolve from the importing file;
+skill resources resolve from their owning skill directory. Ordinary guidance
+routes continue to require session-root paths. Explicitly declared mirrors
+remain part of the verification gate.
+
 ## Design model and boundaries
 
 - **Root guidance** contains rules needed in most sessions and routes to
