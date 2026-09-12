@@ -1,6 +1,6 @@
 ---
 name: setup-information-architecture
-description: Create or reorganize a repository's agent-guidance graph with thin root entrypoints, scoped rules, and intent-triggered skills. Use when asked to create AGENTS.md or CLAUDE.md, organize or split agent instructions, add path/intent routing, build a context hierarchy, or make guidance reachable in Claude Code and Codex.
+description: Create, set up, or reorganize a repository's agent-guidance graph, including repositories with existing instructions and adapters. Use for guidance reorganization, creating AGENTS.md or CLAUDE.md, splitting instructions, or building scoped routing for Claude Code and Codex. Do not select for requests only to audit, doctor, trim, or repair existing guidance.
 ---
 
 # Set up agent guidance
@@ -45,9 +45,18 @@ the canonical evidence needed to understand their rules and relationships. Do
 not scan the entire repository. Unreadable required evidence blocks dependent
 design choices.
 
+When the request asks which implementation pattern new work should follow,
+inspect representative implementations in that area and search for a prior
+decision. The instruction inventory alone cannot answer this. Identify the
+actual alternatives inside a shared directory; naming that parent directory
+does not choose between them. If competing patterns have no arbiter, present
+the open choice described below and stop before designing or changing files.
+
 Target both Claude Code and Codex unless the user explicitly selects one.
 Record any declared source-of-truth or generated/symlink adapter direction; it
-overrides fresh-graph defaults.
+overrides fresh-graph defaults. Read through an existing adapter and verify its
+target before treating it as defective. Keep a working adapter in its existing
+form; shared content reached through a symlink is not an independent duplicate.
 
 **Complete when:** selected runtimes, existing guidance, repository-specific
 constraints, canonical evidence, adapter direction, root budgets, and
@@ -104,8 +113,11 @@ guidance is intentionally native to that runtime.
 
 Move an ordered procedure only to a repository-owned, non-ignored,
 version-control-eligible `SKILL.md` with non-empty discovery metadata. Preserve
-every ordered step and safety gate. Keep an explicit intent route when native
-skill discovery is insufficient for any selected runtime.
+every ordered step and safety gate. Before extracting it, separate universal
+prohibitions from workflow steps: the universal rules stay in the resident
+root, while the ordered steps and their task-specific gates move to the skill.
+A route to the skill does not replace a resident prohibition. Keep an explicit
+intent route when native skill discovery is insufficient for any selected runtime.
 
 Remove cheap manifest/config inventory rather than turning it into `use the
 existing toolchain`. For a mixed statement such as `Runtime: Bun; never use npm
@@ -171,6 +183,12 @@ Use one runtime when explicitly selected. Supply `--mirror` only for a
 relationship declared by repository evidence. Resolve critical findings before
 claiming success, and describe the output as a compact structural gate rather
 than full runtime-schema proof.
+
+Compare the resulting guidance with the original rules as well: universal
+prohibitions must still be resident, moved workflows must retain every step
+and task-specific gate, and policy choices must still have their original
+decision status. Structural verification cannot establish these semantic
+properties. Repair a lost constraint or changed scope before reporting success.
 
 **Complete when:** every selected runtime reaches the graph, verification has
 no unresolved critical finding, existing knowledge is preserved, and no

@@ -321,6 +321,21 @@ check_contains "counts Codex resident root content once" "codex_root_bytes=9" "$
 check_contains "reports Claude adapter resident content separately" "claude_root_bytes=9" "$out"
 check_not_contains "does not call the symlink duplicate" "advisory duplicate-content" "$out"
 
+echo "reverse root symlink adapter"
+fresh_repo
+printf '# Claude\n' > "$REPO/CLAUDE.md"
+ln -s CLAUDE.md "$REPO/AGENTS.md"
+check_verify "accepts a Claude-canonical symlink adapter" 0 both
+check_contains "reports Claude as source and Codex as adapter" "$REPO/CLAUDE.md -> $REPO/AGENTS.md | status=symlink" "$out"
+check_contains "counts Codex reverse-adapter content" "codex_root_bytes=9" "$out"
+check_contains "counts canonical Claude content" "claude_root_bytes=9" "$out"
+check_not_contains "does not call the reverse adapter duplicate" "advisory duplicate-content" "$out"
+rm "$REPO/AGENTS.md"
+cp "$REPO/CLAUDE.md" "$REPO/AGENTS.md"
+out=$(bash "$SCRIPT" inspect "$REPO")
+check_contains "independent root copies still count as duplicates" "advisory duplicate-content" "$out"
+check_not_contains "independent root copies are not symlink adapters" "status=symlink" "$out"
+
 echo "root budget"
 fresh_repo
 awk 'BEGIN {for (i=0; i<34000; i++) printf "x"}' > "$REPO/AGENTS.md"

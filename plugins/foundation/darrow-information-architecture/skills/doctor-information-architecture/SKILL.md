@@ -1,6 +1,6 @@
 ---
 name: doctor-information-architecture
-description: Audit and improve repository agent guidance across root entrypoints, scoped rules, referenced files, and procedural skills. Use when asked to doctor, inspect, trim, deduplicate, reorganize, or update agent instructions; repair stale routes; reduce resident context; check Claude Code and Codex reachability; or decide whether guidance belongs in root, scoped files, or skills.
+description: Audit repository agent guidance and repair diagnosed problems across entrypoints, scoped rules, and skills. Use for explicit doctor requests, instruction audits, trimming, deduplication, stale-route repair, or reachability checks. Requests to create, set up, or reorganize the guidance graph belong to setup unless the user explicitly asks for doctoring.
 ---
 
 # Doctor agent guidance

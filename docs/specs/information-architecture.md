@@ -94,14 +94,18 @@ files. Verify the resulting graph before reporting it.
 - **IA-S5 — Procedures load by intent.** Multi-step task procedures become
   skills when they do not need to influence ordinary edits. The root retains a
   route only when automatic skill discovery is insufficient for the supported
-  runtimes. The resulting `SKILL.md` must be repository-owned, not ignored,
+  runtimes. Extract the procedure separately from its universal prohibitions;
+  moving a workflow must not make an existing resident safety rule depend on
+  skill discovery. The resulting `SKILL.md` must be repository-owned, not ignored,
   eligible for version control, validly front-mattered with non-empty `name`
   and `description`, and reachable; an ignored mount, external target,
   malformed skill, or ordinary documentation page is not a successful move.
 - **IA-S6 — Deliberate runtime parity.** Multi-runtime repositories declare a
   source of truth and adapter relationship. Generated mirrors are not edited as
   independent guidance, and a runtime-specific optimization never silently
-  breaks another runtime's reachability.
+  breaks another runtime's reachability. Preserve a valid existing adapter
+  unless an evidenced defect requires changing it. Recognize root symlink
+  adapters in either direction as shared content, not independent duplicates.
 - **IA-S7 — Confirm before mutation.** The initial inventory and proposal are
   read-only. Creation, movement, deletion, or rewriting begins only after the
   user confirms the proposed file-level actions. An explicit request to apply
@@ -123,7 +127,9 @@ files. Verify the resulting graph before reporting it.
   explicit user choice. When no arbiter exists, surface the decision and do not
   encode the agent's heuristic or recommendation as repository policy. Pause
   for the choice; merely documenting that the decision remains open is not a
-  substitute for asking.
+  substitute for asking. A request to establish a pattern requires inspecting
+  its relevant implementations as well as instruction files; their common
+  parent directory does not resolve a choice between competing implementations.
 - **IA-S10 — Path semantics match the loader.** Ordinary repository paths in
   routed agent guidance resolve from the repository session root. Setup
   rewrites lifted or nested-relative ordinary routes without rewriting
@@ -133,7 +139,8 @@ files. Verify the resulting graph before reporting it.
 - **IA-S11 — Intent-matched setup.** Explicit invocation and requests to
   create or reorganize the repository guidance graph select setup. Requests
   only to audit or doctor an existing graph leave setup unselected so the
-  narrower doctor capability can own them.
+  narrower doctor capability can own them. Existing instruction files do not
+  turn a reorganization request into an audit request.
 
 ### Non-goals
 
@@ -229,8 +236,9 @@ decisions, then rerun the audit.
   bundled resource. Missing native or bundled dependencies still block.
 - **IA-D12 — Intent-matched doctoring.** Explicit invocation and requests to
   audit, doctor, trim, deduplicate, or improve an existing repository guidance
-  graph select doctoring. Requests only to create or set up a new guidance
-  graph leave doctoring unselected so setup can own them.
+  graph through diagnosed corrections select doctoring. Requests to create,
+  set up, or reorganize the guidance graph select setup unless the user
+  explicitly asks for doctoring, even when instruction files already exist.
 
 ### Non-goals
 
