@@ -19,7 +19,7 @@ fresh_repo() {
   repo=$(mktemp -d)
   cd "$repo" || exit 70
   [[ "$PWD" == "$repo" ]] || exit 70
-  git init -qb main
+  git init -qb main ${1:+"$1"}
   git config user.email fixture@example.invalid
   git config user.name Fixture
   printf '%s\n' base >base.txt
@@ -177,8 +177,8 @@ fake_bin="$repo/.git/fake-bin"
 mkdir "$fake_bin"
 # shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
 printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '#!/bin/sh' \
+  'if [ "$1" = "worktree" ] && [ "${2:-}" = "add" ]; then' \
   '  "$RACE_REAL_GIT" branch "$RACE_BRANCH"' \
   'fi' \
   'exec "$RACE_REAL_GIT" "$@"' >"$fake_bin/git"
@@ -200,8 +200,8 @@ fake_bin="$repo/.git/fake-bin"
 mkdir "$fake_bin"
 # shellcheck disable=SC2016 # Wrapper variables expand when the fixture runs it.
 printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'if [[ "$1" == "worktree" && "${2:-}" == "add" ]]; then' \
+  '#!/bin/sh' \
+  'if [ "$1" = "worktree" ] && [ "${2:-}" = "add" ]; then' \
   '  echo "simulated worktree refusal" >&2' \
   '  exit 1' \
   'fi' \
@@ -223,6 +223,95 @@ check 'default worktree hierarchy is absent after refusal' 0 "$hierarchy_status"
 git show-ref -q --verify refs/heads/fix/DAR-123-attribution
 check 'failed setup creates no task branch' 1 $?
 check 'caller stays on main after failed setup' main "$(git branch --show-current)"
+
+printf '%s\n' '# P8: absent optional excludes support default worktree creation and reuse'
+for branch_state in missing existing; do
+  fresh_repo --template=
+  repo=$(pwd -P)
+  exclude=$(git rev-parse --git-path info/exclude)
+  if [[ ! -e "$exclude" ]]; then path_status=0; else path_status=1; fi
+  check 'empty template supplies no exclude file' 0 "$path_status"
+  if [[ "$branch_state" == existing ]]; then
+    git branch fix/DAR-123-attribution
+    expected_mode=worktree-reused
+  else
+    expected_mode=worktree-created
+  fi
+  original_tip=$(git rev-parse HEAD)
+  output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree)
+  check "$branch_state branch prepares with absent excludes" 0 $?
+  grep -qxF "## mode: $expected_mode" <<< "$output"
+  check 'correct worktree mode reported' 0 $?
+  worktree_path="$repo/.worktrees/fix/DAR-123-attribution"
+  grep -qF "$worktree_path" <<< "$output"
+  check 'absolute default execution path reported' 0 $?
+  check 'prepared task tip unchanged' "$original_tip" "$(git -C "$worktree_path" rev-parse HEAD 2>/dev/null)"
+  check 'caller branch unchanged' main "$(git branch --show-current)"
+  check 'exclude contains one worktree rule' '/.worktrees/' "$(cat "$exclude" 2>/dev/null)"
+  check 'default worktree is ignored' '' "$(git status --porcelain)"
+done
+
+printf '%s\n' '# P9: failed creation leaves an absent exclude file absent'
+fresh_repo --template=
+real_git=$(command -v git)
+fake_bin="$repo/.git/fake-bin"
+mkdir "$fake_bin"
+cat >"$fake_bin/git" <<'EOF'
+#!/bin/sh
+if [ "$1" = worktree ] && [ "${2:-}" = add ]; then
+  echo 'simulated worktree refusal' >&2
+  exit 1
+fi
+exec "$FAIL_REAL_GIT" "$@"
+EOF
+chmod +x "$fake_bin/git"
+PATH="$fake_bin:$PATH" FAIL_REAL_GIT="$real_git" \
+  "$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+check 'worktree failure reaches the add operation' 4 $?
+if [[ ! -e .git/info/exclude ]]; then path_status=0; else path_status=1; fi
+check 'failed worktree does not create exclude file' 0 "$path_status"
+if [[ ! -e .worktrees ]]; then path_status=0; else path_status=1; fi
+check 'failed worktree leaves no default hierarchy' 0 "$path_status"
+check 'failed worktree creates no branch' '' "$(git branch --list fix/DAR-123-attribution)"
+
+printf '%s\n' '# P10: existing unreadable exclude configuration still refuses'
+fresh_repo
+exclude=$(git rev-parse --git-path info/exclude)
+exclude_before=$(cat "$exclude")
+chmod 000 "$exclude"
+if [[ ! -r "$exclude" ]]; then
+  output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree 2>&1)
+  check 'unreadable exclude refuses' 9 $?
+  grep -q 'exclude file is unreadable' <<< "$output"
+  check 'unreadable configuration is identified' 0 $?
+  check 'unreadable configuration creates no branch' '' "$(git branch --list fix/DAR-123-attribution)"
+  if [[ ! -e .worktrees ]]; then path_status=0; else path_status=1; fi
+  check 'unreadable configuration leaves no default hierarchy' 0 "$path_status"
+else
+  printf '%s\n' '  unverified: current user can read chmod 000 files'
+fi
+chmod 644 "$exclude"
+check 'unreadable exclude contents preserved' "$exclude_before" "$(cat "$exclude")"
+
+printf '%s\n' '# P11: existing writable excludes do not require a writable parent'
+fresh_repo
+exclude=$(git rev-parse --git-path info/exclude)
+exclude_before=$(cat "$exclude")
+chmod 555 .git/info
+"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+check 'writable existing file can be appended in read-only parent' 0 $?
+chmod 755 .git/info
+check 'existing exclude rules preserved with appended worktree rule' "$exclude_before"$'\n/.worktrees/' "$(cat "$exclude")"
+
+printf '%s\n' '# P12: broken exclude symlinks are unreadable configuration'
+fresh_repo --template=
+mkdir -p .git/info
+ln -s missing-exclude-target .git/info/exclude
+"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+check 'broken exclude symlink refuses' 9 $?
+if [[ -L .git/info/exclude && ! -e .git/info/missing-exclude-target ]]; then path_status=0; else path_status=1; fi
+check 'broken exclude link is left intact' 0 "$path_status"
+check 'broken exclude link creates no branch' '' "$(git branch --list fix/DAR-123-attribution)"
 
 if [[ $failures -gt 0 ]]; then
   printf '%s failure(s)\n' "$failures"
