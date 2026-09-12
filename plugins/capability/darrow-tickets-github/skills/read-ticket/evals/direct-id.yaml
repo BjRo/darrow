@@ -26,6 +26,7 @@ fixture:
       case "$1" in
         issue) printf 'issue view %s %s %s\n' "$3" "$4" "$5" >> "$d/protocol" ;;
         api) printf 'api %s\n' "$2" >> "$d/protocol" ;;
+        repo) printf 'repo view\n' >> "$d/protocol" ;;
         *) printf 'unexpected %s\n' "$1" >> "$d/protocol" ;;
       esac
       find_flag() {
@@ -39,7 +40,7 @@ fixture:
       }
       if [ "$1" = "api" ]; then
         case "$2" in
-          */issues/12/parent) echo 7 ;;
+          */issues/12/parent) printf '7\thttps://github.test/o/r/issues/7\n' ;;
           */issues/12/dependencies/blocked_by) echo 3 ;;
           *) echo "mock gh: unsupported api call: $*" >&2; exit 1 ;;
         esac
@@ -106,4 +107,5 @@ checks:
       issue view 12 --json number,state,title,url,labels
       issue view 12 --json body
       api repos/{owner}/{repo}/issues/12/parent
+      repo view
       api repos/{owner}/{repo}/issues/12/dependencies/blocked_by

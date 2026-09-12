@@ -44,6 +44,9 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   backend deterministically and the report names it. No usable backend
   (no remote, issues disabled, missing CLI) → refuse with a clear error
   stating what's missing; never guess or fall back silently.
+  Every GitHub call, including native relation API reads and mutations, is
+  bound to the resolved origin host and repository independently of ambient
+  `GH_HOST` or `GH_REPO` configuration.
 
 ## Relations contract
 
@@ -65,6 +68,13 @@ breaks down under an umbrella, belongs to the planning capabilities.
   data model, visible in its UI and safe from description edits.
   Skills and callers never hand-write tracker syntax. Every recorded
   relation is stated in the report (type + target id).
+  Parent reads retain and validate qualified repository identity against the
+  backend's canonical current repository before using a local issue number,
+  including when an old origin URL redirects after a rename or transfer.
+  This provider refuses an existing foreign parent with
+  its canonical URL before reporting it as local or attempting parent changes.
+  Dependency reads follow every page before reporting blockers or deciding
+  membership; a later-page failure aborts the read or pending mutation.
 
 ## create-ticket
 
@@ -147,6 +157,8 @@ target before mutating anything.
 - **TM-U2 — Only the asked change.** Exactly the requested mutation; no
   drive-by edits (relabeling, reformatting, or a status change smuggled in
   alongside a comment).
+  Label values are literal: additions and removals must refuse comma-bearing
+  values when the backend's label flags would split them into unrelated labels.
 - **TM-U3 — Append, don't rewrite.** Updates land as comments. The
   description is edited only on explicit request; other authors' comments
   are never edited or deleted.

@@ -136,7 +136,7 @@ resolve_backend() {
 run_gh() {
   local out rc=0
   TMPERR=$(mktemp)
-  out=$(GH_REPO="$REPO" gh "$@" 2>"$TMPERR") || rc=$?
+  out=$(GH_HOST="${REPO%%/*}" GH_REPO="$REPO" gh "$@" 2>"$TMPERR") || rc=$?
   if [[ $rc -ne 0 ]]; then
     relay_gh_failure "$rc" "$out"
     # The EXIT trap does not fire when this runs inside $(...): the
@@ -198,7 +198,7 @@ read_ticket_id() {
 verify_ticket() {
   local out rc=0
   TMPERR=$(mktemp)
-  out=$(GH_REPO="$REPO" gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>"$TMPERR") || rc=$?
+  out=$(GH_HOST="${REPO%%/*}" GH_REPO="$REPO" gh issue view "$1" --json state,title --jq '(.state|ascii_downcase), .title' 2>"$TMPERR") || rc=$?
   if [[ $rc -ne 0 ]]; then
     echo "error: ticket #$1 not found:" >&2
     relay_gh_failure "$rc" "$out"
@@ -216,7 +216,7 @@ fetch_labels() {
 
 label_exists() { grep -qxF -- "$1" <<< "$REPO_LABELS"; }
 
-# gh's --label/--add-label flags comma-split their values; a comma label
+# gh's --label/--add-label/--remove-label flags comma-split their values; a comma label
 # would silently become two.
 check_label_value() {
   if [[ "$1" == *,* ]]; then
@@ -324,21 +324,49 @@ issue_db_id() {
   run_gh api "repos/{owner}/{repo}/issues/$1" --jq '.id'
 }
 
-# Prints the parent's number; prints nothing when the issue has none (the
+# Prints a verified current-repository parent's number; foreign parents are
+# refused with their canonical URL before a number can address a local issue.
+# Prints nothing when the issue has none (the
 # endpoint 404s with a distinct message for that case — any other failure
 # is a real backend error).
 fetch_parent() {
-  local out rc=0
+  local out rc=0 number url parent_repo local_repo origin_host
   TMPERR=$(mktemp)
-  out=$(GH_REPO="$REPO" gh api "repos/{owner}/{repo}/issues/$1/parent" --jq '.number' 2>"$TMPERR") || rc=$?
+  out=$(GH_HOST="${REPO%%/*}" GH_REPO="$REPO" gh api "repos/{owner}/{repo}/issues/$1/parent" --jq '"\(.number)\t\(.html_url)"' 2>"$TMPERR") || rc=$?
   if [[ $rc -eq 0 ]]; then
     rm -f "$TMPERR"
     TMPERR=""
-    if ! [[ "$out" =~ ^[0-9]+$ ]]; then
+    number=${out%%$'\t'*}
+    url=${out#*$'\t'}
+    if ! [[ "$number" =~ ^[0-9]+$ &&
+            "$url" =~ ^https://[^/[:space:]]+/[^/[:space:]]+/[^/[:space:]]+/issues/[0-9]+$ &&
+            "${url##*/}" == "$number" ]]; then
       echo "error: malformed parent relation response for ticket #$1" >&2
       exit 4
     fi
-    printf '%s' "$out"
+    parent_repo=${url#https://}
+    parent_repo=${parent_repo%/issues/*}
+    parent_repo=$(tr '[:upper:]' '[:lower:]' <<< "$parent_repo")
+    # GitHub redirects an old origin after a rename or transfer. Compare the
+    # canonical repository returned by the backend, keeping calls on origin's
+    # verified host and refusing an unusable identity before any mutation.
+    local_repo=$(run_gh repo view --json url --jq '.url') || return $?
+    if ! [[ "$local_repo" =~ ^https://[^/[:space:]]+/[^/[:space:]]+/[^/[:space:]]+$ ]]; then
+      echo "error: malformed canonical repository URL for 'origin': $local_repo" >&2
+      exit 4
+    fi
+    local_repo=${local_repo#https://}
+    local_repo=$(tr '[:upper:]' '[:lower:]' <<< "$local_repo")
+    origin_host=$(tr '[:upper:]' '[:lower:]' <<< "${REPO%%/*}")
+    if [[ "${local_repo%%/*}" != "$origin_host" ]]; then
+      echo "error: canonical repository URL is outside the origin host: https://$local_repo" >&2
+      exit 4
+    fi
+    if [[ "$parent_repo" != "$local_repo" ]]; then
+      echo "error: ticket #$1 has unsupported foreign parent: $url — cross-repository parent relations are not supported" >&2
+      exit 9
+    fi
+    printf '%s' "$number"
     return 0
   fi
   if grep -q "No parent issue found" "$TMPERR" || grep -q "No parent issue found" <<< "$out"; then
@@ -353,7 +381,7 @@ fetch_parent() {
 
 fetch_deps() {
   local out d
-  out=$(run_gh api "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" --jq '.[].number') || return $?
+  out=$(run_gh api "repos/{owner}/{repo}/issues/$1/dependencies/blocked_by" --paginate --jq '.[].number') || return $?
   if [[ -z "$out" ]]; then return 0; fi
   while IFS= read -r d; do
     if ! [[ "$d" =~ ^[0-9]+$ ]]; then
@@ -432,7 +460,7 @@ case "$cmd" in
     # that need a network round-trip (issues enabled, origin actually a
     # GitHub repo). Mutating commands rely on gh's own errors instead of
     # paying this probe on every call.
-    if ! probe=$(GH_REPO="$REPO" gh repo view --json hasIssuesEnabled --jq '.hasIssuesEnabled' 2>&1); then
+    if ! probe=$(GH_HOST="${REPO%%/*}" GH_REPO="$REPO" gh repo view --json hasIssuesEnabled --jq '.hasIssuesEnabled' 2>&1); then
       echo "error: cannot resolve a GitHub repository for 'origin':" >&2
       truncate_lines <<< "$probe" >&2
       exit 3
@@ -837,6 +865,7 @@ case "$cmd" in
       run_gh issue edit "$id" --add-label "$add" >/dev/null
       echo "#$id labels: +$add"
     else
+      check_label_value "$remove"
       if ! grep -qxF "$remove" <<< "$current"; then
         echo "error: #$id does not have label: $remove" >&2
         exit 9
@@ -883,8 +912,9 @@ case "$cmd" in
     # No-op changes are refusals (exit 9), not silent successes — the
     # current state is read before mutating, via plain assignments so a
     # failed read aborts (exit 4) instead of passing as "no match".
-    # GitHub itself rejects cycles and cross-repo targets; those errors
-    # are relayed verbatim. Each mutation is confirmed before the re-read
+    # Inputs name local targets; foreign parents are refused by fetch_parent.
+    # GitHub rejects cycles; those errors are relayed verbatim.
+    # Each mutation is confirmed before the re-read
     # report below, so a failed re-read cannot mask an applied change.
     case "$op" in
       add-dep)

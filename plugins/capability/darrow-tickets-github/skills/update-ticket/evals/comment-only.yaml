@@ -33,6 +33,7 @@ fixture:
           case "$1" in
             -X) method=$2; shift 2 ;;
             --jq) shift 2 ;;
+            --paginate) shift ;;
             -F)
               case "$2" in
                 issue_id=*) f_issue=${2#issue_id=} ;;
