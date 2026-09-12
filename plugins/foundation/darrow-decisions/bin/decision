@@ -18,7 +18,7 @@ USAGE
 }
 
 CATALOG_NAME=README.md
-CATALOG_FORMAT=darrow-adr-catalog-v1
+CATALOG_FORMAT=darrow-adr-catalog-v2
 
 die() {
   printf 'error: %s\n' "$1" >&2
@@ -338,29 +338,10 @@ relative_to_root() {
 }
 
 current_fingerprint() {
-  local file=$1 relative staged index_flag diff_status fingerprint
-  relative=$(relative_to_root "$file")
-  staged=$(git -C "$ROOT" ls-files --stage -- "$relative" 2>/dev/null || true)
-  if [[ -n "$staged" && "$staged" != *$'\n'* ]]; then
-    index_flag=$(git -C "$ROOT" ls-files -v -- "$relative" 2>/dev/null) || die "cannot inspect Git index flags for ADR: $file"
-    if [[ "$index_flag" != "H $relative" ]]; then
-      fingerprint=$(git -C "$ROOT" hash-object --path="$relative" "$file" 2>/dev/null) || die "cannot fingerprint ADR file: $file"
-      [[ $fingerprint =~ ^[0-9a-f]+$ ]] || die "cannot fingerprint ADR file: $file"
-      printf '%s' "$fingerprint"
-      return
-    fi
-    diff_status=0
-    git -C "$ROOT" diff-files --quiet -- "$relative" >/dev/null 2>&1 || diff_status=$?
-    if [[ $diff_status -eq 0 ]]; then
-      fingerprint=${staged#* }
-      fingerprint=${fingerprint%% *}
-      [[ $fingerprint =~ ^[0-9a-f]+$ ]] || die "cannot parse Git fingerprint for ADR: $file"
-      printf '%s' "$fingerprint"
-      return
-    fi
-    [[ $diff_status -eq 1 ]] || die "cannot compare ADR with the Git index: $file"
-  fi
-  fingerprint=$(git -C "$ROOT" hash-object --path="$relative" "$file" 2>/dev/null) || die "cannot fingerprint ADR file: $file"
+  local file=$1 fingerprint
+  # The parser consumes worktree bytes. Clean filters and refreshed index
+  # entries can equate different metadata, so neither proves those bytes.
+  fingerprint=$(git -C "$ROOT" hash-object --no-filters "$file" 2>/dev/null) || die "cannot fingerprint ADR file: $file"
   [[ $fingerprint =~ ^[0-9a-f]+$ ]] || die "cannot fingerprint ADR file: $file"
   printf '%s' "$fingerprint"
 }
@@ -606,6 +587,9 @@ build_inventory() {
       return 0
     }
     function report(message) {print message}
+    function was_accepted(value) {
+      return value == "Accepted" || value == "Deprecated" || value == "Superseded"
+    }
     function validate_relations(id, value, kind, count, part, seen, i, target) {
       if (value == "") return
       count = split(value, part, ",")
@@ -633,7 +617,7 @@ build_inventory() {
           if (status[target] != "Superseded") report(path[id] ": " target " must have status Superseded")
           if (!contains(superseded_by[target], id)) report(path[id] ": " target " does not reciprocate Superseded by " id)
         } else {
-          if (status[target] != "Accepted") report(path[id] ": replacement " target " must have status Accepted")
+          if (!was_accepted(status[target])) report(path[id] ": replacement " target " must have status Accepted, Deprecated, or Superseded")
           if (!contains(supersedes[target], id)) report(path[id] ": " target " does not reciprocate Supersedes " id)
         }
       }
@@ -668,7 +652,7 @@ build_inventory() {
     END {
       for (record = 1; record <= record_count; record++) {
         id = ids[record]
-        if (supersedes[id] != "" && status[id] != "Accepted") report(path[id] ": Supersedes is allowed only on an Accepted replacement")
+        if (supersedes[id] != "" && !was_accepted(status[id])) report(path[id] ": Supersedes is allowed only on an Accepted, Deprecated, or Superseded replacement")
         if (superseded_by[id] != "" && status[id] != "Superseded") report(path[id] ": Superseded by requires status Superseded")
         if (superseded_by[id] == "" && status[id] == "Superseded") report(path[id] ": status Superseded requires Superseded by")
         validate_relations(id, supersedes[id], "Supersedes")
@@ -751,7 +735,7 @@ parse_catalog_rows() {
     /^# ADR Catalog$/ {heading++; next}
     /^This checked-in catalog is derived, non-authoritative metadata\. ADR files remain canonical\.$/ {description++; next}
     /^Rebuild it with `decision catalog rebuild` and verify it with `decision catalog check`\.$/ {instructions++; next}
-    /^<!-- darrow-adr-catalog-v1 -->$/ {format++; next}
+    /^<!-- darrow-adr-catalog-v2 -->$/ {format++; next}
     /^## / {
       current = substr($0, 4)
       if (current !~ /^(Proposed|Accepted|Rejected|Deprecated|Superseded)$/ || section[current]++) fail()
@@ -833,48 +817,28 @@ collect_catalog_files() {
 }
 
 catalog_is_fresh() {
-  local catalog=$1 fingerprint basename identifier title status date summary supersedes superseded_by revisit crc bytes link staged relative_dir relative_catalog catalog_flag signature actual_crc actual_bytes
+  local catalog=$1 fingerprint basename identifier title status date summary supersedes superseded_by revisit crc bytes link current relative_catalog catalog_flag signature actual_crc actual_bytes
   [[ -e "$catalog" || -L "$catalog" ]] || return 10
   [[ ! -L "$catalog" && -f "$catalog" ]] || return 12
   [[ -r "$catalog" ]] || return 11
   relative_catalog=$(relative_to_root "$catalog")
-  git -C "$ROOT" cat-file -e "HEAD:$relative_catalog" 2>/dev/null || return 13
+  git -C "$ROOT" cat-file blob "HEAD:$relative_catalog" > "$DECISION_TMP/committed-catalog" 2>/dev/null || return 13
   catalog_flag=$(git -C "$ROOT" ls-files -v -- "$relative_catalog" 2>/dev/null) || return 13
   [[ "$catalog_flag" == "H $relative_catalog" ]] || return 13
-  git -C "$ROOT" diff --quiet HEAD -- "$relative_catalog" >/dev/null 2>&1 || return 13
+  # Compare the parsed catalog itself without clean filters or index shortcuts.
+  cmp -s "$catalog" "$DECISION_TMP/committed-catalog" || return 13
   parse_catalog_rows "$catalog" || return 12
   collect_catalog_files || return 13
   cmp -s "$CATALOG_NAMES" "$CATALOG_ACTUAL_NAMES" || return 13
-  relative_dir=$(relative_to_root "$ADR_DIR")
-  git -C "$ROOT" ls-files --stage -z -- "$relative_dir" > "$DECISION_TMP/catalog-staged0" 2>/dev/null || return 13
-  tr '\000' '\n' < "$DECISION_TMP/catalog-staged0" > "$DECISION_TMP/catalog-staged" || return 13
-  git -C "$ROOT" ls-files -v -z -- "$relative_dir" > "$DECISION_TMP/catalog-flags0" 2>/dev/null || return 13
-  tr '\000' '\n' < "$DECISION_TMP/catalog-flags0" > "$DECISION_TMP/catalog-flags" || return 13
-  git -C "$ROOT" diff-files --name-only -z -- "$relative_dir" > "$DECISION_TMP/catalog-modified0" 2>/dev/null || return 13
-  tr '\000' '\n' < "$DECISION_TMP/catalog-modified0" > "$DECISION_TMP/catalog-modified" || return 13
-  if ! DECISION_SEP=$SEP STAGED_FILE="$DECISION_TMP/catalog-staged" FLAGS_FILE="$DECISION_TMP/catalog-flags" MODIFIED_FILE="$DECISION_TMP/catalog-modified" LC_ALL=C awk '
-    FILENAME == ENVIRON["STAGED_FILE"] {
-      tab = index($0, "\t"); if (!tab) next
-      prefix = substr($0, 1, tab - 1); name = substr($0, tab + 1); sub(/^.*\//, "", name)
-      split(prefix, fields, " "); if (fields[3] == "0") staged[name] = fields[2]
-      next
-    }
-    FILENAME == ENVIRON["FLAGS_FILE"] {
-      flag = substr($0, 1, 1); name = substr($0, 3); sub(/^.*\//, "", name)
-      ordinary[name] = (flag == "H")
-      next
-    }
-    FILENAME == ENVIRON["MODIFIED_FILE"] {name = $0; sub(/^.*\//, "", name); modified[name] = 1; next}
-    {split($0, fields, ENVIRON["DECISION_SEP"]); name = fields[2]; current = ""; if (ordinary[name] && !modified[name] && name in staged) current = staged[name]; print $0 ENVIRON["DECISION_SEP"] current}
-  ' "$DECISION_TMP/catalog-staged" "$DECISION_TMP/catalog-flags" "$DECISION_TMP/catalog-modified" "$CATALOG_ROWS" > "$DECISION_TMP/catalog-current"; then return 13; fi
-  while IFS=$'\034' read -r fingerprint basename identifier title status date summary supersedes superseded_by revisit crc bytes link staged; do
+  while IFS=$'\034' read -r fingerprint basename identifier title status date summary supersedes superseded_by revisit crc bytes link; do
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$fingerprint" "$basename" "$link" "$identifier" "$title" "$status" "$date" "$summary" "$supersedes" "$superseded_by" "$revisit" > "$DECISION_TMP/catalog-signature"
     signature=$(cksum < "$DECISION_TMP/catalog-signature") || return 12
     actual_crc=${signature%% *}; signature=${signature#* }; actual_bytes=${signature%% *}
     [[ "$actual_crc" == "$crc" && "$actual_bytes" == "$bytes" ]] || return 12
-    [[ -n "$staged" && "$staged" == "$fingerprint" ]] || return 13
-  done < "$DECISION_TMP/catalog-current"
+    current=$(current_fingerprint "$ADR_DIR/$basename") || return 13
+    [[ "$current" == "$fingerprint" ]] || return 13
+  done < "$CATALOG_ROWS"
   return 0
 }
 
@@ -1039,7 +1003,7 @@ run_catalog_rebuild() {
   if [[ -e "$CATALOG_PATH" || -L "$CATALOG_PATH" ]]; then
     [[ ! -L "$CATALOG_PATH" && -f "$CATALOG_PATH" ]] || die "ADR catalog is not a regular file: $CATALOG_PATH"
     [[ -r "$CATALOG_PATH" ]] || die "ADR catalog is not readable: $CATALOG_PATH"
-    LC_ALL=C grep -F -x -- "<!-- $CATALOG_FORMAT -->" "$CATALOG_PATH" >/dev/null 2>&1 || \
+    LC_ALL=C grep -F -x -e "<!-- $CATALOG_FORMAT -->" -e "<!-- darrow-adr-catalog-v1 -->" -- "$CATALOG_PATH" >/dev/null 2>&1 || \
       die "refusing to replace a README without the derived ADR catalog marker: $CATALOG_PATH" 4
   fi
   if ! build_inventory; then cat "$ERRORS" >&2; exit 4; fi

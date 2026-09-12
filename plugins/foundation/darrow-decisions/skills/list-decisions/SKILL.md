@@ -50,7 +50,8 @@ bash <skill-dir>/../../bin/decision list [--dir <adr-dir>] \
 ```
 
 For an inventory, status filter, or relationship filter, the facade may answer
-from a fresh `README.md` ADR catalog without reading ADR bodies. A literal
+from a fresh `README.md` ADR catalog without parsing ADR bodies. Freshness checks
+fingerprint the canonical worktree bytes without Git content conversion. A literal
 subject or full-text filter always scans every ADR body, including when the term
 is absent from every Summary. A missing, unreadable, malformed, or stale catalog
 warns and safely falls back to a full ADR scan. Do not suppress that warning,

@@ -53,6 +53,12 @@ missing, unreadable, malformed, or stale, preserving compatibility with
 repositories that have not adopted the catalog and ensuring stale catalog data
 cannot hide a decision.
 
+Freshness fingerprints raw worktree bytes, so Git clean filters and index
+refreshes cannot hide changed ADR metadata. Metadata filters still use the
+catalog without parsing ADR bodies. Older v1 catalogs warn and fall back until
+`catalog rebuild` upgrades them to v2. Historical supersession links remain valid
+when an accepted replacement later becomes Deprecated or Superseded.
+
 ## Design boundaries
 
 - `Accepted` always requires explicit user or repository authority; the plugin

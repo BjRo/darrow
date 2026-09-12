@@ -105,7 +105,10 @@ canonical `Summary`, `Context`, `Decision`, and `Consequences`. `Supersedes`,
 - **DM-11 — Reciprocal supersession.** A superseding ADR names every replaced
   ADR in `Supersedes`; each replaced ADR has status `Superseded` and names the
   replacement in `Superseded by`. Targets must exist, identifiers must be
-  unique, and the relationship graph must be acyclic.
+  unique, and the relationship graph must be acyclic. A replacement must have
+  taken effect: `Accepted`, `Deprecated`, or `Superseded`. Its historical
+  reciprocal links remain valid after it transitions from `Accepted` to
+  `Deprecated` or `Superseded`; `Proposed` and `Rejected` cannot replace an ADR.
 - **DM-12 — Revisit conditions are triggers, not transitions.** `Revisit when`
   records an observable condition tied to an assumption or trade-off. Satisfying
   it opens review; it never changes status automatically.
@@ -176,6 +179,11 @@ when` at 500 bytes.
   catalog exists. Rebuild and freshness operations refuse unsafe or unreadable
   input and emit absolute model-facing paths. Rebuild refuses to replace an
   existing `README.md` that lacks the derived-catalog marker.
+  Fingerprints cover the canonical worktree bytes without Git content conversion.
+  Filtered blob or index equivalence cannot prove freshness for ADRs or their
+  catalog, including after an index refresh. Catalogs written with the older
+  filtered-fingerprint format cannot prove freshness; discovery warns and scans
+  the ADRs, and an explicit rebuild upgrades that derived catalog in place.
 - **DM-21 — Deterministic catalog lifecycle.** `catalog rebuild` writes the
   complete Markdown catalog atomically in byte-stable order, and `catalog check`
   verifies its format, directory membership, fingerprints, visible metadata,
@@ -267,7 +275,8 @@ canonical repository surfaces when the query is not ADR-only.
   Never present a partial or inferred inventory as complete.
 - **DM-L5 — Use catalog metadata; scan bodies for subjects.** Listing may use a
   fresh ADR catalog for complete inventory and metadata, status, or relationship
-  filters without reading ADR bodies. Literal subject or full-text search always
+  filters without parsing ADR bodies; freshness still fingerprints their raw
+  bytes. Literal subject or full-text search always
   scans every ADR body and preserves its exact result set, including terms absent
   from Summary metadata. When catalog freshness cannot be proved, listing warns
   and scans all ADRs so stale data cannot hide a record. A catalog row is never
