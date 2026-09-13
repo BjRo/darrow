@@ -53,17 +53,29 @@ checks:
       tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
-      awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" &&
-      $3 == "applicable" && $4 == "blocked" &&
-      $5 ~ /^exited 127: required external verifier is unavailable/ { found=1 }
-      END { exit found ? 0 : 1 }' "$record" &&
+      check_row=$(awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" &&
+      $3 == "applicable" && $4 == "blocked" { print; found++ }
+      END { exit found == 1 ? 0 : 1 }' "$record") &&
+      artifact_dir=$(dirname "$record") && captured=false &&
+      for capture in "$artifact_dir"/check-*.tsv; do
+      test -f "$capture" || continue;
+      if grep -F -x 'format	darrow-review-check-v1' "$capture" >/dev/null &&
+      grep -F -x "$check_row" "$capture" >/dev/null; then captured=true; fi;
+      done && test "$captured" = true &&
       awk -F '\t' '$1 == "evidence_gap" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       awk -F '\t' '$1 == "regression" { found=1 } END { exit found ? 1 : 0 }' "$record" &&
       awk -F '\t' '$1 == "outcome" && $2 == "blocked" { found=1 } END { exit found ? 0 : 1 }' "$record"
   - name: final response is the complete rendered verification report
     run: >-
-      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" &&
-      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      test -n "$record" &&
+      report=$(dirname "$record")/verification.md &&
+      test -r "$report" && test -s "$report" &&
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      test -n "$tool" &&
+      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
+      awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
