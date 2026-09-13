@@ -77,7 +77,8 @@ checks:
       test -n "$tool" &&
       test -n "$record" && bash "$tool" validate-verification "$record" &&
       grep -F 'outcome	clear' "$record" >/dev/null &&
-      test "$(grep -c '^attempt.*resolved.*resolved' "$record")" -eq 3
+      awk -F '\t' '$1 == "attempt" { count++; if ($3 != "resolved" || $4 != "resolved") invalid=1 }
+      END { exit !(count == 3 && !invalid) }' "$record"
   - name: both fix verifiers retain exact default route evidence
     run: >-
       selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
@@ -160,10 +161,17 @@ checks:
       done; test "$standards_batch" = "$spec_batch" || exit 1; fi
   - name: final response is the complete rendered verification report
     run: >-
-      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" &&
-      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      test -n "$record" &&
+      report=$(dirname "$record")/verification.md &&
+      test -r "$report" && test -s "$report" &&
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      test -n "$tool" &&
+      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
+      awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
   - name: verification response renders values as ordinary Markdown text
     run: >-

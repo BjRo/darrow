@@ -426,6 +426,13 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     advisory, progressing and unchanged blockers, repeated and oscillating
     targets, a repair-caused regression, an unrelated observation excluded from
     scope, unavailable evidence, and exact-target read-only operation.
+    Acceptance checks compare finding states by TSV field, rather than matching
+    state words inside free-form evidence. Verification presentation checks
+    independently render the validated TSV and compare both the retained report
+    and final response with that rendering; matching two coordinator-authored
+    summaries is insufficient. Unavailable-check evidence is compared with the
+    captured canonical check row rather than a separately prescribed diagnostic
+    sentence.
 14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
     evidence covers bundled Sol/xhigh and Opus/xhigh defaults, repository
     overrides in a config that may also contain adaptive-delivery routes, direct
@@ -458,6 +465,8 @@ recorded in
 Reviewer-route control/candidate results, native passing evidence, and their
 surface-specific limitations are recorded in
 [`code-review-reviewer-routing-trials.md`](../research/code-review-reviewer-routing-trials.md).
+The Codex variance investigation and follow-up matrix for issue 108 are recorded
+in [`code-review-stabilization-issue-108.md`](../research/code-review-stabilization-issue-108.md).
 
 ## Non-goals
 

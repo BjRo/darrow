@@ -92,8 +92,17 @@ checks:
       test "$actual" = "$expected"
   - name: final response is the complete rendered verification report
     run: >-
-      report=$(find .git -path '*/darrow-review.*/*' -name verification.md -type f | sort | tail -n 1) &&
-      test -n "$report" &&
-      awk 'NF' "$report" >.git/expected-verification-normalized.md &&
+      previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
+      previous_relative=${previous_path#"$PWD"/} &&
+      record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
+      test -n "$record" &&
+      report=$(dirname "$record")/verification.md &&
+      test -r "$report" && test -s "$report" &&
+      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      test -n "$tool" &&
+      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
+      awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
