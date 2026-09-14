@@ -5,6 +5,16 @@ description: Independently review one exact current code change and report its f
 
 # Independently review the current change
 
+Accept the originating acceptance criteria, repository standards, current check
+evidence and candidate scope. This deterministic fixture stands in for a fresh
+independent standards and acceptance assessment. Invoke it in a fresh assessment
+context with no implementation discussion; when composed, verification supplies
+that bounded context. It does no implementation or repair. Missing or stale
+required evidence cannot pass. Follow-up preserves original findings, disposition,
+target and repair history and direct-regression lineage; only the closed set is
+assessed. Return clear, material progress, unchanged failure or unavailable
+judgment as observed, preserving the native output and complete check evidence.
+
 Resolve this file's directory and the repository root. For the first
 comprehensive review run exactly:
 

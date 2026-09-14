@@ -229,7 +229,13 @@ axis and report `not_available`. Do not invent requirements.
     set. Every direct regression identifies the attempted original finding
     whose repair caused it.
 19. **CR-C19 — Stable lifecycle and progress.** Original finding keys derive
-    from the original target, axis, and canonical finding order. Every attempted
+    from the original target, axis, and canonical cross-axis finding order.
+    When the original comprehensive result is retained, bundled mechanics copy
+    every original finding without rewriting source, evidence, severity or
+    disposition, and compare that complete ordered set before accepting
+    follow-up output. Complete external handoffs remain supported and must
+    preserve their supplied immutable records and canonical order exactly.
+    Every attempted
     finding is `resolved`, `unresolved`, or `blocked`; unresolved blocking
     evidence is `progressing` or `unchanged`. Duplicate or unknown keys are
     invalid. A newly detected direct regression is progressing for its first

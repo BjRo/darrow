@@ -151,7 +151,7 @@ launch on a non-ready result. If required readiness has no matching advertised
 skill, return `Status: launch_required` with the missing capability and make no
 mutation.
 
-## 4. Select workflow, risk, profile, and review
+## 4. Select workflow, risk, profile, and verification
 
 Select exactly one workflow and read its linked document completely:
 
@@ -181,7 +181,7 @@ Select consequence risk:
 - `high`: security or authorization, destructive or irreversible state,
   privacy, safety, or broad blast radius.
 
-Select the independent-review gate separately:
+Select assurance separately, preserving the independent-review policy:
 
 - routine: omit by default;
 - elevated: select when compatibility, caller impact, or counterexamples need
@@ -189,29 +189,42 @@ Select the independent-review gate separately:
 - high: required;
 - any risk: select when the user or repository requires it.
 
-When selected, bind the exact advertised skill matching independent review of
-the final code change. If none exists, stop before owner launch. The owner runs
-it only after implementation and every applicable current final check
-succeeds. Merely running a required check does not satisfy this dependency. A
-clear result completes the review gate for that content, but cannot waive a
-failed required check. A blocking result permits at most two authorized closed-set
-repair attempts by default, each followed by fix verification. Every attempt
-after the first requires material progress in the preceding verification. An
-explicit finite repair budget may raise or lower the maximum; only clear verification
-permits completion. Read
-[`references/review-lifecycle.md`](references/review-lifecycle.md) completely
-when review is selected.
+An independent-review request selects verification with review as its required
+assessment, including when review is the only selected assessment. Compile two
+distinct bindings: owner -> verification, verification -> independent review.
+Never translate “review only” into a direct owner -> review invocation.
+
+When selected, bind the exact host-advertised verification skill that coordinates
+acceptance assurance and its compatible required independent code-review skill.
+Read both public contracts during preflight. Verify prerequisites, authorized
+effects, result evidence and stop conditions for initial and closed follow-up
+assessment. Use compatible replacements by intent, never provider identity or
+sibling files. The owner invokes verification with the review binding; verification
+owns assessment coordination and review owns its independent judgments.
+
+Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
+completely and compile its shared repair rules into the inline owner contract.
+The owner supplies current successful required checks before assessment. All
+selected results return before one owner repair attempt addresses their combined
+eligible blockers. Default to two attempts total across verification, each
+followed by fresh closed-set verification. Finite explicit overrides and the
+strictest invocation, time, token and authority limits apply across providers.
+Clear current-content evidence ends repair immediately; further attempts require
+material progress and remaining budget. Only a complete clear combined conclusion
+permits completion and remaining publication.
 
 Never omit review for a high-risk change merely because its implementation is
 clear or localized. A stronger user or repository rule may stop implementation
 before launch, but it does not turn the required review into an omission.
 
-Treat review availability as a parent preflight gate. Before any owner launch,
-identify the exact advertised skill for every selected review and bind that
-exact name. If none exists, return `Status: launch_required` with `Reason:
-required independent-review capability unavailable`, make no mutation, and do
-not call a generic subagent. Never launch an owner to discover the absence or
-to substitute self-review, separated local review, or generic-agent review.
+Treat required-provider availability as a parent preflight gate. Missing or
+incompatible verification or required review returns `Status: launch_required`
+with each concrete capability gap before any owner launch or mutation. Identify
+missing independent review even if verification is also absent. Never launch an
+owner to discover the absence, bypass verification with direct review, or
+substitute self-review or a generic-agent review. Additional assessments are
+selected only by the goal; installation alone adds no requirement. A selected
+unsupported QA or evidence operation is a gap, not permission to drop it.
 
 Classify reasoning demand independently:
 
@@ -242,12 +255,13 @@ policy stops launch; do not fall back silently.
 Enumerate the exact authorized operations in the goal. For each operation whose
 intent matches a host-advertised skill, record the exact advertised skill name
 as a required capability binding. Common examples include ticket reads and
-updates, TDD, commits, pull requests, and independent review.
+updates, TDD, commits, pull requests, and verification with its required review.
 
 Readiness and necessary read-only input gathering are invoked by the parent
 before launch. Preserve completed input evidence in the contract and bind any
-needed refresh. All implementation, verification, review, and publication
-bindings are invoked by the owner when due. A direct shell, Git, forge,
+needed refresh. Implementation, verification, and publication bindings are
+invoked by the owner when due; assessment-provider bindings travel through
+verification with the same authority and response boundary. A direct shell, Git, forge,
 tracker, or generic-subagent call is not a substitute for a bound skill. If the
 skill refuses or becomes unavailable, stop that operation without expanding
 authority.
@@ -278,6 +292,13 @@ adds commit, push, pull-request, merge, release, or deployment authority.
 
 ## 6. Compile one inline contract
 
+For an existing candidate with assessment-before-change intent, begin the
+execution sequence with current checks and bound verification of that unchanged
+candidate. Classifier inspection cannot supply its independent finding set or
+authorize skipping that first assessment. Preserve this order even when the
+needed edit is obvious; repairs following selected findings consume the shared
+allowance and cannot be relabeled as free implementation.
+
 Write a concise, self-contained contract containing:
 
 - outcome and observable acceptance criteria;
@@ -286,7 +307,8 @@ Write a concise, self-contained contract containing:
   route, and any explicit budget;
 - focused feedback checks and final-tree checks;
 - readiness evidence or the reason it was omitted;
-- independent-review selection and bound skill when selected;
+- verification selection, bound verification/review skills and selected assessments;
+- the shared repair maximum, consumed attempts, remaining limits and closed history;
 - every required capability binding;
 - the human-feedback and blocker rules below; and
 - the completion evidence the owner must return.
@@ -314,8 +336,8 @@ Outcome: <bounded result>
 Acceptance criteria: <observable outcomes and required implementation properties>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
 Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
-Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; review=<bound skill and finite repair budget, or permitted omission>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
-Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final verification, selected readiness and review outcomes, publication effects, and remaining risks or blockers>
+Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; verification=<bound verification skill, required review binding, selected assessments, or permitted omission>; repair=<maximum two owner attempts total unless explicitly overridden; consumed attempts and strictest remaining invocation/time/token/authority limits; collect all selected results before combined repair; fresh closed follow-up after each attempt; clear ends repair; further attempts require material progress and budget; no reset>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
+Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final checks, readiness, combined verification conclusion and complete selected results, every material criterion's current evidence or gap, finding/target/repair history and consumed budget, publication effects, and remaining risks or blockers>
 ```
 
 Feedback checks exercise the changed seam after coherent slices. Final-tree
@@ -328,10 +350,25 @@ checks are the applicable repository gate plus:
 | high | elevated evidence plus an adversarial boundary or state-transition check and independent review |
 
 Every required focused and final check must succeed against the applicable
-current content before review and before any dependent commit or publication
+current content before selected assessment and before any dependent commit or publication
 effect. If one fails, repair within existing scope and authority and rerun the
 invalidated checks. Otherwise stop before those dependent operations. Do not
 consume a one-commit allowance with content whose required checks are failing.
+
+Compile the verification handoff, not merely a link to its lifecycle reference:
+candidate/repository/scope/base, originating criteria, constraints, successful
+current checks and existing evidence; selected providers and complete results;
+original findings with identities, provenance, severity and blocking/advisory
+disposition, original/prior/current targets, attempted repairs, prior follow-ups
+and carried direct regressions with their causing finding identities. The owner
+waits for every selected result before repair and preserves this history in each
+fresh follow-up, passing unchanged complete original and prior provider artifacts
+by usable absolute reference instead of replacing them with summaries.
+A provider pass cannot cover unassessed criteria. Stale, missing,
+unchanged, oscillating, inconclusive or unavailable required evidence, exhausted
+limits or missing authority stops completion and remaining publication. Advisories
+remain visible and nonblocking. A new comprehensive assessment cannot reset the
+budget or reopen the closed finding set beyond direct repair-caused regressions.
 
 When a stable seam and independent oracle exist, behavior-changing workflows
 add or update focused evidence before the production change and confirm the
@@ -382,8 +419,9 @@ authority, and never launch a replacement owner to deliver feedback.
 
 The owner result must clearly state whether the outcome is complete, awaiting
 feedback, or blocked; `Status: complete` and `Status: blocked` are examples. It must
-state changed files, focused and final verification, readiness and review
-outcomes when applicable, performed publication effects, and remaining risks.
+state changed files, focused and final checks, readiness and the combined
+verification conclusion when selected, complete assessment evidence and criterion
+coverage, consumed repair budget, performed publication effects, and remaining risks.
 Workflow, risk, profile, and route are already established at launch and need
 not be echoed. No other canonical serialization is required.
 
@@ -422,6 +460,12 @@ After acceptance, the parent performs no repository or external work. It may
 only wait, relay user feedback or request status from the same owner, or stop that owner after
 explicit abandonment or supersession.
 
+When the foreground owner returns completion, respond from that result without
+another repository tool call. Final inspection and verification belong to the
+owner; even a read-only confirmation of its report crosses this boundary.
+If its result lacks required evidence, relay that gap instead of checking it
+yourself or claiming completion.
+
 For every message-based relay after acceptance, preserve every instruction and
 constraint from the current user message. Do not summarize or paraphrase in a
 way that drops, weakens, broadens, or converts an implementation property into
@@ -439,7 +483,8 @@ Selected route: <provider/model/effort>
 ## 8. Relay the owner result
 
 Return the owner's result without reconstructing repository facts or running
-checks in the parent. Preserve complete readiness and review results and every
+checks in the parent. Preserve complete readiness and combined verification
+results, selected assessment evidence, consumed repair budget and every
 authorized publication effect. A blocked or feedback-pending owner remains the
 same owner for a later same-thread answer when the host supports continuation.
 

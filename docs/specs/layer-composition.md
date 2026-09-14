@@ -47,8 +47,9 @@ model, branch name, review policy or verification command and does no preflight.
    orchestration selects assurance, feedback and repair policy; capabilities execute
    operations and return their assurance evidence; foundations preserve accepted
    policy. A stronger explicit user or repository rule constrains these choices.
-   Readiness owns assessment, not reassessment scheduling. Review owns its findings,
-   not the enclosing repair budget. Confirmation of a missing material choice belongs
+   Readiness owns assessment, not reassessment scheduling. Verification combines
+   selected assessment evidence; review owns its findings. Neither owns the
+   enclosing repair budget. Confirmation of a missing material choice belongs
    to the owner; established authority survives handoff. Each capability reports its
    operation, the owner reports overall completion, and the recipe relays that result.
 
@@ -63,6 +64,23 @@ conclusion. Review owns independent findings and repair judgments. The active
 owner alone owns implementation, combined repairs, the shared budget,
 continuation and overall completion. This boundary does not change which
 engineering goals select assurance or add a second lifecycle controller.
+
+5. **LC-C5 — Combined verification, shared repair.** Adaptive delivery binds
+   verification and its compatible required review before owner launch when
+   assurance is selected. The owner supplies successful current required checks,
+   the candidate, originating criteria, constraints and existing evidence.
+   Verification collects every selected assessment result before returning
+   combined eligible blockers. One repair attempt is one owner effort addressing
+   those combined blockers, followed by refreshed checks and fresh closed-set
+   verification; provider count never multiplies the budget. The default maximum
+   is two attempts in total, with explicit finite overrides and the strictest
+   invocation, time, token and authority limits preserved across handoffs.
+   Complete finding and target history travels with each follow-up. Clear current
+   evidence ends repair; further attempts require material progress and remaining
+   budget. Missing, stale, inconclusive, unchanged or oscillating required evidence
+   cannot clear completion or remaining publication. A new comprehensive
+   assessment cannot reopen findings or reset this budget. The parent only
+   preflights, launches and relays; no second owner or ledger is introduced.
 
 | Boundary             | Prerequisites and effects                                                                                        | Result evidence and refusal                                                                                                                                                         | Continuation owner                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |

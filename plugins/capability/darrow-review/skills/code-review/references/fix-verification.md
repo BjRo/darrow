@@ -18,6 +18,24 @@ Require all of these caller-owned inputs before reader calls:
   verification exists, including all carried regression records; and
 - current deterministic-check commands and evidence.
 
+When the original comprehensive `result.tsv` is retained, bind its absolute
+path as `original_result` and use its sibling scope manifest for the first
+follow-up. Obtain canonical original records through the bundled helper before
+passing them to readers:
+
+```sh
+bash "$result_tool" original-findings "$original_result"
+```
+
+Copy those returned rows unchanged into the handoff and final verification.
+The order runs across both axes in the original result, not separately per
+axis. Preserve the complete original source and evidence text, including
+advisories; a shorter paraphrase is a changed record. For an external handoff
+without that artifact, preserve the caller's complete immutable finding records
+and canonical order exactly as supplied. A validated prior verification also
+retains those original rows. Missing or incomplete original evidence blocks
+instead of permitting reconstruction from a rendered summary.
+
 Derive each original key as
 `<axis>:<canonical-order>:<original-target>`. Reject duplicate orders or keys,
 attempts outside the original set, a changed original record, or inconsistent
@@ -153,11 +171,19 @@ all carried regression orders. Regression order is its own sequence: when no
 regression is carried, the first new regression has order `1`, regardless of
 the causing original finding's order.
 
-Run:
+When the original comprehensive artifact is retained, run:
 
 ```sh
-bash "$result_tool" validate-verification "$verification_record"
+bash "$result_tool" validate-original "$original_result" "$verification_record"
 ```
+
+This validates the verification schema and compares the complete original
+target and ordered findings against the comprehensive result. A mismatch is a
+serialization error: restore the helper's exact original rows without changing
+reader judgment. For a complete external handoff or validated prior verification,
+compare the original rows byte-for-byte with that authoritative input and run
+ordinary `validate-verification`. Incomplete original evidence only permits a
+blocked record carrying that evidence gap.
 
 The validator derives the outcome: `clear` when all blockers and regressions
 are resolved; `continue` only for materially progressing blockers or

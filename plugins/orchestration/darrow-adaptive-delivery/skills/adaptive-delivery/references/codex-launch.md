@@ -50,6 +50,12 @@ Once the spawn is accepted, the parent performs no repository command,
 inspection, edit, verification, capability invocation, or external effect. Wait
 for the accepted owner and use only its returned facts.
 
+The owner invokes selected verification with the compiled review binding,
+criteria, current checks and closed finding/repair history. Bounded assessment
+contexts return their complete results to verification and then to this owner;
+they inherit scope and authority without owning repairs, budgets or completion.
+The owner waits for the combined conclusion and applies one shared repair budget.
+
 The owner may invoke capability-internal agents when a bound skill requires
 them; those are not replacement adaptive owners. It must not invoke
 `adaptive-delivery` or launch another task beginning with the adaptive-owner marker.

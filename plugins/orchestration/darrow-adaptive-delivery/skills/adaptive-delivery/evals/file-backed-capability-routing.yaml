@@ -2,6 +2,8 @@ id: goal-intent-capability-bindings
 invariant: ADL-C2,ADL-L1,ADL-L2,ADL-S3,ADL-X1
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-verification
 expect_head_change: true
 prompt: >-
   {{skill_invocation}} Read exact ticket 64 from the fixture tracker and
@@ -81,6 +83,14 @@ fixture:
       ---
 
       # Independently review the current change
+
+      Accept the originating acceptance, standards, exact candidate and current
+      successful checks. Run in a fresh assessment context supplied by the
+      verification caller. This deterministic fixture provides independent
+      standards and acceptance assessment, no implementation or publication.
+      Missing or stale evidence cannot clear. Closed follow-up requires original
+      findings, disposition, target/repair history and direct-regression lineage;
+      report unavailable if that evidence or mode cannot be assessed.
 
       Run exactly
       `independent-review-protocol independent-review-skill-contract-v1` after

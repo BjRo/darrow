@@ -203,6 +203,14 @@ repair-caused regression, not by an unscoped new finding. Validate with:
 bash "$result_tool" validate-verification "$verification_record"
 ```
 
+That command validates the record and prior-verification chain. The
+fix-verification workflow also requires `validate-original` whenever the original
+comprehensive result is retained. Obtain
+the immutable rows with `original-findings`; do not retype their evidence or
+assign a new finding order. An external handoff without that artifact still
+requires complete immutable original records, preserved exactly as supplied;
+missing original evidence requires a blocked gap.
+
 In default mode render with:
 
 ```sh

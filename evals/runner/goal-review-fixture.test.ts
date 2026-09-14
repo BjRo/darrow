@@ -15,14 +15,16 @@ const validatorSource = new URL(
 const proofSource = new URL("fixtures/require-clear-review.sh", source);
 const scopeSource = new URL("review-scope", validatorSource);
 
-test("high-risk composition requires the supporting review body read", async () => {
+test("high-risk composition requires verification and supporting review reads", async () => {
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;
   evalCase.owningSkillName = "adaptive-delivery";
   evalCase.skillDir = new URL("..", source).pathname;
   expect(validateActivationCase(evalCase)).toEqual([]);
   expect(evalCase.activation).toBe("positive");
   for (const [skills, passed] of [
-    [["adaptive-delivery", "code-review"], true],
+    [["adaptive-delivery", "verify-change", "code-review"], true],
+    [["adaptive-delivery", "code-review"], false],
+    [["adaptive-delivery", "verify-change"], false],
     [["adaptive-delivery"], false],
   ] as const) {
     const grade = gradeActivation(

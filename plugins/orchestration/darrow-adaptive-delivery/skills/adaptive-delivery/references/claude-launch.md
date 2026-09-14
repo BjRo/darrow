@@ -43,6 +43,12 @@ Once Agent is accepted, the parent performs no repository command, work
 inspection, edit, verification, capability invocation, route-observation shell
 call, or external effect. It relies on the owner result.
 
+The owner invokes selected verification with the compiled review binding,
+criteria, current checks and closed finding/repair history. Bounded assessment
+contexts return their complete results to verification and then to this owner;
+they inherit scope and authority without owning repairs, budgets or completion.
+The owner waits for the combined conclusion and applies one shared repair budget.
+
 The owner may invoke capability-internal agents when a bound skill requires
 them; those are not replacement adaptive owners. It must not invoke
 `adaptive-delivery` or launch another task beginning with the adaptive-owner marker.
@@ -87,3 +93,6 @@ effects return to the user. The parent never repeats capability preflight.
 
 Relay the owner's complete, paused, or blocked result without repository
 inspection or parent-side engineering verification.
+After a completed foreground Agent result, the next parent action is the user
+response. Do not run a final `git status`, read the changed file, or confirm the
+owner's checks. Report missing evidence as a gap in the relayed result.

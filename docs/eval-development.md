@@ -82,6 +82,11 @@ constraints for producing and interpreting that evidence.
   separately from the normalized activation name. This distinguishes namespaced
   plugin dispatch from a same-named command without retaining skill arguments;
   an invocation identifier alone does not prove provider execution or compliance.
+  Adaptive-delivery observations recover deeper Skill dispatch from the native
+  session's completed Agent result graph when the outer stream omits it. Recovery
+  binds session and child identities, preserves chronological skill order and
+  retains only invocation metadata. Missing or inconsistent graph evidence
+  leaves activation incomplete; unrelated transcript files are never evidence.
 - Explicit Codex probes retain the invoked owner first, then verified supporting
   reads. Every supporting read must contain the complete mounted body, including
   the first supporting read. Consecutive pages from the same actor may establish

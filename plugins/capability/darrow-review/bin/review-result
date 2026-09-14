@@ -9,6 +9,8 @@ usage() {
   printf '       %s validate-verification FILE|-\n' "$PROGRAM"
   printf '       %s validate-axis standards|spec FILE|-\n' "$PROGRAM"
   printf '       %s validate-fix-axis standards|spec FILE|-\n' "$PROGRAM"
+  printf '       %s original-findings ORIGINAL_RESULT\n' "$PROGRAM"
+  printf '       %s validate-original ORIGINAL_RESULT VERIFICATION\n' "$PROGRAM"
 }
 
 fail() {
@@ -19,6 +21,54 @@ fail() {
 }
 
 command=${1:-}
+
+if [ "$command" = "original-findings" ] || [ "$command" = "validate-original" ]; then
+  if [ "$command" = "original-findings" ]; then
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+  else
+    [ "$#" -eq 3 ] || { usage >&2; exit 2; }
+  fi
+  original=$2
+  [ "$original" != "-" ] && [ -f "$original" ] && [ -r "$original" ] ||
+    fail 2 "original result is not a readable regular file: $original"
+  "${BASH:-bash}" "$0" validate "$original" >/dev/null ||
+    fail 4 "original result is invalid"
+  if [ "$command" = "original-findings" ]; then
+    awk -F '\t' 'BEGIN { OFS="\t" }
+      $1 == "target" { target=$2 }
+      $1 == "finding" { rows[++n]=$0 }
+      END {
+        for (i=1; i<=n; i++) {
+          split(rows[i], row, FS)
+          print "original_finding", row[2] ":" i ":" target, row[2], i,
+            row[3], row[4], row[5], row[6], row[7]
+        }
+      }' "$original" || exit $?
+    exit 0
+  fi
+  verification=$3
+  [ "$verification" != "-" ] && [ -f "$verification" ] && [ -r "$verification" ] ||
+    fail 2 "verification is not a readable regular file: $verification"
+  "${BASH:-bash}" "$0" validate-verification "$verification" >/dev/null || exit $?
+  awk -F '\t' '
+    NR == FNR {
+      if ($1 == "target") target=$2
+      if ($1 == "finding") rows[++n]=$0
+      next
+    }
+    $1 == "original_target" { if ($2 != target) bad=1 }
+    $1 == "original_finding" {
+      m++
+      split(rows[m], row, FS)
+      expected="original_finding" FS row[2] ":" m ":" target FS row[2] FS m FS row[3] FS row[4] FS row[5] FS row[6] FS row[7]
+      if ($0 != expected) bad=1
+    }
+    END { exit bad || m != n ? 4 : 0 }
+  ' "$original" "$verification" ||
+    fail 4 "verification changed the original target or complete ordered finding set"
+  printf 'valid: original review findings preserved\n'
+  exit 0
+fi
 
 if [ "$command" = "validate-axis" ]; then
   [ "$#" -eq 3 ] || { usage >&2; exit 2; }

@@ -379,11 +379,21 @@ function structuredOwnerContractIssue(
     return "adaptive delivery owner contract has incomplete execution policy";
   if (!ownerDimensions(input))
     return "adaptive delivery owner contract has invalid workflow, risk, or profile";
+  const gates = contractLabelValue(contract, "Verification and gates");
+  const assuranceFields =
+    structuredContractValue(gates, "verification") !== undefined ||
+    structuredContractValue(gates, "repair") !== undefined
+      ? ["verification", "repair"]
+      : ["review"];
   if (
-    !completeStructuredContractField(
-      contractLabelValue(contract, "Verification and gates"),
-      ["readiness", "review", "focused", "final", "feedback", "blockers"],
-    )
+    !completeStructuredContractField(gates, [
+      "readiness",
+      ...assuranceFields,
+      "focused",
+      "final",
+      "feedback",
+      "blockers",
+    ])
   )
     return "adaptive delivery owner contract has incomplete verification or gates";
   const expectedRoute = `codex|openai|${route.model}|${route.effort}`;

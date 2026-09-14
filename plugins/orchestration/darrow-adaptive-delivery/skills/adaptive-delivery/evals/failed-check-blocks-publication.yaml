@@ -2,6 +2,8 @@ id: goal-failed-check-blocks-publication
 invariant: ADL-L1,ADL-L2,ADL-L5,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Add the exact line `Publication waits for green checks.`
   beneath the heading in NOTES.md and make no other content change. This
@@ -41,6 +43,14 @@ fixture:
       ---
 
       # Independently review the current change
+
+      Accept the originating acceptance, standards, exact candidate and current
+      successful checks. Run in a fresh assessment context supplied by the
+      verification caller. This deterministic fixture provides independent
+      standards and acceptance assessment, no implementation or publication.
+      Missing or stale evidence cannot clear. Closed follow-up requires original
+      findings, disposition, target/repair history and direct-regression lineage;
+      report unavailable if that evidence or mode cannot be assessed.
 
       Run exactly `independent-review-protocol` and return its complete output.
     .agents/skills/create-commit/SKILL.md: |

@@ -2,6 +2,8 @@ id: goal-preflight-intent-change-vs-migration
 invariant: ADL-C1,ADL-C2,ADL-L2,ADL-L5,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Migrate the persisted service configuration from v1 `{url}` to
   v2 `{endpoint}`. The writer must emit

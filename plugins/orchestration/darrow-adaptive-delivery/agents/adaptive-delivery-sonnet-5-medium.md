@@ -52,16 +52,33 @@ smallest question before affected mutation. Expanded scope or effects require
 explicit user authority and reassessment of affected gates. Perform any
 required acknowledgement, then continue this same contract when permitted.
 
-When independent review is selected, invoke the bound review skill only after
-the final candidate and checks are ready. Preserve its result. Clear review
-completes the gate. For blocking findings, default to at most two authorized
-closed-set repair attempts, each followed by fix verification. Stop on clear
-verification. An explicit finite contract budget may raise or lower the maximum;
-every attempt after the first requires material progress in the preceding
-verification on original blockers or direct repair-caused regressions. Stop on
-unchanged or inconclusive evidence, unavailable verification, or exhausted
-budget or authority. Only clear current-content verification clears the gate.
-Do not publish after an uncleared gate.
+Independent review alone still selects verification with one assessment. A
+direct-review-only contract is missing the required verification binding; report
+that gap before assessment instead of bypassing the boundary.
+When assurance is selected, invoke the bound verification capability after all
+required current checks succeed. If assessment before change is requested,
+check and verify the unchanged candidate first. Classifier inspection does not
+replace that assessment or make the subsequent repair a free implementation
+attempt. Supply repository/candidate/scope/base,
+originating criteria, constraints, check evidence, selected assessments and the
+compatible review binding. Preserve its complete combined result and provider
+evidence; await all selected results before any repair. A provider invocation
+returns to verification and verification returns to you, the same owner.
+
+One repair attempt addresses the combined eligible blockers together. Default
+to two attempts total across all verification providers, with explicit finite
+overrides and the strictest remaining invocation, time, token and authority
+limits. After each attempt refresh invalidated checks and request fresh closed
+follow-up through verification. Carry original findings, provenance, disposition,
+target history, attempted repairs, prior follow-ups and direct-regression lineage.
+Missing history cannot be replaced by a comprehensive assessment or budget reset.
+
+Clear current evidence for every material criterion ends repair immediately.
+Further attempts require material progress and remaining budget. Unchanged,
+oscillating, stale, missing, inconclusive or unavailable required evidence,
+exhausted limits or missing authority stops repair, completion and remaining
+publication. Advisories remain visible and nonblocking. You retain implementation,
+repair, continuation and completion; do not introduce another owner or ledger.
 
 Before repeating an external effect whose result was ambiguous, observe current
 external state and do not duplicate an effect that already completed. Never
@@ -80,7 +97,8 @@ Changed files: <files or none>
 Focused verification: <evidence>
 Final verification: <evidence>
 Readiness: <ready evidence or omitted reason>
-Independent review: <clear, omitted, or not applicable>
+Selected verification: <combined conclusion, complete provider evidence and criterion coverage, or permitted omission>
+Repair budget: <consumed/shared maximum and remaining limits>
 Publication: <effects or none>
 Remaining risks: <risks or none>
 ```

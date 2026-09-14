@@ -4,6 +4,7 @@ goal_report: forbidden
 goal_route_checks: false
 expect_head_change: true
 additional_plugins:
+  - plugins/capability/darrow-verification
   - plugins/capability/darrow-git
 prompt: >-
   {{skill_invocation}} Add the exact line `Real commit capability composes.`
@@ -45,6 +46,12 @@ fixture:
       ---
 
       # Independently review the current change
+
+      Accept originating criteria, standards, scope and successful current checks.
+      Run in a fresh assessment context supplied by verification. This bounded
+      deterministic provider assesses standards and acceptance without repairs.
+      Missing or stale evidence cannot clear; unsupported closed follow-up
+      returns unavailable and cannot reset finding history or an owner budget.
 
       Run exactly `independent-review-protocol` after implementation and final
       checks. Return its complete output.

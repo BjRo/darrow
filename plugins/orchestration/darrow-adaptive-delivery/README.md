@@ -39,10 +39,11 @@ authority. Necessary read-only ticket or specification retrieval may precede
 readiness and routing.
 
 Capability bindings make intent-based skills part of the contract. If an
-authorized commit, pull request, ticket operation, TDD procedure, or independent
-review matches an advertised skill, the exact skill is bound before launch and
+authorized commit, pull request, ticket operation, TDD procedure, or verification
+matches an advertised skill, the exact skill is bound before launch and
 must be invoked when that operation becomes due. Direct Git, forge, tracker,
 shell, or generic-agent calls are not substitutes for a binding.
+Selected assessment-provider bindings travel through verification to the same owner.
 
 Ticket delivery discovers all local branches correlated with the provider's
 exact opaque token through a compatible Git capability. One match is reused
@@ -78,15 +79,21 @@ Risk is `routine`, `elevated`, or `high` based on consequences. Readiness and
 independent review are selected separately. High-risk work selects independent
 review by default; routine work does not.
 
-Selected review runs through the exact bound review skill after implementation
-and final checks. A clear result completes the gate. A blocking result allows
-at most two authorized closed-set repair attempts by default, each followed by
-fix verification. The second attempt requires material progress on the original
-findings or direct repair-caused regressions. Clear verification ends repair
-immediately; no progress or an uncleared second verification stops the run.
-An explicit finite user or repository budget may raise or lower that maximum,
-while stricter review-invocation, time, token, and authority limits still apply.
-Only clear current-content verification permits completion or remaining publication.
+Selected assurance binds compatible verification and required independent review
+before launch. The owner supplies the candidate, originating criteria, constraints
+and successful current checks to verification. Verification returns all selected
+assessment results and criterion-level evidence before the owner repairs their
+combined eligible blockers. The initial production path uses review only;
+optional QA and evidence packaging remain separate capabilities.
+
+One owner has at most two repair attempts total across verification by default,
+each followed by refreshed checks and fresh closed-set verification. Extra
+providers do not add budgets. Preserve finding and target history and direct
+repair-caused regressions; a new comprehensive assessment cannot reset the limit.
+Clear current evidence ends repair immediately. Further attempts require material
+progress and remaining budget. Missing, stale, unchanged or inconclusive required
+evidence prevents completion and remaining publication. Explicit finite overrides
+and stricter invocation, time, token and authority limits remain in force.
 
 ## Human feedback and blockage
 

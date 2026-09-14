@@ -1,0 +1,25 @@
+id: goal-verification-combined-pending
+invariant: ADL-A4,ADL-V1,LC-C5
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work. The retained
+  owner selected independent review and a compatible QA assessment through
+  verification. Current required checks passed. Review returned an actionable
+  timeout blocker; the QA assessment is still running and may identify a
+  separate blocker. Repair is authorized and no attempt has been used. What is
+  the next owner action?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: collect all results before repair
+    proposition: The response requires the same owner to wait for the pending selected QA result and the combined verification assessment before beginning repair. It does not authorize fixing the review blocker while QA is still pending or start a separate repair owner.
+transcript_checks:
+  - name: advice launches no agent
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
