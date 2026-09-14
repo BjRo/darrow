@@ -1,5 +1,6 @@
 import { cp, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { codexAgentConcurrency } from "./codex-config";
 
 type Harness = "claude" | "codex";
 
@@ -103,8 +104,8 @@ async function copyClaudeCredentials(configRoot: string): Promise<void> {
   }
 }
 
-/** Build an auth-only, private home so user rules, plugins, hooks, and caches
- * cannot influence the evaluated harness. */
+/** Build a private home with auth and the explicit repository concurrency
+ * limit, excluding user rules, settings, plugins, hooks, and caches. */
 export async function isolatedHarnessEnvironment(
   harness: Harness,
   repoDir: string,
@@ -116,6 +117,17 @@ export async function isolatedHarnessEnvironment(
   await mkdir(configRoot, { recursive: true });
   await mkdir(shellRoot, { recursive: true });
   await mkdir(tempRoot, { recursive: true });
+
+  if (harness === "codex") {
+    const limit = codexAgentConcurrency();
+    if (limit !== null) {
+      await writeFile(
+        join(configRoot, "config.toml"),
+        `[agents]\nmax_concurrent_threads_per_session = ${limit}\n`,
+        { mode: 0o600 },
+      );
+    }
+  }
 
   // Codex and Claude may execute tools through `zsh -lc`; macOS path_helper
   // rewrites PATH for login shells. Re-prepend fixture mocks after that system

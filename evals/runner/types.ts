@@ -178,6 +178,8 @@ export interface EvalCase {
 }
 
 export interface HarnessResult {
+  /** Configured Codex subagent limit; null uses the host default. */
+  codexAgentConcurrencyLimit?: number | null;
   /** Actual policy assistance; absent historical evidence remains unknown. */
   evaluationEnforcement?: "passive" | "enforced";
   ok: boolean;
@@ -343,6 +345,8 @@ export interface SemanticOutputResult {
 }
 
 export interface CaseResult {
+  /** Configured Codex subagent limit; historical absence remains unknown. */
+  codexAgentConcurrencyLimit?: number | null;
   /** Requested policy-assistance condition, distinct from actual harness evidence. */
   ownerEvaluationMode?: "passive" | "enforced";
   expectedEffectiveOwnerRoute?: { model: string; effort: string };

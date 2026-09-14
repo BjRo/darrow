@@ -297,6 +297,17 @@ simultaneous trials within each case; the default is `--jobs 3`. Use `--jobs 1`
 for serial diagnosis or rate-limit-sensitive runs. Runs with more than one job
 use per-trial status lines instead of the single active-trial animation.
 
+Codex processes import only `agents.max_concurrent_threads_per_session` from
+this repository's `.codex/config.toml` into their isolated config. Other
+repository settings and user settings remain excluded. The runner captures
+the limit once per process and includes it in the evaluation digest for each
+Codex role. Case and trial results retain `codexAgentConcurrencyLimit`; null
+means the host default, while absent historical evidence remains unknown.
+This limits subagents within one trial and is separate from `--jobs`, which
+limits simultaneous trials. Missing configuration uses the host default;
+unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
+explicitly.
+
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
 

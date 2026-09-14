@@ -36,6 +36,7 @@
     "lint-staged": "^17.0.8",
     "markdown-it": "^15.0.2",
     "prettier": "^3.9.5",
+    "smol-toml": "1.8.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.66.0",
     "yaml": "^2.6.0"

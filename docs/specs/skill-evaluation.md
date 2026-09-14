@@ -241,6 +241,13 @@ credential-free environment and cannot access source worktrees, peer fixtures,
 harness credentials, or modify retained evidence. An unavailable isolation
 boundary is an explicit error.
 
+Codex trials may import the repository's explicit agent-concurrency limit into
+their isolated configuration. They must not inherit unrelated repository or
+user settings. Capture the limit once per runner process, include it in the
+evaluation identity for each Codex role, and retain the configured candidate
+limit in case and trial evidence. A missing limit uses the host default;
+malformed or unreadable configuration is an error.
+
 Each finished trial is persisted atomically, with its complete bounded result
 evidence and case/run provenance, before fixture cleanup or completion feedback.
 A later failure or interruption cannot erase those results. Partial attempts
