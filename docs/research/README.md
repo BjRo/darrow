@@ -20,6 +20,7 @@ for authoritative behavior.
 - [Adaptive goal output-check audit](adaptive-goal-output-check-audit.md)
 - [Reviewer routing trials](code-review-reviewer-routing-trials.md)
 - [Review convergence comparison](review-convergence-issue-32.md)
+- [Verification capability delivery evidence](verification-issue-154.md)
 - [Repository guide delivery evidence](repository-guide-98-delivery.md)
 
 Return to the [documentation hub](../README.md).

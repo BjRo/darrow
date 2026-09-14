@@ -1,0 +1,77 @@
+id: verification-replacement
+invariant: VF-C1,VF-C2,VF-C3,VF-C4,VF-C6,VF-C7
+activation: positive
+prompt: Use {{skill_invocation}} Verify the implementation candidate in this
+  repository, HEAD to WORKTREE, against the objective and every criterion in
+  SPEC.md. Product scope is config.json only; CANDIDATE.txt is supplied identity
+  evidence outside that scope. The supplied current candidate identity is in CANDIDATE.txt. Required
+  check bash check.sh passed on this content. Independent review is the only
+  selected assessment, bound by the caller to the independently installed
+  inspect-candidate capability. Return one assessment; the implementation owner retains
+  all repair and completion decisions.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: >
+          Reviewers may read files and run bash check.sh. Do not edit product
+          files. No network or publication.
+        SPEC.md: |
+          Objective: configure request handling.
+          C1: timeoutMs must equal 2500.
+          C2: retries must equal 3.
+        config.json: |
+          {"timeoutMs":1000,"retries":3}
+        check.sh: >
+          #!/usr/bin/env bash
+
+          set -eu
+
+          test -s config.json
+
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$'
+          config.json
+  files:
+    config.json: |
+      {"timeoutMs":2500,"retries":3}
+  setup: >
+    for host in .agents .claude; do
+      mkdir -p "$host/skills/inspect-candidate"
+      cp "{{case_dir}}/fixtures/inspect-candidate.fixture.md" "$host/skills/inspect-candidate/SKILL.md"
+    done
+
+    printf '/.agents/\n/.claude/\n/CANDIDATE.txt\n' >>.git/info/exclude
+
+    cksum config.json > CANDIDATE.txt
+checks:
+  - name: product candidate remains unchanged
+    run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
+      .git/current-candidate
+  - name: no extra commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: retained report handoff is rendered last
+    run: |
+      test -e .git/inspect-candidate-report.md || exit 0
+      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
+      test "$last" = "Complete provider result: [report](<$report>)" ||
+        test "$last" = "Complete provider result: [report]($report)"
+  - name: complete replacement evidence retained and referenced
+    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+      -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
+semantic_output_checks:
+  - name: current complete review-only conclusion
+    proposition:
+      The response concludes clear verification of the current candidate,
+      with timeoutMs=2500 and retries=3 supported by current independent review
+      and successful required check evidence.
+transcript_checks:
+  - name: provider and independent readers observed
+    expect_regex: '(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"standards"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)[\s\S]+|"name":"Agent"[\s\S]*"name":"Agent"[\s\S]*"name":"Agent"'
+    not_regex: '"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"'
+  - name: replacement provider read
+    expect_regex: inspect-candidate
+  - name: fresh context requested
+    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"'
+  - name: native assessment child observed
+    expect_regex: '"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"'

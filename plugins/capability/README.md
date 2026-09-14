@@ -10,6 +10,7 @@ contracts.
 - [Discovery](darrow-discovery/README.md) clarifies behavior and plans.
 - [TDD](darrow-tdd/README.md) implements behavior test-first.
 - [Review](darrow-review/README.md) independently checks a bounded change.
+- [Verification](darrow-verification/README.md) coordinates acceptance evidence through compatible independent review.
 - [Git](darrow-git/README.md) creates branches, commits, and PRs.
 - [GitHub tickets](darrow-tickets-github/README.md) handles exact tracker operations.
 - [Explanation](darrow-explanation/README.md) gives compact grounded visuals.

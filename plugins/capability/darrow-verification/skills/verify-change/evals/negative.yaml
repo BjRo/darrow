@@ -1,0 +1,42 @@
+id: verification-negative
+invariant: VF-C1
+activation: negative
+prompt: Explain the meaning of timeoutMs in config.json in one sentence.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: >
+          Reviewers may read files and run bash check.sh. Do not edit product
+          files. No network or publication.
+        SPEC.md: |
+          Objective: configure request handling.
+          C1: timeoutMs must equal 2500.
+          C2: retries must equal 3.
+        config.json: |
+          {"timeoutMs":1000,"retries":3}
+        check.sh: >
+          #!/usr/bin/env bash
+
+          set -eu
+
+          test -s config.json
+
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$'
+          config.json
+  files:
+    config.json: |
+      {"timeoutMs":2500,"retries":3}
+  setup: |
+    cksum config.json > CANDIDATE.txt
+checks:
+  - name: product candidate remains unchanged
+    run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
+      .git/current-candidate
+  - name: no extra commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+semantic_output_checks:
+  - name: answer simple question
+    proposition:
+      The response explains a request timeout duration in milliseconds
+      without performing or claiming implementation verification.

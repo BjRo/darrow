@@ -78,6 +78,10 @@ constraints for producing and interpreting that evidence.
   Excluded skills must actually be available in the case's mounted skill set;
   that includes independently installed `additional_plugins` and explicitly
   selected `additional_skills`, not just siblings of the owning skill.
+  Claude's reduced Skill events also retain a bounded exact invocation identifier
+  separately from the normalized activation name. This distinguishes namespaced
+  plugin dispatch from a same-named command without retaining skill arguments;
+  an invocation identifier alone does not prove provider execution or compliance.
 - Explicit Codex probes retain the invoked owner first, then verified supporting
   reads. Every supporting read must contain the complete mounted body, including
   the first supporting read. Consecutive pages from the same actor may establish
@@ -110,6 +114,11 @@ constraints for producing and interpreting that evidence.
   evidence; it cannot establish a complete goal contract or selected/effective
   route equivalence. Retain only bounded identity/route facts and parent work
   observations, without private command or contract contents.
+  Nested Codex reader evidence also binds its task/axis and a nonempty final
+  assistant message to the same turn's subsequent native completion event.
+  An available session or accepted unrelated child is insufficient. These
+  metadata facts establish a returned reader turn, not the correctness of its
+  assessment; combine them with the candidate-bound provider result and checks.
 
 - Native Codex feedback receipts remain `delivery: unverified`; an output
   string can also be an error. The observer records whether a same-target

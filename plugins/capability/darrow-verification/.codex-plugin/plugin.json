@@ -1,0 +1,18 @@
+{
+  "name": "darrow-verification",
+  "version": "0.1.1",
+  "description": "Bounded acceptance verification through replaceable independent code review",
+  "author": { "name": "Björn Rochel", "email": "bjoern@bjro.de" },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Verification",
+    "shortDescription": "Verify a candidate against its acceptance",
+    "longDescription": "Coordinate one initial or targeted follow-up assessment through compatible independent code review, preserving candidate-bound evidence and owner-led repair.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": [
+      "Verify this implementation against its acceptance criteria."
+    ]
+  }
+}

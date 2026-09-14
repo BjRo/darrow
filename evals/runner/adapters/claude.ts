@@ -241,7 +241,15 @@ function retainedSkillBlocks(event: ClaudeResultEnvelope) {
   if (event.type !== "assistant") return [];
   return claudeContent(event).flatMap((block) => {
     const skill = claudeSkillName(block);
-    return skill ? [{ type: "tool_use", name: "Skill", input: { skill } }] : [];
+    if (!skill) return [];
+    const identifier = isRecord(block.input) ? block.input.skill : undefined;
+    const invocation =
+      typeof identifier === "string" &&
+      identifier.length <= 256 &&
+      /^[A-Za-z0-9_.:-]+$/.test(identifier)
+        ? identifier
+        : undefined;
+    return [{ type: "tool_use", name: "Skill", input: { skill, invocation } }];
   });
 }
 

@@ -2479,20 +2479,27 @@ function nativeReadShape(
   };
 }
 
-function nativeParentSkillEvidence(
+async function nativeParentSkillEvidence(
   session: string,
   repoDir: string,
   roots: string | string[],
   options: {
+    configRoot: string;
     children?: Array<{ threadId: string; session: string | undefined }>;
     orderDiagnostic?: Record<string, unknown>;
-  } = {},
-): Pick<CodexNativeSkillEvidence, "preOwnerSkills" | "readDiagnostics"> {
+  },
+): Promise<
+  Pick<CodexNativeSkillEvidence, "preOwnerSkills" | "readDiagnostics">
+> {
   return {
     preOwnerSkills: nativePreOwnerSkillReads(session, repoDir, roots),
     readDiagnostics: [
       ...nativeParentReadDiagnostics(session, repoDir, roots),
       ...nativeChildReadDiagnostics(options.children ?? [], repoDir, roots),
+      ...(await nativeNestedSpawnDiagnostics(
+        options.children ?? [],
+        options.configRoot,
+      )),
       ...(options.orderDiagnostic ? [options.orderDiagnostic] : []),
     ],
   };
@@ -2563,6 +2570,137 @@ function nativeReadPathBinds(
         ),
     )
   );
+}
+
+async function nativeNestedSpawnDiagnostics(
+  children: Array<{ threadId: string; session: string | undefined }>,
+  configRoot: string,
+): Promise<Record<string, unknown>[]> {
+  const records: Record<string, unknown>[] = [];
+  for (const child of children.slice(0, 8)) {
+    if (child.session === undefined) continue;
+    const parsed = codexNativeSessionEntries(child.session);
+    if (parsed.malformed) continue;
+    const requests = parsed.entries.filter((entry) =>
+      isNativeSpawnCall(entry.payload),
+    );
+    for (const entry of requests.slice(0, 8)) {
+      records.push({
+        ...(await nativeNestedSpawnRecord(entry, parsed.entries, configRoot)),
+        parent_child_thread_id: child.threadId,
+        children_truncated: children.length > 8,
+        requests_truncated: requests.length > 8,
+      });
+    }
+  }
+  return records;
+}
+
+function acceptedNestedSpawnStart(
+  entries: CodexNativeSessionEntry[],
+  fields: CodexNativeSpawnFields,
+) {
+  if (!fields.callId) return undefined;
+  const request = { callId: fields.callId, ordinal: fields.ordinal };
+  const start = nativeSpawnStart(entries, request);
+  if (!start) return undefined;
+  const acceptedOrdinal = nativeSpawnAcceptance(
+    entries,
+    request,
+    start.agentRef,
+  );
+  return isAcceptedNativeSpawn(request, start, acceptedOrdinal, true)
+    ? start
+    : undefined;
+}
+
+async function nativeNestedSpawnRecord(
+  entry: CodexNativeSessionEntry,
+  entries: CodexNativeSessionEntry[],
+  configRoot: string,
+): Promise<Record<string, unknown>> {
+  const fields = nativeSpawnFields(entry);
+  const start = acceptedNestedSpawnStart(entries, fields);
+  const session = start
+    ? await codexNativeSessionForThread(configRoot, start.threadId)
+    : undefined;
+  const reader =
+    session === undefined ? undefined : codexNativeSessionEntries(session);
+  return {
+    type: "darrow.codex_native_nested_spawn",
+    status: start ? "accepted" : "unaccepted",
+    ...Object.fromEntries(
+      Object.entries({
+        task_name: fields.taskName,
+        review_axis: fields.reviewAxis,
+        model: fields.model,
+        reasoning_effort: fields.reasoningEffort,
+        fork_turns: fields.forkTurns,
+      }).filter(([, value]) => value !== undefined),
+    ),
+    ...(start ? { child_thread_id: start.threadId } : {}),
+    session_status: !reader
+      ? "unavailable"
+      : reader.malformed
+        ? "malformed"
+        : "available",
+    reader_result_status:
+      reader && !reader.malformed && nativeReaderResultCompleted(reader.entries)
+        ? "completed"
+        : "unavailable",
+  };
+}
+
+/** Observe one returned native reader turn without retaining its private text. */
+function nativeReaderResultCompleted(
+  entries: CodexNativeSessionEntry[],
+): boolean {
+  const finals = entries.filter(
+    ({ payload }) =>
+      payload.type === "item_completed" &&
+      isRecord(payload.item) &&
+      payload.item.type === "AgentMessage" &&
+      payload.item.phase === "final_answer",
+  );
+  const completions = entries.filter(
+    ({ payload }) => payload.type === "task_complete",
+  );
+  if (
+    finals.length !== 1 ||
+    completions.length !== 1 ||
+    entries.some(
+      ({ payload }) =>
+        payload.type === "turn_aborted" || payload.type === "turn_failed",
+    )
+  )
+    return false;
+  const final = finals[0]!;
+  const complete = completions[0]!;
+  const turn = boundedCollaborationIdentifier(final.payload.turn_id);
+  const item = final.payload.item as Record<string, unknown>;
+  const text = nativeFinalMessageText(item.content);
+  if (
+    !turn ||
+    complete.payload.turn_id !== turn ||
+    final.ordinal >= complete.ordinal ||
+    text === undefined
+  )
+    return false;
+  return complete.payload.last_agent_message === text;
+}
+
+function nativeFinalMessageText(content: unknown): string | undefined {
+  if (
+    !Array.isArray(content) ||
+    !content.length ||
+    !content.every(
+      (part) =>
+        isRecord(part) && part.type === "Text" && typeof part.text === "string",
+    )
+  )
+    return undefined;
+  const text = content.map((part) => (part as { text: string }).text).join("");
+  return text.trim().length ? text : undefined;
 }
 
 function nativeReadWorkingDirectory(value: unknown): string | undefined {
@@ -2709,6 +2847,15 @@ interface CodexNativeSkillEvidenceOptions {
   explicitPrimary?: string;
 }
 
+async function nativeChildSessions(parentSession: string, configRoot: string) {
+  return Promise.all(
+    acceptedNativeChildThreadIds(parentSession).map(async (threadId) => ({
+      threadId,
+      session: await codexNativeSessionForThread(configRoot, threadId),
+    })),
+  );
+}
+
 async function codexNativeSkillEvidence(
   options: CodexNativeSkillEvidenceOptions,
 ): Promise<CodexNativeSkillEvidence> {
@@ -2719,12 +2866,7 @@ async function codexNativeSkillEvidence(
     ? await codexNativeSessionForThread(configRoot, threadId)
     : undefined;
   if (!parentSession) return emptyNativeSkillEvidence(initialSkills);
-  const children = await Promise.all(
-    acceptedNativeChildThreadIds(parentSession).map(async (threadId) => ({
-      threadId,
-      session: await codexNativeSessionForThread(configRoot, threadId),
-    })),
-  );
+  const children = await nativeChildSessions(parentSession, configRoot);
   const mountedSkills = mountedSkillBodies(repoDir, installedSkillsRoot);
   const roots = codexTrackedSkillRoots(repoDir, installedSkillsRoot);
   const { attemptedSkills, malformed, nativeSkills, childrenOrdered } =
@@ -2748,10 +2890,16 @@ async function codexNativeSkillEvidence(
     attemptedSkills: [...attemptedSkills],
     malformed,
     orderConsistent: orderConsistent && childrenOrdered,
-    ...nativeParentSkillEvidence(parentSession, repoDir, installedSkillsRoot, {
-      children,
-      orderDiagnostic,
-    }),
+    ...(await nativeParentSkillEvidence(
+      parentSession,
+      repoDir,
+      installedSkillsRoot,
+      {
+        children,
+        orderDiagnostic,
+        configRoot,
+      },
+    )),
   };
 }
 

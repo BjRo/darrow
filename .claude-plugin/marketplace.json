@@ -56,6 +56,11 @@
       "description": "Review pinned changes independently for repository standards and specification fulfillment"
     },
     {
+      "name": "darrow-verification",
+      "source": "./plugins/capability/darrow-verification",
+      "description": "Verify acceptance through replaceable independent review and candidate-bound evidence"
+    },
+    {
       "name": "darrow-observability-langfuse",
       "source": "./plugins/capability/darrow-observability-langfuse",
       "description": "Export Codex rollout turns to Langfuse with work-item attribution"

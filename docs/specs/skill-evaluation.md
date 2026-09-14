@@ -428,6 +428,13 @@ not prove equivalence or savings.
   supply this evidence when CLI stdout does not, but its full transcript never
   enters the retained result. Encrypted child prompts bind review axes through
   one unambiguous bounded task-name token rather than prompt inspection.
+  Bounded nested-reader observations use the same task/axis binding. An
+  available child session alone does not establish a returned assessment:
+  retain completion only when its final assistant message matches the same
+  turn's later native completion event. Missing, ambiguous, malformed or
+  interrupted result evidence remains unavailable. Retain bounded route/axis
+  and completion facts without prompt or result bodies; assessment claims must
+  also be supported by the case's candidate-bound provider result and checks.
 
 - **SE-C25 — Select cases by owning skill.** The direct runner's `--skill`
   filter selects every discovered case colocated with the exact named skill,
