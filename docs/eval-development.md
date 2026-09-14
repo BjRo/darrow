@@ -72,7 +72,9 @@ constraints for producing and interpreting that evidence.
   separately from the task outcome.
 - A composed `activation_sequence` requires the primary owner first and a
   complete mounted body read for every supporting skill. Use
-  `activation_excludes` when a negative case must prove that a named skill was
+  `activation_includes` when supporting skills must be read but their order is
+  not contractual; complete observations and mounted skills remain required.
+  Use `activation_excludes` when a negative case must prove that a named skill was
   absent from the entire observed sequence rather than merely absent as the
   primary selection.
   Excluded skills must actually be available in the case's mounted skill set;

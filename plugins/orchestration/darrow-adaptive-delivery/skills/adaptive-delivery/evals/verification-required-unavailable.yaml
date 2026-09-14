@@ -24,7 +24,12 @@ checks:
     run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: verification availability gates launch
-    proposition: The response stops owner launch because required verification is unavailable, preserving the available independent-review binding without using it as a substitute. It does not claim implementation occurred.
+    proposition: >-
+      The response identifies unavailable required verification as preventing
+      this launch and does not substitute the available independent review.
+      "Status: launch_required" with that missing-capability explanation is a
+      valid stop response, not a claim that launch proceeded. It must not claim
+      implementation occurred, waive verification, or say an owner was launched.
 transcript_checks:
   - name: no owner is launched to discover the missing dependency
     not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'

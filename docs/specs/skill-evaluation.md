@@ -99,6 +99,14 @@ aggregated away.
 
 ### Skill activation
 
+Composition may require supporting skills without imposing an order on their
+preflight reads. `activation_includes` requires every named skill in the complete
+observed skill set; it does not replace the owning-skill expectation or prove
+provider execution. Sequence assertions remain available where order is part of
+the contract. Required membership is validated against the mounted skill set,
+retained in results and evaluation identity, and remains unknown when observation
+is incomplete.
+
 A colocated eval case may declare one activation class:
 
 - `positive` — the owning skill should be the primary selected capability;

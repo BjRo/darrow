@@ -4,7 +4,7 @@ goal_report: forbidden
 goal_route_checks: false
 activation: positive
 mount_plugin_skills: true
-activation_sequence: [adaptive-delivery, verify-change, code-review]
+activation_includes: [verify-change, code-review]
 additional_plugins:
   - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
@@ -53,7 +53,7 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned result.tsv or verification.tsv path}"
+          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned canonical review artifact path}"
   setup: |
     mkdir -p .git/fixture-bin
     cp "{{case_dir}}/fixtures/require-clear-review.sh" .git/fixture-bin/review-proof
@@ -86,7 +86,9 @@ semantic_output_checks:
   - name: high-risk owner reports completion
     proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
   - name: completion reports the semantic review outcome
-    proposition: The response says an independent review of the completed high-risk change found no blocking findings.
+    proposition: >-
+      The response reports that independent review passed or found no blocking
+      findings for the completed change. It need not repeat the risk classification.
 transcript_checks:
   - name: Terra policy route is applied to the high-risk owner
     expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"(?:medium|high)"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")'

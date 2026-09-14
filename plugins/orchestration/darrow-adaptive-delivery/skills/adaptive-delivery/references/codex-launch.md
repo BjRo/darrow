@@ -93,8 +93,15 @@ claim that a replacement is the same goal.
 
 ## Result
 
-Relay the owner's complete or blocked result without reconstructing repository
-facts or running checks in the parent. This relay completes the handoff; do not
-create or close a mirrored current-thread goal with `create_goal` or
-`update_goal`. Absence of a parent-side cleanup control does not invalidate an
-otherwise completed owner.
+Apply the main skill's section 8 completion-evidence check before relaying the
+result. Compare consumed attempts and the returned maximum with the allowance
+retained at launch. Request missing or contradictory accounting from the same
+owner through `followup_task` when idle, or `send_message` when running, then
+wait for its amended status. This correction authorizes no engineering work or
+assessment. If continuation is unavailable, report the evidence gap.
+
+Relay the validated complete result or the owner's blocked result without
+reconstructing repository facts or running checks in the parent. This relay
+completes the handoff; do not create or close a mirrored current-thread goal with
+`create_goal` or `update_goal`. Absence of a parent-side cleanup control does not
+invalidate an otherwise completed owner.

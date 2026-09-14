@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval-only completion gate for the real review plugin's two public formats.
+# Eval-only completion gate for canonical human and machine review artifacts.
 set -euo pipefail
 fail() { printf 'review proof: %s\n' "$*" >&2; exit 1; }
 git_dir=$(git rev-parse --absolute-git-dir)
@@ -15,6 +15,7 @@ esac
 record=$(cd "$(dirname "$record")" && printf '%s/%s\n' "$(pwd -P)" "${record##*/}")
 case "$record" in
   "$git_dir"/darrow-review.*/result.tsv|"$git_dir"/darrow-review.*/verification.tsv) ;;
+  "$git_dir"/darrow-review.*/review.md|"$git_dir"/darrow-review.*/verification.md) ;;
   *) fail "not a canonical fixture review artifact: $record" ;;
 esac
 # Only the installed dependency beneath this isolated fixture is eligible.
@@ -34,12 +35,27 @@ while IFS= read -r candidate; do
   fi
 done <<<"$tools"
 scope_tool=${result_tool%/*}/review-scope
+case "$record" in
+  */review.md|*/verification.md)
+    report=$record
+    report_tool=${result_tool%/*}/review-report
+    [ -f "$report_tool" ] && [ -r "$report_tool" ] || fail 'installed review renderer is missing'
+    case "$report" in
+      */review.md) record=${report%/*}/result.tsv; render=render ;;
+      *) record=${report%/*}/verification.tsv; render='render-verification' ;;
+    esac
+    rendered=$(mktemp "$git_dir/review-proof.XXXXXX")
+    trap 'rm -f "$rendered"' EXIT
+    "${BASH:-bash}" "$report_tool" "$render" "$record" >"$rendered"
+    cmp -s "$rendered" "$report" || fail 'human report differs from its canonical result'
+    ;;
+esac
 field() { awk -F '\t' -v key="$1" '$1 == key { print $2 }' "$2"; }
 format=$(field format "$record")
 case "$format" in
   darrow-review-result-v1)
     [ "${record##*/}" = result.tsv ] || fail 'wrong comprehensive artifact name'
-    bash "$result_tool" validate "$record" >/dev/null
+    "${BASH:-bash}" "$result_tool" validate "$record" >/dev/null
     [ "$(field verdict "$record")" = pass ] || fail 'review is not clear'
     [ "$(field next_action "$record")" = 'return control to enclosing goal' ] ||
       fail 'review did not return control'
@@ -47,7 +63,7 @@ case "$format" in
     ;;
   darrow-review-verification-v1)
     [ "${record##*/}" = verification.tsv ] || fail 'wrong verification artifact name'
-    bash "$result_tool" validate-verification "$record" >/dev/null
+    "${BASH:-bash}" "$result_tool" validate-verification "$record" >/dev/null
     [ "$(field outcome "$record")" = clear ] || fail 'verification is not clear'
     original_target=$(field original_target "$record")
     original=
@@ -58,7 +74,7 @@ case "$format" in
       fi
     done < <(find "$git_dir" -type f -path '*/darrow-review.*/result.tsv')
     [ -n "$original" ] || fail 'original comprehensive result is missing'
-    bash "$result_tool" validate "$original" >/dev/null
+    "${BASH:-bash}" "$result_tool" validate "$original" >/dev/null
     # Compare the full original set, including advisory rows, in canonical order.
     awk -F '\t' '
       NR == FNR {
@@ -82,7 +98,7 @@ case "$format" in
 esac
 if [ "$mode" != artifact ]; then
   [ -f "$scope_tool" ] || fail 'installed review-scope tool is missing'
-  scope=$(bash "$scope_tool" prepare --repo "$PWD" --base HEAD --target WORKTREE)
+  scope=$("${BASH:-bash}" "$scope_tool" prepare --repo "$PWD" --base HEAD --target WORKTREE)
   current_target=$(awk -F '\t' '$1 == "target" { print $2 }' <<<"$scope")
   [ -n "$reviewed_target" ] && [ "$reviewed_target" = "$current_target" ] ||
     fail "stale review target: $reviewed_target; current: $current_target"

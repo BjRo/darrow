@@ -79,17 +79,18 @@ function validateActivationSequence(evalCase: EvalCase): string[] {
   return errors;
 }
 
-function validateActivationExclusions(evalCase: EvalCase): string[] {
-  const exclusions = evalCase.activation_excludes;
-  if (exclusions === undefined) return [];
+function validateActivationMembership(
+  evalCase: EvalCase,
+  field: "activation_excludes" | "activation_includes",
+): string[] {
+  const skills = evalCase[field];
+  if (skills === undefined) return [];
   if (
-    !Array.isArray(exclusions) ||
-    exclusions.length === 0 ||
-    exclusions.some((skill) => typeof skill !== "string" || !skill.trim())
+    !Array.isArray(skills) ||
+    skills.length === 0 ||
+    skills.some((skill) => typeof skill !== "string" || !skill.trim())
   )
-    return [
-      `${evalCase.id}: activation_excludes must be a non-empty skill-name list`,
-    ];
+    return [`${evalCase.id}: ${field} must be a non-empty skill-name list`];
   return [];
 }
 
@@ -102,6 +103,9 @@ export function validateActivationCase(evalCase: EvalCase): string[] {
       evalCase.activation_excludes === undefined
         ? undefined
         : "activation_excludes",
+      evalCase.activation_includes === undefined
+        ? undefined
+        : "activation_includes",
     ].filter((field): field is string => field !== undefined);
     return fields.map(
       (field) => `${evalCase.id}: ${field} requires activation`,
@@ -125,7 +129,8 @@ export function validateActivationCase(evalCase: EvalCase): string[] {
     );
   }
   errors.push(...validateActivationSequence(evalCase));
-  errors.push(...validateActivationExclusions(evalCase));
+  errors.push(...validateActivationMembership(evalCase, "activation_excludes"));
+  errors.push(...validateActivationMembership(evalCase, "activation_includes"));
   return errors;
 }
 
@@ -135,7 +140,18 @@ export async function validateMountedActivationTarget(
   if (evalCase.activation === undefined) return [];
   const target = activationTargetSkill(evalCase);
   const errors: string[] = [];
-  for (const skill of [target, ...(evalCase.activation_excludes ?? [])]) {
+  const requirements = [
+    { skill: target, kind: "target" },
+    ...(evalCase.activation_excludes ?? []).map((skill) => ({
+      skill,
+      kind: "exclusion",
+    })),
+    ...(evalCase.activation_includes ?? []).map((skill) => ({
+      skill,
+      kind: "inclusion",
+    })),
+  ];
+  for (const { skill, kind } of requirements) {
     const available = await Promise.all(
       mountedActivationDirectories(evalCase, skill).map((directory) =>
         access(join(directory, "SKILL.md")).then(
@@ -146,7 +162,7 @@ export async function validateMountedActivationTarget(
     );
     if (!available.some(Boolean)) {
       errors.push(
-        `${evalCase.id}: activation ${skill === target ? "target" : "exclusion"} ${skill} is absent from the mounted skill set`,
+        `${evalCase.id}: activation ${kind} ${skill} is absent from the mounted skill set`,
       );
     }
   }
@@ -177,6 +193,7 @@ function mountedActivationDirectories(
 
 interface ActivationExpectations {
   sequence?: string[];
+  includes?: string[];
   excludes?: string[];
 }
 
@@ -233,11 +250,15 @@ export function gradeActivation(
     observed.observedSkills,
     expectations.excludes,
   );
+  const inclusionsPassed =
+    expectations.includes?.every((skill) =>
+      observed.observedSkills.includes(skill),
+    ) ?? true;
   const passed = activationVerdict(
     activationClass,
     observed.complete,
     primaryPassed,
-    sequencePassed && exclusionsPassed,
+    sequencePassed && exclusionsPassed && inclusionsPassed,
   );
   return {
     class: activationClass,
@@ -247,6 +268,9 @@ export function gradeActivation(
       : {}),
     ...(expectations.excludes
       ? { excludedSkills: [...expectations.excludes] }
+      : {}),
+    ...(expectations.includes
+      ? { requiredSkills: [...expectations.includes] }
       : {}),
     passed,
     source: observed.source,

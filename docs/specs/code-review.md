@@ -153,6 +153,14 @@ axis and report `not_available`. Do not invent requirements.
    remains in this capability when a requested base or target is missing or
    invalid. An invalid base or empty declared diff is reported before spending
    review-model budget.
+   For a resolved scope, copy base, target, and the complete changed-file set
+   from its pinned manifest through bundled mechanics. Before returning a
+   result, validate those records against that manifest, including agreement
+   between its declared changed-file count and complete file records. A
+   schema-valid result with a different identity or missing/extra file is not
+   valid review evidence.
+   Terminal scope failures without a resolved manifest retain their existing
+   blocked-result representation.
 3. **CR-C3 — Complete diff.** The review scope includes every declared staged,
    unstaged, and untracked target file. Reviewers inspect the diff itself, not a
    summary written by the change author. Generated authoritative show and repair

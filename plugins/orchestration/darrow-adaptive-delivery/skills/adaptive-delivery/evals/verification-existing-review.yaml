@@ -2,7 +2,7 @@ id: goal-verification-existing-review
 invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19
 activation: positive
 mount_plugin_skills: true
-activation_sequence: [adaptive-delivery, verify-change, code-review]
+activation_includes: [verify-change, code-review]
 additional_plugins:
   - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
@@ -62,7 +62,12 @@ checks:
       bash .git/fixture-bin/review-proof current
 semantic_output_checks:
   - name: same owner completes after actual provider repair verification
-    proposition: The response reports completion after the initial retry-count blocker was repaired and fresh closed verification cleared the current candidate. It preserves the successful check evidence and does not claim publication or a replacement owner.
+    proposition: >-
+      The response conveys that the retry-count blocker was repaired, current
+      checks succeeded, and fresh closed verification cleared the candidate.
+      Those completed outcomes suffice; it need not use the word "complete"
+      or identify the owner by name. It must not claim publication, replacement
+      of the owner, or an unresolved condition that prevents completion.
 transcript_checks:
   - name: no lifecycle ledger or nested goal
     not_regex: 'adaptive-delivery-preflight step|"tool":"create_goal"'

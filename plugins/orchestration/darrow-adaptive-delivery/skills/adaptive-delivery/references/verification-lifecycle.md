@@ -49,6 +49,13 @@ may raise or lower the maximum, including to zero. Apply the strictest remaining
 invocation, time, token and authority limits across all selected activities.
 An unbounded “keep trying” request never enlarges the default.
 
+Keep the authorized maximum separate from the consumed count. With no explicit
+override, compile maximum 2 and the observed consumed count (normally 0 at
+launch). One successful repair is one consumed out of two allowed, not a
+one-attempt limit. Early clearance stops work without changing that maximum.
+Do not infer an override from a singular repair request or the number of
+findings; identify the actual user/repository source of any override.
+
 Repair only when all unresolved blockers are within the originating scope and
 authority, the combined result supports action and budget remains. Stronger
 checks of the same behavior are permitted. Ineligible blockers stop affected
@@ -80,7 +87,8 @@ follow-up exhausts the budget even when it shows progress.
 No-progress (unchanged, repeated or oscillating failure), blocked/inconclusive/
 unavailable evidence, exhausted limits or missing authority stops repair,
 completion and remaining publication. Preserve the combined conclusion and
-findings, gaps, current target and consumed budget in the owner result. Seek a
-concrete decision or investigate only within existing authority; neither is
+findings, gaps, current target, consumed attempts and authorized repair maximum
+in the owner result. Seek a concrete decision or investigate only within existing
+authority; neither is
 permission for another unsupported repair. Later content edits invalidate clear
 evidence and never replenish the budget. Completion grants no publication rights.

@@ -11,6 +11,8 @@ usage() {
   printf '       %s validate-fix-axis standards|spec FILE|-\n' "$PROGRAM"
   printf '       %s original-findings ORIGINAL_RESULT\n' "$PROGRAM"
   printf '       %s validate-original ORIGINAL_RESULT VERIFICATION\n' "$PROGRAM"
+  printf '       %s scope-records ABSOLUTE_SCOPE_TSV\n' "$PROGRAM"
+  printf '       %s validate-scope ABSOLUTE_SCOPE_TSV RESULT\n' "$PROGRAM"
 }
 
 fail() {
@@ -21,6 +23,61 @@ fail() {
 }
 
 command=${1:-}
+
+if [ "$command" = "scope-records" ] || [ "$command" = "validate-scope" ]; then
+  if [ "$command" = "scope-records" ]; then
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+  else
+    [ "$#" -eq 3 ] || { usage >&2; exit 2; }
+  fi
+  manifest=$2
+  tool_dir=$(cd "$(dirname "$0")" && pwd -P) || fail 2 "cannot resolve bundled tools"
+  "${BASH:-bash}" "$tool_dir/review-scope" show --manifest "$manifest" >/dev/null ||
+    fail 4 "cannot validate pinned scope: $manifest"
+  # Buffer output until all identity records are validated. Never emit a partial
+  # scope when input is unavailable or malformed; preserve literal backslashes.
+  scope_records=$(awk -F '\t' '
+    $1 == "changed_count" {
+      if (NF != 2 || $2 !~ /^[1-9][0-9]*$/ || seen_count++) bad=1
+      declared_count=$2
+    }
+    $1 == "base" || $1 == "target" || $1 == "changed_file" {
+      if (NF != 2 || $2 == "") bad=1
+      if ($1 == "changed_file") {
+        if ($2 !~ /^\// || files[$2]++) bad=1
+        count++
+      } else if (seen[$1]++) bad=1
+      rows[++n]=$0
+    }
+    END {
+      if (!seen["base"] || !seen["target"] || !count || !seen_count ||
+          count != declared_count || bad) exit 4
+      for (i=1; i<=n; i++) print rows[i]
+    }' "$manifest") || fail 4 "invalid scope identity records: $manifest"
+  if [ "$command" = "scope-records" ]; then
+    printf '%s\n' "$scope_records"
+    exit 0
+  fi
+  result=$3
+  [ "$result" != "-" ] && [ -f "$result" ] && [ -r "$result" ] ||
+    fail 2 "result is not a readable regular file: $result"
+  "${BASH:-bash}" "$0" validate "$result" >/dev/null || exit $?
+  # Compare sets, not serialization order. Counts reject duplicated file rows.
+  awk -F '\t' '
+    FILENAME == ARGV[1] {
+      if ($1 == "base" || $1 == "target" || $1 == "changed_file") expected[$0]++
+      next
+    }
+    $1 == "base" || $1 == "target" || $1 == "changed_file" { actual[$0]++ }
+    END {
+      for (row in expected) if (expected[row] != actual[row]) bad=1
+      for (row in actual) if (expected[row] != actual[row]) bad=1
+      exit bad ? 4 : 0
+    }' "$manifest" "$result" ||
+    fail 4 "result base, target, or changed-file set differs from pinned scope: $manifest"
+  printf 'valid: review result matches pinned scope\n'
+  exit 0
+fi
 
 if [ "$command" = "original-findings" ] || [ "$command" = "validate-original" ]; then
   if [ "$command" = "original-findings" ]; then

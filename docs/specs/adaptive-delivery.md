@@ -434,6 +434,14 @@ addresses the combined blockers together, followed by fresh follow-up after
 successful invalidated checks. Provider count never increases this budget.
 An explicit finite nonnegative
 integer user or repository repair budget may change that limit. Apply the
+same authorized maximum in the launch contract and owner report; consumed
+attempts are a separate count. Finishing after one repair does not change the
+default maximum to one or create an implicit override. Resolve the maximum,
+its authority source and the consumed count before launch. Before relaying
+completion, compare the owner's accounting with that bound allowance. Missing
+or contradictory accounting requires corrected status evidence from the same
+owner; obtaining that evidence authorizes no additional repair or assessment.
+Apply the
 strictest applicable invocation, time, token, and authority limit. Additional
 attempts require the preceding verification to show resolved original blockers
 or changed evidence narrowing their cause. Only clear current-content evidence
@@ -532,7 +540,8 @@ The owner returns concise human-readable evidence:
 - changed files or an explicit statement that none changed;
 - focused and final verification evidence;
 - readiness and combined verification outcomes when selected, including complete
-  assessment results, material criterion coverage and consumed repair budget;
+  assessment results, material criterion coverage, consumed repair attempts and
+  the authorized repair maximum;
 - performed publication effects, if any; and
 - remaining risks or blockers.
 
@@ -541,6 +550,10 @@ the launch boundary and need not be echoed in completion prose. They may be
 included for readability, but completion does not depend on their formatting or
 restatement.
 
+The host launch guides return through the same completion-evidence check in the
+main skill. An owner return alone does not bypass that check. Missing or
+contradictory accounting requires a status correction from the retained owner;
+if that owner cannot be resumed, report the evidence gap instead of completion.
 The parent relays those facts without reconstructing them or running additional
 checks. No exact serialization, canonical report prefix, route telemetry row,
 child counter, or interruption counter is required. Goal completion grants no
@@ -746,8 +759,10 @@ The following invariants govern adaptation and evidence provenance:
   routes separately from comparisons changing routes; report sample sizes,
   outcomes, timing, token-accounting completeness, and limitations.
 
-Real review-composition fixtures accept both the comprehensive result and the
-additive fix-verification protocol. Completion consumes an explicitly selected,
+Real review-composition fixtures accept the canonical human report as well as
+the comprehensive and additive fix-verification machine artifacts. The fixture
+may validate a human report against its retained canonical source without making
+callers reconstruct a provider's private serialization. Completion consumes an explicitly selected,
 validated clear artifact covering current content; a verification retains its
 binding to the original comprehensive finding set. Nonblocking advisories do
 not prevent completion. Artifact filename ordering is not evidence of recency

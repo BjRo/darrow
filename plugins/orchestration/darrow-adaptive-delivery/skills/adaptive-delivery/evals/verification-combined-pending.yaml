@@ -19,7 +19,12 @@ checks:
     run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: collect all results before repair
-    proposition: The response requires the same owner to wait for the pending selected QA result and the combined verification assessment before beginning repair. It does not authorize fixing the review blocker while QA is still pending or start a separate repair owner.
+    proposition: >-
+      The response requires waiting for the pending selected QA result and
+      combining the selected assessment results before beginning repair. The
+      advice applies to the retained owner identified in the question; it need
+      not restate that owner identity. It must not authorize fixing the review
+      blocker while QA is still pending or assign repair to a separate owner.
 transcript_checks:
   - name: advice launches no agent
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

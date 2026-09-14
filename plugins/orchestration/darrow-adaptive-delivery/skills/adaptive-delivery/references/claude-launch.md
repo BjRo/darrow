@@ -91,8 +91,12 @@ effects return to the user. The parent never repeats capability preflight.
 
 ## Result
 
-Relay the owner's complete, paused, or blocked result without repository
-inspection or parent-side engineering verification.
-After a completed foreground Agent result, the next parent action is the user
-response. Do not run a final `git status`, read the changed file, or confirm the
-owner's checks. Report missing evidence as a gap in the relayed result.
+Apply the main skill's section 8 completion-evidence check before relaying the
+result. Request missing or contradictory accounting through `SendMessage` to
+the retained owner id and wait for its amended status. This correction
+authorizes no engineering work or assessment. If continuation is unavailable,
+report the evidence gap.
+
+Relay the validated complete result or the owner's paused or blocked result
+without repository inspection or parent-side engineering verification. Do not
+run a final `git status`, read the changed file, or confirm the owner's checks.

@@ -25,6 +25,62 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 describe("skill activation grading", () => {
+  test("supporting read membership accepts either order but not missing or incomplete evidence", () => {
+    for (const observedSkills of [
+      ["adaptive-delivery", "verify-change", "code-review"],
+      ["adaptive-delivery", "code-review", "verify-change"],
+      ["adaptive-delivery", "code-review"],
+    ]) {
+      for (const complete of [true, false]) {
+        const grade = gradeActivation(
+          "positive",
+          "adaptive-delivery",
+          {
+            source: "skill_file_read_probe",
+            complete,
+            primarySkill: "adaptive-delivery",
+            observedSkills,
+          },
+          { includes: ["verify-change", "code-review"] },
+        );
+        expect(grade.passed).toBe(
+          complete ? observedSkills.length === 3 : null,
+        );
+        expect(grade.requiredSkills).toEqual(["verify-change", "code-review"]);
+      }
+    }
+  });
+
+  test("required activation membership must be declared and mounted", async () => {
+    expect(
+      validateActivationCase(evalCase({ activation_includes: ["missing"] })),
+    ).toContain("activation-case: activation_includes requires activation");
+    expect(
+      validateActivationCase(
+        evalCase({ activation: "positive", activation_includes: [] }),
+      ),
+    ).toContain(
+      "activation-case: activation_includes must be a non-empty skill-name list",
+    );
+    const target = evalCase({
+      activation: "positive",
+      owningSkillName: "adaptive-delivery",
+      skillDir: resolve(
+        import.meta.dir,
+        "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery",
+      ),
+      activation_includes: ["verify-change"],
+    });
+    expect(await validateMountedActivationTarget(target)).toContain(
+      "activation-case: activation inclusion verify-change is absent from the mounted skill set",
+    );
+    expect(
+      await validateMountedActivationTarget({
+        ...target,
+        additional_plugins: ["plugins/capability/darrow-verification"],
+      }),
+    ).toEqual([]);
+  });
   test("validates exclusions from separately mounted composition plugins", async () => {
     const target = evalCase({
       activation: "negative",

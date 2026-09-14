@@ -452,6 +452,9 @@ function activationEvidence(evalCase: EvalCase) {
     ? {
         class: evalCase.activation,
         target: activationTargetSkill(evalCase),
+        sequence: evalCase.activation_sequence ?? null,
+        includes: evalCase.activation_includes ?? null,
+        excludes: evalCase.activation_excludes ?? null,
       }
     : null;
 }
@@ -931,6 +934,7 @@ function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
         harness.skillActivation,
         {
           sequence: evalCase.activation_sequence,
+          includes: evalCase.activation_includes,
           excludes: evalCase.activation_excludes,
         },
       )
@@ -1395,6 +1399,7 @@ function trialLine(
           className: result.activation.class,
           targetSkill: result.activation.targetSkill,
           expectedSkills: result.activation.expectedSkills,
+          requiredSkills: result.activation.requiredSkills,
           excludedSkills: result.activation.excludedSkills,
           primarySkill: result.activation.primarySkill,
           observedSkills: result.activation.observedSkills,

@@ -226,7 +226,11 @@ source, and evidence; preserve their reporting axis. Suppress a model finding
 that merely restates deterministic tool output while keeping the check record.
 Do not introduce a new finding.
 
-Assemble and validate the TSV result beneath the scope artifact directory.
+Assemble the TSV result beneath the scope artifact directory. Copy its base,
+target, and changed-file records using `scope-records`; never retype their
+identifiers. Run `validate-scope` with the pinned manifest and result before
+rendering, as specified in the result protocol. A schema-only pass cannot
+establish scope binding.
 For the default human presentation, materialize and validate the handoff:
 
 ```sh

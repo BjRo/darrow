@@ -308,7 +308,9 @@ Write a concise, self-contained contract containing:
 - focused feedback checks and final-tree checks;
 - readiness evidence or the reason it was omitted;
 - verification selection, bound verification/review skills and selected assessments;
-- the shared repair maximum, consumed attempts, remaining limits and closed history;
+- the concrete shared repair maximum (2 unless explicitly overridden), its
+  authority source, consumed attempts (0 unless already performed), remaining
+  limits and closed history; finishing early never lowers the authorized maximum;
 - every required capability binding;
 - the human-feedback and blocker rules below; and
 - the completion evidence the owner must return.
@@ -336,8 +338,8 @@ Outcome: <bounded result>
 Acceptance criteria: <observable outcomes and required implementation properties>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
 Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
-Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; verification=<bound verification skill, required review binding, selected assessments, or permitted omission>; repair=<maximum two owner attempts total unless explicitly overridden; consumed attempts and strictest remaining invocation/time/token/authority limits; collect all selected results before combined repair; fresh closed follow-up after each attempt; clear ends repair; further attempts require material progress and budget; no reset>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
-Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final checks, readiness, combined verification conclusion and complete selected results, every material criterion's current evidence or gap, finding/target/repair history and consumed budget, publication effects, and remaining risks or blockers>
+Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; verification=<bound verification skill, required review binding, selected assessments, or permitted omission>; repair=<maximum=2; source=default; consumed=0; substitute only an explicit finite override and its source or already-observed consumed attempts; apply strictest remaining invocation/time/token/authority limits; collect all selected results before combined repair; fresh closed follow-up after each attempt; clear ends repair; further attempts require material progress and budget; no reset>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
+Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final checks, readiness, combined verification conclusion and complete selected results, every material criterion's current evidence or gap, finding/target/repair history, consumed repair attempts and authorized maximum, publication effects, and remaining risks or blockers>
 ```
 
 Feedback checks exercise the changed seam after coherent slices. Final-tree
@@ -421,7 +423,10 @@ The owner result must clearly state whether the outcome is complete, awaiting
 feedback, or blocked; `Status: complete` and `Status: blocked` are examples. It must
 state changed files, focused and final checks, readiness and the combined
 verification conclusion when selected, complete assessment evidence and criterion
-coverage, consumed repair budget, performed publication effects, and remaining risks.
+coverage, consumed repair attempts and their authorized maximum, performed
+publication effects, and remaining risks. The maximum must match the authorized
+contract: one successful repair
+under the default is 1 of 2, not a one-attempt allowance or an exhausted 1/1 budget.
 Workflow, risk, profile, and route are already established at launch and need
 not be echoed. No other canonical serialization is required.
 
@@ -460,11 +465,12 @@ After acceptance, the parent performs no repository or external work. It may
 only wait, relay user feedback or request status from the same owner, or stop that owner after
 explicit abandonment or supersession.
 
-When the foreground owner returns completion, respond from that result without
-another repository tool call. Final inspection and verification belong to the
-owner; even a read-only confirmation of its report crosses this boundary.
-If its result lacks required evidence, relay that gap instead of checking it
-yourself or claiming completion.
+When the foreground owner returns, apply section 8 before responding. Final
+inspection and verification belong to the owner; even a read-only repository
+confirmation of its report crosses this boundary. Obtain missing or
+contradictory status evidence from the same owner through the host's continuation
+control. If that control is unavailable, report the evidence gap without claiming
+completion.
 
 For every message-based relay after acceptance, preserve every instruction and
 constraint from the current user message. Do not summarize or paraphrase in a
@@ -484,13 +490,23 @@ Selected route: <provider/model/effort>
 
 Return the owner's result without reconstructing repository facts or running
 checks in the parent. Preserve complete readiness and combined verification
-results, selected assessment evidence, consumed repair budget and every
+results, selected assessment evidence, consumed repair attempts and their
+authorized maximum, and every
 authorized publication effect. A blocked or feedback-pending owner remains the
 same owner for a later same-thread answer when the host supports continuation.
 
-Do not shorten away selected gate outcomes or performed effects. If the owner
-omits required completion evidence, request that missing status evidence from
-the same owner before claiming completion; do not inspect the tree yourself or
-invent the missing outcome. This request adds no work or publication authority.
+Before claiming completion, compare the returned repair maximum with the
+maximum and authority source retained at launch, and require the consumed count.
+For example, a default allowance remains two when the owner used one; a report
+of a sole repair allowance or 1/1 contradicts that contract. Request corrected
+accounting from the same owner and wait for its amended status before relaying
+completion. This is a status correction using existing evidence: it authorizes
+no further repair, assessment, check, or publication and never resets the budget.
+
+Do not shorten away selected gate outcomes, repair accounting, or performed
+effects. If the owner omits other required completion evidence, request that
+missing status evidence from the same owner before claiming completion; do not
+inspect the tree yourself or invent the missing outcome. This request adds no
+work or publication authority.
 
 Completion adds no authority. No fixed closing disclaimer is required.

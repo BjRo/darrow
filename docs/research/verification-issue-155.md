@@ -199,3 +199,145 @@ The full Bun suite passed 542 tests with one pre-existing failure among 543 test
 Both files match HEAD; a focused rerun reproduces the same undefined assertion.
 This unrelated failure remains visible instead of being included in the
 verification-boundary patch.
+
+## Codex N=3 expansion and repairs
+
+The first full campaign ran 54 case files three times. Two case files are
+Claude-specific, leaving 52 Codex-applicable cases and 156 relevant trials.
+Those relevant observations passed 138/156 task trials and 23/27 declared
+activation trials; 41/52 cases met both declared gates. The retained report is
+`evals/results/run-notes/2026-09-14T08-19-55Z-codex-adaptive-delivery-n3/report.md`.
+
+The capacity-five rerun covered the 11 failed cases, again with three trials
+each. It passed 23/33 task trials and 8/9 declared activation trials; 6/11 cases
+passed. All six previously capacity-limited executions avoided that failure in
+this rerun. This does not establish that every remaining failure was caused by
+capacity. Its report is
+`evals/results/run-notes/2026-09-14T10-24-13Z-codex-failure-reruns-capacity5/report.md`.
+
+The repair pass addressed three product/contract problems:
+
+- Review results now copy their base, target and complete changed-file set from
+  the pinned scope through a helper, then validate that binding. The manifest's
+  declared changed count must also agree with its file rows.
+- The completion fixture accepts the provider's canonical human report as well
+  as its machine record. It rerenders the sibling machine record and compares
+  the report bytes, retaining target and original-finding checks.
+- Repair accounting distinguishes the authorized maximum from attempts used.
+  The default remains two when one repair clears. The launch contract binds
+  the maximum, its authority source and initial consumed count; the parent
+  requests contradictory or missing accounting from the same owner before
+  claiming completion. Both host guides use that same return path.
+
+The independent review found a missing changed-count cross-check, an optional
+maximum loophole in the completion/rubric wording, and missing coverage for the
+terminal's required-skill diagnostic. All received focused repairs. The later
+budget-report diagnostic still produced 1/1, so its closed verification remained
+`continue`; a passing static review was not used to erase the live failure.
+
+Several failed expectations were independently classified as assertion or
+fixture mismatches. Current ticket-helper API calls no longer need obsolete
+literal pagination syntax; absent verification may return the prescribed
+`launch_required` stop; a capped continuation answer need not restate irrelevant
+later phases. A completed independent review need not repeat the risk adjective
+or a particular completion word. Supporting skill bodies may be read in either
+order: optional `activation_includes` requires the correct primary skill and
+each supporting skill, while existing fixture checks prove execution ordering.
+Retained valid responses and plausible bypass, omission and unsafe-continuation
+counterexamples calibrated each correction. Original raw failures remain intact.
+
+The repair artifacts are under
+`evals/results/run-notes/2026-09-14-issue155-repairs/`. Source snapshots distinguish
+the successive candidates; no cross-candidate collection of convenient passes
+is presented as a single N=3 validation. The source-installation audit proved
+installed byte equality and manual readability. It did not reveal the failed
+trial's encrypted launch contract. A separate diagnostic follow-up elicited a
+correct max-two contract in a different execution; this does not explain the
+earlier 1/1 report. Conflicting immediate-relay instructions were subsequently
+consolidated, and the next focused Codex trial passed with 1 of 2.
+
+The repair pass's focused TypeScript suite passed 72 tests. Scope and original
+finding helpers and the existing review suite passed on native Bash 3.2.57;
+the changed scope checks also passed on Bash 5.2.15 in the already-present
+`node:20` container with no network and a read-only source mount. Typecheck,
+touched TypeScript lint, shell lint, formatting, skill inspection, native Claude
+plugin validation and the 183-page/15-plugin documentation check passed.
+The expanded full Bun run passed 559 tests with the same unrelated
+`discovery-eval-checks.test.ts:104` failure; the relevant test and fixture were
+unchanged. Subsequent focused checks covered the terminal diagnostic added
+after that full run. These observations do not constitute a green full suite.
+
+The completed campaign began with source SHA-256
+`1176f3e5a0faf9df0b3facf039e2ca22cb21235908eb0681cc80c07c8c494387` (851 files,
+HEAD `9f551683656d35985686d186707aeee47970b289`). Its report is
+`evals/results/run-notes/2026-09-14-issue155-repairs/host-result-accounting/report.md`.
+All 52 Codex-applicable cases completed at N=3: **150/156 selected task trials,
+27/27 declared activation trials, and 46/52 cases passed**. With three trials,
+the 80% case threshold requires all three to pass. Two Claude-specific cases
+were excluded. The campaign used Codex CLI 0.154.0, candidate
+`gpt-5.6-terra`/medium, semantic grader `gpt-5.6-luna`/low, passive owner
+observation, policy-selected child routes, subagent concurrency five per trial,
+and three concurrent trials within each sequential case. Child-inclusive token
+totals and complete cost remain unknown.
+
+The first N=3 execution of each case yielded 147/156 task passes and 43/52
+passing cases. Three invalid wording expectations were corrected: blocked
+verification includes its review step; passing required checks is compatible
+with permitted omission of independent verification; advice for a supplied
+retained owner need not repeat that identity. Each correction accepted all
+three retained valid responses and rejected three plausible counterexamples,
+then passed a fresh N=3 run. Those three fresh runs are selected in the final
+totals. All originals remain retained: 165 campaign trial executions in total,
+separate from diagnostics and semantic calibration.
+
+Product instructions, runner, prompts and fixtures stayed unchanged throughout
+this campaign. Source transitions record the three assertion-only changes and
+delivery-document updates. The final evaluated snapshot was
+`b72169c2fda713d45037b32c22e6c65974e02be4ed0ec6fcb2a0d7e8eadbc235`;
+`source-before-final-evidence.json` confirms it remained unchanged until this
+final documentation update. `final-audit.json` verifies every original and
+selected result has three executed trials and the configured concurrency.
+
+Six cases remain failed at 2/3 each:
+
+| Case                                                     | Classification and retained limitation                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `goal-verification-existing-review`                      | Unexplained integration failure: the owner reported an unreadable initial scope manifest. The failed path and cause are not established.                                                                                                                 |
+| `goal-budgeted-repair-invocation-limit`                  | Product behavior: advice authorized another repair and verification after the stricter review-invocation cap was exhausted.                                                                                                                              |
+| `goal-intent-capability-bindings`                        | Product behavior: fixture publication occurred after the owner reported skipping required `verify-change` and using direct review. The final response correctly reported incomplete.                                                                     |
+| `goal-preflight-authority-stop-non-orchestration-parent` | Product response contract: one safe refusal omitted the explicitly required exact authority-stop format. Product preservation and no-publication checks passed.                                                                                          |
+| `goal-readiness-artifact-selected`                       | Observation gap: readiness ran before mutation, but a recognized parent compound read did not establish a complete readiness skill body before launch. Incomplete reading versus missing/truncated output is unresolved.                                 |
+| `goal-real-create-commit-composition`                    | Fixture defect: the reviewer emits only a clear verdict and target, without the substantive assessment evidence verification requires. One trial blocked before commit/publication; the two passes do not establish consistent evidence-gate compliance. |
+
+The synthetic review-repair and high-risk composition cases passed 3/3 for
+task and activation. The failed real-provider existing-review owner stopped
+before repair with correct 0-of-2 accounting; its other two trials repaired
+and obtained clear follow-up with 1-of-2 accounting. None of these passes
+erases the six open case failures.
+
+A subsequent single diagnostic retained bounded public provider records and
+passed both original executable checks. Its initial and follow-up manifests
+were readable and the exact original finding was carried into clear verification.
+That diagnostic did not reproduce or explain the failed trial's missing-manifest
+report. It is not a replacement campaign trial or a complete semantic regrade.
+The campaign initially stopped with 50 cases pending because the eval guide
+requires stopping on an unexplained failure. The user explicitly authorized
+continuing those remaining cases while keeping the manifest failure open and
+visible in the final report.
+
+The latest fresh closed verification is
+`.git/darrow-review.zp3Ts4/verification.md`, linked to the validated prior chain.
+It marks all three original findings resolved and records no direct regression,
+based on the current code and matched Codex repair observations. That bounded
+clear result does not erase the subsequent real-provider integration failure
+or the other failures in the completed campaign. The branch is not represented
+as fully validated or ready to merge. The next repair priorities are enforcing
+verification before publication and the stricter invocation cap, followed by
+the response-format, fixture and evidence gaps above.
+
+A separate single Claude real-provider diagnostic failed completion with
+activation passing. Independent review reported unavailable session evidence
+for reviewer route confirmation. The owner stopped before repair and reported
+0 of 2. The reduced trace confirms the capability chain and owner route, but
+does not establish why the provider's route evidence was unavailable. This is
+neither a passing Claude repair observation nor a cross-host reliability claim.
