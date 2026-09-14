@@ -1,0 +1,64 @@
+id: verification-indirect
+invariant: VF-C1,VF-C2,VF-C3
+activation: positive
+prompt: Coordinate assurance that the current change meets all its acceptance in
+  SPEC.md. Verify the implementation candidate in this repository, HEAD to
+  WORKTREE, against the objective and every criterion in SPEC.md. The supplied
+  current candidate identity is in CANDIDATE.txt. Required check bash check.sh
+  passed on this content. Independent review is the only selected assessment.
+  Return one assessment; the implementation owner retains all repair and
+  completion decisions.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: >
+          Reviewers may read files and run bash check.sh. Do not edit product
+          files. No network or publication.
+        SPEC.md: |
+          Objective: configure request handling.
+          C1: timeoutMs must equal 2500.
+          C2: retries must equal 3.
+        config.json: |
+          {"timeoutMs":1000,"retries":3}
+        check.sh: >
+          #!/usr/bin/env bash
+
+          set -eu
+
+          test -s config.json
+
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$'
+          config.json
+  files:
+    config.json: |
+      {"timeoutMs":2500,"retries":3}
+  setup: >
+    for host in .agents .claude; do
+      mkdir -p "$host/skills/inspect-candidate"
+      cp "{{case_dir}}/fixtures/inspect-candidate.fixture.md" "$host/skills/inspect-candidate/SKILL.md"
+    done
+
+    printf '/.agents/\n/.claude/\n' >>.git/info/exclude
+
+    cksum config.json > CANDIDATE.txt
+checks:
+  - name: product candidate remains unchanged
+    run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
+      .git/current-candidate
+  - name: no extra commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: retained report handoff is rendered last
+    run: |
+      test -e .git/inspect-candidate-report.md || exit 0
+      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
+      test "$last" = "Complete provider result: [report](<$report>)" ||
+        test "$last" = "Complete provider result: [report]($report)"
+  - name: complete replacement evidence retained and referenced
+    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+      -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
+semantic_output_checks:
+  - name: clear current evidence
+    proposition: The response reports a clear current-candidate assessment with
+      supported conclusions for C1 and C2 and independent review provenance.

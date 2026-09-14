@@ -1,0 +1,96 @@
+id: verification-existing-review
+invariant: VF-C2,VF-C3,VF-C4,VF-C6,VF-C7
+activation: positive
+mount_plugin_skills: true
+additional_plugins:
+  - plugins/capability/darrow-review
+activation_sequence:
+  - verify-change
+  - code-review
+prompt: Use {{skill_invocation}} Verify the implementation candidate in this
+  repository, HEAD to WORKTREE, against the objective and every criterion in
+  SPEC.md. The supplied current candidate identity is in CANDIDATE.txt. Required
+  check bash check.sh passed on this content. Independent review is the only
+  selected assessment. Bind it to the separately advertised
+  darrow-review:code-review capability installed for this request. Return one
+  assessment; the implementation owner retains
+  all repair and completion decisions.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: >
+          Reviewers may read files and run bash check.sh. Do not edit product
+          files. No network or publication.
+        SPEC.md: |
+          Objective: configure request handling.
+          C1: timeoutMs must equal 2500.
+          C2: retries must equal 3.
+        config.json: |
+          {"timeoutMs":1000,"retries":3}
+        check.sh: >
+          #!/usr/bin/env bash
+
+          set -eu
+
+          test -s config.json
+
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$'
+          config.json
+  files:
+    config.json: |
+      {"timeoutMs":2000,"retries":3}
+  setup: |
+    cksum config.json > CANDIDATE.txt
+checks:
+  - name: product candidate remains unchanged
+    run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
+      .git/current-candidate
+  - name: no extra commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: retained report handoff is rendered last
+    run: |
+      record=$(find .git -name result.tsv -type f)
+      test -n "$record" || exit 1
+      report=$(cd "$(dirname "$record")" && pwd -P)/review.md
+      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
+      test "$last" = "Complete provider result: [report](<$report>)" ||
+        test "$last" = "Complete provider result: [report]($report)"
+  - name: existing provider retains a canonical failing current review
+    run:
+      record=$(find .git -name result.tsv -type f) && test -n "$record" && test
+      "$(printf '%s\n' "$record" | wc -l | tr -d ' ')" = 1 && grep -q
+      '^verdict[[:space:]]fail' "$record" && test -s "$(dirname
+      "$record")/review.md"
+  - name: existing result and complete provider report validate
+    run: >
+      record=$(find .git -name result.tsv -type f 2>/dev/null | sort | tail -n
+      1)
+
+      result_tool=$(find .git/eval-marketplace .git/eval-plugins -path
+      '*/bin/review-result' -type f 2>/dev/null | sort | tail -n 1)
+
+      report_tool=$(find .git/eval-marketplace .git/eval-plugins -path
+      '*/bin/review-report' -type f 2>/dev/null | sort | tail -n 1)
+
+      test -n "$record" && test -n "$result_tool" && test -n "$report_tool" ||
+      exit 1
+
+      bash "$result_tool" validate "$record" && bash "$report_tool" render
+      "$record" >.git/expected-review.md && cmp .git/expected-review.md
+      "$(dirname "$record")/review.md"
+  - name: complete existing report remains accessible to caller
+    run: record=$(find .git -name result.tsv -type f) && report=$(cd "$(dirname
+      "$record")" && pwd -P)/review.md && grep -F "$report" .git/last-message.md
+semantic_output_checks:
+  - name: consume actual provider finding
+    proposition:
+      The response explicitly and unambiguously labels the aggregate verification
+      conclusion progress (initial actionable review blockers), keeping the
+      provider's native fail outcome separate. Reject fail, no-progress,
+      no-progress-eligible failure or another hybrid as the aggregate conclusion,
+      even if the response describes actionable blockers. The response
+      preserves the independent Spec finding that timeoutMs=2000 violates
+      required 2500, accounts for retries=3 and the successful check, and does
+      not claim a candidate-identity mismatch or missing required provider
+      evidence.

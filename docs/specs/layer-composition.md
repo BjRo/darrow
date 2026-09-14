@@ -54,6 +54,16 @@ model, branch name, review policy or verification command and does no preflight.
 
 ## Adopted operation contracts
 
+Verification is a capability-level assurance coordinator under the
+[verification contract](verification.md). Within a selected operation, compatible
+independent code review is required; optional QA and evidence presentation are
+future separately selected extensions. Verification binds evidence to every
+material originating criterion and returns an initial or closed follow-up
+conclusion. Review owns independent findings and repair judgments. The active
+owner alone owns implementation, combined repairs, the shared budget,
+continuation and overall completion. This boundary does not change which
+engineering goals select assurance or add a second lifecycle controller.
+
 | Boundary             | Prerequisites and effects                                                                                        | Result evidence and refusal                                                                                                                                                         | Continuation owner                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Readiness gate       | Explicit assessment or required gate; authoritative inputs; read-only                                            | Complete verdict, basis, quality bar, findings and smallest next action; non-ready forbids implementation                                                                           | Caller may resolve findings within authority, then obtain required ready evidence; same owner after launch  |

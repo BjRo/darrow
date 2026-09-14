@@ -15,6 +15,7 @@ These files define current invariants. Start with the
 - [Visual explanation](visual-explanation.md): compact grounded views.
 - [Test-driven development](test-driven-development.md): red/green evidence.
 - [Code review](code-review.md): independent review and repair verification.
+- [Verification](verification.md): replaceable assessment and criterion-level evidence.
 - [Langfuse observability](observability-langfuse.md): Codex telemetry and privacy.
 - [Adaptive Delivery](adaptive-delivery.md): one explicit execution owner.
 - [Ticket to PR](ticket-to-pr.md): the delivery recipe.

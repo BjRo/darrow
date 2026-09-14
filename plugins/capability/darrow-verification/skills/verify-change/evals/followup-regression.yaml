@@ -1,0 +1,116 @@
+id: verification-followup-regression
+invariant: VF-C2,VF-C3,VF-C5,VF-C6,VF-C7
+activation: positive
+prompt: Use {{skill_invocation}} Perform targeted follow-up verification for
+  this repository, HEAD to WORKTREE, against SPEC.md. Original findings,
+  original/prior target, history and attempted repair are in HISTORY.md. Current
+  target is CANDIDATE.txt and config.json. Current bash check.sh passed. Only
+  independent review is selected; return the bounded assessment to the repair
+  owner.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: >
+          Reviewers may read files and run bash check.sh. Do not edit product
+          files. No network or publication.
+        SPEC.md: |
+          Objective: configure request handling.
+          C1: timeoutMs must equal 2500.
+          C2: retries must equal 3.
+        config.json: |
+          {"timeoutMs":1000,"retries":3}
+        check.sh: >
+          #!/usr/bin/env bash
+
+          set -eu
+
+          test -s config.json
+
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$'
+          config.json
+  files:
+    config.json: |
+      {"timeoutMs":2500,"retries":0}
+    HISTORY.md: >
+      Original provider: inspect-candidate. Original scope: config.json at the
+      committed baseline; original POSIX cksum: 3240697612 31 config.json.
+      Standards passed with advisory A1; Spec failed with blocker F1. Original
+      target: config.json timeoutMs=1000, retries=3. Prior target equals
+      original; no earlier repair or follow-up. Original F1: high Spec blocker
+      at config.json timeoutMs, source SPEC.md C1; expected 2500, observed 1000.
+      Original A1: low Standards advisory at config.json formatting; compact
+      JSON is less readable, heuristic only, not a project rule. Current repair
+      attempt F1: change timeoutMs to approach 2500. Original finding set is
+      closed. A1 was not attempted and is nonblocking. Review result originally
+      fail with check bash check.sh passing. Current content and cksum are the
+      candidate; compare it with the recorded original content to assess direct
+      repair consequences.
+      Attempt log: the F1 repair replaced config.json in one write with
+      {"timeoutMs":2500,"retries":0}. That write is the entire attempted repair;
+      no other product edits occurred between the prior and current candidates.
+  setup: >
+    for host in .agents .claude; do
+      mkdir -p "$host/skills/inspect-candidate"
+      cp "{{case_dir}}/fixtures/inspect-candidate.fixture.md" "$host/skills/inspect-candidate/SKILL.md"
+    done
+
+    printf '/.agents/\n/.claude/\n' >>.git/info/exclude
+
+    cksum config.json > CANDIDATE.txt
+
+
+    printf 'Original and prior base commit: %s\n' "$(git rev-parse HEAD)" >>
+    HISTORY.md
+checks:
+  - name: product candidate remains unchanged
+    run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
+      .git/current-candidate
+  - name: no extra commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: retained report handoff is rendered last
+    run: |
+      test -e .git/inspect-candidate-report.md || exit 0
+      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
+      test "$last" = "Complete provider result: [report](<$report>)" ||
+        test "$last" = "Complete provider result: [report]($report)"
+  - name: complete replacement evidence retained and referenced
+    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+      -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
+  - name: original advisory remains in outward handoff
+    run: grep -F A1 .git/last-message.md
+semantic_output_checks:
+  - name: closed follow-up outcome
+    proposition:
+      The response explicitly concludes progress. It preserves F1 as the
+      original Spec finding, with original blocking disposition and current
+      resolved state because timeoutMs is now 2500. A1 remains explicitly
+      visible as an unattempted or unresolved nonblocking advisory. Current candidate/check
+      evidence is preserved. The response identifies retries=0 versus required 3
+      as a new direct consequence of the repair, explicitly caused by F1, and
+      does not clear while that regression remains.
+  - name: original blocker provenance is explicit
+    proposition:
+      The final response explicitly identifies F1 as originally a Spec
+      finding with blocking disposition, even though F1 is now resolved.
+      Calling F1 resolved or identifying its acceptance criterion alone is
+      insufficient to preserve its original blocking disposition.
+  - name: regression cause identity is explicit
+    proposition: The final response explicitly associates the retries regression
+      with the repair of original finding F1. A generic claim that a repair caused
+      the regression, without naming F1 as the cause, is insufficient.
+  - name: assessment does not consume owner repair budget
+    proposition:
+      The response does not count the original review or this assessment
+      invocation as an owner repair attempt, assign remaining repair attempts,
+      or otherwise take repair-budget ownership. It may preserve caller-supplied
+      repair history and return the assessment to the owner.
+transcript_checks:
+  - name: provider and independent readers observed
+    expect_regex: '"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false|"name":"Agent"[\s\S]*"name":"Agent"'
+    not_regex: '"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"'
+  - name: fresh context requested
+    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"'
+  - name: native assessment child observed
+    expect_regex: '"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"'

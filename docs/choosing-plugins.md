@@ -13,6 +13,7 @@ the other layers. Its README owns its prerequisites, behavior, and safety rules.
 | Clarify behavior or make an implementation plan                   | [Discovery](../plugins/capability/darrow-discovery/README.md)                               |
 | Implement an observable behavior test-first                       | [TDD](../plugins/capability/darrow-tdd/README.md)                                           |
 | Review a change independently                                     | [Review](../plugins/capability/darrow-review/README.md)                                     |
+| Verify implementation acceptance through independent assessment   | [Verification](../plugins/capability/darrow-verification/README.md)                         |
 | Create a branch, commit, or pull request                          | [Git](../plugins/capability/darrow-git/README.md)                                           |
 | Read, list, create, or update GitHub issues                       | [GitHub tickets](../plugins/capability/darrow-tickets-github/README.md)                     |
 | Understand technical structure in a compact visual                | [Explanation](../plugins/capability/darrow-explanation/README.md)                           |
