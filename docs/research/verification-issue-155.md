@@ -341,3 +341,59 @@ for reviewer route confirmation. The owner stopped before repair and reported
 0 of 2. The reduced trace confirms the capability chain and owner route, but
 does not establish why the provider's route evidence was unavailable. This is
 neither a passing Claude repair observation nor a cross-host reliability claim.
+
+## Targeted six-case N=5 threshold run
+
+The user requested fresh N=5 runs of the six cases that failed the completed
+N=3 campaign and selected four passes out of five as the per-case acceptance
+threshold. This is a separate targeted run, not a replacement full matrix.
+
+All six cases completed: **28/30 task trials, 4/5 declared activation
+trials, and 6/6 cases met the threshold**. The rerun meets the user-selected eval criterion.
+
+| Case                                                     | Task | Activation   | Threshold |
+| -------------------------------------------------------- | ---- | ------------ | --------- |
+| `goal-budgeted-repair-invocation-limit`                  | 5/5  | not declared | pass      |
+| `goal-intent-capability-bindings`                        | 4/5  | not declared | pass      |
+| `goal-preflight-authority-stop-non-orchestration-parent` | 5/5  | not declared | pass      |
+| `goal-readiness-artifact-selected`                       | 5/5  | not declared | pass      |
+| `goal-real-create-commit-composition`                    | 4/5  | not declared | pass      |
+| `goal-verification-existing-review`                      | 5/5  | 4/5          | pass      |
+
+Every case used checkpoint `c5a5d9b3b04f5d437cd8a1ecc3613ed4b1fcd6c0`, source SHA-256
+`22fbaf100de5d4b29cb2c53d656459e5b33f870f3992e4811a83e5ccb12c5af0`. Product instructions, prompts, fixtures, assertions and runner
+remained unchanged. Evaluation digests match the corresponding N=3 cases.
+The only trial-count change was N=3 to N=5; Codex CLI 0.154.0,
+`gpt-5.6-terra`/medium, grader `gpt-5.6-luna`/low, passive owner observation,
+three jobs and subagent concurrency five remained fixed. No other matrix cases
+were rerun. Complete child-inclusive token totals and cost remain unavailable.
+
+The retained report, source snapshots, audit, original results and failure
+observations are under
+`evals/results/run-notes/2026-09-14-issue155-six-case-n5/`. The preceding N=3
+failures remain retained. A threshold pass does not establish that their causes
+were repaired.
+
+Capability binding's failed N=5 trial again published its fixture commit and PR
+before the required verification assessment was returned or retained. Real
+commit composition's failed trial instead hit a compound review-count/target
+check that emitted no comparison details; the exact cause is unresolved. Its
+known insufficient reviewer-evidence fixture was unchanged. Existing review
+trial 2 passed the task but had unknown activation because a complete
+`verify-change` body read was not established. The bounded observation records
+are retained; unknown evidence is not counted as a pass.
+
+The native runner marks the real-review case failed because any unknown
+activation makes its aggregate activation rate unknown. The user-selected
+four-of-five rule is reported separately: four confirmed activation passes
+satisfy that rule while the fifth remains unknown. The runner's exit status
+and raw unknown result remain unchanged. Owner routes remained policy-selected;
+the fixed medium effort refers to the candidate, not every child agent.
+
+Future work can stay targeted: emit observed/expected review identities and
+review counts when the fixture check fails, improve the deterministic reviewer's
+assessment evidence, and exercise each repaired case before its own threshold
+rerun. Changes to shared verification, launch or observation mechanics require
+only the additional cases actually affected by that change; broad changes may
+justify a wider run. The case-to-check mapping is retained in
+`targeted-regressions.md` beside the N=5 report.
