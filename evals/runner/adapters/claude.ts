@@ -23,6 +23,10 @@ import {
   observeClaudeProjectInvocation,
   projectSkillActivation,
 } from "./claude-project-skills";
+import {
+  mergeClaudeNestedSkillActivation,
+  observeClaudeNestedSkills,
+} from "./claude-nested-skills";
 
 function isHumanFeedbackPauseText(text: unknown): boolean {
   if (typeof text !== "string") return false;
@@ -634,9 +638,15 @@ function inlineOwnerPolicyIssue(
   )
     return "selected-route";
   if (!validInlineOwnerDimensions(fields)) return "dimensions";
-  return completeStructuredOwnerField(fields["Verification and gates"], [
+  const gates = fields["Verification and gates"];
+  const assuranceFields =
+    structuredOwnerValue(gates, "verification") !== undefined ||
+    structuredOwnerValue(gates, "repair") !== undefined
+      ? ["verification", "repair"]
+      : ["review"];
+  return completeStructuredOwnerField(gates, [
     "readiness",
-    "review",
+    ...assuranceFields,
     "focused",
     "final",
     "feedback",
@@ -3137,7 +3147,7 @@ function soleRetainedClaudeOwner(raw: string): RetainedClaudeOwner | undefined {
 
 async function matchingTranscriptPaths(
   directory: string,
-  filename: string,
+  filename: string | RegExp,
 ): Promise<string[]> {
   let entries;
   try {
@@ -3149,7 +3159,11 @@ async function matchingTranscriptPaths(
     entries.map((entry) => {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) return matchingTranscriptPaths(path, filename);
-      return entry.isFile() && entry.name === filename ? [path] : [];
+      const matches =
+        typeof filename === "string"
+          ? entry.name === filename
+          : filename.test(entry.name);
+      return entry.isFile() && matches ? [path] : [];
     }),
   );
   return nested.flat();
@@ -4244,6 +4258,42 @@ async function claudeTurnOutput(options: {
   };
 }
 
+async function nestedClaudeActivation(options: {
+  repo: string;
+  configRoot: string;
+  stream: string;
+  skillActivation: SkillActivationObservation;
+  retained: string;
+  explicitPrimary?: string;
+}) {
+  const { repo, configRoot, stream, retained } = options;
+  let { skillActivation } = options;
+  if (!soleRetainedClaudeOwner(retained)) return { skillActivation, retained };
+  const nested = await observeClaudeNestedSkills({
+    repo,
+    configRoot,
+    stream,
+    streamSkills: claudeSkillActivation(stream).observedSkills,
+    matchingPaths: matchingTranscriptPaths,
+  });
+  skillActivation = mergeClaudeNestedSkillActivation(
+    skillActivation,
+    nested,
+    options.explicitPrimary,
+  );
+  return {
+    skillActivation,
+    retained: retained + "\n" + JSON.stringify(nested),
+  };
+}
+
+function acceptedProjectPrimary(receipt?: {
+  accepted: boolean | null;
+  skill: string;
+}) {
+  return receipt?.accepted === true ? receipt.skill : undefined;
+}
+
 async function claudeHarnessResult(options: {
   request: HarnessRunRequest;
   repo: string;
@@ -4274,15 +4324,18 @@ async function claudeHarnessResult(options: {
     turn.err,
     evidenceContext,
   );
+  ({ skillActivation, retained } = await nestedClaudeActivation({
+    repo,
+    configRoot,
+    stream: turn.out,
+    skillActivation,
+    retained,
+    explicitPrimary: acceptedProjectPrimary(projectInvocation),
+  }));
   if (projectInvocation) retained += "\n" + JSON.stringify(projectInvocation);
   return {
-    ok: outcome.ok,
+    ...outcome,
     durationMs: performance.now() - start,
-    tokenUsageComplete: outcome.tokenUsageComplete,
-    inputTokens: outcome.inputTokens,
-    outputTokens: outcome.outputTokens,
-    costUsd: outcome.costUsd,
-    resultText: outcome.resultText,
     raw: await evaluatorObservedClaudeRoute(retained, repo, configRoot),
     skillActivation: {
       ...skillActivation,

@@ -1,0 +1,18 @@
+id: goal-verification-missing-evidence
+invariant: ADL-V1,ADL-A4,LC-C5
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work.
+  Review and QA are selected through verification. Current checks and review are clear; QA returned unavailable because its required environment cannot start. No implementation blocker was reported and the repair budget is unused. What should the retained owner do next?
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: combined evidence controls continuation
+    proposition: The response reports a blocked or incomplete combined verification outcome, preserves the missing selected QA evidence, and withholds completion/publication. It does not start speculative repairs or silently omit QA; investigation or a concrete environment decision remains with the same owner.

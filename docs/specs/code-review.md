@@ -153,6 +153,14 @@ axis and report `not_available`. Do not invent requirements.
    remains in this capability when a requested base or target is missing or
    invalid. An invalid base or empty declared diff is reported before spending
    review-model budget.
+   For a resolved scope, copy base, target, and the complete changed-file set
+   from its pinned manifest through bundled mechanics. Before returning a
+   result, validate those records against that manifest, including agreement
+   between its declared changed-file count and complete file records. A
+   schema-valid result with a different identity or missing/extra file is not
+   valid review evidence.
+   Terminal scope failures without a resolved manifest retain their existing
+   blocked-result representation.
 3. **CR-C3 — Complete diff.** The review scope includes every declared staged,
    unstaged, and untracked target file. Reviewers inspect the diff itself, not a
    summary written by the change author. Generated authoritative show and repair
@@ -229,7 +237,13 @@ axis and report `not_available`. Do not invent requirements.
     set. Every direct regression identifies the attempted original finding
     whose repair caused it.
 19. **CR-C19 — Stable lifecycle and progress.** Original finding keys derive
-    from the original target, axis, and canonical finding order. Every attempted
+    from the original target, axis, and canonical cross-axis finding order.
+    When the original comprehensive result is retained, bundled mechanics copy
+    every original finding without rewriting source, evidence, severity or
+    disposition, and compare that complete ordered set before accepting
+    follow-up output. Complete external handoffs remain supported and must
+    preserve their supplied immutable records and canonical order exactly.
+    Every attempted
     finding is `resolved`, `unresolved`, or `blocked`; unresolved blocking
     evidence is `progressing` or `unchanged`. Duplicate or unknown keys are
     invalid. A newly detected direct regression is progressing for its first

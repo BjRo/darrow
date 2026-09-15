@@ -61,6 +61,24 @@ async function fixture() {
 }
 
 describe("Codex adaptive-delivery spawn guard", () => {
+  test("accepts verification with one shared repair policy", async () => {
+    const { repo, objectiveRoot, policy } = await fixture();
+    try {
+      const message = contract.replace(
+        "review=not required;",
+        "verification=verify-change with compatible review; repair=two owner attempts total across providers;",
+      );
+      expect(
+        await guardCodexSpawn(ownerHook(repo, message), policy),
+      ).toMatchObject({
+        hookSpecificOutput: { permissionDecision: "allow" },
+      });
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(objectiveRoot, { recursive: true, force: true });
+    }
+  });
+
   test("accepts one inline routed owner and binds its canonical reference", async () => {
     const { repo, objectiveRoot, policy } = await fixture();
     try {

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Bounded synthetic assessment, not an owner or repair controller.
+set -eu
+repo=${1:?repository required}
+mode=${2:?initial or follow-up required}
+case $mode in initial) review_mode=comprehensive ;; follow-up) review_mode=verify ;; *) exit 2 ;; esac
+repo=$(cd "$repo" && pwd -P)
+bin_dir=$(cd "$(dirname "$0")" && pwd -P)
+state=$repo/.git/fixture-state
+subject=$repo/src/config.js
+test -r "$subject"
+target=$(cksum <"$subject")
+test -r "$state/check-target"
+test "$(cat "$state/check-target")" = "$target" || { printf '%s\n' 'blocked: successful current checks required'; exit 1; }
+if [ "$mode" = initial ]; then
+  test ! -e "$state/verification-invocations"
+else
+  test -s "$state/verification-invocations"
+fi
+printf 'assessment-start\t%s\t%s\n' "$mode" "$target" >>"$state/verification-events"
+review_report=$(mktemp "$state/review-result.XXXXXX")
+"$BASH" "$bin_dir/independent-review-fixture" "$repo" "$review_mode" independent-review-skill-contract-v1 >"$review_report"
+printf 'review-returned\t%s\t%s\n' "$mode" "$(cksum <"$subject")" >>"$state/verification-events"
+# Deliberately later than review: an owner must not act on the early result.
+sleep 2
+qa_target=$(cksum <"$subject")
+qa=blocking
+if grep -Fx 'export const CACHE_SIZE = 5;' "$subject" >/dev/null; then qa=clear; fi
+printf 'qa-returned\t%s\t%s\n' "$mode" "$qa_target" >>"$state/verification-events"
+conclusion=progress
+if [ "$target" != "$qa_target" ] ||
+  grep -E '^Independent review outcome: (inconclusive|unavailable)$|^Fix verification: (blocked|inconclusive|unavailable)\.$' "$review_report" >/dev/null; then
+  conclusion=blocked
+elif grep -E '^Independent review outcome: no blocking findings$|^Fix verification: clear\.$' "$review_report" >/dev/null && [ "$qa" = clear ]; then
+  conclusion=clear
+elif grep -E '^Fix verification: no_progress\.$' "$review_report" >/dev/null; then
+  conclusion=no-progress
+fi
+printf '%s\t%s\t%s\n' "$mode" "$target" "$conclusion" >>"$state/verification-invocations"
+printf 'Repository: %s\nCandidate: src/config.js cksum %s, HEAD to WORKTREE\nMode: %s\n' "$repo" "$target" "$mode"
+printf '%s\n' 'Selected: independent code review and QA-like cache assessment' 'Required current check: bash check.sh passed for this candidate.'
+printf '%s\n' 'Complete independent review result:'
+cat "$review_report"
+printf 'Complete QA-like result: %s; candidate cksum %s.\n' "$qa" "$qa_target"
+if [ "$qa" = blocking ]; then
+  printf '%s\n' 'Q1, QA/cache, blocking: CACHE_SIZE must equal 5; observed:'
+  grep -F 'CACHE_SIZE' "$subject"
+else
+  printf '%s\n' 'Q1, QA/cache: CACHE_SIZE = 5 observed; resolved in follow-up, no direct regression.'
+fi
+printf '%s\n' 'Acceptance C1: TIMEOUT_MS = 2500 supported by current check.' 'Acceptance C2: RETRY_COUNT = 3 assessed in the complete review result (R1).' 'Acceptance C3: CACHE_SIZE = 5 assessed by QA (Q1).'
+printf 'Conclusion: %s\n' "$conclusion"
+printf '%s\n' 'Finding provenance: R1 review/retries; Q1 QA/cache; both blocking when unresolved. No advisories or direct regressions observed.'
+printf 'Target and assessment history: %s/verification-invocations\nComplete review result: %s\n' "$state" "$review_report"
+printf 'assessment-returned\t%s\t%s\n' "$mode" "$(cksum <"$subject")" >>"$state/verification-events"

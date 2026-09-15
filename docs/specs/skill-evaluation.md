@@ -99,6 +99,14 @@ aggregated away.
 
 ### Skill activation
 
+Composition may require supporting skills without imposing an order on their
+preflight reads. `activation_includes` requires every named skill in the complete
+observed skill set; it does not replace the owning-skill expectation or prove
+provider execution. Sequence assertions remain available where order is part of
+the contract. Required membership is validated against the mounted skill set,
+retained in results and evaluation identity, and remains unknown when observation
+is incomplete.
+
 A colocated eval case may declare one activation class:
 
 - `positive` — the owning skill should be the primary selected capability;
@@ -240,6 +248,13 @@ isolation boundary, including during dry runs. Grading uses a private,
 credential-free environment and cannot access source worktrees, peer fixtures,
 harness credentials, or modify retained evidence. An unavailable isolation
 boundary is an explicit error.
+
+Codex trials may import the repository's explicit agent-concurrency limit into
+their isolated configuration. They must not inherit unrelated repository or
+user settings. Capture the limit once per runner process, include it in the
+evaluation identity for each Codex role, and retain the configured candidate
+limit in case and trial evidence. A missing limit uses the host default;
+malformed or unreadable configuration is an error.
 
 Each finished trial is persisted atomically, with its complete bounded result
 evidence and case/run provenance, before fixture cleanup or completion feedback.

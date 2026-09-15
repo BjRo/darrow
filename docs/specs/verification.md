@@ -2,8 +2,8 @@
 
 Verification coordinates one bounded assessment of an implementation candidate.
 It is directly intent-matched and independently installable. This is the
-semantic boundary introduced by issue #154 under #153; it does not integrate
-adaptive-delivery, execute QA, or create reviewer-facing evidence packages.
+semantic boundary introduced by issue #154 under #153, consumed by adaptive
+delivery under #155. It does not execute QA or create reviewer-facing evidence packages.
 
 ## Contract
 
@@ -97,14 +97,15 @@ findings with dispositions, limitations, conclusion and the smallest needed
 next action. Provider-specific artifacts can travel opaquely with provenance;
 only the provider interprets its own mechanical records.
 
-Issue #155 will bind this capability in adaptive-delivery preflight and the
+Adaptive delivery binds this capability in preflight and the
 existing owner contract, preserving routine omission and high-risk review
 selection. The owner supplies successful current checks before assessment,
 waits for every selected result, addresses eligible combined blockers under
 one budget, then requests fresh closed-set follow-up. Clear ends repairs;
 another attempt requires material progress and remaining budget. No-progress,
 blocked evidence, exhausted budget or absent authority prevents completion.
-This slice does not change that orchestration's current direct-review route.
+Its parent remains a preflight/launch/relay actor; assessment results return
+through verification to the same active owner without another repair controller.
 
 Issue #156 owns optional QA execution, scenario evidence and fresh scenario
 follow-up. Issue #68 owns optional presentation and its still-open format,

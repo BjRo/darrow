@@ -3,3 +3,8 @@ evals/results/
 evals/corpus/orchestration/cache/
 .tmp/
 .DS_Store
+
+# Share Codex configuration without tracking other local Codex state.
+!.codex/
+.codex/*
+!.codex/config.toml

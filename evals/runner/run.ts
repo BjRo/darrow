@@ -1,5 +1,6 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { atomicWriteJson } from "./artifacts";
+import { codexAgentConcurrencyEvidence } from "./codex-config";
 import {
   checkpointActiveRun,
   finalizeActiveRun,
@@ -431,6 +432,7 @@ function judgeEvidence(judge: JudgeConfig | undefined) {
         harness: judge.adapter.name,
         model: judge.model,
         effort: judge.effort,
+        ...codexAgentConcurrencyEvidence(judge.adapter.name),
       }
     : null;
 }
@@ -441,6 +443,7 @@ function semanticOutputEvidence(options: RunCaseOptions) {
     harness: options.semanticOutput.adapter.name,
     model: options.semanticOutput.model,
     effort: options.semanticOutput.effort,
+    ...codexAgentConcurrencyEvidence(options.semanticOutput.adapter.name),
   };
 }
 
@@ -449,6 +452,9 @@ function activationEvidence(evalCase: EvalCase) {
     ? {
         class: evalCase.activation,
         target: activationTargetSkill(evalCase),
+        sequence: evalCase.activation_sequence ?? null,
+        includes: evalCase.activation_includes ?? null,
+        excludes: evalCase.activation_excludes ?? null,
       }
     : null;
 }
@@ -483,16 +489,16 @@ function evaluationDigest(options: RunCaseOptions): string {
     goal_route_checks: goalRouteChecks = true,
     expect_head_change: expectHeadChange = null,
   } = evalCase;
-  const participantPromptTemplate = condition?.text.trim()
-    ? `${condition.text.trim()}\n\n${evalCase.prompt}`
-    : evalCase.prompt;
   const participantPrompt = renderParticipantPrompt(
-    participantPromptTemplate,
+    condition?.text.trim()
+      ? `${condition.text.trim()}\n\n${evalCase.prompt}`
+      : evalCase.prompt,
     adapter.name,
     evalCase,
   );
   const evidence = stableEvidence({
     ownerEvaluationMode: options.ownerEvaluationMode,
+    ...codexAgentConcurrencyEvidence(adapter.name),
     participantPrompt,
     followUpPrompt,
     sourcePlugin,
@@ -928,6 +934,7 @@ function trialActivation(options: RunCaseOptions, harness: HarnessResult) {
         harness.skillActivation,
         {
           sequence: evalCase.activation_sequence,
+          includes: evalCase.activation_includes,
           excludes: evalCase.activation_excludes,
         },
       )
@@ -1324,6 +1331,7 @@ function summarizeCase(
   const durations = trialResults.map((t) => t.harness.durationMs);
   return {
     caseId: evalCase.id,
+    ...codexAgentConcurrencyEvidence(adapter.name),
     ownerEvaluationMode: options.ownerEvaluationMode,
     expectedEffectiveOwnerRoute: options.assertedEffectiveOwnerRoute,
     executionMode: dry ? "dry" : "executed",
@@ -1391,6 +1399,7 @@ function trialLine(
           className: result.activation.class,
           targetSkill: result.activation.targetSkill,
           expectedSkills: result.activation.expectedSkills,
+          requiredSkills: result.activation.requiredSkills,
           excludedSkills: result.activation.excludedSkills,
           primarySkill: result.activation.primarySkill,
           observedSkills: result.activation.observedSkills,

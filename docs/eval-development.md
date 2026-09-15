@@ -72,7 +72,9 @@ constraints for producing and interpreting that evidence.
   separately from the task outcome.
 - A composed `activation_sequence` requires the primary owner first and a
   complete mounted body read for every supporting skill. Use
-  `activation_excludes` when a negative case must prove that a named skill was
+  `activation_includes` when supporting skills must be read but their order is
+  not contractual; complete observations and mounted skills remain required.
+  Use `activation_excludes` when a negative case must prove that a named skill was
   absent from the entire observed sequence rather than merely absent as the
   primary selection.
   Excluded skills must actually be available in the case's mounted skill set;
@@ -82,6 +84,11 @@ constraints for producing and interpreting that evidence.
   separately from the normalized activation name. This distinguishes namespaced
   plugin dispatch from a same-named command without retaining skill arguments;
   an invocation identifier alone does not prove provider execution or compliance.
+  Adaptive-delivery observations recover deeper Skill dispatch from the native
+  session's completed Agent result graph when the outer stream omits it. Recovery
+  binds session and child identities, preserves chronological skill order and
+  retains only invocation metadata. Missing or inconsistent graph evidence
+  leaves activation incomplete; unrelated transcript files are never evidence.
 - Explicit Codex probes retain the invoked owner first, then verified supporting
   reads. Every supporting read must contain the complete mounted body, including
   the first supporting read. Consecutive pages from the same actor may establish
@@ -291,6 +298,17 @@ terminal hyperlinks are unavailable. Use `--jobs <positive integer>` to bound
 simultaneous trials within each case; the default is `--jobs 3`. Use `--jobs 1`
 for serial diagnosis or rate-limit-sensitive runs. Runs with more than one job
 use per-trial status lines instead of the single active-trial animation.
+
+Codex processes import only `agents.max_concurrent_threads_per_session` from
+this repository's `.codex/config.toml` into their isolated config. Other
+repository settings and user settings remain excluded. The runner captures
+the limit once per process and includes it in the evaluation digest for each
+Codex role. Case and trial results retain `codexAgentConcurrencyLimit`; null
+means the host default, while absent historical evidence remains unknown.
+This limits subagents within one trial and is separate from `--jobs`, which
+limits simultaneous trials. Missing configuration uses the host default;
+unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
+explicitly.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:

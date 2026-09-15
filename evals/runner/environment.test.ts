@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isolatedHarnessEnvironment } from "./environment";
+import { codexAgentConcurrency } from "./codex-config";
 
 const cleanup: string[] = [];
 const original = {
@@ -37,7 +38,10 @@ describe("isolated harness environment", () => {
     cleanup.push(source, repo);
     await mkdir(join(repo, ".git"));
     await writeFile(join(source, "auth.json"), '{"token":"test"}');
-    await writeFile(join(source, "config.toml"), "model = 'contaminated'");
+    await writeFile(
+      join(source, "config.toml"),
+      "model = 'contaminated'\n[agents]\nmax_concurrent_threads_per_session = 99\n",
+    );
     process.env.CODEX_HOME = source;
     process.env.CLAUDE_CODE_OAUTH_TOKEN = "claude-test-token";
     process.env.UNRELATED_EVAL_SECRET = "must-not-inherit";
@@ -54,7 +58,12 @@ describe("isolated harness environment", () => {
     expect(await readFile(join(codexHome, "auth.json"), "utf8")).toBe(
       '{"token":"test"}',
     );
-    expect(await Bun.file(join(codexHome, "config.toml")).exists()).toBe(false);
+    const config = Bun.TOML.parse(
+      await readFile(join(codexHome, "config.toml"), "utf8"),
+    );
+    expect(config).toEqual({
+      agents: { max_concurrent_threads_per_session: codexAgentConcurrency() },
+    });
   });
 
   test("copies Claude and Codex credential files into a private config root", async () => {
@@ -98,6 +107,7 @@ describe("isolated harness environment", () => {
     expect(await readFile(join(codexHome, "auth.json"), "utf8")).toBe(
       '{"token":"codex"}',
     );
+    expect(await Bun.file(join(codexHome, "config.toml")).exists()).toBe(false);
     expect(await Bun.file(join(claudeConfigDir, "CLAUDE.md")).exists()).toBe(
       false,
     );

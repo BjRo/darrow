@@ -2,6 +2,8 @@ id: goal-failed-check-blocks-publication
 invariant: ADL-L1,ADL-L2,ADL-L5,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Add the exact line `Publication waits for green checks.`
   beneath the heading in NOTES.md and make no other content change. This
@@ -42,6 +44,14 @@ fixture:
 
       # Independently review the current change
 
+      Accept the originating acceptance, standards, exact candidate and current
+      successful checks. Run in a fresh assessment context supplied by the
+      verification caller. This deterministic fixture provides independent
+      standards and acceptance assessment, no implementation or publication.
+      Missing or stale evidence cannot clear. Closed follow-up requires original
+      findings, disposition, target/repair history and direct-regression lineage;
+      report unavailable if that evidence or mode cannot be assessed.
+
       Run exactly `independent-review-protocol` and return its complete output.
     .agents/skills/create-commit/SKILL.md: |
       ---
@@ -65,12 +75,16 @@ fixture:
     independent-review-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: independent-review-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: independent-review-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'review invoked' >>"$git_dir/fixture-state/gate-events"
       printf '%s\n' 'Independent review outcome: no blocking findings'
     create-commit-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: create-commit-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: create-commit-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'commit invoked' >>"$git_dir/fixture-state/gate-events"
       git add -- NOTES.md
@@ -78,6 +92,8 @@ fixture:
     create-pr-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: create-pr-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: create-pr-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'publication invoked' >>"$git_dir/fixture-state/gate-events"
       branch=$(git branch --show-current)
@@ -109,7 +125,13 @@ checks:
       test -z "$(git --git-dir=.git/fixture-remote.git for-each-ref --format='%(refname)' refs/heads)"
 semantic_output_checks:
   - name: owner reports the failed required check as the blocker
-    proposition: The response reports that the required final check failed and that this blocks review, commit, and pull-request publication.
+    proposition: >-
+      The response reports that the required final check failed and therefore
+      dependent review, commit, and pull-request publication cannot proceed.
+      Saying verification was blocked or not attempted includes its independent
+      review step; the response need not separately repeat the word review.
+      A response that says review, commit, or publication proceeded despite the
+      failed check does not satisfy this requirement.
   - name: owner does not claim completion
     proposition: The response does not claim that the requested outcome completed successfully.
 transcript_checks:

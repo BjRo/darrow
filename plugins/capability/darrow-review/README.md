@@ -90,6 +90,9 @@ aggregate, each fix-verification axis, and additive repair-verification records.
 This keeps status, severity, lifecycle identity, progress, prior-artifact
 continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
+`original-findings` copies the complete original finding rows with stable
+cross-axis keys; `validate-original` checks a follow-up against that retained
+comprehensive result, including advisory rows and exact source/evidence text.
 
 ### Reviewer routes
 

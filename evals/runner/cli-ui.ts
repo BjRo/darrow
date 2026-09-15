@@ -30,6 +30,7 @@ export interface ActivationLine {
   className: string;
   targetSkill: string;
   expectedSkills?: string[];
+  requiredSkills?: string[];
   excludedSkills?: string[];
   primarySkill: string | null;
   observedSkills?: string[];
@@ -196,6 +197,17 @@ function failedActivationRoute(activation: ActivationLine): string {
     return `· forbidden ${excluded.join(", ")} observed in ${activation.observedSkills?.join(" → ") || "none"}`;
   if (activation.expectedSkills)
     return `· expected ${activation.expectedSkills.join(" → ")}, got ${activation.observedSkills?.join(" → ") || "none"}`;
+  return failedActivationSelection(activation, observed);
+}
+
+function failedActivationSelection(
+  activation: ActivationLine,
+  observed: string[],
+): string {
+  const missing = activation.requiredSkills?.filter(
+    (skill) => !observed.includes(skill),
+  );
+  if (missing?.length) return `· missing required ${missing.join(", ")}`;
   return `· expected ${activation.targetSkill}, got ${activation.primarySkill ?? "none"}`;
 }
 

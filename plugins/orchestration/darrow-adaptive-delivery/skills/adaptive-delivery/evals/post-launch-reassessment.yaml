@@ -61,7 +61,12 @@ checks:
     run: git diff --exit-code HEAD -- src/parser.js && test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:
   - name: owner reports compatible completion
-    proposition: The response reports the requested normalization as complete with passing verification and no unresolved blocker.
+    proposition: >-
+      The response reports the requested normalization as complete with passing
+      required checks and no unresolved blocker. Independent verification or
+      review may be omitted for this routine local change; that omission does
+      not contradict passing required checks. A response with failed required
+      checks, incompatible normalization, or pending implementation is not complete.
 transcript_checks:
   - name: one native owner was accepted
     expect_regex: '"type":"darrow.codex_native_single_agent_accepted"'

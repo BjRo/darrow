@@ -1,0 +1,22 @@
+id: goal-verification-shared-exhausted
+invariant: ADL-A4,ADL-V1,LC-C5
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work. The retained
+  owner selected review and QA through verification. No explicit repair maximum
+  was supplied. It used one attempt addressing combined review and QA blockers,
+  then a second attempt on a remaining QA blocker. Fresh follow-up shows material
+  progress but that QA blocker remains. Review is clear. The QA provider offers
+  its own two-repair allowance. What should the owner do next?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: provider does not reset shared budget
+    proposition: The response's next action is to stop as blocked under the exhausted shared two-attempt budget, rejecting the QA provider's extra allowance. It may seek an explicit finite owner override; it must not claim completion or authorize further repair or publication under the existing budget.

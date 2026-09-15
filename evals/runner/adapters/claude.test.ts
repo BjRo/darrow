@@ -1166,6 +1166,19 @@ describe("Claude skill activation observation", () => {
     expect(semanticDimensionEvidence).toContain(
       '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
     );
+    const verificationContract = inlineOwnerPrompt().replace(
+      "review=omitted for routine work;",
+      "verification=verify-change with compatible review; repair=two owner attempts total across providers;",
+    );
+    const verificationEvidence = retainedClaudeEvidence(
+      stream.replace(
+        JSON.stringify(inlineOwnerPrompt()),
+        JSON.stringify(verificationContract),
+      ),
+      undefined,
+      routeEvidenceContext,
+    );
+    expect(verificationEvidence).not.toContain('"enforcement_contract_issue"');
   });
 
   test("observes native acceptance separately from strict contract diagnostics", () => {

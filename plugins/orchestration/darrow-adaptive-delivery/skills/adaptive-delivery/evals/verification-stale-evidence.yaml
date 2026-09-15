@@ -1,0 +1,18 @@
+id: goal-verification-stale-evidence
+invariant: ADL-V1,ADL-A4,LC-C5
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work.
+  Review and QA are selected through verification. Both report clear, but QA assessed the candidate before the last repair; review and the required checks cover current content. One shared attempt remains. May the retained owner complete or publish now?
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: combined evidence controls continuation
+    proposition: The response withholds completion and publication until the selected QA evidence is refreshed for current content and the combined conclusion clears. It does not treat the provider pass, remaining budget or current review as a substitute for missing current QA evidence.

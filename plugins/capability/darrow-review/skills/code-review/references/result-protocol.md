@@ -62,6 +62,11 @@ risk<TAB>concise residual risk or none observed       # repeat
 next_action<TAB>one authorized next step, or none
 ```
 
+For a resolved scope, obtain the complete `base`, `target`, and `changed_file`
+records with `bash "$result_tool" scope-records "$manifest"`. Insert those
+bytes into the aggregate; do not retype hashes or reconstruct the file list.
+This command validates the pinned diff and refuses incomplete scope records.
+
 Every applicable `check` row is copied byte-for-byte from a retained
 `darrow-review-check-v1` artifact produced beneath this scope. Coordinator prose
 must not replace the captured command, status, or evidence.
@@ -84,8 +89,15 @@ records. If validation reveals missing evidence, change the affected state to
 Write the draft only beneath the scope artifact directory and run:
 
 ```sh
-bash "$result_tool" validate "$result_record"
+bash "$result_tool" validate-scope "$manifest" "$result_record"
 ```
+
+This validates both the schema and the exact base, target, and complete
+changed-file set against the pinned manifest. A mismatch is an assembly error;
+recopy the authoritative scope records without changing reader judgment. For
+a terminal scope failure with no resolved manifest, retain the blocked schema
+and use `validate "$result_record"` instead. Standalone `validate` remains a
+serialization check for external records, not proof of scope binding.
 
 Correct serialization errors only. In default mode, first run:
 
@@ -202,6 +214,14 @@ repair-caused regression, not by an unscoped new finding. Validate with:
 ```sh
 bash "$result_tool" validate-verification "$verification_record"
 ```
+
+That command validates the record and prior-verification chain. The
+fix-verification workflow also requires `validate-original` whenever the original
+comprehensive result is retained. Obtain
+the immutable rows with `original-findings`; do not retype their evidence or
+assign a new finding order. An external handoff without that artifact still
+requires complete immutable original records, preserved exactly as supplied;
+missing original evidence requires a blocked gap.
 
 In default mode render with:
 

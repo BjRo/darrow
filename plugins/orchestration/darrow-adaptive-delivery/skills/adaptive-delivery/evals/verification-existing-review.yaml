@@ -1,0 +1,73 @@
+id: goal-verification-existing-review
+invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19
+activation: positive
+mount_plugin_skills: true
+activation_includes: [verify-change, code-review]
+additional_plugins:
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  Use {{skill_invocation}} to continue the existing src/config.js candidate. Run
+  bash check.sh, then independently assess the candidate before any change.
+  Use verification with the installed darrow-review:code-review provider.
+  Independent review is the only selected assessment. Originating criteria:
+  TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Repair only
+  src/config.js within those criteria, refresh invalidated checks and obtain
+  closed follow-up assurance. Complete locally only when current verification
+  clears. No commits, publication, new product behavior or replacement owner
+  is authorized. Report the initial finding and final verification outcome.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: |
+          Run bash check.sh for JavaScript changes. Keep this check unchanged.
+        src/config.js: |
+          export const TIMEOUT_MS = 1000;
+          export const RETRY_COUNT = 3;
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
+          git_dir=$(git rev-parse --git-dir)
+          mkdir -p "$git_dir/fixture-state"
+          cksum <src/config.js >>"$git_dir/fixture-state/current-checks"
+  files:
+    src/config.js: |
+      export const TIMEOUT_MS = 2500;
+      export const RETRY_COUNT = 0;
+  setup: |
+    mkdir -p .git/fixture-bin
+    cp "{{case_dir}}/fixtures/require-clear-review.sh" .git/fixture-bin/review-proof
+checks:
+  - name: current candidate satisfies both originating criteria
+    run: |
+      printf '%s\n' 'export const TIMEOUT_MS = 2500;' 'export const RETRY_COUNT = 3;' >.git/expected-config
+      cmp .git/expected-config src/config.js
+      test "$(git rev-list --count HEAD)" -eq 1
+  - name: real provider returns a closed clear repair assessment
+    run: |
+      record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1)
+      test -n "$record"
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
+      test -n "$tool"
+      bash "$tool" validate-verification "$record"
+      # Retain the bounded immutable finding rows when diagnosing a history loss.
+      find .git -maxdepth 2 -name result.tsv -path '*/darrow-review.*/*' -exec awk -F '\t' '$1 == "target" || $1 == "finding" { print FILENAME ":" $0 }' {} \;
+      awk -F '\t' '$1 == "original_target" || $1 == "original_finding" { print FILENAME ":" $0 }' "$record"
+      grep -F 'outcome	clear' "$record" >/dev/null
+      bash .git/fixture-bin/review-proof complete "$record"
+      bash .git/fixture-bin/review-proof current
+semantic_output_checks:
+  - name: same owner completes after actual provider repair verification
+    proposition: >-
+      The response conveys that the retry-count blocker was repaired, current
+      checks succeeded, and fresh closed verification cleared the candidate.
+      Those completed outcomes suffice; it need not use the word "complete"
+      or identify the owner by name. It must not claim publication, replacement
+      of the owner, or an unresolved condition that prevents completion.
+transcript_checks:
+  - name: no lifecycle ledger or nested goal
+    not_regex: 'adaptive-delivery-preflight step|"tool":"create_goal"'

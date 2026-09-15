@@ -115,6 +115,8 @@ export interface TrialActivationResult {
   targetSkill: string;
   /** Optional required leading skill-load sequence for composed capabilities. */
   expectedSkills?: string[];
+  /** Supporting skills required in any observed order. */
+  requiredSkills?: string[];
   /** Skills that must not appear anywhere in the observed load sequence. */
   excludedSkills?: string[];
   /** Null means the observation was unavailable or incomplete. */
@@ -169,6 +171,8 @@ export interface EvalCase {
   activation?: ActivationClass;
   /** Optional required leading skill-load sequence for composed capabilities. */
   activation_sequence?: string[];
+  /** Supporting skills required without a particular read order. */
+  activation_includes?: string[];
   /** Optional skill names forbidden anywhere in the observed load sequence. */
   activation_excludes?: string[];
   /** Override the owning adaptive-delivery skill's default required completion report. */
@@ -178,6 +182,8 @@ export interface EvalCase {
 }
 
 export interface HarnessResult {
+  /** Configured Codex subagent limit; null uses the host default. */
+  codexAgentConcurrencyLimit?: number | null;
   /** Actual policy assistance; absent historical evidence remains unknown. */
   evaluationEnforcement?: "passive" | "enforced";
   ok: boolean;
@@ -343,6 +349,8 @@ export interface SemanticOutputResult {
 }
 
 export interface CaseResult {
+  /** Configured Codex subagent limit; historical absence remains unknown. */
+  codexAgentConcurrencyLimit?: number | null;
   /** Requested policy-assistance condition, distinct from actual harness evidence. */
   ownerEvaluationMode?: "passive" | "enforced";
   expectedEffectiveOwnerRoute?: { model: string; effort: string };

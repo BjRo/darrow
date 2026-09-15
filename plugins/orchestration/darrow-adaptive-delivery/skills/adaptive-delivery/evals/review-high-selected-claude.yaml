@@ -2,6 +2,8 @@ id: goal-review-high-selected-claude
 invariant: ADL-C1,ADL-C2,ADL-R2,ADL-L1,ADL-L2,ADL-L5,ADL-X1
 goal_report: forbidden
 goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Change the exported sessionCookieOptions in
   auth-config.js so sameSite is exactly "strict" instead of "lax". This is a

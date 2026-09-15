@@ -22,6 +22,7 @@ import type {
 import { sandboxedAgentCommand } from "../sandbox";
 import { throwIfInterrupted, trackEvaluationProcess } from "../run-control";
 import { isolatedHarnessEnvironment } from "../environment";
+import { codexAgentConcurrencyEvidence } from "../codex-config";
 import {
   fixtureStateFingerprint,
   repositoryFingerprint,
@@ -4353,6 +4354,7 @@ async function codexHarnessResult(
   );
   return {
     evaluationEnforcement: spawnGuardSecret ? "enforced" : "passive",
+    ...codexAgentConcurrencyEvidence("codex"),
     ok,
     durationMs,
     tokenUsageComplete: codexUsageCoversExecution(usage.complete, raw),

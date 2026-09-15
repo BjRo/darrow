@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1260" viewBox="0 0 1600 1260" role="img" aria-labelledby="title description">
+  <title id="title">Adaptive Delivery: agents, choices and convergence</title>
+  <desc id="description">The preflight and user interaction plane resolves questions, selects one workflow and risk level, and binds intent-matched capabilities into a contract for one separate execution owner. Workflows are fix-bug, implement-feature, change-feature, refactor, migration and mechanical; decision-gated pauses launch. Risk levels are routine, elevated and high. The owner iterates implementation and checks, and calls a separate verification agent when assurance is selected. Verification invokes independent review and returns findings, clear or blocked evidence. The owner handles eligible repairs and fresh reassessment under a shared default maximum of two attempts. Later questions and user feedback return to the same owner. A shared capability strip shows replaceable examples, including readiness gate, Git, tickets, TDD and independent review, discovered from compatible host-advertised intent rather than a hardcoded provider list.</desc>
+  <metadata>Source: current Darrow working-tree contracts, 2026-09-14. docs/specs/adaptive-delivery.md; docs/specs/verification.md; docs/specs/code-review.md. Simplified overview: the verification return also includes progress and no-progress judgments; no-progress, blocked or exhausted limits stop repair and completion.</metadata>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 9 5 1 9Z" fill="#525b67"/></marker>
+    <marker id="loop-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 9 5 1 9Z" fill="#bd5a13"/></marker>
+    <marker id="feedback-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 9 5 1 9Z" fill="#7950ab"/></marker>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; fill: #252930; }
+      .title { font-size: 40px; font-weight: 750; letter-spacing: -1px; }
+      .heading { font-size: 28px; font-weight: 720; }
+      .body { font-size: 21px; }
+      .small { font-size: 18px; fill: #626b77; }
+      .label { font-size: 16px; font-weight: 650; }
+      .eyebrow { font-size: 16px; font-weight: 700; letter-spacing: 1.3px; fill: #626b77; }
+      .mono { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 16px; }
+      .orange { fill: #a34a0e; }
+      .purple { fill: #72469e; }
+      .teal { fill: #226b69; }
+      .flow { fill: none; stroke: #525b67; stroke-width: 2.5; marker-end: url(#arrow); stroke-linejoin: round; }
+      .loop { fill: none; stroke: #bd5a13; stroke-width: 3; marker-end: url(#loop-arrow); stroke-linejoin: round; }
+      .feedback { fill: none; stroke: #7950ab; stroke-width: 2.5; stroke-dasharray: 7 5; marker-start: url(#feedback-arrow); marker-end: url(#feedback-arrow); stroke-linejoin: round; }
+      .binding { fill: none; stroke: #6d9994; stroke-width: 2; stroke-dasharray: 5 6; stroke-linejoin: round; }
+      .chip { fill: #f2f4f7; stroke: #dce0e5; }
+    </style>
+  </defs>
+  <rect width="1600" height="1260" fill="#fafafa"/>
+  <path d="M0 0H1600V8H0Z" fill="#d90028"/>
+  <rect x="50" y="43" width="8" height="69" fill="#d90028"/>
+  <text x="78" y="76" class="title">Adaptive Delivery</text>
+  <text x="78" y="109" class="body">One prepared contract. One owner. Bounded verification.</text>
+  <path d="M1070 59H1110" class="loop"/>
+  <text x="1124" y="65" class="small">Convergence</text>
+  <path d="M1303 59H1343" class="feedback"/>
+  <text x="1357" y="65" class="small">User feedback</text>
+  <path d="M1070 99H1110" class="binding"/>
+  <text x="1124" y="105" class="small">Capability binding by intent</text>
+
+  <!-- Preflight and user interaction share the parent plane. -->
+  <rect x="50" y="150" width="1500" height="350" rx="20" fill="#fff" stroke="#d1d6dd" stroke-width="1.5"/>
+  <text x="80" y="190" class="heading">Preflight &amp; user interaction</text>
+  <rect x="80" y="270" width="260" height="120" rx="14" fill="#fff5eb" stroke="#e4b28e" stroke-width="1.5"/>
+  <text x="106" y="315" class="heading">User</text>
+  <text x="106" y="351" class="body">Intent &amp; decisions</text>
+  <path d="M440 310H340" class="loop"/>
+  <text x="390" y="295" text-anchor="middle" class="label orange">questions</text>
+  <path d="M340 365H440" class="loop"/>
+  <text x="390" y="350" text-anchor="middle" class="label orange">answers</text>
+  <rect x="440" y="220" width="1080" height="240" rx="14" fill="#fff" stroke="#d1d6dd" stroke-width="1.5"/>
+  <text x="465" y="255" class="heading">Adaptive-delivery · read-only preflight</text>
+  <text x="465" y="285" class="small">Scope · acceptance · readiness when selected · capability bindings · model / effort</text>
+  <text x="465" y="318" class="label">WORKFLOW · CHOOSE ONE</text>
+  <g text-anchor="middle" class="mono">
+    <rect x="465" y="330" width="96" height="34" rx="8" class="chip"/><text x="513" y="352">fix-bug</text>
+    <rect x="569" y="330" width="181" height="34" rx="8" class="chip"/><text x="659.5" y="352">implement-feature</text>
+    <rect x="758" y="330" width="166" height="34" rx="8" class="chip"/><text x="841" y="352">change-feature</text>
+    <rect x="932" y="330" width="102" height="34" rx="8" class="chip"/><text x="983" y="352">refactor</text>
+    <rect x="1042" y="330" width="120" height="34" rx="8" class="chip"/><text x="1102" y="352">migration</text>
+    <rect x="1170" y="330" width="136" height="34" rx="8" class="chip"/><text x="1238" y="352">mechanical</text>
+    <rect x="1314" y="330" width="174" height="34" rx="8" fill="#fff5eb" stroke="#e4b28e"/><text x="1401" y="352" class="orange">decision-gated</text>
+  </g>
+  <text x="465" y="402" class="label">RISK</text>
+  <g text-anchor="middle" class="body">
+    <rect x="530" y="379" width="132" height="34" rx="8" fill="#edf3ef" stroke="#c6d6cb"/><text x="596" y="403">routine</text>
+    <rect x="675" y="379" width="143" height="34" rx="8" fill="#fff4e5" stroke="#e6cfac"/><text x="746.5" y="403">elevated</text>
+    <rect x="831" y="379" width="110" height="34" rx="8" fill="#fcebee" stroke="#e7bec6"/><text x="886" y="403">high</text>
+  </g>
+  <text x="973" y="402" class="small">Risk + explicit requirements select assurance.</text>
+  <text x="465" y="442" class="small">Compile the settled contract.</text>
+  <text x="1213" y="442" class="label orange">decision-gated → resolve first</text>
+
+  <!-- Launch once; relay subsequent feedback to the same owner. -->
+  <path d="M640 460V600" class="flow"/>
+  <rect x="532" y="522" width="216" height="44" rx="8" fill="#fafafa"/>
+  <text x="640" y="540" text-anchor="middle" class="label">Contract + selected route</text>
+  <text x="640" y="562" text-anchor="middle" class="label">Launch once</text>
+  <path d="M210 390V655H400" class="feedback"/>
+  <text x="233" y="556" class="small purple">Questions / feedback</text>
+  <text x="233" y="583" class="small purple">Same owner reassesses</text>
+  <text x="233" y="610" class="small purple">and resumes.</text>
+
+  <!-- Separate execution owner with a focused implementation/check loop. -->
+  <rect x="400" y="600" width="480" height="250" rx="18" fill="#f1f3f6" stroke="#c8cfd8" stroke-width="1.5"/>
+  <text x="425" y="632" class="eyebrow">SEPARATE AGENT</text>
+  <text x="425" y="674" class="heading">Execution owner</text>
+  <rect x="425" y="715" width="178" height="70" rx="10" fill="#fff" stroke="#c8cfd8"/>
+  <text x="514" y="757" text-anchor="middle" class="body">Implement</text>
+  <rect x="665" y="715" width="178" height="70" rx="10" fill="#fff" stroke="#c8cfd8"/>
+  <text x="754" y="757" text-anchor="middle" class="body">Check</text>
+  <path d="M603 750H665" class="flow"/>
+  <path d="M754 785V818H514V785" class="loop"/>
+  <text x="634" y="810" text-anchor="middle" class="label orange">until green</text>
+
+  <!-- One bounded verification agent; review details stay collapsed. -->
+  <rect x="1120" y="600" width="420" height="250" rx="18" fill="#e7f4f1" stroke="#8bb9b1" stroke-width="1.5"/>
+  <text x="1145" y="632" class="eyebrow teal">SEPARATE AGENT · WHEN SELECTED</text>
+  <text x="1145" y="674" class="heading">Verification</text>
+  <rect x="1145" y="712" width="370" height="37" rx="9" fill="#fff" stroke="#b5d3cd"/>
+  <text x="1330" y="737" text-anchor="middle" class="small teal">Invokes independent review</text>
+  <text x="1145" y="788" class="body">Assess acceptance.</text>
+  <text x="1145" y="817" class="body">Return findings &amp; evidence.</text>
+  <path d="M880 697H1120" class="flow"/>
+  <text x="1000" y="681" text-anchor="middle" class="label">candidate + passing checks</text>
+  <path d="M1120 778H880" class="loop"/>
+  <text x="1000" y="763" text-anchor="middle" class="label orange">findings / clear / blocked</text>
+  <text x="1000" y="814" text-anchor="middle" class="label orange">Repair + reassess</text>
+  <text x="1000" y="837" text-anchor="middle" class="label orange">default ≤2 owner attempts</text>
+
+  <path d="M790 850V910" class="flow"/>
+  <text x="815" y="879" class="small">Checks + selected assurance clear</text>
+  <rect x="680" y="910" width="220" height="50" rx="25" fill="#eaf4ed" stroke="#a9c4b2" stroke-width="1.5"/>
+  <text x="790" y="942" text-anchor="middle" class="body">Complete</text>
+  <text x="924" y="938" class="small">Unresolved + no progress / blocked / limit → stop.</text>
+
+  <!-- Shared capability surface: dotted links are bindings, not workflow steps. -->
+  <path d="M1520 429H1574V1090H1550" class="binding"/>
+  <path d="M470 850V1030" class="binding"/>
+  <path d="M1330 850V904H1516V1030" class="binding"/>
+  <rect x="50" y="1030" width="1500" height="150" rx="18" fill="#fff" stroke="#9dbdb7" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="80" y="1068" class="heading">Intent-matched capabilities</text>
+  <text x="80" y="1099" class="small">Compatible advertised skills, selected by intent. Providers are replaceable; required operations follow the contract.</text>
+  <g text-anchor="middle" class="body">
+    <rect x="80" y="1120" width="215" height="36" rx="9" fill="#edf7f5"/><text x="187.5" y="1145">Readiness gate</text>
+    <rect x="309" y="1120" width="105" height="36" rx="9" fill="#edf7f5"/><text x="361.5" y="1145">Git</text>
+    <rect x="428" y="1120" width="140" height="36" rx="9" fill="#edf7f5"/><text x="498" y="1145">Tickets</text>
+    <rect x="582" y="1120" width="185" height="36" rx="9" fill="#edf7f5"/><text x="674.5" y="1145">Test-first / TDD</text>
+    <rect x="781" y="1120" width="260" height="36" rx="9" fill="#edf7f5"/><text x="911" y="1145">Independent review</text>
+    <text x="1119" y="1145" class="teal">…</text>
+  </g>
+  <text x="80" y="1214" class="small">Bindings travel with the contract; a required missing capability blocks the affected work.</text>
+  <text x="50" y="1246" class="label">Darrow · current working-tree contract</text>
+  <a href="../specs/adaptive-delivery.md"><text x="1070" y="1246" class="label" text-decoration="underline">Adaptive Delivery</text></a>
+  <a href="../specs/verification.md"><text x="1250" y="1246" class="label" text-decoration="underline">Verification</text></a>
+  <a href="../specs/code-review.md"><text x="1385" y="1246" class="label" text-decoration="underline">Code Review</text></a>
+</svg>

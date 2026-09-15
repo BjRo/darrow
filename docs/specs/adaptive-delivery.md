@@ -135,7 +135,7 @@ The contract is self-contained and concise. It contains, in plain language:
 - the implementation sequence from the selected workflow;
 - focused feedback checks and final-tree checks;
 - the readiness result or the reason readiness was omitted;
-- the independent-review selection and its continuation rule;
+- the verification selection, required review binding and shared repair rule;
 - the exact capability bindings for matching implementation operations;
 - the human-feedback rule;
 - publication limits and the completion evidence to return; and
@@ -184,11 +184,14 @@ Before launch, enumerate the exact operations in the authorized contract. For
 each operation whose intent matches a host-advertised skill, bind that operation
 to the exact advertised skill name. Include those bindings in the owner
 contract. Typical bindings include ticket reads and updates, TDD, commits, pull
-requests, and independent code review.
+requests, and verification. When verification is selected, preflight also binds
+its compatible required independent code-review capability. Assessment runs
+through verification; adaptive delivery does not own review's assessment protocol.
 
 Readiness and necessary read-only input gathering may run during preflight.
 Preserve completed input evidence and bind any necessary refresh. Implementation,
-verification, review, and publication bindings run in the owner when due.
+verification and publication bindings run in the owner when due; selected
+assessment-provider bindings travel through verification with preserved authority.
 The owner must follow the bound
 skill before performing that operation; a direct shell, Git, forge, tracker,
 or generic subagent call is not a substitute. A refusal or unavailable bound
@@ -386,7 +389,7 @@ within authority or relay a material question through the parent; after findings
 are resolved it obtains required ready evidence before continuing. The parent
 does not take over preflight, launch another owner, or perform the investigation.
 
-## Independent review
+## Selected verification
 
 Select independent review separately:
 
@@ -397,13 +400,16 @@ Select independent review separately:
 | High risk     | required; an unavailable matching capability stops before owner launch                   |
 | Any risk      | selected when the user or repository requires it                                         |
 
-The parent binds the exact matching advertised skill before launching an owner
-whose contract requires review. An ad hoc prompt, generic subagent, or
-same-context judgment is not a substitute.
+The parent binds compatible advertised verification and required independent
+review before launching an owner whose contract selects assurance. It checks
+both public contracts and passes the review binding through verification.
+An ad hoc prompt, generic subagent, direct-review bypass or same-context judgment
+is not a substitute. Unsupported selected additional assessments also block;
+absent unselected optional providers do not.
 
-Review availability is a parent preflight gate, not owner work. Before any
-owner launch, the parent must identify the exact advertised skill for every
-selected review. If it cannot, it returns `Status: launch_required` and makes
+Required verification and review availability is a parent preflight gate. Before
+owner launch, the parent must identify exact compatible advertised skills.
+If it cannot, it returns `Status: launch_required` identifying every gap and makes
 no product mutation. It never launches an owner to discover the absence or to
 perform a self-review, separated local review, or generic-agent substitute.
 
@@ -411,27 +417,44 @@ A clear or localized implementation does not make a high-risk change eligible
 to omit review. A stronger user or repository rule may stop implementation
 before launch, but it does not turn the required review into an omission.
 
-The owner invokes the matching capability only after implementation and every
+The owner invokes verification only after implementation and every
 applicable current final-tree check succeeds. Merely running a required check
 does not satisfy this dependency. If a required check fails, the owner repairs
 within existing authority and reruns invalidated checks, or stops before
-review, commit, and publication. It supplies the exact current change,
-originating authority, repository standards, and successful check evidence. A
-clear result satisfies the review gate for that content, but cannot waive a
-failed required check. A blocking result prevents completion and publication.
+assessment, commit, and publication. It supplies the repository and exact current
+candidate/scope/base, originating authority and every material acceptance criterion,
+constraints, successful check evidence and selected provider bindings. All selected
+assessment results must return before repair; concurrent assessment is permitted.
+Clear requires complete current evidence for every criterion and selected result,
+not a provider pass alone. Missing, stale or unsupported evidence blocks completion.
 
-When existing authority covers repair, default to at most two closed-set repair
-attempts, each followed by fix verification after invalidated checks. An explicit finite nonnegative
+When existing authority covers all eligible blockers, default to at most two
+closed-set owner repair attempts across verification as a whole. One attempt
+addresses the combined blockers together, followed by fresh follow-up after
+successful invalidated checks. Provider count never increases this budget.
+An explicit finite nonnegative
 integer user or repository repair budget may change that limit. Apply the
+same authorized maximum in the launch contract and owner report; consumed
+attempts are a separate count. Finishing after one repair does not change the
+default maximum to one or create an implicit override. Resolve the maximum,
+its authority source and the consumed count before launch. Before relaying
+completion, compare the owner's accounting with that bound allowance. Missing
+or contradictory accounting requires corrected status evidence from the same
+owner; obtaining that evidence authorizes no additional repair or assessment.
+Apply the
 strictest applicable invocation, time, token, and authority limit. Additional
 attempts require the preceding verification to show resolved original blockers
 or changed evidence narrowing their cause. Only clear current-content evidence
 satisfies the gate. Unchanged, unavailable, inconclusive, out-of-scope, or
 exhausted evidence stops completion and remaining publication. Keep the original
-finding set plus direct repair-caused regressions closed.
+finding set plus direct repair-caused regressions closed. Preserve original
+finding identities, provider/axis provenance and disposition, target history,
+attempted repairs, prior follow-ups and direct-regression lineage. No comprehensive
+assessment resets the budget. Clear ends repair immediately; an uncleared second
+follow-up exhausts the default even with progress.
 
-No Darrow helper call records review targets or outcomes. The independent
-capability's returned result, the final content, and the owner's summary are the
+No Darrow helper call records assessment targets or outcomes. Verification's
+combined result and complete provider evidence, final content and owner summary are the
 evidence.
 
 ## Owner lifecycle
@@ -516,7 +539,9 @@ The owner returns concise human-readable evidence:
 - whether the requested outcome is complete, awaiting feedback, or blocked;
 - changed files or an explicit statement that none changed;
 - focused and final verification evidence;
-- readiness and review outcomes when selected;
+- readiness and combined verification outcomes when selected, including complete
+  assessment results, material criterion coverage, consumed repair attempts and
+  the authorized repair maximum;
 - performed publication effects, if any; and
 - remaining risks or blockers.
 
@@ -525,6 +550,10 @@ the launch boundary and need not be echoed in completion prose. They may be
 included for readability, but completion does not depend on their formatting or
 restatement.
 
+The host launch guides return through the same completion-evidence check in the
+main skill. An owner return alone does not bypass that check. Missing or
+contradictory accounting requires a status correction from the retained owner;
+if that owner cannot be resumed, report the evidence gap instead of completion.
 The parent relays those facts without reconstructing them or running additional
 checks. No exact serialization, canonical report prefix, route telemetry row,
 child counter, or interruption counter is required. Goal completion grants no
@@ -553,7 +582,7 @@ continuation targets the returned owner id.
 
 ### Unavailable launch
 
-If the selected owner boundary or a selected readiness/review capability is
+If the selected owner boundary or a required readiness/verification/review capability is
 unavailable, preserve the product tree and return:
 
 ```text
@@ -593,9 +622,13 @@ Nested host processes are not an adaptive-delivery fallback.
    complete run. It creates no replacement adaptive owner or nested goal for
    the same contract.
 9. **ADL-L2 — Semantic gates.** Readiness completes before launch; every
-   applicable current check succeeds before review and every dependent commit
-   or publication effect; review runs inside the owner and cannot waive a
-   failed check. The gates are proven by capability results and observable
+   applicable current check succeeds before selected verification and every
+   dependent commit or publication effect. The owner invokes verification with
+   the candidate, originating criteria, constraints and existing evidence;
+   no assessment can waive a failed check. An explicit assessment-before-change
+   request starts with checks and verification of the unchanged existing
+   candidate; classifier inspection is not that independent assessment.
+   The gates are proven by capability results and observable
    repository behavior, not bookkeeping transitions.
 10. **ADL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation,
     and status requests remain attached to the accepted owner when supported.
@@ -606,7 +639,8 @@ Nested host processes are not an adaptive-delivery fallback.
 11. **ADL-L4 — Semantic blockage.** A blocker names its condition, evidence,
     and next action without a Darrow retry state machine.
 12. **ADL-L5 — Owner-sourced completion.** The parent relays the owner's
-    changed-file, verification, review, publication, and residual-risk facts.
+    changed-file, combined verification conclusion, selected assessment results,
+    criterion coverage, consumed repair budget, publication, and residual-risk facts.
 13. **ADL-S1 — No inferred decisions.** Missing product, safety, destructive,
     privacy, or authority choices stop before the affected mutation.
 14. **ADL-S2 — No duplicate external effect.** An ambiguous external result is
@@ -625,7 +659,8 @@ Nested host processes are not an adaptive-delivery fallback.
     repository and external effects with passive fixture event logs under
     `.git/fixture-state/`, exact public tokens with rigid output checks, and
     paraphrasable prose contracts with fail-closed semantic output checks.
-    Fixture CLI help requests remain read-only and never count as external
+    Fixture CLI help requests remain read-only and never count as completed
+    assessments or external
     effects or consume publication authorization.
     Recovered skill-read record position is not temporal evidence. Pre-owner
     read checks require complete parent-local reads before the native spawn
@@ -679,17 +714,45 @@ The following invariants govern adaptation and evidence provenance:
   parent may invoke necessary advertised read-only capabilities to retrieve
   authoritative input, including a referenced ticket. Preserve their evidence
   and bind future operations by intent. Retrieval grants no mutation authority.
-- **ADL-A4 — Budgeted closed-set repair.** Default to at most two repair attempts,
-  each followed by fix verification. An explicit finite user or repository budget
+- **ADL-A4 — Budgeted closed-set repair.** Collect every selected assessment result
+  before owner repair. One attempt addresses the combined eligible blockers
+  together, then obtains successful current checks and fresh-context verification
+  of original findings, affected evidence and direct repair-caused regressions.
+  Default to at most two owner repair attempts across verification as a whole;
+  extra providers do not add budgets. An explicit finite user or repository budget
   may raise or lower this maximum;
   each additional attempt requires changed evidence showing material progress
-  against the original blockers or direct repair regressions. Unchanged,
+  against the original blockers or direct repair regressions. Preserve finding
+  identities, provider provenance, dispositions, target and repair history, prior
+  follow-ups and direct-regression lineage. The finding set stays closed except
+  for direct repair-caused regressions; a comprehensive reassessment cannot reset
+  the budget. Apply the strictest invocation, time, token and authority limits.
+  Unchanged, oscillating,
   inconclusive, unavailable, out-of-scope, or exhausted evidence stops affected
   work and publication. Only clear verification of current content clears the
   gate. The same owner applies the limit; no parent repair controller is added.
   Clear verification ends repair immediately; unused attempts are not required.
   Without an explicit override, an uncleared second verification exhausts the
   budget even when it shows progress. An unbounded request does not raise it.
+- **ADL-V1 — Verification boundary.** Preserve routine review omission and required
+  high-risk review. Selected assurance requires compatible host-advertised
+  verification and independent review before launch. The same owner consumes
+  verification's combined clear/progress/no-progress/blocked conclusion; it does
+  not directly coordinate a review-specific protocol. Selecting independent
+  review alone still selects verification with one assessment; it never grants
+  the owner a direct-review bypass. Every material acceptance
+  criterion needs current evidence or an explicit gap; missing selected evidence,
+  stale candidates and provider passes without complete coverage cannot clear
+  completion or remaining publication. Unselected optional providers add no gate.
+  Compile this dependency inline before launch: the owner receives and validates
+  the bound verification capability's complete, current-content clear assessment
+  before invoking a dependent commit or publisher. Their local readiness cannot
+  discharge an enclosing verification prerequisite. A successful provider call
+  that returns review alone or incomplete criterion coverage leaves that
+  prerequisite unsatisfied; discovering the omission in the final completion
+  report is too late to protect an already performed effect.
+  Verification owns bounded assessment only, never repair, continuation, budget
+  policy or overall completion.
 - **ADL-A5 — Semantic presentation.** The seven contract fields are a
   completeness template. Equivalent clear prose, line wrapping, punctuation,
   status presentation, and role wording are valid. Preserve exact tool keys,
@@ -704,8 +767,10 @@ The following invariants govern adaptation and evidence provenance:
   routes separately from comparisons changing routes; report sample sizes,
   outcomes, timing, token-accounting completeness, and limitations.
 
-Real review-composition fixtures accept both the comprehensive result and the
-additive fix-verification protocol. Completion consumes an explicitly selected,
+Real review-composition fixtures accept the canonical human report as well as
+the comprehensive and additive fix-verification machine artifacts. The fixture
+may validate a human report against its retained canonical source without making
+callers reconstruct a provider's private serialization. Completion consumes an explicitly selected,
 validated clear artifact covering current content; a verification retains its
 binding to the original comprehensive finding set. Nonblocking advisories do
 not prevent completion. Artifact filename ordering is not evidence of recency

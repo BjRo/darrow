@@ -14,15 +14,19 @@ const validatorSource = new URL(
 );
 const proofSource = new URL("fixtures/require-clear-review.sh", source);
 const scopeSource = new URL("review-scope", validatorSource);
+const reportSource = new URL("review-report", validatorSource);
 
-test("high-risk composition requires the supporting review body read", async () => {
+test("high-risk composition requires verification and supporting review reads", async () => {
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;
   evalCase.owningSkillName = "adaptive-delivery";
   evalCase.skillDir = new URL("..", source).pathname;
   expect(validateActivationCase(evalCase)).toEqual([]);
   expect(evalCase.activation).toBe("positive");
   for (const [skills, passed] of [
-    [["adaptive-delivery", "code-review"], true],
+    [["adaptive-delivery", "verify-change", "code-review"], true],
+    [["adaptive-delivery", "code-review", "verify-change"], true],
+    [["adaptive-delivery", "code-review"], false],
+    [["adaptive-delivery", "verify-change"], false],
     [["adaptive-delivery"], false],
   ] as const) {
     const grade = gradeActivation(
@@ -34,7 +38,7 @@ test("high-risk composition requires the supporting review body read", async () 
         primarySkill: "adaptive-delivery",
         observedSkills: [...skills],
       },
-      { sequence: evalCase.activation_sequence },
+      { includes: evalCase.activation_includes },
     );
     expect(grade.passed).toBe(passed);
   }
@@ -47,7 +51,54 @@ function repairState(scenario: { unresolved?: boolean; blocked?: boolean }) {
   return ["resolved", "resolved", "clear"] as const;
 }
 
+async function selectedArtifact(
+  repo: string,
+  record: string,
+  scenario: { markdown?: boolean; tampered?: boolean },
+): Promise<string> {
+  if (!scenario.markdown) return record;
+  const verification = record.endsWith("verification.tsv");
+  const rendered = Bun.spawnSync(
+    [
+      "/bin/bash",
+      ".git/review-plugin/bin/review-report",
+      verification ? "render-verification" : "render",
+      record,
+    ],
+    { cwd: repo },
+  );
+  expect(rendered.exitCode).toBe(0);
+  const artifact = record.replace(
+    /(?:verification|result)\.tsv$/,
+    verification ? "verification.md" : "review.md",
+  );
+  await Bun.write(
+    artifact,
+    rendered.stdout.toString() + (scenario.tampered ? "Altered\n" : ""),
+  );
+  return artifact;
+}
+
 for (const scenario of [
+  {
+    name: "canonical human comprehensive report",
+    standards: "pass",
+    check: "pass",
+    verdict: "pass",
+    disposition: null,
+    markdown: true,
+    passes: true,
+  },
+  {
+    name: "altered human comprehensive report",
+    standards: "pass",
+    check: "pass",
+    verdict: "pass",
+    disposition: null,
+    markdown: true,
+    tampered: true,
+    passes: false,
+  },
   {
     name: "clear without findings",
     standards: "pass",
@@ -150,6 +201,8 @@ for (const scenario of [
             records.map((row) => row.join("\t")).join("\n") + "\n",
           ".git/review-plugin/bin/review-result":
             await Bun.file(validatorSource).text(),
+          ".git/review-plugin/bin/review-report":
+            await Bun.file(reportSource).text(),
           ".git/fixture-bin/review-proof": await Bun.file(proofSource).text(),
         },
       },
@@ -157,9 +210,14 @@ for (const scenario of [
       skillMounts: [],
     });
     try {
+      const artifact = await selectedArtifact(
+        repo,
+        `${repo}/.git/darrow-review.fixture/result.tsv`,
+        scenario,
+      );
       await Bun.write(
         `${repo}/.git/fixture-state/high-risk-review-proof`,
-        `${repo}/.git/darrow-review.fixture/result.tsv\n`,
+        `${artifact}\n`,
       );
       const grade = Bun.spawnSync(["/bin/bash", "-c", check!.run], {
         cwd: repo,
@@ -174,6 +232,13 @@ for (const scenario of [
 }
 
 for (const scenario of [
+  { name: "canonical human repair report", markdown: true, passes: true },
+  {
+    name: "altered human repair report",
+    markdown: true,
+    tampered: true,
+    passes: false,
+  },
   { name: "linked clear repair", passes: true },
   { name: "advisory preserved in original set", advisory: true, passes: true },
   { name: "stale repaired content", stale: true, passes: false },
@@ -203,6 +268,8 @@ for (const scenario of [
             await Bun.file(validatorSource).text(),
           ".git/review-plugin/bin/review-scope":
             await Bun.file(scopeSource).text(),
+          ".git/review-plugin/bin/review-report":
+            await Bun.file(reportSource).text(),
           ".git/fixture-bin/review-proof": await Bun.file(proofSource).text(),
         },
       },
@@ -328,7 +395,8 @@ for (const scenario of [
       ).toBe(0);
       if (scenario.stale)
         await Bun.write(`${repo}/value.txt`, "changed after review\n");
-      const result = run(".git/fixture-bin/review-proof", "complete", record);
+      const artifact = await selectedArtifact(repo, record, scenario);
+      const result = run(".git/fixture-bin/review-proof", "complete", artifact);
       expect({
         passes: result.exitCode === 0,
         detail: result.stderr.toString(),

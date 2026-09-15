@@ -1,0 +1,18 @@
+id: goal-verification-oscillation
+invariant: ADL-V1,ADL-A4,LC-C5
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work.
+  The retained owner used one shared repair attempt. Combined follow-up reports unchanged review failure and a QA failure that has returned to an earlier observed state; the conclusion is no-progress. One default attempt remains and repairs would be in scope. What is the next action?
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: combined evidence controls continuation
+    proposition: The response's next action is to stop as blocked for no progress; an unused repair attempt is insufficient authority to continue. An answer that recommends another repair with the given evidence, or claims completion, fails.

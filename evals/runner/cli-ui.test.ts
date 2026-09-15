@@ -250,6 +250,40 @@ describe("eval CLI presentation", () => {
     );
   });
 
+  test("identifies only the missing required supporting skill", () => {
+    const lines = trialLines(
+      {
+        passed: true,
+        caseId: "required-composition",
+        trial: 1,
+        trials: 1,
+        completed: 1,
+        total: 1,
+        durationMs: 1_000,
+        tokens: null,
+        failedChecks: [],
+        activation: {
+          passed: false,
+          className: "positive",
+          targetSkill: "adaptive-delivery",
+          requiredSkills: ["verify-change", "code-review"],
+          primarySkill: "adaptive-delivery",
+          observedSkills: ["adaptive-delivery", "code-review"],
+          source: "skill-read",
+        },
+      },
+      { color: false, emoji: false, progress: false, hyperlinks: false },
+    ).join("\n");
+    expect(lines).toContain("Task passed");
+    expect(lines).toContain(
+      "Activation failed · missing required verify-change",
+    );
+    expect(lines).not.toContain("missing required verify-change, code-review");
+    expect(lines).not.toContain(
+      "expected adaptive-delivery, got adaptive-delivery",
+    );
+  });
+
   test("reports a forbidden skill observed after another primary skill", () => {
     const lines = trialLines(
       {

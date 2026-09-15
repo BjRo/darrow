@@ -4,16 +4,18 @@ goal_report: forbidden
 goal_route_checks: false
 activation: positive
 mount_plugin_skills: true
-activation_sequence: [adaptive-delivery, code-review]
+activation_includes: [verify-change, code-review]
 additional_plugins:
+  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 prompt: >-
-  {{skill_invocation}} Change the exported sessionCookieOptions in auth-config.js so
+  Use {{skill_invocation}} to change the exported sessionCookieOptions in auth-config.js so
   sameSite is exactly "strict" instead of "lax". This is a security boundary where the cost of a mistake
   is high, but the requested implementation is clear, localized, and fully
   specified. Add focused evidence for the new value and preserve the other
   cookie options. Acceptance is that bash test.sh passes. Require independent
-  review of the exact final change after all checks; after and only after a
+  review of the exact final change after all checks, using the installed
+  darrow-review:code-review provider through verification; after and only after a
   clear review or clear repair verification, run bash mark-complete.sh with the
   returned canonical artifact path as its single argument. Select and apply the policy route
   rather than pinning it. Keep the result local.
@@ -51,7 +53,7 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned result.tsv or verification.tsv path}"
+          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned canonical review artifact path}"
   setup: |
     mkdir -p .git/fixture-bin
     cp "{{case_dir}}/fixtures/require-clear-review.sh" .git/fixture-bin/review-proof
@@ -84,7 +86,9 @@ semantic_output_checks:
   - name: high-risk owner reports completion
     proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
   - name: completion reports the semantic review outcome
-    proposition: The response says an independent review of the completed high-risk change found no blocking findings.
+    proposition: >-
+      The response reports that independent review passed or found no blocking
+      findings for the completed change. It need not repeat the risk classification.
 transcript_checks:
   - name: Terra policy route is applied to the high-risk owner
     expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"(?:medium|high)"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")'

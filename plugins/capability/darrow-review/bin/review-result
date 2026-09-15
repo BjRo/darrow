@@ -9,6 +9,10 @@ usage() {
   printf '       %s validate-verification FILE|-\n' "$PROGRAM"
   printf '       %s validate-axis standards|spec FILE|-\n' "$PROGRAM"
   printf '       %s validate-fix-axis standards|spec FILE|-\n' "$PROGRAM"
+  printf '       %s original-findings ORIGINAL_RESULT\n' "$PROGRAM"
+  printf '       %s validate-original ORIGINAL_RESULT VERIFICATION\n' "$PROGRAM"
+  printf '       %s scope-records ABSOLUTE_SCOPE_TSV\n' "$PROGRAM"
+  printf '       %s validate-scope ABSOLUTE_SCOPE_TSV RESULT\n' "$PROGRAM"
 }
 
 fail() {
@@ -19,6 +23,109 @@ fail() {
 }
 
 command=${1:-}
+
+if [ "$command" = "scope-records" ] || [ "$command" = "validate-scope" ]; then
+  if [ "$command" = "scope-records" ]; then
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+  else
+    [ "$#" -eq 3 ] || { usage >&2; exit 2; }
+  fi
+  manifest=$2
+  tool_dir=$(cd "$(dirname "$0")" && pwd -P) || fail 2 "cannot resolve bundled tools"
+  "${BASH:-bash}" "$tool_dir/review-scope" show --manifest "$manifest" >/dev/null ||
+    fail 4 "cannot validate pinned scope: $manifest"
+  # Buffer output until all identity records are validated. Never emit a partial
+  # scope when input is unavailable or malformed; preserve literal backslashes.
+  scope_records=$(awk -F '\t' '
+    $1 == "changed_count" {
+      if (NF != 2 || $2 !~ /^[1-9][0-9]*$/ || seen_count++) bad=1
+      declared_count=$2
+    }
+    $1 == "base" || $1 == "target" || $1 == "changed_file" {
+      if (NF != 2 || $2 == "") bad=1
+      if ($1 == "changed_file") {
+        if ($2 !~ /^\// || files[$2]++) bad=1
+        count++
+      } else if (seen[$1]++) bad=1
+      rows[++n]=$0
+    }
+    END {
+      if (!seen["base"] || !seen["target"] || !count || !seen_count ||
+          count != declared_count || bad) exit 4
+      for (i=1; i<=n; i++) print rows[i]
+    }' "$manifest") || fail 4 "invalid scope identity records: $manifest"
+  if [ "$command" = "scope-records" ]; then
+    printf '%s\n' "$scope_records"
+    exit 0
+  fi
+  result=$3
+  [ "$result" != "-" ] && [ -f "$result" ] && [ -r "$result" ] ||
+    fail 2 "result is not a readable regular file: $result"
+  "${BASH:-bash}" "$0" validate "$result" >/dev/null || exit $?
+  # Compare sets, not serialization order. Counts reject duplicated file rows.
+  awk -F '\t' '
+    FILENAME == ARGV[1] {
+      if ($1 == "base" || $1 == "target" || $1 == "changed_file") expected[$0]++
+      next
+    }
+    $1 == "base" || $1 == "target" || $1 == "changed_file" { actual[$0]++ }
+    END {
+      for (row in expected) if (expected[row] != actual[row]) bad=1
+      for (row in actual) if (expected[row] != actual[row]) bad=1
+      exit bad ? 4 : 0
+    }' "$manifest" "$result" ||
+    fail 4 "result base, target, or changed-file set differs from pinned scope: $manifest"
+  printf 'valid: review result matches pinned scope\n'
+  exit 0
+fi
+
+if [ "$command" = "original-findings" ] || [ "$command" = "validate-original" ]; then
+  if [ "$command" = "original-findings" ]; then
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+  else
+    [ "$#" -eq 3 ] || { usage >&2; exit 2; }
+  fi
+  original=$2
+  [ "$original" != "-" ] && [ -f "$original" ] && [ -r "$original" ] ||
+    fail 2 "original result is not a readable regular file: $original"
+  "${BASH:-bash}" "$0" validate "$original" >/dev/null ||
+    fail 4 "original result is invalid"
+  if [ "$command" = "original-findings" ]; then
+    awk -F '\t' 'BEGIN { OFS="\t" }
+      $1 == "target" { target=$2 }
+      $1 == "finding" { rows[++n]=$0 }
+      END {
+        for (i=1; i<=n; i++) {
+          split(rows[i], row, FS)
+          print "original_finding", row[2] ":" i ":" target, row[2], i,
+            row[3], row[4], row[5], row[6], row[7]
+        }
+      }' "$original" || exit $?
+    exit 0
+  fi
+  verification=$3
+  [ "$verification" != "-" ] && [ -f "$verification" ] && [ -r "$verification" ] ||
+    fail 2 "verification is not a readable regular file: $verification"
+  "${BASH:-bash}" "$0" validate-verification "$verification" >/dev/null || exit $?
+  awk -F '\t' '
+    NR == FNR {
+      if ($1 == "target") target=$2
+      if ($1 == "finding") rows[++n]=$0
+      next
+    }
+    $1 == "original_target" { if ($2 != target) bad=1 }
+    $1 == "original_finding" {
+      m++
+      split(rows[m], row, FS)
+      expected="original_finding" FS row[2] ":" m ":" target FS row[2] FS m FS row[3] FS row[4] FS row[5] FS row[6] FS row[7]
+      if ($0 != expected) bad=1
+    }
+    END { exit bad || m != n ? 4 : 0 }
+  ' "$original" "$verification" ||
+    fail 4 "verification changed the original target or complete ordered finding set"
+  printf 'valid: original review findings preserved\n'
+  exit 0
+fi
 
 if [ "$command" = "validate-axis" ]; then
   [ "$#" -eq 3 ] || { usage >&2; exit 2; }
