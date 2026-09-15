@@ -15,6 +15,13 @@ feedback, independent review, authorized publication, and completion.
 an explicitly invoked orchestration entrypoint. Ordinary engineering intent
 never starts it.
 
+[![Adaptive Delivery: preflight launches one execution owner, which invokes verification and handles bounded repairs.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-delivery-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-delivery-capabilities.svg)
+
+Preflight prepares the contract and selects compatible capabilities.
+One execution owner implements the change, obtains selected verification,
+and handles repairs within the shared budget. Questions and feedback
+return to that same owner.
+
 ## `adaptive-delivery`
 
 The skill:
