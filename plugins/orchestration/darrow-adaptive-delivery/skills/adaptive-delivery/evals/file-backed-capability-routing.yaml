@@ -155,6 +155,22 @@ fixture:
       test "$(printf '%s' "$1" | git hash-object --stdin)" = b1d8706dabad37d43795dcba094c36681b029df5
       git_dir="$PWD/.git"
       printf '%s\n' 'capability independent-review start' >>"$git_dir/fixture-state/capability-events"
+      printf '%s\n' '# Notes' 'Capability routing survives file-backed goals.' >"$git_dir/review-expected-notes"
+      cmp -s "$git_dir/review-expected-notes" NOTES.md || {
+        printf '%s\n' 'Independent review blocked: NOTES.md does not match ticket 64.' >&2
+        exit 1
+      }
+      changed=$(DARROW_CAPABILITY_PROTOCOL=independent-review git diff HEAD --name-only)
+      untracked=$(DARROW_CAPABILITY_PROTOCOL=independent-review git ls-files --others --exclude-standard)
+      test "$changed" = NOTES.md && test -z "$untracked" || {
+        printf '%s\n' 'Independent review blocked: change exceeds the NOTES.md scope.' >&2
+        exit 1
+      }
+      bash check.sh || {
+        printf '%s\n' 'Independent review blocked: required bash check.sh failed.' >&2
+        exit 1
+      }
+      DARROW_CAPABILITY_PROTOCOL=independent-review git diff --check
       head=$(DARROW_CAPABILITY_PROTOCOL=independent-review git rev-parse HEAD)
       notes_digest=$(shasum -a 256 NOTES.md)
       notes_digest=${notes_digest%% *}
@@ -162,7 +178,10 @@ fixture:
       printf '%s\tclear\tcomprehensive\n' "$target" >>"$git_dir/fixture-state/independent-review-invocations"
       printf '%s\n' 'Independent review outcome: no blocking findings'
       printf 'Reviewed target: %s\n' "$target"
-      printf '%s\n' 'Summary: The exact final change satisfies ticket 64 and the repository instructions.'
+      printf '%s\n' 'Acceptance evidence: NOTES.md exactly contains the original heading followed by the line required by ticket 64; byte comparison passed.'
+      printf '%s\n' 'Standards evidence: only NOTES.md differs from HEAD; no untracked files; git diff --check passed.'
+      printf '%s\n' 'Check evidence: bash check.sh passed on this reviewed target, satisfying the AGENTS.md requirement.'
+      printf '%s\n' 'Findings: none. Evidence gaps: none.'
     forge-pr-create: |
       #!/usr/bin/env bash
       set -eu
@@ -237,14 +256,22 @@ checks:
   - name: requested behavior is implemented
     run: bash check.sh
   - name: selected independent review remains composed before publication
-    run: >-
-      test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 1 &&
-      grep -F $'\tclear\tcomprehensive' .git/fixture-state/independent-review-invocations >/dev/null &&
-      review_target=$(cut -f1 .git/fixture-state/independent-review-invocations) &&
-      review_base=$(git rev-parse HEAD^) &&
-      review_notes_digest=$(git show HEAD:NOTES.md | shasum -a 256) &&
-      review_notes_digest=${review_notes_digest%% *} &&
-      test "$review_target" = "WORKTREE@$review_base+$review_notes_digest"
+    run: |
+      set -eu
+      review_log=.git/fixture-state/independent-review-invocations
+      test -s "$review_log" || { printf '%s\n' 'Missing independent review evidence'; exit 1; }
+      printf '%s\n' 'Observed independent review records:'
+      cat "$review_log"
+      count=$(wc -l <"$review_log" | tr -d ' ')
+      test "$count" -eq 1 || { printf 'Expected one review record; observed %s\n' "$count"; exit 1; }
+      grep -F $'\tclear\tcomprehensive' "$review_log" >/dev/null || { printf '%s\n' 'Missing clear comprehensive result'; exit 1; }
+      review_target=$(cut -f1 "$review_log")
+      review_base=$(git rev-parse HEAD^)
+      review_notes_digest=$(git show HEAD:NOTES.md | shasum -a 256)
+      review_notes_digest=${review_notes_digest%% *}
+      expected="WORKTREE@$review_base+$review_notes_digest"
+      printf 'Expected reviewed target: %s\n' "$expected"
+      test "$review_target" = "$expected"
   - name: commit capability creates the one intended commit
     run: >-
       test "$(wc -l <.git/fixture-state/create-commit-capability.log | tr -d ' ')" -eq 1 &&

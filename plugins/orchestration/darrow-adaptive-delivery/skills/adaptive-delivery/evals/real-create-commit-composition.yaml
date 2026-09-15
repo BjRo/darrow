@@ -59,7 +59,25 @@ fixture:
     independent-review-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: independent-review-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: independent-review-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
+      printf '%s\n' '# Notes' 'Real commit capability composes.' >"$git_dir/review-expected-notes"
+      cmp -s "$git_dir/review-expected-notes" NOTES.md || {
+        printf '%s\n' 'Independent review blocked: NOTES.md does not match the originating request.' >&2
+        exit 1
+      }
+      changed=$(git diff HEAD --name-only)
+      untracked=$(git ls-files --others --exclude-standard)
+      test "$changed" = NOTES.md && test -z "$untracked" || {
+        printf '%s\n' 'Independent review blocked: change exceeds the NOTES.md scope.' >&2
+        exit 1
+      }
+      bash check.sh || {
+        printf '%s\n' 'Independent review blocked: required bash check.sh failed.' >&2
+        exit 1
+      }
+      git diff --check
       head=$(git rev-parse HEAD)
       notes_digest=$(shasum -a 256 NOTES.md)
       notes_digest=${notes_digest%% *}
@@ -67,6 +85,10 @@ fixture:
       printf 'review\t%s\n' "$target" >>"$git_dir/fixture-state/composition-events"
       printf '%s\n' 'Independent review outcome: no blocking findings'
       printf 'Reviewed target: %s\n' "$target"
+      printf '%s\n' 'Acceptance evidence: NOTES.md exactly contains the original heading followed by the requested line; byte comparison passed.'
+      printf '%s\n' 'Standards evidence: only NOTES.md differs from HEAD; no untracked files; git diff --check passed.'
+      printf '%s\n' 'Check evidence: bash check.sh passed on this reviewed target, satisfying the AGENTS.md requirement.'
+      printf '%s\n' 'Findings: none. Evidence gaps: none.'
     gh: |
       #!/usr/bin/env bash
       set -eu
@@ -143,13 +165,21 @@ checks:
   - name: requested behavior is implemented
     run: bash check.sh
   - name: review clears the final uncommitted candidate before commit
-    run: >-
-      test "$(grep -c '^review' .git/fixture-state/composition-events)" -eq 1 &&
-      review_target=$(awk -F '\t' '$1 == "review" { print $2 }' .git/fixture-state/composition-events) &&
-      review_base=$(git rev-parse HEAD^) &&
-      review_digest=$(git show HEAD:NOTES.md | shasum -a 256) &&
-      review_digest=${review_digest%% *} &&
-      test "$review_target" = "WORKTREE@$review_base+$review_digest"
+    run: |
+      set -eu
+      log=.git/fixture-state/composition-events
+      test -s "$log" || { printf '%s\n' 'Missing composition evidence'; exit 1; }
+      printf '%s\n' 'Observed review records:'
+      awk -F '\t' '$1 == "review" { print }' "$log"
+      count=$(awk -F '\t' '$1 == "review" { count++ } END { print count+0 }' "$log")
+      test "$count" -eq 1 || { printf 'Expected one review record; observed %s\n' "$count"; exit 1; }
+      review_target=$(awk -F '\t' '$1 == "review" { print $2 }' "$log")
+      review_base=$(git rev-parse HEAD^)
+      review_digest=$(git show HEAD:NOTES.md | shasum -a 256)
+      review_digest=${review_digest%% *}
+      expected="WORKTREE@$review_base+$review_digest"
+      printf 'Expected reviewed target: %s\n' "$expected"
+      test "$review_target" = "$expected"
   - name: one valid intended commit exists
     run: >-
       test "$(git rev-list --count HEAD)" -eq 2 &&

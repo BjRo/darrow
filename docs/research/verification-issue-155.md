@@ -397,3 +397,114 @@ rerun. Changes to shared verification, launch or observation mechanics require
 only the additional cases actually affected by that change; broad changes may
 justify a wider run. The case-to-check mapping is retained in
 `targeted-regressions.md` beside the N=5 report.
+
+## Serial repair 1: verification before publication
+
+The publication failure was investigated before starting the separate real
+commit-composition failure. Retained evidence establishes that the failed
+historical trial published before its required combined verification assessment
+was returned or retained. Both parent and owner had read `verify-change`; an
+accepted assessment child and successful review did not establish a complete
+verification result. The encrypted handoff's internal failure remains unknown.
+An unchanged-source diagnostic completed the correct chain and did not reproduce
+that omission.
+
+Adaptive delivery now explicitly compiles complete current verification evidence
+as a prerequisite for dependent commit/publication, and checks that prerequisite
+before invoking those capabilities. Review alone, a successful process exit, or
+an assessment agent's name cannot discharge it. The verification invocation must
+preserve acceptance-coordination intent. This is an instruction repair, with no
+new runtime enforcement or accounting protocol. Plugin version is 0.21.2.
+
+A new passive case returns clear review but incomplete verification coverage;
+commit and publication remain executable so the model must withhold them. Live
+work also exposed fixture defects: help commands performed effects, and the
+original capability case's reviewer asserted clearance without checking content
+or the required command. The affected fixtures now handle help without effects,
+reject unsupported arguments before effects, and provide actual candidate-bound
+review evidence. The original compound assertion retains its requirements and
+now prints observed records, counts and the expected target on failure.
+
+| Targeted case                                         | Task outcome |
+| ----------------------------------------------------- | ------------ |
+| Original capability-binding publication case, N=5     | 5/5          |
+| Incomplete verification blocks publication, N=5       | 4/5          |
+| Failed check blocks publication, N=3                  | 3/3          |
+| Authorized routine publication, N=3                   | 3/3          |
+| Actual high-risk verification/review composition, N=1 | 1/1          |
+
+These planned observations total **16/17 task passes**, with the high-risk
+composition's declared activation also passing. Four refusal trials reached
+incomplete verification and withheld commit/publication. The fifth stopped
+before owner launch, claiming detached HEAD despite the fixture's branch setup.
+It created no commit or publication but did not exercise verification; it remains
+a failed trial with an unexplained preflight cause. The N=5 cases meet the user's
+four-of-five criterion. This is bounded Codex evidence, not an error-rate estimate
+or a claim that all historical causes are resolved.
+
+Earlier observations remain retained separately: a launcher timeout, unchanged
+and candidate diagnostics, a live failure caused by the new fixture's help
+behavior, and a 3/5 original-case batch before the substantive review-fixture
+repair. That batch included a safe evidence refusal and an opaque compound
+review assertion failure. Neither is erased or regraded by the later passes.
+
+Four deterministic review-evidence regressions failed before repair and passed
+afterward. All 37 affected fixture tests passed across three files, including
+deliberate prohibited effects and missing, duplicate and stale review evidence;
+TypeScript, scoped lint/formatting and skill inspection passed. Independent
+Standards/Spec fix verification resolved both findings on the guard/new-refusal
+fixture candidate. Later fixture refinements have the deterministic and live
+evidence above. Three bundled plugin script suites passed on Bash 3.2.57;
+Bash 5 was unavailable, so the version matrix remains unverified. No live Claude
+or full-matrix rerun is claimed.
+
+All runs used HEAD `90e5e019478075f1fedd3e9c2612621e6a744a52`, Codex CLI 0.154.0,
+`gpt-5.6-terra`/medium, grader `gpt-5.6-luna`/low, passive observation and subagent
+concurrency five. The original-case successful N=5 source SHA-256 was
+`1ef3e3a68d07e247a3ebb58ce7c9b1bb0c14b7a81c1eeaa3a4ffb048512ed44e`.
+The remaining planned runs used
+`142899f72380ab77e13b79cb64fd904dcdcc4739a8f32d71e5bcc910ac72321d`, differing only
+in the older failed-check fixture's help repair and its tests. Full child-inclusive
+tokens/cost remain unavailable. Source snapshots, all results and classifications
+are retained under `evals/results/run-notes/2026-09-15-issue155-publication/`.
+
+## Serial repair 2: real commit review evidence
+
+This investigation started after the first repair's planned validation finished.
+The earlier live trial's silent count/target comparison still cannot be
+reconstructed from retained evidence. A deterministic replay now demonstrates
+one concrete fixture defect that produces exactly that failure signature:
+`independent-review-protocol --help` performed and recorded a review. Help before
+implementation plus the actual final review yielded two records. The real commit
+helper, authorized hook remediation, publication, ordering and clean-tree checks
+all passed; only the original compound review assertion failed. The same replay
+without help passed every executable check. This establishes the fixture defect,
+not proof that the historical live trial took that exact path.
+
+The fixture now handles help without assessment effects, rejects unsupported
+arguments before assessment, and checks exact content, scope and the required
+command before returning substantive independent evidence. The count/target
+assertion retains its requirements and now reports observed records, counts and
+the expected target. ADL-E1 explicitly excludes help from completed-assessment
+counts. No additional orchestration or real Git-helper behavior changed.
+
+The repaired `goal-real-create-commit-composition` passed a fresh single trial
+and **5/5 N=5 trials**, including the real commit helper's guarded hook-remediation
+path and publication of the intended commit. An unchanged-fixture native
+diagnostic also passed and is retained separately. Twelve durable fixture tests
+passed (35 assertions), including the help replay and missing, duplicate, stale
+and insufficient review evidence. The combined final regression check passed
+**49 tests**, TypeScript, ESLint, formatting and documentation validation.
+
+The successful candidate runs used the same controls as repair 1 and source
+SHA-256 `f8491cf6f5357c40b96af506f2c31cae9329aa0d80519aa55e10ec124ab49414` at
+HEAD `90e5e019478075f1fedd3e9c2612621e6a744a52`. The post-run source snapshot
+matched. This result section was added afterward; product and fixture content
+remained frozen during the runs. Counterfactuals, diagnostics, source snapshots
+and normal results are retained under
+`evals/results/run-notes/2026-09-15-issue155-real-commit/`.
+
+Both repaired original cases passed 5/5. The new negative case's unexplained
+preflight refusal, historical handoff/evidence limits, unavailable Bash 5 check
+and absent fresh Claude evidence remain as recorded above. The full matrix was
+not rerun, and complete child-inclusive token/cost totals remain unavailable.

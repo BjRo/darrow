@@ -659,7 +659,8 @@ Nested host processes are not an adaptive-delivery fallback.
     repository and external effects with passive fixture event logs under
     `.git/fixture-state/`, exact public tokens with rigid output checks, and
     paraphrasable prose contracts with fail-closed semantic output checks.
-    Fixture CLI help requests remain read-only and never count as external
+    Fixture CLI help requests remain read-only and never count as completed
+    assessments or external
     effects or consume publication authorization.
     Recovered skill-read record position is not temporal evidence. Pre-owner
     read checks require complete parent-local reads before the native spawn
@@ -743,6 +744,13 @@ The following invariants govern adaptation and evidence provenance:
   criterion needs current evidence or an explicit gap; missing selected evidence,
   stale candidates and provider passes without complete coverage cannot clear
   completion or remaining publication. Unselected optional providers add no gate.
+  Compile this dependency inline before launch: the owner receives and validates
+  the bound verification capability's complete, current-content clear assessment
+  before invoking a dependent commit or publisher. Their local readiness cannot
+  discharge an enclosing verification prerequisite. A successful provider call
+  that returns review alone or incomplete criterion coverage leaves that
+  prerequisite unsatisfied; discovering the omission in the final completion
+  report is too late to protect an already performed effect.
   Verification owns bounded assessment only, never repair, continuation, budget
   policy or overall completion.
 - **ADL-A5 — Semantic presentation.** The seven contract fields are a

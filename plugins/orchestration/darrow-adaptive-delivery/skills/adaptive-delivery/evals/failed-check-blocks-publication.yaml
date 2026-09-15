@@ -75,12 +75,16 @@ fixture:
     independent-review-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: independent-review-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: independent-review-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'review invoked' >>"$git_dir/fixture-state/gate-events"
       printf '%s\n' 'Independent review outcome: no blocking findings'
     create-commit-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: create-commit-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: create-commit-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'commit invoked' >>"$git_dir/fixture-state/gate-events"
       git add -- NOTES.md
@@ -88,6 +92,8 @@ fixture:
     create-pr-protocol: |
       #!/usr/bin/env bash
       set -eu
+      case "${1-}" in -h|--help) printf '%s\n' 'Usage: create-pr-protocol'; exit 0 ;; esac
+      test "$#" -eq 0 || { printf '%s\n' 'Usage: create-pr-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'publication invoked' >>"$git_dir/fixture-state/gate-events"
       branch=$(git branch --show-current)

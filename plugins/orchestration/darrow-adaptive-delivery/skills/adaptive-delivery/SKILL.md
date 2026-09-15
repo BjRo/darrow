@@ -274,9 +274,13 @@ to the owner for an authorized next action, never bypass it through raw tools.
 
 Invoking a bound skill or receiving a zero exit status proves neither that its
 substantive contract was satisfied nor that a dependent operation is due.
-Validate the returned evidence against the bound skill and goal contract before
-continuing. A successful review or publication response cannot replace missing
-or failed verification evidence.
+Before invoking each dependent capability, validate its prerequisite results
+against both the bound skill and the goal contract. In particular, the owner
+must receive verification's complete current-content clear assessment, including
+selected provider evidence and criterion coverage, before invoking a dependent
+commit or publisher. A review-only result leaves this prerequisite unsatisfied,
+even when the assessment call succeeded or its agent was named verification.
+The commit or publisher's local readiness does not check this enclosing gate.
 
 For authorized PR creation or reuse, require the publisher to return evidence
 for the intended verified commit: exactly one open PR, repository, head/base,
@@ -311,7 +315,7 @@ Write a concise, self-contained contract containing:
 - the concrete shared repair maximum (2 unless explicitly overridden), its
   authority source, consumed attempts (0 unless already performed), remaining
   limits and closed history; finishing early never lowers the authorized maximum;
-- every required capability binding;
+- every required capability binding and its prerequisite result evidence;
 - the human-feedback and blocker rules below; and
 - the completion evidence the owner must return.
 
@@ -337,7 +341,7 @@ Role: You are the already-launched sole engineering owner. Perform this contract
 Outcome: <bounded result>
 Acceptance criteria: <observable outcomes and required implementation properties>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
-Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill; or none>
+Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering and receipt of complete clear selected verification before any dependent commit/publication>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill and prerequisite result evidence; or none>
 Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; verification=<bound verification skill, required review binding, selected assessments, or permitted omission>; repair=<maximum=2; source=default; consumed=0; substitute only an explicit finite override and its source or already-observed consumed attempts; apply strictest remaining invocation/time/token/authority limits; collect all selected results before combined repair; fresh closed follow-up after each attempt; clear ends repair; further attempts require material progress and budget; no reset>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
 Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final checks, readiness, combined verification conclusion and complete selected results, every material criterion's current evidence or gap, finding/target/repair history, consumed repair attempts and authorized maximum, publication effects, and remaining risks or blockers>
 ```

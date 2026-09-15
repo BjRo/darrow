@@ -18,6 +18,11 @@ successful checks and existing evidence, selected assessments and review binding
 The provider's public response must return to this owner before further work;
 use a bounded capability-invocation context when its final response would
 otherwise end the owner turn. This is assessment only, never a replacement owner.
+Give that context the exact bound verification skill and the intent to coordinate
+acceptance verification, with independent review as its selected provider.
+Asking only for an independent review does not invoke the coordinator, regardless
+of the context's name. Require the complete combined assessment back before
+continuing; a returned review report alone is missing verification evidence.
 
 A review-ready existing candidate still needs current successful checks. Honor
 an explicit assessment-before-change request by checking and assessing that
@@ -35,7 +40,9 @@ preserving complete provider reports and usable absolute evidence references.
 Clear requires current successful checks, sufficient evidence for every material
 criterion and no unresolved eligible blocker or direct regression. A provider
 pass alone is insufficient. Stale, missing, contradictory or inconclusive
-required evidence cannot clear. A clear initial result ends repair immediately;
+required evidence cannot clear. Validate these prerequisites before invoking a
+dependent commit or publication capability; their own successful checks cannot
+waive the enclosing goal's verification requirement. A clear initial result ends repair immediately;
 no unused attempt needs to be consumed. Advisories remain visible and nonblocking.
 
 ## Repair the combined finding set under one budget
