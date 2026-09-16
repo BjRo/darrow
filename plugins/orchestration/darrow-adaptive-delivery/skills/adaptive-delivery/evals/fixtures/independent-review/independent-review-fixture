@@ -183,6 +183,11 @@ if [ "$outcome" = clear ]; then
   printf '%s\n' 'Summary: The current change has no blocking findings against the supplied goal and repository instructions.'
 elif [ "$outcome" = blocking ] || [ "$outcome" = continue ] || [ "$outcome" = no_progress ]; then
   printf 'Blocking finding: %s\n' "$failure_evidence"
+  if [ -e "$git_dir/fixture-review-repair-guidance" ]; then
+    [ -f "$git_dir/fixture-review-repair-guidance" ] &&
+      [ -r "$git_dir/fixture-review-repair-guidance" ] || exit 2
+    cat "$git_dir/fixture-review-repair-guidance" || exit 2
+  fi
 elif [ "$outcome" = blocked ]; then
   printf 'Evidence gap: %s\n' "$failure_evidence"
 elif [ "$outcome" = inconclusive ]; then

@@ -51,6 +51,26 @@ function repairState(scenario: { unresolved?: boolean; blocked?: boolean }) {
   return ["resolved", "resolved", "clear"] as const;
 }
 
+function fixtureGuidance(
+  scenario: {
+    guidance?: boolean;
+    omittedGuidance?: boolean;
+    forgedGuidance?: boolean;
+    forgedResolution?: boolean;
+  },
+  handoff = false,
+): string[] {
+  if (!scenario.guidance || (handoff && scenario.omittedGuidance)) return [];
+  return [
+    handoff && scenario.forgedGuidance
+      ? "forged guidance"
+      : "Advisory: restore the value; preserve the API",
+    handoff && scenario.forgedResolution
+      ? "forged resolution evidence"
+      : "Reading value returns the required value",
+  ];
+}
+
 async function selectedArtifact(
   repo: string,
   record: string,
@@ -240,6 +260,25 @@ for (const scenario of [
     passes: false,
   },
   { name: "linked clear repair", passes: true },
+  { name: "original guidance preserved", guidance: true, passes: true },
+  {
+    name: "forged original guidance",
+    guidance: true,
+    forgedGuidance: true,
+    passes: false,
+  },
+  {
+    name: "omitted original guidance",
+    guidance: true,
+    omittedGuidance: true,
+    passes: false,
+  },
+  {
+    name: "forged resolution evidence",
+    guidance: true,
+    forgedResolution: true,
+    passes: false,
+  },
   { name: "advisory preserved in original set", advisory: true, passes: true },
   { name: "stale repaired content", stale: true, passes: false },
   { name: "missing original artifact", missing: true, passes: false },
@@ -315,6 +354,7 @@ for (const scenario of [
         "user request",
         "wrong value",
       ];
+      const guidance = fixtureGuidance(scenario);
       const advisory = [
         "spec",
         "low",
@@ -336,7 +376,7 @@ for (const scenario of [
             ["standards_source", "user request"],
             ["spec", "pass"],
             ["spec_source", "user request"],
-            ["finding", ...finding],
+            ["finding", ...finding, ...guidance],
             ...(scenario.advisory || scenario.omitted
               ? [["finding", ...advisory]]
               : []),
@@ -366,6 +406,7 @@ for (const scenario of [
             "1",
             ...finding.slice(1, -1),
             scenario.forged ? "different original evidence" : finding.at(-1)!,
+            ...fixtureGuidance(scenario, true),
           ],
           ...(scenario.advisory
             ? [

@@ -22,6 +22,13 @@ evidence-backed findings. The validated `darrow-review-result-v1` remains the
 canonical artifact beneath the review scope and is returned only when explicitly
 requested as raw machine format.
 
+Each finding explains the failure and its cause, then carries the originating
+reviewer's suggested repair, rationale, important constraints, and observable
+resolution behavior or a regression test. Repair guidance is advisory: a
+different valid implementation can satisfy the original requirement. When a
+reviewer cannot confidently recommend an approach, the report preserves the
+supported finding and explains that limitation.
+
 After that comprehensive review, the same skill can fix-verify authorized
 repairs against its closed original finding set. The additive
 `darrow-review-verification-v1` binds original, prior, history, and current
@@ -50,7 +57,9 @@ full traceability later in the same report:
 
 - **Location:** src/rate.js:1
 - **Source:** Originating requirement: RATE_LIMIT must equal 2
-- **Evidence:** The changed export remains `1`.
+- **Evidence:** The export is assigned `1`, so consumers receive the wrong limit.
+- **Repair guidance (advisory):** Set the exported limit to 2 to restore the required value; preserve the export name.
+- **Resolution evidence:** Importing RATE_LIMIT yields 2.
 
 ## Checks
 
@@ -92,7 +101,9 @@ continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
 `original-findings` copies the complete original finding rows with stable
 cross-axis keys; `validate-original` checks a follow-up against that retained
-comprehensive result, including advisory rows and exact source/evidence text.
+comprehensive result, including advisory rows and exact source/evidence text,
+repair guidance, and resolution evidence. The guidance fields are a paired
+additive extension; legacy v1 records without them remain valid.
 
 ### Reviewer routes
 

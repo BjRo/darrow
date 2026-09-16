@@ -11,7 +11,8 @@ Require all of these caller-owned inputs before reader calls:
 - the exact original comprehensive-review target fingerprint;
 - the validated original or immediately prior scope manifest for that target;
 - every original finding with its original axis, severity, disposition,
-  location, source, evidence, and one canonical cross-axis order;
+  location, source, evidence, repair guidance and resolution evidence when
+  present, and one canonical cross-axis order;
 - the immediately prior repair target plus every earlier repair target;
 - every finding attempted by the current repair;
 - the immediately prior validated verification artifact when an earlier fix
@@ -30,7 +31,9 @@ bash "$result_tool" original-findings "$original_result"
 Copy those returned rows unchanged into the handoff and final verification.
 The order runs across both axes in the original result, not separately per
 axis. Preserve the complete original source and evidence text, including
-advisories; a shorter paraphrase is a changed record. For an external handoff
+advisories and both guidance fields; a shorter paraphrase is a changed record.
+Preserve absent fields in legacy records without inventing prior advice.
+For an external handoff
 without that artifact, preserve the caller's complete immutable finding records
 and canonical order exactly as supplied. A validated prior verification also
 retains those original rows. Missing or incomplete original evidence blocks
@@ -141,6 +144,13 @@ regression must name the causing original key. An invalid or missing reader
 record becomes an evidence gap; never repair its judgment or replace it with a
 generic review.
 
+Resolution depends on the original requirement and observable current behavior,
+not adoption of the original suggested implementation. Accept an alternative
+valid repair, and retain a defect even if the implementer followed the advice.
+New direct regressions receive the verifier's own advisory guidance (or explicit
+limitation), rationale, constraints, and resolution evidence. Copy those fields
+unchanged; the coordinator does not fill them in.
+
 Save each raw fix-axis record beneath the current scope artifact directory and
 run the applicable commands:
 
@@ -165,7 +175,8 @@ original finding order, then by their reader order, and derive their stable
 regression keys mechanically. For a first verification write
 `previous_verification none none`. For a later verification write the prior
 artifact's Git blob checksum and absolute path, carry every prior regression
-under the same key and immutable causal fields, and replace only its status,
+under the same key, immutable causal fields, and original guidance and resolution
+evidence, and replace only its status,
 progress, and evidence from `regression_attempt`. New regression orders follow
 all carried regression orders. Regression order is its own sequence: when no
 regression is carried, the first new regression has order `1`, regardless of

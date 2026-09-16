@@ -1,6 +1,6 @@
 id: code-review-fix-verification-regression-scope
 activation: positive
-invariant: CR-C17,CR-C18,CR-C20,CR-E13
+invariant: CR-C9,CR-C17,CR-C18,CR-C20,CR-E13,CR-E15
 prompt: >-
   Verify my uncommitted repair against the prior code-review findings in
   `.git/verification-input`, limited to those findings and direct repair
@@ -57,6 +57,25 @@ fixture:
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/math.js >.git/math-before
 checks:
+  - name: new repair regression carries verifier-authored guidance
+    run: |
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      test -n "$record" || exit 1
+      artifact_dir=$(dirname "$record")
+      awk -F '\t' 'BEGIN { OFS="\t" }
+        $1 == "regression" { n++; if (NF != 13 || $12 == "" || $13 == "") bad=1; print $3,$6,$9,$10,$11,$12,$13 }
+        END { exit !(n && !bad) }' "$record" >.git/aggregate-regression-guidance || exit 1
+      : >.git/reader-regression-guidance
+      for file in "$artifact_dir"/*; do
+        test -f "$file" || continue
+        if test "$(sed -n 1p "$file")" = "$(printf 'format\tdarrow-review-fix-axis-v1')"; then
+          awk -F '\t' 'BEGIN { OFS="\t" }
+            $1 == "regression" { print $2,$3,$4,$5,$6,$7,$8 }' "$file" >>.git/reader-regression-guidance
+        fi
+      done
+      while IFS= read -r finding; do
+        grep -Fx -- "$finding" .git/reader-regression-guidance >/dev/null || exit 1
+      done <.git/aggregate-regression-guidance
   - name: regression verification remains read only
     run: >-
       git status --porcelain --untracked-files=all >.git/status-after &&
@@ -92,3 +111,11 @@ checks:
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+semantic_output_checks:
+  - name: regression guidance targets the repair-caused sign loss
+    proposition: >-
+      The report explains that Math.abs introduced by the repair removes the
+      sign from negative results, suggests an advisory bounded repair that
+      preserves multiplier 2 and signed scaling, gives the reason, and
+      identifies a negative-input regression test or behavior such as scale(-2)
+      returning -4. It does not turn the unrelated naming TODO into a finding.

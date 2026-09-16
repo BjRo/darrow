@@ -74,24 +74,9 @@ case "$format" in
       fi
     done < <(find "$git_dir" -type f -path '*/darrow-review.*/result.tsv')
     [ -n "$original" ] || fail 'original comprehensive result is missing'
-    "${BASH:-bash}" "$result_tool" validate "$original" >/dev/null
-    # Compare the full original set, including advisory rows, in canonical order.
-    awk -F '\t' '
-      NR == FNR {
-        if ($1 == "target") target=$2
-        if ($1 == "finding") {
-          n++; expected[n]=$2 FS n FS $3 FS $4 FS $5 FS $6 FS $7
-          keys[n]=$2 ":" n ":" target
-        }
-        next
-      }
-      $1 == "original_finding" {
-        m++
-        actual=$3 FS $4 FS $5 FS $6 FS $7 FS $8 FS $9
-        if ($2 != keys[m] || actual != expected[m]) bad=1
-      }
-      END { exit bad || n == 0 || m != n }
-    ' "$original" "$record" || fail 'verification changed the original finding set'
+    # The provider owns the complete original schema, including repair guidance.
+    "${BASH:-bash}" "$result_tool" validate-original "$original" "$record" >/dev/null ||
+      fail 'verification changed the original finding set'
     reviewed_target=$(field current_target "$record")
     ;;
   *) fail "unsupported format: $format" ;;

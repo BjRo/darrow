@@ -1,0 +1,54 @@
+id: code-review-guidance-uncertain
+activation: positive
+invariant: CR-C9,CR-E15
+prompt: >-
+  Use {{skill_invocation}} to review the uncommitted migration against
+  requirements.md. Report only and keep the change read-only.
+fixture:
+  commits:
+    - message: "chore: old transport"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Use the originating requirements for transport changes.
+        requirements.md: |
+          Requests must carry a tenant-specific signature before transmission.
+          This migration must replace legacyTransport with vendorTransport.
+          The legacy dependency has been removed and cannot be restored.
+          The vendor transport only transmits the supplied bytes; it does not
+          sign payloads. Its separate signing SDK and tenant-key integration
+          contract have not been delivered. No supported SDK API or key-store
+          protocol is available in this repository.
+        src/send.js: |
+          export function send(payload, tenant, legacyTransport) {
+            return legacyTransport.signAndSend(payload, tenant);
+          }
+  files:
+    src/send.js: |
+      export function send(payload, tenant, vendorTransport) {
+        return vendorTransport.send(payload);
+      }
+  setup: git hash-object src/send.js >.git/before
+checks:
+  - name: supported signing finding survives uncertainty
+    run: |
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      test -n "$record" || exit 1
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
+      test -n "$tool" && bash "$tool" validate "$record" || exit 1
+      awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" && NF == 9 { found=1 }
+        END { exit !found }' "$record"
+  - name: review does not implement its advice
+    run: git hash-object src/send.js >.git/after && cmp .git/before .git/after
+semantic_output_checks:
+  - name: supported defect remains actionable without invented repair details
+    proposition: >-
+      The report retains a blocking finding that unsigned payload transmission
+      violates the tenant-specific signature requirement, explaining that the
+      new send path bypasses signing. It explicitly limits repair advice because
+      the vendor signing and tenant-key contracts are unavailable, without
+      inventing a supported SDK method or prescribing restoration of the removed
+      legacy dependency. It identifies an observable signed-transmission or
+      tenant-isolation test that would demonstrate resolution. Any suggestion
+      remains advisory rather than a new requirement.
