@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
-# Install every current Darrow marketplace plugin through one host at a time.
+# Install every eligible Darrow marketplace plugin through one host at a time.
 set -u
 
 usage() {
   cat <<'EOF'
 Usage: install-all-plugins --host <claude|codex> [--scope <user|project|local>]
 
-Install every plugin listed in .claude-plugin/marketplace.json through the
-selected host's ordinary per-plugin installation command. Claude Code defaults
-to user scope; --scope is only valid with --host claude.
+Install every eligible plugin listed in .claude-plugin/marketplace.json through
+the selected host's ordinary per-plugin installation command. Claude Code
+defaults to user scope; --scope is only valid with --host claude.
 EOF
 }
 
 fail() {
   printf 'error: %s\n' "$*" >&2
   exit 2
+}
+
+is_excluded() {
+  case "$1" in
+    darrow-ticket-pipeline|darrow-observability-langfuse) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 script_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
@@ -97,6 +104,7 @@ esac
 count=0
 while IFS= read -r plugin; do
   [ -n "$plugin" ] || continue
+  is_excluded "$plugin" && continue
   identifier="$plugin@darrow"
   if [ "$host" = codex ]; then
     codex plugin add "$identifier"
@@ -113,4 +121,4 @@ done <<EOF
 $plugins
 EOF
 
-printf 'Installed all %s Darrow marketplace plugins for %s.\n' "$count" "$host_label"
+printf 'Installed all %s eligible Darrow marketplace plugins for %s.\n' "$count" "$host_label"

@@ -1,16 +1,18 @@
 # Marketplace installation
 
-The repository-level all-plugin installer reads the current
-`.claude-plugin/marketplace.json` inventory at execution time and installs each
-listed plugin through the selected host's ordinary per-plugin installation
-command. It is not a plugin, does not introduce a runtime dependency between
-plugins, and preserves every marketplace plugin as an optionality boundary.
+The repository-level installer reads the current `.claude-plugin/marketplace.json`
+inventory at execution time and installs each listed plugin except
+`darrow-ticket-pipeline` and `darrow-observability-langfuse` through the selected
+host's ordinary per-plugin installation command. `darrow-adaptive-delivery`
+remains included. The installer is not a plugin, does not introduce a runtime
+dependency between plugins, and preserves every marketplace plugin as an
+optionality boundary.
 
 The installer supports Codex and Claude Code. It stops at a failed installation
 with a nonzero exit status, names the affected plugin, and prints its successful
 completion message only after every listed plugin was installed. Claude Code's
 installation scope is passed to every per-plugin command.
 
-The all-plugin documentation must call out the deprecated ticket-pipeline entry
-and the Langfuse plugin's UV/Python prerequisite, hook trust prompt, and
-separate opt-in configuration requirements.
+The installation documentation must identify both excluded entries: the
+ticket-pipeline entry is deprecated, and the Langfuse plugin requires UV/Python,
+hook trust, and separate opt-in configuration.

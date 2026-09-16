@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deterministic coverage for the marketplace-driven all-plugin installer.
+# Deterministic coverage for the marketplace-driven eligible-plugin installer.
 # Run: bash scripts/install-all-plugins.test.sh
 set -uo pipefail
 
@@ -87,6 +87,8 @@ marketplace_calls() {
       name = $0
       sub(/^.*"name"[[:space:]]*:[[:space:]]*"/, "", name)
       sub(/".*$/, "", name)
+      if (name == "darrow-ticket-pipeline" || name == "darrow-observability-langfuse")
+        next
       print "codex plugin add " name "@darrow"
     }
   ' "$SCRIPT_DIR/../.claude-plugin/marketplace.json"
@@ -97,6 +99,9 @@ make_fixture
 OUT="$FIXTURE/current-marketplace.out"
 run_default_installer "$OUT" --host codex
 check "default manifest drives every Codex call" "$(marketplace_calls)" "$(cat "$CALLS")"
+contains "adaptive delivery remains included" "codex plugin add darrow-adaptive-delivery@darrow" "$CALLS"
+not_contains "ticket pipeline is excluded" "darrow-ticket-pipeline@darrow" "$CALLS"
+not_contains "Langfuse is excluded" "darrow-observability-langfuse@darrow" "$CALLS"
 
 echo "# marketplace installation success"
 make_fixture
@@ -104,14 +109,14 @@ OUT="$FIXTURE/codex.out"
 run_installer "$OUT" --host codex
 check "Codex exit status" 0 $?
 check "Codex calls use marketplace order" $'codex plugin add alpha@darrow\ncodex plugin add bravo@darrow' "$(cat "$CALLS")"
-contains "Codex confirms all plugins" "Installed all 2 Darrow marketplace plugins for Codex." "$OUT"
+contains "Codex confirms all plugins" "Installed all 2 eligible Darrow marketplace plugins for Codex." "$OUT"
 
 make_fixture
 OUT="$FIXTURE/claude.out"
 run_installer "$OUT" --host claude --scope project
 check "Claude exit status" 0 $?
 check "Claude preserves scope for every plugin" $'claude plugin install alpha@darrow --scope project\nclaude plugin install bravo@darrow --scope project' "$(cat "$CALLS")"
-contains "Claude confirms all plugins" "Installed all 2 Darrow marketplace plugins for Claude Code." "$OUT"
+contains "Claude confirms all plugins" "Installed all 2 eligible Darrow marketplace plugins for Claude Code." "$OUT"
 
 make_fixture
 OUT="$FIXTURE/claude-default-scope.out"
@@ -130,6 +135,21 @@ EOF
 OUT="$FIXTURE/dynamic.out"
 run_installer "$OUT" --host codex
 check "fixture inventory drives calls" "codex plugin add only-current-entry@darrow" "$(cat "$CALLS")"
+
+echo "# exceptional marketplace entries are excluded"
+make_fixture
+cat >"$MANIFEST" <<'EOF'
+{
+  "plugins": [
+    { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
+    { "name": "darrow-adaptive-delivery", "source": "./plugins/orchestration/darrow-adaptive-delivery" },
+    { "name": "darrow-observability-langfuse", "source": "./plugins/capability/darrow-observability-langfuse" }
+  ]
+}
+EOF
+OUT="$FIXTURE/exceptions.out"
+run_installer "$OUT" --host claude
+check "only adaptive delivery is installed from exceptional fixture" "claude plugin install darrow-adaptive-delivery@darrow --scope user" "$(cat "$CALLS")"
 
 echo "# failures are named and unsuccessful"
 make_fixture
