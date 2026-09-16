@@ -1,7 +1,9 @@
 # Darrow Adaptive Delivery
 
-This plugin compiles one bounded engineering request and launches exactly one
-route-selected, host-visible subagent as its work owner.
+This plugin provides two separate entrypoints: a read-only host-configuration
+doctor, and explicit Adaptive Delivery orchestration that compiles one bounded
+engineering request and launches exactly one route-selected, host-visible
+subagent as its work owner.
 
 ```text
 request + repository -> read-only preflight -> readiness -> contract -> one owner
@@ -14,6 +16,9 @@ feedback, independent review, authorized publication, and completion.
 `adaptive-delivery` starts only through explicit user invocation or delegation from
 an explicitly invoked orchestration entrypoint. Ordinary engineering intent
 never starts it.
+
+`doctor-adaptive-delivery` is an ordinary intent-matched capability. Asking it
+to check host configuration never starts orchestration or launches an owner.
 
 [![Adaptive Delivery: preflight launches one execution owner, which invokes verification and handles bounded repairs.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-delivery-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-delivery-capabilities.svg)
 
@@ -68,6 +73,27 @@ The owner task begins with:
 The complete goal contract follows inline. Host acceptance of the explicitly
 routed subagent launch proves the model and effort. The owner does not create a
 second nested goal or replacement adaptive owner.
+
+## `doctor-adaptive-delivery`
+
+The doctor checks the effective Codex or Claude Code delegation controls
+without modifying them. It reports the exact configuration source, host or
+backend applicability, and separate conclusions for:
+
+- the baseline owner-only path: one spawned-agent slot and one nested layer;
+- the full required-assessment path: five spawned-agent slots and four nested
+  layers across owner, verification, review, and two parallel readers.
+
+For Codex it checks `agents.enabled` and
+`agents.max_concurrent_threads_per_session`. It reports `agents.max_depth` as a
+V1-only nesting control that V2 ignores. For Claude Code it checks the effective
+process values of `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and
+`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` only where the installed version supports
+them. Absent, unreadable, malformed, disabled, inadequate, and unknown states
+remain distinct, and the output never includes unrelated settings or secrets.
+
+Example: _“Check whether this Codex configuration supports Adaptive Delivery's
+full verification path.”_
 
 Example: _“Use adaptive-delivery to diagnose and fix the intermittent cache test.”_
 
@@ -194,6 +220,10 @@ start it. For example:
 Select `adaptive-delivery` from Codex's `$` menu, or invoke
 `/darrow-adaptive-delivery:adaptive-delivery` in Claude Code and provide the bounded request.
 
+For read-only diagnosis, select `doctor-adaptive-delivery` from Codex's `$`
+menu or invoke `/darrow-adaptive-delivery:doctor-adaptive-delivery` in Claude
+Code.
+
 ## Expected result
 
 Read-only preflight and readiness, then one routed execution owner. Effects depend on the explicit contract; completion alone grants no publication or tracker authority.
@@ -201,6 +231,10 @@ Read-only preflight and readiness, then one routed execution owner. Effects depe
 ## Troubleshooting
 
 If readiness is not ready, resolve its findings before launch. Malformed route configuration or an unavailable exact capability binding must be reported. Keep feedback with the same accepted owner.
+If an owner, verification coordinator, review coordinator, or parallel reader
+cannot launch, run `doctor-adaptive-delivery` in the affected host session. Use
+the exact source it reports; in isolated Codex evals, that is the eval
+`CODEX_HOME/config.toml`, not the checkout's `.codex/config.toml`.
 For host discovery problems, use the
 [installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
 Report the exact host/plugin versions and refusal without credentials.

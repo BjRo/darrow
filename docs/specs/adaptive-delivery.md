@@ -7,6 +7,7 @@ verification, feedback, and completion.
 
 Plugin: `darrow-adaptive-delivery`  
 Skill: `adaptive-delivery`
+Companion capability: `doctor-adaptive-delivery`
 
 ## Why
 
@@ -124,6 +125,53 @@ contract when they overlap the task.
 If a material product choice, permission, destructive scope, security policy,
 or publication authority is missing before launch, ask the smallest concrete
 question and do not start the owner.
+
+## Host-configuration doctor
+
+`doctor-adaptive-delivery` is a separate, read-only capability for diagnosing
+whether the effective Codex or Claude Code host configuration can support the
+delegation topology required by Adaptive Delivery. Ordinary doctor intent may
+select this capability, but must never activate `adaptive-delivery` or launch an
+owner.
+
+The doctor identifies the host, installed version when observable, and the
+exact effective source it checked. For Codex it checks the active
+`CODEX_HOME/config.toml` (or the default user configuration when `CODEX_HOME` is
+unset), not a similarly named repository file. An isolated evaluation home is
+reported as such so the source checkout's `.codex/config.toml` is not mistaken
+for the evaluated process's configuration. It reports absent, unreadable,
+malformed, explicitly disabled, unset/default, inadequate, and adequate states
+without printing unrelated configuration or credentials.
+
+Codex diagnosis evaluates `agents.enabled` and
+`agents.max_concurrent_threads_per_session` separately. The concurrency limit
+counts spawned-agent threads and excludes the primary. `agents.max_depth` is a
+different nesting control for the V1 backend and is explicitly reported as
+ignored by V2; it can never compensate for inadequate V2 concurrency.
+
+Claude Code diagnosis checks the effective process environment and installed
+version. On versions that support them it evaluates
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and
+`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` as separate controls. It reports version
+or backend applicability honestly rather than inventing support for an older
+or unobserved host.
+
+Capacity conclusions derive from this topology, where the primary thread is
+not itself a spawned-agent slot:
+
+```text
+primary -> owner -> verification coordinator -> review coordinator
+                                              -> Standards reader
+                                              -> Spec reader
+```
+
+The baseline owner-only path needs one spawned-agent slot and one layer below
+the primary. The full required-assessment path needs five concurrently open
+spawned-agent slots and four layers of nesting. A doctor result distinguishes
+those two conclusions and gives a source-specific setup action for every known
+inadequate or disabled value. Unknown host defaults, versions, or backends stay
+unknown rather than being called adequate. Diagnostics never mutate host or
+repository configuration.
 
 ## Goal contract
 
@@ -674,6 +722,13 @@ Nested host processes are not an adaptive-delivery fallback.
     capability evidence and applies the one/many/zero-match policy above. The
     recipe owns no branch choice; the Git capability owns deterministic
     discovery and preparation.
+20. **ADL-D1 — Separate read-only host diagnosis.** Host-configuration doctor
+    intent selects `doctor-adaptive-delivery`, never activates orchestration,
+    and makes no configuration or repository mutation. Its result identifies
+    the effective source and host/version applicability, keeps concurrency and
+    nesting distinct, derives baseline and full-path capacity from the topology
+    above, refuses unreadable or malformed required input, and never exposes
+    unrelated values or credentials.
 
 ## Packaging and portability
 
