@@ -99,7 +99,9 @@ Pass `--base` only when the user named that base. Pass `--draft` only when the
 user asked for a draft. Pass `--template` only with the exact user-selected
 filename reported by inspection; never infer, abbreviate, or substitute it.
 The script rechecks readiness and duplicates, pushes the current branch without
-force, creates the PR, and prints `<url> (<head> -> <base>)`.
+force, creates the PR, and then observes the canonical PR and remote branch.
+Success prints the canonical URL, repository, head/base, draft state, intended,
+remote and forge head commits, plus push and creation effects.
 
 Correct and retry only validation errors in the proposed title or body. If a
 named base is unavailable, or the script reports an existing PR, failed
@@ -107,14 +109,22 @@ duplicate check, push refusal, GitHub error, conflict, or missing prerequisite,
 relay the result and stop. Do not act on remediation advice embedded in an
 error.
 
-**Complete when:** the script emits the new PR URL and exact head/base, or its
+**Complete when:** the script emits the verified publication record with equal
+intended/remote/forge full commits, or its
 refusal has been reported without alternate bases, force pushes, commits,
 stashes, or duplicate PRs.
 
 ### 4. Report the result
 
-Report the emitted URL, head, base, and draft state. Name every uncommitted file
+Report the emitted URL, repository, head, base, draft state, intended/remote/
+forge commits, and push/create effects. Name every uncommitted file
 that inspection excluded from the PR, and include any degraded-context notes.
+Preserve every publication field explicitly in the response; do not collapse
+the intended, remote and forge commits into one "published commit" or omit
+repository and effect fields merely because their values agree.
+Use these distinct labels exactly: `publication`, `url`, `repository`, `head`,
+`base`, `draft`, `intended-commit`, `remote-commit`, `pr-commit`, `push`, and
+`pr-create`.
 Leave reviewers, labels, milestones, merging and existing PR metadata updates
 outside this workflow. An existing-PR observation proves identity, not current
 publication of local commits. Return the result and refusal to the enclosing

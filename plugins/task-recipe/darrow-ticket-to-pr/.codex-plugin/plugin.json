@@ -1,12 +1,12 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.3.12",
-  "description": "Delegate one explicit ticket-to-PR shortcut to adaptive-delivery",
+  "version": "0.4.0",
+  "description": "Delegate one explicit ticket-to-PR delivery, including required same-PR reviewer evidence",
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Ticket to PR",
     "shortDescription": "Deliver one ticket as one pull request",
-    "longDescription": "Ticket to PR preserves one ticket-delivery authority envelope and delegates it once to adaptive-delivery, which owns readiness, execution, feedback, verification, and publication.",
+    "longDescription": "Ticket to PR preserves one ticket-delivery authority envelope and delegates it once to adaptive-delivery, including at most one candidate-bound reviewer-evidence publication when the ticket or verification contract requires it.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

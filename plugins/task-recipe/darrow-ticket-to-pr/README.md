@@ -21,6 +21,12 @@ both point at the intended verified commit. Reusing an existing URL therefore
 requires publishing any additional intended local commits without force;
 the recipe still chooses no publication command or capability.
 
+When the ticket or selected verification contract requires reviewer-facing
+evidence, the same explicit invocation authorizes at most one focused evidence
+publication against that exact PR and verified commit. It grants no generic
+comment authority. Partial, ambiguous, refused, or changed-head publication
+stops completion without recipe-owned retry or recovery.
+
 ## When to use
 
 Use this explicit shortcut for one exact ticket, a new branch, implementation,

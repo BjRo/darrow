@@ -74,6 +74,15 @@ adaptive delivery to:
 8. create or reuse exactly one pull request whose current content satisfies the
    ticket, ready for review unless draft was explicitly requested.
 
+When the ticket or selected verification contract requires reviewer-facing
+evidence, the explicit recipe invocation also supplies enclosing-contract
+authority for at most one `publish-pr-evidence` operation. That operation is
+limited to the exact current-repository PR created or reused by this delivery
+and the exact intended commit whose verification passed. It is not generic
+comment authority. The owner binds a compatible host-advertised capability by
+intent; the recipe chooses no attachment, command, hosting or recovery
+mechanics.
+
 Verified publication includes owner-sourced repository, head/base, draft state
 and intended commit evidence: both the remote branch and open PR head must equal
 the commit for which final checks and selected review passed. An existing URL
@@ -82,7 +91,9 @@ behaviorally compatible publication operations; the recipe chooses no command
 or capability. Reuse authorizes a non-force content update, not PR metadata edits.
 
 The request authorizes only those branch, commit, non-force push, and one-PR
-effects. It excludes merge, auto-merge, deployment, release, ticket mutation,
+effects and, when required, one same-PR evidence publication. It excludes
+generic comments, publication to any other PR, evidence recovery, merge,
+auto-merge, deployment, release, ticket mutation,
 reviewer assignment, labels, milestones, destructive Git operations, unrelated
 changes, and any other external effect.
 
@@ -140,6 +151,11 @@ despite that unresolved prerequisite.
    request, and it preserves pre-existing work.
 7. **TPR-C7 — Owner-sourced result.** The recipe relays completion, feedback, or
    blockage without post-goal inspection, repair, retry, or reconstruction.
+8. **TPR-C8 — Same-PR evidence envelope.** Reviewer-facing evidence authority
+   exists only when the ticket or verification contract requires it, permits at
+   most one focused publication attempt, and binds the current-repository PR
+   and intended verified commit. `partial`, `ambiguous`, or `refused` remains
+   owner-visible and stops completion and automatic recovery.
 
 ## Packaging and evaluation
 
@@ -161,6 +177,8 @@ Behavior evals cover:
 - a material owner question answered through the main thread and relayed to the
   same owner; and
 - owner-sourced completion or blockage with no recipe-owned reinspection.
+- required same-PR evidence authority, plus exclusions for unrelated PRs,
+  generic comments, creation-only requests and automatic recovery.
 
 Cross-host claims run on both native harnesses. Composition evals assert the
 public boundary and repository outcome; adaptive-delivery and capability suites own

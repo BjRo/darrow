@@ -6,6 +6,15 @@ publication_fail() {
   if [[ "$publication_push" == completed ]]; then
     echo 'note: push completed; publication verification is incomplete' >&2
   fi
+  if [[ "${publication_create:-none}" == completed ]]; then
+    echo 'note: PR creation completed; do not create another PR' >&2
+  elif [[ "${publication_create:-none}" == uncertain ]]; then
+    echo 'note: PR creation command had an uncertain effect; do not create another PR without fresh observation' >&2
+  fi
+  printf '%s\n' "push: ${publication_push:-none}" \
+    "pr-create: ${publication_create:-none}" \
+    "initial-url: ${publication_initial_url:-unknown}" \
+    "observed-url: ${publication_url:-unknown}" >&2
   echo "error: $*" >&2
   exit 4
 }
@@ -37,7 +46,8 @@ publication_observe() {
     publication_fail 'forge and remote branch commits do not agree'
 }
 
-publication_push=none
+publication_push=${publication_initial_push:-none}
+publication_create=${publication_initial_create:-none}
 publication_expected=''
 publication_base=''
 publication_draft=false
@@ -55,7 +65,8 @@ done
 [[ "$publication_expected" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] ||
   publication_fail '--expected-head requires the intended full commit ID'
 if in_progress; then publication_fail 'Git operation in progress'; fi
-publication_branch=$(git symbolic-ref -q --short HEAD) || publication_fail 'a feature branch is required'
+publication_ref=$(git symbolic-ref -q HEAD) || publication_fail 'a feature branch is required'
+publication_branch=${publication_ref#refs/heads/}
 [[ "$(git rev-parse HEAD)" == "$publication_expected" ]] || publication_fail 'local HEAD differs from the intended commit'
 publication_origin=$(git remote get-url origin) || publication_fail 'origin is required'
 # An explicit refspec cannot constrain multiple push URLs. Refuse a different
@@ -76,12 +87,15 @@ publication_repository=$(gh repo view "$publication_origin" --json nameWithOwner
   publication_fail 'cannot identify the origin repository'
 [[ "$publication_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || publication_fail 'malformed origin repository identity'
 publication_observe
+if [[ "$publication_create" == completed && -n "${publication_initial_url:-}" && "$publication_url" != "$publication_initial_url" ]]; then
+  publication_fail 'created PR URL differs from the observed canonical PR'
+fi
 publication_original_url=$publication_url
 publication_original_number=$publication_number
 
 if [[ "$publication_command" == publish-existing && "$publication_remote_commit" != "$publication_expected" ]]; then
   # Recheck the local target, then push a pinned commit rather than a moving ref.
-  [[ "$(git rev-parse HEAD)" == "$publication_expected" && "$(git symbolic-ref -q --short HEAD)" == "$publication_branch" ]] ||
+  [[ "$(git rev-parse HEAD)" == "$publication_expected" && "$(git symbolic-ref -q HEAD)" == "refs/heads/$publication_branch" ]] ||
     publication_fail 'local publication target changed'
   if ! git -c push.followTags=false -c remote.origin.mirror=false push origin \
     "$publication_expected:refs/heads/$publication_branch"; then
@@ -95,12 +109,14 @@ fi
 
 [[ "$publication_remote_commit" == "$publication_expected" && "$publication_pr_commit" == "$publication_expected" ]] ||
   publication_fail 'the intended commit is not the published PR head'
-[[ "$(git rev-parse HEAD)" == "$publication_expected" && "$(git symbolic-ref -q --short HEAD)" == "$publication_branch" ]] ||
+[[ "$(git rev-parse HEAD)" == "$publication_expected" && "$(git symbolic-ref -q HEAD)" == "refs/heads/$publication_branch" ]] ||
   publication_fail 'local publication target changed'
+if [[ "$publication_create" == uncertain ]]; then publication_create=observed-after-uncertain-command; fi
 printf '%s\n' 'publication: verified' "url: $publication_url" \
   "repository: $publication_repository" "head: $publication_branch" \
   "base: $publication_base" "draft: $publication_draft" \
   "intended-commit: $publication_expected" "remote-commit: $publication_remote_commit" \
-  "pr-commit: $publication_pr_commit" "push: $publication_push"
+  "pr-commit: $publication_pr_commit" "push: $publication_push" \
+  "pr-create: $publication_create"
 echo '## working tree (excluded from publication)'
 git status --porcelain --untracked-files=all

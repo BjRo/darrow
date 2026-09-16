@@ -53,15 +53,25 @@ Pass one concise request that preserves the exact ticket reference and says:
 > exactly one open PR both have the intended verified commit as their head,
 > with the requested repository, base and draft state. An existing URL alone
 > does not satisfy publication of additional local commits.
+>
+> When the ticket or verification contract requires reviewer-facing evidence,
+> bind one compatible host-advertised evidence-publication capability and make
+> at most one operation against only that exact current-repository PR and
+> intended verified commit. This grants no generic comment authority. A
+> partial, ambiguous, refused, or changed-head result stops completion and
+> recovery.
 
 Include this authority boundary in the same request:
 
 - authorized: read the one ticket, prepare or reuse its new branch, implement
   and verify its scope, create intended commits, non-force push, and create or
-  reuse one pull request;
+  reuse one pull request, plus one same-PR candidate-bound evidence operation
+  only when the ticket or verification contract requires reviewer-facing evidence;
 - not authorized: merge or auto-merge, deploy, release, mutate the ticket,
   assign reviewers, add labels or milestones, rewrite history, discard or stash
-  user work, make unrelated changes, or perform another external effect.
+  user work, make unrelated changes, post generic comments, publish evidence
+  to another PR, recover an uncertain evidence attempt, or perform another
+  external effect.
 
 Preserve the originating request and explicit recipe authority. Do not add a
 workflow, risk, model, effort, route, readiness result, branch name, capability
@@ -87,6 +97,8 @@ launch a replacement owner, or perform the owner's work in the main thread.
 Completion is the owner-sourced URL and intended/published commit evidence for
 exactly one verified pull request. Preserve that complete URL and commit
 evidence when relaying or summarizing completion; a PR number alone is
-insufficient. If the owner omitted required evidence, relay that gap instead
+insufficient. Required reviewer evidence also needs its outcome, identity,
+comment URL, attachment/rendering observations and any partial effects. A
+partial, ambiguous or refused outcome remains a blocker. If the owner omitted required evidence, relay that gap instead
 of claiming completion or inspecting the forge yourself. Otherwise relay the
 exact current question or blocker and its smallest next action.
