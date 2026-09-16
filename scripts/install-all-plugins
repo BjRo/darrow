@@ -25,11 +25,18 @@ is_excluded() {
 }
 
 script_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
-repository_root=$(cd "$script_dir/.." && pwd) || exit 2
-marketplace=${DARROW_MARKETPLACE_MANIFEST:-"$repository_root/.claude-plugin/marketplace.json"}
+marketplace=${DARROW_MARKETPLACE_MANIFEST:-}
+temporary_manifest=
+marketplace_url=${DARROW_MARKETPLACE_URL:-"https://raw.githubusercontent.com/BjRo/darrow/main/.claude-plugin/marketplace.json"}
 host=
 scope=user
 scope_supplied=false
+
+cleanup() {
+  [ -z "$temporary_manifest" ] || rm -f "$temporary_manifest"
+}
+
+trap cleanup EXIT HUP INT TERM
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -63,6 +70,21 @@ case "$scope" in
   *) fail "--scope must be user, project, or local" ;;
 esac
 [ "$host" = claude ] || [ "$scope_supplied" = false ] || fail "--scope is only valid with --host claude"
+
+if [ -z "$marketplace" ] && [ -n "$0" ]; then
+  local_manifest="$script_dir/../.claude-plugin/marketplace.json"
+  [ ! -r "$local_manifest" ] || marketplace=$local_manifest
+fi
+
+if [ -z "$marketplace" ]; then
+  command -v curl >/dev/null 2>&1 || fail "curl is required to download the marketplace manifest"
+  temporary_manifest=$(mktemp "${TMPDIR:-/tmp}/darrow-marketplace.XXXXXX") || fail "could not create a marketplace manifest file"
+  if ! curl --fail --silent --show-error --location "$marketplace_url" -o "$temporary_manifest"; then
+    printf 'error: failed to download marketplace manifest: %s\n' "$marketplace_url" >&2
+    exit 1
+  fi
+  marketplace=$temporary_manifest
+fi
 
 [ -r "$marketplace" ] || fail "unreadable marketplace manifest: $marketplace"
 

@@ -43,6 +43,7 @@ make_fixture() {
   mkdir -p "$FIXTURE/bin"
   MANIFEST="$FIXTURE/marketplace.json"
   CALLS="$FIXTURE/calls"
+  CURL_CALLS="$FIXTURE/curl-calls"
   cat >"$MANIFEST" <<'EOF'
 {
   "plugins": [
@@ -61,7 +62,25 @@ EOF
 printf 'claude %s\n' "$*" >>"$DARROW_TEST_CALLS"
 [ "${DARROW_TEST_FAIL:-}" != "${3:-}" ]
 EOF
-  chmod +x "$FIXTURE/bin/codex" "$FIXTURE/bin/claude"
+  cat >"$FIXTURE/bin/curl" <<'EOF'
+#!/bin/sh
+output=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o)
+      output=$2
+      shift 2
+      ;;
+    *)
+      printf '%s\n' "$1" >>"$DARROW_TEST_CURL_CALLS"
+      shift
+      ;;
+  esac
+done
+[ "${DARROW_TEST_CURL_FAIL:-}" != true ] || exit 22
+cp "$DARROW_TEST_REMOTE_MANIFEST" "$output"
+EOF
+  chmod +x "$FIXTURE/bin/codex" "$FIXTURE/bin/claude" "$FIXTURE/bin/curl"
 }
 
 run_installer() {
@@ -77,6 +96,15 @@ run_default_installer() {
   shift
   PATH="$FIXTURE/bin:$PATH" DARROW_TEST_CALLS="$CALLS" \
     DARROW_TEST_FAIL="${DARROW_TEST_FAIL:-}" "$RUNNER" "$INSTALLER" "$@" >"$output" 2>&1
+}
+
+run_remote_installer() {
+  local output=$1
+  shift
+  cat "$INSTALLER" | PATH="$FIXTURE/bin:$PATH" DARROW_TEST_CALLS="$CALLS" \
+    DARROW_TEST_CURL_CALLS="$CURL_CALLS" DARROW_TEST_REMOTE_MANIFEST="$MANIFEST" \
+    DARROW_TEST_FAIL="${DARROW_TEST_FAIL:-}" DARROW_TEST_CURL_FAIL="${DARROW_TEST_CURL_FAIL:-}" \
+    "$RUNNER" -s -- "$@" >"$output" 2>&1
 }
 
 marketplace_calls() {
@@ -135,6 +163,30 @@ EOF
 OUT="$FIXTURE/dynamic.out"
 run_installer "$OUT" --host codex
 check "fixture inventory drives calls" "codex plugin add only-current-entry@darrow" "$(cat "$CALLS")"
+
+echo "# no-clone installation downloads the manifest"
+make_fixture
+cat >"$MANIFEST" <<'EOF'
+{
+  "plugins": [
+    { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
+    { "name": "darrow-adaptive-delivery", "source": "./plugins/orchestration/darrow-adaptive-delivery" },
+    { "name": "darrow-observability-langfuse", "source": "./plugins/capability/darrow-observability-langfuse" }
+  ]
+}
+EOF
+OUT="$FIXTURE/remote.out"
+run_remote_installer "$OUT" --host codex
+check "remote manifest keeps only adaptive delivery" "codex plugin add darrow-adaptive-delivery@darrow" "$(cat "$CALLS")"
+contains "remote shortcut downloads the marketplace manifest" ".claude-plugin/marketplace.json" "$CURL_CALLS"
+
+make_fixture
+OUT="$FIXTURE/remote-failure.out"
+DARROW_TEST_CURL_FAIL=true run_remote_installer "$OUT" --host codex
+status=$?
+check "remote manifest failure is nonzero" true "$([[ $status -ne 0 ]] && echo true || echo false)"
+contains "remote manifest failure is named" "failed to download marketplace manifest" "$OUT"
+not_contains "remote manifest failure omits success" "Installed all" "$OUT"
 
 echo "# exceptional marketplace entries are excluded"
 make_fixture

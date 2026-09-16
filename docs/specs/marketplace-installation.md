@@ -8,6 +8,11 @@ remains included. The installer is not a plugin, does not introduce a runtime
 dependency between plugins, and preserves every marketplace plugin as an
 optionality boundary.
 
+When executed from a checkout, the installer reads that checkout's manifest.
+When executed through the documented remote `curl` shortcut, it downloads the
+current marketplace manifest from the Darrow GitHub source. A failed download
+is a named nonzero refusal.
+
 The installer supports Codex and Claude Code. It stops at a failed installation
 with a nonzero exit status, names the affected plugin, and prints its successful
 completion message only after every listed plugin was installed. Claude Code's

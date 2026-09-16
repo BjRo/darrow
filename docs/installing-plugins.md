@@ -125,16 +125,22 @@ when it runs, then invokes the selected host's normal per-plugin installation
 command for each eligible entry. It does not make the plugins a combined package
 or add dependencies between them.
 
-First add the Darrow marketplace for the target host as shown above. Then, from
-a checkout of this repository, run one of these shell commands:
+First add the Darrow marketplace for the target host as shown above. You can
+then run either shortcut directly, without cloning this repository:
 
 ```sh
-bash scripts/install-all-plugins --host codex
+curl -fsSL https://raw.githubusercontent.com/BjRo/darrow/main/scripts/install-all-plugins | bash -s -- --host codex
 ```
 
 ```sh
-bash scripts/install-all-plugins --host claude --scope user
+curl -fsSL https://raw.githubusercontent.com/BjRo/darrow/main/scripts/install-all-plugins | bash -s -- --host claude --scope user
 ```
+
+These commands retrieve and execute the current Darrow installer and its
+marketplace manifest from GitHub. Review the source first if your trust policy
+does not permit remote shell execution. From a checkout, you can instead run
+`bash scripts/install-all-plugins` with the same host arguments; it reads that
+checkout's manifest locally.
 
 Claude Code accepts `user` (the default), `project`, or `local` for `--scope`;
 the script passes that scope to every `claude plugin install` call. A failed
