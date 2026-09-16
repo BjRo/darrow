@@ -5,7 +5,7 @@ committing, and PR creation are consistent, traceable, and safe regardless of
 which agent runtime executes them.
 
 Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`,
-`prepare-task-branch`, `create-pr`.
+`prepare-task-branch`, `create-pr`, `publish-pr-evidence`.
 
 GW-B6 applies only when the caller explicitly asks the `create-branch`
 capability to allocate an additional linked worktree.
@@ -211,6 +211,12 @@ base, with a Conventional Commit title and a context-rich body derived from
 the branch's commits (and ticket, when one is known). Push the branch (with
 upstream) first if needed. Draft only when the user asks for a draft.
 
+Every successful creation or explicitly authorized reuse returns the canonical
+PR URL and a complete verified publication record: repository, head, base,
+draft state, intended commit, remote branch commit, forge PR-head commit and
+whether a push occurred. Success requires all three full commit identities to
+agree after the operation.
+
 ### Invariants
 
 - **GW-P1 — Conventional title.** The PR title follows the Conventional
@@ -255,6 +261,11 @@ upstream) first if needed. Draft only when the user asks for a draft.
   branch and forge head equal the intended commit. A mismatch, ambiguous PR,
   unavailable check or changed local head refuses completion and reports any
   push already performed. The same verification is available after creation.
+- **GW-P10 — Verified creation result.** Creation observes the newly created PR
+  and remote branch after `gh pr create` and returns the same verified result
+  contract as reuse. A URL or successful command exit alone is not completion.
+  If creation or push has occurred but observation fails, report the known
+  effects and uncertainty without creating another PR.
 
 ### Non-goals
 
@@ -262,3 +273,67 @@ Merging or auto-merge, assigning reviewers/labels/milestones, editing existing
 PR metadata or closing PRs, creating tickets, authoring or editing PR templates,
 committing (see create-commit), branching (see create-branch), pushing the
 default branch.
+
+## publish-pr-evidence
+
+### Intent triggers
+
+"publish this evidence to the PR", "attach these screenshots to the pull
+request", "post verification evidence on this PR", or an enclosing contract
+that explicitly authorizes one evidence publication against its exact PR and
+verified commit.
+
+### Contract
+
+Publish one candidate-bound, top-level PR conversation comment with an optional
+ordered attachment set. Text-only evidence is valid. This is a focused
+publication operation, not generic PR commenting, file hosting, or inline
+review.
+
+### Invariants
+
+- **GW-E1 — Exact candidate and authority.** Input supplies the prepared body,
+  expected full PR-head commit, and optional attachment paths in presentation
+  order. Before mutation resolve exactly one open same-repository PR for the
+  current branch, its canonical URL and current full head. Refuse unless the
+  observed head exactly equals the expected head. Recheck the head around the
+  publication attempt; a change invalidates completion.
+- **GW-E2 — Complete preflight.** Feature-detect `gh pr comment --attach` and
+  supported GitHub-host behavior before mutation. Validate the entire
+  attachment set first: at most 50 distinct readable non-empty regular files;
+  PNG, JPEG, GIF, WebP and SVG images are at most 10 MiB each; MP4, MOV and WebM
+  videos are at most 100 MiB each. Reject missing, unreadable, empty, duplicate,
+  unsupported or oversized inputs. If the active supported CLI advertises a
+  stricter limit, refuse instead of risking a partial upload.
+- **GW-E3 — Presentation rules.** Every image has meaningful caller-supplied
+  alt text and every video has a caller-supplied textual explanation. Attachments
+  retain caller order. The prepared comment body records that presentation
+  metadata without exposing temporary paths.
+- **GW-E4 — Path-independent identity.** A deterministic identity binds the
+  repository, PR number, expected full head, exact prepared body, ordered
+  attachment content identities, media types and presentation metadata.
+  Temporary path spelling is not part of that identity.
+- **GW-E5 — Reconcile before mutation.** Observe top-level PR conversation
+  comments before publication. Exactly one complete identity match returns
+  `existing`; an incomplete match returns `partial`; conflicting or
+  unclassifiable matching state returns `ambiguous`; otherwise one authorized
+  `gh pr comment` invocation publishes the body and all attachments in caller
+  order. Duplicate prevention never relies on command exit status alone.
+- **GW-E6 — Bounded outcomes.** Return exactly `published`, `existing`,
+  `partial`, `ambiguous`, or `refused`, with repository, canonical PR URL,
+  expected and observed full heads, identity, intended and observed attachment
+  identities, known comment URL, stage, command/effects and uncertainty where
+  applicable. After the invocation reconcile observable comments before
+  claiming `published`.
+- **GW-E7 — Preserve uncertain effects.** A partial or ambiguous result stops
+  without retry, edit, delete, replacement, URL reuse or recovery. Recovery
+  requires fresh explicit authority. Preserve every local and remote effect.
+- **GW-E8 — Evidence stays external.** The operation proves no evidence file is
+  staged, committed, copied into the repository or deleted. It does not retain
+  or clean caller files. Temporary evidence paths may remain for inspection.
+
+### Non-goals
+
+Generic PR comments, issue comments, reviews or inline annotations; arbitrary
+file hosting; modifying or deleting comments; retry/recovery; committing
+evidence media; changing PR metadata or head content.

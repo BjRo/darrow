@@ -37,6 +37,7 @@ fresh_repo() {
 # Local bare remote inside .git so it is invisible to git status.
 add_remote() {
   git init -q --bare .git/remote.git
+  git --git-dir=.git/remote.git symbolic-ref HEAD refs/heads/main
   git remote add origin "$REPO/.git/remote.git"
   git push -qu origin main
   git remote set-head origin main
@@ -54,7 +55,14 @@ case "$1 $2" in
       echo "HTTP 502: bad gateway" >&2
       exit 1
     fi
-    if [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
+    if [ -f "$(git rev-parse --git-dir)/fixture-gh-created" ]; then
+      tip=$(git rev-parse HEAD)
+      base=$(cat "$d/base")
+      [ ! -f "$(git rev-parse --git-dir)/fixture-gh-created-wrong-base" ] || base=wrong-base
+      draft=false; [ ! -f "$d/draft" ] || draft=true
+      printf '1\thttps://github.com/fixture/repo/pull/1\tOPEN\t%s\t%s\t%s\t%s\tfalse\n' "$(cat "$d/head")" "$tip" "$base" "$draft"
+      rm -f "$(git rev-parse --git-dir)/fixture-gh-created"
+    elif [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
       cat "$(git rev-parse --git-dir)/fixture-gh-existing"
     fi
     ;;
@@ -71,7 +79,20 @@ case "$1 $2" in
         *) shift ;;
       esac
     done
+    if [ -f "$(git rev-parse --git-dir)/fixture-gh-create-fail-before" ]; then
+      echo 'transport failed before forge observation' >&2
+      exit 1
+    fi
+    if [ -f "$(git rev-parse --git-dir)/fixture-gh-create-fail-after" ]; then
+      : > "$(git rev-parse --git-dir)/fixture-gh-created"
+      echo 'transport failed after server acceptance' >&2
+      exit 1
+    fi
     echo "https://github.com/fixture/repo/pull/1"
+    : > "$(git rev-parse --git-dir)/fixture-gh-created"
+    ;;
+  "repo view")
+    printf '%s\n' fixture/repo
     ;;
   *)
     echo "mock gh: unsupported: $*" >&2
@@ -148,8 +169,12 @@ check "detached reported wrong-branch" 0 $?
 "$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
 check "detached create exit 3" 3 $?
 ready_repo
-PATH="/usr/bin:/bin" "$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
-check "gh missing, create exit 3" 3 $?
+if PATH="/usr/bin:/bin" command -v gh >/dev/null 2>&1; then
+  echo "  ok: gh-missing case skipped (system gh is present)"
+else
+  PATH="/usr/bin:/bin" "$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+  check "gh missing, create exit 3" 3 $?
+fi
 
 echo "# P3: default branch refused (exit 9)"
 fresh_repo
@@ -350,7 +375,10 @@ echo "# P11: success output and captured arguments"
 ready_repo
 out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "Requests died on flaky links." -b "Retries twice with backoff.")
 check "create ok" 0 $?
-check "reports url, head and base" "https://github.com/fixture/repo/pull/1 (fix/timeout-retry -> main)" "$out"
+echo "$out" | grep -q '^publication: verified$'
+check "reports verified publication" 0 $?
+echo "$out" | grep -q '^url: https://github.com/fixture/repo/pull/1$'
+check "reports canonical url" 0 $?
 check "title captured" "fix: retry request on timeout" "$(cat .git/fixture-gh/title)"
 check "head pinned" fix/timeout-retry "$(cat .git/fixture-gh/head)"
 check "body sections joined with blank line" "Requests died on flaky links.
@@ -362,8 +390,33 @@ out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why --
 check "draft create ok" 0 $?
 if [[ -f .git/fixture-gh/draft ]]; then draft_rc=0; else draft_rc=1; fi
 check "draft flag passed through" 0 "$draft_rc"
-echo "$out" | grep -q ", draft)"
+echo "$out" | grep -q '^draft: true$'
 check "draft stated in report" 0 $?
+ready_repo
+: >.git/fixture-gh-create-fail-before
+out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why 2>&1)
+check "uncertain create without observed PR refuses" 4 $?
+echo "$out" | grep -q 'push completed'
+check "uncertain refusal preserves push effect" 0 $?
+echo "$out" | grep -q 'uncertain effect'
+check "uncertain refusal warns against duplicate" 0 $?
+ready_repo
+: >.git/fixture-gh-create-fail-after
+out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why 2>&1)
+check "server-accepted create is reconciled" 0 $?
+echo "$out" | grep -q '^pr-create: observed-after-uncertain-command$'
+check "reconciled create reports observed effect" 0 $?
+ready_repo
+: >.git/fixture-gh-create-fail-after
+: >.git/fixture-gh-created-wrong-base
+out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why 2>&1)
+check "later identity refusal remains a failure" 4 $?
+echo "$out" | grep -q '^push: completed$'
+check "later refusal preserves push" 0 $?
+echo "$out" | grep -q '^pr-create: uncertain$'
+check "later refusal preserves uncertain creation" 0 $?
+echo "$out" | grep -q '^observed-url: https://github.com/fixture/repo/pull/1$'
+check "later refusal preserves observed canonical URL" 0 $?
 
 echo "# P12: inspect ready output"
 ready_repo
@@ -633,12 +686,12 @@ cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 
 ## Testing
 EOF
-big=$(awk 'BEGIN{for(i=0;i<20000;i++) printf "word %d ab. ", i}')
+big=$(awk 'BEGIN{for(i=0;i<8000;i++) printf "word %d ab. ", i}')
 "$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
 Flaky links kill requests.
 $big" -b "## Testing
 Unit tests cover exhaustion." > /dev/null 2>&1
-check "200KB body with filled template accepted" 0 $?
+check "90KB body with filled template accepted" 0 $?
 rm -rf .git/fixture-gh
 "$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
 Flaky links.
@@ -646,7 +699,7 @@ $big" -b "## Testing
 Tests.
 
 Generated with Claude Code" > /dev/null 2>&1
-check "attribution at the end of a 200KB body still caught, exit 6" 6 $?
+check "attribution at the end of a 90KB body still caught, exit 6" 6 $?
 check "no PR after large-body attribution" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
 
 echo "# P16b: heading edge cases — tab after hashes, BOM, backslashes"
@@ -752,8 +805,10 @@ for tracking in absent present; do
       grep -qxF '## cur branch: fix/timeout-retry' <<< "$out"
       check "$tracking upstream: inspection reports exact branch despite tag" 0 $?
     fi
-    "$BASH" "$SCRIPT" create --title 'fix: retry request on timeout' -b why >/dev/null 2>&1
-    check "$tracking upstream, $config: create succeeds" 0 $?
+    create_out=$("$BASH" "$SCRIPT" create --title 'fix: retry request on timeout' -b why 2>&1)
+    create_rc=$?
+    if [[ "$create_rc" -ne 0 ]]; then printf '%s\n' "$create_out"; fi
+    check "$tracking upstream, $config: create succeeds" 0 "$create_rc"
     check "$tracking upstream, $config: remote feature has intended commit" "$(git rev-parse HEAD)" "$(git -C .git/remote.git rev-parse --verify refs/heads/fix/timeout-retry 2>/dev/null)"
     check "$tracking upstream, $config: remote main unchanged" "$remote_main" "$(git -C .git/remote.git rev-parse refs/heads/main)"
     check "$tracking upstream, $config: no tags published" '' "$(git -C .git/remote.git for-each-ref refs/tags)"

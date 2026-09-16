@@ -3,8 +3,8 @@
 This plugin turns common Git publication requests into small, explicit
 workflows. The agent still decides what the user's change means, while bundled
 scripts enforce the mechanical boundaries that are easy to get subtly wrong:
-branch naming, staging, commit shape, duplicate pull requests, and non-force
-publication.
+branch naming, staging, commit shape, duplicate pull requests, non-force
+publication, and candidate-bound reviewer evidence.
 
 Each workflow is independently intent-triggered. Installing the plugin does not
 run Git commands automatically.
@@ -62,7 +62,21 @@ separate path: it pushes without force and verifies that the remote branch and
 forge head both equal the intended commit. It returns the repository, URL,
 head/base, draft state and commit evidence without changing PR metadata.
 
+Creation returns that same verified repository, URL, shape and full
+intended/remote/forge commit evidence after observing the new PR.
+
 Example: _“Push this branch and open a draft PR.”_
+
+### `publish-pr-evidence`
+
+Publishes one top-level, candidate-bound PR evidence comment with optional
+ordered image or video attachments. It validates every file and presentation
+label before upload, verifies the exact current PR head, reconciles prior
+comments by deterministic content identity, and makes at most one authorized
+comment invocation. Text-only evidence is supported. Partial or ambiguous
+remote state stops without retry or cleanup.
+
+Example: _“Attach these verification screenshots to the current PR.”_
 
 ### Bundled workflow scripts
 
@@ -83,11 +97,16 @@ general Git wrapper.
 
 ## When to use
 
-Create or prepare a branch, create a commit, or publish a requested PR. Do not use these workflows to rewrite history, merge, release, or deploy.
+Create or prepare a branch, create a commit, publish a requested PR, or publish
+explicitly authorized evidence to its exact verified head. Do not use these
+workflows to rewrite history, merge, release, deploy, or post generic comments.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; Git, Bash, and baseline Unix tools. PR work also requires authenticated GitHub CLI access and a usable remote.
+Codex and Claude Code; Git, Bash, and baseline Unix tools. PR work also requires
+authenticated GitHub CLI access and a usable remote. Attachment publication
+requires a GitHub host and a `gh pr comment` implementation that advertises
+`--attach`.
 
 ## Installation
 

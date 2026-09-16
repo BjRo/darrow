@@ -587,12 +587,34 @@ case "$cmd" in
     if [[ -n "$draft" ]]; then
       args+=(--draft)
     fi
-    out=$(gh pr create "${args[@]}" 2>&1) || {
+    export publication_initial_push=completed
+    export publication_initial_create=uncertain
+    set +e
+    out=$(gh pr create "${args[@]}" 2>&1)
+    create_rc=$?
+    set -e
+    if [[ "$create_rc" -ne 0 ]]; then
       echo "$out" >&2
-      exit 4
-    }
-    url=$(printf '%s\n' "$out" | awk 'NF {l=$0} END {print l}')
-    echo "$url ($branch -> $base${draft:+, draft})"
+      # The forge may have accepted creation before the CLI failed. Observe
+      # once; never retry or create a duplicate based on exit status alone.
+      # shellcheck disable=SC1091
+      source "$(cd "$(dirname "$0")" && pwd -P)/publication.sh" verify \
+        --expected-head "$(git rev-parse HEAD)" --base "$base" ${draft:+--draft}
+      exit 0
+    fi
+    created_url=$(printf '%s\n' "$out" | awk 'NF {l=$0} END {print l}')
+    if [[ "$created_url" != https://* ]]; then
+      # A URL-less success is uncertain remote state. Observe once.
+      # shellcheck disable=SC1091
+      source "$(cd "$(dirname "$0")" && pwd -P)/publication.sh" verify \
+        --expected-head "$(git rev-parse HEAD)" --base "$base" ${draft:+--draft}
+      exit 0
+    fi
+    export publication_initial_create=completed
+    export publication_initial_url=$created_url
+    # shellcheck disable=SC1091
+    source "$(cd "$(dirname "$0")" && pwd -P)/publication.sh" verify \
+      --expected-head "$(git rev-parse HEAD)" --base "$base" ${draft:+--draft}
     if [[ -n "$upstream" && "$upstream" != "origin/$branch" ]]; then
       echo "note: upstream is $upstream; pushed and opened the PR from origin/$branch"
     fi
