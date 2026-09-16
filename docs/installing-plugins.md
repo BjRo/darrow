@@ -144,8 +144,7 @@ marketplace entry has installed.
 
 The shortcut deliberately excludes two marketplace entries:
 
-- `darrow-ticket-pipeline` is a deprecated reference implementation. Use
-  `darrow-adaptive-delivery` for new orchestration work.
+- `darrow-ticket-pipeline` is a deprecated reference implementation.
 - `darrow-observability-langfuse` requires UV and a UV-managed Python
   `>=3.10,<3.14`; on Codex, review and trust its hooks when prompted. Installing
   it does not enable tracing: configure credentials and explicitly opt in before
