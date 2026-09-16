@@ -117,6 +117,40 @@ for supported surfaces and UI behavior. If your Codex surface has no plugin
 support, use Codex CLI or browse the static documentation; do not assume that
 a CLI installation enabled a different app or extension.
 
+## Install every shipped marketplace plugin
+
+The repository includes an inventory-driven shortcut for intentionally adopting
+the complete current marketplace. It reads
+`.claude-plugin/marketplace.json` when it runs, then invokes the selected
+host's normal per-plugin installation command for each entry. It does not make
+the plugins a combined package or add dependencies between them.
+
+First add the Darrow marketplace for the target host as shown above. Then, from
+a checkout of this repository, run one of these shell commands:
+
+```sh
+bash scripts/install-all-plugins --host codex
+```
+
+```sh
+bash scripts/install-all-plugins --host claude --scope user
+```
+
+Claude Code accepts `user` (the default), `project`, or `local` for `--scope`;
+the script passes that scope to every `claude plugin install` call. A failed
+plugin installation stops the shortcut, returns a nonzero status, and names the
+plugin that failed. The success message appears only after every current
+marketplace entry has installed.
+
+This shortcut includes two entries that need deliberate follow-up:
+
+- `darrow-ticket-pipeline` is a deprecated reference implementation. Use
+  `darrow-adaptive-delivery` for new orchestration work.
+- `darrow-observability-langfuse` requires UV and a UV-managed Python
+  `>=3.10,<3.14`; on Codex, review and trust its hooks when prompted. Installing
+  it does not enable tracing: configure credentials and explicitly opt in before
+  it exports anything. Read its local README before enabling it.
+
 ## Verify the installation
 
 First check the installed listing names your selected plugin. In a fresh

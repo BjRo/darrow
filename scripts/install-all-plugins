@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Install every current Darrow marketplace plugin through one host at a time.
+set -u
+
+usage() {
+  cat <<'EOF'
+Usage: install-all-plugins --host <claude|codex> [--scope <user|project|local>]
+
+Install every plugin listed in .claude-plugin/marketplace.json through the
+selected host's ordinary per-plugin installation command. Claude Code defaults
+to user scope; --scope is only valid with --host claude.
+EOF
+}
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 2
+}
+
+script_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
+repository_root=$(cd "$script_dir/.." && pwd) || exit 2
+marketplace=${DARROW_MARKETPLACE_MANIFEST:-"$repository_root/.claude-plugin/marketplace.json"}
+host=
+scope=user
+scope_supplied=false
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --host)
+      [ "$#" -ge 2 ] || fail "--host requires claude or codex"
+      host=$2
+      shift 2
+      ;;
+    --scope)
+      [ "$#" -ge 2 ] || fail "--scope requires user, project, or local"
+      scope=$2
+      scope_supplied=true
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "unknown argument: $1"
+      ;;
+  esac
+done
+
+case "$host" in
+  claude|codex) ;;
+  *) fail "--host must be claude or codex" ;;
+esac
+case "$scope" in
+  user|project|local) ;;
+  *) fail "--scope must be user, project, or local" ;;
+esac
+[ "$host" = claude ] || [ "$scope_supplied" = false ] || fail "--scope is only valid with --host claude"
+
+[ -r "$marketplace" ] || fail "unreadable marketplace manifest: $marketplace"
+
+plugins=$(
+  awk '
+    /^[[:space:]]*"plugins"[[:space:]]*:[[:space:]]*\[/ {
+      in_plugins = 1
+      next
+    }
+    in_plugins && /^[[:space:]]*][[:space:]]*[,}]?[[:space:]]*$/ {
+      exit
+    }
+    in_plugins && /^[[:space:]]*[{,]?[[:space:]]*"name"[[:space:]]*:/ {
+      name = $0
+      sub(/^[^\"]*\"name\"[[:space:]]*:[[:space:]]*\"/, "", name)
+      sub(/\".*$/, "", name)
+      if (name !~ /^[a-z0-9][a-z0-9-]*$/) {
+        print "invalid marketplace plugin name" > "/dev/stderr"
+        exit 1
+      }
+      print name
+    }
+  ' "$marketplace"
+) || fail "could not read marketplace plugin entries: $marketplace"
+
+[ -n "$plugins" ] || fail "marketplace has no plugin entries: $marketplace"
+
+case "$host" in
+  codex)
+    host_label=Codex
+    command -v codex >/dev/null 2>&1 || fail "codex CLI is not available"
+    ;;
+  claude)
+    host_label='Claude Code'
+    command -v claude >/dev/null 2>&1 || fail "claude CLI is not available"
+    ;;
+esac
+
+count=0
+while IFS= read -r plugin; do
+  [ -n "$plugin" ] || continue
+  identifier="$plugin@darrow"
+  if [ "$host" = codex ]; then
+    codex plugin add "$identifier"
+  else
+    claude plugin install "$identifier" --scope "$scope"
+  fi
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    printf 'error: failed to install %s for %s\n' "$identifier" "$host_label" >&2
+    exit "$status"
+  fi
+  count=$((count + 1))
+done <<EOF
+$plugins
+EOF
+
+printf 'Installed all %s Darrow marketplace plugins for %s.\n' "$count" "$host_label"

@@ -17,6 +17,7 @@ These files define current invariants. Start with the
 - [Code review](code-review.md): independent review and repair verification.
 - [Verification](verification.md): replaceable assessment and criterion-level evidence.
 - [Langfuse observability](observability-langfuse.md): Codex telemetry and privacy.
+- [Marketplace installation](marketplace-installation.md): inventory-driven host installation shortcuts.
 - [Adaptive Delivery](adaptive-delivery.md): one explicit execution owner.
 - [Ticket to PR](ticket-to-pr.md): the delivery recipe.
 - [Ticket pipeline](ticket-pipeline.md): the static reference.
