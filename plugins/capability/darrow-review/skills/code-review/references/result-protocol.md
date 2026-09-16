@@ -55,7 +55,7 @@ standards<TAB>pass|fail|blocked
 standards_source<TAB>absolute path or heuristic:name  # repeat
 spec<TAB>pass|fail|blocked|not_available
 spec_source<TAB>source identifier or not_available
-finding<TAB>standards|spec<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>changed path:line or command<TAB>violated source<TAB>concrete evidence  # repeat
+finding<TAB>standards|spec<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>changed path:line or command<TAB>violated source<TAB>failure and cause evidence<TAB>repair guidance<TAB>resolution evidence  # repeat
 check<TAB>literal command or none<TAB>applicable|not_applicable<TAB>pass|fail|blocked|not_applicable<TAB>evidence  # repeat
 verdict<TAB>pass|fail|blocked
 risk<TAB>concise residual risk or none observed       # repeat
@@ -73,6 +73,22 @@ must not replace the captured command, status, or evidence.
 
 A failing axis has at least one blocking finding; advisory findings alone do
 not fail it. Every blocking Spec finding cites an exact originating clause.
+
+For every new finding, copy all three reasoning fields from its originating
+reader unchanged. Evidence explains the failure and cause against the violated
+source. Repair guidance is a bounded suggested approach with rationale and
+important constraints, explicitly advisory rather than a required
+implementation. When the reader lacks confidence in a repair, the guidance
+states that limitation and its reason without inventing an approach or dropping
+the finding. Resolution evidence describes observable behavior or a regression
+test demonstrating the required outcome; it is a proposed verification method,
+not a claim that a test has run or a new requirement.
+
+The two trailing fields are an additive v1 extension: validators and renderers
+also accept legacy findings with neither field. A partial pair, an empty field,
+or extra fields is invalid. New readers emit both; consumers preserve their
+presence or absence exactly. Human output labels repair guidance as advisory.
+The originating requirement, not the suggestion, determines resolution.
 
 Derive verdict mechanically:
 
@@ -120,7 +136,8 @@ or deploy action inside review.
 Write fix verification to `verification.tsv` directly beneath the current
 scope artifact directory. Never overwrite or reinterpret an original
 `result.tsv`. The additive format is `darrow-review-verification-v1`; the
-initial `darrow-review-result-v1` format and renderer remain unchanged.
+initial `darrow-review-result-v1` records remain readable, including legacy
+findings without guidance.
 
 The caller must supply the original comprehensive review target, its complete
 canonical finding order, the immediately prior repair target, the attempted
@@ -156,9 +173,9 @@ current_target<TAB>current pinned target fingerprint
 history_target<TAB>earlier repair target fingerprint                 # repeat
 previous_verification<TAB>none<TAB>none                              # first verification
 previous_verification<TAB>Git blob checksum<TAB>absolute prior verification artifact # later verification
-original_finding<TAB>stable key<TAB>standards|spec<TAB>canonical positive order<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>location<TAB>source<TAB>original evidence  # repeat
+original_finding<TAB>stable key<TAB>standards|spec<TAB>canonical positive order<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>location<TAB>source<TAB>original evidence<TAB>original repair guidance<TAB>original resolution evidence  # repeat
 attempt<TAB>original finding key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence  # repeat
-regression<TAB>stable regression key<TAB>causing original finding key<TAB>canonical positive order<TAB>standards|spec<TAB>critical|high|medium|low<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>location<TAB>source<TAB>current evidence  # repeat
+regression<TAB>stable regression key<TAB>causing original finding key<TAB>canonical positive order<TAB>standards|spec<TAB>critical|high|medium|low<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>location<TAB>source<TAB>current evidence<TAB>repair guidance<TAB>resolution evidence  # repeat
 check<TAB>literal command or none<TAB>applicable|not_applicable<TAB>pass|fail|blocked|not_applicable<TAB>evidence  # repeat
 evidence_gap<TAB>missing or inconsistent required evidence           # repeat
 outcome<TAB>clear|continue|no_progress|blocked
@@ -176,7 +193,12 @@ original finding in the pinned repair delta. Do not serialize an unrelated
 observation. On a later verification, the validator checks the prior artifact
 checksum and target link, preserves the original set, and requires every prior
 regression to retain its stable key and immutable cause, order, axis, severity,
-location, and source. The first verification binds `prior_target` to
+location, source, repair guidance, and resolution evidence. The two guidance
+fields follow the same paired-extension rule as comprehensive findings;
+preserve legacy absence. New regressions carry the fix reader's own reasoning,
+with the same advisory and uncertainty rules. Original guidance is immutable
+history, not an implementation acceptance condition.
+The first verification binds `prior_target` to
 `original_target` and has no `history_target`; every later artifact carries
 exactly the prior artifact's history plus that artifact's `prior_target`.
 

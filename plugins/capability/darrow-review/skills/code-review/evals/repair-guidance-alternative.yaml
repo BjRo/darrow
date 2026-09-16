@@ -1,0 +1,75 @@
+id: code-review-guidance-alternative
+activation: positive
+invariant: CR-C9,CR-C18,CR-C19,CR-E15
+prompt: >-
+  Use {{skill_invocation}} to verify my uncommitted repair against the original
+  review and binding records in .git/verification-input. The originating
+  requirement is in requirements.md. Remain read-only and report the
+  fix-verification outcome.
+fixture:
+  commits:
+    - message: "chore: base"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Review JavaScript against the supplied originating requirement.
+        requirements.md: |
+          formatName must trim leading and trailing whitespace from a string
+          and return exactly Anonymous when the trimmed string is empty.
+        src/name.js: |
+          export function formatName(value) {
+            return value;
+          }
+    - message: "feat: trim name"
+      files:
+        src/name.js: |
+          export function formatName(value) {
+            return value.trim();
+          }
+  files:
+    src/name.js: |
+      export function formatName(value) {
+        const result = value.replace(/^\s+|\s+$/g, "");
+        if (result.length === 0) return "Anonymous";
+        return result;
+      }
+  setup: |
+    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
+    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
+    original_result=$(dirname "$prior_manifest")/result.tsv
+    {
+      printf 'format\tdarrow-review-result-v1\n'
+      bash "$tool_dir/review-result" scope-records "$prior_manifest"
+      printf 'standards\tpass\nstandards_source\t%s/AGENTS.md\nspec\tfail\nspec_source\t%s/requirements.md\n' "$PWD" "$PWD"
+      printf 'finding\tspec\thigh\tblocking\t%s/src/name.js:2\t%s/requirements.md\tDirect trim returns an empty string for whitespace-only input instead of Anonymous\tAdvisory: store value.trim() in a local variable and return the variable or Anonymous; this supplies the missing fallback while preserving trimming\tWhitespace-only and empty input return Anonymous; padded Ada returns Ada\n' "$PWD" "$PWD"
+      printf 'check\tnone\tnot_applicable\tnot_applicable\tNo configured command\nverdict\tfail\nrisk\tnone\nnext_action\treturn findings\n'
+    } >"$original_result"
+    {
+      printf 'original_target\t%s\nprior_target\t%s\nprior_manifest\t%s\noriginal_result\t%s\nprevious_verification\tnone\tnone\n' "$original_target" "$original_target" "$prior_manifest" "$original_result"
+      bash "$tool_dir/review-result" original-findings "$original_result"
+      printf 'attempted\tspec:1:%s\n' "$original_target"
+    } >.git/verification-input
+    git hash-object src/name.js >.git/before
+checks:
+  - name: alternative implementation resolves the original finding
+    run: |
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      original=$(awk -F '\t' '$1 == "original_result" { print $2 }' .git/verification-input)
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
+      test -n "$record" && test -n "$tool" && bash "$tool" validate-original "$original" "$record" || exit 1
+      awk -F '\t' '$1 == "outcome" && $2 == "clear" { clear=1 }
+        $1 == "attempt" && $3 == "resolved" { resolved=1 }
+        END { exit !(clear && resolved) }' "$record"
+  - name: repair remains read only
+    run: git hash-object src/name.js >.git/after && cmp .git/before .git/after
+semantic_output_checks:
+  - name: resolution depends on behavior rather than suggested syntax
+    proposition: >-
+      The report resolves the original empty-name fallback finding using the
+      current implementation's behavior. It does not demand trim() or a
+      particular local variable or boolean fallback merely because the original
+      advisory suggested them. It retains the original advice as advisory
+      history and distinguishes that from current evidence of resolution.

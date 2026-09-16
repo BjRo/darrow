@@ -20,7 +20,7 @@ input=$2
 }
 
 if [ "$command" = "render-verification" ]; then
-  bash "$RESULT_TOOL" validate-verification "$input" >/dev/null || exit $?
+  "${BASH:-bash}" "$RESULT_TOOL" validate-verification "$input" >/dev/null || exit $?
   awk -F '\t' '
   function esc(value) {
     gsub(/&/, "\\&amp;", value)
@@ -68,6 +68,8 @@ if [ "$command" = "render-verification" ]; then
       original_location[key] = $7
       original_source[key] = $8
       original_evidence[key] = $9
+      original_guidance[key] = $10
+      original_resolution[key] = $11
     } else if (kind == "attempt") {
       key = $2
       attempted[++attempt_count] = key
@@ -88,6 +90,8 @@ if [ "$command" = "render-verification" ]; then
       regression_location[regression_count] = $9
       regression_source[regression_count] = $10
       regression_evidence[regression_count] = $11
+      regression_guidance[regression_count] = $12
+      regression_resolution[regression_count] = $13
     } else if (kind == "check") {
       check_command[++check_count] = $2
       check_applicability[check_count] = $3
@@ -109,6 +113,10 @@ if [ "$command" = "render-verification" ]; then
       print_value("Location", original_location[key])
       print_value("Source", original_source[key])
       printf "- **Original evidence:** %s\n", esc(original_evidence[key])
+      if (original_guidance[key] != "") {
+        print_value("Repair guidance (advisory)", original_guidance[key])
+        print_value("Resolution evidence", original_resolution[key])
+      }
       printf "- **Current evidence:** %s\n", esc(attempt_evidence[key])
     }
 
@@ -121,6 +129,10 @@ if [ "$command" = "render-verification" ]; then
       print_value("Location", regression_location[i])
       print_value("Source", regression_source[i])
       printf "- **Evidence:** %s\n", esc(regression_evidence[i])
+      if (regression_guidance[i] != "") {
+        print_value("Repair guidance (advisory)", regression_guidance[i])
+        print_value("Resolution evidence", regression_resolution[i])
+      }
     }
 
     print "\n## Checks"
@@ -146,6 +158,10 @@ if [ "$command" = "render-verification" ]; then
     for (i = 1; i <= original_count; i++) {
       key = original_key[i]
       printf "- %s — %s #%s, %s/%s; %s; source %s; %s\n", esc(key), esc(original_axis[key]), esc(original_order[key]), esc(original_severity[key]), esc(original_disposition[key]), esc(original_location[key]), esc(original_source[key]), esc(original_evidence[key])
+      if (original_guidance[key] != "") {
+        printf "  - **Repair guidance (advisory):** %s\n", esc(original_guidance[key])
+        printf "  - **Resolution evidence:** %s\n", esc(original_resolution[key])
+      }
     }
 
     print "\n## Next action"
@@ -157,7 +173,7 @@ fi
 
 [ "$command" = "render" ] || { usage; exit 2; }
 
-bash "$RESULT_TOOL" validate "$input" >/dev/null || exit $?
+"${BASH:-bash}" "$RESULT_TOOL" validate "$input" >/dev/null || exit $?
 
 awk -F '\t' '
 function esc(value) {
@@ -205,6 +221,8 @@ function print_value(label, value) {
     finding_location[finding_count] = $5
     finding_source[finding_count] = $6
     finding_evidence[finding_count] = $7
+    finding_guidance[finding_count] = $8
+    finding_resolution[finding_count] = $9
     if ($4 == "blocking") blocking++
     else advisory++
   } else if (kind == "check") {
@@ -227,6 +245,10 @@ END {
     print_value("Location", finding_location[i])
     print_value("Source", finding_source[i])
     print_value("Evidence", finding_evidence[i])
+    if (finding_guidance[i] != "") {
+      print_value("Repair guidance (advisory)", finding_guidance[i])
+      print_value("Resolution evidence", finding_resolution[i])
+    }
   }
 
   print "\n## Checks"

@@ -45,6 +45,11 @@ mode, apply the same rule to the validated TSV bytes.
   the repository Git directory may be written.
 - **Mechanical aggregation:** the coordinator may validate, deduplicate, and
   serialize reader evidence, but never invent or repair review judgment.
+- **Reviewer-authored repair reasoning:** each reader explains failure and
+  cause, suggests a bounded advisory repair with rationale and constraints
+  (or explicitly explains why it cannot), and identifies resolution behavior
+  or a regression test. The required outcome comes from the cited source;
+  the implementer may choose another valid repair.
 - **Two review modes:** initial review is comprehensive; fix verification is
   limited to a caller-supplied closed finding set and direct repair-caused
   regressions. Missing fix evidence blocks instead of widening scope.
@@ -224,7 +229,11 @@ Read [`references/result-protocol.md`](references/result-protocol.md)
 completely. Deduplicate only findings with the same changed location, violated
 source, and evidence; preserve their reporting axis. Suppress a model finding
 that merely restates deterministic tool output while keeping the check record.
-Do not introduce a new finding.
+Do not introduce a new finding or author repair guidance. Copy each retained
+reader finding's evidence, repair guidance, and resolution evidence unchanged.
+Different repair advice is not a reason to merge two findings and synthesize a
+third recommendation. For a duplicate, retain one complete reader-authored
+record. Legacy records may lack guidance; do not manufacture it.
 
 Assemble the TSV result beneath the scope artifact directory. Copy its base,
 target, and changed-file records using `scope-records`; never retype their

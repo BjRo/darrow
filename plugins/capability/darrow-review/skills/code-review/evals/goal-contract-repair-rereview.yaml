@@ -1,6 +1,6 @@
 id: code-review-goal-contract-repair-verification
 activation: positive
-invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13
+invariant: CR-C9,CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13,CR-E15
 prompt: >-
   Execute this bounded goal contract. The candidate change is already present
   and must receive independent review before any repair or completion. Use the
@@ -51,6 +51,15 @@ fixture:
     tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
     printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
 checks:
+  - name: original guidance survives the real review and repair chain
+    run: |
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      original=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
+      test -n "$record" && test -n "$original" && test -n "$tool" || exit 1
+      bash "$tool" validate-original "$original" "$record" || exit 1
+      awk -F '\t' '$1 == "original_finding" { n++; if (NF != 11 || $10 == "" || $11 == "") bad=1 }
+        END { exit !(n && !bad) }' "$record"
   - name: authorized repair reaches the originating requirement
     run: bash check.sh
   - name: clear fix verification returns control to the enclosing goal

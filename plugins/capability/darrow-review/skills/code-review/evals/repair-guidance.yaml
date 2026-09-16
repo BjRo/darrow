@@ -1,8 +1,8 @@
-id: code-review-both-axes
+id: code-review-repair-guidance
 activation: positive
 invariant: CR-C9,CR-E2,CR-E4,CR-E7,CR-E8,CR-E15
 prompt: >-
-  Review my uncommitted changes against this originating requirement:
+  Use {{skill_invocation}} to review my uncommitted changes against this originating requirement:
   parseAge must return null for non-numeric input. Do not repair the code.
 fixture:
   commits:

@@ -96,9 +96,10 @@ if [ "$command" = "original-findings" ] || [ "$command" = "validate-original" ];
       $1 == "finding" { rows[++n]=$0 }
       END {
         for (i=1; i<=n; i++) {
-          split(rows[i], row, FS)
-          print "original_finding", row[2] ":" i ":" target, row[2], i,
-            row[3], row[4], row[5], row[6], row[7]
+          fields=split(rows[i], row, FS)
+          record="original_finding" FS row[2] ":" i ":" target FS row[2] FS i FS row[3] FS row[4] FS row[5] FS row[6] FS row[7]
+          if (fields == 9) record=record FS row[8] FS row[9]
+          print record
         }
       }' "$original" || exit $?
     exit 0
@@ -116,8 +117,9 @@ if [ "$command" = "original-findings" ] || [ "$command" = "validate-original" ];
     $1 == "original_target" { if ($2 != target) bad=1 }
     $1 == "original_finding" {
       m++
-      split(rows[m], row, FS)
+      fields=split(rows[m], row, FS)
       expected="original_finding" FS row[2] ":" m ":" target FS row[2] FS m FS row[3] FS row[4] FS row[5] FS row[6] FS row[7]
+      if (fields == 9) expected=expected FS row[8] FS row[9]
       if ($0 != expected) bad=1
     }
     END { exit bad || m != n ? 4 : 0 }
@@ -169,7 +171,11 @@ if [ "$command" = "validate-axis" ]; then
       required($2, "source")
     } else if (kind == "finding") {
       finding_count++
-      if (NF != 6) bad("axis finding record must have 6 fields")
+      if (NF != 6 && NF != 8) bad("axis finding record must have 6 or 8 fields")
+      if (NF == 8) {
+        required($7, "finding repair guidance")
+        required($8, "finding resolution evidence")
+      }
       if ($2 !~ /^(critical|high|medium|low)$/) bad("finding severity is invalid")
       if ($3 !~ /^(blocking|advisory)$/) bad("finding disposition is invalid")
       required($4, "finding location")
@@ -267,7 +273,11 @@ if [ "$command" = "validate-fix-axis" ]; then
       required($5, "regression_attempt evidence")
     } else if (kind == "regression") {
       action_count++
-      if (NF != 6) bad("new regression record must have 6 fields")
+      if (NF != 6 && NF != 8) bad("new regression record must have 6 or 8 fields")
+      if (NF == 8) {
+        required($7, "regression repair guidance")
+        required($8, "regression resolution evidence")
+      }
       required($2, "new regression cause")
       if ($3 !~ /^(critical|high|medium|low)$/) bad("new regression severity is invalid")
       required($4, "new regression location")
@@ -384,7 +394,11 @@ if [ "$command" = "validate-verification" ]; then
       axis = $3
       order = $4
       disposition = $6
-      if (NF != 9) bad("original_finding record must have 9 fields")
+      if (NF != 9 && NF != 11) bad("original_finding record must have 9 or 11 fields")
+      if (NF == 11) {
+        required($10, "original finding repair guidance")
+        required($11, "original finding resolution evidence")
+      }
       required(key, "original finding key")
       if (original_seen[key]++) bad("duplicate original finding key: " key)
       if (axis !~ /^(standards|spec)$/) bad("original finding axis is invalid")
@@ -413,7 +427,11 @@ if [ "$command" = "validate-verification" ]; then
       key = $2
       cause = $3
       order = $4
-      if (NF != 11) bad("regression record must have 11 fields")
+      if (NF != 11 && NF != 13) bad("regression record must have 11 or 13 fields")
+      if (NF == 13) {
+        required($12, "regression repair guidance")
+        required($13, "regression resolution evidence")
+      }
       required(key, "regression key")
       required(cause, "regression caused_by")
       if (regression_seen[key]++) bad("duplicate regression key: " key)
@@ -563,7 +581,7 @@ if [ "$command" = "validate-verification" ]; then
     esac
     [ "$validation_depth" -lt 50 ] || fail 4 "previous verification chain is cyclic or too deep"
     DARROW_REVIEW_VALIDATION_DEPTH=$((validation_depth + 1)) \
-      "$0" validate-verification "$previous_path" >/dev/null ||
+      "${BASH:-bash}" "$0" validate-verification "$previous_path" >/dev/null ||
       fail 4 "previous verification artifact is invalid"
     prior_link_target=$(awk -F '\t' '$1 == "current_target" { print $2 }' "$previous_path")
     current_prior_target=$(awk -F '\t' '$1 == "prior_target" { print $2 }' "$input")
@@ -583,6 +601,7 @@ if [ "$command" = "validate-verification" ]; then
       if ($1 == "original_finding") prior_original[$2] = $0
       if ($1 == "regression") {
         prior_regression[$2] = $3 FS $4 FS $5 FS $6 FS $9 FS $10
+        if (NF == 13) prior_regression[$2] = prior_regression[$2] FS $12 FS $13
         prior_regression_seen[$2] = 1
       }
       next
@@ -604,6 +623,7 @@ if [ "$command" = "validate-verification" ]; then
     $1 == "regression" {
       current_regression_seen[$2] = 1
       immutable = $3 FS $4 FS $5 FS $6 FS $9 FS $10
+      if (NF == 13) immutable = immutable FS $12 FS $13
       if (prior_regression_seen[$2] && prior_regression[$2] != immutable)
         bad("prior regression immutable fields changed: " $2)
     }
@@ -682,7 +702,11 @@ NR == 1 {
     required($2, "spec_source")
   } else if (kind == "finding") {
     finding_count++
-    if (NF != 7) bad("finding record must have 7 fields")
+    if (NF != 7 && NF != 9) bad("finding record must have 7 or 9 fields")
+    if (NF == 9) {
+      required($8, "finding repair guidance")
+      required($9, "finding resolution evidence")
+    }
     axis = $2
     if (axis == "spec") spec_finding_count++
     severity = $3
