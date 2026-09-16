@@ -150,8 +150,6 @@ The shortcut deliberately excludes two marketplace entries:
   it does not enable tracing: configure credentials and explicitly opt in before
   it exports anything. Read its local README before enabling it.
 
-`darrow-adaptive-delivery` is included in both shortcuts.
-
 ## Verify the installation
 
 First check the installed listing names your selected plugin. In a fresh
