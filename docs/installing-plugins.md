@@ -117,6 +117,45 @@ for supported surfaces and UI behavior. If your Codex surface has no plugin
 support, use Codex CLI or browse the static documentation; do not assume that
 a CLI installation enabled a different app or extension.
 
+## Install supported marketplace plugins
+
+The repository includes an inventory-driven shortcut for intentionally adopting
+the current supported marketplace. It reads `.claude-plugin/marketplace.json`
+when it runs, then invokes the selected host's normal per-plugin installation
+command for each eligible entry. It does not make the plugins a combined package
+or add dependencies between them.
+
+First add the Darrow marketplace for the target host as shown above. You can
+then run either shortcut directly, without cloning this repository:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/BjRo/darrow/main/scripts/install-all-plugins | bash -s -- --host codex
+```
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/BjRo/darrow/main/scripts/install-all-plugins | bash -s -- --host claude --scope user
+```
+
+These commands retrieve and execute the current Darrow installer and its
+marketplace manifest from GitHub. Review the source first if your trust policy
+does not permit remote shell execution. From a checkout, you can instead run
+`bash scripts/install-all-plugins` with the same host arguments; it reads that
+checkout's manifest locally.
+
+Claude Code accepts `user` (the default), `project`, or `local` for `--scope`;
+the script passes that scope to every `claude plugin install` call. A failed
+plugin installation stops the shortcut, returns a nonzero status, and names the
+plugin that failed. The success message appears only after every current
+marketplace entry has installed.
+
+The shortcut deliberately excludes two marketplace entries:
+
+- `darrow-ticket-pipeline` is a deprecated reference implementation.
+- `darrow-observability-langfuse` requires UV and a UV-managed Python
+  `>=3.10,<3.14`; on Codex, review and trust its hooks when prompted. Installing
+  it does not enable tracing: configure credentials and explicitly opt in before
+  it exports anything. Read its local README before enabling it.
+
 ## Verify the installation
 
 First check the installed listing names your selected plugin. In a fresh

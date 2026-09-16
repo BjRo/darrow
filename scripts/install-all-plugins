@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# Install every eligible Darrow marketplace plugin through one host at a time.
+set -u
+
+usage() {
+  cat <<'EOF'
+Usage: install-all-plugins --host <claude|codex> [--scope <user|project|local>]
+
+Install every eligible plugin listed in .claude-plugin/marketplace.json through
+the selected host's ordinary per-plugin installation command. Claude Code
+defaults to user scope; --scope is only valid with --host claude.
+EOF
+}
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 2
+}
+
+is_excluded() {
+  case "$1" in
+    darrow-ticket-pipeline|darrow-observability-langfuse) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+script_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
+marketplace=${DARROW_MARKETPLACE_MANIFEST:-}
+temporary_manifest=
+marketplace_url=${DARROW_MARKETPLACE_URL:-"https://raw.githubusercontent.com/BjRo/darrow/main/.claude-plugin/marketplace.json"}
+host=
+scope=user
+scope_supplied=false
+
+cleanup() {
+  [ -z "$temporary_manifest" ] || rm -f "$temporary_manifest"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --host)
+      [ "$#" -ge 2 ] || fail "--host requires claude or codex"
+      host=$2
+      shift 2
+      ;;
+    --scope)
+      [ "$#" -ge 2 ] || fail "--scope requires user, project, or local"
+      scope=$2
+      scope_supplied=true
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "unknown argument: $1"
+      ;;
+  esac
+done
+
+case "$host" in
+  claude|codex) ;;
+  *) fail "--host must be claude or codex" ;;
+esac
+case "$scope" in
+  user|project|local) ;;
+  *) fail "--scope must be user, project, or local" ;;
+esac
+[ "$host" = claude ] || [ "$scope_supplied" = false ] || fail "--scope is only valid with --host claude"
+
+if [ -z "$marketplace" ] && [ -n "$0" ]; then
+  local_manifest="$script_dir/../.claude-plugin/marketplace.json"
+  [ ! -r "$local_manifest" ] || marketplace=$local_manifest
+fi
+
+if [ -z "$marketplace" ]; then
+  command -v curl >/dev/null 2>&1 || fail "curl is required to download the marketplace manifest"
+  temporary_manifest=$(mktemp "${TMPDIR:-/tmp}/darrow-marketplace.XXXXXX") || fail "could not create a marketplace manifest file"
+  if ! curl --fail --silent --show-error --location "$marketplace_url" -o "$temporary_manifest"; then
+    printf 'error: failed to download marketplace manifest: %s\n' "$marketplace_url" >&2
+    exit 1
+  fi
+  marketplace=$temporary_manifest
+fi
+
+[ -r "$marketplace" ] || fail "unreadable marketplace manifest: $marketplace"
+
+plugins=$(
+  awk '
+    /^[[:space:]]*"plugins"[[:space:]]*:[[:space:]]*\[/ {
+      in_plugins = 1
+      next
+    }
+    in_plugins && /^[[:space:]]*][[:space:]]*[,}]?[[:space:]]*$/ {
+      exit
+    }
+    in_plugins && /^[[:space:]]*[{,]?[[:space:]]*"name"[[:space:]]*:/ {
+      name = $0
+      sub(/^[^\"]*\"name\"[[:space:]]*:[[:space:]]*\"/, "", name)
+      sub(/\".*$/, "", name)
+      if (name !~ /^[a-z0-9][a-z0-9-]*$/) {
+        print "invalid marketplace plugin name" > "/dev/stderr"
+        exit 1
+      }
+      print name
+    }
+  ' "$marketplace"
+) || fail "could not read marketplace plugin entries: $marketplace"
+
+[ -n "$plugins" ] || fail "marketplace has no plugin entries: $marketplace"
+
+case "$host" in
+  codex)
+    host_label=Codex
+    command -v codex >/dev/null 2>&1 || fail "codex CLI is not available"
+    ;;
+  claude)
+    host_label='Claude Code'
+    command -v claude >/dev/null 2>&1 || fail "claude CLI is not available"
+    ;;
+esac
+
+count=0
+while IFS= read -r plugin; do
+  [ -n "$plugin" ] || continue
+  is_excluded "$plugin" && continue
+  identifier="$plugin@darrow"
+  if [ "$host" = codex ]; then
+    codex plugin add "$identifier"
+  else
+    claude plugin install "$identifier" --scope "$scope"
+  fi
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    printf 'error: failed to install %s for %s\n' "$identifier" "$host_label" >&2
+    exit "$status"
+  fi
+  count=$((count + 1))
+done <<EOF
+$plugins
+EOF
+
+printf 'Installed all %s eligible Darrow marketplace plugins for %s.\n' "$count" "$host_label"
