@@ -68,9 +68,15 @@ function Invoke-Renderer(
 try {
     New-Item -ItemType Directory -Path $fixture | Out-Null
     Copy-Item -LiteralPath $pluginRoot -Destination $copy -Recurse
-    $backend = Join-Path $copy "backend"
-    Remove-Item -LiteralPath (Join-Path $backend ".venv") -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-Path $backend ".coverage") -Force -ErrorAction SilentlyContinue
+    $skillDir = Join-Path $copy "skills/plan-implementation"
+    $backend = Join-Path $skillDir "backend"
+    foreach ($generatedDirectory in @(".venv", ".hypothesis", ".mypy_cache", ".pytest_cache", ".ruff_cache")) {
+        Remove-Item -LiteralPath (Join-Path $backend $generatedDirectory) -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Get-ChildItem -LiteralPath $backend -Directory -Recurse -Filter "__pycache__" |
+        Remove-Item -Recurse -Force
+    Get-ChildItem -LiteralPath $backend -File -Filter ".coverage*" |
+        Remove-Item -Force
     Remove-Item -LiteralPath (Join-Path $backend "coverage.json") -Force -ErrorAction SilentlyContinue
 
     & uv sync --locked --no-dev --project $backend

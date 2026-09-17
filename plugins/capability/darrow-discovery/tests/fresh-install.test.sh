@@ -8,9 +8,16 @@ trap 'rm -rf "$fixture"' EXIT HUP INT TERM
 copy="$fixture/plugin copy"
 mkdir -p "$copy"
 cp -R "$plugin_root/." "$copy/"
-backend="$copy/backend"
-rm -rf "$backend/.venv"
-rm -f "$backend/.coverage" "$backend/coverage.json"
+skill_dir="$copy/skills/plan-implementation"
+backend="$skill_dir/backend"
+rm -rf \
+  "$backend/.venv" \
+  "$backend/.hypothesis" \
+  "$backend/.mypy_cache" \
+  "$backend/.pytest_cache" \
+  "$backend/.ruff_cache"
+rm -f "$backend"/.coverage* "$backend/coverage.json"
+find "$backend" -type d -name __pycache__ -prune -exec rm -rf {} \;
 
 uv sync --locked --no-dev --project "$backend"
 runtime_tree=$(uv tree --locked --no-dev --project "$backend")
@@ -25,7 +32,8 @@ actual="$fixture/actual"
 errors="$fixture/errors"
 expected="$fixture/expected"
 cd "$fixture"
-"$copy/bin/darrow-render-plan-frontier" \
+uv run --quiet --frozen --no-dev --project "$backend" \
+  darrow-render-plan-frontier \
   --evidence 'The repository stores records in one region today.' \
   --question 'Data region: single-region or multi-region?' \
   --option single-region --option multi-region --choice single-region \
@@ -44,7 +52,8 @@ EOF
 diff -u "$expected" "$actual"
 test ! -s "$errors"
 
-PYTHONIOENCODING=cp1252 "$copy/bin/darrow-render-plan-frontier" \
+PYTHONIOENCODING=cp1252 uv run --quiet --frozen --no-dev --project "$backend" \
+  darrow-render-plan-frontier \
   --evidence Fact --question 'Mode: ä or b?' \
   --option Ä --option b --choice ä \
   --rationale reason --deferred category >"$actual" 2>"$errors"
@@ -72,11 +81,13 @@ for malformed in odd unknown; do
   status=0
   case "$malformed" in
     odd)
-      "$copy/bin/darrow-render-plan-frontier" --evidence \
+      uv run --quiet --frozen --no-dev --project "$backend" \
+        darrow-render-plan-frontier --evidence \
         >"$actual" 2>"$errors" || status=$?
       ;;
     unknown)
-      "$copy/bin/darrow-render-plan-frontier" --unknown value \
+      uv run --quiet --frozen --no-dev --project "$backend" \
+        darrow-render-plan-frontier --unknown value \
         >"$actual" 2>"$errors" || status=$?
       ;;
   esac

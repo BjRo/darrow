@@ -118,7 +118,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/capability/darrow-discovery/backend
+      - run: scripts/check-python --package plugins/capability/darrow-discovery/skills/plan-implementation/backend
 
   inventory:
     name: Python inventory guard

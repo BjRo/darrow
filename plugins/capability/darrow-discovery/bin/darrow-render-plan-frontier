@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-bin_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-exec uv run --quiet --frozen --no-dev \
-  --project "$bin_dir/../backend" darrow-render-plan-frontier "$@"

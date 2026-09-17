@@ -23,7 +23,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 | [ADR-0006: Keep decisions with their authoritative owners](ADR-0006-keep-decisions-with-their-authoritative-owners.md) | Accepted | 2026-08-13 | Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners. | None |
 | [ADR-0007: Separate skill evaluation evidence dimensions](ADR-0007-separate-skill-evaluation-evidence-dimensions.md) | Accepted | 2026-08-13 | Represent invariant coverage, task outcomes, matched skill ablation, and skill activation as separate evaluation evidence dimensions. | None |
 | [ADR-0008: Allow Python and UV for Langfuse observability](ADR-0008-allow-python-and-uv-for-langfuse-observability.md) | Accepted | 2026-08-24 | Permit the independently installable Langfuse observability plugin to use a locked Python backend managed by UV while retaining a portable Bash hook launcher and keeping the exception scoped to that plugin. | Revisit when: Codex exposes equivalent native Langfuse export, the Langfuse SDK no longer requires Python, or the plugin can meet its rollout-reconstruction and export contract with the portable Bash baseline alone. |
-| [ADR-0009: Adopt Python and UV for substantial plugin mechanics](ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md) | Accepted | 2026-09-17 | Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics while retaining portable Bash for small host-specific glue. | Supersedes: ADR-0005; Revisit when: UV and supported Python cannot provide independently installable helpers across every supported native host, or a lighter common runtime offers materially better portability and containment. |
+| [ADR-0009: Adopt Python and UV for substantial plugin mechanics](ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md) | Accepted | 2026-09-17 | Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics, invoking them directly from installed skill-relative paths. | Supersedes: ADR-0005; Revisit when: UV and supported Python cannot provide independently installable helpers across every supported native host, or a lighter common runtime offers materially better portability and containment. |
 
 <!-- darrow-source: 1a57cf608fb4cfa4b770abebf34ca450e79c0160 2711262332 330 ADR-0001-eval-runner.md -->
 <!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
@@ -32,7 +32,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 <!-- darrow-source: 739b2fa46ad8b0ed220c4d341317bf670d3d7a41 243106577 398 ADR-0006-keep-decisions-with-their-authoritative-owners.md -->
 <!-- darrow-source: ae5948d48fa4b0b0ce2c80ea76e23a71d582aa71 4074249863 369 ADR-0007-separate-skill-evaluation-evidence-dimensions.md -->
 <!-- darrow-source: aab600b869cf357f81f4424f1813a75596d0a64c 2479862079 646 ADR-0008-allow-python-and-uv-for-langfuse-observability.md -->
-<!-- darrow-source: 24304903fc02764a9db10fa7614f159e33c7718c 1605599603 622 ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md -->
+<!-- darrow-source: 152ebad0159783e7f2299a3abb6df5b3d3ae6176 3731273062 623 ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md -->
 
 ## Rejected
 

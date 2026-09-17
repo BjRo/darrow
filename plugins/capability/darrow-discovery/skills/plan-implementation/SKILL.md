@@ -75,14 +75,21 @@ configuration establishes an evidence gap; it does not establish that there
 are no consumers, data, or obligations to preserve. Keep unsupported decisions
 open or deferred. Add no semantic content after this final preflight.
 
-Invoke the renderer from the loaded skill using the applicable host path:
+Resolve the renderer backend from the loaded skill:
 
-- Claude Code: run `darrow-render-plan-frontier ...`; plugin executables are
-  added to `PATH` by the host.
+- Claude Code: use `${CLAUDE_SKILL_DIR}/backend`.
 - Codex: take the absolute `SKILL.md` path supplied in the selected skill's
-  catalog entry, resolve `../../backend` relative to that file's directory,
-  and run `uv run --quiet --frozen --no-dev --project <absolute-backend-path>
-  darrow-render-plan-frontier ...`.
+  catalog entry and resolve `backend` relative to that file's directory.
+
+Then run:
+
+```bash
+uv run --quiet --frozen --no-dev \
+  --project "<absolute-backend-path>" darrow-render-plan-frontier ...
+```
+
+Invoke this locked entrypoint directly; do not look for or create a
+host-specific launcher.
 
 Never resolve the renderer from the user's current project, repository root,
 or a presumed `.agents/skills` checkout. The backend and lock are resources of

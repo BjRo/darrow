@@ -49,7 +49,7 @@ append_package() {
     plugins/capability/darrow-observability-langfuse/backend)
       observability_langfuse=true
       ;;
-    plugins/capability/darrow-discovery/backend)
+    plugins/capability/darrow-discovery/skills/plan-implementation/backend)
       discovery=true
       ;;
   esac

@@ -14,7 +14,7 @@ mkdir -p "$fixture/scripts"
 cp "$detector" "$fixture/scripts/detect-python-quality-changes"
 chmod +x "$fixture/scripts/detect-python-quality-changes"
 cat >"$fixture/python-packages.txt" <<'EOF'
-plugins/capability/darrow-discovery/backend
+plugins/capability/darrow-discovery/skills/plan-implementation/backend
 plugins/capability/darrow-observability-langfuse/backend
 plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
 EOF
@@ -63,21 +63,21 @@ observability_langfuse=true
 discovery=false'
 expect_scope \
   plugins/capability/darrow-discovery/README.md \
-  'packages=["plugins/capability/darrow-discovery/backend"]
+  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend"]
 package_selected=true
 skill_authoring=false
 observability_langfuse=false
 discovery=true'
 expect_scope \
   scripts/check-python \
-  'packages=["plugins/capability/darrow-discovery/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=true
 discovery=true'
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$all" != 'packages=["plugins/capability/darrow-discovery/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=true
@@ -109,7 +109,7 @@ discovery=false' ]; then
 fi
 
 third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
+if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=true

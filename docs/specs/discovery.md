@@ -344,11 +344,10 @@ skill.
    is a plugin-contained, UV-locked Python package with no runtime dependencies.
    Its public command preserves the accepted arguments, rendered structure,
    validation diagnostics, stdout/stderr separation, and exit statuses on
-   Linux, macOS, and native Windows. Claude Code retains the
-   `darrow-render-plan-frontier` plugin command through portable launcher glue;
-   Codex invokes the same locked package entrypoint from the installed skill.
-   Fresh-artifact checks exercise both host paths without repository-relative
-   references.
+   Linux, macOS, and native Windows. Claude Code and Codex resolve the backend
+   from the installed skill directory and invoke the same locked package
+   entrypoint directly. Fresh-artifact checks exercise that installed layout
+   without repository-relative references or platform-specific launchers.
 
 ## Evaluation requirements
 

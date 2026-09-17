@@ -88,10 +88,16 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   local references with absolute paths. Missing evidence is never treated as a
   successful empty state.
 - **SA-C7 — Portable self-containment.** A packaged helper keeps its manifest,
-  lock, entrypoints, dependencies, and state inside the owning plugin; follows
-  the target repository's runtime and development dependency conventions; uses
-  reproducible locked execution; and verifies its public entrypoints from a
-  fresh artifact on every claimed native platform. Bundled shell scripts work
+  lock, entrypoints, dependencies, and state inside the owning plugin. A helper
+  owned by one skill is colocated inside that skill; a plugin-level location is
+  reserved for helpers shared by multiple skills or non-skill plugin
+  components. Invoke a skill-local helper from the host-provided installed
+  skill directory without adding a launcher solely to locate the helper or
+  forward arguments. Add a compatibility launcher only when a stable external
+  command contract or host lifecycle or protocol adaptation requires one. The
+  helper follows the target repository's runtime and development dependency
+  conventions, uses reproducible locked execution, and verifies its public
+  entrypoints from a fresh artifact on every claimed native platform. Bundled shell scripts work
   on every shell version claimed by the target, avoid unsupported utility
   assumptions, and never require files from a sibling plugin. Normalize paths
   before emitting or comparing them. Label shell evidence by the interpreter's

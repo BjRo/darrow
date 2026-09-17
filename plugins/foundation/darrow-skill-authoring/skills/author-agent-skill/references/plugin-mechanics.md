@@ -34,12 +34,14 @@ narrow public entrypoints, declare the supported runtime range, and separate
 runtime dependencies from quality and test tools according to the target's
 established conventions.
 
-Invoke public operations through the target's locked package command. Do not
-invent a generic command when the repository has not selected one. A small
-compatibility launcher may calculate the package location for existing callers,
-but it only dispatches to the same entrypoint and contains no duplicated
-mechanics. Give every public operation the same arguments, output, refusal, and
-exit-status contract on each supported platform.
+Invoke public operations through the target's locked package command. Prefer a
+host-provided installed skill directory when one skill owns the helper, and do
+not add a launcher solely to calculate that package location. Retain a small
+compatibility launcher only when an existing caller contract requires a stable
+command or the launcher adapts a host lifecycle or protocol. It only dispatches
+to the same entrypoint and contains no duplicated mechanics. Give every public
+operation the same arguments, output, refusal, and exit-status contract on each
+supported platform.
 
 ## Test and release the helper
 

@@ -19,9 +19,12 @@ fixture:
 
           Plugins are independently installable. Substantial cross-platform
           mechanics use a plugin-local Python package with pyproject.toml and
-          uv.lock. Runtime and development dependencies stay separate. Runtime
-          entrypoints use uv with frozen resolution and no development group.
-          Support Python 3.10 through 3.13. Never commit automatically.
+          uv.lock. A package used by one skill lives inside that skill and is
+          invoked from the host-provided installed skill directory. Do not add
+          a launcher solely to locate the package or forward arguments. Runtime
+          and development dependencies stay separate. Runtime entrypoints use
+          uv with frozen resolution and no development group. Support Python
+          3.10 through 3.13. Never commit automatically.
         plugins/schema-helper/.claude-plugin/plugin.json: |
           {"name":"schema-helper","version":"0.1.0","description":"Schema review helpers","author":{"name":"Example"}}
         plugins/schema-helper/.codex-plugin/plugin.json: |
@@ -35,16 +38,19 @@ checks:
       test -r "$skill";
       grep -E '^name:[[:space:]]*validate-capability-manifest[[:space:]]*$' "$skill" >/dev/null;
       grep -Ei '^description:.*(manifest|capability).*(validat|review)|^description:.*(validat|review).*(manifest|capability)' "$skill" >/dev/null
-  - name: Python package is contained and locked
+  - name: Python package is skill-contained, locked, and directly invoked
     run: |
       skill=plugins/schema-helper/skills/validate-capability-manifest
       project=$(find plugins/schema-helper -name pyproject.toml -type f | sed -n '1p')
       test -n "$project"
       backend=$(dirname "$project")
+      case "$backend" in "$skill"/*) ;; *) exit 1 ;; esac
       test -r "$backend/uv.lock"
       grep -F 'requires-python = ">=3.10,<3.14"' "$project" >/dev/null
       grep -F 'default-groups = []' "$project" >/dev/null
       ! find "$skill" -type f -name '*.sh' | grep .
+      test ! -d plugins/schema-helper/bin ||
+        test -z "$(find plugins/schema-helper/bin -type f -print -quit)"
   - name: locked runtime entrypoint validates success and failure
     run: |
       backend=$(dirname "$(find plugins/schema-helper -name pyproject.toml -type f | sed -n '1p')")
