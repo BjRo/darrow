@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 10 ]; then
-  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package> <skill-selected> <skill-windows> <skill-install> <observability-selected> <observability-install> <observability-performance>" >&2
+if [ "$#" -ne 13 ]; then
+  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package> <skill-selected> <skill-windows> <skill-install> <observability-selected> <observability-install> <observability-performance> <discovery-selected> <discovery-windows> <discovery-install>" >&2
   exit 2
 fi
 
@@ -17,6 +17,9 @@ observability_selected=$8
 observability_install_result=$9
 shift 9
 observability_performance_result=$1
+discovery_selected=$2
+discovery_windows_result=$3
+discovery_install_result=$4
 
 require_result() {
   name=$1
@@ -49,3 +52,5 @@ require_scope skill-authoring "$skill_selected" \
   "$skill_windows_result" "$skill_install_result"
 require_scope observability-langfuse "$observability_selected" \
   "$observability_install_result" "$observability_performance_result"
+require_scope discovery "$discovery_selected" \
+  "$discovery_windows_result" "$discovery_install_result"

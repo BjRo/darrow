@@ -1,7 +1,7 @@
 {
   "name": "darrow-skill-authoring",
   "description": "Create and improve reliable cross-runtime agent skills",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

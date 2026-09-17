@@ -2,7 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-17
-Summary: Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics while retaining portable Bash for small host-specific glue.
+Summary: Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics, invoking them directly from installed skill-relative paths.
 Supersedes: ADR-0005
 Revisit when: UV and supported Python cannot provide independently installable helpers across every supported native host, or a lighter common runtime offers materially better portability and containment.
 
@@ -27,14 +27,22 @@ Windows support.
 
 - Keep the package, `pyproject.toml`, `uv.lock`, entrypoints, dependencies,
   environments, and state inside the owning plugin.
+- Colocate a backend used by one skill inside that skill directory. Use a
+  plugin-root backend only when multiple skills or non-skill plugin components
+  share it.
 - Invoke public runtime entrypoints with frozen resolution and without
   development dependencies. Keep development tools in the locked development
   group and register each package in the repository Python inventory.
+- Resolve contained backends from the installed skill directory supplied by
+  the host, such as Claude Code's `${CLAUDE_SKILL_DIR}` or the absolute
+  `SKILL.md` path in Codex's skill catalog, and invoke its locked UV
+  entrypoints directly. Do not add a launcher whose only responsibility is
+  locating the same backend and forwarding arguments. Retain portable Bash only
+  when a host contract requires command, lifecycle, or protocol adaptation that
+  direct invocation cannot express.
 - Validate cross-platform entrypoints from a fresh copied plugin artifact on
   Linux, macOS, and native Windows. Apply the repository Python quality gates
   across the declared Python support range.
-- Retain portable Bash for genuinely small host-specific launchers and command
-  glue. Such scripts continue to support Bash 5 and macOS `/bin/bash` 3.2.
 - Adopt Python incrementally. A plugin without substantial cross-platform
   mechanics does not need a Python package, and no plugin may depend on a
   sibling package or shared Darrow runtime.
@@ -53,7 +61,7 @@ quality model to later plugin migrations.
   property tests where useful, and separate line and branch coverage gates.
 - Adopters of a Python-backed plugin need UV and a supported UV-managed Python;
   plugins that have not migrated keep their existing prerequisites.
-- Small POSIX launchers remain inspectable and compatible with legacy hosts,
-  while their substantial logic no longer carries Bash and BSD utility limits.
+- Necessary host adapters remain narrow and inspectable, while path-only UV
+  launchers do not create a second, platform-specific entrypoint.
 - Every migration must preserve the plugin's independent installation boundary
   and prove behavior at its existing public entrypoints.

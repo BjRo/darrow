@@ -66,6 +66,7 @@ describe("eval fixture skill mounts", () => {
       "plugin.json",
     );
     await mkdir(skill, { recursive: true });
+    await mkdir(join(skill, "backend", ".venv"), { recursive: true });
     await mkdir(agents, { recursive: true });
     await mkdir(hooks, { recursive: true });
     await mkdir(dirname(manifest), { recursive: true });
@@ -73,6 +74,8 @@ describe("eval fixture skill mounts", () => {
       join(skill, "SKILL.md"),
       "---\nname: primary\ndescription: Primary\n---\n",
     );
+    await writeFile(join(skill, "backend", "pyproject.toml"), "[project]\n");
+    await writeFile(join(skill, "backend", ".venv", "generated"), "ignored\n");
     await writeFile(
       join(agents, "runner.md"),
       "---\nname: runner\ndescription: Runner\n---\n",
@@ -108,6 +111,32 @@ describe("eval fixture skill mounts", () => {
       ),
     ).toBe(true);
     expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-plugin",
+          "skills",
+          "primary",
+          "backend",
+          "pyproject.toml",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          fixture,
+          ".git",
+          "eval-plugin",
+          "skills",
+          "primary",
+          "backend",
+          ".venv",
+        ),
+      ),
+    ).toBe(false);
+    expect(
       existsSync(join(fixture, ".git", "eval-plugin", "agents", "runner.md")),
     ).toBe(true);
     expect(
@@ -126,6 +155,7 @@ describe("eval fixture skill mounts", () => {
     const plugin = join(root, "plugins", "sample");
     const skill = join(plugin, "skills", "primary");
     await mkdir(join(skill, "evals"), { recursive: true });
+    await mkdir(join(skill, "backend", ".pytest_cache"), { recursive: true });
     await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
     await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
     await writeFile(
@@ -133,6 +163,11 @@ describe("eval fixture skill mounts", () => {
       "---\nname: primary\ndescription: Primary\n---\n",
     );
     await writeFile(join(skill, "evals", "secret.yaml"), "hidden: true\n");
+    await writeFile(join(skill, "backend", "pyproject.toml"), "[project]\n");
+    await writeFile(
+      join(skill, "backend", ".pytest_cache", "generated"),
+      "ignored\n",
+    );
     await writeFile(
       join(plugin, ".claude-plugin", "plugin.json"),
       '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
@@ -164,6 +199,30 @@ describe("eval fixture skill mounts", () => {
     ).toBe(true);
     expect(
       existsSync(join(marketplace, "plugin", "skills", "primary", "evals")),
+    ).toBe(false);
+    expect(
+      existsSync(
+        join(
+          marketplace,
+          "plugin",
+          "skills",
+          "primary",
+          "backend",
+          "pyproject.toml",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          marketplace,
+          "plugin",
+          "skills",
+          "primary",
+          "backend",
+          ".pytest_cache",
+        ),
+      ),
     ).toBe(false);
     await destroyFixture(fixture);
     cleanup.splice(cleanup.indexOf(fixture), 1);

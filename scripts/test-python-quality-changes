@@ -14,6 +14,7 @@ mkdir -p "$fixture/scripts"
 cp "$detector" "$fixture/scripts/detect-python-quality-changes"
 chmod +x "$fixture/scripts/detect-python-quality-changes"
 cat >"$fixture/python-packages.txt" <<'EOF'
+plugins/capability/darrow-discovery/skills/plan-implementation/backend
 plugins/capability/darrow-observability-langfuse/backend
 plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
 EOF
@@ -44,31 +45,43 @@ expect_scope \
   'packages=[]
 package_selected=false
 skill_authoring=false
-observability_langfuse=false'
+observability_langfuse=false
+discovery=false'
 expect_scope \
   plugins/foundation/darrow-skill-authoring/README.md \
   'packages=["plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
 package_selected=true
 skill_authoring=true
-observability_langfuse=false'
+observability_langfuse=false
+discovery=false'
 expect_scope \
   plugins/capability/darrow-observability-langfuse/README.md \
   'packages=["plugins/capability/darrow-observability-langfuse/backend"]
 package_selected=true
 skill_authoring=false
-observability_langfuse=true'
+observability_langfuse=true
+discovery=false'
+expect_scope \
+  plugins/capability/darrow-discovery/README.md \
+  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=false
+discovery=true'
 expect_scope \
   scripts/check-python \
-  'packages=["plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
 package_selected=true
 skill_authoring=true
-observability_langfuse=true'
+observability_langfuse=true
+discovery=true'
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$all" != 'packages=["plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
 package_selected=true
 skill_authoring=true
-observability_langfuse=true' ]; then
+observability_langfuse=true
+discovery=true' ]; then
   printf 'error: --all did not select every Python quality scope\n' >&2
   exit 1
 fi
@@ -88,17 +101,19 @@ third=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEA
 if [ "$third" != 'packages=["plugins/capability/darrow-third/backend"]
 package_selected=true
 skill_authoring=false
-observability_langfuse=false' ]; then
+observability_langfuse=false
+discovery=false' ]; then
   printf 'error: registered third package was not selected\nactual:\n%s\n' \
     "$third" >&2
   exit 1
 fi
 
 third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$third_all" != 'packages=["plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
+if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
 package_selected=true
 skill_authoring=true
-observability_langfuse=true' ]; then
+observability_langfuse=true
+discovery=true' ]; then
   printf 'error: --all omitted a registered third package\nactual:\n%s\n' \
     "$third_all" >&2
   exit 1
@@ -113,26 +128,31 @@ fi
   success success \
   true success \
   true success success \
+  false skipped skipped \
   false skipped skipped
 "$verifier" \
   success success \
   true success \
+  false skipped skipped \
+  true success success \
+  false skipped skipped
+"$verifier" \
+  success success \
+  true success \
+  false skipped skipped \
   false skipped skipped \
   true success success
 "$verifier" \
   success success \
-  true success \
-  false skipped skipped \
-  false skipped skipped
-"$verifier" \
-  success success \
   false skipped \
+  false skipped skipped \
   false skipped skipped \
   false skipped skipped
 
 if "$verifier" \
   success success \
   false success \
+  false skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a job that ran for an unchanged scope\n' >&2
@@ -143,6 +163,7 @@ if "$verifier" \
   success success \
   true failure \
   false skipped skipped \
+  false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed registered-package job\n' >&2
   exit 1
@@ -152,6 +173,7 @@ if "$verifier" \
   success success \
   true success \
   true failure success \
+  false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed selected job\n' >&2
   exit 1
@@ -160,6 +182,7 @@ fi
 if "$verifier" \
   failure success \
   true success \
+  true success success \
   true success success \
   true success success >/dev/null 2>&1; then
   printf 'error: aggregate accepted failed change detection\n' >&2
