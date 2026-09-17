@@ -6,11 +6,6 @@ usage() {
   exit 2
 }
 
-emit() {
-  printf 'skill_authoring=%s\n' "$1"
-  printf 'observability_langfuse=%s\n' "$2"
-}
-
 changed() {
   set +e
   git -C "$repo_root" diff --quiet "$base" "$head" -- "$@"
@@ -23,27 +18,73 @@ changed() {
   esac
 }
 
-if [ "$#" -eq 1 ] && [ "$1" = --all ]; then
-  emit true true
-  exit 0
+plugin_root() {
+  package=$1
+  case "$package" in
+    plugins/*/*/*)
+      rest=${package#plugins/}
+      kind=${rest%%/*}
+      rest=${rest#*/}
+      name=${rest%%/*}
+      printf 'plugins/%s/%s\n' "$kind" "$name"
+      ;;
+    *) printf '%s\n' "$package" ;;
+  esac
+}
+
+append_package() {
+  package=$1
+  if [ "$packages_json" = '[]' ]; then
+    packages_json="[\"$package\"]"
+  else
+    packages_json=${packages_json%]}
+    packages_json="$packages_json,\"$package\"]"
+  fi
+  package_selected=true
+
+  case "$package" in
+    plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend)
+      skill_authoring=true
+      ;;
+    plugins/capability/darrow-observability-langfuse/backend)
+      observability_langfuse=true
+      ;;
+  esac
+}
+
+repo_root=$(git rev-parse --show-toplevel)
+inventory="$repo_root/python-packages.txt"
+if [ ! -r "$inventory" ]; then
+  echo "error: Python package inventory is unreadable: $inventory" >&2
+  exit 1
 fi
 
-[ "$#" -eq 2 ] || usage
-base=$1
-head=$2
-repo_root=$(git rev-parse --show-toplevel)
-
-git -C "$repo_root" cat-file -e "$base^{commit}" 2>/dev/null || {
-  echo "error: base commit is unavailable: $base" >&2
+packages=$(sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$inventory")
+if [ -z "$packages" ]; then
+  echo "error: Python package inventory is empty: $inventory" >&2
   exit 1
-}
-git -C "$repo_root" cat-file -e "$head^{commit}" 2>/dev/null || {
-  echo "error: head commit is unavailable: $head" >&2
-  exit 1
-}
+fi
 
-shared=false
-if changed \
+select_all=false
+if [ "$#" -eq 1 ] && [ "$1" = --all ]; then
+  select_all=true
+elif [ "$#" -eq 2 ]; then
+  base=$1
+  head=$2
+  git -C "$repo_root" cat-file -e "$base^{commit}" 2>/dev/null || {
+    echo "error: base commit is unavailable: $base" >&2
+    exit 1
+  }
+  git -C "$repo_root" cat-file -e "$head^{commit}" 2>/dev/null || {
+    echo "error: head commit is unavailable: $head" >&2
+    exit 1
+  }
+else
+  usage
+fi
+
+shared=$select_all
+if [ "$shared" = false ] && changed \
   .github/workflows/python-quality.yml \
   docs/specs/python-quality.md \
   python-packages.txt \
@@ -58,16 +99,43 @@ if changed \
   shared=true
 fi
 
-skill_authoring=$shared
-if [ "$skill_authoring" = false ] && changed \
-  plugins/foundation/darrow-skill-authoring; then
-  skill_authoring=true
-fi
+packages_json='[]'
+package_selected=false
+skill_authoring=false
+observability_langfuse=false
+seen_packages='|'
 
-observability_langfuse=$shared
-if [ "$observability_langfuse" = false ] && changed \
-  plugins/capability/darrow-observability-langfuse; then
-  observability_langfuse=true
-fi
+while IFS= read -r package; do
+  case "$package" in
+    /* | *../* | */.. | *[!A-Za-z0-9._/-]*)
+      echo "error: invalid Python package path in $inventory: $package" >&2
+      exit 1
+      ;;
+  esac
+  case "$seen_packages" in
+    *"|$package|"*)
+      echo "error: duplicate Python package in $inventory: $package" >&2
+      exit 1
+      ;;
+  esac
+  seen_packages="$seen_packages$package|"
 
-emit "$skill_authoring" "$observability_langfuse"
+  selected=$shared
+  if [ "$selected" = false ]; then
+    root=$(plugin_root "$package")
+    if changed "$root"; then
+      selected=true
+    fi
+  fi
+
+  if [ "$selected" = true ]; then
+    append_package "$package"
+  fi
+done <<EOF
+$packages
+EOF
+
+printf 'packages=%s\n' "$packages_json"
+printf 'package_selected=%s\n' "$package_selected"
+printf 'skill_authoring=%s\n' "$skill_authoring"
+printf 'observability_langfuse=%s\n' "$observability_langfuse"

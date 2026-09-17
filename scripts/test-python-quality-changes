@@ -13,6 +13,10 @@ git -C "$fixture" config user.name "Darrow Tests"
 mkdir -p "$fixture/scripts"
 cp "$detector" "$fixture/scripts/detect-python-quality-changes"
 chmod +x "$fixture/scripts/detect-python-quality-changes"
+cat >"$fixture/python-packages.txt" <<'EOF'
+plugins/capability/darrow-observability-langfuse/backend
+plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
+EOF
 printf '%s\n' '# Fixture' >"$fixture/README.md"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm "chore: init"
@@ -37,25 +41,66 @@ expect_scope() {
 
 expect_scope \
   docs/note.md \
-  "skill_authoring=false
-observability_langfuse=false"
+  'packages=[]
+package_selected=false
+skill_authoring=false
+observability_langfuse=false'
 expect_scope \
   plugins/foundation/darrow-skill-authoring/README.md \
-  "skill_authoring=true
-observability_langfuse=false"
+  'packages=["plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=false'
 expect_scope \
   plugins/capability/darrow-observability-langfuse/README.md \
-  "skill_authoring=false
-observability_langfuse=true"
+  'packages=["plugins/capability/darrow-observability-langfuse/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=true'
 expect_scope \
-  python-packages.txt \
-  "skill_authoring=true
-observability_langfuse=true"
+  scripts/check-python \
+  'packages=["plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=true'
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$all" != "skill_authoring=true
-observability_langfuse=true" ]; then
+if [ "$all" != 'packages=["plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=true' ]; then
   printf 'error: --all did not select every Python quality scope\n' >&2
+  exit 1
+fi
+
+git -C "$fixture" reset -q --hard "$base"
+mkdir -p "$fixture/plugins/capability/darrow-third/backend"
+printf '%s\n' 'plugins/capability/darrow-third/backend' >>"$fixture/python-packages.txt"
+printf '%s\n' '[project]' 'name = "darrow-third"' > \
+  "$fixture/plugins/capability/darrow-third/backend/pyproject.toml"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: register third Python package'
+third_base=$(git -C "$fixture" rev-parse HEAD)
+printf '%s\n' changed >"$fixture/plugins/capability/darrow-third/README.md"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change third Python package'
+third=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD)
+if [ "$third" != 'packages=["plugins/capability/darrow-third/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=false' ]; then
+  printf 'error: registered third package was not selected\nactual:\n%s\n' \
+    "$third" >&2
+  exit 1
+fi
+
+third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
+if [ "$third_all" != 'packages=["plugins/capability/darrow-observability-langfuse/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=true' ]; then
+  printf 'error: --all omitted a registered third package\nactual:\n%s\n' \
+    "$third_all" >&2
   exit 1
 fi
 
@@ -66,33 +111,57 @@ fi
 
 "$verifier" \
   success success \
-  true success success success \
-  false skipped skipped skipped
+  true success \
+  true success success \
+  false skipped skipped
 "$verifier" \
   success success \
-  false skipped skipped skipped \
-  true success success success
+  true success \
+  false skipped skipped \
+  true success success
+"$verifier" \
+  success success \
+  true success \
+  false skipped skipped \
+  false skipped skipped
+"$verifier" \
+  success success \
+  false skipped \
+  false skipped skipped \
+  false skipped skipped
 
 if "$verifier" \
   success success \
-  false success skipped skipped \
-  false skipped skipped skipped >/dev/null 2>&1; then
+  false success \
+  false skipped skipped \
+  false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a job that ran for an unchanged scope\n' >&2
   exit 1
 fi
 
 if "$verifier" \
   success success \
-  true success failure success \
-  false skipped skipped skipped >/dev/null 2>&1; then
+  true failure \
+  false skipped skipped \
+  false skipped skipped >/dev/null 2>&1; then
+  printf 'error: aggregate accepted a failed registered-package job\n' >&2
+  exit 1
+fi
+
+if "$verifier" \
+  success success \
+  true success \
+  true failure success \
+  false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed selected job\n' >&2
   exit 1
 fi
 
 if "$verifier" \
   failure success \
-  true success success success \
-  true success success success >/dev/null 2>&1; then
+  true success \
+  true success success \
+  true success success >/dev/null 2>&1; then
   printf 'error: aggregate accepted failed change detection\n' >&2
   exit 1
 fi

@@ -14,6 +14,8 @@ jobs:
     name: Python change scopes
     runs-on: ubuntu-latest
     outputs:
+      packages: ${{ steps.scopes.outputs.packages }}
+      package_selected: ${{ steps.scopes.outputs.package_selected }}
       skill_authoring: ${{ steps.scopes.outputs.skill_authoring }}
       observability_langfuse: ${{ steps.scopes.outputs.observability_langfuse }}
     steps:
@@ -45,17 +47,19 @@ jobs:
             scripts/detect-python-quality-changes "$BEFORE_SHA" "$GITHUB_SHA" >>"$GITHUB_OUTPUT"
           fi
 
-  skill-authoring-package:
-    name: Skill authoring Python ${{ matrix.python-version }} on ${{ matrix.os }}
+  package:
+    name: ${{ matrix.package }} Python ${{ matrix.python-version }} on ${{ matrix.os }}
     needs: changes
-    if: needs.changes.outputs.skill_authoring == 'true'
+    if: needs.changes.outputs.package_selected == 'true'
     strategy:
       fail-fast: false
       matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     env:
+      PACKAGE: ${{ matrix.package }}
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
@@ -65,29 +69,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
-
-  observability-package:
-    name: Observability Langfuse Python ${{ matrix.python-version }} on ${{ matrix.os }}
-    needs: changes
-    if: needs.changes.outputs.observability_langfuse == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    runs-on: ${{ matrix.os }}
-    env:
-      UV_PYTHON: ${{ matrix.python-version }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - run: scripts/check-python --package plugins/capability/darrow-observability-langfuse/backend
+      - run: scripts/check-python --package "$PACKAGE"
 
   skill-authoring-windows:
     name: Skill authoring Python ${{ matrix.python-version }} on windows-latest
@@ -182,8 +164,7 @@ jobs:
     if: always()
     needs:
       - changes
-      - skill-authoring-package
-      - observability-package
+      - package
       - skill-authoring-windows
       - inventory
       - skill-authoring-fresh-install
@@ -195,10 +176,10 @@ jobs:
       - name: Require every selected Python quality job
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          PACKAGE_SELECTED: ${{ needs.changes.outputs.package_selected }}
+          PACKAGE_RESULT: ${{ needs.package.result }}
           SKILL_AUTHORING_CHANGED: ${{ needs.changes.outputs.skill_authoring }}
           OBSERVABILITY_CHANGED: ${{ needs.changes.outputs.observability_langfuse }}
-          SKILL_PACKAGE_RESULT: ${{ needs.skill-authoring-package.result }}
-          OBSERVABILITY_PACKAGE_RESULT: ${{ needs.observability-package.result }}
           WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
           SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
@@ -207,7 +188,7 @@ jobs:
         run: |
           scripts/verify-python-quality-results \
             "$CHANGES_RESULT" "$INVENTORY_RESULT" \
-            "$SKILL_AUTHORING_CHANGED" "$SKILL_PACKAGE_RESULT" \
-            "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
-            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_PACKAGE_RESULT" \
-            "$OBSERVABILITY_INSTALL_RESULT" "$PERFORMANCE_RESULT"
+            "$PACKAGE_SELECTED" "$PACKAGE_RESULT" \
+            "$SKILL_AUTHORING_CHANGED" "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
+            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_INSTALL_RESULT" \
+            "$PERFORMANCE_RESULT"

@@ -2,18 +2,18 @@
 set -eu
 
 if [ "$#" -ne 10 ]; then
-  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <skill-selected> <skill-package> <skill-windows> <skill-install> <observability-selected> <observability-package> <observability-install> <observability-performance>" >&2
+  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package> <skill-selected> <skill-windows> <skill-install> <observability-selected> <observability-install> <observability-performance>" >&2
   exit 2
 fi
 
 changes_result=$1
 inventory_result=$2
-skill_selected=$3
-skill_package_result=$4
-skill_windows_result=$5
-skill_install_result=$6
-observability_selected=$7
-observability_package_result=$8
+package_selected=$3
+package_result=$4
+skill_selected=$5
+skill_windows_result=$6
+skill_install_result=$7
+observability_selected=$8
 observability_install_result=$9
 shift 9
 observability_performance_result=$1
@@ -44,8 +44,8 @@ require_scope() {
 
 require_result "change detection" success "$changes_result"
 require_result "inventory" success "$inventory_result"
+require_scope packages "$package_selected" "$package_result"
 require_scope skill-authoring "$skill_selected" \
-  "$skill_package_result" "$skill_windows_result" "$skill_install_result"
+  "$skill_windows_result" "$skill_install_result"
 require_scope observability-langfuse "$observability_selected" \
-  "$observability_package_result" "$observability_install_result" \
-  "$observability_performance_result"
+  "$observability_install_result" "$observability_performance_result"
