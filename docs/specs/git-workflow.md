@@ -92,6 +92,11 @@ splitting one described change into multiple commits unless asked.
 
 ## create-branch
 
+A request to create a branch from described ticket work belongs to
+`create-branch` even when it supplies a canonical ticket token. That token does
+not bind a complete branch name or turn creation into task-branch discovery;
+derive the new name without asking the caller to supply one.
+
 ### Intent triggers
 
 "create a branch", "branch for this", "start a branch", "new branch for X",

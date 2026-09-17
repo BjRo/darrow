@@ -1,6 +1,6 @@
 ---
 name: create-branch
-description: Create exactly one new Git branch from a work description or an explicit valid branch name, in the current checkout or an explicitly requested worktree. Derive a conventional name when needed and preserve any exact ticket token. Use for additive branch creation only; do not use to switch to or reuse an existing branch, or to prepare an exact ticket branch whose complete name and token are already bound by an authorized delivery workflow.
+description: Create one new Git branch from described work or an explicit valid name, including requests to create a branch for a ticket when only the ticket token and work are supplied. Derive the complete name and preserve the exact token; do not ask the caller to name it. Supports the current checkout or an explicitly requested worktree. Do not use for finding prior work, switching to or reusing an existing branch, or preparing an exact branch whose complete name and token are already bound by a delivery workflow.
 ---
 
 # Create a branch

@@ -68,7 +68,9 @@ def test_template_fences_and_selection(
     directory = repository / ".github" / "PULL_REQUEST_TEMPLATE"
     directory.mkdir(parents=True)
     first = directory / "one.md"
-    first.write_text("\ufeff## Why\n```\n## Not a heading\n```\n## What\n")
+    first.write_text(
+        "\ufeff## Why\n```\n## Not a heading\n```\n## What\n", encoding="utf-8"
+    )
     assert templates.select("") == first
     templates.validate(
         first, "## Why\n### Child\ncontent\n## What\n```\n<!-- literal -->\n```\n"

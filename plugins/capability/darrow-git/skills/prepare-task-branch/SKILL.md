@@ -1,6 +1,6 @@
 ---
 name: prepare-task-branch
-description: "Discover local task branches for an exact opaque ticket token, or prepare one caller-bound exact ticket branch. Use to find prior local work for a canonical token, or switch to, reuse, or create one exact branch in the current checkout or an explicitly requested worktree. Multiple candidate names require an exact caller choice. Do not use to derive branch names from described work or for general branch listing."
+description: "Find prior local task branches for an exact ticket token, or prepare an already caller-bound complete branch name. Use for token-based discovery or switching to, reusing, or creating that exact name, optionally in an explicitly requested worktree. A request to create a new branch from ticket work without a complete branch name belongs to create-branch, even when a ticket token is supplied. Multiple discovery candidates require an exact caller choice. Do not use for general branch listing."
 ---
 
 # Prepare a task branch
