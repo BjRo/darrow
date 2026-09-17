@@ -10,6 +10,18 @@ Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`,
 GW-B6 applies only when the caller explicitly asks the `create-branch`
 capability to allocate an additional linked worktree.
 
+## Native discovery
+
+- **GW-A1 — Route before preflight.** A matching Git workflow request selects
+  its skill before repository inspection or a terminal response. Missing input,
+  a clean tree, conflicts, and hook failures remain within the owning skill's
+  scope. General inspection and unrelated comments do not select a mutation
+  skill. Claude receives a plugin-local SessionStart routing reminder through
+  its native context hook. The hook supplies static context only: no provider
+  calls, prompt classification, workflow execution, state, or authority grants.
+  Native skill discovery and the selected skill retain contextual decisions;
+  installation never starts an operation or chains capabilities.
+
 ## Executable mechanics
 
 - **GW-M1 — Contained portable implementation.** The five capabilities share

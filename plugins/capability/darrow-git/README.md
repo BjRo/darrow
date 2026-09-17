@@ -9,6 +9,11 @@ publication, and candidate-bound reviewer evidence.
 Each workflow is independently intent-triggered. Installing the plugin does not
 run Git commands automatically.
 
+Claude Code receives a static SessionStart reminder to select the matching
+installed skill before preflight, including clean trees, missing inputs, and
+refusals. This native context hook runs no Git or GitHub commands, classifies no
+prompts, and grants no authority. It is declared only in the Claude manifest.
+
 ## What it provides
 
 ### `create-branch`

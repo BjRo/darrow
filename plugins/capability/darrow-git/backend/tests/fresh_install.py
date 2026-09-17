@@ -1,5 +1,6 @@
 """Fresh copied-artifact validation on native Linux, macOS, and Windows."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -46,9 +47,22 @@ def repository(path: Path, remote: Path) -> None:
     command(path, "git", "remote", "set-head", "origin", "main")
 
 
+def validate_context(copy: Path, fixture: Path) -> None:
+    config = json.loads((copy / ".claude-plugin" / "hooks.json").read_text())
+    hook = config["hooks"]["SessionStart"][0]["hooks"][0]
+    arguments = [
+        arg.replace("${CLAUDE_PLUGIN_ROOT}", str(copy)) for arg in hook["args"]
+    ]
+    output = json.loads(command(fixture, hook["command"], *arguments))
+    context = output["hookSpecificOutput"]
+    assert context["hookEventName"] == "SessionStart"
+    assert context["additionalContext"].strip()
+
+
 def validate(copy: Path, fixture: Path) -> None:
     backend = copy / "backend"
     command(fixture, "uv", "sync", "--frozen", "--no-dev", "--project", str(backend))
+    validate_context(copy, fixture)
     tree = command(
         fixture, "uv", "tree", "--frozen", "--no-dev", "--project", str(backend)
     )

@@ -248,6 +248,10 @@ describe("eval fixture skill mounts", () => {
       await writeFile(join(backend, "pyproject.toml"), "[project]\n");
       await writeFile(join(backend, ".venv", "generated"), "private\n");
       await writeFile(join(backend, "evals", "secret.yaml"), "hidden\n");
+      await writeFile(
+        join(plugin, ".claude-plugin", "hooks.json"),
+        '{"hooks":{"SessionStart":[]}}\n',
+      );
       for (const manifest of [".claude-plugin", ".codex-plugin"]) {
         await writeFile(
           join(plugin, manifest, "plugin.json"),
@@ -271,6 +275,9 @@ describe("eval fixture skill mounts", () => {
       expect(existsSync(join(destination, "pyproject.toml"))).toBe(true);
       expect(existsSync(join(destination, ".venv"))).toBe(false);
       expect(existsSync(join(destination, "evals"))).toBe(false);
+      expect(
+        existsSync(join(dirname(destination), ".claude-plugin", "hooks.json")),
+      ).toBe(host !== "project");
     },
   );
 

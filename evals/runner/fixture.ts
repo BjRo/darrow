@@ -278,7 +278,10 @@ async function mountSourceClaudePlugin(
   evalPlugin = join(repoDir, ".git", "eval-plugin"),
 ): Promise<void> {
   await mkdir(join(evalPlugin, ".claude-plugin"), { recursive: true });
-  await cp(paths.manifest, join(evalPlugin, ".claude-plugin", "plugin.json"));
+  await copySkillWithoutEvals(
+    dirname(paths.manifest),
+    join(evalPlugin, ".claude-plugin"),
+  );
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
     await copySkillWithoutEvals(
@@ -305,7 +308,10 @@ async function mountSourceCodexPlugin(
 ): Promise<string> {
   await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
   await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
-  await cp(paths.manifest, join(plugin, ".claude-plugin", "plugin.json"));
+  await copySkillWithoutEvals(
+    dirname(paths.manifest),
+    join(plugin, ".claude-plugin"),
+  );
   await cp(paths.codexManifest, join(plugin, ".codex-plugin", "plugin.json"));
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
