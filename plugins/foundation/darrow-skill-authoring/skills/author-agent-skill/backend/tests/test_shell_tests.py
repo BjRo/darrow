@@ -284,6 +284,20 @@ def test_run_test_uses_forward_slashes_for_native_windows(
     assert execute.call_args.args[0] == ["bash.exe", "C:/Temp Folder/passing.sh"]
 
 
+def test_run_test_preserves_posix_path_spelling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    interpreter = BashInterpreter("bash-5", Path("bash"), "test")
+    test = Path("passing.sh")
+    monkeypatch.setattr(os, "name", "posix")
+    with patch(
+        "darrow_skill_authoring.shell_tests.subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0),
+    ) as execute:
+        assert shell_tests.run_test(interpreter, test) == 0
+    assert execute.call_args.args[0] == ["bash", "passing.sh"]
+
+
 def test_entrypoint_returns_run_status(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["verify-shell-tests"])
     with pytest.raises(SystemExit) as raised:
