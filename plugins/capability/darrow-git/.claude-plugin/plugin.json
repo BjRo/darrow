@@ -1,6 +1,6 @@
 {
   "name": "darrow-git",
   "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "license": "BUSL-1.1"
 }
