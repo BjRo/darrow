@@ -116,15 +116,12 @@ stashes, or duplicate PRs.
 
 ### 4. Report the result
 
-Report the emitted URL, repository, head, base, draft state, intended/remote/
-forge commits, and push/create effects. Name every uncommitted file
-that inspection excluded from the PR, and include any degraded-context notes.
-Preserve every publication field explicitly in the response; do not collapse
-the intended, remote and forge commits into one "published commit" or omit
-repository and effect fields merely because their values agree.
-Use these distinct labels exactly: `publication`, `url`, `repository`, `head`,
-`base`, `draft`, `intended-commit`, `remote-commit`, `pr-commit`, `push`, and
-`pr-create`.
+For verified success, link the PR, state its base and draft state, and name the
+verified commit once. Keep the complete emitted record available as verification
+evidence; do not paste duplicate commit IDs, routine effect fields, or the whole
+record into the user-facing response unless requested. Name excluded local work
+and include every material `## note:`. For incomplete publication, explain the
+known effects and failed observation explicitly; brevity must not imply success.
 Leave reviewers, labels, milestones, merging and existing PR metadata updates
 outside this workflow. An existing-PR observation proves identity, not current
 publication of local commits. Return the result and refusal to the enclosing
@@ -161,8 +158,8 @@ to observe an ambiguous prior publication, run the read-only operation:
 bash <skill-dir>/scripts/pr.sh verify --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
-Report the URL, repository, head/base, draft state, intended/remote/PR commit
-IDs, push effect and excluded working-tree files. Only `publication: verified`
+Use the same concise success report as §4, retaining the complete publication
+record as evidence. Only `publication: verified`
 proves publication of that commit. If a push completed but verification failed,
 return both facts without claiming completion. The enclosing owner decides
 when changed evidence supports another observation; never retry unchanged

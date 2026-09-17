@@ -217,6 +217,13 @@ draft state, intended commit, remote branch commit, forge PR-head commit and
 whether a push occurred. Success requires all three full commit identities to
 agree after the operation.
 
+The complete publication record is a machine-facing verification artifact.
+The user-facing success report is concise: link the PR, state its base and
+draft state, name the verified commit once, and mention excluded local work or
+material notes. Expand repository, head and mutation details only when requested
+or needed to explain uncertainty. Never summarize an incomplete observation as
+verified publication.
+
 ### Invariants
 
 - **GW-P1 — Conventional title.** The PR title follows the Conventional
