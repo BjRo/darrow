@@ -19,6 +19,7 @@ jobs:
       skill_authoring: ${{ steps.scopes.outputs.skill_authoring }}
       observability_langfuse: ${{ steps.scopes.outputs.observability_langfuse }}
       discovery: ${{ steps.scopes.outputs.discovery }}
+      verification: ${{ steps.scopes.outputs.verification }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,6 +121,30 @@ jobs:
           enable-cache: true
       - run: scripts/check-python --package plugins/capability/darrow-discovery/skills/plan-implementation/backend
 
+  verification-windows:
+    name: Verification Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: needs.changes.outputs.verification == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-verification/skills/verify-change/backend
+
   inventory:
     name: Python inventory guard
     runs-on: ubuntu-latest
@@ -201,6 +226,36 @@ jobs:
         shell: pwsh
         run: "& '${{ matrix.test }}'"
 
+  verification-fresh-install:
+    name: Fresh install verification on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.verification == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test: plugins/capability/darrow-verification/tests/fresh-install.test.sh
+          - os: macos-latest
+            shell: bash
+            test: plugins/capability/darrow-verification/tests/fresh-install.test.sh
+          - os: windows-latest
+            shell: pwsh
+            test: plugins/capability/darrow-verification/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
+
   performance:
     name: Python performance invariants
     needs: changes
@@ -222,10 +277,12 @@ jobs:
       - package
       - skill-authoring-windows
       - discovery-windows
+      - verification-windows
       - inventory
       - skill-authoring-fresh-install
       - observability-fresh-install
       - discovery-fresh-install
+      - verification-fresh-install
       - performance
     runs-on: ubuntu-latest
     steps:
@@ -238,12 +295,15 @@ jobs:
           SKILL_AUTHORING_CHANGED: ${{ needs.changes.outputs.skill_authoring }}
           OBSERVABILITY_CHANGED: ${{ needs.changes.outputs.observability_langfuse }}
           DISCOVERY_CHANGED: ${{ needs.changes.outputs.discovery }}
+          VERIFICATION_CHANGED: ${{ needs.changes.outputs.verification }}
           WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
           DISCOVERY_WINDOWS_RESULT: ${{ needs.discovery-windows.result }}
+          VERIFICATION_WINDOWS_RESULT: ${{ needs.verification-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
           SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
           OBSERVABILITY_INSTALL_RESULT: ${{ needs.observability-fresh-install.result }}
           DISCOVERY_INSTALL_RESULT: ${{ needs.discovery-fresh-install.result }}
+          VERIFICATION_INSTALL_RESULT: ${{ needs.verification-fresh-install.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
         run: |
           scripts/verify-python-quality-results \
@@ -253,4 +313,6 @@ jobs:
             "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_INSTALL_RESULT" \
             "$PERFORMANCE_RESULT" \
             "$DISCOVERY_CHANGED" "$DISCOVERY_WINDOWS_RESULT" \
-            "$DISCOVERY_INSTALL_RESULT"
+            "$DISCOVERY_INSTALL_RESULT" \
+            "$VERIFICATION_CHANGED" "$VERIFICATION_WINDOWS_RESULT" \
+            "$VERIFICATION_INSTALL_RESULT"

@@ -85,6 +85,15 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   any next-action field in a no-progress result carries the stop reason or
   needed investigation, never an implementation instruction or another repair
   followed by reassessment.
+- **VF-C8 — Portable assessment renderer.** The retained-report renderer MUST
+  be a skill-contained, UV-locked Python package with no runtime dependencies.
+  Its public command MUST preserve the accepted argument order, assessment
+  bytes, report-link escaping and placement, validation diagnostics,
+  stdout/stderr separation, and exit statuses on Linux, macOS, and native
+  Windows. Claude Code and Codex MUST resolve the backend from the installed
+  skill directory and invoke the same frozen package entrypoint directly.
+  Fresh copied-artifact checks MUST exercise that installed layout without
+  repository-relative or sibling-plugin references.
 
 ## Consumer handoff
 
