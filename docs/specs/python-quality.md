@@ -56,10 +56,15 @@ including property tests, and enforces both coverage measures. The pre-commit
 hook runs the fast formatting, lint, and type portion when staged Python or
 Python project files change.
 
-CI runs the canonical gate on Linux and macOS for every declared Python minor
-version. A stable aggregate `Python quality` status is the branch-protection
-check. The inventory guard itself is tested by introducing a temporary
-unregistered package and proving that the gate refuses it.
+CI runs the canonical package gate on Linux and macOS for every declared Python
+minor version when that package or shared Python-quality infrastructure changes.
+Packages that claim native Windows support run the same change-scoped gate in a
+package-specific Windows matrix. Manual dispatch runs every package. The
+inventory guard runs on every workflow invocation, and a stable aggregate
+`Python quality` status verifies that every required scope passed or every
+unchanged scope was intentionally skipped. The inventory guard itself is tested
+by introducing a temporary unregistered package and proving that the gate
+refuses it.
 
 ## Performance and release evidence
 
@@ -76,7 +81,9 @@ live inside the plugin that owns the behavior. Repository commands and CI may
 invoke those entrypoints, but do not reproduce the plugin's internal path
 resolution or benchmark logic.
 
-Release validation installs the plugin from a fresh copied artifact using only
-locked runtime dependencies before exercising its launcher and backend. The
-isolated live Langfuse ingestion procedure remains release evidence for the
-external service boundary; it is not replaced by mocked CI tests.
+Release validation installs each Python-backed plugin from a fresh copied
+artifact using only locked runtime dependencies before exercising its public
+entrypoints. Cross-platform helpers run this validation on Linux, macOS, and
+native Windows. The isolated live Langfuse ingestion procedure remains release
+evidence for that plugin's external service boundary; it is not replaced by
+mocked CI tests.

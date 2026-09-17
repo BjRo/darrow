@@ -37,18 +37,22 @@ intent-level inputs instead of reproducing call details.
 
 Review agents must not run Git or GitHub commands against this repository.
 
-## Shell portability
+## Plugin mechanics
 
-- Write plugin-shipped executable mechanics in portable Bash, using baseline
-  Unix utilities and the host CLIs the capability wraps. Do not add Python,
-  JavaScript/TypeScript, Ruby, JVM, or compiled runtime dependencies. Shared
-  repository development and eval infrastructure such as `evals/runner/` is
-  outside this plugin-runtime boundary.
+- Use a contained Python package managed by UV for substantial deterministic
+  plugin mechanics when Python materially improves clarity or native Windows
+  support. Commit `pyproject.toml` and `uv.lock`, keep runtime and development
+  dependencies separate, invoke runtime entrypoints with frozen resolution, and
+  register the package in `python-packages.txt`.
+- Keep genuinely small host-specific launchers and command glue in portable
+  Bash, using baseline Unix utilities and the host CLIs the capability wraps.
+  Do not introduce JavaScript/TypeScript, Ruby, JVM, compiled, or shared Darrow
+  runtime dependencies inside a plugin.
 - Avoid early-exit pipelines under `pipefail`; use here-strings for bounded
   matching.
 - Avoid `${var//pat/}` on unbounded input and `awk -v` for backslash-bearing
   values.
-- Support old BSD awk and Bash 3.2 in plugin scripts.
+- Support old BSD awk and Bash 3.2 in plugin shell scripts.
 - Refuse unreadable configuration rather than silently skipping it.
 - Use absolute paths in model-facing output.
 - Resolve the primary repository via the first `git worktree list --porcelain`

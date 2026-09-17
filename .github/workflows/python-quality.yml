@@ -10,14 +10,79 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Python change scopes
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.scopes.outputs.packages }}
+      package_selected: ${{ steps.scopes.outputs.package_selected }}
+      skill_authoring: ${{ steps.scopes.outputs.skill_authoring }}
+      observability_langfuse: ${{ steps.scopes.outputs.observability_langfuse }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scopes
+        name: Select changed Python packages
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            scripts/detect-python-quality-changes --all >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scripts/detect-python-quality-changes "$BASE_SHA" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          zero=0000000000000000000000000000000000000000
+          if [ "$BEFORE_SHA" = "$zero" ]; then
+            scripts/detect-python-quality-changes --all >>"$GITHUB_OUTPUT"
+          else
+            scripts/detect-python-quality-changes "$BEFORE_SHA" "$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+          fi
+
   package:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: ${{ matrix.package }} Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.package_selected == 'true'
     strategy:
       fail-fast: false
       matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
+    env:
+      PACKAGE: ${{ matrix.package }}
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package "$PACKAGE"
+
+  skill-authoring-windows:
+    name: Skill authoring Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: needs.changes.outputs.skill_authoring == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     env:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
@@ -28,7 +93,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python
+      - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
 
   inventory:
     name: Python inventory guard
@@ -36,9 +101,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: scripts/test-python-inventory
+      - run: scripts/test-python-quality-changes
 
-  fresh-install:
-    name: Python fresh plugin install
+  skill-authoring-fresh-install:
+    name: Fresh install skill-authoring on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.skill_authoring == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
+          - os: macos-latest
+            shell: bash
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
+          - os: windows-latest
+            shell: pwsh
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
+
+  observability-fresh-install:
+    name: Fresh install observability-langfuse on ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.observability_langfuse == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +148,8 @@ jobs:
 
   performance:
     name: Python performance invariants
+    needs: changes
+    if: needs.changes.outputs.observability_langfuse == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,17 +162,33 @@ jobs:
   aggregate:
     name: Python quality
     if: always()
-    needs: [package, inventory, fresh-install, performance]
+    needs:
+      - changes
+      - package
+      - skill-authoring-windows
+      - inventory
+      - skill-authoring-fresh-install
+      - observability-fresh-install
+      - performance
     runs-on: ubuntu-latest
     steps:
-      - name: Require every Python quality job
+      - uses: actions/checkout@v4
+      - name: Require every selected Python quality job
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          PACKAGE_SELECTED: ${{ needs.changes.outputs.package_selected }}
           PACKAGE_RESULT: ${{ needs.package.result }}
+          SKILL_AUTHORING_CHANGED: ${{ needs.changes.outputs.skill_authoring }}
+          OBSERVABILITY_CHANGED: ${{ needs.changes.outputs.observability_langfuse }}
+          WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
-          INSTALL_RESULT: ${{ needs.fresh-install.result }}
+          SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
+          OBSERVABILITY_INSTALL_RESULT: ${{ needs.observability-fresh-install.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
         run: |
-          test "$PACKAGE_RESULT" = success
-          test "$INVENTORY_RESULT" = success
-          test "$INSTALL_RESULT" = success
-          test "$PERFORMANCE_RESULT" = success
+          scripts/verify-python-quality-results \
+            "$CHANGES_RESULT" "$INVENTORY_RESULT" \
+            "$PACKAGE_SELECTED" "$PACKAGE_RESULT" \
+            "$SKILL_AUTHORING_CHANGED" "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
+            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_INSTALL_RESULT" \
+            "$PERFORMANCE_RESULT"
