@@ -56,10 +56,12 @@ including property tests, and enforces both coverage measures. The pre-commit
 hook runs the fast formatting, lint, and type portion when staged Python or
 Python project files change.
 
-CI runs the canonical gate on Linux, macOS, and native Windows for every
-declared Python minor version. A stable aggregate `Python quality` status is the
-branch-protection check. The inventory guard itself is tested by introducing a
-temporary unregistered package and proving that the gate refuses it.
+CI runs the canonical all-package gate on Linux and macOS for every declared
+Python minor version. Packages that claim native Windows support run the same
+gate in a package-scoped Windows matrix. A stable aggregate `Python quality`
+status is the branch-protection check. The inventory guard itself is tested by
+introducing a temporary unregistered package and proving that the gate refuses
+it.
 
 ## Performance and release evidence
 

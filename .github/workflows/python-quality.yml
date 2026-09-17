@@ -15,9 +15,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python
+
+  skill-authoring-windows:
+    name: Skill authoring Python ${{ matrix.python-version }} on windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
     defaults:
       run:
         shell: bash
@@ -31,7 +50,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python
+      - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
 
   inventory:
     name: Python inventory guard
@@ -89,17 +108,20 @@ jobs:
   aggregate:
     name: Python quality
     if: always()
-    needs: [package, inventory, fresh-install, performance]
+    needs:
+      [package, skill-authoring-windows, inventory, fresh-install, performance]
     runs-on: ubuntu-latest
     steps:
       - name: Require every Python quality job
         env:
           PACKAGE_RESULT: ${{ needs.package.result }}
+          WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
           INSTALL_RESULT: ${{ needs.fresh-install.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
         run: |
           test "$PACKAGE_RESULT" = success
+          test "$WINDOWS_RESULT" = success
           test "$INVENTORY_RESULT" = success
           test "$INSTALL_RESULT" = success
           test "$PERFORMANCE_RESULT" = success

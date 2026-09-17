@@ -155,9 +155,12 @@ def _test_files(inputs: list[str]) -> list[Path]:
 
 
 def run_test(interpreter: BashInterpreter, test: Path) -> int:
+    test_argument = str(test)
+    if os.name == "nt":
+        test_argument = test_argument.replace("\\", "/")
     try:
         returncode = subprocess.run(
-            [str(interpreter.path), str(test)],
+            [str(interpreter.path), test_argument],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

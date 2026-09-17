@@ -3,9 +3,26 @@ set -eu
 
 repo_root=$(git rev-parse --show-toplevel)
 mode=full
-if [ "${1:-}" = "--fast" ]; then
-  mode=fast
-fi
+selected_package=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --fast)
+      mode=fast
+      shift
+      ;;
+    --package)
+      if [ "$#" -lt 2 ] || [ -n "$selected_package" ]; then
+        echo "usage: scripts/check-python [--fast] [--package REPOSITORY_PATH]" >&2
+        exit 2
+      fi
+      selected_package=$2
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "error: uv is required for Python quality checks" >&2
@@ -15,6 +32,19 @@ fi
 "$repo_root/scripts/check-python-inventory" "$repo_root"
 
 packages=$(sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$repo_root/python-packages.txt")
+if [ -n "$selected_package" ]; then
+  package_registered=false
+  for relative in $packages; do
+    if [ "$relative" = "$selected_package" ]; then
+      package_registered=true
+    fi
+  done
+  if [ "$package_registered" != true ]; then
+    echo "error: Python package is not registered: $selected_package" >&2
+    exit 1
+  fi
+  packages=$selected_package
+fi
 coverage_verifier_tested=false
 for relative in $packages; do
   package="$repo_root/$relative"
