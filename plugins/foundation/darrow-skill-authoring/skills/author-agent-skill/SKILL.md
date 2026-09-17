@@ -24,10 +24,14 @@ validators or decide whether the workflow is well designed.
 
 Before adding executable mechanics, read
 [`references/plugin-mechanics.md`](references/plugin-mechanics.md) and choose
-existing tools, small shell glue, or contained Python from the target's actual
-complexity and supported hosts. When verifying target shell tests, also read
-[`references/portable-shell.md`](references/portable-shell.md) and run the
-version-aware helper through the same backend:
+existing tools, small glue, or a contained packaged helper from the target
+repository's instructions, established toolchain, actual complexity, and
+supported hosts. If the target establishes no runtime or package manager, make
+that choice a contract input before writing mechanics. When verifying target
+shell tests, also read
+[`references/portable-shell.md`](references/portable-shell.md). If the target
+requires both Bash 3.2 and Bash 5, run the version-aware helper through the same
+backend:
 
 ```text
 uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" verify-shell-tests -- "<test-script>"...
@@ -200,9 +204,9 @@ resources, and packaging changes, with no unrelated capability added.
 
 Run, in order:
 
-1. each bundled package test through its locked quality command and each shell
-   test through the version-aware helper, preserving unavailable required
-   versions as unverified;
+1. each bundled package test through the target repository's locked quality
+   command and each shell test on the interpreter versions claimed by the
+   target, preserving unavailable required versions as unverified;
 2. the bundled inspector on the finished skill and plugin root;
 3. the repository's skill and native plugin-manifest validators;
 4. scoped eval dry validation and live trials on the supported harnesses chosen

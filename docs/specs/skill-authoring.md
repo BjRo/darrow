@@ -76,27 +76,30 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
 - **SA-C5 — Mechanics are executable.** Put deterministic, repeatedly needed,
   or error-prone checks in a bundled script with narrow inputs and stable
   machine-readable output. Keep contextual decisions and trade-offs in
-  `SKILL.md`. Use a contained, locked Python package when substantial mechanics
-  benefit from structured code or native Windows support; use portable Bash for
-  genuinely small host-specific launchers and command glue. Do not add a script
-  when existing tools and instructions are already reliable.
+  `SKILL.md`. Follow the target repository's instructions and established
+  toolchain when choosing how to implement executable mechanics. If the target
+  has no applicable convention, treat the runtime and package manager as
+  contract inputs instead of importing them from the authoring skill's source
+  repository. Do not add a script when existing tools and instructions are
+  already reliable.
 - **SA-C6 — Fail closed and identify evidence.** A required unreadable skill,
   manifest, configuration, instruction, or referenced local resource blocks the
   dependent result. Model-facing script output identifies inspected inputs and
   local references with absolute paths. Missing evidence is never treated as a
   successful empty state.
-- **SA-C7 — Portable self-containment.** A Python-backed helper keeps its
-  package, lock, entrypoints, dependencies, and state inside the owning plugin;
-  separates runtime from development dependencies; uses frozen UV execution;
-  and verifies its public entrypoints from a fresh artifact on every claimed
-  native platform. Bundled shell scripts work in Bash 5 and `/bin/bash` 3.2,
-  avoid GNU-only assumptions, and never require files from a sibling plugin.
-  Normalize paths before emitting or comparing them. Label shell evidence by
-  the interpreter's observed version, deduplicate equivalent interpreters, and
-  leave an unavailable required version explicitly unverified. Shell tests
-  preserve their executing interpreter in nested implementation calls. A
-  packaged skill remains useful with no MCP server or other Darrow plugin
-  installed unless its own manifest declares and supplies that dependency.
+- **SA-C7 — Portable self-containment.** A packaged helper keeps its manifest,
+  lock, entrypoints, dependencies, and state inside the owning plugin; follows
+  the target repository's runtime and development dependency conventions; uses
+  reproducible locked execution; and verifies its public entrypoints from a
+  fresh artifact on every claimed native platform. Bundled shell scripts work
+  on every shell version claimed by the target, avoid unsupported utility
+  assumptions, and never require files from a sibling plugin. Normalize paths
+  before emitting or comparing them. Label shell evidence by the interpreter's
+  observed version, deduplicate equivalent interpreters, and leave an
+  unavailable required version explicitly unverified. Shell tests preserve
+  their executing interpreter in nested implementation calls. A packaged skill
+  remains useful with no MCP server or other Darrow plugin installed unless its
+  own manifest declares and supplies that dependency.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,

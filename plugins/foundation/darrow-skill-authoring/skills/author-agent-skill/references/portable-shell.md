@@ -30,10 +30,13 @@ shell test. Apply it to both the implementation and its deterministic tests.
 
 ## Portable mechanics
 
-- Support both Bash 5 and `/bin/bash` 3.2. Avoid associative arrays,
-  `${var,,}`, `${var^^}`, and other features newer than Bash 3.2.
-- Use baseline Unix utilities and portable options. Account for old BSD `awk`,
-  `sed`, `grep`, and `find` behavior instead of relying on GNU extensions.
+- Support the shells, versions, operating systems, and utilities established by
+  the target repository. Do not import the authoring skill's source-repository
+  compatibility range into the target.
+- Use syntax and utility options supported by that declared range. For a target
+  that includes Bash 3.2, avoid associative arrays, `${var,,}`, `${var^^}`, and
+  other newer features. For a target that includes macOS or BSD utilities,
+  avoid unsupported GNU extensions.
 - Under `set -o pipefail`, do not use an early-exit consumer in a pipeline when
   the producer may receive `SIGPIPE`. Capture bounded output or use a
   here-string when that is safer.
@@ -42,13 +45,17 @@ shell test. Apply it to both the implementation and its deterministic tests.
 
 ## Interpreter evidence
 
-Run every target shell test through the authoring skill's bundled matrix helper:
+Run target shell tests with each interpreter version the target repository
+claims. Use its established test command or matrix when available.
+
+When the target specifically requires both Bash 3.2 and Bash 5, the authoring
+skill's bundled matrix helper can supply that evidence:
 
 ```text
 uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" verify-shell-tests -- "<test-script>"...
 ```
 
-The helper discovers actual Bash 3.2 and Bash 5 interpreters, queries their
+This helper discovers actual Bash 3.2 and Bash 5 interpreters, queries their
 versions, deduplicates equivalent candidates, and labels results from observed
 version data. Pass one or more `--shell <executable>` options before `--` only
 when repository evidence supplies additional interpreter paths. Never infer a
@@ -61,7 +68,8 @@ interpreter executing the test even when `PATH` resolves another Bash. Exercise
 that boundary with a conflicting `bash` on `PATH`; expected-failure assertions
 must not hide calls through the wrong interpreter.
 
-Interpret its final `matrix_status` and exit status together:
+For this Bash 3.2/5 matrix, interpret its final `matrix_status` and exit status
+together:
 
 - `complete` / exit `0`: both required versions were observed and all tests
   passed;
@@ -76,8 +84,9 @@ required version explicitly.
 
 ## Tests
 
-- Require support for Bash 5 and `/bin/bash` 3.2, but claim a live result only
-  for versions observed by the matrix helper.
+- Require only the shell versions established by the target, and claim a live
+  result only for versions actually observed. For a Bash 3.2/5 target, use the
+  bundled matrix helper's observed versions.
 - When code uses `TMPDIR` or compares paths, run it with `TMPDIR` both with and
   without a trailing separator. Compare canonical paths, not the raw strings
   used to construct them.
