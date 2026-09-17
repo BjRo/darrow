@@ -54,8 +54,7 @@ checks:
       test -n "$record" || exit 1
       report=$(cd "$(dirname "$record")" && pwd -P)/review.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
-      test "$last" = "Complete provider result: [report](<$report>)" ||
-        test "$last" = "Complete provider result: [report]($report)"
+      test "$last" = "Complete provider result: [report](<$report>)"
   - name: existing provider retains a canonical failing current review
     run:
       record=$(find .git -name result.tsv -type f) && test -n "$record" && test

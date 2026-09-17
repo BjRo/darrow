@@ -243,25 +243,49 @@ or a lifecycle ledger.
 
 ## 5. Render a retained-report handoff
 
-When the selected provider returned a retained local report, use the bundled
-[assessment renderer](scripts/render-assessment) for the final handoff. It owns
+When the selected provider returned a retained local report, use the packaged
+[assessment renderer](backend/src/darrow_verification/assessment.py) for the final handoff. It owns
 absolute-reference validation and rendering; do not reproduce its output by
 hand. It does not interpret the provider's format or decide findings.
 
 First finish the semantic assessment above. Obtain a unique temporary draft
-file with `mktemp` outside the product scope and write that assessment using
-the host's file-writing tool. This temporary draft is assessment output, not
-an implementation edit or a required evidence package. Then run:
+file outside the product scope with the host's native temporary-file facility
+(`mktemp` in a POSIX shell or `[System.IO.Path]::GetTempFileName()` in
+PowerShell), then write that assessment using the host's file-writing tool.
+This temporary draft is assessment output, not an implementation edit or a
+required evidence package. Resolve the renderer backend from the loaded skill:
 
-```sh
-bash <skill-dir>/scripts/render-assessment --assessment <absolute-draft-file> --provider-report <absolute-provider-report>
+- Claude Code: resolve `backend` from the absolute skill directory supplied in
+  `CLAUDE_SKILL_DIR`; use the host shell's environment-variable and path syntax.
+- Codex: take the absolute `SKILL.md` path supplied in the selected skill's
+  catalog entry and resolve `backend` relative to that file's directory.
+
+Then run:
+
+```text
+uv run --quiet --isolated --frozen --no-dev --project "<absolute-backend-path>" darrow-render-assessment --assessment "<absolute-draft-file>" --provider-report "<absolute-provider-report>"
 ```
 
-Substitute the actual paths; resolve the script from this installed skill,
-never another plugin. On success, copy the command's complete stdout unchanged
-as the final response. Do not shorten, rewrite or append to it: the renderer's
-absolute provider reference is part of the result. Complete semantic checks
-before this final command so no later tool or commentary displaces its output.
+Substitute the actual paths and invoke this frozen entrypoint directly; do not
+look for or create a host-specific launcher. Resolve the backend from this
+installed skill, never the user's repository or another plugin. On success,
+copy the command's complete stdout unchanged as the final response. Do not
+shorten, rewrite or append to it: the renderer's absolute provider reference is
+part of the result. Complete semantic checks before this final command so no
+later tool or commentary displaces its output.
+
+The final nonempty line must remain the renderer's angle-delimited Markdown
+link: the literal prefix `Complete provider result: [report]` immediately
+followed by `(<absolute-path>)`. A rewritten destination without the surrounding
+angle delimiters is not the renderer's exact stdout and does not complete this
+handoff.
+
+That exact link is necessary but not sufficient. Before invocation, read the
+temporary draft back and confirm it contains the complete step 4 assessment,
+including the criterion-by-criterion evidence and conclusion. After invocation,
+return the assessment prefix and final link together as the renderer emitted
+them. A response containing only the link, only a conclusion, or a summary of
+the draft is an incomplete handoff.
 
 A renderer refusal is a blocked handoff. Return the precise missing/unreadable
 evidence gap rather than a partial rendering or a passing summary. Do not

@@ -43,8 +43,7 @@ checks:
       test -e .git/inspect-candidate-report.md || exit 0
       report=$(cd .git && pwd -P)/inspect-candidate-report.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
-      test "$last" = "Complete provider result: [report](<$report>)" ||
-        test "$last" = "Complete provider result: [report]($report)"
+      test "$last" = "Complete provider result: [report](<$report>)"
 semantic_output_checks:
   - name: unavailable required check blocks
     proposition:
