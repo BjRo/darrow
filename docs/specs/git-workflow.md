@@ -10,6 +10,29 @@ Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`,
 GW-B6 applies only when the caller explicitly asks the `create-branch`
 capability to allocate an additional linked worktree.
 
+## Executable mechanics
+
+- **GW-M1 — Contained portable implementation.** The five capabilities share
+  one Python package contained in `darrow-git/backend`, with frozen UV runtime
+  entrypoints and no runtime dependency on another plugin. Git and GitHub CLI
+  remain the provider boundaries. Existing script paths, command arguments,
+  stable records, refusal statuses, and mutation safeguards remain compatible.
+  POSIX scripts are dispatch-only compatibility launchers; native Windows uses
+  the same Python entrypoints without requiring a Unix shell.
+- **GW-M2 — Literal process and filesystem boundaries.** Provider commands use
+  argument vectors, never interpolated shell programs. Paths and temporary
+  artifacts use native filesystem APIs. Hook remediation retains its diagnostic
+  and index-snapshot authorization boundary; the literal authorized diagnostic
+  command uses the native host command interpreter (POSIX sh or Windows cmd)
+  with its native command-string quoting. This compatibility exception never applies to Git/GitHub
+  provider arguments.
+- **GW-M3 — Migration evidence.** The package meets the repository Python
+  quality standard, including separate 95% statement and branch coverage,
+  deterministic real-Git integration fixtures, mocked GitHub publication,
+  meaningful property tests, and fresh copied-plugin tests on Linux, macOS,
+  and native Windows. The propagation and presentation fixes tracked in #171
+  and #174 remain separately identifiable from this migration.
+
 ## Why
 
 Agents left to improvise git usage produce inconsistent messages, stage

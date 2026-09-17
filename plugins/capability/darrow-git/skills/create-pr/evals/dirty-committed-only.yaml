@@ -38,6 +38,7 @@ fixture:
             case "$1" in
               --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
               --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --body-file) cp "$2" "$d/body"; shift 2 ;;
               --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
               --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
               --draft) : > "$d/draft"; shift ;;

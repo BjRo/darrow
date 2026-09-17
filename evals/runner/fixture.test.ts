@@ -228,6 +228,52 @@ describe("eval fixture skill mounts", () => {
     cleanup.splice(cleanup.indexOf(fixture), 1);
   });
 
+  test.each(["project", "claude", "codex"])(
+    "mounts a plugin-level Python backend for %s without generated state",
+    async (host) => {
+      const root = await mkdtemp(join(tmpdir(), "darrow-fixture-backend-"));
+      cleanup.push(root);
+      const plugin = join(root, "plugin");
+      const skill = join(plugin, "skills", "primary");
+      const backend = join(plugin, "backend");
+      await mkdir(skill, { recursive: true });
+      await mkdir(join(backend, ".venv"), { recursive: true });
+      await mkdir(join(backend, "evals"), { recursive: true });
+      await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+      await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+      await writeFile(
+        join(skill, "SKILL.md"),
+        "---\nname: primary\ndescription: Primary\n---\n",
+      );
+      await writeFile(join(backend, "pyproject.toml"), "[project]\n");
+      await writeFile(join(backend, ".venv", "generated"), "private\n");
+      await writeFile(join(backend, "evals", "secret.yaml"), "hidden\n");
+      for (const manifest of [".claude-plugin", ".codex-plugin"]) {
+        await writeFile(
+          join(plugin, manifest, "plugin.json"),
+          JSON.stringify({ name: "fixture-backend", version: "1.0.0" }),
+        );
+      }
+      const fixture = await buildFixture({
+        fixture: {},
+        skillDir: skill,
+        skillMounts: host === "project" ? [".agents/skills"] : [],
+        sourceClaudePlugin: host === "claude",
+        sourceCodexPlugin: host === "codex",
+      });
+      cleanup.push(fixture);
+      const destinations: Record<string, string> = {
+        project: join(fixture, ".agents", "backend"),
+        claude: join(fixture, ".git", "eval-plugin", "backend"),
+        codex: join(fixture, ".git", "eval-marketplace", "plugin", "backend"),
+      };
+      const destination = destinations[host]!;
+      expect(existsSync(join(destination, "pyproject.toml"))).toBe(true);
+      expect(existsSync(join(destination, ".venv"))).toBe(false);
+      expect(existsSync(join(destination, "evals"))).toBe(false);
+    },
+  );
+
   test("optionally mounts every plugin skill without exposing colocated evals", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-fixture-plugin-"));
     cleanup.push(root);

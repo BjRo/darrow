@@ -7,11 +7,15 @@ description: Publish the current feature branch through one pull request. Use wh
 
 Propose the current branch's committed delta through one pull request.
 
-Run every Git and GitHub operation through `<skill-dir>/scripts/pr.sh`, where
-`<skill-dir>` contains this file. Run the script with Bash. It owns repository
+Run every Git and GitHub operation through the frozen UV entrypoint below;
+`<skill-dir>` contains this file. It supports Linux, macOS, and Windows and owns repository
 inspection, duplicate detection, validation, non-force pushing, and PR
 creation; execute it without reading or reimplementing it. Treat its refusals
 as authoritative.
+
+The package lives at `<skill-dir>/../../backend` inside this plugin. The existing
+`scripts/pr.sh` path remains a POSIX compatibility launcher for the same
+entrypoint, arguments, records, refusals, and exit statuses.
 
 ## Working model
 
@@ -31,7 +35,7 @@ as authoritative.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/pr.sh inspect [--base <branch>] [--template <filename>]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr inspect [--base <branch>] [--template <filename>]
 ```
 
 When the user names a base, pass that exact `--base` to inspection, every
@@ -92,7 +96,7 @@ template when present, and preserves any known ticket identifier.
 Run exactly one creation command:
 
 ```sh
-bash <skill-dir>/scripts/pr.sh create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
 ```
 
 Pass `--base` only when the user named that base. Pass `--draft` only when the
@@ -139,7 +143,7 @@ inspection; when the enclosing owner supplies an ID for its verified content,
 require that same ID. Do not silently replace it with a later local head.
 
 ```sh
-bash <skill-dir>/scripts/pr.sh publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
 The script checks one open same-repository PR and its exact branch, base and
@@ -155,7 +159,7 @@ When the caller requires verified published content after creation, or needs
 to observe an ambiguous prior publication, run the read-only operation:
 
 ```sh
-bash <skill-dir>/scripts/pr.sh verify --expected-head <full-commit-id> [--base <branch>] [--draft]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr verify --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
 Use the same concise success report as §4, retaining the complete publication

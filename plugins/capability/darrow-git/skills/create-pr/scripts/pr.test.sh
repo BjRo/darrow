@@ -73,6 +73,7 @@ case "$1 $2" in
       case "$1" in
         --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
         --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+        --body-file) cp "$2" "$d/body"; shift 2 ;;
         --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
         --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
         --draft) : > "$d/draft"; shift ;;
@@ -172,7 +173,9 @@ ready_repo
 if PATH="/usr/bin:/bin" command -v gh >/dev/null 2>&1; then
   echo "  ok: gh-missing case skipped (system gh is present)"
 else
-  PATH="/usr/bin:/bin" "$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+  mkdir -p "$REPO/.git/no-gh-bin"
+  ln -s "$(command -v uv)" "$REPO/.git/no-gh-bin/uv"
+  PATH="$REPO/.git/no-gh-bin:/usr/bin:/bin" "$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
   check "gh missing, create exit 3" 3 $?
 fi
 

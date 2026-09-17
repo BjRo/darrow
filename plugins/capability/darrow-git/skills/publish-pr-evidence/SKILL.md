@@ -5,12 +5,16 @@ description: Publish one candidate-bound evidence comment, with optional ordered
 
 # Publish pull-request evidence
 
-Publish one top-level PR conversation comment through
-`<skill-dir>/scripts/publish.sh`. Run the script with Bash and treat every
+Publish one top-level PR conversation comment through the frozen UV entrypoint
+below on Linux, macOS, and Windows; `<skill-dir>` contains this file. Treat every
 result as authoritative. The script owns GitHub/CLI preflight, candidate
 identity, attachment validation, deterministic identity, reconciliation, the
 single comment invocation, and final observation. Do not reproduce those
 mechanics with raw `gh` commands.
+
+The package lives at `<skill-dir>/../../backend` inside this plugin. The existing
+`scripts/publish.sh` path remains a POSIX compatibility launcher for the same
+entrypoint, arguments, records, refusals, and exit statuses.
 
 ## Inputs
 
@@ -30,7 +34,7 @@ unspecified current head.
 Run exactly one command:
 
 ```sh
-bash <skill-dir>/scripts/publish.sh publish \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-publish-pr-evidence publish \
   --expected-head <full-commit-id> --body-file <path> \
   [--image <path> --alt <text> | --video <path> --explanation <text>]...
 ```

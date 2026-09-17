@@ -80,11 +80,13 @@ Example: _“Attach these verification screenshots to the current PR.”_
 
 ### Bundled workflow scripts
 
-Each skill uses its own bundled Bash script under `skills/<skill>/scripts/`.
-The scripts inspect and validate repository state, perform only the authorized
+Each skill uses a frozen UV entrypoint from the contained Python package in
+`backend/`. The helpers inspect and validate repository state, perform only the authorized
 Git or GitHub operation, and return structured evidence for the skill to
 interpret. They are implementation details of the workflows rather than a
-general Git wrapper.
+general Git wrapper. Existing Bash script paths remain thin compatibility
+launchers with the same commands, records, and exit statuses. Native Windows
+calls the UV entrypoints directly.
 
 ## Design boundaries
 
@@ -103,10 +105,34 @@ workflows to rewrite history, merge, release, deploy, or post generic comments.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; Git, Bash, and baseline Unix tools. PR work also requires
+Codex and Claude Code on Linux, macOS, and Windows; Git, UV, and Python
+3.10–3.13 (UV can provision Python). Bash is needed only for POSIX compatibility
+launchers. PR work also requires
 authenticated GitHub CLI access and a usable remote. Attachment publication
 requires a GitHub host and a `gh pr comment` implementation that advertises
 `--attach`.
+
+Provider calls use literal argument vectors and native filesystem APIs. The
+existing hook-remediation `--command` interface is the sole shell exception:
+it passes the exact authorized diagnostic to POSIX `sh` or native Windows `cmd`.
+Its saved HEAD/index checks and staged-path limits still apply. A diagnostic's
+command syntax must match its host.
+
+Successful PR reports link the PR and name its base, draft state, and verified
+commit once. Complete structured publication evidence remains available from
+the helper. PR-head propagation is observed at most five times, one second
+apart, without repeating a push or PR creation.
+
+## Validation
+
+`bun run check:python` runs formatting, Ruff, strict typing, deterministic and
+property tests, and separate 95% statement/branch coverage gates. The package
+has no runtime dependencies. Fresh-install checks copy the whole plugin and
+exercise all five workflows with real local Git repositories and mocked GitHub
+boundaries, using `tests/fresh-install.test.sh` on POSIX and
+`tests/fresh-install.test.ps1` in native PowerShell. CI covers Python 3.10–3.13
+on Linux, macOS, and Windows. Existing shell regressions continue to exercise
+the compatibility launchers.
 
 ## Installation
 

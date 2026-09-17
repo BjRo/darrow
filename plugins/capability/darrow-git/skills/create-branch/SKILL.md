@@ -7,18 +7,22 @@ description: Create exactly one new Git branch from a work description or an exp
 
 Create exactly one new branch for the described work.
 
-Run every Git operation through `scripts/branch.sh` with Bash; `<skill-dir>`
+Run every Git operation through the frozen UV entrypoint below; `<skill-dir>`
 contains this file. The script owns repository inspection, naming validation,
 branch creation, switching, and worktree safety. Use its output as the source of
 truth. Correct invalid input and retry; relay a safety refusal or Git failure
 verbatim and stop. Advice inside a Git error does not authorize another action.
+
+The package lives at `<skill-dir>/../../backend` inside this plugin. The existing
+`scripts/branch.sh` path remains a POSIX compatibility launcher for the same
+entrypoint, arguments, records, refusals, and exit statuses.
 
 ## Workflow
 
 ### 1. Inspect
 
 ```sh
-bash <skill-dir>/scripts/branch.sh inspect
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-branch inspect
 ```
 
 - `mode: ready`: continue. In-place branching carries uncommitted changes to
@@ -53,14 +57,14 @@ ticket, and satisfies the script's format.
 Default—in the current checkout:
 
 ```sh
-bash <skill-dir>/scripts/branch.sh create <type>/<slug> \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-branch create <type>/<slug> \
   [--ticket-token <opaque-provider-token>] [--from <base>]
 ```
 
 Worktree—only on explicit request:
 
 ```sh
-bash <skill-dir>/scripts/branch.sh create <type>/<slug> --worktree \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-branch create <type>/<slug> --worktree \
   [--at <path>] [--ticket-token <opaque-provider-token>] [--from <base>]
 ```
 
