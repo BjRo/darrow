@@ -23,6 +23,16 @@ case "$1 $2" in
     case "${FORGE_MODE:-}" in
       stale) tip=$(git rev-parse main) ;;
       stale-after-push) tip=$(cat "$dir/old-tip") ;;
+      propagating)
+        calls=$(awk '/^pr list / {n++} END {print n+0}' "$dir/forge-calls")
+        if [[ "$calls" -lt 3 ]]; then tip=$(cat "$dir/old-tip"); fi
+        ;;
+      changed-identity)
+        if [[ "$tip" != "$(cat "$dir/old-tip")" ]]; then
+          printf '43\thttps://github.com/fixture/repo/pull/43\tOPEN\t%s\t%s\t%s\t%s\t%s\n' "$branch" "$tip" "$base" "$draft" "$cross"
+          exit 0
+        fi
+        ;;
       wrong-base) base=develop ;;
       wrong-head) branch=fix/other ;;
       draft) draft=true ;;
@@ -127,6 +137,21 @@ if grep -q '^publication: verified$' "$work/output"; then exit 1; fi
 export FORGE_MODE=''
 bash "$SCRIPT" verify --expected-head "$intended" >"$work/output"
 grep -Fx 'push: none' "$work/output"
+
+fresh
+export FORGE_MODE=propagating
+bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output"
+grep -Fx 'publication: verified' "$work/output"
+test "$(remote_tip)" = "$intended"
+test "$(awk '/^pr list / {n++} END {print n+0}' .git/forge-calls)" = 3
+
+fresh
+export FORGE_MODE=changed-identity
+if bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
+  echo 'FAIL: changed PR identity must not be retried into success' >&2; exit 1
+fi
+test "$(remote_tip)" = "$intended"
+grep -F 'PR identity changed during publication' "$work/output"
 
 fresh
 git switch -qc remote-side "$old"

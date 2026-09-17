@@ -42,8 +42,28 @@ publication_observe() {
     publication_fail 'ambiguous remote branch evidence'
   [[ "$publication_remote_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] ||
     publication_fail 'malformed remote commit evidence'
-  [[ "$publication_pr_commit" == "$publication_remote_commit" ]] ||
-    publication_fail 'forge and remote branch commits do not agree'
+  [[ "$publication_pr_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] ||
+    publication_fail 'malformed forge commit evidence'
+}
+
+publication_observe_converged() {
+  local attempt=1
+  publication_observe
+  local pinned_url=$publication_url pinned_number=$publication_number
+  while [[ "$publication_pr_commit" != "$publication_remote_commit" ]]; do
+    [[ "$publication_remote_commit" == "$publication_expected" ]] ||
+      publication_fail 'forge and remote branch commits do not agree'
+    [[ "$attempt" -lt 5 ]] || publication_fail 'forge and remote branch commits do not agree after bounded propagation observation'
+    sleep 1
+    [[ "$(git rev-parse HEAD)" == "$publication_expected" && "$(git symbolic-ref -q HEAD)" == "refs/heads/$publication_branch" ]] ||
+      publication_fail 'local publication target changed'
+    publication_observe
+    [[ "$publication_url" == "$pinned_url" && "$publication_number" == "$pinned_number" ]] ||
+      publication_fail 'PR identity changed during publication'
+    [[ "$publication_remote_commit" == "$publication_expected" ]] ||
+      publication_fail 'remote branch moved during publication observation'
+    attempt=$((attempt + 1))
+  done
 }
 
 publication_push=${publication_initial_push:-none}
@@ -86,7 +106,7 @@ command -v gh >/dev/null || publication_fail 'gh is required'
 publication_repository=$(gh repo view "$publication_origin" --json nameWithOwner --jq '.nameWithOwner') ||
   publication_fail 'cannot identify the origin repository'
 [[ "$publication_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || publication_fail 'malformed origin repository identity'
-publication_observe
+publication_observe_converged
 if [[ "$publication_create" == completed && -n "${publication_initial_url:-}" && "$publication_url" != "$publication_initial_url" ]]; then
   publication_fail 'created PR URL differs from the observed canonical PR'
 fi
@@ -102,7 +122,7 @@ if [[ "$publication_command" == publish-existing && "$publication_remote_commit"
     publication_fail 'non-force push failed; observe the remote before retrying'
   fi
   publication_push=completed
-  publication_observe
+  publication_observe_converged
   [[ "$publication_url" == "$publication_original_url" && "$publication_number" == "$publication_original_number" ]] ||
     publication_fail 'PR identity changed during publication'
 fi

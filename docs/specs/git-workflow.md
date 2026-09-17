@@ -266,6 +266,15 @@ agree after the operation.
   contract as reuse. A URL or successful command exit alone is not completion.
   If creation or push has occurred but observation fails, report the known
   effects and uncertainty without creating another PR.
+- **GW-P11 — Bounded propagation observation.** When the remote branch already
+  equals the intended commit but the forge reports another valid full commit,
+  allow at most five observations, one second apart. Pin the first observed PR
+  number and URL and recheck the local branch and commit before each observation.
+  A changed identity, shape, unavailable observation, malformed commit, or remote
+  movement refuses immediately. The observation loop never pushes or creates a
+  PR; timeout preserves the known mutation effects and reports incomplete
+  verification. Initial reuse preflight still requires remote/forge agreement
+  before deciding whether a push is necessary.
 
 ### Non-goals
 
