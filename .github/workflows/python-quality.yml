@@ -18,6 +18,7 @@ jobs:
       package_selected: ${{ steps.scopes.outputs.package_selected }}
       skill_authoring: ${{ steps.scopes.outputs.skill_authoring }}
       observability_langfuse: ${{ steps.scopes.outputs.observability_langfuse }}
+      discovery: ${{ steps.scopes.outputs.discovery }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,6 +96,30 @@ jobs:
           enable-cache: true
       - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
 
+  discovery-windows:
+    name: Discovery Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: needs.changes.outputs.discovery == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-discovery/backend
+
   inventory:
     name: Python inventory guard
     runs-on: ubuntu-latest
@@ -146,6 +171,36 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: bash plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
 
+  discovery-fresh-install:
+    name: Fresh install discovery on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.discovery == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test: plugins/capability/darrow-discovery/tests/fresh-install.test.sh
+          - os: macos-latest
+            shell: bash
+            test: plugins/capability/darrow-discovery/tests/fresh-install.test.sh
+          - os: windows-latest
+            shell: pwsh
+            test: plugins/capability/darrow-discovery/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
+
   performance:
     name: Python performance invariants
     needs: changes
@@ -166,9 +221,11 @@ jobs:
       - changes
       - package
       - skill-authoring-windows
+      - discovery-windows
       - inventory
       - skill-authoring-fresh-install
       - observability-fresh-install
+      - discovery-fresh-install
       - performance
     runs-on: ubuntu-latest
     steps:
@@ -180,10 +237,13 @@ jobs:
           PACKAGE_RESULT: ${{ needs.package.result }}
           SKILL_AUTHORING_CHANGED: ${{ needs.changes.outputs.skill_authoring }}
           OBSERVABILITY_CHANGED: ${{ needs.changes.outputs.observability_langfuse }}
+          DISCOVERY_CHANGED: ${{ needs.changes.outputs.discovery }}
           WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
+          DISCOVERY_WINDOWS_RESULT: ${{ needs.discovery-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
           SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
           OBSERVABILITY_INSTALL_RESULT: ${{ needs.observability-fresh-install.result }}
+          DISCOVERY_INSTALL_RESULT: ${{ needs.discovery-fresh-install.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
         run: |
           scripts/verify-python-quality-results \
@@ -191,4 +251,6 @@ jobs:
             "$PACKAGE_SELECTED" "$PACKAGE_RESULT" \
             "$SKILL_AUTHORING_CHANGED" "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
             "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_INSTALL_RESULT" \
-            "$PERFORMANCE_RESULT"
+            "$PERFORMANCE_RESULT" \
+            "$DISCOVERY_CHANGED" "$DISCOVERY_WINDOWS_RESULT" \
+            "$DISCOVERY_INSTALL_RESULT"

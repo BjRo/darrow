@@ -63,7 +63,7 @@ response lint:
    after the user's answer. Do not promise the plan yet or include an outline.
 
 When this lint leaves exactly one root, do not hand-write the round. You must
-run the bundled [frontier renderer](scripts/render-frontier) with Bash and
+run the plugin's packaged frontier renderer through its locked UV entrypoint and
 use its stdout as the structurally validated core of the user-facing response.
 Harmless Markdown and a concise inspected-fact preface are permitted, but do
 not alter the question, recommendation, deferred decisions, or recomputation
@@ -80,12 +80,13 @@ Invoke the renderer from the loaded skill using the applicable host path:
 - Claude Code: run `darrow-render-plan-frontier ...`; plugin executables are
   added to `PATH` by the host.
 - Codex: take the absolute `SKILL.md` path supplied in the selected skill's
-  catalog entry, resolve `scripts/render-frontier` relative to that file's
-  directory, and run it with Bash.
+  catalog entry, resolve `../../backend` relative to that file's directory,
+  and run `uv run --quiet --frozen --no-dev --project <absolute-backend-path>
+  darrow-render-plan-frontier ...`.
 
 Never resolve the renderer from the user's current project, repository root,
-or a presumed `.agents/skills` checkout. It is a resource of the installed
-plugin skill.
+or a presumed `.agents/skills` checkout. The backend and lock are resources of
+the installed plugin.
 
 Pass:
 

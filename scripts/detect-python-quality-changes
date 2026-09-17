@@ -49,6 +49,9 @@ append_package() {
     plugins/capability/darrow-observability-langfuse/backend)
       observability_langfuse=true
       ;;
+    plugins/capability/darrow-discovery/backend)
+      discovery=true
+      ;;
   esac
 }
 
@@ -103,6 +106,7 @@ packages_json='[]'
 package_selected=false
 skill_authoring=false
 observability_langfuse=false
+discovery=false
 seen_packages='|'
 
 while IFS= read -r package; do
@@ -139,3 +143,4 @@ printf 'packages=%s\n' "$packages_json"
 printf 'package_selected=%s\n' "$package_selected"
 printf 'skill_authoring=%s\n' "$skill_authoring"
 printf 'observability_langfuse=%s\n' "$observability_langfuse"
+printf 'discovery=%s\n' "$discovery"

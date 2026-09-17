@@ -340,6 +340,15 @@ skill.
    Apply that contextual audit to the complete user-facing round after
    rendering, including any inspected-fact preface. Missing repository
    implementation does not settle compatibility or migration obligations.
+5. **DC-P5 — Portable frontier renderer.** The deterministic frontier renderer
+   is a plugin-contained, UV-locked Python package with no runtime dependencies.
+   Its public command preserves the accepted arguments, rendered structure,
+   validation diagnostics, stdout/stderr separation, and exit statuses on
+   Linux, macOS, and native Windows. Claude Code retains the
+   `darrow-render-plan-frontier` plugin command through portable launcher glue;
+   Codex invokes the same locked package entrypoint from the installed skill.
+   Fresh-artifact checks exercise both host paths without repository-relative
+   references.
 
 ## Evaluation requirements
 

@@ -62,7 +62,9 @@ Clarify a feature or develop an implementation plan. Grilling alone is manual-on
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; repository read access. The planning frontier renderer uses Bash and baseline Unix tools.
+Codex and Claude Code; repository read access, UV, and a UV-managed Python
+3.10–3.13 runtime. The planning frontier renderer is installed from this
+plugin's locked, dependency-free Python package.
 
 ## Installation
 
@@ -85,7 +87,9 @@ A read-only discussion and confirmed discovery brief or implementation plan, wit
 
 ## Troubleshooting
 
-Answer the current frontier when choices remain. A missing installed sibling method or renderer blocks progress; do not substitute an unrelated checkout's files.
+Answer the current frontier when choices remain. A missing installed sibling
+method, backend, lock, UV installation, or supported Python runtime blocks
+progress; do not substitute an unrelated checkout's files.
 For a discovery or host problem, use the
 [documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
 and report the plugin version, host version, exact invocation, and error
