@@ -76,23 +76,26 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
 - **SA-C5 — Mechanics are executable.** Put deterministic, repeatedly needed,
   or error-prone checks in a bundled script with narrow inputs and stable
   machine-readable output. Keep contextual decisions and trade-offs in
-  `SKILL.md`. Do not add a script when existing tools and instructions are
-  already reliable.
+  `SKILL.md`. Use a contained, locked Python package when substantial mechanics
+  benefit from structured code or native Windows support; use portable Bash for
+  genuinely small host-specific launchers and command glue. Do not add a script
+  when existing tools and instructions are already reliable.
 - **SA-C6 — Fail closed and identify evidence.** A required unreadable skill,
   manifest, configuration, instruction, or referenced local resource blocks the
   dependent result. Model-facing script output identifies inspected inputs and
   local references with absolute paths. Missing evidence is never treated as a
   successful empty state.
-- **SA-C7 — Portable self-containment.** Bundled shell scripts work in Bash 5
-  and `/bin/bash` 3.2, avoid GNU-only assumptions, and never require files from a
-  sibling plugin. Normalize paths before emitting or comparing them, and handle
-  ordinary environment spelling variants such as `TMPDIR` with or without a
-  trailing separator. Label shell evidence by the interpreter's observed
-  version rather than its command name, deduplicate equivalent interpreters,
-  and leave an unavailable required version explicitly unverified. Shell tests
-  must preserve their executing interpreter in nested implementation calls;
-  a different `bash` on `PATH` must not substitute for the selected interpreter.
-  A packaged skill remains useful with no MCP server or other Darrow plugin
+- **SA-C7 — Portable self-containment.** A Python-backed helper keeps its
+  package, lock, entrypoints, dependencies, and state inside the owning plugin;
+  separates runtime from development dependencies; uses frozen UV execution;
+  and verifies its public entrypoints from a fresh artifact on every claimed
+  native platform. Bundled shell scripts work in Bash 5 and `/bin/bash` 3.2,
+  avoid GNU-only assumptions, and never require files from a sibling plugin.
+  Normalize paths before emitting or comparing them. Label shell evidence by
+  the interpreter's observed version, deduplicate equivalent interpreters, and
+  leave an unavailable required version explicitly unverified. Shell tests
+  preserve their executing interpreter in nested implementation calls. A
+  packaged skill remains useful with no MCP server or other Darrow plugin
   installed unless its own manifest declares and supplies that dependency.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
@@ -108,10 +111,11 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   self-containment, safety, and loophole findings, then rerun affected script
   tests and evals.
 - **SA-C10 — Verified delivery.** Validate skill metadata, plugin manifests,
-  marketplace/discovery entries, local-reference containment, both-shell script
-  behavior, and relevant repository gates. Report exact commands, outcomes,
-  evaluation limitations, and residual risks. Authoring does not imply commit,
-  push, pull request, publication, release, or deployment authority.
+  marketplace/discovery entries, local-reference containment, relevant native
+  platform or both-shell behavior, and repository gates. Report exact commands,
+  outcomes, evaluation limitations, and residual risks. Authoring does not
+  imply commit, push, pull request, publication, release, or deployment
+  authority.
 
 ## Non-goals
 

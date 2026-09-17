@@ -44,8 +44,8 @@ shell test. Apply it to both the implementation and its deterministic tests.
 
 Run every target shell test through the authoring skill's bundled matrix helper:
 
-```bash
-bash <skill-dir>/scripts/verify-shell-tests -- <test-script>...
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" verify-shell-tests -- "<test-script>"...
 ```
 
 The helper discovers actual Bash 3.2 and Bash 5 interpreters, queries their

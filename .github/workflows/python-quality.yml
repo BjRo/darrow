@@ -15,9 +15,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     env:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
@@ -38,15 +41,39 @@ jobs:
       - run: scripts/test-python-inventory
 
   fresh-install:
-    name: Python fresh plugin install
-    runs-on: ubuntu-latest
+    name: Fresh install ${{ matrix.plugin }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            plugin: observability-langfuse
+            shell: bash
+            test: plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
+          - os: ubuntu-latest
+            plugin: skill-authoring
+            shell: bash
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
+          - os: macos-latest
+            plugin: skill-authoring
+            shell: bash
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
+          - os: windows-latest
+            plugin: skill-authoring
+            shell: pwsh
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: bash plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
 
   performance:
     name: Python performance invariants

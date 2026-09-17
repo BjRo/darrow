@@ -11,21 +11,31 @@ Codex.
   verifies the resulting package in fresh context.
 
 The plugin is self-contained. It does not require another Darrow plugin, an MCP
-server, or a workflow runtime. Its bundled inspector validates portable
-metadata and containment for inline Markdown-linked local resources; the
-workflow inspects other path forms, and native runtime validators remain
-authoritative for their complete formats.
+server, or a workflow runtime. Its locked Python inspector validates portable
+metadata and containment for inline Markdown-linked local resources on Linux,
+macOS, and native Windows; the workflow inspects other path forms, and native
+runtime validators remain authoritative for their complete formats.
 
 ## Design boundaries
 
-Validation is read-only. Creation and revision require a supplied goal,
-destination, supported runtimes, and clear authority. The skill does not
-invent a capability or publish it without a separate explicit request.
+Validation keeps the target repository read-only. On first use, UV may create
+`skills/author-agent-skill/backend/.venv` inside the installed plugin and fetch
+the locked Python environment. Creation and revision require a supplied goal,
+destination, supported runtimes, and clear authority. The skill does not invent
+a capability or publish it without a separate explicit request.
 
 ## Development
 
-From this plugin directory, run all deterministic tests through the
-version-aware matrix:
+From this plugin directory, prepare the locked helper environment without
+development dependencies:
+
+```text
+uv sync --quiet --frozen --no-dev --project skills/author-agent-skill/backend
+```
+
+From the repository root, run the Python quality checks with
+`bun run check:python`. From this plugin directory, run the compatibility shell
+suites through the version-aware matrix:
 
 ```sh
 bash skills/author-agent-skill/scripts/verify-shell-tests -- \
@@ -53,7 +63,9 @@ Create, revise, or validate one reusable skill. Do not use it for generic instru
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; Bash and baseline Unix tools. Live evaluations need the target's supported host harness.
+Codex and Claude Code; UV and a UV-managed Python `>=3.10,<3.14`. The small
+POSIX compatibility launchers use Bash and baseline Unix tools. Live
+evaluations need the target's supported host harness.
 
 ## Installation
 

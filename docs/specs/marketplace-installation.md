@@ -20,4 +20,7 @@ installation scope is passed to every per-plugin command.
 
 The installation documentation must identify both excluded entries: the
 ticket-pipeline entry is deprecated, and the Langfuse plugin requires UV/Python,
-hook trust, and separate opt-in configuration.
+hook trust, and separate opt-in configuration. It also names UV and the
+supported Python range as runtime prerequisites for the included skill-authoring
+plugin without presenting that self-contained package as a cross-plugin
+dependency.

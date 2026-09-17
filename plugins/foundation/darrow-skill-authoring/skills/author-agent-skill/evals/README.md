@@ -7,6 +7,7 @@ and inspect each failure before starting the next case.
 | Request boundary                                | Case                      |
 | ----------------------------------------------- | ------------------------- |
 | Direct skill creation                           | `create-focused-skill`    |
+| Cross-platform Python mechanic                  | `create-python-mechanic`  |
 | Indirect reusable-workflow request              | `indirect-discovery`      |
 | Missing goal, destination, and runtime support  | `refuse-undefined-skill`  |
 | Ordinary agent guidance without skill intent    | `non-skill-guidance`      |

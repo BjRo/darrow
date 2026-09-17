@@ -156,6 +156,11 @@ The shortcut deliberately excludes two marketplace entries:
   it does not enable tracing: configure credentials and explicitly opt in before
   it exports anything. Read its local README before enabling it.
 
+`darrow-skill-authoring` remains part of the shortcut, but its deterministic
+authoring helpers require UV and a UV-managed Python `>=3.10,<3.14` when used.
+Its plugin-local lock and package do not create a dependency on another Darrow
+plugin.
+
 ## Verify the installation
 
 First check the installed listing names your selected plugin. In a fresh
