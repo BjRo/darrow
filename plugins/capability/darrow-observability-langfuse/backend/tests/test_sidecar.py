@@ -19,17 +19,30 @@ from darrow_observability_langfuse.sidecar import (
 
 
 class SidecarTest(unittest.TestCase):
-    def test_concurrent_provisional_snapshots_do_not_lose_updates(self):
-        snapshot = {"work_item_id": None, "source": "none", "branch": None, "head": None}
+    def test_concurrent_provisional_snapshots_do_not_lose_updates(self) -> None:
+        snapshot = {
+            "work_item_id": None,
+            "source": "none",
+            "branch": None,
+            "head": None,
+        }
         with tempfile.TemporaryDirectory() as directory:
             plugin_data = Path(directory)
             with ThreadPoolExecutor(max_workers=8) as executor:
-                list(executor.map(lambda index: record_provisional_attribution_snapshot(
-                    plugin_data, "session", str(index), snapshot), range(32)))
-            self.assertEqual(set(load_provisional_attribution_snapshots(plugin_data, "session")),
-                             {str(index) for index in range(32)})
+                list(
+                    executor.map(
+                        lambda index: record_provisional_attribution_snapshot(
+                            plugin_data, "session", str(index), snapshot
+                        ),
+                        range(32),
+                    )
+                )
+            self.assertEqual(
+                set(load_provisional_attribution_snapshots(plugin_data, "session")),
+                {str(index) for index in range(32)},
+            )
 
-    def test_provisional_snapshot_is_private_immutable_and_discardable(self):
+    def test_provisional_snapshot_is_private_immutable_and_discardable(self) -> None:
         snapshot = {
             "work_item_id": "issue-45",
             "source": "git_branch",
@@ -73,7 +86,7 @@ class SidecarTest(unittest.TestCase):
                 list((plugin_data / "attribution-snapshots").glob("*.json")), []
             )
 
-    def test_semantically_invalid_attribution_snapshots_are_refused(self):
+    def test_semantically_invalid_attribution_snapshots_are_refused(self) -> None:
         valid = {
             "work_item_id": "issue-45",
             "source": "git_branch",
@@ -117,9 +130,7 @@ class SidecarTest(unittest.TestCase):
             {
                 "version": 1,
                 "uploaded_turn_ids": [],
-                "attribution_snapshots": {
-                    "turn-1": {**valid, "branch": None}
-                },
+                "attribution_snapshots": {"turn-1": {**valid, "branch": None}},
             },
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -138,7 +149,9 @@ class SidecarTest(unittest.TestCase):
             )
             self.assertEqual(load_attribution_snapshots(rollout), {})
 
-    def test_attribution_snapshot_survives_export_marking_and_is_immutable(self):
+    def test_attribution_snapshot_survives_export_marking_and_is_immutable(
+        self,
+    ) -> None:
         snapshot = {
             "work_item_id": "issue-45",
             "source": "git_branch",
@@ -177,7 +190,7 @@ class SidecarTest(unittest.TestCase):
                 0o600,
             )
 
-    def test_completed_turn_is_not_exported_twice(self):
+    def test_completed_turn_is_not_exported_twice(self) -> None:
         document = {
             "status": "dry-run",
             "traces": [
@@ -196,7 +209,9 @@ class SidecarTest(unittest.TestCase):
 
             self.assertEqual(pending_document(document, rollout)["traces"], [])
             sidecar = Path(f"{rollout}.darrow-langfuse")
-            self.assertEqual(json.loads(sidecar.read_text())["uploaded_turn_ids"], ["turn-1"])
+            self.assertEqual(
+                json.loads(sidecar.read_text())["uploaded_turn_ids"], ["turn-1"]
+            )
             self.assertEqual(os.stat(sidecar).st_mode & 0o777, 0o600)
 
 

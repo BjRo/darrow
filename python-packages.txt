@@ -1,0 +1,2 @@
+# Repository-relative Python package roots, one per line.
+plugins/capability/darrow-observability-langfuse/backend

@@ -14,7 +14,7 @@ from darrow_observability_langfuse.config import (
 
 
 class ConfigTest(unittest.TestCase):
-    def test_environment_overrides_repository_and_user_files(self):
+    def test_environment_overrides_repository_and_user_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             home = root / "home"
@@ -48,28 +48,61 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.public_key, "pk-test")
         self.assertEqual(config.secret_key, "sk-test")
 
-    def test_branch_inference_handles_ticket_and_absent_states(self):
+    def test_branch_inference_handles_ticket_and_absent_states(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             subprocess.run(["git", "init", "-q", str(repo)], check=True)
             subprocess.run(
-                ["git", "-C", str(repo), "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "init"],
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "-c",
+                    "user.name=Test",
+                    "-c",
+                    "user.email=test@example.com",
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "init",
+                ],
                 check=True,
             )
 
-            subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-b", "feat/DAR-123-export"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "checkout", "-q", "-b", "feat/DAR-123-export"],
+                check=True,
+            )
             self.assertEqual(infer_work_item_id(str(repo)), "DAR-123")
 
-            subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-B", "feat/45-export"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "checkout", "-q", "-B", "feat/45-export"],
+                check=True,
+            )
             self.assertEqual(infer_work_item_id(str(repo)), "45")
 
-            subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-B", "feat/langfuse-export"], check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "checkout",
+                    "-q",
+                    "-B",
+                    "feat/langfuse-export",
+                ],
+                check=True,
+            )
             self.assertIsNone(infer_work_item_id(str(repo)))
 
-            subprocess.run(["git", "-C", str(repo), "checkout", "-q", "--detach", "HEAD"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "checkout", "-q", "--detach", "HEAD"],
+                check=True,
+            )
             self.assertIsNone(infer_work_item_id(str(repo)))
 
-    def test_branch_inference_uses_only_the_exact_leading_token(self):
+    def test_branch_inference_uses_only_the_exact_leading_token(self) -> None:
         self.assertEqual(
             infer_work_item_id_from_branch("fix/issue-64-preserve-ticket-identifiers"),
             "issue-64",
@@ -84,6 +117,7 @@ class ConfigTest(unittest.TestCase):
             infer_work_item_id_from_branch("fix/issue-64-preserve-DAR-123"),
             "issue-64",
         )
+
 
 if __name__ == "__main__":
     unittest.main()

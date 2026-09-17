@@ -264,10 +264,12 @@ bash hooks/stop.test.sh
 bash hooks/export-failure.test.sh
 bash hooks/refusal.test.sh
 bash hooks/strict.test.sh
-uv run --frozen --project backend python -m unittest discover -s backend/tests
+bun run check:python
 ```
 
 Run each shell test with both `bash` and `/bin/bash` in repository development.
+The repository command verifies the UV lock, formatting, lint, strict typing,
+tests, property tests, and separate statement and branch coverage gates.
 
 ## When to use
 

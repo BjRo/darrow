@@ -4,10 +4,10 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
-
+from typing import Any
 
 _WORK_ITEM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _LEADING_BRANCH_TOKEN = re.compile(
@@ -49,7 +49,9 @@ def _read_config_file(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f"configuration file is unreadable or invalid: {path}") from error
+        raise ValueError(
+            f"configuration file is unreadable or invalid: {path}"
+        ) from error
     if not isinstance(value, dict):
         raise ValueError(f"configuration file must contain an object: {path}")
     return value
@@ -99,13 +101,17 @@ def load_config(
         if variable in environment:
             merged[key] = environment[variable]
 
-    bool_fields = {name: _parse_bool(merged[name], name) for name in (
-        "enabled",
-        "capture_content",
-        "dry_run",
-        "debug",
-        "strict",
-    ) if name in merged}
+    bool_fields = {
+        name: _parse_bool(merged[name], name)
+        for name in (
+            "enabled",
+            "capture_content",
+            "dry_run",
+            "debug",
+            "strict",
+        )
+        if name in merged
+    }
     max_chars = merged.get("max_chars", 20_000)
     try:
         max_chars = int(max_chars)

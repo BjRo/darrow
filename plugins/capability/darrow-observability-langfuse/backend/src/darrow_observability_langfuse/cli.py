@@ -6,11 +6,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .capture import capture, load_capture_snapshots
 from .config import Config, load_config
 from .context import delivery_context
-from .export import export_document
-from .capture import capture, load_capture_snapshots
 from .delivery import await_capture, drain
+from .export import export_document
 from .lifecycle import record_terminal, registered_rollouts
 from .rollout import attribution_snapshot, trace_document
 from .sidecar import (
@@ -25,9 +25,11 @@ def _environment_true(name: str) -> bool:
 
 
 def _diagnose(message: str, *, config: Config | None = None) -> None:
-    if (config and (config.debug or config.strict)) or _environment_true(
-        "DARROW_LANGFUSE_DEBUG"
-    ) or _environment_true("DARROW_LANGFUSE_STRICT"):
+    if (
+        (config and (config.debug or config.strict))
+        or _environment_true("DARROW_LANGFUSE_DEBUG")
+        or _environment_true("DARROW_LANGFUSE_STRICT")
+    ):
         print(f"darrow-langfuse: {message}", file=sys.stderr)
 
 
@@ -71,14 +73,18 @@ def _plugin_data() -> Path | None:
 
 
 def _completed_turn_ids(document: dict[str, Any]) -> set[str]:
-    result = set()
+    result: set[str] = set()
     traces = document.get("traces")
     if not isinstance(traces, list):
         return result
     for trace in traces:
         metadata = trace.get("metadata") if isinstance(trace, dict) else None
         turn_id = metadata.get("codex.turn_id") if isinstance(metadata, dict) else None
-        if metadata and metadata.get("codex.completed") is True and isinstance(turn_id, str):
+        if (
+            metadata
+            and metadata.get("codex.completed") is True
+            and isinstance(turn_id, str)
+        ):
             result.add(turn_id)
     return result
 
@@ -87,106 +93,197 @@ def run(*, background: bool = False) -> int:
     config: Config | None = None
     try:
         hook_input = _read_hook_input()
-        cwd = hook_input.get("cwd") if isinstance(hook_input.get("cwd"), str) else os.getcwd()
+        cwd_value = (
+            hook_input.get("cwd")
+            if isinstance(hook_input.get("cwd"), str)
+            else os.getcwd()
+        )
+        cwd = str(cwd_value)
         config = load_config(cwd)
         if not config.enabled:
             _diagnose("tracing is disabled", config=config)
             return 0
-        hook_event_name = hook_input.get("hook_event_name")
-        session_id = _required_identifier(hook_input.get("session_id"), "session_id")
-        plugin_data = _plugin_data()
-        if background:
-            if config.dry_run:
-                return 0
-            transcript_path = hook_input.get("transcript_path")
-            if not config.public_key or not config.secret_key:
-                raise ValueError("Langfuse credentials are missing")
-            valid_path = isinstance(transcript_path, str) and Path(transcript_path).is_absolute()
-            if hook_event_name == "Stop":
-                if not valid_path:
-                    raise ValueError("hook input is missing transcript_path")
-                if not await_capture(Path(transcript_path), _required_identifier(hook_input.get("turn_id"), "turn_id")):
-                    raise ValueError("foreground capture has not completed")
-                drain(Path(transcript_path), config, cwd=cwd, exporter=export_document, plugin_data=plugin_data)
-            elif hook_event_name in {"SessionStart", "UserPromptSubmit"}:
-                targets = list(registered_rollouts(plugin_data, delivery_context(config, cwd)))
-                if valid_path:
-                    targets.append((Path(transcript_path).resolve(), session_id))
-                failure = None
-                for path, identifier in dict.fromkeys(targets):
-                    try:
-                        capture(path, config, cwd, identifier, None, plugin_data)
-                        drain(path, config, cwd=cwd, exporter=export_document, plugin_data=plugin_data)
-                    except Exception as error:
-                        failure = error  # One stale session cannot starve another backlog.
-                if failure is not None:
-                    raise failure
-            else:
-                raise ValueError("hook input has an unsupported background event")
-            return 0
-        if hook_event_name in {"Interrupt", "SessionEnd"}:
-            if config.dry_run:
-                return 0
-            transcript_path = hook_input.get("transcript_path")
-            if not isinstance(transcript_path, str):
-                raise ValueError("hook input is missing transcript_path")
-            terminal_turn = _required_identifier(hook_input.get("turn_id"), "turn_id") if hook_event_name == "Interrupt" else None
-            record_terminal(Path(transcript_path), session_id, hook_event_name, terminal_turn, config, plugin_data, cwd=cwd)
-            return 0
-        turn_id = _required_identifier(hook_input.get("turn_id"), "turn_id")
-        if hook_event_name == "UserPromptSubmit":
-            if config.dry_run:
-                return 0
-            if plugin_data is None:
-                raise ValueError("PLUGIN_DATA is unavailable for provisional attribution")
-            record_provisional_attribution_snapshot(
-                plugin_data,
-                session_id,
-                turn_id,
-                attribution_snapshot(config, cwd),
-            )
-            return 0
-        if hook_event_name != "Stop":
-            raise ValueError("hook input has an unsupported hook_event_name")
-        transcript_path = hook_input.get("transcript_path")
-        if not isinstance(transcript_path, str) or not transcript_path:
-            raise ValueError("hook input is missing transcript_path")
-        rollout = Path(transcript_path)
-        if not rollout.is_absolute():
-            raise ValueError("transcript_path must name a readable absolute file")
-        if not config.dry_run:
-            if not config.public_key or not config.secret_key:
-                raise ValueError("Langfuse credentials are missing")
-            capture(rollout, config, cwd, session_id, turn_id, plugin_data)
-            return 0
-        snapshots = {**load_attribution_snapshots(rollout), **load_capture_snapshots(rollout)}
-        provisional = (
-            load_provisional_attribution_snapshots(plugin_data, session_id)
-            if plugin_data is not None
-            else {}
-        )
-        if turn_id in snapshots:
-            current_snapshot = snapshots[turn_id]
-        else:
-            current_snapshot = attribution_snapshot(config, cwd)
-        effective_snapshots = dict(provisional)
-        effective_snapshots.update(snapshots)
-        effective_snapshots[turn_id] = current_snapshot
-        document = trace_document(
-            rollout,
-            config,
-            cwd,
-            attribution_snapshots=effective_snapshots,
-        )
-        _complete_stop_turn(document, turn_id)
-        if config.dry_run:
-            json.dump(document, sys.stdout, separators=(",", ":"), sort_keys=True)
-            sys.stdout.write("\n")
-            return 0
+        return _HookRunner(config, hook_input, cwd, _plugin_data()).execute(background)
     except Exception as error:  # The hook is fail-open unless strict mode is explicit.
         _diagnose(str(error), config=config)
-        strict = config.strict if config is not None else _environment_true("DARROW_LANGFUSE_STRICT")
+        strict = (
+            config.strict
+            if config is not None
+            else _environment_true("DARROW_LANGFUSE_STRICT")
+        )
         return 1 if strict else 0
+
+
+class _HookRunner:
+    def __init__(
+        self,
+        config: Config,
+        hook_input: dict[str, Any],
+        cwd: str,
+        plugin_data: Path | None,
+    ) -> None:
+        self.config = config
+        self.hook_input = hook_input
+        self.cwd = cwd
+        self.plugin_data = plugin_data
+        event = hook_input.get("hook_event_name")
+        self.event = event if isinstance(event, str) else ""
+        self.session_id = _required_identifier(
+            hook_input.get("session_id"), "session_id"
+        )
+
+    def execute(self, background: bool) -> int:
+        if background:
+            return self._background()
+        handlers = {
+            "Interrupt": self._terminal,
+            "SessionEnd": self._terminal,
+            "UserPromptSubmit": self._prompt,
+            "Stop": self._stop,
+        }
+        handler = handlers.get(self.event)
+        if handler is None:
+            raise ValueError("hook input has an unsupported hook_event_name")
+        return handler()
+
+    def _background(self) -> int:
+        if self.config.dry_run:
+            return 0
+        self._require_credentials()
+        handlers = {
+            "Stop": self._background_stop,
+            "SessionStart": self._background_recover,
+            "UserPromptSubmit": self._background_recover,
+        }
+        handler = handlers.get(self.event)
+        if handler is None:
+            raise ValueError("hook input has an unsupported background event")
+        handler()
+        return 0
+
+    def _background_stop(self) -> None:
+        rollout = self._absolute_rollout()
+        turn_id = _required_identifier(self.hook_input.get("turn_id"), "turn_id")
+        if not await_capture(rollout, turn_id):
+            raise ValueError("foreground capture has not completed")
+        self._drain(rollout)
+
+    def _background_recover(self) -> None:
+        targets = list(
+            registered_rollouts(
+                self.plugin_data, delivery_context(self.config, self.cwd)
+            )
+        )
+        transcript = self.hook_input.get("transcript_path")
+        if isinstance(transcript, str) and Path(transcript).is_absolute():
+            targets.append((Path(transcript).resolve(), self.session_id))
+        failure: Exception | None = None
+        for path, identifier in dict.fromkeys(targets):
+            try:
+                capture(
+                    path,
+                    self.config,
+                    self.cwd,
+                    identifier,
+                    None,
+                    self.plugin_data,
+                )
+                self._drain(path)
+            except Exception as error:
+                failure = error
+        if failure is not None:
+            raise failure
+
+    def _drain(self, rollout: Path) -> None:
+        drain(
+            rollout,
+            self.config,
+            cwd=self.cwd,
+            exporter=export_document,
+            plugin_data=self.plugin_data,
+        )
+
+    def _terminal(self) -> int:
+        if self.config.dry_run:
+            return 0
+        terminal_turn = (
+            _required_identifier(self.hook_input.get("turn_id"), "turn_id")
+            if self.event == "Interrupt"
+            else None
+        )
+        record_terminal(
+            self._absolute_rollout(),
+            self.session_id,
+            str(self.event),
+            terminal_turn,
+            self.config,
+            self.plugin_data,
+            cwd=self.cwd,
+        )
+        return 0
+
+    def _prompt(self) -> int:
+        if self.config.dry_run:
+            return 0
+        if self.plugin_data is None:
+            raise ValueError("PLUGIN_DATA is unavailable for provisional attribution")
+        turn_id = _required_identifier(self.hook_input.get("turn_id"), "turn_id")
+        record_provisional_attribution_snapshot(
+            self.plugin_data,
+            self.session_id,
+            turn_id,
+            attribution_snapshot(self.config, self.cwd),
+        )
+        return 0
+
+    def _stop(self) -> int:
+        rollout = self._absolute_rollout()
+        turn_id = _required_identifier(self.hook_input.get("turn_id"), "turn_id")
+        if not self.config.dry_run:
+            self._require_credentials()
+            capture(
+                rollout,
+                self.config,
+                self.cwd,
+                self.session_id,
+                turn_id,
+                self.plugin_data,
+            )
+            return 0
+        self._print_dry_run(rollout, turn_id)
+        return 0
+
+    def _print_dry_run(self, rollout: Path, turn_id: str) -> None:
+        snapshots = {
+            **load_attribution_snapshots(rollout),
+            **load_capture_snapshots(rollout),
+        }
+        provisional = (
+            load_provisional_attribution_snapshots(self.plugin_data, self.session_id)
+            if self.plugin_data is not None
+            else {}
+        )
+        current = snapshots.get(turn_id) or attribution_snapshot(self.config, self.cwd)
+        effective = {**provisional, **snapshots, turn_id: current}
+        document = trace_document(
+            rollout, self.config, self.cwd, attribution_snapshots=effective
+        )
+        _complete_stop_turn(document, turn_id)
+        json.dump(document, sys.stdout, separators=(",", ":"), sort_keys=True)
+        sys.stdout.write("\n")
+
+    def _absolute_rollout(self) -> Path:
+        value = self.hook_input.get("transcript_path")
+        if not isinstance(value, str) or not value:
+            raise ValueError("hook input is missing transcript_path")
+        rollout = Path(value)
+        if not rollout.is_absolute():
+            raise ValueError("transcript_path must name a readable absolute file")
+        return rollout
+
+    def _require_credentials(self) -> None:
+        if not self.config.public_key or not self.config.secret_key:
+            raise ValueError("Langfuse credentials are missing")
 
 
 def main() -> None:

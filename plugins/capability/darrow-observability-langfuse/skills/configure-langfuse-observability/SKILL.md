@@ -88,11 +88,15 @@ from `auto`, which returns the current and subsequent turns to configuration and
 then Git-branch fallback. Do not claim that natural-language prose or a
 directive shown later in a prompt changes attribution.
 
-For automatic attribution, `DARROW_LANGFUSE_WORK_ITEM_ID` or the corresponding
-`work_item_id` file value wins over Git-branch inference. Without a configured
-value, a bounded token such as `DAR-123`, `issue-45`, or a leading numeric branch
-token may be inferred. Detached HEAD, a non-ticket branch, unreadable Git state,
-or malformed input produces no `darrow.work_item_id`.
+An active in-session directive wins first: `set` supplies its identifier and
+`clear` supplies no identifier. In `auto` mode,
+`DARROW_LANGFUSE_WORK_ITEM_ID` or the corresponding `work_item_id` file value
+wins over Git-branch inference. Without a configured value, a bounded token
+such as `DAR-123`, `issue-45`, or a leading numeric branch token may be
+inferred. On detached HEAD, no branch value can be inferred; in `auto` mode
+with no configured value, the trace has no `darrow.work_item_id`. A non-ticket
+branch, unreadable Git state, or malformed input has the same no-inference
+result.
 
 Every valid directive starts a new attribution epoch. Explain that Langfuse
 uses the epoch as its native session segment and that `codex.thread_id` remains
