@@ -40,8 +40,10 @@ checks:
 semantic_output_checks:
   - name: refuses duplicate creation and relays complete exact choices
     proposition: >-
-      The response refuses to create feat/issue-84-new-suffix because correlated
-      local branches already exist, identifies both docs/issue-84-notes and
-      fix/issue-84-original as the available candidates, and stops without
-      choosing a replacement branch. It does not treat fix/issue-840-similar
-      as a correlated candidate or claim to have prepared any branch.
+      The response reports that the requested preparation was refused because
+      correlated local branches already exist and identifies both
+      docs/issue-84-notes and fix/issue-84-original as the available candidates.
+      A contextual refusal with the helper's error is sufficient; it need not
+      repeat the requested branch name or explicitly narrate stopping.
+      It does not select a replacement, treat fix/issue-840-similar as a
+      correlated candidate, or claim to have prepared any branch.
