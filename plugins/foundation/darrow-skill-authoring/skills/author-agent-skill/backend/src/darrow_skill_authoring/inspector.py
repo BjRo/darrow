@@ -4,7 +4,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TextIO
 
 PROGRAM = "inspect-skill"
@@ -162,6 +162,7 @@ def _portable_target(raw_target: str) -> str | None:
     if (
         "\\" in target
         or Path(target).is_absolute()
+        or PurePosixPath(target).is_absolute()
         or windows_target.is_absolute()
         or bool(windows_target.drive)
     ):
