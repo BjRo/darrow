@@ -1,0 +1,78 @@
+name: Python quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python
+
+  inventory:
+    name: Python inventory guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/test-python-inventory
+
+  fresh-install:
+    name: Python fresh plugin install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: bash plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
+
+  performance:
+    name: Python performance invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: scripts/check-python-performance
+
+  aggregate:
+    name: Python quality
+    if: always()
+    needs: [package, inventory, fresh-install, performance]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Python quality job
+        env:
+          PACKAGE_RESULT: ${{ needs.package.result }}
+          INVENTORY_RESULT: ${{ needs.inventory.result }}
+          INSTALL_RESULT: ${{ needs.fresh-install.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance.result }}
+        run: |
+          test "$PACKAGE_RESULT" = success
+          test "$INVENTORY_RESULT" = success
+          test "$INSTALL_RESULT" = success
+          test "$PERFORMANCE_RESULT" = success

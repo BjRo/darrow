@@ -1,6 +1,7 @@
 {
   "*": "prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
   "*.ts": "eslint --no-warn-ignored --max-warnings 0",
+  "**/{*.py,pyproject.toml,uv.lock}": "scripts/check-python --fast",
   "*.{sh,bash}": "scripts/lint-shell",
   ".githooks/!(*.*)": "scripts/lint-shell",
   "scripts/!(*.*)": "scripts/lint-shell",

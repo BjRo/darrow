@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import json
 import copy
+import json
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -13,14 +14,13 @@ from .config import (
     validate_work_item_id,
 )
 
-
 _SENSITIVE_KEY = re.compile(
     r"(?:authorization|api[-_]?key|secret|password|token|credential)", re.I
 )
 _TOOL_CALL = re.compile(r"\btools\.([A-Za-z_$][A-Za-z0-9_$]*)\s*\(")
 _COMMAND_ARGUMENT = re.compile(
-    r'''(?:"(?:cmd|command)"|'(?:cmd|command)'|\b(?:cmd|command)\b)\s*:\s*'''
-    r'''(?P<value>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)''',
+    r"""(?:"(?:cmd|command)"|'(?:cmd|command)'|\b(?:cmd|command)\b)\s*:\s*"""
+    r"""(?P<value>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)""",
     re.S,
 )
 _TOOL_NAME_MAX_CHARS = 512
@@ -29,12 +29,7 @@ _ATTRIBUTION_DIRECTIVE = "@darrow.attribution"
 
 def _clip(value: Any, limit: int, redactions: tuple[str, ...] = ()) -> Any:
     if isinstance(value, str):
-        for secret in redactions:
-            if secret:
-                value = value.replace(secret, "[REDACTED]")
-        if len(value) <= limit:
-            return value
-        return f"{value[:limit]}\n…[truncated {len(value) - limit} chars]"
+        return _clip_string(value, limit, redactions)
     if isinstance(value, list):
         return [_clip(item, limit, redactions) for item in value]
     if isinstance(value, dict):
@@ -45,6 +40,14 @@ def _clip(value: Any, limit: int, redactions: tuple[str, ...] = ()) -> Any:
             for key, item in value.items()
         }
     return value
+
+
+def _clip_string(value: str, limit: int, redactions: tuple[str, ...]) -> str:
+    for secret in filter(None, redactions):
+        value = value.replace(secret, "[REDACTED]")
+    if len(value) <= limit:
+        return value
+    return f"{value[:limit]}\n…[truncated {len(value) - limit} chars]"
 
 
 def _captured(value: Any, config: Config) -> Any:
@@ -97,13 +100,15 @@ def _reasoning_text(payload: dict[str, Any]) -> str | None:
     candidates = content if isinstance(content, list) else payload.get("summary")
     if not isinstance(candidates, list):
         return None
-    parts = []
-    for item in candidates:
-        if isinstance(item, dict) and isinstance(item.get("text"), str):
-            parts.append(item["text"])
-        elif isinstance(item, str):
-            parts.append(item)
-    return "\n".join(parts) or None
+    return "\n".join(filter(None, map(_reasoning_part, candidates))) or None
+
+
+def _reasoning_part(item: Any) -> str | None:
+    if isinstance(item, str):
+        return item
+    if isinstance(item, dict) and isinstance(item.get("text"), str):
+        return str(item["text"])
+    return None
 
 
 def _parse_arguments(raw: Any) -> Any:
@@ -125,12 +130,9 @@ def _compact_source(value: str) -> str:
 
 def _decode_js_string(value: str) -> str:
     if value.startswith('"'):
-        try:
-            decoded = json.loads(value)
-            if isinstance(decoded, str):
-                return decoded
-        except json.JSONDecodeError:
-            pass
+        decoded = _decode_json_string(value)
+        if decoded is not None:
+            return decoded
     quote = value[0]
     body = value[1:-1]
     escapes = {
@@ -143,7 +145,19 @@ def _decode_js_string(value: str) -> str:
         quote: quote,
         "\\": "\\",
     }
-    decoded = []
+    return _decode_escaped_body(body, escapes)
+
+
+def _decode_json_string(value: str) -> str | None:
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return decoded if isinstance(decoded, str) else None
+
+
+def _decode_escaped_body(body: str, escapes: dict[str, str]) -> str:
+    decoded: list[str] = []
     index = 0
     while index < len(body):
         char = body[index]
@@ -160,26 +174,35 @@ def _decode_js_string(value: str) -> str:
 def _call_arguments(source: str, start: int) -> str | None:
     depth = 1
     quote: str | None = None
-    escaped = False
     for index in range(start, len(source)):
-        char = source[index]
-        if quote is not None:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == quote:
-                quote = None
-            continue
-        if char in {'"', "'", "`"}:
-            quote = char
-        elif char == "(":
-            depth += 1
-        elif char == ")":
-            depth -= 1
-            if depth == 0:
-                return source[start:index]
+        depth, quote = _advance_call_state(source, index, depth, quote)
+        if depth == 0:
+            return source[start:index]
     return None
+
+
+def _advance_call_state(
+    source: str, index: int, depth: int, quote: str | None
+) -> tuple[int, str | None]:
+    char = source[index]
+    if quote is not None:
+        return depth, _quote_after_character(source, index, quote)
+    if char in {'"', "'", "`"}:
+        return depth, char
+    if char == "(":
+        return depth + 1, quote
+    return (depth - 1, quote) if char == ")" else (depth, quote)
+
+
+def _quote_after_character(source: str, index: int, quote: str) -> str | None:
+    if source[index] != quote:
+        return quote
+    escapes = 0
+    cursor = index - 1
+    while cursor >= 0 and source[cursor] == "\\":
+        escapes += 1
+        cursor -= 1
+    return quote if escapes % 2 else None
 
 
 def _short_tool_name(name: str) -> str:
@@ -188,11 +211,14 @@ def _short_tool_name(name: str) -> str:
 
 def _command_from_arguments(arguments: Any) -> str | None:
     if isinstance(arguments, dict):
-        for key in ("cmd", "command"):
-            value = arguments.get(key)
-            if isinstance(value, str) and value:
-                return _single_line(value)
-        return None
+        return next(
+            (
+                _single_line(value)
+                for key in ("cmd", "command")
+                if isinstance((value := arguments.get(key)), str) and value
+            ),
+            None,
+        )
     if not isinstance(arguments, str):
         return None
     match = _COMMAND_ARGUMENT.search(arguments)
@@ -253,11 +279,15 @@ def _attribution_directive(value: Any) -> tuple[str, str | None] | None:
     line = next((line.strip() for line in value.splitlines() if line.strip()), "")
     if not line.startswith(_ATTRIBUTION_DIRECTIVE):
         return None
-    parts = line.split()
-    if parts == [_ATTRIBUTION_DIRECTIVE, "clear"]:
-        return "clear", None
-    if parts == [_ATTRIBUTION_DIRECTIVE, "auto"]:
-        return "auto", None
+    return _parse_attribution_directive(line.split())
+
+
+def _parse_attribution_directive(parts: list[str]) -> tuple[str, str | None]:
+    if parts in (
+        [_ATTRIBUTION_DIRECTIVE, "clear"],
+        [_ATTRIBUTION_DIRECTIVE, "auto"],
+    ):
+        return parts[1], None
     if len(parts) == 3 and parts[:2] == [_ATTRIBUTION_DIRECTIVE, "set"]:
         work_item_id = validate_work_item_id(parts[2])
         if work_item_id is not None:
@@ -267,6 +297,7 @@ def _attribution_directive(value: Any) -> tuple[str, str | None] | None:
 
 def attribution_snapshot(config: Config, cwd: str) -> dict[str, Any]:
     raw_branch, raw_head = git_provenance(cwd)
+    work_item_id: str | None
     if config.work_item_id:
         work_item_id = config.work_item_id
         source = "configuration"
@@ -301,30 +332,37 @@ def _valid_usage(value: Any) -> dict[str, int] | None:
         "output_tokens": value["output_tokens"],
         "total_tokens": value["total_tokens"],
     }
-    cached = value.get("cached_input_tokens")
-    reasoning = value.get("reasoning_output_tokens")
-    if isinstance(cached, int) and 0 <= cached <= value["input_tokens"]:
-        details["cached_input_tokens"] = cached
-    if isinstance(reasoning, int) and 0 <= reasoning <= value["output_tokens"]:
-        details["reasoning_output_tokens"] = reasoning
+    _optional_usage(details, value, "cached_input_tokens", "input_tokens")
+    _optional_usage(details, value, "reasoning_output_tokens", "output_tokens")
     return details
+
+
+def _optional_usage(
+    details: dict[str, int], value: dict[str, Any], key: str, limit_key: str
+) -> None:
+    candidate = value.get(key)
+    if isinstance(candidate, int) and 0 <= candidate <= value[limit_key]:
+        details[key] = candidate
 
 
 def load_rollout(path: Path) -> list[dict[str, Any]]:
     if not path.is_absolute() or not path.is_file():
         raise ValueError("transcript_path must name a readable absolute file")
-    records = []
     try:
-        for raw in path.read_text(encoding="utf-8").splitlines():
-            try:
-                value = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(value, dict) and isinstance(value.get("payload"), dict):
-                records.append(value)
+        lines = path.read_text(encoding="utf-8").splitlines()
     except OSError as error:
         raise ValueError("transcript_path is not readable") from error
-    return records
+    return [record for raw in lines if (record := _parse_record(raw)) is not None]
+
+
+def _parse_record(raw: str) -> dict[str, Any] | None:
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(value, dict) and isinstance(value.get("payload"), dict):
+        return value
+    return None
 
 
 def parse_rollout(
@@ -333,20 +371,50 @@ def parse_rollout(
     state: dict[str, Any] | None = None,
     finalize: bool = True,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    session = (state or {}).get("session", {"session_id": None, "is_subagent": False})
-    turns: list[dict[str, Any]] = []
-    turn = (state or {}).get("turn")
-    step = (state or {}).get("step")
-    tools = {
-        tool["call_id"]: tool
-        for item in ((turn or {}).get("steps", []) + ([step] if step else []))
-        for tool in item["tools"]
-    }
+    parser = _RolloutParser(state)
+    for record in records:
+        parser.consume(record)
+    parser.persist(state)
+    if finalize:
+        parser = parser.preview() if state is not None else parser
+        parser.close_turn(
+            parser.final_timestamp(records), completed=False, aborted=False
+        )
+    return parser.session, parser.turns
 
-    def ensure_turn(timestamp: str) -> dict[str, Any]:
-        nonlocal turn
-        if turn is None:
-            turn = {
+
+class _RolloutParser:
+    def __init__(self, state: dict[str, Any] | None) -> None:
+        saved = state or {}
+        self.session: dict[str, Any] = saved.get(
+            "session", {"session_id": None, "is_subagent": False}
+        )
+        self.turn: dict[str, Any] | None = saved.get("turn")
+        self.step: dict[str, Any] | None = saved.get("step")
+        self.turns: list[dict[str, Any]] = []
+        active_steps = (self.turn or {}).get("steps", [])
+        self.tools = {
+            tool["call_id"]: tool
+            for item in active_steps + ([self.step] if self.step else [])
+            for tool in item["tools"]
+        }
+
+    def preview(self) -> _RolloutParser:
+        duplicate = copy.copy(self)
+        duplicate.turn, duplicate.step = copy.deepcopy((self.turn, self.step))
+        return duplicate
+
+    def persist(self, state: dict[str, Any] | None) -> None:
+        if state is not None:
+            state.update(session=self.session, turn=self.turn, step=self.step)
+
+    def final_timestamp(self, records: list[dict[str, Any]]) -> str:
+        source = records[-1] if records else self.turn or {}
+        return str(source.get("timestamp") or source.get("end_time") or "")
+
+    def ensure_turn(self, timestamp: str) -> dict[str, Any]:
+        if self.turn is None:
+            self.turn = {
                 "start_time": timestamp,
                 "end_time": timestamp,
                 "steps": [],
@@ -354,147 +422,194 @@ def parse_rollout(
                 "completed": False,
                 "aborted": False,
             }
-        return turn
+        return self.turn
 
-    def ensure_step(timestamp: str) -> dict[str, Any]:
-        nonlocal step
-        current = ensure_turn(timestamp)
-        if step is None:
-            step = {"start_time": timestamp, "end_time": timestamp, "tools": []}
+    def ensure_step(self, timestamp: str) -> dict[str, Any]:
+        current = self.ensure_turn(timestamp)
+        if self.step is None:
+            self.step = {"start_time": timestamp, "end_time": timestamp, "tools": []}
         current["end_time"] = timestamp
-        return step
+        return self.step
 
-    def close_step(timestamp: str, usage: Any = None) -> None:
-        nonlocal step
-        if step is None:
+    def close_step(self, timestamp: str, usage: Any = None) -> None:
+        if self.step is None:
             return
-        step["end_time"] = timestamp
+        self.step["end_time"] = timestamp
         normalized = _valid_usage(usage)
         if normalized:
-            step["usage"] = normalized
-        assert turn is not None
-        turn["steps"].append(step)
-        step = None
+            self.step["usage"] = normalized
+        assert self.turn is not None
+        self.turn["steps"].append(self.step)
+        self.step = None
 
-    def close_turn(timestamp: str, *, completed: bool, aborted: bool) -> None:
-        nonlocal turn, tools
-        if turn is None:
+    def close_turn(self, timestamp: str, *, completed: bool, aborted: bool) -> None:
+        if self.turn is None:
             return
-        close_step(timestamp)
-        turn["end_time"] = timestamp
-        turn["completed"] = completed
-        turn["aborted"] = aborted
-        if "output" not in turn and "last_agent_message" in turn:
-            turn["output"] = turn.pop("last_agent_message")
-        else:
-            turn.pop("last_agent_message", None)
-        turns.append(turn)
-        turn = None
-        tools = {}
+        self.close_step(timestamp)
+        self.turn.update(end_time=timestamp, completed=completed, aborted=aborted)
+        self._promote_last_message()
+        self.turns.append(self.turn)
+        self.turn = None
+        self.tools = {}
 
-    for record in records:
+    def _promote_last_message(self) -> None:
+        assert self.turn is not None
+        last_message = self.turn.pop("last_agent_message", None)
+        if "output" not in self.turn and last_message is not None:
+            self.turn["output"] = last_message
+
+    def consume(self, record: dict[str, Any]) -> None:
         timestamp = str(record.get("timestamp") or "")
         kind = record.get("type")
         payload = record["payload"]
-        if kind == "session_meta":
-            if isinstance(payload.get("id"), str) and payload["id"].strip():
-                session["session_id"] = payload["id"]
-            session["cli_version"] = payload.get("cli_version")
-            session["model_provider"] = payload.get("model_provider")
-            session["is_subagent"] = bool(
-                payload.get("parent_thread_id") or payload.get("thread_source") == "subagent"
-            )
-            continue
-        if kind == "turn_context":
-            current = ensure_turn(timestamp)
-            current["model"] = payload.get("model")
-            current["invocation_parameters"] = payload
-            continue
-        if kind == "response_item":
-            current = ensure_turn(timestamp)
-            response_type = payload.get("type")
-            if response_type == "message":
-                text = _message_text(payload.get("content"))
-                if text and payload.get("role") == "assistant":
-                    current_step = ensure_step(timestamp)
-                    current_step["output"] = "\n".join(
-                        filter(None, (current_step.get("output"), text))
-                    )
-                elif text and payload.get("role") == "user" and "input" not in current:
-                    current["input"] = text
-            elif response_type in {"function_call", "custom_tool_call"}:
-                call_id = str(payload.get("call_id") or f"call-{len(tools) + 1}")
-                tool = {
-                    "call_id": call_id,
-                    "name": str(payload.get("name") or "tool"),
-                    "input": _parse_arguments(payload.get("arguments", payload.get("input"))),
-                    "start_time": timestamp,
-                    "end_time": timestamp,
-                }
-                ensure_step(timestamp)["tools"].append(tool)
-                tools[call_id] = tool
-            elif response_type in {"function_call_output", "custom_tool_call_output"}:
-                tool = tools.get(str(payload.get("call_id")))
-                if tool is not None:
-                    tool["output"] = payload.get("output")
-                    tool["end_time"] = timestamp
-            elif response_type == "reasoning":
-                text = _reasoning_text(payload)
-                if text:
-                    ensure_step(timestamp)["reasoning"] = text
-            continue
-        if kind != "event_msg":
-            continue
+        handlers = {
+            "session_meta": self._session_meta,
+            "turn_context": self._turn_context,
+            "response_item": self._response_item,
+            "event_msg": self._event,
+        }
+        handler = handlers.get(kind) if isinstance(kind, str) else None
+        if handler is not None:
+            handler(timestamp, payload)
 
-        event_type = payload.get("type")
+    def _session_meta(self, _timestamp: str, payload: dict[str, Any]) -> None:
+        identifier = payload.get("id")
+        if isinstance(identifier, str) and identifier.strip():
+            self.session["session_id"] = identifier
+        self.session["cli_version"] = payload.get("cli_version")
+        self.session["model_provider"] = payload.get("model_provider")
+        self.session["is_subagent"] = bool(
+            payload.get("parent_thread_id")
+            or payload.get("thread_source") == "subagent"
+        )
+
+    def _turn_context(self, timestamp: str, payload: dict[str, Any]) -> None:
+        current = self.ensure_turn(timestamp)
+        current["model"] = payload.get("model")
+        current["invocation_parameters"] = payload
+
+    def _response_item(self, timestamp: str, payload: dict[str, Any]) -> None:
+        response_type = payload.get("type")
+        handlers = {
+            "message": self._response_message,
+            "function_call": self._response_call,
+            "custom_tool_call": self._response_call,
+            "function_call_output": self._response_output,
+            "custom_tool_call_output": self._response_output,
+            "reasoning": self._response_reasoning,
+        }
+        self.ensure_turn(timestamp)
+        handler = (
+            handlers.get(response_type) if isinstance(response_type, str) else None
+        )
+        if handler is not None:
+            handler(timestamp, payload)
+
+    def _response_message(self, timestamp: str, payload: dict[str, Any]) -> None:
+        text = _message_text(payload.get("content"))
+        role = payload.get("role")
+        if text and role == "assistant":
+            step = self.ensure_step(timestamp)
+            step["output"] = "\n".join(filter(None, (step.get("output"), text)))
+        elif text and role == "user" and self.turn is not None:
+            self.turn.setdefault("input", text)
+
+    def _response_call(self, timestamp: str, payload: dict[str, Any]) -> None:
+        call_id = str(payload.get("call_id") or f"call-{len(self.tools) + 1}")
+        tool = {
+            "call_id": call_id,
+            "name": str(payload.get("name") or "tool"),
+            "input": _parse_arguments(payload.get("arguments", payload.get("input"))),
+            "start_time": timestamp,
+            "end_time": timestamp,
+        }
+        self.ensure_step(timestamp)["tools"].append(tool)
+        self.tools[call_id] = tool
+
+    def _response_output(self, timestamp: str, payload: dict[str, Any]) -> None:
+        tool = self.tools.get(str(payload.get("call_id")))
+        if tool is not None:
+            tool.update(output=payload.get("output"), end_time=timestamp)
+
+    def _response_reasoning(self, timestamp: str, payload: dict[str, Any]) -> None:
+        text = _reasoning_text(payload)
+        if text:
+            self.ensure_step(timestamp)["reasoning"] = text
+
+    def _event(self, timestamp: str, payload: dict[str, Any]) -> None:
+        event_type = str(payload.get("type") or "")
         if event_type == "task_started":
-            close_turn(timestamp, completed=False, aborted=False)
-            current = ensure_turn(timestamp)
-            current["turn_id"] = payload.get("turn_id")
-            continue
-        current = ensure_turn(timestamp)
-        if event_type == "user_message" and isinstance(payload.get("message"), str):
-            current.setdefault("input", payload["message"])
-        elif event_type == "agent_message" and isinstance(payload.get("message"), str):
-            current["last_agent_message"] = payload["message"]
-        elif event_type == "token_count":
-            info = payload.get("info") if isinstance(payload.get("info"), dict) else {}
-            total = _valid_usage(info.get("total_token_usage"))
-            if total:
-                current["total_usage"] = total
-            close_step(timestamp, info.get("last_token_usage"))
-        elif event_type in {"collab_agent_spawn_end", "sub_agent_activity"}:
-            thread_id = payload.get("new_thread_id") or (
-                payload.get("agent_thread_id") if payload.get("kind") == "started" else None
-            )
-            if isinstance(thread_id, str) and thread_id not in current["subagent_thread_ids"]:
-                current["subagent_thread_ids"].append(thread_id)
-        elif isinstance(payload.get("call_id"), str) and event_type.endswith("_end"):
-            tool = tools.get(payload["call_id"])
-            if tool is not None:
-                tool["end_time"] = timestamp
-                if payload.get("status") in {"failed", "declined"}:
-                    tool["error"] = str(
-                        payload.get("error")
-                        or payload.get("aggregated_output")
-                        or payload.get("stderr")
-                        or "tool failed"
-                    )
-                if "output" not in tool and payload.get("aggregated_output") is not None:
-                    tool["output"] = payload["aggregated_output"]
-        if event_type == "task_complete":
-            close_turn(timestamp, completed=True, aborted=False)
-        elif event_type == "turn_aborted":
-            close_turn(timestamp, completed=True, aborted=True)
+            self.close_turn(timestamp, completed=False, aborted=False)
+            self.ensure_turn(timestamp)["turn_id"] = payload.get("turn_id")
+            return
+        handlers = {
+            "user_message": self._event_user_message,
+            "agent_message": self._event_agent_message,
+            "token_count": self._event_token_count,
+            "collab_agent_spawn_end": self._event_subagent,
+            "sub_agent_activity": self._event_subagent,
+        }
+        self.ensure_turn(timestamp)
+        handler = handlers.get(event_type, self._event_tool_end)
+        handler(timestamp, payload)
+        self._finish_event(timestamp, event_type)
 
-    if state is not None:
-        state.update(session=session, turn=turn, step=step)
-    if finalize:
-        # The preview must not close the persisted active parser state.
-        if state is not None:
-            turn, step = copy.deepcopy((turn, step))
-        close_turn(str(records[-1].get("timestamp") if records else (turn or {}).get("end_time", "")), completed=False, aborted=False)
-    return session, turns
+    def _event_user_message(self, _timestamp: str, payload: dict[str, Any]) -> None:
+        message = payload.get("message")
+        if isinstance(message, str) and self.turn is not None:
+            self.turn.setdefault("input", message)
+
+    def _event_agent_message(self, _timestamp: str, payload: dict[str, Any]) -> None:
+        message = payload.get("message")
+        if isinstance(message, str) and self.turn is not None:
+            self.turn["last_agent_message"] = message
+
+    def _event_token_count(self, timestamp: str, payload: dict[str, Any]) -> None:
+        raw_info = payload.get("info")
+        info = raw_info if isinstance(raw_info, dict) else {}
+        total = _valid_usage(info.get("total_token_usage"))
+        if total and self.turn is not None:
+            self.turn["total_usage"] = total
+        self.close_step(timestamp, info.get("last_token_usage"))
+
+    def _event_subagent(self, _timestamp: str, payload: dict[str, Any]) -> None:
+        thread_id = payload.get("new_thread_id")
+        if thread_id is None and payload.get("kind") == "started":
+            thread_id = payload.get("agent_thread_id")
+        assert self.turn is not None
+        children = self.turn["subagent_thread_ids"]
+        if isinstance(thread_id, str) and thread_id not in children:
+            children.append(thread_id)
+
+    def _event_tool_end(self, timestamp: str, payload: dict[str, Any]) -> None:
+        call_id = payload.get("call_id")
+        event_type = str(payload.get("type") or "")
+        if not isinstance(call_id, str) or not event_type.endswith("_end"):
+            return
+        tool = self.tools.get(call_id)
+        if tool is None:
+            return
+        tool["end_time"] = timestamp
+        self._record_tool_error(tool, payload)
+        if "output" not in tool and payload.get("aggregated_output") is not None:
+            tool["output"] = payload["aggregated_output"]
+
+    @staticmethod
+    def _record_tool_error(tool: dict[str, Any], payload: dict[str, Any]) -> None:
+        if payload.get("status") not in {"failed", "declined"}:
+            return
+        tool["error"] = str(
+            payload.get("error")
+            or payload.get("aggregated_output")
+            or payload.get("stderr")
+            or "tool failed"
+        )
+
+    def _finish_event(self, timestamp: str, event_type: str) -> None:
+        if event_type == "task_complete":
+            self.close_turn(timestamp, completed=True, aborted=False)
+        elif event_type == "turn_aborted":
+            self.close_turn(timestamp, completed=True, aborted=True)
 
 
 def _metadata(
@@ -523,9 +638,7 @@ def _metadata(
     if attribution.get("head"):
         value["git.head"] = attribution["head"]
     return {
-        key: _redacted_metadata_string(item, config)
-        if isinstance(item, str)
-        else item
+        key: _redacted_metadata_string(item, config) if isinstance(item, str) else item
         for key, item in value.items()
     }
 
@@ -548,83 +661,130 @@ def _turn_observations(
     config: Config,
     attribution: dict[str, Any],
     visited: set[Path],
-    subagent_loader: Any = None,
+    subagent_loader: Callable[[Path], tuple[dict[str, Any], list[dict[str, Any]]]]
+    | None = None,
 ) -> list[dict[str, Any]]:
-    observations = []
-    for step in turn["steps"]:
-        generation: dict[str, Any] = {
-            "type": "generation",
-            "name": "LLM Subagent" if session["is_subagent"] else "LLM",
-            "model": turn.get("model"),
-            "start_time": step["start_time"],
-            "end_time": step["end_time"],
-            "usage_details": step.get("usage"),
-            "children": [],
-        }
-        if config.capture_content:
-            generation["output"] = _captured(
-                {"content": step.get("output"), "reasoning": step.get("reasoning")},
-                config,
-            )
-        for tool in step["tools"]:
-            error = tool.get("error")
-            child = {
-                "type": "tool",
-                "name": _tool_observation_name(tool, config),
-                "start_time": tool["start_time"],
-                "end_time": tool["end_time"],
-                "error": (
-                    _captured(error, config)
-                    if error and config.capture_content
-                    else "tool failed" if error else None
-                ),
-            }
-            if config.capture_content:
-                child["input"] = _captured(tool.get("input"), config)
-                child["output"] = _captured(tool.get("output"), config)
-            generation["children"].append(child)
-        observations.append(generation)
-
+    observations = [
+        _generation_observation(step, turn, session, config) for step in turn["steps"]
+    ]
     for thread_id in turn["subagent_thread_ids"]:
-        child_path = _find_subagent_rollout(path, thread_id)
-        if child_path is None or child_path in visited:
-            continue
-        visited.add(child_path)
-        child_session, child_turns = (
-            subagent_loader(child_path) if subagent_loader is not None
-            else parse_rollout(load_rollout(child_path))
-        )
-        if child_session.get("session_id") != thread_id:
-            raise ValueError(
-                "subagent rollout thread ID does not match the spawned thread"
+        observations.extend(
+            _subagent_observations(
+                path,
+                thread_id,
+                config,
+                attribution,
+                visited,
+                subagent_loader,
             )
-        for child_turn in child_turns:
-            child_observation: dict[str, Any] = {
-                "type": "agent",
-                "name": "Codex Subagent Turn",
-                "session_id": _redacted_metadata_string(
-                    child_session["session_id"], config
-                ),
-                "start_time": child_turn["start_time"],
-                "end_time": child_turn["end_time"],
-                "metadata": _metadata(
-                    child_turn, child_session, attribution, config
-                ),
-                "children": _turn_observations(
-                    child_path,
-                    child_turn,
-                    child_session,
-                    config,
-                    attribution,
-                    visited,
-                    subagent_loader,
-                ),
-            }
-            if config.capture_content:
-                child_observation["input"] = _captured(child_turn.get("input"), config)
-                child_observation["output"] = _captured(child_turn.get("output"), config)
-            observations.append(child_observation)
+        )
     return observations
+
+
+def _generation_observation(
+    step: dict[str, Any],
+    turn: dict[str, Any],
+    session: dict[str, Any],
+    config: Config,
+) -> dict[str, Any]:
+    generation: dict[str, Any] = {
+        "type": "generation",
+        "name": "LLM Subagent" if session["is_subagent"] else "LLM",
+        "model": turn.get("model"),
+        "start_time": step["start_time"],
+        "end_time": step["end_time"],
+        "usage_details": step.get("usage"),
+        "children": [_tool_observation(tool, config) for tool in step["tools"]],
+    }
+    if config.capture_content:
+        generation["output"] = _captured(
+            {"content": step.get("output"), "reasoning": step.get("reasoning")},
+            config,
+        )
+    return generation
+
+
+def _tool_observation(tool: dict[str, Any], config: Config) -> dict[str, Any]:
+    error = tool.get("error")
+    child = {
+        "type": "tool",
+        "name": _tool_observation_name(tool, config),
+        "start_time": tool["start_time"],
+        "end_time": tool["end_time"],
+        "error": _tool_error(error, config),
+    }
+    if config.capture_content:
+        child["input"] = _captured(tool.get("input"), config)
+        child["output"] = _captured(tool.get("output"), config)
+    return child
+
+
+def _tool_error(error: Any, config: Config) -> Any:
+    if not error:
+        return None
+    return _captured(error, config) if config.capture_content else "tool failed"
+
+
+def _subagent_observations(
+    path: Path,
+    thread_id: str,
+    config: Config,
+    attribution: dict[str, Any],
+    visited: set[Path],
+    loader: Callable[[Path], tuple[dict[str, Any], list[dict[str, Any]]]] | None,
+) -> list[dict[str, Any]]:
+    child_path = _find_subagent_rollout(path, thread_id)
+    if child_path is None or child_path in visited:
+        return []
+    visited.add(child_path)
+    child_session, child_turns = _load_subagent(child_path, loader)
+    if child_session.get("session_id") != thread_id:
+        raise ValueError("subagent rollout thread ID does not match the spawned thread")
+    return [
+        _subagent_observation(
+            child_path,
+            turn,
+            child_session,
+            config,
+            attribution,
+            visited,
+            loader,
+        )
+        for turn in child_turns
+    ]
+
+
+def _load_subagent(
+    path: Path,
+    loader: Callable[[Path], tuple[dict[str, Any], list[dict[str, Any]]]] | None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    return loader(path) if loader is not None else parse_rollout(load_rollout(path))
+
+
+def _subagent_observation(
+    path: Path,
+    turn: dict[str, Any],
+    session: dict[str, Any],
+    config: Config,
+    attribution: dict[str, Any],
+    visited: set[Path],
+    loader: Callable[[Path], tuple[dict[str, Any], list[dict[str, Any]]]] | None,
+) -> dict[str, Any]:
+    observation: dict[str, Any] = {
+        "type": "agent",
+        "name": "Codex Subagent Turn",
+        "session_id": _redacted_metadata_string(session["session_id"], config),
+        "start_time": turn["start_time"],
+        "end_time": turn["end_time"],
+        "metadata": _metadata(turn, session, attribution, config),
+        "children": _turn_observations(
+            path, turn, session, config, attribution, visited, loader
+        ),
+    }
+    if config.capture_content:
+        observation["input"] = _captured(turn.get("input"), config)
+        observation["output"] = _captured(turn.get("output"), config)
+    return observation
 
 
 def trace_document(
@@ -635,7 +795,8 @@ def trace_document(
     attribution_snapshots: dict[str, dict[str, Any]] | None = None,
     parsed: tuple[dict[str, Any], list[dict[str, Any]]] | None = None,
     attribution_state: dict[str, Any] | None = None,
-    subagent_loader: Any = None,
+    subagent_loader: Callable[[Path], tuple[dict[str, Any], list[dict[str, Any]]]]
+    | None = None,
 ) -> dict[str, Any]:
     if not path.is_absolute():
         raise ValueError("transcript_path must name a readable absolute file")
@@ -645,82 +806,138 @@ def trace_document(
         raise ValueError("rollout is missing a valid Codex thread ID")
     thread_id = _redacted_metadata_string(session["session_id"], config)
     assert thread_id is not None
-    traces = []
     visited = {path}
     automatic = (
-        attribution_snapshot(config, cwd)
-        if attribution_snapshots is None
-        else None
+        attribution_snapshot(config, cwd) if attribution_snapshots is None else None
     )
     timeline = attribution_state if attribution_state is not None else {}
-    mode = timeline.get("mode", "auto")
-    explicit_work_item_id = timeline.get("explicit_work_item_id")
-    epoch = timeline.get("epoch", 0)
-    previous_key = tuple(timeline["previous_key"]) if timeline.get("previous_key") else None
-    for turn in turns:
+    attribution = _AttributionTimeline(
+        config,
+        thread_id,
+        attribution_snapshots,
+        automatic,
+        timeline,
+    )
+    traces = [
+        _turn_trace(
+            path,
+            turn,
+            session,
+            config,
+            attribution.for_turn(turn),
+            visited,
+            subagent_loader,
+        )
+        for turn in turns
+    ]
+    attribution.persist(timeline)
+    return {"status": "dry-run", "traces": traces}
+
+
+class _AttributionTimeline:
+    def __init__(
+        self,
+        config: Config,
+        thread_id: str,
+        snapshots: dict[str, dict[str, Any]] | None,
+        automatic: dict[str, Any] | None,
+        state: dict[str, Any],
+    ) -> None:
+        self.config = config
+        self.thread_id = thread_id
+        self.snapshots = snapshots
+        self.automatic = automatic
+        self.mode = str(state.get("mode", "auto"))
+        self.explicit_work_item_id = state.get("explicit_work_item_id")
+        self.epoch = int(state.get("epoch", 0))
+        previous = state.get("previous_key")
+        self.previous_key = tuple(previous) if previous else None
+
+    def for_turn(self, turn: dict[str, Any]) -> dict[str, Any]:
         directive = _attribution_directive(turn.get("input"))
         if directive is not None:
-            mode, explicit_work_item_id = directive
-            epoch += 1
-        turn_id = turn.get("turn_id")
-        missing_snapshot = False
-        if attribution_snapshots is None:
-            assert automatic is not None
-            fallback = automatic
-        elif isinstance(turn_id, str) and turn_id in attribution_snapshots:
-            fallback = attribution_snapshots[turn_id]
-        else:
-            missing_snapshot = True
-            fallback = {
-                "work_item_id": None,
-                "source": "none",
-                "branch": None,
-                "head": None,
-            }
-        if mode == "set":
-            attribution = {
-                "work_item_id": (
-                    None
-                    if _contains_credential(explicit_work_item_id, config)
-                    else explicit_work_item_id
-                ),
-                "source": "explicit",
-            }
-        elif mode == "clear":
-            attribution = {"work_item_id": None, "source": "explicit"}
-        else:
-            attribution = {
-                "work_item_id": fallback.get("work_item_id"),
-                "source": fallback["source"],
-            }
+            self.mode, self.explicit_work_item_id = directive
+            self.epoch += 1
+        fallback, missing = self._fallback(turn.get("turn_id"))
+        attribution = self._base_attribution(fallback)
         attribution["branch"] = fallback.get("branch")
         attribution["head"] = fallback.get("head")
-        if mode == "auto" and missing_snapshot:
-            attribution["epoch"] = None
-        else:
-            effective_key = (attribution["source"], attribution.get("work_item_id"))
-            if (
-                directive is None
-                and previous_key is not None
-                and effective_key != previous_key
-            ):
-                epoch += 1
-            attribution["epoch"] = f"{thread_id}:attribution:{epoch}"
-            previous_key = effective_key
-        trace: dict[str, Any] = {
-            "name": "Codex Subagent Turn" if session["is_subagent"] else "Codex Turn",
-            "session_id": attribution["epoch"],
-            "start_time": turn["start_time"],
-            "end_time": turn["end_time"],
-            "metadata": _metadata(turn, session, attribution, config),
-            "observations": _turn_observations(
-                path, turn, session, config, attribution, visited, subagent_loader
-            ),
+        self._set_epoch(attribution, missing, directive)
+        return attribution
+
+    def _fallback(self, turn_id: Any) -> tuple[dict[str, Any], bool]:
+        if self.snapshots is None:
+            assert self.automatic is not None
+            return self.automatic, False
+        if isinstance(turn_id, str) and turn_id in self.snapshots:
+            return self.snapshots[turn_id], False
+        return {
+            "work_item_id": None,
+            "source": "none",
+            "branch": None,
+            "head": None,
+        }, True
+
+    def _base_attribution(self, fallback: dict[str, Any]) -> dict[str, Any]:
+        if self.mode == "set":
+            work_item_id = self.explicit_work_item_id
+            if _contains_credential(work_item_id, self.config):
+                work_item_id = None
+            return {"work_item_id": work_item_id, "source": "explicit"}
+        if self.mode == "clear":
+            return {"work_item_id": None, "source": "explicit"}
+        return {
+            "work_item_id": fallback.get("work_item_id"),
+            "source": fallback["source"],
         }
-        if config.capture_content:
-            trace["input"] = _captured(turn.get("input"), config)
-            trace["output"] = _captured(turn.get("output"), config)
-        traces.append(trace)
-    timeline.update(mode=mode, explicit_work_item_id=explicit_work_item_id,
-                    epoch=epoch, previous_key=previous_key)
-    return {"status": "dry-run", "traces": traces}
+
+    def _set_epoch(
+        self,
+        attribution: dict[str, Any],
+        missing_snapshot: bool,
+        directive: tuple[str, str | None] | None,
+    ) -> None:
+        if self.mode == "auto" and missing_snapshot:
+            attribution["epoch"] = None
+            return
+        effective_key = (attribution["source"], attribution.get("work_item_id"))
+        if directive is None and self._changed(effective_key):
+            self.epoch += 1
+        attribution["epoch"] = f"{self.thread_id}:attribution:{self.epoch}"
+        self.previous_key = effective_key
+
+    def _changed(self, effective_key: tuple[Any, Any]) -> bool:
+        return self.previous_key is not None and effective_key != self.previous_key
+
+    def persist(self, state: dict[str, Any]) -> None:
+        state.update(
+            mode=self.mode,
+            explicit_work_item_id=self.explicit_work_item_id,
+            epoch=self.epoch,
+            previous_key=self.previous_key,
+        )
+
+
+def _turn_trace(
+    path: Path,
+    turn: dict[str, Any],
+    session: dict[str, Any],
+    config: Config,
+    attribution: dict[str, Any],
+    visited: set[Path],
+    loader: Callable[[Path], tuple[dict[str, Any], list[dict[str, Any]]]] | None,
+) -> dict[str, Any]:
+    trace: dict[str, Any] = {
+        "name": "Codex Subagent Turn" if session["is_subagent"] else "Codex Turn",
+        "session_id": attribution["epoch"],
+        "start_time": turn["start_time"],
+        "end_time": turn["end_time"],
+        "metadata": _metadata(turn, session, attribution, config),
+        "observations": _turn_observations(
+            path, turn, session, config, attribution, visited, loader
+        ),
+    }
+    if config.capture_content:
+        trace["input"] = _captured(turn.get("input"), config)
+        trace["output"] = _captured(turn.get("output"), config)
+    return trace

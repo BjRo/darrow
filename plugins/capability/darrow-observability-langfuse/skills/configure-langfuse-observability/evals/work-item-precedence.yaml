@@ -3,9 +3,10 @@ activation: positive
 invariant: OLF-P4
 mount_plugin_skills: true
 prompt: >-
-  My branch is feat/issue-45-langfuse, but DARROW_LANGFUSE_WORK_ITEM_ID is set
-  to TEAM-7. Which work-item value will the trace contain? Explain the fallback
-  for a detached HEAD and do not contact or mutate any tracker.
+  Automatic attribution is active. My branch is feat/issue-45-langfuse, but
+  DARROW_LANGFUSE_WORK_ITEM_ID is set to TEAM-7. Which work-item value will the
+  trace contain? Explain the fallback for a detached HEAD and do not contact or
+  mutate any tracker.
 fixture:
   commits:
     - message: "chore: init"
@@ -23,7 +24,8 @@ semantic_output_checks:
       inferred from the branch.
   - name: detached head produces no inferred value
     proposition: >-
-      The response explains that detached HEAD provides no branch-inferred
-      work-item identifier and, when no explicit or configured value exists,
-      the trace has no darrow.work_item_id. It does not invent an identifier or
-      contact a tracker.
+      The response explains that, in the stated automatic mode, detached HEAD
+      provides no branch-inferred work-item identifier, the configured TEAM-7
+      still applies, and without a configured value the trace would have no
+      darrow.work_item_id. It does not invent an identifier or contact a
+      tracker.

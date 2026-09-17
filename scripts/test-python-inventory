@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+fixture="$repo_root/.python-inventory-guard-test-$$"
+trap 'rm -rf "$fixture"' EXIT HUP INT TERM
+
+mkdir -p "$fixture"
+cat >"$fixture/pyproject.toml" <<'EOF'
+[project]
+name = "unregistered-package"
+version = "0.0.0"
+EOF
+printf '%s\n' 'value = 1' >"$fixture/module.py"
+
+if "$repo_root/scripts/check-python-inventory" "$repo_root" >/dev/null 2>&1; then
+  echo "error: inventory guard accepted an unregistered Python package" >&2
+  exit 1
+fi
+
+rm -rf "$fixture"
+trap - EXIT HUP INT TERM
+"$repo_root/scripts/check-python-inventory" "$repo_root"

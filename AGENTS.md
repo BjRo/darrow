@@ -59,6 +59,10 @@ Review agents must not run Git or GitHub commands against this repository.
 Before creating, changing, or running evals,
 read [`docs/eval-development.md`](docs/eval-development.md).
 
+All Python packages follow [`docs/specs/python-quality.md`](docs/specs/python-quality.md).
+Run `bun run check:python` after changing Python source, tests, project metadata,
+or locks.
+
 ## Git
 
 - Use imperative Conventional Commits without trailing periods.

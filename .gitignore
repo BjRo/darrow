@@ -3,6 +3,12 @@ evals/results/
 evals/corpus/orchestration/cache/
 .tmp/
 .DS_Store
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.hypothesis/
+**/.coverage
+**/coverage.json
 
 # Share Codex configuration without tracking other local Codex state.
 !.codex/

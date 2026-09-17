@@ -5,19 +5,23 @@ import os
 import subprocess
 import tempfile
 import unittest
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
-from darrow_observability_langfuse.cli import run as hook_run
 from darrow_observability_langfuse.capture import database
-from darrow_observability_langfuse.export import DeliveryFailure
+from darrow_observability_langfuse.cli import run as hook_run
 from darrow_observability_langfuse.config import Config
+from darrow_observability_langfuse.export import DeliveryError
 
 
-def run():
+def run() -> int:
     """Exercise the two host invocations in order for compatibility assertions."""
     import sys
+
+    assert isinstance(sys.stdin, StringIO)
     payload = json.loads(sys.stdin.getvalue())
     result = hook_run()
     if result == 0 and payload.get("hook_event_name") == "Stop":
@@ -27,7 +31,7 @@ def run():
 
 
 class CliTest(unittest.TestCase):
-    def test_exported_interrupted_snapshot_preserves_future_epoch_numbers(self):
+    def test_exported_interrupted_snapshot_preserves_future_epoch_numbers(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rollout = root / "rollout.jsonl"
@@ -40,7 +44,7 @@ class CliTest(unittest.TestCase):
                 }
             ]
             self._write_rollout(rollout, records)
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
             def invoke(event: str, turn_id: str, work_item_id: str) -> int:
                 payload = {
@@ -57,7 +61,7 @@ class CliTest(unittest.TestCase):
                     work_item_id=work_item_id,
                 )
 
-                def record_export(document: dict, _config: Config) -> int:
+                def record_export(document: dict[str, Any], _config: Config) -> int:
                     exported.append(document)
                     return len(document["traces"])
 
@@ -198,7 +202,7 @@ class CliTest(unittest.TestCase):
             ],
         )
 
-    def test_missing_interrupted_snapshot_is_exported_without_a_session(self):
+    def test_missing_interrupted_snapshot_is_exported_without_a_session(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             records = [
@@ -224,7 +228,7 @@ class CliTest(unittest.TestCase):
                 },
             ]
             self._write_rollout(rollout, records)
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
             config = Config(
                 enabled=True,
                 public_key="pk-test",
@@ -249,7 +253,10 @@ class CliTest(unittest.TestCase):
                     {
                         "timestamp": "2026-08-26T10:00:02.100Z",
                         "type": "event_msg",
-                        "payload": {"type": "user_message", "message": "Interrupted turn"},
+                        "payload": {
+                            "type": "user_message",
+                            "message": "Interrupted turn",
+                        },
                     },
                     {
                         "timestamp": "2026-08-26T10:00:02.200Z",
@@ -269,7 +276,10 @@ class CliTest(unittest.TestCase):
                     {
                         "timestamp": "2026-08-26T10:00:03.200Z",
                         "type": "event_msg",
-                        "payload": {"type": "agent_message", "message": "Current response"},
+                        "payload": {
+                            "type": "agent_message",
+                            "message": "Current response",
+                        },
                     },
                 ]
             )
@@ -281,14 +291,14 @@ class CliTest(unittest.TestCase):
         self.assertEqual(interrupted["metadata"]["codex.turn_id"], "turn-2")
         self.assertIsNone(interrupted["session_id"])
         self.assertNotIn("darrow.attribution_epoch", interrupted["metadata"])
-        self.assertEqual(
-            interrupted["metadata"]["darrow.attribution_source"], "none"
-        )
+        self.assertEqual(interrupted["metadata"]["darrow.attribution_source"], "none")
         self.assertEqual(current["metadata"]["codex.turn_id"], "turn-3")
         self.assertEqual(current["session_id"], "session-main:attribution:0")
         self.assertEqual(current["metadata"]["darrow.work_item_id"], "TEST-1")
 
-    def test_interrupted_turn_uses_prompt_snapshot_without_splitting_epoch(self):
+    def test_interrupted_turn_uses_prompt_snapshot_without_splitting_epoch(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repo = root / "repo"
@@ -311,7 +321,7 @@ class CliTest(unittest.TestCase):
                 }
             ]
             self._write_rollout(rollout, records)
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
             config = Config(
                 enabled=True,
                 public_key="pk-test",
@@ -328,7 +338,7 @@ class CliTest(unittest.TestCase):
                     "prompt": "private prompt content",
                 }
 
-                def record_export(document: dict, _config: Config) -> int:
+                def record_export(document: dict[str, Any], _config: Config) -> int:
                     exported.append(document)
                     return len(document["traces"])
 
@@ -370,7 +380,10 @@ class CliTest(unittest.TestCase):
                     {
                         "timestamp": "2026-08-26T10:00:01.200Z",
                         "type": "event_msg",
-                        "payload": {"type": "agent_message", "message": "First response"},
+                        "payload": {
+                            "type": "agent_message",
+                            "message": "First response",
+                        },
                     },
                 ]
             )
@@ -395,7 +408,10 @@ class CliTest(unittest.TestCase):
                     {
                         "timestamp": "2026-08-26T10:00:02.100Z",
                         "type": "event_msg",
-                        "payload": {"type": "user_message", "message": "Interrupted turn"},
+                        "payload": {
+                            "type": "user_message",
+                            "message": "Interrupted turn",
+                        },
                     },
                     {
                         "timestamp": "2026-08-26T10:00:02.200Z",
@@ -422,7 +438,10 @@ class CliTest(unittest.TestCase):
                     {
                         "timestamp": "2026-08-26T10:00:03.200Z",
                         "type": "event_msg",
-                        "payload": {"type": "agent_message", "message": "Current response"},
+                        "payload": {
+                            "type": "agent_message",
+                            "message": "Current response",
+                        },
                     },
                 ]
             )
@@ -450,7 +469,7 @@ class CliTest(unittest.TestCase):
             {"session-main:attribution:0"},
         )
 
-    def test_same_session_directives_create_ordered_attribution_epochs(self):
+    def test_same_session_directives_create_ordered_attribution_epochs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             records = [
@@ -506,7 +525,7 @@ class CliTest(unittest.TestCase):
                 "".join(f"{json.dumps(record)}\n" for record in records),
                 encoding="utf-8",
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
             for index in range(1, 7):
                 self._run_stop(
@@ -514,11 +533,11 @@ class CliTest(unittest.TestCase):
                     f"turn-{index}",
                     exported,
                     config=Config(
-                    enabled=True,
-                    public_key="pk-test",
-                    secret_key="sk-test",
-                    work_item_id="DEFAULT-1",
-                ),
+                        enabled=True,
+                        public_key="pk-test",
+                        secret_key="sk-test",
+                        work_item_id="DEFAULT-1",
+                    ),
                 )
 
         traces = [trace for document in exported for trace in document["traces"]]
@@ -557,7 +576,7 @@ class CliTest(unittest.TestCase):
             {"session-main"},
         )
 
-    def test_export_retry_preserves_branch_fallback_and_git_provenance(self):
+    def test_export_retry_preserves_branch_fallback_and_git_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory) / "repo"
             repo.mkdir()
@@ -603,8 +622,8 @@ class CliTest(unittest.TestCase):
                 secret_key="sk-test",
             )
 
-            def reject_export(_document: dict, _config: Config) -> int:
-                raise DeliveryFailure("pending", "temporary pre-acceptance failure")
+            def reject_export(_document: dict[str, Any], _config: Config) -> int:
+                raise DeliveryError("pending", "temporary pre-acceptance failure")
 
             self.assertEqual(
                 self._invoke_stop(rollout, repo, "turn-1", config, reject_export),
@@ -616,9 +635,9 @@ class CliTest(unittest.TestCase):
             self._git(repo, "add", "issue-60.txt")
             self._git(repo, "commit", "-qm", "issue 60")
             second_head = self._git(repo, "rev-parse", "HEAD")
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
-            def record_export(document: dict, _config: Config) -> int:
+            def record_export(document: dict[str, Any], _config: Config) -> int:
                 exported.append(document)
                 return len(document["traces"])
 
@@ -628,7 +647,9 @@ class CliTest(unittest.TestCase):
             )
             first = exported.pop()["traces"][0]
             self.assertEqual(first["metadata"]["darrow.work_item_id"], "issue-45")
-            self.assertEqual(first["metadata"]["darrow.attribution_source"], "git_branch")
+            self.assertEqual(
+                first["metadata"]["darrow.attribution_source"], "git_branch"
+            )
             self.assertEqual(first["metadata"]["git.branch"], "feat/issue-45-first")
             self.assertEqual(first["metadata"]["git.head"], first_head)
             self.assertEqual(first["session_id"], "session-main:attribution:0")
@@ -665,7 +686,9 @@ class CliTest(unittest.TestCase):
         self.assertEqual(second["metadata"]["git.head"], second_head)
         self.assertEqual(second["session_id"], "session-main:attribution:1")
 
-    def test_explicit_directive_attributes_a_turn_on_main_before_a_ticket_branch(self):
+    def test_explicit_directive_attributes_a_turn_on_main_before_a_ticket_branch(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             self._git(repo, "init", "-q")
@@ -708,7 +731,7 @@ class CliTest(unittest.TestCase):
                     },
                 ],
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
             self._run_stop(
                 rollout,
@@ -727,7 +750,9 @@ class CliTest(unittest.TestCase):
         self.assertEqual(trace["metadata"]["git.branch"], "main")
         self.assertEqual(trace["metadata"]["git.head"], head)
 
-    def test_missing_codex_thread_id_refuses_before_export_or_sidecar_write(self):
+    def test_missing_codex_thread_id_refuses_before_export_or_sidecar_write(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             self._write_rollout(
@@ -750,9 +775,9 @@ class CliTest(unittest.TestCase):
                     },
                 ],
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
-            def record_export(document: dict, _config: Config) -> int:
+            def record_export(document: dict[str, Any], _config: Config) -> int:
                 exported.append(document)
                 return len(document["traces"])
 
@@ -773,7 +798,9 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exported, [])
             self.assertFalse(Path(f"{rollout}.darrow-langfuse").exists())
 
-    def test_missing_subagent_thread_id_refuses_before_export_or_sidecar_write(self):
+    def test_missing_subagent_thread_id_refuses_before_export_or_sidecar_write(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             self._write_rollout(
@@ -827,9 +854,9 @@ class CliTest(unittest.TestCase):
                     },
                 ],
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
-            def record_export(document: dict, _config: Config) -> int:
+            def record_export(document: dict[str, Any], _config: Config) -> int:
                 exported.append(document)
                 return len(document["traces"])
 
@@ -850,7 +877,9 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exported, [])
             self.assertFalse(Path(f"{rollout}.darrow-langfuse").exists())
 
-    def test_credentials_are_redacted_from_attribution_metadata_and_sidecar(self):
+    def test_credentials_are_redacted_from_attribution_metadata_and_sidecar(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             self._git(repo, "init", "-q")
@@ -881,9 +910,9 @@ class CliTest(unittest.TestCase):
                     },
                 ],
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
-            def record_export(document: dict, _config: Config) -> int:
+            def record_export(document: dict[str, Any], _config: Config) -> int:
                 exported.append(document)
                 return len(document["traces"])
 
@@ -904,13 +933,23 @@ class CliTest(unittest.TestCase):
 
             self.assertNotIn("issue-60", json.dumps(exported))
             with database(rollout) as connection:
-                self.assertNotIn("issue-60", json.dumps([tuple(row) for row in connection.execute("SELECT * FROM snapshots")]))
+                self.assertNotIn(
+                    "issue-60",
+                    json.dumps(
+                        [
+                            tuple(row)
+                            for row in connection.execute("SELECT * FROM snapshots")
+                        ]
+                    ),
+                )
             trace = exported[0]["traces"][0]
             self.assertNotIn("darrow.work_item_id", trace["metadata"])
             self.assertEqual(trace["metadata"]["darrow.attribution_source"], "none")
             self.assertEqual(trace["metadata"]["git.branch"], "feat/[REDACTED]-secret")
 
-    def test_repeated_stop_exports_each_turn_once_before_task_complete_is_written(self):
+    def test_repeated_stop_exports_each_turn_once_before_task_complete_is_written(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             records = [
@@ -948,7 +987,7 @@ class CliTest(unittest.TestCase):
                 "".join(f"{json.dumps(record)}\n" for record in records),
                 encoding="utf-8",
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
             self._run_stop(rollout, "turn-1", exported)
 
@@ -1002,7 +1041,9 @@ class CliTest(unittest.TestCase):
             [["turn-1"], ["turn-2"]],
         )
 
-    def test_stop_keeps_unrelated_incomplete_turn_and_dependent_current_local(self):
+    def test_stop_keeps_unrelated_incomplete_turn_and_dependent_current_local(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rollout = Path(directory) / "rollout.jsonl"
             records = [
@@ -1044,7 +1085,7 @@ class CliTest(unittest.TestCase):
                 "".join(f"{json.dumps(record)}\n" for record in records),
                 encoding="utf-8",
             )
-            exported: list[dict] = []
+            exported: list[dict[str, Any]] = []
 
             self._run_stop(rollout, "current", exported)
 
@@ -1054,7 +1095,7 @@ class CliTest(unittest.TestCase):
         self,
         rollout: Path,
         turn_id: str,
-        exported: list[dict],
+        exported: list[dict[str, Any]],
         *,
         config: Config | None = None,
     ) -> None:
@@ -1072,7 +1113,7 @@ class CliTest(unittest.TestCase):
             work_item_id="TEST-1",
         )
 
-        def record_export(document: dict, _config: Config) -> int:
+        def record_export(document: dict[str, Any], _config: Config) -> int:
             exported.append(document)
             return len(document["traces"])
 
@@ -1095,7 +1136,7 @@ class CliTest(unittest.TestCase):
         cwd: Path,
         turn_id: str,
         config: Config,
-        exporter,
+        exporter: Callable[[dict[str, Any], Config], int],
     ) -> int:
         payload = {
             "session_id": "session-main",
@@ -1127,7 +1168,7 @@ class CliTest(unittest.TestCase):
         ).stdout.strip()
 
     @staticmethod
-    def _write_rollout(rollout: Path, records: list[dict]) -> None:
+    def _write_rollout(rollout: Path, records: list[dict[str, Any]]) -> None:
         rollout.write_text(
             "".join(f"{json.dumps(record)}\n" for record in records),
             encoding="utf-8",

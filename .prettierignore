@@ -1,4 +1,8 @@
 plugins/*/*/skills/*/SKILL.md
 **/.venv/**
 **/__pycache__/**
+**/.pytest_cache/**
+**/.hypothesis/**
+**/.coverage
+**/coverage.json
 .worktrees/
