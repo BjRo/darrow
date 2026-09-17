@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 10 ]; then
+  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <skill-selected> <skill-package> <skill-windows> <skill-install> <observability-selected> <observability-package> <observability-install> <observability-performance>" >&2
+  exit 2
+fi
+
+changes_result=$1
+inventory_result=$2
+skill_selected=$3
+skill_package_result=$4
+skill_windows_result=$5
+skill_install_result=$6
+observability_selected=$7
+observability_package_result=$8
+observability_install_result=$9
+shift 9
+observability_performance_result=$1
+
+require_result() {
+  name=$1
+  expected=$2
+  actual=$3
+  if [ "$actual" != "$expected" ]; then
+    echo "error: $name expected $expected, got $actual" >&2
+    exit 1
+  fi
+}
+
+require_scope() {
+  scope=$1
+  selected=$2
+  shift 2
+  case "$selected" in
+    true) expected=success ;;
+    false) expected=skipped ;;
+    *) echo "error: invalid $scope selection: $selected" >&2; exit 1 ;;
+  esac
+  for result do
+    require_result "$scope job" "$expected" "$result"
+  done
+}
+
+require_result "change detection" success "$changes_result"
+require_result "inventory" success "$inventory_result"
+require_scope skill-authoring "$skill_selected" \
+  "$skill_package_result" "$skill_windows_result" "$skill_install_result"
+require_scope observability-langfuse "$observability_selected" \
+  "$observability_package_result" "$observability_install_result" \
+  "$observability_performance_result"
