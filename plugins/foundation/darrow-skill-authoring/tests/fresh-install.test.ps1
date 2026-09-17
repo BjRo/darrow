@@ -25,11 +25,13 @@ try {
 
     $inspection = (& uv run --quiet --frozen --no-dev --project $backend inspect-skill inspect $skill $copy) -join "`n"
     if ($LASTEXITCODE -ne 0) { throw "inspection failed" }
+    Write-Output $inspection
     if ($inspection -notmatch "(?m)^status\s+valid$") { throw "inspection omitted valid status" }
 
     $testScript = Join-Path $fixture "passing test.sh"
     "#!/usr/bin/env bash`nexit 0`n" | Set-Content -Path $testScript -NoNewline
     $matrix = (& uv run --quiet --frozen --no-dev --project $backend verify-shell-tests -- $testScript) -join "`n"
+    Write-Output $matrix
     if ($LASTEXITCODE -notin @(0, 3)) { throw "shell matrix failed with $LASTEXITCODE" }
     if ($matrix -notmatch "(?m)^format\s+darrow-shell-test-matrix-v1$") { throw "matrix omitted format" }
 }

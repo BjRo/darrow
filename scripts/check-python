@@ -68,11 +68,11 @@ for relative in $packages; do
 
     if [ "$mode" = full ]; then
       if [ "$coverage_verifier_tested" = false ]; then
-        uv run --all-groups "$repo_root/scripts/test-python-coverage"
+        uv run --all-groups sh "$repo_root/scripts/test-python-coverage"
       fi
       uv run --all-groups coverage run -m pytest
       uv run --all-groups coverage json -o coverage.json
-      uv run --all-groups "$repo_root/scripts/verify-python-coverage" coverage.json
+      uv run --all-groups sh "$repo_root/scripts/verify-python-coverage" coverage.json
     fi
   )
   if [ "$mode" = full ]; then
