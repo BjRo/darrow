@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-repo_root=$(git rev-parse --show-toplevel)
-backend="$repo_root/plugins/capability/darrow-observability-langfuse/backend"
+plugin_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+backend="$plugin_root/backend"
 fixture=$(mktemp -d "${TMPDIR:-/tmp}/darrow-python-benchmark.XXXXXX")
 trap 'rm -rf "$fixture"' EXIT HUP INT TERM
 

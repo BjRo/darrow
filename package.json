@@ -14,7 +14,7 @@
     "check:decisions": "bash plugins/foundation/darrow-decisions/bin/decision validate --repo .",
     "check:python": "scripts/check-python",
     "check:python:inventory": "scripts/test-python-inventory",
-    "check:python:performance": "scripts/check-python-performance",
+    "check:python:performance": "plugins/capability/darrow-observability-langfuse/tests/performance.test.sh",
     "eval": "bun evals/runner/run.ts",
     "eval:coverage": "bun evals/runner/coverage.ts",
     "eval:orchestration:prepare": "bun evals/corpus/orchestration/prepare.ts",

@@ -57,7 +57,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: scripts/check-python-performance
+      - run: plugins/capability/darrow-observability-langfuse/tests/performance.test.sh
 
   aggregate:
     name: Python quality

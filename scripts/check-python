@@ -15,6 +15,7 @@ fi
 "$repo_root/scripts/check-python-inventory" "$repo_root"
 
 packages=$(sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$repo_root/python-packages.txt")
+coverage_verifier_tested=false
 for relative in $packages; do
   package="$repo_root/$relative"
   echo "==> Python quality: $relative"
@@ -36,9 +37,15 @@ for relative in $packages; do
     uv run --all-groups mypy $quality_paths
 
     if [ "$mode" = full ]; then
+      if [ "$coverage_verifier_tested" = false ]; then
+        uv run --all-groups "$repo_root/scripts/test-python-coverage"
+      fi
       uv run --all-groups coverage run -m pytest
       uv run --all-groups coverage json -o coverage.json
-      uv run --all-groups python scripts/verify_coverage.py coverage.json
+      uv run --all-groups "$repo_root/scripts/verify-python-coverage" coverage.json
     fi
   )
+  if [ "$mode" = full ]; then
+    coverage_verifier_tested=true
+  fi
 done

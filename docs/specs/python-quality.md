@@ -43,6 +43,10 @@ must fail when statement coverage passes but branch coverage does not. Coverage
 exclusions require a concrete unreachable-platform or interpreter reason in
 the source and review.
 
+Each package owns its coverage source and branch configuration. The repository
+quality infrastructure owns the shared percentage calculation, threshold, and
+failure behavior so packages do not copy or weaken that policy.
+
 ## Commands and enforcement
 
 `bun run check:python` is the canonical local and CI command. For every
@@ -66,6 +70,11 @@ foreground capture does not depend on the network, checks bounded incremental
 rollout reads and exporter batching, and reports peak memory. A numeric
 regression threshold may be added only after representative measurements make
 the budget defensible.
+
+Plugin-specific benchmark workloads, comparison rules, and executable entrypoints
+live inside the plugin that owns the behavior. Repository commands and CI may
+invoke those entrypoints, but do not reproduce the plugin's internal path
+resolution or benchmark logic.
 
 Release validation installs the plugin from a fresh copied artifact using only
 locked runtime dependencies before exercising its launcher and backend. The
