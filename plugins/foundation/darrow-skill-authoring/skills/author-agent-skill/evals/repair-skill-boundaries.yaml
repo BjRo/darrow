@@ -41,9 +41,10 @@ checks:
     flags: i
   - name: sibling-plugin dependency is removed
     run: >-
-      inspector=$(find . -path '*/author-agent-skill/scripts/inspect-skill' -type f | sed -n '1p');
-      test -n "$inspector";
-      bash "$inspector" inspect plugins/ops/skills/deploy-checklist plugins/ops >/dev/null;
+      backend_file=$(find . -path '*/author-agent-skill/backend/pyproject.toml' -type f | sed -n '1p');
+      test -n "$backend_file";
+      backend=${backend_file%/pyproject.toml};
+      uv run --quiet --frozen --no-dev --project "$backend" inspect-skill inspect plugins/ops/skills/deploy-checklist plugins/ops >/dev/null;
       ! grep -R -E '(plugins/[^/]+/skills|~/|/Users/|/home/)' plugins/ops/skills/deploy-checklist
   - name: configuration mechanics move to a linked local script
     run: |

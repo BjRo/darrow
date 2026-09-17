@@ -37,8 +37,10 @@ From the repository root, run the Python quality checks with
 `bun run check:python`. From this plugin directory, run the compatibility shell
 suites through the version-aware matrix:
 
-```sh
-bash skills/author-agent-skill/scripts/verify-shell-tests -- \
+```text
+uv run --quiet --frozen --no-dev \
+  --project skills/author-agent-skill/backend \
+  verify-shell-tests -- \
   skills/author-agent-skill/scripts/inspect-skill.test.sh \
   skills/author-agent-skill/scripts/verify-shell-tests.test.sh \
   skills/author-agent-skill/scripts/interpreter-routing.test.sh
@@ -63,9 +65,9 @@ Create, revise, or validate one reusable skill. Do not use it for generic instru
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; UV and a UV-managed Python `>=3.10,<3.14`. The small
-POSIX compatibility launchers use Bash and baseline Unix tools. Live
-evaluations need the target's supported host harness.
+Codex and Claude Code; UV and a UV-managed Python `>=3.10,<3.14`. Shell-matrix
+verification also needs the target interpreters and their baseline Unix tools.
+Live evaluations need the target's supported host harness.
 
 ## Installation
 

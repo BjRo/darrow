@@ -1,5 +1,0 @@
-#!/bin/sh
-set -eu
-
-skill_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-exec uv run --quiet --frozen --no-dev --project "$skill_dir/backend" inspect-skill "$@"
