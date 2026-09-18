@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from . import report_templates as templates
 from .common import read_text
 from .records import Records, validate_result
 from .verification import validate_verification
@@ -24,167 +25,164 @@ def escape(value: str) -> str:
     return "".join(entities.get(char, char) for char in value)
 
 
-def value(label: str, text: str) -> str:
-    return f"- **{label}:** {escape(text)}"
-
-
-def guidance(fields: list[str], prefix: str = "") -> list[str]:
+def guidance(fields: list[str], prefix: str = "") -> str:
     if not fields:
-        return []
-    return [
-        prefix + value("Repair guidance (advisory)", fields[0]),
-        prefix + value("Resolution evidence", fields[1]),
-    ]
+        return ""
+    return (
+        f"\n{prefix}- **Repair guidance (advisory):** {escape(fields[0])}"
+        f"\n{prefix}- **Resolution evidence:** {escape(fields[1])}"
+    )
 
 
-def checks(result: Records) -> list[str]:
-    return [
-        "\n## Checks",
-        *[
-            f"- **{row[3].upper()}** ({escape(row[2])}) — {escape(row[1])}: {escape(row[4])}"
-            for row in result.get("check")
-        ],
+def checks(result: Records) -> str:
+    return "\n".join(
+        f"- **{row[3].upper()}** ({escape(row[2])}) — {escape(row[1])}: {escape(row[4])}"
+        for row in result.get("check")
+    )
+
+
+def findings(result: Records) -> str:
+    blocks = [
+        templates.FINDING.substitute(
+            index=index,
+            severity=row[2].upper(),
+            disposition=row[3].upper(),
+            axis=row[1].title(),
+            location=escape(row[4]),
+            source=escape(row[5]),
+            evidence=escape(row[6]),
+            guidance=guidance(row[7:]),
+        )
+        for index, row in enumerate(result.get("finding"), 1)
     ]
+    return "\n" + "\n\n".join(blocks) if blocks else "No findings."
 
 
 def comprehensive(result: Records) -> str:
     verdict = result.value("verdict")
-    findings = result.get("finding")
-    blocking = sum(row[3] == "blocking" for row in findings)
-    lines = [
-        f"# Code review — {verdict.upper()}\n",
-        f"**Verdict:** {escape(verdict)} · **Findings:** {len(findings)} ({blocking} blocking, {len(findings) - blocking} advisory)\n",
-        "## Findings",
-    ]
-    if not findings:
-        lines.append("No findings.")
-    for index, row in enumerate(findings, 1):
-        lines.extend(
-            [
-                f"\n### {index}. {row[2].upper()} — {row[3].upper()} ({row[1].title()})",
-                value("Location", row[4]),
-                value("Source", row[5]),
-                value("Evidence", row[6]),
-                *guidance(row[7:]),
-            ]
-        )
-    lines.extend(checks(result))
-    lines.extend(
-        [
-            "\n## Risks",
-            *["- " + escape(row[1]) for row in result.get("risk")],
-            "\n## Next action",
-            escape(result.value("next_action")),
-            "\n## Scope",
-            value("Base", result.value("base")),
-            value("Target", result.value("target")),
-            "- **Changed files:**",
-            *["  - " + escape(row[1]) for row in result.get("changed_file")],
-            "\n## Sources",
-            f"- **Standards ({escape(result.value('standards'))}):**",
-            *["  - " + escape(row[1]) for row in result.get("standards_source")],
-            f"- **Spec ({escape(result.value('spec'))}):** {escape(result.value('spec_source'))}",
-        ]
+    total = len(result.get("finding"))
+    blocking = sum(row[3] == "blocking" for row in result.get("finding"))
+    return templates.COMPREHENSIVE.substitute(
+        title=verdict.upper(),
+        verdict=escape(verdict),
+        total=total,
+        blocking=blocking,
+        advisory=total - blocking,
+        findings=findings(result),
+        checks=checks(result),
+        risks="\n".join("- " + escape(row[1]) for row in result.get("risk")),
+        next_action=escape(result.value("next_action")),
+        base=escape(result.value("base")),
+        target=escape(result.value("target")),
+        changed_files="".join(
+            "\n  - " + escape(row[1]) for row in result.get("changed_file")
+        ),
+        standards=escape(result.value("standards")),
+        standards_sources="\n".join(
+            "  - " + escape(row[1]) for row in result.get("standards_source")
+        ),
+        spec=escape(result.value("spec")),
+        spec_source=escape(result.value("spec_source")),
     )
-    return "\n".join(lines) + "\n"
 
 
-def attempted_findings(result: Records) -> list[str]:
-    lines = ["## Attempted findings"]
-    if not result.get("attempt"):
-        lines.append("No attempted findings were verifiable.")
+def attempted_findings(result: Records) -> str:
     originals = result.keyed("original_finding")
+    blocks = []
     for index, row in enumerate(result.get("attempt"), 1):
         original = originals[row[1]]
-        lines.extend(
-            [
-                f"\n### {index}. {escape(row[1])} — {row[2].upper()} / {row[3].upper()} ({original[4].upper()}, {escape(original[5])})",
-                value("Location", original[6]),
-                value("Source", original[7]),
-                value("Original evidence", original[8]),
-                *guidance(original[9:]),
-                value("Current evidence", row[4]),
-            ]
+        blocks.append(
+            templates.ATTEMPT.substitute(
+                index=index,
+                identity=escape(row[1]),
+                status=row[2].upper(),
+                progress=row[3].upper(),
+                severity=original[4].upper(),
+                disposition=escape(original[5]),
+                location=escape(original[6]),
+                source=escape(original[7]),
+                original_evidence=escape(original[8]),
+                guidance=guidance(original[9:]),
+                current_evidence=escape(row[4]),
+            )
         )
-    return lines
+    return (
+        "\n" + "\n\n".join(blocks)
+        if blocks
+        else "No attempted findings were verifiable."
+    )
 
 
-def repair_regressions(result: Records) -> list[str]:
-    lines = ["\n## Repair-caused regressions"]
-    if not result.get("regression"):
-        lines.append("No repair-caused regressions.")
-    for index, row in enumerate(result.get("regression"), 1):
-        lines.extend(
-            [
-                f"\n### {index}. {escape(row[1])} — {row[6].upper()} / {row[7].upper()} ({row[5].upper()})",
-                value("Axis", row[4]),
-                value("Caused by", row[2]),
-                value("Location", row[8]),
-                value("Source", row[9]),
-                value("Evidence", row[10]),
-                *guidance(row[11:]),
-            ]
+def repair_regressions(result: Records) -> str:
+    blocks = [
+        templates.REGRESSION.substitute(
+            index=index,
+            identity=escape(row[1]),
+            status=row[6].upper(),
+            progress=row[7].upper(),
+            severity=row[5].upper(),
+            axis=escape(row[4]),
+            cause=escape(row[2]),
+            location=escape(row[8]),
+            source=escape(row[9]),
+            evidence=escape(row[10]),
+            guidance=guidance(row[11:]),
         )
-    return lines
-
-
-def target_binding(result: Records) -> list[str]:
-    lines = [
-        "\n## Target binding",
-        value("Original target", result.value("original_target")),
-        value("Prior target", result.value("prior_target")),
-        value("Current target", result.value("current_target")),
-        value("Previous verification checksum", result.value("previous_verification")),
-        value(
-            "Previous verification artifact", result.value("previous_verification", 2)
-        ),
+        for index, row in enumerate(result.get("regression"), 1)
     ]
-    if result.get("history_target"):
-        lines.extend(
-            [
-                "- **Earlier targets:**",
-                *["  - " + escape(row[1]) for row in result.get("history_target")],
-            ]
-        )
-    return lines
+    return "\n" + "\n\n".join(blocks) if blocks else "No repair-caused regressions."
 
 
-def closed_findings(result: Records) -> list[str]:
-    lines = ["\n## Closed original finding set"]
+def target_binding(result: Records) -> str:
+    history = result.get("history_target")
+    earlier_targets = (
+        "\n- **Earlier targets:**"
+        + "".join("\n  - " + escape(row[1]) for row in history)
+        if history
+        else ""
+    )
+    return templates.TARGET_BINDING.substitute(
+        original=escape(result.value("original_target")),
+        prior=escape(result.value("prior_target")),
+        current=escape(result.value("current_target")),
+        checksum=escape(result.value("previous_verification")),
+        artifact=escape(result.value("previous_verification", 2)),
+        earlier_targets=earlier_targets,
+    )
+
+
+def closed_findings(result: Records) -> str:
+    lines = []
     for row in result.get("original_finding"):
         escaped = [escape(field) for field in row]
-        lines.extend(
-            [
-                f"- {escaped[1]} — {escaped[2]} #{escaped[3]}, {escaped[4]}/{escaped[5]}; {escaped[6]}; source {escaped[7]}; {escaped[8]}",
-                *guidance(row[9:], "  "),
-            ]
+        lines.append(
+            f"\n- {escaped[1]} — {escaped[2]} #{escaped[3]}, {escaped[4]}/{escaped[5]}; {escaped[6]}; source {escaped[7]}; {escaped[8]}"
+            + guidance(row[9:], "  ")
         )
-    return lines
+    return "".join(lines)
 
 
 def verification(result: Records) -> str:
     statuses = [row[2] for row in result.get("attempt")]
-    lines = [
-        f"# Repair verification — {result.value('outcome').upper()}\n",
-        f"**Outcome:** {escape(result.value('outcome'))} · Original findings: {len(result.get('original_finding'))} · Resolved: {statuses.count('resolved')} · Unresolved: {statuses.count('unresolved')} · Blocked: {statuses.count('blocked')} · Regressions: {len(result.get('regression'))}\n",
-        *attempted_findings(result),
-        *repair_regressions(result),
-        *checks(result),
-        "\n## Evidence gaps",
-    ]
     gaps = result.get("evidence_gap")
-    lines.extend(
-        ["- " + escape(row[1]) for row in gaps] if gaps else ["No evidence gaps."]
+    return templates.VERIFICATION.substitute(
+        title=result.value("outcome").upper(),
+        outcome=escape(result.value("outcome")),
+        total=len(result.get("original_finding")),
+        resolved=statuses.count("resolved"),
+        unresolved=statuses.count("unresolved"),
+        blocked=statuses.count("blocked"),
+        regression_count=len(result.get("regression")),
+        attempted_findings=attempted_findings(result),
+        regressions=repair_regressions(result),
+        checks=checks(result),
+        evidence_gaps="\n".join("- " + escape(row[1]) for row in gaps)
+        if gaps
+        else "No evidence gaps.",
+        target_binding=target_binding(result),
+        closed_findings=closed_findings(result),
+        next_action=escape(result.value("next_action")),
     )
-    lines.extend(
-        [
-            *target_binding(result),
-            *closed_findings(result),
-            "\n## Next action",
-            escape(result.value("next_action")),
-        ]
-    )
-    return "\n".join(lines) + "\n"
 
 
 def render(command: str, path: str) -> str:
