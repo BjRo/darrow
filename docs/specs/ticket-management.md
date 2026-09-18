@@ -23,6 +23,17 @@ stable intent ("create a ticket for X") while the backend stays swappable.
 
 ## Backend contract
 
+- **TM-P3 — Contained portable mechanics.** The GitHub provider ships one
+  dependency-free Python package managed by UV, invoked through its frozen
+  `darrow-ticket` entrypoint by all four skills. Preserve the command arguments,
+  output records, refusals, and exit codes while removing the Bash launcher.
+  Use argument-vector subprocesses, explicit UTF-8 JSON decoding and validation,
+  and native filesystem and temporary-file handling on Linux, macOS, and Windows.
+  Provider failures must stop pending mutations; completed mutations remain
+  visible if a later relation write or read fails. Validate with mocked provider
+  operations, generated boundary cases, and fresh copied-plugin execution;
+  automated tests must never mutate live GitHub state.
+
 - **TM-P1 — Independently installable providers.** Each tracker implementation
   lives in its own `darrow-tickets-<provider>` plugin. The shipped provider is
   GitHub Issues via `gh`. Future trackers use separate, self-contained plugins;

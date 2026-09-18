@@ -19,12 +19,15 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 
 All tracker interaction goes through the bundled CLI:
 
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-ticket="$skill_dir/../../bin/ticket"
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
 ```
 
-Run it with `bash`. The CLI resolves the backend, maps types to its taxonomy,
+`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
+complete locked command for every operation below. The package requires UV,
+Python 3.10–3.13, Git, and authenticated `gh` on Linux, macOS, or native Windows.
+
+The CLI resolves the backend, maps types to its taxonomy,
 formats compact ticket lines, and reports totals/truncation. Never use raw
 tracker commands or another plugin's files. Relay a backend refusal or tracker
 error verbatim and stop.
@@ -62,7 +65,7 @@ requested supported filter maps to exactly one argument.
 Run:
 
 ```sh
-bash "$ticket" list [--state open|closed|all] \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket list [--state open|closed|all] \
   [--type bug|feature|task|chore] [--label <label>]... \
   [--search <query>] [--milestone <milestone>] [--limit <count>]
 ```

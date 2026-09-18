@@ -18,12 +18,15 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 
 All tracker interaction goes through the bundled CLI:
 
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-ticket="$skill_dir/../../bin/ticket"
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
 ```
 
-Run it with Bash. The CLI resolves the backend, verifies that a canonical URL
+`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
+complete locked command for every operation below. The package requires UV,
+Python 3.10–3.13, Git, and authenticated `gh` on Linux, macOS, or native Windows.
+
+The CLI resolves the backend, verifies that a canonical URL
 belongs to the current project, fetches tracker-native relations, and emits the
 authoritative ticket, including its provider-owned `ticket-token: N` field.
 Never pre-validate, browse, resolve, rewrite, classify, or derive that token
@@ -68,7 +71,7 @@ refusal does not complete this phase.
 Run exactly:
 
 ```sh
-bash "$ticket" get <id-or-canonical-url>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket get <id-or-canonical-url>
 ```
 
 Do not run a list query first, fetch comments or event history, or issue a

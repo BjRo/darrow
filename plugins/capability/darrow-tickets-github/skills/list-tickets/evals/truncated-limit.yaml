@@ -15,9 +15,9 @@ fixture:
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       case "$1 $2" in
-        "repo view") echo true ;;
+        "repo view") echo '{"hasIssuesEnabled":true}' ;;
         "issue list")
-          printf '#1 open  First issue\n#2 open  Second issue\n#3 open  Third issue\n'
+          printf '%s\n' '[{"number": 1, "state": "OPEN", "title": "First issue", "labels": []}, {"number": 2, "state": "OPEN", "title": "Second issue", "labels": []}, {"number": 3, "state": "OPEN", "title": "Third issue", "labels": []}]'
           ;;
         *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
       esac

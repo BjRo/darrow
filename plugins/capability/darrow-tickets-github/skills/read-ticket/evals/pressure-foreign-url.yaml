@@ -17,7 +17,7 @@ fixture:
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       case "$1 $2" in
-        "repo view") echo "https://github.test/o/r" ;;
+        "repo view") echo '{"url":"https://github.test/o/r"}' ;;
         *) echo "mock gh: unexpected tracker call: $*" >&2; exit 1 ;;
       esac
   setup: |

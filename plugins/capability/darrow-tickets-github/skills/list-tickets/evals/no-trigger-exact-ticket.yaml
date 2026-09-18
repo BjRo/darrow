@@ -26,23 +26,19 @@ fixture:
       if [ "$1" = "api" ]; then
         case "$2" in
           */issues/21/parent) echo "gh: No parent issue found (HTTP 404)" >&2; exit 1 ;;
-          */issues/21/dependencies/blocked_by) exit 0 ;;
+          */issues/21/dependencies/blocked_by) echo '[[]]'; exit 0 ;;
           *) echo "mock gh: unsupported api call: $*" >&2; exit 1 ;;
         esac
       fi
       case "$1 $2" in
-        "repo view") echo "https://github.test/o/r" ;;
+        "repo view") echo '{"url":"https://github.test/o/r"}' ;;
         "issue view")
           json=$(find_flag --json "$@")
           case "$json" in
             number,state,title,url,labels)
-              jq=$(find_flag --jq "$@")
-              case "$jq" in
-                *ticket-token*) printf 'ticket-token: 21\n' ;;
-              esac
-              printf '#21 open — Exact ticket\nhttps://github.test/o/r/issues/21\nlabels: bug\n'
+              printf '%s\n' '{"number": 21, "state": "OPEN", "title": "Exact ticket", "url": "https://github.test/o/r/issues/21", "labels": [{"name": "bug"}]}'
               ;;
-            body) printf 'EXACT-TICKET-BODY-21\n' ;;
+            body) printf '%s\n' '{"body": "EXACT-TICKET-BODY-21\n"}' ;;
             *) echo "mock gh: unsupported --json set: $json" >&2; exit 1 ;;
           esac
           ;;
