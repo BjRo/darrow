@@ -408,7 +408,10 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    command names, TSV formats, scope/repair binding, diagnostics, and exit
    codes. Register the locked package in the Python inventory, enforce the
    repository's strict quality gates, and exercise copied runtime-only plugins
-   on all three native platforms with provider boundaries controlled.
+   on all three native platforms with provider boundaries controlled. Keep
+   deterministic plugin regression tests in the Python package; do not retain
+   shell test wrappers after their contract coverage has migrated. Tests of
+   the shared eval runner remain with that runner.
 7. **CR-P7 — Portable composition.** Consumers request independent code review
    by intent and interpret its reported findings and outcome; neither side needs
    a sibling plugin path, implementation name, output schema, tracker, or

@@ -238,13 +238,6 @@ jobs:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py
-      - name: Verify review CLI regression scenarios
-        if: runner.os != 'Windows'
-        run: |
-          /bin/bash --version
-          for test in plugins/capability/darrow-review/backend/tests/shell/*.test.sh; do
-            /bin/bash "$test"
-          done
   tickets-windows:
     name: Tickets Python ${{ matrix.python-version }} on windows-latest
     needs: changes

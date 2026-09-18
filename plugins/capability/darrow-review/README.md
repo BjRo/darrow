@@ -217,7 +217,9 @@ The public entrypoints are `review-scope`, `review-result`, `review-report`,
 `review-check`, `review-route`, `review-claude-verify`, and `claude-provider`.
 They retain their subcommands and TSV protocols; the old `bin/` runtime is
 removed. Runtime dependencies are empty; development tools are separately
-locked. Validate with `bun run check:python` and the copied-artifact probe:
+locked. All deterministic plugin tests live in the Python package, including
+CLI contracts, exact report fixtures, and quoted-path command execution.
+Validate with `bun run check:python` and the copied-artifact probe:
 
 ```sh
 uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py

@@ -98,6 +98,9 @@ def test_invalid_configuration(repo: Path, value: object) -> None:
         '{"routes":Infinity}',
         "{} trailing",
         "",
+        '{"reviewers":\f[]}',
+        '{"reviewers":\v[]}',
+        '{"routes":1e,"reviewers":[]}',
     ],
 )
 def test_malformed_json(repo: Path, text: str) -> None:
@@ -327,3 +330,64 @@ def test_observed_record_validation(repo: Path, tmp_path: Path) -> None:
     path.write_text(serialize([["format", "wrong"]]), encoding="utf-8")
     with pytest.raises(ReviewError):
         routing.observed(str(path))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{}",
+        '{"reviewers":[]}',
+        '{"review\\u0065rs":[]}',
+        '{"routes":[{"note":"\\u0061\\n"}]}',
+    ],
+)
+def test_empty_or_unrelated_policy_uses_bundled_route(repo: Path, text: str) -> None:
+    path = config(repo, {})
+    path.write_text(text, encoding="utf-8")
+    selected = routing.resolve(str(repo), "codex")
+    assert selected.source == "bundled"
+    assert "gpt-5.6-sol\txhigh" in selected.body()
+
+
+def test_partial_transcript_and_substring_identity_are_rejected(
+    repo: Path, tmp_path: Path
+) -> None:
+    projects, path = transcript(repo, tmp_path)
+    with pytest.raises(ReviewError):
+        provider.verify(str(repo), "abc", str(projects))
+    body = path.read_text(encoding="utf-8")
+    path.write_text(body + body.replace('"effort": "xhigh", ', ""), encoding="utf-8")
+    with pytest.raises(ReviewError):
+        provider.verify(str(repo), "abc1", str(projects))
+
+
+def test_unsafe_configuration_is_not_followed(repo: Path, tmp_path: Path) -> None:
+    path = config(repo, {})
+    original = tmp_path / "original.json"
+    path.rename(original)
+    path.symlink_to(original)
+    with pytest.raises(ReviewError):
+        routing.resolve(str(repo), "codex")
+
+
+@pytest.mark.parametrize("selector", provider.SELECTORS)
+def test_transcript_verification_refuses_third_party_provider(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selector: str
+) -> None:
+    projects, _ = transcript(repo, tmp_path)
+    record = tmp_path / "observed.tsv"
+    monkeypatch.setenv(selector, "1")
+    with pytest.raises(ReviewError, match=selector):
+        cli.verify_command(
+            [
+                "--repo",
+                str(repo),
+                "--agent-id",
+                "abc1",
+                "--projects-dir",
+                str(projects),
+                "--record",
+                str(record),
+            ]
+        )
+    assert not record.exists()
