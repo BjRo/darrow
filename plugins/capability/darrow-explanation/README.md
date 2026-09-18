@@ -64,9 +64,9 @@ Install `darrow-explanation@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 Review this plugin's local prerequisites and safety boundaries first.
 
-The per-plugin host commands in that guide also apply in PowerShell on native
-Windows. Use those commands directly; the optional marketplace-wide Bash
-installer is not needed for this plugin.
+On native Windows, run the guide's shell commands in PowerShell and slash
+commands inside the relevant host session. Use the per-plugin commands directly;
+the optional marketplace-wide Bash installer is not needed for this plugin.
 
 ## Usage
 
