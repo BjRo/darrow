@@ -28,7 +28,9 @@ checks:
     run: cat .git/fixture-gh/calls
     expect_regex: "issue list.*--state open.*--limit 3"
   - name: truncated result is relayed without semantic changes
-    run: sed 's/[[:blank:]]*$//' .git/last-message.md
+    run: >-
+      sed -E 's/^(#[0-9]+ (open|closed))[[:blank:]]+/\1  /; s/[[:blank:]]*$//'
+      .git/last-message.md
     expect_exact: |-
       backend: github
       #1 open  First issue

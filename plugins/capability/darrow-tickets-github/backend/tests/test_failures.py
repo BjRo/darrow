@@ -393,7 +393,14 @@ def test_backend_resolution(
 
 def test_real_subprocess_literal_arguments() -> None:
     value = 'spaces; $(touch unsafe) "quotes" ü'
-    result = execute([sys.executable, "-c", "import sys; print(sys.argv[1])", value])
+    result = execute(
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.stdout.buffer.write(sys.argv[1].encode('utf-8') + b'\\n')",
+            value,
+        ]
+    )
     assert result.stdout.rstrip("\r\n") == value
 
 

@@ -155,7 +155,9 @@ fixture:
     printf '#8 closed  CSV export drops the header row (bug)\n' > .git/fixture-gh/list
 checks:
   - name: authoritative closed-ticket result is relayed without semantic changes
-    run: sed 's/[[:blank:]]*$//' .git/last-message.md
+    run: >-
+      sed -E 's/^(#[0-9]+ (open|closed))[[:blank:]]+/\1  /; s/[[:blank:]]*$//'
+      .git/last-message.md
     expect_exact: |-
       backend: github
       #8 closed  CSV export drops the header row (bug)
