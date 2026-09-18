@@ -7,6 +7,7 @@ import os
 import shlex
 import signal
 import subprocess
+import sys
 import tempfile
 from collections.abc import Sequence
 from contextlib import ExitStack, suppress
@@ -98,7 +99,7 @@ def git_environment() -> dict[str, str]:
 
 
 def stop_process(process: subprocess.Popen[bytes]) -> None:
-    if os.name == "nt":  # Native Windows owns a process tree, not a POSIX group.
+    if sys.platform == "win32":  # Native Windows owns a process tree.
         # WindowsJob owns descendants. Stop the direct child before joining it;
         # the enclosing cleanup closes its job even if the child already exited.
         process.kill()

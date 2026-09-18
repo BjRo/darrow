@@ -79,7 +79,8 @@ def test_exited_parent_does_not_hide_live_descendant(tmp_path: Path) -> None:
         common.stop_process(process)
         process.communicate(timeout=5)
     except BaseException:
-        os.kill(descendant, signal.SIGKILL)
+        if sys.platform != "win32":
+            os.kill(descendant, signal.SIGKILL)
         raise
 
 
