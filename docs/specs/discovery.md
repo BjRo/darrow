@@ -348,6 +348,9 @@ skill.
    from the installed skill directory and invoke the same locked package
    entrypoint directly. Fresh-artifact checks exercise that installed layout
    without repository-relative references or platform-specific launchers.
+   Internal simplification preserves literal flag values, last-wins scalar
+   options, ordered repeated option labels, validation order, and removal of
+   exactly one terminal period before rendering prose.
 
 ## Evaluation requirements
 
