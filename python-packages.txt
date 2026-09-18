@@ -5,3 +5,4 @@ plugins/capability/darrow-observability-langfuse/backend
 plugins/capability/darrow-verification/skills/verify-change/backend
 plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
 plugins/capability/darrow-tickets-github/backend
+plugins/foundation/darrow-decisions/backend

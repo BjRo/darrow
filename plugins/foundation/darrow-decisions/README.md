@@ -28,9 +28,9 @@ queries while reporting each authoritative effect only once.
 
 Example: _“What have we decided about authentication?”_
 
-### `bin/decision`
+### `darrow-decision`
 
-A portable Bash facade shared by both skills. It discovers ADRs, validates
+A contained Python package shared by both skills. It discovers ADRs, validates
 their structure and relationships, allocates collision-safe identifiers, and
 supports deterministic inspection and filtering. A checked-in Markdown
 `README.md` beside the ADRs catalogs every record's canonical Summary, status,
@@ -42,9 +42,9 @@ something is a decision and where it belongs.
 Build and verify the derived ADR-only catalog with:
 
 ```sh
-bash bin/decision catalog rebuild --repo /absolute/path/to/repository
-bash bin/decision catalog check --repo /absolute/path/to/repository
-bash bin/decision validate --repo /absolute/path/to/repository
+uv run --quiet --frozen --no-dev --project backend darrow-decision catalog rebuild --repo /absolute/path/to/repository
+uv run --quiet --frozen --no-dev --project backend darrow-decision catalog check --repo /absolute/path/to/repository
+uv run --quiet --frozen --no-dev --project backend darrow-decision validate --repo /absolute/path/to/repository
 ```
 
 Rebuilds are byte-deterministic and atomic. `validate` rejects a stale checked-in
@@ -76,7 +76,10 @@ Capture one explicit decision or find existing decisions. Do not infer accepted 
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; Bash, baseline Unix tools, and access to authoritative decision records.
+Codex and Claude Code; UV, Python 3.10–3.13, Git, and access to authoritative
+decision records. The CLI runs natively on Windows, Linux, and macOS. Runtime
+dependencies are empty; quality tools are locked in the development group.
+The plugin has no Bash runtime entrypoint or sibling-plugin dependency.
 
 ## Installation
 

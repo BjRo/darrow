@@ -239,6 +239,53 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-tickets-github/backend python plugins/capability/darrow-tickets-github/backend/tests/fresh_install.py
 
+  decisions-windows:
+    name: Decisions Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/foundation/darrow-decisions/backend
+
+  decisions-fresh-install:
+    name: Fresh install decisions on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-decisions/backend python plugins/foundation/darrow-decisions/backend/tests/fresh_install.py
+      - name: Verify decision CLI regression scenarios
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          /bin/bash --version
+          /bin/bash plugins/foundation/darrow-decisions/backend/tests/decision.test.sh
+
   inventory:
     name: Python inventory guard
     runs-on: ubuntu-latest
@@ -376,6 +423,8 @@ jobs:
       - git-fresh-install
       - tickets-windows
       - tickets-fresh-install
+      - decisions-windows
+      - decisions-fresh-install
       - inventory
       - skill-authoring-fresh-install
       - observability-fresh-install
@@ -409,6 +458,9 @@ jobs:
           TICKETS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend') }}
           TICKETS_WINDOWS_RESULT: ${{ needs.tickets-windows.result }}
           TICKETS_INSTALL_RESULT: ${{ needs.tickets-fresh-install.result }}
+          DECISIONS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend') }}
+          DECISIONS_WINDOWS_RESULT: ${{ needs.decisions-windows.result }}
+          DECISIONS_INSTALL_RESULT: ${{ needs.decisions-fresh-install.result }}
         run: |
           scripts/verify-python-quality-results \
             "$CHANGES_RESULT" "$INVENTORY_RESULT" \
@@ -428,3 +480,7 @@ jobs:
           if [ "$TICKETS_SELECTED" = true ]; then expected=success; fi
           test "$TICKETS_WINDOWS_RESULT" = "$expected"
           test "$TICKETS_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$DECISIONS_SELECTED" = true ]; then expected=success; fi
+          test "$DECISIONS_WINDOWS_RESULT" = "$expected"
+          test "$DECISIONS_INSTALL_RESULT" = "$expected"

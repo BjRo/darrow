@@ -8,8 +8,9 @@ description: Find recorded decisions read-only across ADRs, specifications, poli
 Answer the requested decision question from canonical records without changing
 repository or external state.
 
-Use the `decision` facade at `<skill-dir>/../../bin/decision`, where
-`<skill-dir>` contains this file. Run it with Bash. The facade owns ADR
+Use the frozen `darrow-decision` entrypoint shown below, where
+`<skill-dir>` contains this file. The contained package lives at
+`<skill-dir>/../../backend`. The facade owns ADR
 discovery, catalog freshness, validation, filtering, relationships, and output
 caps. Treat an unreadable or malformed required record as a refusal rather than
 a skippable result. The catalog is derived metadata, never a canonical decision
@@ -43,8 +44,8 @@ unfiltered, and the intended owner set is known.
 Run:
 
 ```sh
-bash <skill-dir>/../../bin/decision inspect
-bash <skill-dir>/../../bin/decision list [--dir <adr-dir>] \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision inspect
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision list [--dir <adr-dir>] \
   [--status Proposed|Accepted|Rejected|Deprecated|Superseded] \
   [--search <subject>] [--related-to <ADR-NNNN>] [--limit <n>]
 ```
@@ -93,7 +94,7 @@ scope, and relationship set, with no excluded record in the draft.
 For every repository result, run:
 
 ```sh
-bash <skill-dir>/../../bin/decision canonical-path --path <record>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision canonical-path --path <record>
 ```
 
 Copy each emitted `path:` value verbatim. Every displayed repository path must
@@ -109,7 +110,9 @@ For an empty result, state the filters and canonical surfaces inspected.
 
 Finish with a **silent-filter audit**: remove every excluded identifier, title,
 path, effect, and exclusion explanation. Keep only criteria and surface names in
-the coverage summary.
+the coverage summary. Start the response with the first matching result (or the
+empty-result statement); keep internal comparisons with excluded records out of
+introductory prose as well as the result rows.
 
 **Complete when:** every result occupies one line, every repository path is
 facade-verified and absolute, the requested coverage is explicit, and excluded
