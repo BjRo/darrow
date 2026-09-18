@@ -35,12 +35,11 @@ def invoke(repo: Path, *args: str, status: int = 0) -> str:
     result = subprocess.run(
         command(repo, *args),
         capture_output=True,
-        encoding="utf-8",
         timeout=60,
         check=False,
     )
-    assert result.returncode == status, result.stdout + result.stderr
-    return result.stdout
+    assert result.returncode == status, (result.stdout, result.stderr)
+    return result.stdout.decode("utf-8")
 
 
 def rows(path: Path) -> list[list[str]]:
@@ -50,7 +49,7 @@ def rows(path: Path) -> list[list[str]]:
 
 
 def wait_for_event(
-    process: subprocess.Popen[str], path: Path, prefix: str, count: int
+    process: subprocess.Popen[bytes], path: Path, prefix: str, count: int
 ) -> None:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -69,14 +68,13 @@ def mutate_during(
         command(repo, *args),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        encoding="utf-8",
     ) as process:
         try:
             wait_for_event(process, events, prefix, count)
             mutate()
             out, err = process.communicate(timeout=30)
-            assert process.returncode == 0, out + err
-            return out
+            assert process.returncode == 0, (out, err)
+            return out.decode("utf-8")
         finally:
             if process.poll() is None:
                 process.kill()

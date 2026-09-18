@@ -108,6 +108,11 @@ No helper starts a host process or implements orchestration authority checks;
 authority, provider discovery by advertised intent, and native launch remain
 owned by the skill and its host guides.
 
+Editable installation must preserve Unicode source paths when Python 3.10/3.11
+reads startup path files using a Windows legacy code page. Package bootstrap
+records use ASCII-safe Python string literals; the runtime retains the original
+paths. Subprocess test diagnostics retain undecodable startup error bytes.
+
 Eval-only readiness, review, verification, and completion-proof mechanics live
 in the same contained package, with inert fixture templates. They preserve
 candidate fingerprints, closed finding sets, delayed combined assessment,
