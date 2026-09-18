@@ -86,9 +86,16 @@ or reorder lines or rewrite their visible content. The compact CLI format is the
 entire final response; add no preamble, epilogue, heading, fence, or
 explanation.
 
+Treat stdout as text to copy directly from the command result, not as fields to
+reconstruct into a summary or Markdown list. Preserve the literal `backend:`,
+ticket rows, and `total:`/`note:` records; do not replace them with headings,
+bullets, bold ticket IDs, or prose totals.
+
 An empty result is complete: report it with the echoed filters. A capped result
 is incomplete by definition: retain the stated cap, total characterization,
 and narrowing/raise-limit note; never present it as the full set.
 
-**Complete when:** the user sees the exact applied filters, every returned
-compact row, and honest empty/truncation evidence without any state change.
+**Complete when:** the final response preserves CLI stdout's visible content
+and line order, including the backend, exact applied filters, every compact
+row, and empty/truncation evidence, with no tracker state change. Compare it
+with the command result before sending.
