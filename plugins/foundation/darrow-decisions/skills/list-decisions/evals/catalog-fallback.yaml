@@ -8,14 +8,16 @@ prompt: >-
   do not change anything.
 fixture:
   bin:
-    bash: |
+    uv: |
       #!/bin/sh
-      case "$1" in
-        */bin/decision)
+      git_dir=$(git rev-parse --git-dir) || exit 1
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$git_dir/fixture-uv-paths")
+      case " $* " in
+        *" darrow-decision "*)
           git_dir=$(git rev-parse --git-dir) || exit 1
           stderr_file="$git_dir/decision-stderr.$$"
           status=0
-          /bin/bash "$@" 2>"$stderr_file" || status=$?
+          "$real_uv" "$@" 2>"$stderr_file" || status=$?
           cat "$stderr_file" >&2
           {
             printf 'command'
@@ -27,7 +29,8 @@ fixture:
           exit "$status"
           ;;
       esac
-      exec /bin/bash "$@"
+      exec "$real_uv" "$@"
+  setup: which -a uv >.git/fixture-uv-paths
   commits:
     - message: "chore: init"
       files:
@@ -74,7 +77,7 @@ checks:
   - name: decision facade performs the warned malformed-catalog fallback
     run: >-
       root=$(pwd -P); log=.git/decision-facade.log;
-      grep -E '^command .*[/]bin/decision list( |$)' "$log" >/dev/null;
+      grep -E '^command .* darrow-decision list( |$)' "$log" >/dev/null;
       grep -F "warning: ADR catalog is malformed; using full scan: $root/docs/decisions/README.md" "$log" >/dev/null;
       printf 'warned fallback\n'
     expect_exact: "warned fallback"

@@ -30,8 +30,9 @@ fixture:
 
           The application owns one repository-local database.
   setup: >-
-    cp "{{case_dir}}/../../../bin/decision" .git/decision-facade &&
-    chmod +x .git/decision-facade
+    mkdir -p .git/decision-backend &&
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/decision-backend/ &&
+    cp -R "{{case_dir}}/../../../backend/src" .git/decision-backend/
 checks:
   - name: changes the existing ADR and refreshes its catalog
     run: >-
@@ -50,11 +51,11 @@ checks:
     expect_regex: "^preserved$"
   - name: deterministic validation passes
     run: >-
-      bash .git/decision-facade validate --repo .
+      uv run --quiet --frozen --no-dev --project .git/decision-backend darrow-decision validate --repo .
     expect_regex: "^valid: 1 ADR\\(s\\) in /"
   - name: refreshed catalog is deterministic and fresh
     run: >-
-      bash .git/decision-facade catalog check --repo .
+      uv run --quiet --frozen --no-dev --project .git/decision-backend darrow-decision catalog check --repo .
     expect_regex: "^fresh: /"
   - name: response identifies correction and absolute canonical path
     run: >-

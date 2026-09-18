@@ -1,14 +1,15 @@
 ---
 name: capture-decision
-description: Capture one explicit decision or maintain its lifecycle at the canonical scope. Use for recording a settled choice, recording an architecture proposal, correcting decision metadata, or superseding an accepted decision.
+description: Capture a requested decision or maintain its lifecycle at the canonical scope. Use for requests to record or accept a choice, preserve an architecture proposal, correct decision metadata, or supersede an accepted decision, including when the choice is unresolved or its authority is missing.
 ---
 
 # Capture a decision
 
 Persist exactly one explicit choice where its consumers must follow it.
 
-Use the `decision` facade at `<skill-dir>/../../bin/decision`, where
-`<skill-dir>` contains this file. Run it with Bash. The facade owns ADR
+Use the frozen `darrow-decision` entrypoint shown below, where
+`<skill-dir>` contains this file. The contained package lives at
+`<skill-dir>/../../backend`. The facade owns ADR
 discovery, numbering, structural validation, lifecycle transitions, and
 relationship integrity. Treat a facade refusal as authoritative: correct the
 candidate or report the refusal.
@@ -36,7 +37,7 @@ candidate or report the refusal.
 Run:
 
 ```sh
-bash <skill-dir>/../../bin/decision inspect
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision inspect
 ```
 
 Treat reported policy and specification surfaces as discovery candidates.
@@ -70,7 +71,7 @@ or the exact ownership gap is known before any write.
 Search before writing:
 
 ```sh
-bash <skill-dir>/../../bin/decision list --search <distinctive-subject>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision list --search <distinctive-subject>
 ```
 
 Also search the applicable specification, policy, scoped guidance, and—when
@@ -107,7 +108,7 @@ field that could change the recorded effect has explicit evidence.
 - **New ADR:** obtain its identifier and absolute path verbatim:
 
   ```sh
-  bash <skill-dir>/../../bin/decision next-id --dir <adr-dir> --title <title>
+  uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision next-id --dir <adr-dir> --title <title>
   ```
 
   Keep the returned `ADR-` filename. Write `Status`, `Date`, one non-empty
@@ -118,7 +119,7 @@ field that could change the recorded effect has explicit evidence.
 - **Lifecycle change:** validate it first:
 
   ```sh
-  bash <skill-dir>/../../bin/decision check-transition --from <old> --to <new>
+  uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision check-transition --from <old> --to <new>
   ```
 
   `Rejected` never took effect. `Deprecated` once applied but has no named
@@ -132,7 +133,7 @@ After any ADR creation or edit, refresh its directory's derived catalog
 with the same operation used for a manual rebuild:
 
 ```sh
-bash <skill-dir>/../../bin/decision catalog rebuild --dir <adr-dir>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision catalog rebuild --dir <adr-dir>
 ```
 
 This creates or replaces only the derived `README.md` beside the ADRs. Do not
@@ -152,8 +153,8 @@ unresolved/refusal result is ready.
 For ADR changes, require both:
 
 ```sh
-bash <skill-dir>/../../bin/decision catalog check --dir <adr-dir>
-bash <skill-dir>/../../bin/decision validate --dir <adr-dir>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision catalog check --dir <adr-dir>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision validate --dir <adr-dir>
 ```
 
 Success requires the literal `valid` result. For a specification or policy,
@@ -167,7 +168,7 @@ verification as the persistence proof for the already-captured record.
 For a repository sink, make this the final tool action before responding:
 
 ```sh
-bash <skill-dir>/../../bin/decision canonical-path --path <record>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision canonical-path --path <record>
 ```
 
 Copy the emitted `path:` value verbatim; keep it absolute.

@@ -1,0 +1,23 @@
+id: capture-decision-compare-options
+invariant: "DM-2,DM-C0"
+activation: negative
+activation_excludes: [capture-decision, list-decisions]
+mount_plugin_skills: true
+prompt: >-
+  Compare the operational trade-offs of SQLite and PostgreSQL for a small
+  service.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\n"
+checks:
+  - name: comparison discusses both alternatives
+    run: cat .git/last-message.md
+    expect_regex: "SQLite[\\s\\S]*PostgreSQL|PostgreSQL[\\s\\S]*SQLite"
+  - name: comparison creates no canonical decision
+    run: git status --porcelain --untracked-files=all
+    not_regex: "\\S"
+  - name: comparison creates no commit
+    run: git rev-list --all --reflog --count
+    expect_exact: "1"

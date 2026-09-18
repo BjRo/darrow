@@ -115,8 +115,9 @@ canonical `Summary`, `Context`, `Decision`, and `Consequences`. `Supersedes`,
 
 ## Deterministic decision facade
 
-The plugin ships a Bash `decision` facade at `bin/decision`. It inventories ADRs,
-allocates the next identifier, validates structure and relationships, checks
+The plugin ships a contained Python + UV `darrow-decision` facade, invoked with
+`uv run --quiet --frozen --no-dev --project <plugin-root>/backend darrow-decision`.
+It inventories ADRs, allocates the next identifier, validates structure and relationships, checks
 transitions, and emits bounded model-facing output. It does not decide whether a
 choice is authoritative, material, or ADR-worthy.
 
@@ -128,17 +129,18 @@ choice is authoritative, material, or ADR-worthy.
   characters are refused rather than followed or silently omitted.
 - **DM-14 — Collision-safe numbering.** The next identifier follows the highest
   numeric `ADR-NNNN` identifier found in filenames or headings and preserves at
-  least four digits. Numeric identifiers are limited to 18 digits so Bash can
-  compare them without overflow; wider identifiers and exhaustion of that range
-  are explicit errors. Duplicate identifiers, filename/heading disagreement,
+  least four digits. Numeric identifiers retain the public 18-digit limit;
+  wider identifiers and exhaustion of that range are explicit errors.
+  Duplicate identifiers, filename/heading disagreement,
   and an already occupied proposed path are errors.
 - **DM-15 — Structural validation.** Every ADR file must be readable and have a
   supported identifier, non-empty title, supported status, ISO date, exactly
   one non-empty canonical `Summary` metadata field, and non-empty `Context`,
   `Decision`, and `Consequences` sections. Required input
   that exists but is unreadable causes a clear refusal rather than being
-  skipped. Under the facade's `LC_ALL=C` byte semantics, ADR titles are capped
-  at 240 bytes, status and date fields at 32 bytes each, `Summary` at 500 bytes,
+  skipped. Metadata limits count UTF-8 bytes, preserving the facade's byte
+  semantics. ADR titles are capped at 240 bytes, status and date fields at
+  32 bytes each, `Summary` at 500 bytes,
   `Supersedes` and
   `Superseded by` at 1,000 bytes each and 50 targets per field, and `Revisit
 when` at 500 bytes.
@@ -152,10 +154,13 @@ when` at 500 bytes.
   repository with no symlink component and emits its verified absolute path for
   model-facing reports. The skills make deliberate repository edits with the
   harness's ordinary file tools, then use the facade to verify them.
-- **DM-18 — Portable shell behavior.** The facade and tests support Bash 5 and
-  macOS `/bin/bash` 3.2, remain bounded on large input, and follow the repository
-  shell-portability rules. Inventory and relationship validation are linear in
-  records plus relationships subject to documented metadata and output caps.
+- **DM-18 — Native portable behavior.** The contained Python package supports
+  Python 3.10–3.13 on native Windows, Linux, and macOS, without runtime Bash
+  shims or sibling-plugin dependencies. Commands, records, diagnostics, and exit
+  codes remain stable. Filesystem operations use native paths; catalog writes
+  close and flush a sibling temporary file before atomic replacement. Inventory
+  and relationship validation are linear in records plus relationships subject
+  to documented metadata and output caps.
   CLI title input is capped at 200 bytes, search input at 200 bytes, list output
   at 200 records, and validation output at 40 diagnostics plus one omitted-count
   line. `canonical-path --path` input is capped at 1,000 bytes. Paths and
@@ -188,9 +193,9 @@ when` at 500 bytes.
   complete Markdown catalog atomically in byte-stable order, and `catalog check`
   verifies its format, directory membership, fingerprints, visible metadata,
   and source ADR validity.
-  Rebuilding an unchanged ADR set produces identical bytes under Bash 3.2 and
-  Bash 5. Repository validation includes the same freshness check, so CI and
-  manual validation reject drift. The catalog remains local to its ADR owner and
+  Rebuilding an unchanged ADR set produces identical UTF-8 bytes on every
+  supported platform. Repository validation includes the same freshness check,
+  so CI and manual validation reject drift. The catalog remains local to its ADR owner and
   never catalogs specifications, policies, work items, review state, or another
   owner surface.
 
@@ -205,6 +210,11 @@ that is unavailable, report the owner and stop without creating a substitute.
 
 ### Invariants
 
+- **DM-C0 — Route requested captures before judging authority.** A request to
+  capture or accept a decision selects this capability even when the choice is
+  unresolved or its authority is missing. Those facts determine whether to ask
+  or refuse within the capability; they do not make the request a different
+  intent.
 - **DM-C1 — Search before mutation.** Inspect the repository and search related
   ADRs, specifications, policies, and work-item context before creating or
   changing a record. Reported root surfaces are discovery candidates, not an

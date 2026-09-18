@@ -93,7 +93,7 @@ bun run check:python
 
 `check:decisions` rejects missing or stale checked-in ADR catalog data. When
 ADRs change, refresh it first with
-`bash plugins/foundation/darrow-decisions/bin/decision catalog rebuild --repo .`.
+`uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-decisions/backend darrow-decision catalog rebuild --repo .`.
 `check:python` is required when Python source, tests, package metadata, or locks
 change; its standards and package inventory are defined in
 [`docs/specs/python-quality.md`](docs/specs/python-quality.md).
