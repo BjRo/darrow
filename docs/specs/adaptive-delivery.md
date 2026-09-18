@@ -99,7 +99,9 @@ The package supports Python 3.10–3.13, UV, and Git on Linux, macOS, and native
 Windows, with no runtime dependencies or Bash entrypoint adapters. Native paths
 and argument-vector subprocesses preserve spaces, Unicode, and linked-worktree
 identity. It retains the prepared-v2, route-v2, and Claude-agent-route-v1 records,
-record ordering, policy precedence, refusal exit 2, and help exit 0. JSON uses
+record ordering, policy precedence, refusal exit 2, and help exit 0. Commands emit
+UTF-8 stdout/stderr with LF records regardless of the host's redirected console
+encoding, including native Windows code pages. JSON uses
 the standard-library parser; syntax diagnostics may name its line/column while
 semantic validation, duplicate rejection, and fail-closed behavior remain required.
 No helper starts a host process or implements orchestration authority checks;

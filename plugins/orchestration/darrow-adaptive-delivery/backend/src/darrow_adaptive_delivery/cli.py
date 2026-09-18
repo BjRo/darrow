@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from io import TextIOWrapper
 
 from . import claude
 from . import preflight as preparation
@@ -11,6 +12,9 @@ from .common import RefusalError
 
 
 def execute(name: str, run: Callable[[list[str]], str]) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", newline="\n")
     try:
         output = run(sys.argv[1:])
     except (RefusalError, OSError, UnicodeError) as error:

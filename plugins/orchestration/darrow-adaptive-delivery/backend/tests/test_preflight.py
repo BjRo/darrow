@@ -47,6 +47,28 @@ def policy(repo: Path, **changes: object) -> Path:
     return path
 
 
+def test_console_records_are_utf8_under_legacy_code_page(repo: Path) -> None:
+    unicode_repo = repo.with_name("repository-é")
+    repo.rename(unicode_repo)
+    environment = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    command = [
+        sys.executable,
+        "-c",
+        "from darrow_adaptive_delivery.cli import preflight; raise SystemExit(preflight())",
+    ]
+    for target, status in ((unicode_repo, 0), (unicode_repo / "missing-é", 2)):
+        result = subprocess.run(
+            [*command, "prepare", "--repo", str(target), "--host", "codex"],
+            capture_output=True,
+            env=environment,
+            check=False,
+        )
+        assert result.returncode == status
+        output = result.stdout if status == 0 else result.stderr
+        assert str(target) in output.decode("utf-8")
+        assert b"\r\n" not in output
+
+
 def test_prepared_records_and_unchanged_repository(repo: Path) -> None:
     before = git(repo, "status", "--porcelain=v1")
     output = preflight.run(["prepare", "--repo", str(repo), "--host", "codex"])
