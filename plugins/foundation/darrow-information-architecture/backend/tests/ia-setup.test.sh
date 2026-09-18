@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-SCRIPT="$(cd "$(dirname "$0")" && pwd)/ia-setup.sh"
+BACKEND="$(cd "$(dirname "$0")/.." && pwd)"
+command_ia() { uv run --quiet --frozen --no-dev --project "$BACKEND" ia-setup "$@"; }
 FAILURES=0
 TEMPS=""
 
@@ -36,7 +37,7 @@ fresh_repo() {
 
 echo "setup IA inventory"
 fresh_repo
-out=$(bash "$SCRIPT" inspect "$REPO/src")
+out=$(command_ia inspect "$REPO/src")
 check_contains "resolves main worktree from a subdirectory" "root: $REPO" "$out"
 check_contains "finds root guidance" "AGENTS.md | bytes=" "$out"
 check_contains "finds manifests" "package.json" "$out"
@@ -44,7 +45,7 @@ check_contains "finds CI" ".github/workflows/test.yml" "$out"
 check_contains "finds skills" ".agents/skills/review/SKILL.md" "$out"
 
 before=$(find "$REPO" -not -path '*/.git/*' -print | LC_ALL=C sort)
-bash "$SCRIPT" inspect "$REPO" >/dev/null
+command_ia inspect "$REPO" >/dev/null
 after=$(find "$REPO" -not -path '*/.git/*' -print | LC_ALL=C sort)
 if [[ "$before" == "$after" ]]; then
   echo "  ok: inventory is read-only"
@@ -57,7 +58,7 @@ echo "setup fails closed on required evidence"
 fresh_repo
 rm "$REPO/AGENTS.md"
 ln -s missing.md "$REPO/AGENTS.md"
-if bash "$SCRIPT" inspect "$REPO" > /dev/null 2>&1; then
+if command_ia inspect "$REPO" > /dev/null 2>&1; then
   echo "  FAIL: inventory accepted a broken entrypoint symlink"
   FAILURES=$((FAILURES + 1))
 else
@@ -71,14 +72,14 @@ mkdir -p "$REPO/bin"
 # shellcheck disable=SC2016 # $i/$* must stay literal: this emits a git stub script
 printf '%s\n' '#!/usr/bin/env bash' 'if [[ "$*" == *"worktree list --porcelain"* ]]; then' "  printf 'worktree %s\\n' '$REPO'" '  i=0; while [[ $i -lt 9000 ]]; do printf "HEAD %040d\\n" "$i"; i=$((i + 1)); done' '  exit 0' 'fi' "exec '$REAL_GIT' \"\$@\"" > "$REPO/bin/git"
 chmod +x "$REPO/bin/git"
-out=$(PATH="$REPO/bin:$PATH" bash "$SCRIPT" inspect "$REPO")
+out=$(PATH="$REPO/bin:$PATH" command_ia inspect "$REPO")
 check_contains "consumes a large worktree listing without SIGPIPE" "root: $REPO" "$out"
 
 echo "setup caps large inventories"
 fresh_repo
 i=0
 while [[ $i -lt 45 ]]; do mkdir -p "$REPO/dir-$i"; printf '# Nested\n' > "$REPO/dir-$i/AGENTS.md"; i=$((i + 1)); done
-out=$(bash "$SCRIPT" inspect "$REPO")
+out=$(command_ia inspect "$REPO")
 check_contains "caps the entrypoint listing" "  - ..." "$out"
 
 if [[ $FAILURES -ne 0 ]]; then

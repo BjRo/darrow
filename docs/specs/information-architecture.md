@@ -7,6 +7,40 @@ reachable at the moment it matters.
 Plugin: `darrow-information-architecture`. Skills: `setup-information-architecture`,
 `doctor-information-architecture`.
 
+## Portable mechanics
+
+- **IA-P1 — Contained locked execution.** Setup inspection and doctor
+  inspection/verification run through the plugin's frozen UV package on Python
+  3.10–3.13, Linux, macOS, and native Windows. Preserve inventory groups,
+  diagnostics, summary records, and statuses: 64 for invalid arguments, 2 for
+  inaccessible repository/input, 1 for critical verification findings, and 0
+  for completed inspection or successful verification. No Bash runtime shim is
+  required. Setup and doctor retain separate intent and judgment in their skills.
+- **IA-P2 — Filesystem semantics.** Resolve the primary worktree from Git's
+  first porcelain record, otherwise the supplied directory. Accept native
+  repository paths, including Windows drives and UNC paths. Interpret portable
+  guidance routes with forward slashes; accept Windows separators on Windows.
+  Match instruction names with their documented case even on case-insensitive
+  filesystems. Recognize CRLF, LF, and UTF-8 BOM guidance without changing bytes.
+  Follow file adapters only within the repository; report broken, looping,
+  external, unreadable, or non-file dependencies rather than silently dropping
+  selected evidence. Existing native imports outside the repository retain
+  their host-owned semantics and are outside the repository audit scope.
+  Do not recurse into directory symlinks. An unavailable
+  native symlink facility never authorizes replacing an existing adapter.
+- **IA-P3 — Safe guidance updates.** Inventory and verification are read-only.
+  Approved edits preserve the source of truth, newline convention, and file
+  permissions. Publish complete replacement content atomically from a temporary
+  file in the destination directory, preserving symlink adapters by updating
+  their canonical source. A failed replacement leaves original bytes intact;
+  concurrent source changes must be detected before replacement. Multi-file
+  edits are not a transaction and must be verified as a complete graph.
+- **IA-P4 — Release evidence.** Retain regression evidence for routing,
+  reachability, native scope, adapters, duplicate content, stale references,
+  refusals, and output. Enforce the repository Python quality gates, property
+  tests, both skill eval suites, and fresh copied-plugin execution using only
+  locked runtime dependencies on all three native platforms.
+
 ## Why
 
 Large root instruction files spend context on every task. Bare repositories

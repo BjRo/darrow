@@ -10,8 +10,9 @@ resident and makes every deferred rule reachable when it matters. Begin
 read-only and preserve existing knowledge; never replace it with a generic
 template.
 
-Run structural inventory through `<skill-dir>/scripts/ia-setup.sh`, where
-`<skill-dir>` contains this file. Execute bundled scripts with Bash. The script
+Run structural inventory through the frozen UV package at
+`<skill-dir>/../../backend`, where `<skill-dir>` contains this file. Requires
+UV and Python 3.10–3.13 on Linux, macOS, or native Windows. The inspector
 finds evidence; it does not decide placement or policy.
 
 ## Working model
@@ -35,7 +36,7 @@ finds evidence; it does not decide placement or policy.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/ia-setup.sh inspect [repository]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-setup inspect [repository]
 ```
 
 Use its compact inventory to locate instruction entrypoints, adapters,
@@ -118,6 +119,9 @@ prohibitions from workflow steps: the universal rules stay in the resident
 root, while the ordered steps and their task-specific gates move to the skill.
 A route to the skill does not replace a resident prohibition. Keep an explicit
 intent route when native skill discovery is insufficient for any selected runtime.
+That route names the exact session-root-relative `SKILL.md` path and says when
+to read it. Confirm it appears in the inspector's `routes` records; a passing
+structural status alone does not prove that a newly moved procedure is reachable.
 
 Remove cheap manifest/config inventory rather than turning it into `use the
 existing toolchain`. For a mixed statement such as `Runtime: Bun; never use npm
@@ -165,6 +169,10 @@ grouped question.
 
 ### 4. Apply and verify
 
+For approved guidance-file replacements, read
+[`../../references/file-updates.md`](../../references/file-updates.md) and use
+the bundled atomic writer. Keep existing adapter direction and newline style.
+
 Apply only confirmed actions. Edit a declared source of truth, then use the
 repository's sync mechanism for generated/mirrored adapters. Preserve exact
 constraints, rationales, unusual command spelling, skill procedures, and
@@ -175,7 +183,7 @@ push.
 Verify the selected runtimes and declared mirrors:
 
 ```sh
-bash <skill-dir>/../../bin/ia-doctor verify --runtime both \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-doctor verify --runtime both \
   [--mirror source=target]... [repository]
 ```
 

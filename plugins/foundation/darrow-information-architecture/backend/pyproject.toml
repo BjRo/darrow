@@ -1,0 +1,59 @@
+[project]
+name = "darrow-information-architecture"
+version = "0.2.0"
+description = "Portable repository guidance inventory and verification"
+requires-python = ">=3.10,<3.14"
+dependencies = []
+
+[project.scripts]
+ia-doctor = "darrow_ia.cli:doctor_entrypoint"
+ia-setup = "darrow_ia.cli:setup_entrypoint"
+ia-write = "darrow_ia.updates:entrypoint"
+
+[dependency-groups]
+dev = [
+  "coverage[toml]>=7.10,<8",
+  "hypothesis>=6.138,<7",
+  "mypy>=1.18,<2",
+  "pytest>=8.4,<9",
+  "ruff>=0.12,<1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+default-groups = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/darrow_ia"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["B", "C4", "C90", "E4", "E7", "E9", "F", "I", "N", "RUF", "SIM", "UP"]
+mccabe.max-complexity = 5
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["darrow_ia"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

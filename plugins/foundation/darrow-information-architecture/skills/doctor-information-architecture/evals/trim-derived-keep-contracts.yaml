@@ -34,7 +34,7 @@ fixture:
         .agent-shared/rules/web.md: "# Web\n\nPreserve keyboard navigation.\n"
         package.json: "{\"private\":true,\"packageManager\":\"bun@1.3.0\",\"scripts\":{\"test\":\"vitest\",\"lint\":\"biome check .\"}}\n"
         tools/guard: "#!/bin/sh\nexit 0\n"
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: self-merge prohibition remains
     run: cat AGENTS.md
@@ -59,7 +59,7 @@ checks:
     flags: i
   - name: deterministic dual-runtime routing verification passes
     run: >-
-      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: response reports exact per-runtime before and after bytes and tokens
     run: >-
@@ -67,7 +67,7 @@ checks:
       before_codex_tokens=$(( (before_codex + 3) / 4 ));
       before_claude=$(git show HEAD:CLAUDE.md | wc -c | tr -d ' ');
       before_claude_tokens=$(( (before_claude + 3) / 4 ));
-      summary=$(bash .git/ia-doctor inspect --runtime both . | sed -n '/^summary:/p');
+      summary=$(uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor inspect --runtime both . | sed -n '/^summary:/p');
       after_codex=$(printf '%s\n' "$summary" | sed -n 's/.*codex_root_bytes=\([0-9][0-9]*\).*/\1/p');
       after_codex_tokens=$(printf '%s\n' "$summary" | sed -n 's/.*codex_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
       after_claude=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_bytes=\([0-9][0-9]*\).*/\1/p');
