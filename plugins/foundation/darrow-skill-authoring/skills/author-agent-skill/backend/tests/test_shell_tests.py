@@ -103,6 +103,45 @@ def test_missing_test_is_identified_with_exit_two(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("arguments", "candidates", "tests"),
+    [
+        (
+            ["--shell", "first", "--shell", "second", "test.sh"],
+            ["first", "second"],
+            ["test.sh"],
+        ),
+        (["--shell", "--", "test.sh"], ["--"], ["test.sh"]),
+        (["--shell", "", "--", "test.sh"], [""], ["test.sh"]),
+        (["--", "--unknown"], None, ["--unknown"]),
+        (["test.sh", "--shell", "--"], None, ["test.sh", "--shell", "--"]),
+    ],
+)
+def test_argument_boundaries_reach_the_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: list[str],
+    candidates: list[str] | None,
+    tests: list[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    for name in tests:
+        (tmp_path / name).write_text("exit 0\n", encoding="utf-8")
+    with patch.object(
+        shell_tests, "discover_interpreters", return_value=[]
+    ) as discover:
+        status, output, error = invoke(*arguments)
+    discover.assert_called_once_with(
+        candidates if candidates is not None else list(shell_tests.DEFAULT_CANDIDATES),
+        explicit=candidates is not None,
+    )
+    assert status == 3
+    assert error == ""
+    assert output.splitlines()[1 : 1 + len(tests)] == [
+        f"test_script\t{tmp_path.resolve() / name}" for name in tests
+    ]
+
+
 def test_explicit_shell_discovery_error_is_reported(tmp_path: Path) -> None:
     test = tmp_path / "passing.sh"
     test.write_text("exit 0\n", encoding="utf-8")

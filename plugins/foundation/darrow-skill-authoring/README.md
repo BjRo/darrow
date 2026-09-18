@@ -34,16 +34,16 @@ uv sync --quiet --frozen --no-dev --project skills/author-agent-skill/backend
 ```
 
 From the repository root, run the Python quality checks with
-`bun run check:python`. From this plugin directory, run the compatibility shell
+`bun run check:python`. From this plugin directory, run the shell regression
 suites through the version-aware matrix:
 
 ```text
 uv run --quiet --frozen --no-dev \
   --project skills/author-agent-skill/backend \
   verify-shell-tests -- \
-  skills/author-agent-skill/scripts/inspect-skill.test.sh \
-  skills/author-agent-skill/scripts/verify-shell-tests.test.sh \
-  skills/author-agent-skill/scripts/interpreter-routing.test.sh
+  skills/author-agent-skill/backend/tests/shell/inspect-skill.test.sh \
+  skills/author-agent-skill/backend/tests/shell/verify-shell-tests.test.sh \
+  skills/author-agent-skill/backend/tests/shell/interpreter-routing.test.sh
 ```
 
 The matrix reports observed interpreter versions. Exit `3` leaves an unavailable

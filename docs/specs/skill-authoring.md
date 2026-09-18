@@ -106,6 +106,11 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   their executing interpreter in nested implementation calls. A packaged skill
   remains useful with no MCP server or other Darrow plugin installed unless its
   own manifest declares and supplies that dependency.
+  This plugin exposes its inspector and shell-test matrix only through their
+  frozen UV console entrypoints, without legacy launchers or module-execution
+  aliases. Internal simplification preserves argument consumption, interpreter
+  selection, diagnostic order, output records, and exit statuses. Regression
+  shell suites live with the backend tests, not as runtime skill scripts.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,
