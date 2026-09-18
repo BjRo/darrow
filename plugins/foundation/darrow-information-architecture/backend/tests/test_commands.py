@@ -193,7 +193,7 @@ def invoke(
             {"CLAUDE.md": "@src/local.md", "local.md": "# Root lookalike"},
             "claude",
             1,
-            "src/local.md",
+            str(Path("src/local.md")),
         ),
     ],
 )
@@ -417,7 +417,7 @@ def test_long_graph_and_caps(
     files.update({f"src/{i}/AGENTS.md": "# Nested" for i in range(45)})
     write(tmp_path, files)
     status, output = invoke(tmp_path, capsys, "verify")
-    assert status == 1 and "docs/150.md" in output
+    assert status == 1 and str(tmp_path / "docs/150.md") in output
     assert (
         "additional routes omitted" in output
         and "additional findings omitted" in output
