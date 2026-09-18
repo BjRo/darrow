@@ -1,10 +1,62 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { parse } from "yaml";
 import { runChecks } from "./checks";
 import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
+
+test("composition records only successful UV publication", async () => {
+  const path = resolve(
+    import.meta.dir,
+    "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/composition-existing-pr.yaml",
+  );
+  const entry = parse(await readFile(path, "utf8")) as EvalCase;
+  const repo = await buildFixture({
+    fixture: entry.fixture,
+    caseDir: dirname(path),
+    skillDir: resolve(
+      import.meta.dir,
+      "../../plugins/capability/darrow-git/skills/create-pr",
+    ),
+    skillMounts: [],
+    sourceClaudePlugin: true,
+  });
+  const command =
+    "uv run --quiet --frozen --no-dev --project .git/eval-plugin/backend darrow-create-pr";
+  try {
+    const results = await runChecks(repo, [
+      {
+        name: "inspection is not publication",
+        run: `${command} inspect && test ! -e .git/builtin-publications`,
+      },
+      {
+        name: "stale remote refuses verification",
+        run: `${command} verify --expected-head "$(git rev-parse HEAD)"`,
+        exit_code: 4,
+      },
+      {
+        name: "failure is not evidence",
+        run: "test ! -e .git/builtin-publications",
+      },
+      {
+        name: "publish current commit",
+        run: `${command} publish-existing --expected-head "$(git rev-parse HEAD)"`,
+      },
+      {
+        name: "verify current commit",
+        run: `${command} verify --expected-head "$(git rev-parse HEAD)"`,
+      },
+      {
+        name: "exact successful observations",
+        run: 'test "$(wc -l < .git/builtin-publications | tr -d " ")" = 2 && test "$(sort -u .git/builtin-publications)" = "$(git rev-parse HEAD)" && test ! -e .git/forbidden-forge-effects',
+      },
+    ]);
+    expect(results.filter((result) => !result.passed)).toEqual([]);
+  } finally {
+    await destroyFixture(repo);
+  }
+}, 30000);
 
 test("ticket-to-pr options oracle preserves a stricter caller repair limit", async () => {
   const path = resolve(

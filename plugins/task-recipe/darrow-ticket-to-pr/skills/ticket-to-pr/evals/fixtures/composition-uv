@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Fixture-only observation of the real bundled publication entrypoint.
+set -uo pipefail
+bin=$(cd "$(dirname "$0")" && pwd -P)
+IFS= read -r real_uv <"$bin/uv-command"
+publication=false
+intended=''
+previous=''
+for argument in "$@"; do
+  if [[ "$previous" == darrow-create-pr && ( "$argument" == publish-existing || "$argument" == verify ) ]]; then
+    publication=true
+  fi
+  if [[ "$previous" == --expected-head ]]; then intended=$argument; fi
+  previous=$argument
+done
+"$real_uv" "$@"
+result=$?
+if [[ "$result" == 0 && "$publication" == true ]]; then
+  dir=$(git rev-parse --absolute-git-dir) || exit 1
+  printf '%s\n' "$intended" >>"$dir/builtin-publications"
+fi
+exit "$result"

@@ -1,16 +1,18 @@
 ---
 name: prepare-task-branch
-description: "Discover local task branches for an exact opaque ticket token, or prepare one caller-bound exact ticket branch. Use to find prior local work for a canonical token, or switch to, reuse, or create one exact branch in the current checkout or an explicitly requested worktree. Multiple candidate names require an exact caller choice. Do not use to derive branch names from described work or for general branch listing."
+description: "Find prior local task branches for an exact ticket token, or prepare an already caller-bound complete branch name. Use for token-based discovery or switching to, reusing, or creating that exact name, optionally in an explicitly requested worktree. A request to create a new branch from ticket work without a complete branch name belongs to create-branch, even when a ticket token is supplied. Multiple discovery candidates require an exact caller choice. Do not use for general branch listing."
 ---
 
 # Prepare a task branch
 
 Prepare exactly one named task branch in the current checkout, or in a linked
 worktree only when the caller explicitly requests that context. Run every Git
-operation through `scripts/branch.sh` with Bash; `<skill-dir>` contains this
+operation through the frozen UV entrypoint below; `<skill-dir>` contains this
 file. The script owns repository inspection, name and ticket-token validation,
 complete token discovery, additive creation, exact reuse, switching, worktree allocation, and refusal
 safety. Use its output as the source of truth.
+
+The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## 1. Bind discovery or preparation input
 
@@ -18,7 +20,7 @@ For discovery, require only the active provider's exact opaque canonical token.
 Run the read-only operation:
 
 ```sh
-bash <skill-dir>/scripts/branch.sh discover --ticket-token <opaque-token>
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-prepare-task-branch discover --ticket-token <opaque-token>
 ```
 
 Relay `mode: discovered`, the unchanged token, the exact count, and every
@@ -56,7 +58,7 @@ the missing choice has been requested without repository mutation.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/branch.sh inspect
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-prepare-task-branch inspect
 ```
 
 - `mode: ready`: consider the current branch, deliberate base, dirty state, and
@@ -75,7 +77,7 @@ relayed without another operation.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/branch.sh prepare \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-prepare-task-branch prepare \
   <type>/<opaque-token>-<suffix> --ticket-token <opaque-token> [--from <base>] \
   [--worktree [--at <path>]]
 ```

@@ -10,6 +10,43 @@ Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`,
 GW-B6 applies only when the caller explicitly asks the `create-branch`
 capability to allocate an additional linked worktree.
 
+## Native discovery
+
+- **GW-A1 — Route before preflight.** A matching Git workflow request selects
+  its skill before repository inspection or a terminal response. Missing input,
+  a clean tree, conflicts, and hook failures remain within the owning skill's
+  scope. General inspection and unrelated comments do not select a mutation
+  skill. Claude receives a plugin-local SessionStart routing reminder through
+  its native context hook. The hook supplies static context only: no provider
+  calls, prompt classification, workflow execution, state, or authority grants.
+  Native skill discovery and the selected skill retain contextual decisions;
+  installation never starts an operation or chains capabilities.
+
+## Executable mechanics
+
+- **GW-M1 — Contained portable implementation.** The five capabilities share
+  one Python package contained in `darrow-git/backend`, with frozen UV runtime
+  entrypoints and no runtime dependency on another plugin. Git and GitHub CLI
+  remain the provider boundaries. Frozen UV console commands are the runtime
+  interface on every platform; legacy shell-script paths are not retained.
+  Command arguments, stable records, refusal statuses, and mutation safeguards
+  remain intact. Internal refactoring preserves argument consumption order,
+  repeated-option behavior, diagnostic text, and stdout/stderr routing as well
+  as exit codes and repository effects. No workflow requires a Bash launcher.
+- **GW-M2 — Literal process and filesystem boundaries.** Provider commands use
+  argument vectors, never interpolated shell programs. Paths and temporary
+  artifacts use native filesystem APIs. Hook remediation retains its diagnostic
+  and index-snapshot authorization boundary; the literal authorized diagnostic
+  command uses the native host command interpreter (POSIX sh or Windows cmd)
+  with its native command-string quoting. This compatibility exception never applies to Git/GitHub
+  provider arguments.
+- **GW-M3 — Migration evidence.** The package meets the repository Python
+  quality standard, including separate 95% statement and branch coverage,
+  deterministic real-Git integration fixtures, mocked GitHub publication,
+  meaningful property tests, and fresh copied-plugin tests on Linux, macOS,
+  and native Windows. The propagation and presentation fixes tracked in #171
+  and #174 remain separately identifiable from this migration.
+
 ## Why
 
 Agents left to improvise git usage produce inconsistent messages, stage
@@ -68,6 +105,11 @@ Pushing, branch creation (see create-branch), PR creation (see create-pr),
 splitting one described change into multiple commits unless asked.
 
 ## create-branch
+
+A request to create a branch from described ticket work belongs to
+`create-branch` even when it supplies a canonical ticket token. That token does
+not bind a complete branch name or turn creation into task-branch discovery;
+derive the new name without asking the caller to supply one.
 
 ### Intent triggers
 
@@ -217,6 +259,13 @@ draft state, intended commit, remote branch commit, forge PR-head commit and
 whether a push occurred. Success requires all three full commit identities to
 agree after the operation.
 
+The complete publication record is a machine-facing verification artifact.
+The user-facing success report is concise: link the PR, state its base and
+draft state, name the verified commit once, and mention excluded local work or
+material notes. Expand repository, head and mutation details only when requested
+or needed to explain uncertainty. Never summarize an incomplete observation as
+verified publication.
+
 ### Invariants
 
 - **GW-P1 — Conventional title.** The PR title follows the Conventional
@@ -266,6 +315,15 @@ agree after the operation.
   contract as reuse. A URL or successful command exit alone is not completion.
   If creation or push has occurred but observation fails, report the known
   effects and uncertainty without creating another PR.
+- **GW-P11 — Bounded propagation observation.** When the remote branch already
+  equals the intended commit but the forge reports another valid full commit,
+  allow at most five observations, one second apart. Pin the first observed PR
+  number and URL and recheck the local branch and commit before each observation.
+  A changed identity, shape, unavailable observation, malformed commit, or remote
+  movement refuses immediately. The observation loop never pushes or creates a
+  PR; timeout preserves the known mutation effects and reports incomplete
+  verification. Initial reuse preflight still requires remote/forge agreement
+  before deciding whether a push is necessary.
 
 ### Non-goals
 

@@ -38,6 +38,7 @@ fixture:
             case "$1" in
               --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
               --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --body-file) cp "$2" "$d/body"; shift 2 ;;
               --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
               --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
               --draft) : > "$d/draft"; shift ;;
@@ -86,5 +87,7 @@ checks:
     run: cat .git/fixture-gh/title
     not_regex: "\\.$"
 output_checks:
-  - name: successful creation returns verified publication identity
-    expect_regex: 'publication: verified[\s\S]*url: https://github.com/fixture/repo/pull/1[\s\S]*repository: fixture/repo[\s\S]*intended-commit: ([0-9a-f]{40}|[0-9a-f]{64})[\s\S]*remote-commit: ([0-9a-f]{40}|[0-9a-f]{64})[\s\S]*pr-commit: ([0-9a-f]{40}|[0-9a-f]{64})[\s\S]*push: completed[\s\S]*pr-create: completed'
+  - name: successful creation links the canonical PR
+    expect_regex: "https://github.com/fixture/repo/pull/1"
+  - name: success does not paste the machine publication record
+    not_regex: 'intended-commit:[\s\S]*remote-commit:[\s\S]*pr-commit:'
