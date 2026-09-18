@@ -392,12 +392,23 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    command or manifest, its own source material, a strict finding schema, and a
    concise output budget. It MUST NOT receive the other reviewer's analysis or
    an unrelated conversation transcript.
-5. **CR-P5 — Mechanics in scripts.** Fixed-point validation, diff-scope
-   construction, and structured-result validation belong in bundled portable
-   scripts. Review judgment remains in `SKILL.md` and small references.
-6. **CR-P6 — Portable scripts.** Bundled shell mechanics follow Darrow's Bash
-   3.2 and Bash 5 requirements, preserve pre-existing changes, and emit
-   absolute model-facing paths where paths are needed.
+5. **CR-P5 — Packaged mechanics.** Fixed-point validation, diff-scope
+   construction, reviewer routing, provider observation, check capture, and
+   structured-result validation and rendering belong in one self-contained
+   Python + UV package. Invoke its public commands through frozen resolution;
+   do not retain Bash/AWK runtime aliases. Review judgment remains in
+   `SKILL.md` and small references.
+6. **CR-P6 — Portable mechanics.** The package supports Python 3.10–3.13 on
+   Linux, macOS, and native Windows, preserves pre-existing changes, and emits
+   absolute model-facing paths. Use argument-vector subprocesses, explicit
+   UTF-8 records, native temporary files, and cancellation that terminates
+   owned subprocesses. The deliberately literal `review-check --command`
+   boundary uses the host shell (Bash on Unix, PowerShell on native Windows);
+   all other commands execute without shell interpolation. Preserve public
+   command names, TSV formats, scope/repair binding, diagnostics, and exit
+   codes. Register the locked package in the Python inventory, enforce the
+   repository's strict quality gates, and exercise copied runtime-only plugins
+   on all three native platforms with provider boundaries controlled.
 7. **CR-P7 — Portable composition.** Consumers request independent code review
    by intent and interpret its reported findings and outcome; neither side needs
    a sibling plugin path, implementation name, output schema, tracker, or

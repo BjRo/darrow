@@ -19,7 +19,7 @@ case "$record" in
   *) fail "not a canonical fixture review artifact: $record" ;;
 esac
 # Only the installed dependency beneath this isolated fixture is eligible.
-tools=$(find "$git_dir" -type f -path '*/bin/review-result')
+tools=$(find "$git_dir" -type f -path '*/backend/src/darrow_review/result.py')
 result_tool=
 while IFS= read -r candidate; do
   [ -f "$candidate" ] || fail 'installed review-result tool is missing'
@@ -29,16 +29,17 @@ while IFS= read -r candidate; do
     # The local marketplace source and the host-installed cache are copies of
     # the same dependency. Accept duplicates only when both tools are identical.
     if ! cmp -s "$result_tool" "$candidate" ||
-      ! cmp -s "${result_tool%/*}/review-scope" "${candidate%/*}/review-scope"; then
+      ! cmp -s "${result_tool%/*}/scope.py" "${candidate%/*}/scope.py"; then
       fail 'conflicting fixture review-tool copies'
     fi
   fi
 done <<<"$tools"
-scope_tool=${result_tool%/*}/review-scope
+backend=${result_tool%/src/darrow_review/result.py}
+scope_tool=${result_tool%/*}/scope.py
 case "$record" in
   */review.md|*/verification.md)
     report=$record
-    report_tool=${result_tool%/*}/review-report
+    report_tool=${result_tool%/*}/report.py
     [ -f "$report_tool" ] && [ -r "$report_tool" ] || fail 'installed review renderer is missing'
     case "$report" in
       */review.md) record=${report%/*}/result.tsv; render=render ;;
@@ -46,7 +47,7 @@ case "$record" in
     esac
     rendered=$(mktemp "$git_dir/review-proof.XXXXXX")
     trap 'rm -f "$rendered"' EXIT
-    "${BASH:-bash}" "$report_tool" "$render" "$record" >"$rendered"
+    uv run --quiet --frozen --no-dev --project "$backend" review-report "$render" "$record" >"$rendered"
     cmp -s "$rendered" "$report" || fail 'human report differs from its canonical result'
     ;;
 esac
@@ -55,7 +56,7 @@ format=$(field format "$record")
 case "$format" in
   darrow-review-result-v1)
     [ "${record##*/}" = result.tsv ] || fail 'wrong comprehensive artifact name'
-    "${BASH:-bash}" "$result_tool" validate "$record" >/dev/null
+    uv run --quiet --frozen --no-dev --project "$backend" review-result validate "$record" >/dev/null
     [ "$(field verdict "$record")" = pass ] || fail 'review is not clear'
     [ "$(field next_action "$record")" = 'return control to enclosing goal' ] ||
       fail 'review did not return control'
@@ -63,7 +64,7 @@ case "$format" in
     ;;
   darrow-review-verification-v1)
     [ "${record##*/}" = verification.tsv ] || fail 'wrong verification artifact name'
-    "${BASH:-bash}" "$result_tool" validate-verification "$record" >/dev/null
+    uv run --quiet --frozen --no-dev --project "$backend" review-result validate-verification "$record" >/dev/null
     [ "$(field outcome "$record")" = clear ] || fail 'verification is not clear'
     original_target=$(field original_target "$record")
     original=
@@ -75,7 +76,7 @@ case "$format" in
     done < <(find "$git_dir" -type f -path '*/darrow-review.*/result.tsv')
     [ -n "$original" ] || fail 'original comprehensive result is missing'
     # The provider owns the complete original schema, including repair guidance.
-    "${BASH:-bash}" "$result_tool" validate-original "$original" "$record" >/dev/null ||
+    uv run --quiet --frozen --no-dev --project "$backend" review-result validate-original "$original" "$record" >/dev/null ||
       fail 'verification changed the original finding set'
     reviewed_target=$(field current_target "$record")
     ;;
@@ -83,7 +84,7 @@ case "$format" in
 esac
 if [ "$mode" != artifact ]; then
   [ -f "$scope_tool" ] || fail 'installed review-scope tool is missing'
-  scope=$("${BASH:-bash}" "$scope_tool" prepare --repo "$PWD" --base HEAD --target WORKTREE)
+  scope=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD --target WORKTREE)
   current_target=$(awk -F '\t' '$1 == "target" { print $2 }' <<<"$scope")
   [ -n "$reviewed_target" ] && [ "$reviewed_target" = "$current_target" ] ||
     fail "stale review target: $reviewed_target; current: $current_target"

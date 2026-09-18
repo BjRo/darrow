@@ -3,8 +3,9 @@
 set -eu
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
-SCOPE=$SCRIPT_DIR/review-scope
-SKILL=$SCRIPT_DIR/../skills/code-review/SKILL.md
+PLUGIN=$(cd "$SCRIPT_DIR/../../.." && pwd -P)
+SCOPE=(uv run --quiet --frozen --no-dev --project "$PLUGIN/backend" review-scope)
+SKILL=$PLUGIN/skills/code-review/SKILL.md
 temp_parent=${TMPDIR:-/tmp}
 case "$temp_parent" in
   /) temp_template=/darrow-review-context.XXXXXX ;;
@@ -63,12 +64,13 @@ quoted_repo=$work_dir/$special
 tool_dir=$work_dir/tool-$special
 make_repo "$quoted_repo"
 mkdir "$tool_dir" "$work_dir/caller" "$work_dir/shell-bin"
-cp "$SCOPE" "$tool_dir/review-scope"
+mkdir "$tool_dir/backend"
+cp -R "$PLUGIN/backend/src" "$PLUGIN/backend/pyproject.toml" "$PLUGIN/backend/uv.lock" "$tool_dir/backend/"
 # Generated commands name bash; pin that name to the matrix interpreter.
 ln -s "$BASH" "$work_dir/shell-bin/bash"
 export PATH="$work_dir/shell-bin:$PATH"
 printf 'prior\n' >"$quoted_repo/value.txt"
-(cd "$work_dir" && CDPATH=. "$BASH" "tool-$special/review-scope" prepare \
+(cd "$work_dir" && CDPATH=. uv run --quiet --frozen --no-dev --project "tool-$special/backend" review-scope prepare \
   --repo "$quoted_repo" --base HEAD --target WORKTREE) >"$work_dir/prior.tsv"
 prior=$(field manifest "$work_dir/prior.tsv")
 show=$(field show_command "$prior")
@@ -77,12 +79,12 @@ cmp "$(field diff "$prior")" "$work_dir/shown.patch"
 printf 'ok: show command preserves tool and manifest arguments from another directory\n'
 
 printf 'current\n' >"$quoted_repo/value.txt"
-"$BASH" "$tool_dir/review-scope" prepare --repo "$quoted_repo" \
+uv run --quiet --frozen --no-dev --project "$tool_dir/backend" review-scope prepare --repo "$quoted_repo" \
   --base HEAD --target WORKTREE --prior-manifest "$prior" >"$work_dir/current.tsv"
 current=$(field manifest "$work_dir/current.tsv")
 repair=$(field repair_show_command "$current")
 (cd "$work_dir/caller" && "$BASH" -c "$repair") >"$work_dir/repair.patch"
-"$BASH" "$SCOPE" compare --prior-manifest "$prior" \
+"${SCOPE[@]}" compare --prior-manifest "$prior" \
   --current-manifest "$current" >"$work_dir/expected.patch"
 cmp "$work_dir/expected.patch" "$work_dir/repair.patch"
 [ ! -e "$work_dir/caller/INJECTED" ]

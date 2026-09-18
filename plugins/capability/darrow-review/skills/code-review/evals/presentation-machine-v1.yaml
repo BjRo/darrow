@@ -14,9 +14,9 @@ fixture:
 checks:
   - name: requested raw record validates
     run: >-
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
-      bash "$tool" validate .git/last-message.md
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate .git/last-message.md
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: explicit machine response preserves the retained canonical record
     run: >-

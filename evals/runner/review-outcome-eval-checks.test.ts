@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const plugin = resolve(
@@ -19,6 +20,49 @@ const plugin = resolve(
   "../../plugins/capability/darrow-review",
 );
 const roots: string[] = [];
+
+for (const name of [
+  "fix-verification-resolved",
+  "fix-verification-progress-advisory",
+  "fix-verification-regression-scope",
+  "fix-verification-regression-second-round",
+  "fix-verification-unavailable",
+  "goal-contract-repair-rereview",
+  "repair-guidance-alternative",
+  "repair-guidance-unresolved",
+]) {
+  test(`review package fixture setup: ${name}`, async () => {
+    const caseDir = join(plugin, "skills/code-review/evals");
+    const evalCase = parseYaml(
+      await readFile(join(caseDir, `${name}.yaml`), "utf8"),
+    ) as EvalCase;
+    const repo = await buildFixture({
+      fixture: evalCase.fixture,
+      skillDir: "",
+      skillMounts: [],
+      caseDir,
+    });
+    try {
+      if (name === "goal-contract-repair-rereview") {
+        expect(
+          (await readFile(join(repo, ".git/review-backend"), "utf8")).trim(),
+        ).toBe(join(plugin, "backend"));
+      } else {
+        const input = await readFile(
+          join(repo, ".git/verification-input"),
+          "utf8",
+        );
+        const manifest = input.match(/^prior_manifest\t(.+)$/m)?.[1];
+        expect(manifest).toBeTruthy();
+        expect(await readFile(manifest!, "utf8")).toContain(
+          `repository\t${repo}`,
+        );
+      }
+    } finally {
+      await destroyFixture(repo);
+    }
+  }, 30_000);
+}
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true })),
@@ -31,10 +75,14 @@ async function fixture() {
   );
   roots.push(root);
   const artifacts = join(root, ".git/darrow-review.fixture");
-  const bin = join(root, ".git/eval-tools/bin");
+  const backend = join(root, ".git/eval-tools/backend");
   await mkdir(artifacts, { recursive: true });
-  await cp(join(plugin, "bin"), bin, { recursive: true });
-  return { root, artifacts, bin };
+  await mkdir(backend, { recursive: true });
+  for (const name of ["src", "pyproject.toml", "uv.lock"])
+    await cp(join(plugin, "backend", name), join(backend, name), {
+      recursive: true,
+    });
+  return { root, artifacts, backend };
 }
 
 async function gate(root: string, file: string, name: string, shell: string) {
@@ -93,13 +141,22 @@ function verification(
 async function render(
   setup: Awaited<ReturnType<typeof fixture>>,
   record: string,
-  shell: string,
 ) {
   const path = join(setup.artifacts, "verification.tsv");
   await writeFile(path, record);
   const rendered = spawnSync(
-    shell,
-    [join(setup.bin, "review-report"), "render-verification", path],
+    "uv",
+    [
+      "run",
+      "--quiet",
+      "--frozen",
+      "--no-dev",
+      "--project",
+      setup.backend,
+      "review-report",
+      "render-verification",
+      path,
+    ],
     { encoding: "utf8" },
   );
   expect(rendered.status, rendered.stderr).toBe(0);
@@ -153,7 +210,7 @@ for (const shell of ["bash", "/bin/bash"]) {
     for (const resolved of [true, false]) {
       test(`resolved case ${resolved ? "accepts all resolved states" : "rejects an unresolved advisory despite misleading prose"}`, async () => {
         const setup = await fixture();
-        await render(setup, verification(resolved), shell);
+        await render(setup, verification(resolved));
         expect(
           await gate(
             setup.root,
@@ -195,7 +252,7 @@ for (const shell of ["bash", "/bin/bash"]) {
               `previous_verification\tprior-checksum\t${previous}\n`,
             );
           }
-          const output = await render(setup, verification(), shell);
+          const output = await render(setup, verification());
           if (variant === "matching summaries" || variant === "empty reports") {
             const summary =
               variant === "empty reports"

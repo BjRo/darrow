@@ -8,13 +8,50 @@ const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/high-risk-routine.yaml",
   import.meta.url,
 );
-const validatorSource = new URL(
-  "../../plugins/capability/darrow-review/bin/review-result",
+const backendSource = new URL(
+  "../../plugins/capability/darrow-review/backend/",
   import.meta.url,
 );
 const proofSource = new URL("fixtures/require-clear-review.sh", source);
-const scopeSource = new URL("review-scope", validatorSource);
-const reportSource = new URL("review-report", validatorSource);
+
+async function reviewFiles(prefix = ".git/review-plugin/backend") {
+  const files: Record<string, string> = {};
+  for (const name of ["pyproject.toml", "uv.lock"])
+    files[`${prefix}/${name}`] = await Bun.file(
+      new URL(name, backendSource),
+    ).text();
+  const glob = new Bun.Glob("src/darrow_review/*.{py,typed}");
+  for await (const name of glob.scan(backendSource.pathname))
+    files[`${prefix}/${name}`] = await Bun.file(
+      new URL(name, backendSource),
+    ).text();
+  return files;
+}
+
+async function duplicateReview(repo: string, conflict?: boolean) {
+  const copied = await reviewFiles(".git/plugin-cache/backend");
+  for (const [path, text] of Object.entries(copied))
+    await Bun.write(`${repo}/${path}`, text);
+  if (conflict)
+    await Bun.write(
+      `${repo}/.git/plugin-cache/backend/src/darrow_review/scope.py`,
+      "raise RuntimeError('conflicting copy')\n",
+    );
+}
+
+function reviewCommand(command: string, ...args: string[]) {
+  return [
+    "uv",
+    "run",
+    "--quiet",
+    "--frozen",
+    "--no-dev",
+    "--project",
+    ".git/review-plugin/backend",
+    command,
+    ...args,
+  ];
+}
 
 test("high-risk composition requires verification and supporting review reads", async () => {
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;
@@ -79,12 +116,11 @@ async function selectedArtifact(
   if (!scenario.markdown) return record;
   const verification = record.endsWith("verification.tsv");
   const rendered = Bun.spawnSync(
-    [
-      "/bin/bash",
-      ".git/review-plugin/bin/review-report",
+    reviewCommand(
+      "review-report",
       verification ? "render-verification" : "render",
       record,
-    ],
+    ),
     { cwd: repo },
   );
   expect(rendered.exitCode).toBe(0);
@@ -219,10 +255,7 @@ for (const scenario of [
         files: {
           ".git/darrow-review.fixture/result.tsv":
             records.map((row) => row.join("\t")).join("\n") + "\n",
-          ".git/review-plugin/bin/review-result":
-            await Bun.file(validatorSource).text(),
-          ".git/review-plugin/bin/review-report":
-            await Bun.file(reportSource).text(),
+          ...(await reviewFiles()),
           ".git/fixture-bin/review-proof": await Bun.file(proofSource).text(),
         },
       },
@@ -303,12 +336,7 @@ for (const scenario of [
       fixture: {
         commits: [{ message: "Initial", files: { "value.txt": "before\n" } }],
         files: {
-          ".git/review-plugin/bin/review-result":
-            await Bun.file(validatorSource).text(),
-          ".git/review-plugin/bin/review-scope":
-            await Bun.file(scopeSource).text(),
-          ".git/review-plugin/bin/review-report":
-            await Bun.file(reportSource).text(),
+          ...(await reviewFiles()),
           ".git/fixture-bin/review-proof": await Bun.file(proofSource).text(),
         },
       },
@@ -316,10 +344,15 @@ for (const scenario of [
       skillMounts: [],
     });
     const run = (...args: string[]) =>
-      Bun.spawnSync(["/bin/bash", ...args], { cwd: repo });
+      Bun.spawnSync(
+        args[0]!.startsWith("review-")
+          ? reviewCommand(args[0]!, ...args.slice(1))
+          : ["/bin/bash", ...args],
+        { cwd: repo },
+      );
     const scope = () => {
       const result = run(
-        ".git/review-plugin/bin/review-scope",
+        "review-scope",
         "prepare",
         "--repo",
         repo,
@@ -335,14 +368,7 @@ for (const scenario of [
       rows.map((row) => row.join("\t")).join("\n") + "\n";
     try {
       if (scenario.duplicate) {
-        await Bun.write(
-          `${repo}/.git/plugin-cache/bin/review-result`,
-          await Bun.file(validatorSource).text(),
-        );
-        await Bun.write(
-          `${repo}/.git/plugin-cache/bin/review-scope`,
-          scenario.conflict ? "exit 1\n" : await Bun.file(scopeSource).text(),
-        );
+        await duplicateReview(repo, scenario.conflict);
       }
       await Bun.write(`${repo}/value.txt`, "incorrect change\n");
       const original = scope();
@@ -428,11 +454,7 @@ for (const scenario of [
       // Every negative is a valid public artifact: rejection must be the gate's
       // outcome, current-content, or original-evidence check, not bad test TSV.
       expect(
-        run(
-          ".git/review-plugin/bin/review-result",
-          "validate-verification",
-          record,
-        ).exitCode,
+        run("review-result", "validate-verification", record).exitCode,
       ).toBe(0);
       if (scenario.stale)
         await Bun.write(`${repo}/value.txt`, "changed after review\n");
@@ -460,5 +482,5 @@ for (const scenario of [
     } finally {
       await destroyFixture(repo);
     }
-  });
+  }, 30_000);
 }

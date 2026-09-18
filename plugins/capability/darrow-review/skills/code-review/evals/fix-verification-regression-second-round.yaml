@@ -26,10 +26,11 @@ fixture:
       MODE=good
       RESULT=ok
   setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
+    set -eu
+    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     cp config.env .git/current-config
     printf 'MODE=good\n' >config.env
-    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD --target WORKTREE)
+    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD --target WORKTREE)
     prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
     prior_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
     prior_verification=$(dirname "$prior_manifest")/verification.tsv
@@ -49,7 +50,7 @@ fixture:
       printf 'outcome\tcontinue\n'
       printf 'next_action\trepair the carried regression\n'
     } >"$prior_verification"
-    bash "$tool_dir/review-result" validate-verification "$prior_verification"
+    uv run --quiet --frozen --no-dev --project "$backend" review-result validate-verification "$prior_verification"
     prior_hash=$(git hash-object --no-filters "$prior_verification")
     {
       printf 'original_target\t%s\n' "$original_target"
@@ -62,7 +63,7 @@ fixture:
     cp .git/current-config config.env
     git hash-object config.env >.git/config-before
     git status --porcelain --untracked-files=all >.git/status-before
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: second verification remains read only
     run: >-
@@ -72,14 +73,14 @@ checks:
       cmp .git/status-before .git/status-after
   - name: carried regression keeps its stable identity and resolves
     run: >-
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       regression_key=$(awk -F '\t' '$1 == "regression_key" { print $2 }' .git/verification-input) &&
       previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
       previous_relative=${previous_path#"$PWD"/} &&
       record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
       test -n "$record" && test "$record" != "$previous_path" &&
-      bash "$tool" validate-verification "$record" &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       awk -F '\t' -v key="$regression_key" '$1 == "regression" && $2 == key && $7 == "resolved" && $8 == "resolved" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       awk -F '\t' '$1 == "outcome" && $2 == "clear" { found=1 } END { exit found ? 0 : 1 }' "$record"
   - name: verification binds the previous artifact
@@ -98,9 +99,9 @@ checks:
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
       test -n "$tool" &&
-      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&

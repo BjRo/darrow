@@ -41,8 +41,9 @@ fixture:
       export const scale = (value) => Math.abs(value * multiplier);
       // TODO: consider renaming scale someday
   setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
-    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    set -eu
+    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
+    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
     original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
     {
@@ -53,7 +54,7 @@ fixture:
       printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/math.js:1\trequirement: multiplier must be 2\tmultiplier was 1\n' "$original_target"
       printf 'attempted\tspec:1:%s\n' "$original_target"
     } >.git/verification-input
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/math.js >.git/math-before
 checks:
@@ -85,9 +86,9 @@ checks:
   - name: direct regression enters the closed convergence set
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
-      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       awk -F '\t' '$1 == "check" && $2 == "bash check.sh" && $3 == "applicable" &&
       $4 == "fail" && $5 ~ /scale\(-2\)/ { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
@@ -103,9 +104,9 @@ checks:
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
       test -n "$tool" &&
-      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&

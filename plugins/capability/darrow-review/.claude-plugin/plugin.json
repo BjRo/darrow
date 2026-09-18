@@ -1,7 +1,7 @@
 {
   "name": "darrow-review",
   "description": "Read-only comprehensive code review and fix-scoped repair verification",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

@@ -198,6 +198,53 @@ jobs:
         shell: pwsh
         run: "& plugins/capability/darrow-git/tests/fresh-install.test.ps1"
 
+  review-windows:
+    name: Review Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-review/backend
+
+  review-fresh-install:
+    name: Fresh install review on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py
+      - name: Verify review CLI regression scenarios
+        if: runner.os != 'Windows'
+        run: |
+          /bin/bash --version
+          for test in plugins/capability/darrow-review/backend/tests/shell/*.test.sh; do
+            /bin/bash "$test"
+          done
   tickets-windows:
     name: Tickets Python ${{ matrix.python-version }} on windows-latest
     needs: changes
@@ -462,6 +509,8 @@ jobs:
       - verification-windows
       - git-windows
       - git-fresh-install
+      - review-windows
+      - review-fresh-install
       - tickets-windows
       - tickets-fresh-install
       - decisions-windows
@@ -495,6 +544,9 @@ jobs:
           DISCOVERY_INSTALL_RESULT: ${{ needs.discovery-fresh-install.result }}
           VERIFICATION_INSTALL_RESULT: ${{ needs.verification-fresh-install.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
+          REVIEW_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend') }}
+          REVIEW_WINDOWS_RESULT: ${{ needs.review-windows.result }}
+          REVIEW_INSTALL_RESULT: ${{ needs.review-fresh-install.result }}
           GIT_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-git/backend') }}
           GIT_WINDOWS_RESULT: ${{ needs.git-windows.result }}
           GIT_INSTALL_RESULT: ${{ needs.git-fresh-install.result }}
@@ -534,3 +586,7 @@ jobs:
           if [ "$IA_SELECTED" = true ]; then expected=success; fi
           test "$IA_WINDOWS_RESULT" = "$expected"
           test "$IA_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$REVIEW_SELECTED" = true ]; then expected=success; fi
+          test "$REVIEW_WINDOWS_RESULT" = "$expected"
+          test "$REVIEW_INSTALL_RESULT" = "$expected"

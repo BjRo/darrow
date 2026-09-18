@@ -48,16 +48,17 @@ fixture:
       export const TIMEOUT_MS = 2500;
       export const RETRY_COUNT = 0;
   setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    set -eu
+    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
+    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: original guidance survives the real review and repair chain
     run: |
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
       original=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$record" && test -n "$original" && test -n "$tool" || exit 1
-      bash "$tool" validate-original "$original" "$record" || exit 1
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1
       awk -F '\t' '$1 == "original_finding" { n++; if (NF != 11 || $10 == "" || $11 == "") bad=1 }
         END { exit !(n && !bad) }' "$record"
   - name: authorized repair reaches the originating requirement
@@ -74,9 +75,9 @@ checks:
   - name: additive verification artifact validates beside the repaired scope
     run: >-
       record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
-      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       grep -F 'outcome	clear' "$record" >/dev/null &&
       grep -F 'RETRY_COUNT = 3' "$(dirname "$record")/diff.patch" >/dev/null
   - name: composed repair creates no commit

@@ -2,7 +2,7 @@
 # Preserve the original comprehensive finding set through the first follow-up.
 set -eu
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
-RESULT=$SCRIPT_DIR/review-result
+RESULT=(uv run --quiet --frozen --no-dev --project "$SCRIPT_DIR/../.." review-result)
 TEMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 original=$TEMP_ROOT/original.tsv
@@ -27,7 +27,7 @@ cat >"$TEMP_ROOT/expected" <<'EOF'
 original_finding	standards:1:WORKTREE@base+original	standards	1	low	advisory	/workspace/src/config.js:1	heuristic:example	Keep literal C:\path and full advisory evidence
 original_finding	spec:2:WORKTREE@base+original	spec	2	high	blocking	/workspace/src/config.js:2	user requirement	RETRY_COUNT is 0; it must remain 3
 EOF
-"$BASH" "$RESULT" original-findings "$original" >"$TEMP_ROOT/actual"
+"${RESULT[@]}" original-findings "$original" >"$TEMP_ROOT/actual"
 cmp "$TEMP_ROOT/expected" "$TEMP_ROOT/actual"
 {
   printf 'format\tdarrow-review-verification-v1\n'
@@ -41,12 +41,12 @@ cmp "$TEMP_ROOT/expected" "$TEMP_ROOT/actual"
   printf 'outcome\tclear\n'
   printf 'next_action\treturn control to enclosing goal\n'
 } >"$verification"
-"$BASH" "$RESULT" validate-original "$original" "$verification"
+"${RESULT[@]}" validate-original "$original" "$verification"
 
 expect_refusal() {
   # Each counterexample is internally valid; only its original binding is wrong.
-  "$BASH" "$RESULT" validate-verification "$1" >/dev/null
-  if "$BASH" "$RESULT" validate-original "$original" "$1" >"$TEMP_ROOT/refusal" 2>&1; then
+  "${RESULT[@]}" validate-verification "$1" >/dev/null
+  if "${RESULT[@]}" validate-original "$original" "$1" >"$TEMP_ROOT/refusal" 2>&1; then
     printf 'FAIL: accepted %s\n' "$2" >&2
     exit 1
   fi
@@ -74,7 +74,7 @@ awk -F '\t' 'BEGIN { OFS="\t" }
   $1 == "attempt" { $2 = "spec:2:wrong" }
   { print }' "$verification" >"$TEMP_ROOT/wrong-target"
 expect_refusal "$TEMP_ROOT/wrong-target" 'different original target'
-if "$BASH" "$RESULT" original-findings "$TEMP_ROOT/missing" >"$TEMP_ROOT/missing-output" 2>/dev/null; then
+if "${RESULT[@]}" original-findings "$TEMP_ROOT/missing" >"$TEMP_ROOT/missing-output" 2>/dev/null; then
   printf 'FAIL: accepted missing original result\n' >&2
   exit 1
 fi

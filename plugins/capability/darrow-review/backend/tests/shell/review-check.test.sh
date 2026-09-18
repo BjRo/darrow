@@ -3,8 +3,7 @@
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
-CHECK=$SCRIPT_DIR/review-check
-SHELL_UNDER_TEST=${BASH:-bash}
+CHECK=(uv run --quiet --frozen --no-dev --project "$SCRIPT_DIR/../.." review-check)
 TAB=$(printf '\t')
 FAILURES=0
 
@@ -54,7 +53,7 @@ mkdir -p "$repo/.git/darrow-review.test"
 
 echo "failed check"
 failed_record=$repo/.git/darrow-review.test/failed.tsv
-out=$(cd "$repo" && "$SHELL_UNDER_TEST" "$CHECK" run --output "$failed_record" --command 'bash check.sh')
+out=$(cd "$repo" && "${CHECK[@]}" run --output "$failed_record" --command 'bash check.sh')
 status=$?
 equal "capture succeeds when the check fails" 0 "$status"
 equal "reports the absolute record path" "check_record${TAB}$failed_record" "$out"
@@ -64,7 +63,7 @@ contains "retains the real exit code" "exit_code${TAB}1" "$record"
 
 echo "passing check"
 passing_record=$repo/.git/darrow-review.test/passing.tsv
-out=$(cd "$repo" && "$SHELL_UNDER_TEST" "$CHECK" run --output "$passing_record" --command 'printf "ok\n"')
+out=$(cd "$repo" && "${CHECK[@]}" run --output "$passing_record" --command 'printf "ok\n"')
 status=$?
 equal "capture succeeds when the check passes" 0 "$status"
 record=$(cat "$passing_record")
@@ -73,7 +72,7 @@ contains "retains the zero exit code" "exit_code${TAB}0" "$record"
 
 echo "unavailable check"
 blocked_record=$repo/.git/darrow-review.test/blocked.tsv
-out=$(cd "$repo" && "$SHELL_UNDER_TEST" "$CHECK" run --output "$blocked_record" --command 'darrow-command-that-does-not-exist')
+out=$(cd "$repo" && "${CHECK[@]}" run --output "$blocked_record" --command 'darrow-command-that-does-not-exist')
 status=$?
 equal "capture succeeds when the command is unavailable" 0 "$status"
 record=$(cat "$blocked_record")
@@ -82,7 +81,7 @@ contains "retains the unavailable exit code" "exit_code${TAB}127" "$record"
 
 echo "output boundary"
 set +e
-out=$(cd "$repo" && "$SHELL_UNDER_TEST" "$CHECK" run --output "$WORK_DIR/outside.tsv" --command 'true' 2>&1)
+out=$(cd "$repo" && "${CHECK[@]}" run --output "$WORK_DIR/outside.tsv" --command 'true' 2>&1)
 status=$?
 set -e
 equal "refuses output outside the Git directory" 2 "$status"

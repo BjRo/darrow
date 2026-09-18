@@ -2,8 +2,8 @@
 # Guidance survives the public result, renderer, and verification boundaries.
 set -eu
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
-RESULT=$SCRIPT_DIR/review-result
-REPORT=$SCRIPT_DIR/review-report
+RESULT=(uv run --quiet --frozen --no-dev --project "$SCRIPT_DIR/../.." review-result)
+REPORT=(uv run --quiet --frozen --no-dev --project "$SCRIPT_DIR/../.." review-report)
 TEMP_ROOT=$(mktemp -d)
 TEMP_ROOT=$(cd "$TEMP_ROOT" && pwd -P)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
@@ -30,8 +30,8 @@ verdict	fail
 risk	none
 next_action	return findings
 EOF
-"$BASH" "$RESULT" validate original.tsv
-"$BASH" "$RESULT" original-findings original.tsv >original-rows.tsv
+"${RESULT[@]}" validate original.tsv
+"${RESULT[@]}" original-findings original.tsv >original-rows.tsv
 awk -F '\t' '$1 == "original_finding" { if (($3 == "spec" && NF != 11) || ($3 == "standards" && NF != 9)) exit 1; n++ } END { if (n != 2) exit 1 }' original-rows.tsv
 {
   printf 'format\tdarrow-review-verification-v1\noriginal_target\toriginal\nprior_target\toriginal\ncurrent_target\trepair\nprevious_verification\tnone\tnone\n'
@@ -39,9 +39,9 @@ awk -F '\t' '$1 == "original_finding" { if (($3 == "spec" && NF != 11) || ($3 ==
   printf 'attempt\tspec:2:original\tresolved\tresolved\tAn alternative expression restores exactly three retries\n'
   printf 'check\tnone\tnot_applicable\tnot_applicable\tfixture\noutcome\tclear\nnext_action\treturn control\n'
 } >verification.tsv
-"$BASH" "$RESULT" validate-original original.tsv verification.tsv
-"$BASH" "$REPORT" render original.tsv >report.md
-"$BASH" "$REPORT" render-verification verification.tsv >verification.md
+"${RESULT[@]}" validate-original original.tsv verification.tsv
+"${REPORT[@]}" render original.tsv >report.md
+"${REPORT[@]}" render-verification verification.tsv >verification.md
 for report in report.md verification.md; do
   grep -F 'Repair guidance (advisory)' "$report" >/dev/null
   grep -F 'Restore &lt;3&gt; via a constant; preserve C:&#92;path and avoid &#91;new API&#93;(url) changes' "$report" >/dev/null
@@ -50,7 +50,7 @@ for report in report.md verification.md; do
 done
 
 refuse() {
-  if "$BASH" "$RESULT" "$@" >refusal 2>&1; then
+  if "${RESULT[@]}" "$@" >refusal 2>&1; then
     printf 'FAIL: accepted %s\n' "$*" >&2
     exit 1
   fi
@@ -58,7 +58,7 @@ refuse() {
 }
 for field in 10 11; do
   awk -F '\t' -v f="$field" 'BEGIN { OFS="\t" } $1 == "original_finding" && $3 == "spec" { $f="changed" } { print }' verification.tsv >changed.tsv
-  "$BASH" "$RESULT" validate-verification changed.tsv >/dev/null
+  "${RESULT[@]}" validate-verification changed.tsv >/dev/null
   refuse validate-original original.tsv changed.tsv
 done
 for fields in 8 10; do
@@ -74,7 +74,7 @@ done
   printf 'format\tdarrow-review-axis-v1\naxis\tspec\nstatus\tfail\nsource\trequirement\n'
   awk -F '\t' 'BEGIN { OFS="\t" } $1 == "finding" && $2 == "spec" { print $1,$3,$4,$5,$6,$7,$8,$9 }' original.tsv
 } >axis.tsv
-"$BASH" "$RESULT" validate-axis spec axis.tsv
+"${RESULT[@]}" validate-axis spec axis.tsv
 awk -F '\t' 'BEGIN { OFS="\t" } $1 == "finding" { $8="" } { print }' axis.tsv >bad.tsv
 refuse validate-axis spec bad.tsv
 
@@ -85,15 +85,15 @@ original	spec:2:original
 attempt	spec:2:original	resolved	resolved	Three retries now occur
 regression	spec:2:original	high	/workspace/config.js:3	requirement: retain timeout	Removing timeout disables the deadline	Cannot recommend a safe timeout mechanism without the external scheduler contract	An expired deadline must cancel remaining retries
 EOF
-"$BASH" "$RESULT" validate-fix-axis spec fix.tsv
+"${RESULT[@]}" validate-fix-axis spec fix.tsv
 awk -F '\t' 'BEGIN { OFS="\t" } $1 == "regression" { NF=7 } { print }' fix.tsv >bad.tsv
 refuse validate-fix-axis spec bad.tsv
 awk -F '\t' 'BEGIN { OFS="\t" }
   $1 == "outcome" { $2="continue" }
   $1 == "check" { print "regression","regression:1:spec:2:original","spec:2:original",1,"spec","high","unresolved","progressing","/workspace/config.js:3","requirement: retain timeout","Removing timeout disables the deadline","Cannot recommend a safe timeout mechanism without the external scheduler contract","An expired deadline must cancel remaining retries" }
   { print }' verification.tsv >first.tsv
-"$BASH" "$RESULT" validate-original original.tsv first.tsv
-"$BASH" "$REPORT" render-verification first.tsv >first.md
+"${RESULT[@]}" validate-original original.tsv first.tsv
+"${REPORT[@]}" render-verification first.tsv >first.md
 grep -F 'Cannot recommend a safe timeout mechanism' first.md >/dev/null
 hash=$(git hash-object --no-filters first.tsv)
 {
@@ -109,7 +109,7 @@ hash=$(git hash-object --no-filters first.tsv)
   $1 == "regression" { $7="resolved"; $8="resolved"; $11="Deadline cancels retries" }
   $1 == "outcome" { $2="clear" }
   { print }' >second.tsv
-"$BASH" "$RESULT" validate-verification second.tsv
+"${RESULT[@]}" validate-verification second.tsv
 for field in 12 13; do
   awk -F '\t' -v f="$field" 'BEGIN { OFS="\t" } $1 == "regression" { $f="changed" } { print }' second.tsv >bad.tsv
   refuse validate-verification bad.tsv
