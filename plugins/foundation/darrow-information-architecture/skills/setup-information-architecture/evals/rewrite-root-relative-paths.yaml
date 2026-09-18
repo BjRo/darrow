@@ -33,7 +33,7 @@ fixture:
 
           Run `scripts/check.sh` from this skill.
         .agents/skills/export-check/scripts/check.sh: "#!/bin/sh\nexit 0\n"
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: nested-relative path is rewritten from the session root
     run: cat src/backend/MAP.md
@@ -49,7 +49,7 @@ checks:
     expect_regex: "`scripts/check\\.sh`"
   - name: deterministic path verification passes
     run: >-
-      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: setup creates no commit
     run: git rev-list --all --reflog --count

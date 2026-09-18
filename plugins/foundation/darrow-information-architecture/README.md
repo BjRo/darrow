@@ -32,10 +32,10 @@ Example: _“Doctor this repository's agent instructions.”_
 
 ### Bundled inspectors
 
-`skills/setup-information-architecture/scripts/ia-setup.sh` inventories the
-repository surfaces needed to design an instruction graph. `bin/ia-doctor`
-inspects routes, runtime reachability, adapter drift, duplicates, cycles, and
-root context size; the doctor skill reaches it through its colocated script.
+The contained `backend/` package supplies `ia-setup inspect`, `ia-doctor
+inspect|verify`, and `ia-write` for approved atomic guidance replacements. Run
+all commands through `uv run --quiet --frozen --no-dev --project <plugin>/backend`.
+The inspectors are read-only; policy and edit decisions remain in the skills.
 These are compact structural checks, not complete validators for every Codex
 or Claude Code configuration format.
 
@@ -70,7 +70,31 @@ Organize or audit repository agent guidance. Use another capability for product 
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; repository file access, Bash, and baseline Unix tools.
+Codex and Claude Code; UV, Python 3.10–3.13, and repository file access on
+Linux, macOS, or native Windows. Git resolves the primary worktree when available;
+plain directories work without it. The runtime package has no third-party dependencies.
+
+Paths use native filesystem identity while guidance names require exact documented
+case. LF, CRLF, and UTF-8 BOM guidance are supported. Directory symlinks are not
+traversed; selected broken, looping, external file adapters and unreadable evidence
+fail closed. Native imports outside the repository remain host-owned and outside
+this compact repository audit. Windows symlink privileges are not assumed.
+Output records use UTF-8 on every host, including redirected Windows output.
+
+Approved updates preserve adapter sources, permissions, and newline conventions.
+See [atomic guidance updates](references/file-updates.md) for the digest-checked
+writer and its concurrency boundary. Inventory and verification never write guidance.
+
+## Validation
+
+The package follows the contained Python + UV migration pattern: committed lock,
+separate development tools, Ruff complexity ≤5, strict mypy, property tests, and
+separate 95% line/branch coverage gates. Run `scripts/check-python --package
+plugins/foundation/darrow-information-architecture/backend` from the Darrow checkout.
+The setup and doctor regressions run in pytest across all supported hosts;
+no Bash test harness or runtime launcher remains.
+The fresh-artifact test copies only this plugin and exercises all public entrypoints
+with locked runtime dependencies on Linux, macOS, and native Windows in CI.
 
 ## Installation
 

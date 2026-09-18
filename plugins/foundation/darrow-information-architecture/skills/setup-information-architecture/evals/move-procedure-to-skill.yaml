@@ -28,7 +28,7 @@ fixture:
         tools/build-release: "#!/bin/sh\nexit 0\n"
         tools/publish: "#!/bin/sh\nexit 0\n"
         dist/checksums.txt: "fixture\n"
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: ordered procedure moves to a repository skill
     run: >-
@@ -95,7 +95,7 @@ checks:
     expect_regex: "^discoverable$"
   - name: procedure move passes deterministic dual-runtime verification
     run: >-
-      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: setup creates no commit
     run: git rev-list --all --reflog --count

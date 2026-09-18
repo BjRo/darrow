@@ -18,7 +18,7 @@ fixture:
   setup: >-
     ln -s CLAUDE.md AGENTS.md && git add AGENTS.md &&
     git commit -m 'chore: add Codex adapter' >/dev/null &&
-    cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+    mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: existing Claude canonical direction is preserved
     run: test -L AGENTS.md && test AGENTS.md -ef CLAUDE.md && echo preserved
@@ -31,5 +31,5 @@ checks:
     expect_regex: "^2$"
   - name: reverse adapter passes deterministic dual-runtime verification
     run: >-
-      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
