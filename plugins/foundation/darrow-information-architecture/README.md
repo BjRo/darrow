@@ -91,7 +91,8 @@ The package follows the contained Python + UV migration pattern: committed lock,
 separate development tools, Ruff complexity ≤5, strict mypy, property tests, and
 separate 95% line/branch coverage gates. Run `scripts/check-python --package
 plugins/foundation/darrow-information-architecture/backend` from the Darrow checkout.
-The retained Bash suites are regression tests only; no runtime launcher remains.
+The setup and doctor regressions run in pytest across all supported hosts;
+no Bash test harness or runtime launcher remains.
 The fresh-artifact test copies only this plugin and exercises all public entrypoints
 with locked runtime dependencies on Linux, macOS, and native Windows in CI.
 

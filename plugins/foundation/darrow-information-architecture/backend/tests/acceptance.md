@@ -1,9 +1,27 @@
 # Migration acceptance
 
 Both existing skills pass the bundled metadata inspector before migration.
-The existing Bash regression suites are the mechanical baseline; retained
-tests invoke the Python commands after migration. Full pre-migration live skill
+The original Bash regression suites supplied the mechanical baseline. Their
+scenarios now run in pytest on every supported host; the shell suites are removed.
+Full pre-migration live skill
 baselines are not claimed; live trials exercise the migrated skills.
+
+Regression coverage is retained in these native tests:
+
+| Original scenarios                                                        | Pytest coverage                                                                                                      |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Missing entrypoints, routes, cycles, scoped reachability, default budgets | `test_commands.py`: `test_graph_cases`, `test_long_graph_and_caps`                                                   |
+| Deferred chains, arrow indexes, fences, native imports, skill lookalikes  | `test_regressions.py`: routing and parsing cases                                                                     |
+| Selected runtimes, imported defects, broken adapters, shadowed budgets    | `test_regressions.py`: runtime and budget cases; `test_commands.py`: override cases                                  |
+| Mirror alignment, drift, dependencies, unreadable mirrors, duplicates     | `test_commands.py`: `test_mirrors`; `test_regressions.py`: mirror and duplicate cases                                |
+| Root adapters in both directions and independent copies                   | `test_commands.py`: `test_root_adapter`, `test_bad_selected_adapter`                                                 |
+| Ordinary path boundaries, incidental mentions, source files               | `test_regressions.py`: boundary and mention cases; `test_failures.py`: `test_non_guidance_references`                |
+| Setup inventory, no writes, subdirectory identity, output caps            | `test_commands.py`: `test_setup_inventory_and_limits`, `test_worktree_identity`, `test_long_graph_and_caps`          |
+| Large Git worktree output for setup and doctor                            | `test_regressions.py`: `test_large_worktree_output` with real Python subprocess output, both NUL and newline records |
+
+The fresh-artifact test additionally exercises the installed console commands
+with frozen runtime dependencies. Permission-denial cases inject OS access
+failures so they remain meaningful on Windows and under privileged test users.
 
 Representative requests, covered by the existing colocated eval suites:
 

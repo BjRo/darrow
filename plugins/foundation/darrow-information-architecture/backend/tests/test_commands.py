@@ -259,6 +259,8 @@ def test_setup_inventory_and_limits(
         }
     )
     write(tmp_path, files)
+    before = {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
+    directories = set(tmp_path.rglob("*"))
     assert cli.run(cli.setup_command, ["inspect", str(tmp_path)]) == 0
     output = capsys.readouterr().out
     for expected in (
@@ -267,11 +269,18 @@ def test_setup_inventory_and_limits(
         "guidance_candidates:",
         "package.json",
         "lefthook.yml",
+        f"{tmp_path / 'AGENTS.md'} | bytes=6 | approx_tokens=2",
+        str(tmp_path / ".github/workflows/ci.yml"),
+        str(tmp_path / ".agents/skills/a/SKILL.md"),
         "  - ...",
     ):
         assert expected in output
-    assert "deep/a/b/c/package.json" not in output
-    assert ".worktrees/a/AGENTS" not in output
+    assert str(tmp_path / "deep/a/b/c/package.json") not in output
+    assert str(tmp_path / ".worktrees/a/AGENTS.md") not in output
+    assert before == {
+        path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()
+    }
+    assert directories == set(tmp_path.rglob("*"))
     assert cli.run(cli.setup_command, ["verify", str(tmp_path)]) == 64
 
 
@@ -296,12 +305,18 @@ def test_root_adapter(
     status, output = invoke(tmp_path, capsys, "verify", "--runtime", "both")
     assert status == 0
     assert "status=symlink" in output and "duplicate-content" not in output
+    assert f"{tmp_path / source} -> {tmp_path / adapter} | status=symlink" in output
     assert "codex_root_bytes=9" in output and "claude_root_bytes=9" in output
     updates.replace(
         tmp_path, adapter, b"# Changed\n", updates.fingerprint(tmp_path / source)
     )
     assert (tmp_path / adapter).is_symlink()
     assert (tmp_path / source).read_bytes() == b"# Changed\n"
+    (tmp_path / adapter).unlink()
+    (tmp_path / adapter).write_bytes((tmp_path / source).read_bytes())
+    status, output = invoke(tmp_path, capsys, "verify", "--runtime", "both")
+    assert status == 0 and "duplicate-content" in output
+    assert "status=symlink" not in output
 
 
 @pytest.mark.parametrize("target_kind", ["missing", "directory", "external", "loop"])
@@ -353,10 +368,14 @@ def test_mirrors(
     status, output = invoke(tmp_path, capsys, "verify", "--mirror", "left=right")
     assert status == int(difference != "aligned"), output
     assert "declared=true" in output
+    assert (
+        f"status={'aligned' if difference in {'aligned', 'broken-route'} else 'drift'}"
+        in output
+    )
     assert difference != "aligned" or "duplicate-content" not in output
 
 
-def test_worktree_identity(tmp_path: Path) -> None:
+def test_worktree_identity(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     repo = tmp_path / "main ü with spaces"
     repo.mkdir()
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -386,6 +405,9 @@ def test_worktree_identity(tmp_path: Path) -> None:
     nested = repo / "sub"
     nested.mkdir()
     assert resolve_root(str(nested)) == repo.resolve()
+    write(repo, {"AGENTS.md": "# Root"})
+    assert cli.run(cli.setup_command, ["inspect", str(nested)]) == 0
+    assert f"root: {repo.resolve()}" in capsys.readouterr().out
 
 
 def test_missing_git_and_repository(
@@ -418,6 +440,11 @@ def test_long_graph_and_caps(
     write(tmp_path, files)
     status, output = invoke(tmp_path, capsys, "verify")
     assert status == 1 and str(tmp_path / "docs/150.md") in output
+    assert (
+        f"critical broken-reference | {tmp_path / 'docs/149.md'} -> {tmp_path / 'docs/150.md'}"
+        in output
+    )
+    assert "additional entrypoints omitted" in output
     assert (
         "additional routes omitted" in output
         and "additional findings omitted" in output

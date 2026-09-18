@@ -326,13 +326,6 @@ jobs:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-information-architecture/backend python plugins/foundation/darrow-information-architecture/backend/tests/fresh_install.py
-      - name: Verify information architecture CLI regression scenarios
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          /bin/bash --version
-          /bin/bash plugins/foundation/darrow-information-architecture/backend/tests/ia-doctor.test.sh
-          /bin/bash plugins/foundation/darrow-information-architecture/backend/tests/ia-setup.test.sh
 
   inventory:
     name: Python inventory guard
