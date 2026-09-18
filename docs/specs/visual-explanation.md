@@ -123,6 +123,8 @@ compression.
 1. **VE-C1 — Intent-matched explanation.** Direct and indirect requests for a
    visual explanation select the capability; ordinary implementation,
    artifact creation, and sufficiently answered short-prose requests do not.
+   Requests for pseudocode or a responsibility map carry explanation intent
+   even when they do not include the word "visual".
 2. **VE-C2 — Smallest fitting view.** Representation follows the relationship
    being explained, with one primary view by default and no catalogue of every
    supported form.
