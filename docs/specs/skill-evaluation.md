@@ -145,6 +145,14 @@ the installed plugin-qualified skill name on Codex. The source case therefore
 stays host-portable while each harness receives an invocation it can actually
 resolve.
 
+Claude may expand an explicit plugin command before the first assistant turn,
+without emitting a Skill tool event. Accept that path only when the native
+command matches the mounted plugin's namespace, skill, arguments, and session,
+and the complete mounted skill body follows in that session before the first
+assistant turn. Missing, partial, duplicate, or foreign-plugin expansion does
+not establish activation. Retain only the bounded receipt, not the command or
+skill text.
+
 Codex orchestration evidence may repeat the owning installed plugin
 qualification in child skill tokens. Reconciliation treats that exact
 qualification as host transport syntax and compares the declared phase

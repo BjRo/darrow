@@ -106,6 +106,12 @@ constraints for producing and interpreting that evidence.
   Insert recovered reads according to shared ordering anchors rather than
   appending an earlier skill after later ones. Conflicting source orders remain
   incomplete instead of silently selecting one sequence.
+  Claude's explicit plugin commands may be expanded before the first assistant
+  turn without a Skill event. The observer accepts only a native command bound
+  to the mounted plugin namespace, exact arguments, and session, followed by
+  the complete mounted body in that same session. This proves dispatch without
+  requiring a redundant model-side Skill call; implicit discovery still needs
+  its observed invocation.
   Do not infer cross-child read order from launch-list order: multiple children
   contributing unanchored new reads keep the observation incomplete.
   Truncated evidence cannot establish an exclusion;
