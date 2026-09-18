@@ -25,7 +25,7 @@ follow-up. Obtain canonical original records through the bundled helper before
 passing them to readers:
 
 ```sh
-bash "$result_tool" original-findings "$original_result"
+uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result"
 ```
 
 Copy those returned rows unchanged into the handoff and final verification.
@@ -70,7 +70,7 @@ ambiguous prior artifacts block.
 Prepare the exact current base/target scope with the ordinary scope table plus:
 
 ```sh
-bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
+uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$repo" --base "$base" --target "$target" \
   [working-tree flags] --allow-empty --prior-manifest "$prior_scope_manifest"
 ```
 
@@ -90,7 +90,7 @@ one, never execute the literal command directly. Use the main skill's resolved
 
 ```sh
 check_record="$(dirname "$manifest")/check-1.tsv" # increment for later checks
-bash "$check_tool" run --output "$check_record" --command "$literal_command"
+uv run --quiet --frozen --no-dev --project "$backend" review-check run --output "$check_record" --command "$literal_command"
 ```
 
 Copy the retained record's canonical `check` row byte-for-byte into reader
@@ -155,8 +155,8 @@ Save each raw fix-axis record beneath the current scope artifact directory and
 run the applicable commands:
 
 ```sh
-bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
-bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-fix-axis standards "$standards_fix_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-fix-axis spec "$spec_fix_record"
 ```
 
 An invalid record or missing or mismatched route-application evidence is an
@@ -185,7 +185,7 @@ the causing original finding's order.
 When the original comprehensive artifact is retained, run:
 
 ```sh
-bash "$result_tool" validate-original "$original_result" "$verification_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-original "$original_result" "$verification_record"
 ```
 
 This validates the verification schema and compares the complete original
@@ -206,8 +206,8 @@ In default mode run:
 
 ```sh
 verification_report="$(dirname "$verification_record")/verification.md"
-bash "$report_tool" render-verification "$verification_record" >"$verification_report"
-bash "$report_tool" render-verification "$verification_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render-verification "$verification_record" >"$verification_report"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render-verification "$verification_record"
 ```
 
 Confirm that the report is a readable, nonempty regular file before the second

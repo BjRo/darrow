@@ -34,8 +34,9 @@ fixture:
       export const DEBUG = false;
       export const TIMEOUT_MS = 2500;
   setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
-    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    set -eu
+    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
+    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
     original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
     {
@@ -52,7 +53,7 @@ fixture:
     } >.git/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: verification preserves the repair bytes
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
@@ -73,9 +74,9 @@ checks:
   - name: additive verification artifact validates and clears
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
-      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       grep -F 'outcome	clear' "$record" >/dev/null &&
       awk -F '\t' '$1 == "attempt" { count++; if ($3 != "resolved" || $4 != "resolved") invalid=1 }
       END { exit !(count == 3 && !invalid) }' "$record"
@@ -165,9 +166,9 @@ checks:
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
       test -n "$tool" &&
-      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&

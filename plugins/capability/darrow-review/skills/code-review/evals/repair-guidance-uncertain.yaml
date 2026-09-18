@@ -35,8 +35,8 @@ checks:
     run: |
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
       test -n "$record" || exit 1
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
-      test -n "$tool" && bash "$tool" validate "$record" || exit 1
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
+      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" || exit 1
       awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" && NF == 9 { found=1 }
         END { exit !found }' "$record"
   - name: review does not implement its advice

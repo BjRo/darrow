@@ -1,0 +1,48 @@
+# Repair verification — CLEAR
+
+**Outcome:** clear · Original findings: 2 · Resolved: 1 · Unresolved: 1 · Blocked: 0 · Regressions: 1
+
+## Attempted findings
+
+### 1. standards:1:WORKTREE@base+original — RESOLVED / RESOLVED (HIGH, blocking)
+- **Location:** src/value.txt:1
+- **Source:** /workspace/AGENTS.md&#35;Review
+- **Original evidence:** Original standards evidence
+- **Current evidence:** The violation is absent from the repair
+
+### 2. spec:2:WORKTREE@base+original — UNRESOLVED / UNCHANGED (LOW, advisory)
+- **Location:** src/value with spaces.txt:2
+- **Source:** user objective &lt;v1&gt; &amp; &#91;details&#93;
+- **Original evidence:** Original advisory evidence
+- **Current evidence:** The advisory remains
+
+## Repair-caused regressions
+
+### 1. regression:1:standards:1:WORKTREE@base+original — RESOLVED / RESOLVED (HIGH)
+- **Axis:** standards
+- **Caused by:** standards:1:WORKTREE@base+original
+- **Location:** src/C:&#92;(repair&#92;) value&#95;&#91;repair&#93;.txt:3
+- **Source:** /workspace/AGENTS&#95;&lt;repair&gt;.md
+- **Evidence:** The repair-caused regression is fixed
+
+## Checks
+- **PASS** (applicable) — bash verify&#95;&#91;repair&#93;.sh --label &#96;fast&#96;: All tests passed
+
+## Evidence gaps
+No evidence gaps.
+
+## Target binding
+- **Original target:** WORKTREE@base+original
+- **Prior target:** WORKTREE@base+repair-one
+- **Current target:** WORKTREE@base+repair-two
+- **Previous verification checksum:** e8bb6e5a862e67c2af0c0c997fc7e4ecdde176a5
+- **Previous verification artifact:** PREVIOUS_ARTIFACT
+- **Earlier targets:**
+  - WORKTREE@base+original
+
+## Closed original finding set
+- standards:1:WORKTREE@base+original — standards #1, high/blocking; src/value.txt:1; source /workspace/AGENTS.md&#35;Review; Original standards evidence
+- spec:2:WORKTREE@base+original — spec #2, low/advisory; src/value with spaces.txt:2; source user objective &lt;v1&gt; &amp; &#91;details&#93;; Original advisory evidence
+
+## Next action
+return control to enclosing goal

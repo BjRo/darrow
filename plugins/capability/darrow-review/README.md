@@ -86,13 +86,13 @@ target and requires exact-target fix verification. This intentionally gives up
 comprehensive rereview after repair: a defect missed initially will not be
 discovered later unless the repair directly caused it.
 
-### `bin/review-scope`
+### `review-scope`
 
 Resolves and snapshots the requested review scope. It accounts for committed,
 staged, unstaged, renamed, deleted, and untracked paths as appropriate so every
 reviewer examines the same immutable change packet.
 
-### `bin/review-result`
+### `review-result`
 
 Validates the structured findings produced by each comprehensive axis, the final
 aggregate, each fix-verification axis, and additive repair-verification records.
@@ -161,14 +161,14 @@ to that exact host-reported child ID so stale transcripts cannot satisfy the
 gate. Any conflicting environment override, background launch, substitution,
 or unverifiable route blocks that review axis.
 
-### `bin/review-route`
+### `review-route`
 
 Resolves bundled and repository reviewer policy, owns selection and application
 record I/O at caller-supplied absolute paths, selects the Claude effort-specific
 plugin agent from the selection record, and binds every confirmed application
 to its axis and host-reported child ID.
 
-### `bin/review-claude-verify`
+### `review-claude-verify`
 
 Parses one completed Claude `agent-<id>.jsonl` transcript by exact agent ID and
 writes the one effective model and effort observed on every assistant turn to
@@ -202,7 +202,28 @@ Review a bounded change or verify authorized repairs against a closed finding se
 
 ## Hosts and prerequisites
 
-Codex and Claude Code with native fresh-agent support; Git, Bash, target checks, and available reviewer routes. PR retrieval needs authenticated forge access.
+Codex and Claude Code with native fresh-agent support; Git, UV, Python
+3.10–3.13, target checks, and available reviewer routes. The package supports
+Linux, macOS, and native Windows. Literal check commands use Bash on Unix and
+PowerShell on Windows. PR retrieval needs authenticated forge access.
+
+Every bundled command runs through the same locked package:
+
+```sh
+uv run --quiet --frozen --no-dev --project /absolute/path/to/darrow-review/backend review-scope prepare --repo /absolute/repo --base HEAD --target WORKTREE
+```
+
+The public entrypoints are `review-scope`, `review-result`, `review-report`,
+`review-check`, `review-route`, `review-claude-verify`, and `claude-provider`.
+They retain their subcommands and TSV protocols; the old `bin/` runtime is
+removed. Runtime dependencies are empty; development tools are separately
+locked. All deterministic plugin tests live in the Python package, including
+CLI contracts, exact report fixtures, and quoted-path command execution.
+Validate with `bun run check:python` and the copied-artifact probe:
+
+```sh
+uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py
+```
 
 ## Installation
 

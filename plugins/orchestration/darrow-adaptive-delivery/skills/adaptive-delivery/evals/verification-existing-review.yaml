@@ -51,9 +51,9 @@ checks:
     run: |
       record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1)
       test -n "$record"
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n 1)
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$tool"
-      bash "$tool" validate-verification "$record"
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record"
       # Retain the bounded immutable finding rows when diagnosing a history loss.
       find .git -maxdepth 2 -name result.tsv -path '*/darrow-review.*/*' -exec awk -F '\t' '$1 == "target" || $1 == "finding" { print FILENAME ":" $0 }' {} \;
       awk -F '\t' '$1 == "original_target" || $1 == "original_finding" { print FILENAME ":" $0 }' "$record"

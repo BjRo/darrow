@@ -33,8 +33,8 @@ checks:
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
-      test -n "$tool" && bash "$tool" validate "$record"
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
+      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: default response does not duplicate canonical TSV
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
@@ -42,10 +42,10 @@ checks:
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       expected=.git/expected-review.md;
-      bash "$tool" render "$record" >"$expected" &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

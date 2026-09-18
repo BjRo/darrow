@@ -13,7 +13,7 @@ select an arbitrary TSV: `scope.tsv` and axis records are not aggregate results.
 Default standalone and composed responses are a Markdown rendering of that
 validated artifact. Materialize it as `review.md` beside `result.tsv`, confirm
 that file is readable and nonempty, then use one dedicated final
-`bash "$report_tool" render "$result_record"` invocation and return its complete
+`uv run --quiet --frozen --no-dev --project "$backend" review-report render "$result_record"` invocation and return its complete
 stdout. The renderer preserves all fields, escapes hostile content, and does
 not include raw TSV. Only an explicit request for raw TSV, v1, or machine format
 returns the TSV bytes, beginning with `format<TAB>darrow-review-result-v1`,
@@ -63,7 +63,7 @@ next_action<TAB>one authorized next step, or none
 ```
 
 For a resolved scope, obtain the complete `base`, `target`, and `changed_file`
-records with `bash "$result_tool" scope-records "$manifest"`. Insert those
+records with `uv run --quiet --frozen --no-dev --project "$backend" review-result scope-records "$manifest"`. Insert those
 bytes into the aggregate; do not retype hashes or reconstruct the file list.
 This command validates the pinned diff and refuses incomplete scope records.
 
@@ -105,7 +105,7 @@ records. If validation reveals missing evidence, change the affected state to
 Write the draft only beneath the scope artifact directory and run:
 
 ```sh
-bash "$result_tool" validate-scope "$manifest" "$result_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-scope "$manifest" "$result_record"
 ```
 
 This validates both the schema and the exact base, target, and complete
@@ -119,12 +119,12 @@ Correct serialization errors only. In default mode, first run:
 
 ```sh
 review_report="$(dirname "$result_record")/review.md"
-bash "$report_tool" render "$result_record" >"$review_report"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render "$result_record" >"$review_report"
 test -r "$review_report" && test -s "$review_report"
 ```
 
 If that succeeds, make a standalone
-`bash "$report_tool" render "$result_record"` the final tool call and copy its
+`uv run --quiet --frozen --no-dev --project "$backend" review-report render "$result_record"` the final tool call and copy its
 complete stdout as the entire response. Do not handwrite, shorten, or reconstruct
 it. In explicit machine mode, copy the validated file bytes verbatim. In
 composed mode, return the selected review report to the goal owner and exit the
@@ -205,8 +205,8 @@ exactly the prior artifact's history plus that artifact's `prior_target`.
 Before aggregation validate each applicable reader record with:
 
 ```sh
-bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
-bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-fix-axis standards "$standards_fix_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-fix-axis spec "$spec_fix_record"
 ```
 
 The fix-axis schema declares supplied original keys with `original`, active
@@ -234,7 +234,7 @@ A failed deterministic check must be represented by an unresolved or blocked
 repair-caused regression, not by an unscoped new finding. Validate with:
 
 ```sh
-bash "$result_tool" validate-verification "$verification_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-verification "$verification_record"
 ```
 
 That command validates the record and prior-verification chain. The
@@ -249,8 +249,8 @@ In default mode render with:
 
 ```sh
 verification_report="$(dirname "$verification_record")/verification.md"
-bash "$report_tool" render-verification "$verification_record" >"$verification_report"
-bash "$report_tool" render-verification "$verification_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render-verification "$verification_record" >"$verification_report"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render-verification "$verification_record"
 ```
 
 After confirming `verification.md` is readable and nonempty, make the second
