@@ -49,6 +49,13 @@ def command(*args: str, cwd: Path | None = None, code: int = 4) -> str:
     return decode(result.stdout)
 
 
+def checked_command(message: str, *args: str) -> str:
+    try:
+        return command(*args)
+    except RefusalError as error:
+        raise RefusalError(message) from error
+
+
 def git(*args: str, cwd: Path | None = None) -> str:
     return command("git", *args, cwd=cwd)
 

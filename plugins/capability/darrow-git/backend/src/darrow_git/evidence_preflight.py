@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from .process import RefusalError, command, git, require
+from .process import checked_command, git, require
 from .publication import REPOSITORY
 from .repository import current_branch, require_repository
 
@@ -26,13 +26,6 @@ class PullRequest:
     head: str
 
 
-def checked(message: str, *args: str) -> str:
-    try:
-        return command(*args)
-    except RefusalError as error:
-        raise RefusalError(f"error: {message}") from error
-
-
 def candidate(expected: str) -> Candidate:
     require_repository()
     top = Path(git("rev-parse", "--show-toplevel"))
@@ -41,8 +34,8 @@ def candidate(expected: str) -> Candidate:
     )
     branch = current_branch()
     require(branch, "a feature branch is required")
-    row = checked(
-        "cannot identify the repository",
+    row = checked_command(
+        "error: cannot identify the repository",
         "gh",
         "repo",
         "view",
@@ -62,8 +55,8 @@ def candidate(expected: str) -> Candidate:
 
 
 def observe(candidate: Candidate) -> PullRequest:
-    rows = checked(
-        "cannot observe open pull requests",
+    rows = checked_command(
+        "error: cannot observe open pull requests",
         "gh",
         "pr",
         "list",
@@ -116,8 +109,8 @@ def attachment_help_active(line: str, previous: bool) -> bool:
 
 
 def cli_support() -> None:
-    help_text = checked(
-        "cannot inspect gh pr comment support", "gh", "pr", "comment", "--help"
+    help_text = checked_command(
+        "error: cannot inspect gh pr comment support", "gh", "pr", "comment", "--help"
     )
     require(
         "--attach" in help_text,
@@ -127,8 +120,8 @@ def cli_support() -> None:
     require(
         limit >= 50, f"installed gh advertises a stricter attachment limit: {limit}"
     )
-    checked(
-        "active GitHub host does not confirm attachment publication support",
+    checked_command(
+        "error: active GitHub host does not confirm attachment publication support",
         "gh",
         "api",
         "meta",
@@ -136,8 +129,8 @@ def cli_support() -> None:
 
 
 def comments(candidate: Candidate, pr: PullRequest) -> str:
-    return checked(
-        "cannot reconcile top-level PR comments",
+    return checked_command(
+        "error: cannot reconcile top-level PR comments",
         "gh",
         "api",
         f"repos/{candidate.repository}/issues/{pr.number}/comments",

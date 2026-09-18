@@ -63,6 +63,46 @@ def test_cli_filesystem_boundary(capsys: pytest.CaptureFixture[str]) -> None:
     assert "cannot read requested file" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    "entrypoint,args,code,message",
+    [
+        (cli.create_branch, ["create", "--from"], 2, "--from needs a value"),
+        (cli.prepare_branch, ["prepare", "--at", ""], 2, "--at needs a non-empty path"),
+        (
+            cli.create_commit,
+            ["retry", "--command", "x"],
+            2,
+            "retry accepts only --after-hook-failure, --refresh-staged, and -m",
+        ),
+        (cli.create_commit, ["remediate", "--command"], 2, "--command needs a value"),
+        (cli.create_pr, ["inspect", "--base", ""], 2, "--base needs a non-empty value"),
+        (cli.create_pr, ["create", "-b", " "], 2, "-b section is empty"),
+        (
+            cli.create_pr,
+            ["create", "--title", "--draft"],
+            2,
+            "at least one -b body section required",
+        ),
+    ],
+)
+def test_cli_argument_diagnostics(
+    repository: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: Callable[[], None],
+    args: list[str],
+    code: int,
+    message: str,
+) -> None:
+    monkeypatch.setattr("sys.argv", ["darrow-command", *args])
+    with pytest.raises(SystemExit) as failure:
+        entrypoint()
+    assert failure.value.code == code
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == f"error: {message}\n"
+
+
 def test_provider_failures(tmp_path: Path) -> None:
     with pytest.raises(RefusalError, match="cannot execute"):
         invoke([str(tmp_path / "missing-program")])

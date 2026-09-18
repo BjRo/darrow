@@ -3,9 +3,10 @@
 import re
 import shutil
 import time
+from collections import deque
 from dataclasses import dataclass
 
-from .process import RefusalError, command, emit, git, require
+from .process import RefusalError, checked_command, emit, git, require
 from .repository import current_branch, in_progress
 
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
@@ -56,32 +57,22 @@ class Publication:
 
 def parse(args: list[str]) -> Publication:
     state = Publication()
-    index = 0
-    while index < len(args):
-        flag = args[index]
+    remaining = deque(args)
+    while remaining:
+        flag = remaining.popleft()
         if flag == "--draft":
             state.draft = "true"
-            index += 1
         else:
-            index = parse_value(args, index, state)
+            parse_value(remaining, flag, state)
     return state
 
 
-def parse_value(args: list[str], index: int, state: Publication) -> int:
-    flag = args[index]
+def parse_value(args: deque[str], flag: str, state: Publication) -> None:
     if flag not in {"--expected-head", "--base"}:
         raise state.fail(f"unknown argument: {flag}")
-    if index + 1 >= len(args) or not args[index + 1]:
+    if not args or not args[0]:
         raise state.fail(f"{flag} needs a value")
-    setattr(state, "expected" if flag == "--expected-head" else "base", args[index + 1])
-    return index + 2
-
-
-def checked_command(message: str, *args: str) -> str:
-    try:
-        return command(*args)
-    except RefusalError as error:
-        raise RefusalError(message) from error
+    setattr(state, "expected" if flag == "--expected-head" else "base", args.popleft())
 
 
 def preflight(state: Publication) -> None:

@@ -1,6 +1,7 @@
 """PR base selection and committed comparison context."""
 
 from .process import probe, require, succeeds
+from .repository import guessed_default
 
 
 def default_branch() -> tuple[str, str]:
@@ -12,17 +13,6 @@ def default_branch() -> tuple[str, str]:
         if line.startswith("ref: "):
             return line.split()[1].removeprefix("refs/heads/"), "remote"
     return guessed_default(), "guess"
-
-
-def guessed_default() -> str:
-    return next(
-        (
-            name
-            for name in ("main", "master")
-            if succeeds("show-ref", "-q", "--verify", f"refs/heads/{name}")
-        ),
-        "(none)",
-    )
 
 
 def compare_ref(base: str) -> str:

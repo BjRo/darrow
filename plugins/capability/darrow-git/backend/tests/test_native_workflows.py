@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from darrow_git import branch, commit, evidence, pr
+from darrow_git import branch, cli, evidence, pr
 from darrow_git.process import RefusalError, git
 from forge import Forge
 
@@ -53,14 +53,14 @@ def test_commit_scope_and_retry(
     (repository / "one.txt").write_text("staged")
     (repository / "two.txt").write_text("outside")
     git("add", "one.txt")
-    commit.run(["inspect"])
+    cli.run_commit(["inspect"])
     assert "mode: staged" in capsys.readouterr().out
     before = git("write-tree")
     with pytest.raises(RefusalError, match="a staged set exists"):
-        commit.run(["commit", "-m", "feat: scope", "two.txt"])
+        cli.run_commit(["commit", "-m", "feat: scope", "two.txt"])
     assert git("write-tree") == before
     (repository / "one.txt").write_text("corrected")
-    commit.run(
+    cli.run_commit(
         [
             "retry",
             "--after-hook-failure",

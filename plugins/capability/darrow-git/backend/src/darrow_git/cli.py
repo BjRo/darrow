@@ -4,6 +4,8 @@ import io
 import sys
 from collections.abc import Callable
 
+from . import commit, remediation
+from .commit_options import parse as parse_commit
 from .process import RefusalError
 
 
@@ -35,10 +37,28 @@ def prepare_branch() -> None:
     execute(lambda args: run(args, task=True))
 
 
-def create_commit() -> None:
-    from .commit import run
+def run_commit(args: list[str]) -> None:
+    operations = {
+        "commit": commit.commit,
+        "retry": commit.retry,
+        "remediate": remediation.remediate,
+    }
+    operation = args[0] if args else ""
+    if operation == "inspect":
+        commit.inspect()
+    elif operation == "diff":
+        commit.diff(args[1:])
+    elif operation in operations:
+        operations[operation](parse_commit(args[1:], operation))
+    else:
+        raise RefusalError(
+            "usage: darrow-create-commit inspect | diff <path>... | commit [-m <msg>]... [<path>]... | retry --after-hook-failure --refresh-staged <path>... -m <msg> | remediate --after-hook-failure --command <command> --refresh-staged <path>... -m <msg>",
+            64,
+        )
 
-    execute(run)
+
+def create_commit() -> None:
+    execute(run_commit)
 
 
 def create_pr() -> None:

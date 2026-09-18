@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from darrow_git import commit, remediation
+from darrow_git import cli, commit, remediation
 from darrow_git.process import RefusalError, git, invoke
 
 
@@ -62,7 +62,7 @@ def test_failed_hook_restores_index(
 
     monkeypatch.setattr(commit, "invoke", failed)
     with pytest.raises(RefusalError, match="hook failed") as error:
-        commit.run(["commit", "-m", "fix: attempt change"])
+        cli.run_commit(["commit", "-m", "fix: attempt change"])
     assert error.value.code == 4
     assert git("rev-parse", "HEAD") == before_head
     assert git("write-tree") == before_tree
@@ -100,10 +100,10 @@ def test_remediation_effects(
     commit.save_failure("run: " + command, before_head, before_tree)
     if code:
         with pytest.raises(RefusalError, match=message) as error:
-            commit.run(remediate_args(command))
+            cli.run_commit(remediate_args(command))
         assert error.value.code == code
     else:
-        commit.run(remediate_args(command))
+        cli.run_commit(remediate_args(command))
         assert git("show", "HEAD:tracked.txt") == "corrected"
     assert (repository / "outside.txt").read_text() == "outside"
     if code == 7:
@@ -114,7 +114,7 @@ def test_remediation_effects(
 def test_remediation_refusals(repository: Path) -> None:
     before_head, before_tree = stage(repository)
     with pytest.raises(RefusalError, match="no readable"):
-        commit.run(remediate_args("unknown"))
+        cli.run_commit(remediate_args("unknown"))
     commit.failure_path().write_text("broken")
     with pytest.raises(RefusalError, match="invalid"):
         remediation.read_state()
@@ -126,10 +126,10 @@ def test_remediation_refusals(repository: Path) -> None:
         remediation.read_state()
     commit.save_failure("run: known", before_head, before_tree)
     with pytest.raises(RefusalError, match="not present"):
-        commit.run(remediate_args("unknown"))
+        cli.run_commit(remediate_args("unknown"))
     git("add", "outside.txt")
     with pytest.raises(RefusalError, match="state changed"):
-        commit.run(remediate_args("known"))
+        cli.run_commit(remediate_args("known"))
 
 
 def test_unstaged_inspect_and_diff(
@@ -137,10 +137,10 @@ def test_unstaged_inspect_and_diff(
 ) -> None:
     (repository / "tracked.txt").write_text("different")
     (repository / "new.txt").write_text("new content")
-    commit.run(["inspect"])
+    cli.run_commit(["inspect"])
     assert "mode: unstaged" in capsys.readouterr().out
-    commit.run(["diff", "tracked.txt", "new.txt"])
+    cli.run_commit(["diff", "tracked.txt", "new.txt"])
     assert "new content" in capsys.readouterr().out
-    commit.run(["commit", "-m", "feat: explicit paths", "new.txt"])
+    cli.run_commit(["commit", "-m", "feat: explicit paths", "new.txt"])
     assert git("show", "HEAD:new.txt") == "new content"
     assert git("diff", "--name-only") == "tracked.txt"

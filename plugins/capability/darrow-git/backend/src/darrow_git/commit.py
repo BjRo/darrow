@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from .commit_options import CommitOptions, parse
+from .commit_options import CommitOptions
 from .messages import validate_attribution, validate_subject
 from .process import RefusalError, decode, emit, git, invoke, probe, require, succeeds
 
@@ -146,21 +146,3 @@ def diff(paths: list[str]) -> None:
                 ),
                 300,
             )
-
-
-def run(args: list[str]) -> None:
-    from .remediation import remediate
-
-    operations = {"commit": commit, "retry": retry, "remediate": remediate}
-    operation = args[0] if args else ""
-    if operation == "inspect":
-        inspect()
-    elif operation == "diff":
-        diff(args[1:])
-    elif operation in operations:
-        operations[operation](parse(args[1:], operation))
-    else:
-        raise RefusalError(
-            "usage: darrow-create-commit inspect | diff <path>... | commit [-m <msg>]... [<path>]... | retry --after-hook-failure --refresh-staged <path>... -m <msg> | remediate --after-hook-failure --command <command> --refresh-staged <path>... -m <msg>",
-            64,
-        )

@@ -30,7 +30,9 @@ capability to allocate an additional linked worktree.
   remain the provider boundaries. Frozen UV console commands are the runtime
   interface on every platform; legacy shell-script paths are not retained.
   Command arguments, stable records, refusal statuses, and mutation safeguards
-  remain intact. No workflow requires a Bash launcher.
+  remain intact. Internal refactoring preserves argument consumption order,
+  repeated-option behavior, diagnostic text, and stdout/stderr routing as well
+  as exit codes and repository effects. No workflow requires a Bash launcher.
 - **GW-M2 — Literal process and filesystem boundaries.** Provider commands use
   argument vectors, never interpolated shell programs. Paths and temporary
   artifacts use native filesystem APIs. Hook remediation retains its diagnostic

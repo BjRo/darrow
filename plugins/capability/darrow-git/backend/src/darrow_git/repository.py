@@ -45,6 +45,10 @@ def local_default() -> str:
     remote = probe("symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     if remote:
         return remote.removeprefix("origin/")
+    return guessed_default()
+
+
+def guessed_default() -> str:
     return next(
         (
             name

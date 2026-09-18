@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from darrow_git import branch, commit, evidence_options, pr, publication
+from darrow_git import branch, cli, evidence_options, pr, publication
 from darrow_git.process import RefusalError, git
 
 
@@ -95,7 +95,7 @@ def test_branch_invalid(
 def test_commit_invalid(repository: Path, args: list[str], code: int) -> None:
     before = git("write-tree"), git("rev-parse", "HEAD")
     with pytest.raises(RefusalError) as failure:
-        commit.run(args)
+        cli.run_commit(args)
     assert failure.value.code == code
     assert (git("write-tree"), git("rev-parse", "HEAD")) == before
 
