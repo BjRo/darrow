@@ -35,7 +35,7 @@ def hash_bytes(value: bytes) -> str:
 
 
 def canonical_file(path: Path) -> Path:
-    # Resolve the parent, as in the compatibility interface; preserve filename.
+    # Resolve the parent while preserving the supplied filename.
     return path.parent.resolve(strict=True) / path.name
 
 

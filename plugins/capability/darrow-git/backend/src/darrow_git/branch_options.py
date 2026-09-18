@@ -1,4 +1,4 @@
-"""Parse the compatibility branch command arguments without changing refusals."""
+"""Parse branch command arguments without changing refusals."""
 
 from dataclasses import dataclass
 

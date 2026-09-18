@@ -161,6 +161,6 @@ def run(args: list[str]) -> None:
         operations[operation](parse(args[1:], operation))
     else:
         raise RefusalError(
-            "usage: commit.sh inspect | diff <path>... | commit [-m <msg>]... [<path>]... | retry --after-hook-failure --refresh-staged <path>... -m <msg> | remediate --after-hook-failure --command <command> --refresh-staged <path>... -m <msg>",
+            "usage: darrow-create-commit inspect | diff <path>... | commit [-m <msg>]... [<path>]... | retry --after-hook-failure --refresh-staged <path>... -m <msg> | remediate --after-hook-failure --command <command> --refresh-staged <path>... -m <msg>",
             64,
         )

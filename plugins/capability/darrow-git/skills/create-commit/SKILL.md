@@ -20,9 +20,7 @@ state inspection, staging, message validation,
 hook execution, and the final commit; execute it without reading or
 reimplementing it. Treat its refusals as authoritative.
 
-The package lives at `<skill-dir>/../../backend` inside this plugin. The existing
-`scripts/commit.sh` path remains a POSIX compatibility launcher for the same
-entrypoint, arguments, records, refusals, and exit statuses.
+The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## Working model
 

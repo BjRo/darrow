@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT=$(cd "$(dirname "$0")" && pwd -P)/publish.sh
+backend=$(cd "$(dirname "$0")/../.." && pwd -P)
+ENTRYPOINT=(uv run --quiet --frozen --no-dev --project "$backend" darrow-publish-pr-evidence)
 test_parent=${TMPDIR:-/tmp}; case "$test_parent" in /) template=/publish-pr-evidence-test.XXXXXX ;; */) template=${test_parent}publish-pr-evidence-test.XXXXXX ;; *) template=$test_parent/publish-pr-evidence-test.XXXXXX ;; esac
 work=$(mktemp -d "$template"); work=$(cd "$work" && pwd -P)
 trap '[[ "${KEEP_TEST_FILES:-}" == 1 ]] || rm -rf "$work"' EXIT
@@ -65,10 +66,10 @@ fresh() {
   body="$work/evidence/body-$1.txt"; printf 'Verification passed for candidate %s.\n' "$expected" > "$body"
   unset NO_ATTACH STRICT_ATTACH DISTRACTING_LIMIT HOST_MODE FORGE_HEAD_MODE COMMENT_MODE
 }
-refuses() { if "$BASH" "$SCRIPT" "$@" >"$work/out" 2>&1; then echo "expected refusal: $*" >&2; exit 1; fi; grep -Eq '^outcome: (refused|partial|ambiguous)$' "$work/out"; }
+refuses() { if "${ENTRYPOINT[@]}" "$@" >"$work/out" 2>&1; then echo "expected refusal: $*" >&2; exit 1; fi; grep -Eq '^outcome: (refused|partial|ambiguous)$' "$work/out"; }
 
 fresh 1
-if ! "$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" >"$work/out"; then cat "$work/out"; exit 1; fi
+if ! "${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" >"$work/out"; then cat "$work/out"; exit 1; fi
 grep -Fx 'outcome: published' "$work/out"
 grep -Fx 'attachment-count: 0' "$work/out"
 grep -Fx 'head-preserved: true' "$work/out"; grep -Fx 'index-preserved: true' "$work/out"
@@ -77,7 +78,7 @@ if grep -Fq 'gsub' .git/api-calls; then echo 'comment observation must use one T
 test -f "$(sed -n 's/^prepared-body: //p' "$work/out")"
 test "$(tail -c 1 "$(sed -n 's/^prepared-body: //p' "$work/out")" | od -An -tx1 | tr -d '[:space:]')" = 3e
 test "$(wc -l < .git/comment-calls | tr -d ' ')" -eq 1
-"$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" >"$work/out"
+"${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" >"$work/out"
 grep -Fx 'outcome: existing' "$work/out"
 test "$(wc -l < .git/comment-calls | tr -d ' ')" -eq 1
 cat .git/comments >>.git/comments.copy; cat .git/comments >>.git/comments.copy; mv .git/comments.copy .git/comments
@@ -90,7 +91,7 @@ png="$work/evidence/view.png"; jpg="$work/evidence/detail.svg"; video="$work/evi
 printf '\211PNG\r\n\032\n\000\000\000\015IHDR\000\000\000\001\000\000\000\001\010\006\000\000\000\037\025\304\211\000\000\000\015IDAT\010\327c\370\317\300\360\037\000\005\000\001\377\211\231\075\035\000\000\000\000IEND\256B\140\202' > "$png"
 printf '<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>\n' > "$jpg"
 printf '\000\000\000\030ftypmp42\000\000\000\000mp42isom\000\000\000\010mdat' > "$video"
-"$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" --image "$png" --alt 'Overview screenshot' --video "$video" --explanation 'Recording of the verified flow' --image "$jpg" --alt 'Detailed result' >"$work/out"
+"${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" --image "$png" --alt 'Overview screenshot' --video "$video" --explanation 'Recording of the verified flow' --image "$jpg" --alt 'Detailed result' >"$work/out"
 grep -Fx 'outcome: published' "$work/out"; grep -Fx 'attachment-count: 3' "$work/out"
 grep -F 'Image 1 alt text: Overview screenshot' "$(sed -n 's/^prepared-body: //p' "$work/out")"
 grep -F "content identity $(git hash-object "$png")" "$(sed -n 's/^prepared-body: //p' "$work/out")"
@@ -135,9 +136,9 @@ unset FORGE_HEAD_MODE
 
 fresh 5
 p1="$work/evidence/path-one.svg"; p2="$work/evidence/path-two.svg"; printf '<svg xmlns="http://www.w3.org/2000/svg"><text>identity</text></svg>\n' > "$p1"; cp "$p1" "$p2"
-"$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" --image "$p1" --alt 'Same presentation' >"$work/one"
+"${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" --image "$p1" --alt 'Same presentation' >"$work/one"
 rm -f .git/comments .git/comment-calls .git/attach-order
-"$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" --image "$p2" --alt 'Same presentation' >"$work/two"
+"${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" --image "$p2" --alt 'Same presentation' >"$work/two"
 test "$(sed -n 's/^identity: //p' "$work/one")" = "$(sed -n 's/^identity: //p' "$work/two")"
 
 fresh 6
@@ -167,9 +168,9 @@ test ! -f .git/comment-calls
 
 fresh 14
 printf 'Windows path C:\\tmp\r\nSecond line.\n' > "$body"
-"$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" >"$work/out"
+"${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" >"$work/out"
 grep -Fx 'outcome: published' "$work/out"
-"$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" >"$work/out"
+"${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" >"$work/out"
 grep -Fx 'outcome: existing' "$work/out"
 test "$(wc -l < .git/comment-calls | tr -d ' ')" -eq 1
 
@@ -190,10 +191,10 @@ refuses publish --expected-head "$expected" --body-file "$body" "${many[@]}"
 
 mkdir "$work/tmp-parent"
 fresh 9
-TMPDIR="$work/tmp-parent" "$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" >"$work/out"
+TMPDIR="$work/tmp-parent" "${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" >"$work/out"
 grep -Fx 'outcome: published' "$work/out"
 fresh 10
-TMPDIR="$work/tmp-parent/" "$BASH" "$SCRIPT" publish --expected-head "$expected" --body-file "$body" >"$work/out"
+TMPDIR="$work/tmp-parent/" "${ENTRYPOINT[@]}" publish --expected-head "$expected" --body-file "$body" >"$work/out"
 grep -Fx 'outcome: published' "$work/out"
 
 echo 'all publish-pr-evidence checks passed'

@@ -12,9 +12,7 @@ identity, attachment validation, deterministic identity, reconciliation, the
 single comment invocation, and final observation. Do not reproduce those
 mechanics with raw `gh` commands.
 
-The package lives at `<skill-dir>/../../backend` inside this plugin. The existing
-`scripts/publish.sh` path remains a POSIX compatibility launcher for the same
-entrypoint, arguments, records, refusals, and exit statuses.
+The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## Inputs
 

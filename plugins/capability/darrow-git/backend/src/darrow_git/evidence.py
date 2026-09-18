@@ -212,7 +212,7 @@ def complete(state: Evidence, returncode: int) -> None:
 def run(args: list[str]) -> None:
     if not args or args[0] != "publish":
         raise RefusalError(
-            "usage: publish.sh publish --expected-head <full-id> --body-file <path> [--image <path> --alt <text> | --video <path> --explanation <text>]...",
+            "usage: darrow-publish-pr-evidence publish --expected-head <full-id> --body-file <path> [--image <path> --alt <text> | --video <path> --explanation <text>]...",
             64,
         )
     state = prepare(args[1:])

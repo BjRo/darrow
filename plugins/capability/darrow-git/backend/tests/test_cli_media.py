@@ -30,14 +30,27 @@ def test_console_inspect(
     assert "## mode:" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(
+    "entrypoint,name",
+    [
+        (cli.create_branch, "darrow-create-branch"),
+        (cli.prepare_branch, "darrow-prepare-task-branch"),
+        (cli.create_commit, "darrow-create-commit"),
+        (cli.create_pr, "darrow-create-pr"),
+        (cli.publish_evidence, "darrow-publish-pr-evidence"),
+    ],
+)
 def test_cli_refusal(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: Callable[[], None],
+    name: str,
 ) -> None:
-    monkeypatch.setattr("sys.argv", ["darrow-publish-pr-evidence"])
+    monkeypatch.setattr("sys.argv", [name])
     with pytest.raises(SystemExit) as failure:
-        cli.publish_evidence()
+        entrypoint()
     assert failure.value.code == 64
-    assert "usage: publish.sh" in capsys.readouterr().err
+    assert f"usage: {name} " in capsys.readouterr().err
 
 
 def test_cli_filesystem_boundary(capsys: pytest.CaptureFixture[str]) -> None:

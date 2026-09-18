@@ -186,12 +186,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - if: runner.os != 'Windows'
         run: bash plugins/capability/darrow-git/tests/fresh-install.test.sh
-      - name: Verify POSIX compatibility launchers
+      - name: Verify Git CLI regression scenarios
         if: runner.os != 'Windows'
         shell: bash
         run: |
           /bin/bash --version
-          for test in plugins/capability/darrow-git/skills/*/scripts/*.test.sh; do
+          for test in plugins/capability/darrow-git/backend/tests/shell/*.test.sh; do
             /bin/bash "$test"
           done
       - if: runner.os == 'Windows'

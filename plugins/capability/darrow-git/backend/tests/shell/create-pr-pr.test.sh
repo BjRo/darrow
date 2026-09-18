@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Deterministic tests for pr.sh. Covers the script-enforced invariants so
+# Deterministic tests for darrow-create-pr. Covers the script-enforced invariants so
 # model evals only need to cover judgment. gh is mocked (records pr-create
 # args under .git/fixture-gh/); the remote is a local bare repo, so push
-# behavior is tested for real. Run: bash pr.test.sh
+# behavior is tested for real. Run with Bash from any directory.
 set -uo pipefail
 
-SCRIPT="$(cd "$(dirname "$0")" && pwd)/pr.sh"
+backend=$(cd "$(dirname "$0")/../.." && pwd -P)
+ENTRYPOINT=(uv run --quiet --frozen --no-dev --project "$backend" darrow-create-pr)
 BASE_PATH=$PATH
 FAILURES=0
 
@@ -120,54 +121,54 @@ ready_repo() {
 
 echo "# P1: usage and argument errors"
 ready_repo
-"$BASH" "$SCRIPT" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" > /dev/null 2>&1
 check "no command, exit 64" 64 $?
-"$BASH" "$SCRIPT" create > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create > /dev/null 2>&1
 check "no title, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" > /dev/null 2>&1
 check "no body, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title > /dev/null 2>&1
 check "dangling --title, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b > /dev/null 2>&1
 check "dangling -b, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --base > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --base > /dev/null 2>&1
 check "dangling --base, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --template > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --template > /dev/null 2>&1
 check "dangling --template, exit 2" 2 $?
-"$BASH" "$SCRIPT" inspect --template > /dev/null 2>&1
+"${ENTRYPOINT[@]}" inspect --template > /dev/null 2>&1
 check "inspect dangling --template, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --force > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --force > /dev/null 2>&1
 check "unknown flag, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b "   " > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b "   " > /dev/null 2>&1
 check "whitespace-only -b, exit 2" 2 $?
 
 echo "# P2: environment guards (exit 3)"
 cd "$(mktemp -d)" || exit 1
-"$BASH" "$SCRIPT" inspect > /dev/null 2>&1
+"${ENTRYPOINT[@]}" inspect > /dev/null 2>&1
 check "outside work tree, inspect exit 3" 3 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "outside work tree, create exit 3" 3 $?
 UNBORN=$(mktemp -d)
 cd "$UNBORN" && git init -qb main
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 check "unborn inspect exit 0" 0 $?
 echo "$out" | grep -q "mode: empty"
 check "unborn reports mode empty" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "unborn create exit 3" 3 $?
 fresh_repo
 git checkout -qb fix/no-remote
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "mode: no-remote"
 check "no origin reported by inspect" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "no origin, create exit 3" 3 $?
 ready_repo
 git checkout -q --detach
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "mode: wrong-branch"
 check "detached reported wrong-branch" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "detached create exit 3" 3 $?
 ready_repo
 if PATH="/usr/bin:/bin" command -v gh >/dev/null 2>&1; then
@@ -175,7 +176,7 @@ if PATH="/usr/bin:/bin" command -v gh >/dev/null 2>&1; then
 else
   mkdir -p "$REPO/.git/no-gh-bin"
   ln -s "$(command -v uv)" "$REPO/.git/no-gh-bin/uv"
-  PATH="$REPO/.git/no-gh-bin:/usr/bin:/bin" "$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+  PATH="$REPO/.git/no-gh-bin:/usr/bin:/bin" "${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
   check "gh missing, create exit 3" 3 $?
 fi
 
@@ -183,14 +184,14 @@ echo "# P3: default branch refused (exit 9)"
 fresh_repo
 add_remote
 mock_gh
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "mode: wrong-branch"
 check "on default branch reported wrong-branch" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "create on default branch, exit 9" 9 $?
 git branch -q develop
 git push -q origin develop
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --base develop > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --base develop > /dev/null 2>&1
 check "explicit --base does not bypass, exit 9" 9 $?
 check "nothing captured" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
 
@@ -199,79 +200,79 @@ ready_repo
 git checkout -q main
 echo main > fix.txt && git add fix.txt && git commit -qm "fix: main side"
 git merge fix/timeout-retry -q > /dev/null 2>&1 || true
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 check "inspect exit 0 in conflict" 0 $?
 echo "$out" | grep -q "mode: conflict"
 check "conflict marker present" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "create refused, exit 8" 8 $?
 mkdir -p sub
-out=$(cd sub && "$BASH" "$SCRIPT" inspect)
+out=$(cd sub && "${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "mode: conflict"
 check "conflict detected from subdirectory" 0 $?
 
 echo "# P5: title validation (exit 5), nothing pushed"
 ready_repo
-"$BASH" "$SCRIPT" create --title "add retry logic" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "add retry logic" -b why > /dev/null 2>&1
 check "non-conventional title, exit 5" 5 $?
 long="fix: $(printf 'a%.0s' $(seq 1 70))"
-"$BASH" "$SCRIPT" create --title "$long" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "$long" -b why > /dev/null 2>&1
 check "title >72 chars, exit 5" 5 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout." -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout." -b why > /dev/null 2>&1
 check "trailing period, exit 5" 5 $?
-"$BASH" "$SCRIPT" create --title "Fix: retry on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "Fix: retry on timeout" -b why > /dev/null 2>&1
 check "uppercase type, exit 5" 5 $?
 check "branch not pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
-"$BASH" "$SCRIPT" create --title "fix!: drop retry config flag" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix!: drop retry config flag" -b why > /dev/null 2>&1
 check "breaking-change marker accepted" 0 $?
 rm -rf .git/fixture-gh
-"$BASH" "$SCRIPT" create --title "fix(http): retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix(http): retry request on timeout" -b why > /dev/null 2>&1
 check "scoped title accepted" 0 $?
 exact72="fix: $(printf 'a%.0s' $(seq 1 67))"
 rm -rf .git/fixture-gh
-"$BASH" "$SCRIPT" create --title "$exact72" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "$exact72" -b why > /dev/null 2>&1
 check "exactly 72 chars accepted" 0 $?
 
 echo "# P6: AI attribution rejected (exit 6), nothing pushed"
 ready_repo
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b "Generated with Claude Code" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b "Generated with Claude Code" > /dev/null 2>&1
 check "generated-with body, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b why -b "Co-authored-by: Claude <noreply@anthropic.com>" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b why -b "Co-authored-by: Claude <noreply@anthropic.com>" > /dev/null 2>&1
 check "AI co-author body, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout 🤖" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout 🤖" -b why > /dev/null 2>&1
 check "robot emoji title, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b "This was written by claude" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b "This was written by claude" > /dev/null 2>&1
 check "written-by body, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b "Generated using Claude Code" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b "Generated using Claude Code" > /dev/null 2>&1
 check "generated-using body, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b "Built with Claude Code" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b "Built with Claude Code" > /dev/null 2>&1
 check "built-with body, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b "Co-authored by Claude" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b "Co-authored by Claude" > /dev/null 2>&1
 check "co-authored without colon, exit 6" 6 $?
-"$BASH" "$SCRIPT" create --title "fix: retry on timeout" -b "Reviewed by an AI assistant before merge... just kidding. Written by an AI" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry on timeout" -b "Reviewed by an AI assistant before merge... just kidding. Written by an AI" > /dev/null 2>&1
 check "written by an AI, exit 6" 6 $?
 check "branch not pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
-"$BASH" "$SCRIPT" create --title "chore: regenerate api client" -b "The client is now generated by openapi-generator from the v2 spec." > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "chore: regenerate api client" -b "The client is now generated by openapi-generator from the v2 spec." > /dev/null 2>&1
 check "legitimate generated-by prose accepted" 0 $?
 
 echo "# P7: base handling"
 ready_repo
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "Requests died on flaky links." > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "Requests died on flaky links." > /dev/null 2>&1
 check "create ok" 0 $?
 check "default base is main" main "$(cat .git/fixture-gh/base)"
 ready_repo
 git branch -q develop main
 git push -q origin develop
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why --base develop > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why --base develop > /dev/null 2>&1
 check "create ok" 0 $?
 check "named base used" develop "$(cat .git/fixture-gh/base)"
 ready_repo
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --base no-such > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --base no-such > /dev/null 2>&1
 check "unknown base, exit 2" 2 $?
 git branch -q local-only main
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --base local-only > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --base local-only > /dev/null 2>&1
 check "local-only base not on origin, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: x" -b why --base fix/timeout-retry > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why --base fix/timeout-retry > /dev/null 2>&1
 check "base equals head, exit 2" 2 $?
 check "nothing pushed on base errors" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 
@@ -280,19 +281,19 @@ fresh_repo
 add_remote
 mock_gh
 git checkout -qb fix/empty-branch
-"$BASH" "$SCRIPT" create --title "fix: x" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: x" -b why > /dev/null 2>&1
 check "no commits ahead, exit 3" 3 $?
 check "branch not pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/empty-branch)"
 
 echo "# P9: existing open PR not duplicated (exit 9)"
 ready_repo
 echo "#7  fix: earlier attempt  fix/timeout-retry" > .git/fixture-gh-existing
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "mode: exists"
 check "inspect reports mode exists" 0 $?
 echo "$out" | grep -q "#7"
 check "existing PR shown" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "create refused, exit 9" 9 $?
 check "branch not pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 check "nothing captured" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
@@ -300,24 +301,24 @@ check "nothing captured" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
 echo "# P9b: failed PR check aborts — never treated as 'no duplicates'"
 ready_repo
 touch .git/fixture-gh-fail
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "mode: ready"
 check "inspect still ready" 0 $?
 echo "$out" | grep -q "could not check for an existing open PR"
 check "inspect flags the failed check" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "create aborts, exit 4" 4 $?
 check "nothing pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 check "no PR created" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
 
 echo "# P10: push behavior — upstream set, updates pushed, never forced"
 ready_repo
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "create ok" 0 $?
 check "upstream set" origin/fix/timeout-retry "$(git rev-parse --abbrev-ref '@{u}')"
 check "remote has the branch tip" "$(git rev-parse HEAD)" "$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)"
 echo more > fix.txt && git commit -qam "fix: widen retry window"
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "create ok with existing upstream" 0 $?
 check "new commit pushed" "$(git rev-parse HEAD)" "$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)"
 # Diverge: advance the remote branch independently, then commit locally.
@@ -329,14 +330,14 @@ echo local-side > local.txt && git add local.txt && git commit -qm "fix: local s
 git fetch -q origin
 remote_tip=$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)
 rm -rf .git/fixture-gh
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "diverged push refused, exit 4" 4 $?
 check "remote tip unchanged (no force)" "$remote_tip" "$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)"
 check "no PR created after failed push" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
 
 echo "# P10b: push config never widens the push (explicit refspec)"
 ready_repo
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "first push ok" 0 $?
 git config push.default matching
 git checkout -q main
@@ -344,7 +345,7 @@ echo advance > main.txt && git add main.txt && git commit -qm "chore: advance lo
 git checkout -q fix/timeout-retry
 echo more >> fix.txt && git commit -qam "fix: widen retry window"
 remote_main=$(git -C .git/remote.git rev-parse refs/heads/main)
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "create ok under push.default=matching" 0 $?
 check "feature branch pushed" "$(git rev-parse HEAD)" "$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)"
 check "local main NOT published" "$remote_main" "$(git -C .git/remote.git rev-parse refs/heads/main)"
@@ -354,7 +355,7 @@ ready_repo
 git init -q --bare .git/fork.git
 git remote add fork "$REPO/.git/fork.git"
 git push -qu fork fix/timeout-retry
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why)
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why)
 check "create ok with fork upstream" 0 $?
 check "origin received the branch" "$(git rev-parse HEAD)" "$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)"
 echo "$out" | grep -q "note: upstream is fork/fix/timeout-retry"
@@ -367,7 +368,7 @@ git push -q origin HEAD:refs/heads/fix/old-name
 git branch -q --set-upstream-to=origin/fix/old-name
 old_tip=$(git rev-parse HEAD)
 echo more >> fix.txt && git commit -qam "fix: widen retry window"
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why)
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why)
 check "create ok with renamed upstream" 0 $?
 check "same-name remote branch created" "$(git rev-parse HEAD)" "$(git -C .git/remote.git rev-parse refs/heads/fix/timeout-retry)"
 check "old upstream name untouched" "$old_tip" "$(git -C .git/remote.git rev-parse refs/heads/fix/old-name)"
@@ -376,7 +377,7 @@ check "upstream mismatch noted" 0 $?
 
 echo "# P11: success output and captured arguments"
 ready_repo
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "Requests died on flaky links." -b "Retries twice with backoff.")
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "Requests died on flaky links." -b "Retries twice with backoff.")
 check "create ok" 0 $?
 echo "$out" | grep -q '^publication: verified$'
 check "reports verified publication" 0 $?
@@ -389,7 +390,7 @@ check "body sections joined with blank line" "Requests died on flaky links.
 Retries twice with backoff." "$(cat .git/fixture-gh/body)"
 check "not draft" "" "$(ls .git/fixture-gh/draft 2>/dev/null || true)"
 ready_repo
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why --draft)
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why --draft)
 check "draft create ok" 0 $?
 if [[ -f .git/fixture-gh/draft ]]; then draft_rc=0; else draft_rc=1; fi
 check "draft flag passed through" 0 "$draft_rc"
@@ -397,7 +398,7 @@ echo "$out" | grep -q '^draft: true$'
 check "draft stated in report" 0 $?
 ready_repo
 : >.git/fixture-gh-create-fail-before
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why 2>&1)
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why 2>&1)
 check "uncertain create without observed PR refuses" 4 $?
 echo "$out" | grep -q 'push completed'
 check "uncertain refusal preserves push effect" 0 $?
@@ -405,14 +406,14 @@ echo "$out" | grep -q 'uncertain effect'
 check "uncertain refusal warns against duplicate" 0 $?
 ready_repo
 : >.git/fixture-gh-create-fail-after
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why 2>&1)
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why 2>&1)
 check "server-accepted create is reconciled" 0 $?
 echo "$out" | grep -q '^pr-create: observed-after-uncertain-command$'
 check "reconciled create reports observed effect" 0 $?
 ready_repo
 : >.git/fixture-gh-create-fail-after
 : >.git/fixture-gh-created-wrong-base
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why 2>&1)
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why 2>&1)
 check "later identity refusal remains a failure" 4 $?
 echo "$out" | grep -q '^push: completed$'
 check "later refusal preserves push" 0 $?
@@ -423,7 +424,7 @@ check "later refusal preserves observed canonical URL" 0 $?
 
 echo "# P12: inspect ready output"
 ready_repo
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 check "exit 0" 0 $?
 echo "$out" | grep -q "mode: ready"
 check "ready marker" 0 $?
@@ -440,7 +441,7 @@ check "diffstat present" 0 $?
 echo "$out" | grep -q "clean"
 check "clean tree reported" 0 $?
 echo dirty >> fix.txt
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q " M fix.txt"
 check "dirty file listed" 0 $?
 echo "$out" | grep -q "will NOT be in the PR"
@@ -451,7 +452,7 @@ fresh_repo
 add_remote
 mock_gh
 git switch -qc fix/empty-branch
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 check "exit 0" 0 $?
 echo "$out" | grep -q "mode: no-commits"
 check "no-commits marker" 0 $?
@@ -467,10 +468,10 @@ git -C .git/remote.git symbolic-ref HEAD refs/heads/develop
 mock_gh
 git switch -qc feat/on-develop develop
 echo f > f.txt && git add f.txt && git commit -qm "feat: on develop"
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "base branch (default): develop"
 check "remote HEAD wins over local main" 0 $?
-"$BASH" "$SCRIPT" create --title "feat: on develop" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "feat: on develop" -b why > /dev/null 2>&1
 check "create ok" 0 $?
 check "PR based on remote default" develop "$(cat .git/fixture-gh/base)"
 
@@ -480,7 +481,7 @@ git remote add origin "$REPO/.git/nonexistent.git"
 mock_gh
 git switch -qc fix/offline
 echo f > f.txt && git add f.txt && git commit -qm "fix: offline"
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 check "inspect exit 0" 0 $?
 echo "$out" | grep -q "mode: ready"
 check "still ready" 0 $?
@@ -491,7 +492,7 @@ echo "# P13: uncommitted changes stay out and stay put"
 ready_repo
 echo dirty >> fix.txt
 echo scratch > notes.txt
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "create ok" 0 $?
 git status --porcelain | grep -q "^ M fix.txt"
 check "modified file still dirty" 0 $?
@@ -503,7 +504,7 @@ check "no commit created" 2 "$(git rev-list --count HEAD)"
 echo "# P14: works from a subdirectory"
 ready_repo
 mkdir -p sub
-out=$(cd sub && "$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why)
+out=$(cd sub && "${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why)
 check "create ok from subdir" 0 $?
 check "title captured from subdir" "fix: retry request on timeout" "$(cat .git/fixture-gh/title)"
 
@@ -519,24 +520,24 @@ cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 ## Testing
 <!-- How was this verified? -->
 EOF
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "pr template (.github/PULL_REQUEST_TEMPLATE.md)"
 check "inspect names the template" 0 $?
 echo "$out" | grep -q "## What Changed"
 check "inspect prints template content" 0 $?
 touch .git/fixture-gh-fail
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "Requests died on flaky links." > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "Requests died on flaky links." > /dev/null 2>&1
 check "body ignoring template, exit 7 (before the gh dup check)" 7 $?
 rm .git/fixture-gh-fail
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Requests died on flaky links." -b "## What Changed
 Retries twice with backoff." > /dev/null 2>&1
 check "missing section, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Requests died on flaky links." -b "## What Changed" -b "## Testing
 Unit tests cover exhaustion." > /dev/null 2>&1
 check "empty section, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 <!-- Explain the motivation before the mechanics. -->
 Requests died." -b "## What Changed
 Retries." -b "## Testing
@@ -544,7 +545,7 @@ Tests." > /dev/null 2>&1
 check "leftover comment, exit 7" 7 $?
 check "nothing pushed on template errors" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 check "nothing captured" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Requests died on flaky links." -b "## What Changed
 Retries twice with exponential backoff." -b "## Testing
 Unit tests cover retry exhaustion.")
@@ -552,7 +553,7 @@ check "filled template accepted" 0 $?
 grep -q "## Testing" .git/fixture-gh/body
 check "template headings in captured body" 0 $?
 rm -rf .git/fixture-gh
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 ### Context
 Flaky links kill requests." -b "## What Changed
 Retries." -b "## Testing
@@ -560,7 +561,7 @@ Tests." > /dev/null 2>&1
 check "deeper sub-heading counts as content" 0 $?
 mkdir -p sub
 rm -rf .git/fixture-gh
-out=$(cd sub && "$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+out=$(cd sub && "${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Flaky links." -b "## What Changed
 Retries." -b "## Testing
 Tests.")
@@ -582,7 +583,7 @@ fbody='## Summary
 # also code
 ```
 Words about the change.'
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "$fbody" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "$fbody" > /dev/null 2>&1
 check "fenced comment and pseudo-headings accepted" 0 $?
 
 echo "# P15c: comment-only template — no headings required, comments still rejected"
@@ -591,14 +592,14 @@ mkdir -p .github
 cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 <!-- Describe your change and link the ticket. -->
 EOF
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "Retries twice, refs DAR-123." > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "Retries twice, refs DAR-123." > /dev/null 2>&1
 check "comment-only template, plain body accepted" 0 $?
 ready_repo
 mkdir -p .github
 cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 <!-- Describe your change and link the ticket. -->
 EOF
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "<!-- Describe your change and link the ticket. --> Retries twice." > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "<!-- Describe your change and link the ticket. --> Retries twice." > /dev/null 2>&1
 check "copied comment rejected, exit 7" 7 $?
 
 echo "# P15d: discovery — lookup order, alternates, multi-template dir"
@@ -606,16 +607,16 @@ ready_repo
 cat > PULL_REQUEST_TEMPLATE.md <<'EOF'
 ## Root Section
 EOF
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "pr template (PULL_REQUEST_TEMPLATE.md)"
 check "root template found" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "root template enforced, exit 7" 7 $?
 mkdir -p .github
 cat > .github/pull_request_template.md <<'EOF'
 ## GH Section
 EOF
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -qi "pr template (.github/pull_request_template.md)"
 check ".github wins over root" 0 $?
 rm -rf .github PULL_REQUEST_TEMPLATE.md
@@ -623,48 +624,48 @@ mkdir -p docs
 cat > docs/PULL_REQUEST_TEMPLATE.md <<'EOF'
 ## Docs Section
 EOF
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "pr template (docs/PULL_REQUEST_TEMPLATE.md)"
 check "docs/ fallback found" 0 $?
 rm -rf docs
 mkdir -p .github/PULL_REQUEST_TEMPLATE
 echo "## A" > .github/PULL_REQUEST_TEMPLATE/feature.md
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "pr template (.github/PULL_REQUEST_TEMPLATE/feature.md)"
 check "one directory template is selected automatically" 0 $?
 echo "$out" | grep -q "## A"
 check "one directory template is printed" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "one directory template is enforced, exit 7" 7 $?
 echo "## B" > .github/PULL_REQUEST_TEMPLATE/bugfix.md
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "multiple PR templates"
 check "multi-template note present" 0 $?
 echo "$out" | grep -q "feature.md"
 check "template names listed" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
 check "multiple templates require a choice, exit 7" 7 $?
 check "missing choice does not push" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 check "missing choice does not create a PR" "" "$(ls .git/fixture-gh 2>/dev/null || true)"
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why --template ../feature.md > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why --template ../feature.md > /dev/null 2>&1
 check "template selection cannot escape its directory, exit 2" 2 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why --template missing.md > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why --template missing.md > /dev/null 2>&1
 check "unknown template selection, exit 7" 7 $?
 echo "## Outside" > outside.md
 ln -s ../../outside.md .github/PULL_REQUEST_TEMPLATE/linked.md
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Outside
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Outside
 Unlisted content." --template linked.md > /dev/null 2>&1
 check "unlisted symlink template is refused, exit 7" 7 $?
-out=$("$BASH" "$SCRIPT" inspect --template feature.md)
+out=$("${ENTRYPOINT[@]}" inspect --template feature.md)
 check "inspect accepts an exact selected template" 0 $?
 echo "$out" | grep -q "pr template (.github/PULL_REQUEST_TEMPLATE/feature.md)"
 check "inspect names the selected template" 0 $?
 echo "$out" | grep -q "## A"
 check "inspect prints the selected template" 0 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## B
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## B
 Wrong template." --template feature.md > /dev/null 2>&1
 check "selected template shape is enforced, exit 7" 7 $?
-out=$("$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## A
+out=$("${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## A
 Feature behavior is covered." --template feature.md)
 check "exact selected template accepted" 0 $?
 check "selected template body captured" "## A
@@ -674,7 +675,7 @@ echo "# P15e: truncation note for long templates"
 ready_repo
 mkdir -p .github
 { echo "## Big"; for i in $(seq 1 120); do echo "line $i"; done; } > .github/PULL_REQUEST_TEMPLATE.md
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 echo "$out" | grep -q "template truncated at 100 lines (121 total)"
 check "truncation noted with full line count" 0 $?
 TOP=$(git rev-parse --show-toplevel)
@@ -690,13 +691,13 @@ cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 ## Testing
 EOF
 big=$(awk 'BEGIN{for(i=0;i<8000;i++) printf "word %d ab. ", i}')
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Flaky links kill requests.
 $big" -b "## Testing
 Unit tests cover exhaustion." > /dev/null 2>&1
 check "90KB body with filled template accepted" 0 $?
 rm -rf .git/fixture-gh
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Flaky links.
 $big" -b "## Testing
 Tests.
@@ -713,38 +714,38 @@ cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 
   ## Testing
 EOF
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "plain body" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "plain body" > /dev/null 2>&1
 check "up-to-three-space-indented headings are enforced, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Flaky links." -b "  ## Testing
 Tests." > /dev/null 2>&1
 check "indented heading must be kept verbatim, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "  ## Why" -b "  ## Testing
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "  ## Why" -b "  ## Testing
 Tests." > /dev/null 2>&1
 check "indented peer heading does not fill an empty section, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "  ## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "  ## Why
 Flaky links." -b "  ## Testing
 Tests." > /dev/null 2>&1
 check "filled indented template headings accepted" 0 $?
 ready_repo
 mkdir -p .github
 printf '##\tTracking\n' > .github/PULL_REQUEST_TEMPLATE.md
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "no tracking heading" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "no tracking heading" > /dev/null 2>&1
 check "tab-after-hashes heading enforced, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "$(printf '##\tTracking\nRefs DAR-123.')" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "$(printf '##\tTracking\nRefs DAR-123.')" > /dev/null 2>&1
 check "tab heading satisfied verbatim" 0 $?
 ready_repo
 mkdir -p .github
 printf '\357\273\277## Why\n' > .github/PULL_REQUEST_TEMPLATE.md
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "plain body" > /dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "plain body" > /dev/null 2>&1
 check "BOM does not hide the first heading, exit 7" 7 $?
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Flaky links." > /dev/null 2>&1
 check "BOM template satisfied" 0 $?
 ready_repo
 mkdir -p .github
 printf '## Fix C:\\new path handling\n' > .github/PULL_REQUEST_TEMPLATE.md
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b '## Fix C:\new path handling
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b '## Fix C:\new path handling
 Escapes normalized.' > /dev/null 2>&1
 check "backslash heading satisfiable (no awk -v mangling)" 0 $?
 
@@ -762,7 +763,7 @@ cat > .github/PULL_REQUEST_TEMPLATE.md <<'EOF'
 # pseudo heading in tilde fence
 ~~~
 EOF
-"$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b "## Why
+"${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b "## Why
 Flaky links." > /dev/null 2>&1
 check "indented and tilde fences hide pseudo-headings" 0 $?
 
@@ -774,11 +775,11 @@ else
   mkdir -p .github
   echo "## Why" > .github/PULL_REQUEST_TEMPLATE.md
   chmod 000 .github/PULL_REQUEST_TEMPLATE.md
-  out=$("$BASH" "$SCRIPT" inspect 2>&1)
+  out=$("${ENTRYPOINT[@]}" inspect 2>&1)
   check "inspect survives unreadable template" 0 $?
   echo "$out" | grep -q "exists but is not readable"
   check "inspect notes the unreadable template" 0 $?
-  "$BASH" "$SCRIPT" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
+  "${ENTRYPOINT[@]}" create --title "fix: retry request on timeout" -b why > /dev/null 2>&1
   check "create refuses, exit 3 (no silent GW-P8 bypass)" 3 $?
   check "nothing pushed" "" "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
   chmod 644 .github/PULL_REQUEST_TEMPLATE.md
@@ -803,12 +804,12 @@ for tracking in absent present; do
       git config remote.origin.mirror true
     else
       git tag fix/timeout-retry main
-      out=$("$BASH" "$SCRIPT" inspect)
+      out=$("${ENTRYPOINT[@]}" inspect)
       check "$tracking upstream: inspection accepts same-named tag" 0 $?
       grep -qxF '## cur branch: fix/timeout-retry' <<< "$out"
       check "$tracking upstream: inspection reports exact branch despite tag" 0 $?
     fi
-    create_out=$("$BASH" "$SCRIPT" create --title 'fix: retry request on timeout' -b why 2>&1)
+    create_out=$("${ENTRYPOINT[@]}" create --title 'fix: retry request on timeout' -b why 2>&1)
     create_rc=$?
     if [[ "$create_rc" -ne 0 ]]; then printf '%s\n' "$create_out"; fi
     check "$tracking upstream, $config: create succeeds" 0 "$create_rc"
@@ -825,11 +826,11 @@ ready_repo
 git branch release main
 git push -q origin release
 git push -q origin HEAD:refs/heads/main
-out=$("$BASH" "$SCRIPT" inspect)
+out=$("${ENTRYPOINT[@]}" inspect)
 check 'default inspection succeeds' 0 $?
 grep -q 'mode: no-commits' <<< "$out"
 check 'already merged feature has no default-base commits' 0 $?
-out=$("$BASH" "$SCRIPT" inspect --base release)
+out=$("${ENTRYPOINT[@]}" inspect --base release)
 check 'selected-base inspection succeeds' 0 $?
 grep -q 'mode: ready' <<< "$out"
 check 'feature still ahead of release is ready' 0 $?
@@ -845,15 +846,15 @@ check 'inspection publishes nothing' '' "$(git -C .git/remote.git for-each-ref r
 mkdir -p .github/PULL_REQUEST_TEMPLATE
 printf '## Release\nDescribe the backport.\n' >.github/PULL_REQUEST_TEMPLATE/release.md
 printf '## Feature\nDescribe the feature.\n' >.github/PULL_REQUEST_TEMPLATE/feature.md
-out=$("$BASH" "$SCRIPT" inspect --template release.md --base release)
+out=$("${ENTRYPOINT[@]}" inspect --template release.md --base release)
 check 'template reinspection retains selected base' 0 $?
 grep -q 'base branch (selected): release' <<< "$out"
 check 'template context uses release' 0 $?
-"$BASH" "$SCRIPT" create --title 'fix: retry request on timeout' -b $'## Release\nBackport retries.' --base release --template release.md >/dev/null 2>&1
+"${ENTRYPOINT[@]}" create --title 'fix: retry request on timeout' -b $'## Release\nBackport retries.' --base release --template release.md >/dev/null 2>&1
 check 'creation agrees with selected-base readiness' 0 $?
 check 'forge receives selected base' release "$(cat .git/fixture-gh/base)"
 git push -q origin HEAD:refs/heads/release
-out=$("$BASH" "$SCRIPT" inspect --base release)
+out=$("${ENTRYPOINT[@]}" inspect --base release)
 check 'selected no-commits inspection succeeds' 0 $?
 grep -q 'mode: no-commits.*origin/release' <<< "$out"
 check 'nothing ahead of selected base stops' 0 $?
@@ -861,16 +862,16 @@ check 'nothing ahead of selected base stops' 0 $?
 ready_repo
 git branch local-only main
 for bad_base in no-such local-only fix/timeout-retry ''; do
-  "$BASH" "$SCRIPT" inspect --base "$bad_base" >/dev/null 2>&1
+  "${ENTRYPOINT[@]}" inspect --base "$bad_base" >/dev/null 2>&1
   check "invalid selected base '$bad_base' refused" 2 $?
-  "$BASH" "$SCRIPT" create --title 'fix: retry request on timeout' -b why --base "$bad_base" >/dev/null 2>&1
+  "${ENTRYPOINT[@]}" create --title 'fix: retry request on timeout' -b why --base "$bad_base" >/dev/null 2>&1
   check "creation refuses the same invalid base '$bad_base'" 2 $?
 done
-"$BASH" "$SCRIPT" inspect --base >/dev/null 2>&1
+"${ENTRYPOINT[@]}" inspect --base >/dev/null 2>&1
 check 'dangling inspect base refused' 2 $?
 check 'base refusals publish nothing' '' "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 git switch -q main
-out=$("$BASH" "$SCRIPT" inspect --base local-only)
+out=$("${ENTRYPOINT[@]}" inspect --base local-only)
 check 'explicit base cannot bypass default-branch guard' 0 $?
 grep -q 'mode: wrong-branch' <<< "$out"
 check 'default branch remains forbidden' 0 $?

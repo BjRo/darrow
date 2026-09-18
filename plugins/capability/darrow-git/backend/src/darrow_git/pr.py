@@ -161,6 +161,6 @@ def run(args: list[str]) -> None:
         create(parse(args[1:], creating=True))
     else:
         raise RefusalError(
-            "usage: pr.sh inspect [--base <branch>] [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]",
+            "usage: darrow-create-pr inspect [--base <branch>] [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]",
             64,
         )

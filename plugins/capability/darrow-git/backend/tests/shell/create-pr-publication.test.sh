@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Real Git remote; gh only supplies forge observations. No network effects.
 set -euo pipefail
-SCRIPT=$(cd "$(dirname "$0")" && pwd -P)/pr.sh
+backend=$(cd "$(dirname "$0")/../.." && pwd -P)
+ENTRYPOINT=(uv run --quiet --frozen --no-dev --project "$backend" darrow-create-pr)
 test_parent=${TMPDIR:-/tmp}
 work=$(mktemp -d "${test_parent%/}/pr-publication.XXXXXX")
 work=$(cd "$work" && pwd -P)
@@ -79,7 +80,7 @@ fresh() {
 }
 remote_tip() { git ls-remote origin refs/heads/fix/103 | awk '{print $1}'; }
 refuses() {
-  if bash "$SCRIPT" "$@" >"$work/output" 2>&1; then
+  if "${ENTRYPOINT[@]}" "$@" >"$work/output" 2>&1; then
     echo "FAIL: expected refusal: $*" >&2
     exit 1
   fi
@@ -87,7 +88,7 @@ refuses() {
 }
 
 fresh
-if ! bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
+if ! "${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
   cat "$work/output"
   echo 'FAIL: authorized reuse must publish the additional local commit' >&2
   exit 1
@@ -100,10 +101,10 @@ grep -Fx "pr-commit: $intended" "$work/output"
 grep -Fx 'publication: verified' "$work/output"
 test "$(git rev-list --count HEAD)" = 3
 printf 'uncommitted\n' >scratch.txt
-bash "$SCRIPT" verify --expected-head "$intended" >"$work/output"
+"${ENTRYPOINT[@]}" verify --expected-head "$intended" >"$work/output"
 grep -F 'scratch.txt' "$work/output"
 test -f scratch.txt
-bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output"
+"${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" >"$work/output"
 grep -Fx 'push: none' "$work/output"
 
 for mode in unavailable missing stale wrong-base wrong-head draft fork malformed duplicate; do
@@ -123,31 +124,31 @@ refuses publish-existing --expected-head "$intended"
 
 fresh
 export FORGE_MODE=draft
-bash "$SCRIPT" publish-existing --expected-head "$intended" --draft >"$work/output"
+"${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" --draft >"$work/output"
 grep -Fx 'draft: true' "$work/output"
 
 fresh
 export FORGE_MODE=stale-after-push
-if bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
+if "${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
   echo 'FAIL: stale forge evidence must not complete publication' >&2; exit 1
 fi
 test "$(remote_tip)" = "$intended"
 grep -F 'push completed' "$work/output"
 if grep -q '^publication: verified$' "$work/output"; then exit 1; fi
 export FORGE_MODE=''
-bash "$SCRIPT" verify --expected-head "$intended" >"$work/output"
+"${ENTRYPOINT[@]}" verify --expected-head "$intended" >"$work/output"
 grep -Fx 'push: none' "$work/output"
 
 fresh
 export FORGE_MODE=propagating
-bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output"
+"${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" >"$work/output"
 grep -Fx 'publication: verified' "$work/output"
 test "$(remote_tip)" = "$intended"
 test "$(awk '/^pr list / {n++} END {print n+0}' .git/forge-calls)" = 3
 
 fresh
 export FORGE_MODE=changed-identity
-if bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
+if "${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" >"$work/output" 2>&1; then
   echo 'FAIL: changed PR identity must not be retried into success' >&2; exit 1
 fi
 test "$(remote_tip)" = "$intended"
@@ -178,7 +179,7 @@ git commit -qm 'chore: local only'
 git switch -q fix/103
 mkdir subdir
 cd subdir
-bash "$SCRIPT" publish-existing --expected-head "$intended" >"$work/output"
+"${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" >"$work/output"
 test "$(git --git-dir="$work/remote-$n.git" rev-list --count main)" = 1
 test -z "$(git --git-dir="$work/remote-$n.git" tag --list)"
 grep -Fx 'publication: verified' "$work/output"
@@ -187,6 +188,6 @@ git branch develop main
 git push -q origin develop
 git --git-dir="$work/remote-$n.git" symbolic-ref HEAD refs/heads/develop
 refuses publish-existing --expected-head "$intended"
-bash "$SCRIPT" publish-existing --expected-head "$intended" --base main >"$work/output"
+"${ENTRYPOINT[@]}" publish-existing --expected-head "$intended" --base main >"$work/output"
 grep -Fx 'publication: verified' "$work/output"
 echo 'all publication checks passed'

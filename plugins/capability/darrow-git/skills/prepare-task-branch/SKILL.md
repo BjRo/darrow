@@ -12,9 +12,7 @@ file. The script owns repository inspection, name and ticket-token validation,
 complete token discovery, additive creation, exact reuse, switching, worktree allocation, and refusal
 safety. Use its output as the source of truth.
 
-The package lives at `<skill-dir>/../../backend` inside this plugin. The existing
-`scripts/branch.sh` path remains a POSIX compatibility launcher for the same
-entrypoint, arguments, records, refusals, and exit statuses.
+The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## 1. Bind discovery or preparation input
 

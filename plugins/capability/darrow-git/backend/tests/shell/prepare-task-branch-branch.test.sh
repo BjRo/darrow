@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-script="$script_dir/branch.sh"
+backend=$(cd "$(dirname "$0")/../.." && pwd -P)
+ENTRYPOINT=(uv run --quiet --frozen --no-dev --project "$backend" darrow-prepare-task-branch)
 failures=0
 
 check() {
@@ -29,7 +29,7 @@ fresh_repo() {
 
 printf '%s\n' '# P1: create, current, and reuse are additive'
 fresh_repo
-output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123)
+output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123)
 check 'create exits zero' 0 $?
 printf '%s\n' "$output" | grep -q '^## mode: created$'
 check 'create mode reported' 0 $?
@@ -39,7 +39,7 @@ git add task.txt
 git commit -qm 'fix: task change'
 task_tip=$(git rev-parse HEAD)
 git tag fix/DAR-123-attribution HEAD^
-output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123)
+output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123)
 check 'current exits zero' 0 $?
 printf '%s\n' "$output" | grep -q '^## mode: current$'
 check 'current mode reported' 0 $?
@@ -50,7 +50,7 @@ git switch -q main
 printf '%s\n' advance >advance.txt
 git add advance.txt
 git commit -qm 'feat: advance main'
-output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123)
+output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123)
 check 'reuse exits zero' 0 $?
 printf '%s\n' "$output" | grep -q '^## mode: reused$'
 check 'reuse mode reported' 0 $?
@@ -66,7 +66,7 @@ git switch -qc feat/conflicting
 printf '%s\n' other >base.txt
 git commit -qam 'feat: conflicting branch'
 printf '%s\n' dirty >>base.txt
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 >/dev/null 2>&1
 check 'dirty switch refused' 4 $?
 check 'original branch remains active' feat/conflicting "$(git branch --show-current)"
 check 'dirty content survives' dirty "$(tail -n 1 base.txt)"
@@ -74,11 +74,11 @@ check 'stash remains empty' '' "$(git stash list)"
 
 printf '%s\n' '# P3: exact name and provider token are mandatory'
 fresh_repo
-"$BASH" "$script" prepare fix/request-attribution >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/request-attribution >/dev/null 2>&1
 check 'missing token refused' 2 $?
-"$BASH" "$script" prepare fix/preserve-DAR-123 --ticket-token DAR-123 >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/preserve-DAR-123 --ticket-token DAR-123 >/dev/null 2>&1
 check 'non-leading token refused' 5 $?
-"$BASH" "$script" prepare fix/DAR-123-repeat-DAR-123 --ticket-token DAR-123 >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-repeat-DAR-123 --ticket-token DAR-123 >/dev/null 2>&1
 check 'repeated token refused' 5 $?
 check 'validation refusals leave main active' main "$(git branch --show-current)"
 
@@ -91,7 +91,7 @@ git switch -q main
 printf '%s\n' main >base.txt
 git commit -qam 'feat: main'
 git merge side -q >/dev/null 2>&1 || true
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 >/dev/null 2>&1
 check 'conflict refused' 8 $?
 check 'no task branch created' '' "$(git branch --list fix/DAR-123-attribution)"
 
@@ -99,7 +99,7 @@ printf '%s\n' '# P5: explicit worktree preparation preserves the caller checkout
 fresh_repo
 printf '%s\n' dirty >>base.txt
 worktree_path="$repo/task-worktree"
-output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree --at "$worktree_path")
+output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree --at "$worktree_path")
 check 'worktree creation exits zero' 0 $?
 printf '%s\n' "$output" | grep -q '^## mode: worktree-created$'
 check 'worktree creation mode reported' 0 $?
@@ -113,7 +113,7 @@ fresh_repo
 git branch fix/DAR-123-attribution
 task_tip=$(git rev-parse refs/heads/fix/DAR-123-attribution)
 worktree_path="$repo/reused-worktree"
-output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree --at "$worktree_path")
+output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree --at "$worktree_path")
 check 'existing branch worktree reuse exits zero' 0 $?
 printf '%s\n' "$output" | grep -q '^## mode: worktree-reused$'
 check 'existing branch worktree mode reported' 0 $?
@@ -131,7 +131,7 @@ printf '%s\n' other >base.txt
 git commit -qam 'feat: conflicting side'
 git switch -q main
 git -C "$worktree_path" merge conflict-side -q >/dev/null 2>&1 || true
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
 check 'conflict in an existing task worktree is refused' 8 $?
 check 'caller stays on main after target-worktree conflict' main "$(git branch --show-current)"
 check 'target worktree remains conflicted' 1 "$(git -C "$worktree_path" diff --name-only --diff-filter=U | wc -l | tr -d '[:space:]')"
@@ -140,7 +140,7 @@ fresh_repo
 worktree_path="$repo/stale-worktree"
 git worktree add -q -b fix/DAR-123-attribution "$worktree_path"
 mv "$worktree_path" "$worktree_path.missing"
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
 check 'stale registered task worktree is refused' 9 $?
 check 'caller stays on main after stale-worktree refusal' main "$(git branch --show-current)"
 
@@ -157,13 +157,13 @@ git -C "$worktree_path" add replacement.txt
 git -C "$worktree_path" commit -qm 'chore: replacement repository'
 git -C "$worktree_path" switch -qc fix/DAR-123-attribution
 cd "$caller_repo" || exit 70
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
 check 'different repository at registered path is refused' 9 $?
 check 'caller stays on main after cross-repository refusal' main "$(git branch --show-current)"
 
 fresh_repo
 worktree_path="$repo/visible-worktree"
-output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree --at "$worktree_path")
+output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree --at "$worktree_path")
 check 'custom in-repository worktree exits zero' 0 $?
 printf '%s\n' "$output" | grep -q 'not ignored.*git status will list it'
 check 'visible custom worktree side effect is reported' 0 $?
@@ -186,7 +186,7 @@ chmod +x "$fake_bin/git"
 worktree_path="$repo/race-worktree"
 PATH="$fake_bin:$PATH" RACE_REAL_GIT="$real_git" \
   RACE_BRANCH=fix/DAR-123-attribution \
-  "$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 \
+  "${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 \
   --worktree --at "$worktree_path" >/dev/null 2>&1
 check 'concurrent branch makes worktree preparation fail' 4 $?
 git show-ref -q --verify refs/heads/fix/DAR-123-attribution
@@ -210,7 +210,7 @@ chmod +x "$fake_bin/git"
 exclude=$(git rev-parse --git-path info/exclude)
 exclude_before=$(cat "$exclude")
 PATH="$fake_bin:$PATH" FAIL_REAL_GIT="$real_git" \
-  "$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 \
+  "${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 \
   --worktree >/dev/null 2>&1
 check 'simulated default worktree preparation fails' 4 $?
 check 'exclude file is unchanged after refusal' "$exclude_before" "$(cat "$exclude")"
@@ -238,7 +238,7 @@ for branch_state in missing existing; do
     expected_mode=worktree-created
   fi
   original_tip=$(git rev-parse HEAD)
-  output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree)
+  output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree)
   check "$branch_state branch prepares with absent excludes" 0 $?
   grep -qxF "## mode: $expected_mode" <<< "$output"
   check 'correct worktree mode reported' 0 $?
@@ -266,7 +266,7 @@ exec "$FAIL_REAL_GIT" "$@"
 EOF
 chmod +x "$fake_bin/git"
 PATH="$fake_bin:$PATH" FAIL_REAL_GIT="$real_git" \
-  "$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+  "${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
 check 'worktree failure reaches the add operation' 4 $?
 if [[ ! -e .git/info/exclude ]]; then path_status=0; else path_status=1; fi
 check 'failed worktree does not create exclude file' 0 "$path_status"
@@ -280,7 +280,7 @@ exclude=$(git rev-parse --git-path info/exclude)
 exclude_before=$(cat "$exclude")
 chmod 000 "$exclude"
 if [[ ! -r "$exclude" ]]; then
-  output=$("$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree 2>&1)
+  output=$("${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree 2>&1)
   check 'unreadable exclude refuses' 9 $?
   grep -q 'exclude file is unreadable' <<< "$output"
   check 'unreadable configuration is identified' 0 $?
@@ -298,7 +298,7 @@ fresh_repo
 exclude=$(git rev-parse --git-path info/exclude)
 exclude_before=$(cat "$exclude")
 chmod 555 .git/info
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
 check 'writable existing file can be appended in read-only parent' 0 $?
 chmod 755 .git/info
 check 'existing exclude rules preserved with appended worktree rule' "$exclude_before"$'\n/.worktrees/' "$(cat "$exclude")"
@@ -307,7 +307,7 @@ printf '%s\n' '# P12: broken exclude symlinks are unreadable configuration'
 fresh_repo --template=
 mkdir -p .git/info
 ln -s missing-exclude-target .git/info/exclude
-"$BASH" "$script" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-attribution --ticket-token DAR-123 --worktree >/dev/null 2>&1
 check 'broken exclude symlink refuses' 9 $?
 if [[ -L .git/info/exclude && ! -e .git/info/missing-exclude-target ]]; then path_status=0; else path_status=1; fi
 check 'broken exclude link is left intact' 0 "$path_status"

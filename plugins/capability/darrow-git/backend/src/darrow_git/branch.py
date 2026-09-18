@@ -164,7 +164,8 @@ def run(args: list[str], *, task: bool = False) -> None:
         )
     else:
         raise RefusalError(
-            "usage: branch.sh "
+            "usage: "
+            + ("darrow-prepare-task-branch " if task else "darrow-create-branch ")
             + (
                 "discover --ticket-token <opaque-token> | inspect | prepare <name> --ticket-token <opaque-token>"
                 if task

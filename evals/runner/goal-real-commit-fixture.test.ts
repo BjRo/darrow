@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { runChecks } from "./checks";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -9,8 +9,8 @@ const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/real-create-commit-composition.yaml",
   import.meta.url,
 );
-const commitSource = new URL(
-  "../../plugins/capability/darrow-git/skills/create-commit/scripts/commit.sh",
+const commitSkill = new URL(
+  "../../plugins/capability/darrow-git/skills/create-commit",
   import.meta.url,
 );
 const notes = "# Notes\nReal commit capability composes.\n";
@@ -19,26 +19,23 @@ const reviewCheck =
   "review clears the final uncommitted candidate before commit";
 
 async function publish(repo: string) {
-  await writeFile(
-    `${repo}/.git/real-commit.sh`,
-    await Bun.file(commitSource).text(),
-    { mode: 0o755 },
-  );
+  const commit =
+    "uv run --quiet --frozen --no-dev --project .git/eval-plugin/backend darrow-create-commit";
   await Bun.write(`${repo}/NOTES.md`, notes);
   const checks = await runChecks(repo, [
     { name: "current check", run: "bash check.sh" },
     { name: "actual review", run: "independent-review-protocol" },
     {
       name: "real helper records hook failure",
-      run: "bash .git/real-commit.sh commit -m 'docs: add real-commit note' NOTES.md",
+      run: `${commit} commit -m 'docs: add real-commit note' NOTES.md`,
       exit_code: 4,
     },
   ]);
-  expect(checks.every((result) => result.passed)).toBe(true);
+  expect(checks.filter((result) => !result.passed)).toEqual([]);
   const remediation = await runChecks(repo, [
     {
       name: "real helper executes the authorized guarded remediation",
-      run: `bash .git/real-commit.sh remediate --after-hook-failure --command ${quote("grep -Fx 'Real commit capability composes.' NOTES.md >/dev/null")} --refresh-staged NOTES.md -m 'docs: add real-commit note'`,
+      run: `${commit} remediate --after-hook-failure --command ${quote("grep -Fx 'Real commit capability composes.' NOTES.md >/dev/null")} --refresh-staged NOTES.md -m 'docs: add real-commit note'`,
     },
   ]);
   expect(remediation[0]?.passed).toBe(true);
@@ -62,8 +59,9 @@ for (const scenario of [
     const entry = parse(await Bun.file(source).text()) as EvalCase;
     const repo = await buildFixture({
       fixture: entry.fixture,
-      skillDir: "",
+      skillDir: fileURLToPath(commitSkill),
       skillMounts: [],
+      sourceClaudePlugin: true,
     });
     try {
       if (scenario === "help") {
@@ -104,7 +102,7 @@ for (const scenario of [
     } finally {
       await destroyFixture(repo);
     }
-  });
+  }, 30000);
 }
 
 for (const [arg, exitCode] of [

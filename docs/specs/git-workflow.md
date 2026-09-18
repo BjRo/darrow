@@ -27,10 +27,10 @@ capability to allocate an additional linked worktree.
 - **GW-M1 — Contained portable implementation.** The five capabilities share
   one Python package contained in `darrow-git/backend`, with frozen UV runtime
   entrypoints and no runtime dependency on another plugin. Git and GitHub CLI
-  remain the provider boundaries. Existing script paths, command arguments,
-  stable records, refusal statuses, and mutation safeguards remain compatible.
-  POSIX scripts are dispatch-only compatibility launchers; native Windows uses
-  the same Python entrypoints without requiring a Unix shell.
+  remain the provider boundaries. Frozen UV console commands are the runtime
+  interface on every platform; legacy shell-script paths are not retained.
+  Command arguments, stable records, refusal statuses, and mutation safeguards
+  remain intact. No workflow requires a Bash launcher.
 - **GW-M2 — Literal process and filesystem boundaries.** Provider commands use
   argument vectors, never interpolated shell programs. Paths and temporary
   artifacts use native filesystem APIs. Hook remediation retains its diagnostic
