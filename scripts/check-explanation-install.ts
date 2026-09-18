@@ -16,12 +16,40 @@ const marketplaceName = "explanation-certification";
 const source = resolve(import.meta.dir, "../plugins/capability", pluginName);
 const skillPath = "skills/explain-visually/SKILL.md";
 
+async function hostCommand(args: string[]): Promise<string[]> {
+  const modules = process.env.DARROW_CERT_NPM_ROOT;
+  if (!modules) return args;
+  const [host, ...rest] = args;
+  const packages: Record<string, string> = {
+    codex: "@openai/codex",
+    claude: "@anthropic-ai/claude-code",
+  };
+  const name = packages[host!];
+  assert(name, `unsupported certification host: ${host}`);
+  const root = join(modules, name);
+  const manifest = JSON.parse(
+    await readFile(join(root, "package.json"), "utf8"),
+  );
+  const bin =
+    typeof manifest.bin === "string" ? manifest.bin : manifest.bin[host!];
+  assert.equal(typeof bin, "string", `missing host entrypoint: ${host}`);
+  const entry = resolve(root, bin);
+  // npm's Windows .cmd shims are not executable via Bun.spawn. Invoke the
+  // installed package entrypoint directly, retaining each argument separately.
+  return entry.endsWith(".js") ? ["node", entry, ...rest] : [entry, ...rest];
+}
+
 async function command(
   args: string[],
   env: Record<string, string>,
   cwd: string,
 ) {
-  const proc = Bun.spawn(args, { cwd, env, stdout: "pipe", stderr: "pipe" });
+  const proc = Bun.spawn(await hostCommand(args), {
+    cwd,
+    env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
