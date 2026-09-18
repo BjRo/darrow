@@ -180,7 +180,8 @@ Use this for an explicitly invoked bounded engineering outcome. Ordinary complex
 
 Codex with native subagent support or Claude Code with the bundled foreground route agents; UV, Python 3.10–3.13, Git, available routes, and the capabilities matching authorized operations.
 The helpers support Linux, macOS, and native Windows without Bash or runtime
-Python dependencies. Bash 3.2/5 is used only for repository regression tests.
+Python dependencies. Regression tests run through the repository's Python
+quality gate on all three platforms.
 
 ## Installation
 

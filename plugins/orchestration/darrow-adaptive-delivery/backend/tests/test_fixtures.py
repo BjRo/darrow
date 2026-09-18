@@ -67,13 +67,17 @@ def test_readiness_refusals(repo: Path) -> None:
 def test_install_isolated_providers(repo: Path, host: str, kind: str) -> None:
     (repo / ".readiness-verdict").write_text("blocked\n")
     assert install.install(kind, repo, FIXTURES, host) == ""
+    for root in {".agents", ".claude"} - set(install.HOSTS[host]):
+        assert not (repo / root).exists()
     for root in install.HOSTS[host]:
         assert (repo / root / "backend/uv.lock").is_file()
         assert not (repo / root / "backend/.venv").exists()
         assert not (repo / root / "bin").exists()
         name = install.SKILLS[kind][1]
         content = (repo / root / "skills" / name / "SKILL.md").read_text()
-        assert "name:" in content
+        source = FIXTURES / install.SKILLS[kind][0]
+        assert content == (source / install.template(kind, root)).read_text()
+        assert not (source / "SKILL.md").exists()
         assert not (repo / root / "backend/tests").exists()
         if kind == "review":
             matches = [
@@ -135,10 +139,12 @@ def test_review_flags(repo: Path, flag: str, outcome: str) -> None:
         assert "Advisory repair guidance\n" in output
 
 
-def test_review_closed_sequence_and_history(repo: Path) -> None:
+@pytest.mark.parametrize("final", ["clear", "continue", "no_progress", "unavailable"])
+def test_review_closed_sequence_and_history(repo: Path, final: str) -> None:
     git_dir = metadata(repo)
     (git_dir / "fixture-review-sequence").write_text(
-        "blocking\tOriginal blocker\tAdvisory\tUnrelated\nblocking\tNarrowed cause\nclear\n"
+        "blocking\tOriginal blocker\tAdvisory\tUnrelated\nblocking\tNarrowed cause\n"
+        f"{final}\tFinal observation\n"
     )
     result = review.assess(repo, "comprehensive", CONTRACT)
     assert (
@@ -148,7 +154,13 @@ def test_review_closed_sequence_and_history(repo: Path) -> None:
     (repo / "value.txt").write_text("repaired once\n")
     assert "Fix verification: continue." in review.assess(repo, "verify", CONTRACT)
     (repo / "value.txt").write_text("repaired twice\n")
-    assert "Fix verification: clear." in review.assess(repo, "verify", CONTRACT)
+    assert f"Fix verification: {final}." in review.assess(repo, "verify", CONTRACT)
+    history = (git_dir / "fixture-state/independent-review-invocations").read_text()
+    rows = [row.split("\t") for row in history.splitlines()]
+    assert [row[2] for row in rows] == ["comprehensive", "verify", "verify"]
+    assert len({row[0] for row in rows}) == 3
+    with pytest.raises(RefusalError, match="already established"):
+        review.assess(repo, "comprehensive", CONTRACT)
     with pytest.raises(RefusalError, match="exhausted"):
         review.assess(repo, "verify", CONTRACT)
 

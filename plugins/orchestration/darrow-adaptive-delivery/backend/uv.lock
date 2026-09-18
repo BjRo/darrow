@@ -86,7 +86,7 @@ toml = [
 
 [[package]]
 name = "darrow-adaptive-delivery"
-version = "0.22.1"
+version = "0.22.2"
 source = { editable = "." }
 
 [package.dev-dependencies]

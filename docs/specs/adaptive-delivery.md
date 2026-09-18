@@ -114,8 +114,10 @@ candidate fingerprints, closed finding sets, delayed combined assessment,
 canonical artifact validation, and passive evidence beneath Git metadata.
 Fresh copied-artifact tests exercise runtime-only installation and both host
 routes on all three native platforms; Python quality gates independently
-require 95% statement and branch coverage. Shell regression tests remain
-development evidence on Bash 3.2 and Bash 5, not runtime dependencies.
+require 95% statement and branch coverage. Python regression tests preserve
+route refusals, installed fixture contracts, closed review histories, and
+mutation during independent and combined assessment on all three native
+platforms, without a Bash test runner.
 
 The helper binds discovery and every Git operation to the requested `--repo`
 working tree, including a linked worktree or its subdirectory. Ambient Git
@@ -703,9 +705,9 @@ Nested host processes are not an adaptive-delivery fallback.
 
 The bundled helper may prepare deterministic repository evidence and resolve a
 configured route. It does not launch models, persist objectives, record owner
-lifecycle, render completion, or supervise work. Plugin-shipped scripts remain
-portable across Bash 5 and macOS Bash 3.2 and use only baseline Unix utilities
-plus the host CLIs they explicitly wrap.
+lifecycle, render completion, or supervise work. The contained Python package
+and its regression tests support Python 3.10–3.13 on macOS, Linux, and native
+Windows, using UV and Git without a Bash dependency.
 
 Every required runtime file remains inside the plugin. Bundled helpers are
 resolved without filesystem search: Claude uses its host-substituted plugin

@@ -407,14 +407,6 @@ jobs:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/orchestration/darrow-adaptive-delivery/backend python plugins/orchestration/darrow-adaptive-delivery/backend/tests/fresh_install.py
-      - name: Verify Bash regression scenarios
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          /bin/bash --version
-          for test in plugins/orchestration/darrow-adaptive-delivery/backend/tests/shell/*.test.sh plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/fixtures/*.test.sh; do
-            /bin/bash "$test"
-          done
 
   inventory:
     name: Python inventory guard
