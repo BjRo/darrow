@@ -44,6 +44,13 @@ Review agents must not run Git or GitHub commands against this repository.
   support. Commit `pyproject.toml` and `uv.lock`, keep runtime and development
   dependencies separate, invoke runtime entrypoints with frozen resolution, and
   register the package in `python-packages.txt`.
+- For Python conversions, preserve required public behavior rather than
+  translating Bash verbatim. Simplify the design with idiomatic Python,
+  standard-library operations, and focused reuse within the owning package.
+  Remove unnecessary Bash shims, obsolete aliases, and compatibility branches;
+  update callers and tests to invoke the frozen package entrypoints directly.
+  Retain an adapter only for an explicitly required external contract or an
+  actual host protocol, not merely because the old script path existed.
 - Keep genuinely small host-specific launchers and command glue in portable
   Bash, using baseline Unix utilities and the host CLIs the capability wraps.
   Do not introduce JavaScript/TypeScript, Ruby, JVM, compiled, or shared Darrow

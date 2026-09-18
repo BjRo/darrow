@@ -82,6 +82,13 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   contract inputs instead of importing them from the authoring skill's source
   repository. Do not add a script when existing tools and instructions are
   already reliable.
+  A migration preserves the required public behavior, not the source
+  implementation's structure. When Python is selected, use idiomatic Python
+  and standard-library operations, simplify control flow, and reuse focused
+  mechanics within the package instead of translating shell code verbatim.
+  Remove obsolete wrappers, aliases, and compatibility branches, updating
+  callers and tests to the canonical entrypoints. A legacy path alone does not
+  establish a requirement to retain a shim.
 - **SA-C6 — Fail closed and identify evidence.** A required unreadable skill,
   manifest, configuration, instruction, or referenced local resource blocks the
   dependent result. Model-facing script output identifies inspected inputs and
