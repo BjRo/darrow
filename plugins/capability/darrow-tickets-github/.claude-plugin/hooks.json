@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": [
+              "run",
+              "--quiet",
+              "--frozen",
+              "--no-dev",
+              "--project",
+              "${CLAUDE_PLUGIN_ROOT}/backend",
+              "darrow-tickets-claude-context"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

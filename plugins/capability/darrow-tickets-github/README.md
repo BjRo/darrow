@@ -18,6 +18,11 @@ Install `darrow-tickets-github` from the Darrow marketplace. It requires UV,
 Python 3.10–3.13, Git, `gh` authenticated for the repository's GitHub host,
 and a usable `origin` remote. Runtime dependencies are otherwise empty.
 
+Claude's session-start hook supplies static discovery context so matching
+requests activate the owning skill before repository inspection or prerequisite
+judgments. It uses the same frozen Python package, without inspecting the
+repository or contacting GitHub. Workflow and authority remain in the skill.
+
 ## What it provides
 
 ### `create-ticket`

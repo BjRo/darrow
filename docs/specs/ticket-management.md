@@ -33,6 +33,10 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   visible if a later relation write or read fails. Validate with mocked provider
   operations, generated boundary cases, and fresh copied-plugin execution;
   automated tests must never mutate live GitHub state.
+  Claude's session-start context may route matching requests to the installed
+  ticket skills before repository inspection or prerequisite judgments. It must
+  remain static and nonmutating, perform no repository or tracker inspection,
+  preserve provider boundaries, and leave workflow and authority in the skill.
 
 - **TM-P1 — Independently installable providers.** Each tracker implementation
   lives in its own `darrow-tickets-<provider>` plugin. The shipped provider is

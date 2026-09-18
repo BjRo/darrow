@@ -1,5 +1,6 @@
 """Native copied-artifact validation using only locked runtime dependencies."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -27,6 +28,9 @@ def validate(copy: Path, fixture: Path) -> None:
         tool in tree for tool in ("pytest", "ruff", "mypy", "hypothesis", "coverage")
     )
     assert not (copy / "bin").exists()
+    context = json.loads(command(fixture, *uv, "darrow-tickets-claude-context"))
+    assert context["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+    assert context["hookSpecificOutput"]["additionalContext"].strip()
     assert "usage: ticket" in command(fixture, *uv, "darrow-ticket", expected=64)
     assert "not inside a git work tree" in command(
         fixture, *uv, "darrow-ticket", "inspect", expected=3
