@@ -22,6 +22,8 @@ Plugin: `darrow-information-architecture`. Skills: `setup-information-architectu
   guidance routes with forward slashes; accept Windows separators on Windows.
   Match instruction names with their documented case even on case-insensitive
   filesystems. Recognize CRLF, LF, and UTF-8 BOM guidance without changing bytes.
+  Emit UTF-8 records even when a native pipe defaults to a legacy code page,
+  so non-Latin repository paths remain reportable.
   Follow file adapters only within the repository; report broken, looping,
   external, unreadable, or non-file dependencies rather than silently dropping
   selected evidence. Existing native imports outside the repository retain

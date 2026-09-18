@@ -1,6 +1,7 @@
 """Public CLI boundaries with stable status codes."""
 
 import argparse
+import io
 import sys
 from collections.abc import Callable, Sequence
 from typing import NoReturn
@@ -71,6 +72,7 @@ def setup_command(arguments: Sequence[str]) -> int:
 
 def run(command: Callable[[Sequence[str]], int], arguments: Sequence[str]) -> int:
     try:
+        configure_output()
         return command(arguments)
     except UsageError as error:
         print(error, file=sys.stderr)
@@ -79,6 +81,13 @@ def run(command: Callable[[Sequence[str]], int], arguments: Sequence[str]) -> in
         # Process boundary: inaccessible evidence must never produce a passing audit.
         print(f"error: {error}", file=sys.stderr)
         return 2
+
+
+def configure_output() -> None:
+    """Keep machine-facing path records UTF-8 on native Windows pipes too."""
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 
 def doctor_entrypoint() -> None:

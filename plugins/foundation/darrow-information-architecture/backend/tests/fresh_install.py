@@ -25,7 +25,7 @@ def run(arguments: list[str], cwd: Path, expected: int = 0) -> str:
 
 def verify(work: Path) -> None:
     source = Path(__file__).resolve().parents[2]
-    plugin = work / "copied plugin ü"
+    plugin = work / "copied plugin ü 漢字"
     shutil.copytree(
         source,
         plugin,
@@ -65,7 +65,7 @@ def verify(work: Path) -> None:
         ],
         work,
     )
-    repo = work / "native repository ü"
+    repo = work / "native repository ü 漢字"
     repo.mkdir()
     run(["git", "init", "-q", str(repo)], work)
     exercise(command, repo, work)

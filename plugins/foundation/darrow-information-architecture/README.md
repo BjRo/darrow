@@ -79,6 +79,7 @@ case. LF, CRLF, and UTF-8 BOM guidance are supported. Directory symlinks are not
 traversed; selected broken, looping, external file adapters and unreadable evidence
 fail closed. Native imports outside the repository remain host-owned and outside
 this compact repository audit. Windows symlink privileges are not assumed.
+Output records use UTF-8 on every host, including redirected Windows output.
 
 Approved updates preserve adapter sources, permissions, and newline conventions.
 See [atomic guidance updates](references/file-updates.md) for the digest-checked

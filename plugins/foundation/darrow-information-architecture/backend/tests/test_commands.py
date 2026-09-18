@@ -487,3 +487,23 @@ def test_public_entrypoints(
         updates.entrypoint()
     assert result.value.code == 0
     assert f"updated: {tmp_path / 'AGENTS.md'}" in capsys.readouterr().out
+
+
+def test_unicode_paths_with_legacy_pipe_encoding(tmp_path: Path) -> None:
+    root = tmp_path / "repository 漢字"
+    root.mkdir()
+    write(root, {"AGENTS.md": "# Root"})
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from darrow_ia.cli import doctor_entrypoint; doctor_entrypoint()",
+            "verify",
+            str(root),
+        ],
+        env={**os.environ, "PYTHONIOENCODING": "ascii", "PYTHONUTF8": "0"},
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert str(root) in result.stdout.decode("utf-8")
