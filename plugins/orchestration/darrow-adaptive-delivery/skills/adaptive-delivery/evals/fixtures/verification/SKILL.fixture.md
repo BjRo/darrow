@@ -16,7 +16,7 @@ execute that deterministic provider in this bounded assessment context, then
 collect the selected QA-like result. Run exactly:
 
 ```sh
-bash "$skill_dir/../../bin/verification-fixture" "$repo" initial
+uv run --quiet --frozen --no-dev --project "$skill_dir/../../backend" adaptive-delivery-fixture verification "$repo" initial
 ```
 
 For follow-up, require the complete original/prior results, finding identities,
@@ -24,7 +24,7 @@ provider provenance, blocking/advisory disposition, target and repair history,
 and direct-regression lineage. In a fresh assessment context run:
 
 ```sh
-bash "$skill_dir/../../bin/verification-fixture" "$repo" follow-up
+uv run --quiet --frozen --no-dev --project "$skill_dir/../../backend" adaptive-delivery-fixture verification "$repo" follow-up
 ```
 
 Return the complete candidate-bound report, including both selected results,

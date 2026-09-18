@@ -386,7 +386,7 @@ describe("eval fixture skill mounts", () => {
     }
     await mkdir(recipe, { recursive: true });
     await mkdir(adaptive, { recursive: true });
-    await mkdir(join(orchestrationRoot, "bin"), { recursive: true });
+    await mkdir(join(orchestrationRoot, "backend"), { recursive: true });
     await writeFile(
       join(recipe, "SKILL.md"),
       "---\nname: recipe\ndescription: Recipe\n---\n",
@@ -414,7 +414,7 @@ describe("eval fixture skill mounts", () => {
       );
     }
     await writeFile(
-      join(orchestrationRoot, "bin", "adaptive-delivery-preflight"),
+      join(orchestrationRoot, "backend", "pyproject.toml"),
       "fixture runner\n",
     );
 
@@ -444,7 +444,7 @@ describe("eval fixture skill mounts", () => {
     ).toBe(true);
     expect(existsSync(join(claudeAdditional, "skills", "recipe"))).toBe(false);
     expect(
-      existsSync(join(claudeAdditional, "bin", "adaptive-delivery-preflight")),
+      existsSync(join(claudeAdditional, "backend", "pyproject.toml")),
     ).toBe(true);
 
     const marketplace = join(fixture, ".git", "eval-marketplace");

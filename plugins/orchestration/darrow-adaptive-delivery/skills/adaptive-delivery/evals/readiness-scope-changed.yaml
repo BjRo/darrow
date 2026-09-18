@@ -31,7 +31,7 @@ fixture:
           printf '%s\n' '# Notes' 'existing = preserved' 'First revised line.' 'Second revised line.' >.git/expected-notes
           cmp -s .git/expected-notes NOTES.md
   setup: >-
-    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install readiness "$PWD"
     "{{case_dir}}/fixtures" codex
 checks:
   - name: changed-scope plan is implemented

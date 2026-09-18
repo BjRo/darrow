@@ -4,7 +4,7 @@
 set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
+plugin_dir=$(CDPATH='' cd -- "$script_dir/../../.." && pwd)
 skill="$plugin_dir/skills/adaptive-delivery/SKILL.md"
 guide="$plugin_dir/skills/adaptive-delivery/references/codex-launch.md"
 

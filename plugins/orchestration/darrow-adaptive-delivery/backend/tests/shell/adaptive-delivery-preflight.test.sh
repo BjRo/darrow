@@ -2,7 +2,8 @@
 set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-preflight="$script_dir/adaptive-delivery-preflight"
+plugin_dir=$(CDPATH='' cd -- "$script_dir/../../.." && pwd)
+preflight=(uv run --quiet --frozen --no-dev --project "$plugin_dir/backend" adaptive-delivery-preflight)
 temp_parent=${TMPDIR:-/tmp}
 tmp_root=$(mktemp -d "${temp_parent%/}/darrow-adaptive-delivery-test.XXXXXX")
 tmp_root=$(CDPATH='' cd -- "$tmp_root" && pwd -P)
@@ -69,7 +70,7 @@ git -C "$repo" add value.txt AGENTS.md
 git -C "$repo" commit -qm initial
 printf 'changed\n' >"$repo/value.txt"
 
-out=$("$BASH" "$preflight" prepare --repo "$repo" --host codex)
+out=$("${preflight[@]}" prepare --repo "$repo" --host codex)
 repo_abs=$(git -C "$repo" rev-parse --show-toplevel)
 contains "$out" $'format\tdarrow-native-goal-prepared-v2'
 contains "$out" $'repo\t'"$repo_abs"
@@ -93,11 +94,11 @@ case "$out" in
     ;;
 esac
 
-out=$("$BASH" "$preflight" prepare --repo "$repo" --host claude)
+out=$("${preflight[@]}" prepare --repo "$repo" --host claude)
 contains "$out" $'route\troutine\tclaude\tanthropic\tclaude-sonnet-5\tlow'
 contains "$out" $'route\tjudgment\tclaude\tanthropic\tclaude-opus-5\thigh'
 
-out=$("$BASH" "$preflight" route --repo "$repo" --host codex --profile routine)
+out=$("${preflight[@]}" route --repo "$repo" --host codex --profile routine)
 contains "$out" $'format\tdarrow-native-goal-route-v2'
 contains "$out" $'profile\troutine'
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
@@ -108,14 +109,14 @@ mkdir -p "$repo/.darrow"
 cat >"$repo/.darrow/config.json" <<'EOF'
 {"routes":[{"host":"codex","profile":"scaled","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"high","fallbackModel":"none","fallbackEffort":"none"}]}
 EOF
-out=$("$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled)
+out=$("${preflight[@]}" route --repo "$repo" --host codex --profile scaled)
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\thigh'
 contains "$out" $'policy_route_source\trepository'
-out=$("$BASH" "$preflight" route --repo "$repo" --host codex --profile routine)
+out=$("${preflight[@]}" route --repo "$repo" --host codex --profile routine)
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-terra\tmedium'
 contains "$out" $'policy_route_source\tbundled'
 
-out=$("$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled \
+out=$("${preflight[@]}" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|openai|gpt-future-off-catalog|ultra')
 contains "$out" $'selected_route\tcodex\topenai\tgpt-future-off-catalog\tultra'
 contains "$out" $'route_source\tuser'
@@ -125,32 +126,32 @@ case "$out" in
     ;;
 esac
 
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled \
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile scaled \
   --route 'claude|anthropic|claude-sonnet-5|low'
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled \
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|anthropic|gpt-5.6-luna|high'
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled \
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|openai|none|none'
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled \
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|openai|gpt-5.6-luna|medium'
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile scaled \
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile scaled \
   --route 'codex|openai|gpt-5.6-luna|impossible'
 
 cat >"$repo/.darrow/config.json" <<'EOF'
 {"routes":[{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-luna","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}]}
 EOF
-rejects "$BASH" "$preflight" prepare --repo "$repo" --host codex
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile routine
+rejects "${preflight[@]}" prepare --repo "$repo" --host codex
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile routine
 
 # Policy and explicit inputs must reject the same invalid semantic tuples.
 while IFS='|' read -r route_host route_harness route_provider route_model route_effort; do
   write_policy "$route_host" "$route_harness" "$route_provider" "$route_model" "$route_effort"
-  refuses 'adaptive-delivery-preflight:' "$BASH" "$preflight" route \
+  refuses 'adaptive-delivery-preflight:' "${preflight[@]}" route \
     --repo "$repo" --host "$route_host" --profile routine \
     --route "$route_harness|$route_provider|$route_model|$route_effort"
-  refuses 'adaptive-delivery-preflight:' "$BASH" "$preflight" route \
+  refuses 'adaptive-delivery-preflight:' "${preflight[@]}" route \
     --repo "$repo" --host "$route_host" --profile routine
-  refuses 'adaptive-delivery-preflight:' "$BASH" "$preflight" prepare \
+  refuses 'adaptive-delivery-preflight:' "${preflight[@]}" prepare \
     --repo "$repo" --host "$route_host"
 done <<'EOF'
 codex|codex|anthropic|gpt-5.6-terra|medium
@@ -175,12 +176,12 @@ for route_host in codex claude; do
   for route_effort in low medium high xhigh max ultra; do
     write_policy "$route_host" "$route_host" "$route_provider" future-model.1 "$route_effort"
     expected_tuple="$route_host"$'\t'"$route_provider"$'\t'"future-model.1"$'\t'"$route_effort"
-    out=$("$BASH" "$preflight" prepare --repo "$repo" --host "$route_host")
+    out=$("${preflight[@]}" prepare --repo "$repo" --host "$route_host")
     contains "$out" $'route\troutine\t'"$expected_tuple"
-    out=$("$BASH" "$preflight" route --repo "$repo" --host "$route_host" --profile routine)
+    out=$("${preflight[@]}" route --repo "$repo" --host "$route_host" --profile routine)
     contains "$out" $'selected_route\t'"$expected_tuple"
     contains "$out" $'policy_route_source\trepository'
-    out=$("$BASH" "$preflight" route --repo "$repo" --host "$route_host" --profile routine \
+    out=$("${preflight[@]}" route --repo "$repo" --host "$route_host" --profile routine \
       --route "$route_host|$route_provider|future-model.1|$route_effort")
     contains "$out" $'selected_route\t'"$expected_tuple"
     contains "$out" $'route_source\tuser'
@@ -188,10 +189,10 @@ for route_host in codex claude; do
 done
 
 printf '{malformed\n' >"$repo/.darrow/config.json"
-rejects "$BASH" "$preflight" prepare --repo "$repo" --host codex
+rejects "${preflight[@]}" prepare --repo "$repo" --host codex
 rm -f "$repo/.darrow/config.json"
-ln -s "$script_dir/../config/routes.json" "$repo/.darrow/config.json"
-rejects "$BASH" "$preflight" route --repo "$repo" --host codex --profile routine
+ln -s "$plugin_dir/config/routes.json" "$repo/.darrow/config.json"
+rejects "${preflight[@]}" route --repo "$repo" --host codex --profile routine
 rm -f "$repo/.darrow/config.json"
 
 linked_repo="$tmp_root/linked-repo"
@@ -200,7 +201,7 @@ mkdir -p "$linked_repo/.darrow" "$linked_repo/nested"
 cat >"$linked_repo/.darrow/config.json" <<'EOF'
 {"routes":[{"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}]}
 EOF
-out=$("$BASH" "$preflight" route --repo "$linked_repo/nested" --host codex \
+out=$("${preflight[@]}" route --repo "$linked_repo/nested" --host codex \
   --profile routine)
 contains "$out" $'selected_route\tcodex\topenai\tgpt-5.6-sol\tmedium'
 contains "$out" $'policy_route_source\trepository'
@@ -217,13 +218,13 @@ git -C "$other_repo" commit -qm other
 printf '[invalid\n' >"$tmp_root/foreign-git-config"
 
 assert_requested_repo() {
-  out=$(env "$@" "$BASH" "$preflight" prepare --repo "$requested_repo/nested" --host codex)
+  out=$(env "$@" "${preflight[@]}" prepare --repo "$requested_repo/nested" --host codex)
   contains "$out" $'repo\t'"$requested_repo"
   contains "$out" $'base_revision\t'"$requested_revision"
   contains "$out" $'working_tree\tdirty'
   contains "$out" $'instruction\t'"$requested_repo/AGENTS.md"
   contains "$out" $'route\troutine\tcodex\topenai\t'"$requested_model"$'\tmedium'
-  out=$(env "$@" "$BASH" "$preflight" route --repo "$requested_repo/nested" --host codex --profile routine)
+  out=$(env "$@" "${preflight[@]}" route --repo "$requested_repo/nested" --host codex --profile routine)
   contains "$out" $'selected_route\tcodex\topenai\t'"$requested_model"$'\tmedium'
 }
 
@@ -251,8 +252,8 @@ bare_repo="$tmp_root/bare.git"
 git init --bare -q "$bare_repo"
 for invalid_repo in "$bare_repo" "$repo/.git" "$tmp_root"; do
   refuses 'not a git working tree:' env "GIT_DIR=$other_repo/.git" "GIT_WORK_TREE=$other_repo" \
-    "$BASH" "$preflight" prepare --repo "$invalid_repo" --host codex
-  refuses 'not a git working tree:' "$BASH" "$preflight" route \
+    "${preflight[@]}" prepare --repo "$invalid_repo" --host codex
+  refuses 'not a git working tree:' "${preflight[@]}" route \
     --repo "$invalid_repo" --host codex --profile routine
 done
 
@@ -280,17 +281,17 @@ exec "$PREFLIGHT_TEST_GIT" "$@"
 EOF
 chmod +x "$tmp_root/git-bin/git"
 refuses 'not a git working tree:' env "PATH=$tmp_root/git-bin:$PATH" PREFLIGHT_TEST_FAILURE=outside \
-  "$BASH" "$preflight" prepare --repo "$repo" --host codex
+  "${preflight[@]}" prepare --repo "$repo" --host codex
 refuses 'cannot read working tree state:' env "PATH=$tmp_root/git-bin:$PATH" PREFLIGHT_TEST_FAILURE=status \
-  "$BASH" "$preflight" prepare --repo "$repo" --host codex
+  "${preflight[@]}" prepare --repo "$repo" --host codex
 
 git -C "$repo" worktree remove --force "$linked_repo"
 
-rejects "$BASH" "$preflight" step start --repo "$repo" --host codex
-rejects "$BASH" "$preflight" materialize-objective --repo "$repo" --goal-file x
-rejects "$BASH" "$preflight" launch --host codex
+rejects "${preflight[@]}" step start --repo "$repo" --host codex
+rejects "${preflight[@]}" materialize-objective --repo "$repo" --goal-file x
+rejects "${preflight[@]}" launch --host codex
 
-help=$("$BASH" "$preflight" --help)
+help=$("${preflight[@]}" --help)
 contains "$help" 'adaptive-delivery-preflight prepare'
 contains "$help" 'adaptive-delivery-preflight route'
 case "$help" in

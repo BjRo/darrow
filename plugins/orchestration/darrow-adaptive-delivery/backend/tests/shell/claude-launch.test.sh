@@ -2,8 +2,8 @@
 set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-plugin_dir=$(CDPATH='' cd -- "$script_dir/.." && pwd)
-resolver="$script_dir/claude-agent-route"
+plugin_dir=$(CDPATH='' cd -- "$script_dir/../../.." && pwd)
+resolver=(uv run --quiet --frozen --no-dev --project "$plugin_dir/backend" claude-agent-route)
 skill="$plugin_dir/skills/adaptive-delivery/SKILL.md"
 guide="$plugin_dir/skills/adaptive-delivery/references/claude-launch.md"
 
@@ -19,11 +19,11 @@ contains() {
   esac
 }
 
-out=$(bash "$resolver" --provider anthropic --model claude-sonnet-5 --effort low)
+out=$("${resolver[@]}" --provider anthropic --model claude-sonnet-5 --effort low)
 contains "$out" $'subagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-low'
-out=$(bash "$resolver" --provider anthropic --model claude-sonnet-5 --effort medium)
+out=$("${resolver[@]}" --provider anthropic --model claude-sonnet-5 --effort medium)
 contains "$out" $'subagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium'
-out=$(bash "$resolver" --provider anthropic --model claude-opus-5 --effort high)
+out=$("${resolver[@]}" --provider anthropic --model claude-opus-5 --effort high)
 contains "$out" $'subagent_type\tdarrow-adaptive-delivery:adaptive-delivery-opus-5-high'
 
 grep -F -- '"name": "darrow-adaptive-delivery"' \
@@ -31,15 +31,15 @@ grep -F -- '"name": "darrow-adaptive-delivery"' \
   "$plugin_dir/.codex-plugin/plugin.json" >/dev/null ||
   fail "plugin manifests retained the old package identity"
 
-if bash "$resolver" --provider anthropic --model claude-opus-5 --effort low \
+if "${resolver[@]}" --provider anthropic --model claude-opus-5 --effort low \
   >/dev/null 2>&1; then
   fail "unsupported Claude route resolved"
 fi
-if CLAUDE_CODE_EFFORT_LEVEL=high bash "$resolver" --provider anthropic \
+if CLAUDE_CODE_EFFORT_LEVEL=high "${resolver[@]}" --provider anthropic \
   --model claude-sonnet-5 --effort low >/dev/null 2>&1; then
   fail "conflicting Claude effort override was accepted"
 fi
-if CLAUDE_CODE_USE_VERTEX=1 bash "$resolver" --provider anthropic \
+if CLAUDE_CODE_USE_VERTEX=1 "${resolver[@]}" --provider anthropic \
   --model claude-sonnet-5 --effort low >/dev/null 2>&1; then
   fail "non-Anthropic provider selector was accepted"
 fi

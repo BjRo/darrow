@@ -19,41 +19,41 @@ printf '%s\n' 'export const TIMEOUT_MS = 1000;' 'export const RETRY_COUNT = 3;' 
 git -C "$repo" add src/config.js
 git -C "$repo" commit -qm 'chore: baseline'
 printf '%s\n' '.agents/' '.claude/' >>"$repo/.git/info/exclude"
-"$BASH" "$fixture_dir/install-verification.sh" "$repo" "$fixture_dir"
-tool=$repo/.agents/bin/verification-fixture
+uv run --quiet --frozen --no-dev --project "$fixture_dir/../../../../backend" adaptive-delivery-fixture install verification "$repo" "$fixture_dir" both
+tool=(uv run --quiet --frozen --no-dev --project "$repo/.agents/backend" adaptive-delivery-fixture verification)
 state=$repo/.git/fixture-state
 printf '%s\n' 'RETRY_COUNT = 0' >"$repo/.git/fixture-review-reject-pattern"
 printf '%s\n' 'src/config.js' >"$repo/.git/fixture-review-event-path"
 printf '%s\n' 'export const TIMEOUT_MS = 2500;' 'export const RETRY_COUNT = 0;' 'export const CACHE_SIZE = 0;' >"$repo/src/config.js"
-if "$BASH" "$tool" "$repo" initial >"$work_dir/missing" 2>&1; then exit 1; fi
+if "${tool[@]}" "$repo" initial >"$work_dir/missing" 2>&1; then exit 1; fi
 test ! -e "$state/verification-invocations"
 cksum <"$repo/src/config.js" >"$state/check-target"
-"$BASH" "$tool" "$repo" initial >"$work_dir/initial"
+"${tool[@]}" "$repo" initial >"$work_dir/initial"
 grep -Fx 'Conclusion: progress' "$work_dir/initial" >/dev/null
 grep -F 'Q1, QA/cache, blocking' "$work_dir/initial" >/dev/null
 grep -F 'Independent review outcome: blocking findings' "$work_dir/initial" >/dev/null
-"$BASH" "$tool" "$repo" follow-up >"$work_dir/unchanged"
+"${tool[@]}" "$repo" follow-up >"$work_dir/unchanged"
 grep -Fx 'Conclusion: no-progress' "$work_dir/unchanged" >/dev/null
 touch "$repo/.git/fixture-review-blocked"
-"$BASH" "$tool" "$repo" follow-up >"$work_dir/unavailable-review"
+"${tool[@]}" "$repo" follow-up >"$work_dir/unavailable-review"
 grep -Fx 'Conclusion: blocked' "$work_dir/unavailable-review" >/dev/null
 rm "$repo/.git/fixture-review-blocked"
 touch "$repo/.git/fixture-review-inconclusive"
-"$BASH" "$tool" "$repo" follow-up >"$work_dir/inconclusive-review"
+"${tool[@]}" "$repo" follow-up >"$work_dir/inconclusive-review"
 grep -Fx 'Conclusion: blocked' "$work_dir/inconclusive-review" >/dev/null
 rm "$repo/.git/fixture-review-inconclusive"
 printf '%s\n' 'export const TIMEOUT_MS = 2500;' 'export const RETRY_COUNT = 3;' 'export const CACHE_SIZE = 5;' >"$repo/src/config.js"
-if "$BASH" "$tool" "$repo" follow-up >"$work_dir/stale-check" 2>&1; then exit 1; fi
+if "${tool[@]}" "$repo" follow-up >"$work_dir/stale-check" 2>&1; then exit 1; fi
 test "$(wc -l <"$state/verification-invocations" | tr -d ' ')" = 4
 cksum <"$repo/src/config.js" >"$state/check-target"
-"$BASH" "$tool" "$repo" follow-up >"$work_dir/clear"
+"${tool[@]}" "$repo" follow-up >"$work_dir/clear"
 grep -Fx 'Conclusion: clear' "$work_dir/clear" >/dev/null
 test "$(tail -n 1 "$state/verification-invocations" | cut -f2)" = "$(cksum <"$repo/src/config.js")"
-if "$BASH" "$tool" "$repo" initial >"$work_dir/restart" 2>&1; then exit 1; fi
+if "${tool[@]}" "$repo" initial >"$work_dir/restart" 2>&1; then exit 1; fi
 
 # A mutation during the later assessment produces blocked current-content evidence.
 expected_events=$(( $(wc -l <"$state/verification-events" | tr -d ' ') + 2 ))
-"$BASH" "$tool" "$repo" follow-up >"$work_dir/stale-result" &
+"${tool[@]}" "$repo" follow-up >"$work_dir/stale-result" &
 assessment_pid=$!
 polls=0
 while [ "$(wc -l <"$state/verification-events" | tr -d ' ')" -lt "$expected_events" ]; do

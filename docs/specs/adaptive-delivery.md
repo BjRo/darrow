@@ -87,11 +87,33 @@ reason: explicit-orchestration-entrypoint-required
 
 ## Read-only preflight
 
-The bundled helper is `<plugin-root>/bin/adaptive-delivery-preflight`. On Codex, the activated
-file `<plugin-root>/skills/adaptive-delivery/SKILL.md` binds that same plugin root.
-Relative traversal to `../../bin` starts at the directory containing
-`SKILL.md`, not at the file path. Check the helper at that exact location;
+The contained Python package is `<plugin-root>/backend`, invoked through
+`uv run --quiet --frozen --no-dev --project <absolute-backend>` followed by
+`adaptive-delivery-preflight` or `claude-agent-route`. On Codex, the activated
+file `<plugin-root>/skills/adaptive-delivery/SKILL.md` binds that same plugin root;
+`../../backend` starts at the directory containing `SKILL.md`. Claude binds
+`${CLAUDE_PLUGIN_ROOT}/backend`. Check the package and lock at that exact location;
 unavailability does not authorize searching for a different installation.
+
+The package supports Python 3.10–3.13, UV, and Git on Linux, macOS, and native
+Windows, with no runtime dependencies or Bash entrypoint adapters. Native paths
+and argument-vector subprocesses preserve spaces, Unicode, and linked-worktree
+identity. It retains the prepared-v2, route-v2, and Claude-agent-route-v1 records,
+record ordering, policy precedence, refusal exit 2, and help exit 0. JSON uses
+the standard-library parser; syntax diagnostics may name its line/column while
+semantic validation, duplicate rejection, and fail-closed behavior remain required.
+No helper starts a host process or implements orchestration authority checks;
+authority, provider discovery by advertised intent, and native launch remain
+owned by the skill and its host guides.
+
+Eval-only readiness, review, verification, and completion-proof mechanics live
+in the same contained package, with inert fixture templates. They preserve
+candidate fingerprints, closed finding sets, delayed combined assessment,
+canonical artifact validation, and passive evidence beneath Git metadata.
+Fresh copied-artifact tests exercise runtime-only installation and both host
+routes on all three native platforms; Python quality gates independently
+require 95% statement and branch coverage. Shell regression tests remain
+development evidence on Bash 3.2 and Bash 5, not runtime dependencies.
 
 The helper binds discovery and every Git operation to the requested `--repo`
 working tree, including a linked worktree or its subdirectory. Ambient Git

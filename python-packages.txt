@@ -8,3 +8,4 @@ plugins/capability/darrow-tickets-github/backend
 plugins/foundation/darrow-decisions/backend
 plugins/foundation/darrow-information-architecture/backend
 plugins/capability/darrow-review/backend
+plugins/orchestration/darrow-adaptive-delivery/backend

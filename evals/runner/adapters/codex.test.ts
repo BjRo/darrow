@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -15,6 +15,7 @@ import {
   codexSpawnGuardRequested,
   codexThreadId,
   codexTokenUsage,
+  legacyAdaptiveDeliveryPreflight,
   retainedCodexEvidence,
   retainedCodexEvidenceForThread,
 } from "./codex";
@@ -28,6 +29,91 @@ import {
 } from "../codex-spawn-guard";
 
 const REPO = "/tmp/eval";
+
+test("Python plugin commands do not claim historical shell enforcement", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-python-plugin-"));
+  const plugin = join(root, "plugin");
+  const repo = join(root, "repo");
+  const run = (cwd: string, argv: string[]) => {
+    const result = Bun.spawnSync(argv, { cwd, stdout: "pipe", stderr: "pipe" });
+    expect(result.exitCode).toBe(0);
+    return result.stdout.toString();
+  };
+  try {
+    await cp(
+      join(
+        import.meta.dir,
+        "../../../plugins/orchestration/darrow-adaptive-delivery",
+      ),
+      plugin,
+      {
+        recursive: true,
+        filter: (path) =>
+          !path
+            .split("/")
+            .some((part) =>
+              [
+                ".venv",
+                "__pycache__",
+                ".mypy_cache",
+                ".pytest_cache",
+                ".ruff_cache",
+                ".hypothesis",
+              ].includes(part),
+            ),
+      },
+    );
+    await mkdir(repo);
+    run(repo, ["git", "init", "-qb", "main"]);
+    run(repo, [
+      "git",
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "--allow-empty",
+      "-qm",
+      "fixture",
+    ]);
+    const argv = [
+      "uv",
+      "run",
+      "--quiet",
+      "--frozen",
+      "--no-dev",
+      "--project",
+      join(plugin, "backend"),
+      "adaptive-delivery-preflight",
+    ];
+    expect(
+      run(repo, [...argv, "prepare", "--repo", repo, "--host", "codex"]),
+    ).toContain("working_tree\tclean");
+    expect(
+      run(repo, [
+        ...argv,
+        "route",
+        "--repo",
+        repo,
+        "--host",
+        "codex",
+        "--profile",
+        "routine",
+      ]),
+    ).toContain("selected_route\tcodex");
+    expect(await legacyAdaptiveDeliveryPreflight([plugin])).toBeUndefined();
+    await mkdir(join(plugin, "bin"));
+    await writeFile(
+      join(plugin, "bin/adaptive-delivery-preflight"),
+      "legacy fixture",
+    );
+    expect(await legacyAdaptiveDeliveryPreflight([plugin])).toEndWith(
+      "/bin/adaptive-delivery-preflight",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30000);
 const COMPLETE_CONTRACT = [
   "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner.",
   "Outcome: Implement the requested fixture behavior.",

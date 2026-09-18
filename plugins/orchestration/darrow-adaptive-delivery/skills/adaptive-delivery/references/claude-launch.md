@@ -7,8 +7,11 @@ and contract compilation are complete.
 
 Run the bundled resolver once with the selected route:
 
+On native Windows, enter this command on one PowerShell line without the Bash
+continuation backslashes.
+
 ```sh
-/bin/bash <absolute-plugin-bin>/claude-agent-route \
+uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" claude-agent-route \
   --provider anthropic --model <claude-sonnet-5|claude-opus-5> \
   --effort <low|medium|high>
 ```
@@ -22,11 +25,22 @@ conflicting host environment override is active. A nonzero result is
 
 Invoke the resolved Agent exactly once with:
 
-- `run_in_background` set to `false`;
+- an explicit `run_in_background: false` field, even when the host defaults to foreground execution;
 - no per-call model override;
 - no worktree isolation or resume option on the initial call; and
 - the complete task whose first line is exactly
   `- phase: adaptive-delivery-owner`.
+
+Use this input shape, replacing both placeholders with the resolved value and
+complete compiled contract:
+
+```json
+{
+  "subagent_type": "<exact resolver subagent_type>",
+  "run_in_background": false,
+  "prompt": "- phase: adaptive-delivery-owner\n<complete owner contract>"
+}
+```
 
 The resolver has rejected higher-priority environment overrides, and the Agent
 call supplies no per-call model override. The accepted call therefore uses the

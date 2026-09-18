@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-installer="$script_dir/install-implementation-readiness.sh"
+installer=(uv run --quiet --frozen --no-dev --project "$script_dir/../../../../backend" adaptive-delivery-fixture install readiness)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/darrow-readiness-fixture-test.XXXXXX")
 trap 'rm -rf "$test_root"' EXIT HUP INT TERM
 
@@ -15,9 +15,9 @@ make_repo() {
 
 codex_repo="$test_root/codex"
 make_repo "$codex_repo" blocked
-bash "$installer" "$codex_repo" "$script_dir" codex
-test -x "$codex_repo/.agents/bin/implementation-readiness-fixture"
-codex_result=$(bash "$codex_repo/.agents/bin/implementation-readiness-fixture" "$codex_repo")
+"${installer[@]}" "$codex_repo" "$script_dir" codex
+test -f "$codex_repo/.agents/backend/pyproject.toml"
+codex_result=$(uv run --quiet --frozen --no-dev --project "$codex_repo/.agents/backend" adaptive-delivery-fixture readiness "$codex_repo")
 grep -F "**Verdict:** \`blocked\`" <<<"$codex_result" >/dev/null
 grep -F "**Type:** \`dependency\`" <<<"$codex_result" >/dev/null
 grep -F "**Type:** \`unblock\`" <<<"$codex_result" >/dev/null
@@ -25,16 +25,16 @@ test "$(wc -l <"$codex_repo/.git/fixture-state/implementation-readiness-invocati
 
 iterative_repo="$test_root/iterative"
 make_repo "$iterative_repo" needs-decision-then-ready
-bash "$installer" "$iterative_repo" "$script_dir" codex
-first_result=$(bash "$iterative_repo/.agents/bin/implementation-readiness-fixture" "$iterative_repo")
-second_result=$(bash "$iterative_repo/.agents/bin/implementation-readiness-fixture" "$iterative_repo")
+"${installer[@]}" "$iterative_repo" "$script_dir" codex
+first_result=$(uv run --quiet --frozen --no-dev --project "$iterative_repo/.agents/backend" adaptive-delivery-fixture readiness "$iterative_repo")
+second_result=$(uv run --quiet --frozen --no-dev --project "$iterative_repo/.agents/backend" adaptive-delivery-fixture readiness "$iterative_repo")
 grep -F "**Verdict:** \`needs-decision\`" <<<"$first_result" >/dev/null
 grep -F "**Verdict:** \`ready\`" <<<"$second_result" >/dev/null
 test "$(wc -l <"$iterative_repo/.git/fixture-state/implementation-readiness-invocations" | tr -d ' ')" -eq 2
 
 claude_repo="$test_root/claude"
 make_repo "$claude_repo" needs-discovery
-bash "$installer" "$claude_repo" "$script_dir" claude
+"${installer[@]}" "$claude_repo" "$script_dir" claude
 test -f "$claude_repo/.claude/skills/assess-implementation-readiness/SKILL.md"
 test ! -e "$claude_repo/.claude/bin/implementation-readiness-fixture"
 test ! -e "$claude_repo/.git/fixture-state/implementation-readiness-invocations"

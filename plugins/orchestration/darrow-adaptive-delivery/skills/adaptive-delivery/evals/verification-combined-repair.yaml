@@ -32,7 +32,7 @@ fixture:
       export const RETRY_COUNT = 0;
       export const CACHE_SIZE = 0;
   setup: |
-    bash "{{case_dir}}/fixtures/install-verification.sh" "$PWD" "{{case_dir}}/fixtures"
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install verification "$PWD" "{{case_dir}}/fixtures" both
     printf '%s\n' 'RETRY_COUNT = 0' >.git/fixture-review-reject-pattern
     printf '%s\n' 'src/config.js' >.git/fixture-review-event-path
 checks:
