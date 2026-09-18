@@ -94,6 +94,9 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   skill directory and invoke the same frozen package entrypoint directly.
   Fresh copied-artifact checks MUST exercise that installed layout without
   repository-relative or sibling-plugin references.
+  Internal simplification MUST preserve assessment-before-report validation,
+  exact diagnostics and exit statuses, assessment bytes, and the existing
+  seven-character destination escape set without double-escaping replacements.
 
 ## Consumer handoff
 

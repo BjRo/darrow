@@ -82,6 +82,13 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   contract inputs instead of importing them from the authoring skill's source
   repository. Do not add a script when existing tools and instructions are
   already reliable.
+  A migration preserves the required public behavior, not the source
+  implementation's structure. When Python is selected, use idiomatic Python
+  and standard-library operations, simplify control flow, and reuse focused
+  mechanics within the package instead of translating shell code verbatim.
+  Remove obsolete wrappers, aliases, and compatibility branches, updating
+  callers and tests to the canonical entrypoints. A legacy path alone does not
+  establish a requirement to retain a shim.
 - **SA-C6 — Fail closed and identify evidence.** A required unreadable skill,
   manifest, configuration, instruction, or referenced local resource blocks the
   dependent result. Model-facing script output identifies inspected inputs and
@@ -106,6 +113,11 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   their executing interpreter in nested implementation calls. A packaged skill
   remains useful with no MCP server or other Darrow plugin installed unless its
   own manifest declares and supplies that dependency.
+  This plugin exposes its inspector and shell-test matrix only through their
+  frozen UV console entrypoints, without legacy launchers or module-execution
+  aliases. Internal simplification preserves argument consumption, interpreter
+  selection, diagnostic order, output records, and exit statuses. Regression
+  shell suites live with the backend tests, not as runtime skill scripts.
 - **SA-C8 — Evaluation separates prompt from criteria.** Participant-visible
   eval prompts contain the task and repository evidence but not their pass
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,

@@ -28,9 +28,9 @@ printf '%s\n' "$inspection" | grep '^status[[:space:]]valid$' >/dev/null
 set +e
 matrix=$(uv run --quiet --frozen --no-dev --project "$backend" \
   verify-shell-tests -- \
-  "$skill/scripts/inspect-skill.test.sh" \
-  "$skill/scripts/verify-shell-tests.test.sh" \
-  "$skill/scripts/interpreter-routing.test.sh")
+  "$backend/tests/shell/inspect-skill.test.sh" \
+  "$backend/tests/shell/verify-shell-tests.test.sh" \
+  "$backend/tests/shell/interpreter-routing.test.sh")
 matrix_status=$?
 set -e
 case "$matrix_status" in

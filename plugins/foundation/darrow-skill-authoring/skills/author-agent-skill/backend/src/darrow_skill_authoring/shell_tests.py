@@ -30,33 +30,24 @@ class BashInterpreter:
     version: str
 
 
-def _consume_shell_options(
-    arguments: list[str], candidates: list[str], position: int
-) -> tuple[list[str], int]:
-    if position >= len(arguments):
-        return candidates, position
-    argument = arguments[position]
-    if argument == "--shell":
-        return _consume_shell_argument(arguments, candidates, position)
-    if argument == "--":
-        return candidates, position + 1
-    if argument.startswith("-"):
-        raise ValueError
+def _consume_shell_options(arguments: list[str]) -> tuple[list[str], int]:
+    candidates: list[str] = []
+    position = 0
+    while position < len(arguments) and arguments[position] == "--shell":
+        if position + 1 >= len(arguments):
+            raise ValueError
+        candidates.append(arguments[position + 1])
+        position += 2
     return candidates, position
 
 
-def _consume_shell_argument(
-    arguments: list[str], candidates: list[str], position: int
-) -> tuple[list[str], int]:
-    if position + 1 >= len(arguments):
-        raise ValueError
-    candidates.append(arguments[position + 1])
-    return _consume_shell_options(arguments, candidates, position + 2)
-
-
 def _parse_arguments(arguments: list[str]) -> tuple[list[str], list[str], bool]:
-    candidates, position = _consume_shell_options(arguments, [], 0)
+    candidates, position = _consume_shell_options(arguments)
     tests = arguments[position:]
+    if tests[:1] == ["--"]:
+        tests = tests[1:]
+    elif tests and tests[0].startswith("-"):
+        raise ValueError
     if not tests:
         raise ValueError
     return candidates or list(DEFAULT_CANDIDATES), tests, bool(candidates)
@@ -64,8 +55,7 @@ def _parse_arguments(arguments: list[str]) -> tuple[list[str], list[str], bool]:
 
 def _canonical_file(value: str) -> Path:
     path = Path(value)
-    parent = path.parent if path.parent != Path("") else Path.cwd()
-    return parent.resolve(strict=True) / path.name
+    return path.parent.resolve(strict=True) / path.name
 
 
 def _resolve_interpreter(requested: str) -> Path | None:
@@ -243,7 +233,3 @@ def run(arguments: list[str], *, stdout: TextIO, stderr: TextIO) -> int:
 
 def entrypoint() -> None:
     raise SystemExit(run(sys.argv[1:], stdout=sys.stdout, stderr=sys.stderr))
-
-
-if __name__ == "__main__":
-    entrypoint()

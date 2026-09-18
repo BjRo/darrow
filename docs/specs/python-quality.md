@@ -27,6 +27,28 @@ Automation cannot judge every aspect of those rules. Reviewers inspect names,
 module cohesion, function focus, error boundaries, and whether assertions
 verify observable behavior rather than implementation details.
 
+## Converting existing mechanics
+
+Treat a Bash implementation as evidence of required behavior, not a Python
+design template. Establish the public inputs, outputs, refusals, side effects,
+and ordering constraints before refactoring. Prefer idiomatic Python and
+standard-library operations over hand-written equivalents; replace shell-style
+control flow and duplicated mechanics with direct operations and focused reuse
+within the owning module or package. Keep abstractions proportional to their
+actual callers and keep plugins independently installable.
+
+Audit the complete invocation surface during the conversion. Remove unnecessary
+Bash shims, obsolete aliases, and backward-compatibility branches. Update skill
+instructions, documentation, callers, fixtures, and tests to the canonical
+frozen package entrypoints. Retain an adapter only when an explicitly required
+external contract or actual host protocol needs it; an old script path alone
+is not such a requirement. Keep shell regression tests as tests, not runtime
+entrypoints, and verify the copied plugin without the removed paths.
+
+Use behavioral and differential checks to preserve the required interface while
+changing the internals. High coverage is a guard for simplification, not a reason
+to keep redundant code or mirror the old implementation in new tests.
+
 ## Tests and coverage
 
 Each package keeps fast unit tests for local behavior and integration tests for

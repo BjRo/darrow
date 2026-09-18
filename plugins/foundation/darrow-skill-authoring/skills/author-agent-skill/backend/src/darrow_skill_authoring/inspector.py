@@ -113,14 +113,6 @@ def _validate_metadata(metadata: Metadata, skill_directory: Path) -> Metadata:
     return Metadata(name, description)
 
 
-def _is_within(path: Path, root: Path) -> bool:
-    try:
-        path.relative_to(root)
-    except ValueError:
-        return False
-    return True
-
-
 def _skill_directory(skill_input: str, plugin_root: Path) -> Path:
     attempted = _attempted_path(skill_input)
     if not attempted.is_dir():
@@ -128,7 +120,7 @@ def _skill_directory(skill_input: str, plugin_root: Path) -> Path:
             f"skill file is not a readable regular file: {attempted / 'SKILL.md'}"
         )
     skill_directory = _readable_directory(skill_input, "skill directory")
-    if not _is_within(skill_directory, plugin_root):
+    if not skill_directory.is_relative_to(plugin_root):
         raise InspectionError(f"skill directory escapes plugin root: {skill_directory}")
     return skill_directory
 
@@ -182,7 +174,7 @@ def _local_reference(target: str, skill_directory: Path, plugin_root: Path) -> P
             f"local reference parent is not readable: {parent_input}"
         ) from error
     reference = parent / relative.name
-    if not _is_within(reference, plugin_root):
+    if not reference.is_relative_to(plugin_root):
         raise InspectionError(f"local reference escapes plugin root: {reference}")
     if not reference.is_file() or not os.access(reference, os.R_OK):
         raise InspectionError(
@@ -297,7 +289,3 @@ def run(arguments: list[str], *, stdout: TextIO, stderr: TextIO) -> int:
 
 def entrypoint() -> None:
     raise SystemExit(run(sys.argv[1:], stdout=sys.stdout, stderr=sys.stderr))
-
-
-if __name__ == "__main__":
-    entrypoint()

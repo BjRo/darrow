@@ -37,8 +37,8 @@ backend:
 uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" verify-shell-tests -- "<test-script>"...
 ```
 
-Base every shell-version claim on its emitted evidence. The small scripts with
-the same command names preserve compatibility for existing POSIX callers.
+Base every shell-version claim on its emitted evidence. Invoke both packaged
+commands directly; this plugin has no runtime shell launchers.
 
 ## Workflow
 

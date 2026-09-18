@@ -8,12 +8,12 @@ from dataclasses import dataclass
 from io import TextIOWrapper
 from typing import cast
 
+PROGRAM_NAME = "darrow-render-plan-frontier"
 USAGE = (
-    "usage: {program} --evidence TEXT --question TEXT --option LABEL "
+    f"usage: {PROGRAM_NAME} --evidence TEXT --question TEXT --option LABEL "
     "--option LABEL [--option LABEL ...] --choice LABEL --rationale TEXT "
     "--deferred TEXT"
 )
-PROGRAM_NAME = "darrow-render-plan-frontier"
 FIELD_FLAGS = {
     "--evidence": "evidence",
     "--question": "question",
@@ -47,10 +47,9 @@ def parse(arguments: Sequence[str]) -> Frontier:
     """Parse the renderer's stable flag-and-value command contract."""
     fields = dict.fromkeys(FIELD_FLAGS.values(), "")
     options: list[str] = []
-    index = 0
-    while index < len(arguments):
-        if index + 1 >= len(arguments):
-            raise UsageError
+    if len(arguments) % 2:
+        raise UsageError
+    for index in range(0, len(arguments), 2):
         flag, value = arguments[index : index + 2]
         if flag == "--option":
             options.append(value)
@@ -58,7 +57,6 @@ def parse(arguments: Sequence[str]) -> Frontier:
             fields[FIELD_FLAGS[flag]] = value
         else:
             raise UsageError
-        index += 2
     return Frontier(options=tuple(options), **fields)
 
 
@@ -128,15 +126,11 @@ def validate(frontier: Frontier) -> None:
     _validate_choice(frontier)
 
 
-def _without_one_period(value: str) -> str:
-    return value[:-1] if value.endswith(".") else value
-
-
 def render(frontier: Frontier) -> str:
     """Render an already validated frontier in the canonical Markdown shape."""
-    evidence = _without_one_period(frontier.evidence)
-    rationale = _without_one_period(frontier.rationale)
-    deferred = _without_one_period(frontier.deferred)
+    evidence = frontier.evidence.removesuffix(".")
+    rationale = frontier.rationale.removesuffix(".")
+    deferred = frontier.deferred.removesuffix(".")
     return (
         f"Evidence: {evidence}.\n\n"
         f"Q1 — {frontier.question}\n\n"
@@ -146,14 +140,13 @@ def render(frontier: Frontier) -> str:
     )
 
 
-def main(arguments: Sequence[str] | None = None, *, program: str | None = None) -> int:
+def main(arguments: Sequence[str] | None = None) -> int:
     """Run the renderer and return its public process status."""
     actual_arguments = tuple(sys.argv[1:] if arguments is None else arguments)
-    actual_program = PROGRAM_NAME if program is None else program
     try:
         frontier = parse(actual_arguments)
     except UsageError:
-        print(USAGE.format(program=actual_program), file=sys.stderr)
+        print(USAGE, file=sys.stderr)
         return 2
     try:
         validate(frontier)

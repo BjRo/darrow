@@ -2,7 +2,7 @@
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P)
-BACKEND=$(cd "$SCRIPT_DIR/../backend" 2>/dev/null && pwd -P)
+BACKEND=$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd -P)
 TAB=$(printf '\t')
 FAILURES=0
 TEMPS=()
