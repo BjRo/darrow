@@ -70,7 +70,7 @@ def test_emitted_commands_preserve_hostile_paths(repo: Path, tmp_path: Path) -> 
         "repository ' $HOME $(touch INJECTED) `touch INJECTED` ; & [x]"
     )
     repo.rename(target)
-    (target / "file.txt").write_text("prior\n", encoding="utf-8")
+    (target / "file.txt").write_bytes(b"prior\r\n")
     prior = Records(
         runtime(
             backend,
@@ -91,7 +91,7 @@ def test_emitted_commands_preserve_hostile_paths(repo: Path, tmp_path: Path) -> 
     assert command(caller, *shell, prior.value("show_command")) == Path(
         prior.value("diff")
     ).read_text(encoding="utf-8")
-    (target / "file.txt").write_text("current\n", encoding="utf-8")
+    (target / "file.txt").write_bytes(b"current\r\n")
     current = Records(
         runtime(
             backend,
@@ -108,8 +108,16 @@ def test_emitted_commands_preserve_hostile_paths(repo: Path, tmp_path: Path) -> 
             prior.value("manifest"),
         )
     )
-    assert command(
-        caller, *shell, current.value("repair_show_command")
-    ) == scope.compare(prior.value("manifest"), current.value("manifest"))
+    # Text-mode capture rewrites embedded CRLF lines inside the immutable diff.
+    # Compare raw bytes, and exercise CRLF source content on every test host.
+    repaired = subprocess.run(
+        [*shell, current.value("repair_show_command")],
+        cwd=caller,
+        capture_output=True,
+        check=True,
+    )
+    assert repaired.stdout == scope.compare(
+        prior.value("manifest"), current.value("manifest")
+    ).encode("utf-8")
     assert not list(tmp_path.rglob("INJECTED"))
     assert git(target, "status", "--porcelain=v1") == "M file.txt"
