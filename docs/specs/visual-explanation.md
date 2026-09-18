@@ -125,6 +125,8 @@ compression.
    artifact creation, and sufficiently answered short-prose requests do not.
    Requests for pseudocode or a responsibility map carry explanation intent
    even when they do not include the word "visual".
+   Requests for authoritative architecture with missing evidence also select
+   the capability; it owns making evidence gaps visible under pressure.
 2. **VE-C2 — Smallest fitting view.** Representation follows the relationship
    being explained, with one primary view by default and no catalogue of every
    supported form.

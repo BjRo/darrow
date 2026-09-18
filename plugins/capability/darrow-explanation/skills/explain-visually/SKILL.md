@@ -1,6 +1,6 @@
 ---
 name: explain-visually
-description: Use for requests to explain an algorithm as pseudocode, map file or component responsibilities, show call flow or state transitions, or show a structural diff, even when the user does not say "visual". Also use when asked to visualize, diagram, map, or show technical structure or flow, or when prose is too dense. Explain the existing subject inline through a compact tree, state or sequence diagram, structural diff, pseudocode, signature sketch, or table grounded in sources. Do not use to create or edit HTML pages, images, slides, UI mockups, documentation, or other artifacts; for implementation; or for an ordinary question that short prose answers directly.
+description: Handle requests for grounded inline technical diagrams, including requests for authoritative architecture when source evidence is missing and pressure to invent unsupported structure. Use for architecture diagrams, pseudocode, responsibility maps, call flows, state transitions, structural diffs, signature sketches, and exact-mapping tables, even when the user does not say "visual". Also use when asked to visualize technical structure or when prose is too dense. Do not use to create or edit HTML pages, images, slides, UI mockups, documentation, or other artifacts; for implementation; or for ordinary questions without visual-explanation intent.
 ---
 
 # Explain visually
