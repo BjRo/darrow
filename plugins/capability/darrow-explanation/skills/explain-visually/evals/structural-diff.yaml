@@ -2,17 +2,19 @@ id: explain-visually-structural-diff
 invariant: VE-C2,VE-C3,VE-C4,VE-C5,VE-C7
 activation: positive
 mount_plugin_skills: true
-prompt: >-
-  Use {{skill_invocation}} to show the accepted transport refactor as a compact
-  structural diff from the current file layout to the target layout. Do not
-  implement it and do not dump full source files.
+prompt: Use {{skill_invocation}} to show the accepted transport refactor as a
+  compact structural diff from the current file layout to the target layout. Do
+  not implement it and do not dump full source files.
 fixture:
   commits:
     - message: "chore: init"
       files:
-        src/commands/index.ts: "export const parse = () => {}\n"
-        src/sessions/index.ts: "export const load = () => {}\n"
-        src/transport.ts: "export const send = () => {}\n"
+        src/commands/index.ts: |
+          export const parse = () => {}
+        src/sessions/index.ts: |
+          export const load = () => {}
+        src/transport.ts: |
+          export const send = () => {}
         docs/accepted-refactor.md: |
           The accepted target replaces src/transport.ts with a transport
           directory. transport/client.ts owns request construction and
@@ -22,15 +24,19 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
+output_checks:
   - name: target is visibly proposed rather than current
-    run: grep -Ei 'proposed|target|accepted refactor' .git/last-message.md
-  - name: structural diff contains removal and additions
-    run: >-
-      grep -Eq '^-.*transport\.ts|^-.*transport\.ts' .git/last-message.md;
-      grep -Eq '^\+.*transport/' .git/last-message.md;
-      grep -F 'client.ts' .git/last-message.md >/dev/null;
-      grep -F 'stream.ts' .git/last-message.md >/dev/null
-  - name: response stays structural and compact
-    run: >-
-      ! grep -F 'export const' .git/last-message.md;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
+    expect_regex: proposed|target|accepted refactor
+    flags: i
+  - name: removed entry carries its own marker
+    expect_regex: ^-.*transport\.ts
+  - name: added directory carries its own marker
+    expect_regex: ^\+.*transport[/\\]
+  - name: client remains visible
+    expect_regex: client\.ts
+  - name: stream remains visible
+    expect_regex: stream\.ts
+  - name: response stays structural
+    not_regex: export const
+  - name: response stays compact
+    not_regex: ^(?:[^\r\n]*\r?\n){24}[^\r\n]+

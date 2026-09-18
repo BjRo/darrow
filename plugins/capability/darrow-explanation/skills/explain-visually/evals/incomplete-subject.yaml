@@ -7,14 +7,18 @@ fixture:
   commits:
     - message: "chore: init"
       files:
-        README.md: "# Unrelated inventory service\n"
+        README.md: |
+          # Unrelated inventory service
 checks:
-  - name: incomplete request is read-only
+  - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
+output_checks:
   - name: response asks for the missing subject
-    run: >-
-      grep -Ei 'what|which|subject|topic' .git/last-message.md >/dev/null;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 8
+    expect_regex: what|which|subject|topic
+    flags: i
+  - name: response stays compact
+    not_regex: ^(?:[^\r\n]*\r?\n){8}[^\r\n]+
   - name: unrelated repository topic is not selected
-    run: '! grep -Ei "inventory service" .git/last-message.md'
+    not_regex: inventory service
+    flags: i

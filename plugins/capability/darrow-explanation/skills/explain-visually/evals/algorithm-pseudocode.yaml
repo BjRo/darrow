@@ -2,10 +2,9 @@ id: explain-visually-algorithm-pseudocode
 invariant: VE-C2,VE-C3,VE-C5,VE-C7
 activation: positive
 mount_plugin_skills: true
-prompt: >-
-  Explain nextDelay as compact pseudocode. Preserve invalid-attempt handling,
-  the exponential cap, and the jitter range. Do not modify files and do not
-  restate the TypeScript line by line.
+prompt: Explain nextDelay as compact pseudocode. Preserve invalid-attempt
+  handling, the exponential cap, and the jitter range. Do not modify files and
+  do not restate the TypeScript line by line.
 fixture:
   commits:
     - message: "chore: init"
@@ -24,17 +23,20 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: response is compact pseudocode
-    run: >-
-      grep -Ei 'if|return' .git/last-message.md >/dev/null;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
-  - name: unrelated collaborators are not invented
-    run: '! grep -Ei "database|queue|network|cache|normal distribution" .git/last-message.md'
 semantic_output_checks:
   - name: pseudocode preserves the material algorithm
-    proposition: >-
-      The response presents compact pseudocode for nextDelay that rejects an
-      invalid attempt below one, applies exponential growth capped at 30,000
+    proposition:
+      The response presents compact pseudocode for nextDelay that rejects
+      an invalid attempt below one, applies exponential growth capped at 30,000
       milliseconds, and returns an integer delay randomized within the upper
       half of the capped delay. It does not merely transliterate the TypeScript
       source line by line.
+output_checks:
+  - name: response is pseudocode
+    expect_regex: if|return
+    flags: i
+  - name: response stays compact
+    not_regex: ^(?:[^\r\n]*\r?\n){24}[^\r\n]+
+  - name: unrelated collaborators are not invented
+    not_regex: database|queue|network|cache|normal distribution
+    flags: i

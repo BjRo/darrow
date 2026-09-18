@@ -2,10 +2,9 @@ id: explain-visually-file-responsibility
 invariant: VE-C2,VE-C3,VE-C5,VE-C7
 activation: positive
 mount_plugin_skills: true
-prompt: >-
-  Map where command parsing, session state, and API transport live in this
-  repository. Use a shallow responsibility view with source anchors, not a
-  prose tour, and leave the repository unchanged.
+prompt: Map where command parsing, session state, and API transport live in this
+  repository. Use a shallow responsibility view with source anchors, not a prose
+  tour, and leave the repository unchanged.
 fixture:
   commits:
     - message: "chore: init"
@@ -24,16 +23,17 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: responsibility tree includes each owning area
-    run: >-
-      grep -F 'commands/' .git/last-message.md >/dev/null;
-      grep -F 'sessions/' .git/last-message.md >/dev/null;
-      grep -F 'transport/' .git/last-message.md >/dev/null;
-      grep -Ei 'pars(e|ing)|session state|API|request' .git/last-message.md >/dev/null
-  - name: response is a shallow visual rather than a prose tour
-    run: >-
-      grep -Eq '^src/$' .git/last-message.md;
-      grep -Eq '^[[:space:]]*(\|--|`--|├|└).*commands/' .git/last-message.md;
-      grep -Eq '^[[:space:]]*(\|--|`--|├|└).*sessions/' .git/last-message.md;
-      grep -Eq '^[[:space:]]*(\|--|`--|├|└).*transport/' .git/last-message.md;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 22
+output_checks:
+  - name: responsibility tree includes commands
+    expect_regex: ^[ \t]*(?:\|--|`--|├|└).*commands[/\\]
+  - name: responsibility tree includes sessions
+    expect_regex: ^[ \t]*(?:\|--|`--|├|└).*sessions[/\\]
+  - name: responsibility tree includes transport
+    expect_regex: ^[ \t]*(?:\|--|`--|├|└).*transport[/\\]
+  - name: responsibility labels remain visible
+    expect_regex: pars(e|ing)|session state|API|request
+    flags: i
+  - name: response has a source directory root
+    expect_regex: ^src[/\\]$
+  - name: response stays compact
+    not_regex: ^(?:[^\r\n]*\r?\n){22}[^\r\n]+

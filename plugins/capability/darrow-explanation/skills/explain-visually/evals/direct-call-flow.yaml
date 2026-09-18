@@ -2,10 +2,9 @@ id: explain-visually-direct-call-flow
 invariant: VE-C1,VE-C2,VE-C3,VE-C4,VE-C5,VE-C7
 activation: positive
 mount_plugin_skills: true
-prompt: >-
-  Use {{skill_invocation}} to show the observed runtime call flow when submitJob is
-  called. Inspect the repository, keep only calls that matter to this path,
-  include useful source anchors, and do not modify or create files.
+prompt: Use {{skill_invocation}} to show the observed runtime call flow when
+  submitJob is called. Inspect the repository, keep only calls that matter to
+  this path, include useful source anchors, and do not modify or create files.
 fixture:
   commits:
     - message: "chore: init"
@@ -38,22 +37,18 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: call flow contains the observed path in order
-    run: >-
-      awk '
-      /submitJob/ && !a { a=NR }
-      /validateJob/ && !b { b=NR }
-      /storeJob/ && !c { c=NR }
-      /enqueueJob/ && !d { d=NR }
-      END { exit !(a && b>a && c>b && d>c) }' .git/last-message.md
-  - name: response uses a compact visual shape
-    run: >-
-      grep -Eq -- '->|-->|─+>|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
-  - name: observed source is anchored
-    run: grep -Ei 'observed|current|src/jobs\.ts' .git/last-message.md
+semantic_output_checks:
   - name: unrelated callable is not invented into the path
-    run: >-
-      if grep -F 'authorizeAdmin' .git/last-message.md >/dev/null; then
-        grep -Ei 'exclude|not|nothing|unrelated' .git/last-message.md >/dev/null;
-      fi
+    proposition: The response does not present authorizeAdmin as part of the
+      submitJob call path. An explicit statement that it is unrelated is
+      allowed.
+output_checks:
+  - name: call flow contains the observed path in order
+    expect_regex: submitJob[^\r\n]*\r?\n[\s\S]*?validateJob[^\r\n]*\r?\n[\s\S]*?storeJob[^\r\n]*\r?\n[\s\S]*?enqueueJob
+  - name: response uses a compact visual shape
+    expect_regex: ->|-->|─+>|├|└|│|→|^[ \t]{2,}[\w<]
+  - name: response stays compact
+    not_regex: ^(?:[^\r\n]*\r?\n){24}[^\r\n]+
+  - name: observed source is anchored
+    expect_regex: observed|current|src[/\\]jobs\.ts
+    flags: i

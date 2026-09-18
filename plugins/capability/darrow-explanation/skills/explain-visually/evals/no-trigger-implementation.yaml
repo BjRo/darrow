@@ -1,21 +1,25 @@
 id: explain-visually-no-trigger-implementation
 invariant: VE-C1,VE-E1
 activation: negative
-activation_excludes: [explain-visually]
+activation_excludes:
+  - explain-visually
 mount_plugin_skills: true
-prompt: >-
-  Implement the documented double(value) behavior in src/math.js. Keep the
+prompt: Implement the documented double(value) behavior in src/math.js. Keep the
   response concise.
 fixture:
   commits:
     - message: "chore: init"
       files:
-        docs/request.md: "double(value) returns value multiplied by two.\n"
-        src/math.js: "export const double = (value) => value;\n"
+        docs/request.md: |
+          double(value) returns value multiplied by two.
+        src/math.js: |
+          export const double = (value) => value;
 checks:
   - name: implementation request changes the requested code
-    run: >-
-      grep -Eq 'value *\* *2|2 *\* *value' src/math.js;
-      test -n "$(git status --porcelain --untracked-files=all)"
+    run: git diff HEAD -- src/math.js
+    expect_regex: ^\+[^+].*(value *\* *2|2 *\* *value)
+output_checks:
   - name: implementation is not replaced by a visual explanation
-    run: '! grep -Ei "stateDiagram|sequenceDiagram|call tree|structural diff|Observed view|Conceptual view" .git/last-message.md'
+    not_regex: stateDiagram|sequenceDiagram|call tree|structural diff|Observed
+      view|Conceptual view
+    flags: i

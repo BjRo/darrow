@@ -164,6 +164,14 @@ prose is implemented:
 4. **VE-P4 — Contextual judgment.** Subject binding, evidence classification,
    representation choice, and loss-aware compression remain model judgment;
    no keyword router substitutes for them.
+5. **VE-P5 — Native-platform packaging.** The skill-only artifact installs
+   independently on Claude Code and Codex on Linux, macOS, and native Windows.
+   It contains no executable helper requiring Python, UV, Bash, or a renderer.
+   Repository-owned certification checks exercise fresh copies in paths with
+   spaces and Unicode. Colocated evals use declarative output assertions and
+   portable Git commands instead of POSIX utilities. Report native installation
+   evidence separately from authenticated live invocation evidence; neither
+   manifest inspection nor a dry eval proves model behavior.
 
 ## Evaluation requirements
 

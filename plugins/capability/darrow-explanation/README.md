@@ -47,13 +47,26 @@ Understand technical structure or a grounded proposed change. Use another capabi
 
 ## Hosts and prerequisites
 
-Codex and Claude Code with access to the subject's sources. Plain text works when diagram rendering is unavailable.
+Codex and Claude Code with access to the subject's sources, on Linux, macOS,
+or native Windows. Plain text works when diagram rendering is unavailable.
+
+This is a skill-only plugin: the packaging audit found no Bash mechanics,
+executable helpers, or runtime dependencies to migrate. Python, UV, Bash, and
+Mermaid are not prerequisites added by this plugin; the host's own prerequisites
+still apply. Its skill, metadata, examples, and eval fixtures are contained in
+the plugin. This intentionally differs from the Python + UV mechanics blueprint:
+there is no package, lockfile, or entry in `python-packages.txt` because there is
+no deterministic runtime code to package.
 
 ## Installation
 
 Install `darrow-explanation@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 Review this plugin's local prerequisites and safety boundaries first.
+
+The per-plugin host commands in that guide also apply in PowerShell on native
+Windows. Use those commands directly; the optional marketplace-wide Bash
+installer is not needed for this plugin.
 
 ## Usage
 
@@ -63,6 +76,29 @@ An ordinary request can select the appropriate capability:
 
 To select it explicitly, choose `explain-visually` from Codex's `$` skill menu,
 or use `/darrow-explanation:explain-visually` in Claude Code, followed by your request.
+
+For an installation smoke check, invoke the skill with this self-contained
+subject: “Observed flow: receive calls validate, then save. Show this as a
+compact text call tree using only those three calls.” Expect an inline tree
+with those calls in that order, without file changes. This check needs neither
+a renderer nor repository-specific tools.
+
+## Portability evidence
+
+The repository's `Explanation portability` workflow installs a fresh copy into
+isolated Claude Code and Codex configuration directories on Linux, macOS, and
+native Windows, using paths containing spaces and Unicode. It checks matching
+manifest versions, the installed skill bytes, Claude's skill discovery, and
+portable eval assertions. It does not use account credentials or make model
+calls; installation checks alone do not certify live invocation.
+
+The nine colocated eval cases cover activation, supported visual forms,
+source grounding, read-only behavior, and intent exclusions. Their checks use
+declarative output assertions and Git commands, with no POSIX utility or
+fixture-setup dependency. The shared live eval runner still requires a POSIX
+host; its results must not be presented as native-Windows invocation evidence.
+Use the explicit smoke check above in each authenticated host to verify that
+platform's live invocation separately.
 
 ## Expected result
 
