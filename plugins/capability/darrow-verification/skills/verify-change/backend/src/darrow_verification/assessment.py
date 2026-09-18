@@ -15,6 +15,17 @@ USAGE = (
     "--provider-report ABSOLUTE_FILE"
 )
 ERROR_PREFIX = "render-assessment"
+DESTINATION_ESCAPES = str.maketrans(
+    {
+        "%": "%25",
+        " ": "%20",
+        "#": "%23",
+        "?": "%3F",
+        "<": "%3C",
+        ">": "%3E",
+        "\\": "%5C",
+    }
+)
 
 
 class BinaryWriter(Protocol):
@@ -82,13 +93,8 @@ def canonical_input(value: str, label: str) -> Path:
 
 
 def escape_destination(value: str) -> str:
-    """Escape the Markdown URI delimiters escaped by the original renderer."""
-    destination = value.replace("%", "%25")
-    destination = destination.replace(" ", "%20")
-    destination = destination.replace("#", "%23")
-    destination = destination.replace("?", "%3F")
-    destination = destination.replace("<", "%3C").replace(">", "%3E")
-    return destination.replace("\\", "%5C")
+    """Escape only the Markdown URI delimiters in the handoff contract."""
+    return value.translate(DESTINATION_ESCAPES)
 
 
 def validate(arguments: Sequence[str]) -> AssessmentInputs:
@@ -124,14 +130,10 @@ def main(
     """Run the renderer and return its public process status."""
     try:
         inputs = validate(arguments)
+        output = render(inputs)
     except UsageError:
         _write_error(stderr, USAGE)
         return 2
-    except InputError as error:
-        _write_error(stderr, str(error))
-        return 2
-    try:
-        output = render(inputs)
     except InputError as error:
         _write_error(stderr, str(error))
         return 2
