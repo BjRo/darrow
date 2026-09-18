@@ -12,15 +12,16 @@ operations by intent without reading this plugin's files. Explicit tracker
 choices and established project context select the provider; unresolved choices
 between installed providers require clarification before tracker access.
 
-## Installation and migration
+## Prerequisites
 
-Install `darrow-tickets-github` from the Darrow marketplace. It requires `gh`
-authenticated for the repository's GitHub host and a usable `origin` remote.
+Install `darrow-tickets-github` from the Darrow marketplace. It requires UV,
+Python 3.10–3.13, Git, `gh` authenticated for the repository's GitHub host,
+and a usable `origin` remote. Runtime dependencies are otherwise empty.
 
-This plugin was previously named `darrow-tickets`. Replace that installation
-with `darrow-tickets-github`; do not keep both installed. Update explicit
-plugin-qualified invocations and configured plugin paths to the new name.
-The four skill names and the `bin/ticket` command interface are unchanged.
+Claude's session-start hook supplies static discovery context so matching
+requests activate the owning skill before repository inspection or prerequisite
+judgments. It uses the same frozen Python package, without inspecting the
+repository or contacting GitHub. Workflow and authority remain in the skill.
 
 ## What it provides
 
@@ -58,14 +59,31 @@ append as comments by default.
 
 Example: _“Comment on #42 with the failing command.”_
 
-### `bin/ticket`
+### `darrow-ticket`
 
-A portable Bash facade used by all four skills. It resolves the current
+A contained Python facade used by all four skills. It resolves the current
 GitHub repository, inspects its taxonomy, searches and fetches tickets, validates
 structured bodies and transition targets, owns backend-specific relation
 syntax, and rejects ambiguous or unsupported mutations. It exposes the
 capability through deterministic commands rather than as a general tracker
 client.
+
+Invoke the package directly from any current-project working directory:
+
+```text
+uv run --quiet --frozen --no-dev --project "<plugin-root>/backend" darrow-ticket inspect
+```
+
+The commands remain `inspect`, `list`, `get`, `create`, `comment`, `describe`,
+`close`, `reopen`, `label`, and `relate`. Their options, compact reports,
+refusals, and exit codes are preserved. There is no Bash compatibility launcher.
+GitHub JSON is decoded and validated in Python; subprocesses use argument
+vectors and the resolved origin's host/repository. Temporary creation payloads
+are closed before `gh` opens them and removed after success or failure.
+
+Exit codes: 2 input/filesystem error, 3 unusable backend, 4 provider failure,
+5 invalid title, 6 attribution, 7 body structure, 8 label error, 9 state refusal,
+64 unknown or missing command.
 
 ## Design boundaries
 
@@ -86,13 +104,29 @@ client.
 - Label additions and removals refuse literal names containing commas because
   `gh` would split those names into separate labels.
 
+## Validation
+
+From the Darrow checkout, run `bun run check:python`. The package includes
+mocked provider and filesystem tests plus deterministic property tests. CI runs
+Python 3.10–3.13 on Linux, macOS, and Windows. Run the copied-artifact check with:
+
+```text
+uv run --quiet --frozen --no-dev --project "<plugin-root>/backend" python "<plugin-root>/backend/tests/fresh_install.py"
+```
+
+It checks the installed entrypoint, absence of development dependencies and old
+launchers, and all ten commands from a fresh copy. Git runs natively and `gh`
+must be installed; provider operations are mocked so validation cannot write
+to live GitHub state. The colocated skill evals exercise judgment separately.
+
 ## When to use
 
 Operate on current-project GitHub Issues. Use the matching provider for another tracker and clarify an ambiguous provider before access.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; authenticated gh for the repository's GitHub host, a usable origin remote, Bash, and baseline Unix tools.
+Codex and Claude Code on Linux, macOS, and native Windows; UV, Python 3.10–3.13,
+Git, and authenticated `gh` for the origin repository's host.
 
 ## Installation
 
@@ -115,7 +149,7 @@ Read and list return tracker evidence without changes. Create and update perform
 
 ## Troubleshooting
 
-A foreign URL, ambiguous reference, unreadable relation, or backend error is authoritative. Do not strip a foreign URL to its numeric suffix. Preserve the migration instructions above for the former package name.
+A foreign URL, ambiguous reference, unreadable relation, or backend error is authoritative. Do not strip a foreign URL to its numeric suffix.
 For a discovery or host problem, use the
 [documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
 and report the plugin version, host version, exact invocation, and error

@@ -19,12 +19,15 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 
 All tracker interaction goes through the bundled CLI:
 
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-ticket="$skill_dir/../../bin/ticket"
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
 ```
 
-Run it with `bash`. The CLI resolves the backend, maps types to its taxonomy,
+`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
+complete locked command for every operation below. The package requires UV,
+Python 3.10–3.13, Git, and authenticated `gh` on Linux, macOS, or native Windows.
+
+The CLI resolves the backend, maps types to its taxonomy,
 formats compact ticket lines, and reports totals/truncation. Never use raw
 tracker commands or another plugin's files. Relay a backend refusal or tracker
 error verbatim and stop.
@@ -62,7 +65,7 @@ requested supported filter maps to exactly one argument.
 Run:
 
 ```sh
-bash "$ticket" list [--state open|closed|all] \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket list [--state open|closed|all] \
   [--type bug|feature|task|chore] [--label <label>]... \
   [--search <query>] [--milestone <milestone>] [--limit <count>]
 ```
@@ -83,9 +86,16 @@ or reorder lines or rewrite their visible content. The compact CLI format is the
 entire final response; add no preamble, epilogue, heading, fence, or
 explanation.
 
+Treat stdout as text to copy directly from the command result, not as fields to
+reconstruct into a summary or Markdown list. Preserve the literal `backend:`,
+ticket rows, and `total:`/`note:` records; do not replace them with headings,
+bullets, bold ticket IDs, or prose totals.
+
 An empty result is complete: report it with the echoed filters. A capped result
 is incomplete by definition: retain the stated cap, total characterization,
 and narrowing/raise-limit note; never present it as the full set.
 
-**Complete when:** the user sees the exact applied filters, every returned
-compact row, and honest empty/truncation evidence without any state change.
+**Complete when:** the final response preserves CLI stdout's visible content
+and line order, including the backend, exact applied filters, every compact
+row, and empty/truncation evidence, with no tracker state change. Compare it
+with the command result before sending.

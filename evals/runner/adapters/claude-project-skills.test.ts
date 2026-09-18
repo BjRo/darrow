@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { gradeActivation } from "../activation";
 import {
   matchClaudeProjectInvocation,
+  observeClaudeProjectInvocation,
   projectSkillActivation,
 } from "./claude-project-skills";
 const input = {
@@ -36,6 +40,73 @@ const body = {
 const assistant = { type: "assistant", sessionId: "session-one" };
 const transcript = (entries: unknown[]) =>
   entries.map((entry) => JSON.stringify(entry)).join("\n");
+test.each(["darrow", "different-plugin"])(
+  "observer binds an explicit expansion to the mounted plugin (%s)",
+  async (nativePlugin) => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-native-command-"));
+    try {
+      const plugin = join(repo, ".git", "eval-plugin");
+      const skillDir = join(plugin, "skills", input.skill);
+      const manifestDir = join(plugin, ".claude-plugin");
+      const configRoot = join(repo, "host-config");
+      const sessions = join(
+        configRoot,
+        "projects",
+        repo.replace(/[^A-Za-z0-9]/g, "-"),
+      );
+      await Promise.all(
+        [skillDir, manifestDir, sessions].map((path) =>
+          mkdir(path, { recursive: true }),
+        ),
+      );
+      const nativeCommand = {
+        ...command,
+        message: {
+          content: command.message.content.replaceAll(
+            "darrow-guide",
+            `${nativePlugin}:darrow-guide`,
+          ),
+        },
+      };
+      const nativeBody = {
+        ...body,
+        message: {
+          content: body.message.content.map((block) => ({
+            ...block,
+            text: block.text.replace(input.skillDir, skillDir),
+          })),
+        },
+      };
+      await Promise.all([
+        writeFile(join(skillDir, "SKILL.md"), input.skillText),
+        writeFile(
+          join(manifestDir, "plugin.json"),
+          JSON.stringify({ name: "darrow" }),
+        ),
+        writeFile(
+          join(sessions, "session-one.jsonl"),
+          transcript([nativeCommand, nativeBody, assistant]),
+        ),
+      ]);
+      const result = await observeClaudeProjectInvocation({
+        repo,
+        configRoot,
+        stream: JSON.stringify({ type: "result", session_id: input.sessionId }),
+        prompt: input.prompt,
+        probe: {
+          mode: "explicit",
+          skill: input.skill,
+          invocation: "/darrow-guide",
+        },
+      });
+      expect(result?.type).toBe("darrow.claude_plugin_skill_invocation");
+      expect(result?.accepted).toBe(nativePlugin === "darrow");
+      expect(JSON.stringify(result)).not.toContain("Read current sources");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  },
+);
 test("accepts one correlated complete project-command expansion without retaining contents", () => {
   const result = matchClaudeProjectInvocation({
     ...input,
@@ -45,6 +116,46 @@ test("accepts one correlated complete project-command expansion without retainin
   expect(JSON.stringify(result)).not.toContain("Read current sources");
   expect(JSON.stringify(result)).not.toContain("What is Darrow");
 });
+test("accepts native plugin expansion of the unqualified command", () => {
+  const pluginCommand = {
+    ...command,
+    message: {
+      content: command.message.content.replaceAll(
+        "darrow-guide",
+        "darrow:darrow-guide",
+      ),
+    },
+  };
+  const result = matchClaudeProjectInvocation({
+    ...input,
+    commandName: "darrow:darrow-guide",
+    transcript: transcript([pluginCommand, body, assistant]),
+  });
+  expect(result.accepted).toBe(true);
+  expect(result.type).toBe("darrow.claude_plugin_skill_invocation");
+  expect(JSON.stringify(result)).not.toContain("Read current sources");
+});
+test.each(["other:darrow-guide", "darrow-guide", "darrow:another-skill"])(
+  "rejects expansion from a different command %s",
+  (commandName) => {
+    const foreign = {
+      ...command,
+      message: {
+        content: command.message.content.replaceAll(
+          "darrow-guide",
+          commandName,
+        ),
+      },
+    };
+    expect(
+      matchClaudeProjectInvocation({
+        ...input,
+        commandName: "darrow:darrow-guide",
+        transcript: transcript([foreign, body, assistant]),
+      }).accepted,
+    ).toBe(false);
+  },
+);
 test.each([
   [command, assistant],
   [body, command, assistant],
@@ -97,6 +208,27 @@ test("malformed or unfinished native evidence remains unknown", () => {
   ).toBeNull();
 });
 
+test.each([false, null] as const)(
+  "unaccepted native plugin recovery preserves direct Skill-event evidence (%j)",
+  (accepted) => {
+    const observed = {
+      source: "harness_event" as const,
+      complete: true,
+      primarySkill: "darrow-guide",
+      observedSkills: ["darrow-guide"],
+    };
+    const result = projectSkillActivation(observed, {
+      type: "darrow.claude_plugin_skill_invocation",
+      skill: "darrow-guide",
+      accepted,
+      reason: "native expansion is absent or unavailable",
+    });
+    expect(result).toEqual(observed);
+    expect(gradeActivation("positive", "darrow-guide", result).passed).toBe(
+      true,
+    );
+  },
+);
 test.each([false, null] as const)(
   "later skill events cannot repair an unaccepted project receipt (%j)",
   (accepted) => {

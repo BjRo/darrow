@@ -15,7 +15,7 @@ fixture:
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       case "$1 $2" in
-        "issue list") printf '#3 open  Login fails after refresh (bug)\n' ;;
+        "issue list") printf '%s\n' '[{"number": 3, "state": "OPEN", "title": "Login fails after refresh", "labels": [{"name": "bug"}]}]' ;;
         *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
       esac
   setup: |
