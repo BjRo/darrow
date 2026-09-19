@@ -16,6 +16,7 @@
     "check:python:inventory": "scripts/test-python-inventory",
     "check:python:performance": "plugins/capability/darrow-observability-langfuse/tests/performance.test.sh",
     "eval": "bun evals/runner/run.ts",
+    "test:eval-runner-compatibility": "bun test evals/runner/compatibility",
     "eval:coverage": "bun evals/runner/coverage.ts",
     "eval:orchestration:prepare": "bun evals/corpus/orchestration/prepare.ts",
     "eval:orchestration": "bun evals/runner/suite.ts",
