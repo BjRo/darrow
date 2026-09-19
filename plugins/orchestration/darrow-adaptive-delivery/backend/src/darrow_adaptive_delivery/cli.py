@@ -6,7 +6,7 @@ import sys
 from collections.abc import Callable
 from io import TextIOWrapper
 
-from . import claude, doctor
+from . import claude
 from . import preflight as preparation
 from .common import RefusalError
 
@@ -33,6 +33,8 @@ def claude_route() -> int:
 
 
 def host_doctor() -> int:
+    from . import doctor
+
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, TextIOWrapper):
             stream.reconfigure(encoding="utf-8", newline="\n")
