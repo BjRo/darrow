@@ -45,7 +45,10 @@ Example: _“Which open bugs are in the next milestone?”_
 
 Retrieves one exact current-project ticket by ID or canonical URL. It returns
 the authoritative metadata, a provider-owned `ticket-token: N`, tracker-native relations, and full description
-without summarizing, interpreting, or changing tracker state.
+without summarizing, interpreting, or changing tracker state. A retrieval-only
+request returns that evidence alone. In a compound request, the skill preserves
+the complete evidence unchanged and returns control for separately authorized
+follow-on work.
 
 Example: _“What does ticket #42 say?”_
 
