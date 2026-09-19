@@ -11,7 +11,6 @@ import argparse
 import hashlib
 import importlib
 import json
-import resource
 import sys
 import tempfile
 import time
@@ -22,6 +21,22 @@ from typing import Any, cast
 from langfuse import Langfuse
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+
+if sys.platform == "win32":
+
+    def _peak_rss_bytes() -> int:
+        # The performance job is Unix-only; keep the tooling importable and
+        # type-checkable in the supported Windows backend matrix.
+        return 0
+
+else:
+    import resource
+
+    def _peak_rss_bytes() -> int:
+        peak = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        if sys.platform != "darwin":
+            peak *= 1024
+        return int(peak)
 
 
 class _Counter(SpanExporter):
@@ -226,9 +241,7 @@ class _Benchmark:
             assert self.bytes_read <= self.input_bytes * 2
 
     def _result(self, elapsed: float) -> dict[str, Any]:
-        peak = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-        if sys.platform != "darwin":
-            peak *= 1024
+        peak = _peak_rss_bytes()
         startup = self.foreground_samples[0] if self.foreground_samples else 0.0
         steady = sum(self.foreground_samples[1:])
         steady_count = max(0, len(self.foreground_samples) - 1)
@@ -246,7 +259,7 @@ class _Benchmark:
                 steady / steady_count if steady_count else 0.0, 6
             ),
             "total_seconds": round(elapsed, 4),
-            "peak_rss_bytes": int(peak),
+            "peak_rss_bytes": peak,
             "acknowledged_turns": self.outcome,
         }
 
