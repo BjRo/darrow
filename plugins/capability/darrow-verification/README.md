@@ -36,8 +36,8 @@ The plugin is self-contained and supports Claude Code and Codex. A compatible
 review provider needs native fresh-agent support and its own check tools.
 The host must allow a bounded provider assessment context and that provider's
 independent readers; unavailable depth or authority blocks the operation.
-The report renderer requires UV and a UV-managed Python 3.10–3.13 runtime. It is
-installed from this plugin's locked, dependency-free Python package.
+The report renderer requires
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
 Discover the
 review provider by host-advertised intent, then check prerequisites, authorized
 effects, result evidence and stop conditions. The provider must independently

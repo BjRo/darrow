@@ -70,8 +70,10 @@ Organize or audit repository agent guidance. Use another capability for product 
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; UV, Python 3.10–3.13, and repository file access on
-Linux, macOS, or native Windows. Git resolves the primary worktree when available;
+Codex and Claude Code;
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+and repository file access on Linux, macOS, or native Windows.
+Git resolves the primary worktree when available;
 plain directories work without it. The runtime package has no third-party dependencies.
 
 Paths use native filesystem identity while guidance names require exact documented

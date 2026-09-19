@@ -76,8 +76,10 @@ Capture one explicit decision or find existing decisions. Do not infer accepted 
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; UV, Python 3.10–3.13, Git, and access to authoritative
-decision records. The CLI runs natively on Windows, Linux, and macOS. Runtime
+Codex and Claude Code;
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+Git, and access to authoritative decision records. The CLI runs natively on
+Windows, Linux, and macOS. Runtime
 dependencies are empty; quality tools are locked in the development group.
 The plugin has no Bash runtime entrypoint or sibling-plugin dependency.
 

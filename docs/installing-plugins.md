@@ -17,6 +17,70 @@ can differ; consult local `--help` and the linked official documentation if
 a command is unavailable. Syntax checks alone do not verify your account,
 network, installed state, or the desktop UI.
 
+### UV and Python for plugin helpers
+
+Plugins with bundled Python helpers require **UV** (the `uv` command) and
+**Python 3.10–3.13** (`>=3.10,<3.14`). This currently includes:
+
+- Foundations: `darrow-decisions`, `darrow-information-architecture`, and
+  `darrow-skill-authoring`.
+- Capabilities: `darrow-discovery` (planning renderer), `darrow-git`,
+  `darrow-review`, `darrow-tickets-github`, `darrow-verification` (report
+  renderer), and `darrow-observability-langfuse`.
+- Orchestration: `darrow-adaptive-delivery` and the deprecated
+  `darrow-ticket-pipeline` reference implementation.
+
+The `darrow-readiness-gate` worked example has no bundled Python runtime
+requirement. For other plugins, check the selected plugin's README for its
+additional tools and supported platforms. Git operations need Git; GitHub
+operations also need authenticated GitHub CLI (`gh`) access.
+
+Install UV using the [official UV installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
+For macOS or Linux, run in your shell:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+For Windows with WinGet, run in PowerShell:
+
+```powershell
+winget install --id=astral-sh.uv -e
+```
+
+Open a new terminal after installation. Provision a supported, UV-managed
+Python version and check availability with these commands, which work in both
+shells:
+
+```sh
+uv --version
+uv python install 3.13
+uv python find --managed-python 3.13
+```
+
+Expect a UV version and an absolute path to the managed Python interpreter.
+Using `3.13` explicitly keeps the interpreter within Darrow's supported range;
+a newer system Python alone may not satisfy it. UV can install Python itself,
+so no separate Python installer is needed for this setup. See
+[UV's Python management guide](https://docs.astral.sh/uv/guides/install-python/).
+
+Make sure `uv --version` also succeeds in the command environment used by your
+agent host. If it reports `uv: command not found`, check that UV's installation
+directory is on that environment's `PATH`, then restart the host so it inherits
+the updated environment.
+
+Each plugin ships its own `pyproject.toml` and `uv.lock`. Its documented
+`uv run --frozen --no-dev --project ...` helper commands prepare the plugin's
+isolated environment from that lock on first use. Allow network access for
+Python, build requirements, and runtime dependency downloads, plus write access
+to the plugin environment and UV cache. Subsequent runs reuse that environment;
+an update may require new downloads. See [UV's environment synchronization documentation](https://docs.astral.sh/uv/concepts/projects/sync/).
+
+The marketplace install commands and bulk shortcut install plugins; they do
+not install UV or provision Python. Complete this setup before using Python
+helpers. Development tools and checks for contributing to Darrow are documented
+separately in [Contributing](../CONTRIBUTING.md).
+
 ### Select the command target
 
 The commands below use `darrow-readiness-gate@darrow` as the worked example for
@@ -156,10 +220,11 @@ The shortcut deliberately excludes two marketplace entries:
   it does not enable tracing: configure credentials and explicitly opt in before
   it exports anything. Read its local README before enabling it.
 
-`darrow-skill-authoring` remains part of the shortcut, but its deterministic
-authoring helpers require UV and a UV-managed Python `>=3.10,<3.14` when used.
-Its plugin-local lock and package do not create a dependency on another Darrow
-plugin.
+Several included plugins use Python helpers, including `darrow-skill-authoring`.
+Complete the [UV and Python setup](#uv-and-python-for-plugin-helpers) before
+using them. The shortcut does not check or install these runtime prerequisites;
+its success message confirms host installation only. Each plugin's local lock
+and package remain independent of other Darrow plugins.
 
 ## Verify the installation
 
