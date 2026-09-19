@@ -107,6 +107,34 @@ def routes(backend: Path, repo: Path) -> None:
     assert command(repo, "git", "status", "--porcelain=v1") == before
 
 
+def diagnoses(backend: Path, repo: Path) -> None:
+    config = repo / "codex home/config.toml"
+    config.parent.mkdir()
+    config.write_text(
+        "[agents]\nenabled = true\nmax_concurrent_threads_per_session = 5\n",
+        encoding="utf-8",
+    )
+    codex = runtime(
+        backend,
+        repo,
+        "host-config-doctor",
+        "codex",
+        "--config",
+        str(config),
+        "--backend",
+        "v2",
+        "--context",
+        "effective",
+    )
+    assert f"configuration_source: {config.resolve()}\n" in codex
+    assert "full_required_assessment: supported\n" in codex
+    claude = runtime(
+        backend, repo, "host-config-doctor", "claude", "--version", "2.1.219"
+    )
+    assert "configuration_source: process-environment\n" in claude
+    assert "full_required_assessment: unsupported\n" in claude
+
+
 def fixtures(plugin: Path, repo: Path) -> None:
     backend = plugin / "backend"
     fixture_dir = plugin / "skills/adaptive-delivery/evals/fixtures"
@@ -180,6 +208,7 @@ def fixtures(plugin: Path, repo: Path) -> None:
 def validate(plugin: Path, temporary: Path) -> None:
     backend = plugin / "backend"
     assert not (plugin / "bin").exists()
+    assert not (plugin / "skills/doctor-adaptive-delivery/scripts").exists()
     command(temporary, "uv", "sync", "--frozen", "--no-dev", "--project", str(backend))
     tree = command(
         temporary, "uv", "tree", "--frozen", "--no-dev", "--project", str(backend)
@@ -190,6 +219,7 @@ def validate(plugin: Path, temporary: Path) -> None:
     repo = temporary / "repository ' with spaces-é"
     repository(repo)
     routes(backend, repo)
+    diagnoses(backend, repo)
     linked = temporary / "linked worktree-é"
     command(repo, "git", "worktree", "add", "-qb", "linked", str(linked))
     nested = linked / "nested"
@@ -230,7 +260,7 @@ def main() -> None:
         shutil.copytree(plugin, copied, ignore=ignored)
         validate(copied, temporary)
     print(
-        "fresh copied adaptive-delivery: both host routes, linked worktree, readiness, review, verification, and proof refusal passed; native owner launch remains host-owned"
+        "fresh copied adaptive-delivery: host doctor, both routes, linked worktree, readiness, review, verification, and proof refusal passed; native owner launch remains host-owned"
     )
 
 

@@ -90,17 +90,19 @@ reason: explicit-orchestration-entrypoint-required
 
 The contained Python package is `<plugin-root>/backend`, invoked through
 `uv run --quiet --frozen --no-dev --project <absolute-backend>` followed by
-`adaptive-delivery-preflight` or `claude-agent-route`. On Codex, the activated
+`adaptive-delivery-preflight`, `claude-agent-route`, or `host-config-doctor`. On Codex, the activated
 file `<plugin-root>/skills/adaptive-delivery/SKILL.md` binds that same plugin root;
 `../../backend` starts at the directory containing `SKILL.md`. Claude binds
 `${CLAUDE_PLUGIN_ROOT}/backend`. Check the package and lock at that exact location;
 unavailability does not authorize searching for a different installation.
 
 The package supports Python 3.10–3.13, UV, and Git on Linux, macOS, and native
-Windows, with no runtime dependencies or Bash entrypoint adapters. Native paths
-and argument-vector subprocesses preserve spaces, Unicode, and linked-worktree
-identity. It retains the prepared-v2, route-v2, and Claude-agent-route-v1 records,
-record ordering, policy precedence, refusal exit 2, and help exit 0. Commands emit
+Windows, with no Bash entrypoint adapters. Python 3.10 uses the locked `tomli`
+backport for host-configuration diagnosis; newer interpreters use `tomllib` from
+the standard library. Native paths and argument-vector subprocesses preserve
+spaces, Unicode, and linked-worktree identity. It retains the prepared-v2,
+route-v2, and Claude-agent-route-v1 records, record ordering, policy precedence,
+refusal exit 2, and help exit 0. Commands emit
 UTF-8 stdout/stderr with LF records regardless of the host's redirected console
 encoding, including native Windows code pages. JSON uses
 the standard-library parser; syntax diagnostics may name its line/column while
@@ -167,8 +169,9 @@ owner.
 
 The doctor identifies the host, installed version when observable, and the
 exact effective source it checked. For Codex it checks the active
-`CODEX_HOME/config.toml` (or the default user configuration when `CODEX_HOME` is
-unset), not a similarly named repository file. An isolated evaluation home is
+`CODEX_HOME/config.toml` (or the default user configuration under `HOME` on
+Unix and `USERPROFILE` on native Windows when `CODEX_HOME` is unset), not a
+similarly named repository file. An isolated evaluation home is
 reported as such so the source checkout's `.codex/config.toml` is not mistaken
 for the evaluated process's configuration. It reports absent, unreadable,
 malformed, explicitly disabled, unset/default, inadequate, and adequate states

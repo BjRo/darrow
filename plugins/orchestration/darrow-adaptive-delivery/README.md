@@ -152,20 +152,25 @@ already completed.
 
 ## Python helpers
 
-The contained `backend` package exposes two read-only preflight operations.
+The contained `backend` package exposes read-only preflight, route, and host
+diagnosis operations.
 Prefix each command with
 `uv run --quiet --frozen --no-dev --project "<absolute-plugin-root>/backend"`:
 
 ```text
 adaptive-delivery-preflight prepare --repo <path> --host <codex|claude>
 adaptive-delivery-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>]
+host-config-doctor codex --config <path> --backend <v1|v2|unknown> --context <effective|isolated-eval>
+host-config-doctor claude [--version <installed-version>]
 ```
 
 `prepare` reports the repository root, revision, working-tree state,
 instructions, workflow documents, and active route catalog. `route` resolves a
 policy or exact user-supplied route. Repository overrides live in
 `.darrow/config.json`; malformed, unsafe, unknown, duplicate, or host-inconsistent
-route configuration fails closed.
+route configuration fails closed. `host-config-doctor` reads only the effective
+host controls named by the doctor skill and reports baseline and full-path
+capacity without changing configuration.
 
 The helper does not launch models, persist objectives, record lifecycle state,
 render completion reports, supervise work, or provide nested host sessions.
@@ -207,9 +212,10 @@ Use this for an explicitly invoked bounded engineering outcome. Ordinary complex
 Codex with native subagent support or Claude Code with the bundled foreground
 route agents; [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
 Git, available routes, and the capabilities matching authorized operations.
-The helpers support Linux, macOS, and native Windows without Bash or runtime
-Python dependencies. Regression tests run through the repository's Python
-quality gate on all three platforms.
+The helpers support Python 3.10–3.13 on Linux, macOS, and native Windows without
+Bash. Python 3.10 installs the locked `tomli` backport for host-configuration
+diagnosis; newer interpreters use the standard-library TOML parser. Regression
+tests run through the repository's Python quality gate on all three platforms.
 
 ## Installation
 

@@ -16,14 +16,22 @@ different host, diagnose that host only when its effective source and installed
 version are observable; otherwise ask for the missing source or version. Never
 guess a backend or version.
 
-Resolve the bundled helper from this skill directory as
-`scripts/host-config-doctor`. Require it to be an executable regular file. Do
-not search the repository, home directory, plugin caches, or `PATH` for a
-replacement.
+Resolve the bundled backend without searching:
+
+- Claude: use `${CLAUDE_PLUGIN_ROOT}/backend`; Claude substitutes the active
+  plugin's absolute root in skill content.
+- Codex: starting at the directory containing this `SKILL.md`, use
+  `../../backend`.
+
+Require readable `pyproject.toml` and `uv.lock` in that exact backend, plus UV
+and Python 3.10–3.13. Do not search the repository, home directory, plugin
+caches, or `PATH` for a replacement. The frozen entrypoint runs on Linux,
+macOS, and native Windows without Bash.
 
 For Codex, the effective user configuration is
 `$CODEX_HOME/config.toml` when `CODEX_HOME` is set, otherwise
-`$HOME/.codex/config.toml`. Pass that exact path with `--config`. A checkout's
+`$HOME/.codex/config.toml` on Unix or `%USERPROFILE%\.codex\config.toml` on
+native Windows. Pass that exact path with `--config`. A checkout's
 `.codex/config.toml` is not a substitute for an isolated eval process's
 `CODEX_HOME/config.toml`. Pass `--context isolated-eval` when the session or
 runner establishes an isolated evaluation home; otherwise pass
@@ -46,13 +54,18 @@ the helper.
 Run exactly one applicable command:
 
 ```sh
-/bin/bash <absolute-skill-dir>/scripts/host-config-doctor codex \
+uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
+  host-config-doctor codex \
   --config <absolute-effective-config> --backend <v1|v2|unknown> \
   --context <effective|isolated-eval>
 
-/bin/bash <absolute-skill-dir>/scripts/host-config-doctor claude \
+uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
+  host-config-doctor claude \
   [--version <installed-version>]
 ```
+
+On PowerShell, put the selected command on one line and omit the trailing
+backslashes while passing the same arguments.
 
 The helper reports only the named controls and derived capacity. Preserve an
 unreadable or malformed refusal; do not fall back to a repository copy, parse
