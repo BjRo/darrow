@@ -14,6 +14,7 @@ from typing import Any
 
 from .config import Config
 from .context import delivery_context, require_context
+from .filesystem import sync_directory
 from .sidecar import _load_state_path, load_provisional_attribution_snapshots
 
 
@@ -31,11 +32,7 @@ def _atomic_record(path: Path, value: Any) -> None:
             os.fsync(handle.fileno())
         with suppress(FileExistsError):
             os.link(temporary, path)  # First receipt wins; never replace evidence.
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        sync_directory(path.parent)
     finally:
         os.unlink(temporary)
 

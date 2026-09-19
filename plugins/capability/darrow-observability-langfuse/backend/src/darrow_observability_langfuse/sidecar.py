@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
 import os
@@ -13,6 +12,8 @@ from pathlib import Path
 from typing import Any, ParamSpec, TypeVar, cast
 
 from .config import validate_work_item_id
+from .filesystem import sync_directory
+from .locking import exclusive_lock
 
 _CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f]")
 _GIT_HEAD = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", re.I)
@@ -28,12 +29,9 @@ def _locked(
         def invoke(*args: P.args, **kwargs: P.kwargs) -> R:
             path = path_for(*args, **kwargs)
             path.parent.mkdir(parents=True, exist_ok=True)
-            descriptor = os.open(f"{path}.lock", os.O_CREAT | os.O_RDWR, 0o600)
-            try:
-                fcntl.flock(descriptor, fcntl.LOCK_EX)
+            with exclusive_lock(Path(f"{path}.lock")) as acquired:
+                assert acquired
                 return function(*args, **kwargs)
-            finally:
-                os.close(descriptor)
 
         return invoke
 
@@ -171,11 +169,7 @@ def _write_state_path(path: Path, state: dict[str, Any]) -> None:
             os.fsync(handle.fileno())
         os.chmod(temporary, 0o600)
         os.replace(temporary, path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        sync_directory(path.parent)
         temporary = None
     finally:
         if temporary is not None:

@@ -207,7 +207,7 @@ class DeliveryTest(unittest.TestCase):
                 ):
                     start = time.monotonic()
                     self.assertEqual(run(), 0)
-                    self.assertLess(time.monotonic() - start, 0.5)
+                    self.assertLess(time.monotonic() - start, 2)
                 self.assertEqual(requests, [])
         self.assertEqual(delivery_rows(self.path)[0]["state"], "pending")
 

@@ -19,10 +19,11 @@ configuration guidance, tests, evals, and documentation all live inside its
 plugin directory. It does not reference another Darrow plugin or skill.
 
 This capability is an explicit, issue-authorized exception to Darrow's default
-portable-Bash plugin-runtime boundary. The deterministic launcher remains
-portable Bash, but trace reconstruction and export use Python managed by UV.
-The plugin declares and locks its Python dependencies and refuses safely when
-UV or the managed environment is unavailable. This exception is local to this
+portable-Bash plugin-runtime boundary. The deterministic host launcher uses
+Bash on Linux and macOS and native Windows PowerShell on Windows; trace
+reconstruction and export use Python managed by UV on every platform. The
+plugin declares and locks its Python dependencies and refuses safely when UV
+or the managed environment is unavailable. This exception is local to this
 plugin and does not change the default boundary for other plugins.
 
 ## Runtime contract
@@ -123,9 +124,10 @@ already-final snapshots. Local unresolved turns retain redacted parser data
 until an authoritative receipt allows privacy-filtered envelope materialization.
 
 Local capture transactions and each session's single background drainer use
-separate process locks. State updates are atomic and durable. Concurrent and
-reordered hooks cannot overwrite another hook's capture or acknowledge work
-they did not deliver. Network waits never hold the capture lock.
+separate cross-process locks on Linux, macOS, and native Windows. State updates
+are atomic and durable. Concurrent and reordered hooks cannot overwrite another
+hook's capture or acknowledge work they did not deliver. Network waits never
+hold the capture lock.
 
 Every envelope has a stable identity, an expected observation count, a frozen
 privacy-filtered trace document, and exactly one state: `pending`,
@@ -250,9 +252,11 @@ Installation documentation names the required Codex hook support, UV,
 supported Python version, Langfuse server/SDK compatibility, configuration
 files and variables, first-run dependency behavior, and verification command.
 The hook registration resolves the packaged launcher through Codex's
-`PLUGIN_ROOT` environment variable. The launcher then resolves its own plugin
-root and uses the committed UV lock. It must not assume the source checkout
-location or another plugin installation.
+`PLUGIN_ROOT` environment variable and selects a native Windows command through
+`commandWindows`. Each launcher then resolves its own plugin root and uses the
+committed UV lock. Neither launcher may assume the source checkout location or
+another plugin installation. Native Windows operation requires PowerShell, not
+Bash, WSL, or a POSIX compatibility layer.
 
 The hook exits successfully without export when tracing is disabled. Missing
 UV, missing credentials, malformed hook input, unreadable transcript, invalid
@@ -269,10 +273,13 @@ export retry snapshots, prompt-time provisional attribution, interrupted-turn
 continuity, missing-snapshot quarantine, epoch session segmentation, detached
 and non-ticket Git state, rollout reconstruction, deduplication, content
 privacy, malformed input, missing runtime or configuration, and exporter
-failure. Backend checks run through UV. Portable hook-launcher tests run with
-both supported Bash executables. The backend conforms to the repository-wide
-[Python quality standard](python-quality.md), including separate 95% statement
-and branch coverage gates on every supported Python and CI platform.
+failure. Backend checks run through UV. Hook-launcher tests run with both
+supported Bash executables on Unix and the registered PowerShell command on
+native Windows. The backend conforms to the repository-wide [Python quality
+standard](python-quality.md), including separate 95% statement and branch
+coverage gates on every supported Python and CI platform. Fresh copied-artifact
+verification exercises the registered hook command on Linux, macOS, and native
+Windows.
 
 Performance evidence distinguishes startup from steady-state foreground
 capture, confirms network-independent foreground completion, bounded

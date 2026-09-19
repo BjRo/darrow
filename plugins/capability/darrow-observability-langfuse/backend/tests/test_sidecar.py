@@ -65,7 +65,8 @@ class SidecarTest(unittest.TestCase):
             )
             files = list((plugin_data / "attribution-snapshots").glob("*.json"))
             self.assertEqual(len(files), 1)
-            self.assertEqual(os.stat(files[0]).st_mode & 0o777, 0o600)
+            if os.name != "nt":
+                self.assertEqual(os.stat(files[0]).st_mode & 0o777, 0o600)
             with self.assertRaisesRegex(ValueError, "immutable"):
                 record_provisional_attribution_snapshot(
                     plugin_data,
@@ -185,10 +186,11 @@ class SidecarTest(unittest.TestCase):
                     "turn-1",
                     {**snapshot, "work_item_id": "issue-60"},
                 )
-            self.assertEqual(
-                os.stat(Path(f"{rollout}.darrow-langfuse")).st_mode & 0o777,
-                0o600,
-            )
+            if os.name != "nt":
+                self.assertEqual(
+                    os.stat(Path(f"{rollout}.darrow-langfuse")).st_mode & 0o777,
+                    0o600,
+                )
 
     def test_completed_turn_is_not_exported_twice(self) -> None:
         document = {
@@ -212,7 +214,8 @@ class SidecarTest(unittest.TestCase):
             self.assertEqual(
                 json.loads(sidecar.read_text())["uploaded_turn_ids"], ["turn-1"]
             )
-            self.assertEqual(os.stat(sidecar).st_mode & 0o777, 0o600)
+            if os.name != "nt":
+                self.assertEqual(os.stat(sidecar).st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":

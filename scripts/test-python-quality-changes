@@ -145,35 +145,35 @@ fi
   success success \
   true success \
   true success success \
-  false skipped skipped \
+  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped
 "$verifier" \
   success success \
   true success \
   false skipped skipped \
+  true success success success \
+  false skipped skipped \
+  false skipped skipped
+"$verifier" \
+  success success \
+  true success \
+  false skipped skipped \
+  false skipped skipped skipped \
   true success success \
-  false skipped skipped \
   false skipped skipped
 "$verifier" \
   success success \
   true success \
   false skipped skipped \
-  false skipped skipped \
-  true success success \
-  false skipped skipped
-"$verifier" \
-  success success \
-  true success \
-  false skipped skipped \
-  false skipped skipped \
+  false skipped skipped skipped \
   false skipped skipped \
   true success success
 "$verifier" \
   success success \
   false skipped \
   false skipped skipped \
-  false skipped skipped \
+  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped
 
@@ -181,7 +181,7 @@ if "$verifier" \
   success success \
   false success \
   false skipped skipped \
-  false skipped skipped \
+  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a job that ran for an unchanged scope\n' >&2
@@ -192,7 +192,7 @@ if "$verifier" \
   success success \
   true failure \
   false skipped skipped \
-  false skipped skipped \
+  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed registered-package job\n' >&2
@@ -203,7 +203,7 @@ if "$verifier" \
   success success \
   true success \
   true failure success \
-  false skipped skipped \
+  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed selected job\n' >&2
@@ -214,7 +214,7 @@ if "$verifier" \
   failure success \
   true success \
   true success success \
-  true success success \
+  true success success success \
   true success success \
   true success success >/dev/null 2>&1; then
   printf 'error: aggregate accepted failed change detection\n' >&2

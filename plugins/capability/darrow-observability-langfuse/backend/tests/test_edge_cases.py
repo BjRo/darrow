@@ -20,6 +20,7 @@ from darrow_observability_langfuse import (
     config,
     delivery,
     export,
+    filesystem,
     lifecycle,
     rollout,
     sidecar,
@@ -27,6 +28,10 @@ from darrow_observability_langfuse import (
 from darrow_observability_langfuse.config import Config
 from darrow_observability_langfuse.context import delivery_context
 from darrow_observability_langfuse.export import DeliveryError
+from darrow_observability_langfuse.locking import exclusive_lock
+
+TEST_ROOT = Path(tempfile.gettempdir()).resolve()
+TEST_ROLLOUT = TEST_ROOT / "rollout"
 
 
 class ConfigEdgeTests(unittest.TestCase):
@@ -73,7 +78,44 @@ class ConfigEdgeTests(unittest.TestCase):
         )
 
 
+class FilesystemEdgeTests(unittest.TestCase):
+    def test_directory_sync_uses_only_supported_platform_operations(self) -> None:
+        path = TEST_ROOT / "state"
+        with (
+            patch("darrow_observability_langfuse.filesystem.os.name", "nt"),
+            patch("darrow_observability_langfuse.filesystem.os.open") as open_file,
+        ):
+            filesystem.sync_directory(path)
+        open_file.assert_not_called()
+
+        with (
+            patch("darrow_observability_langfuse.filesystem.os.name", "posix"),
+            patch(
+                "darrow_observability_langfuse.filesystem.os.open", return_value=7
+            ) as open_file,
+            patch("darrow_observability_langfuse.filesystem.os.fsync") as sync,
+            patch("darrow_observability_langfuse.filesystem.os.close") as close,
+        ):
+            filesystem.sync_directory(path)
+        open_file.assert_called_once_with(path, os.O_RDONLY)
+        sync.assert_called_once_with(7)
+        close.assert_called_once_with(7)
+
+
 class LifecycleEdgeTests(unittest.TestCase):
+    def test_terminal_context_validation_checks_each_receipt(self) -> None:
+        context = {"base_url": "https://example.test"}
+        with (
+            patch.object(
+                lifecycle,
+                "terminal_records",
+                return_value=[{"delivery_context": context}],
+            ),
+            patch.object(lifecycle, "require_context") as require_context,
+        ):
+            lifecycle._validate_terminal_contexts(TEST_ROLLOUT, "session", context)
+        require_context.assert_called_once_with(context, context)
+
     def test_registry_validation_rejects_each_invalid_shape(self) -> None:
         values: list[Any] = [
             None,
@@ -112,7 +154,7 @@ class LifecycleEdgeTests(unittest.TestCase):
 
     def test_terminal_input_and_no_plugin_registry(self) -> None:
         self.assertEqual(list(lifecycle.registered_rollouts(None, {})), [])
-        lifecycle.register_rollout(Path("/tmp/rollout"), "session", None, {})
+        lifecycle.register_rollout(TEST_ROLLOUT, "session", None, {})
         with self.assertRaisesRegex(ValueError, "invalid terminal hook"):
             lifecycle.record_terminal(
                 Path("/missing"),
@@ -121,7 +163,7 @@ class LifecycleEdgeTests(unittest.TestCase):
                 None,
                 Config(),
                 None,
-                cwd="/tmp",
+                cwd=str(TEST_ROOT),
             )
         with self.assertRaisesRegex(ValueError, "readable absolute file"):
             lifecycle.record_terminal(
@@ -131,7 +173,7 @@ class LifecycleEdgeTests(unittest.TestCase):
                 None,
                 Config(),
                 None,
-                cwd="/tmp",
+                cwd=str(TEST_ROOT),
             )
 
     def test_legacy_context_binding_and_unbound_evidence(self) -> None:
@@ -274,14 +316,10 @@ class DeliveryAndExportEdgeTests(unittest.TestCase):
             self.assertEqual(
                 delivery.drain(root / "missing", Config(), cwd=directory), 0
             )
-            with (
-                patch(
-                    "darrow_observability_langfuse.delivery.fcntl.flock",
-                    side_effect=BlockingIOError,
-                ),
-                delivery._exclusive_lock(root / "lock") as acquired,
-            ):
-                self.assertFalse(acquired)
+            with exclusive_lock(root / "lock") as acquired:
+                self.assertTrue(acquired)
+                with exclusive_lock(root / "lock", blocking=False) as second_acquired:
+                    self.assertFalse(second_acquired)
 
     def test_delivery_envelope_validation(self) -> None:
         rows = cast(
@@ -316,14 +354,14 @@ class DeliveryAndExportEdgeTests(unittest.TestCase):
 
         rows = [{"expected_count": 400}, {"expected_count": 200}]
         connection = SimpleNamespace(execute=lambda *_args: iter(rows))
-        drainer = delivery._Drainer(Path("/tmp/rollout"), Config(), lambda *_: 0)
+        drainer = delivery._Drainer(TEST_ROLLOUT, Config(), lambda *_: 0)
         self.assertEqual(
             drainer._pending_rows(cast("sqlite3.Connection", connection)), [rows[0]]
         )
 
     def test_delivery_attempt_mismatch_and_cancellation(self) -> None:
         batch = delivery._Batch([], {}, [], 0)
-        mismatch = delivery._Drainer(Path("/tmp/rollout"), Config(), lambda *_: 1)
+        mismatch = delivery._Drainer(TEST_ROLLOUT, Config(), lambda *_: 1)
         with patch.object(mismatch, "_record_failure") as record_failure:
             mismatch._attempt(batch)
         self.assertIsInstance(mismatch.failure, DeliveryError)
@@ -332,7 +370,7 @@ class DeliveryAndExportEdgeTests(unittest.TestCase):
         def cancel(*_arguments: Any) -> int:
             raise KeyboardInterrupt
 
-        cancelled = delivery._Drainer(Path("/tmp/rollout"), Config(), cancel)
+        cancelled = delivery._Drainer(TEST_ROLLOUT, Config(), cancel)
         with self.assertRaises(KeyboardInterrupt):
             cancelled._attempt(batch)
 
@@ -453,13 +491,13 @@ class CliEdgeTests(unittest.TestCase):
         runner = cli._HookRunner(
             Config(enabled=True, public_key="pk", secret_key="sk"),
             {"session_id": "session", "hook_event_name": "Unknown"},
-            "/tmp",
+            str(TEST_ROOT),
             None,
         )
         with self.assertRaisesRegex(ValueError, "unsupported background"):
             runner._background()
         runner.event = "Stop"
-        runner.hook_input.update(transcript_path="/tmp/rollout", turn_id="turn")
+        runner.hook_input.update(transcript_path=str(TEST_ROLLOUT), turn_id="turn")
         with (
             patch.object(cli, "await_capture", return_value=False),
             self.assertRaisesRegex(ValueError, "has not completed"),
@@ -470,7 +508,7 @@ class CliEdgeTests(unittest.TestCase):
         runner = cli._HookRunner(
             Config(enabled=True, dry_run=True),
             {"session_id": "session", "hook_event_name": "Unknown"},
-            "/tmp",
+            str(TEST_ROOT),
             None,
         )
         with self.assertRaisesRegex(ValueError, "unsupported hook"):
@@ -491,7 +529,7 @@ class CliEdgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "credentials"):
             runner._require_credentials()
         runner.config = Config(enabled=True, dry_run=True)
-        runner.hook_input.update(transcript_path="/tmp/rollout", turn_id="turn")
+        runner.hook_input.update(transcript_path=str(TEST_ROLLOUT), turn_id="turn")
         with patch.object(runner, "_print_dry_run") as print_dry_run:
             self.assertEqual(runner._stop(), 0)
         print_dry_run.assert_called_once()
@@ -503,10 +541,10 @@ class CliEdgeTests(unittest.TestCase):
                 "session_id": "session",
                 "hook_event_name": "Stop",
                 "turn_id": "turn",
-                "transcript_path": "/tmp/rollout",
+                "transcript_path": str(TEST_ROLLOUT),
             },
-            "/tmp",
-            Path("/tmp/plugin-data"),
+            str(TEST_ROOT),
+            TEST_ROOT / "plugin-data",
         )
         document = {"traces": [{"metadata": {"codex.turn_id": "turn"}}]}
         output = io.StringIO()
@@ -522,7 +560,7 @@ class CliEdgeTests(unittest.TestCase):
             patch.object(cli, "trace_document", return_value=document),
             patch("darrow_observability_langfuse.cli.sys.stdout", output),
         ):
-            runner._print_dry_run(Path("/tmp/rollout"), "turn")
+            runner._print_dry_run(TEST_ROLLOUT, "turn")
         self.assertTrue(document["traces"][0]["metadata"]["codex.completed"])
         self.assertTrue(output.getvalue().endswith("\n"))
 
