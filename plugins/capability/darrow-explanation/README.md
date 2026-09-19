@@ -66,7 +66,9 @@ or use `/darrow-explanation:explain-visually` in Claude Code, followed by your r
 
 ## Expected result
 
-One compact inline visual with nearby sources and appropriate evidence status. No artifact creation or subject edits.
+One compact inline visual answers the question first. Nearby sources and an
+evidence-status label preserve what is observed, proposed, or conceptual. The
+skill creates no artifact and does not edit the subject.
 
 ## Troubleshooting
 

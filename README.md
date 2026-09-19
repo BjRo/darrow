@@ -7,8 +7,7 @@
 <a id="why-darrow"></a>
 
 Darrow is a marketplace of focused, eval-tested plugins for Codex and Claude
-Code. It is for developers who want repeatable Git, review, planning, and
-implementation skills while choosing what to adopt.
+Code. Choose only the Git, review, planning, or implementation help you need.
 
 Install one plugin at a time. Capabilities match your request; orchestration
 starts only when explicitly invoked and uses a host-native execution owner.

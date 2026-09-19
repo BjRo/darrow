@@ -221,8 +221,10 @@ axis and report `not_available`. Do not invent requirements.
     `darrow-review-result-v1`, raw TSV, or machine format returns only the
     validated TSV. A response never contains both presentations.
 16. **CR-C16 — Complete rendering.** Markdown preserves every semantic field
-    from the validated TSV, prioritizes verdict and findings, renders checks
-    compactly, and presents detailed scope and sources later. Renderer
+    from the validated TSV, presents the verdict and next action first, renders
+    findings and checks compactly, and presents detailed scope and sources
+    later. It uses familiar words, active voice, and short sections without
+    repeating conclusions or narrating the review process. Renderer
     mechanics render field values as ordinary Markdown text without HTML code
     wrappers, Markdown code spans, generated links, or terminal hyperlink
     sequences. Conventional `path:line` values remain bare, while hostile field
@@ -508,6 +510,10 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     guidance through original and regression handoffs, acceptance of an
     alternative valid repair, and rejection of a suggested repair that leaves
     the original defect. Include the enclosing repair/verification chain.
+16. **CR-E16 — Communication quality.** Focused Markdown cases assess
+    result-first clarity, concision, semantic completeness, activation, and
+    read-only safety. Assertions grade meaning and ordering rather than one
+    preferred prose rendering, while exact machine fields remain deterministic.
 
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in

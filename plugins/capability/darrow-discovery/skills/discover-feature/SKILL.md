@@ -8,19 +8,22 @@ description: Discover and sharpen a new feature's users, behavior, scope, constr
 Turn an unresolved feature idea into a confirmed, evidence-backed discovery
 brief without planning or building it.
 
-Before beginning, read the sibling [grilling method](../grilling/SKILL.md)
-completely from this selected installed plugin. Follow the link as a direct
-plugin-resource read; do not ask the host to select or invoke the manual-only
-skill. This is mandatory even when the user asks not to be interviewed or to
-skip questions.
+Read this file completely before taking any discovery action.
 
-Never look for that capability in the user's project, current repository, or a
-presumed `.agents/skills` checkout. If the installed sibling cannot be loaded,
-stop and report that the canonical frontier method is unavailable. The
-enclosing discovery skill remains primary; reading `grilling` supplies its
-fact classification, decision tree, frontier rounds, recommendations, waiting
-boundary, and closure confirmation. Do not reproduce a different interview
-method here.
+Before resolving a material unknown, read the sibling
+[grilling method](../grilling/SKILL.md) completely from this selected installed
+plugin. Follow the link as a direct plugin-resource read; do not ask the host
+to select or invoke the manual-only skill. This is mandatory even when the user
+asks not to be interviewed or to skip questions. If the material frontier is
+already empty, proceed directly to the brief.
+
+When an unresolved frontier requires that method, never look for it in the
+user's project, current repository, or a presumed `.agents/skills` checkout.
+If the installed sibling cannot be loaded then, stop and report that the
+canonical frontier method is unavailable. The enclosing discovery skill
+remains primary; reading `grilling` supplies its fact classification, decision
+tree, frontier rounds, recommendations, waiting boundary, and closure
+confirmation. Do not reproduce a different interview method here.
 
 This capability is conversational and read-only. Do not edit or create files,
 record decisions, update a glossary, create tickets, assess implementation
@@ -101,12 +104,16 @@ unaccepted recommendation, return to Section 3, ask that frontier, and stop.
 
 When that entry condition passes, produce a compact draft brief in the
 conversation with exactly these conceptual sections, using names appropriate
-to the subject:
+to the subject. Lead with the outcome. Use familiar words, active voice, and
+short sentences and paragraphs. Explain a necessary Darrow term once. State
+each settled decision in one natural place instead of repeating the complete
+decision list across sections; the final goal restatement summarizes the
+outcome without restating every detail.
 
 - **Outcome and users** — the change in observable behavior and who benefits;
 - **Resolved behavior** — the product decisions the user actually made;
-- **Scope and non-goals** — included boundaries and intentionally excluded
-  adjacent behavior;
+- **Scope and non-goals** — boundaries and excluded adjacent behavior without
+  repeating the included behavior above;
 - **Constraints and evidence** — relevant repository or external facts with
   provenance;
 - **Acceptance and verification** — observable criteria, an independent oracle
@@ -115,6 +122,12 @@ to the subject:
   items that cannot change product behavior, authority, scope, privacy, or
   acceptance; and
 - **Goal restatement** — one sentence describing the feature outcome.
+
+Before sending, assign each settled detail to one section and remove duplicate
+detail from the outcome, scope, evidence, and restatement. State evidence and
+its source directly; do not narrate the inspection process or that decisions
+were already settled. Keep the goal restatement at outcome level instead of
+repeating the operational rules.
 
 Do not add implementation phases, predetermined files, technical architecture,
 or ticket slices unless one is itself a settled product constraint needed to

@@ -2,6 +2,9 @@
 
 **Outcome:** clear · Original findings: 2 · Resolved: 1 · Unresolved: 1 · Blocked: 0 · Regressions: 1
 
+## Next action
+return control to enclosing goal
+
 ## Attempted findings
 
 ### 1. standards:1:WORKTREE@base+original — RESOLVED / RESOLVED (HIGH, blocking)
@@ -43,6 +46,3 @@ No evidence gaps.
 ## Closed original finding set
 - standards:1:WORKTREE@base+original — standards #1, high/blocking; src/value.txt:1; source /workspace/AGENTS.md&#35;Review; Original standards evidence
 - spec:2:WORKTREE@base+original — spec #2, low/advisory; src/value with spaces.txt:2; source user objective &lt;v1&gt; &amp; &#91;details&#93;; Original advisory evidence
-
-## Next action
-return control to enclosing goal

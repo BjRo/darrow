@@ -139,6 +139,11 @@ compression.
    smaller text representation.
 7. **VE-C7 — Read-only conversation output.** The capability changes neither
    repository nor external state and creates no visual artifact files.
+8. **VE-C8 — Clear framing.** The explanation leads with the answer the visual
+   provides, then gives only the framing and caveats needed to understand it.
+   It uses familiar words, active voice, and short prose, explains necessary
+   terms, and omits repeated points and process narration without hiding
+   evidence status, material boundaries, or uncertainty.
 
 ## Request matrix
 
@@ -192,6 +197,8 @@ prose is implemented:
    negative, and pressure cases compare the skill with an uncontaminated
    no-skill condition on Claude Code and Codex using matched prompts, fixtures,
    model class, effort, and trial count.
+9. **VE-E9 — Communication quality.** Focused cases assess clarity, concision,
+   completeness, activation, and safety by meaning rather than exact prose.
 
 ## Non-goals
 

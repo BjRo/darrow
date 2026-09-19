@@ -43,13 +43,17 @@ cross-field validity rules for the result.
 
 In standalone human-readable mode, return one complete report using the
 reference's section structure. Do not append a second summary that competes
-with the report. Before sending it, verify that the required-next-action
-`Description` is the final line and remove every later summary, disclaimer,
-mutation note, offer, or comment. In standalone JSON mode, the semantic payload is exactly one
-JSON object. Prefer raw JSON with no prose. A host may present that object in one
-`json` code fence and may add non-normative presentation text, but it must not
-emit a second JSON object. Consumers ignore presentation text and use the
-single object as the authoritative serialized result.
+with the report. Put the verdict and required next action before the detailed
+basis, quality bar, and findings. Use familiar words, active voice, and short
+sentences and paragraphs. Explain a necessary term once and remove repeated
+conclusions and process narration. Before sending, remove every extra summary,
+disclaimer, mutation note, offer, or comment. The first output characters must
+be `## Implementation readiness`; put no preface before that heading. In
+standalone JSON mode, the semantic payload is exactly one JSON object. Prefer
+raw JSON with no prose. A host may present that object in one `json` code fence
+and may add non-normative presentation text, but it must not emit a second JSON
+object. Consumers ignore presentation text and use the single object as the
+authoritative serialized result.
 
 Represent every material observation inside `basis`, `quality_bar`, or
 `findings` in either presentation.

@@ -25,14 +25,14 @@ checks:
       test -z "$(git remote)"
 output_checks:
   - name: one readiness report owns the complete response
-    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*\\n?$(?![\\s\\S])"
+    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^### Findings$[\\s\\S]*\\S\\n?$(?![\\s\\S])"
     not_regex: "^## Implementation readiness$[\\s\\S]*^## Implementation readiness$|^\\*\\*Verdict:\\*\\* `[a-z-]+`$[\\s\\S]*^\\*\\*Verdict:\\*\\* `[a-z-]+`$"
   - name: default result uses the human-readable report
     expect_regex: "^## Implementation readiness$"
   - name: unavailable authoritative input blocks assessment
     expect_regex: "^\\*\\*Verdict:\\*\\* `blocked`$"
   - name: next action asks to unblock the input
-    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `unblock`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
+    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `unblock`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$\\n\\n### Basis$"
   - name: default result preserves typed basis and finding fields
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: quality bar is explicitly empty or contains typed items

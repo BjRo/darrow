@@ -61,8 +61,9 @@ available without a rich presentation package.
 
 ## Expected result
 
-A candidate-bound report preserves the complete provider result and maps every
-material criterion to evidence or an explicit gap. Product files remain unchanged;
+A candidate-bound report leads with its conclusion and smallest next action,
+then maps every material criterion to evidence or an explicit gap and preserves
+the complete provider result. Product files remain unchanged;
 the provider may retain local assessment/check artifacts under its public rules.
 Verification can prepare a temporary assessment draft. Its renderer reads that
 draft and the provider's existing local report, preserves the assessment text and adds
@@ -70,8 +71,8 @@ a validated absolute report link. It refuses missing or unreadable evidence and
 does not interpret provider formats, decide findings or set artifact retention.
 
 The active owner implements, repairs, owns the shared budget and continuation,
-and decides completion. Verification returns one assessment and targeted evidence
-needs, never repairs or publishes. A later orchestration integration can consume
+and decides completion. Verification returns one assessment and targeted
+evidence needs; it never repairs or publishes. A later orchestration integration can consume
 the candidate, criterion conclusions, provider findings/evidence and closed
 follow-up handoff without importing provider internals or adding a controller.
 

@@ -45,6 +45,8 @@ input.
 One focused skill with valid discovery metadata, a bounded workflow, only the
 colocated resources it needs, deterministic validation where mechanics are
 checkable, and recorded evidence for trigger behavior and workflow quality.
+Its human-facing output leads with the result and next action in concise,
+understandable language while preserving required evidence and protocol data.
 
 ## Invariants
 
@@ -137,6 +139,15 @@ checkable, and recorded evidence for trigger behavior and workflow quality.
   outcomes, evaluation limitations, and residual risks. Authoring does not
   imply commit, push, pull request, publication, release, or deployment
   authority.
+- **SA-C11 — Clear human-facing output.** New and revised skills lead with the
+  result and next action when their public contract permits it. They use
+  familiar words, active voice, and short sentences and paragraphs; explain
+  necessary domain terms; and remove repetition and unnecessary process
+  narration. Progressive disclosure never removes technical meaning, safety
+  rules, complete evidence, exact commands or identifiers, or required
+  protocol fields. Behavior evals assess clarity, concision, completeness,
+  activation, and safety by meaning rather than exact prose unless wording is
+  itself the public contract.
 
 ## Non-goals
 

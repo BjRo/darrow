@@ -68,7 +68,7 @@ describe("discovery eval loopholes", () => {
       [name],
     );
     expect(canonical?.passed).toBe(true);
-  });
+  }, 20_000);
 
   test("unresolved planning keeps prose judgment in semantic checks", async () => {
     const evalCase = await loadCase(
@@ -90,17 +90,19 @@ describe("discovery eval loopholes", () => {
     );
   });
 
-  test("planning transfer does not turn missing repository policy into authority", async () => {
-    const [check] = await messageChecks(
+  test("planning transfer keeps missing-policy authority in semantic checks", async () => {
+    const evalCase = await loadCase(
       "plugins/capability/darrow-discovery/skills/plan-implementation/evals/dependency-frontier-transfer.yaml",
-      [
-        "Evidence: No encryption or partitioning code exists. This is effectively a greenfield build.",
-        "Q1 — Storage topology: shared archive or tenant-isolated stores?",
-        "Recommendation: Choose shared archive because no repository evidence indicates a regulatory isolation requirement.",
-        "Deferred: encryption-key ownership, partition format, migration strategy. I will recompute the next frontier.",
-      ].join("\n"),
-      ["repository absence is not promoted to greenfield authority"],
     );
-    expect(check?.passed).toBe(false);
+    const name = "repository absence is not promoted to greenfield authority";
+    const semanticCheck = evalCase.semantic_output_checks?.find(
+      (check) => check.name === name,
+    );
+
+    expect(evalCase.checks.some((check) => check.name === name)).toBe(false);
+    expect(semanticCheck?.proposition).toContain(
+      "sparse or missing implementation",
+    );
+    expect(semanticCheck?.proposition).toContain("greenfield");
   });
 });

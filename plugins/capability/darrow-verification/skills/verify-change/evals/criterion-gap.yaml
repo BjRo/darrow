@@ -62,3 +62,13 @@ semantic_output_checks:
       current observed evidence. The response separately accounts for C1/C2 and
       C3, retaining independent review evidence and explicitly identifying the
       staging evidence gap without inventing QA or deployment.
+  - name: assessment is result first concise and complete
+    proposition: >-
+      The response puts the non-clear conclusion and smallest evidence-gathering
+      next action before detailed criterion and provider evidence. It uses
+      direct and familiar language, compact sections or a table, and no
+      step-by-step chronology. A brief provider-compatibility rationale is
+      required evidence, not process narration. The response does not repeat
+      the conclusion or complete-report link and preserves the candidate
+      identity, C1/C2 support, C3 gap, provider outcome, limitations, and final
+      complete-report link.

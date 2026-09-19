@@ -1,9 +1,8 @@
 # Choose Darrow plugins
 
-Start with the work you want the agent to do. Install one matching plugin,
-try it on a small request, and add another when a new need appears.
-A plugin is an independently adoptable package; installing one does not require
-the other layers. Its README owns its prerequisites, behavior, and safety rules.
+Start with the work you want done. Install one matching plugin and try it on a
+small request. Add another only when a new need appears. Each plugin stands
+alone; its README owns its prerequisites, behavior, and safety rules.
 
 ## Choose by intent
 

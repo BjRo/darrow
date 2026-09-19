@@ -182,6 +182,8 @@ finding to fill a coverage gap or weaken a provider's failure into an advisory.
 
 Return a concise semantic report containing:
 
+- the conclusion and smallest targeted next evidence/action needed from the
+  owner, with no overall-completion or publication claim;
 - repository, assessed candidate/base/scope, objective and mode;
 - selected provider/intents and compatibility basis, plus unselected optional
   or unavailable required assessments;
@@ -192,8 +194,22 @@ Return a concise semantic report containing:
   status;
 - combined findings with original provenance, identities and disposition,
   follow-up states and direct-regression causes where applicable; and
-- conclusion, limitations and the smallest targeted next evidence/action needed
-  from the owner, with no overall-completion or publication claim.
+- limitations.
+
+Put the conclusion and next action first. Use familiar words, active voice,
+and short sections. Explain a necessary term once. Do not repeat the conclusion
+or narrate the verification process. Progressive disclosure must not remove a
+criterion, provider outcome, finding, limitation, content identity, check, or
+evidence reference.
+
+Keep the assessment compact:
+
+- identify scope, candidate, objective, mode, and provider compatibility once;
+- combine criterion, check, finding, and disposition evidence in one compact
+  table or list instead of restating it in separate narrative sections;
+- summarize the provider outcome once without reproducing its investigation
+  narrative; and
+- state only evidence limitations that affect the conclusion or next action.
 
 When the provider retains a complete report, always include its readable absolute
 artifact reference in the returned result. When it returns only inline evidence,
@@ -273,6 +289,11 @@ copy the command's complete stdout unchanged as the final response. Do not
 shorten, rewrite or append to it: the renderer's absolute provider reference is
 part of the result. Complete semantic checks before this final command so no
 later tool or commentary displaces its output.
+
+When a retained report exists, reserve its artifact link for the renderer's
+final line. Do not put that link or another `Complete provider result` label in
+the assessment draft. The draft summarizes the provider outcome once; the final
+link supplies the complete evidence by reference.
 
 The final nonempty line must remain the renderer's angle-delimited Markdown
 link: the literal prefix `Complete provider result: [report]` immediately

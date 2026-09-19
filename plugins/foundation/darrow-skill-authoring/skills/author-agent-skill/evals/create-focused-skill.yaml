@@ -1,5 +1,5 @@
 id: author-agent-skill-create-focused-skill
-invariant: SA-C1,SA-C2,SA-C3,SA-C5,SA-C7,SA-C8
+invariant: SA-C1,SA-C2,SA-C3,SA-C5,SA-C7,SA-C8,SA-C11
 activation: positive
 prompt: >-
   Create one cross-runtime agent skill named validate-release-note in the
@@ -122,3 +122,10 @@ semantic_output_checks:
       unavailable-target statement is needed in that situation. Command names
       alone (bash and /bin/bash) or simulated version labels do not establish
       actual version coverage.
+  - name: authoring report is concise clear and complete
+    proposition: >-
+      The response leads with the created skill's result and any next action,
+      uses direct and familiar language, and avoids repeating checks or
+      narrating the agent's process. It still reports the skill path, behavior,
+      safety boundaries, exact validation evidence, cross-runtime limitations,
+      and the fact that no commit was created.
