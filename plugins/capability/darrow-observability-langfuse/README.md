@@ -15,7 +15,7 @@ plugin. The hook never contacts or mutates a tracker.
 
 ## Runtime
 
-`hooks/stop.sh` is a portable launcher, while
+`hooks/stop.sh` is a Unix Bash launcher, while
 transcript reconstruction and Langfuse export run in Python managed by UV. The
 plugin commits `backend/pyproject.toml` and `backend/uv.lock`; no sibling plugin
 or repository runtime is required.
@@ -256,15 +256,12 @@ legacy trace-list API.
 ## Development checks
 
 ```sh
-bash tests/package.test.sh
-bash hooks/stop.test.sh
-bash hooks/export-failure.test.sh
-bash hooks/refusal.test.sh
-bash hooks/strict.test.sh
+uv run --quiet --frozen --all-groups --project backend pytest backend/tests/test_packaged_hooks.py backend/tests/test_hook_failures.py
+uv run --quiet --frozen --no-dev --project backend python backend/tests/fresh_install.py
 bun run check:python
 ```
 
-Run each shell test with both `bash` and `/bin/bash` in repository development.
+The hook tests invoke both `bash` and `/bin/bash` from pytest.
 The repository command verifies the UV lock, formatting, lint, strict typing,
 tests, property tests, and separate statement and branch coverage gates.
 
@@ -277,6 +274,9 @@ Configure or explain Codex turn telemetry, privacy, and attribution. Do not use 
 Codex is the observed runtime. Export requires Codex async hooks,
 [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
 and a compatible Langfuse v4 server or Langfuse Cloud. Claude Code turns are not exported.
+The hook requires a Unix environment with Bash; the backend uses Unix file
+locking. Native Windows support is tracked separately in
+[#205](https://github.com/BjRo/darrow/issues/205).
 Claude installation and guidance invocation are unverified: Claude Code 2.1.223
 rejects this package's Codex-specific `Interrupt` hook during native validation.
 The presence of a Claude manifest is not a compatibility guarantee.

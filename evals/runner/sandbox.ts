@@ -101,13 +101,14 @@ async function repositoryWorktrees(): Promise<string[]> {
  * CLI flags. The native agent sandbox is bypassed only inside this boundary so
  * fixture mutations remain representative while source cases stay secret.
  */
-export function sandboxedAgentCommand(
+export async function sandboxedAgentCommand(
   argv: string[],
   repoDir: string,
   writeDeniedPaths: string[] = [],
   executeOnlyPaths: string[] = [],
 ): Promise<string[]> {
   return sandboxedCommand(argv, repoDir, {
+    deniedPaths: [join(await realpath(repoDir), ".git", "eval-checks")],
     writeDeniedPaths,
     executeOnlyPaths,
   });

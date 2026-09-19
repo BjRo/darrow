@@ -184,8 +184,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - if: runner.os != 'Windows'
-        run: bash plugins/capability/darrow-git/tests/fresh-install.test.sh
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-git/backend python plugins/capability/darrow-git/backend/tests/fresh_install.py
       - name: Verify Git CLI regression scenarios
         if: runner.os != 'Windows'
         shell: bash
@@ -194,9 +193,6 @@ jobs:
           for test in plugins/capability/darrow-git/backend/tests/shell/*.test.sh; do
             /bin/bash "$test"
           done
-      - if: runner.os == 'Windows'
-        shell: pwsh
-        run: "& plugins/capability/darrow-git/tests/fresh-install.test.ps1"
 
   review-windows:
     name: Review Python ${{ matrix.python-version }} on windows-latest
@@ -464,16 +460,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            shell: bash
-            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
-          - os: macos-latest
-            shell: bash
-            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
-          - os: windows-latest
-            shell: pwsh
-            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.ps1
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -481,11 +468,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - if: matrix.shell == 'bash'
-        run: bash "${{ matrix.test }}"
-      - if: matrix.shell == 'pwsh'
-        shell: pwsh
-        run: "& '${{ matrix.test }}'"
+      - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend python plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend/tests/fresh_install.py
 
   observability-fresh-install:
     name: Fresh install observability-langfuse on ubuntu-latest
@@ -498,7 +481,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: bash plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-observability-langfuse/backend python plugins/capability/darrow-observability-langfuse/backend/tests/fresh_install.py
 
   discovery-fresh-install:
     name: Fresh install discovery on ${{ matrix.os }}
@@ -507,16 +490,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            shell: bash
-            test: plugins/capability/darrow-discovery/tests/fresh-install.test.sh
-          - os: macos-latest
-            shell: bash
-            test: plugins/capability/darrow-discovery/tests/fresh-install.test.sh
-          - os: windows-latest
-            shell: pwsh
-            test: plugins/capability/darrow-discovery/tests/fresh-install.test.ps1
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -524,11 +498,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - if: matrix.shell == 'bash'
-        run: bash "${{ matrix.test }}"
-      - if: matrix.shell == 'pwsh'
-        shell: pwsh
-        run: "& '${{ matrix.test }}'"
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-discovery/skills/plan-implementation/backend python plugins/capability/darrow-discovery/skills/plan-implementation/backend/tests/fresh_install.py
 
   verification-fresh-install:
     name: Fresh install verification on ${{ matrix.os }}
@@ -537,16 +507,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            shell: bash
-            test: plugins/capability/darrow-verification/tests/fresh-install.test.sh
-          - os: macos-latest
-            shell: bash
-            test: plugins/capability/darrow-verification/tests/fresh-install.test.sh
-          - os: windows-latest
-            shell: pwsh
-            test: plugins/capability/darrow-verification/tests/fresh-install.test.ps1
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -554,11 +515,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - if: matrix.shell == 'bash'
-        run: bash "${{ matrix.test }}"
-      - if: matrix.shell == 'pwsh'
-        shell: pwsh
-        run: "& '${{ matrix.test }}'"
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-verification/skills/verify-change/backend python plugins/capability/darrow-verification/skills/verify-change/backend/tests/fresh_install.py
 
   performance:
     name: Python performance invariants
