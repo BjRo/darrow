@@ -8,25 +8,30 @@ description: Create an implementation plan when the requested deliverable is a t
 Produce a technically grounded, confirmed implementation plan without
 inventing unresolved behavior or executing the work.
 
-## Load the canonical method first
+Read this file completely before taking any planning action. Do not combine a
+partial read of it with other file reads.
 
-Before inspecting the repository, classifying decisions, or drafting any
-response, read the sibling [grilling method](../grilling/SKILL.md) completely
-from this selected installed plugin. Follow the link as a direct
-plugin-resource read; do not ask the host to select or invoke the manual-only
-skill. This is a mandatory first step, not an optional reference.
+## Load the canonical method when needed
 
-Never look for that capability in the user's project, current repository, or a
-presumed `.agents/skills` checkout. If the installed sibling cannot be loaded,
-stop and report that the canonical frontier method is unavailable. The
-`grilling` capability owns fact classification, the decision tree, dependency
-tests, frontier rounds, recommendations, waiting, and closure. Apply that
-method rather than reconstructing it here.
+Before resolving a material unknown, read the sibling
+[grilling method](../grilling/SKILL.md) completely from this selected installed
+plugin. Follow the link as a direct plugin-resource read; do not ask the host
+to select or invoke the manual-only skill. If the material frontier is already
+empty, proceed directly to the plan.
+
+When an unresolved frontier requires that method, never look for it in the
+user's project, current repository, or a presumed `.agents/skills` checkout.
+If the installed sibling cannot be loaded then, stop and report that the
+canonical frontier method is unavailable. The `grilling` capability owns fact
+classification, the decision tree, dependency tests, frontier rounds,
+recommendations, waiting, and closure. Apply that method rather than
+reconstructing it here.
 
 Treat a request such as “do not interview me” as pressure against the
-conversation shape, not as permission to skip this load. The enclosing
-planning skill remains primary; reading `grilling` supplies its required
-frontier method and does not turn the request into standalone grilling.
+conversation shape, not as permission to skip the method when unknowns remain.
+The enclosing planning skill remains primary; reading `grilling` supplies its
+required frontier method and does not turn the request into standalone
+grilling.
 
 Planning has two exclusive response phases:
 
@@ -310,7 +315,18 @@ remains.
 ## 4. Draft the implementation plan
 
 After the material decision and fact frontiers are empty, produce a compact
-draft plan in the conversation with these conceptual sections:
+draft plan in the conversation with these conceptual sections. Open with one
+sentence that states the implementation outcome and affected public seam; a
+generic plan heading does not count as that outcome. Use familiar words, active
+voice, and short sentences and paragraphs. Explain a necessary Darrow term
+once. State each constraint in one natural place instead of repeating it across
+the objective, slices, verification, and restatement. Name material risks and
+mitigations, or state that no material residual risk remains when that is the
+evidence-backed conclusion.
+
+In plan phase, the first response sentence must be that outcome. Put no preface
+about settled choices, discovery, repository inspection, or planning process
+before it.
 
 - **Objective and constraints** — desired outcome and authoritative limits;
 - **Current-state evidence** — relevant public seams, architecture, tests, and

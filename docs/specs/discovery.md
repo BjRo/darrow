@@ -318,6 +318,13 @@ skill.
     and external state; later persistence, decision capture, ticketing,
     readiness assessment, orchestration, and implementation require separate
     intent and authority.
+12. **DC-C2 — Clear conversation output.** Questions lead with the requested
+    decision. Briefs and plans lead with their outcome; their required
+    confirmation request remains the final substantive element. All three use
+    familiar words, active voice, and short sentences and paragraphs, explain
+    necessary Darrow terms, and omit repeated points and process narration.
+    They still preserve material choices, provenance, constraints, acceptance
+    evidence, and confirmation boundaries.
 
 ## Packaging and portability
 
@@ -385,6 +392,10 @@ skill.
 8. **DC-E8 — Cross-harness behavior.** Representative direct, composed,
    negative, and pressure cases run on Claude Code and Codex with matched
    prompts, fixtures, model class, effort, and trial count.
+9. **DC-E9 — Communication quality.** Focused cases assess whether each skill
+   is clear and concise while preserving every material decision, evidence
+   source, safety boundary, and next action. Semantic assertions grade meaning,
+   not one preferred wording.
 
 ## Non-goals
 

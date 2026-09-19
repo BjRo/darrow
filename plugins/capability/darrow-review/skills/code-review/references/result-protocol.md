@@ -21,6 +21,10 @@ ending with the `next_action` record, and containing nothing else. This applies
 to `pass`, `fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff
 outcomes.
 
+The human rendering presents the verdict or outcome and next action first,
+then retains findings, checks, risks, scope, sources, and binding evidence in
+later sections. This order changes no canonical TSV field or meaning.
+
 For an explicit review clause inside a larger goal, return the selected normal
 presentation rather than the enclosing goal's response envelope. The goal owner
 interprets its findings and outcome, applies the enclosing continuation contract,

@@ -33,14 +33,14 @@ checks:
       test -z "$(git remote)"
 output_checks:
   - name: one readiness report owns the complete response
-    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*\\n?$(?![\\s\\S])"
+    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^### Findings$[\\s\\S]*\\S\\n?$(?![\\s\\S])"
     not_regex: "^## Implementation readiness$[\\s\\S]*^## Implementation readiness$|^\\*\\*Verdict:\\*\\* `[a-z-]+`$[\\s\\S]*^\\*\\*Verdict:\\*\\* `[a-z-]+`$"
   - name: default result uses the human-readable report
     expect_regex: "^## Implementation readiness$"
   - name: exact mechanical request is ready without formal planning
     expect_regex: "^\\*\\*Verdict:\\*\\* `ready`$"
   - name: ready report preserves basis quality bar and empty findings
-    expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^- \\*\\*Criterion:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Oracle:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Verification:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Findings$\\n\\nNone\\.$[\\s\\S]*^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `none`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
+    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `none`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^- \\*\\*Criterion:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Oracle:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Verification:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Findings$\\n\\nNone\\.$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
 semantic_output_checks:

@@ -6,6 +6,9 @@ COMPREHENSIVE = Template("""# Code review — $title
 
 **Verdict:** $verdict · **Findings:** $total ($blocking blocking, $advisory advisory)
 
+## Next action
+$next_action
+
 ## Findings
 $findings
 
@@ -14,9 +17,6 @@ $checks
 
 ## Risks
 $risks
-
-## Next action
-$next_action
 
 ## Scope
 - **Base:** $base
@@ -32,6 +32,9 @@ $standards_sources
 VERIFICATION = Template("""# Repair verification — $title
 
 **Outcome:** $outcome · Original findings: $total · Resolved: $resolved · Unresolved: $unresolved · Blocked: $blocked · Regressions: $regression_count
+
+## Next action
+$next_action
 
 ## Attempted findings
 $attempted_findings
@@ -49,9 +52,6 @@ $evidence_gaps
 $target_binding
 
 ## Closed original finding set$closed_findings
-
-## Next action
-$next_action
 """)
 
 FINDING = Template("""### $index. $severity — $disposition ($axis)

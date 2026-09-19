@@ -13,6 +13,15 @@ benchmark baseline. Neither is a daemon, queue, general workflow runtime, or
 license to restore the removed runtime experiments. Do not reconstruct other
 runtime machinery from Git history unless the user explicitly requests it.
 
+## Writing style
+
+- Lead with the result and the next action.
+- Use familiar words, active voice, and short sentences and paragraphs.
+- Explain a necessary Darrow term the first time it appears.
+- Remove repetition and unnecessary process narration.
+- Preserve technical meaning, safety rules, evidence, exact commands and
+  identifiers, and required protocol fields while simplifying prose.
+
 Before changing plugin boundaries, the orchestration model, or the relationship
 between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 

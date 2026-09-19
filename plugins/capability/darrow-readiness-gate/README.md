@@ -66,7 +66,9 @@ or use `/darrow-readiness-gate:assess-implementation-readiness` in Claude Code, 
 
 ## Expected result
 
-One ready, needs-discovery, needs-decision, or blocked assessment, with evidence and a next action. Repository and tracker state stay unchanged.
+One assessment leads with `ready`, `needs-discovery`, `needs-decision`, or
+`blocked` and the required next action. Basis, quality bar, and findings follow
+without changing repository or tracker state.
 
 ## Troubleshooting
 

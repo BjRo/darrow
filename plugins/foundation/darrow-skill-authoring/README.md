@@ -88,7 +88,9 @@ or use `/darrow-skill-authoring:author-agent-skill` in Claude Code, followed by 
 
 ## Expected result
 
-Validation reports evidence without edits. Revision produces a bounded skill and checks. Installation and publication need separate authority.
+The result and next action come first. Validation then reports complete evidence
+without edits. Revision produces a bounded skill and checks. Installation and
+publication need separate authority.
 
 ## Troubleshooting
 

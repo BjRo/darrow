@@ -168,7 +168,12 @@ Keep the round focused. Do not ask hypothetical downstream questions merely
 to appear exhaustive. Do not hide several independent decisions inside one
 question, and do not omit recommendations because the user requested only a
 question list. Recommendations are advisory and never count as accepted
-answers.
+answers. Lead each item with the decision the user needs to make. Use familiar
+words, active voice, and short sentences. Explain a necessary Darrow term once,
+and do not repeat repository background or narrate how you built the tree.
+When the current roots are ready, make `Q1` the first substantive line. Put the
+supporting facts in the options or recommendation instead of a research
+preamble.
 
 After asking the round, wait for the user's answers. Do not answer on their
 behalf, continue into dependent branches, or produce a final artifact in the

@@ -119,7 +119,9 @@ less elaborate form doing the job as clearly.
 Start with the view or one necessary status sentence; skip process narration
 and a prose summary of the repository scan. Use at most one short framing
 sentence before the view and one short qualification after it unless an
-evidence gap cannot be explained that briefly.
+evidence gap cannot be explained that briefly. Use familiar words and active
+voice. Explain a necessary technical term once, next to the view where it
+matters.
 
 Keep repository source anchors inline with the relevant nodes. Do not repeat
 them in a separate source list. Omit unrelated nodes instead of listing

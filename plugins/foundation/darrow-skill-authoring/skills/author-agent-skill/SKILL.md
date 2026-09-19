@@ -93,6 +93,10 @@ Read applicable repository instructions and the target plugin manifests. Name:
 - conditions to ask, stop, or refuse; and
 - observable completion criteria.
 
+For human-facing output, define what the user needs to know first, the smallest
+next action, and which complete evidence or protocol data must remain visible
+or linked.
+
 Write representative requests before changing skill prose: one direct, one
 indirect, one incomplete-input, one that must not select the skill, and one
 plausible counterexample or pressure case. For a revision, run these against the
@@ -172,6 +176,10 @@ or rubrics. Prefer repository state and user-visible output over assertions
 about private reasoning. Include at least one plausible counterexample that
 could pass a superficial implementation.
 
+For a new or revised human-facing result, add focused semantic coverage for
+clarity, concision, completeness, activation, and safety. Grade meaning rather
+than exact prose unless exact wording is itself the public contract.
+
 Run the smallest applicable baseline or dry validation and confirm the new
 evidence fails for the intended reason, not fixture or syntax errors.
 
@@ -186,6 +194,14 @@ arguments, produces stable output, refuses unreadable inputs, and emits absolute
 paths when its output is model-facing. Keep policy choices, trade-offs, and
 contextual judgment in `SKILL.md`.
 
+Make human-facing output easy to act on. Lead with the result and next action
+when the public contract permits it. Use familiar words, active voice, and
+short sentences and paragraphs. Explain necessary domain terms. Remove
+repetition and process narration without removing technical meaning, safety
+rules, evidence, exact commands or identifiers, or required protocol fields.
+For a model-facing validator, concise output still names the canonical absolute
+path of every inspected input on success and failure.
+
 When the target adds or changes executable mechanics, read and apply
 [`references/plugin-mechanics.md`](references/plugin-mechanics.md). For a shell
 script or shell test, also apply
@@ -196,6 +212,10 @@ Keep the skill independently installable. All required files live inside its
 plugin; a reference must not escape the plugin or require a sibling plugin.
 Avoid daemons, queues, hidden side effects, installation changes, and publication
 steps. Preserve user authority for consequential actions.
+
+Before verification, inspect the target skill itself. Every workflow phase must
+end in an explicit, checkable completion criterion such as `Complete when:`;
+instructions to report a result do not establish when the work is complete.
 
 **Complete when:** the focused evidence passes with the minimal coherent skill,
 resources, and packaging changes, with no unrelated capability added.
@@ -224,10 +244,20 @@ Review the final diff for external plugin references, prohibited runtime
 machinery, accidental side effects, unrelated edits, and unsupported completion
 claims.
 
+Report completion in this order:
+
+1. the result and smallest next action, if any;
+2. the absolute skill path and one sentence describing its behavior;
+3. its safety and authority boundaries, including whether it reads, writes, or
+   performs external actions;
+4. each exact validation command or check with its observed outcome;
+5. unsupported or unverified hosts and residual risks; and
+6. separately authorized effects, such as commit or publication, that were not
+   performed.
+
 **Complete when:** focused and repository gates pass after independent review,
 every material finding is resolved or reported as residual risk, and the final
-response lists exact evidence without implying commit, push, publication,
-release, or deployment authority.
+response satisfies that reporting contract.
 
 ## Boundaries
 

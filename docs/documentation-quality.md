@@ -3,6 +3,22 @@
 Use this contract with the [contributor guidance](../CONTRIBUTING.md). Pages
 serve one primary reader need; the static spine must work without the guide.
 
+## Plain-language standard
+
+Lead with the answer, outcome, or next action. Put supporting detail after it.
+Use familiar words and active voice. Keep sentences and paragraphs short, and
+explain a necessary Darrow term when it first appears.
+
+Remove repetition, throat-clearing, and narration about how the writer reached
+the result. Do not remove technical meaning, safety rules, evidence, exact
+commands and identifiers, prerequisites, recovery steps, or required protocol
+fields. When full evidence is long, summarize the outcome first and retain the
+evidence in later sections or link to its readable source.
+
+Historical research and retained eval results are evidence records. Do not
+rewrite their observations to match current style. Improve their summaries,
+indexes, and links instead.
+
 ## Plugin README contract
 
 Keep local behavior and safety knowledge in the plugin. Each README needs a
@@ -48,6 +64,8 @@ External link checks do not establish that a source's claims are correct.
   and contributing from the landing page without guessing?
 - Does each page answer one reader need in plain language, with short paragraphs
   and terms defined or linked in the glossary?
+- Does it lead with the result or next action, use active voice, and avoid
+  repeated points or unnecessary process narration?
 - Do headings form a meaningful hierarchy, without skipped levels or labels
   that make sense only in context?
 - Do links describe their destination when read alone? Avoid “click here”.
@@ -62,6 +80,8 @@ External link checks do not establish that a source's claims are correct.
   mutation effects, and the actual supported hosts explicit?
 - Did contraction preserve authoritative rules and unique safety knowledge,
   with question mappings and passing cross-host evidence for each removal?
+- When detail is long, is the outcome easy to find without hiding or dropping
+  the complete evidence?
 
 The [layer explanation](choosing-plugins.md#understand-the-layers) supplies the
 long description for the landing-page diagram. Preserve its SVG title and
