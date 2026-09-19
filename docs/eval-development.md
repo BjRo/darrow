@@ -319,6 +319,31 @@ limits simultaneous trials. Missing configuration uses the host default;
 unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
 explicitly.
 
+## Runner compatibility baseline
+
+Run the command-level compatibility baseline without live harness calls or
+credentials:
+
+```sh
+bun run test:eval-runner-compatibility
+```
+
+By default the suite copies `evals/runner/run.ts` into an isolated project and
+launches it with a synthetic adapter. It asserts public behavior through CLI
+arguments, exit categories, result and diagnostic artifacts, cancellation, and
+retained evidence. It does not assert terminal wording or import runner modules
+to inspect their state.
+
+To exercise another implementation, set `DARROW_EVAL_RUNNER_COMMAND` to a JSON
+argv array. The suite appends the runner CLI arguments and expands
+`{projectRoot}`, `{resultsRoot}`, `{runnerPath}`, and `{syntheticAdapter}` in
+each argument. The configured launcher must connect its synthetic adapter to
+the `pass`, `fail`, `throw-after-first`, and `wait` values supplied through
+`DARROW_EVAL_COMPAT_SCENARIO`; the wait scenario also receives
+`DARROW_EVAL_COMPAT_READY_PATH` and `DARROW_EVAL_COMPAT_CHILD_PID_PATH`.
+This launcher seam lets the same expectations target a local Sevro command
+without changing Darrow's baseline.
+
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
 
