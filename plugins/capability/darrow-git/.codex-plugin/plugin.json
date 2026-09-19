@@ -1,6 +1,6 @@
 {
   "name": "darrow-git",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence",
   "author": {
     "name": "Björn Rochel"

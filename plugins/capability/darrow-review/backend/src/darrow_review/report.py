@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from collections import Counter
+
 from . import report_templates as templates
 from .common import read_text
 from .records import Records, validate_result
 from .verification import validate_verification
 
-
-def escape(value: str) -> str:
-    entities = {
+ESCAPES = str.maketrans(
+    {
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
@@ -22,7 +23,11 @@ def escape(value: str) -> str:
         "|": "&#124;",
         "\\": "&#92;",
     }
-    return "".join(entities.get(char, char) for char in value)
+)
+
+
+def escape(value: str) -> str:
+    return value.translate(ESCAPES)
 
 
 def guidance(fields: list[str], prefix: str = "") -> str:
@@ -163,15 +168,15 @@ def closed_findings(result: Records) -> str:
 
 
 def verification(result: Records) -> str:
-    statuses = [row[2] for row in result.get("attempt")]
+    statuses = Counter(row[2] for row in result.get("attempt"))
     gaps = result.get("evidence_gap")
     return templates.VERIFICATION.substitute(
         title=result.value("outcome").upper(),
         outcome=escape(result.value("outcome")),
         total=len(result.get("original_finding")),
-        resolved=statuses.count("resolved"),
-        unresolved=statuses.count("unresolved"),
-        blocked=statuses.count("blocked"),
+        resolved=statuses["resolved"],
+        unresolved=statuses["unresolved"],
+        blocked=statuses["blocked"],
         regression_count=len(result.get("regression")),
         attempted_findings=attempted_findings(result),
         regressions=repair_regressions(result),

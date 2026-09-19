@@ -1,7 +1,7 @@
 {
   "name": "darrow-observability-langfuse",
   "description": "Export Codex rollout turns to Langfuse with attribution epochs",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",
