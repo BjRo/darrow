@@ -1,0 +1,19 @@
+id: doctor-adaptive-delivery-incomplete-host
+invariant: ADL-D1
+activation: positive
+prompt: >-
+  Diagnose whether another machine's Claude Code configuration supports
+  Adaptive Delivery. I meant to include its installed version and effective
+  environment, but did not attach them.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "fixture\n"
+checks: []
+semantic_output_checks:
+  - name: host ambiguity is requested
+    proposition: The response asks for the missing Claude Code version and effective values or diagnostic source from the other machine, and does not claim a capacity result.
+transcript_checks:
+  - name: no diagnostic or orchestration starts before host choice
+    not_regex: 'host-config-doctor|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"'

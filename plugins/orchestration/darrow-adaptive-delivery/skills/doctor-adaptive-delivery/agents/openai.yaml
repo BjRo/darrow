@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doctor Adaptive Delivery"
+  short_description: "Check host delegation capacity"
+  default_prompt: "Use $doctor-adaptive-delivery to diagnose this host's Adaptive Delivery configuration."

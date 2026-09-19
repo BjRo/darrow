@@ -47,6 +47,22 @@ and refuse conflicts; ticket retrieval refuses a foreign-project URL.
 A refusal does not authorize force, fallback mutations, or bypassing hooks.
 Resolve the exact missing input or authority through the responsible workflow.
 
+## Adaptive Delivery cannot launch a nested coordinator or reader
+
+Invoke `doctor-adaptive-delivery` from the installed
+`darrow-adaptive-delivery` plugin. It performs a read-only check of the current
+host's effective configuration, reports the exact source, and distinguishes
+the one-slot owner-only path from the five-slot, four-layer full verification
+and review topology.
+
+For Codex, keep `agents.max_concurrent_threads_per_session` separate from
+`agents.max_depth`; V2 ignores the latter. In an isolated eval, diagnose the
+eval process's `CODEX_HOME/config.toml`, not this checkout's
+`.codex/config.toml`. For Claude Code, the doctor checks concurrency and spawn
+depth separately and reports whether the installed version supports each
+control. Follow the source-specific guidance in the result and start a fresh
+host session after changing configuration yourself.
+
 ## Two sources disagree
 
 Cite both paths and the concrete claims. Specifications and accepted decisions

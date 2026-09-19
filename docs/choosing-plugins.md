@@ -7,23 +7,24 @@ the other layers. Its README owns its prerequisites, behavior, and safety rules.
 
 ## Choose by intent
 
-| Your next task                                                    | Plugin and local instructions                                                               |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Assess whether a request is ready to implement                    | [Readiness gate](../plugins/capability/darrow-readiness-gate/README.md)                     |
-| Clarify behavior or make an implementation plan                   | [Discovery](../plugins/capability/darrow-discovery/README.md)                               |
-| Implement an observable behavior test-first                       | [TDD](../plugins/capability/darrow-tdd/README.md)                                           |
-| Review a change independently                                     | [Review](../plugins/capability/darrow-review/README.md)                                     |
-| Verify implementation acceptance through independent assessment   | [Verification](../plugins/capability/darrow-verification/README.md)                         |
-| Create a branch, commit, or pull request                          | [Git](../plugins/capability/darrow-git/README.md)                                           |
-| Read, list, create, or update GitHub issues                       | [GitHub tickets](../plugins/capability/darrow-tickets-github/README.md)                     |
-| Understand technical structure in a compact visual                | [Explanation](../plugins/capability/darrow-explanation/README.md)                           |
-| Export Codex turn telemetry to Langfuse                           | [Langfuse observability](../plugins/capability/darrow-observability-langfuse/README.md)     |
-| Organize repository agent guidance                                | [Information architecture](../plugins/foundation/darrow-information-architecture/README.md) |
-| Capture or find accepted decisions                                | [Decisions](../plugins/foundation/darrow-decisions/README.md)                               |
-| Create or validate a reusable skill                               | [Skill authoring](../plugins/foundation/darrow-skill-authoring/README.md)                   |
-| Explicitly hand a bounded engineering task to one execution owner | [Adaptive Delivery](../plugins/orchestration/darrow-adaptive-delivery/README.md)            |
-| Explicitly request one ticket through a new branch to a PR        | [Ticket to PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md)                        |
-| Study the former static workflow or run a comparison              | [Ticket pipeline reference](../plugins/orchestration/darrow-ticket-pipeline/README.md)      |
+| Your next task                                                              | Plugin and local instructions                                                                                    |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Assess whether a request is ready to implement                              | [Readiness gate](../plugins/capability/darrow-readiness-gate/README.md)                                          |
+| Clarify behavior or make an implementation plan                             | [Discovery](../plugins/capability/darrow-discovery/README.md)                                                    |
+| Implement an observable behavior test-first                                 | [TDD](../plugins/capability/darrow-tdd/README.md)                                                                |
+| Review a change independently                                               | [Review](../plugins/capability/darrow-review/README.md)                                                          |
+| Verify implementation acceptance through independent assessment             | [Verification](../plugins/capability/darrow-verification/README.md)                                              |
+| Create a branch, commit, or pull request                                    | [Git](../plugins/capability/darrow-git/README.md)                                                                |
+| Read, list, create, or update GitHub issues                                 | [GitHub tickets](../plugins/capability/darrow-tickets-github/README.md)                                          |
+| Understand technical structure in a compact visual                          | [Explanation](../plugins/capability/darrow-explanation/README.md)                                                |
+| Export Codex turn telemetry to Langfuse                                     | [Langfuse observability](../plugins/capability/darrow-observability-langfuse/README.md)                          |
+| Organize repository agent guidance                                          | [Information architecture](../plugins/foundation/darrow-information-architecture/README.md)                      |
+| Capture or find accepted decisions                                          | [Decisions](../plugins/foundation/darrow-decisions/README.md)                                                    |
+| Create or validate a reusable skill                                         | [Skill authoring](../plugins/foundation/darrow-skill-authoring/README.md)                                        |
+| Explicitly hand a bounded engineering task to one execution owner           | [Adaptive Delivery](../plugins/orchestration/darrow-adaptive-delivery/README.md)                                 |
+| Check whether Codex or Claude Code can support Adaptive Delivery delegation | [Adaptive Delivery doctor](../plugins/orchestration/darrow-adaptive-delivery/README.md#doctor-adaptive-delivery) |
+| Explicitly request one ticket through a new branch to a PR                  | [Ticket to PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md)                                             |
+| Study the former static workflow or run a comparison                        | [Ticket pipeline reference](../plugins/orchestration/darrow-ticket-pipeline/README.md)                           |
 
 This is the complete shipped plugin catalog. Planned names are not installation
 targets; consult the [marketplace manifest](../.claude-plugin/marketplace.json)

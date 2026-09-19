@@ -68,7 +68,7 @@
     {
       "name": "darrow-adaptive-delivery",
       "source": "./plugins/orchestration/darrow-adaptive-delivery",
-      "description": "Compile bounded engineering work into task-informed host-native goals"
+      "description": "Diagnose host capacity or compile bounded engineering work into one host-native owner"
     },
     {
       "name": "darrow-ticket-pipeline",

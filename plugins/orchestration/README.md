@@ -6,7 +6,8 @@ installable from the capabilities they may compose.
 
 ## Choose a plugin
 
-- [Adaptive Delivery](darrow-adaptive-delivery/README.md) is the current bounded engineering helper.
+- [Adaptive Delivery](darrow-adaptive-delivery/README.md) provides the current
+  bounded engineering helper and a separate read-only host-capacity doctor.
 - [Ticket pipeline](darrow-ticket-pipeline/README.md) is an installable deprecated reference for deliberate comparisons.
 
 Read the chosen plugin's local prerequisites, expected effects, and safety

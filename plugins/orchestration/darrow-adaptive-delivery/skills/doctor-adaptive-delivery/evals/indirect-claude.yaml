@@ -1,0 +1,21 @@
+id: doctor-adaptive-delivery-indirect-claude
+invariant: ADL-D1
+activation: positive
+prompt: >-
+  Before I use Darrow's delivery workflow, tell me whether this Claude Code
+  session has enough parallel and nested subagent capacity for its full review
+  topology. Do not change configuration.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "fixture\n"
+checks:
+  - name: diagnosis is read-only
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: controls are distinguished
+    proposition: The response identifies the effective Claude Code process environment and installed version, treats CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH as distinct controls only where the version supports them, and gives non-mutating actionable guidance.
+transcript_checks:
+  - name: orchestration does not activate
+    not_regex: '"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"'

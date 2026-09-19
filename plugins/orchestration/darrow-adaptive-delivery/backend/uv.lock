@@ -86,8 +86,11 @@ toml = [
 
 [[package]]
 name = "darrow-adaptive-delivery"
-version = "0.22.3"
+version = "0.23.0"
 source = { editable = "." }
+dependencies = [
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -98,9 +101,11 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "tomli" },
 ]
 
 [package.metadata]
+requires-dist = [{ name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2,<3" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -111,6 +116,7 @@ dev = [
     { name = "mypy", specifier = ">=1.18,<2" },
     { name = "pytest", specifier = ">=8.4,<9" },
     { name = "ruff", specifier = ">=0.12,<1" },
+    { name = "tomli", specifier = ">=2,<3" },
 ]
 
 [[package]]

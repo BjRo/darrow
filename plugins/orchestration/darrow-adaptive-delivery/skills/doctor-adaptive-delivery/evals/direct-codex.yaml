@@ -1,0 +1,23 @@
+id: doctor-adaptive-delivery-direct-codex
+invariant: ADL-D1
+activation: positive
+prompt: >-
+  {{skill_invocation}} Check whether this isolated Codex environment is
+  configured for Adaptive Delivery's full verification and review path.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .codex/config.toml: "[agents]\nmax_concurrent_threads_per_session = 99\n"
+        README.md: "fixture\n"
+checks:
+  - name: diagnosis is read-only
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: effective isolated config is diagnosed
+    proposition: The response identifies the absolute isolated CODEX_HOME config.toml as the checked source, does not treat the checkout .codex/config.toml containing 99 as effective, and reports the effective configured capacity instead of the checkout value.
+  - name: concurrency and nesting stay distinct
+    proposition: The response explains that max_concurrent_threads_per_session is the relevant V2 concurrency control and that agents.max_depth is a separate V1-only control ignored by V2.
+transcript_checks:
+  - name: orchestration does not activate
+    not_regex: '"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"'

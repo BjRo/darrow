@@ -1,0 +1,14 @@
+id: doctor-adaptive-delivery-nonactivation-delivery
+invariant: ADL-P1,ADL-D1
+activation: negative
+mount_plugin_skills: true
+prompt: Use adaptive-delivery to add a health endpoint and tests. Keep it local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "fixture\n"
+checks: []
+transcript_checks:
+  - name: doctor is not selected for delivery intent
+    not_regex: '"skill":"doctor-adaptive-delivery"|host-config-doctor'
