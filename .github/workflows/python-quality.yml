@@ -184,8 +184,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - if: runner.os != 'Windows'
-        run: bash plugins/capability/darrow-git/tests/fresh-install.test.sh
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-git/backend python plugins/capability/darrow-git/backend/tests/fresh_install.py
       - name: Verify Git CLI regression scenarios
         if: runner.os != 'Windows'
         shell: bash
@@ -194,9 +193,6 @@ jobs:
           for test in plugins/capability/darrow-git/backend/tests/shell/*.test.sh; do
             /bin/bash "$test"
           done
-      - if: runner.os == 'Windows'
-        shell: pwsh
-        run: "& plugins/capability/darrow-git/tests/fresh-install.test.ps1"
 
   review-windows:
     name: Review Python ${{ matrix.python-version }} on windows-latest
@@ -485,7 +481,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: bash plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-observability-langfuse/backend python plugins/capability/darrow-observability-langfuse/backend/tests/fresh_install.py
 
   discovery-fresh-install:
     name: Fresh install discovery on ${{ matrix.os }}

@@ -132,10 +132,12 @@ apart, without repeating a push or PR creation.
 property tests, and separate 95% statement/branch coverage gates. The package
 has no runtime dependencies. Fresh-install checks copy the whole plugin and
 exercise all five workflows with real local Git repositories and mocked GitHub
-boundaries, using `tests/fresh-install.test.sh` on POSIX and
-`tests/fresh-install.test.ps1` in native PowerShell. CI covers Python 3.10–3.13
+boundaries, using `uv run --quiet --frozen --no-dev --project backend python backend/tests/fresh_install.py`
+on every supported platform. CI covers Python 3.10–3.13
 on Linux, macOS, and Windows. Additional POSIX regression scenarios under
 `backend/tests/shell/` invoke the same UV entrypoints directly.
+Publication evidence regressions run in pytest through the console API, real Git,
+and an independent fake GitHub process, without a shell test driver.
 
 ## Installation
 
