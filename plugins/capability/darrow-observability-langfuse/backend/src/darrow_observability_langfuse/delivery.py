@@ -9,7 +9,7 @@ import os
 import sqlite3
 import time
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,18 +25,16 @@ def await_capture(rollout: Path, turn_id: str, timeout: float = 45) -> bool:
     while time.monotonic() < deadline:
         path = database_path(rollout)
         if path.exists():
-            connection = sqlite3.connect(
-                f"{path.as_uri()}?mode=ro", uri=True, timeout=1
-            )
-            try:
-                if connection.execute(
-                    "SELECT 1 FROM receipts WHERE turn_id=?", (turn_id,)
-                ).fetchone():
-                    return True
-            except sqlite3.OperationalError:
-                pass  # Capture may still be creating the schema.
-            finally:
-                connection.close()
+            with closing(
+                sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, timeout=1)
+            ) as connection:
+                try:
+                    if connection.execute(
+                        "SELECT 1 FROM receipts WHERE turn_id=?", (turn_id,)
+                    ).fetchone():
+                        return True
+                except sqlite3.OperationalError:
+                    pass  # Capture may still be creating the schema.
         time.sleep(0.05)
     return False
 
@@ -160,8 +158,6 @@ class _Drainer:
         except DeliveryError as error:
             self._record_failure(batch, error)
             self.failure = error
-        except BaseException:
-            raise  # Cancellation retains the durable uncertain state.
         else:
             self._acknowledge(batch)
             self.acknowledged += len(batch.rows)

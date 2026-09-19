@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .common import (
+    ReviewError,
     new_record,
     package_root,
     read_text,
@@ -70,11 +71,8 @@ class Route:
 
 
 def parse_reviewer(value: object, source: str) -> Route:
-    require(
-        isinstance(value, dict),
-        "invalid reviewer configuration: reviewer must be an object",
-    )
-    assert isinstance(value, dict)
+    if not isinstance(value, dict):
+        raise ReviewError("invalid reviewer configuration: reviewer must be an object")
     require(
         set(value) == {"host", "harness", "provider", "model", "effort"},
         "invalid reviewer configuration: each reviewer must contain exactly five fields",
@@ -108,11 +106,8 @@ def catalog(path: Path, source: str) -> dict[str, Route]:
         "invalid reviewer configuration: unknown root field",
     )
     values = config.get("reviewers", [])
-    require(
-        isinstance(values, list),
-        "invalid reviewer configuration: reviewers must be an array",
-    )
-    assert isinstance(values, list)
+    if not isinstance(values, list):
+        raise ReviewError("invalid reviewer configuration: reviewers must be an array")
     require(
         values or source == "repository",
         "invalid reviewer configuration: bundled reviewers array must not be empty",

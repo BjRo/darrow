@@ -49,6 +49,11 @@ Use behavioral and differential checks to preserve the required interface while
 changing the internals. High coverage is a guard for simplification, not a reason
 to keep redundant code or mirror the old implementation in new tests.
 
+Behavior-preserving simplifications retain literal argument values, diagnostic
+precedence, serialized bytes, and resource lifetimes. Standard-library replacements
+must preserve those contracts across the package's declared Python versions;
+resource cleanup must not implicitly change transaction or publication semantics.
+
 The same implementation boundary applies to validation mechanics: substantial
 eval fixture providers, structured JSON/TSV evidence checks, and copied-artifact
 installation checks belong in the owning plugin's Python package. Keep eval

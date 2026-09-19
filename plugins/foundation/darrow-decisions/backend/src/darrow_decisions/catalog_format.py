@@ -19,21 +19,25 @@ TABLE = (
     "| --- | --- | --- | --- | --- |\n"
 )
 TARGET_ESCAPES = {char: f"%{ord(char):02X}" for char in "%\\ ()#?|<>"}
+TARGET_TRANSLATION = str.maketrans(TARGET_ESCAPES)
+TARGET_UNESCAPES = {escaped: char for char, escaped in TARGET_ESCAPES.items()}
+CELL_ESCAPES = {"&": "&#38;", "<": "&#60;", ">": "&#62;", "\\": "\\\\", "|": "\\|"}
+CELL_TRANSLATION = str.maketrans(CELL_ESCAPES)
+LABEL_TRANSLATION = str.maketrans(CELL_ESCAPES | {"[": "\\[", "]": "\\]"})
 
 
 def target(value: str) -> str:
-    return "".join(TARGET_ESCAPES.get(char, char) for char in value)
+    return value.translate(TARGET_TRANSLATION)
 
 
 def untarget(value: str) -> str:
-    inverse = {escaped: char for char, escaped in TARGET_ESCAPES.items()}
-    return re.sub(r"%[0-9A-F]{2}", lambda match: inverse.get(match[0], match[0]), value)
+    return re.sub(
+        r"%[0-9A-F]{2}", lambda match: TARGET_UNESCAPES.get(match[0], match[0]), value
+    )
 
 
 def cell(value: str, *, label: bool = False) -> str:
-    value = value.replace("&", "&#38;").replace("<", "&#60;").replace(">", "&#62;")
-    escaped = "\\|[]" if label else "\\|"
-    return "".join("\\" + char if char in escaped else char for char in value)
+    return value.translate(LABEL_TRANSLATION if label else CELL_TRANSLATION)
 
 
 def unhtml(value: str) -> str:

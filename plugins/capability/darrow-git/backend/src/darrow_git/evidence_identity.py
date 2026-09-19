@@ -10,6 +10,7 @@ ASSET = re.compile(r"https://github\.com/user-attachments/assets/[A-Za-z0-9._?=&
 PLACEHOLDER = re.compile(
     r"darrow-evidence-attachment-[0-9]+\.(png|jpg|jpeg|gif|webp|svg|mp4|mov|webm)"
 )
+TSV_ESCAPES = str.maketrans({"\\": "\\\\", "\r": "\\r", "\t": "\\t", "\n": "\\n"})
 
 
 @dataclass(frozen=True)
@@ -29,12 +30,7 @@ class Reconciliation:
 
 
 def escape_tsv(text: str) -> str:
-    return (
-        text.replace("\\", "\\\\")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-        .replace("\n", "\\n")
-    )
+    return text.translate(TSV_ESCAPES)
 
 
 def build(repository: str, number: str, expected: str, snapshot: Snapshot) -> Identity:

@@ -49,8 +49,7 @@ def parse(arguments: Sequence[str]) -> Frontier:
     options: list[str] = []
     if len(arguments) % 2:
         raise UsageError
-    for index in range(0, len(arguments), 2):
-        flag, value = arguments[index : index + 2]
+    for flag, value in zip(arguments[::2], arguments[1::2], strict=True):
         if flag == "--option":
             options.append(value)
         elif flag in FIELD_FLAGS:
