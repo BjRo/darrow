@@ -28,10 +28,16 @@ def test_original_report_and_handoff(tmp_path: Path) -> None:
     text = cli.report_command(["render", original])
     assert "# Code review — FAIL" in text
     assert "Repair guidance (advisory)" in text
-    assert text.index("## Findings") < text.index("## Scope") < text.index("## Sources")
+    assert (
+        text.index("## Next action")
+        < text.index("## Findings")
+        < text.index("## Scope")
+        < text.index("## Sources")
+    )
     rendered = cli.report_command(["render-verification", verification])
     assert "# Repair verification — CLEAR" in rendered
     assert "Original evidence" in rendered and "Closed original finding set" in rendered
+    assert rendered.index("## Next action") < rendered.index("## Attempted findings")
     changed = write(
         tmp_path / "changed.tsv",
         change(

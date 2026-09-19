@@ -34,6 +34,11 @@ inside backticks:
 
 **Verdict:** `ready | needs-discovery | needs-decision | blocked`
 
+### Required next action
+
+- **Type:** `none | discovery | decision | unblock`
+- **Description:** smallest next action
+
 ### Basis
 
 - **Source:** concrete source
@@ -53,19 +58,14 @@ inside backticks:
   - **Summary:** concise finding
   - **Evidence:**
     - source-backed evidence
-
-### Required next action
-
-- **Type:** `none | discovery | decision | unblock`
-- **Description:** smallest next action
 ```
 
 Keep the `Quality bar` and `Findings` headings when their arrays are empty and
 write `None.` beneath the applicable heading. Repeat the item structure for
 each value. Never collapse evidence needed to support the verdict into a prose
-preface or trailing summary. In a standalone human-readable result, the
-`Description` value under `Required next action` is the final line. Append no
-summary, disclaimer, mutation note, offer, or other commentary after it.
+preface or trailing summary. Put `Required next action` immediately after the
+verdict. Append no summary, disclaimer, mutation note, offer, or other
+commentary after the report.
 
 ## Explicit v1 JSON presentation
 

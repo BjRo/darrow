@@ -47,7 +47,7 @@ output_checks:
   - name: composed result preserves typed finding fields
     expect_regex: "^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `unresolved-decision`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: composed result preserves the typed next action
-    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `decision`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
+    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `decision`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$\\n\\n### Basis$"
   - name: composition alone does not select JSON
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
   - name: no implementation completion is claimed

@@ -54,6 +54,6 @@ output_checks:
   - name: result preserves typed finding fields
     expect_regex: "^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: complete readiness result precedes the outer record
-    expect_regex: "^### Required next action$\\n\\n- \\*\\*Type:\\*\\* `decision`$\\n- \\*\\*Description:\\*\\* \\S[^\\n]*$\\n(?:\\n)?^`?outer_goal_status\\tstopped`?\\n?$"
+    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `decision`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Basis$[\\s\\S]*^### Findings$[\\s\\S]*^`?outer_goal_status\\tstopped`?\\n?$"
   - name: composition alone does not select JSON
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'

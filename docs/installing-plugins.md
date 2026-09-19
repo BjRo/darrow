@@ -229,9 +229,10 @@ For the readiness worked example, select its installed skill explicitly:
 - Claude Code: use `/darrow-readiness-gate:assess-implementation-readiness`.
 
 Supply the request in the [first-workflow tutorial](getting-started.md).
-Expect an assessment with a verdict, inspected basis, quality bar, and next
-action; a non-ready verdict may leave the quality bar empty when required facts
-are missing. No implementation, edits, or tracker writes should occur.
+Expect an assessment that leads with its verdict and next action, followed by
+the inspected basis, quality bar, and findings. A non-ready verdict may leave
+the quality bar empty when required facts are missing. No implementation,
+edits, or tracker writes should occur.
 An installed listing proves package state; the observed assessment proves
 that the skill can be invoked. Neither proves every plugin behavior.
 

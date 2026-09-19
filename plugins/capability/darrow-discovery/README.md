@@ -82,7 +82,9 @@ or use `/darrow-discovery:discover-feature` in Claude Code, followed by your req
 
 ## Expected result
 
-A read-only discussion and confirmed discovery brief or implementation plan, without writing artifacts, tickets, or code.
+A focused read-only discussion leads with the current decision or outcome. A
+confirmed brief or plan keeps its evidence, constraints, and verification
+without writing artifacts, tickets, or code.
 
 ## Troubleshooting
 

@@ -37,7 +37,8 @@ That can be a successful result. The
 [readiness tutorial](getting-started.md#3-inspect-the-result) deliberately
 leaves repository details to inspection. A missing CLI entrypoint or unclear
 behavior can require discovery or a decision. Read the assessment's missing
-fact and clarify it; do not ask the guide to invent a ready verdict.
+fact and required next action, then clarify it. Do not ask the guide to invent
+a ready verdict.
 
 ## A capability refuses an operation
 

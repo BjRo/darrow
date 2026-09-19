@@ -116,11 +116,11 @@ Produce one semantic readiness result with these fields:
 
 The result contract is serialization-neutral. Every presentation identifies
 the same field meanings and enum values. The default standalone presentation
-is concise human-readable Markdown with an explicit verdict, basis, quality
-bar, findings, and required next action. Every material observation belongs in
-one of those sections. A consumer applies the field semantics rather than
-depending on punctuation, heading depth, or another provider-specific
-serialization detail.
+is concise human-readable Markdown. It leads with the verdict and required next
+action, then presents basis, quality bar, and findings. Every material
+observation belongs in one of those sections. A consumer applies the field
+semantics rather than depending on punctuation, heading depth, or another
+provider-specific serialization detail.
 
 When the caller explicitly requests JSON for an automated consumer, or an
 enclosing contract explicitly requires the versioned JSON representation,
@@ -241,8 +241,12 @@ unavailable.
    human-readable and preserves every semantic field. The v1 JSON
    representation is used only when the caller or enclosing contract
    explicitly requires JSON; composition alone never selects it. A standalone
-   human-readable result ends with the required-next-action description and
-   appends no second summary, disclaimer, or commentary.
+   human-readable result presents the verdict and required next action before
+   detailed evidence and appends no second summary, disclaimer, or commentary.
+10. **IRG-C10 — Clear presentation.** Human-readable results use familiar
+    words, active voice, and short sentences and paragraphs. They explain
+    necessary terms and omit repetition and process narration without dropping
+    semantic fields, evidence, enum values, or safety boundaries.
 
 ## Packaging and portability
 
@@ -294,6 +298,9 @@ unavailable.
    later terminal reporting belongs to the enclosing goal's contract. Distinct
    explicit-machine requests exercise ready and non-ready schema-valid v1
    objects without changing verdict semantics.
+10. **IRG-E10 — Communication quality.** Focused human-output cases assess
+    result-first clarity, concision, completeness, activation, and read-only
+    safety by meaning rather than exact prose.
 
 ## Non-goals
 

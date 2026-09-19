@@ -51,6 +51,10 @@ full traceability later in the same report:
 
 **Verdict:** fail · **Findings:** 1 (1 blocking, 0 advisory)
 
+## Next action
+
+Return findings to the requester.
+
 ## Findings
 
 ### 1. HIGH — BLOCKING (Spec)
@@ -68,10 +72,6 @@ full traceability later in the same report:
 ## Risks
 
 - The requested rate limit remains unavailable.
-
-## Next action
-
-Return findings to the requester.
 ```
 
 Ask for “raw v1 TSV” or “machine format” only when an integration needs the
@@ -243,7 +243,9 @@ or use `/darrow-review:code-review` in Claude Code, followed by your request.
 
 ## Expected result
 
-A pinned report and validated review evidence artifacts without product edits. Checks and fresh reviewers establish standards and specification findings.
+A pinned report leads with its verdict and next action, then retains findings,
+checks, risks, scope, and sources. Validated evidence artifacts remain available,
+and product files stay unchanged.
 
 ## Troubleshooting
 

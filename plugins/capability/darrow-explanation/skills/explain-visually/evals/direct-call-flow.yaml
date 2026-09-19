@@ -1,5 +1,5 @@
 id: explain-visually-direct-call-flow
-invariant: VE-C1,VE-C2,VE-C3,VE-C4,VE-C5,VE-C7
+invariant: VE-C1,VE-C2,VE-C3,VE-C4,VE-C5,VE-C7,VE-C8,VE-E9
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -57,3 +57,11 @@ checks:
       if grep -F 'authorizeAdmin' .git/last-message.md >/dev/null; then
         grep -Ei 'exclude|not|nothing|unrelated' .git/last-message.md >/dev/null;
       fi
+semantic_output_checks:
+  - name: visual explanation is concise clear and complete
+    proposition: >-
+      The response leads with the observed call-flow answer, uses direct and
+      familiar language, and avoids repeating the diagram in prose or
+      narrating the inspection process. It remains understandable without rich
+      rendering and preserves the source anchor, validation failure path,
+      storage step, queue step, and observed evidence status.

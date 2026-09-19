@@ -28,6 +28,12 @@ issue no more tool calls and add no preface, recap, interpretation, or
 follow-up. This applies equally to standalone and composed review. In machine
 mode, apply the same rule to the validated TSV bytes.
 
+The human renderer leads with the verdict or outcome and the next action, then
+retains findings, checks, risks, scope, sources, and binding evidence in later
+sections. Its fixed labels preserve protocol meaning; free-form values use
+familiar words, active voice, and short sentences without repeated conclusions
+or process narration.
+
 ## Working model
 
 - **Scope first:** resolve one immutable base/target and complete changed-file

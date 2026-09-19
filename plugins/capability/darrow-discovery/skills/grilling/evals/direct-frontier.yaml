@@ -1,14 +1,15 @@
 id: grilling-direct-frontier
-invariant: DG-C1,DG-C2,DG-C3,DG-C4,DC-C1,SE-C9,SE-C10,SE-C11
+invariant: DG-C1,DG-C2,DG-C3,DG-C4,DC-C1,DC-C2,DC-E9,SE-C9,SE-C10,SE-C11
 activation: positive
 mount_plugin_skills: true
 prompt: >-
   {{skill_invocation}} Grill my policy decision for customer-managed offsite backups. Be relentless
   and work toward shared understanding, but do not discover or plan a new
   feature and do not implement or write anything. Use the repository for facts
-  instead of asking me to look them up. One known dependency: the
-  transfer-provider decision depends on whether backups may leave the EU,
-  which we have not decided.
+  instead of asking me to look them up. We have settled the meaning of
+  customer-managed backups and the other policy boundaries. The current open
+  root is whether backups may leave the EU. The transfer-provider decision
+  depends on that answer and remains undecided.
 fixture:
   commits:
     - message: "chore: init"
@@ -50,3 +51,10 @@ semantic_output_checks:
       without claiming that the user accepted an answer or advancing into the
       dependent branch. An advisory recommendation for one EU-boundary option
       is required behavior and does not count as assuming the user's answer.
+  - name: frontier is concise clear and complete
+    proposition: >-
+      The response leads with the current decision, uses direct and familiar
+      language, and avoids repeated background or narration of the agent's
+      process. It still preserves the repository facts, recommendation
+      rationale, EU safety boundary, deferred dependency, and the user's
+      decision authority.

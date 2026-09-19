@@ -60,7 +60,10 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   repair-caused regressions. Missing history blocks instead of starting a new
   comprehensive review. Advisories remain visible and nonblocking.
 - **VF-C6 — Honest conclusion.** Return clear, progress, no-progress or blocked
-  with the provider's original outcome and its meaning preserved. Clear requires
+  with the provider's original outcome and its meaning preserved. Put the
+  conclusion and smallest next action before detailed evidence in the
+  human-readable result. Use familiar words, active voice, and short sections;
+  omit repetition and process narration. Clear requires
   current successful required checks, sufficient evidence for every material
   criterion, and no unresolved eligible blocker or direct regression. In an
   initial result, actionable evidenced blockers are progress (assessment is
@@ -104,10 +107,10 @@ This is a semantic contract, not a mandatory object schema. Preserve the
 provider's normal public report and references rather than requesting its
 private record format. A caller supplies a bounded initial request or a closed
 follow-up, and receives candidate identity, selected/absent/unavailable
-assessments, complete provider results, criterion-level evidence, combined
-findings with dispositions, limitations, conclusion and the smallest needed
-next action. Provider-specific artifacts can travel opaquely with provenance;
-only the provider interprets its own mechanical records.
+assessments, conclusion and the smallest needed next action first, followed by
+complete provider results, criterion-level evidence, combined findings with
+dispositions, and limitations. Provider-specific artifacts can travel opaquely
+with provenance; only the provider interprets its own mechanical records.
 
 Adaptive delivery binds this capability in preflight and the
 existing owner contract, preserving routine omission and high-risk review
@@ -132,5 +135,7 @@ compatible replacement; missing/incompatible/stale required evidence; absent
 unselected optional capabilities; criterion gaps; clear/progress/no-progress/
 blocked follow-up; advisory disposition and direct-regression lineage; and
 pressure to repair or bypass missing evidence. Supported hosts require native
-live evidence. Coverage, dry preparation, activation, outcomes and matched
-no-skill observations are reported separately.
+live evidence. Focused human-output checks assess result-first clarity,
+concision, completeness, activation, and safety by meaning rather than exact
+prose. Coverage, dry preparation, activation, outcomes and matched no-skill
+observations are reported separately.

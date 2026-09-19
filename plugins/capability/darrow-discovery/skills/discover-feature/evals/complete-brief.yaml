@@ -1,8 +1,6 @@
 id: discover-feature-complete-brief
-invariant: DF-C1,DF-C2,DG-C5,DC-C1,SE-C9,SE-C10,SE-C11
-activation: competition
-activation_sequence: [discover-feature, grilling]
-mount_plugin_skills: true
+invariant: DF-C1,DF-C2,DG-C5,DC-C1,DC-C2,DC-E9,SE-C9,SE-C10,SE-C11
+activation: positive
 prompt: >-
   Produce the draft discovery brief from these settled feature decisions. The
   feature lets workspace administrators schedule an existing saved report for
@@ -56,3 +54,9 @@ semantic_output_checks:
       The response provides a concise outcome restatement for the user to
       confirm or correct and does not turn the discovery brief into an
       implementation plan.
+  - name: brief is concise clear and complete
+    proposition: >-
+      The response leads with the feature outcome, uses direct and familiar
+      language, and avoids repeating decisions or narrating the agent's
+      process. It remains easy to scan without dropping the settled behavior,
+      non-goals, evidence, acceptance checks, or final confirmation request.

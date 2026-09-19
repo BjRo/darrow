@@ -1,5 +1,5 @@
 id: readiness-ready-concise-request
-invariant: IRG-C3,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C14
+invariant: IRG-C3,IRG-C9,IRG-C10,IRG-E1,IRG-E2,IRG-E10,SE-C9,SE-C10,SE-C11,SE-C14
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -48,21 +48,29 @@ checks:
       test -z "$(git remote)"
 output_checks:
   - name: one readiness report owns the complete response
-    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*\\n?$(?![\\s\\S])"
+    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^### Findings$[\\s\\S]*\\S\\n?$(?![\\s\\S])"
     not_regex: "^## Implementation readiness$[\\s\\S]*^## Implementation readiness$|^\\*\\*Verdict:\\*\\* `[a-z-]+`$[\\s\\S]*^\\*\\*Verdict:\\*\\* `[a-z-]+`$"
   - name: default result uses the human-readable report
     expect_regex: "^## Implementation readiness$"
   - name: concise observable request is ready
     expect_regex: "^\\*\\*Verdict:\\*\\* `ready`$"
   - name: ready report preserves basis quality bar and empty findings
-    expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^- \\*\\*Criterion:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Oracle:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Verification:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Findings$\\n\\nNone\\.$[\\s\\S]*^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `none`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$"
+    expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `none`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^- \\*\\*Criterion:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Oracle:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Verification:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Findings$\\n\\nNone\\.$"
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
 semantic_output_checks:
   - name: quality bar binds the independent oracles and verification
     proposition: >-
-      In the Quality bar section, at least one Oracle field contains both exact
-      input/output mappings: `" Alice@EXAMPLE.com "` produces
-      `"alice@example.com"`, and `"A@B.C"` produces `"a@b.c"`. At least one
-      corresponding Verification field includes running `bash test.sh`; it may
-      also require adding assertions or inspecting the implementation.
+      Taken together, the Oracle fields in the Quality bar preserve both exact
+      input/output mappings and tie each mapping to its criterion:
+      `" Alice@EXAMPLE.com "` produces `"alice@example.com"`, and `"A@B.C"`
+      produces `"a@b.c"`. At least one corresponding Verification field
+      includes running `bash test.sh`; it may also require adding assertions or
+      inspecting the implementation.
+  - name: report is result first concise and complete
+    proposition: >-
+      The response puts the ready verdict and its next action before detailed
+      basis, quality-bar, and findings evidence. It uses direct and familiar
+      language without repeated conclusions or process narration, while
+      preserving every required readiness field and the exact observable
+      examples and verification command.

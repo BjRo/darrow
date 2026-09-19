@@ -1,9 +1,12 @@
 id: code-review-presentation-default
 activation: positive
-invariant: CR-C15,CR-C16,CR-E12
+invariant: CR-C15,CR-C16,CR-E12,CR-E16
 prompt: >-
-  Review my uncommitted changes against this originating requirement: token
-  values must be positive integers. Report only; do not request machine format.
+  Use {{skill_invocation}} to review my uncommitted changes against this
+  originating requirement: token values must be positive integers. Report
+  only; do not request machine format. Follow the capability's complete
+  validated-artifact and renderer workflow rather than substituting a free-form
+  review.
 fixture:
   commits:
     - message: "chore: init"
@@ -52,3 +55,11 @@ checks:
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review is result first concise and complete
+    proposition: >-
+      The Markdown response puts the verdict and next action before detailed
+      findings, checks, risks, scope, and sources. It uses direct and familiar
+      language without repeating the conclusion or narrating the review
+      process, while retaining every finding, check, risk, scope field, source,
+      and safety boundary from the validated review result.
