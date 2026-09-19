@@ -27,13 +27,13 @@ fixture:
           # API checks
 
           Preserve error codes in compatibility checks.
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: valid root routes, native adapter, and skill bundle remain unchanged
     run: git diff HEAD -- AGENTS.md CLAUDE.md .agents/skills/api-check
     not_regex: "\\S"
   - name: native adapter and bundled resource verification passes
-    run: bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+    run: uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count

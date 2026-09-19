@@ -1,9 +1,9 @@
 # ADR-0005: Use portable Bash facades for plugin mechanics
 
-Status: Accepted
+Status: Superseded
 Date: 2026-08-13
 Summary: Put deterministic plugin mechanics behind narrow portable Bash facades while keeping authority and contextual judgment in skills.
-Revisit when: Every supported Claude Code and Codex host provides a common, independently installable runtime that is more portable than Bash 3.2 plus baseline Unix utilities, or the supported macOS boundary no longer includes Bash 3.2.
+Superseded by: ADR-0009
 
 ## Context
 

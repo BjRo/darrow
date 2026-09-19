@@ -44,10 +44,10 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           node config.test.js
-          review_target=$(.agents/bin/independent-review-fixture "$PWD" fingerprint)
+          review_target=$(uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture review "$PWD" fingerprint)
           printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
   setup: >-
-    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install review "$PWD"
     "{{case_dir}}/fixtures" codex
 checks:
   - name: sequenced persisted-format transition works
@@ -71,7 +71,7 @@ checks:
   - name: independent review covers the migrated final target
     run: >-
       test "$(cut -f1 .git/fixture-state/independent-review-invocations)" =
-      "$(.agents/bin/independent-review-fixture "$PWD" fingerprint)"
+      "$(uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture review "$PWD" fingerprint)"
   - name: independent review starts after a matching current check
     run: >-
       awk -F '\t' '$1 == "check" { checked[$2]=1 }

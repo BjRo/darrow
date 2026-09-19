@@ -1,0 +1,63 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+verifier="$repo_root/scripts/verify-python-coverage"
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/darrow-python-coverage.XXXXXX")
+trap 'rm -rf "$fixture"' EXIT HUP INT TERM
+
+expect_failure() {
+  expected=$1
+  report=$2
+  if output=$("$verifier" "$report" 2>&1); then
+    echo "error: coverage verifier accepted $report" >&2
+    exit 1
+  fi
+  case "$output" in
+    *"$expected"*) ;;
+    *)
+      echo "error: coverage verifier did not report '$expected': $output" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cat >"$fixture/pass.json" <<'JSON'
+{"totals":{"covered_lines":96,"num_statements":100,"covered_branches":95,"num_branches":100}}
+JSON
+pass_output=$("$verifier" "$fixture/pass.json")
+case "$pass_output" in
+  *"lines=96.00% branches=95.00%"*) ;;
+  *)
+    echo "error: coverage verifier reported unexpected totals: $pass_output" >&2
+    exit 1
+    ;;
+esac
+
+cat >"$fixture/line-failure.json" <<'JSON'
+{"totals":{"covered_lines":94,"num_statements":100,"covered_branches":96,"num_branches":100}}
+JSON
+expect_failure "line coverage 94.00%" "$fixture/line-failure.json"
+
+cat >"$fixture/branch-failure.json" <<'JSON'
+{"totals":{"covered_lines":99,"num_statements":100,"covered_branches":94,"num_branches":100}}
+JSON
+expect_failure "branch coverage 94.00%" "$fixture/branch-failure.json"
+
+cat >"$fixture/zero-totals.json" <<'JSON'
+{"totals":{"covered_lines":0,"num_statements":0,"covered_branches":0,"num_branches":0}}
+JSON
+"$verifier" "$fixture/zero-totals.json" >/dev/null
+
+printf '%s\n' '{}' >"$fixture/missing-totals.json"
+expect_failure "coverage report has no totals object" "$fixture/missing-totals.json"
+
+cat >"$fixture/invalid-totals.json" <<'JSON'
+{"totals":{"covered_lines":101,"num_statements":100,"covered_branches":95,"num_branches":100}}
+JSON
+expect_failure "coverage report has invalid totals" "$fixture/invalid-totals.json"
+
+printf '%s\n' '{' >"$fixture/malformed.json"
+expect_failure "invalid coverage report" "$fixture/malformed.json"
+
+printf 'python coverage verifier tests passed\n'

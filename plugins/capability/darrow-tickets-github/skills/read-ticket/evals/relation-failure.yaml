@@ -9,15 +9,14 @@ fixture:
       files:
         README.md: "# Fixture\n"
   bin:
-    bash: |
+    uv: |
       #!/bin/sh
       d="$(git rev-parse --git-dir)"
-      case "${1:-}" in
-        */darrow-tickets-github/bin/ticket|*/darrow-tickets-github/*/bin/ticket|*/.git/eval-plugin/bin/ticket|*/.git/eval-plugin/*/bin/ticket)
-          printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls"
-          ;;
+      case " $* " in
+        *" darrow-ticket "*) printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls" ;;
       esac
-      exec /bin/bash "$@"
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$d/fixture-uv-paths")
+      exec "$real_uv" "$@"
     gh: |
       #!/bin/sh
       d="$(git rev-parse --git-dir)/fixture-gh"
@@ -32,9 +31,9 @@ fixture:
         "issue view")
           case "$*" in
             *"--json number,state,title,url,labels"*)
-              printf 'ticket-token: #31\n#31 open — Relation failure\nhttps://github.test/o/r/issues/31\nlabels: bug\n'
+              printf '%s\n' '{"number": 31, "state": "OPEN", "title": "Relation failure", "url": "https://github.test/o/r/issues/31", "labels": [{"name": "bug"}]}'
               ;;
-            *"--json body"*) printf 'PARTIAL-BODY-MUST-NOT-LEAK\n' ;;
+            *"--json body"*) printf '%s\n' '{"body": "PARTIAL-BODY-MUST-NOT-LEAK\n"}' ;;
             *) echo "mock gh: unsupported issue view: $*" >&2; exit 1 ;;
           esac
           ;;
@@ -45,6 +44,7 @@ fixture:
         *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
       esac
   setup: |
+    which -a uv > .git/fixture-uv-paths
     git remote add origin https://github.test/o/r.git
 checks:
   - name: relation failure is relayed byte-for-byte
@@ -52,7 +52,7 @@ checks:
     expect_exact: "backend relation endpoint unavailable"
   - name: bundled CLI owns the failed retrieval
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "/bin/ticket get #?31$"
+    expect_regex: "darrow-ticket get #?31$"
   - name: relation failure stops without partial ticket output or later calls
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

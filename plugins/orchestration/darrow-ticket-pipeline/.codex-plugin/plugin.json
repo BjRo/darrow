@@ -1,6 +1,6 @@
 {
   "name": "darrow-ticket-pipeline",
-  "version": "0.2.3",
+  "version": "0.3.1",
   "description": "Deprecated reference static ticket pipeline; use darrow-adaptive-delivery for new work",
   "author": {
     "name": "Björn Rochel",

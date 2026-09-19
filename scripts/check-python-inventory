@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+repo_root=${1:-$(git rev-parse --show-toplevel)}
+inventory="$repo_root/python-packages.txt"
+
+if [ ! -r "$inventory" ]; then
+  echo "error: Python package inventory is unreadable: $inventory" >&2
+  exit 1
+fi
+
+packages=$(sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$inventory")
+if [ -z "$packages" ]; then
+  echo "error: Python package inventory is empty: $inventory" >&2
+  exit 1
+fi
+
+for package in $packages; do
+  case "$package" in
+    /* | *../* | */..)
+      echo "error: invalid Python package path in $inventory: $package" >&2
+      exit 1
+      ;;
+  esac
+  if [ ! -r "$repo_root/$package/pyproject.toml" ]; then
+    echo "error: registered Python package lacks readable pyproject.toml: $package" >&2
+    exit 1
+  fi
+done
+
+files=$(git -C "$repo_root" ls-files --cached --others --exclude-standard -- '*.py' 'pyproject.toml' 'uv.lock')
+for file in $files; do
+  covered=false
+  for package in $packages; do
+    case "$file" in
+      "$package"/*) covered=true ;;
+    esac
+  done
+  if [ "$covered" = false ]; then
+    echo "error: Python artifact is outside python-packages.txt: $file" >&2
+    exit 1
+  fi
+done

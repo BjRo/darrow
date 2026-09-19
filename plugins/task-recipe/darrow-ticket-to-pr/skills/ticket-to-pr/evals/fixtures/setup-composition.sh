@@ -20,8 +20,9 @@ printf 'Additional local delivery notes.\n' >>NOTES.md
 git commit -qam 'docs: clarify timeout intent'
 git rev-parse HEAD >.git/original-local-head
 if [[ "$variant" == builtin ]]; then
-  cp "$fixtures/composition-bash" .git/fixture-bin/bash
-  chmod +x .git/fixture-bin/bash
+  command -v uv >.git/fixture-bin/uv-command
+  cp "$fixtures/composition-uv" .git/fixture-bin/uv
+  chmod +x .git/fixture-bin/uv
 fi
 if [[ "$variant" == replacement ]]; then
   for host in .agents .claude; do

@@ -1,8 +1,11 @@
 {
   "name": "darrow-verification",
-  "version": "0.1.1",
+  "version": "0.2.3",
   "description": "Bounded acceptance verification through replaceable independent code review",
-  "author": { "name": "Björn Rochel", "email": "bjoern@bjro.de" },
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Verification",

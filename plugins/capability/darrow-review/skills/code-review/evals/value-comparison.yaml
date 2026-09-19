@@ -59,10 +59,10 @@ checks:
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1');
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
-      test -n "$record" && bash "$tool" validate "$record"
+      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: canonical result preserves the seeded Spec defect without a design false positive
     run: >-
@@ -79,9 +79,9 @@ checks:
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       report=$(dirname "$record")/review.md;
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -r "$report" && test -s "$report" && test -n "$tool" &&
-      bash "$tool" render "$record" >.git/expected-review.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
       cmp .git/expected-review.md "$report"
   - name: default response does not expose canonical TSV
     run: "! grep -F 'format\tdarrow-review-result-v1' .git/last-message.md"
@@ -89,9 +89,9 @@ checks:
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n '1');
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
-      bash "$tool" render "$record" >.git/expected-review.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
       awk 'NF' .git/expected-review.md >.git/expected-review-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md

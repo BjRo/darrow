@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import type { Fixture } from "./types";
 
 const TICKETCTL = `#!/bin/bash
@@ -217,14 +217,30 @@ async function copySkillWithoutEvals(
   destination: string,
 ): Promise<void> {
   const evalsDir = join(mountedSkillDir, "evals");
+  const generatedEntries = new Set([
+    ".coverage",
+    ".hypothesis",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "coverage.json",
+  ]);
   await cp(mountedSkillDir, destination, {
     recursive: true,
     // Never expose any skill's colocated pass criteria to the model.
-    filter: (src) => src !== evalsDir && !src.startsWith(evalsDir + "/"),
+    filter: (src) =>
+      src !== evalsDir &&
+      !src.startsWith(evalsDir + "/") &&
+      relative(mountedSkillDir, src)
+        .split(sep)
+        .every((entry) => !generatedEntries.has(entry)),
   });
 }
 
 interface PluginMountPaths {
+  backend: string;
   manifest: string;
   codexManifest: string;
   agents: string;
@@ -238,6 +254,11 @@ async function mountPluginMechanics(
   mount: string,
   paths: PluginMountPaths,
 ): Promise<void> {
+  if (existsSync(paths.backend))
+    await copySkillWithoutEvals(
+      paths.backend,
+      join(repoDir, mount, "..", "backend"),
+    );
   if (existsSync(paths.bin))
     await cp(paths.bin, join(repoDir, mount, "..", "bin"), { recursive: true });
   if (existsSync(paths.config))
@@ -257,7 +278,10 @@ async function mountSourceClaudePlugin(
   evalPlugin = join(repoDir, ".git", "eval-plugin"),
 ): Promise<void> {
   await mkdir(join(evalPlugin, ".claude-plugin"), { recursive: true });
-  await cp(paths.manifest, join(evalPlugin, ".claude-plugin", "plugin.json"));
+  await copySkillWithoutEvals(
+    dirname(paths.manifest),
+    join(evalPlugin, ".claude-plugin"),
+  );
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
     await copySkillWithoutEvals(
@@ -273,6 +297,8 @@ async function mountSourceClaudePlugin(
     await cp(paths.config, join(evalPlugin, "config"), { recursive: true });
   if (existsSync(paths.hooks))
     await cp(paths.hooks, join(evalPlugin, "hooks"), { recursive: true });
+  if (existsSync(paths.backend))
+    await copySkillWithoutEvals(paths.backend, join(evalPlugin, "backend"));
 }
 
 async function mountSourceCodexPlugin(
@@ -282,7 +308,10 @@ async function mountSourceCodexPlugin(
 ): Promise<string> {
   await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
   await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
-  await cp(paths.manifest, join(plugin, ".claude-plugin", "plugin.json"));
+  await copySkillWithoutEvals(
+    dirname(paths.manifest),
+    join(plugin, ".claude-plugin"),
+  );
   await cp(paths.codexManifest, join(plugin, ".codex-plugin", "plugin.json"));
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
@@ -296,6 +325,8 @@ async function mountSourceCodexPlugin(
     await cp(paths.config, join(plugin, "config"), { recursive: true });
   if (existsSync(paths.hooks))
     await cp(paths.hooks, join(plugin, "hooks"), { recursive: true });
+  if (existsSync(paths.backend))
+    await copySkillWithoutEvals(paths.backend, join(plugin, "backend"));
   const manifest = JSON.parse(await readFile(paths.codexManifest, "utf8")) as {
     name?: unknown;
   };
@@ -367,6 +398,7 @@ function pluginMountPaths(
 ): PluginMountPaths {
   const pluginRoot = sourcePluginRoot ?? dirname(dirname(skillDir));
   return {
+    backend: join(pluginRoot, "backend"),
     bin: join(pluginRoot, "bin"),
     config: join(pluginRoot, "config"),
     agents: join(pluginRoot, "agents"),

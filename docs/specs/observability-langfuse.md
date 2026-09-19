@@ -270,7 +270,16 @@ continuity, missing-snapshot quarantine, epoch session segmentation, detached
 and non-ticket Git state, rollout reconstruction, deduplication, content
 privacy, malformed input, missing runtime or configuration, and exporter
 failure. Backend checks run through UV. Portable hook-launcher tests run with
-both supported Bash executables.
+both supported Bash executables. The backend conforms to the repository-wide
+[Python quality standard](python-quality.md), including separate 95% statement
+and branch coverage gates on every supported Python and CI platform.
+
+Performance evidence distinguishes startup from steady-state foreground
+capture, confirms network-independent foreground completion, bounded
+incremental reads and exporter batching, and reports peak memory for a stated
+workload. Release evidence includes a fresh artifact install with runtime-only
+locked dependencies. The isolated live Langfuse smoke test remains the release
+check for actual ingestion.
 
 Participant-visible colocated evals cover configuration/help intent, refusal to
 claim tracing without prerequisites, privacy disclosure, work-item precedence,
@@ -314,3 +323,7 @@ trace and work-item metadata.
 8. **OLF-P8 — Real ingestion.** When Docker infrastructure is available, an
    isolated official Langfuse Compose deployment accepts and exposes a trace
    emitted by the plugin.
+9. **OLF-P9 — Python quality.** The backend passes the registered-package
+   formatting, lint, strict typing, deterministic tests, separate statement
+   and branch coverage, supported-platform CI, performance, and fresh-install
+   obligations in the repository Python quality standard.

@@ -36,7 +36,8 @@ The plugin is self-contained and supports Claude Code and Codex. A compatible
 review provider needs native fresh-agent support and its own check tools.
 The host must allow a bounded provider assessment context and that provider's
 independent readers; unavailable depth or authority blocks the operation.
-The small report renderer uses Bash 3.2 or Bash 5 and baseline Unix utilities.
+The report renderer requires
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
 Discover the
 review provider by host-advertised intent, then check prerequisites, authorized
 effects, result evidence and stop conditions. The provider must independently
@@ -83,9 +84,11 @@ A compatible review capability must be separately available when invoked.
 ## Troubleshooting
 
 Missing review, incompatible effects, stale target identity, unreadable original
-findings or incomplete required evidence blocks assessment. Supply the exact
-missing input or compatible provider, preserving prior evidence for follow-up.
-Do not replace the blocked result with self-review or a new repair loop.
+findings, incomplete required evidence, a missing backend or lock, UV, or a
+supported Python runtime blocks assessment. Supply the exact missing input or
+compatible provider, preserving prior evidence for follow-up. Do not replace
+the blocked result with self-review, another checkout's renderer, or a new
+repair loop.
 
 ## License
 

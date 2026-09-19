@@ -1,0 +1,224 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+detector="$repo_root/scripts/detect-python-quality-changes"
+verifier="$repo_root/scripts/verify-python-quality-results"
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/darrow-python-quality-changes.XXXXXX")
+trap 'rm -rf "$fixture"' EXIT HUP INT TERM
+
+git -C "$fixture" init -q
+git -C "$fixture" config user.email test@example.com
+git -C "$fixture" config user.name "Darrow Tests"
+mkdir -p "$fixture/scripts"
+cp "$detector" "$fixture/scripts/detect-python-quality-changes"
+chmod +x "$fixture/scripts/detect-python-quality-changes"
+cat >"$fixture/python-packages.txt" <<'EOF'
+plugins/capability/darrow-discovery/skills/plan-implementation/backend
+plugins/capability/darrow-observability-langfuse/backend
+plugins/capability/darrow-verification/skills/verify-change/backend
+plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
+EOF
+printf '%s\n' '# Fixture' >"$fixture/README.md"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm "chore: init"
+base=$(git -C "$fixture" rev-parse HEAD)
+
+expect_scope() {
+  path=$1
+  expected=$2
+  git -C "$fixture" reset -q --hard "$base"
+  git -C "$fixture" clean -qfdx
+  mkdir -p "$(dirname "$fixture/$path")"
+  printf '%s\n' changed >"$fixture/$path"
+  git -C "$fixture" add "$path"
+  git -C "$fixture" commit -qm "test: change $path"
+  actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+  if [ "$actual" != "$expected" ]; then
+    printf 'error: unexpected scopes for %s\nexpected:\n%s\nactual:\n%s\n' \
+      "$path" "$expected" "$actual" >&2
+    exit 1
+  fi
+}
+
+expect_scope \
+  docs/note.md \
+  'packages=[]
+package_selected=false
+skill_authoring=false
+observability_langfuse=false
+discovery=false
+verification=false'
+expect_scope \
+  plugins/foundation/darrow-skill-authoring/README.md \
+  'packages=["plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=false
+discovery=false
+verification=false'
+expect_scope \
+  plugins/capability/darrow-observability-langfuse/README.md \
+  'packages=["plugins/capability/darrow-observability-langfuse/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=true
+discovery=false
+verification=false'
+expect_scope \
+  plugins/capability/darrow-discovery/README.md \
+  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=false
+discovery=true
+verification=false'
+expect_scope \
+  plugins/capability/darrow-verification/README.md \
+  'packages=["plugins/capability/darrow-verification/skills/verify-change/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=false
+discovery=false
+verification=true'
+expect_scope \
+  scripts/check-python \
+  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=true
+discovery=true
+verification=true'
+
+all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
+if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=true
+discovery=true
+verification=true' ]; then
+  printf 'error: --all did not select every Python quality scope\n' >&2
+  exit 1
+fi
+
+git -C "$fixture" reset -q --hard "$base"
+mkdir -p "$fixture/plugins/capability/darrow-third/backend"
+printf '%s\n' 'plugins/capability/darrow-third/backend' >>"$fixture/python-packages.txt"
+printf '%s\n' '[project]' 'name = "darrow-third"' > \
+  "$fixture/plugins/capability/darrow-third/backend/pyproject.toml"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: register third Python package'
+third_base=$(git -C "$fixture" rev-parse HEAD)
+printf '%s\n' changed >"$fixture/plugins/capability/darrow-third/README.md"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change third Python package'
+third=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD)
+if [ "$third" != 'packages=["plugins/capability/darrow-third/backend"]
+package_selected=true
+skill_authoring=false
+observability_langfuse=false
+discovery=false
+verification=false' ]; then
+  printf 'error: registered third package was not selected\nactual:\n%s\n' \
+    "$third" >&2
+  exit 1
+fi
+
+third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
+if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
+package_selected=true
+skill_authoring=true
+observability_langfuse=true
+discovery=true
+verification=true' ]; then
+  printf 'error: --all omitted a registered third package\nactual:\n%s\n' \
+    "$third_all" >&2
+  exit 1
+fi
+
+if (cd "$fixture" && scripts/detect-python-quality-changes only-one-ref) >/dev/null 2>&1; then
+  printf 'error: invalid detector invocation succeeded\n' >&2
+  exit 1
+fi
+
+"$verifier" \
+  success success \
+  true success \
+  true success success \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped
+"$verifier" \
+  success success \
+  true success \
+  false skipped skipped \
+  true success success \
+  false skipped skipped \
+  false skipped skipped
+"$verifier" \
+  success success \
+  true success \
+  false skipped skipped \
+  false skipped skipped \
+  true success success \
+  false skipped skipped
+"$verifier" \
+  success success \
+  true success \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped \
+  true success success
+"$verifier" \
+  success success \
+  false skipped \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped
+
+if "$verifier" \
+  success success \
+  false success \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped >/dev/null 2>&1; then
+  printf 'error: aggregate accepted a job that ran for an unchanged scope\n' >&2
+  exit 1
+fi
+
+if "$verifier" \
+  success success \
+  true failure \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped >/dev/null 2>&1; then
+  printf 'error: aggregate accepted a failed registered-package job\n' >&2
+  exit 1
+fi
+
+if "$verifier" \
+  success success \
+  true success \
+  true failure success \
+  false skipped skipped \
+  false skipped skipped \
+  false skipped skipped >/dev/null 2>&1; then
+  printf 'error: aggregate accepted a failed selected job\n' >&2
+  exit 1
+fi
+
+if "$verifier" \
+  failure success \
+  true success \
+  true success success \
+  true success success \
+  true success success \
+  true success success >/dev/null 2>&1; then
+  printf 'error: aggregate accepted failed change detection\n' >&2
+  exit 1
+fi
+
+printf '%s\n' 'python quality change detector tests passed'

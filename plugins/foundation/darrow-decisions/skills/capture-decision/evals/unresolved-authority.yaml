@@ -1,5 +1,5 @@
 id: capture-decision-unresolved-authority
-invariant: DM-1
+invariant: "DM-1,DM-C0"
 activation: competition
 mount_plugin_skills: true
 prompt: >-

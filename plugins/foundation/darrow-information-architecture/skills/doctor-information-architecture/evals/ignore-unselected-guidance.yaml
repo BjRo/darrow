@@ -17,7 +17,7 @@ fixture:
           ---
 
           Keep API errors typed.
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: unrelated Codex guidance is unchanged
     run: git diff HEAD -- AGENTS.md
@@ -26,7 +26,7 @@ checks:
     run: test ! -e docs/codex-policy.md && echo absent
     expect_regex: "^absent$"
   - name: selected runtime verifies
-    run: bash .git/ia-doctor verify --runtime claude . >/dev/null && echo verified
+    run: uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime claude . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count
@@ -34,6 +34,8 @@ checks:
 semantic_output_checks:
   - name: unrelated Codex routes do not block Claude verification
     proposition: >-
-      The response reports successful Claude structural verification. It may
-      mention the Codex file as inventory, but does not require fixing its
-      missing policy before declaring the selected Claude graph verified.
+      In the context of the requested Claude-only audit, the response reports
+      a successful or issue-free structural outcome. Wording such as "no
+      structural issues found" is sufficient; the literal word "verified" is
+      not required. It may mention Codex inventory, but does not require fixing
+      its missing policy as a condition of the Claude outcome.

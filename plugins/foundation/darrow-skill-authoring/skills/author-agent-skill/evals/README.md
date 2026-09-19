@@ -4,14 +4,16 @@ Run these cases with the shared repository runner, selecting
 `--plugin darrow-skill-authoring`. Use one trial and one job while diagnosing,
 and inspect each failure before starting the next case.
 
-| Request boundary                                | Case                      |
-| ----------------------------------------------- | ------------------------- |
-| Direct skill creation                           | `create-focused-skill`    |
-| Indirect reusable-workflow request              | `indirect-discovery`      |
-| Missing goal, destination, and runtime support  | `refuse-undefined-skill`  |
-| Ordinary agent guidance without skill intent    | `non-skill-guidance`      |
-| Repair a skill with a sibling-plugin dependency | `repair-skill-boundaries` |
-| Validation without mutation authority           | `validate-read-only`      |
+| Request boundary                                | Case                       |
+| ----------------------------------------------- | -------------------------- |
+| Direct skill creation                           | `create-focused-skill`     |
+| Target-selected Python mechanic                 | `create-python-mechanic`   |
+| Target repository toolchain                     | `respect-target-toolchain` |
+| Indirect reusable-workflow request              | `indirect-discovery`       |
+| Missing goal, destination, and runtime support  | `refuse-undefined-skill`   |
+| Ordinary agent guidance without skill intent    | `non-skill-guidance`       |
+| Repair a skill with a sibling-plugin dependency | `repair-skill-boundaries`  |
+| Validation without mutation authority           | `validate-read-only`       |
 
 ## Shell evidence
 

@@ -53,10 +53,11 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          bash "$git_dir/fixture-bin/review-proof" complete "${1:?Supply the returned canonical review artifact path}"
+          uv run --quiet --frozen --no-dev --project "$git_dir/fixture-backend" adaptive-delivery-fixture proof complete "${1:?Supply the returned canonical review artifact path}"
   setup: |
-    mkdir -p .git/fixture-bin
-    cp "{{case_dir}}/fixtures/require-clear-review.sh" .git/fixture-bin/review-proof
+    mkdir -p .git/fixture-backend
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/fixture-backend/
+    cp -R "{{case_dir}}/../../../backend/src" .git/fixture-backend/
 checks:
   - name: cookie behavior is changed and preserved
     run: >-
@@ -76,9 +77,9 @@ checks:
       awk -F '\t' 'NR == 1 && $1 == "check" && $2 == 0 { ok=1 }
       END { exit ok ? 0 : 1 }' .git/fixture-state/high-risk-review-events
   - name: independent review artifact is canonical and clear
-    run: bash .git/fixture-bin/review-proof artifact
+    run: uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof artifact
   - name: independent review covers the exact final worktree
-    run: bash .git/fixture-bin/review-proof current
+    run: uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof current
 output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"

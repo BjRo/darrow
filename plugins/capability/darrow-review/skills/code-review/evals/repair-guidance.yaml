@@ -1,0 +1,91 @@
+id: code-review-repair-guidance
+activation: positive
+invariant: CR-C9,CR-E2,CR-E4,CR-E7,CR-E8,CR-E15
+prompt: >-
+  Use {{skill_invocation}} to review my uncommitted changes against this originating requirement:
+  parseAge must return null for non-numeric input. Do not repair the code.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Library standards
+
+          Library modules must never write to console output.
+          Run `bash test.sh` for JavaScript changes.
+        src/age.js: |
+          export function parseAge(value) {
+            return Number(value);
+          }
+        test.sh: |
+          #!/usr/bin/env bash
+          node -e 'import("./src/age.js").then(({parseAge}) => { if (parseAge("42") !== 42) process.exit(1) })'
+  files:
+    src/age.js: |
+      export function parseAge(value) {
+        console.log("parsing", value);
+        return Number(value);
+      }
+  setup: git status --porcelain --untracked-files=all >.git/status-before
+checks:
+  - name: each finding retains guidance from its originating reader
+    run: |
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      test -n "$record" || exit 1
+      artifact_dir=$(dirname "$record")
+      awk -F '\t' 'BEGIN { OFS="\t" }
+        $1 == "finding" { if (NF != 9 || $8 == "" || $9 == "") exit 1; print $2,$3,$4,$5,$6,$7,$8,$9; n++ }
+        END { if (!n) exit 1 }' "$record" >.git/aggregate-guidance || exit 1
+      : >.git/reader-guidance
+      for file in "$artifact_dir"/*; do
+        test -f "$file" || continue
+        if test "$(sed -n 1p "$file")" = "$(printf 'format\tdarrow-review-axis-v1')"; then
+          awk -F '\t' 'BEGIN { OFS="\t" }
+            $1 == "axis" { axis=$2 }
+            $1 == "finding" { print axis,$2,$3,$4,$5,$6,$7,$8 }' "$file" >>.git/reader-guidance
+        fi
+      done
+      while IFS= read -r finding; do
+        grep -Fx -- "$finding" .git/reader-guidance >/dev/null || exit 1
+      done <.git/aggregate-guidance
+  - name: review is read-only
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+  - name: canonical TSV is retained beneath the review scope artifact
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
+      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
+    expect_regex: "^valid: darrow-review-result-v1$"
+  - name: default response does not duplicate canonical TSV
+    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: canonical Markdown handoff is materialized beside the TSV
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      report=$(dirname "$record")/review.md;
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
+      test -r "$report" && test -s "$report" && test -n "$tool" &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
+      cmp .git/expected-review.md "$report"
+  - name: final response preserves every canonical rendered line
+    run: >-
+      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
+      test -n "$tool" || exit 1;
+      expected=.git/expected-review.md;
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
+      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
+      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: both defects transfer usable advisory repair reasoning
+    proposition: >-
+      The report identifies console output as violating library standards and
+      explains that Number of a nonnumeric input returns NaN rather than the
+      required null. For each defect it supplies a bounded suggested repair,
+      why that approach addresses the cause, relevant constraints (silence for
+      the library and preserving numeric conversion), and observable behavior
+      or a regression test demonstrating resolution. Suggested implementation
+      is explicitly advisory, separate from the required behavior.

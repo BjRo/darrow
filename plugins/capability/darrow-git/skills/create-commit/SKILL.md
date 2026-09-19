@@ -14,11 +14,13 @@ Select the operation from the user's literal request before inspecting Git:
 | `commit`, including “commit this; it belongs with the previous commit” or “commit this and keep history clean/compact” | Create one new commit through this workflow without asking whether to amend. The literal commit request takes precedence over the implied history preference. |
 | literal `amend`, `rewrite`, or `rebase` request | Stop before any Git operation because history rewriting is outside this workflow. |
 
-Run every Git operation for this task through
-`<skill-dir>/scripts/commit.sh`, where `<skill-dir>` contains this file. Run
-the script with Bash. It owns state inspection, staging, message validation,
+Run every Git operation for this task through the frozen UV entrypoint below;
+`<skill-dir>` contains this file. It supports Linux, macOS, and Windows and owns
+state inspection, staging, message validation,
 hook execution, and the final commit; execute it without reading or
 reimplementing it. Treat its refusals as authoritative.
+
+The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## Working model
 
@@ -38,7 +40,7 @@ Leave pushing, branching, and pull requests outside this workflow.
 Run:
 
 ```sh
-bash <skill-dir>/scripts/commit.sh inspect
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit inspect
 ```
 
 Follow the reported mode:
@@ -52,7 +54,7 @@ Follow the reported mode:
   Inspect an uncertain candidate with:
 
   ```sh
-  bash <skill-dir>/scripts/commit.sh diff <literal-path>...
+  uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit diff <literal-path>...
   ```
 
   Keep unrelated paths untouched. If the user's description conflicts with
@@ -85,16 +87,16 @@ diff.
 For `staged` mode, pass no paths:
 
 ```sh
-bash <skill-dir>/scripts/commit.sh commit -m "<subject>" [-m "<body>"]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit commit -m "<subject>" [-m "<body>"]
 ```
 
 For `unstaged` mode, pass every selected literal path and no others:
 
 ```sh
-bash <skill-dir>/scripts/commit.sh commit -m "<subject>" [-m "<body>"] <path>...
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit commit -m "<subject>" [-m "<body>"] <path>...
 ```
 
-This `commit.sh commit` call is the only commit-creation command in the
+This `darrow-create-commit commit` call is the only commit-creation command in the
 workflow. Use neither raw Git nor a history-rewriting option. Do not use sweep
 paths such as `.` or globs. If the script rejects the input, correct only the
 proposed selection or message and retry. If commit execution fails because of
@@ -118,7 +120,7 @@ command. Ask for the exact staged paths to refresh. A normal staged commit
 would retain stale index content, so it is not an authorized substitute.
 
 ```sh
-bash <skill-dir>/scripts/commit.sh retry --after-hook-failure \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit retry --after-hook-failure \
   --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
 ```
 
@@ -147,7 +149,7 @@ Pass the literal command and every path the user explicitly authorizes to the
 guarded script:
 
 ```sh
-bash <skill-dir>/scripts/commit.sh remediate --after-hook-failure \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit remediate --after-hook-failure \
   --command "<literal hook-directed command>" \
   --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
 ```

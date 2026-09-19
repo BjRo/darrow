@@ -4046,6 +4046,16 @@ async function installedCodexPluginContext(
   };
 }
 
+/** Historical step attestations require their actual shell helper. */
+export async function legacyAdaptiveDeliveryPreflight(
+  pluginRoots: string[],
+): Promise<string | undefined> {
+  const candidate = pluginRoots
+    .map((root) => join(root, "bin", "adaptive-delivery-preflight"))
+    .find((path) => existsSync(path));
+  return candidate ? await realpath(candidate) : undefined;
+}
+
 async function codexProcessContext(
   repoDir: string,
   prompt: string,
@@ -4061,14 +4071,8 @@ async function codexProcessContext(
   env.TMPDIR = objectiveRoot;
   const { installedSkillsRoots, installedPluginRoots } =
     await installedCodexPluginContext(repoDir, env);
-  const adaptiveDeliveryPreflightCandidate = installedPluginRoots
-    .map((pluginRoot) => join(pluginRoot, "bin", "adaptive-delivery-preflight"))
-    .find((path) => existsSync(path));
   const adaptiveDeliveryPreflightPath =
-    adaptiveDeliveryPreflightCandidate &&
-    existsSync(adaptiveDeliveryPreflightCandidate)
-      ? await realpath(adaptiveDeliveryPreflightCandidate)
-      : undefined;
+    await legacyAdaptiveDeliveryPreflight(installedPluginRoots);
   const spawnGuard =
     adaptiveDeliveryPreflightPath && enableSpawnGuard
       ? await installCodexSpawnGuard(canonicalRepoDir, env, {

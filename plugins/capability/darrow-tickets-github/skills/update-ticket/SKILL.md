@@ -32,12 +32,15 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 
 All tracker interaction goes through the bundled CLI:
 
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-ticket="$skill_dir/../../bin/ticket"
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
 ```
 
-Run it with `bash`. The CLI verifies targets and relation targets, limits one
+`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
+complete locked command for every operation below. The package requires UV,
+Python 3.10–3.13, Git, and authenticated `gh` on Linux, macOS, or native Windows.
+
+The CLI verifies targets and relation targets, limits one
 relation operation per call, enforces existing labels and deliberate state
 transitions, owns backend syntax, and rejects tool attribution. Never use raw
 tracker commands or another plugin's files.
@@ -59,9 +62,9 @@ an order or apply a partial subset.
 Resolve the target:
 
 - Explicit ID, including one already bound unambiguously in the conversation:
-  run `bash "$ticket" get <id>`. If the returned title conflicts with the
+  run `uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket get <id>`. If the returned title conflicts with the
   user's description, report the mismatch and stop.
-- Topic/name only: run `bash "$ticket" list --search "<distinctive terms>"`.
+- Topic/name only: run `uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket list --search "<distinctive terms>"`.
   Use a result only when exactly one ticket plausibly matches. For zero or
   multiple plausible matches, report the candidates and stop for selection.
 

@@ -1,6 +1,6 @@
 id: code-review-fix-verification-regression-scope
 activation: positive
-invariant: CR-C17,CR-C18,CR-C20,CR-E13
+invariant: CR-C9,CR-C17,CR-C18,CR-C20,CR-E13,CR-E15
 prompt: >-
   Verify my uncommitted repair against the prior code-review findings in
   `.git/verification-input`, limited to those findings and direct repair
@@ -41,8 +41,9 @@ fixture:
       export const scale = (value) => Math.abs(value * multiplier);
       // TODO: consider renaming scale someday
   setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
-    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    set -eu
+    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
+    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
     original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
     {
@@ -53,10 +54,29 @@ fixture:
       printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/math.js:1\trequirement: multiplier must be 2\tmultiplier was 1\n' "$original_target"
       printf 'attempted\tspec:1:%s\n' "$original_target"
     } >.git/verification-input
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/math.js >.git/math-before
 checks:
+  - name: new repair regression carries verifier-authored guidance
+    run: |
+      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      test -n "$record" || exit 1
+      artifact_dir=$(dirname "$record")
+      awk -F '\t' 'BEGIN { OFS="\t" }
+        $1 == "regression" { n++; if (NF != 13 || $12 == "" || $13 == "") bad=1; print $3,$6,$9,$10,$11,$12,$13 }
+        END { exit !(n && !bad) }' "$record" >.git/aggregate-regression-guidance || exit 1
+      : >.git/reader-regression-guidance
+      for file in "$artifact_dir"/*; do
+        test -f "$file" || continue
+        if test "$(sed -n 1p "$file")" = "$(printf 'format\tdarrow-review-fix-axis-v1')"; then
+          awk -F '\t' 'BEGIN { OFS="\t" }
+            $1 == "regression" { print $2,$3,$4,$5,$6,$7,$8 }' "$file" >>.git/reader-regression-guidance
+        fi
+      done
+      while IFS= read -r finding; do
+        grep -Fx -- "$finding" .git/reader-regression-guidance >/dev/null || exit 1
+      done <.git/aggregate-regression-guidance
   - name: regression verification remains read only
     run: >-
       git status --porcelain --untracked-files=all >.git/status-after &&
@@ -66,9 +86,9 @@ checks:
   - name: direct regression enters the closed convergence set
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
-      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       awk -F '\t' '$1 == "check" && $2 == "bash check.sh" && $3 == "applicable" &&
       $4 == "fail" && $5 ~ /scale\(-2\)/ { found=1 } END { exit found ? 0 : 1 }' "$record" &&
       original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
@@ -84,11 +104,19 @@ checks:
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
       test -n "$tool" &&
-      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
       cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+semantic_output_checks:
+  - name: regression guidance targets the repair-caused sign loss
+    proposition: >-
+      The report explains that Math.abs introduced by the repair removes the
+      sign from negative results, suggests an advisory bounded repair that
+      preserves multiplier 2 and signed scaling, gives the reason, and
+      identifies a negative-input regression test or behavior such as scale(-2)
+      returning -4. It does not turn the unrelated naming TODO into a finding.

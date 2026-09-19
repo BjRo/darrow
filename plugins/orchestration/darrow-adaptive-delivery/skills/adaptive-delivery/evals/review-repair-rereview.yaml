@@ -1,5 +1,5 @@
 id: goal-review-repair-verification
-invariant: ADL-C2,ADL-L2,ADL-L5,ADL-S3
+invariant: ADL-C2,ADL-L2,ADL-L5,ADL-S3,CR-E15
 goal_report: forbidden
 goal_route_checks: false
 activation: positive
@@ -17,6 +17,7 @@ prompt: >-
   current content before changing or completing it. The approved outcome is
   TIMEOUT_MS equal to 2500, while RETRY_COUNT must remain 3. On a blocking
   finding, repair it under the existing authorization to edit src/config.js,
+  keeping the file as the two exported numeric literals,
   rerun `bash check.sh`, and request fix-scoped verification of that attempted
   finding against the changed target fingerprint. If verification is
   unavailable or inconclusive, stop. Complete only after exact-target clear
@@ -48,11 +49,15 @@ fixture:
       export const TIMEOUT_MS = 2500;
       export const RETRY_COUNT = 0;
   setup: >-
-    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install review "$PWD"
     "{{case_dir}}/fixtures" codex && printf '%s\n' 'RETRY_COUNT = 0' >
     .git/fixture-review-reject-pattern && printf '%s\n' 'src/config.js' >
     .git/fixture-review-event-path && printf '%s\n' '2' >
-    .git/fixture-review-delay-seconds
+    .git/fixture-review-delay-seconds &&
+    printf '%s\n'
+    'Repair guidance (advisory): Consider a local DEFAULT_RETRY_COUNT constant set to 3 and assign RETRY_COUNT from it, so the required default is explicit. Preserve TIMEOUT_MS.'
+    'Resolution evidence: exported TIMEOUT_MS is 2500 and RETRY_COUNT is 3; another implementation satisfying those values is valid.'
+    >.git/fixture-review-repair-guidance
 checks:
   - name: authorized repair reaches the approved outcome
     run: |
@@ -98,7 +103,7 @@ checks:
   - name: final worktree still matches the clear reviewed target
     run: >-
       test "$(tail -n 1 .git/fixture-state/independent-review-invocations | cut -f1)" =
-      "$(bash .agents/bin/independent-review-fixture "$PWD" fingerprint)"
+      "$(uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture review "$PWD" fingerprint)"
   - name: repair changes the reviewed target fingerprint
     run: >-
       cut -f1 .git/fixture-state/independent-review-invocations | sort -u >.git/fixture-state/review-targets &&

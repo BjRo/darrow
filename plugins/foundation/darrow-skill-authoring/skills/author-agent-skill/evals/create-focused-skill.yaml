@@ -104,9 +104,10 @@ checks:
     flags: i
   - name: result is self-contained
     run: >-
-      inspector=$(find . -path '*/author-agent-skill/scripts/inspect-skill' -type f | sed -n '1p');
-      test -n "$inspector";
-      bash "$inspector" inspect plugins/release-helper/skills/validate-release-note plugins/release-helper >/dev/null;
+      backend_file=$(find . -path '*/author-agent-skill/backend/pyproject.toml' -type f | sed -n '1p');
+      test -n "$backend_file";
+      backend=${backend_file%/pyproject.toml};
+      uv run --quiet --frozen --no-dev --project "$backend" inspect-skill inspect plugins/release-helper/skills/validate-release-note plugins/release-helper >/dev/null;
       ! grep -R -E '(plugins/[^/]+/skills|~/|/Users/|/home/)' plugins/release-helper/skills/validate-release-note
   - name: authoring creates no commit
     run: git rev-list --all --reflog --count

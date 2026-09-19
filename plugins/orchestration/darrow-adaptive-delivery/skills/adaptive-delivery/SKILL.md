@@ -42,13 +42,15 @@ reason: explicit-orchestration-entrypoint-required
 
 Resolve the repository, then bind the bundled helper without searching:
 
-- Claude: use `${CLAUDE_PLUGIN_ROOT}/bin`; Claude substitutes the active
+- Claude: use `${CLAUDE_PLUGIN_ROOT}/backend`; Claude substitutes the active
   plugin's absolute root in skill content.
 - Codex: for the activated file
-  `<plugin-root>/skills/adaptive-delivery/SKILL.md`, use `<plugin-root>/bin`.
-  Starting at the directory containing `SKILL.md`, this is `../../bin`.
+  `<plugin-root>/skills/adaptive-delivery/SKILL.md`, use `<plugin-root>/backend`.
+  Starting at the directory containing `SKILL.md`, this is `../../backend`.
 
-Require the resulting `adaptive-delivery-preflight` path to be an executable regular file. Do not
+Require readable `pyproject.toml` and `uv.lock` in that exact backend, plus UV,
+Python 3.10–3.13, and Git. Use the frozen runtime-only entrypoints below on
+Linux, macOS, or native Windows. Do not
 scan the repository, plugin caches, home directory, `PATH`, or machine for an
 alternative. If the host does not expose the active plugin path or the exact
 helper is unavailable, return `Status: launch_required` and make no mutation.
@@ -57,8 +59,12 @@ Describe the unavailable launch boundary clearly, for example with
 
 Then run:
 
+The examples use Bash line continuations. On native Windows, enter each UV
+command on one PowerShell line, omitting the trailing backslashes and passing
+the same arguments. Helper execution does not require Bash on either host.
+
 ```sh
-/bin/bash <absolute-plugin-bin>/adaptive-delivery-preflight prepare \
+uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" adaptive-delivery-preflight prepare \
   --repo <absolute-repository> --host <codex|claude>
 ```
 
@@ -242,7 +248,7 @@ must be rejected; Luna remains available for explicit leaf work outside this
 orchestration. Otherwise resolve the policy route:
 
 ```sh
-/bin/bash <absolute-plugin-bin>/adaptive-delivery-preflight route \
+uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" adaptive-delivery-preflight route \
   --repo <absolute-repository> --host <codex|claude> --profile <profile> \
   [--route 'harness|provider|model|effort']
 ```
@@ -461,7 +467,8 @@ The separate route-selected subagent is the sole Darrow work owner. The
 accepted Codex launch carries its concrete route. On Claude, the resolver
 validates the scoped agent's model and effort frontmatter and rejects
 higher-priority environment overrides; launch without a per-call model
-override. Do not launch in the current thread, create another goal inside the
+override and explicitly include `run_in_background: false` in the Agent input,
+even when foreground execution is the host default. Do not launch in the current thread, create another goal inside the
 owner, inspect child work, start a nested host process, retry with another
 route, or replace an accepted owner.
 

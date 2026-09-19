@@ -1,0 +1,54 @@
+id: publish-pr-evidence-text-only
+invariant: GW-E1,GW-E4,GW-E5,GW-E6,GW-E8
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Use {{skill_invocation}} to publish evidence.txt as one text-only evidence
+  comment on the current branch's PR. The current full HEAD is the intended and
+  verified commit, and this request authorizes exactly one publication attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+        evidence.txt: "All acceptance checks passed for this candidate.\n"
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      repo_top=${DARROW_EVIDENCE_REPOSITORY:-$(git rev-parse --show-toplevel)}
+      d=$(git -C "$repo_top" rev-parse --absolute-git-dir)
+      case "$1 $2" in
+        'repo view') printf 'fixture/repo\thttps://github.com/fixture/repo\n' ;;
+        'pr list') printf '42\thttps://github.com/fixture/repo/pull/42\t%s\tfalse\n' "$(git -C "$repo_top" rev-parse HEAD)" ;;
+        'pr comment')
+          if [ "${3-}" = --help ]; then printf '%s\n' '--attach file (maximum 50)'; exit 0; fi
+          printf '%s\n' "$*" >>"$d/comment-calls"
+          while [ "$#" -gt 0 ]; do
+            if [ "$1" = --body-file ]; then cp "$2" "$d/comment-body"; break; fi
+            shift
+          done
+          ;;
+        'api meta') exit 0 ;;
+        api*)
+          if [ -f "$d/comment-body" ]; then
+            printf '7\thttps://github.com/fixture/repo/pull/42#issuecomment-7\t'
+            awk '{if (NR>1) printf "\\n"; printf "%s",$0}' "$d/comment-body"
+            printf '\n'
+          fi
+          ;;
+        *) exit 80 ;;
+      esac
+  setup: |
+    git switch -qc feat/evidence
+    printf 'candidate\n' >>README.md
+    git add README.md
+    git commit -qm 'feat: candidate evidence'
+checks:
+  - name: exactly one top-level comment invocation occurs
+    run: test "$(wc -l <.git/comment-calls | tr -d ' ')" -eq 1
+  - name: repository content and index remain unchanged
+    run: git diff --exit-code && git diff --cached --exit-code
+output_checks:
+  - name: candidate-bound publication is reported
+    expect_regex: "(outcome: published|[Pp]ublished[\\s\\S]*https://github.com/fixture/repo/pull/42)"

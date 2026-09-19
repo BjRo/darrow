@@ -32,12 +32,15 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 
 All tracker interaction goes through the bundled CLI:
 
-```sh
-skill_dir=<absolute directory containing this SKILL.md>
-ticket="$skill_dir/../../bin/ticket"
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
 ```
 
-Run it with `bash`. It resolves the backend, validates ticket structure,
+`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
+complete locked command for every operation below. The package requires UV,
+Python 3.10–3.13, Git, and authenticated `gh` on Linux, macOS, or native Windows.
+
+It resolves the backend, validates ticket structure,
 restricts labels to the existing taxonomy, verifies relation targets, owns
 backend relation syntax, and rejects tool attribution. Never use raw tracker
 commands or another plugin's files.
@@ -53,7 +56,7 @@ or tracker operation—verbatim and stop; do not invent a fallback.
 Run:
 
 ```sh
-bash "$ticket" inspect
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket inspect
 ```
 
 Require exactly one intended ticket. Choose its type from the described work,
@@ -77,7 +80,7 @@ Choose the few most distinctive outcome, error, command, or component terms
 and run one focused open-ticket search:
 
 ```sh
-bash "$ticket" list --search "<distinctive terms>"
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket list --search "<distinctive terms>"
 ```
 
 Compare the returned titles to the requested problem/outcome. If any is a
@@ -135,7 +138,7 @@ non-invented, and sufficient to record the user's current knowledge.
 Write the body to a private temporary file outside the repository, then run:
 
 ```sh
-bash "$ticket" create --title <title> --type <type> --body-file <absolute-file> \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
   [--label <existing-label>]... [--milestone <named-value>] \
   [--assignee <named-value>] [--depends-on <caller-named-id>]... \
   [--parent <caller-named-id>]

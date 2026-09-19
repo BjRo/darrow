@@ -11,7 +11,8 @@ Require all of these caller-owned inputs before reader calls:
 - the exact original comprehensive-review target fingerprint;
 - the validated original or immediately prior scope manifest for that target;
 - every original finding with its original axis, severity, disposition,
-  location, source, evidence, and one canonical cross-axis order;
+  location, source, evidence, repair guidance and resolution evidence when
+  present, and one canonical cross-axis order;
 - the immediately prior repair target plus every earlier repair target;
 - every finding attempted by the current repair;
 - the immediately prior validated verification artifact when an earlier fix
@@ -24,13 +25,15 @@ follow-up. Obtain canonical original records through the bundled helper before
 passing them to readers:
 
 ```sh
-bash "$result_tool" original-findings "$original_result"
+uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result"
 ```
 
 Copy those returned rows unchanged into the handoff and final verification.
 The order runs across both axes in the original result, not separately per
 axis. Preserve the complete original source and evidence text, including
-advisories; a shorter paraphrase is a changed record. For an external handoff
+advisories and both guidance fields; a shorter paraphrase is a changed record.
+Preserve absent fields in legacy records without inventing prior advice.
+For an external handoff
 without that artifact, preserve the caller's complete immutable finding records
 and canonical order exactly as supplied. A validated prior verification also
 retains those original rows. Missing or incomplete original evidence blocks
@@ -67,7 +70,7 @@ ambiguous prior artifacts block.
 Prepare the exact current base/target scope with the ordinary scope table plus:
 
 ```sh
-bash "$scope_tool" prepare --repo "$repo" --base "$base" --target "$target" \
+uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$repo" --base "$base" --target "$target" \
   [working-tree flags] --allow-empty --prior-manifest "$prior_scope_manifest"
 ```
 
@@ -87,7 +90,7 @@ one, never execute the literal command directly. Use the main skill's resolved
 
 ```sh
 check_record="$(dirname "$manifest")/check-1.tsv" # increment for later checks
-bash "$check_tool" run --output "$check_record" --command "$literal_command"
+uv run --quiet --frozen --no-dev --project "$backend" review-check run --output "$check_record" --command "$literal_command"
 ```
 
 Copy the retained record's canonical `check` row byte-for-byte into reader
@@ -141,12 +144,19 @@ regression must name the causing original key. An invalid or missing reader
 record becomes an evidence gap; never repair its judgment or replace it with a
 generic review.
 
+Resolution depends on the original requirement and observable current behavior,
+not adoption of the original suggested implementation. Accept an alternative
+valid repair, and retain a defect even if the implementer followed the advice.
+New direct regressions receive the verifier's own advisory guidance (or explicit
+limitation), rationale, constraints, and resolution evidence. Copy those fields
+unchanged; the coordinator does not fill them in.
+
 Save each raw fix-axis record beneath the current scope artifact directory and
 run the applicable commands:
 
 ```sh
-bash "$result_tool" validate-fix-axis standards "$standards_fix_record"
-bash "$result_tool" validate-fix-axis spec "$spec_fix_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-fix-axis standards "$standards_fix_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-fix-axis spec "$spec_fix_record"
 ```
 
 An invalid record or missing or mismatched route-application evidence is an
@@ -165,7 +175,8 @@ original finding order, then by their reader order, and derive their stable
 regression keys mechanically. For a first verification write
 `previous_verification none none`. For a later verification write the prior
 artifact's Git blob checksum and absolute path, carry every prior regression
-under the same key and immutable causal fields, and replace only its status,
+under the same key, immutable causal fields, and original guidance and resolution
+evidence, and replace only its status,
 progress, and evidence from `regression_attempt`. New regression orders follow
 all carried regression orders. Regression order is its own sequence: when no
 regression is carried, the first new regression has order `1`, regardless of
@@ -174,7 +185,7 @@ the causing original finding's order.
 When the original comprehensive artifact is retained, run:
 
 ```sh
-bash "$result_tool" validate-original "$original_result" "$verification_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-result validate-original "$original_result" "$verification_record"
 ```
 
 This validates the verification schema and compares the complete original
@@ -195,8 +206,8 @@ In default mode run:
 
 ```sh
 verification_report="$(dirname "$verification_record")/verification.md"
-bash "$report_tool" render-verification "$verification_record" >"$verification_report"
-bash "$report_tool" render-verification "$verification_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render-verification "$verification_record" >"$verification_report"
+uv run --quiet --frozen --no-dev --project "$backend" review-report render-verification "$verification_record"
 ```
 
 Confirm that the report is a readable, nonempty regular file before the second

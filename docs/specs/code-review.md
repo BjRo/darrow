@@ -185,7 +185,15 @@ axis and report `not_available`. Do not invent requirements.
    product preferences are excluded.
 9. **CR-C9 — Structured findings.** Every finding identifies axis, severity,
    changed location or command, violated source, and concrete evidence.
-   Findings remain concise and actionable.
+   Evidence explains the failure and its cause against that source. Each new
+   finding includes reviewer-authored repair guidance: a bounded suggested
+   approach, its rationale and important constraints, plus observable behavior
+   or a regression test demonstrating resolution. Suggested implementation is
+   explicitly advisory and separate from the required outcome. When evidence
+   is insufficient to recommend an approach, the reader states that limitation
+   and why, without inventing a solution or suppressing a supported finding.
+   The coordinator preserves this reasoning rather than authoring it. These
+   rules also apply to newly discovered repair-caused regressions.
 10. **CR-C10 — Honest verdict.** `pass` requires every available axis and every
     applicable deterministic check to pass. Missing required evidence or a
     check that cannot run produces `blocked`, not `pass`. Each fresh reader's
@@ -235,11 +243,15 @@ axis and report `not_available`. Do not invent requirements.
     consequences. Caller prose alone cannot establish
     repair causality. A new unrelated observation MUST NOT enter its finding
     set. Every direct regression identifies the attempted original finding
-    whose repair caused it.
+    whose repair caused it. Resolution is judged against the original violated
+    requirement and current behavior, never adoption of the suggested repair.
+    Another valid implementation resolves the finding; matching the suggestion
+    while retaining the defect does not.
 19. **CR-C19 — Stable lifecycle and progress.** Original finding keys derive
     from the original target, axis, and canonical cross-axis finding order.
     When the original comprehensive result is retained, bundled mechanics copy
-    every original finding without rewriting source, evidence, severity or
+    every original finding without rewriting source, evidence, repair guidance,
+    resolution evidence, severity or
     disposition, and compare that complete ordered set before accepting
     follow-up output. Complete external handoffs remain supported and must
     preserve their supplied immutable records and canonical order exactly.
@@ -251,7 +263,10 @@ axis and report `not_available`. Do not invent requirements.
     later verification is no progress. Every later verification binds the
     checksum and path of the prior verification artifact, preserves each prior
     regression's stable key and immutable causal fields, and records the
-    current state of every carried regression. Regression order is an
+    current state of every carried regression, preserving its original repair
+    guidance and resolution evidence. Legacy v1 records without the two added
+    fields remain valid; preserve that absence without inventing prior advice.
+    Regression order is an
     independent sequence beginning at one, not the causing original finding's
     order. The first verification has no target history and binds its prior
     target to the original review target; each later artifact preserves exactly
@@ -377,12 +392,26 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    command or manifest, its own source material, a strict finding schema, and a
    concise output budget. It MUST NOT receive the other reviewer's analysis or
    an unrelated conversation transcript.
-5. **CR-P5 — Mechanics in scripts.** Fixed-point validation, diff-scope
-   construction, and structured-result validation belong in bundled portable
-   scripts. Review judgment remains in `SKILL.md` and small references.
-6. **CR-P6 — Portable scripts.** Bundled shell mechanics follow Darrow's Bash
-   3.2 and Bash 5 requirements, preserve pre-existing changes, and emit
-   absolute model-facing paths where paths are needed.
+5. **CR-P5 — Packaged mechanics.** Fixed-point validation, diff-scope
+   construction, reviewer routing, provider observation, check capture, and
+   structured-result validation and rendering belong in one self-contained
+   Python + UV package. Invoke its public commands through frozen resolution;
+   do not retain Bash/AWK runtime aliases. Review judgment remains in
+   `SKILL.md` and small references.
+6. **CR-P6 — Portable mechanics.** The package supports Python 3.10–3.13 on
+   Linux, macOS, and native Windows, preserves pre-existing changes, and emits
+   absolute model-facing paths. Use argument-vector subprocesses, explicit
+   UTF-8 records, native temporary files, and cancellation that terminates
+   owned subprocesses. The deliberately literal `review-check --command`
+   boundary uses the host shell (Bash on Unix, PowerShell on native Windows);
+   all other commands execute without shell interpolation. Preserve public
+   command names, TSV formats, scope/repair binding, diagnostics, and exit
+   codes. Register the locked package in the Python inventory, enforce the
+   repository's strict quality gates, and exercise copied runtime-only plugins
+   on all three native platforms with provider boundaries controlled. Keep
+   deterministic plugin regression tests in the Python package; do not retain
+   shell test wrappers after their contract coverage has migrated. Tests of
+   the shared eval runner remain with that runner.
 7. **CR-P7 — Portable composition.** Consumers request independent code review
    by intent and interpret its reported findings and outcome; neither side needs
    a sibling plugin path, implementation name, output schema, tracker, or
@@ -473,6 +502,13 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     one-axis evidence rejects any native launch for the unavailable axis; and
     unavailable-route evidence rejects every native reader-launch attempt.
 
+15. **CR-E15 — Advisory repair reasoning.** Evidence covers useful guidance
+    from each originating reader, explicit uncertainty without loss of a
+    supported finding, faithful human and machine presentation, immutable
+    guidance through original and regression handoffs, acceptance of an
+    alternative valid repair, and rejection of a suggested repair that leaves
+    the original defect. Include the enclosing repair/verification chain.
+
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in
 [`review-convergence-issue-32.md`](../research/review-convergence-issue-32.md).
@@ -481,6 +517,8 @@ surface-specific limitations are recorded in
 [`code-review-reviewer-routing-trials.md`](../research/code-review-reviewer-routing-trials.md).
 The Codex variance investigation and follow-up matrix for issue 108 are recorded
 in [`code-review-stabilization-issue-108.md`](../research/code-review-stabilization-issue-108.md).
+Advisory repair-guidance evidence and its host-specific limitations are recorded
+in [`review-repair-guidance-issue-166.md`](../research/review-repair-guidance-issue-166.md).
 
 ## Non-goals
 

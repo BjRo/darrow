@@ -17,6 +17,14 @@ fixture:
       d="$(git rev-parse --git-dir)/fixture-gh"
       case "$1 $2" in
         "pr list")
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-created" ]; then
+            tip=$(git rev-parse HEAD)
+            base=$(cat "$d/base")
+            draft=false; [ ! -f "$d/draft" ] || draft=true
+            printf '1\thttps://github.com/fixture/repo/pull/1\tOPEN\t%s\t%s\t%s\t%s\tfalse\n' "$(cat "$d/head")" "$tip" "$base" "$draft"
+            rm -f "$(git rev-parse --git-dir)/fixture-gh-created"
+            exit 0
+          fi
           if [ -f "$(git rev-parse --git-dir)/fixture-gh-fail" ]; then
             echo "HTTP 502: bad gateway" >&2
             exit 1
@@ -32,6 +40,7 @@ fixture:
             case "$1" in
               --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
               --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --body-file) cp "$2" "$d/body"; shift 2 ;;
               --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
               --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
               --draft) : > "$d/draft"; shift ;;
@@ -39,6 +48,10 @@ fixture:
             esac
           done
           echo "https://github.com/fixture/repo/pull/1"
+          : > "$(git rev-parse --git-dir)/fixture-gh-created"
+          ;;
+        "repo view")
+          printf '%s\n' fixture/repo
           ;;
         *)
           echo "mock gh: unsupported: $*" >&2
@@ -47,6 +60,7 @@ fixture:
       esac
   setup: |
     git init -q --bare .git/remote.git
+    git --git-dir=.git/remote.git symbolic-ref HEAD refs/heads/main
     git remote add origin "$PWD/.git/remote.git"
     git push -qu origin main
     git remote set-head origin main

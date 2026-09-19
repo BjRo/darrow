@@ -9,9 +9,9 @@ fixture:
   commits:
     - message: "chore: init"
       files:
-        README.md: "# Service\n"
+        README.md: "# Service\n\n## Service contract\n\nPreserve JSON response bodies for every API error, including authentication failures.\n"
         package.json: "{\"private\":true}\n"
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: Codex entrypoint is created
     run: test -f AGENTS.md && echo created
@@ -23,7 +23,7 @@ checks:
     expect_regex: "^absent$"
   - name: Codex-only verification passes
     run: >-
-      bash .git/ia-doctor verify --runtime codex . >/dev/null && echo verified
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime codex . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: setup creates no commit
     run: git rev-list --all --reflog --count

@@ -2,12 +2,17 @@
 
 This plugin turns common Git publication requests into small, explicit
 workflows. The agent still decides what the user's change means, while bundled
-scripts enforce the mechanical boundaries that are easy to get subtly wrong:
-branch naming, staging, commit shape, duplicate pull requests, and non-force
-publication.
+Python commands enforce the mechanical boundaries that are easy to get subtly wrong:
+branch naming, staging, commit shape, duplicate pull requests, non-force
+publication, and candidate-bound reviewer evidence.
 
 Each workflow is independently intent-triggered. Installing the plugin does not
 run Git commands automatically.
+
+Claude Code receives a static SessionStart reminder to select the matching
+installed skill before preflight, including clean trees, missing inputs, and
+refusals. This native context hook runs no Git or GitHub commands, classifies no
+prompts, and grants no authority. It is declared only in the Claude manifest.
 
 ## What it provides
 
@@ -62,15 +67,29 @@ separate path: it pushes without force and verifies that the remote branch and
 forge head both equal the intended commit. It returns the repository, URL,
 head/base, draft state and commit evidence without changing PR metadata.
 
+Creation returns that same verified repository, URL, shape and full
+intended/remote/forge commit evidence after observing the new PR.
+
 Example: _“Push this branch and open a draft PR.”_
 
-### Bundled workflow scripts
+### `publish-pr-evidence`
 
-Each skill uses its own bundled Bash script under `skills/<skill>/scripts/`.
-The scripts inspect and validate repository state, perform only the authorized
+Publishes one top-level, candidate-bound PR evidence comment with optional
+ordered image or video attachments. It validates every file and presentation
+label before upload, verifies the exact current PR head, reconciles prior
+comments by deterministic content identity, and makes at most one authorized
+comment invocation. Text-only evidence is supported. Partial or ambiguous
+remote state stops without retry or cleanup.
+
+Example: _“Attach these verification screenshots to the current PR.”_
+
+### Bundled workflow commands
+
+Each skill uses a frozen UV entrypoint from the contained Python package in
+`backend/`. The helpers inspect and validate repository state, perform only the authorized
 Git or GitHub operation, and return structured evidence for the skill to
 interpret. They are implementation details of the workflows rather than a
-general Git wrapper.
+general Git wrapper. All supported platforms call the UV entrypoints directly.
 
 ## Design boundaries
 
@@ -83,11 +102,40 @@ general Git wrapper.
 
 ## When to use
 
-Create or prepare a branch, create a commit, or publish a requested PR. Do not use these workflows to rewrite history, merge, release, or deploy.
+Create or prepare a branch, create a commit, publish a requested PR, or publish
+explicitly authorized evidence to its exact verified head. Do not use these
+workflows to rewrite history, merge, release, deploy, or post generic comments.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; Git, Bash, and baseline Unix tools. PR work also requires authenticated GitHub CLI access and a usable remote.
+Codex and Claude Code on Linux, macOS, and Windows; Git and
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
+PR work also requires
+authenticated GitHub CLI access and a usable remote. Attachment publication
+requires a GitHub host and a `gh pr comment` implementation that advertises
+`--attach`.
+
+Provider calls use literal argument vectors and native filesystem APIs. The
+existing hook-remediation `--command` interface is the sole shell exception:
+it passes the exact authorized diagnostic to POSIX `sh` or native Windows `cmd`.
+Its saved HEAD/index checks and staged-path limits still apply. A diagnostic's
+command syntax must match its host.
+
+Successful PR reports link the PR and name its base, draft state, and verified
+commit once. Complete structured publication evidence remains available from
+the helper. PR-head propagation is observed at most five times, one second
+apart, without repeating a push or PR creation.
+
+## Validation
+
+`bun run check:python` runs formatting, Ruff, strict typing, deterministic and
+property tests, and separate 95% statement/branch coverage gates. The package
+has no runtime dependencies. Fresh-install checks copy the whole plugin and
+exercise all five workflows with real local Git repositories and mocked GitHub
+boundaries, using `tests/fresh-install.test.sh` on POSIX and
+`tests/fresh-install.test.ps1` in native PowerShell. CI covers Python 3.10–3.13
+on Linux, macOS, and Windows. Additional POSIX regression scenarios under
+`backend/tests/shell/` invoke the same UV entrypoints directly.
 
 ## Installation
 

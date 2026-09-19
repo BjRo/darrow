@@ -4345,7 +4345,15 @@ async function claudeHarnessResult(options: {
 }
 
 function hasAdaptiveDeliveryPreflight(pluginRoot: string): boolean {
-  return existsSync(join(pluginRoot, "bin", "adaptive-delivery-preflight"));
+  return existsSync(
+    join(
+      pluginRoot,
+      "backend",
+      "src",
+      "darrow_adaptive_delivery",
+      "preflight.py",
+    ),
+  );
 }
 
 async function executeClaude(

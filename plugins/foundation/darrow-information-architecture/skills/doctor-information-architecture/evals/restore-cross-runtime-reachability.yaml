@@ -20,7 +20,7 @@ fixture:
           # Security policy
 
           Scope: all automated coding runtimes.
-  setup: cp "{{case_dir}}/../../../bin/ia-doctor" .git/ia-doctor
+  setup: mkdir -p .git/ia-backend; cp -R "{{case_dir}}/../../../backend/src" .git/ia-backend/; cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/ia-backend/
 checks:
   - name: cross-runtime security rule remains intact
     run: find . -type f -name '*.md' -not -path './.git/*' -exec cat {} +
@@ -34,12 +34,12 @@ checks:
       -exec grep -il 'never copy production secrets into local fixtures' {} + | sed -n '1p');
       target=${rule#./}; test -n "$target";
       root=$(pwd -P); policy=$(cd "$(dirname "$target")" && pwd -P)/$(basename "$target");
-      bash .git/ia-doctor inspect --runtime codex . |
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor inspect --runtime codex . |
       grep -F "$root/AGENTS.md -> $policy" >/dev/null && echo reachable; fi
     expect_regex: "^reachable$"
   - name: deterministic dual-runtime verification passes
     run: >-
-      bash .git/ia-doctor verify --runtime both . >/dev/null && echo verified
+      uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish PR evidence"
+  short_description: "Publish candidate-bound evidence to one PR"
+  default_prompt: "Use $publish-pr-evidence to publish this reviewer-facing evidence to the exact current pull request."

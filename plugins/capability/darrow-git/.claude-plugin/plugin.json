@@ -1,6 +1,7 @@
 {
   "name": "darrow-git",
-  "description": "Intent-triggered git workflow skills: create-branch, prepare-task-branch, create-commit, create-pr",
-  "version": "0.4.2",
+  "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence",
+  "version": "0.8.3",
+  "hooks": "./.claude-plugin/hooks.json",
   "license": "BUSL-1.1"
 }

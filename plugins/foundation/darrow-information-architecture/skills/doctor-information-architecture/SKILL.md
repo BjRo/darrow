@@ -8,9 +8,10 @@ description: Audit repository agent guidance and repair diagnosed problems acros
 Return a smaller, correctly routed instruction graph without deleting behavioral
 knowledge or turning repository patterns into policy. Begin read-only.
 
-Run every structural operation through `<skill-dir>/scripts/ia-doctor.sh`, where
-`<skill-dir>` contains this file. Execute it with Bash. Its findings establish
-structure, not edit decisions.
+Run structural operations through the frozen UV package at
+`<skill-dir>/../../backend`, where `<skill-dir>` contains this file. Requires
+UV and Python 3.10–3.13 on Linux, macOS, or native Windows. Its findings
+establish structure, not edit decisions.
 
 ## Working model
 
@@ -33,7 +34,7 @@ structure, not edit decisions.
 Use both runtimes unless the user explicitly selected one:
 
 ```sh
-bash <skill-dir>/scripts/ia-doctor.sh inspect --runtime both [repository]
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-doctor inspect --runtime both [repository]
 ```
 
 Pass `--mirror source=target` only for adapter relationships declared by
@@ -94,6 +95,10 @@ Apply runtime semantics independently:
   version-control-eligible `SKILL.md` with valid discovery metadata and runtime
   reachability. Preserve an explicit intent route when native discovery is not
   sufficient for every selected runtime.
+  Such a route names the exact session-root-relative `SKILL.md` path and says
+  when to read it. A skill-name mention alone is insufficient. Confirm that
+  the route appears in the inspector's `routes` records; a passing structural
+  status alone does not prove that a newly moved procedure is reachable.
 
 For every rule that chooses among live implementation patterns, identify the
 arbiter. Counts, recency, directory names, apparent completeness, and your
@@ -133,6 +138,10 @@ response asks one compact grouped question.
 
 ### 4. Apply and verify
 
+For approved guidance-file replacements, read
+[`../../references/file-updates.md`](../../references/file-updates.md) and use
+the bundled atomic writer. Keep existing adapter direction and newline style.
+
 Apply only confirmed actions. Preserve each settled decision, behavioral
 constraint, gate, scope, and route. Use the repository's declared sync
 mechanism after editing a source of truth. Do not commit or push.
@@ -140,7 +149,7 @@ mechanism after editing a source of truth. Do not commit or push.
 Verify the same runtimes and declared mirrors used for inspection:
 
 ```sh
-bash <skill-dir>/scripts/ia-doctor.sh verify --runtime both \
+uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-doctor verify --runtime both \
   [--mirror source=target]... [repository]
 ```
 

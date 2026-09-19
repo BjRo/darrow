@@ -25,8 +25,9 @@ fixture:
   files:
     endpoint.txt: "https://example.invalid/v2\n"
   setup: |
-    tool_dir=$(cd "{{case_dir}}/../../../bin" && pwd -P)
-    prior_output=$(bash "$tool_dir/review-scope" prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    set -eu
+    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
+    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
     original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
     {
@@ -39,7 +40,7 @@ fixture:
     } >.git/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object endpoint.txt >.git/endpoint-before
-    printf '%s\n' "$tool_dir/review-result" >.git/review-result-tool
+    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: unavailable verification remains read only
     run: >-
@@ -50,9 +51,9 @@ checks:
   - name: unavailable evidence produces a valid blocked artifact
     run: >-
       record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/bin/review-result' -type f | sort | tail -n '1') &&
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
-      test -n "$record" && bash "$tool" validate-verification "$record" &&
+      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       check_row=$(awk -F '\t' '$1 == "check" && $2 == "bash external-check.sh" &&
       $3 == "applicable" && $4 == "blocked" { print; found++ }
       END { exit found == 1 ? 0 : 1 }' "$record") &&
@@ -71,9 +72,9 @@ checks:
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/bin/review-report' -type f | sort | tail -n 1) &&
+      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
       test -n "$tool" &&
-      bash "$tool" render-verification "$record" >.git/expected-verification.md &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
       awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&

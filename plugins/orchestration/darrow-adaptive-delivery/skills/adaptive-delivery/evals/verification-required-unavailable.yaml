@@ -17,7 +17,7 @@ fixture:
           #!/usr/bin/env bash
           grep -Fx 'export const requireMfa = true;' auth-policy.js
   setup: |
-    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD" "{{case_dir}}/fixtures" both
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install review "$PWD" "{{case_dir}}/fixtures" both
     printf '%s\n' '.agents/' '.claude/' >>.git/info/exclude
 checks:
   - name: unavailable verification leaves the product unchanged

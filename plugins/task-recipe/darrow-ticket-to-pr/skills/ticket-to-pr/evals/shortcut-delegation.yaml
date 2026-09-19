@@ -4,7 +4,7 @@ mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
   - adaptive-delivery
-invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-P1,TPR-P2,TPR-P3
+invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C8,TPR-P1,TPR-P2,TPR-P3
 goal_report: forbidden
 expect_head_change: false
 prompt: >-
@@ -28,7 +28,11 @@ fixture:
       new ticket branch, verify the result, create intended commits, push without
       force, and create or reuse exactly one pull request. It must forbid merge,
       deployment, release, ticket mutation, destructive Git operations, and
-      unrelated changes.
+      unrelated changes. It must also say that, only when the ticket or
+      verification contract requires reviewer-facing evidence, the same
+      explicit recipe authority permits at most one candidate-bound operation
+      against the exact current-repository PR and intended verified commit,
+      while excluding generic comments, another PR and automatic recovery.
 
       When the request has that complete envelope, run exactly:
 

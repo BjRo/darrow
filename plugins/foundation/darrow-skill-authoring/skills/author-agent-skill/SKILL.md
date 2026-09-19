@@ -9,12 +9,12 @@ Turn one recognizable user goal into a discoverable, bounded, and evaluated
 skill. Treat discovery metadata, workflow behavior, resources, and verification
 as one public interface.
 
-Run the bundled inspector with Bash. In commands below, `<skill-dir>` is the
-directory containing this file, `<target-skill>` is the target skill directory,
-and `<plugin-root>` is its owning plugin root:
+Run the bundled inspector through its locked UV entrypoint. In commands below,
+`<skill-dir>` is the directory containing this file, `<target-skill>` is the
+target skill directory, and `<plugin-root>` is its owning plugin root:
 
-```sh
-bash <skill-dir>/scripts/inspect-skill inspect <target-skill> <plugin-root>
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" inspect-skill inspect "<target-skill>" "<plugin-root>"
 ```
 
 The inspector checks portable metadata and containment for inline
@@ -22,10 +22,23 @@ Markdown-linked local resources. Inspect command literals, reference-style
 links, and other path forms separately. It does not replace native runtime
 validators or decide whether the workflow is well designed.
 
-When verifying target shell tests, read
-[`references/portable-shell.md`](references/portable-shell.md) and run the
-version-aware [`scripts/verify-shell-tests`](scripts/verify-shell-tests) helper.
-Base every shell-version claim on its emitted evidence.
+Before adding executable mechanics, read
+[`references/plugin-mechanics.md`](references/plugin-mechanics.md) and choose
+existing tools, small glue, or a contained packaged helper from the target
+repository's instructions, established toolchain, actual complexity, and
+supported hosts. If the target establishes no runtime or package manager, make
+that choice a contract input before writing mechanics. When verifying target
+shell tests, also read
+[`references/portable-shell.md`](references/portable-shell.md). If the target
+requires both Bash 3.2 and Bash 5, run the version-aware helper through the same
+backend:
+
+```text
+uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" verify-shell-tests -- "<test-script>"...
+```
+
+Base every shell-version claim on its emitted evidence. Invoke both packaged
+commands directly; this plugin has no runtime shell launchers.
 
 ## Workflow
 
@@ -149,7 +162,8 @@ work without summarizing the procedure.
 
 Add or update evidence at the most stable public seam before implementation:
 
-- deterministic script tests for mechanical contracts and failure modes;
+- deterministic script or package tests for mechanical contracts and failure
+  modes;
 - behavior evals for judgment, sequencing, output, and safety boundaries; and
 - activation cases for direct, indirect, incomplete, negative, and edge input.
 
@@ -172,9 +186,11 @@ arguments, produces stable output, refuses unreadable inputs, and emits absolute
 paths when its output is model-facing. Keep policy choices, trade-offs, and
 contextual judgment in `SKILL.md`.
 
-When the target adds or changes a shell script or shell test, read and apply
-[`references/portable-shell.md`](references/portable-shell.md) to both the
-implementation and its tests. Do not load that reference for prose-only skills.
+When the target adds or changes executable mechanics, read and apply
+[`references/plugin-mechanics.md`](references/plugin-mechanics.md). For a shell
+script or shell test, also apply
+[`references/portable-shell.md`](references/portable-shell.md) to the
+implementation and tests. Do not load either reference for prose-only skills.
 
 Keep the skill independently installable. All required files live inside its
 plugin; a reference must not escape the plugin or require a sibling plugin.
@@ -188,14 +204,16 @@ resources, and packaging changes, with no unrelated capability added.
 
 Run, in order:
 
-1. each bundled shell test through the version-aware helper, preserving any
-   unavailable required version as unverified;
+1. each bundled package test through the target repository's locked quality
+   command and each shell test on the interpreter versions claimed by the
+   target, preserving unavailable required versions as unverified;
 2. the bundled inspector on the finished skill and plugin root;
 3. the repository's skill and native plugin-manifest validators;
 4. scoped eval dry validation and live trials on the supported harnesses chosen
    by the repository;
-5. affected documentation and marketplace/discovery checks; and
-6. relevant repository lint, type, or test gates.
+5. fresh copied-artifact entrypoints on each supported native platform;
+6. affected documentation and marketplace/discovery checks; and
+7. relevant repository lint, type, or test gates.
 
 Then give a fresh-context reviewer the finished artifact and task-local
 evidence, not the intended answer or prior conclusions. Ask it to challenge

@@ -1,0 +1,685 @@
+name: Python quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Python change scopes
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.scopes.outputs.packages }}
+      package_selected: ${{ steps.scopes.outputs.package_selected }}
+      skill_authoring: ${{ steps.scopes.outputs.skill_authoring }}
+      observability_langfuse: ${{ steps.scopes.outputs.observability_langfuse }}
+      discovery: ${{ steps.scopes.outputs.discovery }}
+      verification: ${{ steps.scopes.outputs.verification }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scopes
+        name: Select changed Python packages
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            scripts/detect-python-quality-changes --all >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scripts/detect-python-quality-changes "$BASE_SHA" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          zero=0000000000000000000000000000000000000000
+          if [ "$BEFORE_SHA" = "$zero" ]; then
+            scripts/detect-python-quality-changes --all >>"$GITHUB_OUTPUT"
+          else
+            scripts/detect-python-quality-changes "$BEFORE_SHA" "$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+          fi
+
+  package:
+    name: ${{ matrix.package }} Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.package_selected == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    env:
+      PACKAGE: ${{ matrix.package }}
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package "$PACKAGE"
+
+  skill-authoring-windows:
+    name: Skill authoring Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: needs.changes.outputs.skill_authoring == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
+
+  discovery-windows:
+    name: Discovery Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: needs.changes.outputs.discovery == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-discovery/skills/plan-implementation/backend
+
+  verification-windows:
+    name: Verification Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: needs.changes.outputs.verification == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-verification/skills/verify-change/backend
+
+  git-windows:
+    name: Git Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-git/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-git/backend
+
+  git-fresh-install:
+    name: Fresh install git on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-git/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: runner.os != 'Windows'
+        run: bash plugins/capability/darrow-git/tests/fresh-install.test.sh
+      - name: Verify Git CLI regression scenarios
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          /bin/bash --version
+          for test in plugins/capability/darrow-git/backend/tests/shell/*.test.sh; do
+            /bin/bash "$test"
+          done
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: "& plugins/capability/darrow-git/tests/fresh-install.test.ps1"
+
+  review-windows:
+    name: Review Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-review/backend
+
+  review-fresh-install:
+    name: Fresh install review on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py
+  tickets-windows:
+    name: Tickets Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-tickets-github/backend
+
+  tickets-fresh-install:
+    name: Fresh install tickets on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-tickets-github/backend python plugins/capability/darrow-tickets-github/backend/tests/fresh_install.py
+
+  decisions-windows:
+    name: Decisions Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/foundation/darrow-decisions/backend
+
+  decisions-fresh-install:
+    name: Fresh install decisions on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-decisions/backend python plugins/foundation/darrow-decisions/backend/tests/fresh_install.py
+      - name: Verify decision CLI regression scenarios
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          /bin/bash --version
+          /bin/bash plugins/foundation/darrow-decisions/backend/tests/decision.test.sh
+
+  information-architecture-windows:
+    name: Information architecture Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-information-architecture/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/foundation/darrow-information-architecture/backend
+
+  information-architecture-fresh-install:
+    name: Fresh install information architecture on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-information-architecture/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-information-architecture/backend python plugins/foundation/darrow-information-architecture/backend/tests/fresh_install.py
+
+  adaptive-delivery-windows:
+    name: Adaptive delivery Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-delivery/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/orchestration/darrow-adaptive-delivery/backend
+
+  adaptive-delivery-fresh-install:
+    name: Fresh install adaptive delivery on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-delivery/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/orchestration/darrow-adaptive-delivery/backend python plugins/orchestration/darrow-adaptive-delivery/backend/tests/fresh_install.py
+
+  ticket-pipeline-windows:
+    name: Ticket pipeline Python ${{ matrix.python-version }} on windows-latest
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-ticket-pipeline/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/orchestration/darrow-ticket-pipeline/backend
+
+  ticket-pipeline-fresh-install:
+    name: Fresh install ticket pipeline on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-ticket-pipeline/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/orchestration/darrow-ticket-pipeline/backend python plugins/orchestration/darrow-ticket-pipeline/backend/tests/fresh_install.py
+
+  inventory:
+    name: Python inventory guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/test-python-inventory
+      - run: scripts/test-python-quality-changes
+
+  skill-authoring-fresh-install:
+    name: Fresh install skill-authoring on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.skill_authoring == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
+          - os: macos-latest
+            shell: bash
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.sh
+          - os: windows-latest
+            shell: pwsh
+            test: plugins/foundation/darrow-skill-authoring/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
+
+  observability-fresh-install:
+    name: Fresh install observability-langfuse on ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.observability_langfuse == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: bash plugins/capability/darrow-observability-langfuse/tests/fresh-install.test.sh
+
+  discovery-fresh-install:
+    name: Fresh install discovery on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.discovery == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test: plugins/capability/darrow-discovery/tests/fresh-install.test.sh
+          - os: macos-latest
+            shell: bash
+            test: plugins/capability/darrow-discovery/tests/fresh-install.test.sh
+          - os: windows-latest
+            shell: pwsh
+            test: plugins/capability/darrow-discovery/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
+
+  verification-fresh-install:
+    name: Fresh install verification on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.verification == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test: plugins/capability/darrow-verification/tests/fresh-install.test.sh
+          - os: macos-latest
+            shell: bash
+            test: plugins/capability/darrow-verification/tests/fresh-install.test.sh
+          - os: windows-latest
+            shell: pwsh
+            test: plugins/capability/darrow-verification/tests/fresh-install.test.ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - if: matrix.shell == 'bash'
+        run: bash "${{ matrix.test }}"
+      - if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: "& '${{ matrix.test }}'"
+
+  performance:
+    name: Python performance invariants
+    needs: changes
+    if: needs.changes.outputs.observability_langfuse == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: plugins/capability/darrow-observability-langfuse/tests/performance.test.sh
+
+  aggregate:
+    name: Python quality
+    if: always()
+    needs:
+      - changes
+      - package
+      - skill-authoring-windows
+      - discovery-windows
+      - verification-windows
+      - git-windows
+      - git-fresh-install
+      - review-windows
+      - review-fresh-install
+      - tickets-windows
+      - tickets-fresh-install
+      - decisions-windows
+      - decisions-fresh-install
+      - information-architecture-windows
+      - information-architecture-fresh-install
+      - adaptive-delivery-windows
+      - adaptive-delivery-fresh-install
+      - ticket-pipeline-windows
+      - ticket-pipeline-fresh-install
+      - inventory
+      - skill-authoring-fresh-install
+      - observability-fresh-install
+      - discovery-fresh-install
+      - verification-fresh-install
+      - performance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every selected Python quality job
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          PACKAGE_SELECTED: ${{ needs.changes.outputs.package_selected }}
+          PACKAGE_RESULT: ${{ needs.package.result }}
+          SKILL_AUTHORING_CHANGED: ${{ needs.changes.outputs.skill_authoring }}
+          OBSERVABILITY_CHANGED: ${{ needs.changes.outputs.observability_langfuse }}
+          DISCOVERY_CHANGED: ${{ needs.changes.outputs.discovery }}
+          VERIFICATION_CHANGED: ${{ needs.changes.outputs.verification }}
+          WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
+          DISCOVERY_WINDOWS_RESULT: ${{ needs.discovery-windows.result }}
+          VERIFICATION_WINDOWS_RESULT: ${{ needs.verification-windows.result }}
+          INVENTORY_RESULT: ${{ needs.inventory.result }}
+          SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
+          OBSERVABILITY_INSTALL_RESULT: ${{ needs.observability-fresh-install.result }}
+          DISCOVERY_INSTALL_RESULT: ${{ needs.discovery-fresh-install.result }}
+          VERIFICATION_INSTALL_RESULT: ${{ needs.verification-fresh-install.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance.result }}
+          REVIEW_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend') }}
+          REVIEW_WINDOWS_RESULT: ${{ needs.review-windows.result }}
+          REVIEW_INSTALL_RESULT: ${{ needs.review-fresh-install.result }}
+          GIT_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-git/backend') }}
+          GIT_WINDOWS_RESULT: ${{ needs.git-windows.result }}
+          GIT_INSTALL_RESULT: ${{ needs.git-fresh-install.result }}
+          TICKETS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend') }}
+          TICKETS_WINDOWS_RESULT: ${{ needs.tickets-windows.result }}
+          TICKETS_INSTALL_RESULT: ${{ needs.tickets-fresh-install.result }}
+          DECISIONS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend') }}
+          DECISIONS_WINDOWS_RESULT: ${{ needs.decisions-windows.result }}
+          DECISIONS_INSTALL_RESULT: ${{ needs.decisions-fresh-install.result }}
+          IA_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-information-architecture/backend') }}
+          IA_WINDOWS_RESULT: ${{ needs.information-architecture-windows.result }}
+          IA_INSTALL_RESULT: ${{ needs.information-architecture-fresh-install.result }}
+          ADAPTIVE_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-delivery/backend') }}
+          ADAPTIVE_WINDOWS_RESULT: ${{ needs.adaptive-delivery-windows.result }}
+          ADAPTIVE_INSTALL_RESULT: ${{ needs.adaptive-delivery-fresh-install.result }}
+          PIPELINE_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-ticket-pipeline/backend') }}
+          PIPELINE_WINDOWS_RESULT: ${{ needs.ticket-pipeline-windows.result }}
+          PIPELINE_INSTALL_RESULT: ${{ needs.ticket-pipeline-fresh-install.result }}
+        run: |
+          scripts/verify-python-quality-results \
+            "$CHANGES_RESULT" "$INVENTORY_RESULT" \
+            "$PACKAGE_SELECTED" "$PACKAGE_RESULT" \
+            "$SKILL_AUTHORING_CHANGED" "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
+            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_INSTALL_RESULT" \
+            "$PERFORMANCE_RESULT" \
+            "$DISCOVERY_CHANGED" "$DISCOVERY_WINDOWS_RESULT" \
+            "$DISCOVERY_INSTALL_RESULT" \
+            "$VERIFICATION_CHANGED" "$VERIFICATION_WINDOWS_RESULT" \
+            "$VERIFICATION_INSTALL_RESULT"
+          expected=skipped
+          if [ "$GIT_SELECTED" = true ]; then expected=success; fi
+          test "$GIT_WINDOWS_RESULT" = "$expected"
+          test "$GIT_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$TICKETS_SELECTED" = true ]; then expected=success; fi
+          test "$TICKETS_WINDOWS_RESULT" = "$expected"
+          test "$TICKETS_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$DECISIONS_SELECTED" = true ]; then expected=success; fi
+          test "$DECISIONS_WINDOWS_RESULT" = "$expected"
+          test "$DECISIONS_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$IA_SELECTED" = true ]; then expected=success; fi
+          test "$IA_WINDOWS_RESULT" = "$expected"
+          test "$IA_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$REVIEW_SELECTED" = true ]; then expected=success; fi
+          test "$REVIEW_WINDOWS_RESULT" = "$expected"
+          test "$REVIEW_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$ADAPTIVE_SELECTED" = true ]; then expected=success; fi
+          test "$ADAPTIVE_WINDOWS_RESULT" = "$expected"
+          test "$ADAPTIVE_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$PIPELINE_SELECTED" = true ]; then expected=success; fi
+          test "$PIPELINE_WINDOWS_RESULT" = "$expected"
+          test "$PIPELINE_INSTALL_RESULT" = "$expected"

@@ -9,40 +9,37 @@ fixture:
       files:
         README.md: "# Fixture\n"
   bin:
-    bash: |
+    uv: |
       #!/bin/sh
       d="$(git rev-parse --git-dir)"
-      case "${1:-}" in
-        */darrow-tickets-github/bin/ticket|*/darrow-tickets-github/*/bin/ticket|*/.git/eval-plugin/bin/ticket|*/.git/eval-plugin/*/bin/ticket)
-          printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls"
-          ;;
+      case " $* " in
+        *" darrow-ticket "*) printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls" ;;
       esac
-      exec /bin/bash "$@"
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$d/fixture-uv-paths")
+      exec "$real_uv" "$@"
     gh: |
       #!/bin/sh
       d="$(git rev-parse --git-dir)/fixture-gh"
       mkdir -p "$d"
       echo "$*" >>"$d/calls"
       case "$1 $2" in
-        "repo view") printf 'https://github.test/o/r\n' ;;
+        "repo view") echo '{"url":"https://github.test/o/r"}' ;;
         "issue view")
           case "$*" in
             *"--json number,state,title,url,labels"*)
-              printf 'ticket-token: 12\n#12 open — Child issue\nhttps://github.test/o/r/issues/12\nlabels: (none)\n'
+              printf '%s\n' '{"number": 12, "state": "OPEN", "title": "Child issue", "url": "https://github.test/o/r/issues/12", "labels": []}'
               ;;
-            *"--json body"*) printf 'PARTIAL-BODY-MUST-NOT-LEAK\n' ;;
+            *"--json body"*) printf '%s\n' '{"body": "PARTIAL-BODY-MUST-NOT-LEAK\n"}' ;;
             *) echo "mock gh: unsupported issue view: $*" >&2; exit 1 ;;
           esac
           ;;
         "api repos/{owner}/{repo}/issues/12/parent")
-          case "$*" in
-            *html_url*) printf '7\thttps://github.test/other/repo/issues/7\n' ;;
-            *) echo 7 ;;
-          esac
+          printf '%s\n' '{"number":7,"html_url":"https://github.test/other/repo/issues/7"}'
           ;;
         *) echo "mock gh: unsupported: $*" >&2; exit 1 ;;
       esac
   setup: |
+    which -a uv > .git/fixture-uv-paths
     git remote add origin https://github.test/o/r.git
 checks:
   - name: unsupported qualified parent is relayed exactly
@@ -50,7 +47,7 @@ checks:
     expect_exact: "error: ticket #12 has unsupported foreign parent: https://github.test/other/repo/issues/7 — cross-repository parent relations are not supported"
   - name: bundled CLI owns the failed retrieval
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "/bin/ticket get #?12$"
+    expect_regex: "darrow-ticket get #?12$"
   - name: read stops without fallback or mutation
     run: cat .git/fixture-gh/calls
     not_regex: "issue (list|edit|comment|close|reopen)|-X (POST|DELETE)|issues/7/|blocked_by"

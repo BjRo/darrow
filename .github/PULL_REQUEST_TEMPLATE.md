@@ -46,3 +46,5 @@ and direct reviewers to the riskiest parts. Write "None" when there are none.
       behavior.
 - [ ] I confirmed that each changed plugin remains self-contained, or this
       change does not affect plugin content.
+- [ ] I ran `bun run check:python`, or this change does not affect registered
+      Python packages or their repository quality infrastructure.

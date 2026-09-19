@@ -29,8 +29,7 @@ fixture:
         while [ $# -gt 0 ]; do
           case "$1" in
             -X) method=$2; shift 2 ;;
-            --jq) shift 2 ;;
-            --paginate) shift ;;
+            --paginate|--slurp) shift ;;
             -F)
               case "$2" in
                 issue_id=*) f_issue=${2#issue_id=} ;;
@@ -48,18 +47,18 @@ fixture:
               echo "gh: Not Found (HTTP 404)" >&2
               exit 1
             fi
-            echo $((10000 + n))
+            printf '{"id":%s}\n' $((10000 + n))
             ;;
           "GET /parent")
             if [ -f "$d/issue-$n-parent" ]; then
-              cat "$d/issue-$n-parent"
+              printf '{"number":%s,"html_url":"https://github.test/o/r/issues/%s"}\n' "$(cat "$d/issue-$n-parent")" "$(cat "$d/issue-$n-parent")"
             else
               echo "gh: No parent issue found (HTTP 404)" >&2
               exit 1
             fi
             ;;
           "GET /dependencies/blocked_by")
-            cat "$d/issue-$n-blockedby" 2>/dev/null || :
+            python3 -c 'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(json.dumps([[{"number":int(n)} for n in p.read_text().splitlines()]] if p.exists() else [[]]))' "$d/issue-$n-blockedby"
             ;;
           "POST /dependencies/blocked_by")
             echo $((f_issue - 10000)) >> "$d/issue-$n-blockedby"
@@ -84,13 +83,18 @@ fixture:
       fi
       case "$1 $2" in
         "repo view")
-          echo true
+          printf '{"hasIssuesEnabled":true}\n'
           ;;
         "label list")
-          cat "$d/labels" 2>/dev/null || :
+          python3 -c 'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(json.dumps([{"name":n} for n in p.read_text().splitlines()] if p.exists() else []))' "$d/labels"
           ;;
         "issue list")
-          cat "$d/list" 2>/dev/null || :
+          python3 -c 'import json,pathlib,re,sys; p=pathlib.Path(sys.argv[1]); rows=[]
+      for line in p.read_text().splitlines() if p.exists() else []:
+          m=re.fullmatch(r"#([0-9]+) (open|closed)  (.*?)(?: \((.*)\))?", line)
+          assert m, line
+          rows.append({"number":int(m[1]),"state":m[2].upper(),"title":m[3],"labels":[{"name":n} for n in m[4].split(", ")] if m[4] else []})
+      print(json.dumps(rows))' "$d/list"
           ;;
         "issue view")
           id=$3
@@ -99,26 +103,18 @@ fixture:
             exit 1
           fi
           json=$(find_flag --json "$@")
-          case "$json" in
-            "state,title")
-              printf '%s\n%s\n' "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
-              ;;
-            "body")
-              cat "$d/issue-$id-body" 2>/dev/null || :
-              ;;
-            "labels")
-              cat "$d/issue-$id-labels" 2>/dev/null || :
-              ;;
-            "number,state,title,url,labels")
-              printf '#%s %s - %s\n' "$id" "$(cat "$d/issue-$id-state")" "$(cat "$d/issue-$id-title")"
-              printf 'https://github.test/o/r/issues/%s\n' "$id"
-              printf 'labels: (none)\n'
-              ;;
-            *)
-              echo "mock gh: unsupported --json set: $json" >&2
-              exit 1
-              ;;
-          esac
+          python3 - "$d" "$id" "$json" <<'PY'
+      import json, pathlib, sys
+      directory, number, fields = sys.argv[1:]
+      def read(field):
+          path = pathlib.Path(directory) / f"issue-{number}-{field}"
+          return path.read_text() if path.exists() else ""
+      record = {"number": int(number), "state": read("state").upper(),
+                "title": read("title"), "body": read("body"),
+                "url": f"https://github.test/o/r/issues/{number}",
+                "labels": [{"name": name} for name in read("labels").splitlines()]}
+      print(json.dumps({field: record[field] for field in fields.split(",")}))
+      PY
           ;;
         "issue create")
           if bf=$(find_flag --body-file "$@"); then cp "$bf" "$d/created-body"; fi

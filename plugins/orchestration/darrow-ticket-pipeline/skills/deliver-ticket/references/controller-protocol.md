@@ -17,12 +17,18 @@ each replacement, re-fetch into a new snapshot, compare all pipeline-owned
 bytes with the candidate, then validate it with `summary`. Never continue from
 the unconfirmed candidate.
 
-Resolve the mechanic without assuming the current directory:
+Require UV and Python 3.10–3.13 on macOS, Linux, or native Windows. Resolve
+the contained package without assuming the current directory:
 
 ```sh
 skill_dir=<absolute directory containing deliver-ticket/SKILL.md>
-pipeline="$skill_dir/../../bin/ticket-pipeline"
+backend="$skill_dir/../../backend"
 ```
+
+Invoke every operation as `uv run --quiet --frozen --no-dev --project <absolute-backend> darrow-ticket-pipeline <operation> ...`.
+The examples below use POSIX shell continuation syntax; on PowerShell pass the
+same argument vector on one line. Always use the frozen package invocation;
+there is no shell launcher or global installation requirement.
 
 Keep exported ticket bodies, candidate replacements, artifacts, baseline data,
 and reason files in private temporary storage outside the repository. Pass only
@@ -52,7 +58,7 @@ Fetch the ticket description into a private snapshot. If it has no reserved
 pipeline heading, initialize it with:
 
 ```sh
-bash "$pipeline" init --body-file <snapshot> --run-id <safe-stable-id> \
+uv run --quiet --frozen --no-dev --project "$backend" darrow-ticket-pipeline init --body-file <snapshot> --run-id <safe-stable-id> \
   --repo <absolute-repository> --base-revision <HEAD> \
   --baseline-file <baseline> --output <candidate>
 ```
@@ -95,7 +101,7 @@ Tell the child to read its named skill and the shared phase-artifact contract.
 Before spawning the child:
 
 1. Choose and pin its stable ID and actual harness/model/effort route.
-2. Transform the current re-fetched body with `ticket-pipeline launch`.
+2. Transform the current re-fetched body with `darrow-ticket-pipeline launch`.
 3. Replace the description, re-fetch it, compare pipeline-owned bytes, and run
    `summary`.
 4. Require the exact phase and iteration to be `in_progress`; only then spawn.
@@ -110,7 +116,7 @@ After the child exits:
 
 1. Require exactly one artifact at its absolute packet output path.
 2. Re-fetch the ticket description to incorporate concurrent human edits.
-3. Run `ticket-pipeline record` with that body and artifact.
+3. Run `darrow-ticket-pipeline record` with that body and artifact.
 4. Replace the description through the ticket capability.
 5. Re-fetch, compare pipeline-owned bytes, and run `summary` on the persisted
    result.
@@ -123,7 +129,7 @@ it inline.
 
 ## 3. Bounded state transitions
 
-Use `bash "$pipeline" summary --body-file <re-fetched-snapshot>` after every
+Use `uv run --quiet --frozen --no-dev --project "$backend" darrow-ticket-pipeline summary --body-file <re-fetched-snapshot>` after every
 persisted artifact and follow `next_phase` mechanically.
 
 - `challenge:needs_revision` launches the next refine iteration, up to three
@@ -141,7 +147,7 @@ retry, or reinterpretation of a phase status.
 
 ## 4. Finish and result record
 
-Use `ticket-pipeline finish` with the honest terminal status. For
+Use `darrow-ticket-pipeline finish` with the honest terminal status. For
 `needs_human`, supply a reason file containing only the exact decision,
 evidence, and smallest next action. Persist, re-fetch, compare pipeline-owned
 bytes, and validate the final body. The final status must match the persisted

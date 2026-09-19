@@ -19,14 +19,14 @@ Resolve this file's directory and the repository root. For the first
 comprehensive review run exactly:
 
 ```sh
-bash "$skill_dir/../../bin/independent-review-fixture" "$repo" comprehensive independent-review-skill-contract-v1
+uv run --quiet --frozen --no-dev --project "$skill_dir/../../backend" adaptive-delivery-fixture review "$repo" comprehensive independent-review-skill-contract-v1
 ```
 
 After an enclosing goal repairs that comprehensive review's closed finding set,
 fix-verify only those attempts and direct repair-caused regressions by running:
 
 ```sh
-bash "$skill_dir/../../bin/independent-review-fixture" "$repo" verify independent-review-skill-contract-v1
+uv run --quiet --frozen --no-dev --project "$skill_dir/../../backend" adaptive-delivery-fixture review "$repo" verify independent-review-skill-contract-v1
 ```
 
 Treat the ordinary prose response as this capability's complete, read-only

@@ -54,8 +54,7 @@ checks:
       test -n "$record" || exit 1
       report=$(cd "$(dirname "$record")" && pwd -P)/review.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
-      test "$last" = "Complete provider result: [report](<$report>)" ||
-        test "$last" = "Complete provider result: [report]($report)"
+      test "$last" = "Complete provider result: [report](<$report>)"
   - name: existing provider retains a canonical failing current review
     run:
       record=$(find .git -name result.tsv -type f) && test -n "$record" && test
@@ -68,15 +67,15 @@ checks:
       1)
 
       result_tool=$(find .git/eval-marketplace .git/eval-plugins -path
-      '*/bin/review-result' -type f 2>/dev/null | sort | tail -n 1)
+      '*/backend/src/darrow_review/result.py' -type f 2>/dev/null | sort | tail -n 1)
 
       report_tool=$(find .git/eval-marketplace .git/eval-plugins -path
-      '*/bin/review-report' -type f 2>/dev/null | sort | tail -n 1)
+      '*/backend/src/darrow_review/report.py' -type f 2>/dev/null | sort | tail -n 1)
 
       test -n "$record" && test -n "$result_tool" && test -n "$report_tool" ||
       exit 1
 
-      bash "$result_tool" validate "$record" && bash "$report_tool" render
+      uv run --quiet --frozen --no-dev --project "${result_tool%/src/darrow_review/result.py}" review-result validate "$record" && uv run --quiet --frozen --no-dev --project "${report_tool%/src/darrow_review/report.py}" review-report render
       "$record" >.git/expected-review.md && cmp .git/expected-review.md
       "$(dirname "$record")/review.md"
   - name: complete existing report remains accessible to caller

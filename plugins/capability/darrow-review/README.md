@@ -22,6 +22,13 @@ evidence-backed findings. The validated `darrow-review-result-v1` remains the
 canonical artifact beneath the review scope and is returned only when explicitly
 requested as raw machine format.
 
+Each finding explains the failure and its cause, then carries the originating
+reviewer's suggested repair, rationale, important constraints, and observable
+resolution behavior or a regression test. Repair guidance is advisory: a
+different valid implementation can satisfy the original requirement. When a
+reviewer cannot confidently recommend an approach, the report preserves the
+supported finding and explains that limitation.
+
 After that comprehensive review, the same skill can fix-verify authorized
 repairs against its closed original finding set. The additive
 `darrow-review-verification-v1` binds original, prior, history, and current
@@ -50,7 +57,9 @@ full traceability later in the same report:
 
 - **Location:** src/rate.js:1
 - **Source:** Originating requirement: RATE_LIMIT must equal 2
-- **Evidence:** The changed export remains `1`.
+- **Evidence:** The export is assigned `1`, so consumers receive the wrong limit.
+- **Repair guidance (advisory):** Set the exported limit to 2 to restore the required value; preserve the export name.
+- **Resolution evidence:** Importing RATE_LIMIT yields 2.
 
 ## Checks
 
@@ -77,13 +86,13 @@ target and requires exact-target fix verification. This intentionally gives up
 comprehensive rereview after repair: a defect missed initially will not be
 discovered later unless the repair directly caused it.
 
-### `bin/review-scope`
+### `review-scope`
 
 Resolves and snapshots the requested review scope. It accounts for committed,
 staged, unstaged, renamed, deleted, and untracked paths as appropriate so every
 reviewer examines the same immutable change packet.
 
-### `bin/review-result`
+### `review-result`
 
 Validates the structured findings produced by each comprehensive axis, the final
 aggregate, each fix-verification axis, and additive repair-verification records.
@@ -92,7 +101,9 @@ continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
 `original-findings` copies the complete original finding rows with stable
 cross-axis keys; `validate-original` checks a follow-up against that retained
-comprehensive result, including advisory rows and exact source/evidence text.
+comprehensive result, including advisory rows and exact source/evidence text,
+repair guidance, and resolution evidence. The guidance fields are a paired
+additive extension; legacy v1 records without them remain valid.
 
 ### Reviewer routes
 
@@ -150,14 +161,14 @@ to that exact host-reported child ID so stale transcripts cannot satisfy the
 gate. Any conflicting environment override, background launch, substitution,
 or unverifiable route blocks that review axis.
 
-### `bin/review-route`
+### `review-route`
 
 Resolves bundled and repository reviewer policy, owns selection and application
 record I/O at caller-supplied absolute paths, selects the Claude effort-specific
 plugin agent from the selection record, and binds every confirmed application
 to its axis and host-reported child ID.
 
-### `bin/review-claude-verify`
+### `review-claude-verify`
 
 Parses one completed Claude `agent-<id>.jsonl` transcript by exact agent ID and
 writes the one effective model and effort observed on every assistant turn to
@@ -191,7 +202,29 @@ Review a bounded change or verify authorized repairs against a closed finding se
 
 ## Hosts and prerequisites
 
-Codex and Claude Code with native fresh-agent support; Git, Bash, target checks, and available reviewer routes. PR retrieval needs authenticated forge access.
+Codex and Claude Code with native fresh-agent support; Git,
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+target checks, and available reviewer routes. The package supports
+Linux, macOS, and native Windows. Literal check commands use Bash on Unix and
+PowerShell on Windows. PR retrieval needs authenticated forge access.
+
+Every bundled command runs through the same locked package:
+
+```sh
+uv run --quiet --frozen --no-dev --project /absolute/path/to/darrow-review/backend review-scope prepare --repo /absolute/repo --base HEAD --target WORKTREE
+```
+
+The public entrypoints are `review-scope`, `review-result`, `review-report`,
+`review-check`, `review-route`, `review-claude-verify`, and `claude-provider`.
+They retain their subcommands and TSV protocols; the old `bin/` runtime is
+removed. Runtime dependencies are empty; development tools are separately
+locked. All deterministic plugin tests live in the Python package, including
+CLI contracts, exact report fixtures, and quoted-path command execution.
+Validate with `bun run check:python` and the copied-artifact probe:
+
+```sh
+uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py
+```
 
 ## Installation
 

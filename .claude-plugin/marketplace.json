@@ -23,7 +23,7 @@
     {
       "name": "darrow-git",
       "source": "./plugins/capability/darrow-git",
-      "description": "Intent-triggered git workflow skills: create-branch, prepare-task-branch, create-commit, create-pr"
+      "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence"
     },
     {
       "name": "darrow-tickets-github",
@@ -78,7 +78,7 @@
     {
       "name": "darrow-ticket-to-pr",
       "source": "./plugins/task-recipe/darrow-ticket-to-pr",
-      "description": "Delegate one explicit ticket as a new-branch implementation and one-PR adaptive delivery"
+      "description": "Delegate one explicit ticket as a one-PR adaptive delivery with required same-PR reviewer evidence"
     }
   ]
 }

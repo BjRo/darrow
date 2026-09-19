@@ -150,9 +150,11 @@ or lifecycle-ledger state machine. The owner still observes current external
 state before repeating an ambiguous effect and never duplicates an effect that
 already completed.
 
-## `bin/adaptive-delivery-preflight`
+## Python helpers
 
-The portable Bash helper exposes only two read-only operations:
+The contained `backend` package exposes two read-only preflight operations.
+Prefix each command with
+`uv run --quiet --frozen --no-dev --project "<absolute-plugin-root>/backend"`:
 
 ```text
 adaptive-delivery-preflight prepare --repo <path> --host <codex|claude>
@@ -170,7 +172,7 @@ render completion reports, supervise work, or provide nested host sessions.
 
 ## Claude route agents
 
-`bin/claude-agent-route` maps an exact supported Claude model and effort to one
+`claude-agent-route` (through the same frozen UV command) maps an exact supported Claude model and effort to one
 plugin-shipped route agent and rejects conflicting environment overrides. The
 current bundled routes are:
 
@@ -202,7 +204,12 @@ Use this for an explicitly invoked bounded engineering outcome. Ordinary complex
 
 ## Hosts and prerequisites
 
-Codex with native subagent support or Claude Code with the bundled foreground route agents; Git, Bash, baseline Unix tools, available routes, and the capabilities matching authorized operations.
+Codex with native subagent support or Claude Code with the bundled foreground
+route agents; [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+Git, available routes, and the capabilities matching authorized operations.
+The helpers support Linux, macOS, and native Windows without Bash or runtime
+Python dependencies. Regression tests run through the repository's Python
+quality gate on all three platforms.
 
 ## Installation
 

@@ -9,10 +9,8 @@ fix-verification reader in one invocation.
 Resolve the bundled helper from the code-review skill directory:
 
 ```sh
-route_tool="$skill_dir/../../bin/review-route"
-claude_verify_tool="$skill_dir/../../bin/review-claude-verify"
 route_record="$(dirname "$manifest")/reviewer-route.tsv"
-bash "$route_tool" select --repo "$repo" --host <codex|claude> \
+uv run --quiet --frozen --no-dev --project "$backend" review-route select --repo "$repo" --host <codex|claude> \
   --record "$route_record"
 ```
 
@@ -51,7 +49,7 @@ route evidence beside the manifest:
 
 ```sh
 axis_route="$(dirname "$manifest")/<axis>-route.tsv"
-bash "$route_tool" confirm-codex --route-record "$route_record" \
+uv run --quiet --frozen --no-dev --project "$backend" review-route confirm-codex --route-record "$route_record" \
   --axis <axis> --agent-id '<host-reported-child-id>' \
   --application-record "$axis_route"
 ```
@@ -85,7 +83,7 @@ Current Claude Code uses the plugin reader's full model and effort frontmatter
 as one exact tuple. Resolve that exact-tuple reader before invoking Agent:
 
 ```sh
-bash "$route_tool" claude-agent --route-record "$route_record"
+uv run --quiet --frozen --no-dev --project "$backend" review-route claude-agent --route-record "$route_record"
 ```
 
 Use the returned namespaced `subagent_type`. The exact selected full model and
@@ -114,7 +112,7 @@ derive the effective route from that child's transcript:
 
 ```sh
 observed_record="$(dirname "$manifest")/<axis>-observed-route.tsv"
-bash "$claude_verify_tool" --repo "$repo" --agent-id '<agent-id>' \
+uv run --quiet --frozen --no-dev --project "$backend" review-claude-verify --repo "$repo" --agent-id '<agent-id>' \
   --record "$observed_record"
 ```
 
@@ -123,7 +121,7 @@ compares the selected and transcript-observed values:
 
 ```sh
 axis_route="$(dirname "$manifest")/<axis>-route.tsv"
-bash "$route_tool" confirm-claude --route-record "$route_record" \
+uv run --quiet --frozen --no-dev --project "$backend" review-route confirm-claude --route-record "$route_record" \
   --observed-record "$observed_record" --axis <axis> \
   --application-record "$axis_route"
 ```

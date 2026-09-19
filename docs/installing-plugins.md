@@ -17,6 +17,59 @@ can differ; consult local `--help` and the linked official documentation if
 a command is unavailable. Syntax checks alone do not verify your account,
 network, installed state, or the desktop UI.
 
+### UV and Python for plugin helpers
+
+Plugins with bundled Python helpers require **UV** (the `uv` command) and
+**Python 3.10–3.13** (`>=3.10,<3.14`). Check the selected plugin's
+`Hosts and prerequisites` README section to see whether this setup applies,
+which additional tools it requires, and which platforms it supports.
+
+Install UV using the [official UV installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
+For macOS or Linux, run in your shell:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+For Windows with WinGet, run in PowerShell:
+
+```powershell
+winget install --id=astral-sh.uv -e
+```
+
+Open a new terminal after installation. Provision a supported, UV-managed
+Python version and check availability with these commands, which work in both
+shells:
+
+```sh
+uv --version
+uv python install 3.13
+uv python find --managed-python 3.13
+```
+
+Expect a UV version and an absolute path to the managed Python interpreter.
+Using `3.13` explicitly keeps the interpreter within Darrow's supported range;
+a newer system Python alone may not satisfy it. UV can install Python itself,
+so no separate Python installer is needed for this setup. See
+[UV's Python management guide](https://docs.astral.sh/uv/guides/install-python/).
+
+Make sure `uv --version` also succeeds in the command environment used by your
+agent host. If it reports `uv: command not found`, check that UV's installation
+directory is on that environment's `PATH`, then restart the host so it inherits
+the updated environment.
+
+Each plugin ships its own `pyproject.toml` and `uv.lock`. Its documented
+`uv run --frozen --no-dev --project ...` helper commands prepare the plugin's
+isolated environment from that lock on first use. Allow network access for
+Python, build requirements, and runtime dependency downloads, plus write access
+to the plugin environment and UV cache. Subsequent runs reuse that environment;
+an update may require new downloads. See [UV's environment synchronization documentation](https://docs.astral.sh/uv/concepts/projects/sync/).
+
+The marketplace install commands and bulk shortcut install plugins; they do
+not install UV or provision Python. Complete this setup before using Python
+helpers. Development tools and checks for contributing to Darrow are documented
+separately in [Contributing](../CONTRIBUTING.md).
+
 ### Select the command target
 
 The commands below use `darrow-readiness-gate@darrow` as the worked example for
@@ -116,6 +169,51 @@ See the [official Codex plugin documentation](https://developers.openai.com/code
 for supported surfaces and UI behavior. If your Codex surface has no plugin
 support, use Codex CLI or browse the static documentation; do not assume that
 a CLI installation enabled a different app or extension.
+
+## Install supported marketplace plugins
+
+The repository includes an inventory-driven shortcut for intentionally adopting
+the current supported marketplace. It reads `.claude-plugin/marketplace.json`
+when it runs, then invokes the selected host's normal per-plugin installation
+command for each eligible entry. It does not make the plugins a combined package
+or add dependencies between them.
+
+First add the Darrow marketplace for the target host as shown above. You can
+then run either shortcut directly, without cloning this repository:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/BjRo/darrow/main/scripts/install-all-plugins | bash -s -- --host codex
+```
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/BjRo/darrow/main/scripts/install-all-plugins | bash -s -- --host claude --scope user
+```
+
+These commands retrieve and execute the current Darrow installer and its
+marketplace manifest from GitHub. Review the source first if your trust policy
+does not permit remote shell execution. From a checkout, you can instead run
+`bash scripts/install-all-plugins` with the same host arguments; it reads that
+checkout's manifest locally.
+
+Claude Code accepts `user` (the default), `project`, or `local` for `--scope`;
+the script passes that scope to every `claude plugin install` call. A failed
+plugin installation stops the shortcut, returns a nonzero status, and names the
+plugin that failed. The success message appears only after every current
+marketplace entry has installed.
+
+The shortcut deliberately excludes two marketplace entries:
+
+- `darrow-ticket-pipeline` is a deprecated reference implementation.
+- `darrow-observability-langfuse` requires UV and a UV-managed Python
+  `>=3.10,<3.14`; on Codex, review and trust its hooks when prompted. Installing
+  it does not enable tracing: configure credentials and explicitly opt in before
+  it exports anything. Read its local README before enabling it.
+
+For plugins with Python helpers, complete the
+[UV and Python setup](#uv-and-python-for-plugin-helpers) before using them.
+The shortcut does not check or install these runtime prerequisites;
+its success message confirms host installation only. Each plugin's local lock
+and package remain independent of other Darrow plugins.
 
 ## Verify the installation
 

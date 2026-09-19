@@ -1,7 +1,7 @@
 {
   "name": "darrow-git",
-  "version": "0.4.2",
-  "description": "Intent-triggered git workflow skills: create-branch, prepare-task-branch, create-commit, create-pr",
+  "version": "0.8.3",
+  "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence",
   "author": {
     "name": "Björn Rochel"
   },
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Darrow -> Git",
     "shortDescription": "Prepare branches, commits, and pull requests",
-    "longDescription": "Create or reuse traceable task branches, create focused Conventional Commits, and open context-rich pull requests with deliberate Git safety checks.",
+    "longDescription": "Create or reuse traceable task branches, create focused Conventional Commits, open verified pull requests, and publish candidate-bound reviewer evidence with deliberate Git and GitHub safety checks.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
@@ -17,7 +17,8 @@
       "Create a branch for this work.",
       "Prepare this ticket's exact task branch.",
       "Commit the current changes.",
-      "Open a pull request for this branch."
+      "Open a pull request for this branch.",
+      "Publish this verification evidence to the exact current pull request."
     ]
   }
 }

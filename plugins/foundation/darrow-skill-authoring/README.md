@@ -11,27 +11,39 @@ Codex.
   verifies the resulting package in fresh context.
 
 The plugin is self-contained. It does not require another Darrow plugin, an MCP
-server, or a workflow runtime. Its bundled inspector validates portable
-metadata and containment for inline Markdown-linked local resources; the
-workflow inspects other path forms, and native runtime validators remain
-authoritative for their complete formats.
+server, or a workflow runtime. Its locked Python inspector validates portable
+metadata and containment for inline Markdown-linked local resources on Linux,
+macOS, and native Windows; the workflow inspects other path forms, and native
+runtime validators remain authoritative for their complete formats.
 
 ## Design boundaries
 
-Validation is read-only. Creation and revision require a supplied goal,
-destination, supported runtimes, and clear authority. The skill does not
-invent a capability or publish it without a separate explicit request.
+Validation keeps the target repository read-only. On first use, UV may create
+`skills/author-agent-skill/backend/.venv` inside the installed plugin and fetch
+the locked Python environment. Creation and revision require a supplied goal,
+destination, supported runtimes, and clear authority. The skill does not invent
+a capability or publish it without a separate explicit request.
 
 ## Development
 
-From this plugin directory, run all deterministic tests through the
-version-aware matrix:
+From this plugin directory, prepare the locked helper environment without
+development dependencies:
 
-```sh
-bash skills/author-agent-skill/scripts/verify-shell-tests -- \
-  skills/author-agent-skill/scripts/inspect-skill.test.sh \
-  skills/author-agent-skill/scripts/verify-shell-tests.test.sh \
-  skills/author-agent-skill/scripts/interpreter-routing.test.sh
+```text
+uv sync --quiet --frozen --no-dev --project skills/author-agent-skill/backend
+```
+
+From the repository root, run the Python quality checks with
+`bun run check:python`. From this plugin directory, run the shell regression
+suites through the version-aware matrix:
+
+```text
+uv run --quiet --frozen --no-dev \
+  --project skills/author-agent-skill/backend \
+  verify-shell-tests -- \
+  skills/author-agent-skill/backend/tests/shell/inspect-skill.test.sh \
+  skills/author-agent-skill/backend/tests/shell/verify-shell-tests.test.sh \
+  skills/author-agent-skill/backend/tests/shell/interpreter-routing.test.sh
 ```
 
 The matrix reports observed interpreter versions. Exit `3` leaves an unavailable
@@ -53,7 +65,11 @@ Create, revise, or validate one reusable skill. Do not use it for generic instru
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; Bash and baseline Unix tools. Live evaluations need the target's supported host harness.
+Codex and Claude Code;
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
+Shell-matrix verification also needs the target interpreters and their baseline
+Unix tools.
+Live evaluations need the target's supported host harness.
 
 ## Installation
 

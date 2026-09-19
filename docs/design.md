@@ -122,23 +122,25 @@ consequences. Its interface and result still identify the operation, target,
 material side effects, inspected evidence, failure, and any required next
 decision.
 
-## Plugin mechanics use portable Bash
+## Plugin mechanics use contained Python or portable Bash
 
-Executable mechanics shipped inside a plugin use portable Bash, baseline Unix
-utilities, and the host CLIs that the capability explicitly wraps. A plugin
-does not introduce Python, JavaScript or TypeScript, Ruby, a JVM, a compiled
-binary, or another full language runtime for its internal helpers.
+Substantial deterministic mechanics may use a contained Python package managed
+by UV when that materially improves clarity, testability, or native Windows
+support. The package, lock, entrypoints, dependencies, and state stay inside the
+owning plugin. Runtime and development dependencies remain separate, and frozen
+entrypoints never rely on a sibling plugin or shared Darrow runtime.
 
-This keeps each plugin inspectable, independently installable, and usable in
-the default macOS and Linux environments of both Claude Code and Codex. Darrow
-targets Bash 5 and the macOS `/bin/bash` 3.2 boundary, so scripts also avoid
-GNU-only assumptions and newer Bash-only syntax.
+Genuinely small host-specific launchers and command glue use portable Bash,
+baseline Unix utilities, and the host CLIs that the capability explicitly
+wraps. Darrow targets Bash 5 and the macOS `/bin/bash` 3.2 boundary for those
+scripts, so they avoid GNU-only assumptions and newer Bash-only syntax.
 
-The restriction applies to plugin-shipped runtime mechanics. Repository-level
-development infrastructure may use a different implementation when an accepted
-decision establishes it. In particular, the shared evaluation runner uses
-TypeScript on Bun; plugins consume its declarative eval contract but do not ship
-it as a runtime dependency.
+Each plugin declares its own runtime prerequisites and remains independently
+installable. Python adoption is incremental rather than a requirement that all
+plugins carry a Python package. Plugins do not introduce JavaScript or
+TypeScript, Ruby, a JVM, compiled binaries, or shared language-runtime
+infrastructure for their helpers. Repository-level development infrastructure
+remains outside this plugin-runtime boundary.
 
 ## Evals make development evidence-based
 
@@ -226,7 +228,7 @@ are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
   runtime around the marketplace.
 - Hide repeatable tool mechanics behind narrow, testable scripts without hiding
   their authority or effects.
-- Ship plugin mechanics as portable Bash and keep heavier languages in
-  repository-level development infrastructure.
+- Use contained Python plus UV for substantial cross-platform plugin mechanics,
+  and portable Bash for small host-specific launchers and command glue.
 - Give every skill functional evals and compare behavior-changing variants with
   matched controls before claiming an improvement.

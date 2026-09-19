@@ -1,0 +1,20 @@
+id: publish-pr-evidence-generic-comment-nonactivation
+invariant: GW-E1
+activation: negative
+activation_excludes: [publish-pr-evidence]
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Add a friendly “thanks” comment to issue 42. There is no candidate evidence
+  contract and no pull request publication authority.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+checks:
+  - name: repository remains unchanged
+    run: git diff --exit-code && git diff --cached --exit-code
+transcript_checks:
+  - name: focused PR evidence publisher remains inactive
+    not_regex: '"skill":"publish-pr-evidence"|"name":"Skill"[^\n]*publish-pr-evidence'

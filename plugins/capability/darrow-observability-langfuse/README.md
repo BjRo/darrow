@@ -13,17 +13,15 @@ segments.
 It adds Darrow-specific work-item attribution without depending on another
 plugin. The hook never contacts or mutates a tracker.
 
-## Runtime exception
+## Runtime
 
-Darrow plugin mechanics normally use portable Bash only. ADR-0008 records the
-contained exception here: `hooks/stop.sh` is a portable launcher, while
+`hooks/stop.sh` is a portable launcher, while
 transcript reconstruction and Langfuse export run in Python managed by UV. The
 plugin commits `backend/pyproject.toml` and `backend/uv.lock`; no sibling plugin
 or repository runtime is required.
 
-First execution may let UV download the locked Python runtime dependencies and
-create `backend/.venv` inside the installed plugin. Pre-warm it from the plugin
-root with:
+To prepare the hook environment before its first execution, run from the plugin
+root:
 
 ```sh
 uv sync --frozen --project backend
@@ -40,9 +38,8 @@ codex plugin add darrow-observability-langfuse@darrow
 
 Review and trust the plugin's hooks when Codex prompts you, then start a new
 Codex session after installation. You can inspect the registered hooks with
-`/hooks`. UV and a UV-managed Python
-`>=3.10,<3.14` are required. The locked Langfuse Python SDK requires a
-compatible Langfuse v4 server or Langfuse Cloud. Delivery uses the supported
+`/hooks`. Check [hosts and prerequisites](#hosts-and-prerequisites) before
+enabling export. Delivery uses the supported
 OTLP traces endpoint and the v4 ingestion header. Codex must support native
 asynchronous command hooks (verified with CLI 0.153.4).
 
@@ -264,10 +261,12 @@ bash hooks/stop.test.sh
 bash hooks/export-failure.test.sh
 bash hooks/refusal.test.sh
 bash hooks/strict.test.sh
-uv run --frozen --project backend python -m unittest discover -s backend/tests
+bun run check:python
 ```
 
 Run each shell test with both `bash` and `/bin/bash` in repository development.
+The repository command verifies the UV lock, formatting, lint, strict typing,
+tests, property tests, and separate statement and branch coverage gates.
 
 ## When to use
 
@@ -275,8 +274,9 @@ Configure or explain Codex turn telemetry, privacy, and attribution. Do not use 
 
 ## Hosts and prerequisites
 
-Codex is the observed runtime. Export requires Codex async hooks, UV, managed
-Python >=3.10,<3.14, and compatible Langfuse v4. Claude Code turns are not exported.
+Codex is the observed runtime. Export requires Codex async hooks,
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+and a compatible Langfuse v4 server or Langfuse Cloud. Claude Code turns are not exported.
 Claude installation and guidance invocation are unverified: Claude Code 2.1.223
 rejects this package's Codex-specific `Interrupt` hook during native validation.
 The presence of a Claude manifest is not a compatibility guarantee.

@@ -1,0 +1,88 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "usage: verify-python-coverage REPORT [MINIMUM]" >&2
+  exit 2
+fi
+
+report=$1
+minimum=${2:-95}
+
+if [ ! -r "$report" ]; then
+  echo "error: coverage report is unreadable: $report" >&2
+  exit 1
+fi
+
+if [ -n "${PYTHON:-}" ]; then
+  python_command=$PYTHON
+elif command -v python3 >/dev/null 2>&1; then
+  python_command=python3
+elif command -v python >/dev/null 2>&1; then
+  python_command=python
+else
+  echo "error: Python is required to verify coverage" >&2
+  exit 1
+fi
+
+"$python_command" - "$report" "$minimum" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+
+def percentage(totals: dict[str, Any], covered_key: str, total_key: str) -> float:
+    covered = totals.get(covered_key)
+    total = totals.get(total_key)
+    if (
+        isinstance(covered, bool)
+        or not isinstance(covered, int)
+        or isinstance(total, bool)
+        or not isinstance(total, int)
+        or covered < 0
+        or total < 0
+        or covered > total
+    ):
+        raise ValueError("coverage report has invalid totals")
+    return 100.0 if total == 0 else covered * 100.0 / total
+
+
+def main() -> None:
+    report = Path(sys.argv[1])
+    try:
+        minimum = float(sys.argv[2])
+    except ValueError as error:
+        raise ValueError(f"invalid coverage minimum: {sys.argv[2]}") from error
+    if not 0.0 <= minimum <= 100.0:
+        raise ValueError(f"coverage minimum outside 0-100: {minimum}")
+
+    try:
+        value = json.loads(report.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid coverage report: {report}") from error
+    if not isinstance(value, dict) or not isinstance(value.get("totals"), dict):
+        raise ValueError("coverage report has no totals object")
+
+    totals = value["totals"]
+    lines = percentage(totals, "covered_lines", "num_statements")
+    branches = percentage(totals, "covered_branches", "num_branches")
+    failures = []
+    if lines < minimum:
+        failures.append(f"line coverage {lines:.2f}%")
+    if branches < minimum:
+        failures.append(f"branch coverage {branches:.2f}%")
+    if failures:
+        joined = ", ".join(failures)
+        raise ValueError(f"{joined} below required {minimum:.2f}%")
+    print(f"coverage passed: lines={lines:.2f}% branches={branches:.2f}%")
+
+
+try:
+    main()
+except ValueError as error:
+    print(f"error: {error}", file=sys.stderr)
+    raise SystemExit(1) from error
+PY
