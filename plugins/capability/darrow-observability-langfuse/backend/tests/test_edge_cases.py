@@ -27,6 +27,7 @@ from darrow_observability_langfuse import (
 from darrow_observability_langfuse.config import Config
 from darrow_observability_langfuse.context import delivery_context
 from darrow_observability_langfuse.export import DeliveryError
+from darrow_observability_langfuse.locking import exclusive_lock
 
 
 class ConfigEdgeTests(unittest.TestCase):
@@ -274,14 +275,10 @@ class DeliveryAndExportEdgeTests(unittest.TestCase):
             self.assertEqual(
                 delivery.drain(root / "missing", Config(), cwd=directory), 0
             )
-            with (
-                patch(
-                    "darrow_observability_langfuse.delivery.fcntl.flock",
-                    side_effect=BlockingIOError,
-                ),
-                delivery._exclusive_lock(root / "lock") as acquired,
-            ):
-                self.assertFalse(acquired)
+            with exclusive_lock(root / "lock") as acquired:
+                self.assertTrue(acquired)
+                with exclusive_lock(root / "lock", blocking=False) as second_acquired:
+                    self.assertFalse(second_acquired)
 
     def test_delivery_envelope_validation(self) -> None:
         rows = cast(

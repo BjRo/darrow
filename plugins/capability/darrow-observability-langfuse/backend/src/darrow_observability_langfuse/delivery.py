@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
-import os
 import sqlite3
 import time
-from collections.abc import Callable, Iterator
-from contextlib import closing, contextmanager
+from collections.abc import Callable
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -18,6 +16,7 @@ from .capture import database, database_path, observation_count
 from .config import Config
 from .context import delivery_context, require_context
 from .export import DeliveryError, export_document
+from .locking import exclusive_lock
 
 
 def await_capture(rollout: Path, turn_id: str, timeout: float = 45) -> bool:
@@ -58,7 +57,7 @@ def drain(
     lock_path = (
         lock_directory / f"{hashlib.sha256(session_id.encode()).hexdigest()}.lock"
     )
-    with _exclusive_lock(lock_path) as acquired:
+    with exclusive_lock(lock_path, blocking=False) as acquired:
         return _Drainer(rollout, config, exporter).run() if acquired else 0
 
 
@@ -74,20 +73,6 @@ def _session_id(rollout: Path, config: Config, cwd: str) -> str | None:
             "SELECT value FROM state WHERE key='session_id'"
         ).fetchone()
         return str(json.loads(row[0])) if row is not None else None
-
-
-@contextmanager
-def _exclusive_lock(path: Path) -> Iterator[bool]:
-    descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
-    try:
-        try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            yield False
-            return
-        yield True
-    finally:
-        os.close(descriptor)
 
 
 @dataclass(frozen=True)

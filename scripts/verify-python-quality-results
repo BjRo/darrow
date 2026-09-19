@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 16 ]; then
-  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package> <skill-selected> <skill-windows> <skill-install> <observability-selected> <observability-install> <observability-performance> <discovery-selected> <discovery-windows> <discovery-install> <verification-selected> <verification-windows> <verification-install>" >&2
+if [ "$#" -ne 17 ]; then
+  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package> <skill-selected> <skill-windows> <skill-install> <observability-selected> <observability-windows> <observability-install> <observability-performance> <discovery-selected> <discovery-windows> <discovery-install> <verification-selected> <verification-windows> <verification-install>" >&2
   exit 2
 fi
 
@@ -14,15 +14,16 @@ skill_selected=$5
 skill_windows_result=$6
 skill_install_result=$7
 observability_selected=$8
-observability_install_result=$9
+observability_windows_result=$9
 shift 9
-observability_performance_result=$1
-discovery_selected=$2
-discovery_windows_result=$3
-discovery_install_result=$4
-verification_selected=$5
-verification_windows_result=$6
-verification_install_result=$7
+observability_install_result=$1
+observability_performance_result=$2
+discovery_selected=$3
+discovery_windows_result=$4
+discovery_install_result=$5
+verification_selected=$6
+verification_windows_result=$7
+verification_install_result=$8
 
 require_result() {
   name=$1
@@ -54,7 +55,8 @@ require_scope packages "$package_selected" "$package_result"
 require_scope skill-authoring "$skill_selected" \
   "$skill_windows_result" "$skill_install_result"
 require_scope observability-langfuse "$observability_selected" \
-  "$observability_install_result" "$observability_performance_result"
+  "$observability_windows_result" "$observability_install_result" \
+  "$observability_performance_result"
 require_scope discovery "$discovery_selected" \
   "$discovery_windows_result" "$discovery_install_result"
 require_scope verification "$verification_selected" \

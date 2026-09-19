@@ -33,6 +33,7 @@ def test_manifest_identity() -> None:
     assert codex["skills"] == "./skills/"
     assert codex["hooks"] == "./hooks/hooks.json"
     assert (PLUGIN / "hooks/stop.sh").is_file()
+    assert (PLUGIN / "hooks/stop.ps1").is_file()
     marketplace = json.loads(
         (PLUGIN.parents[2] / ".claude-plugin/marketplace.json").read_text()
     )
@@ -47,8 +48,13 @@ def test_capture_and_delivery_registration(event: str) -> None:
     assert first["type"] == "command"
     assert "${PLUGIN_ROOT}" in first["command"]
     assert "hooks/stop.sh" in first["command"]
+    assert "${PLUGIN_ROOT}" in first["commandWindows"]
+    assert "hooks/stop.ps1" in first["commandWindows"]
     assert any(not h.get("async") and "--drain" not in h["command"] for h in registered)
     assert any(h.get("async") is True and "--drain" in h["command"] for h in registered)
+    assert any(
+        h.get("async") is True and "--drain" in h["commandWindows"] for h in registered
+    )
 
 
 def test_session_start_recovers_delivery() -> None:
@@ -76,11 +82,19 @@ def launcher_environment() -> dict[str, str]:
     }
 
 
-@pytest.mark.skipif(os.name == "nt", reason="packaged hook uses the Unix host shell")
-@pytest.mark.parametrize("shell", ["bash", "/bin/bash"])
-def test_disabled_packaged_command(shell: str) -> None:
+def host_command(command: dict[str, Any], shell: str | None) -> list[str]:
+    field = "commandWindows" if os.name == "nt" else "command"
+    expanded = command[field].replace("${PLUGIN_ROOT}", str(PLUGIN))
+    if os.name == "nt":
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/D", "/S", "/C", expanded]
+    assert shell is not None
+    return [shell, "-c", expanded]
+
+
+@pytest.mark.parametrize("shell", [None] if os.name == "nt" else ["bash", "/bin/bash"])
+def test_disabled_packaged_command(shell: str | None) -> None:
     subprocess.run(
-        [shell, "-c", handlers("Stop")[0]["command"]],
+        host_command(handlers("Stop")[0], shell),
         input="{}\n",
         text=True,
         check=True,
@@ -93,9 +107,8 @@ def test_disabled_packaged_command(shell: str) -> None:
     )
 
 
-@pytest.mark.skipif(os.name == "nt", reason="packaged hook uses the Unix host shell")
-@pytest.mark.parametrize("shell", ["bash", "/bin/bash"])
-def test_stop_reconstructs_trace(shell: str) -> None:
+@pytest.mark.parametrize("shell", [None] if os.name == "nt" else ["bash", "/bin/bash"])
+def test_stop_reconstructs_trace(shell: str | None) -> None:
     payload = {
         "session_id": "session-main",
         "turn_id": "turn-1",
@@ -104,7 +117,7 @@ def test_stop_reconstructs_trace(shell: str) -> None:
         "hook_event_name": "Stop",
     }
     result = subprocess.run(
-        [shell, str(PLUGIN / "hooks/stop.sh")],
+        host_command(handlers("Stop")[0], shell),
         input=json.dumps(payload),
         text=True,
         capture_output=True,

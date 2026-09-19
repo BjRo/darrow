@@ -1,4 +1,4 @@
-"""Failure and configuration contracts through both supported Unix launchers."""
+"""Failure and configuration contracts through each native host launcher."""
 
 import json
 import os
@@ -10,14 +10,11 @@ from pathlib import Path
 import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
-pytestmark = pytest.mark.skipif(
-    os.name == "nt", reason="native Windows support is tracked in #205"
-)
 
 
 @dataclass
 class Hook:
-    shell: str
+    command: list[str]
     root: Path
     project: Path
     home: Path
@@ -34,7 +31,7 @@ class Hook:
             "transcript_path": str(self.root / "missing.jsonl"),
         }
         return subprocess.run(
-            [self.shell, str(PLUGIN / "hooks/stop.sh"), *args],
+            [*self.command, *args],
             input=json.dumps(document) if payload is None else payload,
             text=True,
             capture_output=True,
@@ -53,19 +50,35 @@ class Hook:
     def path_without_uv(self) -> str:
         directory = self.root / "without uv"
         directory.mkdir(exist_ok=True)
-        for name in ("dirname", "tr", "sed"):
-            executable = shutil.which(name)
-            assert executable is not None
-            destination = directory / name
-            if not destination.exists():
-                destination.symlink_to(executable)
+        if os.name != "nt":
+            for name in ("dirname", "tr", "sed"):
+                executable = shutil.which(name)
+                assert executable is not None
+                destination = directory / name
+                if not destination.exists():
+                    destination.symlink_to(executable)
         return str(directory)
 
 
-@pytest.fixture(params=["bash", "/bin/bash"])
+@pytest.fixture(params=[None] if os.name == "nt" else ["bash", "/bin/bash"])
 def hook(request: pytest.FixtureRequest, tmp_path: Path) -> Hook:
-    shell = shutil.which(str(request.param))
-    assert shell is not None
+    if os.name == "nt":
+        powershell = shutil.which("powershell.exe")
+        assert powershell is not None
+        command = [
+            powershell,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(PLUGIN / "hooks/stop.ps1"),
+        ]
+    else:
+        shell = shutil.which(str(request.param))
+        assert shell is not None
+        command = [shell, str(PLUGIN / "hooks/stop.sh")]
     project, home = tmp_path / "project", tmp_path / "home"
     for directory in (project, home):
         (directory / ".codex").mkdir(parents=True)
@@ -79,7 +92,7 @@ def hook(request: pytest.FixtureRequest, tmp_path: Path) -> Hook:
     environment.update(
         {"HOME": str(home), "UV_OFFLINE": "1", "CODEX_PLUGIN_ROOT": str(PLUGIN)}
     )
-    return Hook(shell, tmp_path, project, home, environment)
+    return Hook(command, tmp_path, project, home, environment)
 
 
 @pytest.mark.parametrize("strict", [False, True])

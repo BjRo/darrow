@@ -15,10 +15,11 @@ plugin. The hook never contacts or mutates a tracker.
 
 ## Runtime
 
-`hooks/stop.sh` is a Unix Bash launcher, while
-transcript reconstruction and Langfuse export run in Python managed by UV. The
-plugin commits `backend/pyproject.toml` and `backend/uv.lock`; no sibling plugin
-or repository runtime is required.
+Codex selects `hooks/stop.sh` through Bash on Linux and macOS and
+`hooks/stop.ps1` through Windows PowerShell on native Windows. Transcript
+reconstruction and Langfuse export run in Python managed by UV on every
+platform. The plugin commits `backend/pyproject.toml` and `backend/uv.lock`; no
+sibling plugin or repository runtime is required.
 
 To prepare the hook environment before its first execution, run from the plugin
 root:
@@ -41,7 +42,7 @@ Codex session after installation. You can inspect the registered hooks with
 `/hooks`. Check [hosts and prerequisites](#hosts-and-prerequisites) before
 enabling export. Delivery uses the supported
 OTLP traces endpoint and the v4 ingestion header. Codex must support native
-asynchronous command hooks (verified with CLI 0.153.4).
+asynchronous command hooks and `commandWindows` (verified with CLI 0.154.0).
 
 ## Configure
 
@@ -261,9 +262,11 @@ uv run --quiet --frozen --no-dev --project backend python backend/tests/fresh_in
 bun run check:python
 ```
 
-The hook tests invoke both `bash` and `/bin/bash` from pytest.
-The repository command verifies the UV lock, formatting, lint, strict typing,
-tests, property tests, and separate statement and branch coverage gates.
+The hook tests invoke both `bash` and `/bin/bash` on Unix and Windows PowerShell
+on native Windows. The copied-artifact check executes the registered host
+command on its current platform. The repository command verifies the UV lock,
+formatting, lint, strict typing, tests, property tests, and separate statement
+and branch coverage gates.
 
 ## When to use
 
@@ -271,12 +274,14 @@ Configure or explain Codex turn telemetry, privacy, and attribution. Do not use 
 
 ## Hosts and prerequisites
 
-Codex is the observed runtime. Export requires Codex async hooks,
+Codex is the observed runtime. Linux, macOS, and native Windows are supported.
+Export requires Codex async hooks and `commandWindows` support,
 [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
-and a compatible Langfuse v4 server or Langfuse Cloud. Claude Code turns are not exported.
-The hook requires a Unix environment with Bash; the backend uses Unix file
-locking. Native Windows support is tracked separately in
-[#205](https://github.com/BjRo/darrow/issues/205).
+and a compatible Langfuse v4 server or Langfuse Cloud. Linux and macOS require
+Bash. Native Windows requires Windows PowerShell 5.1 or later and does not
+require Bash, WSL, or a POSIX compatibility layer. Backend and sidecar locks
+use the platform's native cross-process file locking. Claude Code turns are not
+exported.
 Claude installation and guidance invocation are unverified: Claude Code 2.1.223
 rejects this package's Codex-specific `Interrupt` hook during native validation.
 The presence of a Claude manifest is not a compatibility guarantee.

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Codex rollout reconstruction and Langfuse export backend"
 requires-python = ">=3.10,<3.14"
 dependencies = [
+  "filelock>=3.20,<4",
   "langfuse>=4.0,<5",
   "opentelemetry-exporter-otlp-proto-http>=1.36,<2",
 ]

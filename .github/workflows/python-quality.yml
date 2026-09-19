@@ -470,11 +470,39 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend python plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend/tests/fresh_install.py
 
-  observability-fresh-install:
-    name: Fresh install observability-langfuse on ubuntu-latest
+  observability-windows:
+    name: Observability Langfuse Python ${{ matrix.python-version }} on windows-latest
     needs: changes
     if: needs.changes.outputs.observability_langfuse == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: scripts/check-python --package plugins/capability/darrow-observability-langfuse/backend
+
+  observability-fresh-install:
+    name: Fresh install observability-langfuse on ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.observability_langfuse == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -555,6 +583,7 @@ jobs:
       - ticket-pipeline-fresh-install
       - inventory
       - skill-authoring-fresh-install
+      - observability-windows
       - observability-fresh-install
       - discovery-fresh-install
       - verification-fresh-install
@@ -576,6 +605,7 @@ jobs:
           VERIFICATION_WINDOWS_RESULT: ${{ needs.verification-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
           SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
+          OBSERVABILITY_WINDOWS_RESULT: ${{ needs.observability-windows.result }}
           OBSERVABILITY_INSTALL_RESULT: ${{ needs.observability-fresh-install.result }}
           DISCOVERY_INSTALL_RESULT: ${{ needs.discovery-fresh-install.result }}
           VERIFICATION_INSTALL_RESULT: ${{ needs.verification-fresh-install.result }}
@@ -606,8 +636,8 @@ jobs:
             "$CHANGES_RESULT" "$INVENTORY_RESULT" \
             "$PACKAGE_SELECTED" "$PACKAGE_RESULT" \
             "$SKILL_AUTHORING_CHANGED" "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
-            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_INSTALL_RESULT" \
-            "$PERFORMANCE_RESULT" \
+            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_WINDOWS_RESULT" \
+            "$OBSERVABILITY_INSTALL_RESULT" "$PERFORMANCE_RESULT" \
             "$DISCOVERY_CHANGED" "$DISCOVERY_WINDOWS_RESULT" \
             "$DISCOVERY_INSTALL_RESULT" \
             "$VERIFICATION_CHANGED" "$VERIFICATION_WINDOWS_RESULT" \

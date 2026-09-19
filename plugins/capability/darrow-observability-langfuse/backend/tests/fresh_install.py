@@ -1,4 +1,4 @@
-"""Validate a copied Unix plugin using only its locked runtime dependencies."""
+"""Validate a copied plugin using only its locked runtime dependencies."""
 
 import json
 import os
@@ -32,7 +32,9 @@ def validate(plugin: Path, fixture: Path) -> None:
         "import darrow_observability_langfuse",
     )
     hooks = json.loads((plugin / "hooks/hooks.json").read_text(encoding="utf-8"))
-    capture = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
+    handler = hooks["hooks"]["Stop"][0]["hooks"][0]
+    field = "commandWindows" if os.name == "nt" else "command"
+    capture = handler[field].replace("${PLUGIN_ROOT}", str(plugin))
     environment = {
         key: value
         for key, value in os.environ.items()
@@ -46,7 +48,8 @@ def validate(plugin: Path, fixture: Path) -> None:
         }
     )
     subprocess.run(
-        ["bash", "-c", capture],
+        capture,
+        shell=True,
         input="{}\n",
         text=True,
         env=environment,

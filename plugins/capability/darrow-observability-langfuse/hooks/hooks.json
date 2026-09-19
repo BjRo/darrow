@@ -6,12 +6,14 @@
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\"",
             "timeout": 45,
             "statusMessage": "Capturing Codex attribution"
           },
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\" --drain",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\" --drain",
             "async": true,
             "timeout": 120
           }
@@ -24,12 +26,14 @@
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\"",
             "timeout": 45,
             "statusMessage": "Capturing Codex trace locally"
           },
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\" --drain",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\" --drain",
             "async": true,
             "timeout": 120
           }
@@ -42,6 +46,7 @@
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\"",
             "timeout": 3
           }
         ]
@@ -53,6 +58,7 @@
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\"",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\"",
             "timeout": 3
           }
         ]
@@ -64,6 +70,7 @@
           {
             "type": "command",
             "command": "bash \"${PLUGIN_ROOT}/hooks/stop.sh\" --drain",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/hooks/stop.ps1\" --drain",
             "async": true,
             "timeout": 120
           }
