@@ -36,7 +36,7 @@ def validate(backend: Path, fixture: Path) -> None:
         str(skill),
         str(fixture / "plugin copy"),
     ).decode()
-    assert re.search(r"(?m)^status\s+valid$", inspection), inspection
+    assert "status\tvalid" in inspection.splitlines(), inspection
     scripts = [
         "inspect-skill.test.sh",
         "verify-shell-tests.test.sh",
