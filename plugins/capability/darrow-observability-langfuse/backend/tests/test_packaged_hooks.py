@@ -82,11 +82,13 @@ def launcher_environment() -> dict[str, str]:
     }
 
 
-def host_command(command: dict[str, Any], shell: str | None) -> list[str]:
+def host_command(command: dict[str, Any], shell: str | None) -> str | list[str]:
     field = "commandWindows" if os.name == "nt" else "command"
-    expanded = command[field].replace("${PLUGIN_ROOT}", str(PLUGIN))
+    registered = command[field]
+    assert isinstance(registered, str)
+    expanded = registered.replace("${PLUGIN_ROOT}", str(PLUGIN))
     if os.name == "nt":
-        return [os.environ.get("COMSPEC", "cmd.exe"), "/D", "/S", "/C", expanded]
+        return expanded
     assert shell is not None
     return [shell, "-c", expanded]
 
@@ -99,6 +101,7 @@ def test_disabled_packaged_command(shell: str | None) -> None:
         text=True,
         check=True,
         capture_output=True,
+        shell=os.name == "nt",
         env={
             **launcher_environment(),
             "PLUGIN_ROOT": str(PLUGIN),
@@ -122,6 +125,7 @@ def test_stop_reconstructs_trace(shell: str | None) -> None:
         text=True,
         capture_output=True,
         check=True,
+        shell=os.name == "nt",
         env={
             **launcher_environment(),
             "CODEX_PLUGIN_ROOT": str(PLUGIN),
