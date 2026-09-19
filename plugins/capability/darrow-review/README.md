@@ -202,8 +202,9 @@ Review a bounded change or verify authorized repairs against a closed finding se
 
 ## Hosts and prerequisites
 
-Codex and Claude Code with native fresh-agent support; Git, UV, Python
-3.10–3.13, target checks, and available reviewer routes. The package supports
+Codex and Claude Code with native fresh-agent support; Git,
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+target checks, and available reviewer routes. The package supports
 Linux, macOS, and native Windows. Literal check commands use Bash on Unix and
 PowerShell on Windows. PR retrieval needs authenticated forge access.
 

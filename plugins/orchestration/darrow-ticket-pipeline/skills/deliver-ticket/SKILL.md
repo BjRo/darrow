@@ -61,8 +61,9 @@ preflight result has been returned with zero child launches and no mutations.
 
 ### 2. Initialize or resume durable state
 
-Resolve the bundled `ticket-pipeline` command relative to this skill and export
-the fetched description to private temporary storage outside the repository.
+Use the frozen `darrow-ticket-pipeline` entrypoint from `<skill-dir>/../../backend`
+as specified by the controller protocol. Require UV and Python 3.10–3.13;
+export the fetched description to private temporary storage outside the repository.
 
 - No pipeline run: initialize one, replace the description through the ticket
   capability, re-fetch it, and validate the persisted state before continuing.
@@ -81,7 +82,7 @@ a child.
 
 ### 3. Execute the state machine
 
-After every durable transition, use `ticket-pipeline summary` and follow its
+After every durable transition, use `darrow-ticket-pipeline summary` and follow its
 `next_phase` exactly:
 
 | Phase | Required skill | Product boundary |

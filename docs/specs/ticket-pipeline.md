@@ -67,6 +67,15 @@ This is a native, skill-driven orchestrator, not a daemon or workflow runtime.
 - **TP-C1 — Comparable result.** The final record reports outcome, phases,
   routes, files, gates, loop counts, child invocations, interruptions, risks,
   and next action in a comparison-friendly shape.
+- **TP-M1 — Contained Python mechanics.** The frozen UV entrypoint
+  `darrow-ticket-pipeline` uses a plugin-local locked Python package on macOS,
+  Linux, and native Windows. It preserves the deprecated reference's command
+  arguments, TSV records, ticket/artifact bytes, phase ordering, refusal exit
+  codes, recovery and iteration bounds. No Bash runtime facade remains.
+  Matched fixtures retain evidence from the pre-migration implementation;
+  native package gates and fresh copied-artifact checks cover the declared
+  platforms. The migration changes runtime portability, not orchestration
+  authority or deprecated status.
 
 ## Shared model
 

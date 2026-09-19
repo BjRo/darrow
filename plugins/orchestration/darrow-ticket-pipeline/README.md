@@ -57,9 +57,9 @@ Example: _“Use deliver-ticket for DAR-123.”_
   repository knowledge. It recommends one authoritative home or records that
   there is nothing new to codify; it does not apply the recommendation.
 
-### `bin/ticket-pipeline` and artifact contract
+### `darrow-ticket-pipeline` and artifact contract
 
-The Bash state machine initializes runs, validates launch and result records,
+The contained Python state machine initializes runs, validates launch and result records,
 selects the next predefined phase, enforces iteration limits, summarizes
 resumable state, and validates terminal outcomes. `config/phase-artifact.md`
 defines the shared artifact envelope used by every phase. The controller
@@ -92,7 +92,43 @@ Use this deprecated reference for deliberate static-workflow comparisons. Use Ad
 
 ## Hosts and prerequisites
 
-Codex or Claude Code with fresh-agent support; Bash, Git, repository checks, and a compatible installed ticket capability with access to the selected ticket.
+Codex or Claude Code with fresh-agent support;
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers), Git,
+repository checks, and a compatible installed ticket capability with access
+to the selected ticket. Mechanics run on macOS, Linux, and native Windows;
+they do not require Bash or a sibling plugin. The host still owns child-agent
+availability and tracker access.
+
+Invoke the locked package directly, with the absolute installed plugin path:
+
+```text
+uv run --quiet --frozen --no-dev --project <plugin-root>/backend darrow-ticket-pipeline summary --body-file <absolute-ticket-snapshot>
+```
+
+Runtime dependencies are empty; development tools live only in the locked
+development group.
+
+### Migration and benchmark fidelity
+
+Version 0.3.1 converts the facade to Python for native Windows support while
+retaining this deprecated baseline. It removes the old Bash runtime path;
+command arguments, TSV formats, phase artifacts, ticket serialization, limits,
+and exit classes remain stable: `0` success, `2` invalid input or filesystem
+failure, `4` contradictory state or refused transition, `64` unknown command.
+Diagnostics remain specific but are not byte-identical to the old shell errors.
+Output paths are absolute and new candidates never overwrite existing files.
+
+The migration deliberately preserves two historical selection details:
+`summary` returns `finish` for failed QA although explicit bounded QA repair is
+accepted; and `needs_revision` continues to select refinement after a new
+refinement until an explicit matching challenge is recorded. They are reference
+behavior, not new recommendations for orchestration.
+
+[Matched command evidence](backend/tests/README.md) covers the Bash reference
+and Python candidate. The package gate runs on Python 3.10–3.13 across macOS,
+Linux, and native Windows, and copied-artifact validation uses only locked
+runtime dependencies. The meaningful shell regression scenarios are ported to native Python
+integration tests; the shell test and runtime facade are removed. No Python quality exception is needed.
 
 ## Installation
 

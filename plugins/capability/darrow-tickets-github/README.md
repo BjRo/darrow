@@ -14,9 +14,8 @@ between installed providers require clarification before tracker access.
 
 ## Prerequisites
 
-Install `darrow-tickets-github` from the Darrow marketplace. It requires UV,
-Python 3.10–3.13, Git, `gh` authenticated for the repository's GitHub host,
-and a usable `origin` remote. Runtime dependencies are otherwise empty.
+Install `darrow-tickets-github` from the Darrow marketplace after checking
+[hosts and prerequisites](#hosts-and-prerequisites).
 
 Claude's session-start hook supplies static discovery context so matching
 requests activate the owning skill before repository inspection or prerequisite
@@ -125,8 +124,10 @@ Operate on current-project GitHub Issues. Use the matching provider for another 
 
 ## Hosts and prerequisites
 
-Codex and Claude Code on Linux, macOS, and native Windows; UV, Python 3.10–3.13,
-Git, and authenticated `gh` for the origin repository's host.
+Codex and Claude Code on Linux, macOS, and native Windows;
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+Git, `gh` authenticated for the repository's GitHub host, and a usable `origin`
+remote. Runtime dependencies are otherwise empty.
 
 ## Installation
 

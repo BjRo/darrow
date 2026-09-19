@@ -108,8 +108,9 @@ workflows to rewrite history, merge, release, deploy, or post generic comments.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code on Linux, macOS, and Windows; Git, UV, and Python
-3.10–3.13 (UV can provision Python). PR work also requires
+Codex and Claude Code on Linux, macOS, and Windows; Git and
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
+PR work also requires
 authenticated GitHub CLI access and a usable remote. Attachment publication
 requires a GitHub host and a `gh pr comment` implementation that advertises
 `--attach`.

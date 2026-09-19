@@ -65,8 +65,10 @@ Create, revise, or validate one reusable skill. Do not use it for generic instru
 
 ## Hosts and prerequisites
 
-Codex and Claude Code; UV and a UV-managed Python `>=3.10,<3.14`. Shell-matrix
-verification also needs the target interpreters and their baseline Unix tools.
+Codex and Claude Code;
+[UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
+Shell-matrix verification also needs the target interpreters and their baseline
+Unix tools.
 Live evaluations need the target's supported host harness.
 
 ## Installation

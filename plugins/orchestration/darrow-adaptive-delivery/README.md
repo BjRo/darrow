@@ -178,7 +178,9 @@ Use this for an explicitly invoked bounded engineering outcome. Ordinary complex
 
 ## Hosts and prerequisites
 
-Codex with native subagent support or Claude Code with the bundled foreground route agents; UV, Python 3.10–3.13, Git, available routes, and the capabilities matching authorized operations.
+Codex with native subagent support or Claude Code with the bundled foreground
+route agents; [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
+Git, available routes, and the capabilities matching authorized operations.
 The helpers support Linux, macOS, and native Windows without Bash or runtime
 Python dependencies. Regression tests run through the repository's Python
 quality gate on all three platforms.
