@@ -54,6 +54,18 @@ precedence, serialized bytes, and resource lifetimes. Standard-library replaceme
 must preserve those contracts across the package's declared Python versions;
 resource cleanup must not implicitly change transaction or publication semantics.
 
+The same implementation boundary applies to validation mechanics: substantial
+eval fixture providers, structured JSON/TSV evidence checks, and copied-artifact
+installation checks belong in the owning plugin's Python package. Keep eval
+oracles independent of the implementation they assess. Share fixture mechanics
+within that plugin rather than duplicating them across YAML cases; case-specific
+input and expectations remain explicit in each case. Use one portable Python
+installation check for Unix and Windows, preserving platform-specific probes.
+Small host launchers and tests whose subject is shell behavior may remain shell.
+Invoking a shell launcher does not by itself make a test shell-specific: keep
+configuration matrices, protocol assertions, and fixture construction in Python,
+and invoke each supported shell from those tests when launcher coverage matters.
+
 ## Tests and coverage
 
 Each package keeps fast unit tests for local behavior and integration tests for

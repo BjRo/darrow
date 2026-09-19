@@ -126,9 +126,10 @@ uv run --quiet --frozen --project plugins/capability/darrow-observability-langfu
   python -m unittest discover -s plugins/capability/darrow-observability-langfuse/backend/tests -q
 ```
 
-Run each of these with both `bash` and `/bin/bash`: `tests/package.test.sh`,
-`hooks/stop.test.sh`, `hooks/export-failure.test.sh`, and
-`hooks/refusal.test.sh`, relative to the plugin root. All eight invocations pass.
+Run the package, Stop reconstruction, and failure checks with
+`uv run --quiet --frozen --all-groups --project backend pytest backend/tests/test_packaged_hooks.py backend/tests/test_hook_failures.py`,
+relative to the plugin root. The launcher scenarios run under both `bash` and
+`/bin/bash` through pytest.
 The export-failure launcher check now supplies valid session/turn IDs and checks
 successful local capture followed by a failing background drain, rather than
 mistaking malformed input for exporter failure.

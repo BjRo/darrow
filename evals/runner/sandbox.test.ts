@@ -1,8 +1,19 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, readFile, realpath, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sandboxedAgentCommand, sandboxProfile } from "./sandbox";
+import {
+  sandboxedAgentCommand,
+  sandboxedCommand,
+  sandboxProfile,
+} from "./sandbox";
 
 const cleanup: string[] = [];
 
@@ -14,6 +25,34 @@ afterEach(async () => {
 });
 
 describe("eval outer sandbox", () => {
+  test.skipIf(process.platform !== "darwin")(
+    "keeps packaged oracles hidden from agents and available to grading",
+    async () => {
+      const repo = await mkdtemp(join(tmpdir(), "darrow-eval-oracle-"));
+      cleanup.push(repo);
+      const directory = join(repo, ".git", "eval-checks");
+      await mkdir(directory, { recursive: true });
+      const oracle = join(directory, "oracle.py");
+      await writeFile(oracle, "hidden acceptance check\n");
+      for (const argv of [
+        ["/bin/cat", oracle],
+        ["/usr/bin/touch", oracle],
+      ]) {
+        const command = await sandboxedAgentCommand(argv, repo);
+        expect(
+          await Bun.spawn(command, { stdout: "ignore", stderr: "ignore" })
+            .exited,
+        ).not.toBe(0);
+      }
+      const command = await sandboxedCommand(["/bin/cat", oracle], repo);
+      const grader = Bun.spawn(command, { stdout: "pipe", stderr: "pipe" });
+      expect(await new Response(grader.stdout).text()).toBe(
+        "hidden acceptance check\n",
+      );
+      expect(await grader.exited).toBe(0);
+    },
+  );
+
   test("builds deterministic deny rules and escapes literals", () => {
     const profile = sandboxProfile(
       ['/tmp/z"q', "/tmp/a\\b", "/tmp/a\\b"],
