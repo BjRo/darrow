@@ -1,7 +1,7 @@
 {
   "name": "darrow-git",
   "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "hooks": "./.claude-plugin/hooks.json",
   "license": "BUSL-1.1"
 }

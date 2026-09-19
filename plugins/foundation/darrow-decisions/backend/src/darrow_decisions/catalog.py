@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 from .catalog_format import FORMAT, CatalogRow, checksum, render
@@ -29,7 +30,7 @@ def make_rows(root: Path, records: list[Record]) -> list[CatalogRow]:
     for record in records:
         row = CatalogRow(record, fingerprint(root, record.path), 0, 0)
         crc, size = checksum(row.signature())
-        rows.append(CatalogRow(record, row.fingerprint, crc, size))
+        rows.append(replace(row, crc=crc, size=size))
     return rows
 
 

@@ -7,15 +7,14 @@ from .common import RefusalError
 
 def options(args: list[str], names: set[str], label: str) -> dict[str, str]:
     result: dict[str, str] = {}
-    position = 0
-    while position < len(args):
-        name = args[position]
+    tokens = iter(args)
+    for name in tokens:
         if name not in names:
             raise RefusalError(f"unknown {label}option: {name}")
-        if position + 1 == len(args) or not args[position + 1]:
+        value = next(tokens, "")
+        if not value:
             raise RefusalError(f"missing value for {name}")
-        result[name.removeprefix("--")] = args[position + 1]
-        position += 2
+        result[name.removeprefix("--")] = value
     return result
 
 

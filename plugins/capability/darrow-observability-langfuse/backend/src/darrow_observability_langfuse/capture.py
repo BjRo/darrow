@@ -8,7 +8,7 @@ import json
 import os
 import sqlite3
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
@@ -67,9 +67,8 @@ def database(rollout: Path) -> Iterator[sqlite3.Connection]:
     path = database_path(rollout)
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
     os.close(descriptor)
-    connection = sqlite3.connect(path, timeout=30, isolation_level=None)
-    connection.row_factory = sqlite3.Row
-    try:
+    with closing(sqlite3.connect(path, timeout=30, isolation_level=None)) as connection:
+        connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA synchronous=FULL")
         connection.execute("PRAGMA foreign_keys=ON")
         connection.executescript("""
@@ -92,8 +91,6 @@ def database(rollout: Path) -> Iterator[sqlite3.Connection]:
             CREATE INDEX IF NOT EXISTS captured_turns_pending ON captured_turns(finalized);
         """)
         yield connection
-    finally:
-        connection.close()
 
 
 def _get(connection: sqlite3.Connection, key: str, default: Any = None) -> Any:
@@ -202,8 +199,7 @@ def load_capture_snapshots(rollout: Path) -> dict[str, dict[str, Any]]:
     path = database_path(rollout)
     if not path.exists():
         return {}
-    connection = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
-    try:
+    with closing(sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)) as connection:
         return cast(
             "dict[str, dict[str, Any]]",
             {
@@ -211,8 +207,6 @@ def load_capture_snapshots(rollout: Path) -> dict[str, dict[str, Any]]:
                 for row in connection.execute("SELECT * FROM snapshots")
             },
         )
-    finally:
-        connection.close()
 
 
 def capture(

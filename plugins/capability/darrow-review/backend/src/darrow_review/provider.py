@@ -51,8 +51,8 @@ def json_object(text: str) -> dict[str, object]:
         )
     except (ValueError, RecursionError) as exc:
         raise ReviewError(f"invalid JSON: {exc}") from exc
-    require(isinstance(value, dict), "JSON root must be an object")
-    assert isinstance(value, dict)
+    if not isinstance(value, dict):
+        raise ReviewError("JSON root must be an object")
     return {str(key): item for key, item in value.items()}
 
 
@@ -64,18 +64,21 @@ def assistant_observation(
         f"assistant record has unexpected agentId on line {line}",
     )
     message = row.get("message")
-    require(isinstance(message, dict), f"assistant record lacks message on line {line}")
-    assert isinstance(message, dict)
+    if not isinstance(message, dict):
+        raise ReviewError(f"assistant record lacks message on line {line}")
     require(
         message.get("role") == "assistant",
         f"assistant record has unexpected message.role on line {line}",
     )
     model, effort = message.get("model"), row.get("effort")
-    require(
-        isinstance(model, str) and isinstance(effort, str) and model and effort,
-        f"assistant record lacks model or effort on line {line}",
-    )
-    return str(model), str(effort)
+    if (
+        not isinstance(model, str)
+        or not isinstance(effort, str)
+        or not model
+        or not effort
+    ):
+        raise ReviewError(f"assistant record lacks model or effort on line {line}")
+    return model, effort
 
 
 def observe_transcript(path: Path, agent: str) -> tuple[str, str]:

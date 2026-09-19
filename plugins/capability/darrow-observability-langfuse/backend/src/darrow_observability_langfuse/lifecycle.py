@@ -8,7 +8,7 @@ import os
 import sqlite3
 import tempfile
 from collections.abc import Iterator
-from contextlib import suppress
+from contextlib import closing, suppress
 from pathlib import Path
 from typing import Any
 
@@ -58,8 +58,9 @@ def _validate_legacy_context(rollout: Path, context: dict[str, Any]) -> None:
     previous = Path(f"{rollout}.darrow-langfuse.sqlite3")
     if not previous.exists():
         return
-    connection = sqlite3.connect(f"{previous.as_uri()}?mode=ro", uri=True, timeout=0)
-    try:
+    with closing(
+        sqlite3.connect(f"{previous.as_uri()}?mode=ro", uri=True, timeout=0)
+    ) as connection:
         binding = connection.execute(
             "SELECT value FROM state WHERE key='delivery_context'"
         ).fetchone()
@@ -67,8 +68,6 @@ def _validate_legacy_context(rollout: Path, context: dict[str, Any]) -> None:
             require_context(json.loads(binding[0]), context)
         elif _database_has_evidence(connection):
             require_context(None, context)
-    finally:
-        connection.close()
 
 
 def _database_has_evidence(connection: sqlite3.Connection) -> bool:
