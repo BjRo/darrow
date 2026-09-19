@@ -6,13 +6,13 @@ boundaries, not a capability registry or a sequence every task must traverse.
 
 ## Responsibilities and decision ownership
 
-| Responsibility       | Owns                                                                                                      | Evidence supplied to consumers                                                                                                        |
-| -------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Foundations          | Reliable repository context, accepted decisions and policy, reusable skills                               | Ordinary instructions, specifications, decisions and skills; repository artifacts remain useful after the producing plugin is removed |
-| Capabilities         | A focused operation and how it establishes its promised assurance                                         | Inputs inspected, effects performed, result, evidence and operation-specific refusal                                                  |
-| Orchestration        | Goal framing, workflow and required assurance selection, one execution owner, continuation and completion | Bounded authority and acceptance contract; owner-sourced verification, findings and effects                                           |
-| Task recipes         | A familiar complete outcome and its explicit permission envelope                                          | One delegated outcome with preserved authority and completion requirements                                                            |
-| Automation — planned | When eligible, explicitly authorized work may start under admission and capacity rules                    | A future authorized admission and handoff contract; no implemented scheduler entry today                                              |
+| Responsibility | Owns                                                                                                      | Evidence supplied to consumers                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Foundations    | Reliable repository context, accepted decisions and policy, reusable skills                               | Ordinary instructions, specifications, decisions and skills; repository artifacts remain useful after the producing plugin is removed |
+| Capabilities   | A focused operation and how it establishes its promised assurance                                         | Inputs inspected, effects performed, result, evidence and operation-specific refusal                                                  |
+| Orchestration  | Goal framing, workflow and required assurance selection, one execution owner, continuation and completion | Bounded authority and acceptance contract; owner-sourced verification, findings and effects                                           |
+| Task recipes   | A familiar complete outcome and its explicit permission envelope                                          | One delegated outcome with preserved authority and completion requirements                                                            |
+| Automation     | When eligible, explicitly authorized work may start under admission and capacity rules                    | Local Artificer supplies a grant-bound entry; task recipes and the original native owner retain engineering execution                 |
 
 Foundations and capabilities support several responsibilities directly. A user
 can assess readiness or create a commit without a recipe or orchestration.
@@ -116,14 +116,14 @@ engineering goals select assurance or add a second lifecycle controller.
    rather than moving preflight or repair into the recipe. The broader adaptive
    fidelity work in #102 remains separate; this change covers composition and
    material-scope readiness continuation only.
-4. **Adopt future-contract requirements; defer automation implementation.** The
-   opportunity research is exploratory and the current recipe requires explicit
-   invocation in the current host thread. Scheduler/tracker/forge state is a
-   useful proposed basis, not authorization for an unattended entrypoint.
+4. **Require a deliberate automation contract.** The opportunity research alone
+   grants no authority. Local Artificer supplies a saved recurring grant and
+   deliberate recipe entry under its local contract. A scheduler cannot infer
+   authority from ticket text or impersonate a current-thread human invocation.
 
 ## Automation contracts required before shipping
 
-Separately approved design must define all of the following:
+Every authorized automation entry must define and preserve all of the following:
 
 - **Recurring authority and entry:** who grants it, eligible repository/ticket
   scope, allowed effects, duration, revocation and per-run provenance. A scheduler
@@ -141,8 +141,12 @@ Separately approved design must define all of the following:
   effects, crash recovery, stale evidence and conflict handling before retry.
   A timeout alone cannot prove an owner ended or a publication failed.
 
-These are future acceptance requirements, not implemented mechanisms. No claim
-store, queue, lifecycle ledger, scheduler or execution controller is introduced.
+Local Artificer implements these requirements through the bounded
+[local admission contract](artificer.md). Its small grant/reservation records
+correlate native execution; they do not track engineering phases or create a
+general queue, workflow database, or execution controller. GitHub Actions
+execution remains separate and must establish its own authentication and
+cross-job restoration evidence.
 
 ## Composition evidence
 

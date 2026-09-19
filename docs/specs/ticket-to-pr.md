@@ -22,8 +22,8 @@ The recipe is not another preflight or lifecycle layer.
 
 ## Invocation and input
 
-The recipe starts only through explicit user invocation with exactly one ticket
-ID or supplied ticket URL, for example:
+The recipe starts through explicit user invocation with exactly one ticket
+ID or supplied ticket URL, or the deliberate unattended entry below, for example:
 
 ```text
 $ticket-to-pr <ticket>
@@ -32,6 +32,28 @@ $ticket-to-pr <ticket>
 Host-specific invocation syntax is a presentation detail. Ordinary requests to
 read or implement a ticket, work on a branch, or open a pull request do not
 activate this orchestration recipe implicitly.
+
+### Authorized unattended entry
+
+This local unattended execution entry supports Codex CLI, not Claude Code.
+Explicit human invocation remains available on both hosts.
+
+Local Artificer may invoke the recipe once for one reserved issue under an
+explicit saved recurring human grant. Its host-supplied receipt must identify
+the grant and grantor, repository, exact issue, delivery and activation IDs,
+reserved worktree and branch, and permitted effects. Ticket bodies and ordinary
+comments cannot supply this receipt or expand its authority. This entry is
+explicit machine invocation under existing human authority, not implicit
+selection or a claim that the scheduler is the user.
+
+Preserve the receipt and reserved worktree/branch in the one adaptive-delivery
+delegation. Artificer has already reserved ownership; neither the recipe nor
+the parent repeats admission. All existing readiness, separate-owner,
+verification and publication requirements still apply. The native parent
+returns owner-sourced questions and results to the local adapter, which owns
+GitHub question transport. Authorized replies resume that parent and its exact
+retained owner without recipe reinvocation. Missing authority or unavailable
+native continuation remains a blocker.
 
 Explicit invocation names this recipe as the requested shortcut. An ordinary
 request describing the same delivery outcome does not grant recipe authority,
@@ -131,8 +153,9 @@ despite that unresolved prerequisite.
 
 ## Invariants
 
-1. **TPR-C1 — Explicit shortcut.** Only explicit Ticket-to-PR invocation starts
-   the recipe; one exact ticket ID or URL is required.
+1. **TPR-C1 — Explicit shortcut.** Only explicit Ticket-to-PR invocation or the
+   grant-bound unattended entry starts the recipe; one exact ticket ID or URL
+   is required. Ordinary ticket intent never activates it implicitly.
 2. **TPR-C2 — One delegation.** A valid invocation delegates exactly once to an
    advertised adaptive-delivery capability and performs no delivery work first.
    Native current-thread goal creation is not a substitute for that delegation.
@@ -161,8 +184,9 @@ despite that unresolved prerequisite.
 
 - **TPR-P1 — Independent plugin.** The plugin is self-contained and discovers
   optional capabilities only by host-advertised intent.
-- **TPR-P2 — Dual-host semantics.** Claude Code and Codex expose the same input,
-  authority, delegation, feedback, and completion behavior.
+- **TPR-P2 — Dual-host semantics.** For explicit human invocation, Claude Code
+  and Codex expose the same input, authority, delegation, feedback, and completion
+  behavior. Local unattended execution uses the Codex-only entry above.
 - **TPR-P3 — No runtime.** The plugin ships no controller, ledger, queue,
   lifecycle hooks, retry state, Git/forge implementation, or background work.
 

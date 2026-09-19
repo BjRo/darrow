@@ -30,7 +30,7 @@ semantic_output_checks:
   - name: question contract
     proposition: >-
       The answer uses a compact inline visual to explain Darrow's layer relationships and
-      distinguishes planned automation from shipped layers. It does not claim to have created
+      identifies automation as bounded grant-authorized admission, not engineering ownership. It does not claim to have created
       files, installed plugins, run tests, repaired configuration, or diagnosed the environment.
       A separate statement that the answer was read-only is not required.
 output_checks:

@@ -28,7 +28,7 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 ## Layout
 
 - `plugins/<kind>/<name>/` — self-contained plugins grouped as `foundation`,
-  `capability`, `orchestration`, or `task-recipe`. Skills live in `skills/<skill>/SKILL.md`
+  `capability`, `orchestration`, `task-recipe`, or `automation`. Skills live in `skills/<skill>/SKILL.md`
   with colocated scripts and evals. Never reference files outside a plugin or
   assume a sibling plugin is installed.
 - `docs/specs/` — normative capability invariants.

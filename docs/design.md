@@ -9,19 +9,20 @@ adoptable plugins, but gives them different activation and ownership models.
 These responsibilities can be entered independently; they are not mandatory
 sequential stages. Foundations and capabilities support several layers directly.
 
-| Responsibility       | Decision owner                                                            | Delivered evidence                                                                      |
-| -------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Foundations          | Repository context, accepted policy and reusable skills                   | Ordinary repository artifacts that remain useful without the producing plugin installed |
-| Capabilities         | Focused operations and how they establish assurance                       | Result, inspected basis, effects and operation-specific refusal                         |
-| Orchestration        | Bounded goal, workflow, required assurance and one execution owner        | Contract and owner-sourced continuation/completion evidence                             |
-| Task recipes         | Familiar complete outcomes and consistent explicit permission envelopes   | One delegated outcome with preserved authority                                          |
-| Automation — planned | Admission timing, eligibility and capacity for explicitly authorized work | Future entry and handoff contracts; no current unattended recipe entry                  |
+| Responsibility | Decision owner                                                            | Delivered evidence                                                                      |
+| -------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Foundations    | Repository context, accepted policy and reusable skills                   | Ordinary repository artifacts that remain useful without the producing plugin installed |
+| Capabilities   | Focused operations and how they establish assurance                       | Result, inspected basis, effects and operation-specific refusal                         |
+| Orchestration  | Bounded goal, workflow, required assurance and one execution owner        | Contract and owner-sourced continuation/completion evidence                             |
+| Task recipes   | Familiar complete outcomes and consistent explicit permission envelopes   | One delegated outcome with preserved authority                                          |
+| Automation     | Admission timing, eligibility and capacity for explicitly authorized work | Grant-bound local entry and handoff; original native execution and continuation         |
 
 Evaluation and observability assess behavior across all of these responsibilities.
 They do not grant authority or act as another execution stage. The
 [layer-composition contract](specs/layer-composition.md) records decision
 ownership, recommendation dispositions, operation handoffs and the contracts
-automation needs before it can ship.
+every authorized automation entry must preserve. Local Artificer implements the
+bounded [local admission contract](specs/artificer.md).
 
 ## Capabilities and orchestration
 

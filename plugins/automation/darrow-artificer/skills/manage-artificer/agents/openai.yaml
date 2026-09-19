@@ -1,0 +1,6 @@
+interface:
+  display_name: "Manage Artificer"
+  short_description: "Manage explicitly authorized local ticket delivery"
+  default_prompt: "Use $manage-artificer to inspect my local delivery installation."
+policy:
+  allow_implicit_invocation: false

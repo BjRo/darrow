@@ -1,0 +1,64 @@
+id: ticket-to-pr-unattended-grant
+harnesses: [codex]
+activation: positive
+mount_plugin_skills: true
+activation_sequence:
+  - ticket-to-pr
+  - adaptive-delivery
+invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C6
+goal_report: forbidden
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Authorized unattended Artificer entry from a saved human
+  recurring grant, not a current-thread human invocation. Grant receipt:
+  grant grant-157, grantor maintainer, repository fixture/repo, issue 157,
+  delivery delivery-157, activation activation-157, reserved worktree
+  /fixture/worktree-157, branch feat/157-existing, effects
+  claims,questions,worktrees,recipe,commits,push,pr,archives.
+  Deliver https://github.com/fixture/repo/issues/157 under that receipt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  files:
+    .claude/skills/adaptive-delivery/SKILL.md: &adaptive |
+      ---
+      name: adaptive-delivery
+      description: Accept bounded delivery delegated from a task recipe, preserving its authority and reserved target.
+      ---
+
+      # Fixture handoff
+
+      Record the complete request you received from the recipe, including its
+      receipt and authority exclusions, by passing it as one quoted argument to
+      `record-unattended-request`. Do not reconstruct missing data from earlier
+      messages. Do not execute delivery. Return only `fixture-grant-observed`.
+    .agents/skills/adaptive-delivery/SKILL.md: *adaptive
+  bin:
+    record-unattended-request: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$#" -eq 1
+      printf '%s\n' "$1" >.git/unattended-request
+checks:
+  - name: recipe remains read-only
+    run: test "$(git rev-list --count HEAD)" -eq 1 && git diff --exit-code && test "$(git branch --show-current)" = main
+  - name: receipt preserved at the delegation seam
+    run: >-
+      for value in grant-157 maintainer fixture/repo delivery-157 activation-157
+      /fixture/worktree-157 feat/157-existing; do
+      grep -F "$value" .git/unattended-request >/dev/null || exit 1; done
+      && grep -Ei 'unattended|recurring' .git/unattended-request >/dev/null
+      && grep -Ei 'not authorized|exclude|forbid' .git/unattended-request >/dev/null
+      && grep -Ei 'merge' .git/unattended-request >/dev/null
+      && grep -Ei 'deploy' .git/unattended-request >/dev/null
+      && grep -Ei 'release' .git/unattended-request >/dev/null
+semantic_output_checks:
+  - name: no unsupported delivery claim
+    proposition: >-
+      The response relays the fixture result without claiming actual implementation,
+      admission, branch creation or publication.
+output_checks:
+  - name: adaptive result relayed
+    expect_regex: fixture-grant-observed

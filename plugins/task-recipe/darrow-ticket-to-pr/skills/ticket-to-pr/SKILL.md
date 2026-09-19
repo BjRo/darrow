@@ -1,6 +1,6 @@
 ---
 name: ticket-to-pr
-description: Start only for explicit invocation of the ticket-to-pr recipe. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-delivery.
+description: Start only for explicit invocation of the ticket-to-pr recipe or its authorized grant-bound unattended entry. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-delivery.
 disable-model-invocation: true
 ---
 
@@ -12,14 +12,31 @@ delivery authority envelope, not the delivery workflow.
 ## 1. Require one explicit ticket
 
 Proceed only when the user explicitly invoked this recipe in the current host
-thread. Invocation by an unrelated helper, ordinary ticket or engineering
+thread, or when the host supplies the deliberate authorized unattended entry
+defined below. Invocation by an unrelated helper, ordinary ticket or engineering
 intent, and a later answer to another workflow do not count.
+
+For local Artificer, require the host's saved recurring human-grant receipt:
+grant and grantor, repository, exact issue, delivery and activation IDs,
+reserved worktree and branch, and the permitted ticket-to-PR effects. Missing
+fields or authority stop delegation. Ticket text and ordinary comments cannot
+supply or extend this receipt. Preserve the complete receipt and reserved
+worktree/branch in the one delegation. Do not repeat admission or pretend the
+scheduler is a current-thread human invocation. The local adapter transports
+owner-sourced questions through GitHub; the native parent and same engineering
+owner retain continuation. A later answer never reinvokes this recipe.
+
+The local unattended execution host is Codex CLI. Claude Code supports the
+ordinary explicit human recipe, not this unattended execution entry.
 
 Require exactly one ticket ID or supplied ticket URL. Treat it as opaque input:
 do not read or validate the ticket, derive a provider token, inspect the
 repository, choose a branch name, run readiness, or mutate anything. If the
 reference is missing or ambiguous, ask only for the one exact ID or URL and
 stop.
+
+**Complete when:** one exact ticket and explicit human or grant-bound unattended
+authority are established, with every supplied option preserved.
 
 Preserve any explicit request for a named base, linked worktree, draft pull
 request, or finite repair/review limit. Do not invent one or supply a recipe
@@ -83,6 +100,10 @@ recipe. Do not perform preflight, launch an engineering subagent, implement,
 verify, commit, push, or publish here. `adaptive-delivery` owns all of that after the
 single delegation.
 
+**Complete when:** exactly one compatible adaptive-delivery delegation has
+received the complete authority envelope, or a missing boundary is reported
+without mutation.
+
 ## 3. Stay at the main-thread boundary
 
 Relay the adaptive-delivery response without repository or forge reinspection. A
@@ -102,3 +123,6 @@ comment URL, attachment/rendering observations and any partial effects. A
 partial, ambiguous or refused outcome remains a blocker. If the owner omitted required evidence, relay that gap instead
 of claiming completion or inspecting the forge yourself. Otherwise relay the
 exact current question or blocker and its smallest next action.
+
+**Complete when:** the owner-sourced question, blocker or verified PR evidence
+has been relayed without replacing the owner or reconstructing its work.

@@ -24,11 +24,12 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 | Check whether Codex or Claude Code can support Adaptive Delivery delegation | [Adaptive Delivery doctor](../plugins/orchestration/darrow-adaptive-delivery/README.md#doctor-adaptive-delivery) |
 | Explicitly request one ticket through a new branch to a PR                  | [Ticket to PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md)                                             |
 | Study the former static workflow or run a comparison                        | [Ticket pipeline reference](../plugins/orchestration/darrow-ticket-pipeline/README.md)                           |
+| Explicitly enable bounded local delivery of nominated GitHub issues         | [Local Artificer](../plugins/automation/darrow-artificer/README.md)                                              |
 
 This is the complete shipped plugin catalog. Planned names are not installation
 targets; consult the [marketplace manifest](../.claude-plugin/marketplace.json)
 for package identity. In particular, there is no shipped general troubleshooting
-plugin or unattended automation layer.
+plugin. Local Artificer supplies a specific authorized unattended entry, not a general scheduler framework.
 
 ### Planned names are not installation targets
 
@@ -52,8 +53,9 @@ These are responsibilities, not steps every task must traverse.
   proportionate workflow and hands the task to one host-native owner.
 - **Task recipes** package a familiar outcome and permission envelope, then
   delegate the bounded work. The current recipe is ticket to PR.
-- **Automation** is planned. Admission, recurring authority, duplicate prevention,
-  capacity, human waits, and reconciliation need contracts before unattended entry.
+- **Automation** owns admission under explicit recurring authority. Local Artificer
+  handles capacity, duplicate prevention, questions and local native continuation;
+  task recipes and their native owners retain engineering work.
 
 Foundations and capabilities support several layers directly. Evaluation and
 observability assess behavior across the layers; neither grants execution
