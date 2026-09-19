@@ -13,7 +13,11 @@ test -f docs/specs/repository-guide.md
 test -f docs/research/README.md
 test -f docs/research/adaptive-ticket-to-pr-opportunity.md
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
+test -f plugins/automation/darrow-artificer/backend/src/darrow_artificer/cli.py
+test -f plugins/automation/darrow-artificer/skills/manage-artificer/SKILL.md
+test ! -e plugins/automation/darrow-artificer/skills/manage-artificer/evals
 test ! -e docs/research/repository-guide-98-delivery.md
+test ! -e docs/research/artificer-157-delivery.md
 test ! -e .agents/skills/darrow-guide/evals/inventory.json
 grep -F 'Complex work starts adaptive-delivery automatically' plugins/orchestration/darrow-adaptive-delivery/README.md >/dev/null
 test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"

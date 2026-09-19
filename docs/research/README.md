@@ -15,6 +15,7 @@ for authoritative behavior.
 
 ## Validation records
 
+- [Local Artificer delivery evidence](artificer-157-delivery.md)
 - [Codex native goal persistence](codex-native-goal-persistence-validation.md)
 - [Claude adaptive goal agents](claude-adaptive-goal-agent-validation.md)
 - [Adaptive goal output-check audit](adaptive-goal-output-check-audit.md)

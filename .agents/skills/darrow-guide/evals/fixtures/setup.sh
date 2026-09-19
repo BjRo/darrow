@@ -18,7 +18,9 @@ for directory in specs decisions assets; do cp -R "$source_root/docs/$directory"
 mkdir -p docs/research
 for file in "$source_root"/docs/research/*.md; do
   # Keep public research available without exposing this task's acceptance ledger.
-  [ "$(basename "$file")" = repository-guide-98-delivery.md ] && continue
+  case "$(basename "$file")" in
+    repository-guide-98-delivery.md|artificer-157-delivery.md) continue ;;
+  esac
   cp "$file" docs/research/
 done
 cp "$source_root/evals/runner/run.ts" evals/runner/run.ts
@@ -35,6 +37,12 @@ for category in "$source_root"/plugins/*; do
     cp "$plugin/.codex-plugin/plugin.json" "$destination/.codex-plugin/plugin.json"
   done
 done
+artificer=plugins/automation/darrow-artificer
+mkdir -p "$artificer/backend" "$artificer/skills/manage-artificer"
+cp -R "$source_root/$artificer/backend/src" "$artificer/backend/"
+cp "$source_root/$artificer/backend/pyproject.toml" "$source_root/$artificer/backend/uv.lock" "$artificer/backend/"
+cp "$source_root/$artificer/skills/manage-artificer/SKILL.md" "$artificer/skills/manage-artificer/"
+cp -R "$source_root/$artificer/skills/manage-artificer/references" "$source_root/$artificer/skills/manage-artificer/agents" "$artificer/skills/manage-artificer/"
 if [ "${1:-}" = conflict ]; then
   printf '\n## Activation claim\n\nComplex work starts adaptive-delivery automatically without explicit invocation.\n' >> plugins/orchestration/darrow-adaptive-delivery/README.md
 fi

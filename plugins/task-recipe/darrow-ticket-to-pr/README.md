@@ -31,7 +31,14 @@ stops completion without recipe-owned retry or recovery.
 
 Use this explicit shortcut for one exact ticket, a new branch, implementation,
 verification, and one PR. Do not use it for ticket browsing, bulk delivery,
-scheduler entry, or work that lacks an exact ticket reference.
+or work that lacks an exact ticket reference.
+
+Local Artificer may use the deliberate unattended entry with a saved recurring
+human-grant receipt: grantor, grant, repository, exact issue, delivery, activation,
+reserved worktree/branch and allowed effects. That receipt, not ticket text,
+authorizes the same one delegation. Ordinary scheduler calls are not authority.
+This unattended execution entry supports Codex CLI only; the ordinary explicit
+human recipe remains available on both hosts.
 
 ## Hosts and prerequisites
 
@@ -65,7 +72,8 @@ or publication. Feedback continues through the same owner.
 ## Safety boundaries
 
 Authority covers only the supplied ticket outcome. It does not authorize
-merging, releases, deployment, bulk work, or unattended recurring execution.
+merging, releases, deployment, bulk work, or create a recurring grant. An
+unattended caller must already hold the separate saved recurring human grant.
 The recipe adds no controller or state store.
 
 ## Troubleshooting

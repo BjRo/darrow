@@ -1,0 +1,15 @@
+{
+  "name": "darrow-artificer",
+  "version": "0.1.0",
+  "description": "Explicit local admission and native Codex continuation for nominated GitHub tickets",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Artificer",
+    "shortDescription": "Manage local nominated ticket delivery",
+    "longDescription": "Explicitly authorize and manage local GitHub ticket admission, original native Codex continuation, cancellation and encrypted session archives.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": ["Use $manage-artificer to inspect local delivery status."]
+  }
+}

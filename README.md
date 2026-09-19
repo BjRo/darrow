@@ -41,7 +41,7 @@ Prefer browsing? The [documentation hub](docs/README.md) works without an agent.
 
 <a id="automation"></a>
 
-Foundations, capabilities, orchestration, task recipes, and planned automation
+Foundations, capabilities, orchestration, task recipes, and explicit automation
 describe responsibilities, not a mandatory sequence.
 
 <p align="center">
@@ -60,7 +60,8 @@ plugin's prerequisites, examples, and safety boundaries.
 <a id="foundations"></a>[Foundations](plugins/foundation/README.md) ·
 <a id="capabilities"></a>[Capabilities](plugins/capability/README.md) ·
 <a id="orchestration"></a>[Orchestration](plugins/orchestration/README.md) ·
-<a id="task-recipes"></a>[Task recipes](plugins/task-recipe/README.md)
+<a id="task-recipes"></a>[Task recipes](plugins/task-recipe/README.md) ·
+[Automation](plugins/automation/README.md)
 
 ## Explore and contribute
 
