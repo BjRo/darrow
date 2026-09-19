@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -78,6 +78,23 @@ function launchEvent({
   };
 }
 
+async function copyOracle(root: string) {
+  const backend = resolve(
+    import.meta.dir,
+    "../../plugins/capability/darrow-review/backend",
+  );
+  const copied = join(root, ".git/eval-checks/review");
+  await mkdir(join(copied, "tests", "evals"), { recursive: true });
+  for (const name of [
+    "src",
+    "pyproject.toml",
+    "uv.lock",
+    "tests/evals/eval_routes.py",
+  ]) {
+    await cp(join(backend, name), join(copied, name), { recursive: true });
+  }
+}
+
 async function runGate(
   entry: (typeof cases)[number],
   host: "claude" | "codex",
@@ -87,6 +104,7 @@ async function runGate(
   roots.push(root);
   const artifacts = join(root, ".git", "darrow-review.fixture");
   await mkdir(artifacts, { recursive: true });
+  await copyOracle(root);
   const [model, effort] = entry[host];
   const route = `${host}\t${host === "claude" ? "anthropic" : "openai"}\t${model}\t${effort}`;
   await writeFile(

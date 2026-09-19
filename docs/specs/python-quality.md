@@ -49,6 +49,15 @@ Use behavioral and differential checks to preserve the required interface while
 changing the internals. High coverage is a guard for simplification, not a reason
 to keep redundant code or mirror the old implementation in new tests.
 
+The same implementation boundary applies to validation mechanics: substantial
+eval fixture providers, structured JSON/TSV evidence checks, and copied-artifact
+installation checks belong in the owning plugin's Python package. Keep eval
+oracles independent of the implementation they assess. Share fixture mechanics
+within that plugin rather than duplicating them across YAML cases; case-specific
+input and expectations remain explicit in each case. Use one portable Python
+installation check for Unix and Windows, preserving platform-specific probes.
+Small host launchers and tests whose subject is shell behavior may remain shell.
+
 ## Tests and coverage
 
 Each package keeps fast unit tests for local behavior and integration tests for

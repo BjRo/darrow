@@ -27,6 +27,9 @@ constraints for producing and interpreting that evidence.
   require one exact tool sequence when several safe implementations yield the
   same observable result.
 - Keep participant prompts visible and pass criteria hidden.
+- Keep packaged Python oracles under `backend/tests/evals/` so participant mounts
+  omit them. Copy them into `.git/eval-checks/` during fixture setup for hidden
+  grading; agents cannot read or write that reserved subtree.
 - Keep authoritative fixture input and its executable acceptance oracle aligned,
   including whether representation details such as trailing newlines matter.
 - Keep fixture skills inert in the source tree: never name an eval fixture

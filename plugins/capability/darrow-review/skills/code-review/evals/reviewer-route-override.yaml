@@ -24,6 +24,11 @@ fixture:
   files:
     src/config.js: |
       export const mode = "unsafe";
+  setup: |
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/eval-checks/review/
+    cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
+    cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: repository reviewer policy is retained with the pinned scope
     run: >-
@@ -38,84 +43,9 @@ checks:
       *) exit 2 ;; esac
   - name: both isolated axes retain exact route application evidence
     run: >-
-      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
-      test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
-      case "$DARROW_EVAL_HARNESS" in
-      codex) host=codex; provider=openai; model=gpt-5.5; effort=xhigh ;;
-      claude) host=claude; provider=anthropic; model=claude-sonnet-5; effort=high ;;
-      *) exit 2 ;; esac;
-      case "$DARROW_EVAL_HARNESS" in codex)
-      test "$(grep -F '"type":"darrow.codex_native_spawn"'
-      .git/retained-harness.jsonl | grep -c .)" -eq 2 || exit 1;
-      ! grep -F '"type":"darrow.codex_native_spawn"' .git/retained-harness.jsonl |
-      grep -v -F '"status":"accepted"' >/dev/null || exit 1 ;;
-      claude) test "$(grep -F '"type":"darrow.review_agent_launch"'
-      .git/retained-harness.jsonl | grep -c .)" -eq 2 || exit 1 ;; esac;
-      for axis in standards spec; do record="$artifact_dir/$axis-route.tsv";
-      test -f "$record" || exit 1;
-      awk -F '\t' -v a="$axis"
-      '$1 == "axis" && $2 == a { found = 1 } END { exit !found }' "$record" || exit 1;
-      agent=$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$record");
-      test -n "$agent" || exit 1;
-      case "$axis" in standards) standards_agent=$agent ;; spec) spec_agent=$agent ;; esac;
-      case "$DARROW_EVAL_HARNESS" in codex) route_field=requested_route; proof_field=route_bound ;;
-      claude) route_field=observed_route; proof_field=route_bound ;; esac;
-      awk -F '\t' -v f="$route_field" -v h="$host" -v p="$provider" -v m="$model" -v e="$effort"
-      '$1 == f && $2 == h && $3 == p && $4 == m && $5 == e { found = 1 }
-      END { exit !found }' "$record" || exit 1;
-      awk -F '\t' -v f="$proof_field" '$1 == f && $2 == "true" { found = 1 }
-      END { exit !found }' "$record" || exit 1;
-      if test "$DARROW_EVAL_HARNESS" = codex; then
-      native=$(grep -F '"type":"darrow.codex_native_spawn"' .git/retained-harness.jsonl |
-      grep -F '"status":"accepted"' | grep -F "\"agent_ref\":\"$agent\"" |
-      grep -F "\"model\":\"$model\"" | grep -F "\"reasoning_effort\":\"$effort\"") || exit 1;
-      case "$native" in *'"fork_turns":"none"'*) ;; *) exit 1 ;; esac;
-      case "$native" in *"\"review_axis\":\"$axis\""*) ;; *) exit 1 ;; esac; fi; done;
-      test "$standards_agent" != "$spec_agent" || exit 1;
-      case "$DARROW_EVAL_HARNESS" in codex)
-      awk -v s="$standards_agent" -v p="$spec_agent"
-      'index($0, "\"type\":\"darrow.codex_native_spawn\"") {
-      value = $0; sub(/^.*"accepted_ordinal":/, "", value); sub(/[^0-9].*$/, "", value);
-      if (index($0, "\"agent_ref\":\"" s "\"")) standards_accept = value + 0;
-      if (index($0, "\"agent_ref\":\"" p "\"")) spec_accept = value + 0 }
-      index($0, "\"type\":\"darrow.codex_native_wait\"") {
-      value = $0; sub(/^.*"ordinal":/, "", value); sub(/[^0-9].*$/, "", value);
-      if (!first_wait || value + 0 < first_wait) first_wait = value + 0 }
-      END { exit !(standards_accept && spec_accept && first_wait &&
-      standards_accept < first_wait && spec_accept < first_wait) }'
-      .git/retained-harness.jsonl || exit 1 ;; claude)
-      subagent="darrow-review:review-reader-$model-$effort";
-      awk 'index($0, "\"name\":\"Agent\"") {
-      value = $0; agents += gsub("\"name\":\"Agent\"", "", value) }
-      END { exit agents != 2 }' .git/retained-harness.jsonl || exit 1;
-      awk -v a="$subagent"
-      'index($0, "\"name\":\"Agent\"") &&
-      index($0, "- review_axis: standards") && index($0, "- review_axis: spec") {
-      value = $0; agents = gsub("\"name\":\"Agent\"", "", value);
-      value = $0; types = gsub("\"subagent_type\":\"" a "\"", "", value);
-      if (agents == 2 && types == 2) found = 1 }
-      END { exit !found }' .git/retained-harness.jsonl || exit 1 ;; esac;
-      if test "$DARROW_EVAL_HARNESS" = claude; then for axis in standards spec;
-      do observed="$artifact_dir/$axis-observed-route.tsv"; test -f "$observed" || exit 1;
-      application="$artifact_dir/$axis-route.tsv";
-      agent=$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$application");
-      grep -F -x 'provider_evidence	current-host-environment-default'
-      "$observed" >/dev/null || exit 1;
-      grep -F -x 'provider_evidence	current-host-environment-default'
-      "$application" >/dev/null || exit 1;
-      test "$agent" =
-      "$(awk -F '\t' '$1 == "agent_id" { print $2 }' "$observed")" || exit 1;
-      awk -F '\t' -v m="$model" -v e="$effort"
-      '$1 == "observed_route" && $2 == "claude" && $3 == "anthropic" && $4 == m && $5 == e { found = 1 }
-      END { exit !found }' "$observed" || exit 1;
-      subagent="darrow-review:review-reader-$model-$effort";
-      launch=$(grep -F '"type":"darrow.review_agent_launch"' .git/retained-harness.jsonl |
-      grep -F "\"agent_id\":\"$agent\"" | grep -F "\"review_axis\":\"$axis\"" |
-      grep -F "\"subagent_type\":\"$subagent\"") || exit 1;
-      test "$(printf '%s\n' "$launch" | grep -c .)" -eq 1 || exit 1;
-      batch=$(printf '%s\n' "$launch" | sed -E 's/.*"batch":([0-9]+).*/\1/');
-      case "$axis" in standards) standards_batch=$batch ;; spec) spec_batch=$batch ;; esac;
-      done; test "$standards_batch" = "$spec_batch" || exit 1; fi
+      uv run --quiet --frozen --no-dev --project .git/eval-checks/review
+      python .git/eval-checks/review/tests/evals/eval_routes.py
+      --host "$DARROW_EVAL_HARNESS" --profile override --axes standards spec
   - name: review remains read-only
     run: test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
   - name: canonical TSV is retained beneath the review scope artifact

@@ -8,50 +8,11 @@ trap '[[ "${KEEP_TEST_FILES:-}" == 1 ]] || rm -rf "$work"' EXIT
 base_path=$PATH
 mkdir "$work/bin" "$work/evidence"
 
+export DARROW_EVIDENCE_FIXTURE_BACKEND="$backend"
 cat > "$work/bin/gh" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-repo_top=${DARROW_EVIDENCE_REPOSITORY:-$(git rev-parse --show-toplevel)}
-git_dir=$(git -C "$repo_top" rev-parse --absolute-git-dir)
-case "$1 $2" in
-  'repo view')
-    if [[ "${HOST_MODE:-}" == enterprise ]]; then printf 'fixture/repo\thttps://github.example/fixture/repo\n'; else printf 'fixture/repo\thttps://github.com/fixture/repo\n'; fi
-    ;;
-  'pr list')
-    tip=$(git -C "$repo_top" rev-parse HEAD)
-    [[ "${FORGE_HEAD_MODE:-}" != wrong ]] || tip=$(git -C "$repo_top" rev-parse main)
-    printf '42\thttps://github.com/fixture/repo/pull/42\t%s\tfalse\n' "$tip"
-    ;;
-  'pr comment')
-    if [[ "${NO_ATTACH:-}" == 1 && "${3:-}" == --help ]]; then printf '%s\n' 'flags: --body-file'; exit 0; fi
-    if [[ "${3:-}" == --help ]]; then
-      if [[ "${DISTRACTING_LIMIT:-}" == 1 ]]; then printf '%s\n' 'global maximum 80' 'flags: --body-file --attach file' '  Uploads attachments (Maximum: 10)' '' 'flags: --body-file'
-      elif [[ "${STRICT_ATTACH:-}" == 1 ]]; then printf '%s\n' 'flags: --body-file --attach file (maximum 10)'
-      else printf '%s\n' 'flags: --body-file --attach file (maximum 50)'; fi
-      exit 0
-    fi
-    printf '%s\n' "$*" >> "$git_dir/comment-calls"
-    body=''; attach_count=0; rendered="$git_dir/rendered-body"; : > "$git_dir/attach-files"
-    shift 2
-    while [[ $# -gt 0 ]]; do case "$1" in --body-file) body=$2; shift 2 ;; --attach) attach_count=$((attach_count + 1)); printf '%s\n' "$2" >> "$git_dir/attach-order"; printf '%s\n' "${2%%#*}" >> "$git_dir/attach-files"; shift 2 ;; *) shift ;; esac; done
-    [[ "${COMMENT_MODE:-}" != fail ]] || exit 1
-    if [[ "${COMMENT_MODE:-}" == partial ]]; then printf '9\thttps://github.com/fixture/repo/pull/42#issuecomment-9\t<!-- darrow-pr-evidence:v1 candidate=fixture/repo#42@%s -->\n' "$(git -C "$repo_top" rev-parse HEAD)" > "$git_dir/comments"; exit 1; fi
-    cp "$body" "$rendered"
-    i=1
-    while IFS= read -r attached; do
-      old=${attached##*/}; url="https://github.com/user-attachments/assets/mock-$i"
-      [[ "${COMMENT_MODE:-}" != duplicate-url || "$i" -eq 1 ]] || url=https://github.com/user-attachments/assets/mock-1
-      awk -v old="$old" -v new="$url" '{s=$0; out=""; while ((p=index(s,old))>0) {out=out substr(s,1,p-1) new; s=substr(s,p+length(old))} print out s}' "$rendered" > "$rendered.next"
-      mv "$rendered.next" "$rendered"; i=$((i+1))
-    done < "$git_dir/attach-files"
-    [[ "${COMMENT_MODE:-}" != extra ]] || printf '\nextra remote text\n' >> "$rendered"
-    { printf '9\thttps://github.com/fixture/repo/pull/42#issuecomment-9\t'; awk '{gsub(/\\/, "\\\\"); gsub(/\r/, "\\r"); gsub(/\t/, "\\t"); if (NR>1) printf "\\n"; printf "%s",$0}' "$rendered"; printf '\n'; } > "$git_dir/comments"
-    if [[ "${COMMENT_MODE:-}" == head-change ]]; then printf 'changed\n' >>"$repo_top/tracked"; git -C "$repo_top" add tracked; git -C "$repo_top" commit -qm 'test: concurrent head change'; fi
-    ;;
-  'api meta') exit 0 ;;
-  api*) printf '%s\n' "$*" >> "$git_dir/api-calls"; [[ -f "$git_dir/comments" ]] && cat "$git_dir/comments" || true ;;
-  *) echo "unsupported gh call: $*" >&2; exit 80 ;;
-esac
+#!/bin/sh
+exec uv run --quiet --frozen --no-dev --project "$DARROW_EVIDENCE_FIXTURE_BACKEND" \
+  python "$DARROW_EVIDENCE_FIXTURE_BACKEND/tests/evidence_gh.py" "$@"
 EOF
 chmod +x "$work/bin/gh"
 export PATH="$work/bin:$base_path"

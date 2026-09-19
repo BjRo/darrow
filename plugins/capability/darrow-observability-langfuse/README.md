@@ -256,8 +256,7 @@ legacy trace-list API.
 ## Development checks
 
 ```sh
-bash tests/package.test.sh
-bash hooks/stop.test.sh
+uv run --quiet --frozen --all-groups --project backend pytest backend/tests/test_packaged_hooks.py
 bash hooks/export-failure.test.sh
 bash hooks/refusal.test.sh
 bash hooks/strict.test.sh

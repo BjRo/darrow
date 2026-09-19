@@ -257,6 +257,12 @@ credential-free environment and cannot access source worktrees, peer fixtures,
 harness credentials, or modify retained evidence. An unavailable isolation
 boundary is an explicit error.
 
+Packaged Python eval oracles remain hidden from participants. Plugin mounting
+excludes every nested `evals/` directory, including `backend/tests/evals/`.
+Fixture setup may copy grading helpers to `.git/eval-checks/`; the outer agent
+sandbox denies reading and writing that subtree, while isolated grading may
+execute it. Declared external isolation must preserve this boundary too.
+
 Codex trials may import the repository's explicit agent-concurrency limit into
 their isolated configuration. They must not inherit unrelated repository or
 user settings. Capture the limit once per runner process, include it in the

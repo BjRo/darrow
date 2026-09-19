@@ -216,7 +216,6 @@ async function copySkillWithoutEvals(
   mountedSkillDir: string,
   destination: string,
 ): Promise<void> {
-  const evalsDir = join(mountedSkillDir, "evals");
   const generatedEntries = new Set([
     ".coverage",
     ".hypothesis",
@@ -226,13 +225,12 @@ async function copySkillWithoutEvals(
     ".venv",
     "__pycache__",
     "coverage.json",
+    "evals",
   ]);
   await cp(mountedSkillDir, destination, {
     recursive: true,
     // Never expose any skill's colocated pass criteria to the model.
     filter: (src) =>
-      src !== evalsDir &&
-      !src.startsWith(evalsDir + "/") &&
       relative(mountedSkillDir, src)
         .split(sep)
         .every((entry) => !generatedEntries.has(entry)),

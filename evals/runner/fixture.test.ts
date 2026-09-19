@@ -239,6 +239,7 @@ describe("eval fixture skill mounts", () => {
       await mkdir(skill, { recursive: true });
       await mkdir(join(backend, ".venv"), { recursive: true });
       await mkdir(join(backend, "evals"), { recursive: true });
+      await mkdir(join(backend, "tests", "evals"), { recursive: true });
       await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
       await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
       await writeFile(
@@ -248,6 +249,7 @@ describe("eval fixture skill mounts", () => {
       await writeFile(join(backend, "pyproject.toml"), "[project]\n");
       await writeFile(join(backend, ".venv", "generated"), "private\n");
       await writeFile(join(backend, "evals", "secret.yaml"), "hidden\n");
+      await writeFile(join(backend, "tests", "evals", "oracle.py"), "hidden\n");
       await writeFile(
         join(plugin, ".claude-plugin", "hooks.json"),
         '{"hooks":{"SessionStart":[]}}\n',
@@ -275,6 +277,7 @@ describe("eval fixture skill mounts", () => {
       expect(existsSync(join(destination, "pyproject.toml"))).toBe(true);
       expect(existsSync(join(destination, ".venv"))).toBe(false);
       expect(existsSync(join(destination, "evals"))).toBe(false);
+      expect(existsSync(join(destination, "tests", "evals"))).toBe(false);
       expect(
         existsSync(join(dirname(destination), ".claude-plugin", "hooks.json")),
       ).toBe(host !== "project");
