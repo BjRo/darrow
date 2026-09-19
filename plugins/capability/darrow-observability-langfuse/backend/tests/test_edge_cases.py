@@ -20,6 +20,7 @@ from darrow_observability_langfuse import (
     config,
     delivery,
     export,
+    filesystem,
     lifecycle,
     rollout,
     sidecar,
@@ -77,7 +78,44 @@ class ConfigEdgeTests(unittest.TestCase):
         )
 
 
+class FilesystemEdgeTests(unittest.TestCase):
+    def test_directory_sync_uses_only_supported_platform_operations(self) -> None:
+        path = TEST_ROOT / "state"
+        with (
+            patch("darrow_observability_langfuse.filesystem.os.name", "nt"),
+            patch("darrow_observability_langfuse.filesystem.os.open") as open_file,
+        ):
+            filesystem.sync_directory(path)
+        open_file.assert_not_called()
+
+        with (
+            patch("darrow_observability_langfuse.filesystem.os.name", "posix"),
+            patch(
+                "darrow_observability_langfuse.filesystem.os.open", return_value=7
+            ) as open_file,
+            patch("darrow_observability_langfuse.filesystem.os.fsync") as sync,
+            patch("darrow_observability_langfuse.filesystem.os.close") as close,
+        ):
+            filesystem.sync_directory(path)
+        open_file.assert_called_once_with(path, os.O_RDONLY)
+        sync.assert_called_once_with(7)
+        close.assert_called_once_with(7)
+
+
 class LifecycleEdgeTests(unittest.TestCase):
+    def test_terminal_context_validation_checks_each_receipt(self) -> None:
+        context = {"base_url": "https://example.test"}
+        with (
+            patch.object(
+                lifecycle,
+                "terminal_records",
+                return_value=[{"delivery_context": context}],
+            ),
+            patch.object(lifecycle, "require_context") as require_context,
+        ):
+            lifecycle._validate_terminal_contexts(TEST_ROLLOUT, "session", context)
+        require_context.assert_called_once_with(context, context)
+
     def test_registry_validation_rejects_each_invalid_shape(self) -> None:
         values: list[Any] = [
             None,
