@@ -1,8 +1,9 @@
 # ADR-0001: Custom eval runner (TS/Bun) with harness adapters
 
-Status: Accepted
+Status: Superseded
 Date: 2026-07-05
 Summary: Use a thin TypeScript-on-Bun eval runner with declarative YAML cases, real harness adapters, pinned model matrices, repeated trials, and outcome-based checks.
+Superseded by: ADR-0010
 
 ## Context
 
