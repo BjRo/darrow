@@ -20,20 +20,9 @@ network, installed state, or the desktop UI.
 ### UV and Python for plugin helpers
 
 Plugins with bundled Python helpers require **UV** (the `uv` command) and
-**Python 3.10–3.13** (`>=3.10,<3.14`). This currently includes:
-
-- Foundations: `darrow-decisions`, `darrow-information-architecture`, and
-  `darrow-skill-authoring`.
-- Capabilities: `darrow-discovery` (planning renderer), `darrow-git`,
-  `darrow-review`, `darrow-tickets-github`, `darrow-verification` (report
-  renderer), and `darrow-observability-langfuse`.
-- Orchestration: `darrow-adaptive-delivery` and the deprecated
-  `darrow-ticket-pipeline` reference implementation.
-
-The `darrow-readiness-gate` worked example has no bundled Python runtime
-requirement. For other plugins, check the selected plugin's README for its
-additional tools and supported platforms. Git operations need Git; GitHub
-operations also need authenticated GitHub CLI (`gh`) access.
+**Python 3.10–3.13** (`>=3.10,<3.14`). Check the selected plugin's
+`Hosts and prerequisites` README section to see whether this setup applies,
+which additional tools it requires, and which platforms it supports.
 
 Install UV using the [official UV installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
 For macOS or Linux, run in your shell:
@@ -220,9 +209,9 @@ The shortcut deliberately excludes two marketplace entries:
   it does not enable tracing: configure credentials and explicitly opt in before
   it exports anything. Read its local README before enabling it.
 
-Several included plugins use Python helpers, including `darrow-skill-authoring`.
-Complete the [UV and Python setup](#uv-and-python-for-plugin-helpers) before
-using them. The shortcut does not check or install these runtime prerequisites;
+For plugins with Python helpers, complete the
+[UV and Python setup](#uv-and-python-for-plugin-helpers) before using them.
+The shortcut does not check or install these runtime prerequisites;
 its success message confirms host installation only. Each plugin's local lock
 and package remain independent of other Darrow plugins.
 

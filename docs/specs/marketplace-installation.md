@@ -21,8 +21,9 @@ installation scope is passed to every per-plugin command.
 The installation documentation must identify both excluded entries: the
 ticket-pipeline entry is deprecated, and the Langfuse plugin requires UV/Python,
 hook trust, and separate opt-in configuration. Before the host installation
-commands, it identifies plugins with Python helpers and documents UV, the
-supported Python range, platform-specific setup, and runtime availability checks.
+commands, it documents UV, the supported Python range, platform-specific setup,
+and runtime availability checks. Each plugin's README declares whether those
+prerequisites apply; the shared guide does not duplicate a plugin inventory.
 It distinguishes installing a plugin from preparing its helper environment:
 the marketplace installer does not provision UV or Python. Each plugin uses its
 own locked package without creating a dependency on another Darrow plugin.
