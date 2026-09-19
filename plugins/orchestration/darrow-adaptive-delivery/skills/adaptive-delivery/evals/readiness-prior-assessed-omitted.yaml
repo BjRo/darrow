@@ -30,7 +30,7 @@ fixture:
           printf '%s\n' '# Notes' 'Previously assessed.' >.git/expected-notes
           cmp -s .git/expected-notes NOTES.md
   setup: >-
-    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD"
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install readiness "$PWD"
     "{{case_dir}}/fixtures" codex
 checks:
   - name: previously assessed plan is implemented

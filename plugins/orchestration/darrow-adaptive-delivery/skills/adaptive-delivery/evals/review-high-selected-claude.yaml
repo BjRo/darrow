@@ -43,10 +43,10 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           node auth-config.test.js
-          review_target=$(.claude/bin/independent-review-fixture "$PWD" fingerprint)
+          review_target=$(uv run --quiet --frozen --no-dev --project .claude/backend adaptive-delivery-fixture review "$PWD" fingerprint)
           printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
   setup: >-
-    bash "{{case_dir}}/fixtures/install-independent-review.sh" "$PWD"
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install review "$PWD"
     "{{case_dir}}/fixtures" claude
 checks:
   - name: cookie behavior is changed and preserved
@@ -66,12 +66,12 @@ checks:
     run: >-
       grep -F 'independent-review-skill-contract-v1'
       .claude/skills/independent-code-review/SKILL.md >/dev/null &&
-      ! grep -F 'independent-review-skill-contract-v1'
-      .claude/bin/independent-review-fixture >/dev/null
+      ! grep -RF 'independent-review-skill-contract-v1'
+      .claude/backend >/dev/null
   - name: independent review clears the final changed target
     run: >-
       test "$(cut -f1 .git/fixture-state/independent-review-invocations)" =
-      "$(.claude/bin/independent-review-fixture "$PWD" fingerprint)" &&
+      "$(uv run --quiet --frozen --no-dev --project .claude/backend adaptive-delivery-fixture review "$PWD" fingerprint)" &&
       awk -F '\t' '$1 == "check" { checked[$2]=1 }
       $1 == "review_start" && checked[$2] { ok=1 }
       END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-events &&

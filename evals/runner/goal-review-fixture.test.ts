@@ -12,7 +12,36 @@ const backendSource = new URL(
   "../../plugins/capability/darrow-review/backend/",
   import.meta.url,
 );
-const proofSource = new URL("fixtures/require-clear-review.sh", source);
+const fixtureBackend = new URL("../../../backend/", source);
+
+async function proofFiles() {
+  const files: Record<string, string> = {};
+  for (const name of ["pyproject.toml", "uv.lock"])
+    files[`.git/fixture-backend/${name}`] = await Bun.file(
+      new URL(name, fixtureBackend),
+    ).text();
+  const glob = new Bun.Glob("src/**/*.{py,typed,md}");
+  for await (const name of glob.scan(fixtureBackend.pathname))
+    files[`.git/fixture-backend/${name}`] = await Bun.file(
+      new URL(name, fixtureBackend),
+    ).text();
+  return files;
+}
+
+function proofCommand(...args: string[]) {
+  return [
+    "uv",
+    "run",
+    "--quiet",
+    "--frozen",
+    "--no-dev",
+    "--project",
+    ".git/fixture-backend",
+    "adaptive-delivery-fixture",
+    "proof",
+    ...args,
+  ];
+}
 
 async function reviewFiles(prefix = ".git/review-plugin/backend") {
   const files: Record<string, string> = {};
@@ -256,7 +285,7 @@ for (const scenario of [
           ".git/darrow-review.fixture/result.tsv":
             records.map((row) => row.join("\t")).join("\n") + "\n",
           ...(await reviewFiles()),
-          ".git/fixture-bin/review-proof": await Bun.file(proofSource).text(),
+          ...(await proofFiles()),
         },
       },
       skillDir: "",
@@ -337,7 +366,7 @@ for (const scenario of [
         commits: [{ message: "Initial", files: { "value.txt": "before\n" } }],
         files: {
           ...(await reviewFiles()),
-          ".git/fixture-bin/review-proof": await Bun.file(proofSource).text(),
+          ...(await proofFiles()),
         },
       },
       skillDir: "",
@@ -347,7 +376,7 @@ for (const scenario of [
       Bun.spawnSync(
         args[0]!.startsWith("review-")
           ? reviewCommand(args[0]!, ...args.slice(1))
-          : ["/bin/bash", ...args],
+          : proofCommand(...args.slice(1)),
         { cwd: repo },
       );
     const scope = () => {
@@ -459,7 +488,7 @@ for (const scenario of [
       if (scenario.stale)
         await Bun.write(`${repo}/value.txt`, "changed after review\n");
       const artifact = await selectedArtifact(repo, record, scenario);
-      const result = run(".git/fixture-bin/review-proof", "complete", artifact);
+      const result = run("fixture-proof", "complete", artifact);
       expect({
         passes: result.exitCode === 0,
         detail: result.stderr.toString(),
@@ -468,16 +497,10 @@ for (const scenario of [
         scenario.passes,
       );
       if (scenario.passes) {
-        expect(run(".git/fixture-bin/review-proof", "artifact").exitCode).toBe(
-          0,
-        );
-        expect(run(".git/fixture-bin/review-proof", "current").exitCode).toBe(
-          0,
-        );
+        expect(run("fixture-proof", "artifact").exitCode).toBe(0);
+        expect(run("fixture-proof", "current").exitCode).toBe(0);
         await Bun.write(`${repo}/value.txt`, "changed after completion\n");
-        expect(
-          run(".git/fixture-bin/review-proof", "current").exitCode,
-        ).not.toBe(0);
+        expect(run("fixture-proof", "current").exitCode).not.toBe(0);
       }
     } finally {
       await destroyFixture(repo);

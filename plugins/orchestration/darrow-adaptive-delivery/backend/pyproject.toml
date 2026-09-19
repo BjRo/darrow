@@ -1,0 +1,54 @@
+[project]
+name = "darrow-adaptive-delivery"
+version = "0.22.3"
+description = "Contained preflight, route resolution, and eval mechanics for Darrow"
+requires-python = ">=3.10,<3.14"
+dependencies = []
+
+[project.scripts]
+adaptive-delivery-preflight = "darrow_adaptive_delivery.cli:preflight"
+claude-agent-route = "darrow_adaptive_delivery.cli:claude_route"
+adaptive-delivery-fixture = "darrow_adaptive_delivery.fixtures.cli:main"
+
+[dependency-groups]
+dev = ["coverage[toml]>=7.10,<8", "editables>=0.3,<1", "hatchling==1.32.3", "hypothesis>=6.138,<7", "mypy>=1.18,<2", "pytest>=8.4,<9", "ruff>=0.12,<1"]
+
+[build-system]
+requires = ["hatchling==1.32.3"]
+build-backend = "darrow_adaptive_delivery._build_backend"
+backend-path = ["src"]
+
+[tool.uv]
+default-groups = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/darrow_adaptive_delivery"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["B", "C4", "C90", "E4", "E7", "E9", "F", "I", "N", "RUF", "SIM", "UP"]
+mccabe.max-complexity = 5
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["darrow_adaptive_delivery"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

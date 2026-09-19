@@ -29,7 +29,7 @@ fixture:
           #!/usr/bin/env bash
           node --input-type=module -e "import {normalize} from './src/normalize.js'; import assert from 'node:assert/strict'; assert.equal(normalize(' a '), 'a');"
   setup: |
-    bash "{{case_dir}}/fixtures/install-implementation-readiness.sh" "$PWD" \
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install readiness "$PWD" \
     "{{case_dir}}/fixtures" codex
     cp "{{case_dir}}/fixtures/owner-readiness.fixture.md" .agents/skills/assess-implementation-readiness/SKILL.md
   bin:

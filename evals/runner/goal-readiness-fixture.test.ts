@@ -45,7 +45,7 @@ for (const [name, trace, passes] of [
     } finally {
       await destroyFixture(repo);
     }
-  });
+  }, 30_000);
 }
 
 async function postLaunchFixture() {
@@ -88,7 +88,7 @@ test("caller inspection explicitly assigns the new behavior to the normalization
     const [initial] = await runChecks(repo, [
       {
         name: "initial readiness",
-        run: 'bash .agents/bin/implementation-readiness-fixture "$PWD"',
+        run: 'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture readiness "$PWD"',
       },
     ]);
     expect(initial?.passed).toBe(true);
@@ -108,7 +108,8 @@ test("caller inspection explicitly assigns the new behavior to the normalization
 for (const mode of ["before-edit", "omitted", "after-edit"] as const) {
   test(`post-launch readiness gate: reassessment ${mode}`, async () => {
     const { repo, evalCase } = await postLaunchFixture();
-    const assess = 'bash .agents/bin/implementation-readiness-fixture "$PWD"';
+    const assess =
+      'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture readiness "$PWD"';
     try {
       const [initial] = await runChecks(repo, [
         {
@@ -155,5 +156,5 @@ for (const mode of ["before-edit", "omitted", "after-edit"] as const) {
     } finally {
       await destroyFixture(repo);
     }
-  });
+  }, 30_000);
 }
