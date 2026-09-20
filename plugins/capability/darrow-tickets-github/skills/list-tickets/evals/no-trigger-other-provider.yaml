@@ -5,6 +5,7 @@ mount_plugin_skills: true
 activation_excludes:
   - create-ticket
   - read-ticket
+  - show-ticket
   - list-tickets
   - update-ticket
 prompt: "List the open bugs in our Jira project APP."

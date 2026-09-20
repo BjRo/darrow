@@ -1,0 +1,74 @@
+id: read-ticket-explicit-context-load
+invariant: TM-R1,TM-R2,TM-R3
+activation: positive
+expect_head_change: false
+mount_plugin_skills: true
+prompt: >-
+  {{skill_invocation}} Load ticket #12 into context. Do not show its body and
+  do not perform any follow-on work.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    uv: |
+      #!/usr/bin/env python3
+      import json
+      import os
+      from pathlib import Path
+      import subprocess
+      import sys
+
+      git_dir = Path(subprocess.check_output(
+          ["git", "rev-parse", "--git-dir"], text=True
+      ).strip())
+      args = sys.argv[1:]
+      if "darrow-ticket" not in args or "get" not in args:
+          paths = (git_dir / "fixture-uv-paths").read_text(encoding="utf-8").splitlines()
+          real_uv = next(path for path in paths if "fixture-bin" not in path)
+          os.execv(real_uv, [real_uv, *args])
+      with (git_dir / "fixture-ticket-cli-calls").open("a", encoding="utf-8") as handle:
+          handle.write(json.dumps(args) + "\n")
+      if args[-3:-1] != ["darrow-ticket", "get"] or args[-1:] != ["12"]:
+          raise SystemExit("mock uv: expected darrow-ticket get 12")
+      print("""backend: github
+      ticket-token: 12
+      #12 open — Preserve exact ticket bodies
+      https://github.test/o/r/issues/12
+      labels: enhancement
+      parent: (none)
+      depends-on: (none)
+      ## body
+      PRIVATE-BODY-TOKEN must stay out of the acknowledgement.""")
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+checks:
+  - name: one exact ticket retrieval is requested
+    run: |
+      python3 - <<'PY'
+      import json
+      from pathlib import Path
+
+      calls = [json.loads(line) for line in Path(".git/fixture-ticket-cli-calls").read_text().splitlines()]
+      assert len(calls) == 1, calls
+      assert calls[0][-3:-1] == ["darrow-ticket", "get"], calls[0]
+      assert calls[0][-1] == "12", calls[0]
+      print("retrievals=1 target=12")
+      PY
+    expect_exact: "retrievals=1 target=12"
+  - name: acknowledgement identifies the loaded ticket
+    run: cat .git/last-message.md
+    expect_regex: "#?12[\\s\\S]*Preserve exact ticket bodies"
+  - name: acknowledgement does not reproduce private ticket content
+    run: cat .git/last-message.md
+    not_regex: "PRIVATE-BODY-TOKEN|backend: github|## body"
+  - name: context loading remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: response is only a concise load acknowledgement
+    proposition: >-
+      The response concisely confirms that ticket 12, titled "Preserve exact
+      ticket bodies", was read or loaded. It does not present, summarize, or
+      interpret the ticket body and does not claim to perform follow-on work.

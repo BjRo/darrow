@@ -1,6 +1,7 @@
-id: read-ticket-ambiguous-reference
-invariant: TM-R1,TM-R2
+id: show-ticket-ambiguous-reference
+invariant: TM-R1,TM-R2,TM-S1,TM-S3
 activation: competition
+expect_head_change: false
 mount_plugin_skills: true
 prompt: >-
   We discussed ticket #12 and ticket #21. Show me the ticket we should handle,

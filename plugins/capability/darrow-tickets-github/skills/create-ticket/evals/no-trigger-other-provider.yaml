@@ -5,6 +5,7 @@ mount_plugin_skills: true
 activation_excludes:
   - create-ticket
   - read-ticket
+  - show-ticket
   - list-tickets
   - update-ticket
 prompt: "Create a Jira bug for the CSV export crash. Observed: exporting an empty report crashes. Expected: an empty CSV downloads. Reproduction: open an empty report and click Export."

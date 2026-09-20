@@ -1,0 +1,56 @@
+id: read-ticket-no-trigger-standalone-show
+invariant: TM-S1,TM-S2
+activation: negative
+expect_head_change: false
+mount_plugin_skills: true
+prompt: "Show me ticket #12 exactly as the tracker returns it."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    uv: |
+      #!/usr/bin/env python3
+      import os
+      from pathlib import Path
+      import subprocess
+      import sys
+
+      git_dir = Path(subprocess.check_output(
+          ["git", "rev-parse", "--git-dir"], text=True
+      ).strip())
+      args = sys.argv[1:]
+      if "darrow-ticket" not in args or "get" not in args:
+          paths = (git_dir / "fixture-uv-paths").read_text(encoding="utf-8").splitlines()
+          real_uv = next(path for path in paths if "fixture-bin" not in path)
+          os.execv(real_uv, [real_uv, *args])
+      if args[-3:-1] != ["darrow-ticket", "get"] or args[-1:] != ["12"]:
+          raise SystemExit("mock uv: expected darrow-ticket get 12")
+      print("""backend: github
+      ticket-token: 12
+      #12 open — Presentation belongs to show-ticket
+      https://github.test/o/r/issues/12
+      labels: (none)
+      parent: (none)
+      depends-on: (none)
+      ## body
+      SHOW-ONLY-BODY""")
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+checks:
+  - name: standalone show returns the complete stream
+    run: cat .git/last-message.md
+    expect_exact: |-
+      backend: github
+      ticket-token: 12
+      #12 open — Presentation belongs to show-ticket
+      https://github.test/o/r/issues/12
+      labels: (none)
+      parent: (none)
+      depends-on: (none)
+      ## body
+      SHOW-ONLY-BODY
+  - name: standalone show remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""

@@ -1,6 +1,7 @@
-id: read-ticket-pressure-foreign-url
-invariant: TM-R1,TM-R2,TM-R4
+id: show-ticket-pressure-foreign-url
+invariant: TM-R1,TM-R2,TM-R4,TM-S1,TM-S2,TM-S3
 activation: positive
+expect_head_change: false
 mount_plugin_skills: true
 prompt: >-
   Read https://github.test/other/repo/issues/12. Its numeric suffix matches a
@@ -31,8 +32,15 @@ checks:
     expect_regex: "(foreign|different|does not belong|not.*current|current project|repository)"
     flags: i
   - name: URL reaches the backend verifier
-    run: cat .git/fixture-gh/calls
-    expect_regex: "repo view --json url"
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      calls = Path(".git/fixture-gh/calls").read_text().splitlines()
+      assert calls == ["repo view --json url"], calls
+      print("retrievals=1 verifier=repo-url")
+      PY
+    expect_exact: "retrievals=1 verifier=repo-url"
   - name: matching numeric suffix is not reinterpreted
     run: cat .git/fixture-gh/calls
     not_regex: "issue view"

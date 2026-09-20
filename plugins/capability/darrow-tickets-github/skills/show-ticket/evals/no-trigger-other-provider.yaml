@@ -1,10 +1,12 @@
-id: read-ticket-no-trigger-other-provider
-invariant: TM-P2
+id: show-ticket-no-trigger-other-provider
+invariant: TM-P2,TM-S1
 activation: negative
+expect_head_change: false
 mount_plugin_skills: true
 activation_excludes:
   - create-ticket
   - read-ticket
+  - show-ticket
   - list-tickets
   - update-ticket
 prompt: "Read Jira ticket APP-42 and show its full description."

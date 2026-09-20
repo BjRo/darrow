@@ -1,6 +1,7 @@
-id: read-ticket-foreign-parent
-invariant: TM-3,TM-R2,TM-R4
+id: show-ticket-foreign-parent
+invariant: TM-3,TM-R2,TM-R4,TM-S1,TM-S2,TM-S3
 activation: positive
+expect_head_change: false
 mount_plugin_skills: true
 prompt: "Read ticket #12 and return the authoritative tracker result without changing anything."
 fixture:
@@ -46,8 +47,16 @@ checks:
     run: cat .git/last-message.md
     expect_exact: "error: ticket #12 has unsupported foreign parent: https://github.test/other/repo/issues/7 — cross-repository parent relations are not supported"
   - name: bundled CLI owns the failed retrieval
-    run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get #?12$"
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      calls = Path(".git/fixture-ticket-cli-calls").read_text().splitlines()
+      assert len(calls) == 1, calls
+      assert calls[0].split()[-3:] == ["darrow-ticket", "get", "12"], calls[0]
+      print("retrievals=1 target=12")
+      PY
+    expect_exact: "retrievals=1 target=12"
   - name: read stops without fallback or mutation
     run: cat .git/fixture-gh/calls
     not_regex: "issue (list|edit|comment|close|reopen)|-X (POST|DELETE)|issues/7/|blocked_by"

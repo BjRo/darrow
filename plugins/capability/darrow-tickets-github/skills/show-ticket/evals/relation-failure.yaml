@@ -1,6 +1,7 @@
-id: read-ticket-relation-failure
-invariant: TM-R2,TM-R4
+id: show-ticket-relation-failure
+invariant: TM-R2,TM-R4,TM-S1,TM-S2,TM-S3
 activation: positive
+expect_head_change: false
 mount_plugin_skills: true
 prompt: "Read ticket #31 and return the authoritative tracker response without changing anything."
 fixture:
@@ -51,8 +52,16 @@ checks:
     run: cat .git/last-message.md
     expect_exact: "backend relation endpoint unavailable"
   - name: bundled CLI owns the failed retrieval
-    run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get #?31$"
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      calls = Path(".git/fixture-ticket-cli-calls").read_text().splitlines()
+      assert len(calls) == 1, calls
+      assert calls[0].split()[-3:] == ["darrow-ticket", "get", "31"], calls[0]
+      print("retrievals=1 target=31")
+      PY
+    expect_exact: "retrievals=1 target=31"
   - name: relation failure stops without partial ticket output or later calls
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

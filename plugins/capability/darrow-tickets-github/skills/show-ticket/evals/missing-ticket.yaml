@@ -1,6 +1,7 @@
-id: read-ticket-missing-ticket
-invariant: TM-R2,TM-R4
+id: show-ticket-missing-ticket
+invariant: TM-R2,TM-R4,TM-S1,TM-S2,TM-S3
 activation: positive
+expect_head_change: false
 mount_plugin_skills: true
 prompt: "Read ticket #404 and return the authoritative tracker response without changing anything."
 fixture:
@@ -28,8 +29,16 @@ checks:
     run: cat .git/last-message.md
     expect_exact: "GraphQL: Could not resolve to an Issue with the number of 404."
   - name: exact missing ticket is requested once
-    run: cat .git/fixture-gh/calls
-    expect_regex: "^issue view 404"
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      calls = Path(".git/fixture-gh/calls").read_text().splitlines()
+      assert len(calls) == 1, calls
+      assert calls[0].split()[:3] == ["issue", "view", "404"], calls[0]
+      print("retrievals=1 target=404")
+      PY
+    expect_exact: "retrievals=1 target=404"
   - name: missing-ticket refusal remains read-only
     run: cat .git/fixture-gh/calls
     not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

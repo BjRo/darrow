@@ -1,6 +1,7 @@
-id: read-ticket-indirect-url
-invariant: TM-R1,TM-R3
+id: show-ticket-indirect-url
+invariant: TM-R1,TM-S1,TM-S2,TM-S3
 activation: competition
+expect_head_change: false
 mount_plugin_skills: true
 prompt: >-
   What does https://github.test/o/r/issues/21 ask for? Retrieve that exact
@@ -83,8 +84,18 @@ checks:
     run: cat .git/last-message.md
     expect_regex: "ticket-token: 21[\\s\\S]*#21 closed.*Canonical URL intake[\\s\\S]*URL-TOKEN-21"
   - name: bundled CLI owns the URL retrieval
-    run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get https://github.test/o/r/issues/21$"
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      calls = Path(".git/fixture-ticket-cli-calls").read_text().splitlines()
+      assert len(calls) == 1, calls
+      assert calls[0].split()[-3:] == [
+          "darrow-ticket", "get", "https://github.test/o/r/issues/21"
+      ], calls[0]
+      print("retrievals=1 target=url-21")
+      PY
+    expect_exact: "retrievals=1 target=url-21"
   - name: URL retrieval uses only the bundled read protocol
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

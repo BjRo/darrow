@@ -1,7 +1,7 @@
 {
   "name": "darrow-tickets-github",
-  "version": "0.4.2",
-  "description": "GitHub Issues ticket skills: create-ticket, read-ticket, update-ticket, list-tickets",
+  "version": "0.5.0",
+  "description": "GitHub Issues ticket skills: create-ticket, read-ticket, show-ticket, update-ticket, list-tickets",
   "author": {
     "name": "Björn Rochel"
   },
@@ -9,13 +9,14 @@
   "interface": {
     "displayName": "Darrow -> Tickets (GitHub)",
     "shortDescription": "Create, read, find, and update GitHub issues",
-    "longDescription": "Create well-formed GitHub issues, retrieve one exact issue, find relevant open work, and apply one verified update through the bundled GitHub CLI provider.",
+    "longDescription": "Create well-formed GitHub issues, read one exact issue as context, show one issue verbatim, find relevant open work, and apply one verified update through the bundled GitHub CLI provider.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
       "Create a ticket for this problem.",
       "Read ticket #42.",
+      "Read ticket #42 and compare it with the implementation.",
       "List the open bugs for this project.",
       "Close the ticket for this completed work."
     ]

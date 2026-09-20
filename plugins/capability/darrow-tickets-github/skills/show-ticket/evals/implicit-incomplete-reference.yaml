@@ -1,6 +1,7 @@
-id: read-ticket-implicit-incomplete-reference
-invariant: TM-R1,TM-R2
+id: show-ticket-implicit-incomplete-reference
+invariant: TM-R1,TM-R2,TM-S1,TM-S3
 activation: positive
+expect_head_change: false
 mount_plugin_skills: true
 prompt: "Show me the ticket."
 fixture:

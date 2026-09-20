@@ -1,0 +1,62 @@
+id: read-ticket-compound-retrieval-failure
+invariant: TM-R2,TM-R4
+activation: positive
+expect_head_change: false
+mount_plugin_skills: true
+prompt: >-
+  Read ticket #404, then independently inspect README.md and tell me the project
+  name. Do not change anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Copper Finch\n"
+  bin:
+    uv: |
+      #!/usr/bin/env python3
+      import json
+      import os
+      from pathlib import Path
+      import subprocess
+      import sys
+
+      git_dir = Path(subprocess.check_output(
+          ["git", "rev-parse", "--git-dir"], text=True
+      ).strip())
+      args = sys.argv[1:]
+      if "darrow-ticket" not in args or "get" not in args:
+          paths = (git_dir / "fixture-uv-paths").read_text(encoding="utf-8").splitlines()
+          real_uv = next(path for path in paths if "fixture-bin" not in path)
+          os.execv(real_uv, [real_uv, *args])
+      with (git_dir / "fixture-ticket-cli-calls").open("a", encoding="utf-8") as handle:
+          handle.write(json.dumps(args) + "\n")
+      if args[-3:-1] != ["darrow-ticket", "get"] or args[-1:] != ["404"]:
+          raise SystemExit("mock uv: expected darrow-ticket get 404")
+      print("error: ticket #404 is unavailable", file=sys.stderr)
+      raise SystemExit(4)
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+checks:
+  - name: failed retrieval is attempted exactly once
+    run: |
+      python3 - <<'PY'
+      import json
+      from pathlib import Path
+
+      calls = [json.loads(line) for line in Path(".git/fixture-ticket-cli-calls").read_text().splitlines()]
+      assert len(calls) == 1, calls
+      assert calls[0][-3:-1] == ["darrow-ticket", "get"], calls[0]
+      assert calls[0][-1] == "404", calls[0]
+      print("retrievals=1 target=404")
+      PY
+    expect_exact: "retrievals=1 target=404"
+  - name: refusal does not mutate the repository
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: failure and independent result are both reported
+    proposition: >-
+      The response clearly reports that ticket 404 could not be retrieved and
+      also completes the independently meaningful repository inspection by
+      identifying the project as Copper Finch. It does not claim that the
+      ticket was successfully read.

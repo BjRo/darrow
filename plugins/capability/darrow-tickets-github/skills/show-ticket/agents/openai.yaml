@@ -1,0 +1,4 @@
+interface:
+  display_name: "Show Ticket (GitHub)"
+  short_description: "Display one exact GitHub ticket verbatim"
+  default_prompt: "Use $show-ticket to display the exact ticket I reference without changing it."

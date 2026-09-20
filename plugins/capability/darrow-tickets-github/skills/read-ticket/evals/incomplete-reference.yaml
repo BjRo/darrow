@@ -1,0 +1,41 @@
+id: read-ticket-incomplete-reference
+invariant: TM-R1,TM-R2
+activation: positive
+expect_head_change: false
+mount_plugin_skills: true
+prompt: "{{skill_invocation}} Load the ticket into context without showing it."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated project\n"
+  bin:
+    uv: |
+      #!/usr/bin/env python3
+      import os
+      from pathlib import Path
+      import subprocess
+      import sys
+
+      git_dir = Path(subprocess.check_output(
+          ["git", "rev-parse", "--git-dir"], text=True
+      ).strip())
+      args = sys.argv[1:]
+      if "darrow-ticket" not in args or "get" not in args:
+          paths = (git_dir / "fixture-uv-paths").read_text(encoding="utf-8").splitlines()
+          real_uv = next(path for path in paths if "fixture-bin" not in path)
+          os.execv(real_uv, [real_uv, *args])
+      (git_dir / "unexpected-uv-call").write_text("called\n", encoding="utf-8")
+      raise SystemExit("mock uv: ticket reference is required before retrieval")
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+checks:
+  - name: missing exact reference is requested
+    run: cat .git/last-message.md
+    expect_regex: "(ticket|issue).*(ID|number|URL|reference)|(?:ID|number|URL|reference).*(ticket|issue)"
+    flags: i
+  - name: missing reference does not contact the backend
+    run: test ! -f .git/unexpected-uv-call
+  - name: incomplete request remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""

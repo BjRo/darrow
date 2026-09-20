@@ -28,7 +28,7 @@
     {
       "name": "darrow-tickets-github",
       "source": "./plugins/capability/darrow-tickets-github",
-      "description": "GitHub Issues ticket skills: create-ticket, read-ticket, update-ticket, list-tickets"
+      "description": "GitHub Issues ticket skills: create-ticket, read-ticket, show-ticket, update-ticket, list-tickets"
     },
     {
       "name": "darrow-readiness-gate",

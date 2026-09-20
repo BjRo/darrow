@@ -1,4 +1,4 @@
 interface:
   display_name: "Read Ticket (GitHub)"
-  short_description: "Read one exact project ticket in GitHub"
-  default_prompt: "Use $read-ticket to retrieve the exact ticket I reference without changing it."
+  short_description: "Load one exact GitHub ticket as context"
+  default_prompt: "Use $read-ticket to load the exact ticket I reference as context without displaying or changing it."

@@ -1,6 +1,7 @@
-id: read-ticket-no-trigger-list
-invariant: TM-R1,TM-L1
+id: show-ticket-no-trigger-list
+invariant: TM-L1,TM-S1
 activation: negative
+expect_head_change: false
 mount_plugin_skills: true
 prompt: "List every open ticket about login; I am not asking for one ticket's body."
 fixture:

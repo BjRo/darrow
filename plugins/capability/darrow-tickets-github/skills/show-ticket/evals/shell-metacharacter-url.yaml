@@ -1,0 +1,61 @@
+id: show-ticket-shell-metacharacter-url
+invariant: TM-R2,TM-S1,TM-S2,TM-S3
+activation: positive
+expect_head_change: false
+mount_plugin_skills: true
+prompt: >-
+  Show the exact ticket URL
+  https://github.test/o/r/issues/12?note=alpha&mode=literal exactly as the tracker
+  returns it. Do not reinterpret or modify the supplied URL.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    uv: |
+      #!/usr/bin/env python3
+      import json
+      import os
+      from pathlib import Path
+      import subprocess
+      import sys
+
+      git_dir = Path(subprocess.check_output(
+          ["git", "rev-parse", "--git-dir"], text=True
+      ).strip())
+      args = sys.argv[1:]
+      if "darrow-ticket" not in args or "get" not in args:
+          paths = (git_dir / "fixture-uv-paths").read_text(encoding="utf-8").splitlines()
+          real_uv = next(path for path in paths if "fixture-bin" not in path)
+          os.execv(real_uv, [real_uv, *args])
+      with (git_dir / "fixture-ticket-cli-calls").open("a", encoding="utf-8") as handle:
+          handle.write(json.dumps(args) + "\n")
+      target = "https://github.test/o/r/issues/12?note=alpha&mode=literal"
+      if args[-3:-1] != ["darrow-ticket", "get"] or args[-1:] != [target]:
+          raise SystemExit("mock uv: expected one literal adversarial URL argument")
+      print(f"error: ticket URL is not canonical: {target}", file=sys.stderr)
+      raise SystemExit(2)
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+checks:
+  - name: adversarial URL reaches the backend once as one literal argument
+    run: |
+      python3 - <<'PY'
+      import json
+      from pathlib import Path
+
+      calls = [json.loads(line) for line in Path(".git/fixture-ticket-cli-calls").read_text().splitlines()]
+      target = "https://github.test/o/r/issues/12?note=alpha&mode=literal"
+      assert len(calls) == 1, calls
+      assert calls[0][-3:-1] == ["darrow-ticket", "get"], calls[0]
+      assert calls[0][-1] == target, calls[0]
+      print("retrievals=1 literal-target=yes")
+      PY
+    expect_exact: "retrievals=1 literal-target=yes"
+  - name: backend refusal is relayed byte-for-byte
+    run: cat .git/last-message.md
+    expect_exact: "error: ticket URL is not canonical: https://github.test/o/r/issues/12?note=alpha&mode=literal"
+  - name: showing remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""

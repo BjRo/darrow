@@ -1,6 +1,7 @@
-id: read-ticket-conversation-bound-reference
-invariant: TM-R1,TM-R2,TM-R3
+id: show-ticket-conversation-bound-reference
+invariant: TM-R1,TM-R2,TM-S1,TM-S2,TM-S3
 activation: competition
+expect_head_change: false
 mount_plugin_skills: true
 prompt: >-
   Remember this context for my next request: the deployment ticket is #12. Do
@@ -78,8 +79,16 @@ checks:
       ## body
       Preserve CONVERSATION-TOKEN-12 exactly.
   - name: bundled CLI resolves the bound reference exactly once
-    run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "^.*?darrow-ticket get #?12$"
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      calls = Path(".git/fixture-ticket-cli-calls").read_text().splitlines()
+      assert len(calls) == 1, calls
+      assert calls[0].split()[-3:] == ["darrow-ticket", "get", "12"], calls[0]
+      print("retrievals=1 target=12")
+      PY
+    expect_exact: "retrievals=1 target=12"
   - name: conversation-bound retrieval uses only the read protocol
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

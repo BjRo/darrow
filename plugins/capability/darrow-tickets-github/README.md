@@ -43,9 +43,18 @@ Example: _“Which open bugs are in the next milestone?”_
 
 ### `read-ticket`
 
-Retrieves one exact current-project ticket by ID or canonical URL. It returns
-the authoritative metadata, a provider-owned `ticket-token: N`, tracker-native relations, and full description
-without summarizing, interpreting, or changing tracker state.
+Loads one exact current-project ticket by ID or canonical URL as authoritative
+context for another requested task. It returns control without forcing the full
+ticket into the final response. An explicit context-only invocation acknowledges
+the ticket number and title.
+
+Example: _“Read ticket #42 and compare it with the implementation.”_
+
+### `show-ticket`
+
+Displays one exact current-project ticket as the whole response. It preserves
+the authoritative metadata, provider-owned `ticket-token: N`, tracker-native
+relations, full description, or refusal exactly as the bundled CLI returned it.
 
 Example: _“What does ticket #42 say?”_
 
@@ -60,7 +69,7 @@ Example: _“Comment on #42 with the failing command.”_
 
 ### `darrow-ticket`
 
-A contained Python facade used by all four skills. It resolves the current
+A contained Python facade used by all five skills. It resolves the current
 GitHub repository, inspects its taxonomy, searches and fetches tickets, validates
 structured bodies and transition targets, owns backend-specific relation
 syntax, and rejects ambiguous or unsupported mutations. It exposes the
@@ -92,8 +101,8 @@ Exit codes: 2 input/filesystem error, 3 unusable backend, 4 provider failure,
   milestone, or assignee.
 - Ticket content contains repository or user evidence, never invented versions,
   reproduction steps, acceptance criteria, or AI attribution.
-- `read-ticket` and `list-tickets` are strictly read-only, and `update-ticket`
-  applies only the single mutation requested.
+- `read-ticket`, `show-ticket`, and `list-tickets` are strictly read-only, and
+  `update-ticket` applies only the single mutation requested.
 - GitHub calls use the origin repository's host even when `GH_HOST` or
   `GH_REPO` names another target in the caller's environment.
 - Parent relations are supported within the current repository. An existing
@@ -141,12 +150,15 @@ An ordinary request can select the appropriate capability:
 
 > What does ticket #42 say?
 
-To select it explicitly, choose `read-ticket` from Codex's `$` skill menu,
-or use `/darrow-tickets-github:read-ticket` in Claude Code, followed by your request.
+To force verbatim presentation, choose `show-ticket` from Codex's `$` skill
+menu, or use `/darrow-tickets-github:show-ticket` in Claude Code. Choose
+`read-ticket` only when the ticket should become context without being displayed.
 
 ## Expected result
 
-Read and list return tracker evidence without changes. Create and update perform at most one requested operation.
+Read loads tracker evidence as context, show presents it verbatim, and list
+returns compact tracker evidence. Create and update perform at most one
+requested operation.
 
 ## Troubleshooting
 
