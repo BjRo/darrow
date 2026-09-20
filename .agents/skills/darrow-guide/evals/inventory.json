@@ -68,7 +68,7 @@
       "answer_points": [
         "Responsibilities are not sequential stages",
         "Foundations and capabilities support several layers",
-        "Automation is planned",
+        "Local Artificer supplies bounded authorized automation",
         "Evaluation and observability span layers"
       ],
       "evidence": "authoritative",
@@ -397,8 +397,8 @@
       "answer_points": [
         "Explicit outcome and permission envelope",
         "One delegation",
-        "Automation not implemented",
-        "No invented scheduling capability or currently unsupported scheduler workaround"
+        "Local Artificer has a deliberate saved-grant unattended entry",
+        "No authority inferred from a generic scheduler call or ticket text"
       ],
       "evidence": "authoritative",
       "static_page": "plugins/task-recipe/README.md",

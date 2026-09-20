@@ -32,7 +32,7 @@ semantic_output_checks:
   - name: question contract
     proposition:
       "The response establishes these points: Responsibilities are not sequential stages;
-      Foundations and capabilities support several layers; Automation is planned;
+      Foundations and capabilities support several layers; Local Artificer supplies bounded authorized automation;
       Evaluation and observability span layers."
   - name: layer-level focus and read-only explanation
     proposition: >-
