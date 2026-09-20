@@ -85,9 +85,12 @@ backend applicability, and separate conclusions for:
   layers across owner, verification, review, and two parallel readers.
 
 For Codex it checks `agents.enabled` and
-`agents.max_concurrent_threads_per_session`. It reports `agents.max_depth` as a
-V1-only nesting control that V2 ignores. For Claude Code it checks the effective
-process values of `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and
+`agents.max_concurrent_threads_per_session` across the user configuration and
+applicable trusted project layers, reports the contributing sources, and keeps
+isolated evaluation bound to its isolated `CODEX_HOME`. It reports
+`agents.max_depth` as a V1-only nesting control that V2 ignores. For Claude
+Code it checks the effective process values of
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and
 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` only where the installed version supports
 them. Absent, unreadable, malformed, disabled, inadequate, and unknown states
 remain distinct, and the output never includes unrelated settings or secrets.
@@ -160,7 +163,7 @@ Prefix each command with
 ```text
 adaptive-delivery-preflight prepare --repo <path> --host <codex|claude>
 adaptive-delivery-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>]
-host-config-doctor codex --config <path> --backend <v1|v2|unknown> --context <effective|isolated-eval>
+host-config-doctor codex --config <path> [--project-root <path>] --backend <v1|v2|unknown> --context <effective|isolated-eval>
 host-config-doctor claude [--version <installed-version>]
 ```
 
@@ -169,8 +172,9 @@ instructions, workflow documents, and active route catalog. `route` resolves a
 policy or exact user-supplied route. Repository overrides live in
 `.darrow/config.json`; malformed, unsafe, unknown, duplicate, or host-inconsistent
 route configuration fails closed. `host-config-doctor` reads only the effective
-host controls named by the doctor skill and reports baseline and full-path
-capacity without changing configuration.
+host controls named by the doctor skill, discovers layers beneath an explicitly
+trusted project root only in effective context, and reports baseline and
+full-path capacity without changing configuration.
 
 The helper does not launch models, persist objectives, record lifecycle state,
 render completion reports, supervise work, or provide nested host sessions.

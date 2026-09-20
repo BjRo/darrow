@@ -20,7 +20,7 @@ from .common import RefusalError
 
 VersionProbe = Callable[[], str]
 
-USAGE = """usage: host-config-doctor codex [--config PATH] [--backend v1|v2|unknown] [--context effective|isolated-eval]
+USAGE = """usage: host-config-doctor codex [--config PATH] [--project-root PATH] [--backend v1|v2|unknown] [--context effective|isolated-eval]
        host-config-doctor claude [--version VERSION]
 """
 
@@ -90,14 +90,25 @@ def _resolve_config(
         ) from error
 
 
-def _codex_header(source: Path, backend: str, context: str) -> str:
+def _codex_header(
+    source: Path,
+    checked_sources: tuple[Path, ...],
+    used_sources: tuple[Path, ...],
+    backend: str,
+    context: str,
+) -> str:
     return (
         _lines(
             "format: darrow-adaptive-delivery-host-doctor-v1",
             "host: codex",
             f"configuration_source: {source}",
+            "configuration_sources_checked: "
+            + " | ".join(str(path) for path in checked_sources),
+            "configuration_sources_used: "
+            + " | ".join(str(path) for path in used_sources),
             f"configuration_context: {context}",
-            "checkout_config_used: no",
+            "checkout_config_used: "
+            + ("yes" if any(path != source for path in used_sources) else "no"),
             f"backend: {backend}",
             "concurrency_control: agents.max_concurrent_threads_per_session",
             "nesting_control: agents.max_depth (V1 only; ignored by V2)",
@@ -159,6 +170,120 @@ def _read_settings(source: Path, header: str) -> AgentSettings:
         raise DiagnosisError(
             header, "unreadable", "failed while reading effective configuration"
         ) from error
+
+
+def _merge_agent_settings(
+    layers: tuple[tuple[Path, AgentSettings], ...],
+    backend: str,
+) -> tuple[AgentSettings, tuple[Path, ...]]:
+    values: dict[str, bool | int | None] = {
+        "enabled": None,
+        "concurrency": None,
+        "depth": None,
+    }
+    origins: dict[str, Path] = {}
+    for source, settings in layers:
+        for name in values:
+            value = getattr(settings, name)
+            if value is not None:
+                values[name] = value
+                if name != "depth" or backend == "v1":
+                    origins[name] = source
+    contributors = tuple(
+        source for source, _settings in layers if source in origins.values()
+    )
+    return (
+        AgentSettings(
+            enabled=values["enabled"] if type(values["enabled"]) is bool else None,
+            concurrency=(
+                values["concurrency"] if type(values["concurrency"]) is int else None
+            ),
+            depth=values["depth"] if type(values["depth"]) is int else None,
+        ),
+        contributors,
+    )
+
+
+def _parse_codex_options(args: list[str]) -> dict[str, str]:
+    values: dict[str, str] = {}
+    tokens = iter(args)
+    for name in tokens:
+        if name not in {"--config", "--project-root", "--backend", "--context"}:
+            raise UsageError
+        value = next(tokens, "")
+        if not value:
+            raise UsageError
+        key = name.removeprefix("--")
+        if key in values:
+            raise UsageError
+        values[key] = value
+    return values
+
+
+def _resolve_project_root(configured_root: str, cwd: Path) -> tuple[Path, Path]:
+    root_candidate = Path(configured_root)
+    if not root_candidate.is_absolute():
+        raise DiagnosisError("", "unavailable", "project root must be absolute")
+    try:
+        root = root_candidate.resolve(strict=True)
+        current = cwd.resolve(strict=True)
+        relative = current.relative_to(root)
+    except (OSError, ValueError) as error:
+        raise DiagnosisError(
+            "", "unavailable", "project root must contain the current directory"
+        ) from error
+    if not root.is_dir():
+        raise DiagnosisError("", "unavailable", "project root is not a directory")
+    return root, relative
+
+
+def _project_config_in(directory: Path) -> Path | None:
+    candidate = directory / ".codex/config.toml"
+    try:
+        candidate.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        raise DiagnosisError(
+            "",
+            "unavailable",
+            f"project configuration cannot be inspected: {candidate}",
+        ) from error
+    return candidate
+
+
+def _codex_project_sources(
+    configured_root: str | None,
+    context: str,
+    cwd: Path,
+) -> tuple[Path, ...]:
+    if context == "isolated-eval" or configured_root is None:
+        return ()
+    root, relative = _resolve_project_root(configured_root, cwd)
+    directories = [root]
+    for part in relative.parts:
+        directories.append(directories[-1] / part)
+    sources: list[Path] = []
+    for directory in directories:
+        source = _project_config_in(directory)
+        if source is not None:
+            sources.append(source)
+    return tuple(sources)
+
+
+def _read_codex_layers(
+    source: Path,
+    project_sources: tuple[Path, ...],
+    header: str,
+) -> tuple[tuple[Path, AgentSettings], ...]:
+    layers: list[tuple[Path, AgentSettings]] = []
+    if source.exists():
+        layers.append((source, _read_settings(source, header)))
+    layers.extend(
+        (project_source, _read_settings(project_source, header))
+        for project_source in project_sources
+    )
+    return tuple(layers)
 
 
 def _codex_absent(source: Path, backend: str) -> str:
@@ -271,7 +396,7 @@ def _codex_result(source: Path, settings: AgentSettings, backend: str) -> str:
 
 
 def _codex(args: list[str], environment: Mapping[str, str], cwd: Path) -> str:
-    values = _parse_options(args, {"--config", "--backend", "--context"})
+    values = _parse_codex_options(args)
     backend = values.get("backend", "unknown")
     context = values.get("context", "effective")
     if backend not in {"v1", "v2", "unknown"}:
@@ -279,10 +404,27 @@ def _codex(args: list[str], environment: Mapping[str, str], cwd: Path) -> str:
     if context not in {"effective", "isolated-eval"}:
         raise UsageError
     source = _resolve_config(values.get("config"), environment, cwd)
-    header = _codex_header(source, backend, context)
-    if not source.exists():
+    project_sources = _codex_project_sources(
+        values.get("project-root"),
+        context,
+        cwd,
+    )
+    checked_sources = (source, *project_sources)
+    provisional_header = _codex_header(
+        source,
+        checked_sources,
+        (),
+        backend,
+        context,
+    )
+    layers = _read_codex_layers(source, project_sources, provisional_header)
+    if not layers:
+        header = _codex_header(source, checked_sources, (), backend, context)
         return header + _codex_absent(source, backend)
-    return header + _codex_result(source, _read_settings(source, header), backend)
+    settings, used_sources = _merge_agent_settings(tuple(layers), backend)
+    header = _codex_header(source, checked_sources, used_sources, backend, context)
+    guidance_source = project_sources[-1] if project_sources else source
+    return header + _codex_result(guidance_source, settings, backend)
 
 
 def _default_version_probe() -> str:

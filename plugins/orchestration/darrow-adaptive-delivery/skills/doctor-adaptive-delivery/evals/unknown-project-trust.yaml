@@ -1,0 +1,21 @@
+id: doctor-adaptive-delivery-unknown-project-trust
+invariant: ADL-D1
+activation: positive
+prompt: >-
+  {{skill_invocation}} Diagnose the represented Codex V2 effective
+  configuration, not this eval runner's own configuration. Its user config is
+  ./user-config.toml and the current checkout contains .codex/config.toml, but
+  I cannot confirm whether that checkout is trusted.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        user-config.toml: "[agents]\nenabled = true\n"
+        .codex/config.toml: "[agents]\nmax_concurrent_threads_per_session = 5\n"
+checks: []
+semantic_output_checks:
+  - name: unknown trust stops diagnosis
+    proposition: The response asks whether the represented checkout is trusted and does not claim a capacity conclusion before that applicability fact is supplied.
+transcript_checks:
+  - name: helper waits for trust
+    not_regex: 'host-config-doctor|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"'

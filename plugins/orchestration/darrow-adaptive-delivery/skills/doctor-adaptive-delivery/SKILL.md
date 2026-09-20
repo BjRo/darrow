@@ -28,15 +28,26 @@ and Python 3.10–3.13. Do not search the repository, home directory, plugin
 caches, or `PATH` for a replacement. The frozen entrypoint runs on Linux,
 macOS, and native Windows without Bash.
 
-For Codex, the effective user configuration is
+For Codex, the user configuration is
 `$CODEX_HOME/config.toml` when `CODEX_HOME` is set, otherwise
 `$HOME/.codex/config.toml` on Unix or `%USERPROFILE%\.codex\config.toml` on
-native Windows. Pass that exact path with `--config`. A checkout's
-`.codex/config.toml` is not a substitute for an isolated eval process's
-`CODEX_HOME/config.toml`. Pass `--context isolated-eval` when the session or
-runner establishes an isolated evaluation home; otherwise pass
-`--context effective`. Establish V1, V2, or unknown from current host evidence
-and pass `--backend`; do not infer V2 merely from the presence of `max_depth`.
+native Windows. Pass that exact path with `--config`.
+
+For `--context effective`, establish the absolute trusted project root. Use
+current host evidence or an explicit user statement for trust; if trust is not
+observable, ask instead of guessing. Pass the root once as
+`--project-root <absolute-trusted-root>`. The helper deterministically finds
+applicable `.codex/config.toml` files from that root through the current working
+directory, validates their chain, applies them root-first so the closest layer
+has highest precedence, and reports both every checked layer and the source of
+each effective applicable value. Do not construct or order the layer list
+yourself.
+
+Pass `--context isolated-eval` when the session or runner establishes an
+isolated evaluation home. In that context, pass only the isolated
+`CODEX_HOME/config.toml`; a checkout's `.codex/config.toml` never substitutes
+for or augments it. Establish V1, V2, or unknown from current host evidence and
+pass `--backend`; do not infer V2 merely from the presence of `max_depth`.
 
 For Claude Code, the helper reads only the two named environment controls from
 the current process. Supply `--version` when the installed version is already
@@ -57,7 +68,12 @@ Run exactly one applicable command:
 uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
   host-config-doctor codex \
   --config <absolute-effective-config> --backend <v1|v2|unknown> \
-  --context <effective|isolated-eval>
+  --context effective [--project-root <absolute-trusted-project-root>]
+
+uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
+  host-config-doctor codex \
+  --config <absolute-isolated-config> --backend <v1|v2|unknown> \
+  --context isolated-eval
 
 uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
   host-config-doctor claude \
@@ -96,9 +112,11 @@ control merely because the variable is present.
 
 Return the exact checked source, host/version/backend evidence, baseline and
 full-path result, and the helper's actionable source-specific guidance. Copy
-the helper's `concurrency_control` and `nesting_control` names verbatim into the
-user-visible result so a numeric conclusion cannot hide which setting was
-evaluated. The
+the helper's `configuration_sources_checked`, `configuration_sources_used`,
+and `checkout_config_used` records verbatim so absolute paths and contribution
+status are not lost in summary. Copy its `concurrency_control` and
+`nesting_control` names verbatim into the user-visible result so a numeric
+conclusion cannot hide which setting was evaluated. The
 diagnosis is complete only when those facts are present, no configuration was
 changed, no credentials or unrelated values were emitted, and no owner was
 launched.
