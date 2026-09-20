@@ -56,9 +56,11 @@ host's effective configuration, reports the exact source, and distinguishes
 the one-slot owner-only path from the five-slot, four-layer full verification
 and review topology.
 
-For Codex, keep `agents.max_concurrent_threads_per_session` separate from
-`agents.max_depth`; V2 ignores the latter. In an isolated eval, diagnose the
-eval process's `CODEX_HOME/config.toml`, not this checkout's
+For Codex, the effective diagnosis applies trusted project `.codex/config.toml`
+layers after the user configuration and reports which checked sources supplied
+the final controls. Keep `agents.max_concurrent_threads_per_session` separate
+from `agents.max_depth`; V2 ignores the latter. In an isolated eval, diagnose
+only the eval process's `CODEX_HOME/config.toml`, not this checkout's
 `.codex/config.toml`. For Claude Code, the doctor checks concurrency and spawn
 depth separately and reports whether the installed version supports each
 control. Follow the source-specific guidance in the result and start a fresh

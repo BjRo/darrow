@@ -167,15 +167,19 @@ delegation topology required by Adaptive Delivery. Ordinary doctor intent may
 select this capability, but must never activate `adaptive-delivery` or launch an
 owner.
 
-The doctor identifies the host, installed version when observable, and the
-exact effective source it checked. For Codex it checks the active
-`CODEX_HOME/config.toml` (or the default user configuration under `HOME` on
-Unix and `USERPROFILE` on native Windows when `CODEX_HOME` is unset), not a
-similarly named repository file. An isolated evaluation home is
-reported as such so the source checkout's `.codex/config.toml` is not mistaken
-for the evaluated process's configuration. It reports absent, unreadable,
-malformed, explicitly disabled, unset/default, inadequate, and adequate states
-without printing unrelated configuration or credentials.
+The doctor identifies the host, installed version when observable, every
+configuration layer checked, and every source that contributes an effective
+Adaptive Delivery control. For Codex effective context it starts with the
+active `CODEX_HOME/config.toml` (or the default user configuration under `HOME`
+on Unix and `USERPROFILE` on native Windows when `CODEX_HOME` is unset), then
+applies trusted project `.codex/config.toml` files from project root through
+the current directory. The closest project layer has highest precedence. A
+project layer counts as used only when it supplies an effective diagnosed
+control. Isolated evaluation uses only its isolated `CODEX_HOME/config.toml`;
+the source checkout's `.codex/config.toml` neither substitutes for nor augments
+it. The doctor reports absent, unreadable, malformed, explicitly disabled,
+unset/default, inadequate, and adequate states without printing unrelated
+configuration or credentials.
 
 Codex diagnosis evaluates `agents.enabled` and
 `agents.max_concurrent_threads_per_session` separately. The concurrency limit
@@ -759,10 +763,12 @@ Nested host processes are not an adaptive-delivery fallback.
 20. **ADL-D1 — Separate read-only host diagnosis.** Host-configuration doctor
     intent selects `doctor-adaptive-delivery`, never activates orchestration,
     and makes no configuration or repository mutation. Its result identifies
-    the effective source and host/version applicability, keeps concurrency and
-    nesting distinct, derives baseline and full-path capacity from the topology
-    above, refuses unreadable or malformed required input, and never exposes
-    unrelated values or credentials.
+    every checked and contributing effective source plus host/version
+    applicability, applies trusted Codex project layers in documented
+    precedence order while keeping isolated evaluation CODEX_HOME-only, keeps
+    concurrency and nesting distinct, derives baseline and full-path capacity
+    from the topology above, refuses unreadable or malformed required input,
+    and never exposes unrelated values or credentials.
 
 ## Packaging and portability
 

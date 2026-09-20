@@ -15,7 +15,10 @@ def diagnose_codex(
     backend: str = "v2",
     context: str = "effective",
     environment: dict[str, str] | None = None,
+    project_root: Path | None = None,
+    cwd: Path | None = None,
 ) -> str:
+    project_args = [] if project_root is None else ["--project-root", str(project_root)]
     return doctor.run(
         [
             "codex",
@@ -25,8 +28,10 @@ def diagnose_codex(
             backend,
             "--context",
             context,
+            *project_args,
         ],
         environment=environment or {},
+        cwd=cwd,
     )
 
 
@@ -140,8 +145,218 @@ def test_codex_absent_is_unknown_and_names_isolated_source(tmp_path: Path) -> No
     output = diagnose_codex(config, context="isolated-eval")
     assert "status: absent" in output
     assert "configuration_context: isolated-eval" in output
+    assert "configuration_sources_used: \n" in output
     assert "checkout_config_used: no" in output
     assert "full_required_assessment: unknown" in output
+
+
+def test_codex_effective_context_uses_project_override_and_reports_source(
+    tmp_path: Path,
+) -> None:
+    user_config = tmp_path / "codex-home/config.toml"
+    user_config.parent.mkdir()
+    project_config = write_config(
+        tmp_path / "checkout/.codex/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 5\n",
+    )
+
+    output = diagnose_codex(
+        user_config,
+        project_root=project_config.parents[1],
+        cwd=project_config.parents[1],
+    )
+
+    assert f"configuration_sources_used: {project_config.resolve()}" in output
+    assert "checkout_config_used: yes" in output
+    assert "concurrency: adequate (5; full path requires 5)" in output
+    assert "baseline_owner_only: supported" in output
+    assert "full_required_assessment: supported" in output
+
+
+def test_codex_effective_project_layers_override_user_and_report_all_contributors(
+    tmp_path: Path,
+) -> None:
+    user_config = write_config(
+        tmp_path / "codex-home/config.toml",
+        "[agents]\nenabled = false\nmax_concurrent_threads_per_session = 2\n",
+    )
+    root_config = write_config(
+        tmp_path / "checkout/.codex/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 4\n",
+    )
+    nested_config = write_config(
+        tmp_path / "checkout/nested/.codex/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 5\n",
+    )
+
+    output = diagnose_codex(
+        user_config,
+        project_root=root_config.parents[1],
+        cwd=nested_config.parents[1],
+    )
+
+    assert (
+        "configuration_sources_used: "
+        f"{user_config.resolve()} | {nested_config.resolve()}"
+    ) in output
+    assert (
+        str(root_config.resolve())
+        in output.split("configuration_sources_checked: ", maxsplit=1)[1].splitlines()[
+            0
+        ]
+    )
+    assert "checkout_config_used: yes" in output
+    assert "delegation: disabled" in output
+    assert "concurrency: adequate (5; full path requires 5)" in output
+    assert "baseline_owner_only: unsupported" in output
+
+
+def test_codex_isolated_context_never_uses_project_config(tmp_path: Path) -> None:
+    user_config = write_config(
+        tmp_path / "isolated-home/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 4\n",
+    )
+    project_config = write_config(
+        tmp_path / "checkout/.codex/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 99\n",
+    )
+
+    output = diagnose_codex(
+        user_config,
+        context="isolated-eval",
+        project_root=project_config.parents[1],
+        cwd=project_config.parents[1],
+    )
+
+    assert f"configuration_sources_used: {user_config.resolve()}" in output
+    assert "checkout_config_used: no" in output
+    assert str(project_config.resolve()) not in output
+    assert (
+        "concurrency: inadequate (4; baseline requires 1, full path requires 5)"
+        in output
+    )
+    assert "concurrency: adequate (99" not in output
+
+
+def test_codex_v2_depth_only_project_layer_is_checked_but_not_used(
+    tmp_path: Path,
+) -> None:
+    user_config = write_config(
+        tmp_path / "codex-home/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 5\n",
+    )
+    checkout = tmp_path / "checkout"
+    project_config = write_config(
+        checkout / ".codex/config.toml",
+        "[agents]\nmax_depth = 20\n",
+    )
+
+    output = diagnose_codex(
+        user_config,
+        project_root=checkout,
+        cwd=checkout,
+    )
+
+    assert f"configuration_sources_used: {user_config.resolve()}" in output
+    assert (
+        str(project_config.resolve())
+        in output.split("configuration_sources_checked: ", maxsplit=1)[1].splitlines()[
+            0
+        ]
+    )
+    assert "checkout_config_used: no" in output
+
+
+def test_codex_no_control_source_does_not_invent_user_or_checkout_use(
+    tmp_path: Path,
+) -> None:
+    user_config = tmp_path / "codex-home/config.toml"
+    user_config.parent.mkdir()
+    checkout = tmp_path / "checkout"
+    project_config = write_config(
+        checkout / ".codex/config.toml",
+        'model = "gpt-test"\n',
+    )
+
+    output = diagnose_codex(
+        user_config,
+        project_root=checkout,
+        cwd=checkout,
+    )
+
+    assert "configuration_sources_used: \n" in output
+    assert f"configuration_source: {user_config.resolve()}" in output
+    assert f"configuration_sources_checked: {user_config.resolve()}" in output
+    assert (
+        str(project_config.resolve())
+        in output.split("configuration_sources_checked: ", maxsplit=1)[1].splitlines()[
+            0
+        ]
+    )
+    assert "checkout_config_used: no" in output
+
+
+def test_codex_malformed_project_does_not_claim_checked_layers_were_used(
+    tmp_path: Path,
+) -> None:
+    user_config = write_config(
+        tmp_path / "codex-home/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 5\n",
+    )
+    checkout = tmp_path / "checkout"
+    project_config = write_config(
+        checkout / ".codex/config.toml",
+        "[agents\n",
+    )
+
+    with pytest.raises(doctor.DiagnosisError) as failure:
+        diagnose_codex(user_config, project_root=checkout, cwd=checkout)
+
+    assert "configuration_sources_used: \n" in failure.value.output
+    assert "checkout_config_used: no" in failure.value.output
+    assert str(project_config.resolve()) in failure.value.output
+
+
+@pytest.mark.parametrize("project_root", [Path("relative"), Path("/not-an-ancestor")])
+def test_codex_rejects_invalid_effective_project_root(
+    tmp_path: Path, project_root: Path
+) -> None:
+    user_config = write_config(
+        tmp_path / "codex-home/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 5\n",
+    )
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+
+    with pytest.raises(doctor.DiagnosisError, match="project root"):
+        diagnose_codex(user_config, project_root=project_root, cwd=checkout)
+
+
+def test_codex_refuses_project_config_discovery_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_config = write_config(
+        tmp_path / "codex-home/config.toml",
+        "[agents]\nmax_concurrent_threads_per_session = 5\n",
+    )
+    checkout = tmp_path / "checkout"
+    candidate = checkout / ".codex/config.toml"
+    candidate.parent.mkdir(parents=True)
+    original = Path.lstat
+
+    def fail_candidate(path: Path) -> os.stat_result:
+        if path == candidate:
+            raise PermissionError("secret detail")
+        return original(path)
+
+    monkeypatch.setattr(Path, "lstat", fail_candidate)
+
+    with pytest.raises(doctor.DiagnosisError) as failure:
+        diagnose_codex(user_config, project_root=checkout, cwd=checkout)
+
+    assert "status: unavailable" in failure.value.diagnostic
+    assert str(candidate) in failure.value.diagnostic
+    assert "secret detail" not in failure.value.diagnostic
 
 
 def test_codex_uses_codex_home_instead_of_checkout(tmp_path: Path) -> None:
