@@ -56,6 +56,16 @@ async function filesBelow(directory: string): Promise<string[]> {
   }
   return files;
 }
+async function allFilesBelow(directory: string): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (skip.has(entry.name) && entry.name !== "fixtures") continue;
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...(await allFilesBelow(path)));
+    else if (entry.isFile()) files.push(path);
+  }
+  return files;
+}
 function attributes(tag: string): Map<string, string> {
   return new Map(
     [...tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)].map(
@@ -302,6 +312,192 @@ for (const page of pages.values()) {
   )
     fail(page.path, "plugin README is absent from marketplace");
 }
+
+function installedReadmeSurface(text: string): string {
+  let ignored = false;
+  return text
+    .split("\n")
+    .filter((line) => {
+      const heading = /^##\s+(.+)$/.exec(line)?.[1];
+      if (heading)
+        ignored = /^(?:Development|Tests?|Contributing)\b/i.test(heading);
+      return !ignored;
+    })
+    .join("\n");
+}
+
+function lineAt(text: string, index: number): number {
+  return text.slice(0, index).split("\n").length;
+}
+
+function isHookPath(relativePath: string): boolean {
+  return (
+    relativePath.includes(`${sep}hooks${sep}`) ||
+    relativePath.endsWith(`${sep}.claude-plugin${sep}hooks.json`)
+  );
+}
+
+function isModelFacingPath(relativePath: string): boolean {
+  if (
+    relativePath.endsWith(`${sep}SKILL.md`) ||
+    relativePath.endsWith(".fixture.md")
+  )
+    return true;
+  return (
+    relativePath.includes(`${sep}skills${sep}`) &&
+    relativePath.includes(`${sep}references${sep}`) &&
+    relativePath.endsWith(".md")
+  );
+}
+
+function verifyHookLauncher(path: string, surface: string, hook: boolean) {
+  if (!hook || !/\buv\b|\$uv\.Path/i.test(surface)) return;
+  if (!surface.includes("scripts/run_locked.py"))
+    fail(path, "runtime hook bypasses backend/scripts/run_locked.py");
+}
+
+function verifyRuntimeCommands(path: string, text: string) {
+  const relativePath = relative(root, path);
+  const hook = isHookPath(relativePath);
+  const modelFacing = isModelFacingPath(relativePath);
+  const readme =
+    basename(path) === "README.md" && pluginRoots.has(dirname(path));
+  if (!hook && !modelFacing && !readme) return;
+  const surface = readme ? installedReadmeSurface(text) : text;
+  const commands = surface.matchAll(/uv\s+run\b(?:(?!\n\s*\n)[\s\S]){0,500}/g);
+  for (const command of commands) {
+    if (!command[0].includes("scripts/run_locked.py"))
+      fail(
+        path,
+        "installed runtime command bypasses backend/scripts/run_locked.py",
+        lineAt(surface, command.index),
+      );
+  }
+  verifyHookLauncher(path, surface, hook);
+}
+
+function verifyGeneratedRuntimeCommands(path: string, text: string) {
+  const uvRunArgumentLists = text.matchAll(
+    /(?:["']uv["']|\buv)\s*,\s*["']run["'][\s\S]*?\]/g,
+  );
+  for (const command of uvRunArgumentLists) {
+    if (!command[0].includes("scripts/run_locked.py"))
+      fail(
+        path,
+        "generated runtime command bypasses backend/scripts/run_locked.py",
+        lineAt(text, command.index),
+      );
+  }
+}
+
+async function pythonPackages(inventoryPath: string): Promise<string[]> {
+  try {
+    return (await readFile(inventoryPath, "utf8"))
+      .split("\n")
+      .map((line) => line.replace(/\s*#.*$/, "").trim())
+      .filter(Boolean);
+  } catch {
+    fail(inventoryPath, "missing Python package inventory");
+    return [];
+  }
+}
+
+function owningPlugin(backend: string): string | undefined {
+  return [...pluginRoots]
+    .sort((left, right) => right.length - left.length)
+    .find((candidate) => backend.startsWith(candidate + sep));
+}
+
+async function verifyLauncherCopies(
+  packages: string[],
+  inventoryPath: string,
+): Promise<void> {
+  let canonical: { path: string; text: string } | undefined;
+  for (const packagePath of packages) {
+    const backend = resolve(root, packagePath);
+    if (!owningPlugin(backend)) {
+      fail(
+        inventoryPath,
+        `registered backend has no marketplace plugin: ${packagePath}`,
+      );
+      continue;
+    }
+    const launcher = join(backend, "scripts/run_locked.py");
+    try {
+      const text = await readFile(launcher, "utf8");
+      if (!canonical) canonical = { path: launcher, text };
+      else if (text !== canonical.text)
+        fail(launcher, `runtime launcher differs from ${canonical.path}`);
+    } catch {
+      fail(launcher, "registered backend lacks a readable runtime launcher");
+    }
+  }
+}
+
+type RuntimeSurface = "commands" | "generated";
+
+function ignoredRuntimeSurface(relativePath: string): boolean {
+  return (
+    relativePath.includes(`${sep}evals${sep}`) ||
+    relativePath.includes(`${sep}tests${sep}`)
+  );
+}
+
+function productionPythonSurface(relativePath: string): boolean {
+  return (
+    (relativePath.startsWith(`backend${sep}src${sep}`) ||
+      relativePath.includes(`${sep}backend${sep}src${sep}`)) &&
+    relativePath.endsWith(".py")
+  );
+}
+
+function runtimeCommandSurface(relativePath: string, path: string): boolean {
+  return (
+    basename(path) === "README.md" ||
+    basename(path) === "SKILL.md" ||
+    relativePath.includes(`${sep}references${sep}`) ||
+    relativePath.includes(`${sep}hooks${sep}`) ||
+    relativePath === join(".claude-plugin", "hooks.json")
+  );
+}
+
+function runtimeSurface(
+  plugin: string,
+  path: string,
+): RuntimeSurface | undefined {
+  const relativePath = relative(plugin, path);
+  if (relativePath.endsWith(".fixture.md")) return "commands";
+  if (ignoredRuntimeSurface(relativePath)) return;
+  if (productionPythonSurface(relativePath)) return "generated";
+  if (runtimeCommandSurface(relativePath, path)) return "commands";
+}
+
+async function verifyPluginRuntimeSurfaces(plugin: string): Promise<void> {
+  for (const path of await allFilesBelow(plugin)) {
+    const surface = runtimeSurface(plugin, path);
+    if (!surface) continue;
+    try {
+      const text = await readFile(path, "utf8");
+      if (surface === "generated") verifyGeneratedRuntimeCommands(path, text);
+      else verifyRuntimeCommands(path, text);
+    } catch {
+      fail(path, "runtime command surface is unreadable");
+    }
+  }
+}
+
+async function verifyPythonRuntimeLaunchers() {
+  const inventoryPath = join(root, "python-packages.txt");
+  await verifyLauncherCopies(
+    await pythonPackages(inventoryPath),
+    inventoryPath,
+  );
+  for (const plugin of pluginRoots) {
+    await verifyPluginRuntimeSurfaces(plugin);
+  }
+}
+
+await verifyPythonRuntimeLaunchers();
 for (const resource of ["SKILL.md", "scripts/find-plugin-claim.sh"]) {
   const canonical = join(root, ".agents/skills/darrow-guide", resource);
   const mirror = join(root, ".claude/skills/darrow-guide", resource);
@@ -422,7 +618,7 @@ if (values.external) {
 } else {
   for (const error of errors) console.error(error);
   console.log(
-    `Checked ${pages.size} Markdown pages, ${pluginRoots.size} plugins, and both guide entrypoints.`,
+    `Checked ${pages.size} Markdown pages, ${pluginRoots.size} plugins, Python runtime launchers, and both guide entrypoints.`,
   );
   if (errors.length) process.exitCode = 1;
 }

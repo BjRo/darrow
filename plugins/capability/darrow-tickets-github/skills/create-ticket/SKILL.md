@@ -33,7 +33,7 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 All tracker interaction goes through the bundled CLI:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket <command> [args]
 ```
 
 `<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
@@ -56,7 +56,7 @@ or tracker operation—verbatim and stop; do not invent a fallback.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket inspect
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket inspect
 ```
 
 Require exactly one intended ticket. Choose its type from the described work,
@@ -80,7 +80,7 @@ Choose the few most distinctive outcome, error, command, or component terms
 and run one focused open-ticket search:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket list --search "<distinctive terms>"
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket list --search "<distinctive terms>"
 ```
 
 Compare the returned titles to the requested problem/outcome. If any is a
@@ -138,7 +138,7 @@ non-invented, and sufficient to record the user's current knowledge.
 Write the body to a private temporary file outside the repository, then run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
   [--label <existing-label>]... [--milestone <named-value>] \
   [--assignee <named-value>] [--depends-on <caller-named-id>]... \
   [--parent <caller-named-id>]

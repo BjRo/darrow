@@ -54,7 +54,8 @@ describe("isolated harness environment", () => {
     expect(env.CLAUDE_CONFIG_DIR).toStartWith(home);
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("claude-test-token");
     expect(env.DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX).toBe("1");
-    expect(env.UV_PROJECT_ENVIRONMENT).toBe(join(env.TMPDIR!, "uv-project"));
+    expect(env.DARROW_CACHE_DIR).toBe(join(env.TMPDIR!, "darrow-cache"));
+    expect(env.UV_PROJECT_ENVIRONMENT).toBeUndefined();
     expect(env.UV_CACHE_DIR).toBe(join(env.TMPDIR!, "uv-cache"));
     expect(env.UNRELATED_EVAL_SECRET).toBeUndefined();
     expect(await readFile(join(codexHome, "auth.json"), "utf8")).toBe(

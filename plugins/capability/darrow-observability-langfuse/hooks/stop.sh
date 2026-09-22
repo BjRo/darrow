@@ -23,7 +23,7 @@ fi
 
 status_dir=$(mktemp -d "${TMPDIR:-/tmp}/darrow-langfuse-status.XXXXXX") || startup_failure 'cannot create backend status directory'
 trap 'rm -rf "$status_dir"' EXIT
-UV_NO_PROGRESS=1 uv run --quiet --frozen --project "$plugin_dir/backend" \
+UV_NO_PROGRESS=1 uv run --quiet --no-project "$plugin_dir/backend/scripts/run_locked.py" \
   python -m darrow_observability_langfuse.cli --launcher-status "$status_dir/result" "$@"
 
 if test -f "$status_dir/result" && IFS= read -r resolved_status < "$status_dir/result"; then

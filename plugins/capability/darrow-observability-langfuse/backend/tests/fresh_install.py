@@ -12,21 +12,30 @@ def command(*args: str) -> str:
     return subprocess.check_output(args, text=True, encoding="utf-8")
 
 
-def validate(plugin: Path, fixture: Path) -> None:
-    backend = plugin / "backend"
-    command("uv", "sync", "--frozen", "--no-dev", "--project", str(backend))
-    tree = command("uv", "tree", "--frozen", "--no-dev", "--project", str(backend))
-    assert not any(
-        tool in tree for tool in ("coverage", "hypothesis", "mypy", "pytest", "ruff")
-    )
-    command(
+def launcher(backend: Path) -> list[str]:
+    return [
         "uv",
         "run",
         "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(backend),
+        "--no-project",
+        str((backend / "scripts/run_locked.py").resolve()),
+    ]
+
+
+def validate(plugin: Path, fixture: Path) -> None:
+    backend = plugin / "backend"
+    packages = command(
+        *launcher(backend),
+        "python",
+        "-c",
+        "import importlib.metadata as m; print('\\n'.join(d.metadata['Name'] or '' for d in m.distributions()))",
+    )
+    assert not any(
+        tool in packages
+        for tool in ("coverage", "hypothesis", "mypy", "pytest", "ruff")
+    )
+    command(
+        *launcher(backend),
         "python",
         "-c",
         "import darrow_observability_langfuse",
@@ -58,6 +67,16 @@ def validate(plugin: Path, fixture: Path) -> None:
     )
 
 
+def make_read_only(root: Path) -> None:
+    for path in reversed([root, *root.rglob("*")]):
+        path.chmod(path.stat().st_mode & ~0o222)
+
+
+def make_writable(root: Path) -> None:
+    for path in [root, *root.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
+
+
 def main() -> None:
     plugin = Path(__file__).resolve().parents[2]
     ignored = shutil.ignore_patterns(
@@ -74,7 +93,12 @@ def main() -> None:
         fixture = Path(temporary).resolve()
         copied = fixture / "plugin copy"
         shutil.copytree(plugin, copied, ignore=ignored)
+        os.environ["DARROW_CACHE_DIR"] = str(fixture / "darrow-cache")
+        make_read_only(copied)
         validate(copied, fixture)
+        assert not list(copied.rglob(".venv"))
+        assert not list(copied.rglob("__pycache__"))
+        make_writable(copied)
     print(
         "fresh copied Langfuse plugin: runtime dependencies and registered hook passed"
     )

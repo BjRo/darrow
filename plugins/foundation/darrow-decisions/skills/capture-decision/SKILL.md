@@ -37,7 +37,7 @@ candidate or report the refusal.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision inspect
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision inspect
 ```
 
 Treat reported policy and specification surfaces as discovery candidates.
@@ -71,7 +71,7 @@ or the exact ownership gap is known before any write.
 Search before writing:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision list --search <distinctive-subject>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision list --search <distinctive-subject>
 ```
 
 Also search the applicable specification, policy, scoped guidance, and—when
@@ -108,7 +108,7 @@ field that could change the recorded effect has explicit evidence.
 - **New ADR:** obtain its identifier and absolute path verbatim:
 
   ```sh
-  uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision next-id --dir <adr-dir> --title <title>
+  uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision next-id --dir <adr-dir> --title <title>
   ```
 
   Keep the returned `ADR-` filename. Write `Status`, `Date`, one non-empty
@@ -119,7 +119,7 @@ field that could change the recorded effect has explicit evidence.
 - **Lifecycle change:** validate it first:
 
   ```sh
-  uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision check-transition --from <old> --to <new>
+  uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision check-transition --from <old> --to <new>
   ```
 
   `Rejected` never took effect. `Deprecated` once applied but has no named
@@ -133,7 +133,7 @@ After any ADR creation or edit, refresh its directory's derived catalog
 with the same operation used for a manual rebuild:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision catalog rebuild --dir <adr-dir>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision catalog rebuild --dir <adr-dir>
 ```
 
 This creates or replaces only the derived `README.md` beside the ADRs. Do not
@@ -153,8 +153,8 @@ unresolved/refusal result is ready.
 For ADR changes, require both:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision catalog check --dir <adr-dir>
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision validate --dir <adr-dir>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision catalog check --dir <adr-dir>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision validate --dir <adr-dir>
 ```
 
 Success requires the literal `valid` result. For a specification or policy,
@@ -168,7 +168,7 @@ verification as the persistence proof for the already-captured record.
 For a repository sink, make this the final tool action before responding:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision canonical-path --path <record>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision canonical-path --path <record>
 ```
 
 Copy the emitted `path:` value verbatim; keep it absolute.

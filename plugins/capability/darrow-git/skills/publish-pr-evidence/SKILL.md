@@ -32,7 +32,7 @@ unspecified current head.
 Run exactly one command:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-publish-pr-evidence publish \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-publish-pr-evidence publish \
   --expected-head <full-commit-id> --body-file <path> \
   [--image <path> --alt <text> | --video <path> --explanation <text>]...
 ```

@@ -10,7 +10,7 @@ Resolve the bundled helper from the code-review skill directory:
 
 ```sh
 route_record="$(dirname "$manifest")/reviewer-route.tsv"
-uv run --quiet --frozen --no-dev --project "$backend" review-route select --repo "$repo" --host <codex|claude> \
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route select --repo "$repo" --host <codex|claude> \
   --record "$route_record"
 ```
 
@@ -49,7 +49,7 @@ route evidence beside the manifest:
 
 ```sh
 axis_route="$(dirname "$manifest")/<axis>-route.tsv"
-uv run --quiet --frozen --no-dev --project "$backend" review-route confirm-codex --route-record "$route_record" \
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route confirm-codex --route-record "$route_record" \
   --axis <axis> --agent-id '<host-reported-child-id>' \
   --application-record "$axis_route"
 ```
@@ -83,7 +83,7 @@ Current Claude Code uses the plugin reader's full model and effort frontmatter
 as one exact tuple. Resolve that exact-tuple reader before invoking Agent:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "$backend" review-route claude-agent --route-record "$route_record"
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route claude-agent --route-record "$route_record"
 ```
 
 Use the returned namespaced `subagent_type`. The exact selected full model and
@@ -112,7 +112,7 @@ derive the effective route from that child's transcript:
 
 ```sh
 observed_record="$(dirname "$manifest")/<axis>-observed-route.tsv"
-uv run --quiet --frozen --no-dev --project "$backend" review-claude-verify --repo "$repo" --agent-id '<agent-id>' \
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-claude-verify --repo "$repo" --agent-id '<agent-id>' \
   --record "$observed_record"
 ```
 
@@ -121,7 +121,7 @@ compares the selected and transcript-observed values:
 
 ```sh
 axis_route="$(dirname "$manifest")/<axis>-route.tsv"
-uv run --quiet --frozen --no-dev --project "$backend" review-route confirm-claude --route-record "$route_record" \
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route confirm-claude --route-record "$route_record" \
   --observed-record "$observed_record" --axis <axis> \
   --application-record "$axis_route"
 ```

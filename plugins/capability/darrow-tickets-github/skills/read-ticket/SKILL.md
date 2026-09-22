@@ -19,7 +19,7 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 All tracker interaction goes through the bundled CLI:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket <command> [args]
 ```
 
 `<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
@@ -71,7 +71,7 @@ refusal does not complete this phase.
 Run exactly:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket get <id-or-canonical-url>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket get <id-or-canonical-url>
 ```
 
 Do not run a list query first, fetch comments or event history, or issue a

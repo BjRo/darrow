@@ -9,10 +9,8 @@
             "args": [
               "run",
               "--quiet",
-              "--frozen",
-              "--no-dev",
-              "--project",
-              "${CLAUDE_PLUGIN_ROOT}/backend",
+              "--no-project",
+              "${CLAUDE_PLUGIN_ROOT}/backend/scripts/run_locked.py",
               "darrow-git-claude-context"
             ],
             "timeout": 30

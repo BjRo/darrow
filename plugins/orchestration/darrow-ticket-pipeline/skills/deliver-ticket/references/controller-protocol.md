@@ -25,7 +25,7 @@ skill_dir=<absolute directory containing deliver-ticket/SKILL.md>
 backend="$skill_dir/../../backend"
 ```
 
-Invoke every operation as `uv run --quiet --frozen --no-dev --project <absolute-backend> darrow-ticket-pipeline <operation> ...`.
+Invoke every operation as `uv run --quiet --no-project <absolute-backend>/scripts/run_locked.py darrow-ticket-pipeline <operation> ...`.
 The examples below use POSIX shell continuation syntax; on PowerShell pass the
 same argument vector on one line. Always use the frozen package invocation;
 there is no shell launcher or global installation requirement.
@@ -58,7 +58,7 @@ Fetch the ticket description into a private snapshot. If it has no reserved
 pipeline heading, initialize it with:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "$backend" darrow-ticket-pipeline init --body-file <snapshot> --run-id <safe-stable-id> \
+uv run --quiet --no-project "$backend/scripts/run_locked.py" darrow-ticket-pipeline init --body-file <snapshot> --run-id <safe-stable-id> \
   --repo <absolute-repository> --base-revision <HEAD> \
   --baseline-file <baseline> --output <candidate>
 ```
@@ -129,7 +129,7 @@ it inline.
 
 ## 3. Bounded state transitions
 
-Use `uv run --quiet --frozen --no-dev --project "$backend" darrow-ticket-pipeline summary --body-file <re-fetched-snapshot>` after every
+Use `uv run --quiet --no-project "$backend/scripts/run_locked.py" darrow-ticket-pipeline summary --body-file <re-fetched-snapshot>` after every
 persisted artifact and follow `next_phase` mechanically.
 
 - `challenge:needs_revision` launches the next refine iteration, up to three

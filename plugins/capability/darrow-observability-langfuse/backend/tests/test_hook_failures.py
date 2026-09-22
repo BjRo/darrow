@@ -4,12 +4,14 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
+LAUNCHER = PLUGIN / "backend/scripts/run_locked.py"
 
 
 @dataclass
@@ -60,8 +62,34 @@ class Hook:
         return str(directory)
 
 
+@pytest.fixture(scope="session")
+def runtime_cache(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    cache = tmp_path_factory.mktemp("darrow-runtime-cache")
+    environment = {
+        **os.environ,
+        "DARROW_CACHE_DIR": str(cache),
+        "UV_PYTHON": sys.executable,
+    }
+    environment.pop("UV_OFFLINE", None)
+    subprocess.run(
+        [
+            "uv",
+            "run",
+            "--quiet",
+            "--no-project",
+            str(LAUNCHER),
+            "python",
+            "-c",
+            "pass",
+        ],
+        check=True,
+        env=environment,
+    )
+    return cache
+
+
 @pytest.fixture(params=[None] if os.name == "nt" else ["bash", "/bin/bash"])
-def hook(request: pytest.FixtureRequest, tmp_path: Path) -> Hook:
+def hook(request: pytest.FixtureRequest, tmp_path: Path, runtime_cache: Path) -> Hook:
     if os.name == "nt":
         powershell = shutil.which("powershell.exe")
         assert powershell is not None
@@ -90,7 +118,13 @@ def hook(request: pytest.FixtureRequest, tmp_path: Path) -> Hook:
         )
     }
     environment.update(
-        {"HOME": str(home), "UV_OFFLINE": "1", "CODEX_PLUGIN_ROOT": str(PLUGIN)}
+        {
+            "HOME": str(home),
+            "DARROW_CACHE_DIR": str(runtime_cache),
+            "UV_OFFLINE": "1",
+            "UV_PYTHON": sys.executable,
+            "CODEX_PLUGIN_ROOT": str(PLUGIN),
+        }
     )
     return Hook(command, tmp_path, project, home, environment)
 
@@ -107,9 +141,9 @@ def test_missing_uv_respects_strictness(hook: Hook, strict: bool) -> None:
     assert "uv is required but was not found" in result.stderr
 
 
-def test_broken_uv_fails_open(hook: Hook) -> None:
+def test_broken_runtime_cache_fails_open(hook: Hook) -> None:
     result = hook.run(
-        payload="", UV_PROJECT_ENVIRONMENT=os.devnull, DARROW_LANGFUSE_ENABLED="false"
+        payload="", DARROW_CACHE_DIR=os.devnull, DARROW_LANGFUSE_ENABLED="false"
     )
     assert result.returncode == 0, result.stderr
 
@@ -148,9 +182,9 @@ def test_environment_false_overrides_file_strictness(hook: Hook) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_pre_python_failure_cannot_resolve_file_strictness(hook: Hook) -> None:
+def test_pre_backend_failure_cannot_resolve_file_strictness(hook: Hook) -> None:
     hook.configure(hook.project)
-    result = hook.run(UV_PROJECT_ENVIRONMENT=os.devnull)
+    result = hook.run(DARROW_CACHE_DIR=os.devnull)
     assert result.returncode == 0, result.stderr
 
 

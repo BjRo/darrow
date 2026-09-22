@@ -44,8 +44,8 @@ unfiltered, and the intended owner set is known.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision inspect
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision list [--dir <adr-dir>] \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision inspect
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision list [--dir <adr-dir>] \
   [--status Proposed|Accepted|Rejected|Deprecated|Superseded] \
   [--search <subject>] [--related-to <ADR-NNNN>] [--limit <n>]
 ```
@@ -94,7 +94,7 @@ scope, and relationship set, with no excluded record in the draft.
 For every repository result, run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-decision canonical-path --path <record>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-decision canonical-path --path <record>
 ```
 
 Copy each emitted `path:` value verbatim. Every displayed repository path must

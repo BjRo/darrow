@@ -102,7 +102,7 @@ availability and tracker access.
 Invoke the locked package directly, with the absolute installed plugin path:
 
 ```text
-uv run --quiet --frozen --no-dev --project <plugin-root>/backend darrow-ticket-pipeline summary --body-file <absolute-ticket-snapshot>
+uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-ticket-pipeline summary --body-file <absolute-ticket-snapshot>
 ```
 
 Runtime dependencies are empty; development tools live only in the locked

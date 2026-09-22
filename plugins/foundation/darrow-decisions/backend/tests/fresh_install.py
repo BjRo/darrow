@@ -22,6 +22,16 @@ def run(args: list[str], cwd: Path, expected: int = 0) -> str:
     return result.stdout
 
 
+def make_read_only(root: Path) -> None:
+    for path in reversed([root, *root.rglob("*")]):
+        path.chmod(path.stat().st_mode & ~0o222)
+
+
+def make_writable(root: Path) -> None:
+    for path in [root, *root.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
+
+
 def verify(work: Path) -> None:
     source = Path(__file__).resolve().parents[2]
     plugin = work / "copied plugin ü"
@@ -43,19 +53,15 @@ def verify(work: Path) -> None:
     repo = work / "native repository ü"
     repo.mkdir()
     run(["git", "init", "-q", str(repo)], work)
+    os.environ["DARROW_CACHE_DIR"] = str(work / "darrow-cache")
     command = [
         "uv",
         "run",
         "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(project),
+        "--no-project",
+        str((project / "scripts/run_locked.py").resolve()),
     ]
-    run(
-        ["uv", "sync", "--quiet", "--frozen", "--no-dev", "--project", str(project)],
-        work,
-    )
+    make_read_only(plugin)
     dependencies = run(
         [
             *command,
@@ -85,6 +91,9 @@ def verify(work: Path) -> None:
         ).encode()
     )
     verify_commands(entry, repo, record, work)
+    assert not list(plugin.rglob(".venv"))
+    assert not list(plugin.rglob("__pycache__"))
+    make_writable(plugin)
     print("fresh copied plugin: all commands passed; runtime dependencies only")
 
 

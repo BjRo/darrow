@@ -26,10 +26,8 @@ def runtime(backend: Path, cwd: Path, *args: str, expected: int = 0) -> str:
         "uv",
         "run",
         "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(backend),
+        "--no-project",
+        str((backend / "scripts/run_locked.py").resolve()),
         *args,
         expected=expected,
     )
@@ -203,18 +201,25 @@ def fixtures(plugin: Path, repo: Path) -> None:
     runtime(
         installed, repo, "adaptive-delivery-fixture", "proof", "current", expected=1
     )
+    for root in (repo / ".agents", repo / ".claude"):
+        assert not list(root.rglob(".venv"))
+        assert not list(root.rglob("__pycache__"))
 
 
 def validate(plugin: Path, temporary: Path) -> None:
     backend = plugin / "backend"
     assert not (plugin / "bin").exists()
     assert not (plugin / "skills/doctor-adaptive-delivery/scripts").exists()
-    command(temporary, "uv", "sync", "--frozen", "--no-dev", "--project", str(backend))
-    tree = command(
-        temporary, "uv", "tree", "--frozen", "--no-dev", "--project", str(backend)
+    packages = runtime(
+        backend,
+        temporary,
+        "python",
+        "-c",
+        "import importlib.metadata as m; print('\\n'.join(d.metadata['Name'] or '' for d in m.distributions()))",
     )
     assert not any(
-        name in tree for name in ("pytest", "ruff", "mypy", "coverage", "hypothesis")
+        name in packages
+        for name in ("pytest", "ruff", "mypy", "coverage", "hypothesis")
     )
     repo = temporary / "repository ' with spaces-é"
     repository(repo)
@@ -238,6 +243,16 @@ def validate(plugin: Path, temporary: Path) -> None:
     fixtures(plugin, repo)
 
 
+def make_read_only(root: Path) -> None:
+    for path in reversed([root, *root.rglob("*")]):
+        path.chmod(path.stat().st_mode & ~0o222)
+
+
+def make_writable(root: Path) -> None:
+    for path in [root, *root.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
+
+
 def main() -> None:
     for key in tuple(os.environ):
         if key.startswith(("GIT_", "CLAUDE_CODE_")) or key == "ANTHROPIC_BASE_URL":
@@ -258,7 +273,12 @@ def main() -> None:
         temporary = Path(directory).resolve()
         copied = temporary / "plugin ' copy-é"
         shutil.copytree(plugin, copied, ignore=ignored)
+        os.environ["DARROW_CACHE_DIR"] = str(temporary / "darrow-cache")
+        make_read_only(copied)
         validate(copied, temporary)
+        assert not list(copied.rglob(".venv"))
+        assert not list(copied.rglob("__pycache__"))
+        make_writable(copied)
     print(
         "fresh copied adaptive-delivery: host doctor, both routes, linked worktree, readiness, review, verification, and proof refusal passed; native owner launch remains host-owned"
     )

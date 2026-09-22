@@ -14,7 +14,7 @@ Run the bundled inspector through its locked UV entrypoint. In commands below,
 target skill directory, and `<plugin-root>` is its owning plugin root:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" inspect-skill inspect "<target-skill>" "<plugin-root>"
+uv run --quiet --no-project "<skill-dir>/backend/scripts/run_locked.py" inspect-skill inspect "<target-skill>" "<plugin-root>"
 ```
 
 The inspector checks portable metadata and containment for inline
@@ -34,7 +34,7 @@ requires both Bash 3.2 and Bash 5, run the version-aware helper through the same
 backend:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/backend" verify-shell-tests -- "<test-script>"...
+uv run --quiet --no-project "<skill-dir>/backend/scripts/run_locked.py" verify-shell-tests -- "<test-script>"...
 ```
 
 Base every shell-version claim on its emitted evidence. Invoke both packaged

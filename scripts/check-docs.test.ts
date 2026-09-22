@@ -28,6 +28,7 @@ async function fixture(files: Record<string, string>) {
       questions: [],
     }),
     "docs/choosing-plugins.md": "# Choose\n",
+    "python-packages.txt": "# No Python packages in the minimal fixture.\n",
   };
   for (const [path, text] of Object.entries({ ...baseline, ...files })) {
     const destination = join(root, path);
@@ -145,4 +146,210 @@ test("rejects an inventory with missing cases or source routes", async () => {
     "case absent from inventory",
   ])
     expect(result.output).toContain(message);
+});
+
+test.each([
+  [
+    "rejects",
+    "uv run --quiet --frozen --no-dev --project backend example-command",
+    1,
+  ],
+  [
+    "accepts",
+    "uv run --quiet --no-project backend/scripts/run_locked.py example-command",
+    0,
+  ],
+])("%s installed Python runtime command policy", async (_, command, code) => {
+  const plugin = "plugins/capability/example";
+  const readme = `# Example
+
+## When to use
+
+Example.
+
+## Hosts and prerequisites
+
+UV.
+
+## Installation
+
+Install it.
+
+## Usage
+
+\`\`\`sh
+${command}
+\`\`\`
+
+## Expected result
+
+Success.
+
+## Safety boundaries
+
+Read only.
+
+## Troubleshooting
+
+Check UV.
+
+## License
+
+BUSL.
+`;
+  const root = await fixture({
+    ".claude-plugin/marketplace.json": JSON.stringify({
+      name: "darrow",
+      plugins: [{ name: "example", source: "./" + plugin }],
+    }),
+    "docs/choosing-plugins.md":
+      "# Choose\n\n[Example](../" + plugin + "/README.md)\n",
+    "python-packages.txt": plugin + "/backend\n",
+    [plugin + "/README.md"]: readme,
+    [plugin + "/.claude-plugin/plugin.json"]: JSON.stringify({
+      name: "example",
+      version: "1.0.0",
+    }),
+    [plugin + "/.codex-plugin/plugin.json"]: JSON.stringify({
+      name: "example",
+      version: "1.0.0",
+      skills: "./skills/",
+    }),
+    [plugin + "/skills/example/SKILL.md"]:
+      "---\nname: example\ndescription: Example.\n---\n",
+    [plugin + "/backend/scripts/run_locked.py"]: "# runtime launcher\n",
+  });
+  const result = await check(root);
+  expect(result.code, result.output).toBe(code);
+  if (code)
+    expect(result.output).toContain("bypasses backend/scripts/run_locked.py");
+});
+
+test("rejects a generated runtime command that bypasses the launcher", async () => {
+  const plugin = "plugins/capability/example";
+  const root = await fixture({
+    ".claude-plugin/marketplace.json": JSON.stringify({
+      name: "darrow",
+      plugins: [{ name: "example", source: "./" + plugin }],
+    }),
+    "docs/choosing-plugins.md":
+      "# Choose\n\n[Example](../" + plugin + "/README.md)\n",
+    "python-packages.txt": plugin + "/backend\n",
+    [plugin + "/README.md"]: `# Example
+
+## When to use
+
+Example.
+
+## Hosts and prerequisites
+
+UV.
+
+## Installation
+
+Install it.
+
+## Usage
+
+Run it.
+
+## Expected result
+
+Success.
+
+## Safety boundaries
+
+Read only.
+
+## Troubleshooting
+
+Check UV.
+
+## License
+
+BUSL.
+`,
+    [plugin + "/.claude-plugin/plugin.json"]: JSON.stringify({
+      name: "example",
+      version: "1.0.0",
+    }),
+    [plugin + "/.codex-plugin/plugin.json"]: JSON.stringify({
+      name: "example",
+      version: "1.0.0",
+      skills: "./skills/",
+    }),
+    [plugin + "/skills/example/SKILL.md"]:
+      "---\nname: example\ndescription: Example.\n---\n",
+    [plugin + "/backend/scripts/run_locked.py"]: "# runtime launcher\n",
+    [plugin + "/backend/src/example/runtime.py"]:
+      'valid = ["uv", "run", "--no-project", "backend/scripts/run_locked.py", "example"]\n' +
+      'bypass = ["uv", "run", "--project", str(backend), "example"]\n',
+  });
+  const result = await check(root);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain("generated runtime command bypasses");
+});
+
+test("rejects a model-facing eval fixture that bypasses the launcher", async () => {
+  const plugin = "plugins/capability/example";
+  const root = await fixture({
+    ".claude-plugin/marketplace.json": JSON.stringify({
+      name: "darrow",
+      plugins: [{ name: "example", source: "./" + plugin }],
+    }),
+    "docs/choosing-plugins.md":
+      "# Choose\n\n[Example](../" + plugin + "/README.md)\n",
+    "python-packages.txt": plugin + "/backend\n",
+    [plugin + "/README.md"]: `# Example
+
+## When to use
+
+Example.
+
+## Hosts and prerequisites
+
+UV.
+
+## Installation
+
+Install it.
+
+## Usage
+
+Run it.
+
+## Expected result
+
+Success.
+
+## Safety boundaries
+
+Read only.
+
+## Troubleshooting
+
+Check UV.
+
+## License
+
+BUSL.
+`,
+    [plugin + "/.claude-plugin/plugin.json"]: JSON.stringify({
+      name: "example",
+      version: "1.0.0",
+    }),
+    [plugin + "/.codex-plugin/plugin.json"]: JSON.stringify({
+      name: "example",
+      version: "1.0.0",
+      skills: "./skills/",
+    }),
+    [plugin + "/skills/example/SKILL.md"]:
+      "---\nname: example\ndescription: Example.\n---\n",
+    [plugin + "/skills/example/evals/fixtures/SKILL.fixture.md"]:
+      'uv run --quiet --project "$skill_dir/../../backend" example\n',
+    [plugin + "/backend/scripts/run_locked.py"]: "# runtime launcher\n",
+  });
+  const result = await check(root);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain("installed runtime command bypasses");
 });

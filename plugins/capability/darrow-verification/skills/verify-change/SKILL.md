@@ -279,7 +279,7 @@ required evidence package. Resolve the renderer backend from the loaded skill:
 Then run:
 
 ```text
-uv run --quiet --isolated --frozen --no-dev --project "<absolute-backend-path>" darrow-render-assessment --assessment "<absolute-draft-file>" --provider-report "<absolute-provider-report>"
+uv run --quiet --no-project "<absolute-backend-path>/scripts/run_locked.py" --isolated darrow-render-assessment --assessment "<absolute-draft-file>" --provider-report "<absolute-provider-report>"
 ```
 
 Substitute the actual paths and invoke this frozen entrypoint directly; do not

@@ -20,7 +20,7 @@ The package lives at `<skill-dir>/../../backend` inside this plugin.
 ### 1. Inspect
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-branch inspect
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-branch inspect
 ```
 
 - `mode: ready`: continue. In-place branching carries uncommitted changes to
@@ -55,14 +55,14 @@ ticket, and satisfies the script's format.
 Default—in the current checkout:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-branch create <type>/<slug> \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-branch create <type>/<slug> \
   [--ticket-token <opaque-provider-token>] [--from <base>]
 ```
 
 Worktree—only on explicit request:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-branch create <type>/<slug> --worktree \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-branch create <type>/<slug> --worktree \
   [--at <path>] [--ticket-token <opaque-provider-token>] [--from <base>]
 ```
 

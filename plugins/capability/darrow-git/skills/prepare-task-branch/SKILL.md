@@ -20,7 +20,7 @@ For discovery, require only the active provider's exact opaque canonical token.
 Run the read-only operation:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-prepare-task-branch discover --ticket-token <opaque-token>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-prepare-task-branch discover --ticket-token <opaque-token>
 ```
 
 Relay `mode: discovered`, the unchanged token, the exact count, and every
@@ -58,7 +58,7 @@ the missing choice has been requested without repository mutation.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-prepare-task-branch inspect
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-prepare-task-branch inspect
 ```
 
 - `mode: ready`: consider the current branch, deliberate base, dirty state, and
@@ -77,7 +77,7 @@ relayed without another operation.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-prepare-task-branch prepare \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-prepare-task-branch prepare \
   <type>/<opaque-token>-<suffix> --ticket-token <opaque-token> [--from <base>] \
   [--worktree [--at <path>]]
 ```

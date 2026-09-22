@@ -70,7 +70,7 @@ client.
 Invoke the package directly from any current-project working directory:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<plugin-root>/backend" darrow-ticket inspect
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket inspect
 ```
 
 The commands remain `inspect`, `list`, `get`, `create`, `comment`, `describe`,
@@ -110,7 +110,7 @@ mocked provider and filesystem tests plus deterministic property tests. CI runs
 Python 3.10–3.13 on Linux, macOS, and Windows. Run the copied-artifact check with:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<plugin-root>/backend" python "<plugin-root>/backend/tests/fresh_install.py"
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" python "<plugin-root>/backend/tests/fresh_install.py"
 ```
 
 It checks the installed entrypoint, absence of development dependencies and old

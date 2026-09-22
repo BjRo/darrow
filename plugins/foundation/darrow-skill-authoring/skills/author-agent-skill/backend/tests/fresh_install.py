@@ -12,25 +12,32 @@ def command(cwd: Path, *args: str) -> bytes:
     return subprocess.run(args, cwd=cwd, check=True, capture_output=True).stdout
 
 
+def launcher(backend: Path) -> list[str]:
+    return [
+        "uv",
+        "run",
+        "--quiet",
+        "--no-project",
+        str((backend / "scripts/run_locked.py").resolve()),
+    ]
+
+
 def installed_runtime(backend: Path, fixture: Path) -> None:
-    command(fixture, "uv", "sync", "--frozen", "--no-dev", "--project", str(backend))
-    tree = command(
-        fixture, "uv", "tree", "--frozen", "--no-dev", "--project", str(backend)
+    packages = command(
+        fixture,
+        *launcher(backend),
+        "python",
+        "-c",
+        "import importlib.metadata as m; print('\\n'.join(d.metadata['Name'] or '' for d in m.distributions()))",
     ).decode()
-    assert not re.search(r"\b(coverage|hypothesis|mypy|pytest|ruff)\b", tree), tree
+    assert not re.search(r"\b(coverage|hypothesis|mypy|pytest|ruff)\b", packages)
 
 
 def validate(backend: Path, fixture: Path) -> None:
     skill = backend.parent
     inspection = command(
         fixture,
-        "uv",
-        "run",
-        "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(backend),
+        *launcher(backend),
         "inspect-skill",
         "inspect",
         str(skill),
@@ -49,13 +56,7 @@ def validate(backend: Path, fixture: Path) -> None:
         paths = [str(passing)]
     result = subprocess.run(
         [
-            "uv",
-            "run",
-            "--quiet",
-            "--frozen",
-            "--no-dev",
-            "--project",
-            str(backend),
+            *launcher(backend),
             "verify-shell-tests",
             "--",
             *paths,
@@ -78,6 +79,16 @@ def validate(backend: Path, fixture: Path) -> None:
             ), result.stdout
 
 
+def make_read_only(root: Path) -> None:
+    for path in reversed([root, *root.rglob("*")]):
+        path.chmod(path.stat().st_mode & ~0o222)
+
+
+def make_writable(root: Path) -> None:
+    for path in [root, *root.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
+
+
 def main() -> None:
     plugin = Path(__file__).resolve().parents[4]
     with tempfile.TemporaryDirectory(prefix="darrow author-agent-skill ") as temporary:
@@ -98,8 +109,13 @@ def main() -> None:
             ),
         )
         backend = copy / "skills" / "author-agent-skill" / "backend"
+        os.environ["DARROW_CACHE_DIR"] = str(fixture / "darrow-cache")
+        make_read_only(copy)
         installed_runtime(backend, fixture)
         validate(backend, fixture)
+        assert not list(copy.rglob(".venv"))
+        assert not list(copy.rglob("__pycache__"))
+        make_writable(copy)
     print("author-agent-skill fresh install passed")
 
 

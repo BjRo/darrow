@@ -41,7 +41,7 @@ Let `<skill-dir>` be the absolute directory containing this file. The package is
 at `<skill-dir>/../../backend`. Invoke:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-artificer --state <absolute-state-path> <operation>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-artificer --state <absolute-state-path> <operation>
 ```
 
 Use [operations](references/operations.md) for exact arguments. Run only the

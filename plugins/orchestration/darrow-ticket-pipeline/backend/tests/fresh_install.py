@@ -44,10 +44,8 @@ def replay(backend: Path, root: Path, reference: Reference, case: Case) -> None:
         "uv",
         "run",
         "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(backend),
+        "--no-project",
+        str((backend / "scripts/run_locked.py").resolve()),
         "darrow-ticket-pipeline",
         *args,
     )
@@ -73,11 +71,13 @@ def check_output(root: Path, args: list[str], case: Case) -> None:
 def validate(plugin: Path, temporary: Path) -> None:
     backend = plugin / "backend"
     assert not (plugin / "bin").exists()
-    prefix = ("uv", "run", "--quiet", "--frozen", "--no-dev", "--project", str(backend))
-    installed = run(
-        temporary, "uv", "sync", "--frozen", "--no-dev", "--project", str(backend)
+    prefix = (
+        "uv",
+        "run",
+        "--quiet",
+        "--no-project",
+        str((backend / "scripts/run_locked.py").resolve()),
     )
-    assert installed.returncode == 0, installed.stderr
     absent = run(
         temporary,
         *prefix,
@@ -94,6 +94,16 @@ def validate(plugin: Path, temporary: Path) -> None:
         replay(backend, temporary / f"case {index} ' café", reference, case)
     usage = run(temporary, *prefix, "darrow-ticket-pipeline")
     assert usage.returncode == 64
+
+
+def make_read_only(root: Path) -> None:
+    for path in reversed([root, *root.rglob("*")]):
+        path.chmod(path.stat().st_mode & ~0o222)
+
+
+def make_writable(root: Path) -> None:
+    for path in [root, *root.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
 
 
 def main() -> None:
@@ -115,7 +125,12 @@ def main() -> None:
         temporary = Path(directory).resolve()
         copied = temporary / "plugin copy"
         shutil.copytree(plugin, copied, ignore=ignored)
+        os.environ["DARROW_CACHE_DIR"] = str(temporary / "darrow-cache")
+        make_read_only(copied)
         validate(copied, temporary)
+        assert not list(copied.rglob(".venv"))
+        assert not list(copied.rglob("__pycache__"))
+        make_writable(copied)
     print(
         "fresh copied ticket-pipeline: matched reference commands and usage refusal passed with runtime dependencies only"
     )

@@ -50,6 +50,14 @@ def install_skills(
 
 def copy_backend(plugin: Path, backend: Path, kind: str) -> None:
     shutil.copytree(plugin / "backend", backend, dirs_exist_ok=True, ignore=IGNORE)
+    for path in [backend, *backend.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
+    for manifest_dir in (".claude-plugin", ".codex-plugin"):
+        destination = backend.parent / manifest_dir
+        destination.mkdir(exist_ok=True)
+        shutil.copyfile(
+            plugin / manifest_dir / "plugin.json", destination / "plugin.json"
+        )
     if kind != "verification":
         (backend / "src/darrow_adaptive_delivery/fixtures/verification.py").unlink(
             missing_ok=True

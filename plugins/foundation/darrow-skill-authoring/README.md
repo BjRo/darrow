@@ -18,11 +18,13 @@ runtime validators remain authoritative for their complete formats.
 
 ## Design boundaries
 
-Validation keeps the target repository read-only. On first use, UV may create
-`skills/author-agent-skill/backend/.venv` inside the installed plugin and fetch
-the locked Python environment. Creation and revision require a supplied goal,
-destination, supported runtimes, and clear authority. The skill does not invent
-a capability or publish it without a separate explicit request.
+Validation keeps the target repository and installed plugin read-only. On first
+use, the packaged bootstrap prepares the locked Python environment in the
+user-writable Darrow cache. Any `.venv` left in an older installed copy is
+stale, disposable, and removable after older processes exit. Creation and
+revision require a supplied goal, destination, supported runtimes, and clear
+authority. The skill does not invent a capability or publish it without a
+separate explicit request.
 
 ## Development
 

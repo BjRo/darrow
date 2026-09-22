@@ -182,10 +182,8 @@ def entrypoint(name: str, *args: str) -> list[str]:
         "uv",
         "run",
         "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(package_root()),
+        "--no-project",
+        str((package_root() / "scripts/run_locked.py").resolve()),
         name,
         *args,
     ]
