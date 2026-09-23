@@ -8,6 +8,7 @@ import threading
 import time
 import unittest
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from io import StringIO
 from pathlib import Path
@@ -245,12 +246,17 @@ class LifecycleTest(unittest.TestCase):
 
     def test_terminal_receipt_does_not_wait_for_capture_transaction(self) -> None:
         rollout(self.path)
-        with database(self.path) as connection:
+        with (
+            ThreadPoolExecutor(max_workers=1) as executor,
+            database(self.path) as connection,
+        ):
             connection.execute("BEGIN IMMEDIATE")
-            started = time.monotonic()
-            self.assertEqual(self.invoke("SessionEnd"), 0)
-            self.assertLess(time.monotonic() - started, 1)
-            connection.execute("ROLLBACK")
+            try:
+                receipt = executor.submit(self.invoke, "SessionEnd")
+                # A blocked SQLite operation can wait 30 seconds; allow slow CI I/O.
+                self.assertEqual(receipt.result(timeout=10), 0)
+            finally:
+                connection.execute("ROLLBACK")
         self.assertEqual(self.exports, [])
 
     def test_initial_capture_binding_serializes_terminal_context_without_waiting(
