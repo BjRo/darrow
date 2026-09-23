@@ -91,7 +91,7 @@ semantic_output_checks:
       The response reports that independent review passed or found no blocking
       findings for the completed change. It need not repeat the risk classification.
 transcript_checks:
-  - name: Terra policy route is applied to the high-risk owner
-    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"(?:medium|high)"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")'
+  - name: Luna policy route is applied to the high-risk routine owner
+    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"medium"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'

@@ -88,10 +88,12 @@ reason: explicit-orchestration-entrypoint-required
 
 ## Read-only preflight
 
-The contained Python package is `<plugin-root>/backend`, invoked through
-`uv run --quiet --frozen --no-dev --project <absolute-backend>` followed by
-`adaptive-delivery-preflight`, `claude-agent-route`, or `host-config-doctor`. On Codex, the activated
-file `<plugin-root>/skills/adaptive-delivery/SKILL.md` binds that same plugin root;
+The contained Python package is `<plugin-root>/backend`. Invoke
+`uv run --quiet --no-project <absolute-backend>/scripts/run_locked.py` followed
+by `adaptive-delivery-preflight`, `claude-agent-route`, or `host-config-doctor`.
+The wrapper runs the backend with frozen runtime dependencies. On Codex, the
+activated file `<plugin-root>/skills/adaptive-delivery/SKILL.md` binds that
+plugin root;
 `../../backend` starts at the directory containing `SKILL.md`. Claude binds
 `${CLAUDE_PLUGIN_ROOT}/backend`. Check the package and lock at that exact location;
 unavailability does not authorize searching for a different installation.
@@ -397,17 +399,19 @@ validation must preserve valid off-catalog concrete models and user overrides.
 
 The bundled Codex owner policy is:
 
-| Profile        | Model           | Effort   |
-| -------------- | --------------- | -------- |
-| `routine`      | `gpt-5.6-terra` | `medium` |
-| `routine-plus` | `gpt-5.6-terra` | `high`   |
-| `scaled`       | `gpt-5.6-sol`   | `medium` |
-| `repo-wide`    | `gpt-5.6-sol`   | `high`   |
-| `judgment`     | `gpt-6-astra`   | `high`   |
+| Profile        | Model         | Effort   |
+| -------------- | ------------- | -------- |
+| `routine`      | `gpt-6-luna`  | `medium` |
+| `routine-plus` | `gpt-6-luna`  | `high`   |
+| `scaled`       | `gpt-5.6-sol` | `medium` |
+| `repo-wide`    | `gpt-5.6-sol` | `high`   |
+| `judgment`     | `gpt-6-astra` | `high`   |
 
-`gpt-5.6-luna` is not eligible for adaptive-delivery ownership because an owner
-must be able to invoke bound readiness and review capabilities through their
-native delegation boundaries. This restriction does not remove Luna from
+`gpt-6-luna` can own routine and routine-plus work because it can spawn native
+subagents for bound capabilities. `gpt-5.6-luna` remains ineligible for
+adaptive-delivery ownership:
+an owner must be able to invoke bound readiness and review capabilities through
+their native delegation boundaries. The older model remains available for
 explicit leaf work or evaluation roles outside adaptive-delivery ownership.
 
 Route binding is host-specific:

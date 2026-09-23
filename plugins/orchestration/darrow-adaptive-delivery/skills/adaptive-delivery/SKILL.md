@@ -243,9 +243,11 @@ Classify reasoning demand independently:
   planning, or review judgment.
 
 An explicit user model and effort wins only when the model is eligible for
-adaptive-delivery ownership. A Codex `gpt-5.6-luna` route is not owner-capable and
-must be rejected; Luna remains available for explicit leaf work outside this
-orchestration. Otherwise resolve the policy route:
+adaptive-delivery ownership. Codex `gpt-6-luna` can own routine and routine-plus
+work and invoke bound capabilities through native subagents. A Codex
+`gpt-5.6-luna` route is not owner-capable and must be rejected; that model
+remains available for
+explicit leaf work outside this orchestration. Otherwise resolve the policy route:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-delivery-preflight route \
