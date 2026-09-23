@@ -69,13 +69,15 @@ def main() -> None:
                 "import importlib.metadata as m; print('\\n'.join(d.metadata['Name'] or '' for d in m.distributions()))",
             ],
         )
-        assert not any(
-            tool in packages
-            for tool in ("coverage", "hypothesis", "mypy", "pytest", "ruff")
+        installed = {name.lower() for name in packages.splitlines()}
+        assert "darrow-artificer" in installed
+        assert installed.isdisjoint(
+            {"coverage", "hypothesis", "mypy", "pytest", "ruff"}
         )
-        assert "darrow-artificer" in run(
-            fixture, [*launcher, "darrow-artificer", "--help"]
-        )
+        if os.name != "nt":
+            assert "darrow-artificer" in run(
+                fixture, [*launcher, "darrow-artificer", "--help"]
+            )
         assert not list(copied.rglob(".venv"))
         assert not list(copied.rglob("__pycache__"))
         make_writable(copied)

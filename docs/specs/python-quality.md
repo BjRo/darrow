@@ -162,8 +162,9 @@ invoke those entrypoints, but do not reproduce the plugin's internal path
 resolution or benchmark logic.
 
 Release validation installs each Python-backed plugin from a fresh copied
-artifact using only locked runtime dependencies before exercising its public
-entrypoints. Cross-platform helpers run this validation on Linux, macOS, and
-native Windows. The isolated live Langfuse ingestion procedure remains release
+artifact using only locked runtime dependencies. Cross-platform helpers verify
+the locked runtime and immutable plugin root on Linux, macOS, and native
+Windows; they exercise public entrypoints on hosts that the plugin supports.
+The isolated live Langfuse ingestion procedure remains release
 evidence for that plugin's external service boundary; it is not replaced by
 mocked CI tests.

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import time
 from collections.abc import Callable
@@ -30,11 +29,11 @@ def command(repo: Path, *args: str) -> list[str]:
     ]
 
 
-def runtime_environment(repo: Path) -> dict[str, str]:
-    return {
-        **os.environ,
-        "DARROW_CACHE_DIR": str(repo / ".git/fixture-runtime-cache"),
-    }
+@pytest.fixture(autouse=True)
+def runtime_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    monkeypatch.setenv("DARROW_CACHE_DIR", str(tmp_path_factory.mktemp("rt")))
 
 
 def invoke(repo: Path, *args: str, status: int = 0) -> str:
@@ -43,7 +42,6 @@ def invoke(repo: Path, *args: str, status: int = 0) -> str:
         capture_output=True,
         timeout=60,
         check=False,
-        env=runtime_environment(repo),
     )
     assert result.returncode == status, (result.stdout, result.stderr)
     return result.stdout.decode("utf-8")
@@ -75,7 +73,6 @@ def mutate_during(
         command(repo, *args),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=runtime_environment(repo),
     ) as process:
         try:
             wait_for_event(process, events, prefix, count)
