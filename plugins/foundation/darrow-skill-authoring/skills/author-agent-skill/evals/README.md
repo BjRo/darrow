@@ -14,6 +14,12 @@ and inspect each failure before starting the next case.
 | Ordinary agent guidance without skill intent    | `non-skill-guidance`       |
 | Repair a skill with a sibling-plugin dependency | `repair-skill-boundaries`  |
 | Validation without mutation authority           | `validate-read-only`       |
+| Existing current independent review             | `reuse-current-review`     |
+
+`reuse-current-review` supplies a simulated prior reviewer result. It checks
+the authoring decision and binds every reviewed input to the current fixture
+content. It does not prove that an external reviewer actually ran; native review
+provenance is outside this case.
 
 ## Shell evidence
 

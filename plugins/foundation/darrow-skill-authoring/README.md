@@ -4,6 +4,12 @@
 validating focused agent skills that remain useful in both Claude Code and
 Codex.
 
+For creation and revision, an independent review of the exact finished skill
+can satisfy the authoring challenge even when the user or an enclosing goal
+requested it earlier. The review must cover the authoring questions and current
+check evidence. Finding-driven repairs use closed follow-up verification;
+unrelated changes need a new broad challenge.
+
 ## Skill
 
 - `author-agent-skill` defines an observable skill contract, tests discovery

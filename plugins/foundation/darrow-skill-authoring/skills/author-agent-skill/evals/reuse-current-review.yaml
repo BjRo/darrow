@@ -1,0 +1,102 @@
+id: author-agent-skill-reuse-current-review
+invariant: SA-C9
+activation: positive
+prompt: >-
+  {{skill_invocation}} Continue the approved revision of the existing
+  inspect-release-note skill.
+  The finished change and its current check evidence are in this repository.
+  I already requested an independent fresh-context review of this exact change;
+  its complete report is in review-evidence.md. Verify that the report covers
+  the skill-authoring challenge and the current content, then finish the
+  authoring workflow. Keep the result local; do not commit or publish.
+fixture:
+  commits:
+    - message: "chore: initial skill"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Skill revisions require a fresh-context challenge of the finished
+          skill and its task-local check evidence. Review agents must not run
+          Git or GitHub commands.
+        plugins/release/.claude-plugin/plugin.json: |
+          {"name":"release","version":"0.1.0","description":"Release helpers","author":{"name":"Example"}}
+        plugins/release/.codex-plugin/plugin.json: |
+          {"name":"release","version":"0.1.0","description":"Release helpers","author":{"name":"Example"},"skills":"./skills/"}
+        plugins/release/skills/inspect-release-note/SKILL.md: |
+          ---
+          name: inspect-release-note
+          description: Helps with release notes.
+          ---
+
+          # Inspect release note
+
+          Read the note and report.
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -F 'description: Inspect a release note' plugins/release/skills/inspect-release-note/SKILL.md >/dev/null
+          grep -F '**Complete when:**' plugins/release/skills/inspect-release-note/SKILL.md >/dev/null
+  files:
+    plugins/release/skills/inspect-release-note/SKILL.md: |
+      ---
+      name: inspect-release-note
+      description: Inspect a release note for missing summary and test evidence before publication. Use when asked to assess a draft note; do not publish it.
+      ---
+
+      # Inspect release note
+
+      Read the supplied draft note. Report a missing summary or test evidence
+      with a concrete location. Do not edit or publish the note.
+
+      **Complete when:** the response identifies each gap or says the draft is
+      ready for human publication review.
+  setup: |
+    bash check.sh
+    cat >review-evidence.md <<EOF
+    # Independent review
+
+    Supplied prior reviewer result: fixture-review-001, fresh context, no
+    earlier conclusions or intended answer supplied.
+    Inputs: the changed SKILL.md, both plugin manifests, AGENTS.md, check.sh,
+    and the successful current-content result of bash check.sh.
+    Challenge: discovery, self-containment, portability, safety, completion
+    bounds, and eval loopholes. No blocking or material findings. Verdict: pass.
+
+    Reviewed content (path and Git blob ID):
+    EOF
+    for path in AGENTS.md check.sh \
+      plugins/release/.claude-plugin/plugin.json \
+      plugins/release/.codex-plugin/plugin.json \
+      plugins/release/skills/inspect-release-note/SKILL.md; do
+      printf 'content\t%s\t%s\n' "$path" "$(git hash-object "$path")" >>review-evidence.md
+    done
+    mkdir -p .git/eval-checks
+    git hash-object review-evidence.md >.git/eval-checks/prior-review-oid
+checks:
+  - name: every reviewed input and the prior report remain unchanged
+    run: |
+      bash check.sh
+      test "$(git hash-object review-evidence.md)" = "$(cat .git/eval-checks/prior-review-oid)"
+      for path in AGENTS.md check.sh \
+        plugins/release/.claude-plugin/plugin.json \
+        plugins/release/.codex-plugin/plugin.json \
+        plugins/release/skills/inspect-release-note/SKILL.md; do
+        record=$(printf 'content\t%s\t%s' "$path" "$(git hash-object "$path")")
+        grep -Fx "$record" review-evidence.md >/dev/null || exit 1
+      done
+  - name: authoring creates no commit
+    run: test "$(git rev-list --all --reflog --count)" -eq 1
+transcript_checks:
+  - name: no duplicate fresh reviewer is launched
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'
+semantic_output_checks:
+  - name: the existing review satisfies the challenge
+    proposition: >-
+      The response reports authoring complete and identifies the supplied
+      independent review as evidence covering the unchanged final skill and
+      authoring questions, with no further review left pending. It need not
+      explicitly say that the review "satisfies the challenge." A response
+      that requires another review, says the supplied report is stale, or
+      leaves the revision incomplete fails. It must not claim a commit or
+      publication.

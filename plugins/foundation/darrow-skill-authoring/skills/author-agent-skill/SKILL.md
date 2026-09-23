@@ -235,10 +235,29 @@ Run, in order:
 6. affected documentation and marketplace/discovery checks; and
 7. relevant repository lint, type, or test gates.
 
-Then give a fresh-context reviewer the finished artifact and task-local
-evidence, not the intended answer or prior conclusions. Ask it to challenge
-discovery, self-containment, portability, safety, completion bounds, and eval
-loopholes. Address material findings and rerun affected checks.
+Establish one independent challenge of the finished artifact and task-local
+evidence. The fresh-context reviewer must not receive the intended answer or
+prior conclusions. Ask it to challenge discovery, self-containment,
+portability, safety, completion bounds, and eval loopholes.
+
+First inspect any review already requested by the user or an enclosing goal.
+Count its complete result when the reviewer was independent and fresh, received
+the artifact and task-local evidence, covered those authoring questions, and
+reviewed the exact current content. Do not request another review merely
+because this workflow reached its challenge step. If the enclosing goal has
+selected a final review that has not yet run, supply these questions and the
+finished evidence to that review handoff, then consume its result before
+claiming authoring complete. A review that cannot cover the authoring questions
+does not satisfy this step.
+
+After a material finding, repair within the approved scope and rerun affected
+checks. The original broad challenge followed by fresh, closed verification
+of its attempted findings and direct repair-caused regressions can clear the
+repaired final content. Preserve the original findings and target history; do
+not start another broad review solely because a finding-driven repair changed
+content. A changed scope, unrelated edit, missing inputs or coverage,
+inconclusive result, or unresolved blocker still requires the appropriate
+independent assessment.
 
 Review the final diff for external plugin references, prohibited runtime
 machinery, accidental side effects, unrelated edits, and unsupported completion
@@ -255,7 +274,8 @@ Report completion in this order:
 6. separately authorized effects, such as commit or publication, that were not
    performed.
 
-**Complete when:** focused and repository gates pass after independent review,
+**Complete when:** focused and repository gates pass, one current independent
+challenge (including any required closed repair verification) is evidenced,
 every material finding is resolved or reported as residual risk, and the final
 response satisfies that reporting contract.
 
