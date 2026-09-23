@@ -20,7 +20,7 @@ the CLI owns URL validation, including unfamiliar hosts and foreign projects.
 All tracker interaction goes through the bundled CLI:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket <command> [args]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket <command> [args]
 ```
 
 `<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
@@ -65,7 +65,7 @@ requested supported filter maps to exactly one argument.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-ticket list [--state open|closed|all] \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket list [--state open|closed|all] \
   [--type bug|feature|task|chore] [--label <label>]... \
   [--search <query>] [--milestone <milestone>] [--limit <count>]
 ```

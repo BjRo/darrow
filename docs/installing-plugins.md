@@ -59,11 +59,21 @@ directory is on that environment's `PATH`, then restart the host so it inherits
 the updated environment.
 
 Each plugin ships its own `pyproject.toml` and `uv.lock`. Its documented
-`uv run --frozen --no-dev --project ...` helper commands prepare the plugin's
-isolated environment from that lock on first use. Allow network access for
-Python, build requirements, and runtime dependency downloads, plus write access
-to the plugin environment and UV cache. Subsequent runs reuse that environment;
-an update may require new downloads. See [UV's environment synchronization documentation](https://docs.astral.sh/uv/concepts/projects/sync/).
+bootstrap commands prepare an isolated environment from that lock on first use
+without writing below the installed plugin. By default, environments live under
+`${XDG_CACHE_HOME:-$HOME/.cache}/darrow` on Linux and macOS and
+`%LOCALAPPDATA%\Darrow\Cache` on native Windows. Set `DARROW_CACHE_DIR` to a
+non-empty absolute path to override that root. The selected root must be
+readable and writable; invalid configuration fails without falling back to the
+plugin, working directory, repository, or temporary storage.
+
+Allow network access for Python, build requirements, and runtime dependency
+downloads, plus write access to the Darrow and UV caches. Subsequent runs reuse
+the backend-specific environment; plugin updates, moves, lock changes, and
+explicit Python selections use distinct environments. The bootstrap leaves
+`UV_CACHE_DIR` under UV and caller control. An installed `.venv` created by an
+older Darrow version is stale and disposable; remove it only after older
+processes have exited. See [UV's environment synchronization documentation](https://docs.astral.sh/uv/concepts/projects/sync/).
 
 The marketplace install commands and bulk shortcut install plugins; they do
 not install UV or provision Python. Complete this setup before using Python

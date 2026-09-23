@@ -445,6 +445,23 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/orchestration/darrow-ticket-pipeline/backend python plugins/orchestration/darrow-ticket-pipeline/backend/tests/fresh_install.py
 
+  artificer-fresh-install:
+    name: Fresh install artificer on ${{ matrix.os }}
+    needs: changes
+    if: contains(needs.changes.outputs.packages, 'plugins/automation/darrow-artificer/backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --quiet --frozen --no-dev --project plugins/automation/darrow-artificer/backend python plugins/automation/darrow-artificer/backend/tests/fresh_install.py
+
   inventory:
     name: Python inventory guard
     runs-on: ubuntu-latest
@@ -581,6 +598,7 @@ jobs:
       - adaptive-delivery-fresh-install
       - ticket-pipeline-windows
       - ticket-pipeline-fresh-install
+      - artificer-fresh-install
       - inventory
       - skill-authoring-fresh-install
       - observability-windows
@@ -631,6 +649,8 @@ jobs:
           PIPELINE_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-ticket-pipeline/backend') }}
           PIPELINE_WINDOWS_RESULT: ${{ needs.ticket-pipeline-windows.result }}
           PIPELINE_INSTALL_RESULT: ${{ needs.ticket-pipeline-fresh-install.result }}
+          ARTIFICER_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/automation/darrow-artificer/backend') }}
+          ARTIFICER_INSTALL_RESULT: ${{ needs.artificer-fresh-install.result }}
         run: |
           scripts/verify-python-quality-results \
             "$CHANGES_RESULT" "$INVENTORY_RESULT" \
@@ -670,3 +690,6 @@ jobs:
           if [ "$PIPELINE_SELECTED" = true ]; then expected=success; fi
           test "$PIPELINE_WINDOWS_RESULT" = "$expected"
           test "$PIPELINE_INSTALL_RESULT" = "$expected"
+          expected=skipped
+          if [ "$ARTIFICER_SELECTED" = true ]; then expected=success; fi
+          test "$ARTIFICER_INSTALL_RESULT" = "$expected"

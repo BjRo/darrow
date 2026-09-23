@@ -71,6 +71,8 @@ def test_install_isolated_providers(repo: Path, host: str, kind: str) -> None:
         assert not (repo / root).exists()
     for root in install.HOSTS[host]:
         assert (repo / root / "backend/uv.lock").is_file()
+        assert (repo / root / ".claude-plugin/plugin.json").is_file()
+        assert (repo / root / ".codex-plugin/plugin.json").is_file()
         assert not (repo / root / "backend/.venv").exists()
         assert not (repo / root / "bin").exists()
         name = install.SKILLS[kind][1]

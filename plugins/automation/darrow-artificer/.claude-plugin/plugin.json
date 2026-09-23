@@ -1,6 +1,6 @@
 {
   "name": "darrow-artificer",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Explicit local admission and native Codex continuation for nominated GitHub tickets",
   "license": "BUSL-1.1",
   "author": { "name": "Björn Rochel", "email": "bjoern@bjro.de" }

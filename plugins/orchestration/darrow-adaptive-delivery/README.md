@@ -158,7 +158,7 @@ already completed.
 The contained `backend` package exposes read-only preflight, route, and host
 diagnosis operations.
 Prefix each command with
-`uv run --quiet --frozen --no-dev --project "<absolute-plugin-root>/backend"`:
+`uv run --quiet --no-project "<absolute-plugin-root>/backend/scripts/run_locked.py"`:
 
 ```text
 adaptive-delivery-preflight prepare --repo <path> --host <codex|claude>

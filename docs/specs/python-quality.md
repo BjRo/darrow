@@ -8,6 +8,47 @@ package listed in [`python-packages.txt`](../../python-packages.txt). A new
 Python source file, `pyproject.toml`, or UV lock outside a registered package is
 an error until its package is added to that inventory.
 
+## Installed runtime environments
+
+Installed plugin roots and their packaged Python backends are immutable runtime
+inputs. Every model-facing command and runtime hook launches its locked backend
+through a dependency-free bootstrap owned by that plugin. The bootstrap must
+set `UV_PROJECT_ENVIRONMENT` only for its `uv` child and must not override
+`UV_CACHE_DIR`.
+
+The bootstrap resolves the Darrow cache root in this order:
+
+1. a non-empty absolute `DARROW_CACHE_DIR`;
+2. on Linux and macOS, `${XDG_CACHE_HOME:-$HOME/.cache}/darrow`; and
+3. on native Windows, `%LOCALAPPDATA%\Darrow\Cache`.
+
+Missing path inputs and relative, unreadable, or unwritable roots fail clearly.
+There is no fallback to the plugin tree, repository, working directory, or
+temporary storage. Environments live below
+`<cache-root>/uv-environments/<plugin-name>/<environment-key>/`.
+
+The deterministic environment key is the SHA-256 digest of a versioned,
+sorted-key JSON value containing the exact plugin name and synchronized plugin
+version, the native normalized absolute backend path, the SHA-256 digest of the
+complete `uv.lock` bytes, and the normalized explicit Python selection. A
+Python selection comes from the launcher's `--python` option or, when that is
+absent, `UV_PYTHON`. Interpreter paths become native normalized absolute paths
+relative to the caller; non-path requests are trimmed and case-folded; no
+selection is the literal `default`. On Windows, fully qualified paths include a
+drive root or UNC share. Root-relative interpreter paths inherit the caller's
+drive before hashing; drive-relative paths on another drive are refused. The
+key must isolate different plugins,
+backends, plugin versions or locations, lock contents, and incompatible
+explicit interpreters, while allowing repeated and concurrent calls to reuse
+the same environment.
+The bootstrap requires readable `pyproject.toml` and `uv.lock`, preserves the
+frozen runtime-only `uv` arguments and exit status, and never mutates or
+re-resolves the lock.
+
+Repository development and quality commands may continue to use package-local
+`.venv` directories. Existing `.venv` directories in installed plugins are
+stale and disposable, but runtime launchers ignore rather than delete them.
+
 ## Source quality
 
 Packages use Ruff for formatting, import order, common correctness rules,
@@ -121,8 +162,9 @@ invoke those entrypoints, but do not reproduce the plugin's internal path
 resolution or benchmark logic.
 
 Release validation installs each Python-backed plugin from a fresh copied
-artifact using only locked runtime dependencies before exercising its public
-entrypoints. Cross-platform helpers run this validation on Linux, macOS, and
-native Windows. The isolated live Langfuse ingestion procedure remains release
+artifact using only locked runtime dependencies. Cross-platform helpers verify
+the locked runtime and immutable plugin root on Linux, macOS, and native
+Windows; they exercise public entrypoints on hosts that the plugin supports.
+The isolated live Langfuse ingestion procedure remains release
 evidence for that plugin's external service boundary; it is not replaced by
 mocked CI tests.

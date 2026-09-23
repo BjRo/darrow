@@ -34,7 +34,8 @@ Example: _“Doctor this repository's agent instructions.”_
 
 The contained `backend/` package supplies `ia-setup inspect`, `ia-doctor
 inspect|verify`, and `ia-write` for approved atomic guidance replacements. Run
-all commands through `uv run --quiet --frozen --no-dev --project <plugin>/backend`.
+all commands through
+`uv run --quiet --no-project <plugin>/backend/scripts/run_locked.py`.
 The inspectors are read-only; policy and edit decisions remain in the skills.
 These are compact structural checks, not complete validators for every Codex
 or Claude Code configuration format.

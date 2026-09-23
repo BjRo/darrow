@@ -12,6 +12,10 @@ const backendSource = new URL(
   "../../plugins/capability/darrow-review/backend/",
   import.meta.url,
 );
+const pluginSource = new URL(
+  "../../plugins/capability/darrow-review/",
+  import.meta.url,
+);
 const fixtureBackend = new URL("../../../backend/", source);
 
 async function proofFiles() {
@@ -45,9 +49,17 @@ function proofCommand(...args: string[]) {
 
 async function reviewFiles(prefix = ".git/review-plugin/backend") {
   const files: Record<string, string> = {};
-  for (const name of ["pyproject.toml", "uv.lock"])
+  for (const name of ["pyproject.toml", "uv.lock", "scripts/run_locked.py"])
     files[`${prefix}/${name}`] = await Bun.file(
       new URL(name, backendSource),
+    ).text();
+  const pluginRoot = prefix.slice(0, -"/backend".length);
+  for (const manifest of [
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+  ])
+    files[`${pluginRoot}/${manifest}`] = await Bun.file(
+      new URL(manifest, pluginSource),
     ).text();
   const glob = new Bun.Glob("src/darrow_review/*.{py,typed}");
   for await (const name of glob.scan(backendSource.pathname))

@@ -211,7 +211,7 @@ PowerShell on Windows. PR retrieval needs authenticated forge access.
 Every bundled command runs through the same locked package:
 
 ```sh
-uv run --quiet --frozen --no-dev --project /absolute/path/to/darrow-review/backend review-scope prepare --repo /absolute/repo --base HEAD --target WORKTREE
+uv run --quiet --no-project /absolute/path/to/darrow-review/backend/scripts/run_locked.py review-scope prepare --repo /absolute/repo --base HEAD --target WORKTREE
 ```
 
 The public entrypoints are `review-scope`, `review-result`, `review-report`,
@@ -223,7 +223,7 @@ CLI contracts, exact report fixtures, and quoted-path command execution.
 Validate with `bun run check:python` and the copied-artifact probe:
 
 ```sh
-uv run --quiet --frozen --no-dev --project plugins/capability/darrow-review/backend python plugins/capability/darrow-review/backend/tests/fresh_install.py
+uv run --quiet --no-project plugins/capability/darrow-review/backend/scripts/run_locked.py python plugins/capability/darrow-review/backend/tests/fresh_install.py
 ```
 
 ## Installation

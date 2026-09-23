@@ -8,7 +8,7 @@ description: Assess whether one authoritative ticket, specification, plan, or re
 Resolve this file's directory and the repository root, then run exactly:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "$skill_dir/../../backend" adaptive-delivery-fixture readiness "$repo"
+uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-delivery-fixture readiness "$repo"
 ```
 
 Treat its human-readable response as this capability's complete result. Return

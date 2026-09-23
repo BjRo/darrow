@@ -11,7 +11,7 @@ On native Windows, enter this command on one PowerShell line without the Bash
 continuation backslashes.
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" claude-agent-route \
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" claude-agent-route \
   --provider anthropic --model <claude-sonnet-5|claude-opus-5> \
   --effort <low|medium|high>
 ```

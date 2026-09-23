@@ -39,7 +39,8 @@ $result = 0
 try {
     New-Item -ItemType Directory -Path $statusDirectory | Out-Null
     $env:UV_NO_PROGRESS = "1"
-    & $uv.Path run --quiet --frozen --project (Join-Path $pluginDirectory "backend") `
+    $launcher = Join-Path $pluginDirectory "backend/scripts/run_locked.py"
+    & $uv.Path run --quiet --no-project $launcher `
         python -m darrow_observability_langfuse.cli --launcher-status $statusPath @args
 
     if (Test-Path -LiteralPath $statusPath) {

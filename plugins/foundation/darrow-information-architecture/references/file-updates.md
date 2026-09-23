@@ -8,7 +8,7 @@ the complete replacement in a temporary content file outside the guidance graph.
 Create an approved parent directory first if needed. Then invoke:
 
 ```text
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-write --expected <sha256-or-missing> --content-file <absolute-content-path> <repository-relative-guidance-path> [repository]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" ia-write --expected <sha256-or-missing> --content-file <absolute-content-path> <repository-relative-guidance-path> [repository]
 ```
 
 The writer resolves an existing file adapter to its in-repository source,

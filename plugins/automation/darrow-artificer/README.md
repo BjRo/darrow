@@ -37,7 +37,7 @@ enabled during plugin installation.
 Runtime entrypoint:
 
 ```text
-uv run --quiet --frozen --no-dev --project <plugin-root>/backend darrow-artificer --state <absolute-path> status
+uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-artificer --state <absolute-path> status
 ```
 
 ## Expected result

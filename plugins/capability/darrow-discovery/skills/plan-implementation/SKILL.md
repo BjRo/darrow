@@ -89,12 +89,12 @@ Resolve the renderer backend from the loaded skill:
 Then run:
 
 ```bash
-uv run --quiet --frozen --no-dev \
-  --project "<absolute-backend-path>" darrow-render-plan-frontier ...
+uv run --quiet --no-project \
+  "<absolute-backend-path>/scripts/run_locked.py" darrow-render-plan-frontier ...
 ```
 
-Invoke this locked entrypoint directly; do not look for or create a
-host-specific launcher.
+Invoke the packaged bootstrap directly; it selects the locked environment
+outside the installed plugin without requiring a host-specific launcher.
 
 Never resolve the renderer from the user's current project, repository root,
 or a presumed `.agents/skills` checkout. The backend and lock are resources of

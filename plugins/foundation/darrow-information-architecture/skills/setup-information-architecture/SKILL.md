@@ -36,7 +36,7 @@ finds evidence; it does not decide placement or policy.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-setup inspect [repository]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" ia-setup inspect [repository]
 ```
 
 Use its compact inventory to locate instruction entrypoints, adapters,
@@ -183,7 +183,7 @@ push.
 Verify the selected runtimes and declared mirrors:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-doctor verify --runtime both \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" ia-doctor verify --runtime both \
   [--mirror source=target]... [repository]
 ```
 

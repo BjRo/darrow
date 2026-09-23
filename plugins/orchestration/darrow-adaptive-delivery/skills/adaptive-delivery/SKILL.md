@@ -64,7 +64,7 @@ command on one PowerShell line, omitting the trailing backslashes and passing
 the same arguments. Helper execution does not require Bash on either host.
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" adaptive-delivery-preflight prepare \
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-delivery-preflight prepare \
   --repo <absolute-repository> --host <codex|claude>
 ```
 
@@ -248,7 +248,7 @@ must be rejected; Luna remains available for explicit leaf work outside this
 orchestration. Otherwise resolve the policy route:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" adaptive-delivery-preflight route \
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-delivery-preflight route \
   --repo <absolute-repository> --host <codex|claude> --profile <profile> \
   [--route 'harness|provider|model|effort']
 ```

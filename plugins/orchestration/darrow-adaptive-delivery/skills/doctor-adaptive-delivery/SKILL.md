@@ -65,17 +65,17 @@ the helper.
 Run exactly one applicable command:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" \
   host-config-doctor codex \
   --config <absolute-effective-config> --backend <v1|v2|unknown> \
   --context effective [--project-root <absolute-trusted-project-root>]
 
-uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" \
   host-config-doctor codex \
   --config <absolute-isolated-config> --backend <v1|v2|unknown> \
   --context isolated-eval
 
-uv run --quiet --frozen --no-dev --project "<absolute-plugin-backend>" \
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" \
   host-config-doctor claude \
   [--version <installed-version>]
 ```

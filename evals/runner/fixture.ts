@@ -252,6 +252,18 @@ async function mountPluginMechanics(
   mount: string,
   paths: PluginMountPaths,
 ): Promise<void> {
+  const pluginRoot = join(repoDir, mount, "..");
+  if (existsSync(paths.manifest)) {
+    await mkdir(join(pluginRoot, ".claude-plugin"), { recursive: true });
+    await cp(paths.manifest, join(pluginRoot, ".claude-plugin", "plugin.json"));
+  }
+  if (existsSync(paths.codexManifest)) {
+    await mkdir(join(pluginRoot, ".codex-plugin"), { recursive: true });
+    await cp(
+      paths.codexManifest,
+      join(pluginRoot, ".codex-plugin", "plugin.json"),
+    );
+  }
   if (existsSync(paths.backend))
     await copySkillWithoutEvals(
       paths.backend,
@@ -280,6 +292,13 @@ async function mountSourceClaudePlugin(
     dirname(paths.manifest),
     join(evalPlugin, ".claude-plugin"),
   );
+  if (existsSync(paths.codexManifest)) {
+    await mkdir(join(evalPlugin, ".codex-plugin"), { recursive: true });
+    await cp(
+      paths.codexManifest,
+      join(evalPlugin, ".codex-plugin", "plugin.json"),
+    );
+  }
   for (const mountedSkillDir of skillDirs) {
     const name = mountedSkillDir.split("/").filter(Boolean).pop()!;
     await copySkillWithoutEvals(

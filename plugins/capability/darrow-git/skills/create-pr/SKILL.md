@@ -33,7 +33,7 @@ The package lives at `<skill-dir>/../../backend` inside this plugin.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr inspect [--base <branch>] [--template <filename>]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr inspect [--base <branch>] [--template <filename>]
 ```
 
 When the user names a base, pass that exact `--base` to inspection, every
@@ -94,7 +94,7 @@ template when present, and preserves any known ticket identifier.
 Run exactly one creation command:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
 ```
 
 Pass `--base` only when the user named that base. Pass `--draft` only when the
@@ -141,7 +141,7 @@ inspection; when the enclosing owner supplies an ID for its verified content,
 require that same ID. Do not silently replace it with a later local head.
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
 The script checks one open same-repository PR and its exact branch, base and
@@ -157,7 +157,7 @@ When the caller requires verified published content after creation, or needs
 to observe an ambiguous prior publication, run the read-only operation:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-pr verify --expected-head <full-commit-id> [--base <branch>] [--draft]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr verify --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
 Use the same concise success report as §4, retaining the complete publication

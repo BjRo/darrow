@@ -59,8 +59,16 @@ def copied_backend(tmp_path: Path) -> Path:
     shutil.copytree(
         BACKEND / "src", copy / "src", ignore=shutil.ignore_patterns("__pycache__")
     )
+    shutil.copytree(BACKEND / "scripts", copy / "scripts")
     for name in ("pyproject.toml", "uv.lock"):
         shutil.copyfile(BACKEND / name, copy / name)
+    for manifest_dir in (".claude-plugin", ".codex-plugin"):
+        destination = copy.parent / manifest_dir
+        destination.mkdir()
+        shutil.copyfile(
+            BACKEND.parent / manifest_dir / "plugin.json",
+            destination / "plugin.json",
+        )
     return copy
 
 

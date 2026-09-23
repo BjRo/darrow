@@ -40,7 +40,7 @@ Leave pushing, branching, and pull requests outside this workflow.
 Run:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit inspect
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-commit inspect
 ```
 
 Follow the reported mode:
@@ -54,7 +54,7 @@ Follow the reported mode:
   Inspect an uncertain candidate with:
 
   ```sh
-  uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit diff <literal-path>...
+  uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-commit diff <literal-path>...
   ```
 
   Keep unrelated paths untouched. If the user's description conflicts with
@@ -87,13 +87,13 @@ diff.
 For `staged` mode, pass no paths:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit commit -m "<subject>" [-m "<body>"]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-commit commit -m "<subject>" [-m "<body>"]
 ```
 
 For `unstaged` mode, pass every selected literal path and no others:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit commit -m "<subject>" [-m "<body>"] <path>...
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-commit commit -m "<subject>" [-m "<body>"] <path>...
 ```
 
 This `darrow-create-commit commit` call is the only commit-creation command in the
@@ -120,7 +120,7 @@ command. Ask for the exact staged paths to refresh. A normal staged commit
 would retain stale index content, so it is not an authorized substitute.
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit retry --after-hook-failure \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-commit retry --after-hook-failure \
   --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
 ```
 
@@ -149,7 +149,7 @@ Pass the literal command and every path the user explicitly authorizes to the
 guarded script:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" darrow-create-commit remediate --after-hook-failure \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-commit remediate --after-hook-failure \
   --command "<literal hook-directed command>" \
   --refresh-staged <literal-staged-path>... -m "<subject>" [-m "<body>"]
 ```

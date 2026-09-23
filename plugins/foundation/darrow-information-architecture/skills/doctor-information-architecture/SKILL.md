@@ -34,7 +34,7 @@ establish structure, not edit decisions.
 Use both runtimes unless the user explicitly selected one:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-doctor inspect --runtime both [repository]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" ia-doctor inspect --runtime both [repository]
 ```
 
 Pass `--mirror source=target` only for adapter relationships declared by
@@ -149,7 +149,7 @@ mechanism after editing a source of truth. Do not commit or push.
 Verify the same runtimes and declared mirrors used for inspection:
 
 ```sh
-uv run --quiet --frozen --no-dev --project "<skill-dir>/../../backend" ia-doctor verify --runtime both \
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" ia-doctor verify --runtime both \
   [--mirror source=target]... [repository]
 ```
 

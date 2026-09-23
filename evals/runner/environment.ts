@@ -155,7 +155,8 @@ export async function isolatedHarnessEnvironment(
   env.TMPDIR = tempRoot;
   // Installed plugin sources live in the protected host config tree. Runtime
   // environments belong in writable, per-trial scratch, outside that tree.
-  env.UV_PROJECT_ENVIRONMENT = join(tempRoot, "uv-project");
+  // Each bootstrap derives a distinct environment from its locked backend.
+  env.DARROW_CACHE_DIR = join(tempRoot, "darrow-cache");
   env.UV_CACHE_DIR = join(tempRoot, "uv-cache");
   env.ZDOTDIR = shellRoot;
   // The runner wraps the evaluated agent in sandboxedAgentCommand. Nested

@@ -65,11 +65,19 @@ describe("eval fixture skill mounts", () => {
       ".claude-plugin",
       "plugin.json",
     );
+    const codexManifest = join(
+      root,
+      "plugins",
+      "sample",
+      ".codex-plugin",
+      "plugin.json",
+    );
     await mkdir(skill, { recursive: true });
     await mkdir(join(skill, "backend", ".venv"), { recursive: true });
     await mkdir(agents, { recursive: true });
     await mkdir(hooks, { recursive: true });
     await mkdir(dirname(manifest), { recursive: true });
+    await mkdir(dirname(codexManifest), { recursive: true });
     await writeFile(
       join(skill, "SKILL.md"),
       "---\nname: primary\ndescription: Primary\n---\n",
@@ -82,6 +90,10 @@ describe("eval fixture skill mounts", () => {
     );
     await writeFile(
       manifest,
+      '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
+    );
+    await writeFile(
+      codexManifest,
       '{"name":"sample","version":"0.1.0","description":"Sample"}\n',
     );
     await writeFile(join(hooks, "hooks.json"), '{"hooks":{"PreToolUse":[]}}\n');
@@ -103,6 +115,11 @@ describe("eval fixture skill mounts", () => {
     expect(
       existsSync(
         join(fixture, ".git", "eval-plugin", ".claude-plugin", "plugin.json"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(fixture, ".git", "eval-plugin", ".codex-plugin", "plugin.json"),
       ),
     ).toBe(true);
     expect(

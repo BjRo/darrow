@@ -132,7 +132,8 @@ apart, without repeating a push or PR creation.
 property tests, and separate 95% statement/branch coverage gates. The package
 has no runtime dependencies. Fresh-install checks copy the whole plugin and
 exercise all five workflows with real local Git repositories and mocked GitHub
-boundaries, using `uv run --quiet --frozen --no-dev --project backend python backend/tests/fresh_install.py`
+boundaries, using
+`uv run --quiet --no-project backend/scripts/run_locked.py python backend/tests/fresh_install.py`
 on every supported platform. CI covers Python 3.10–3.13
 on Linux, macOS, and Windows. Additional POSIX regression scenarios under
 `backend/tests/shell/` invoke the same UV entrypoints directly.

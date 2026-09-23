@@ -42,9 +42,9 @@ something is a decision and where it belongs.
 Build and verify the derived ADR-only catalog with:
 
 ```sh
-uv run --quiet --frozen --no-dev --project backend darrow-decision catalog rebuild --repo /absolute/path/to/repository
-uv run --quiet --frozen --no-dev --project backend darrow-decision catalog check --repo /absolute/path/to/repository
-uv run --quiet --frozen --no-dev --project backend darrow-decision validate --repo /absolute/path/to/repository
+uv run --quiet --no-project backend/scripts/run_locked.py darrow-decision catalog rebuild --repo /absolute/path/to/repository
+uv run --quiet --no-project backend/scripts/run_locked.py darrow-decision catalog check --repo /absolute/path/to/repository
+uv run --quiet --no-project backend/scripts/run_locked.py darrow-decision validate --repo /absolute/path/to/repository
 ```
 
 Rebuilds are byte-deterministic and atomic. `validate` rejects a stale checked-in

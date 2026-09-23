@@ -22,13 +22,18 @@ def command(repo: Path, *args: str) -> list[str]:
         "uv",
         "run",
         "--quiet",
-        "--frozen",
-        "--no-dev",
-        "--project",
-        str(repo / ".agents/backend"),
+        "--no-project",
+        str((repo / ".agents/backend/scripts/run_locked.py").resolve()),
         "adaptive-delivery-fixture",
         *args,
     ]
+
+
+@pytest.fixture(autouse=True)
+def runtime_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    monkeypatch.setenv("DARROW_CACHE_DIR", str(tmp_path_factory.mktemp("rt")))
 
 
 def invoke(repo: Path, *args: str, status: int = 0) -> str:
