@@ -128,11 +128,23 @@ understandable language while preserving required evidence and protocol data.
   repository. Shell-reporting acceptance must allow observed successful runs
   and explicitly unverified coverage; it must not assume a required interpreter
   is unavailable when the fixture inherits the host's shell availability.
-- **SA-C9 — Independent challenge before completion.** Give a fresh-context
-  reviewer the resulting artifact and task-local evidence without the intended
-  answer or prior conclusions. Address material discovery, portability,
-  self-containment, safety, and loophole findings, then rerun affected script
-  tests and evals.
+- **SA-C9 — One current independent challenge before completion.** Give a
+  fresh-context reviewer the finished artifact and task-local evidence without
+  the intended answer or prior conclusions. Challenge discovery,
+  self-containment, portability, safety, completion bounds, and eval loopholes.
+  An earlier user-requested or enclosing-goal review satisfies this step when
+  its independent reviewer received those inputs, covered those questions,
+  returned a complete result, and reviewed the exact final content. Do not
+  request another review merely because skill authoring reached this phase.
+  When an enclosing goal already requires independent review, arrange one
+  final-content review that covers both contracts and consume its result before
+  claiming authoring complete. After a finding-driven repair, the original
+  broad challenge plus fresh, closed verification of the attempted findings
+  and direct regressions can establish the final result; do not restart a broad
+  review solely because the repair changed content. A changed scope,
+  unrelated edit, missing review input or coverage, inconclusive result, or
+  unresolved blocker still needs the appropriate independent assessment.
+  Address material findings and rerun affected script tests and evals.
 - **SA-C10 — Verified delivery.** Validate skill metadata, plugin manifests,
   marketplace/discovery entries, local-reference containment, relevant native
   platform or both-shell behavior, and repository gates. Report exact commands,
