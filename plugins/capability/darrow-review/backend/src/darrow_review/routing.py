@@ -50,6 +50,7 @@ class Route:
     def strong(self) -> None:
         self.validate()
         routes = {
+            ("codex", "gpt-6-sol"): ("high", "xhigh", "max"),
             ("codex", "gpt-5.6-sol"): ("high", "xhigh", "max"),
             ("codex", "gpt-5.5"): ("high", "xhigh"),
             ("claude", "claude-opus-5"): ("xhigh",),

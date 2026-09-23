@@ -108,7 +108,7 @@ additive extension; legacy v1 records without them remain valid.
 ### Reviewer routes
 
 Every fresh standards, specification, and fix-verification reader runs on one
-explicit strong route. Bundled defaults are `gpt-5.6-sol` / `xhigh` on Codex
+explicit strong route. Bundled defaults are `gpt-6-sol` / `xhigh` on Codex
 and `claude-opus-5` / `xhigh` on Claude. A repository can replace either host's
 route in the independent `reviewers` section of the same shared
 `.darrow/config.json` used by adaptive delivery routing:
@@ -120,7 +120,7 @@ route in the independent `reviewers` section of the same shared
       "host": "codex",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-sol",
+      "model": "gpt-6-sol",
       "effort": "xhigh"
     },
     {
@@ -141,8 +141,8 @@ host/harness-mismatched, or host/provider-mismatched route stops review rather
 than inheriting or silently substituting a model.
 
 Repository overrides remain inside a shipped strong-route catalog so config
-cannot downgrade review. Codex currently supports `gpt-5.6-sol` at
-`high`/`xhigh`/`max` and `gpt-5.5` at `high`/`xhigh`. Claude supports
+cannot downgrade review. Codex currently supports `gpt-6-sol` and
+`gpt-5.6-sol` at `high`/`xhigh`/`max`, and `gpt-5.5` at `high`/`xhigh`. Claude supports
 `claude-opus-5`/`xhigh` and `claude-sonnet-5`/`high`. Add a catalog entry and,
 for Claude, its exact-tuple plugin agent before selecting another route.
 

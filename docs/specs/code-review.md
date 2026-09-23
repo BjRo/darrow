@@ -286,7 +286,7 @@ axis and report `not_available`. Do not invent requirements.
 21. **CR-C21 — Explicit reviewer route.** Before invoking any comprehensive or
     fix-verification reader, the coordinator MUST resolve one concrete reviewer
     route for the active host and apply that same provider, model, and effort to
-    every available axis. Bundled policy defaults to `gpt-5.6-sol` / `xhigh` on
+    every available axis. Bundled policy defaults to `gpt-6-sol` / `xhigh` on
     Codex and `claude-opus-5` / `xhigh` on Claude. An active-worktree
     `.darrow/config.json` MAY replace either host through its independent
     `reviewers` section, but only with a plugin-supported strong model/effort
@@ -479,7 +479,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     captured canonical check row rather than a separately prescribed diagnostic
     sentence.
 14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
-    evidence covers bundled Sol/xhigh and Opus/xhigh defaults, repository
+    evidence covers bundled GPT-6 Sol/xhigh and Opus/xhigh defaults, repository
     overrides in a config that may also contain adaptive-delivery routes, direct
     Anthropic-provider detection and rejection of every supported third-party
     or custom-endpoint selector, parallel

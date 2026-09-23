@@ -31,7 +31,7 @@ def config(repo: Path, value: object) -> Path:
 
 def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
     default = cli.route_command(["resolve", "--repo", str(repo), "--host", "codex"])
-    assert "gpt-5.6-sol\txhigh" in default
+    assert "gpt-6-sol\txhigh" in default
     config(
         repo,
         {"routes": [{"unrelated": [False, None, 12.5]}], "reviewers": [reviewer()]},
@@ -87,6 +87,14 @@ def test_invalid_configuration(repo: Path, value: object) -> None:
     config(repo, value)
     with pytest.raises(ReviewError):
         routing.resolve(str(repo), "codex")
+
+
+@pytest.mark.parametrize("effort", ["high", "xhigh", "max"])
+def test_gpt_6_sol_is_a_supported_review_override(repo: Path, effort: str) -> None:
+    config(repo, {"reviewers": [reviewer(model="gpt-6-sol", effort=effort)]})
+    selected = routing.resolve(str(repo), "codex")
+    assert selected.fields() == ["codex", "openai", "gpt-6-sol", effort]
+    assert selected.source == "repository"
 
 
 @pytest.mark.parametrize(
@@ -346,7 +354,7 @@ def test_empty_or_unrelated_policy_uses_bundled_route(repo: Path, text: str) -> 
     path.write_text(text, encoding="utf-8")
     selected = routing.resolve(str(repo), "codex")
     assert selected.source == "bundled"
-    assert "gpt-5.6-sol\txhigh" in selected.body()
+    assert "gpt-6-sol\txhigh" in selected.body()
 
 
 def test_partial_transcript_and_substring_identity_are_rejected(
