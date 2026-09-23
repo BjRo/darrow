@@ -13,7 +13,7 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
     directory.mkdir()
     (directory / "reviewer-route.tsv").write_text("fixture\n")
     model, provider = (
-        ("gpt-5.6-sol", "openai") if host == "codex" else ("claude-opus-5", "anthropic")
+        ("gpt-6-sol", "openai") if host == "codex" else ("claude-opus-5", "anthropic")
     )
     route = f"{host}\t{provider}\t{model}\txhigh"
     subagent = f"darrow-review:review-reader-{model}-xhigh"

@@ -19,7 +19,7 @@ def row(path: Path, key: str) -> list[str]:
 
 def route(host: str, profile: str) -> list[str]:
     routes = {
-        ("codex", "default"): ["codex", "openai", "gpt-5.6-sol", "xhigh"],
+        ("codex", "default"): ["codex", "openai", "gpt-6-sol", "xhigh"],
         ("claude", "default"): ["claude", "anthropic", "claude-opus-5", "xhigh"],
         ("codex", "override"): ["codex", "openai", "gpt-5.5", "xhigh"],
         ("claude", "override"): ["claude", "anthropic", "claude-sonnet-5", "high"],
