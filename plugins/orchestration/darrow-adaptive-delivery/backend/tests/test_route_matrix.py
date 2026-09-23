@@ -84,8 +84,8 @@ def test_override_preserves_other_bundled_profiles(repo: Path) -> None:
     write_policy(repo, "codex", "codex|openai|gpt-5.6-sol|high", "scaled")
     out = preflight.run(["prepare", "--repo", str(repo), "--host", "codex"])
     for profile, model, effort in (
-        ("routine", "gpt-5.6-terra", "medium"),
-        ("routine-plus", "gpt-5.6-terra", "high"),
+        ("routine", "gpt-6-luna", "medium"),
+        ("routine-plus", "gpt-6-luna", "high"),
         ("scaled", "gpt-5.6-sol", "high"),
         ("repo-wide", "gpt-5.6-sol", "high"),
         ("judgment", "gpt-6-astra", "high"),

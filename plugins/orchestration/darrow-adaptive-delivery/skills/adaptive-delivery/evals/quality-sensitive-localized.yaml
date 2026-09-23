@@ -46,7 +46,7 @@ checks:
     run: >-
       node --input-type=module -e
       "import('./src/version.js').then(({isStableVersion}) => {
-      for (const value of ['01.2.3', '1.02.3', '1.2', '1.2.3-beta',
+      for (const value of ['01.2.3', '1.02.3', '1.2.03', '1.2', '1.2.3-beta',
       '1.2.3+build', ' 1.2.3 ', '1.2.3.4']) {
       if (isStableVersion(value)) process.exit(1) } })"
   - name: focused tests are durable
@@ -75,6 +75,14 @@ checks:
 
       printf '%s\n' \
         'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
+        'export const isStableVersion = (value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.[0-9]+$/.test(value);' \
+        >"$probe/src/version.js"
+      if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
+        exit 1
+      fi
+
+      printf '%s\n' \
+        'export const formatVersion = (major, minor, patch) => `${major}.${minor}.${patch}`;' \
         'export const isStableVersion = (value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/.test(value);' \
         >"$probe/src/version.js"
       if (cd "$probe" && node --test test/version.test.js >/dev/null 2>&1); then
@@ -92,7 +100,7 @@ output_checks:
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 transcript_checks:
   - name: routine-plus policy route is applied to the owner
-    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-5\.6-terra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium")'
+    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium")'
   - name: no lifecycle ledger or nested goal is used
     not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
 semantic_output_checks:

@@ -76,7 +76,7 @@ def test_prepared_records_and_unchanged_repository(repo: Path) -> None:
         f"format\tdarrow-native-goal-prepared-v2\nrepo\t{repo}\nbase_revision\t{git_text(repo, 'rev-parse', 'HEAD')}\nworking_tree\tclean\n"
     )
     assert (
-        "route\troutine\tcodex\topenai\tgpt-5.6-terra\tmedium\nroute_policy_source\troutine\tbundled\n"
+        "route\troutine\tcodex\topenai\tgpt-6-luna\tmedium\nroute_policy_source\troutine\tbundled\n"
         in output
     )
     assert output.endswith(
@@ -98,7 +98,7 @@ def test_policy_provenance_and_explicit_precedence(repo: Path) -> None:
     output = preflight.run(args)
     assert (
         output
-        == "format\tdarrow-native-goal-route-v2\nprofile\troutine\nselected_route\tcodex\topenai\tgpt-5.6-terra\tmedium\nroute_source\tpolicy\npolicy_route_source\tbundled\n"
+        == "format\tdarrow-native-goal-route-v2\nprofile\troutine\nselected_route\tcodex\topenai\tgpt-6-luna\tmedium\nroute_source\tpolicy\npolicy_route_source\tbundled\n"
     )
     path = policy(repo)
     assert "policy_route_source\trepository\n" in preflight.run(args)
