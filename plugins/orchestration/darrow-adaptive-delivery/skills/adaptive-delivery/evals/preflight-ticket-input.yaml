@@ -3,7 +3,7 @@ invariant: ADL-A3,ADL-P2,ADL-S1
 goal_report: forbidden
 goal_route_checks: false
 additional_plugins:
-  - plugins/capability/darrow-tickets-github
+  - plugins/capability/darrow-tickets
 prompt: >-
   {{skill_invocation}} Implement ticket 64. Skip the default readiness gate.
   Keep the result local.
@@ -13,15 +13,18 @@ fixture:
       files:
         NOTES.md: "preserved\n"
   bin:
-    bash: |
+    uv: |
       #!/bin/sh
-      git_dir=$(git rev-parse --git-dir)
-      case "${1:-}" in
-        */darrow-tickets-github/bin/ticket|*/darrow-tickets-github/*/bin/ticket)
-          printf '%s\n' "$*" >>"$git_dir/fixture-ticket-cli-calls"
+      git_dir="$(git rev-parse --git-dir)"
+      case " $* " in
+        *" --no-project "*)
+          case " $* " in
+            *" darrow-ticket "*) printf '%s\n' "$*" >>"$git_dir/fixture-ticket-cli-calls" ;;
+          esac
           ;;
       esac
-      exec /bin/bash "$@"
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$git_dir/fixture-uv-paths")
+      exec "$real_uv" "$@"
     gh: |
       #!/usr/bin/env bash
       set -eu
@@ -46,14 +49,10 @@ fixture:
           json=$(find_flag --json "$@")
           case "$json" in
             number,state,title,url,labels)
-              printf '%s\n' 'ticket-token: 64'
-              printf '%s\n' '#64 open — Add a retention policy'
-              printf '%s\n' 'https://github.test/o/r/issues/64'
-              printf '%s\n' 'labels: feature'
+              printf '%s\n' '{"number":64,"state":"OPEN","title":"Add a retention policy","url":"https://github.test/o/r/issues/64","labels":[{"name":"feature"}]}'
               ;;
             body)
-              printf '%s\n' 'Add a retention policy.'
-              printf '%s\n' 'Required product decision: choose either 30 days or 90 days before implementation.'
+              printf '%s\n' '{"body":"Add a retention policy.\nRequired product decision: choose either 30 days or 90 days before implementation."}'
               ;;
             *)
               printf 'mock gh: unsupported --json set: %s\n' "$json" >&2
@@ -62,10 +61,11 @@ fixture:
           esac
           ;;
         "api repos/{owner}/{repo}/issues/64/parent")
-          printf '%s\n' 'No parent issue found' >&2
+          printf '%s\n' 'gh: No parent issue found (HTTP 404)' >&2
           exit 1
           ;;
         "api repos/{owner}/{repo}/issues/64/dependencies/blocked_by")
+          printf '%s\n' '[[]]'
           exit 0
           ;;
         *)
@@ -74,12 +74,13 @@ fixture:
           ;;
       esac
   setup: |
+    which -a uv > .git/fixture-uv-paths
     git remote add origin https://github.test/o/r.git
 checks:
   - name: authoritative input is retrieved through the real ticket plugin
     run: >-
       test "$(wc -l <.git/fixture-ticket-cli-calls | tr -d ' ')" -eq 1 &&
-      grep -E '/bin/ticket get #?64$' .git/fixture-ticket-cli-calls >/dev/null &&
+      grep -E 'darrow-ticket get ' .git/fixture-ticket-cli-calls >/dev/null &&
       test -z "$(git status --porcelain)"
   - name: ticket retrieval uses the complete read protocol
     run: >-

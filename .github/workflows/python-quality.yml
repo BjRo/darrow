@@ -237,7 +237,7 @@ jobs:
   tickets-windows:
     name: Tickets Python ${{ matrix.python-version }} on windows-latest
     needs: changes
-    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend')
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets/backend')
     strategy:
       fail-fast: false
       matrix:
@@ -256,12 +256,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/capability/darrow-tickets-github/backend
+      - run: scripts/check-python --package plugins/capability/darrow-tickets/backend
 
   tickets-fresh-install:
     name: Fresh install tickets on ${{ matrix.os }}
     needs: changes
-    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend')
+    if: contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets/backend')
     strategy:
       fail-fast: false
       matrix:
@@ -273,7 +273,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-tickets-github/backend python plugins/capability/darrow-tickets-github/backend/tests/fresh_install.py
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-tickets/backend python plugins/capability/darrow-tickets/backend/tests/fresh_install.py
 
   decisions-windows:
     name: Decisions Python ${{ matrix.python-version }} on windows-latest
@@ -634,7 +634,7 @@ jobs:
           GIT_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-git/backend') }}
           GIT_WINDOWS_RESULT: ${{ needs.git-windows.result }}
           GIT_INSTALL_RESULT: ${{ needs.git-fresh-install.result }}
-          TICKETS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets-github/backend') }}
+          TICKETS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-tickets/backend') }}
           TICKETS_WINDOWS_RESULT: ${{ needs.tickets-windows.result }}
           TICKETS_INSTALL_RESULT: ${{ needs.tickets-fresh-install.result }}
           DECISIONS_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-decisions/backend') }}
