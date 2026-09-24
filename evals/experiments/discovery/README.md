@@ -54,7 +54,7 @@ bun runner/suite.ts \
   --threshold 0.8 \
   --effort medium \
   --claude-model claude-sonnet-5 \
-  --codex-model gpt-5.6-terra \
+  --codex-model gpt-6-luna \
   --no-judge
 ```
 
@@ -68,7 +68,7 @@ bun runner/suite.ts \
   --threshold 0.8 \
   --effort medium \
   --claude-model claude-sonnet-5 \
-  --codex-model gpt-5.6-terra \
+  --codex-model gpt-6-luna \
   --no-judge
 ```
 
@@ -83,7 +83,7 @@ bun runner/suite.ts \
   --threshold 0.8 \
   --effort medium \
   --claude-model claude-sonnet-5 \
-  --codex-model gpt-5.6-terra \
+  --codex-model gpt-6-luna \
   --no-judge
 ```
 

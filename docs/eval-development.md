@@ -237,9 +237,8 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
-the shared runner's default lightweight grader remains unchanged. The route
-was calibrated against retained correct and reversed-delegation diagrams.
+The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
+the shared runner's default lightweight grader remains unchanged.
 
 ## Live-run controls
 
@@ -287,7 +286,7 @@ preserving the selected cases.
 
 Codex runs use independent defaults for each eval role:
 
-- candidate: `gpt-5.6-terra` at `medium` effort;
+- candidate: `gpt-6-luna` at `medium` effort;
 - advisory quality judge: `gpt-5.6-sol` at `low` effort;
 - gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
 

@@ -11,7 +11,7 @@ export interface EvalRoute {
 export const CODEX_EVAL_ROLE_DEFAULTS: Readonly<
   Record<EvalModelRole, EvalRoute>
 > = Object.freeze({
-  candidate: Object.freeze({ model: "gpt-5.6-terra", effort: "medium" }),
+  candidate: Object.freeze({ model: "gpt-6-luna", effort: "medium" }),
   qualityJudge: Object.freeze({ model: "gpt-5.6-sol", effort: "low" }),
   semanticOutputGrader: Object.freeze({
     model: "gpt-5.6-luna",

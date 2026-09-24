@@ -17,9 +17,9 @@ const claude = {
 } as HarnessAdapter;
 
 describe("evaluation role defaults", () => {
-  test("resolves independent GPT-5.6 Codex defaults for every role", () => {
+  test("resolves independent Codex defaults for every role", () => {
     expect(defaultEvalRoute(codex, "candidate")).toEqual({
-      model: "gpt-5.6-terra",
+      model: "gpt-6-luna",
       effort: "medium",
     });
     expect(defaultEvalRoute(codex, "qualityJudge")).toEqual({

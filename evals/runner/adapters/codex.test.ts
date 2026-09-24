@@ -124,8 +124,8 @@ const COMPLETE_CONTRACT = [
   "Completion evidence: report status, files, checks, and remaining risks.",
 ].join("\n");
 
-test("uses Terra as the default Codex eval model", () => {
-  expect(codexAdapter.defaultModel).toBe("gpt-5.6-terra");
+test("uses GPT-6 Luna as the default Codex eval model", () => {
+  expect(codexAdapter.defaultModel).toBe("gpt-6-luna");
 });
 
 test("installs the adaptive-delivery spawn guard only for relevant turns", () => {
