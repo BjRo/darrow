@@ -1,8 +1,13 @@
 import { cp, mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { codexAgentConcurrency } from "./codex-config";
 
 type Harness = "claude" | "codex";
+
+/** Review evidence belongs beside the isolated repository, never within it. */
+export function trialReviewStateDir(repoDir: string): string {
+  return join(dirname(repoDir), `${basename(repoDir)}-reviews`);
+}
 
 /** Checks need fixture tools, not the candidate harness's authentication. */
 export async function isolatedCheckEnvironment(
@@ -117,6 +122,7 @@ export async function isolatedHarnessEnvironment(
   await mkdir(configRoot, { recursive: true });
   await mkdir(shellRoot, { recursive: true });
   await mkdir(tempRoot, { recursive: true });
+  await mkdir(trialReviewStateDir(repoDir), { recursive: true, mode: 0o700 });
 
   if (harness === "codex") {
     const limit = codexAgentConcurrency();
@@ -157,6 +163,7 @@ export async function isolatedHarnessEnvironment(
   // environments belong in writable, per-trial scratch, outside that tree.
   // Each bootstrap derives a distinct environment from its locked backend.
   env.DARROW_CACHE_DIR = join(tempRoot, "darrow-cache");
+  env.DARROW_REVIEW_STATE_DIR = trialReviewStateDir(repoDir);
   env.UV_CACHE_DIR = join(tempRoot, "uv-cache");
   env.ZDOTDIR = shellRoot;
   // The runner wraps the evaluated agent in sandboxedAgentCommand. Nested

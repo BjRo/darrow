@@ -114,3 +114,12 @@ def test_duplicate_tsv_identity_is_not_evidence(tmp_path: Path) -> None:
     path.write_text("agent_id\tfirst\nagent_id\tsecond\n")
     with pytest.raises(AssertionError, match="expected one agent_id"):
         row(path, "agent_id")
+
+
+def test_review_evidence_can_be_outside_git_dir(tmp_path: Path) -> None:
+    git_dir = tmp_path / "repo" / ".git"
+    review_state = tmp_path / "review-state"
+    git_dir.mkdir(parents=True)
+    review_state.mkdir()
+    retain(git_dir, evidence(review_state, "codex", ["standards"]))
+    verify(git_dir, "codex", "default", ["standards"], review_state)

@@ -78,7 +78,7 @@ checks:
       regression_key=$(awk -F '\t' '$1 == "regression_key" { print $2 }' .git/verification-input) &&
       previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
       previous_relative=${previous_path#"$PWD"/} &&
-      record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
       test -n "$record" && test "$record" != "$previous_path" &&
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       awk -F '\t' -v key="$regression_key" '$1 == "regression" && $2 == key && $7 == "resolved" && $8 == "resolved" { found=1 } END { exit found ? 0 : 1 }' "$record" &&
@@ -87,7 +87,7 @@ checks:
     run: >-
       previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
       previous_relative=${previous_path#"$PWD"/} &&
-      record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
       expected=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' .git/verification-input) &&
       actual=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' "$record") &&
       test "$actual" = "$expected"
@@ -95,7 +95,7 @@ checks:
     run: >-
       previous_path=$(awk -F '\t' '$1 == "previous_verification" { print $3 }' .git/verification-input) &&
       previous_relative=${previous_path#"$PWD"/} &&
-      record=$(find .git -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.tsv -type f -print) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&

@@ -35,7 +35,8 @@ def git(repo: Path, *args: str) -> str:
 
 
 @pytest.fixture
-def repo(tmp_path: Path) -> Path:
+def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", str(tmp_path / "review-state"))
     path = tmp_path / "repo with quotes ' and spaces"
     path.mkdir()
     git(path, "init", "-q", "-b", "main")

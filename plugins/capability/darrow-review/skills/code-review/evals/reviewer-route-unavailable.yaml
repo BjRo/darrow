@@ -26,14 +26,14 @@ fixture:
 checks:
   - name: unavailable repository policy is retained without fallback
     run: >-
-      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
       test -n "$selection" && case "$DARROW_EVAL_HARNESS" in
       codex) grep -F 'selected_route	codex	openai	gpt-5.5	xhigh' "$selection" >/dev/null ;;
       claude) grep -F 'selected_route	claude	anthropic	claude-sonnet-5	high' "$selection" >/dev/null ;;
       *) exit 2 ;; esac
   - name: no reader accepts inherited or substituted route evidence
     run: >-
-      selection=$(find .git -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
       test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
       for axis in standards spec; do record="$artifact_dir/$axis-route.tsv";
       if test -e "$record"; then
@@ -53,7 +53,7 @@ checks:
       *) exit 2 ;; esac
   - name: blocked aggregate remains canonical and read only
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
@@ -65,7 +65,7 @@ checks:
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

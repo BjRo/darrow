@@ -48,7 +48,7 @@ or process narration.
   source.
 - **Read-only:** neither coordinator nor reader edits product files or performs
   Git/GitHub mutations. Only ignored check artifacts and bundled artifacts under
-  the repository Git directory may be written.
+  the user-level review-state directory may be written.
 - **Mechanical aggregation:** the coordinator may validate, deduplicate, and
   serialize reader evidence, but never invent or repair review judgment.
 - **Reviewer-authored repair reasoning:** each reader explains failure and
@@ -152,12 +152,18 @@ beneath a plugin or skill repository.
 Exit 2 means invalid/unreadable scope, exit 3 an empty declared diff, and exit
 4 an ambiguous merge base. For one of these terminal outcomes, read
 [`references/result-protocol.md`](references/result-protocol.md) completely,
-write and validate its blocked scope TSV beneath the scope artifact directory,
+run `review-scope allocate-terminal --repo <bound-repo>` to obtain an absolute
+`artifact_dir`, then write and validate its blocked result TSV there,
 then return the selected presentation without invoking a reader.
 
 Otherwise treat the returned absolute manifest, changed paths, target
 fingerprint, and fixed `show_command` as authoritative. Do not replace them
 with a hand-written list or author summary.
+The helper creates a private run beneath `~/.darrow/reviews` on Unix or
+`%LOCALAPPDATA%\Darrow\Reviews` on native Windows, unless
+`DARROW_REVIEW_STATE_DIR` selects another absolute root. It prunes unpinned runs
+whose directories have not changed for 30 days, preserving dependencies of retained runs. Use returned
+paths; never scan `.git` for review artifacts.
 
 **Complete when:** one validated manifest fixes the exact base, target, changed
 files, and show command—or a validated terminal scope record has been emitted

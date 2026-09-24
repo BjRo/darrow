@@ -27,6 +27,7 @@ import {
 } from "./owner-evidence";
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
+import { trialReviewStateDir } from "./environment";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
 import {
@@ -406,11 +407,13 @@ function trialFollowUpPrompt(
 
 function trialCheckEnvironment(
   options: RunCaseOptions,
+  repoDir: string,
 ): Record<string, string> {
   return {
     DARROW_EVAL_HARNESS: options.adapter.name,
     DARROW_EVAL_MODEL: options.model,
     DARROW_EVAL_EFFORT: options.effort,
+    DARROW_REVIEW_STATE_DIR: trialReviewStateDir(repoDir),
   };
 }
 
@@ -693,7 +696,7 @@ async function trialChecks(
     ...(await runChecks(
       repoDir,
       evalCase.checks,
-      trialCheckEnvironment(options),
+      trialCheckEnvironment(options, repoDir),
     )),
     ...headChecks,
     ...orchestrationChecks,
@@ -1045,7 +1048,7 @@ async function evaluateDryTrial(
     await runChecks(
       repoDir,
       options.evalCase.checks,
-      trialCheckEnvironment(options),
+      trialCheckEnvironment(options, repoDir),
     ),
   );
 }

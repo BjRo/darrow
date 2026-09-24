@@ -23,6 +23,23 @@ def invoke(repo: Path, command: str, *args: str) -> subprocess.CompletedProcess[
     )
 
 
+def check_destination(repo: Path) -> Path:
+    (repo / "file.txt").write_text("changed", encoding="utf-8")
+    prepared = invoke(
+        repo,
+        "review-scope",
+        "prepare",
+        "--repo",
+        str(repo),
+        "--base",
+        "HEAD",
+        "--target",
+        "WORKTREE",
+    )
+    assert prepared.returncode == 0, prepared.stderr
+    return Path(Records(prepared.stdout).value("manifest")).parent / "check.tsv"
+
+
 @pytest.mark.parametrize(
     ("base", "extra", "code", "diagnostic"),
     [
@@ -74,7 +91,7 @@ def test_check_capture_preserves_status_and_exit_code(
         if os.name == "nt"
         else f"printf 'observed\\n'; exit {code}"
     )
-    destination = repo / ".git/check.tsv"
+    destination = check_destination(repo)
     process = invoke(
         repo, "review-check", "run", "--output", str(destination), "--command", command
     )
@@ -88,7 +105,7 @@ def test_check_capture_preserves_status_and_exit_code(
 
 
 def test_unavailable_command_retains_real_diagnostic(repo: Path) -> None:
-    destination = repo / ".git/check.tsv"
+    destination = check_destination(repo)
     command = "darrow-command-that-does-not-exist"
     process = invoke(
         repo, "review-check", "run", "--output", str(destination), "--command", command
@@ -99,3 +116,68 @@ def test_unavailable_command_retains_real_diagnostic(repo: Path) -> None:
     check = evidence.get("check")[0]
     assert check[1:4] == [command, "applicable", "blocked"]
     assert command in check[4]
+
+
+def test_review_state_lifecycle_commands(repo: Path) -> None:
+    missing = invoke(
+        repo, "review-scope", "locate", "--repo", str(repo), "--target", "unknown"
+    )
+    assert missing.returncode == 4
+    assert "unavailable" in missing.stderr
+
+    (repo / "file.txt").write_text("changed", encoding="utf-8")
+    prepared = invoke(
+        repo,
+        "review-scope",
+        "prepare",
+        "--repo",
+        str(repo),
+        "--base",
+        "HEAD",
+        "--target",
+        "WORKTREE",
+    )
+    assert prepared.returncode == 0, prepared.stderr
+    packet = Records(prepared.stdout)
+    manifest = packet.value("manifest")
+    located = invoke(
+        repo,
+        "review-scope",
+        "locate",
+        "--repo",
+        str(repo),
+        "--target",
+        packet.value("target"),
+    )
+    assert located.stdout == f"manifest\t{manifest}\n"
+
+    assert invoke(repo, "review-scope", "pin", "--manifest", manifest).returncode == 0
+    pinned_prune = invoke(
+        repo, "review-scope", "prune", "--all", "--older-than-days", "0"
+    )
+    assert pinned_prune.stdout == "pruned\t0\n"
+    assert Path(manifest).exists()
+
+    assert invoke(repo, "review-scope", "unpin", "--manifest", manifest).returncode == 0
+    pruned = invoke(repo, "review-scope", "prune", "--all", "--older-than-days", "0")
+    assert Records(pruned.stdout).value("pruned") == "1"
+    assert not Path(manifest).exists()
+
+
+def test_terminal_scope_has_private_artifact_directory(repo: Path) -> None:
+    terminal = invoke(repo, "review-scope", "allocate-terminal", "--repo", str(repo))
+    assert terminal.returncode == 0, terminal.stderr
+    run = Path(Records(terminal.stdout).value("artifact_dir"))
+    assert run.is_dir()
+    assert run.parent.parent == Path(os.environ["DARROW_REVIEW_STATE_DIR"])
+    assert not run.is_relative_to(repo)
+    manifest = Records(terminal.stdout).value("manifest")
+    assert manifest == str(run / "scope.tsv")
+    assert invoke(repo, "review-scope", "pin", "--manifest", manifest).returncode == 0
+    preserved = invoke(repo, "review-scope", "prune", "--all", "--older-than-days", "0")
+    assert preserved.stdout == "pruned\t0\n"
+    assert run.exists()
+    assert invoke(repo, "review-scope", "unpin", "--manifest", manifest).returncode == 0
+    pruned = invoke(repo, "review-scope", "prune", "--all", "--older-than-days", "0")
+    assert Records(pruned.stdout).value("pruned") == "1"
+    assert not run.exists()

@@ -57,7 +57,7 @@ fixture:
 checks:
   - name: alternative implementation resolves the original finding
     run: |
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
       original=$(awk -F '\t' '$1 == "original_result" { print $2 }' .git/verification-input)
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$record" && test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1

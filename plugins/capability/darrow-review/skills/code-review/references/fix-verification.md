@@ -61,11 +61,17 @@ Resolve the same bundled `review-scope`, `review-result`, `review-report`, and
 `review-check` tools as comprehensive mode. Validate the prior scope manifest
 and require its target to equal the supplied prior target and its effective base
 to equal the current scope's effective base. For the first verification, use
-the scope manifest retained by the comprehensive run; a fresh invocation may
-locate it only when exactly one validated artifact beneath the repository Git
-directory has that target. For a later verification, validate the immediately
-prior verification artifact and use its sibling scope manifest. Missing or
-ambiguous prior artifacts block.
+the scope manifest retained by the comprehensive run. For a later verification,
+validate the immediately prior verification artifact and use its sibling scope
+manifest. If the caller has an exact prior target but no retained manifest path,
+resolve it through the bundled helper:
+
+```sh
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope locate --repo "$repo" --target "$prior_target"
+```
+
+Use its one validated absolute manifest. A missing or ambiguous result blocks;
+never scan `.git` or guess a run from filenames.
 
 Prepare the exact current base/target scope with the ordinary scope table plus:
 

@@ -236,6 +236,7 @@ def main() -> None:
         copy = fixture / "plugin ' copy"
         shutil.copytree(plugin, copy, ignore=ignored)
         os.environ["DARROW_CACHE_DIR"] = str(fixture / "darrow-cache")
+        os.environ["DARROW_REVIEW_STATE_DIR"] = str(fixture / "review-state")
         make_read_only(copy)
         validate(copy, fixture)
         assert not list(copy.rglob(".venv"))

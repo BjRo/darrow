@@ -19,13 +19,16 @@ set `UV_PROJECT_ENVIRONMENT` only for its `uv` child and must not override
 The bootstrap resolves the Darrow cache root in this order:
 
 1. a non-empty absolute `DARROW_CACHE_DIR`;
-2. on Linux and macOS, `${XDG_CACHE_HOME:-$HOME/.cache}/darrow`; and
+2. on Linux and macOS, `$HOME/.darrow/cache`; and
 3. on native Windows, `%LOCALAPPDATA%\Darrow\Cache`.
 
 Missing path inputs and relative, unreadable, or unwritable roots fail clearly.
 There is no fallback to the plugin tree, repository, working directory, or
 temporary storage. Environments live below
 `<cache-root>/uv-environments/<plugin-name>/<environment-key>/`.
+The cache is disposable. A change to this default does not migrate or remove
+files at the previous location. `UV_CACHE_DIR` remains under UV or caller
+control; it does not select Darrow's project-environment cache.
 
 The deterministic environment key is the SHA-256 digest of a versioned,
 sorted-key JSON value containing the exact plugin name and synchronized plugin

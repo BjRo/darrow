@@ -28,14 +28,14 @@ checks:
     run: test "$(git rev-list --all --reflog --count)" -eq 2
   - name: canonical TSV is retained beneath the review scope artifact
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: scope contains every worktree layer exactly once
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       grep -F 'spec	not_available' "$record" >/dev/null &&
       awk -F '\t' '$1 == "changed_file" {
@@ -48,7 +48,7 @@ checks:
     run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

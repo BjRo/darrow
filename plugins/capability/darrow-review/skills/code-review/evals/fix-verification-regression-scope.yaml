@@ -60,7 +60,7 @@ fixture:
 checks:
   - name: new repair regression carries verifier-authored guidance
     run: |
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
       test -n "$record" || exit 1
       artifact_dir=$(dirname "$record")
       awk -F '\t' 'BEGIN { OFS="\t" }
@@ -85,7 +85,7 @@ checks:
       cmp .git/math-before .git/math-after
   - name: direct regression enters the closed convergence set
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
@@ -96,11 +96,11 @@ checks:
       grep -F 'outcome	continue' "$record" >/dev/null
   - name: unrelated observation is excluded
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
       ! grep -F 'renaming scale' "$record" >/dev/null
   - name: final response is the complete rendered verification report
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
