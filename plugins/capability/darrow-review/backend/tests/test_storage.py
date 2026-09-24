@@ -177,6 +177,33 @@ def test_windows_bucket_lock_does_not_write_locked_byte(
     assert calls == ["LK_LOCK", "LK_UNLCK"]
 
 
+def test_posix_bucket_lock_uses_exclusive_flock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[int, int]] = []
+    posix_os = SimpleNamespace(
+        name="posix",
+        open=os.open,
+        close=os.close,
+        O_CREAT=os.O_CREAT,
+        O_RDWR=os.O_RDWR,
+    )
+    module = SimpleNamespace(
+        LOCK_EX=1,
+        LOCK_UN=2,
+        flock=lambda descriptor, mode: calls.append((descriptor, mode)),
+    )
+    monkeypatch.setattr(storage, "os", posix_os)
+    monkeypatch.setattr(
+        "darrow_review.storage.importlib.import_module", lambda _name: module
+    )
+    with storage.bucket_lock(tmp_path):
+        assert (tmp_path / ".lock").exists()
+    assert len(calls) == 2
+    assert calls[0][0] == calls[1][0]
+    assert [mode for _, mode in calls] == [1, 2]
+
+
 @pytest.mark.parametrize("failure", [errno.EACCES, errno.EINVAL])
 def test_windows_lock_refuses_timeout_or_unrelated_error(
     monkeypatch: pytest.MonkeyPatch, failure: int
