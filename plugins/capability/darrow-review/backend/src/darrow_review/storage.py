@@ -245,9 +245,7 @@ def bucket_lock(bucket: Path) -> Iterator[None]:
             os.lseek(descriptor, 0, os.SEEK_SET)
             windows_lock(descriptor, "LK_LOCK")
         else:
-            import fcntl
-
-            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            posix_lock(descriptor, release=False)
         acquired = True
         yield
     finally:
@@ -255,8 +253,13 @@ def bucket_lock(bucket: Path) -> Iterator[None]:
             if os.name == "nt":
                 windows_lock(descriptor, "LK_UNLCK")
             else:
-                fcntl.flock(descriptor, fcntl.LOCK_UN)
+                posix_lock(descriptor, release=True)
         os.close(descriptor)
+
+
+def posix_lock(descriptor: int, *, release: bool) -> None:
+    module = importlib.import_module("fcntl")
+    module.flock(descriptor, module.LOCK_UN if release else module.LOCK_EX)
 
 
 def windows_lock(descriptor: int, mode: str) -> None:
