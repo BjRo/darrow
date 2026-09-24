@@ -318,6 +318,9 @@ def test_global_prune_removes_old_runs_after_repository_disappears(
     manifest = packet(repo)
     old = 1_600_000_000
     os.utime(manifest.parent, (old, old))
+    for path in repo.rglob("*"):
+        if path.is_file():
+            path.chmod(0o600)
     shutil.rmtree(repo)
     monkeypatch.setattr("darrow_review.storage.time.time", lambda: old + 31 * 86_400)
     assert storage.prune_all() == [manifest.parent]
