@@ -1,6 +1,6 @@
 {
   "name": "darrow-tickets",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Ticket skills with a bundled GitHub Issues adapter: create-ticket, read-ticket, update-ticket, list-tickets",
   "author": {
     "name": "Björn Rochel"
