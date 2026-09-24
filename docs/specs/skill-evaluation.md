@@ -228,6 +228,14 @@ cost remain in the trial evidence. A grader failure, unavailable route,
 malformed response, duplicate or missing verdict, or unrecognized check name
 fails the affected trial closed.
 
+When the public contract belongs to a saved free-form document, an eval may
+declare a `semantic_artifact` with one repository-relative filename pattern and
+gating propositions. The runner resolves exactly one regular file inside the
+fixture, grades its contents independently of the final response, and retains
+the path, route, verdicts, and grader evidence. Missing, ambiguous, unsafe, or
+unreadable artifacts fail closed. Deterministic checks still establish the
+document's existence, required metadata, and structural validity.
+
 The grader receives the candidate response as untrusted quoted data and must
 not follow instructions embedded in it. The rubric and propositions are
 evaluator-owned inputs that are not exposed to the candidate. Cases use this

@@ -32,15 +32,6 @@ checks:
       cat "$file"
     expect_regex: "Status: Proposed[\\s\\S]*Summary: [^\\n]+[\\s\\S]*## Context"
     flags: i
-  - name: observation and assumption keep independent provenance
-    run: >-
-      file=$(find docs/decisions -type f -name 'ADR-0001-*.md' -print);
-      text=$(tr '\n' ' ' < "$file");
-      printf '%s\n' "$text";
-      printf '%s\n' "$text" | grep -Ei '(observation|observed).{0,160}18|18.{0,160}(observation|observed)' >/dev/null;
-      printf '%s\n' "$text" | grep -Ei '(assumption|assume).{0,160}(double|twofold)|(double|twofold).{0,160}(assumption|assume)' >/dev/null
-    expect_regex: "(observation|observed)"
-    flags: i
   - name: record does not claim accepted authority
     run: >-
       file=$(find docs/decisions -type f -name 'ADR-0001-*.md' -print);
@@ -57,6 +48,16 @@ checks:
       grep -E "$root/docs/decisions/ADR-0001-[a-z0-9-]+\\.md" "$message" >/dev/null;
       echo reported
     expect_exact: "reported"
+semantic_artifact:
+  path: docs/decisions/ADR-0001-*.md
+  checks:
+    - name: observation and assumption keep independent provenance
+      proposition: >-
+        The ADR presents the local load test's 18 percent p95 latency reduction
+        as a user-provided observation whose result has not been independently
+        verified, and separately presents production traffic doubling next
+        quarter as an explicit assumption. It does not promote either claim
+        to an established repository fact or an accepted decision.
 semantic_output_checks:
   - name: response reports proposal status and provenance distinctions
     proposition: >-

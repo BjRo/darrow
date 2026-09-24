@@ -89,9 +89,11 @@ Raw result arrays are local and gitignored under [`evals/results/issue-228-gpt-6
 
 ### darrow-decisions
 
-| Case                                                                                                                                     | What failed                                                    | Assessment   | Recommended next step                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------ | ----------------------------------------------------------- |
-| [capture-decision-proposed-provenance](../../plugins/foundation/darrow-decisions/skills/capture-decision/evals/proposed-provenance.yaml) | Observation and assumption keep independent provenance failed. | Skill likely | Keep observation and assumption provenance separate; rerun. |
+| Case                                                                                                                                     | What failed                                                                                                                      | Assessment            | Recommended next step                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------- |
+| [capture-decision-proposed-provenance](../../plugins/foundation/darrow-decisions/skills/capture-decision/evals/proposed-provenance.yaml) | The saved ADR distinguished a user statement from an assumption, but the artifact check required the literal word “observation.” | Eval defect, repaired | Grade the saved ADR semantically; the focused retest passed 5/5. |
+
+Follow-up: The persisted ADR now has a semantic provenance gate alongside its deterministic status, catalog, and validation checks. The retained valid ADR passed calibration, while a counterexample that promoted both claims to established facts failed. A fresh Codex `gpt-6-luna/medium` run passed **5/5 trials**, with artifact grading and skill activation passing in every trial: [focused result](../../evals/results/decision-provenance-luna-n5.json). A separate [post-version smoke trial](../../evals/results/decision-provenance-luna-post-version-smoke.json) also passed after the plugin manifests moved to 0.2.5. The overview counts above remain the original sweep.
 
 ### darrow-discovery
 

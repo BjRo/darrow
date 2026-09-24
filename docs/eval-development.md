@@ -16,6 +16,11 @@ constraints for producing and interpreting that evidence.
 - Prefer observable repository state, external effects, and user-visible
   outcomes over prose. When free-form text is the only public seam, assert the
   smallest semantic decision rather than parsing a complete explanation.
+- For a free-form saved document, use `semantic_artifact` to grade the artifact
+  itself. Its repository-relative `path` may contain one `*` in the filename and
+  must resolve to exactly one regular file. Keep deterministic checks for file
+  presence, status, and structural validation; `semantic_output_checks` grade
+  only the final response.
 - Give one case one concrete state and one decision. When success would require
   recognizing several conditional branches in one free-form answer, split the
   branches into separate concrete-state cases.
