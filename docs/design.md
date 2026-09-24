@@ -76,12 +76,13 @@ on top of the host's skill discovery. If an optional skill is unavailable, the
 consumer follows its own documented stop or fallback behavior instead of
 reaching into another plugin.
 
-Provider-specific integrations name both the capability and provider, such as
-`darrow-observability-langfuse` and `darrow-tickets-github`. Ticket providers
-remain separately installable while advertising the same operation intents.
-Their metadata distinguishes supported trackers; consumers honor the user's
+Provider-specific integrations may name both the capability and provider, such
+as `darrow-observability-langfuse`. Ticket management instead uses one
+`darrow-tickets` plugin with four operation skills and contained tracker
+adapters. Its metadata names supported trackers; consumers honor the user's
 tracker choice or established project context and clarify unresolved provider
-ambiguity before tracker access.
+ambiguity before tracker access. Adding a tracker does not require another
+public ticket skill or a sibling runtime dependency.
 
 Advertised intent identifies a potential provider; the caller must also check
 its prerequisites, effects, returned evidence and stop conditions. A capability

@@ -31,9 +31,9 @@
       "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence"
     },
     {
-      "name": "darrow-tickets-github",
-      "source": "./plugins/capability/darrow-tickets-github",
-      "description": "GitHub Issues ticket skills: create-ticket, read-ticket, update-ticket, list-tickets"
+      "name": "darrow-tickets",
+      "source": "./plugins/capability/darrow-tickets",
+      "description": "Ticket skills with a bundled GitHub Issues adapter: create-ticket, read-ticket, update-ticket, list-tickets"
     },
     {
       "name": "darrow-readiness-gate",

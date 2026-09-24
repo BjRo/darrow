@@ -1,7 +1,7 @@
 {
   "name": "darrow-adaptive-delivery",
   "description": "Adaptive Delivery: diagnose host capacity or launch one routed owner for bounded engineering work",
-  "version": "0.23.4",
+  "version": "0.23.5",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",
